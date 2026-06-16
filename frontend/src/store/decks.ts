@@ -68,6 +68,10 @@ export interface Deck {
     targetBracket: number | 'all';
     landCount: number;
     collectionMode: boolean;
+    /** Which generator built the deck — absent/'edhrec' for the default pipeline. */
+    generationMode?: string;
+    /** Mode-specific descriptor (art motif slug, or "year<=YYYY"). */
+    generationModeDetail?: string;
   } | null;
   /**
    * Optional generator-derived stats. Only present on freshly generated decks

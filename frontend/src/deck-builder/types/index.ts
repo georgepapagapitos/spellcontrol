@@ -295,7 +295,19 @@ export type DeckDataSource =
   | 'theme' // Theme data but without bracket filtering
   | 'base+bracket' // Base commander data with bracket/power level
   | 'base' // Base commander data, no bracket
-  | 'scryfall'; // No EDHREC data at all — pure Scryfall search
+  | 'scryfall' // No EDHREC data at all — pure Scryfall search
+  | 'oracle-role' // Alternative generator: pool built from Scryfall oracle (function) tags
+  | 'art-theme' // Alternative generator: pool filtered to a single art motif (arttag:)
+  | 'historical'; // Alternative generator: pool limited to cards printed on/before a year
+
+/**
+ * Alternative deck-generation strategies. `edhrec` (default) sources the card
+ * pool from EDHREC's per-commander recommendation lists; the others synthesize
+ * the pool from deterministic Scryfall searches instead — leaning into card
+ * function (oracle tags), illustration (art tags), or print date. All reuse the
+ * same downstream picking/curve/role/combo/analytics pipeline.
+ */
+export type GenerationMode = 'edhrec' | 'oracle-role' | 'art-theme' | 'historical';
 
 /**
  * Compact, persisted record of how a generated deck measured up to its build
@@ -311,6 +323,12 @@ export interface BuildReport {
   estimatedBracket: number;
   /** Which EDHREC pool we ended up using (reveals silent fallbacks). */
   dataSource: DeckDataSource;
+  /** Which generation strategy the user chose (defaults to 'edhrec'). */
+  generationMode?: GenerationMode;
+  /** Mode-specific descriptor for the report (art motif slug, or print-year ceiling). */
+  generationModeDetail?: string;
+  /** Optional note about how the mode resolved (e.g. historical eased its year). */
+  generationNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -355,6 +373,9 @@ export interface GeneratedDeck {
   bracketEstimation?: import('@/deck-builder/services/deckBuilder/bracketEstimator').BracketEstimation;
   gameChangerNames?: string[]; // Cached for bracket re-estimation on swap (avoids async)
   deckGrade?: { letter: string; headline: string }; // Overall grade computed at end of generation
+  generationMode?: GenerationMode; // Which generator built this deck (default 'edhrec')
+  generationModeDetail?: string; // Mode-specific descriptor (art motif slug, or "year<=YYYY")
+  generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool
 }
 
 export interface DeckStats {
@@ -516,6 +537,11 @@ export interface Customization {
   tempoAutoDetect: boolean;
   tempoPacing: Pacing;
   saltTolerance: SaltTolerance;
+  // ── Alternative generators (Scryfall-driven) ──
+  generationMode: GenerationMode; // 'edhrec' = default EDHREC pipeline; others synthesize the pool from Scryfall
+  artThemeTag: string; // arttag: slug for 'art-theme' mode (e.g. 'dragon'); '' until chosen
+  historicalYear: number; // print-year ceiling for 'historical' mode (cards printed on/before this year)
+  permanentsOnly: boolean; // 'oracle-role' toggle: restrict the nonland pool to permanents (dodges counterspells)
 }
 
 // Store state

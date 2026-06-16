@@ -22,7 +22,9 @@ import {
   upgradeCardPrintings,
   isMdfcLand,
   isChannelLand,
+  setForceLiveSearch,
 } from '@/deck-builder/services/scryfall/client';
+import { buildAlternatePool, type AlternatePoolResult } from './phaseAlternatePool';
 import {
   fetchCommanderData,
   fetchCommanderThemeData,
@@ -176,6 +178,9 @@ interface GenerationCache {
   themeSlugs: string[];
   targetBracket: TargetBracket | undefined;
   budgetOption: BudgetOption | undefined;
+  // Isolates alternative generators so an art/oracle/historical pool can never be
+  // served from (or pollute) a plain-EDHREC cache for the same commander.
+  modeKey: string;
 }
 
 let generationCache: GenerationCache | null = null;
@@ -194,6 +199,12 @@ function buildCacheKey(context: GenerationContext) {
     budgetOption: (customization.budgetOption !== 'any'
       ? customization.budgetOption
       : undefined) as BudgetOption | undefined,
+    modeKey: [
+      customization.generationMode ?? 'edhrec',
+      customization.artThemeTag ?? '',
+      customization.historicalYear ?? '',
+      customization.permanentsOnly ? 'perm' : '',
+    ].join('|'),
   };
 }
 
@@ -205,6 +216,7 @@ function isCacheValid(context: GenerationContext): boolean {
     generationCache.partnerName === key.partnerName &&
     generationCache.targetBracket === key.targetBracket &&
     generationCache.budgetOption === key.budgetOption &&
+    generationCache.modeKey === key.modeKey &&
     generationCache.themeSlugs.length === key.themeSlugs.length &&
     generationCache.themeSlugs.every((s, i) => s === key.themeSlugs[i])
   );
@@ -220,9 +232,40 @@ export function getGenerationCacheEdhrecData(): EDHRECCommanderData | null {
   return generationCache?.edhrecData ?? null;
 }
 
-// Main deck generation function
+/**
+ * Public entry point. For the default EDHREC mode this is a passthrough. For the
+ * alternative generators it forces all card fetches to the live API for the
+ * duration of the build (the offline query parser can't evaluate otag:/art:/year<=).
+ * The mode constraint itself is appended to `scryfallQuery` INSIDE generateDeckInner,
+ * after the pool is built — so it reflects the pool's *effective* constraint (e.g.
+ * a historical year that was relaxed to find enough cards), keeping the strict
+ * printing-upgrade and fallback fills in lockstep with what was actually fetched.
+ */
 export async function generateDeck(context: GenerationContext): Promise<GeneratedDeck> {
+  const mode = context.customization.generationMode ?? 'edhrec';
+  if (mode === 'edhrec') return generateDeckInner(context);
+
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error(
+      'The alternative generators need an internet connection. Reconnect, or switch to Standard (EDHREC) mode.'
+    );
+  }
+
+  setForceLiveSearch(true);
+  try {
+    return await generateDeckInner(context);
+  } finally {
+    setForceLiveSearch(false);
+  }
+}
+
+// Main deck generation function
+async function generateDeckInner(context: GenerationContext): Promise<GeneratedDeck> {
   const { commander, partnerCommander, colorIdentity, customization, onProgress } = context;
+  const mode = customization.generationMode ?? 'edhrec';
+  // Captured from the alternative-pool build so the finished deck can report how
+  // it was made (e.g. a relaxed historical year). Null on EDHREC mode / cache hit.
+  let altPool: AlternatePoolResult | null = null;
 
   const state = createState(context);
   const {
@@ -247,7 +290,6 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     maxRarity,
     maxCmc,
     arenaOnly,
-    scryfallQuery,
     preferredSet,
     maxGameChangers,
     deckBudget,
@@ -259,6 +301,10 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     comboCountSetting,
     selectedThemesWithSlugs,
   } = state.cfg;
+  // Reassignable: the alternative generators append their (post-relaxation)
+  // constraint to this after the pool is built, so the strict printing upgrade
+  // and Scryfall fallback fills enforce exactly the pool's effective filter.
+  let scryfallQuery = state.cfg.scryfallQuery;
   const markUsed = (name: string) => stMarkUsed(state, name);
   const markBanned = (name: string) => stMarkBanned(state, name);
   const addMustInclude = (name: string, source: 'user' | 'deck' | 'combo') =>
@@ -563,8 +609,35 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
     }
   }
 
+  // Alternative generators: synthesize the candidate pool from Scryfall instead
+  // of EDHREC. Populates state.edhrecData so the entire pipeline below runs
+  // unchanged; selectedThemes are ignored (the UI hides the theme picker here).
+  if (!usingCache && mode !== 'edhrec') {
+    altPool = await buildAlternatePool(mode, customization, colorIdentity, onProgress);
+    state.edhrecData = altPool.data;
+    state.dataSource = altPool.dataSource;
+    // Append the pool's EFFECTIVE constraint (e.g. the relaxed historical year)
+    // so the strict printing upgrade + fallback fills match what was fetched.
+    if (altPool.effectiveConstraint) {
+      scryfallQuery = [scryfallQuery.trim(), altPool.effectiveConstraint].filter(Boolean).join(' ');
+    }
+    if (altPool.poolSize === 0) {
+      logger.warn(
+        `[DeckGen] Alternative pool (${mode}) returned no cards — falling back to Scryfall-only fill.`
+      );
+      // Surface it in the report rather than leaving the user with a basics pile.
+      altPool = {
+        ...altPool,
+        relaxedNote:
+          altPool.relaxedNote ??
+          (mode === 'art-theme'
+            ? 'No cards matched that motif in your colors — we built by function instead.'
+            : 'That pool came up empty — we filled the deck by function instead.'),
+      };
+    }
+  }
   // Try to fetch EDHREC data (works for all formats) — skip on cache hit
-  if (!usingCache && selectedThemesWithSlugs.length > 0) {
+  else if (!usingCache && selectedThemesWithSlugs.length > 0) {
     // Fetch theme-specific data for all selected themes
     onProgress?.('Consulting the Oracle…', 8);
     try {
@@ -3096,6 +3169,9 @@ export async function generateDeck(context: GenerationContext): Promise<Generate
         : undefined,
     typeTargets,
     dataSource: state.dataSource,
+    generationMode: mode,
+    generationModeDetail: altPool?.detail,
+    generationRelaxedNote: altPool?.relaxedNote,
     roleCounts: roleTargets ? { ...currentRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,

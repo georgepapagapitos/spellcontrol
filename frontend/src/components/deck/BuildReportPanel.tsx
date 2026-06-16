@@ -1,7 +1,27 @@
 import type { JSX } from 'react';
 import './BuildReportPanel.css';
-import type { BuildReport, DeckDataSource } from '@/deck-builder/types';
+import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
+
+/** Headline for how an alternative generator built the deck. */
+function humanizeGenerationMode(mode: GenerationMode, detail?: string): string {
+  switch (mode) {
+    case 'oracle-role':
+      return detail === 'permanents only'
+        ? 'Built by card function — permanents only'
+        : 'Built by card function (Scryfall oracle tags)';
+    case 'art-theme': {
+      const motif = (detail ?? '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      return motif ? `Art theme — every card depicts ${motif}` : 'Art theme';
+    }
+    case 'historical': {
+      const year = detail?.match(/\d{4}/)?.[0];
+      return year ? `Historical — cards printed through ${year}` : 'Historical';
+    }
+    default:
+      return '';
+  }
+}
 
 /**
  * Canonical label for a role-gap key. Prefers the shared ROLE_TITLES map
@@ -45,18 +65,30 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
     basicsPadded,
     roleGaps,
     claimedConflicts,
+    generationMode,
+    generationModeDetail,
+    generationNote,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
 
   return (
     <div className="build-report">
+      {generationMode && generationMode !== 'edhrec' && (
+        <p className="build-report-line build-report-method">
+          <strong>{humanizeGenerationMode(generationMode, generationModeDetail)}</strong>
+          {generationNote && <span className="build-report-method-note">{generationNote}</span>}
+        </p>
+      )}
+
       <p className="build-report-line build-report-bracket">
         Aimed Bracket <strong>{targetBracket}</strong> &rarr; estimated{' '}
         <strong>{estimatedBracket}</strong>
       </p>
 
-      <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
+      {(!generationMode || generationMode === 'edhrec') && (
+        <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
+      )}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
         <p className="build-report-line">

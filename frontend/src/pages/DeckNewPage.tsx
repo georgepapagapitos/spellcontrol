@@ -11,6 +11,7 @@ import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSel
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
+import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
@@ -287,6 +288,26 @@ export function DeckNewPage() {
     [setCommander, setSelectedThemes]
   );
 
+  // Per-mode CTA copy + readiness. Art Theme can't build without a motif chosen.
+  const genMode = customization.generationMode;
+  const modeReady = genMode !== 'art-theme' || customization.artThemeTag.trim().length > 0;
+  const generateLabel =
+    genMode === 'art-theme'
+      ? 'Build by art'
+      : genMode === 'historical'
+        ? `Build from ${customization.historicalYear}`
+        : genMode === 'oracle-role'
+          ? 'Build by function'
+          : 'Generate deck';
+  const generateHint =
+    genMode === 'art-theme'
+      ? 'Builds a full 100 where every card depicts your motif.'
+      : genMode === 'historical'
+        ? `Builds a full 100 from cards printed through ${customization.historicalYear}.`
+        : genMode === 'oracle-role'
+          ? 'Builds a full 100 chosen by card function, not crowd data.'
+          : 'Generate uses EDHREC data to draft a full 100.';
+
   return (
     <div className="deck-builder-page">
       <BackLink to="/decks" label="All decks" />
@@ -360,6 +381,15 @@ export function DeckNewPage() {
         <CommanderProfileCard profile={commanderProfile} />
       )}
 
+      {formatConfig.hasCommander && commander && (
+        <GenerationModePicker
+          customization={customization}
+          update={updateCustomization}
+          colorIdentity={colorIdentity}
+          commanderName={commander.name}
+        />
+      )}
+
       {/* Customizer sits ahead of the partner picker so collection-mode is
           decided before partner selection — the picker filters its
           suggestions (and warns) based on what's owned. */}
@@ -377,7 +407,9 @@ export function DeckNewPage() {
         />
       )}
 
-      {formatConfig.hasCommander && commander && (
+      {/* Themes only steer the EDHREC generator — the Scryfall-driven modes
+          define their own pool, so the theme picker is irrelevant there. */}
+      {formatConfig.hasCommander && commander && customization.generationMode === 'edhrec' && (
         <ThemePicker
           commanderName={commander.name}
           selectedSlugs={selectedThemeSlugs}
@@ -392,9 +424,9 @@ export function DeckNewPage() {
               type="button"
               className="btn btn-primary"
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || !modeReady}
             >
-              {isGenerating ? 'Building…' : 'Generate deck'}
+              {isGenerating ? 'Building…' : generateLabel}
             </button>
             <button
               type="button"
@@ -405,8 +437,8 @@ export function DeckNewPage() {
               Start blank
             </button>
             <p className="deck-builder-actions-hint">
-              Generate uses EDHREC data to draft a full 100. Start blank gives you just the
-              commander so you can pick every card by hand.
+              {generateHint} Start blank gives you just the commander so you can pick every card by
+              hand.
             </p>
             {progress && (
               <div ref={progressRef} className="deck-builder-progress">

@@ -82,6 +82,8 @@ export function saveGeneratedDeck(
       targetBracket: customization.targetBracket,
       landCount: customization.landCount,
       collectionMode: customization.collectionMode,
+      generationMode: generated.generationMode ?? customization.generationMode,
+      generationModeDetail: generated.generationModeDetail,
     },
     roleCounts: generated.roleCounts,
     rampSubtypeCounts: generated.rampSubtypeCounts,
