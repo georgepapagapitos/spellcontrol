@@ -219,6 +219,41 @@ describe('estimateBracket — hard floors', () => {
     expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(false);
   });
 
+  it('4+ two-card combos escalate to B4 by redundancy alone (no fast mana, no tutors, no tags)', () => {
+    // Combo density is its own consistency engine: many interchangeable combos
+    // assemble reliably even with zero fast mana / tutors and untagged combos
+    // (the offline / pre-ingest case where bracketTag is null). The classic deck
+    // is Elfball — mana dorks ARE the combo. This is tag-independent so a stale
+    // combo dataset can't silently under-rate a combo deck.
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(null), combo(null), combo(null), combo(null)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.twoCardComboCount).toBe(4);
+    expect(r.bracket).toBe(4);
+    const comboFloor = r.hardFloors.find((f) => f.reason.includes('combo'));
+    expect(comboFloor?.bracket).toBe(4);
+    expect(comboFloor?.reason).toContain('redundant');
+  });
+
+  it('3 two-card combos stay at B3 — below the redundancy threshold', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(null), combo(null), combo(null)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.twoCardComboCount).toBe(3);
+    expect(r.bracket).toBe(3);
+    expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(false);
+  });
+
   it('1–2 extra turn spells do not trigger a bracket floor (RC: chaining is the issue)', () => {
     mockIsExtraTurn.mockImplementation(
       (name: string) => name === 'Time Warp' || name === 'Temporal Mastery'
