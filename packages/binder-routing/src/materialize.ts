@@ -10,7 +10,7 @@ import type {
   SortEntry,
   UncategorizedBucket,
 } from './types.js';
-import { compileFilterGroups, cardMatchesAnyGroup } from './rules.js';
+import { compileFilterGroups, cardMatchesAnyGroup, cardMatchesCompiled } from './rules.js';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections.js';
 import {
   sortCards,
@@ -158,7 +158,9 @@ export function materializeBinders(
     };
     const sections = useManualOrder
       ? buildManualSection(rawCards, effectivePocketSize, isMatch)
-      : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch, sortCtx);
+      : def.sectionMode === 'group'
+        ? buildGroupSections(rawCards, def, effectiveSorts, effectivePocketSize, isMatch, sortCtx)
+        : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch, sortCtx);
     return {
       def,
       effectivePocketSize,
@@ -322,6 +324,61 @@ function buildSections(
     const sorted = sortCards(gCards, subSorts, ctx);
     const section = buildSection(meta, sorted);
     if (section) sections.push(section);
+  }
+  return sections;
+}
+
+/**
+ * Sections driven by filterGroups: one section per group, in group definition
+ * order. Cards are assigned by first-matching-group-wins (same semantics as the
+ * cross-binder routing so the labeling is consistent). Empty sections are omitted.
+ * Within each section, cards are sorted by `sorts`.
+ */
+function buildGroupSections(
+  cards: EnrichedCard[],
+  def: BinderDef,
+  sorts: SortEntry[],
+  slotSize: number,
+  isMatch: (c: EnrichedCard) => boolean,
+  ctx?: { setMap?: SetMap; qtyByPrintingKey?: Map<string, number> }
+): BinderSection[] {
+  const compiled = compileFilterGroups(def.filterGroups);
+  // Assign each card to its first matching group (index), or fall through to the last bucket.
+  const buckets: EnrichedCard[][] = def.filterGroups.map(() => []);
+  const assigned = new Set<string>(); // copyIds
+  for (const card of cards) {
+    for (let i = 0; i < compiled.length; i++) {
+      if (cardMatchesCompiled(card, compiled[i])) {
+        buckets[i].push(card);
+        assigned.add(card.copyId);
+        break;
+      }
+    }
+  }
+  // Any card that slipped through (shouldn't happen but defensive) goes in the last bucket.
+  for (const card of cards) {
+    if (!assigned.has(card.copyId)) buckets[buckets.length - 1].push(card);
+  }
+
+  let pageOffset = 0;
+  const sections: BinderSection[] = [];
+  for (let i = 0; i < def.filterGroups.length; i++) {
+    const group = def.filterGroups[i];
+    const groupCards = buckets[i];
+    if (groupCards.length === 0) continue; // hide empty sections
+
+    const label = group.name?.trim() || `Group ${i + 1}`;
+    const key = `group-${i}`;
+    const sorted = sortCards(groupCards, sorts, ctx);
+
+    const effectiveSlots = slotSize > 0 ? slotSize : 9;
+    const sectionPageCount = Math.ceil(sorted.length / effectiveSlots);
+    const pages = chunkIntoPages(sorted, slotSize, isMatch, pageOffset);
+    pageOffset += sectionPageCount;
+    const matchingCards = sorted.filter(isMatch);
+    if (matchingCards.length === 0) continue; // skip if search hides all cards in this group
+
+    sections.push({ key, label, cards: matchingCards, pages });
   }
   return sections;
 }

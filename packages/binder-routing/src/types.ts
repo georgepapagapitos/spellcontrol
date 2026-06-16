@@ -200,6 +200,13 @@ export interface BinderDef {
   hideDeckAllocated?: boolean;
   sortValueOrders?: Partial<Record<SortField, string[]>>;
   keepPrintingsTogether?: boolean;
+  /**
+   * 'sort' (default): sections are driven by the primary sort field (color/type/…).
+   * 'group': one section per filterGroup, in group order, each labeled by the group's
+   * optional `name`. First-matching-group-wins when a card matches multiple groups.
+   * Empty sections are hidden. The shared binder `sorts` apply within each group section.
+   */
+  sectionMode?: 'sort' | 'group';
   lastReviewedSnapshot?: BinderReviewSnapshot;
   createdAt: number;
   updatedAt: number;

@@ -450,6 +450,13 @@ export interface BinderDef {
    *  (existing behavior). Ignored for manual-mode binders.
    *  See `materializeBinders`. */
   keepPrintingsTogether?: boolean;
+  /**
+   * 'sort' (default): sections are driven by the primary sort field (color/type/…).
+   * 'group': one section per filterGroup, in group order, each labeled by the group's
+   * optional `name`. First-matching-group-wins when a card matches multiple groups.
+   * Empty sections are hidden. The shared binder `sorts` apply within each group section.
+   */
+  sectionMode?: 'sort' | 'group';
   /** Captured each time the user clicks "Mark reviewed" on this binder. The
    *  next view diffs current membership against this snapshot and surfaces
    *  added/removed cards — so volatile fields (price, EDHREC rank) silently

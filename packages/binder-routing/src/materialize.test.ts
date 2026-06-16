@@ -666,3 +666,100 @@ describe('keepPrintingsTogether', () => {
     expect(withListData.uncategorized.totalCards).toBe(0);
   });
 });
+describe('sectionMode: group', () => {
+  it('produces one labeled section per filterGroup', () => {
+    const red = makeCard({ colorIdentity: ['R'], rarity: 'rare' });
+    const blue = makeCard({ colorIdentity: ['U'], rarity: 'uncommon' });
+    const binder = makeBinder({
+      filterGroups: [
+        {
+          name: 'Rares',
+          filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+        },
+        {
+          name: 'Uncommons',
+          filter: { rarities: { chips: [{ value: 'uncommon', negate: false }], joiners: [] } },
+        },
+      ],
+      sectionMode: 'group',
+    });
+    const { binders } = materializeBinders([red, blue], [binder], defaultOpts);
+    const sections = binders[0].sections;
+    expect(sections).toHaveLength(2);
+    expect(sections[0].label).toBe('Rares');
+    expect(sections[0].cards).toHaveLength(1);
+    expect(sections[0].cards[0].copyId).toBe(red.copyId);
+    expect(sections[1].label).toBe('Uncommons');
+    expect(sections[1].cards[0].copyId).toBe(blue.copyId);
+  });
+
+  it('assigns a card to the FIRST matching group (first-match-wins)', () => {
+    const card = makeCard({ rarity: 'rare', colorIdentity: ['R'] });
+    const binder = makeBinder({
+      filterGroups: [
+        {
+          name: 'Group A',
+          filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+        },
+        {
+          name: 'Group B',
+          filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+        },
+      ],
+      sectionMode: 'group',
+    });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    const sections = binders[0].sections;
+    // Only Group A should have a section (Group B is empty -> hidden)
+    expect(sections).toHaveLength(1);
+    expect(sections[0].label).toBe('Group A');
+  });
+
+  it('hides empty groups', () => {
+    const card = makeCard({ rarity: 'rare' });
+    const binder = makeBinder({
+      filterGroups: [
+        {
+          name: 'Rares',
+          filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+        },
+        {
+          name: 'Commons',
+          filter: { rarities: { chips: [{ value: 'common', negate: false }], joiners: [] } },
+        },
+      ],
+      sectionMode: 'group',
+    });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    const sections = binders[0].sections;
+    expect(sections).toHaveLength(1);
+    expect(sections[0].label).toBe('Rares');
+  });
+
+  it('falls back to "Group N" for unnamed groups', () => {
+    const card = makeCard({ rarity: 'common' });
+    const binder = makeBinder({
+      filterGroups: [
+        { filter: { rarities: { chips: [{ value: 'common', negate: false }], joiners: [] } } },
+      ],
+      sectionMode: 'group',
+    });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].sections[0].label).toBe('Group 1');
+  });
+
+  it('uses the group name when set', () => {
+    const card = makeCard({ rarity: 'mythic' });
+    const binder = makeBinder({
+      filterGroups: [
+        {
+          name: 'Power Cards',
+          filter: { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } },
+        },
+      ],
+      sectionMode: 'group',
+    });
+    const { binders } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].sections[0].label).toBe('Power Cards');
+  });
+});
