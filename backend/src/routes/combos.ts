@@ -2,10 +2,10 @@ import { logger } from '../logger';
 import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 import { getDb } from '../db';
-import { combos, comboCards } from '../db/schema';
+import { combos, comboCards, comboIngestRuns } from '../db/schema';
 import { matchCombos, type ComboInput } from '../combos/match';
 import { ingestCombos, streamSpellbookVariants } from '../combos/ingest';
 
@@ -76,12 +76,47 @@ function readMatchCache(key: string): unknown | null {
   return entry.body;
 }
 
+/**
+ * Dataset version = the most recent finished combo ingest, folded into the match
+ * cache key so a re-ingest immediately invalidates every cached response (rather
+ * than serving stale brackets/combo data until the 1h TTL expires — which is what
+ * happened after the first bracket_tag ingest: decks kept showing "Bracket unknown"
+ * for combos that were freshly tagged). Memoized briefly so the common case (cache
+ * hit) stays a microsecond in-memory lookup and doesn't add a DB round-trip per
+ * request to the heaviest endpoint; the only cost is up to DATASET_VERSION_TTL_MS
+ * of lag before a brand-new ingest is reflected.
+ */
+let datasetVersion: { value: string; expiresAt: number } | null = null;
+const DATASET_VERSION_TTL_MS = 5 * 60 * 1000;
+
+async function getDatasetVersion(): Promise<string> {
+  if (datasetVersion && datasetVersion.expiresAt > Date.now()) return datasetVersion.value;
+  let value = '0';
+  try {
+    const rows = await getDb()
+      .select({ finishedAt: comboIngestRuns.finishedAt })
+      .from(comboIngestRuns)
+      .where(isNotNull(comboIngestRuns.finishedAt))
+      .orderBy(desc(comboIngestRuns.finishedAt))
+      .limit(1);
+    if (rows[0]?.finishedAt != null) value = String(rows[0].finishedAt);
+  } catch (err) {
+    // Never fail a match on the version probe — fall back to an unversioned key.
+    logger.warn('[combos] dataset version probe failed; using unversioned cache key:', err);
+  }
+  datasetVersion = { value, expiresAt: Date.now() + DATASET_VERSION_TTL_MS };
+  return value;
+}
+
 function matchCacheKey(
+  datasetVersion: string,
   owned: string[],
   deck: string[] | undefined,
   format: string | undefined
 ): string {
   const h = createHash('sha256');
+  h.update(datasetVersion);
+  h.update('|');
   h.update(format ?? '');
   h.update('|');
   // Sort so order doesn't fragment cache hits.
@@ -94,6 +129,16 @@ function matchCacheKey(
 /** Reset hook for tests. */
 export function __resetMatchCacheForTesting(): void {
   matchCache.clear();
+  datasetVersion = null;
+}
+
+/**
+ * Expire only the memoized dataset version (leaving the response cache intact) so
+ * a test can prove a fresh ingest re-keys and invalidates cached responses, rather
+ * than waiting out DATASET_VERSION_TTL_MS.
+ */
+export function __expireDatasetVersionForTesting(): void {
+  datasetVersion = null;
 }
 
 function adminUsernames(): Set<string> {
@@ -202,12 +247,13 @@ combosRouter.post('/match', matchLimiter, requireAuth, async (req: Request, res:
   }
   const format = typeof body.format === 'string' ? body.format : undefined;
 
-  // Cache hit? — match results are deterministic given (inputs + dataset).
-  // The dataset only changes on the nightly ingest, so the only invalidator
-  // is TTL expiry. Saves the entire query + JS bucketing on identical
-  // subsequent requests (e.g. the user reloading the page or switching
-  // between decks with the same collection).
-  const cacheKey = matchCacheKey(ownedOracleIds, deckOracleIds ?? undefined, format);
+  // Cache hit? — match results are deterministic given (inputs + dataset version).
+  // The dataset version is the latest combo ingest, so a re-ingest busts the cache
+  // immediately; TTL expiry is the secondary invalidator. Saves the entire query +
+  // JS bucketing on identical subsequent requests (e.g. the user reloading the page
+  // or switching between decks with the same collection).
+  const version = await getDatasetVersion();
+  const cacheKey = matchCacheKey(version, ownedOracleIds, deckOracleIds ?? undefined, format);
   const cached = readMatchCache(cacheKey);
   if (cached) {
     res.set('X-Combos-Cache', 'hit');
