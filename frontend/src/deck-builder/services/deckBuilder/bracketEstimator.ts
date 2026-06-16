@@ -282,7 +282,7 @@ export function estimateBracket(
 
   for (const name of allCardNames) {
     if (gameChangerNames.has(name)) gameChangers.push(name);
-    if (isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name)) massLandDenial.push(name);
+    if (isMassLandDenialFloor(name)) massLandDenial.push(name);
     if (isExtraTurn(name)) extraTurns.push(name);
     if (FAST_MANA.has(name)) fastMana.push(name);
     if (STAX_PIECES.has(name)) staxPieces.push(name);
