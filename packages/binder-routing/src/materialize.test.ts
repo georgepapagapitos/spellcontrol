@@ -684,7 +684,10 @@ describe('pageBreakDepth', () => {
     ];
     const binder = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 1,
     });
@@ -708,7 +711,10 @@ describe('pageBreakDepth', () => {
     );
     const binder = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 1,
     });
@@ -736,13 +742,19 @@ describe('pageBreakDepth', () => {
     );
     const binderD2 = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 2,
     });
     const binderD1 = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 1,
     });
@@ -798,12 +810,18 @@ describe('pageBreakDepth', () => {
     ];
     const bUndef = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
     });
     const b1 = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 1,
     });
@@ -823,13 +841,19 @@ describe('pageBreakDepth', () => {
     ];
     const b0 = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 0,
     });
     const b1 = makeBinder({
       filter: {},
-      sorts: [{ field: 'color', dir: 'asc' }, { field: 'cmc', dir: 'asc' }],
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
       pocketSize: 9,
       pageBreakDepth: 1,
     });

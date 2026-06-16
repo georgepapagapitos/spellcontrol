@@ -159,7 +159,14 @@ export function materializeBinders(
     };
     const sections = useManualOrder
       ? buildManualSection(rawCards, effectivePocketSize, isMatch)
-      : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch, sortCtx, def.pageBreakDepth ?? 1);
+      : buildSections(
+          rawCards,
+          effectiveSorts,
+          effectivePocketSize,
+          isMatch,
+          sortCtx,
+          def.pageBreakDepth ?? 1
+        );
     return {
       def,
       effectivePocketSize,
@@ -270,7 +277,11 @@ function buildSections(
   sorts: SortEntry[],
   slotSize: number,
   isMatch: (c: EnrichedCard) => boolean,
-  ctx?: { setMap?: SetMap; qtyByPrintingKey?: Map<string, number>; valueOrders?: Partial<Record<SortField, string[]>> },
+  ctx?: {
+    setMap?: SetMap;
+    qtyByPrintingKey?: Map<string, number>;
+    valueOrders?: Partial<Record<SortField, string[]>>;
+  },
   pageBreakDepth = 1,
   pageOffsetRef = { value: 0 }
 ): BinderSection[] {
@@ -324,7 +335,15 @@ function buildSections(
     if (pageBreakDepth > 1 && subSorts.length > 0) {
       // Recurse: sub-sorts also break pages. Each sub-group starts fresh.
       // pageOffsetRef is threaded through so page numbers stay globally monotonic.
-      const subSections = buildSections(gCards, subSorts, slotSize, isMatch, ctx, pageBreakDepth - 1, pageOffsetRef);
+      const subSections = buildSections(
+        gCards,
+        subSorts,
+        slotSize,
+        isMatch,
+        ctx,
+        pageBreakDepth - 1,
+        pageOffsetRef
+      );
       sections.push(...subSections);
     } else {
       // Leaf behavior (depth=1 or no more sorts): sort cards flat, pack into pages.
