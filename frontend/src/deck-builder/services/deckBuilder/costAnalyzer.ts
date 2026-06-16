@@ -292,11 +292,16 @@ export function buildCostPlan(
     let pool: RecommendedCard[];
     if (isLand) {
       // Only offer lands that preserve the current land's color fixing — never
-      // downgrade a fetchland/dual into a cheaper basic tapland.
+      // downgrade a fetchland/dual into a cheaper basic tapland. Reject only
+      // candidates we KNOW fix fewer colors; a candidate with no color data is
+      // left in (degrade gracefully rather than dropping every land swap when
+      // the pool's producedColors couldn't be resolved).
       const floor = landFixingFloor(card);
       pool =
         floor > 0
-          ? landPool.filter((rec) => colorFixingCount(rec.producedColors) >= floor)
+          ? landPool.filter(
+              (rec) => rec.producedColors == null || colorFixingCount(rec.producedColors) >= floor
+            )
           : landPool;
     } else {
       // Prefer the card's role bucket; fall back to its primary-type bucket so a

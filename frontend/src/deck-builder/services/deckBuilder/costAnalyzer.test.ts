@@ -383,4 +383,18 @@ describe('buildCostPlan suggestion quality', () => {
     const plan = buildCostPlan([fetch], 'Cmdr', undefined, recs);
     expect(plan.landRows.map((r) => r.suggestionName)).toEqual(['Cheap Dual']);
   });
+
+  it('does not reject a land candidate that has no color data (degrades gracefully)', () => {
+    const dual = card({
+      name: 'Hallowed Fountain',
+      usd: '15',
+      type_line: 'Land',
+      produced_mana: ['W', 'U'],
+    });
+    // Candidate with unknown fixing (producedColors absent) must still be offered
+    // rather than dropped — otherwise a missing-enrichment pool kills all swaps.
+    const recs = [rec({ name: 'Mystery Land', primaryType: 'Land', inclusion: 40, price: '1.00' })];
+    const plan = buildCostPlan([dual], 'Cmdr', undefined, recs);
+    expect(plan.landRows.map((r) => r.suggestionName)).toEqual(['Mystery Land']);
+  });
 });

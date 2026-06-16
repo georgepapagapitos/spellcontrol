@@ -398,7 +398,14 @@ function derivePrimaryType(typeLine: string): string {
  */
 export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promise<void> {
   const need = recs.filter(
-    (r) => r.price == null || r.cmc == null || !r.primaryType || r.primaryType === 'Unknown'
+    (r) =>
+      r.price == null ||
+      r.cmc == null ||
+      !r.primaryType ||
+      r.primaryType === 'Unknown' ||
+      // Lands need producedColors so the budget land-fixing floor can compare
+      // candidates (the EDHREC pool doesn't carry it).
+      (!r.producedColors && (r.primaryType ?? '').includes('Land'))
   );
   if (need.length === 0) return;
   try {
@@ -419,6 +426,11 @@ export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promi
       if (r.price == null) {
         const usd = c.prices?.usd ?? c.prices?.usd_foil ?? undefined;
         if (usd) r.price = usd;
+      }
+      // Backfill land color-fixing for the budget land-swap floor.
+      if (!r.producedColors && c.type_line?.toLowerCase().includes('land')) {
+        const colors = [...new Set((c.produced_mana ?? []).filter((m) => 'WUBRG'.includes(m)))];
+        if (colors.length > 0) r.producedColors = colors;
       }
     }
   } catch (err) {
