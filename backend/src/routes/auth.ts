@@ -106,6 +106,12 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
   // case where the env var is added *after* the user already exists.
   const role: UserRole = getAdminUsernames().has(username) ? 'admin' : 'user';
   await db.insert(users).values({ id, username, passwordHash, role, createdAt: now });
+  // Password signup is anonymous (no email) and open to the public internet, so
+  // log the source IP + UA to tell real users from endpoint-probing bots.
+  // `trust proxy` (server.ts) makes req.ip the real client, not the Fly edge.
+  logger.info(
+    `[auth] register "${username}" (${id}) ip=${req.ip} ua=${req.get('user-agent') ?? '?'}`
+  );
   // No initial user-data row to create: per-entity tables are empty by default
   // and become populated by the first POST /api/sync from the client.
 
