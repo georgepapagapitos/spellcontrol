@@ -166,7 +166,10 @@ describe('estimateBracket — hard floors', () => {
     expect(r.bracket).toBeGreaterThanOrEqual(4);
   });
 
-  it('2-card combo with bracketTag S → B4 floor regardless of acceleration', () => {
+  it('2-card combo with bracketTag S and low acceleration → B3 only (no auto-escalation)', () => {
+    // 'S' (Spicy) is the casual↔competitive bridge and covers slow, fragile combos;
+    // it no longer auto-escalates to B4. Without R-tag or high acceleration the
+    // combo floors at B3 (E48 calibration — fixed over-rating casual S-tag decks).
     const r = estimateBracket(
       ['Forest'],
       [combo(4, true, 2, 'S')],
@@ -175,7 +178,8 @@ describe('estimateBracket — hard floors', () => {
       undefined,
       new Set()
     );
-    expect(r.bracket).toBeGreaterThanOrEqual(4);
+    expect(r.bracket).toBe(3);
+    expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(false);
   });
 
   it('3+-card combo → no hard floor, only soft score', () => {
@@ -233,13 +237,19 @@ describe('estimateBracket — hard floors', () => {
     expect(r.bracket).toBe(2);
   });
 
-  it('3+ extra turn spells trigger the bracket-4 floor (chain-likely, RC: B4 behavior)', () => {
+  it('3+ extra turn spells trigger a bracket-3 floor (sub-theme, not chaining)', () => {
+    // A flat count of 3 one-shot extra-turn spells is a deliberate sub-theme (B3),
+    // not provable infinite chaining (B4) — true infinite-turn engines are caught
+    // by the two-card combo path. E48: softened 4→3 with no corpus regression.
     const names = ['Time Warp', 'Temporal Mastery', 'Walk the Aeons'];
     mockIsExtraTurn.mockImplementation((name: string) => names.includes(name));
     const r = estimateBracket([...names, 'Forest'], undefined, 4, undefined, undefined, new Set());
     expect(r.breakdown.extraTurnCount).toBe(3);
-    expect(r.bracket).toBeGreaterThanOrEqual(4);
-    expect(r.hardFloors.some((f) => f.bracket === 4 && f.reason.includes('extra turn'))).toBe(true);
+    expect(r.bracket).toBe(3);
+    expect(r.hardFloors.some((f) => f.bracket === 3 && f.reason.includes('extra turn'))).toBe(true);
+    expect(r.hardFloors.some((f) => f.bracket === 4 && f.reason.includes('extra turn'))).toBe(
+      false
+    );
   });
 
   it('stacks multiple floors and uses the highest', () => {
@@ -255,6 +265,34 @@ describe('estimateBracket — hard floors', () => {
     );
     // MLD (4) wins
     expect(r.bracket).toBeGreaterThanOrEqual(4);
+  });
+
+  it('known mass-land-denial false positives do not floor B4 (tagger noise guard)', () => {
+    // The upstream otag mislabels Gideon, Champion of Justice (a one-sided wipe) as
+    // mass land denial; since MLD → B4 is the harshest floor, that turned a B2 precon
+    // into B4 (E48). The denylist neutralizes the known false positives.
+    mockIsMLD.mockImplementation((n: string) => n === 'Gideon, Champion of Justice');
+    const r = estimateBracket(
+      ['Gideon, Champion of Justice', 'Forest'],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.massLandDenialCount).toBe(0);
+    expect(r.hardFloors.some((f) => f.reason.includes('Mass land denial'))).toBe(false);
+    expect(r.bracket).toBe(2);
+  });
+
+  it('counterspells count toward interaction density even when not tagged removal', () => {
+    // getCardRole never emits a counterspell role, so pure counterspells were
+    // invisible to the interaction soft signal (audit P2 #6). They now contribute.
+    mockHasTag.mockImplementation((_n: string, tag: string) => tag === 'counterspell');
+    mockGetRole.mockReturnValue(null); // pure counters: no removal/boardwipe role
+    const counters = Array.from({ length: 12 }, (_, i) => `Counter ${i}`);
+    const r = estimateBracket(counters, undefined, 3, undefined, {}, new Set());
+    expect(r.breakdown.interactionCount).toBe(12);
   });
 
   it('0–2 stax pieces do not trigger a bracket floor (toolbox use)', () => {

@@ -415,21 +415,21 @@ describe('downshift — extra turns', () => {
       allCardNames: [...et, 'Forest'],
       cardInclusionMap: { 'Time Warp': 1, 'Temporal Manipulation': 2, 'Capture of Jingzhou': 3 },
     });
-    expect(input.estimation.bracket).toBe(4); // 3 ET → B4 floor (RC: chaining = B4)
+    expect(input.estimation.bracket).toBe(3); // 3 ET → B3 floor (sub-theme, not chaining)
     const plan = computeDownshiftPlan(input, 1);
     const etCuts = plan.moves.filter((m) => m.signal === 'extra-turn');
-    // The queue still cuts exactly 1 extra turn (to drop below the 3-chain threshold),
+    // The queue still cuts exactly 1 extra turn (to drop below the 3-spell threshold),
     // but Exhibition (1) is unreachable — the deck floors at Core (2).
     expect(etCuts).toHaveLength(1);
     expect(plan.achievable).toBe(false);
   });
 
-  it('target == 4, 3 extra turns → no cut needed (floor == target)', () => {
+  it('target == 3, 3 extra turns → no cut needed (floor == target)', () => {
     const et = ['Time Warp', 'Temporal Manipulation', 'Capture of Jingzhou'];
     et.forEach((n) => EXTRA_TURNS.add(n));
     const input = makeInput({ allCardNames: [...et, 'Forest'] });
-    // 3 ET now floors at B4, so targeting B4 requires no cuts.
-    const plan = computeDownshiftPlan(input, 4);
+    // 3 ET floors at B3, so targeting B3 requires no cuts.
+    const plan = computeDownshiftPlan(input, 3);
     expect(plan.moves).toHaveLength(0);
     expect(plan.achievable).toBe(true);
   });
