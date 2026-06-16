@@ -2,10 +2,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SwapThisCard } from './SwapThisCard';
-import type { Change } from '@/lib/deck-change';
+import { toSwapAgainst, type Change } from '@/lib/deck-change';
 
-function alt(name: string, over: Partial<Change> = {}): Change {
-  return {
+// The page hands SwapThisCard real swap Changes (the focused card → an
+// alternative), so each row renders the trade. Build them the same way.
+function alt(name: string, currentName = 'Rampant Growth', over: Partial<Change> = {}): Change {
+  const incoming: Change = {
     id: `fill-gaps:${name}`,
     type: 'add',
     lane: 'fill-gaps',
@@ -13,6 +15,7 @@ function alt(name: string, over: Partial<Change> = {}): Change {
     reason: 'Ramp staple',
     ...over,
   };
+  return toSwapAgainst(incoming, currentName);
 }
 
 describe('SwapThisCard', () => {
@@ -27,6 +30,19 @@ describe('SwapThisCard', () => {
     expect(screen.getByText('Swap this card')).toBeTruthy();
     expect(screen.getByText('Cultivate')).toBeTruthy();
     expect(screen.getAllByText('Swap in')).toHaveLength(2);
+  });
+
+  it('renders the trade as a dual-art swap row (focused card → alternative)', () => {
+    const { container } = render(
+      <SwapThisCard
+        currentName="Rampant Growth"
+        alternatives={[alt('Cultivate')]}
+        onSwap={vi.fn()}
+      />
+    );
+    // The focused card sits on the left as the dimmed offender being cut.
+    expect(container.querySelector('.deck-card-row-swap-art')).toBeTruthy();
+    expect(screen.getByLabelText('Rampant Growth art (being cut)')).toBeTruthy();
   });
 
   it('fires onSwap with the chosen alternative name', () => {

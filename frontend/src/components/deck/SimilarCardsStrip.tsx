@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 import './SimilarCardsStrip.css';
 import { DeckCardRow } from './DeckCardRow';
 import { useSimilarCards } from './useSimilarCards';
-import type { Change, ChangeOwnership } from '@/lib/deck-change';
+import { toSwapAgainst, type Change, type ChangeOwnership } from '@/lib/deck-change';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '@/types';
 import type { SimilarCandidate } from '@/lib/similar-cards';
@@ -45,7 +45,9 @@ function buildReason(c: SimilarCandidate, group: 'owned' | 'discovery'): string 
   return 'Similar role & curve';
 }
 
-/** Convert a SimilarCandidate into a Change for <DeckCardRow>. */
+/** Build the INCOMING add-Change for a SimilarCandidate. The caller promotes it
+ *  to a real `type:'swap'` against the focused card via `toSwapAgainst`, so the
+ *  row renders the trade (focused card → this candidate) in <DeckCardRow>. */
 function toChange(c: SimilarCandidate, group: 'owned' | 'discovery'): Change {
   return {
     id: `similar:${group}:${c.name}`,
@@ -117,7 +119,7 @@ export function SimilarCardsStrip({
             {owned.map((c) => (
               <DeckCardRow
                 key={`owned:${c.name}`}
-                change={toChange(c, 'owned')}
+                change={toSwapAgainst(toChange(c, 'owned'), target.name)}
                 commanderName={commanderName}
                 actLabel="Swap in"
                 onAct={() => onSwap(c.name)}
@@ -139,7 +141,7 @@ export function SimilarCardsStrip({
               {discovery.map((c) => (
                 <DeckCardRow
                   key={`discovery:${c.name}`}
-                  change={toChange(c, 'discovery')}
+                  change={toSwapAgainst(toChange(c, 'discovery'), target.name)}
                   commanderName={commanderName}
                   actLabel="Swap in"
                   onAct={() => onSwap(c.name)}

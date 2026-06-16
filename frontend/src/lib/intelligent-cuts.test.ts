@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import { rankReplacementCuts, primaryTypeOf, type CutCandidate } from './intelligent-cuts';
+import { CORPUS } from '@/deck-builder/services/synergy/classify.fixtures';
 
 // Minimal ScryfallCard factory — only the fields the ranker reads.
 function card(name: string, over: Partial<ScryfallCard> = {}): ScryfallCard {
@@ -243,5 +244,59 @@ describe('rankReplacementCuts', () => {
     });
     // A token producer can be swapped for another token producer — same axis side.
     expect(cuts.map((c) => c.card.name)).toContain('Maker A');
+  });
+
+  // ── Heuristic-quality check on REAL cards (audit, not just a green label) ──
+  // The original "weak slot" bug: adding a token card offered an unrelated
+  // artifact/ramp card to cut. This asserts coverage + ranking on the real
+  // Scryfall-grounded corpus (ground-truth oracle text), per
+  // feedback_audit_heuristics_not_just_green_tests.
+  describe('on the real synergy corpus', () => {
+    const corpus = (name: string, over: Partial<ScryfallCard> = {}): ScryfallCard => {
+      const c = CORPUS.find((e) => e.name === name);
+      if (!c) throw new Error(`corpus card not found: ${name}`);
+      return card(name, {
+        type_line: c.type_line,
+        keywords: c.keywords,
+        oracle_text: c.oracle_text,
+        ...over,
+      });
+    };
+
+    it('ranks real token-makers as the cut, never the unrelated artifact', () => {
+      // A deck genuinely invested in the tokens engine — five real producers.
+      const tokenDeck = [
+        slot(corpus('Krenko, Mob Boss')),
+        slot(corpus('Hornet Queen')),
+        slot(corpus('Grave Titan')),
+        slot(corpus('Ophiomancer')),
+        slot(corpus('Secure the Wastes')),
+        // …plus two real cards with nothing to do with tokens.
+        slot(corpus('Craterhoof Behemoth')),
+        slot(corpus('Skullclamp')),
+      ];
+      // Adding another real token-maker (not already in the deck).
+      const addCard = corpus('Avenger of Zendikar');
+
+      const cuts = rankReplacementCuts({ addCard, deckCards: tokenDeck, removals: [] });
+      const names = cuts.map((c) => c.card.name);
+
+      // The top cut is a token card, surfaced via the synergy-axis reason.
+      expect(cuts[0].related).toBe(true);
+      expect(cuts[0].reason).toBe('Overlapping Tokens');
+      expect(['Krenko, Mob Boss', 'Hornet Queen', 'Grave Titan', 'Ophiomancer']).toContain(
+        cuts[0].card.name
+      );
+
+      // The genuinely unrelated artifact is never offered (no shared axis/role/type).
+      expect(names).not.toContain('Skullclamp');
+
+      // Token cards outrank the off-axis vanilla beater (sameType only).
+      if (names.includes('Craterhoof Behemoth')) {
+        expect(names.indexOf('Krenko, Mob Boss')).toBeLessThan(
+          names.indexOf('Craterhoof Behemoth')
+        );
+      }
+    });
   });
 });

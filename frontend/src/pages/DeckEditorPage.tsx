@@ -45,6 +45,7 @@ import {
 } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import {
   fromGapCard,
+  toSwapAgainst,
   sortOwnedFirst,
   type Change,
   type LaneId,
@@ -1270,8 +1271,11 @@ export function DeckEditorPage() {
       (g) => g.role === role && g.name !== card.name && !deckCardNames.has(g.name)
     );
     if (gaps.length === 0) return null;
+    // Each alternative is a real swap (this card → the alternative), so the row
+    // shows the trade: the focused card dimmed on the left, the alternative
+    // coming in. The apply path still reads the incoming name (`onSwap`).
     const alternatives = sortOwnedFirst(
-      gaps.map((g) => fromGapCard(g, ownershipFor(g.name)))
+      gaps.map((g) => toSwapAgainst(fromGapCard(g, ownershipFor(g.name)), card.name))
     ).slice(0, 6);
     return (
       <SwapThisCard
