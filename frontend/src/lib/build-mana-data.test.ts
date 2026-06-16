@@ -141,4 +141,23 @@ describe('buildManaData', () => {
     expect(r.typeBreakdown.Instant).toBe(1);
     expect(r.typeBreakdown.Artifact).toBe(0);
   });
+
+  it('treats a spell//land MDFC as a spell in the curve (front-face only)', () => {
+    // type_line contains "land" after the // but the front face is a spell.
+    const mdfc = card({
+      name: 'Valakut Awakening // Valakut Stoneforge',
+      cmc: 3,
+      type_line: 'Instant // Land — Mountain',
+      color_identity: ['R'],
+    });
+    const r = buildManaData([mdfc], null);
+    // The card must appear in the curve at cmc-3 (front-face is a spell, so
+    // isLand() returns false) even though the back face is a land.
+    expect(r.manaCurve[3]).toBe(1);
+    // classifyType() checks the full type_line and finds "Land" first in
+    // CLASSIFY_PRIORITY, so the type-breakdown bucket is Land — that is correct
+    // behaviour for the type panel; what matters here is that the curve sees it.
+    expect(r.typeBreakdown.Land).toBe(1);
+    expect(r.typeBreakdown.Instant).toBe(0);
+  });
 });

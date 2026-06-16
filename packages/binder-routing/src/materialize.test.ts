@@ -763,3 +763,203 @@ describe('sectionMode: group', () => {
     expect(binders[0].sections[0].label).toBe('Power Cards');
   });
 });
+
+describe('pageBreakDepth', () => {
+  const allSectionPageNums = (b: { sections: { pages: { pageNum: number }[] }[] }) =>
+    b.sections.flatMap((sec) => sec.pages.map((p) => p.pageNum));
+  const totalPagesOf = (b: { sections: { pages: unknown[] }[] }) =>
+    b.sections.reduce((s: number, sec) => s + sec.pages.length, 0);
+
+  it('N=1 (default): each primary-sort section starts its own page', () => {
+    // 2 red + 2 blue, 9-pocket. depth=1 = existing behavior:
+    // each color section starts a fresh page.
+    const cards = [
+      makeCard({ name: 'R1', colorIdentity: ['R'], cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'R2', colorIdentity: ['R'], cmc: 2, typeLine: 'Instant' }),
+      makeCard({ name: 'U1', colorIdentity: ['U'], cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'U2', colorIdentity: ['U'], cmc: 2, typeLine: 'Instant' }),
+    ];
+    const binder = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 1,
+    });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    const result = binders[0];
+    // 2 sections (U then R in asc order), each on its own page
+    expect(result.sections).toHaveLength(2);
+    expect(totalPagesOf(result)).toBe(2);
+    expect(result.sections[0].pages[0].pageNum).toBe(1);
+    expect(result.sections[1].pages[0].pageNum).toBe(2);
+  });
+
+  it('N=1: page numbers run continuously across sections with no gaps', () => {
+    // 10 red + 10 blue, 9-pocket.
+    // Blue: ceil(10/9)=2 pages (1,2). Red: ceil(10/9)=2 pages (3,4).
+    const reds = Array.from({ length: 10 }, (_, i) =>
+      makeCard({ name: 'R' + i, colorIdentity: ['R'], cmc: (i % 5) + 1, typeLine: 'Instant' })
+    );
+    const blues = Array.from({ length: 10 }, (_, i) =>
+      makeCard({ name: 'U' + i, colorIdentity: ['U'], cmc: (i % 5) + 1, typeLine: 'Instant' })
+    );
+    const binder = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 1,
+    });
+    const { binders } = materializeBinders([...reds, ...blues], [binder], defaultOpts);
+    const result = binders[0];
+    expect(result.sections).toHaveLength(2);
+    // 20 cards: each section 10 cards → 2 pages each → 4 pages total
+    expect(totalPagesOf(result)).toBe(4);
+    const nums = allSectionPageNums(result).sort((a: number, b: number) => a - b);
+    // Contiguous: no gaps between consecutive page numbers
+    for (let i = 1; i < nums.length; i++) {
+      expect(nums[i] - nums[i - 1]).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('N=2: secondary sort groups each start their own page', () => {
+    // 9-pocket. Red CMC-1 = 5 cards, Red CMC-2 = 5 cards.
+    // depth=1: 1 section (red), 10 cards → 2 pages packed together.
+    // depth=2: 2 sub-sections (CMC-1 and CMC-2), each starting its own page.
+    const redCmc1 = Array.from({ length: 5 }, (_, i) =>
+      makeCard({ name: 'R1-' + i, colorIdentity: ['R'], cmc: 1, typeLine: 'Instant' })
+    );
+    const redCmc2 = Array.from({ length: 5 }, (_, i) =>
+      makeCard({ name: 'R2-' + i, colorIdentity: ['R'], cmc: 2, typeLine: 'Instant' })
+    );
+    const binderD2 = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 2,
+    });
+    const binderD1 = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 1,
+    });
+    const cards = [...redCmc1, ...redCmc2];
+    const { binders: d2 } = materializeBinders(cards, [binderD2], defaultOpts);
+    const { binders: d1 } = materializeBinders(cards, [binderD1], defaultOpts);
+
+    // depth=1: 1 red section, 10 cards packed into 2 pages
+    expect(d1[0].sections).toHaveLength(1);
+    expect(totalPagesOf(d1[0])).toBe(2);
+    expect(d1[0].sections[0].pages[0].pageNum).toBe(1);
+    expect(d1[0].sections[0].pages[1].pageNum).toBe(2);
+
+    // depth=2: 2 sub-sections (cmc-1 and cmc-2), each starting its own page
+    expect(d2[0].sections).toHaveLength(2);
+    expect(totalPagesOf(d2[0])).toBe(2);
+    expect(d2[0].sections[0].pages[0].pageNum).toBe(1);
+    expect(d2[0].sections[1].pages[0].pageNum).toBe(2);
+  });
+
+  it('leaf-never-breaks invariant: depth=2 with only 1 sort = same as depth=1', () => {
+    // With only 1 sort, there is no secondary to break on — depth=2 behaves like depth=1.
+    const cards = [
+      makeCard({ name: 'R1', colorIdentity: ['R'], typeLine: 'Instant' }),
+      makeCard({ name: 'R2', colorIdentity: ['R'], typeLine: 'Instant' }),
+      makeCard({ name: 'U1', colorIdentity: ['U'], typeLine: 'Instant' }),
+    ];
+    const b1 = makeBinder({
+      filter: {},
+      sorts: [{ field: 'color', dir: 'asc' }],
+      pocketSize: 9,
+      pageBreakDepth: 1,
+    });
+    const b2 = makeBinder({
+      filter: {},
+      sorts: [{ field: 'color', dir: 'asc' }],
+      pocketSize: 9,
+      pageBreakDepth: 2,
+    });
+
+    const { binders: res1 } = materializeBinders(cards, [b1], defaultOpts);
+    const { binders: res2 } = materializeBinders(cards, [b2], defaultOpts);
+
+    expect(res1[0].sections).toHaveLength(res2[0].sections.length);
+    expect(totalPagesOf(res1[0])).toBe(totalPagesOf(res2[0]));
+    expect(allSectionPageNums(res1[0])).toEqual(allSectionPageNums(res2[0]));
+  });
+
+  it('undefined pageBreakDepth behaves like depth=1', () => {
+    const cards = [
+      makeCard({ name: 'R1', colorIdentity: ['R'], cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'U1', colorIdentity: ['U'], cmc: 1, typeLine: 'Instant' }),
+    ];
+    const bUndef = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+    });
+    const b1 = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 1,
+    });
+
+    const { binders: rUndef } = materializeBinders(cards, [bUndef], defaultOpts);
+    const { binders: r1 } = materializeBinders(cards, [b1], defaultOpts);
+
+    expect(rUndef[0].sections).toHaveLength(r1[0].sections.length);
+    expect(totalPagesOf(rUndef[0])).toBe(totalPagesOf(r1[0]));
+    expect(allSectionPageNums(rUndef[0])).toEqual(allSectionPageNums(r1[0]));
+  });
+
+  it('pageBreakDepth=0 behaves like depth=1', () => {
+    const cards = [
+      makeCard({ name: 'R1', colorIdentity: ['R'], cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'U1', colorIdentity: ['U'], cmc: 1, typeLine: 'Instant' }),
+    ];
+    const b0 = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 0,
+    });
+    const b1 = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 1,
+    });
+
+    const { binders: r0 } = materializeBinders(cards, [b0], defaultOpts);
+    const { binders: r1 } = materializeBinders(cards, [b1], defaultOpts);
+
+    expect(r0[0].sections).toHaveLength(r1[0].sections.length);
+    expect(totalPagesOf(r0[0])).toBe(totalPagesOf(r1[0]));
+    expect(allSectionPageNums(r0[0])).toEqual(allSectionPageNums(r1[0]));
+  });
+});

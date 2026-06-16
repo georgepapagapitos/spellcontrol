@@ -168,6 +168,7 @@ export function BinderEditor() {
   const [showDeckAllocated, setShowDeckAllocated] = useState(true);
   const [keepPrintingsTogether, setKeepPrintingsTogether] = useState(false);
   const [sectionMode, setSectionMode] = useState<'sort' | 'group'>('sort');
+  const [pageBreakDepth, setPageBreakDepth] = useState<number>(1);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
   const [sorts, setSorts] = useState<SortEntry[]>([...NEW_BINDER_DEFAULT_SORTS]);
@@ -291,6 +292,7 @@ export function BinderEditor() {
         setShowDeckAllocated(existing.hideDeckAllocated !== false);
         setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
         setSectionMode(existing.sectionMode ?? 'sort');
+        setPageBreakDepth(existing.pageBreakDepth ?? 1);
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
               name: g.name,
@@ -310,6 +312,7 @@ export function BinderEditor() {
         setShowDeckAllocated(true);
         setKeepPrintingsTogether(false);
         setSectionMode('sort');
+        setPageBreakDepth(1);
         setGroups(editingBinderSeed?.groups?.length ? editingBinderSeed.groups : [newGroup()]);
         setRoutingMode('rules');
         setSorts([...NEW_BINDER_DEFAULT_SORTS]);
@@ -531,6 +534,7 @@ export function BinderEditor() {
       sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
       keepPrintingsTogether: keepPrintingsTogether || undefined,
       sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
+      pageBreakDepth: pageBreakDepth > 1 ? pageBreakDepth : undefined,
     };
 
     // Rules binder (or editing an existing one): synchronous create/update.
@@ -916,6 +920,42 @@ export function BinderEditor() {
                           >
                             By rule group
                           </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {sorts.length > 1 && (
+                    <div className="editor-row" style={{ marginTop: '0.75rem' }}>
+                      <div className="field" style={{ flex: 1 }}>
+                        <label>Page breaks</label>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <SelectMenu
+                            ariaLabel="Page break depth"
+                            value={pageBreakDepth}
+                            onChange={(v) => setPageBreakDepth(v as number)}
+                            options={Array.from({ length: sorts.length }, (_, i) => ({
+                              value: i + 1,
+                              label:
+                                i === 0
+                                  ? 'Section headers only (default)'
+                                  : `First ${i + 1} sort levels`,
+                            }))}
+                          />
+                          <span
+                            className="sort-page-break-hint"
+                            style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}
+                          >
+                            {pageBreakDepth <= 1
+                              ? 'Each section header starts a new page; deeper sorts order within the page.'
+                              : `Each ${pageBreakDepth === 2 ? 'secondary' : `level-${pageBreakDepth}`} group starts its own page — empty pockets are accepted.`}
+                          </span>
                         </div>
                       </div>
                     </div>
