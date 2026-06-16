@@ -200,6 +200,16 @@ export interface BinderDef {
   hideDeckAllocated?: boolean;
   sortValueOrders?: Partial<Record<SortField, string[]>>;
   keepPrintingsTogether?: boolean;
+  /**
+   * How many sort levels force a new page when their category changes.
+   * 1 = default: only the primary sort starts fresh pages (sections).
+   * 2 = primary AND secondary sort each begin their own page.
+   * N = the first N sort levels break pages; the leaf (deepest active sort)
+   *     never breaks — cards pack continuously within the deepest page.
+   * Undefined/0/1 all resolve to the default: primary-only page breaks.
+   * Ignored for manual-ordered binders.
+   */
+  pageBreakDepth?: number;
   lastReviewedSnapshot?: BinderReviewSnapshot;
   createdAt: number;
   updatedAt: number;
