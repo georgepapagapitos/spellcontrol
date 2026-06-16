@@ -194,7 +194,9 @@ export function GuidedBuildPage() {
           setError(
             customization.collectionStrategy === 'available'
               ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards" mode.'
-              : 'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
+              : customization.collectionStrategy === 'prefer'
+                ? 'Your collection is empty. Import cards on the Collection page to enable owned-first bias.'
+                : 'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
           );
           setIsBuilding(false);
           setProgress(null);
@@ -466,7 +468,11 @@ export function GuidedBuildPage() {
                   ? 'Any cards'
                   : customization.collectionStrategy === 'partial'
                     ? `Prioritize owned (~${customization.collectionOwnedPercent}%)`
-                    : 'Only owned cards'}
+                    : customization.collectionStrategy === 'prefer'
+                      ? 'Owned-first (best deck)'
+                      : customization.collectionStrategy === 'available'
+                        ? 'Available only'
+                        : 'Only owned cards'}
               </span>
             </div>
           </div>
