@@ -20,7 +20,11 @@ import {
   substringMatchesExpression,
 } from '../../lib/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import { Tabs, type TabItem } from '../Tabs';
 import type { ChipExpression, EnrichedCard } from '../../types';
+import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { ComboMatch } from '@/types/combos';
+import { buildSuggestionRows, type SuggestionRow } from '../../lib/deck-suggestions';
 
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
   if (commanderCI.length === 0) return false;
@@ -56,11 +60,25 @@ interface Props {
   onPreviewFit?: (card: ScryfallCard) => void;
   /** Called when the user dismisses the panel via Escape. */
   onClose?: () => void;
+  /**
+   * Suggestions tab (commander formats): EDHREC staples the deck doesn't run
+   * yet plus one-away combo completions. Pass `enableSuggestions` to surface
+   * the tab; `suggestionsPending` shows a loading state while the deck's
+   * commander analysis is still on its first run.
+   */
+  suggestions?: GapAnalysisCard[];
+  oneAwayCombos?: ComboMatch[];
+  ownedNames?: Set<string>;
+  enableSuggestions?: boolean;
+  suggestionsPending?: boolean;
 }
 
-type Mode = 'collection' | 'scryfall';
+type Mode = 'collection' | 'scryfall' | 'suggestions';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
+// Stable empty set so SuggestionsResults' memo deps don't churn when no
+// ownership data is supplied.
+const EMPTY_NAME_SET: Set<string> = new Set();
 
 // Local copy of the same enum vocabularies the collection page uses.
 // Kept local so this component isn't load-coupled to that page.
@@ -75,7 +93,19 @@ const COLOR_FILTERS: Array<{ key: string; label: string }> = [
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
 export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function CardSearchPanel(
-  { deckId, commanderColorIdentity, existingCardCounts, onAdd, onPreviewFit, onClose },
+  {
+    deckId,
+    commanderColorIdentity,
+    existingCardCounts,
+    onAdd,
+    onPreviewFit,
+    onClose,
+    suggestions,
+    oneAwayCombos,
+    ownedNames,
+    enableSuggestions,
+    suggestionsPending,
+  },
   ref
 ) {
   const [mode, setMode] = useState<Mode>('collection');
@@ -217,28 +247,32 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     }
   };
 
+  const sourceTabs: TabItem<Mode>[] = [
+    { id: 'collection', label: 'Collection', controls: 'card-search-tabpanel' },
+    { id: 'scryfall', label: 'Scryfall', controls: 'card-search-tabpanel' },
+  ];
+  if (enableSuggestions) {
+    sourceTabs.push({
+      id: 'suggestions',
+      label: 'Suggestions',
+      controls: 'card-search-tabpanel',
+    });
+  }
+
+  // If the Suggestions tab disappears (a deck format change drops the
+  // commander) while it's selected, fall back to Collection — derived rather
+  // than stored so we never render against a now-hidden tab.
+  const activeMode: Mode = !enableSuggestions && mode === 'suggestions' ? 'collection' : mode;
+
   return (
     <div className="card-search-panel">
-      <div className="card-search-tabs" role="tablist" aria-label="Card source">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'collection'}
-          className={`card-search-tab${mode === 'collection' ? ' active' : ''}`}
-          onClick={() => setMode('collection')}
-        >
-          My collection
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === 'scryfall'}
-          className={`card-search-tab${mode === 'scryfall' ? ' active' : ''}`}
-          onClick={() => setMode('scryfall')}
-        >
-          Scryfall
-        </button>
-      </div>
+      <Tabs
+        tabs={sourceTabs}
+        value={activeMode}
+        onChange={setMode}
+        ariaLabel="Card source"
+        variant="fitted"
+      />
 
       <div className="card-search-input-row">
         <input
@@ -246,16 +280,26 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           type="search"
           className="card-search-input"
           placeholder={
-            mode === 'collection' ? 'Search your collection…' : 'Search all of Scryfall…'
+            activeMode === 'collection'
+              ? 'Search your collection…'
+              : activeMode === 'suggestions'
+                ? 'Filter suggestions…'
+                : 'Search all of Scryfall…'
           }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          aria-label={mode === 'collection' ? 'Search your collection' : 'Search Scryfall'}
+          aria-label={
+            activeMode === 'collection'
+              ? 'Search your collection'
+              : activeMode === 'suggestions'
+                ? 'Filter suggestions'
+                : 'Search Scryfall'
+          }
           aria-controls="card-search-results"
           aria-activedescendant={visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined}
         />
-        {mode === 'collection' && (
+        {activeMode === 'collection' && (
           <CollectionFiltersDialog
             supertypeExpr={supertypeExpr}
             setSupertypeExpr={setSupertypeExpr}
@@ -291,52 +335,75 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         ↑ ↓ to navigate · Enter to add · Esc to close
       </p>
 
-      {mode === 'collection' ? (
-        <CollectionResults
-          deckId={deckId}
-          colorIdentity={commanderColorIdentity}
-          existingCardCounts={existingCardCounts}
-          query={query}
-          activeIndex={activeIndex}
-          onActiveChange={setActiveIndex}
-          onAdd={onAdd}
-          onPreviewFit={onPreviewFit}
-          onAnnounce={handleAnnounce}
-          publishVisible={(cards, addAt) => {
-            visibleResultsRef.current = cards;
-            addCurrentRef.current = addAt;
-            setVisibleCount(cards.length);
-          }}
-          compiledSupertype={compiledSupertype}
-          compiledTypes={compiledTypes}
-          compiledSubtype={compiledSubtype}
-          compiledRarity={compiledRarity}
-          compiledOracle={compiledOracle}
-          compiledLegality={compiledLegality}
-          compiledLayout={compiledLayout}
-          compiledTreatment={compiledTreatment}
-          compiledBorder={compiledBorder}
-          colorFilter={colorFilter}
-          setFilter={setFilter}
-        />
-      ) : (
-        <ScryfallResults
-          deckId={deckId}
-          colorIdentity={commanderColorIdentity}
-          existingCardCounts={existingCardCounts}
-          query={query}
-          activeIndex={activeIndex}
-          onActiveChange={setActiveIndex}
-          onAdd={onAdd}
-          onPreviewFit={onPreviewFit}
-          onAnnounce={handleAnnounce}
-          publishVisible={(cards, addAt) => {
-            visibleResultsRef.current = cards;
-            addCurrentRef.current = addAt;
-            setVisibleCount(cards.length);
-          }}
-        />
-      )}
+      <div role="tabpanel" id="card-search-tabpanel" aria-labelledby={`sc-tab-${activeMode}`}>
+        {activeMode === 'collection' ? (
+          <CollectionResults
+            deckId={deckId}
+            colorIdentity={commanderColorIdentity}
+            existingCardCounts={existingCardCounts}
+            query={query}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onAdd={onAdd}
+            onPreviewFit={onPreviewFit}
+            onAnnounce={handleAnnounce}
+            publishVisible={(cards, addAt) => {
+              visibleResultsRef.current = cards;
+              addCurrentRef.current = addAt;
+              setVisibleCount(cards.length);
+            }}
+            compiledSupertype={compiledSupertype}
+            compiledTypes={compiledTypes}
+            compiledSubtype={compiledSubtype}
+            compiledRarity={compiledRarity}
+            compiledOracle={compiledOracle}
+            compiledLegality={compiledLegality}
+            compiledLayout={compiledLayout}
+            compiledTreatment={compiledTreatment}
+            compiledBorder={compiledBorder}
+            colorFilter={colorFilter}
+            setFilter={setFilter}
+          />
+        ) : activeMode === 'suggestions' ? (
+          <SuggestionsResults
+            deckId={deckId}
+            colorIdentity={commanderColorIdentity}
+            existingCardCounts={existingCardCounts}
+            query={query}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onAdd={onAdd}
+            onPreviewFit={onPreviewFit}
+            onAnnounce={handleAnnounce}
+            publishVisible={(cards, addAt) => {
+              visibleResultsRef.current = cards;
+              addCurrentRef.current = addAt;
+              setVisibleCount(cards.length);
+            }}
+            suggestions={suggestions}
+            oneAwayCombos={oneAwayCombos}
+            ownedNames={ownedNames}
+            pending={suggestionsPending}
+          />
+        ) : (
+          <ScryfallResults
+            deckId={deckId}
+            colorIdentity={commanderColorIdentity}
+            existingCardCounts={existingCardCounts}
+            query={query}
+            activeIndex={activeIndex}
+            onActiveChange={setActiveIndex}
+            onAdd={onAdd}
+            onPreviewFit={onPreviewFit}
+            onAnnounce={handleAnnounce}
+            publishVisible={(cards, addAt) => {
+              visibleResultsRef.current = cards;
+              addCurrentRef.current = addAt;
+              setVisibleCount(cards.length);
+            }}
+          />
+        )}
+      </div>
 
       <div className="sr-only" role="status" aria-live="polite">
         {announce}
@@ -562,6 +629,168 @@ function CollectionResults({
           </li>
         );
       })}
+    </ul>
+  );
+}
+
+// ── Suggestions results ──────────────────────────────────────────────────
+interface SuggestionsResultsProps extends ResultsProps {
+  suggestions?: GapAnalysisCard[];
+  oneAwayCombos?: ComboMatch[];
+  ownedNames?: Set<string>;
+  /** Commander-deck analysis still on its first run. */
+  pending?: boolean;
+}
+
+function SuggestionsResults({
+  existingCardCounts,
+  query,
+  activeIndex,
+  onActiveChange,
+  onAdd,
+  onPreviewFit,
+  onAnnounce,
+  publishVisible,
+  suggestions,
+  oneAwayCombos,
+  ownedNames,
+  pending,
+}: SuggestionsResultsProps) {
+  const collection = useCollectionStore((s) => s.cards);
+  const decks = useDecksStore((s) => s.decks);
+  const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
+
+  const inDeck = useMemo(
+    () => new Set([...existingCardCounts.keys()].map((n) => n.toLowerCase())),
+    [existingCardCounts]
+  );
+  const owned = ownedNames ?? EMPTY_NAME_SET;
+
+  const { staples, combos } = useMemo(
+    () => buildSuggestionRows(suggestions, oneAwayCombos, { ownedNames: owned, query, inDeck }),
+    [suggestions, oneAwayCombos, owned, query, inDeck]
+  );
+
+  // Flat order for the parent's ↑/↓/Enter handling: staples then combos.
+  const rows = useMemo(() => [...staples, ...combos], [staples, combos]);
+
+  // Suggestion rows carry only a name; resolve the full card on add (same as
+  // the Collection tab) so the deck gets a real ScryfallCard.
+  const addAtIndex = async (index: number) => {
+    const row = rows[index];
+    if (!row) return;
+    const full = await getCardByName(row.name).catch(() => null);
+    if (!full) return;
+    const claim = pickCollectionCopy(row.name, collection, allocations, full.id);
+    onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
+    onAnnounce(`Added ${row.name}`);
+  };
+
+  const previewFitAt = async (index: number) => {
+    const row = rows[index];
+    if (!row || !onPreviewFit) return;
+    const full = await getCardByName(row.name).catch(() => null);
+    if (full) onPreviewFit(full);
+  };
+
+  useEffect(() => {
+    // While analysis is pending we show a loading message, not rows — clear the
+    // parent's visible list so Enter can't add from a stale result set.
+    if (pending) {
+      publishVisible([], () => {});
+      return;
+    }
+    publishVisible(
+      rows.map((r) => ({ name: r.name }) as unknown as ScryfallCard),
+      addAtIndex
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, pending]);
+
+  if (pending) {
+    return <p className="card-search-empty">Analyzing your deck…</p>;
+  }
+  if (rows.length === 0) {
+    return (
+      <p className="card-search-empty">
+        {query
+          ? 'No suggestions match your filter.'
+          : 'No suggestions right now — your deck already runs the staples for this commander.'}
+      </p>
+    );
+  }
+
+  const renderRow = (row: SuggestionRow, i: number) => {
+    const inDeckCount = existingCardCounts.get(row.name) ?? 0;
+    const active = i === activeIndex;
+    return (
+      <li
+        key={`${row.kind}:${row.name}`}
+        id={`card-search-result-${i}`}
+        role="option"
+        aria-selected={active}
+        className={`card-search-row${active ? ' active' : ''}`}
+        onMouseEnter={() => onActiveChange(i)}
+      >
+        <button
+          type="button"
+          className="card-search-add"
+          aria-label={inDeckCount > 0 ? `Add another ${row.name}` : `Add ${row.name}`}
+          onClick={() => void addAtIndex(i)}
+        >
+          +
+        </button>
+        <span className="card-search-name">{row.name}</span>
+        <span className="card-search-meta">
+          {row.kind === 'staple' ? (
+            <>
+              {row.inclusion != null && `${Math.round(row.inclusion)}%`}
+              {row.roleLabel && (
+                <>
+                  {row.inclusion != null && ' · '}
+                  {row.roleLabel}
+                </>
+              )}
+            </>
+          ) : (
+            <span className="card-search-combo">
+              {row.produces ? `Completes: ${row.produces}` : 'Completes a combo'}
+            </span>
+          )}
+          {row.owned && (
+            <>
+              {' · '}
+              <span className="card-search-owned">owned</span>
+            </>
+          )}
+          {onPreviewFit && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="card-search-fit"
+                aria-label={`Preview how ${row.name} fits`}
+                title="Preview fit before adding"
+                onClick={() => void previewFitAt(i)}
+              >
+                Fit?
+              </button>
+            </>
+          )}
+        </span>
+      </li>
+    );
+  };
+
+  return (
+    <ul className="card-search-results" id="card-search-results" role="listbox">
+      {staples.map((row, i) => renderRow(row, i))}
+      {combos.length > 0 && (
+        <li className="card-search-section" role="presentation" aria-hidden="true">
+          Completes a combo
+        </li>
+      )}
+      {combos.map((row, i) => renderRow(row, staples.length + i))}
     </ul>
   );
 }

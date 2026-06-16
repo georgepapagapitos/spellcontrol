@@ -2169,6 +2169,11 @@ export function DeckEditorPage() {
               }}
               onPreviewFit={(card) => setAuditionCard(card)}
               onClose={() => setShowAddPanel(false)}
+              suggestions={deck.gapAnalysis}
+              oneAwayCombos={comboData.data?.oneAway}
+              ownedNames={ownedNames}
+              enableSuggestions={!!formatConfig?.hasCommander}
+              suggestionsPending={analysisState === 'pending'}
             />
           </div>
         </div>
