@@ -68,13 +68,14 @@ import {
   pickCollectionCopy,
   findStealableCopy,
   planCardAdd,
-  planUseMyCopies,
+  listContestedCards,
   useCollectionByCopyId,
   type StealableCopy,
   type DonorOutcome,
   type DonorZone,
 } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
 import { StealConfirmSheet } from '../components/deck/StealConfirmSheet';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
@@ -417,6 +418,7 @@ export function DeckEditorPage() {
   }, [deck]);
   const deckTokens = useDeckTokens(deckScryCards);
   const [tokensOpen, setTokensOpen] = useState(false);
+  const [showSharedCopies, setShowSharedCopies] = useState(false);
 
   const ownedOracleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1034,93 +1036,54 @@ export function DeckEditorPage() {
   // donor a gap, snapshot every touched deck, and offer one Undo restoring them
   // all — cross-deck moves can't live in per-deck history (same shape as the
   // multi-deck path of handleSetQty).
-  const handleUseMyCopies = (): void => {
+  // Conscious per-card move from the Shared-copies review sheet: re-resolve the
+  // donor fresh and open the steal sheet (mode 'bind') so the user picks what the
+  // donor deck does. Nothing moves without this explicit choice. (Same machinery
+  // as the per-row "Use my copy" — keyed by slotId so duplicate-name rows are exact.)
+  const handleMoveSharedCopy = (slotId: string): void => {
     if (!deck) return;
-    const before = useDecksStore.getState().decks;
-    const plan = planUseMyCopies(deck, collectionCards, before);
-    if (plan.binds.length === 0) {
-      if (plan.skippedCommander > 0)
-        pushToast({
-          message: `${plan.skippedCommander} ${plan.skippedCommander === 1 ? 'card is a commander' : 'cards are commanders'} in another deck — use "Use my copy" on the row to move it.`,
-          tone: 'info',
-        });
+    const slot = deck.cards.find((c) => c.slotId === slotId);
+    if (!slot) return;
+    const stealable = findStealableCopy(
+      slot.card.name,
+      collectionCards,
+      useDecksStore.getState().decks,
+      deck.id,
+      slot.card.id
+    );
+    if (stealable) {
+      setPendingSteal({ card: slot.card, stealable, recipient: { mode: 'bind', slotId } });
       return;
     }
-    const touched = new Set<string>([deck.id]);
-    for (const b of plan.binds) {
-      touched.add(b.donorDeckId);
-      setCardAllocation(deck.id, b.slotId, b.copyId);
-      applyDonorOutcome(b.donorDeckId, b.donorZone, b.donorSlotId, b.donorCard, 'leave-gap', null);
+    // A free copy appeared since the list was built — just bind it, no move needed.
+    const claim = pickCollectionCopy(
+      slot.card.name,
+      collectionCards,
+      buildAllocationMap(useDecksStore.getState().decks),
+      slot.card.id
+    );
+    if (claim) {
+      recordEdit(deck.id, `use my ${slot.card.name}`, () =>
+        setCardAllocation(deck.id, slotId, claim.copyId)
+      );
+      pushToast({ message: `Using your copy of ${slot.card.name}`, tone: 'success' });
     }
-    const snaps = [...touched].map((id) => before.find((d) => d.id === id) ?? null);
-    const n = plan.binds.length;
-    const skipNote =
-      plan.skippedCommander > 0
-        ? ` ${plan.skippedCommander} commander ${plan.skippedCommander === 1 ? 'copy' : 'copies'} left — move from its row.`
-        : '';
-    pushToast({
-      message: `Using ${n} of your ${n === 1 ? 'copy' : 'copies'} — pulled from your other decks.${skipNote}`,
-      tone: 'success',
-      actionLabel: 'Undo',
-      onAction: () => {
-        [...touched].forEach((id, idx) => {
-          const snap = snaps[idx];
-          if (snap) replaceDeck(id, snap);
-        });
-      },
-    });
-    haptics.tap();
   };
 
-  // The single brain for adding an already-resolved card to this deck — used by
-  // every add path (collection search panel, Coach/Engine lanes, size-aware
-  // prompt) so they behave identically. `planCardAdd` decides:
-  //  - bind a free owned copy,
-  //  - auto-move a copy from another deck's main/sideboard (leave the donor a
-  //    gap, atomic Undo) — seamless, the "it just updates other decks" case,
-  //  - confirm in the steal sheet when the only copy is another deck's commander
-  //    (don't silently gut a commander),
-  //  - or add an unowned/proxy slot when the card isn't owned.
-  // `notify` toasts on a plain add; the auto-move path always shows its Undo toast.
+  // The single brain for adding an already-resolved card — used by every add path
+  // (collection search panel, Coach/Engine lanes, size-aware prompt) so they behave
+  // identically. Binds a free owned copy if one exists; otherwise adds the slot
+  // unbound — classifyAllocation renders it "In [deck]" (owned but every copy is
+  // elsewhere) or "unowned" (not owned). It NEVER moves a copy out of another deck:
+  // pulling a copy in is always a separate, conscious choice (per-row "Use my copy"
+  // / the Shared-copies review). This matches what import/generate already do.
   const allocateAndAdd = (
     card: ScryfallCard,
     zone: 'main' | 'sideboard',
     notify: boolean
   ): void => {
     if (!deck) return;
-    const plan = planCardAdd(
-      card.name,
-      card.id,
-      collectionCards,
-      useDecksStore.getState().decks,
-      deck.id
-    );
-    if (plan.kind === 'confirm') {
-      setPendingSteal({ card, stealable: plan.stealable, recipient: { mode: 'add', zone } });
-      return;
-    }
-    if (plan.kind === 'auto-move') {
-      const s = plan.stealable;
-      executeReallocation({
-        donorDeckId: s.donorDeckId,
-        recipientDeckId: deck.id,
-        recipientApply: () =>
-          zone === 'sideboard'
-            ? addSideboardCard(deck.id, card, s.copyId)
-            : addCard(deck.id, card, s.copyId),
-        donorApply: () =>
-          applyDonorOutcome(
-            s.donorDeckId,
-            s.donorZone,
-            s.donorSlotId,
-            s.donorCard,
-            'leave-gap',
-            null
-          ),
-        label: `Moved ${card.name} here from ${s.donorDeckName}`,
-      });
-      return;
-    }
+    const plan = planCardAdd(card.name, card.id, collectionCards, useDecksStore.getState().decks);
     const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
     recordEdit(
       deck.id,
@@ -1633,79 +1596,27 @@ export function DeckEditorPage() {
     const delta = qty - current.length;
     if (delta === 0) return;
     if (delta > 0) {
+      // Quantity increments bind free owned copies; any beyond what's free are
+      // added unbound (listed as "In [deck]"/"unowned"). Never pulls copies from
+      // other decks — that's a conscious choice elsewhere. One in-deck undo entry.
       const label = delta === 1 ? `add ${card.name}` : `add ${delta} × ${card.name}`;
-      // If the batch fits in free owned copies (the common case), keep it a
-      // single in-deck undo entry. If it needs pulling copies from other decks,
-      // those are cross-deck moves the per-deck history can't represent — fall
-      // through to the snapshot-restore path below.
-      const allocNow = buildAllocationMap(useDecksStore.getState().decks);
-      const freeCount = collectionCards.filter(
-        (c) => c.name === card.name && !allocNow.has(c.copyId)
-      ).length;
-      if (delta <= freeCount) {
-        // Reuse the live allocations between iterations so two adds don't
-        // try to claim the same collection copy. The whole batch is one undo entry.
-        recordEdit(deck.id, label, () => {
-          const allocations = buildAllocationMap(useDecksStore.getState().decks);
-          for (let i = 0; i < delta; i++) {
-            const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
-            const allocatedId = claim?.copyId ?? null;
-            if (allocatedId) {
-              allocations.set(allocatedId, {
-                deckId: deck.id,
-                deckName: deck.name,
-                deckColor: deck.color,
-                cardName: card.name,
-              });
-            }
-            addCard(deck.id, card, allocatedId);
+      recordEdit(deck.id, label, () => {
+        // Reuse the live allocations between iterations so two adds don't try to
+        // claim the same collection copy.
+        const allocations = buildAllocationMap(useDecksStore.getState().decks);
+        for (let i = 0; i < delta; i++) {
+          const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
+          const allocatedId = claim?.copyId ?? null;
+          if (allocatedId) {
+            allocations.set(allocatedId, {
+              deckId: deck.id,
+              deckName: deck.name,
+              deckColor: deck.color,
+              cardName: card.name,
+            });
           }
-        });
-        return;
-      }
-      // Some copies must come from other decks. Snapshot every touched deck up
-      // front and offer one Undo that restores them all. Apply copy-by-copy so
-      // each step re-plans against fresh state (donors update as we pull).
-      const before = useDecksStore.getState().decks;
-      const touched = new Set<string>([deck.id]);
-      for (let i = 0; i < delta; i++) {
-        const plan = planCardAdd(
-          card.name,
-          card.id,
-          collectionCards,
-          useDecksStore.getState().decks,
-          deck.id
-        );
-        if (plan.kind === 'auto-move') {
-          const s = plan.stealable;
-          touched.add(s.donorDeckId);
-          addCard(deck.id, card, s.copyId);
-          applyDonorOutcome(
-            s.donorDeckId,
-            s.donorZone,
-            s.donorSlotId,
-            s.donorCard,
-            'leave-gap',
-            null
-          );
-        } else {
-          // bind (free) / proxy (unowned) / confirm (commander): in a batch we
-          // never pop a sheet per copy or silently gut a commander — bind a free
-          // copy, otherwise add it as an unowned slot.
-          addCard(deck.id, card, plan.kind === 'bind' ? plan.copyId : null);
+          addCard(deck.id, card, allocatedId);
         }
-      }
-      const snaps = [...touched].map((id) => before.find((d) => d.id === id) ?? null);
-      pushToast({
-        message: delta === 1 ? `Added ${card.name}` : `Added ${delta} × ${card.name}`,
-        tone: 'success',
-        actionLabel: 'Undo',
-        onAction: () => {
-          [...touched].forEach((id, idx) => {
-            const snap = snaps[idx];
-            if (snap) replaceDeck(id, snap);
-          });
-        },
       });
       return;
     }
@@ -2034,7 +1945,7 @@ export function DeckEditorPage() {
             onMoveToAnotherDeck={decks.length > 1 ? setMoveCard : undefined}
             onReleaseCopy={setReleaseCard}
             onUseOwnCopy={handleUseOwnCopy}
-            onUseMyCopies={handleUseMyCopies}
+            onReviewShared={() => setShowSharedCopies(true)}
             collectionByCopyId={collectionById}
             binderByCopyId={binderByCopyId}
             onAddFromSearch={(q) => {
@@ -2526,6 +2437,15 @@ export function DeckEditorPage() {
         />
       )}
 
+      {showSharedCopies && deck && (
+        <SharedCopiesSheet
+          deckName={deck.name}
+          contested={listContestedCards(deck, collectionCards, decks)}
+          onMove={handleMoveSharedCopy}
+          onClose={() => setShowSharedCopies(false)}
+        />
+      )}
+
       {/* One-shot post-generation build report sheet (UX-316).
           Shown once per deck immediately after generation; never again. */}
       {showBuildReport && deck?.buildReport && (
@@ -2538,6 +2458,10 @@ export function DeckEditorPage() {
           }
           report={deck.buildReport}
           onClose={() => setShowBuildReport(false)}
+          onReviewConflicts={() => {
+            setShowBuildReport(false);
+            setShowSharedCopies(true);
+          }}
         />
       )}
 

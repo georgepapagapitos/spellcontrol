@@ -14,6 +14,8 @@ interface Props {
   commanderImageUrl?: string;
   report: BuildReport;
   onClose: () => void;
+  /** Open the Shared-copies review (shown only when the deck has owned-but-elsewhere cards). */
+  onReviewConflicts?: () => void;
 }
 
 /**
@@ -33,6 +35,7 @@ export function BuildReportSheet({
   commanderImageUrl,
   report,
   onClose,
+  onReviewConflicts,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'sheet-fall');
 
@@ -93,6 +96,18 @@ export function BuildReportSheet({
           <BuildReportPanel report={report} />
         </div>
         <div className="build-report-sheet-footer">
+          {onReviewConflicts && (report.claimedConflicts ?? 0) > 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                beginClose();
+                onReviewConflicts();
+              }}
+            >
+              Review shared cards
+            </button>
+          )}
           <button type="button" className="btn btn-primary" onClick={() => beginClose()}>
             View my deck
           </button>
