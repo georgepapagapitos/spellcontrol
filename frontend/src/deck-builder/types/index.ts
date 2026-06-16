@@ -452,7 +452,10 @@ export type MaxRarity = 'common' | 'uncommon' | 'rare' | 'mythic' | null;
 // 2=any (no filter, default), 3=extra (no filter + boost salty cards).
 export type SaltTolerance = 0 | 1 | 2 | 3;
 
-export type CollectionStrategy = 'full' | 'partial' | 'available';
+// 'full'/'available' hard-filter to owned cards; 'partial' is a percentage
+// quota; 'prefer' is a soft owned-first ranking bias (best deck, leaning on
+// your cards — no forced ratio, no hard filter). See cardPicking.ts.
+export type CollectionStrategy = 'full' | 'partial' | 'available' | 'prefer';
 
 // Ban list (preset or custom)
 export interface BanList {
