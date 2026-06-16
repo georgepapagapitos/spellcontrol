@@ -7,6 +7,7 @@
 # caches on the premise the data "only changes nightly when ingest runs", and the
 # `bracket`/`bracket_tag` columns added in #675 only populate on a re-ingest. There
 # was no actual scheduler, so the columns stayed NULL on prod; this wires one up.
+# The dataset is slow-moving, so this runs every other month (~6×/year), not nightly.
 #
 # Requires a repository secret `DATABASE_URL` = the production Postgres (Neon)
 # connection string — the same value the deployed backend uses. The ingest connects
@@ -16,11 +17,14 @@ name: Combo ingest
 
 on:
   schedule:
-    # 05:00 UTC daily. Spellbook regenerates its bulk dump late UTC (observed
-    # ~23:25 UTC), so 05:00 picks up the fresh dump; it's also clear of the
-    # scanner-ingest job (04:00 UTC on the 1st/15th).
-    - cron: '0 5 * * *'
-  # Manual trigger for first-run population / recovery after a failed run.
+    # 05:00 UTC on the 1st of every other month (Jan/Mar/May/Jul/Sep/Nov) — ~6×/year.
+    # The Spellbook combo dataset is slow-moving reference data, so a full re-ingest
+    # this often is plenty to keep bracket_tag fresh; pulling the ~500MB dump more
+    # frequently is wasted bandwidth. 05:00 UTC is clear of the scanner-ingest job
+    # (04:00 UTC on the 1st/15th). Fire workflow_dispatch the day a big combo update
+    # lands if you don't want to wait for the next slot.
+    - cron: '0 5 1 */2 *'
+  # Manual trigger for first-run population / recovery / on-demand refresh.
   workflow_dispatch:
 
 # Never run two ingests at once (a slow run overlapping the next schedule would
