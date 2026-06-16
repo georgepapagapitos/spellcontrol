@@ -619,11 +619,20 @@ export async function analyzeCommanderDeck(
       // Budget downgrades: cheaper role-equivalents drawn from the same EDHREC
       // recommendation pool. USD-canonical (matches the baked recommendation
       // prices); currency localization is a future refinement.
+      // Protect cards we must not suggest trimming: generator-stamped
+      // must-includes (user/deck/combo), detected-combo pieces, and the
+      // synergy load-bearing set — same intent as the optimizer's protection.
+      const budgetProtected = new Set<string>([
+        ...params.cards.filter((c) => c.isMustInclude).map((c) => c.name),
+        ...(params.detectedCombos?.flatMap((combo) => combo.cards) ?? []),
+        ...synergyProtectedNames,
+      ]);
       costPlan = buildCostPlan(
         params.cards,
         params.commander.name,
         params.partnerCommander?.name,
-        gradeBracket.analysis.recommendations
+        gradeBracket.analysis.recommendations,
+        { mustIncludeNames: budgetProtected }
       );
     }
 

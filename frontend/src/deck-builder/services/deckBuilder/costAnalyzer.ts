@@ -1,6 +1,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { RecommendedCard } from './deckAnalyzer';
 import { getCardPrice, getCardImageUrl } from '@/deck-builder/services/scryfall/client';
+import { primaryTypeOf } from '@/lib/card-matching';
 
 /**
  * Cost optimizer — suggests cheaper, role-equivalent replacements for the most
@@ -83,6 +84,40 @@ function isLandCard(card: ScryfallCard): boolean {
   return typeLine.toLowerCase().includes('land');
 }
 
+/**
+ * A budget suggestion must appear in at least this % of EDHREC decks, so the
+ * cutter never offers a 0%-inclusion fringe card as a "cheaper alternative".
+ * ponytail: single tunable floor; raise to be pickier about suggestion quality.
+ */
+const MIN_SUGGESTION_INCLUSION = 1;
+
+/** Distinct WUBRG colors a land fixes (ignores generic/colorless). */
+function colorFixingCount(colors: string[] | undefined): number {
+  if (!colors) return 0;
+  return new Set(colors.filter((c) => 'WUBRG'.includes(c))).size;
+}
+
+/**
+ * A fetchland: searches the library for a land instead of tapping for mana.
+ * Matches both "basic land card" fetches and the premium dual-fetches that name
+ * basic types ("a Plains or Island card") rather than the word "land".
+ */
+function isFetchland(card: ScryfallCard): boolean {
+  return /search your library for [^.]*\b(land|plains|island|swamp|mountain|forest)\b/i.test(
+    card.oracle_text ?? ''
+  );
+}
+
+/**
+ * Minimum color-fixing a budget land swap must preserve, so we never downgrade a
+ * fetchland/dual into a basic tapland. Fetchlands produce no mana themselves but
+ * fix at least two colors in practice, so they floor at 2.
+ */
+function landFixingFloor(card: ScryfallCard): number {
+  const produced = colorFixingCount(card.produced_mana);
+  return isFetchland(card) ? Math.max(2, produced) : produced;
+}
+
 interface SwapSuggestion {
   name: string;
   price: number;
@@ -125,11 +160,13 @@ export function classifyConfidence(
 export function pickCheapestAlternative(
   pool: RecommendedCard[],
   currentPrice: number,
-  excludeNames: Set<string>
+  excludeNames: Set<string>,
+  minInclusion = 0
 ): SwapSuggestion | null {
   let best: SwapSuggestion | null = null;
   for (const cand of pool) {
     if (excludeNames.has(cand.name)) continue;
+    if ((cand.inclusion ?? 0) < minInclusion) continue;
     const price = parsePrice(cand.price);
     if (price == null) continue;
     if (price >= currentPrice) continue;
@@ -252,9 +289,23 @@ export function buildCostPlan(
     const exclude = new Set<string>([card.name, ...inDeckNames, ...excludeFromSuggestions]);
 
     const isLand = isLandCard(card);
-    const pool = isLand ? landPool : card.deckRole ? (byRole.get(card.deckRole) ?? []) : [];
+    let pool: RecommendedCard[];
+    if (isLand) {
+      // Only offer lands that preserve the current land's color fixing — never
+      // downgrade a fetchland/dual into a cheaper basic tapland.
+      const floor = landFixingFloor(card);
+      pool =
+        floor > 0
+          ? landPool.filter((rec) => colorFixingCount(rec.producedColors) >= floor)
+          : landPool;
+    } else {
+      // Prefer the card's role bucket; fall back to its primary-type bucket so a
+      // spell with no detected role still gets a suggestion instead of nothing.
+      const roleBucket = card.deckRole ? byRole.get(card.deckRole) : undefined;
+      pool = roleBucket ?? byRole.get(`type:${primaryTypeOf(card).toLowerCase()}`) ?? [];
+    }
 
-    const suggestion = pickCheapestAlternative(pool, price, exclude);
+    const suggestion = pickCheapestAlternative(pool, price, exclude, MIN_SUGGESTION_INCLUSION);
     if (!suggestion) continue;
 
     const currentInclusion = inclusionByName.get(card.name) ?? 0;
