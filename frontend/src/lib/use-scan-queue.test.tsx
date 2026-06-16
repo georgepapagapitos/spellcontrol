@@ -1,8 +1,15 @@
 // @vitest-environment happy-dom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { entryKey, useScanQueue } from './use-scan-queue';
+import { entryKey, useScanQueue, useScanQueueStore } from './use-scan-queue';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+// The queue is now a persisted module-singleton store; reset it (and its
+// localStorage backing) before each test so state doesn't leak across cases.
+beforeEach(() => {
+  localStorage.clear();
+  useScanQueueStore.setState({ queue: [] });
+});
 
 // Row identity is oracle_id + finish; scans land as nonfoil.
 const NONFOIL_1 = entryKey('oracle-1', 'nonfoil');
@@ -440,6 +447,41 @@ describe('useScanQueue', () => {
         );
       });
       expect(result.current.totalPrice).toBeCloseTo(1.0);
+    });
+  });
+
+  describe('persistence across mounts', () => {
+    it('keeps the queue when the scanner is closed and reopened (hook remount)', () => {
+      // First "session": scan a card, then unmount (close the scanner).
+      const first = renderHook(() => useScanQueue());
+      act(() => {
+        first.result.current.addScan(makeCard());
+      });
+      expect(first.result.current.totalCount).toBe(1);
+      first.unmount();
+
+      // Second "session": a fresh hook instance still sees the queued card.
+      const second = renderHook(() => useScanQueue());
+      expect(second.result.current.queue).toHaveLength(1);
+      expect(second.result.current.totalCount).toBe(1);
+    });
+
+    it('re-accepts a card already in the queue after remount (dedupe cursor is per-session)', () => {
+      const first = renderHook(() => useScanQueue());
+      act(() => {
+        first.result.current.addScan(makeCard());
+      });
+      first.unmount();
+
+      // Same card scanned again in a new session increments rather than being
+      // silently deduped — the back-to-back cursor does not persist.
+      const second = renderHook(() => useScanQueue());
+      let outcome: ReturnType<typeof second.result.current.addScan> | null = null;
+      act(() => {
+        outcome = second.result.current.addScan(makeCard());
+      });
+      expect(outcome).toBe('accepted');
+      expect(second.result.current.totalCount).toBe(2);
     });
   });
 
