@@ -183,6 +183,26 @@ describe('assembleBuildReport', () => {
     expect(report.basicsPadded).toBeUndefined();
   });
 
+  it('surfaces collectionRelaxed when cards were pulled from outside the collection', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({ collectionRelaxedCount: 4 }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.collectionRelaxed).toBe(4);
+  });
+
+  it('omits collectionRelaxed when no relaxation happened', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({ collectionRelaxedCount: undefined }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.collectionRelaxed).toBeUndefined();
+  });
+
   it('includes roleGaps only for under-target roles', () => {
     const report = assembleBuildReport({
       generated: makeGenerated({
