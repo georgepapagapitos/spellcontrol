@@ -1,0 +1,80 @@
+# Scheduled Commander Spellbook combo ingest.
+#
+# Pulls the Spellbook bulk variants dump and upserts them into the production
+# Postgres (the global, per-app combo dataset — NOT per-user data). This is the
+# automated trigger the codebase always assumed existed: `scripts/ingest-combos.ts`
+# documents itself as "recovery from a failed scheduled run", the combos route
+# caches on the premise the data "only changes nightly when ingest runs", and the
+# `bracket`/`bracket_tag` columns added in #675 only populate on a re-ingest. There
+# was no actual scheduler, so the columns stayed NULL on prod; this wires one up.
+# The dataset is slow-moving, so this runs every other month (~6×/year), not nightly.
+#
+# Requires a repository secret `DATABASE_URL` = the production Postgres (Neon)
+# connection string — the same value the deployed backend uses. The ingest connects
+# directly and upserts; the schema is owned by the booted server's ensureSchema(),
+# so the target DB must be the live prod database (its `combos` table already exists).
+name: Combo ingest
+
+on:
+  schedule:
+    # 05:00 UTC on the 1st of every other month (Jan/Mar/May/Jul/Sep/Nov) — ~6×/year.
+    # The Spellbook combo dataset is slow-moving reference data, so a full re-ingest
+    # this often is plenty to keep bracket_tag fresh; pulling the ~500MB dump more
+    # frequently is wasted bandwidth. 05:00 UTC is clear of the scanner-ingest job
+    # (04:00 UTC on the 1st/15th). Fire workflow_dispatch the day a big combo update
+    # lands if you don't want to wait for the next slot.
+    - cron: '0 5 1 */2 *'
+  # Manual trigger for first-run population / recovery / on-demand refresh.
+  workflow_dispatch:
+
+# Never run two ingests at once (a slow run overlapping the next schedule would
+# double-write); the latest wins.
+concurrency:
+  group: combo-ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    name: Ingest Spellbook combos
+    runs-on: ubuntu-latest
+    # Streams a ~500MB bulk dump and upserts ~92k variants; generous headroom.
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # Build the shared file: deps BEFORE backend's npm ci. Their dist is
+      # gitignored, so a fresh checkout has none; building here makes the
+      # dist-guarded `prepare` a no-op when backend installs (mirrors
+      # scanner-ingest.yml — backend's npm ci would otherwise trigger their build
+      # with no devDeps installed → TS2688 "Cannot find type definition for node").
+      - name: Build shared packages
+        run: |
+          npm --prefix packages/game-core ci --ignore-scripts
+          npm --prefix packages/game-core run build
+          npm --prefix packages/binder-routing ci --ignore-scripts
+          npm --prefix packages/binder-routing run build
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Ingest combos
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [[ -z "$DATABASE_URL" ]]; then
+            echo "::error::DATABASE_URL secret is not set — add the prod Postgres connection string to repo secrets." >&2
+            exit 1
+          fi
+          npx tsx src/scripts/ingest-combos.ts
