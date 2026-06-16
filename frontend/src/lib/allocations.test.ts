@@ -7,7 +7,7 @@ import {
   findSuboptimalPrintings,
   findStealableCopy,
   planCardAdd,
-  planUseMyCopies,
+  listContestedCards,
   type AllocationInfo,
 } from './allocations';
 import type { EnrichedCard } from '../types';
@@ -580,39 +580,27 @@ describe('planCardAdd', () => {
   it('binds a free owned copy when one is available', () => {
     const decks = [deck({ id: 'd1' })];
     const collection = [card({ copyId: 'free', name: 'Sol Ring' })];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1')).toEqual({
+    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({
       kind: 'bind',
       copyId: 'free',
     });
   });
 
-  it('proxies when the card is not owned', () => {
-    expect(planCardAdd('Sol Ring', undefined, [], [deck({ id: 'd1' })], 'd1')).toEqual({
-      kind: 'proxy',
-    });
+  it('lists (no move) when the card is not owned', () => {
+    expect(planCardAdd('Sol Ring', undefined, [], [deck({ id: 'd1' })])).toEqual({ kind: 'list' });
   });
 
-  it('auto-moves a copy held in another deck mainboard', () => {
+  it('lists, never moves, when the only copy is in another deck mainboard', () => {
     const decks = [
       deck({ id: 'd1', name: 'Current' }),
       deck({ id: 'd2', name: 'Donor', cards: [dc('s-x', 'Sol Ring', 'shared')] }),
     ];
     const collection = [card({ copyId: 'shared', name: 'Sol Ring' })];
-    const plan = planCardAdd('Sol Ring', undefined, collection, decks, 'd1');
-    expect(plan.kind).toBe('auto-move');
-    expect(plan.kind === 'auto-move' && plan.stealable.donorDeckId).toBe('d2');
+    // Owned but elsewhere → just list it; the copy is NOT pulled out of d2.
+    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({ kind: 'list' });
   });
 
-  it('auto-moves a copy held in another deck sideboard', () => {
-    const decks = [
-      deck({ id: 'd1', name: 'Current' }),
-      deck({ id: 'd2', name: 'Donor', sideboard: [dc('sb-1', 'Sol Ring', 'sb')] }),
-    ];
-    const collection = [card({ copyId: 'sb', name: 'Sol Ring' })];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1').kind).toBe('auto-move');
-  });
-
-  it('asks to confirm when the only copy is another deck commander (risky)', () => {
+  it('lists, never moves, when the only copy is another deck commander', () => {
     const decks = [
       deck({ id: 'd1', name: 'Current' }),
       deck({
@@ -623,26 +611,10 @@ describe('planCardAdd', () => {
       }),
     ];
     const collection = [card({ copyId: 'cmd', name: 'Sol Ring' })];
-    const plan = planCardAdd('Sol Ring', undefined, collection, decks, 'd1');
-    expect(plan.kind).toBe('confirm');
-    expect(plan.kind === 'confirm' && plan.stealable.donorZone).toBe('commander');
+    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({ kind: 'list' });
   });
 
-  it('asks to confirm when the only copy is another deck partner commander', () => {
-    const decks = [
-      deck({ id: 'd1', name: 'Current' }),
-      deck({
-        id: 'd2',
-        name: 'Donor',
-        partnerCommander: { name: 'Sol Ring' } as never,
-        partnerCommanderAllocatedCopyId: 'pcmd',
-      }),
-    ];
-    const collection = [card({ copyId: 'pcmd', name: 'Sol Ring' })];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1').kind).toBe('confirm');
-  });
-
-  it('prefers binding a free copy over moving one from another deck', () => {
+  it('prefers binding a free copy over listing', () => {
     const decks = [
       deck({ id: 'd1', name: 'Current' }),
       deck({ id: 'd2', name: 'Donor', cards: [dc('s-x', 'Sol Ring', 'in-donor')] }),
@@ -651,82 +623,85 @@ describe('planCardAdd', () => {
       card({ copyId: 'in-donor', name: 'Sol Ring' }),
       card({ copyId: 'free', name: 'Sol Ring' }),
     ];
-    expect(planCardAdd('Sol Ring', undefined, collection, decks, 'd1')).toEqual({
+    expect(planCardAdd('Sol Ring', undefined, collection, decks)).toEqual({
       kind: 'bind',
       copyId: 'free',
     });
   });
 });
 
-describe('planUseMyCopies', () => {
+describe('listContestedCards', () => {
   function dc(slotId: string, name: string, allocatedCopyId: string | null): DeckCard {
     return { slotId, card: { name, id: `sf-${name}` } as ScryfallCard, allocatedCopyId };
   }
 
-  it('binds each claimed-elsewhere mainboard slot from its donor deck', () => {
+  it('lists an owned-but-elsewhere mainboard card with its donor + owned count', () => {
     const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', null)] });
-    const donor = deck({ id: 'd2', name: 'Donor', cards: [dc('ds1', 'Sol Ring', 'shared')] });
+    const donor = deck({
+      id: 'd2',
+      name: 'Morcant',
+      color: '#abc',
+      cards: [dc('ds1', 'Sol Ring', 'shared')],
+    });
     const collection = [card({ copyId: 'shared', name: 'Sol Ring' })];
-    const plan = planUseMyCopies(current, collection, [current, donor]);
-    expect(plan.skippedCommander).toBe(0);
-    expect(plan.binds).toEqual([
+    expect(listContestedCards(current, collection, [current, donor])).toEqual([
       {
         slotId: 's1',
-        copyId: 'shared',
-        donorDeckId: 'd2',
-        donorZone: 'main',
-        donorSlotId: 'ds1',
-        donorCard: expect.objectContaining({ name: 'Sol Ring' }),
+        cardName: 'Sol Ring',
+        donorDeckName: 'Morcant',
+        donorDeckColor: '#abc',
+        owned: 1,
       },
     ]);
   });
 
-  it('skips a card whose only copy is another deck commander (counts it)', () => {
+  it('includes a card whose copy is another deck commander (resolved consciously, not skipped)', () => {
     const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', null)] });
     const donor = deck({
       id: 'd2',
-      name: 'Donor',
+      name: 'Morcant',
       commander: { name: 'Sol Ring' } as never,
       commanderAllocatedCopyId: 'cmd',
     });
     const collection = [card({ copyId: 'cmd', name: 'Sol Ring' })];
-    const plan = planUseMyCopies(current, collection, [current, donor]);
-    expect(plan.binds).toEqual([]);
-    expect(plan.skippedCommander).toBe(1);
+    expect(
+      listContestedCards(current, collection, [current, donor]).map((c) => c.cardName)
+    ).toEqual(['Sol Ring']);
   });
 
-  it('binds only as many copies as you own across duplicate slots', () => {
-    const current = deck({
-      id: 'd1',
-      name: 'Current',
-      cards: [dc('s1', 'Sol Ring', null), dc('s2', 'Sol Ring', null)],
+  it('reports the true owned count for the shortage line', () => {
+    const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', null)] });
+    const donor = deck({
+      id: 'd2',
+      name: 'Morcant',
+      cards: [dc('ds1', 'Sol Ring', 'c1'), dc('ds2', 'Sol Ring', 'c2')],
     });
-    const donor = deck({ id: 'd2', name: 'Donor', cards: [dc('ds1', 'Sol Ring', 'only')] });
-    const collection = [card({ copyId: 'only', name: 'Sol Ring' })]; // own exactly 1
-    const plan = planUseMyCopies(current, collection, [current, donor]);
-    expect(plan.binds.map((b) => b.slotId)).toEqual(['s1']); // second slot left
+    const collection = [
+      card({ copyId: 'c1', name: 'Sol Ring' }),
+      card({ copyId: 'c2', name: 'Sol Ring' }),
+    ];
+    expect(listContestedCards(current, collection, [current, donor])[0].owned).toBe(2);
   });
 
-  it('returns an empty plan when nothing is claimed-elsewhere', () => {
+  it('excludes a card you do not own', () => {
+    const current = deck({ id: 'd1', cards: [dc('s1', 'Foo', null)] });
+    expect(listContestedCards(current, [], [current])).toEqual([]);
+  });
+
+  it('excludes a card with a free copy available (not contested)', () => {
+    const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', null)] });
+    const donor = deck({ id: 'd2', name: 'Morcant', cards: [dc('ds1', 'Sol Ring', 'used')] });
+    const collection = [
+      card({ copyId: 'used', name: 'Sol Ring' }),
+      card({ copyId: 'free', name: 'Sol Ring' }),
+    ];
+    expect(listContestedCards(current, collection, [current, donor])).toEqual([]);
+  });
+
+  it('excludes a slot already bound to a copy', () => {
     const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', 'mine')] });
     const collection = [card({ copyId: 'mine', name: 'Sol Ring' })];
-    expect(planUseMyCopies(current, collection, [current])).toEqual({
-      binds: [],
-      skippedCommander: 0,
-    });
-  });
-
-  it('ignores an unbound slot whose card is not owned at all', () => {
-    const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Foo', null)] });
-    expect(planUseMyCopies(current, [], [current]).binds).toEqual([]);
-  });
-
-  it('pulls a copy held in another deck sideboard', () => {
-    const current = deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', null)] });
-    const donor = deck({ id: 'd2', name: 'Donor', sideboard: [dc('sb1', 'Sol Ring', 'sb')] });
-    const collection = [card({ copyId: 'sb', name: 'Sol Ring' })];
-    const plan = planUseMyCopies(current, collection, [current, donor]);
-    expect(plan.binds[0]).toMatchObject({ slotId: 's1', copyId: 'sb', donorZone: 'sideboard' });
+    expect(listContestedCards(current, collection, [current])).toEqual([]);
   });
 });
 

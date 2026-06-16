@@ -1,0 +1,132 @@
+/* SharedCopiesSheet — deck-level review of owned-but-elsewhere cards. Reuses the
+   shared card-picker sheet shell; this file adds the header, the contested-card
+   rows, and the footer. Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
+
+.shared-copies-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.25rem 0.25rem 0.6rem;
+}
+
+.shared-copies-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.shared-copies-title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.shared-copies-sub {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.shared-copies-sub strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.shared-copies-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.shared-copies-close:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.shared-copies-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.shared-copies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.shared-copies-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.shared-copies-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.shared-copies-row-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shared-copies-row-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.shared-copies-row-where > svg {
+  flex-shrink: 0;
+}
+
+.shared-copies-row-deck {
+  font-weight: 600;
+  color: var(--deck-color, var(--accent));
+}
+
+.shared-copies-row-btn {
+  flex-shrink: 0;
+}
+
+.shared-copies-actions {
+  padding: 0.6rem 0.25rem 0.25rem;
+  border-top: 0.5px solid var(--border);
+}
+
+.shared-copies-actions .btn {
+  width: 100%;
+}

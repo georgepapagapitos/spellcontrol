@@ -509,120 +509,67 @@ export function findStealableCopy(
 /**
  * What adding a card to a deck should do, given the live collection + decks.
  * The single source of truth shared by every add path (collection search panel,
- * Coach/Engine lanes, quantity stepper) so they behave identically. The path
- * inconsistency was the core "allocation feels weird" complaint: the search
- * panel silently added an owned card as a missing/proxy slot when its only copy
- * sat in another deck, while the Coach lane confirmed a move — same action, two
- * outcomes depending on where you clicked.
+ * Coach/Engine lanes, quantity stepper) so they behave identically.
  *
- *  - `bind`: a free owned copy exists → claim it. Seamless, no cross-deck change.
- *  - `auto-move`: no free copy, but one sits in another deck's main/sideboard →
- *    pull it here and leave the donor a gap. Seamless + reversible (Undo).
- *  - `confirm`: the only owned copy is another deck's COMMANDER — significant
- *    enough that the caller surfaces the steal-confirm sheet instead of silently
- *    gutting a commander.
- *  - `proxy`: the card isn't owned → add an unowned slot (a truthful "missing").
+ * An add NEVER moves a physical copy out of another deck — decks list what they
+ * want freely. Pulling a copy in is always a separate, conscious choice (the
+ * per-row "Use my copy" / Shared-copies review → StealConfirmSheet). So:
+ *
+ *  - `bind`: a free owned copy exists → claim it.
+ *  - `list`: no free copy → add the slot unbound. classifyAllocation then renders
+ *    it "In [deck]" (owned but every copy is elsewhere) or "unowned" (not owned) —
+ *    exactly the slot import/generate already produce.
  */
-export type AddPlan =
-  | { kind: 'bind'; copyId: string }
-  | { kind: 'auto-move'; stealable: StealableCopy }
-  | { kind: 'confirm'; stealable: StealableCopy }
-  | { kind: 'proxy' };
+export type AddPlan = { kind: 'bind'; copyId: string } | { kind: 'list' };
 
 export function planCardAdd(
   cardName: string,
   preferredScryfallId: string | undefined,
   collection: EnrichedCard[],
-  decks: Deck[],
-  recipientDeckId: string
+  decks: Deck[]
 ): AddPlan {
   const allocations = buildAllocationMap(decks);
   const claim = pickCollectionCopy(cardName, collection, allocations, preferredScryfallId);
-  if (claim) return { kind: 'bind', copyId: claim.copyId };
-  const stealable = findStealableCopy(
-    cardName,
-    collection,
-    decks,
-    recipientDeckId,
-    preferredScryfallId
-  );
-  if (!stealable) return { kind: 'proxy' };
-  const risky = stealable.donorZone === 'commander' || stealable.donorZone === 'partner';
-  return { kind: risky ? 'confirm' : 'auto-move', stealable };
+  return claim ? { kind: 'bind', copyId: claim.copyId } : { kind: 'list' };
 }
 
-/** One slot to claim + where its physical copy is being pulled from. */
-export interface UseMyCopiesBind {
-  /** The mainboard slot in the recipient deck to bind. */
+/** A mainboard slot whose card you own but every copy is currently in another deck. */
+export interface ContestedCard {
   slotId: string;
-  copyId: string;
-  donorDeckId: string;
-  donorZone: DonorZone;
-  donorSlotId: string | null;
-  donorCard: ScryfallCard;
-}
-
-export interface UseMyCopiesPlan {
-  binds: UseMyCopiesBind[];
-  /** Owned-but-elsewhere cards left for the per-row confirm path because the only
-   *  copy is another deck's commander/partner (don't silently gut a commander). */
-  skippedCommander: number;
+  cardName: string;
+  /** The deck a copy currently lives in (best donor) — for the "also in [deck]" line. */
+  donorDeckName: string;
+  donorDeckColor: string;
+  /** How many copies you own (honest shortage line: "you own N, also wanted by …"). */
+  owned: number;
 }
 
 /**
- * Plan the bulk "Use my copies" resolver: for every mainboard slot in `deck`
- * that is owned-but-claimed-elsewhere (unbound, you own the card, every copy is
- * in another deck), pick the copy to pull from its donor deck. Pure — computes
- * the full move list without mutating the real store, so the caller can apply it
- * inside one snapshot + Undo.
- *
- * Reuses {@link findStealableCopy} faithfully against a mutable CLONE of `decks`:
- * each planned bind moves the copy in the clone, so the next slot re-plans
- * against fresh state and we never plan the same copy twice when the deck wants
- * more copies of a card than you own (you simply get as many binds as you own).
- *
- * Commander/partner donors are skipped (counted in `skippedCommander`) — pulling
- * a deck's commander is the "risky" case kept on the confirming per-row path.
+ * List this deck's mainboard cards that are owned-but-claimed-elsewhere — feeds the
+ * Shared-copies review sheet. Pure; never mutates and never plans a move (unlike a
+ * bulk resolver — the user decides each one consciously). Each entry names the best
+ * donor (via {@link findStealableCopy}) so the row can show where the copy is and
+ * trigger a per-card move.
  */
-export function planUseMyCopies(
+export function listContestedCards(
   deck: Deck,
   collection: EnrichedCard[],
   decks: Deck[]
-): UseMyCopiesPlan {
-  const binds: UseMyCopiesBind[] = [];
-  let skippedCommander = 0;
-
-  const working: Deck[] = decks.map((d) => ({
-    ...d,
-    cards: d.cards.map((c) => ({ ...c })),
-    sideboard: (d.sideboard ?? []).map((c) => ({ ...c })),
-  }));
-  const workingDeck = working.find((d) => d.id === deck.id);
-  if (!workingDeck) return { binds, skippedCommander };
-
-  for (const slot of workingDeck.cards) {
+): ContestedCard[] {
+  const out: ContestedCard[] = [];
+  for (const slot of deck.cards) {
     if (slot.allocatedCopyId) continue;
-    if (!collection.some((c) => c.name === slot.card.name)) continue;
-    const stealable = findStealableCopy(slot.card.name, collection, working, deck.id, slot.card.id);
-    if (!stealable) continue; // a free copy exists, or none stealable — not our job
-    if (stealable.donorZone === 'commander' || stealable.donorZone === 'partner') {
-      skippedCommander += 1;
-      continue;
-    }
-    binds.push({
+    const owned = collection.filter((c) => c.name === slot.card.name).length;
+    if (owned === 0) continue;
+    const donor = findStealableCopy(slot.card.name, collection, decks, deck.id, slot.card.id);
+    if (!donor) continue; // a free copy exists, or not actually elsewhere — not contested
+    out.push({
       slotId: slot.slotId,
-      copyId: stealable.copyId,
-      donorDeckId: stealable.donorDeckId,
-      donorZone: stealable.donorZone,
-      donorSlotId: stealable.donorSlotId,
-      donorCard: stealable.donorCard,
+      cardName: slot.card.name,
+      donorDeckName: donor.donorDeckName,
+      donorDeckColor: donor.donorDeckColor,
+      owned,
     });
-    // Move the copy in the clone so the next iteration re-plans correctly.
-    slot.allocatedCopyId = stealable.copyId;
-    const donor = working.find((d) => d.id === stealable.donorDeckId);
-    const donorSlots = stealable.donorZone === 'sideboard' ? donor?.sideboard : donor?.cards;
-    const donorSlot = donorSlots?.find((c) => c.slotId === stealable.donorSlotId);
-    if (donorSlot) donorSlot.allocatedCopyId = null;
   }
-  return { binds, skippedCommander };
+  return out;
 }
