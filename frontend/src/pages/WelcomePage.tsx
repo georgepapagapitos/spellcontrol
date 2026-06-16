@@ -19,7 +19,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Import, FlaskConical, LogIn, Layers, Wand2, Swords, Download } from 'lucide-react';
+import { Import, FlaskConical, LogIn, Layers, Wand2, BarChart3, Swords } from 'lucide-react';
 import { useCollectionStore } from '../store/collection';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv } from '../lib/samples';
@@ -33,22 +33,22 @@ const FEATURES = [
   {
     Icon: Layers,
     title: 'Rule-based binders',
-    body: 'Define a binder once as a set of rules — colors, types, sets, price, tags — and every card sorts itself. Reorganize your whole physical collection without touching a card.',
+    body: 'Sort your physical collection into binders defined by rules — colors, types, sets, price, tags. Set the pocket size and order; every card files itself into the first binder it matches.',
   },
   {
     Icon: Wand2,
-    title: 'Build decks for any format',
-    body: 'Commander, Standard, Modern and more. Generate a Commander deck from EDHREC data, then tune it with explainable cuts, swaps, and combo detection.',
+    title: 'Generate Commander decks',
+    body: 'Pick a commander, choose themes, and set a power bracket — then get a full 100-card deck from EDHREC data, balanced for mana curve and card roles.',
+  },
+  {
+    Icon: BarChart3,
+    title: 'Build & analyze decks',
+    body: 'Build Commander, Brawl, Standard, or Pauper decks with live legality checking, then dig into mana curve, synergy, combos, and power-bracket fit.',
   },
   {
     Icon: Swords,
     title: 'Track multiplayer games',
-    body: 'Run life totals, the stack, and full game state across a pod — local games at the table or live online sessions synced across devices.',
-  },
-  {
-    Icon: Download,
-    title: 'Import from the tools you use',
-    body: 'Bring your collection from ManaBox, Moxfield, Archidekt, Deckbox, TCGplayer, Cardsphere, MTGA, or plain text. The format is auto-detected — no manual mapping.',
+    body: 'Run life totals and full game state across your pod — local games at the table or live online sessions synced across devices.',
   },
 ];
 
@@ -115,8 +115,8 @@ export function WelcomePage() {
           <p className="welcome-brand">SpellControl</p>
           <h1 className="welcome-headline">Plan your Magic: The Gathering collection</h1>
           <p className="welcome-tagline">
-            Turn your physical cards into rule-based binders, format-legal decks, and tracked games
-            — all on your devices, no account required.
+            Import your collection, organize it into binders, build and analyze decks, and track
+            your games — all on your devices, no account required.
           </p>
 
           <div className="welcome-doors">

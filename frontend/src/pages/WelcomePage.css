@@ -8,19 +8,29 @@
  * All tokens from global.css — no raw numeric values.
  */
 
+/* Fixed-height scroll viewport — NOT min-height. The app shell sets
+   `body { overflow: hidden }` and #root has no height cap, so a min-height
+   page (this one is tall: hero + feature grid + footer) just grows past the
+   viewport into the clipped region with no way to scroll — the bottom gets
+   cut off on short screens, native, and any browser whose chrome eats height.
+   height:100dvh pins it to the viewport so its own overflow-y scrolls; the
+   card centers via `margin: auto` (NOT align/justify center, which can't
+   scroll into the overflow). Padding carries the native safe-area insets so
+   content clears the notch and home indicator. Mirrors .auth-page. */
 .welcome-page {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
+  overflow-y: auto;
+  padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-5) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
   background: var(--bg);
 }
 
 .welcome-card {
   width: 100%;
   max-width: 560px;
+  margin: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
