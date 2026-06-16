@@ -702,23 +702,35 @@ function webPush(
  * rows to their pre-edit snapshot and rebuilds the in-memory stores, then toasts
  * — web has no durable outbox, so an unsaved change must not silently linger.
  */
+// Cap web /api/sync POSTs at the same op-count the native durable queue drains
+// (peekBatch). A collection import emits one mutation per card, so an un-chunked
+// web push of a big collection blew past the server's MAX_BATCH_SIZE (5000) and
+// got a 413 → "Change could not be saved" (the import never synced on mobile web).
+const WEB_PUSH_CHUNK = 500;
+
 async function webPushInner(
   muts: queue.Mutation[],
   priors: Map<string, estore.StoredRow | undefined>
 ): Promise<void> {
-  const { upserts, deletions } = await buildOutbound(muts);
+  let pushed = 0; // muts confirmed server-side (and stamped locally) so far
   try {
-    const result = await pushSync({ upserts, deletions });
-    const hint = await applyPushResult(result);
-    broadcastCursor(hint);
+    for (; pushed < muts.length; pushed += WEB_PUSH_CHUNK) {
+      const slice = muts.slice(pushed, pushed + WEB_PUSH_CHUNK);
+      const { upserts, deletions } = await buildOutbound(slice);
+      const result = await pushSync({ upserts, deletions });
+      const hint = await applyPushResult(result);
+      broadcastCursor(hint);
+    }
     pushError = false;
     recomputeError();
     markSynced();
   } catch (err) {
     logger.warn('[sync] web write failed; reverting optimistic change:', err);
+    // Revert only the rows that never reached the server — earlier chunks were
+    // already stamped with their canonical rev by applyPushResult.
     const restoreByKind = new Map<EntityKind, estore.StoredRow[]>();
     const removeByKind = new Map<EntityKind, string[]>();
-    for (const m of muts) {
+    for (const m of muts.slice(pushed)) {
       const prior = priors.get(`${m.kind}:${m.id}`);
       if (prior) {
         const arr = restoreByKind.get(m.kind) ?? [];

@@ -829,6 +829,34 @@ describe('web write-through (no durable outbox)', () => {
     expect(await queue.peekBatch(10)).toHaveLength(0);
   });
 
+  it('chunks a big collection into <=500-op POSTs (no 413)', async () => {
+    // Regression: an un-chunked web push of a large import sent every card in one
+    // POST, blowing past the server's 5000-op cap → 413 → "Change could not be
+    // saved" and the collection never synced on mobile web.
+    const cards = Array.from({ length: 1100 }, (_, i) => ({ copyId: `c-${i}` }));
+    await persistCardsState(cards as Array<{ copyId: string; importId?: string }>);
+    const sizes = (mockPush.mock.calls as Array<[PushBody]>).map(
+      ([b]) => b.upserts.length + b.deletions.length
+    );
+    expect(sizes).toEqual([500, 500, 100]); // 1100 split into 500/500/100
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(500);
+    expect(hasSyncError()).toBe(false);
+  });
+
+  it('a mid-collection push failure reverts only the un-pushed chunk', async () => {
+    // First chunk lands; second 413s. The 500 rows already accepted must keep
+    // their stamped state — only the unsent tail reverts.
+    const cards = Array.from({ length: 600 }, (_, i) => ({ copyId: `c-${i}` }));
+    mockPush.mockReset();
+    mockPush
+      .mockResolvedValueOnce({ applied: [], cursor: 1 })
+      .mockRejectedValueOnce(new Error('413'));
+    await persistCardsState(cards as Array<{ copyId: string; importId?: string }>);
+    expect(await estore.getById('card', 'c-0')).toBeDefined(); // first chunk survived
+    expect(await estore.getById('card', 'c-500')).toBeUndefined(); // tail reverted
+    expect(hasSyncError()).toBe(true);
+  });
+
   it('two rapid same-deck edits do not self-conflict on one device', async () => {
     // The reported bug: editing a deck twice quickly on web fired "Deck changed
     // on another device" and dropped the second edit — with NO other device. The
