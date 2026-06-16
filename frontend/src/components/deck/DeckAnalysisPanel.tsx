@@ -17,7 +17,7 @@ import {
   fetchPartnerThemeData,
 } from '@/deck-builder/services/edhrec/client';
 import type { EDHRECCard, EDHRECTheme } from '@/deck-builder/types';
-import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
+import { useTaggerReady } from '@/lib/use-tagger-ready';
 import {
   analyzeDeck,
   classifyCandidate,
@@ -87,22 +87,8 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
     const [tab, setTab] = useState<'diagnosis' | 'suggestions'>('diagnosis');
     // Embedded in a tab: no header chrome, body always open, Suggestions only.
     const isCollapsed = embedded ? false : collapsed;
-    const [taggerVersion, setTaggerVersion] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
     const focusTargetRef = useRef<HTMLButtonElement>(null);
-
-    // Trigger tagger load on mount so role data is available the first time
-    // the user opens the panel. Safe to call repeatedly — the client dedupes.
-    useEffect(() => {
-      if (hasTaggerData()) return;
-      let cancelled = false;
-      void loadTaggerData().then(() => {
-        if (!cancelled && hasTaggerData()) setTaggerVersion((v) => v + 1);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, []);
 
     useEffect(() => {
       writeCollapsedPref(collapsed);
@@ -118,13 +104,11 @@ export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
       },
     }));
 
-    const taggerReady = hasTaggerData();
-    void taggerVersion;
+    const taggerReady = useTaggerReady();
 
     const analysis: DeckAnalysisResult = useMemo(
       () => analyzeDeck({ format, commander, partnerCommander, mainboard }, taggerReady),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [format, commander, partnerCommander, mainboard, taggerReady, taggerVersion]
+      [format, commander, partnerCommander, mainboard, taggerReady]
     );
 
     const summary = useMemo(() => {

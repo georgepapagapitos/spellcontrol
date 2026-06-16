@@ -33,7 +33,8 @@ import {
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
-import { getCardRole, hasTaggerData, loadTaggerData } from '@/deck-builder/services/tagger/client';
+import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { COLOR_INFO } from '../../lib/colors';
 import { isKeepableHand, simulateOpeningHands, type SimResult } from '../../lib/opening-hand-sim';
 import { cardCmc, isLand, toSimCard } from '../../lib/hand-classify';
@@ -159,20 +160,6 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // Embedded in a tab: no header chrome, body always open.
     const isCollapsed = embedded ? false : collapsed;
 
-    // Load tagger data so role-based stats (ramp counts, keep verdicts) are
-    // accurate. Safe to call repeatedly — the client dedupes in-flight loads.
-    const [taggerVersion, setTaggerVersion] = useState(0);
-    useEffect(() => {
-      if (hasTaggerData()) return;
-      let cancelled = false;
-      void loadTaggerData().then(() => {
-        if (!cancelled && hasTaggerData()) setTaggerVersion((v) => v + 1);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, []);
-
     useImperativeHandle(ref, () => ({
       reveal: () => {
         setCollapsed(false);
@@ -181,6 +168,8 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
         });
       },
     }));
+
+    const taggerReady = useTaggerReady();
 
     // The library — every card slot in the mainboard, using the EXACT
     // ScryfallCard the user chose for that slot (so printings/sets/art are
@@ -202,11 +191,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 
     // The library reduced to simulator inputs. Recomputed when tagger data
     // arrives so ramp classification (which drives keep verdicts) is correct.
-    const simLibrary = useMemo(
-      () => library.map(toSimCard),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [library, taggerVersion]
-    );
+    const simLibrary = useMemo(() => library.map(toSimCard), [library, taggerReady]);
 
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
@@ -326,8 +311,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 
     const canDraw = pile.length > 0;
     const empty = totalCards === 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const breakdown = useMemo(() => summarizeHand(hand), [hand, taggerVersion]);
+    const breakdown = useMemo(() => summarizeHand(hand), [hand, taggerReady]);
 
     // Single-hand verdict. Post-Draw hands (>7 cards) don't fire a verdict —
     // those would always look keepable. The keep heuristic itself lives in
