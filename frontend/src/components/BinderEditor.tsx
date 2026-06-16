@@ -167,6 +167,7 @@ export function BinderEditor() {
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
   const [showDeckAllocated, setShowDeckAllocated] = useState(true);
   const [keepPrintingsTogether, setKeepPrintingsTogether] = useState(false);
+  const [sectionMode, setSectionMode] = useState<'sort' | 'group'>('sort');
   const [pageBreakDepth, setPageBreakDepth] = useState<number>(1);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
@@ -290,6 +291,7 @@ export function BinderEditor() {
         setFixedCapacity(existing.fixedCapacity ?? null);
         setShowDeckAllocated(existing.hideDeckAllocated !== false);
         setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
+        setSectionMode(existing.sectionMode ?? 'sort');
         setPageBreakDepth(existing.pageBreakDepth ?? 1);
         const existingGroups = existing.filterGroups?.length
           ? existing.filterGroups.map((g) => ({
@@ -309,6 +311,7 @@ export function BinderEditor() {
         setFixedCapacity(null);
         setShowDeckAllocated(true);
         setKeepPrintingsTogether(false);
+        setSectionMode('sort');
         setPageBreakDepth(1);
         setGroups(editingBinderSeed?.groups?.length ? editingBinderSeed.groups : [newGroup()]);
         setRoutingMode('rules');
@@ -530,6 +533,7 @@ export function BinderEditor() {
       hideDeckAllocated: showDeckAllocated ? undefined : false,
       sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
       keepPrintingsTogether: keepPrintingsTogether || undefined,
+      sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
       pageBreakDepth: pageBreakDepth > 1 ? pageBreakDepth : undefined,
     };
 
@@ -888,6 +892,38 @@ export function BinderEditor() {
                     onSortsChange={setSorts}
                     onValueOrdersChange={setSortValueOrders}
                   />
+                  {groups.length >= 2 && (
+                    <div className="editor-row" style={{ marginTop: '0.75rem' }}>
+                      <div className="field" style={{ flex: 1 }}>
+                        <label>Sections</label>
+                        <div
+                          role="radiogroup"
+                          aria-label="Section mode"
+                          className="binder-mode-toggle"
+                          style={{ display: 'inline-flex' }}
+                        >
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={sectionMode === 'sort'}
+                            className={`binder-mode-pill${sectionMode === 'sort' ? ' active' : ''}`}
+                            onClick={() => setSectionMode('sort')}
+                          >
+                            By sort field
+                          </button>
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={sectionMode === 'group'}
+                            className={`binder-mode-pill${sectionMode === 'group' ? ' active' : ''}`}
+                            onClick={() => setSectionMode('group')}
+                          >
+                            By rule group
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {sorts.length > 1 && (
                     <div className="editor-row" style={{ marginTop: '0.75rem' }}>
                       <div className="field" style={{ flex: 1 }}>
