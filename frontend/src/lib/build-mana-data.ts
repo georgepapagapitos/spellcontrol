@@ -57,7 +57,14 @@ export function tallyNames(
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
-const isLand = (card: ScryfallCard) => (card.type_line || '').toLowerCase().includes('land');
+/**
+ * Check only the front face (before any "//") so spell//land MDFCs (e.g.
+ * "Valakut Awakening // Valakut Stoneforge") are treated as spells in the
+ * curve — matching the same front-face convention used by deck-analysis.ts's
+ * `bucketType()`.
+ */
+const isLand = (card: ScryfallCard) =>
+  (card.type_line || '').split('//')[0].toLowerCase().includes('land');
 
 /**
  * Build a deck's full mana/composition data from its flat card list.
