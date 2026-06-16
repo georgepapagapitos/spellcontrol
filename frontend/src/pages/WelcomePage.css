@@ -1,9 +1,9 @@
-/* WelcomePage — first-run three-door welcome screen.
+/* WelcomePage — public landing page + first-run onboarding screen.
  *
- * Hero-class surface: full-viewport centered card, pill CTAs, serif brand
- * name. Entrance animates once (opacity + subtle translate-up) and respects
- * prefers-reduced-motion. No exit animation needed — the welcome is a
- * one-shot; choosing any door replaces it immediately via React state.
+ * Hero-class surface: a centered card holding the hero (brand eyebrow, serif
+ * headline, tagline, three pill CTAs), a feature grid, and a legal footer.
+ * Entrance animates once (opacity + subtle translate-up) and respects
+ * prefers-reduced-motion.
  *
  * All tokens from global.css — no raw numeric values.
  */
@@ -14,17 +14,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 32px 16px;
   background: var(--bg);
 }
 
 .welcome-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 560px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 40px 28px 32px;
+  padding: 40px 28px 28px;
   box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
   animation: welcome-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
@@ -47,34 +47,51 @@
   }
 }
 
-/* Brand block */
+/* Hero block */
+
+.welcome-hero {
+  text-align: center;
+}
 
 .welcome-brand {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0 0 12px;
+}
+
+.welcome-headline {
   font-family: var(--font-serif);
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 6px;
+  margin: 0 0 10px;
   letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .welcome-tagline {
   font-size: var(--text-base);
   color: var(--text-secondary);
-  margin: 0 0 32px;
+  margin: 0 auto 28px;
+  max-width: 44ch;
   line-height: 1.5;
 }
 
-/* Door group — vertical stack of pill CTAs */
+/* Door group — vertical stack of pill CTAs, constrained so they don't sprawl
+ * to the full card width on the wider landing layout. */
 
 .welcome-doors {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-width: 360px;
+  margin: 0 auto;
 }
 
-/* Primary pair — doors 1 & 2: import + sample.
- * Styled as pill-btn-primary (accent fill) for emphasis. */
 .welcome-doors .pill-btn {
   width: 100%;
   justify-content: center;
@@ -87,21 +104,87 @@
   margin-top: 4px;
 }
 
-/* Loading state while sample cards are being fetched */
-.welcome-loading-hint {
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin-top: 8px;
-}
-
 /* Error banner for sample-load failure */
 .welcome-error {
-  margin-top: 12px;
+  margin: 12px auto 0;
+  max-width: 360px;
   padding: 10px 12px;
   border-radius: var(--radius);
   background: var(--err-bg);
   border: 1px solid var(--err-border);
   color: var(--err-text);
   font-size: var(--text-sm);
+}
+
+/* Feature grid — 1 column on phones, 2 from the small breakpoint up. */
+
+.welcome-features {
+  margin-top: 36px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px 28px;
+}
+
+@media (min-width: 480px) {
+  .welcome-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.welcome-feature {
+  min-width: 0;
+}
+
+.welcome-feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--accent-soft, var(--surface-raised));
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.welcome-feature-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 6px;
+}
+
+.welcome-feature-body {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Legal footer */
+
+.welcome-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.welcome-footer a {
+  font-size: var(--text-sm);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.welcome-footer a:hover {
+  text-decoration: underline;
+}
+
+.welcome-disclaimer {
+  margin: 12px 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
 }

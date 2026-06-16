@@ -40,7 +40,7 @@ describe('isFirstRunExempt', () => {
     ['/s/abc123', true],
     ['/collection', false],
     ['/decks', false],
-    ['/', false],
+    ['/', true],
     ['/settings', false],
   ])('%s -> %s', (path, expected) => {
     expect(isFirstRunExempt(path)).toBe(expected);
@@ -48,9 +48,9 @@ describe('isFirstRunExempt', () => {
 });
 
 describe('useFirstRunGate', () => {
-  it('redirects a never-visited guest from /collection to /welcome', () => {
+  it('redirects a never-visited guest from /collection to the root landing', () => {
     const { getByTestId } = render(<Harness status="guest" initialPath="/collection" />);
-    expect(getByTestId('path').textContent).toBe('/welcome');
+    expect(getByTestId('path').textContent).toBe('/');
   });
 
   it('does not redirect when the ever-visited flag is set', () => {
