@@ -224,7 +224,12 @@ interface DecksState {
     sourceProduct?: { code: string; fileName: string; name: string };
   }): string;
 
-  updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>): void;
+  /**
+   * `silent` skips the `updatedAt` bump — for background/derived writes
+   * (grade/bracket/gap analysis) that aren't user edits, so viewing a deck
+   * doesn't mark it "edited just now".
+   */
+  updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>, silent?: boolean): void;
   renameDeck(id: string, name: string): void;
   deleteDeck(id: string): void;
   /** Delete every deck. Used by the admin "Wipe all decks" button. */
@@ -332,9 +337,11 @@ export const useDecksStore = create<DecksState>()(
         return id;
       },
 
-      updateDeck: (id, updates) =>
+      updateDeck: (id, updates, silent) =>
         set((s) => ({
-          decks: s.decks.map((d) => (d.id === id ? touch({ ...d, ...updates }) : d)),
+          decks: s.decks.map((d) =>
+            d.id === id ? (silent ? { ...d, ...updates } : touch({ ...d, ...updates })) : d
+          ),
         })),
 
       renameDeck: (id, name) =>
