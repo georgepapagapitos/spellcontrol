@@ -44,6 +44,10 @@ function makeCustomization(overrides: Partial<Customization> = {}): Customizatio
     tempoAutoDetect: true,
     tempoPacing: 'balanced',
     saltTolerance: 2,
+    generationMode: 'edhrec',
+    artThemeTag: '',
+    historicalYear: 2005,
+    permanentsOnly: false,
     ...overrides,
   };
 }

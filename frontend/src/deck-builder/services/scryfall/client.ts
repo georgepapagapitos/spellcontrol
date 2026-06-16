@@ -219,6 +219,24 @@ export async function searchCards(
   return getCardRepository().searchCards(query, colorIdentity, options);
 }
 
+/**
+ * Search always against the live Scryfall API, regardless of offline-bundle
+ * availability. The alternative-generator previews (art motif / era) use
+ * operators (art:, year<=) the offline query parser can't evaluate, so they
+ * must bypass the offline repository even when it would otherwise be active.
+ */
+export async function searchCardsLive(
+  query: string,
+  colorIdentity: string[],
+  options: CardSearchOptions = {}
+): Promise<ScryfallSearchResponse> {
+  // `wrappedLive`/`withPlayableFilter`/`liveCardRepository` are declared further
+  // down the module; that's safe because this function only runs at call time,
+  // long after the module has finished evaluating and they're initialized.
+  wrappedLive ??= withPlayableFilter(liveCardRepository);
+  return wrappedLive.searchCards(query, colorIdentity, options);
+}
+
 async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCard> {
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);
@@ -1390,8 +1408,21 @@ let wrappedOffline: CardRepository | null = null;
  * downloading mid-session; the wrapped repos are memoized so the wrapper isn't
  * rebuilt on every card fetch.
  */
+// When set, every card fetch routes to the live API regardless of offline-bundle
+// availability. The alternative generators (oracle-role / art-theme / historical)
+// use Scryfall operators the offline query parser can't evaluate (otag:, arttag:,
+// year<=) — on a device with the offline bundle downloaded, routing those searches
+// offline would silently return the wrong cards. The generator sets this for the
+// duration of a non-EDHREC build and clears it in a finally.
+// ponytail: module-global, fine because generation is single-flight (one user-
+// initiated build at a time); make it a counter if concurrent builds ever land.
+let forceLive = false;
+export function setForceLiveSearch(value: boolean): void {
+  forceLive = value;
+}
+
 export function getCardRepository(): CardRepository {
-  if (offlineActive()) {
+  if (offlineActive() && !forceLive) {
     wrappedOffline ??= withPlayableFilter(offlineCardRepository);
     return wrappedOffline;
   }

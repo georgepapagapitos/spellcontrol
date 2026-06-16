@@ -10,6 +10,7 @@ import { CommanderProfileCard } from '../components/deck/CommanderProfileCard';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { ThemePicker } from '../components/deck/ThemePicker';
 import { DeckCustomizer } from '../components/deck/DeckCustomizer';
+import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
@@ -259,9 +260,19 @@ export function GuidedBuildPage() {
     navigate,
   ]);
 
-  const canAdvance = step === 0 ? !!commander : true;
+  // Art Theme can't build without a motif chosen, so block leaving its config step.
+  const artNeedsMotif =
+    customization.generationMode === 'art-theme' && !customization.artThemeTag.trim();
+  const canAdvance = step === 0 ? !!commander : step === 1 ? !artNeedsMotif : true;
+
   const isLastStep = step === STEPS.length - 1;
   const current = STEPS[step];
+
+  // Step 1 means "themes" for EDHREC but "tune your approach" for the other modes.
+  const stepBlurb =
+    step === 1 && customization.generationMode !== 'edhrec'
+      ? 'Tune the approach you picked — choose a motif, an era, or leave the defaults. No EDHREC themes needed here.'
+      : current.blurb;
 
   // Commander art for the takeover panel.
   const commanderArtUrl =
@@ -312,7 +323,7 @@ export function GuidedBuildPage() {
         <h2 className="deck-builder-section-title">
           Step {step + 1}. {current.title}
         </h2>
-        <p className="guided-blurb">{current.blurb}</p>
+        <p className="guided-blurb">{stepBlurb}</p>
       </section>
 
       {step === 0 && (
@@ -355,6 +366,15 @@ export function GuidedBuildPage() {
             <CommanderProfileCard profile={commanderProfile} themesLocation="next-step" />
           )}
           {commander && (
+            <GenerationModePicker
+              section="cards"
+              customization={customization}
+              update={updateCustomization}
+              colorIdentity={colorIdentity}
+              commanderName={commander.name}
+            />
+          )}
+          {commander && (
             <PartnerCommanderSelector
               key={commander.id}
               commander={commander}
@@ -366,13 +386,25 @@ export function GuidedBuildPage() {
         </>
       )}
 
-      {step === 1 && commander && (
-        <ThemePicker
-          commanderName={commander.name}
-          selectedSlugs={selectedThemeSlugs}
-          onToggle={handleToggleTheme}
-        />
-      )}
+      {step === 1 &&
+        commander &&
+        (customization.generationMode === 'edhrec' ? (
+          <ThemePicker
+            commanderName={commander.name}
+            selectedSlugs={selectedThemeSlugs}
+            onToggle={handleToggleTheme}
+          />
+        ) : (
+          <section className="deck-builder-section">
+            <GenerationModePicker
+              section="config"
+              customization={customization}
+              update={updateCustomization}
+              colorIdentity={colorIdentity}
+              commanderName={commander.name}
+            />
+          </section>
+        ))}
 
       {step === 2 && <DeckCustomizer customization={customization} update={updateCustomization} />}
 
@@ -392,13 +424,21 @@ export function GuidedBuildPage() {
               </span>
             </div>
 
-            {/* Themes */}
+            {/* Approach — themes for EDHREC, the chosen Scryfall mode otherwise */}
             <div className="guided-review-row">
-              <span className="guided-review-label">Themes</span>
+              <span className="guided-review-label">
+                {customization.generationMode === 'edhrec' ? 'Themes' : 'Approach'}
+              </span>
               <span className="guided-review-value">
-                {selectedThemes.length > 0
-                  ? selectedThemes.map((t) => t.name).join(', ')
-                  : 'Commander core'}
+                {customization.generationMode === 'art-theme'
+                  ? `Art theme — ${customization.artThemeTag.trim() || 'choose a motif'}`
+                  : customization.generationMode === 'historical'
+                    ? `Historical — through ${customization.historicalYear}`
+                    : customization.generationMode === 'oracle-role'
+                      ? `By function${customization.permanentsOnly ? ' — permanents only' : ''}`
+                      : selectedThemes.length > 0
+                        ? selectedThemes.map((t) => t.name).join(', ')
+                        : 'Commander core'}
               </span>
             </div>
 

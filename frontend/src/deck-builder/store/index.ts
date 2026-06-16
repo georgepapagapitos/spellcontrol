@@ -97,6 +97,10 @@ const defaultCustomization: Customization = {
   tempoAutoDetect: true,
   tempoPacing: 'balanced',
   saltTolerance: 2,
+  generationMode: 'edhrec',
+  artThemeTag: '',
+  historicalYear: 2005,
+  permanentsOnly: false,
 };
 
 export const useDeckBuilderStore = create<AppState>((set, get) => ({

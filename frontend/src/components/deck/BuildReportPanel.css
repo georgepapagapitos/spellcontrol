@@ -25,6 +25,22 @@
   color: var(--text-muted);
 }
 
+/* Alternative-generator method headline — leads the report when the deck was
+   built by function / art / era instead of EDHREC. */
+.build-report-method {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.build-report-method-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 .build-report-muted {
   color: var(--text-muted);
 }

@@ -30,6 +30,14 @@ export function assembleBuildReport(input: {
     builtFromCollection,
   };
 
+  // Alternative generators: record how the deck was built for the report header.
+  const mode = generated.generationMode ?? customization.generationMode ?? 'edhrec';
+  if (mode !== 'edhrec') {
+    report.generationMode = mode;
+    report.generationModeDetail = generated.generationModeDetail;
+    if (generated.generationRelaxedNote) report.generationNote = generated.generationRelaxedNote;
+  }
+
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {
     report.collectionStrategy = collectionStrategy;

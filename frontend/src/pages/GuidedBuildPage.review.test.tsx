@@ -21,6 +21,10 @@ const testState = vi.hoisted(() => {
     budgetCents: 5000,
     tempBannedCards: [],
     tempMustIncludeCards: [],
+    generationMode: 'edhrec',
+    artThemeTag: '',
+    historicalYear: 2005,
+    permanentsOnly: false,
   };
 
   return {
