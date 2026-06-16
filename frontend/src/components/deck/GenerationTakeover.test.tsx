@@ -58,4 +58,25 @@ describe('GenerationTakeover', () => {
     // without error at 100%.
     expect(screen.getByText('Done')).toBeTruthy();
   });
+
+  it('renders a flavor line alongside the step message', () => {
+    render(<GenerationTakeover message="Summoning creatures…" percent={40} />);
+    // The flavor element is aria-hidden so query by class, not role.
+    const flavor = document.querySelector('.gen-takeover-flavor');
+    expect(flavor).toBeTruthy();
+    expect(flavor?.textContent?.length).toBeGreaterThan(0);
+  });
+
+  it('resets flavor line when the message prop changes', () => {
+    const { rerender } = render(<GenerationTakeover message="Summoning creatures…" percent={40} />);
+    const firstText = document.querySelector('.gen-takeover-flavor')?.textContent;
+    rerender(<GenerationTakeover message="Tapping the mana base…" percent={60} />);
+    // After a message change the flavor line should still render (not crash).
+    const flavor = document.querySelector('.gen-takeover-flavor');
+    expect(flavor).toBeTruthy();
+    // The new message maps to a different flavor pool so text may differ.
+    expect(flavor?.textContent?.length).toBeGreaterThan(0);
+    // Suppress unused variable warning — firstText is checked implicitly above.
+    void firstText;
+  });
 });

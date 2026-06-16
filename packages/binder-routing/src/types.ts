@@ -201,6 +201,13 @@ export interface BinderDef {
   sortValueOrders?: Partial<Record<SortField, string[]>>;
   keepPrintingsTogether?: boolean;
   /**
+   * 'sort' (default): sections are driven by the primary sort field (color/type/…).
+   * 'group': one section per filterGroup, in group order, each labeled by the group's
+   * optional `name`. First-matching-group-wins when a card matches multiple groups.
+   * Empty sections are hidden. The shared binder `sorts` apply within each group section.
+   */
+  sectionMode?: 'sort' | 'group';
+  /**
    * How many sort levels force a new page when their category changes.
    * 1 = default: only the primary sort starts fresh pages (sections).
    * 2 = primary AND secondary sort each begin their own page.
