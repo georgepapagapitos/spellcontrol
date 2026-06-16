@@ -450,6 +450,23 @@ export interface BinderDef {
    *  (existing behavior). Ignored for manual-mode binders.
    *  See `materializeBinders`. */
   keepPrintingsTogether?: boolean;
+  /**
+   * 'sort' (default): sections are driven by the primary sort field (color/type/…).
+   * 'group': one section per filterGroup, in group order, each labeled by the group's
+   * optional `name`. First-matching-group-wins when a card matches multiple groups.
+   * Empty sections are hidden. The shared binder `sorts` apply within each group section.
+   */
+  sectionMode?: 'sort' | 'group';
+  /**
+   * How many sort levels force a new page when their category changes.
+   * 1 = default: only the primary sort starts fresh pages (sections).
+   * 2 = primary AND secondary sort each begin their own page.
+   * N = the first N sort levels break pages; the leaf (deepest active sort)
+   *     never breaks — cards pack continuously within the deepest page.
+   * Undefined/0/1 all resolve to the default: primary-only page breaks.
+   * Ignored for manual-ordered binders.
+   */
+  pageBreakDepth?: number;
   /** Captured each time the user clicks "Mark reviewed" on this binder. The
    *  next view diffs current membership against this snapshot and surfaces
    *  added/removed cards — so volatile fields (price, EDHREC rank) silently
