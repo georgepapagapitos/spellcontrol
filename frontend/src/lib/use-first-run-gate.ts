@@ -4,12 +4,14 @@ import { hasEverVisited } from './first-run';
 import type { AuthStatus } from '../store/auth';
 
 /**
- * Paths reachable without first satisfying the first-run gate: the welcome
- * screen itself, the auth flow, OAuth landing pages, and public share links.
- * Exported for unit tests; the hook below uses it internally.
+ * Paths reachable without first satisfying the first-run gate: the root
+ * landing page itself (and its /welcome alias), the auth flow, OAuth landing
+ * pages, and public share links. Exported for unit tests; the hook below uses
+ * it internally.
  */
 export function isFirstRunExempt(pathname: string): boolean {
   return (
+    pathname === '/' ||
     pathname === '/welcome' ||
     pathname === '/auth' ||
     pathname.startsWith('/auth/') ||
@@ -19,9 +21,9 @@ export function isFirstRunExempt(pathname: string): boolean {
 }
 
 /**
- * First-run gate: on a brand-new install, route the user to /welcome before
- * dropping them into the app. The welcome screen offers three doors: import,
- * try samples, or sign in. The gate is one-shot — markEverVisited() from
+ * First-run gate: on a brand-new install, route the user to the root landing
+ * page before dropping them into the app. The landing offers three doors:
+ * import, try samples, or sign in. The gate is one-shot — markEverVisited() from
  * `./first-run` is called when the user chooses a door (import/samples) or
  * when any auth choice completes (login, register, Google, "Continue without
  * an account"), after which this hook no-ops forever.
@@ -37,6 +39,6 @@ export function useFirstRunGate(status: AuthStatus): void {
     if (status !== 'guest') return;
     if (hasEverVisited()) return;
     if (isFirstRunExempt(location.pathname)) return;
-    navigate('/welcome', { replace: true });
+    navigate('/', { replace: true });
   }, [status, location.pathname, navigate]);
 }
