@@ -285,7 +285,12 @@ function buildSections(
     valueOrders?: Partial<Record<SortField, string[]>>;
   },
   pageBreakDepth = 1,
-  pageOffsetRef = { value: 0 }
+  pageOffsetRef = { value: 0 },
+  // When recursing for page-break depth > 1, the parent group's label/key are
+  // threaded down so nested sub-sections read as "Red · 1 CMC" (not a bare
+  // "1 CMC" that repeats per parent) and carry a unique key per parent group.
+  labelPrefix = '',
+  keyPrefix = ''
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';
@@ -298,8 +303,8 @@ function buildSections(
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
     return {
-      key: meta.key,
-      label: meta.label,
+      key: keyPrefix ? `${keyPrefix}/${meta.key}` : meta.key,
+      label: labelPrefix ? `${labelPrefix} · ${meta.label}` : meta.label,
       pip: meta.pip,
       cards: matchingCards,
       pages,
@@ -344,7 +349,9 @@ function buildSections(
         isMatch,
         ctx,
         pageBreakDepth - 1,
-        pageOffsetRef
+        pageOffsetRef,
+        labelPrefix ? `${labelPrefix} · ${meta.label}` : meta.label,
+        keyPrefix ? `${keyPrefix}/${meta.key}` : meta.key
       );
       sections.push(...subSections);
     } else {

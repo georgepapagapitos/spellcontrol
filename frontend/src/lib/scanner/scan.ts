@@ -18,7 +18,6 @@ import { logger } from '../logger';
 import { apiUrl } from '../api-base';
 import { loadOpenCv } from './opencv-loader';
 import { detectAndWarpCard, type Point } from './detect';
-import { applyCLAHE } from './normalize';
 import { hashCanvas, cropArtRegion } from './phash';
 import { loadHashDb, findNearest, type Match as HashMatch } from './hash-db';
 
@@ -233,16 +232,15 @@ async function onDeviceMatchAsync(
 ): Promise<ScanResult> {
   const hashDb = await loadHashDb();
 
-  // Reference pHashes were built from Scryfall art_crop, so hashing the
-  // full warp gives noisy candidates that the fast-path threshold rarely
-  // clears. Crop to the art region first to match the reference shape.
-  const normStart = performance.now();
-  const artCrop = cropArtRegion(warped);
-  const normalized = applyCLAHE(artCrop);
-  const normalizeMs = performance.now() - normStart;
+  // Pass the full warp: hashCanvas crops the art region internally, so
+  // cropping here first would double-crop (hash a narrow strip of the art →
+  // never matches). And NO CLAHE — the reference hashes were ingested
+  // without it, so normalizing only the query inflates Hamming distances and
+  // keeps the fast-path from ever clearing.
+  const normalizeMs = 0;
 
   const phashStart = performance.now();
-  const hash = hashCanvas(normalized);
+  const hash = hashCanvas(warped);
   const pHashMs = performance.now() - phashStart;
 
   const scanStart = performance.now();

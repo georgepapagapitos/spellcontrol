@@ -872,6 +872,35 @@ describe('pageBreakDepth', () => {
     expect(d2[0].sections[1].pages[0].pageNum).toBe(2);
   });
 
+  it('N=2: nested sub-sections carry the parent label and a unique key per parent', () => {
+    // 2 colors × 2 CMCs, 1 card each → at depth 2 every (color, cmc) combo is
+    // its own section. Labels must read "Parent · Leaf" and keys must be unique
+    // across parents (two "cmc-1" sub-sections would otherwise collide).
+    const cards = [
+      makeCard({ name: 'R1', colorIdentity: ['R'], cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'R2', colorIdentity: ['R'], cmc: 2, typeLine: 'Instant' }),
+      makeCard({ name: 'U1', colorIdentity: ['U'], cmc: 1, typeLine: 'Instant' }),
+      makeCard({ name: 'U2', colorIdentity: ['U'], cmc: 2, typeLine: 'Instant' }),
+    ];
+    const binder = makeBinder({
+      filter: {},
+      sorts: [
+        { field: 'color', dir: 'asc' },
+        { field: 'cmc', dir: 'asc' },
+      ],
+      pocketSize: 9,
+      pageBreakDepth: 2,
+    });
+    const { binders } = materializeBinders(cards, [binder], defaultOpts);
+    const sections = binders[0].sections;
+    expect(sections).toHaveLength(4);
+    // Every nested label carries the parent context via the " · " separator.
+    for (const sec of sections) expect(sec.label).toContain(' · ');
+    // Keys are unique across parent groups (no React-key collision).
+    const keys = sections.map((s) => s.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
   it('leaf-never-breaks invariant: depth=2 with only 1 sort = same as depth=1', () => {
     // With only 1 sort, there is no secondary to break on — depth=2 behaves like depth=1.
     const cards = [
