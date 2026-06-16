@@ -924,7 +924,7 @@ export function BinderEditor() {
                       </div>
                     </div>
                   )}
-                  {sorts.length > 1 && (
+                  {sectionMode !== 'group' && sorts.length > 1 && (
                     <div className="editor-row" style={{ marginTop: '0.75rem' }}>
                       <div className="field" style={{ flex: 1 }}>
                         <label>Page breaks</label>
