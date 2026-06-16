@@ -19,12 +19,12 @@ as real constraints anyway.
 
 **Page-hero CTAs are pills; below the hero, rectangles act and pills label.**
 
-| Use                         | Radius                             | For                                                                                                                   |
-| --------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Use                         | Radius                             | For                                                                                                                      |
+| --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Page-hero CTAs**          | `999px` pill (`.pill-btn`)         | Actions in a page hero (the `.binder-hero` row): Add cards, New deck, Share, Import deck… The deliberate hero signature. |
-| **Action buttons**          | `var(--radius)` (8px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                              |
-| **Cards / panels / sheets** | `var(--radius-lg)` (12px)          | Container surfaces.                                                                                                   |
-| **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                      |
+| **Action buttons**          | `var(--radius)` (8px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                                 |
+| **Cards / panels / sheets** | `var(--radius-lg)` (12px)          | Container surfaces.                                                                                                      |
+| **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                         |
 
 **Hero CTAs are the one labelled-pill tier.** Outside a page hero, the only
 pill-shaped button is a genuinely **circular icon-only** one (equal
@@ -125,7 +125,7 @@ at 320px. If it can't shrink, it must wrap or collapse.
      written after "Group by" overflowed the collection toolbar) must stay safe
      by construction.
    - Keep each control compact: a `SelectMenu` shows its **current value** (icon
-     + value), not a redundant static label.
+     - value), not a redundant static label.
 
 Verify both at the **320px floor** in the Responsive section — that's where the
 clip shows up first.
@@ -257,16 +257,16 @@ sheets skip the hook).
 
 ### Tokens (styles/tokens.css)
 
-| Token             | Value                             | Use                                  |
-| ----------------- | --------------------------------- | ------------------------------------ |
-| `--motion-fast`   | 120ms                             | hovers, presses, popover enter       |
-| `--motion-base`   | 200ms                             | fades, drawer exits, toast leave     |
-| `--motion-gentle` | 320ms                             | sheet exits, emphasis one-shots      |
-| `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only)  |
-| `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move      |
-| `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel           |
-| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, celebration only|
-| `linear`          |                                   | spinners, progress, confetti         |
+| Token             | Value                             | Use                                   |
+| ----------------- | --------------------------------- | ------------------------------------- |
+| `--motion-fast`   | 120ms                             | hovers, presses, popover enter        |
+| `--motion-base`   | 200ms                             | fades, drawer exits, toast leave      |
+| `--motion-gentle` | 320ms                             | sheet exits, emphasis one-shots       |
+| `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only)   |
+| `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move       |
+| `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel            |
+| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, celebration only |
+| `linear`          |                                   | spinners, progress, confetti          |
 
 Don't invent a new bezier — if none of these reads right, that's a
 STYLE_GUIDE discussion, not an inline constant.
@@ -296,6 +296,7 @@ registry in `lib/use-animated-number.ts` is the mechanism: a key is consumed
 globally once, so remounts of the same component don't replay the tween.
 
 **Motion budget:**
+
 - Reveal: 600ms easeOutCubic (0 → final value on first computation)
 - Re-target: 200ms (small delta, ≤5 — the normal live-update path)
 - Pop one-shot: ≤320ms (`--ease-pop`) on value change
@@ -332,7 +333,7 @@ on dismiss (zero idle battery cost).
    returns true and the tilt eases to neutral (same handshake as the cursor path).
 
 **Baseline-delta mapping** — the first orientation sample captured at preview
-open becomes the neutral reference. All subsequent samples map only the *delta*
+open becomes the neutral reference. All subsequent samples map only the _delta_
 from that baseline, so nobody needs to hold the phone flat for the effect to
 work. The pure mapping math lives in `lib/tilt-mapping.ts` (unit-tested).
 
@@ -434,7 +435,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   them discoverable, and co-locating would change cascade order
   (`deck-builder-responsive.css` `@media` overrides target some of those
   selectors) for no real benefit. Co-located `Component.css` remains the rule
-  for *new* per-component stylesheets only.
+  for _new_ per-component stylesheets only.
 - **Deck components use co-located CSS:** a component in
   `src/components/deck/*` imports its own `./X.css` (e.g.
   `DeckColorPanel.css`), not the central `deck-builder-*.css` files. Shared
@@ -454,14 +455,14 @@ chip; reuse this so the boards read as one system, not five badge styles.
 The vocabulary is a fixed **verdict → word → tone** map (tones are the status
 tokens from `styles/tokens.css` — reuse them, never new hues):
 
-| Verdict      | Word       | Tone    | Token         | Means                           |
-| ------------ | ---------- | ------- | ------------- | ------------------------------- |
-| `add`        | Add        | green   | `--success`   | safe gain (Engine/Optimize/gap) |
-| `cut`        | Cut        | red     | `--err-text`  | remove it (Optimize removals)   |
-| `substitute` | Substitute | blue    | `--info`      | lateral owned swap              |
-| `budget`     | Budget     | gold    | `--warn-text` | a real tradeoff / power loss    |
-| `owned`      | Owned      | accent  | `--accent`    | already in your collection      |
-| `hold`       | Hold       | neutral | `--text-muted`     | flagged but intentionally kept  |
+| Verdict      | Word       | Tone    | Token          | Means                           |
+| ------------ | ---------- | ------- | -------------- | ------------------------------- |
+| `add`        | Add        | green   | `--success`    | safe gain (Engine/Optimize/gap) |
+| `cut`        | Cut        | red     | `--err-text`   | remove it (Optimize removals)   |
+| `substitute` | Substitute | blue    | `--info`       | lateral owned swap              |
+| `budget`     | Budget     | gold    | `--warn-text`  | a real tradeoff / power loss    |
+| `owned`      | Owned      | accent  | `--accent`     | already in your collection      |
+| `hold`       | Hold       | neutral | `--text-muted` | flagged but intentionally kept  |
 
 The **tone semantics** are the load-bearing part: green = safe/gain · blue =
 lateral · gold = tradeoff/caution · red = remove · accent = ownership · neutral =
@@ -533,7 +534,7 @@ Rules (all mandatory):
   ("Axis — N cards: M producers, K payoffs. Show cards.").
 - **One-shot entrance only** — `scale(0.92→1) + fade`, `--motion-gentle`
   `--ease-out-soft`, explicit `@media (prefers-reduced-motion: reduce) {
-  animation: none }` gate. No continuous or looping animation.
+animation: none }` gate. No continuous or looping animation.
 - **<3 active axes:** do not render the polygon. Show labeled count chips
   (999px pill) with an explanatory fallback message instead.
 - **SVG accessibility:** `role="img"` + `aria-label` sentence naming every
@@ -560,15 +561,15 @@ rendering pixel-identical (the pre-T36 compact-row bug: SET/#CN/foil all hidden
 **Per-density field budgets.** Each density has a fixed budget — add a field by
 trading one out, not by squeezing:
 
-| Density            | Fields                                                                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · set glyph + set code + CN · mana · qty · value                                  |
-| **Compact** (32px) | name · type glyph · set glyph · mana · qty · value — set code + CN return ≥768px; foil/deck/binder badges return ≥1024px                |
+| Density            | Fields                                                                                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · set glyph + set code + CN · mana · qty · value                                                                                                              |
+| **Compact** (32px) | name · type glyph · set glyph · mana · qty · value — set code + CN return ≥768px; foil/deck/binder badges return ≥1024px                                                                                            |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges; a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing
-may be *only* reachable via hover. Every hover affordance needs a tap path;
+may be _only_ reachable via hover. Every hover affordance needs a tap path;
 **tap-opens-the-card-preview is the canonical fallback** (the preview carousel
 shows the full printing detail), which is why the row glyphs can stay compact
 and `aria-hidden`/title-labelled.
@@ -623,41 +624,83 @@ The app's analysis surfaces speak **one vocabulary** so users learn it once:
 
 **Rule: band words are the public language; raw numbers are panel-internal.**
 
-| Tier       | Where it lives                                          | Examples                                                                |
-| ---------- | ------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Band words** | Cross-panel: heroes, lane headers, stat-strip, NBM  | "Dialed in", "Needs work", "Optimized", "Exhibition"                    |
-| **Numbers**    | Inside their own panel only                         | `78/100` in BracketBreakdown's Power signal table; sub-score bars       |
-| **Bracket**    | A number but also a named tier — use "Bracket N"    | "Bracket 3 · Upgraded" in the hero; never just "3"                     |
+| Tier           | Where it lives                                     | Examples                                                          |
+| -------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| **Band words** | Cross-panel: heroes, lane headers, stat-strip, NBM | "Dialed in", "Needs work", "Optimized", "Exhibition"              |
+| **Numbers**    | Inside their own panel only                        | `78/100` in BracketBreakdown's Power signal table; sub-score bars |
+| **Bracket**    | A number but also a named tier — use "Bracket N"   | "Bracket 3 · Upgraded" in the hero; never just "3"                |
 
 **One grading system.** A letter grade (`A`, `B+`) is a third dialect — it has been removed from the stat-strip. Don't re-introduce letter grades in cross-panel summaries. The `deckGrade` prop exists for backwards compatibility but is not rendered.
 
 **Renamed terms (settled UX-315):**
 
-| Old label     | New label        | Surface                              | Rationale                                                       |
-| ------------- | ---------------- | ------------------------------------ | --------------------------------------------------------------- |
-| Soft score    | Power signal     | BracketBreakdown panel heading + aria | "Soft score" collided with Build health vocabulary; "Power signal" is self-explaining |
+| Old label  | New label    | Surface                               | Rationale                                                                             |
+| ---------- | ------------ | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| Soft score | Power signal | BracketBreakdown panel heading + aria | "Soft score" collided with Build health vocabulary; "Power signal" is self-explaining |
 
 **Anti-patterns this rule kills:**
+
 - Showing a raw 0–100 number in the stat-strip or a lane header (panel-internal; use the band label)
 - A third grading scale (letter grades) appearing next to band words and bracket numbers
 - "Soft score" being confused with Build health's subscore bands
 
-## First-run welcome screen (UX-331)
+## Full-viewport centered pages (scroll, don't clip)
 
-The first-run gate now routes to `/welcome` instead of `/auth`. Design rulings
-settled here:
+**Load-bearing rule — any full-viewport centered card page (auth, the `/`
+landing, future splash/onboarding surfaces) MUST be a self-scrolling viewport,
+never `min-height: 100vh` + flex centering.** The app shell sets
+`body { overflow: hidden }` and `#root` has no height cap, so a `min-height`
+page that grows past the viewport spills into the clipped region with **no way
+to scroll** — the bottom is silently cut off on short screens, native (under the
+notch / home indicator), and any browser whose chrome eats height.
+`align-items`/`justify-content: center` can't scroll into overflow; they strand it.
 
-- **Three doors, two primary.** The welcome presents exactly three CTAs: "Import
+The canonical pattern (`.auth-page`, `.welcome-page`):
+
+```css
+.page {
+  height: 100vh;
+  height: 100dvh; /* fixed viewport height, NOT min-height */
+  display: flex;
+  overflow-y: auto; /* the page itself scrolls */
+  padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-5) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
+}
+.page-card {
+  margin: auto; /* centers when it fits, yields to overflow when it doesn't */
+}
+```
+
+- **`margin: auto`, not `align/justify center`.** Auto margins center the card
+  when there's room and collapse to let the container scroll when the content is
+  taller — they never strand the overflow.
+- **Safe-area inset padding is mandatory**, not optional — these pages render
+  outside the app's `Layout` chrome, so nothing else accounts for the notch /
+  home indicator on native. Add `--keyboard-inset` to the bottom padding only if
+  the page has focusable text inputs (auth does; the landing doesn't).
+- This is a real bug that has shipped twice (auth register mode; the `/` landing
+  footer). Treat it as a hard constraint.
+
+## First-run welcome / landing screen (UX-331)
+
+The first-run gate routes a fresh visitor (and crawlers) to `/` — the public
+marketing landing, which doubles as the first-run onboarding surface. It must
+follow the full-viewport scroll pattern above. Design rulings settled here:
+
+- **Three doors, two primary.** The hero presents exactly three CTAs: "Import
   my collection", "Try sample cards", and "Sign in". Doors 1–2 are the primary
   pair (pill-btn-primary, accent fill) because collection activation (getting
   cards in) is the event that makes the app useful. "Sign in" is secondary
   (default pill-btn surface) — it's present but not dominant.
-- **Hero-class surface.** The welcome card is hero-class: full-viewport centered,
-  `max-width: 400px`, serif brand name (`--font-serif`), pill CTAs. All three
-  doors are pill-shaped because they live in the page hero.
-- **Brand name + one line only.** The welcome copy is the app name ("SpellControl")
-  and a single tagline. No feature list, no tour. Any extra copy increases the time
-  before the user can do something real.
+- **Hero-class surface.** The landing card is hero-class: a self-scrolling
+  centered viewport, `max-width: 560px`, brand eyebrow + serif headline
+  (`--font-serif`), pill CTAs, then a feature grid and legal footer below the
+  hero. All three doors are pill-shaped because they live in the page hero.
+- **The hero is tight; the page can be long.** Above the fold is the headline +
+  tagline + three doors. Below it the landing carries real, accurate feature
+  prose (it's the only crawlable marketing content the gated app exposes) — but
+  the page MUST scroll (see the rule above), and feature claims MUST match what
+  ships (formats, generation scope).
 - **No exit animation.** The welcome is a one-shot surface that replaces itself
   immediately when any door is chosen. Instant replacement via React state is the
   symmetric exit — it reads as deliberate action, not a vanish.
@@ -722,11 +765,11 @@ stays current, so prefer editing it over re-deciding.
 
 Three words map a deck's avg-CMC pacing, rendered beside the number in `DeckCurvePhases`:
 
-| Band word      | Typical avg CMC | Pacing keys                           |
-| -------------- | --------------- | ------------------------------------- |
-| `lean`         | < 2.8           | `aggressive-early`, `fast-tempo`      |
-| `balanced`     | 2.8 – 3.5       | `midrange`, `balanced`                |
-| `top-heavy`    | > 3.5           | `late-game`                           |
+| Band word   | Typical avg CMC | Pacing keys                      |
+| ----------- | --------------- | -------------------------------- |
+| `lean`      | < 2.8           | `aggressive-early`, `fast-tempo` |
+| `balanced`  | 2.8 – 3.5       | `midrange`, `balanced`           |
+| `top-heavy` | > 3.5           | `late-game`                      |
 
 The mapping is a pure exported function `avgCmcBandWord(pacing)` in `DeckCurvePhases.tsx`. Do not duplicate the logic elsewhere.
 
@@ -734,12 +777,12 @@ The mapping is a pure exported function `avgCmcBandWord(pacing)` in `DeckCurvePh
 
 Four words map a card's EDHREC salt score (0–4 scale), rendered in `SaltiestPanel` beside each raw score:
 
-| Band word        | Score range  |
-| ---------------- | ------------ |
-| `table-friendly` | < 0.5        |
+| Band word        | Score range |
+| ---------------- | ----------- |
+| `table-friendly` | < 0.5       |
 | `mild`           | 0.5 – 1.4   |
 | `spicy`          | 1.5 – 2.4   |
-| `polarizing`     | ≥ 2.5        |
+| `polarizing`     | ≥ 2.5       |
 
 The mapping is a pure exported function `saltBandWord(salt)` in `SaltiestPanel.tsx`. The avg-salt footer also shows the band word for the deck-level average.
 
@@ -783,13 +826,13 @@ the thumb, badges, reason, and action layout.
 The ranker (`lib/coach-rank.ts`) orders moves in three tiers, then by
 `deltaScore` / `inclusion`, owned-first within each tier:
 
-| Tier | Trigger | Examples |
-| --- | --- | --- |
-| **Tier 1 — severe deficit** | a gap/upgrade move whose target sub-score is < 60 | fill-gap adds when `roles` scores 45 |
-| **Tier 2 — quality** | move targets the weakest `PlanScore` sub-score and it's < 75 | ramp gap when `roles` is the weakest signal |
-| **Tier 3 — polish** | everything else | combo completions, budget swaps, bracket nudges |
+| Tier                        | Trigger                                                      | Examples                                        |
+| --------------------------- | ------------------------------------------------------------ | ----------------------------------------------- |
+| **Tier 1 — severe deficit** | a gap/upgrade move whose target sub-score is < 60            | fill-gap adds when `roles` scores 45            |
+| **Tier 2 — quality**        | move targets the weakest `PlanScore` sub-score and it's < 75 | ramp gap when `roles` is the weakest signal     |
+| **Tier 3 — polish**         | everything else                                              | combo completions, budget swaps, bracket nudges |
 
-(Deck-size and missing-win-condition *structural* alerts have no concrete card
+(Deck-size and missing-win-condition _structural_ alerts have no concrete card
 move, so they live in the NextBestMove headline above the feed, not as ranked
 rows.)
 
@@ -845,11 +888,11 @@ animation entirely:
 
 ### Empty states
 
-| Situation | Copy |
-| --- | --- |
-| No suggestions at all (deck is tuned) | "Nothing to coach — this deck looks tuned." + hint: "Your deck is well-covered. Try adjusting your bracket target or browsing themes below." |
-| A filter chip returns zero rows but other rows exist | "No {filter} suggestions right now." (inline, no doors) |
-| Analysis still pending and no changes yet | Skeleton (`deck-analysis-skeleton` pattern — see Deck-analysis tabs section) |
+| Situation                                            | Copy                                                                                                                                         |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| No suggestions at all (deck is tuned)                | "Nothing to coach — this deck looks tuned." + hint: "Your deck is well-covered. Try adjusting your bracket target or browsing themes below." |
+| A filter chip returns zero rows but other rows exist | "No {filter} suggestions right now." (inline, no doors)                                                                                      |
+| Analysis still pending and no changes yet            | Skeleton (`deck-analysis-skeleton` pattern — see Deck-analysis tabs section)                                                                 |
 
 ## Binder spread (≥1024px)
 
