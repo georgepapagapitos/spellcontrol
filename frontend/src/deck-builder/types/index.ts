@@ -337,6 +337,9 @@ export interface BuildReport {
   ownedPercentTarget?: number;
   /** Basic lands added as last-resort filler (collection + filter shortfall). */
   basicsPadded?: number;
+  /** Cards added from outside the collection to complete an owned-only build
+   *  (the collection was exhausted before the deck was full). */
+  collectionRelaxed?: number;
   /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
   roleGaps?: Array<{ role: string; have: number; want: number }>;
   /** Cards that are owned but all copies are committed to other decks. */
@@ -353,6 +356,9 @@ export interface GeneratedDeck {
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool
+  /** Cards pulled from OUTSIDE the collection to complete an owned-constrained
+   *  deck when the owned pool was exhausted — relaxation before basic padding. */
+  collectionRelaxedCount?: number;
   detectedCombos?: DetectedCombo[];
   typeTargets?: Record<string, number>;
   dataSource?: DeckDataSource;
