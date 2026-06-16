@@ -217,6 +217,59 @@ describe('validateDeck', () => {
   });
 });
 
+// Modern/Pioneer/Legacy/Vintage are 60-card 4-of constructed formats that
+// differ only by which Scryfall legality key they check. The validation logic
+// is shared with Standard (covered above); these assert each new format is
+// wired to the correct legalityKey and inherits the 4-of / no-color-identity
+// behavior — and that Vintage honors the restricted list.
+describe('validateDeck — Modern/Pioneer/Legacy/Vintage', () => {
+  const NEW_FORMATS = ['modern', 'pioneer', 'legacy', 'vintage'] as const;
+
+  it.each(NEW_FORMATS)('%s checks its own legality key', (fmt) => {
+    const cfg = DECK_FORMAT_CONFIGS[fmt];
+    expect(cfg.legalityKey).toBe(fmt);
+    const bad = card({ name: 'Channel', legalities: { commander: 'legal', [fmt]: 'not_legal' } });
+    const issues = validateDeck([slot(bad, 'a')], [], cfg);
+    expect(issues.some((i) => i.issue === 'not-legal' && i.cardName === 'Channel')).toBe(true);
+  });
+
+  it.each(NEW_FORMATS)('%s allows up to 4 copies and flags the 5th', (fmt) => {
+    const cfg = DECK_FORMAT_CONFIGS[fmt];
+    const c = card({ name: 'Lightning Bolt', legalities: { commander: 'legal', [fmt]: 'legal' } });
+    const four = ['a', 'b', 'c', 'd'].map((id) => slot(c, id));
+    expect(validateDeck(four, [], cfg).filter((i) => i.issue === 'over-copy-limit')).toHaveLength(
+      0
+    );
+    const five = [...four, slot(c, 'e')];
+    expect(
+      validateDeck(five, [], cfg).filter((i) => i.issue === 'over-copy-limit').length
+    ).toBeGreaterThan(0);
+  });
+
+  it.each(NEW_FORMATS)('%s does not enforce color identity', (fmt) => {
+    const cfg = DECK_FORMAT_CONFIGS[fmt];
+    const c = card({
+      name: 'Lightning Bolt',
+      color_identity: ['R'],
+      legalities: { commander: 'legal', [fmt]: 'legal' },
+    });
+    expect(validateDeck([slot(c, 'a')], [], cfg).some((i) => i.issue === 'color-identity')).toBe(
+      false
+    );
+  });
+
+  it('Vintage honors the restricted list (restricted = legal)', () => {
+    const cfg = DECK_FORMAT_CONFIGS.vintage;
+    const lotus = card({
+      name: 'Black Lotus',
+      legalities: { commander: 'legal', vintage: 'restricted' },
+    });
+    expect(validateDeck([slot(lotus, 'a')], [], cfg).some((i) => i.issue === 'not-legal')).toBe(
+      false
+    );
+  });
+});
+
 describe('effectiveDeckColors', () => {
   it('returns commander color identity for commander decks', () => {
     const cmdr = card({ name: 'Atraxa', color_identity: ['W', 'U', 'B', 'G'] });

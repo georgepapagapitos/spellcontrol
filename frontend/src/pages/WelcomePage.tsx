@@ -43,7 +43,7 @@ const FEATURES = [
   {
     Icon: BarChart3,
     title: 'Build & analyze decks',
-    body: 'Build Commander, Brawl, Standard, or Pauper decks with live legality checking, then dig into mana curve, synergy, combos, and power-bracket fit.',
+    body: 'Build decks in eight formats — Commander, Brawl, Standard, Pauper, Modern, Pioneer, Legacy, and Vintage — with live legality checking, then dig into mana curve, synergy, combos, and power-bracket fit.',
   },
   {
     Icon: Swords,
