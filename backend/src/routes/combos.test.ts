@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { __resetMatchCacheForTesting } from './combos';
+import { __resetMatchCacheForTesting, __expireDatasetVersionForTesting } from './combos';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
-import { combos, comboCards } from '../db/schema';
+import { combos, comboCards, comboIngestRuns } from '../db/schema';
 
 let app: Express;
 let cleanup: () => Promise<void>;
@@ -150,6 +150,39 @@ describe('POST /api/combos/match', () => {
     expect(second.headers['x-combos-cache']).toBe('hit');
     // Body must be identical to the first response.
     expect(second.body).toEqual(first.body);
+  });
+
+  it('a fresh combo ingest invalidates cached responses (dataset version re-keys)', async () => {
+    const cookie = await registerAndGetCookie('combos_nora');
+    const body = {
+      ownedOracleIds: ['oracle-thassa', 'oracle-consult', 'oracle-labman'],
+      deckOracleIds: ['oracle-thassa', 'oracle-consult'],
+    };
+
+    const first = await request(app).post('/api/combos/match').set('Cookie', cookie).send(body);
+    expect(first.headers['x-combos-cache']).toBe('miss');
+    const cached = await request(app).post('/api/combos/match').set('Cookie', cookie).send(body);
+    expect(cached.headers['x-combos-cache']).toBe('hit');
+
+    // A re-ingest finishes → new dataset version. Expire only the version memo
+    // (the response cache is untouched), so a miss here proves the version, not a
+    // cleared cache, re-keyed the lookup.
+    await getDb()
+      .insert(comboIngestRuns)
+      .values({
+        id: 'run-after',
+        startedAt: Date.now(),
+        finishedAt: Date.now() + 1000,
+        combosWritten: 2,
+        source: 'test',
+      });
+    __expireDatasetVersionForTesting();
+
+    const afterIngest = await request(app)
+      .post('/api/combos/match')
+      .set('Cookie', cookie)
+      .send(body);
+    expect(afterIngest.headers['x-combos-cache']).toBe('miss');
   });
 
   it('cache key normalizes oracle-id order — same set in different order is one cache entry', async () => {
