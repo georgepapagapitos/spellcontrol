@@ -2171,7 +2171,7 @@ export function DeckEditorPage() {
               onClose={() => setShowAddPanel(false)}
               suggestions={deck.gapAnalysis}
               oneAwayCombos={comboData.data?.oneAway}
-              ownedNames={ownedNames}
+              ownershipFor={ownershipFor}
               enableSuggestions={!!formatConfig?.hasCommander}
               suggestionsPending={analysisState === 'pending'}
             />

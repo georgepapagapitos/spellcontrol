@@ -1,6 +1,16 @@
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
+import type { ChangeOwnership } from './deck-change';
 import { normalizeForSearch } from './normalize-search';
+
+/**
+ * Physical availability of a suggested card — the same tri-state every Tune
+ * surface uses (`ownershipFor`). `owned` = a free/unallocated copy exists, so
+ * it's addable tonight; `in-other-deck` = you own copies but they're all
+ * claimed by other decks (adding triggers the cross-deck resolver); `unowned`
+ * = you'd have to acquire it.
+ */
+export type Ownership = 'owned' | 'in-other-deck' | 'unowned';
 
 /**
  * One row in the deck editor's "Suggestions" add-cards tab. Both kinds are
@@ -11,64 +21,111 @@ import { normalizeForSearch } from './normalize-search';
 export interface SuggestionRow {
   name: string;
   kind: 'staple' | 'combo';
-  /** Whether the user owns at least one copy — drives owned-first ordering. */
-  owned: boolean;
+  ownership: Ownership;
   /** EDHREC inclusion % (staples only). */
   inclusion?: number;
   /** Functional role label, e.g. "Ramp" (staples only). */
   roleLabel?: string;
   imageUrl?: string;
+  /** EDHREC price string (staples only) — shown for `unowned` buy candidates. */
+  price?: string | null;
   /** What completing the combo produces, e.g. "Infinite mana" (combos only). */
   produces?: string;
+}
+
+/** How many actionable suggestions fall in each availability bucket (pre-filter). */
+export interface SuggestionCounts {
+  owned: number;
+  inOtherDeck: number;
+  unowned: number;
+}
+
+/** Which availability buckets the three filter toggles are currently showing. */
+export interface SuggestionFilter {
+  owned: boolean;
+  inOtherDeck: boolean;
+  unowned: boolean;
 }
 
 export interface SuggestionRows {
   staples: SuggestionRow[];
   combos: SuggestionRow[];
+  /** Totals across every bucket, ignoring `show` — drives the chip counts. */
+  counts: SuggestionCounts;
 }
+
+// Owned (addable now) sorts above in-a-deck, which sorts above unowned.
+const RANK: Record<Ownership, number> = { owned: 0, 'in-other-deck': 1, unowned: 2 };
 
 /**
  * Build the Suggestions-tab rows from the deck's live gap analysis + one-away
- * combos. Pure so it's unit-testable and cheap to recompute on every keystroke.
+ * combos. Pure so it's unit-testable and cheap to recompute on every keystroke
+ * / toggle.
  *
- * @param inDeck lowercased names already in the deck — staples/combos for these
- *   are dropped so a just-added card disappears from the list immediately.
+ * @param ownershipFor live tri-state ownership lookup (the page's `ownershipFor`).
+ * @param inDeck lowercased names already in the deck — dropped so a just-added
+ *   card disappears immediately.
+ * @param show which availability buckets the toggles are showing. `counts` is
+ *   always computed over every bucket so toggled-off counts still display.
  */
 export function buildSuggestionRows(
   gap: GapAnalysisCard[] | undefined,
   oneAway: ComboMatch[] | undefined,
-  opts: { ownedNames: Set<string>; query: string; inDeck: Set<string> }
+  opts: {
+    ownershipFor: (name: string) => ChangeOwnership;
+    query: string;
+    inDeck: Set<string>;
+    show: SuggestionFilter;
+  }
 ): SuggestionRows {
-  const { ownedNames, query, inDeck } = opts;
+  const { ownershipFor, query, inDeck, show } = opts;
   const nq = normalizeForSearch(query);
   const matchesQuery = (name: string) => !nq || normalizeForSearch(name).includes(nq);
-  // Owned/in-deck checks are case-insensitive: gap/combo names come from EDHREC
-  // + Spellbook, ownedNames/inDeck from collection imports — sources that can
-  // disagree on capitalization.
-  const owned = new Set([...ownedNames].map((n) => n.toLowerCase()));
-  const isOwned = (name: string) => owned.has(name.toLowerCase());
+  const ownershipOf = (name: string): Ownership => {
+    const o = ownershipFor(name);
+    return o === 'owned' || o === 'in-other-deck' ? o : 'unowned';
+  };
+  const shown = (o: Ownership) =>
+    (o === 'owned' && show.owned) ||
+    (o === 'in-other-deck' && show.inOtherDeck) ||
+    (o === 'unowned' && show.unowned);
+
+  const counts: SuggestionCounts = { owned: 0, inOtherDeck: 0, unowned: 0 };
+  const tally = (o: Ownership) => {
+    if (o === 'owned') counts.owned += 1;
+    else if (o === 'in-other-deck') counts.inOtherDeck += 1;
+    else counts.unowned += 1;
+  };
+
+  // Dedup across both sections (a combo card that's also a staple appears once).
+  const seen = new Set<string>();
 
   // EDHREC staples the deck wants but doesn't run yet. gapAnalysis is already
   // "not in deck", but the deck mutates live, so re-check against `inDeck`.
-  const seen = new Set<string>();
   const staples: SuggestionRow[] = [];
   for (const g of gap ?? []) {
     if (inDeck.has(g.name.toLowerCase())) continue;
     if (!matchesQuery(g.name)) continue;
     if (seen.has(g.name)) continue;
     seen.add(g.name);
+    const ownership = ownershipOf(g.name);
+    tally(ownership);
+    if (!shown(ownership)) continue;
     staples.push({
       name: g.name,
       kind: 'staple',
-      owned: isOwned(g.name),
+      ownership,
       inclusion: g.inclusion,
       roleLabel: g.roleLabel,
       imageUrl: g.imageUrl,
+      price: g.price,
     });
   }
-  // Owned-first (zero-cost adds surface up top), then by inclusion %.
+  // Available-first, then by inclusion %.
   staples.sort((a, b) =>
-    a.owned !== b.owned ? (a.owned ? -1 : 1) : (b.inclusion ?? 0) - (a.inclusion ?? 0)
+    RANK[a.ownership] !== RANK[b.ownership]
+      ? RANK[a.ownership] - RANK[b.ownership]
+      : (b.inclusion ?? 0) - (a.inclusion ?? 0)
   );
 
   // One-away combos: each names exactly one missing card. Sort by popularity,
@@ -82,16 +139,19 @@ export function buildSuggestionRows(
     if (!card) continue;
     const key = card.cardName;
     if (inDeck.has(key.toLowerCase())) continue;
-    if (seen.has(key)) continue; // already a staple row, or a dup combo
+    if (seen.has(key)) continue;
     if (!matchesQuery(key)) continue;
     seen.add(key);
+    const ownership = ownershipOf(key);
+    tally(ownership);
+    if (!shown(ownership)) continue;
     combos.push({
       name: key,
       kind: 'combo',
-      owned: isOwned(key),
+      ownership,
       produces: m.combo.produces.join(' + ') || undefined,
     });
   }
 
-  return { staples, combos };
+  return { staples, combos, counts };
 }

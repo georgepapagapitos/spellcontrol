@@ -24,7 +24,12 @@ import { Tabs, type TabItem } from '../Tabs';
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
-import { buildSuggestionRows, type SuggestionRow } from '../../lib/deck-suggestions';
+import type { ChangeOwnership } from '../../lib/deck-change';
+import {
+  buildSuggestionRows,
+  type SuggestionRow,
+  type SuggestionFilter,
+} from '../../lib/deck-suggestions';
 
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
   if (commanderCI.length === 0) return false;
@@ -68,7 +73,8 @@ interface Props {
    */
   suggestions?: GapAnalysisCard[];
   oneAwayCombos?: ComboMatch[];
-  ownedNames?: Set<string>;
+  /** Live tri-state ownership lookup (the deck page's `ownershipFor`). */
+  ownershipFor?: (name: string) => ChangeOwnership;
   enableSuggestions?: boolean;
   suggestionsPending?: boolean;
 }
@@ -76,9 +82,9 @@ interface Props {
 type Mode = 'collection' | 'scryfall' | 'suggestions';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
-// Stable empty set so SuggestionsResults' memo deps don't churn when no
-// ownership data is supplied.
-const EMPTY_NAME_SET: Set<string> = new Set();
+// Stable fallback so SuggestionsResults' memo deps don't churn when no
+// ownership lookup is supplied (treats everything as unowned).
+const ALL_UNOWNED: (name: string) => ChangeOwnership = () => 'unowned';
 
 // Local copy of the same enum vocabularies the collection page uses.
 // Kept local so this component isn't load-coupled to that page.
@@ -102,7 +108,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     onClose,
     suggestions,
     oneAwayCombos,
-    ownedNames,
+    ownershipFor,
     enableSuggestions,
     suggestionsPending,
   },
@@ -382,7 +388,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             }}
             suggestions={suggestions}
             oneAwayCombos={oneAwayCombos}
-            ownedNames={ownedNames}
+            ownershipFor={ownershipFor ?? ALL_UNOWNED}
             pending={suggestionsPending}
           />
         ) : (
@@ -637,10 +643,23 @@ function CollectionResults({
 interface SuggestionsResultsProps extends ResultsProps {
   suggestions?: GapAnalysisCard[];
   oneAwayCombos?: ComboMatch[];
-  ownedNames?: Set<string>;
+  /** Live tri-state ownership lookup (the deck page's `ownershipFor`). */
+  ownershipFor: (name: string) => ChangeOwnership;
   /** Commander-deck analysis still on its first run. */
   pending?: boolean;
 }
+
+// Availability badge copy/tone per ownership state. "owned" = a free copy you
+// can field tonight; "in-other-deck" = owned but every copy is in another deck
+// (adding triggers the cross-deck resolver); "unowned" = you'd have to buy it.
+const OWNERSHIP_BADGE: Record<
+  'owned' | 'in-other-deck' | 'unowned',
+  { label: string; className: string }
+> = {
+  owned: { label: 'Available', className: 'card-search-avail' },
+  'in-other-deck': { label: 'In a deck', className: 'card-search-claimed' },
+  unowned: { label: 'Unowned', className: 'card-search-unowned' },
+};
 
 function SuggestionsResults({
   existingCardCounts,
@@ -653,22 +672,28 @@ function SuggestionsResults({
   publishVisible,
   suggestions,
   oneAwayCombos,
-  ownedNames,
+  ownershipFor,
   pending,
 }: SuggestionsResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
 
+  // Three independent availability toggles; all on = the full discovery list.
+  const [show, setShow] = useState<SuggestionFilter>({
+    owned: true,
+    inOtherDeck: true,
+    unowned: true,
+  });
+
   const inDeck = useMemo(
     () => new Set([...existingCardCounts.keys()].map((n) => n.toLowerCase())),
     [existingCardCounts]
   );
-  const owned = ownedNames ?? EMPTY_NAME_SET;
 
-  const { staples, combos } = useMemo(
-    () => buildSuggestionRows(suggestions, oneAwayCombos, { ownedNames: owned, query, inDeck }),
-    [suggestions, oneAwayCombos, owned, query, inDeck]
+  const { staples, combos, counts } = useMemo(
+    () => buildSuggestionRows(suggestions, oneAwayCombos, { ownershipFor, query, inDeck, show }),
+    [suggestions, oneAwayCombos, ownershipFor, query, inDeck, show]
   );
 
   // Flat order for the parent's ↑/↓/Enter handling: staples then combos.
@@ -710,7 +735,9 @@ function SuggestionsResults({
   if (pending) {
     return <p className="card-search-empty">Analyzing your deck…</p>;
   }
-  if (rows.length === 0) {
+
+  const total = counts.owned + counts.inOtherDeck + counts.unowned;
+  if (total === 0) {
     return (
       <p className="card-search-empty">
         {query
@@ -720,9 +747,18 @@ function SuggestionsResults({
     );
   }
 
+  const filters: Array<{ key: keyof SuggestionFilter; label: string; count: number }> = [
+    { key: 'owned', label: 'Available', count: counts.owned },
+    { key: 'inOtherDeck', label: 'In a deck', count: counts.inOtherDeck },
+    { key: 'unowned', label: 'Unowned', count: counts.unowned },
+  ];
+
   const renderRow = (row: SuggestionRow, i: number) => {
     const inDeckCount = existingCardCounts.get(row.name) ?? 0;
     const active = i === activeIndex;
+    const badge = OWNERSHIP_BADGE[row.ownership];
+    // Unowned buy candidates show their price when EDHREC has one.
+    const badgeLabel = row.ownership === 'unowned' && row.price ? `$${row.price}` : badge.label;
     return (
       <li
         key={`${row.kind}:${row.name}`}
@@ -742,25 +778,28 @@ function SuggestionsResults({
         </button>
         <span className="card-search-name">{row.name}</span>
         <span className="card-search-meta">
+          <span className={badge.className}>{badgeLabel}</span>
           {row.kind === 'staple' ? (
             <>
-              {row.inclusion != null && `${Math.round(row.inclusion)}%`}
+              {row.inclusion != null && (
+                <>
+                  {' · '}
+                  {`${Math.round(row.inclusion)}%`}
+                </>
+              )}
               {row.roleLabel && (
                 <>
-                  {row.inclusion != null && ' · '}
+                  {' · '}
                   {row.roleLabel}
                 </>
               )}
             </>
           ) : (
-            <span className="card-search-combo">
-              {row.produces ? `Completes: ${row.produces}` : 'Completes a combo'}
-            </span>
-          )}
-          {row.owned && (
             <>
               {' · '}
-              <span className="card-search-owned">owned</span>
+              <span className="card-search-combo">
+                {row.produces ? `Completes: ${row.produces}` : 'Completes a combo'}
+              </span>
             </>
           )}
           {onPreviewFit && (
@@ -783,15 +822,35 @@ function SuggestionsResults({
   };
 
   return (
-    <ul className="card-search-results" id="card-search-results" role="listbox">
-      {staples.map((row, i) => renderRow(row, i))}
-      {combos.length > 0 && (
-        <li className="card-search-section" role="presentation" aria-hidden="true">
-          Completes a combo
-        </li>
+    <>
+      <div className="card-search-filters" role="group" aria-label="Filter by availability">
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className="card-search-filter-chip"
+            aria-pressed={show[f.key]}
+            onClick={() => setShow((s) => ({ ...s, [f.key]: !s[f.key] }))}
+          >
+            {f.label}
+            <span className="card-search-filter-count">{f.count}</span>
+          </button>
+        ))}
+      </div>
+      {rows.length === 0 ? (
+        <p className="card-search-empty">No suggestions match these availability filters.</p>
+      ) : (
+        <ul className="card-search-results" id="card-search-results" role="listbox">
+          {staples.map((row, i) => renderRow(row, i))}
+          {combos.length > 0 && (
+            <li className="card-search-section" role="presentation" aria-hidden="true">
+              Completes a combo
+            </li>
+          )}
+          {combos.map((row, i) => renderRow(row, staples.length + i))}
+        </ul>
       )}
-      {combos.map((row, i) => renderRow(row, staples.length + i))}
-    </ul>
+    </>
   );
 }
 
