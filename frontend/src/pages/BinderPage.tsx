@@ -138,6 +138,20 @@ export function BinderPage() {
     }).binders;
   }, [effectiveCards, binders, debouncedSearch, allocatedCopyIds, setMap]);
 
+  // Drift ("since last reviewed") compares full binder membership against the
+  // baseline snapshot, so it must ignore the in-binder search filter — otherwise
+  // searched-out cards look "no longer matching". Reuse `materialized` when no
+  // query is active; only do a second, search-free pass while one narrows the view.
+  const driftBinders = useMemo(() => {
+    if (!debouncedSearch.trim()) return materialized;
+    if (effectiveCards.length === 0) return [];
+    return materializeBinders(effectiveCards, binders, {
+      search: '',
+      allocatedCopyIds,
+      setMap,
+    }).binders;
+  }, [materialized, debouncedSearch, effectiveCards, binders, allocatedCopyIds, setMap]);
+
   if (hydrating) {
     return (
       <div className="page-loader" role="status" aria-live="polite">
@@ -366,6 +380,7 @@ export function BinderPage() {
       {view === 'pages' ? (
         <BinderView
           binders={materialized}
+          driftBinders={driftBinders}
           viewToggle={viewToggle}
           qtyByCopyId={qtyByCopyId}
           showImages={showImages}

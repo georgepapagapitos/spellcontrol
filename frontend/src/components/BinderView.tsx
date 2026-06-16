@@ -39,6 +39,12 @@ function pickPrice(card: ScryfallCard, foil: boolean): number {
 
 interface Props {
   binders: MaterializedBinder[];
+  /**
+   * Same binders materialized without the in-binder search filter, used only by
+   * the drift banner so a search query doesn't make filtered-out cards look
+   * "no longer matching". Defaults to `binders` when no search is active.
+   */
+  driftBinders?: MaterializedBinder[];
   /** Optional slot rendered in the summary line next to "Collapse all". */
   viewToggle?: React.ReactNode;
   /** Per-copyId qty when binder is in group-printings mode (otherwise undefined). */
@@ -47,7 +53,7 @@ interface Props {
   showImages?: boolean;
 }
 
-export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Props) {
+export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, showImages }: Props) {
   const activeTab = useCollectionStore((s) => s.activeTab);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -87,9 +93,13 @@ export function BinderView({ binders, viewToggle, qtyByCopyId, showImages }: Pro
     );
   }
 
+  // Drift reads full membership; fall back to the (filtered) active binder when
+  // no search-free set was supplied (e.g. no query active).
+  const driftActive = driftBinders?.find((b) => b.def.id === activeTab) ?? active;
+
   return (
     <>
-      <BinderDriftBanner binder={active} />
+      <BinderDriftBanner binder={driftActive} />
       <SectionList
         viewKey={active.def.id}
         binderName={active.def.name}

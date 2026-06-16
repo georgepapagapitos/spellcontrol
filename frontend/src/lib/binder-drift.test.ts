@@ -384,3 +384,39 @@ describe('formatDriftReason', () => {
     expect(formatDriftReason({ kind: 'imported' })).toBe('newly imported');
   });
 });
+
+// Regression: the in-binder search box narrows `section.cards` (see
+// materialize search-filtering tests). Drift compares full membership against
+// the baseline, so it MUST run on a search-free materialization — otherwise
+// searched-out cards look "no longer matching". BinderPage feeds the drift
+// banner an unfiltered `driftBinders`; this guards the contract that breaks.
+describe('drift ignores the in-binder search filter', () => {
+  function materializeWithSearch(
+    cards: EnrichedCard[],
+    def: BinderDef,
+    search: string
+  ): MaterializedBinder {
+    const { binders } = materializeBinders(cards, [def], { globalPocketSize: 9, search });
+    return binders[0];
+  }
+
+  it('a search-filtered binder fabricates "removed" drift, the unfiltered one does not', () => {
+    const bolt = makeCard({ scryfallId: 'a', name: 'Lightning Bolt' });
+    const ring = makeCard({ scryfallId: 'b', name: 'Sol Ring' });
+    const def = makeBinder({ filter: {} });
+
+    // Baseline captured over the full (search-free) membership.
+    const baseline = captureBinderSnapshot(materializeOne([bolt, ring], def));
+    const reviewed = { ...def, lastReviewedSnapshot: baseline };
+
+    // Membership is unchanged; the user only typed a query that hides "Sol Ring".
+    const filtered = materializeWithSearch([bolt, ring], reviewed, 'bolt');
+    const filteredDrift = computeDrift(filtered, [bolt, ring], []);
+    expect(hasDrift(filteredDrift)).toBe(true); // the bug: Sol Ring looks removed
+    expect(filteredDrift.removed.map((r) => r.name)).toContain('Sol Ring');
+
+    // The fix: drift over the unfiltered materialization sees no change.
+    const unfiltered = materializeWithSearch([bolt, ring], reviewed, '');
+    expect(hasDrift(computeDrift(unfiltered, [bolt, ring], []))).toBe(false);
+  });
+});
