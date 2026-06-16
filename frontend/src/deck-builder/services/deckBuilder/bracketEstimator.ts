@@ -236,6 +236,21 @@ function accelerationScore(fastMana: string[], tutors: string[]): number {
   return fastScore + tutorScore;
 }
 
+/**
+ * Combo *redundancy* escalates a deck to B4 the same way raw speed does. The
+ * acceleration model gauges "can I assemble a combo early?" via fast mana + tutors,
+ * but it misses that many *interchangeable* combos are themselves a consistency
+ * engine: with this many two-card infinites a deck reliably draws into one without
+ * needing tutors (the classic case is an Elfball deck whose mana dorks ARE the
+ * combo — no "fast mana" by the Sol-Ring definition, yet it combos off routinely).
+ *
+ * Threshold 4 is calibrated against the E48 48-deck reference set: every deck with
+ * 4+ complete two-card combos was Bracket 4–5 there, and no Bracket 1–3 deck reached
+ * 4 (the most combo-dense B3, the "20 Ways to Win" precon, has 3). So 4+ cleanly
+ * separates "combo deck" from "deck with an incidental combo or two."
+ */
+const COMBO_REDUNDANCY_THRESHOLD = 4;
+
 export function estimateBracket(
   allCardNames: string[],
   detectedCombos: DetectedCombo[] | undefined,
@@ -340,14 +355,23 @@ export function estimateBracket(
     const hasReliableTag = detectedCombos?.some(
       (c) => c.isComplete && c.cardCount <= 2 && c.bracketTag === 'R'
     );
-    const isEarlyAssembly = accel >= 4 || hasReliableTag;
+    // Redundancy is its own form of speed: many interchangeable combos assemble
+    // reliably without tutors/fast mana.
+    const isComboDense = twoCardComboCount >= COMBO_REDUNDANCY_THRESHOLD;
+    const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense;
 
     if (isEarlyAssembly) {
+      // When redundancy (not raw speed) is what tips it, say so — the deck may have
+      // zero "fast mana" yet still be a combo deck, and "fast combos" would mislead.
+      const byRedundancyOnly = isComboDense && accel < 4 && !hasReliableTag;
       hardFloors.push({
         bracket: 4,
-        reason: `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
-        detail:
-          'This combo can fire before opponents can respond — equivalent to competitive power.',
+        reason: byRedundancyOnly
+          ? `${twoCardComboCount} two-card combos (highly redundant)`
+          : `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
+        detail: byRedundancyOnly
+          ? 'With this many interchangeable combos, the deck assembles one reliably even without tutors — competitive-level consistency.'
+          : 'This combo can fire before opponents can respond — equivalent to competitive power.',
       });
     } else {
       hardFloors.push({
