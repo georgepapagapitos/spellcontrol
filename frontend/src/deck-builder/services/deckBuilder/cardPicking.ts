@@ -5,6 +5,7 @@ import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
+import type { BracketGuard } from './bracketGuard';
 import { matchesExpectedType } from './categorize';
 import {
   fitsColorIdentity,
@@ -225,7 +226,8 @@ export function pickFromPrefetchedWithCurve(
   collectionStrategy: CollectionStrategy = 'full',
   collectionOwnedPercent: number = 100,
   ignoreOwnedBudget: boolean = false,
-  ignoreOwnedRarity: boolean = false
+  ignoreOwnedRarity: boolean = false,
+  bracketGuard?: BracketGuard
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -275,6 +277,9 @@ export function pickFromPrefetchedWithCurve(
 
       // Skip game changers that exceed the limit
       if (isGC && gameChangerCount.value >= maxGameChangers) continue;
+
+      // Skip cards that would push a bracket floor signal past the target band
+      if (bracketGuard?.exceedsCeiling(edhrecCard.name)) continue;
 
       // Collection filtering
       if (
@@ -348,6 +353,7 @@ export function pickFromPrefetchedWithCurve(
         scryfallCard.isGameChanger = true;
         gameChangerCount.value++;
       }
+      bracketGuard?.record(edhrecCard.name);
       if (edhrecCard.isThemeSynergyCard) scryfallCard.isThemeSynergyCard = true;
       result.push(scryfallCard);
       usedNames.add(edhrecCard.name);

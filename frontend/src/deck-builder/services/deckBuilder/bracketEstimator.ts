@@ -203,6 +203,13 @@ export function isStaxPiece(name: string): boolean {
   return STAX_PIECES.has(name);
 }
 
+// Mass-land-denial as the bracket floor counts it: a tagged MLD card minus the
+// curated false-positives. Exported so generation can gate on the exact same
+// signal the estimator uses (one source of truth for the floor).
+export function isMassLandDenialFloor(name: string): boolean {
+  return isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name);
+}
+
 /**
  * Tutor handling — known divergence from current strict-RC text.
  *

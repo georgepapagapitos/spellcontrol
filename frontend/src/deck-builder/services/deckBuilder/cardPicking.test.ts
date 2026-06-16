@@ -7,6 +7,7 @@ import {
   pickFromPrefetchedWithCurve,
   OWNED_PRIORITY_BOOST,
 } from './cardPicking';
+import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 
 function ec(overrides: Partial<EDHRECCard> = {}): EDHRECCard {
@@ -254,5 +255,48 @@ describe("owned-first ('prefer' strategy)", () => {
       'prefer'
     );
     expect(picked.map((c) => c.name)).toEqual(['O']);
+  });
+});
+
+describe('bracket guardrail in picking', () => {
+  it('skips a card that would push a floor signal past the target-bracket ceiling', () => {
+    const cards = [
+      ec({ name: 'Mana Crypt', inclusion: 99, primary_type: 'Creature' }), // higher priority
+      ec({ name: 'Plain Bear', inclusion: 50, primary_type: 'Creature' }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name, type_line: 'Creature' })]));
+    // Bracket 2 → Game-Changer ceiling 0. Treat 'Mana Crypt' as a GC via the
+    // guard's own name set. maxGameChangers stays Infinity and the picker's GC
+    // set is empty, so this proves the guard is an INDEPENDENT gate.
+    const guard = new BracketGuard(bracketCeilings(2), new Set(['Mana Crypt']));
+    const picked = pickFromPrefetchedWithCurve(
+      cards,
+      map,
+      2,
+      new Set(),
+      [],
+      { 3: 5 },
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      guard
+    );
+    expect(picked.map((c) => c.name)).toEqual(['Plain Bear']);
   });
 });
