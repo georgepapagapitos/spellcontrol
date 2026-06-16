@@ -636,6 +636,29 @@
   white-space: nowrap;
 }
 
+/* Trailing secondary metadata (allocation chip / synergy / EDHREC %). On a
+   hover-capable pointer it's hidden at rest so the card name gets the full
+   width of the dense desktop columns (the green "In [deck]" chips + % were
+   crowding long names down to a few letters), and revealed on row hover/focus.
+   On touch — where there's no hover and rows are full-width — it stays inline.
+   The hover gate is `(hover:hover) and (pointer:fine)` so a touch device that
+   reports hover (Samsung) doesn't get stuck hiding it. */
+.deck-row-hovermeta {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-hovermeta {
+    display: none;
+  }
+  .deck-row:hover .deck-row-hovermeta,
+  .deck-row:focus-within .deck-row-hovermeta {
+    display: inline-flex;
+  }
+}
+
 .deck-row-menu {
   width: 0.75rem;
   flex: 0 0 auto;

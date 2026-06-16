@@ -2936,28 +2936,36 @@ function DeckCardRow({
             </span>
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
-          <AllocationChip row={row} />
           {row.foil && <FoilBadge card={row} />}
-          {synergyReasons && synergyReasons.length > 0 && (
-            <span
-              className="deck-row-synergy"
-              title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
-              aria-label={`Synergy: ${synergyReasons.join('; ')}`}
-            >
-              <span className="deck-row-synergy-icon" aria-hidden>
-                ✦
+          {/* Secondary metadata (which deck holds the copy, synergy, EDHREC %).
+              On hover-capable pointers it's hidden at rest so the card name reads
+              fully in the dense multi-column desktop layout, and revealed on row
+              hover/focus; on touch (no hover) it stays inline — those rows are
+              full-width. Allocation status is still conveyed at rest via the
+              dimmed qty cell (deck-row-qty-missing) and the deck-level banner. */}
+          <span className="deck-row-hovermeta">
+            <AllocationChip row={row} />
+            {synergyReasons && synergyReasons.length > 0 && (
+              <span
+                className="deck-row-synergy"
+                title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
+                aria-label={`Synergy: ${synergyReasons.join('; ')}`}
+              >
+                <span className="deck-row-synergy-icon" aria-hidden>
+                  ✦
+                </span>
               </span>
-            </span>
-          )}
-          {typeof inclusionPct === 'number' && (
-            <span
-              className="deck-row-inclusion"
-              title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
-              aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
-            >
-              {Math.round(inclusionPct)}%
-            </span>
-          )}
+            )}
+            {typeof inclusionPct === 'number' && (
+              <span
+                className="deck-row-inclusion"
+                title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
+                aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
+              >
+                {Math.round(inclusionPct)}%
+              </span>
+            )}
+          </span>
         </span>
         {showPrefs.mana &&
           (mana ? (
