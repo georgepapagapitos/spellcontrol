@@ -150,6 +150,12 @@ const PASTE_PLACEHOLDERS: Record<DeckFormat, string> = {
     'Deck\n4 Lightning Strike\n4 Monastery Swiftspear\n20 Mountain\n...\n\nSideboard\n3 Roiling Vortex\n...',
   pauper:
     'Deck\n4 Lightning Bolt\n4 Brainstorm\n4 Ponder\n18 Island\n...\n\nSideboard\n2 Pyroblast\n...',
+  modern:
+    'Deck\n4 Ragavan, Nimble Pilferer\n4 Lightning Bolt\n20 Mountain\n...\n\nSideboard\n2 Surgical Extraction\n...',
+  pioneer: 'Deck\n4 Thoughtseize\n4 Fatal Push\n20 Swamp\n...\n\nSideboard\n2 Duress\n...',
+  legacy:
+    'Deck\n4 Brainstorm\n4 Force of Will\n20 Island\n...\n\nSideboard\n2 Surgical Extraction\n...',
+  vintage: 'Deck\n1 Black Lotus\n4 Force of Will\n20 Island\n...\n\nSideboard\n2 Null Rod\n...',
 };
 
 export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' }: Props) {

@@ -403,7 +403,15 @@ export interface DeckHistoryEntry {
 export type DeckSize = number;
 
 // MTG format that a deck is built for
-export type DeckFormat = 'commander' | 'brawl' | 'standard' | 'pauper';
+export type DeckFormat =
+  | 'commander'
+  | 'brawl'
+  | 'standard'
+  | 'pauper'
+  | 'modern'
+  | 'pioneer'
+  | 'legacy'
+  | 'vintage';
 
 export interface DeckFormatConfig {
   format: DeckFormat;
