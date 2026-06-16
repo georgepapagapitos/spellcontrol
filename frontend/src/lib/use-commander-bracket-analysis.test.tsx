@@ -103,7 +103,8 @@ describe('useCommanderBracketAnalysis — active', () => {
     expect(analyzeCommanderDeck).toHaveBeenCalledTimes(1);
     expect(a.updateDeck).toHaveBeenCalledWith(
       'd1',
-      expect.objectContaining({ gradeBracketSignature: sig(a.deck as Deck) })
+      expect.objectContaining({ gradeBracketSignature: sig(a.deck as Deck) }),
+      true // silent: derived analysis must not bump updatedAt
     );
   });
 
@@ -130,7 +131,8 @@ describe('useCommanderBracketAnalysis — active', () => {
         // (no target set); recovered alongside win-condition detection.
         bracketFit: null,
         gradeBracketSignature: sig(a.deck as Deck),
-      })
+      }),
+      true // silent: derived analysis must not bump updatedAt
     );
   });
 
@@ -160,7 +162,8 @@ describe('useCommanderBracketAnalysis — active', () => {
     });
     expect(a.updateDeck).toHaveBeenCalledWith(
       'd1',
-      expect.objectContaining({ gradeBracketSignature: sig(deck, combo) })
+      expect.objectContaining({ gradeBracketSignature: sig(deck, combo) }),
+      true // silent: derived analysis must not bump updatedAt
     );
   });
 
