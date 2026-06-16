@@ -6,6 +6,7 @@ import { useCanScan } from '../lib/use-can-scan';
 import { useCollectionStore } from '../store/collection';
 import { toast } from '../store/toasts';
 import { importScannedCards } from '../lib/scan-import';
+import { useScanQueueStore } from '../lib/use-scan-queue';
 
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
@@ -101,6 +102,10 @@ export function NavFab() {
     setImporting(true);
     try {
       const { added, requested } = await importScannedCards(text, count, importCards);
+      // Cards are now committed to the collection — clear the persisted queue
+      // so they don't reappear next time the scanner opens. Only on success:
+      // a failed import (the catch below) keeps the queue so the user can retry.
+      useScanQueueStore.getState().clear();
       const tail = added === requested ? '' : ` of ${requested.toLocaleString()}`;
       toast.show({
         message: `Added ${added.toLocaleString()}${tail} scanned card${added === 1 ? '' : 's'}`,
