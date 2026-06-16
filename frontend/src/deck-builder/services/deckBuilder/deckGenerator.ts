@@ -2303,8 +2303,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Track how many basic lands are added as filler when collection is too small
   let basicLandFillCount = 0;
-  // Track cards pulled from OUTSIDE an owned-only pool to complete the deck when
-  // the collection was exhausted (relaxation before basic-land padding).
+  // Names of genuinely-unowned cards pulled in to complete an exhausted owned-only
+  // pool (relaxation before basic padding). The surfaced count is derived from how
+  // many of these SURVIVE the later combo audit / fixup passes (which can evict
+  // them), so it never overstates what actually came from outside the collection.
+  const relaxedNames = new Set<string>();
   let collectionRelaxedCount = 0;
 
   // If we have too few cards, fill shortage — budget is best-effort here,
@@ -2619,7 +2622,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity
       );
       categories.synergy.push(...relaxedCards);
-      collectionRelaxedCount = relaxedCards.length;
+      for (const c of relaxedCards) {
+        if (notInCollection(c.name, context.collectionNames)) relaxedNames.add(c.name);
+      }
       if (relaxedCards.length > 0) {
         logger.debug(
           `[DeckGen] Collection exhausted — relaxed to ${relaxedCards.length} cards from outside it`
@@ -3208,6 +3213,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   logger.debug(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
+
+  // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
+  // fixup passes above (they can evict cards added to categories.synergy), so
+  // the report never overstates what actually came from outside the collection.
+  if (relaxedNames.size > 0) {
+    const finalNames = new Set(
+      Object.values(categories)
+        .flat()
+        .map((c) => c.name)
+    );
+    for (const n of relaxedNames) if (finalNames.has(n)) collectionRelaxedCount += 1;
+  }
 
   return {
     commander,
