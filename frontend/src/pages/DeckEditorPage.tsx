@@ -70,13 +70,11 @@ import {
   planCardAdd,
   listContestedCards,
   useCollectionByCopyId,
-  type StealableCopy,
   type DonorOutcome,
   type DonorZone,
 } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
-import { StealConfirmSheet } from '../components/deck/StealConfirmSheet';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
@@ -276,17 +274,12 @@ export function DeckEditorPage() {
     name: string;
     role: string | null;
   } | null>(null);
-  // Physical-copy reallocation (move owned cards between decks). Each move is
-  // surfaced + confirmed explicitly — nothing moves silently. `pendingSteal`
-  // drives the StealConfirmSheet (pulling a copy in from another deck, either as
-  // a new card or onto an existing unowned slot); `moveCard` drives the
-  // MoveToDeckSheet (sending a copy out); `releaseCard` drives the release
-  // confirm (freeing a copy back to the collection).
-  const [pendingSteal, setPendingSteal] = useState<{
-    card: ScryfallCard;
-    stealable: StealableCopy;
-    recipient: { mode: 'add'; zone: 'main' | 'sideboard' } | { mode: 'bind'; slotId: string };
-  } | null>(null);
+  // Physical-copy reallocation (move owned cards between decks). Each move is an
+  // explicit, conscious action — nothing moves silently. Pulling a copy IN (the
+  // Shared-copies review + per-row "Use my copy") is a direct leave-gap move with
+  // an Undo toast; `moveCard` drives the MoveToDeckSheet (sending a copy out, with
+  // the donor-outcome chooser); `releaseCard` drives the release confirm (freeing
+  // a copy back to the collection).
   const [moveCard, setMoveCard] = useState<ScryfallCard | null>(null);
   const [releaseCard, setReleaseCard] = useState<ScryfallCard | null>(null);
   // In-context "Swap this card" — its OWN loading gate (not addingEngineNames),
@@ -891,60 +884,6 @@ export function DeckEditorPage() {
     });
   };
 
-  // Surface 1 / 4 commit: pull the copy into the current deck (a new slot, or
-  // onto an existing unowned slot), apply the donor outcome, toast-Undo both.
-  const handleConfirmSteal = (
-    outcome: DonorOutcome,
-    replacement: { name: string; card: ScryfallCard } | null
-  ): void => {
-    if (!deck || !pendingSteal) return;
-    const { card, stealable, recipient } = pendingSteal;
-    setPendingSteal(null);
-    const recipientApply = () => {
-      if (recipient.mode === 'add') {
-        if (recipient.zone === 'sideboard') addSideboardCard(deck.id, card, stealable.copyId);
-        else addCard(deck.id, card, stealable.copyId);
-      } else {
-        setCardAllocation(deck.id, recipient.slotId, stealable.copyId);
-      }
-    };
-    executeReallocation({
-      donorDeckId: stealable.donorDeckId,
-      recipientDeckId: deck.id,
-      recipientApply,
-      donorApply: () =>
-        applyDonorOutcome(
-          stealable.donorDeckId,
-          stealable.donorZone,
-          stealable.donorSlotId,
-          stealable.donorCard,
-          outcome,
-          replacement
-        ),
-      label: `Moved ${card.name} here from ${stealable.donorDeckName}`,
-    });
-  };
-
-  // Escape hatch from the steal sheet: add an unowned/proxy copy here, donor
-  // untouched. Only offered for the add flow (a bind slot already exists).
-  const handleAddAsProxy = (): void => {
-    if (!deck || !pendingSteal || pendingSteal.recipient.mode !== 'add') {
-      setPendingSteal(null);
-      return;
-    }
-    const { card, recipient } = pendingSteal;
-    setPendingSteal(null);
-    if (recipient.zone === 'sideboard') {
-      recordEdit(deck.id, `add ${card.name} to sideboard`, () =>
-        addSideboardCard(deck.id, card, null)
-      );
-      pushToast({ message: `Added ${card.name} to sideboard`, tone: 'success' });
-    } else {
-      recordEdit(deck.id, `add ${card.name}`, () => addCard(deck.id, card, null));
-      pushToast({ message: `Added ${card.name}`, tone: 'success' });
-    }
-  };
-
   // Surface 2 commit (from MoveToDeckSheet): send a copy of `card` from this deck
   // into `targetDeckId`, applying the donor outcome to THIS deck.
   const handleMoveConfirm = (
@@ -998,48 +937,12 @@ export function DeckEditorPage() {
     });
   };
 
-  // Surface 4: bind an owned copy onto an existing unowned mainboard slot. The
-  // menu gate is "every copy is in another deck", so this routes through the
-  // explicit steal-confirm; a free copy (if one appeared) binds directly.
-  const handleUseOwnCopy = (card: ScryfallCard): void => {
-    if (!deck) return;
-    const slot = deck.cards.find((c) => c.card.name === card.name && !c.allocatedCopyId);
-    if (!slot) return;
-    const stealable = findStealableCopy(
-      card.name,
-      collectionCards,
-      useDecksStore.getState().decks,
-      deck.id,
-      card.id
-    );
-    if (stealable) {
-      setPendingSteal({ card, stealable, recipient: { mode: 'bind', slotId: slot.slotId } });
-      return;
-    }
-    const claim = pickCollectionCopy(
-      card.name,
-      collectionCards,
-      buildAllocationMap(useDecksStore.getState().decks),
-      card.id
-    );
-    if (claim) {
-      recordEdit(deck.id, `use my ${card.name}`, () =>
-        setCardAllocation(deck.id, slot.slotId, claim.copyId)
-      );
-      pushToast({ message: `Using your copy of ${card.name}`, tone: 'success' });
-    }
-  };
-
-  // Bulk resolver behind the deck's "Use my copies (N)" banner: pull every
-  // owned-but-elsewhere mainboard card into this deck at once. planUseMyCopies
-  // picks each donor copy (skipping commanders); we apply the binds + leave each
-  // donor a gap, snapshot every touched deck, and offer one Undo restoring them
-  // all — cross-deck moves can't live in per-deck history (same shape as the
-  // multi-deck path of handleSetQty).
-  // Conscious per-card move from the Shared-copies review sheet: re-resolve the
-  // donor fresh and open the steal sheet (mode 'bind') so the user picks what the
-  // donor deck does. Nothing moves without this explicit choice. (Same machinery
-  // as the per-row "Use my copy" — keyed by slotId so duplicate-name rows are exact.)
+  // Pull an owned copy of a slot's card into THIS deck from whichever other deck
+  // holds it, leaving that deck a gap (it keeps the card listed, now shown
+  // "In [this deck]"). One atomic Undo restores both. The explicit "Move here…" /
+  // "Use my copy" click IS the conscious choice — we don't pop a second sheet; the
+  // donor always gets leave-gap. (Replace/remove live in the outbound "Move to
+  // another deck" flow.) Keyed by slotId so duplicate-name rows are exact.
   const handleMoveSharedCopy = (slotId: string): void => {
     if (!deck) return;
     const slot = deck.cards.find((c) => c.slotId === slotId);
@@ -1052,10 +955,24 @@ export function DeckEditorPage() {
       slot.card.id
     );
     if (stealable) {
-      setPendingSteal({ card: slot.card, stealable, recipient: { mode: 'bind', slotId } });
+      executeReallocation({
+        donorDeckId: stealable.donorDeckId,
+        recipientDeckId: deck.id,
+        recipientApply: () => setCardAllocation(deck.id, slotId, stealable.copyId),
+        donorApply: () =>
+          applyDonorOutcome(
+            stealable.donorDeckId,
+            stealable.donorZone,
+            stealable.donorSlotId,
+            stealable.donorCard,
+            'leave-gap',
+            null
+          ),
+        label: `Moved ${slot.card.name} here from ${stealable.donorDeckName}`,
+      });
       return;
     }
-    // A free copy appeared since the list was built — just bind it, no move needed.
+    // A free copy is available — bind it directly (no cross-deck move).
     const claim = pickCollectionCopy(
       slot.card.name,
       collectionCards,
@@ -1068,6 +985,14 @@ export function DeckEditorPage() {
       );
       pushToast({ message: `Using your copy of ${slot.card.name}`, tone: 'success' });
     }
+  };
+
+  // Per-row "Use my copy" (row ⋮): resolve the card to its first unowned slot and
+  // pull a copy in via the same conscious leave-gap move.
+  const handleUseOwnCopy = (card: ScryfallCard): void => {
+    if (!deck) return;
+    const slot = deck.cards.find((c) => c.card.name === card.name && !c.allocatedCopyId);
+    if (slot) handleMoveSharedCopy(slot.slotId);
   };
 
   // The single brain for adding an already-resolved card — used by every add path
@@ -2400,19 +2325,6 @@ export function DeckEditorPage() {
       )}
 
       {/* Physical-copy reallocation — move owned cards between decks. */}
-      {pendingSteal && deck && (
-        <StealConfirmSheet
-          card={pendingSteal.card}
-          stealable={pendingSteal.stealable}
-          collectionCards={collectionCards}
-          ownershipFor={ownershipFor}
-          freeCountFor={freeCountFor}
-          onConfirm={handleConfirmSteal}
-          onAddAsProxy={pendingSteal.recipient.mode === 'add' ? handleAddAsProxy : undefined}
-          onCancel={() => setPendingSteal(null)}
-        />
-      )}
-
       {moveCard && deck && (
         <MoveToDeckSheet
           card={moveCard}
