@@ -319,11 +319,12 @@ export interface DeckDisplayProps {
    */
   onUseOwnCopy?: (card: ScryfallCard) => void;
   /**
-   * Bulk resolver for the "Use my copies (N)" banner: claim every owned-but-
-   * elsewhere mainboard card at once (pulling each from its other deck). When
-   * omitted, the banner is not shown.
+   * Open the Shared-copies review for cards this deck wants whose copies are in
+   * other decks. Drives the neutral "N cards also in your other decks · Review"
+   * banner — pulling a copy in is a conscious per-card choice in the sheet, never
+   * a bulk grab. When omitted, the banner is not shown.
    */
-  onUseMyCopies?: () => void;
+  onReviewShared?: () => void;
   /** Lookup of owned cards by scryfallId, for allocation badges + status. */
   collectionByCopyId?: Map<string, EnrichedCard>;
   /** Binder(s) each collection copy is filed in, keyed by copyId — drives
@@ -869,7 +870,7 @@ export function DeckDisplay({
   onMoveToAnotherDeck,
   onReleaseCopy,
   onUseOwnCopy,
-  onUseMyCopies,
+  onReviewShared,
   collectionByCopyId,
   binderByCopyId,
   exportOpen: exportOpenProp,
@@ -1520,19 +1521,19 @@ export function DeckDisplay({
               </div>
             )}
 
-            {onUseMyCopies && claimedElsewhereCount > 0 && (
+            {onReviewShared && claimedElsewhereCount > 0 && (
               <div className="deck-claimed-banner">
                 <Layers width={16} height={16} strokeWidth={2} aria-hidden />
                 <span className="deck-claimed-banner-text">
                   {claimedElsewhereCount} {claimedElsewhereCount === 1 ? 'card' : 'cards'} here{' '}
-                  {claimedElsewhereCount === 1 ? 'is' : 'are'} in your other decks
+                  {claimedElsewhereCount === 1 ? 'is' : 'are'} also in your other decks
                 </span>
                 <button
                   type="button"
                   className="btn btn-sm deck-claimed-banner-btn"
-                  onClick={onUseMyCopies}
+                  onClick={onReviewShared}
                 >
-                  Use my {claimedElsewhereCount === 1 ? 'copy' : 'copies'}
+                  Review
                 </button>
               </div>
             )}
@@ -2935,28 +2936,36 @@ function DeckCardRow({
             </span>
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
-          <AllocationChip row={row} />
           {row.foil && <FoilBadge card={row} />}
-          {synergyReasons && synergyReasons.length > 0 && (
-            <span
-              className="deck-row-synergy"
-              title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
-              aria-label={`Synergy: ${synergyReasons.join('; ')}`}
-            >
-              <span className="deck-row-synergy-icon" aria-hidden>
-                ✦
+          {/* Secondary metadata (which deck holds the copy, synergy, EDHREC %).
+              On hover-capable pointers it's hidden at rest so the card name reads
+              fully in the dense multi-column desktop layout, and revealed on row
+              hover/focus; on touch (no hover) it stays inline — those rows are
+              full-width. Allocation status is still conveyed at rest via the
+              dimmed qty cell (deck-row-qty-missing) and the deck-level banner. */}
+          <span className="deck-row-hovermeta">
+            <AllocationChip row={row} />
+            {synergyReasons && synergyReasons.length > 0 && (
+              <span
+                className="deck-row-synergy"
+                title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
+                aria-label={`Synergy: ${synergyReasons.join('; ')}`}
+              >
+                <span className="deck-row-synergy-icon" aria-hidden>
+                  ✦
+                </span>
               </span>
-            </span>
-          )}
-          {typeof inclusionPct === 'number' && (
-            <span
-              className="deck-row-inclusion"
-              title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
-              aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
-            >
-              {Math.round(inclusionPct)}%
-            </span>
-          )}
+            )}
+            {typeof inclusionPct === 'number' && (
+              <span
+                className="deck-row-inclusion"
+                title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
+                aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
+              >
+                {Math.round(inclusionPct)}%
+              </span>
+            )}
+          </span>
         </span>
         {showPrefs.mana &&
           (mana ? (
