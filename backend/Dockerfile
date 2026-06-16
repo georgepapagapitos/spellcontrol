@@ -69,6 +69,11 @@ COPY --from=build /app/backend/dist ./backend/dist
 # .github/workflows/scanner-ingest.yml — the workflow runs the ingest
 # scripts and opens a PR with the regenerated artifacts.
 COPY backend/data/scanner ./backend/data/scanner
+# Fail the build loudly if card-embeddings.bin came in as a Git-LFS pointer
+# (~133 bytes) instead of the real 28 MB binary — a missing `lfs: true` on the
+# deploy checkout otherwise ships a stub that bricks the scanner matcher at boot.
+RUN test "$(wc -c < ./backend/data/scanner/card-embeddings.bin)" -gt 1000000 \
+  || (echo 'ERROR: card-embeddings.bin is a stub/LFS pointer — run git lfs pull' && exit 1)
 
 # Static web bundle, served by Express at runtime (server.ts: SPA_DIR).
 COPY --from=build /app/frontend/dist ./backend/public

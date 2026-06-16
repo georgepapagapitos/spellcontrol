@@ -29,7 +29,13 @@ jobs:
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      # lfs: true is load-bearing — card-embeddings.bin (28 MB) is Git-LFS
+      # tracked. Without it the checkout yields a 133-byte LFS pointer, which
+      # ships to Fly and makes the scanner matcher throw "bad magic" at boot
+      # → every /api/scanner/match fails and clients fall back to weak pHash.
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
