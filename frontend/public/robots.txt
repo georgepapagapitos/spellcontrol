@@ -11,3 +11,5 @@ Disallow: /s/
 # The OAuth callback URL is single-use, user-bound, and contains
 # short-lived state — never useful in search.
 Disallow: /oauth/callback
+
+Sitemap: https://spellcontrol.com/sitemap.xml
