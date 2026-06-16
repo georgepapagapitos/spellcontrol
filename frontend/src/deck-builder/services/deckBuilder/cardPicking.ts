@@ -43,15 +43,15 @@ export function pickFromPrefetched(
   ignoreOwnedRarity: boolean = false
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
+  const preferOwned = collectionStrategy === 'prefer';
 
-  // Filter and sort candidates (with combo boost if provided)
+  // Filter and sort candidates (with combo boost + owned-first bias if enabled)
   const candidates = edhrecCards
     .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
     .sort(
       (a, b) =>
-        calculateCardPriority(b) +
-        (comboPriorityBoost?.get(b.name) ?? 0) -
-        (calculateCardPriority(a) + (comboPriorityBoost?.get(a.name) ?? 0))
+        priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
+        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames)
     );
 
   // Shared validation for a single candidate
@@ -174,6 +174,30 @@ export function calculateCardPriority(card: EDHRECCard): number {
   return inclusion + newCardBoost;
 }
 
+// Owned-first ('prefer' strategy): a bounded boost so owned cards win ties and
+// near-ties within the filler tier, without dredging a weak owned card over a
+// premium staple. Theme/high-synergy cards already score >=100 and are
+// partitioned first, so they're unaffected — the bias only operates among
+// regular inclusion-ranked cards (where "use what I own" helps, not hurts).
+// Applied in the sort comparator ONLY (not calculateCardPriority), so ownership
+// changes pick *preference*, never a card's type classification or its right to
+// break curve.
+// ponytail: single tunable constant; raise if the owned bias feels too weak.
+export const OWNED_PRIORITY_BOOST = 40;
+
+function priorityWithBoosts(
+  card: EDHRECCard,
+  comboPriorityBoost: Map<string, number> | undefined,
+  preferOwned: boolean,
+  collectionNames: Set<string> | undefined
+): number {
+  return (
+    calculateCardPriority(card) +
+    (comboPriorityBoost?.get(card.name) ?? 0) +
+    (preferOwned && collectionNames?.has(card.name) ? OWNED_PRIORITY_BOOST : 0)
+  );
+}
+
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
 export function pickFromPrefetchedWithCurve(
@@ -204,15 +228,15 @@ export function pickFromPrefetchedWithCurve(
   ignoreOwnedRarity: boolean = false
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
+  const preferOwned = collectionStrategy === 'prefer';
 
-  // Filter and sort ALL candidates by priority (synergy-aware + combo boost)
+  // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)
   const allCandidates = edhrecCards
     .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
     .sort(
       (a, b) =>
-        calculateCardPriority(b) +
-        (comboPriorityBoost?.get(b.name) ?? 0) -
-        (calculateCardPriority(a) + (comboPriorityBoost?.get(a.name) ?? 0))
+        priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
+        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames)
     );
 
   // Separate into high-synergy cards (any type) and regular cards

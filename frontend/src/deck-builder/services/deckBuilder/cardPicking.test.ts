@@ -5,6 +5,7 @@ import {
   mergeWithAllNonLand,
   pickFromPrefetched,
   pickFromPrefetchedWithCurve,
+  OWNED_PRIORITY_BOOST,
 } from './cardPicking';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 
@@ -175,5 +176,83 @@ describe('pickFromPrefetched', () => {
 
     expect(picked.map((c) => c.name)).toEqual(['Owned Free']);
     expect(used.has('Unowned Bomb')).toBe(false);
+  });
+});
+
+describe("owned-first ('prefer' strategy)", () => {
+  const ownedInc = 10;
+
+  // Owned 'O' (inclusion=ownedInc) vs unowned 'U' (inclusion=unownedInc); pick 1
+  // in 'prefer' mode. Neither is high-synergy, so they sit in the filler tier
+  // where the owned bias operates.
+  function pickOnePreferred(unownedInc: number) {
+    const cards = [
+      ec({ name: 'U', inclusion: unownedInc }),
+      ec({ name: 'O', inclusion: ownedInc }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    return pickFromPrefetched(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      new Set(['O']), // collectionNames — 'O' is owned
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'prefer'
+    );
+  }
+
+  it('picks the owned card when the inclusion gap is within the boost', () => {
+    expect(pickOnePreferred(ownedInc + OWNED_PRIORITY_BOOST - 5).map((c) => c.name)).toEqual(['O']);
+  });
+
+  it('does NOT override a clearly-better unowned card — the bias is bounded', () => {
+    expect(pickOnePreferred(ownedInc + OWNED_PRIORITY_BOOST + 20).map((c) => c.name)).toEqual([
+      'U',
+    ]);
+  });
+
+  it('applies the same bounded owned-first bias in curve-aware picks', () => {
+    const cards = [
+      ec({ name: 'U', inclusion: ownedInc + OWNED_PRIORITY_BOOST - 5, primary_type: 'Creature' }),
+      ec({ name: 'O', inclusion: ownedInc, primary_type: 'Creature' }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name, type_line: 'Creature' })]));
+    const picked = pickFromPrefetchedWithCurve(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      { 3: 2 },
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      new Set(['O']),
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'prefer'
+    );
+    expect(picked.map((c) => c.name)).toEqual(['O']);
   });
 });

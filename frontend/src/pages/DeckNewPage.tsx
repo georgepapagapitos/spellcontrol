@@ -216,7 +216,9 @@ export function DeckNewPage() {
           setError(
             customization.collectionStrategy === 'available'
               ? 'All your cards are committed to other decks. Free up copies or switch to "Only my cards" mode.'
-              : 'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
+              : customization.collectionStrategy === 'prefer'
+                ? 'Your collection is empty. Import cards on the Collection page to enable owned-first bias.'
+                : 'Your collection is empty. Import cards on the Collection page before constraining the build to owned cards.'
           );
           setIsGenerating(false);
           setProgress(null);

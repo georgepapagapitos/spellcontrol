@@ -82,6 +82,7 @@ describe('collection predicates', () => {
     expect(constrainsToCollection('full')).toBe(true);
     expect(constrainsToCollection('available')).toBe(true);
     expect(constrainsToCollection('partial')).toBe(false);
+    expect(constrainsToCollection('prefer')).toBe(false);
   });
 
   it('notInCollection is false when no collection is provided', () => {
