@@ -8,6 +8,7 @@ import type {
   PocketSize,
   SetMap,
   SortEntry,
+  SortField,
   UncategorizedBucket,
 } from './types.js';
 import { compileFilterGroups, cardMatchesAnyGroup } from './rules.js';
@@ -158,7 +159,14 @@ export function materializeBinders(
     };
     const sections = useManualOrder
       ? buildManualSection(rawCards, effectivePocketSize, isMatch)
-      : buildSections(rawCards, effectiveSorts, effectivePocketSize, isMatch, sortCtx);
+      : buildSections(
+          rawCards,
+          effectiveSorts,
+          effectivePocketSize,
+          isMatch,
+          sortCtx,
+          def.pageBreakDepth ?? 1
+        );
     return {
       def,
       effectivePocketSize,
@@ -269,17 +277,22 @@ function buildSections(
   sorts: SortEntry[],
   slotSize: number,
   isMatch: (c: EnrichedCard) => boolean,
-  ctx?: { setMap?: SetMap; qtyByPrintingKey?: Map<string, number> }
+  ctx?: {
+    setMap?: SetMap;
+    qtyByPrintingKey?: Map<string, number>;
+    valueOrders?: Partial<Record<SortField, string[]>>;
+  },
+  pageBreakDepth = 1,
+  pageOffsetRef = { value: 0 }
 ): BinderSection[] {
   const primary = sorts[0];
   const useGrouping = !!primary && primary.field !== 'none';
 
-  let pageOffset = 0;
   const buildSection = (meta: SectionMeta, sectionCards: EnrichedCard[]): BinderSection | null => {
     const effectiveSlots = slotSize > 0 ? slotSize : 9;
     const sectionPageCount = Math.ceil(sectionCards.length / effectiveSlots);
-    const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffset);
-    pageOffset += sectionPageCount;
+    const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffsetRef.value);
+    pageOffsetRef.value += sectionPageCount;
     const matchingCards = sectionCards.filter(isMatch);
     if (matchingCards.length === 0) return null;
     return {
@@ -319,9 +332,25 @@ function buildSections(
   const subSorts = sorts.slice(1);
   const sections: BinderSection[] = [];
   for (const { meta, cards: gCards } of ordered) {
-    const sorted = sortCards(gCards, subSorts, ctx);
-    const section = buildSection(meta, sorted);
-    if (section) sections.push(section);
+    if (pageBreakDepth > 1 && subSorts.length > 0) {
+      // Recurse: sub-sorts also break pages. Each sub-group starts fresh.
+      // pageOffsetRef is threaded through so page numbers stay globally monotonic.
+      const subSections = buildSections(
+        gCards,
+        subSorts,
+        slotSize,
+        isMatch,
+        ctx,
+        pageBreakDepth - 1,
+        pageOffsetRef
+      );
+      sections.push(...subSections);
+    } else {
+      // Leaf behavior (depth=1 or no more sorts): sort cards flat, pack into pages.
+      const sorted = sortCards(gCards, subSorts, ctx);
+      const section = buildSection(meta, sorted);
+      if (section) sections.push(section);
+    }
   }
   return sections;
 }
