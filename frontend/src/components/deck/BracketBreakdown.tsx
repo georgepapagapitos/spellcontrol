@@ -53,8 +53,8 @@ const SOFT_SCORE_TIP: ReactNode = (
         earns up to 20 pts.
       </li>
       <li>
-        <strong>Interaction</strong> — removal and board wipes; more answers = a more resilient
-        deck. Up to 15 pts.
+        <strong>Interaction</strong> — removal, counterspells and board wipes; more answers = a more
+        resilient deck. Up to 15 pts.
       </li>
     </ul>
   </>
@@ -274,7 +274,7 @@ export function BracketBreakdown({
             label="Interaction"
             value={interactionPts}
             max={INTERACTION_CAP}
-            detail={`${breakdown.interactionCount} removal + boardwipes`}
+            detail={`${breakdown.interactionCount} removal, counters + boardwipes`}
           />
           <div className="deck-bracket-row deck-bracket-total-row" role="row">
             <span className="deck-bracket-cell deck-bracket-total-label" role="cell">

@@ -7,6 +7,7 @@ import type {
 } from '@/deck-builder/types';
 import type { ComboMatch, ComboMatchResponse } from '@/types/combos';
 import {
+  loadTaggerData,
   getCardRole,
   getRampSubtype,
   getRemovalSubtype,
@@ -469,6 +470,14 @@ export async function analyzeCommanderDeck(
   params: AnalyzeCommanderDeckParams
 ): Promise<CommanderDeckAnalysisResult | null> {
   try {
+    // Ensure tagger data is loaded before any tagger-backed signal (roles, mass
+    // land denial, extra turns, stax, tutors) is read. Without this await, a first
+    // analysis racing the boot fetch computes every tagger signal as false and the
+    // wrong result is then cached by signature until the deck changes (audit P1 #4).
+    // loadTaggerData is idempotent and de-duped, so in the common case (already
+    // loaded) this resolves immediately.
+    await loadTaggerData();
+
     const edhrecData = params.partnerCommander
       ? await fetchPartnerCommanderData(params.commander.name, params.partnerCommander.name)
       : await fetchCommanderData(params.commander.name);
