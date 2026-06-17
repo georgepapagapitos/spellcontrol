@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
+import { isApplyingAnalysis } from '../lib/applying-analysis';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   ScryfallCard,
@@ -957,8 +958,11 @@ export function selectDeck(id: string | undefined): (state: DecksState) => Deck 
  */
 useDecksStore.subscribe((state, prev) => {
   if (state.decks === prev.decks) return;
-  // Synchronous guard — see store/collection.ts for why the async-import check
+  // Synchronous guards — see store/collection.ts for why the async-import check
   // was too late and let pulled state re-persist.
   if (isApplyingServer()) return;
+  // Analysis writes (bracket/grade/gap) are derived/cached data — skip sync so
+  // merely opening a deck doesn't enqueue a full persistDecksState for all decks.
+  if (isApplyingAnalysis()) return;
   void import('../lib/sync').then((sync) => sync.persistDecksState(state.decks)).catch(() => {});
 });

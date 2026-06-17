@@ -356,6 +356,22 @@ function notifyBinderMoves(moves: BinderMove[]): void {
   }
 }
 
+/**
+ * Persists only the lists kind. Used by list-only mutators so they don't
+ * fan out to cards + importHistory unnecessarily (those are unchanged and
+ * the per-row diff in persistKind would skip them anyway, but we avoid the
+ * redundant IDB reads entirely). Mirrors the lazy-import pattern used by
+ * the collection subscriber so the store→sync cycle stays broken.
+ */
+async function persistListsOnly(lists: ReadonlyArray<{ id: string }>): Promise<void> {
+  try {
+    const sync = await import('../lib/sync');
+    await sync.persistListsState(lists);
+  } catch (err) {
+    logger.warn('[store] Failed to persist lists:', err);
+  }
+}
+
 export const useCollectionStore = create<CollectionState>()(
   persist(
     (set, get) => ({
@@ -1049,7 +1065,7 @@ export const useCollectionStore = create<CollectionState>()(
           updatedAt: now,
         };
         set({ lists: [...lists, def] });
-        void get().persistCollection();
+        void persistListsOnly(get().lists);
         return id;
       },
       renameList: (id, name) => {
@@ -1058,7 +1074,7 @@ export const useCollectionStore = create<CollectionState>()(
             l.id === id ? { ...l, name: clampListName(name) || l.name, updatedAt: Date.now() } : l
           ),
         });
-        void get().persistCollection();
+        void persistListsOnly(get().lists);
       },
       reorderLists: (orderedIds) => {
         const byId = new Map(get().lists.map((l) => [l.id, l]));
@@ -1069,7 +1085,7 @@ export const useCollectionStore = create<CollectionState>()(
           })
           .filter((l): l is ListDef => l !== null);
         set({ lists: reordered });
-        void get().persistCollection();
+        void persistListsOnly(get().lists);
       },
       deleteList: (id) => {
         set({
@@ -1077,7 +1093,7 @@ export const useCollectionStore = create<CollectionState>()(
             .lists.filter((l) => l.id !== id)
             .map((l, i) => ({ ...l, order: i })),
         });
-        void get().persistCollection();
+        void persistListsOnly(get().lists);
       },
       addListEntry: async (listId, card, quantity) => {
         const entry = makeListEntry(card, quantity);
@@ -1086,7 +1102,7 @@ export const useCollectionStore = create<CollectionState>()(
             l.id === listId ? { ...l, entries: [...l.entries, entry], updatedAt: Date.now() } : l
           ),
         });
-        await get().persistCollection();
+        await persistListsOnly(get().lists);
       },
       updateListEntry: async (listId, entryId, patch) => {
         set({
@@ -1100,7 +1116,7 @@ export const useCollectionStore = create<CollectionState>()(
               : l
           ),
         });
-        await get().persistCollection();
+        await persistListsOnly(get().lists);
       },
       removeListEntry: async (listId, entryId) => {
         set({
@@ -1110,7 +1126,7 @@ export const useCollectionStore = create<CollectionState>()(
               : l
           ),
         });
-        await get().persistCollection();
+        await persistListsOnly(get().lists);
       },
       moveListEntryToCollection: async (listId, entryId) => {
         const list = get().lists.find((l) => l.id === listId);
