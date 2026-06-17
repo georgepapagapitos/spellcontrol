@@ -1,3 +1,10 @@
+import { apiUrl } from './api-base';
+
+/** `fetch` against the backend with cookie auth. Resolves the path via `apiUrl`. */
+export function authedFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(apiUrl(url), { credentials: 'same-origin', ...init });
+}
+
 export async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let msg = `Request failed: HTTP ${response.status}`;

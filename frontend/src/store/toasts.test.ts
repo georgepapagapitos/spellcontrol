@@ -80,7 +80,7 @@ describe('useToastsStore', () => {
 
   it('falls back to a timestamp id when crypto.randomUUID is unavailable', () => {
     const original = globalThis.crypto;
-    // Force the non-crypto branch of newId().
+    // Force the non-crypto branch of genId().
     Object.defineProperty(globalThis, 'crypto', {
       value: {},
       configurable: true,

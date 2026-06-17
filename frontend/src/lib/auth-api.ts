@@ -56,12 +56,8 @@ export interface SyncPushResult {
   cursor: number;
 }
 
-import { handleResponse } from './fetch-utils';
+import { authedFetch, handleResponse } from './fetch-utils';
 import { apiUrl } from './api-base';
-
-function authedFetch(url: string, init?: RequestInit): Promise<Response> {
-  return fetch(apiUrl(url), { credentials: 'same-origin', ...init });
-}
 
 export async function register(username: string, password: string): Promise<AuthUser> {
   const res = await authedFetch('/api/auth/register', {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
+import { genId } from '../lib/id';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   applyAction,
@@ -25,13 +26,6 @@ import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
 
 const POLL_INTERVAL_MS = 2500;
-
-function newId(prefix: string): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `${prefix}_${crypto.randomUUID()}`;
-  }
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
 
 export interface LocalGameSetup {
   format: GameFormat;
@@ -228,7 +222,7 @@ export const usePlayStore = create<PlayState>()(
           })
         );
         const game = createGameState({
-          id: newId('game'),
+          id: genId('game'),
           code: '',
           mode: 'local',
           hostUserId: null,
