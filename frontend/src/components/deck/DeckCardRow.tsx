@@ -208,6 +208,13 @@ export function DeckCardRow({
               label={CONFIDENCE_BADGE[change.confidence].label}
             />
           )}
+          {change.lane === 'combos' && (
+            <VerdictBadge
+              tone="info"
+              label="Combo"
+              title="Adding this card completes a combo already in your deck"
+            />
+          )}
         </span>
         <span className="deck-card-row-meta">
           {inclusionNode}
