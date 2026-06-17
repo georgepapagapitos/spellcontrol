@@ -268,6 +268,43 @@ export function layoutsForCount(count: number): BoardLayout[] {
   return LAYOUTS[c] ?? LAYOUTS[2];
 }
 
+/**
+ * Compute the CSS translation offsets and icon rotation for the floating undo
+ * button relative to the seam hub.
+ *
+ * Row-seam (hub on a horizontal boundary, e.g. 2p-stacked, 4p-pod):
+ *   • Hub is centred left-right → undo button offsets to the LEFT (−X).
+ *   • Icon at 0° (default Undo2 arrow pointing left) is readable for both
+ *     the near-side (upright) and far-side (180°) players.
+ *
+ * Col-seam (hub on a vertical boundary, e.g. 2p-side, 4p-sides):
+ *   • Hub is centred top-bottom → undo button offsets ABOVE the hub (−Y).
+ *   • Seats rotate 90°/270° so the icon needs 90° rotation so the curved
+ *     arrow reads naturally when the device is placed in landscape.
+ *
+ * @param seam  The layout seam from {@link BoardLayout}.
+ * @param offset  Distance from the hub centre to the undo button centre.
+ *                Defaults to "3.4rem" (mobile). Pass "4rem" for the ≥600px size.
+ */
+export function undoButtonParams(
+  seam: BoardLayout['seam'],
+  offset = '3.4rem'
+): {
+  /** Full CSS translate() X argument. */
+  tx: string;
+  /** Full CSS translate() Y argument. */
+  ty: string;
+  /** Icon rotation in degrees (0 for row-seam, 90 for col-seam). */
+  iconRot: 0 | 90;
+} {
+  if ('col' in seam) {
+    // Col-seam: offset above the hub, rotate icon 90° for sideways reading.
+    return { tx: '-50%', ty: `calc(-50% - ${offset})`, iconRot: 90 };
+  }
+  // Row-seam: offset to the left of the hub, icon default (0°).
+  return { tx: `calc(-50% - ${offset})`, ty: '-50%', iconRot: 0 };
+}
+
 // ── Custom layouts ─────────────────────────────────────────────────────────
 //
 // A user-arranged layout is serialized into the opaque `GameLayout` id

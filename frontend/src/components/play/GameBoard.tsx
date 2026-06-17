@@ -24,6 +24,7 @@ import {
   isCustomLayout,
   layoutsForCount,
   resolveLayout,
+  undoButtonParams,
 } from '../../lib/board-layouts';
 import {
   applyPlacement,
@@ -241,6 +242,14 @@ export function GameBoard({
               'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
             ['--seam-left-pct' as never]:
               'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
+            // undoButtonParams drives offset direction (row-seam=left, col-seam=above)
+            // and icon rotation (0° for row, 90° for col). Two size variants let the
+            // CSS media query pick the right offset at ≥600px without recalculating.
+            ['--undo-tx' as never]: undoButtonParams(board.seam).tx,
+            ['--undo-ty' as never]: undoButtonParams(board.seam).ty,
+            ['--undo-tx-lg' as never]: undoButtonParams(board.seam, '4rem').tx,
+            ['--undo-ty-lg' as never]: undoButtonParams(board.seam, '4rem').ty,
+            ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
           }}
           aria-label={`Undo ${undoLabel}`}
           title={`Undo ${undoLabel}`}

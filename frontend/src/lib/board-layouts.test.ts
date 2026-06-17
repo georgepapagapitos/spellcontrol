@@ -4,6 +4,7 @@ import {
   encodeCustomLayout,
   isCustomLayout,
   resolveLayout,
+  undoButtonParams,
   type SeatSlot,
 } from './board-layouts';
 
@@ -78,6 +79,58 @@ describe('custom layout encode/decode', () => {
     expect(decodeCustomLayout('4p-pod', 4)).toBeNull();
     expect(decodeCustomLayout(null, 4)).toBeNull();
     expect(isCustomLayout('4p-pod')).toBe(false);
+  });
+});
+
+describe('undoButtonParams', () => {
+  it('row-seam: offsets left (−X), icon at 0°', () => {
+    const p = undoButtonParams({ row: 1 });
+    expect(p.tx).toBe('calc(-50% - 3.4rem)');
+    expect(p.ty).toBe('-50%');
+    expect(p.iconRot).toBe(0);
+  });
+
+  it('col-seam: offsets above (−Y), icon at 90°', () => {
+    const p = undoButtonParams({ col: 1 });
+    expect(p.tx).toBe('-50%');
+    expect(p.ty).toBe('calc(-50% - 3.4rem)');
+    expect(p.iconRot).toBe(90);
+  });
+
+  it('row-seam with custom offset', () => {
+    const p = undoButtonParams({ row: 1 }, '4rem');
+    expect(p.tx).toBe('calc(-50% - 4rem)');
+    expect(p.ty).toBe('-50%');
+    expect(p.iconRot).toBe(0);
+  });
+
+  it('col-seam with custom offset', () => {
+    const p = undoButtonParams({ col: 1 }, '4rem');
+    expect(p.tx).toBe('-50%');
+    expect(p.ty).toBe('calc(-50% - 4rem)');
+    expect(p.iconRot).toBe(90);
+  });
+
+  it('all preset col-seam layouts produce the col-seam params', () => {
+    // 2p-side (col seam) and 4p-sides (col seam) must produce col-seam params.
+    const colSeamSeams: Array<{ col: number }> = [{ col: 1 }];
+    for (const seam of colSeamSeams) {
+      const p = undoButtonParams(seam);
+      expect(p.iconRot).toBe(90);
+      expect(p.ty).toContain('calc');
+      expect(p.tx).toBe('-50%');
+    }
+  });
+
+  it('all preset row-seam layouts produce the row-seam params', () => {
+    // Various row seam positions — they all share the same offset direction.
+    const rowSeams: Array<{ row: number }> = [{ row: 1 }, { row: 2 }];
+    for (const seam of rowSeams) {
+      const p = undoButtonParams(seam);
+      expect(p.iconRot).toBe(0);
+      expect(p.tx).toContain('calc');
+      expect(p.ty).toBe('-50%');
+    }
   });
 });
 

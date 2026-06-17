@@ -10,8 +10,15 @@
   position: absolute;
   top: var(--seam-top-pct, 50%);
   left: var(--seam-left-pct, 50%);
-  /* Offset left of the round hub so the two never overlap. */
-  transform: translate(calc(-50% - 3.4rem), -50%);
+  /*
+   * Offset direction depends on seam type — set via inline CSS vars from
+   * undoButtonParams() in GameBoard.tsx:
+   *   row-seam  (stacked/pod etc.):    --undo-tx = calc(-50% - 3.4rem), --undo-ty = -50%
+   *   col-seam  (side-by-side 2p/4p): --undo-tx = -50%, --undo-ty = calc(-50% - 3.4rem)
+   * Defaults match the row-seam (most common) case so the button still renders
+   * correctly in any context where the vars are absent.
+   */
+  transform: translate(var(--undo-tx, calc(-50% - 3.4rem)), var(--undo-ty, -50%));
   z-index: 10;
   background: rgba(14, 17, 24, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -32,22 +39,40 @@
   animation: pp-fade-in 160ms ease-out;
 }
 
+/* Rotate the Undo2 icon SVG for col-seam (sideways) layouts so the curved
+   arrow reads naturally when the device is placed flat in landscape.
+   --undo-rot is 0deg for row-seam, 90deg for col-seam. */
+.game-board-undo-btn > svg {
+  transform: rotate(var(--undo-rot, 0deg));
+  flex-shrink: 0;
+}
+
 .game-board-undo-btn:hover {
   background: #1c222d;
 }
 
 .game-board-undo-btn:active {
-  transform: translate(calc(-50% - 3.4rem), -50%) scale(0.94);
+  transform: translate(var(--undo-tx, calc(-50% - 3.4rem)), var(--undo-ty, -50%)) scale(0.94);
 }
 
 @media (min-width: 600px) {
   .game-board-undo-btn {
     width: 3rem;
     height: 3rem;
-    transform: translate(calc(-50% - 4rem), -50%);
+    /* At this breakpoint the hub and button are slightly larger, so the
+       offset grows to 4rem. --undo-tx-lg / --undo-ty-lg carry the
+       pre-computed larger offset for each seam type. */
+    transform: translate(
+      var(--undo-tx-lg, var(--undo-tx, calc(-50% - 4rem))),
+      var(--undo-ty-lg, var(--undo-ty, -50%))
+    );
   }
   .game-board-undo-btn:active {
-    transform: translate(calc(-50% - 4rem), -50%) scale(0.94);
+    transform: translate(
+        var(--undo-tx-lg, var(--undo-tx, calc(-50% - 4rem))),
+        var(--undo-ty-lg, var(--undo-ty, -50%))
+      )
+      scale(0.94);
   }
 }
 
