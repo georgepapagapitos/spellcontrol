@@ -91,7 +91,7 @@
    `.collection-filters-badge` count (shared with CollectionFiltersDialog)
    shows on the trigger when any toggle is active, so it's glanceable. */
 .filter-popover {
-  position: relative;
+  /* position:relative removed — panel is portaled to <body>, not in-flow */
   flex-shrink: 0;
 }
 
@@ -133,10 +133,10 @@
   outline: none;
 }
 
+/* Portaled to <body> and positioned `fixed` from the trigger rect via
+   computePopoverPlacement() — positioning coords come from inline styles.
+   Only visual surface properties live here. */
 .filter-popover-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
   z-index: var(--z-popover);
   width: max-content;
   min-width: min(16rem, calc(100vw - 2rem));
@@ -146,24 +146,6 @@
   border-radius: var(--radius);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
   padding: 0.6rem;
-}
-
-@media (max-width: 640px) {
-  /* Let the panel resolve against the search-pill ancestor (which is the
-     nearest positioned element once .filter-popover stops being one) so
-     it spans the full pill width instead of overflowing past the left
-     edge of the viewport. */
-  .filter-popover {
-    position: static;
-  }
-
-  .filter-popover-panel {
-    left: 0;
-    right: 0;
-    min-width: 0;
-    max-width: none;
-    width: auto;
-  }
 }
 
 .filter-popover-row {
@@ -275,7 +257,7 @@
 /* In-view sort control on the binder summary line — a breadcrumb chip
    that opens the shared SortEditor in a popover. */
 .sort-popover {
-  position: relative;
+  /* position:relative removed — panel is portaled to <body>, not in-flow */
   flex-shrink: 0;
   /* Hug the button exactly — as a block wrapper the inline-flex button
      gains line-box descender space, pushing it ~2px off the row center. */
@@ -328,10 +310,9 @@
   outline: none;
 }
 
+/* Portaled to <body> and positioned `fixed` from the trigger rect via
+   computePopoverPlacement() — positioning coords come from inline styles. */
 .sort-popover-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
   z-index: var(--z-popover);
   width: max-content;
   min-width: min(22rem, calc(100vw - 2rem));

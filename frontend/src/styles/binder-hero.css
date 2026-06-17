@@ -247,11 +247,6 @@
   display: none;
 }
 
-/* The ⋮ popover must clear the sticky toolbar below the hero. */
-.binder-hero-actions-overflow .overflow-menu-popover {
-  z-index: var(--z-menu);
-}
-
 @media (max-width: 600px) {
   .binder-hero-action-secondary {
     display: none;

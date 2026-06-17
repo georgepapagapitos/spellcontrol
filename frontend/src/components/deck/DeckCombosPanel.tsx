@@ -20,6 +20,7 @@ import {
   ListChecks,
   Plus,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
@@ -35,6 +36,7 @@ import type { ComboMatch, ComboCardRef } from '../../types/combos';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
 import { MagicText } from './MagicText';
+import { OwnershipBadge } from './OwnershipBadge';
 
 export interface DeckCombosPanelHandle {
   /** Expand the panel (if collapsed), optionally switch to `tab`, scroll it into
@@ -574,34 +576,60 @@ function ComboRow({
   const missingCardName = missingOracleId
     ? combo.cards.find((c) => c.oracleId === missingOracleId)?.cardName
     : null;
+  const missingIsOwned = missingOracleId ? ownedOracleIds.has(missingOracleId) : false;
 
   const steps = useMemo(() => splitSteps(combo.description), [combo.description]);
-  // One unified collapsible covering Prerequisites + Steps + Results so the
-  // user toggles all three together. Closed by default — the always-visible
-  // header (cards, popularity, produces summary) is enough at-a-glance.
+  // One unified collapsible covering Prerequisites + Steps so the user toggles
+  // them together. Results (produces) are always visible above the card grid.
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasDetails =
     !!combo.prerequisites?.easy ||
     !!combo.prerequisites?.notable ||
     !!combo.manaNeeded ||
-    steps.length > 0 ||
-    combo.produces.length > 0;
+    steps.length > 0;
 
   // Combo title — full card names joined. Truncated via CSS so long combos
   // don't overflow the card; the full string is exposed via title for hover.
   const comboTitle = combo.cards.map((c) => c.cardName).join(' + ');
 
+  const isOneAway = tab === 'oneAway';
+  const presentCount = match.presentOracleIds.length;
+  const totalCount = combo.cards.length;
+
   return (
     <li className="deck-combos-row expanded">
+      {/* ── Result headline — the "what does this do?" answer, always visible ── */}
+      {combo.produces.length > 0 && (
+        <div className="deck-combos-produces" aria-label="Result">
+          <Zap className="deck-combos-produces-icon" width={11} height={11} aria-hidden />
+          {combo.produces.slice(0, 3).map((p, i) => {
+            const isInfinite = p.toLowerCase().startsWith('infinite ');
+            const label = isInfinite ? p.slice(9) : p;
+            return (
+              <span key={i} className="deck-combos-produce-chip" title={p}>
+                {isInfinite && <span aria-hidden>∞ </span>}
+                {label}
+              </span>
+            );
+          })}
+          {combo.produces.length > 3 && (
+            <span className="deck-combos-produce-chip deck-combos-produce-chip--more">
+              +{combo.produces.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── Row header — status icon + color identity + combo name ── */}
       <header className="deck-combos-row-header">
         <span
-          className={`deck-combos-row-status ${tab === 'oneAway' ? 'is-near-miss' : 'is-complete'}`}
-          aria-hidden
+          className={`deck-combos-row-status ${isOneAway ? 'is-near-miss' : 'is-complete'}`}
+          aria-label={isOneAway ? 'One card away' : 'Complete'}
         >
-          {tab === 'oneAway' ? (
-            <AlertTriangle width={14} height={14} />
+          {isOneAway ? (
+            <AlertTriangle width={14} height={14} aria-hidden />
           ) : (
-            <CheckCircle2 width={14} height={14} />
+            <CheckCircle2 width={14} height={14} aria-hidden />
           )}
         </span>
         <ColorIdentityPips identity={combo.identity} />
@@ -609,11 +637,17 @@ function ComboRow({
           {comboTitle}
         </span>
       </header>
-      <p className="deck-combos-row-meta">
-        {formatDeckCount(combo.popularity)}
-        {combo.bracket != null ? <> · Bracket {combo.bracket}</> : <> · Bracket unknown</>}
+
+      {/* ── Piece count — scans at a glance ("3 of 4 in deck") ── */}
+      <p
+        className="deck-combos-piece-count"
+        aria-label={`${presentCount} of ${totalCount} pieces in deck`}
+      >
+        <span className="deck-combos-piece-count-have">{presentCount}</span>
+        <span className="deck-combos-piece-count-sep"> of {totalCount} pieces in deck</span>
       </p>
 
+      {/* ── Card art grid — present cards full colour; missing dimmed ── */}
       <ul className="deck-combos-card-grid" role="list">
         {combo.cards.map((c, i) => {
           const isMissing = c.oracleId === missingOracleId;
@@ -633,16 +667,13 @@ function ComboRow({
                 type="button"
                 className="deck-combos-card-art"
                 onClick={() => onCardTap(i)}
-                aria-label={`Preview ${c.cardName}`}
+                aria-label={`Preview ${c.cardName}${isMissing ? (isOwned ? ' (owned, not in deck)' : ' (not owned)') : ' (in deck)'}`}
               >
                 <ComboCardArt localUrl={localUrl} cardName={c.cardName} />
                 {isMissing && (
                   <span
                     className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}
-                    role="img"
-                    aria-label={
-                      isOwned ? `${c.cardName} — owned in collection` : `${c.cardName} — not owned`
-                    }
+                    aria-hidden
                   >
                     {isOwned ? (
                       <CheckCircle2 width={18} height={18} strokeWidth={2.5} aria-hidden />
@@ -662,26 +693,30 @@ function ComboRow({
         })}
       </ul>
 
-      {combo.produces.length > 0 && (
-        <div className="deck-combos-produces" aria-label="Results">
-          {combo.produces.slice(0, 3).map((p, i) => {
-            const isInfinite = p.toLowerCase().startsWith('infinite ');
-            const label = isInfinite ? p.slice(9) : p;
-            return (
-              <span key={i} className="deck-combos-produce-chip" title={p}>
-                {isInfinite && <span aria-hidden>∞ </span>}
-                {label}
-              </span>
-            );
-          })}
-          {combo.produces.length > 3 && (
-            <span className="deck-combos-produce-chip deck-combos-produce-chip--more">
-              +{combo.produces.length - 3}
-            </span>
-          )}
+      {/* ── Missing piece footer (one-away only) — name + ownership in text ── */}
+      {isOneAway && missingCardName && (
+        <div className="deck-combos-missing-footer">
+          <span className="deck-combos-missing-label">Missing:</span>
+          <span className="deck-combos-missing-name card-name-chip-text" title={missingCardName}>
+            {missingCardName}
+          </span>
+          <OwnershipBadge
+            owned={missingIsOwned}
+            showUnowned
+            title={
+              missingIsOwned ? 'Owned — add it to complete this combo' : 'Not in your collection'
+            }
+          />
         </div>
       )}
 
+      {/* ── Meta line — popularity + bracket ── */}
+      <p className="deck-combos-row-meta">
+        {formatDeckCount(combo.popularity)}
+        {combo.bracket != null ? <> · Bracket {combo.bracket}</> : null}
+      </p>
+
+      {/* ── Details toggle — prerequisites + steps (results are already visible) ── */}
       {hasDetails && (
         <>
           <button
@@ -696,7 +731,7 @@ function ComboRow({
             ) : (
               <ChevronRight width={13} height={13} aria-hidden />
             )}
-            {detailsOpen ? 'Hide details' : 'Show details'}
+            {detailsOpen ? 'Hide steps' : 'Show steps'}
           </button>
           {detailsOpen && (
             <div id={`combo-details-${combo.id}`} className="deck-combos-detail">
@@ -736,7 +771,7 @@ function ComboRow({
               {combo.produces.length > 0 && (
                 <DetailSection
                   icon={<InfinityIcon width={13} height={13} aria-hidden />}
-                  title="Results"
+                  title="Full results"
                 >
                   <ul className="deck-combos-results">
                     {combo.produces.map((p, i) => (
@@ -755,7 +790,8 @@ function ComboRow({
         </>
       )}
 
-      {tab === 'oneAway' && missingCardName && (
+      {/* ── Add button — primary CTA for one-away combos ── */}
+      {isOneAway && missingCardName && (
         <button
           type="button"
           className="deck-combos-add"

@@ -450,25 +450,16 @@
   align-items: center;
 }
 
-/* Generic kebab wrapper — anchors the popover (which is position:absolute). */
+/* Generic kebab wrapper — panel portals to <body>, so no position:relative needed. */
 .overflow-menu {
-  position: relative;
   display: inline-flex;
 }
 
-/* The kebab is the left-most action, so open the menu rightward (the shared
-   .deck-row-menu-popover defaults to right:0, which would run off-screen). */
+/* Portaled `position:fixed` overflow menu panel. transform-origin is set inline
+   by OverflowMenu.tsx based on computed placement (top/bottom × left/right). */
 .overflow-menu-popover {
-  left: 0;
-  right: auto;
-  /* Left-anchored, so the enter scale grows from the trigger's left corner. */
-  transform-origin: top left;
-  /* A transient menu must outrank the sticky chrome it opens over (STYLE_GUIDE
-     "Z-index / layering"). The hero's ⋮ opens down over the sticky
-     `.decks-index-search-row` (capped at --z-popover), so this sits one tier
-     up at --z-menu — same pairing as the deck editor's tabs/overflow. The
-     shared `.deck-row-menu-popover` base is --z-dropdown (fine in unclipped
-     rows); we lift only this hero instance. */
+  /* z-index lifted above sticky chrome (--z-dropdown is the deck-row-menu base;
+     hero / dialog ⋮ opens over sticky search rows capped at --z-popover). */
   z-index: var(--z-menu);
 }
 
