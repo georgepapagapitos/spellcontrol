@@ -10,6 +10,7 @@ import type {
   EDHRECCommanderStats,
   TargetBracket,
   BudgetOption,
+  GapAnalysisCard,
 } from '@/deck-builder/types';
 import {
   getCardByName,
@@ -71,6 +72,7 @@ import {
   computeRoleBoosts,
 } from './categorize';
 import { fillWithScryfall } from './scryfallFill';
+import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { resolveMultiCopyCards } from './multiCopy';
 import {
   generateLands,
@@ -2309,6 +2311,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // them), so it never overstates what actually came from outside the collection.
   const relaxedNames = new Set<string>();
   let collectionRelaxedCount = 0;
+  // "Wanted X → used your Y" rows for owned cards substituted in to complete an
+  // owned-only deck (the smart relaxation below). Surfaced in the build report.
+  const substitutionRows: SubstituteRow[] = [];
 
   // If we have too few cards, fill shortage — budget is best-effort here,
   // deck size and structure are non-negotiable
@@ -2593,42 +2598,148 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       logger.debug(`[DeckGen] Filled ${filled} cards from Scryfall shortfall`);
     }
 
-    // Relax the collection constraint before padding with basics. In owned-only
-    // modes ('full'/'available') the steps above gate every pick to owned cards,
-    // so an exhausted collection would otherwise pad the rest with basic lands.
-    // Instead, pull the next-best in-color cards from OUTSIDE the collection to
-    // keep the deck a real, complete deck — surfaced in the build report so the
-    // user knows some cards came from outside their collection. ('prefer' drops
-    // the hard collection gate in fillWithScryfall; basics stay the last resort.)
+    // Relax an exhausted owned-only pool. In owned-only modes ('full'/'available')
+    // the steps above gate every pick to owned cards, so a too-small owned pool
+    // would otherwise pad the rest with basic lands. Instead, fill the gap from
+    // the collection FIRST — only reaching outside it as a flagged last resort.
+    // Three tiers, each running only if the deck is still short:
+    //   1. Substitute the CLOSEST owned card for the most-wanted unowned EDHREC
+    //      staples (similarity-ranked: tags + type + subtype + CMC), recorded as
+    //      "Wanted X → used your Y" provenance.
+    //   2. Generic owned backfill — the best owned in-color cards (still hard-
+    //      gated to owned by passing the real strategy, not 'prefer').
+    //   3. Outside the collection — surfaced loudly in the build report.
     currentCount = countAllCards();
     if (currentCount < targetDeckSize && constrainsToCollection(collectionStrategy)) {
-      const relaxNeeded = targetDeckSize - currentCount;
-      const relaxedCards = await fillWithScryfall(
-        '(t:creature OR t:instant OR t:sorcery OR t:artifact OR t:enchantment)',
-        colorIdentity,
-        relaxNeeded,
-        usedNames,
-        bannedCards,
-        shortagePriceCap,
-        maxRarity,
-        maxCmc,
-        null,
-        context.collectionNames,
-        currency,
-        arenaOnly,
-        scryfallQuery,
-        'prefer',
-        ignoreOwnedBudget,
-        ignoreOwnedRarity
-      );
-      categories.synergy.push(...relaxedCards);
-      for (const c of relaxedCards) {
-        if (notInCollection(c.name, context.collectionNames)) relaxedNames.add(c.name);
-      }
-      if (relaxedCards.length > 0) {
-        logger.debug(
-          `[DeckGen] Collection exhausted — relaxed to ${relaxedCards.length} cards from outside it`
+      // Add a fetched card to the right category + role count (mirrors fixupAddCard).
+      // Callers dedupe before calling (Tier 1 pre-checks usedNames; fillWithScryfall
+      // already skips used names), so no guard here — and fillWithScryfall pre-adds
+      // its results to usedNames, so a guard here would wrongly drop every Tier 2/3
+      // card and leave the deck padded with basics instead.
+      const addOwnedCard = (card: ScryfallCard) => {
+        stampRoleSubtypes(card);
+        const role = getCardRole(card.name);
+        const typeLine = (card.type_line || '').toLowerCase();
+        if (typeLine.includes('creature')) categories.creatures.push(card);
+        else if (role === 'boardwipe') categories.boardWipes.push(card);
+        else if (role === 'removal') categories.singleRemoval.push(card);
+        else if (role === 'ramp') categories.ramp.push(card);
+        else if (role === 'cardDraw') categories.cardDraw.push(card);
+        else categories.synergy.push(card);
+        usedNames.add(card.name);
+        if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
+      };
+
+      // ── Tier 1: closest owned substitutes for the most-wanted unowned staples ──
+      const ownedPool = context.collectionPool ?? [];
+      if (ownedPool.length > 0 && state.edhrecData) {
+        const need = targetDeckSize - currentCount;
+        const inclusionByName = new Map<string, number>();
+        const missingStaples: GapAnalysisCard[] = [];
+        for (const edhrecCard of state.edhrecData.cardlists.allNonLand) {
+          inclusionByName.set(edhrecCard.name, edhrecCard.inclusion);
+          if (usedNames.has(edhrecCard.name) || bannedCards.has(edhrecCard.name)) continue;
+          if (!notInCollection(edhrecCard.name, context.collectionNames)) continue; // want UNOWNED staples
+          const role = getCardRole(edhrecCard.name);
+          if (!role) continue; // only role-classified staples have owned substitutes
+          const sc = scryfallCardMap.get(edhrecCard.name);
+          missingStaples.push({
+            name: edhrecCard.name,
+            price: null,
+            inclusion: edhrecCard.inclusion,
+            synergy: edhrecCard.synergy ?? 0,
+            typeLine: sc?.type_line ?? edhrecCard.primary_type ?? '',
+            cmc: sc?.cmc ?? edhrecCard.cmc,
+            role,
+          });
+        }
+        // Most-wanted first; cap the search to keep the similarity pass bounded —
+        // 4× the deficit leaves headroom for staples with no owned match.
+        missingStaples.sort((a, b) => b.inclusion - a.inclusion);
+        const candidates = missingStaples.slice(0, Math.max(need * 4, 40));
+
+        const deckNames = new Set(
+          Object.values(categories)
+            .flat()
+            .map((c) => c.name)
         );
+        const plan = buildSubstitutionPlan(candidates, ownedPool, deckNames, colorIdentity, {
+          inclusionByName,
+        });
+        const chosen = plan.rows.slice(0, need);
+        if (chosen.length > 0) {
+          const fetched = await getCardsByNames(chosen.map((r) => r.usedName));
+          for (const row of chosen) {
+            const card = fetched.get(row.usedName);
+            if (!card || usedNames.has(card.name)) continue;
+            addOwnedCard(card);
+            substitutionRows.push(row);
+          }
+          logger.debug(
+            `[DeckGen] Substituted ${substitutionRows.length} owned card(s) for staples`
+          );
+        }
+      }
+
+      // ── Tier 2: generic owned backfill (best owned in-color cards) ──
+      currentCount = countAllCards();
+      if (currentCount < targetDeckSize) {
+        const ownedFill = await fillWithScryfall(
+          '(t:creature OR t:instant OR t:sorcery OR t:artifact OR t:enchantment)',
+          colorIdentity,
+          targetDeckSize - currentCount,
+          usedNames,
+          bannedCards,
+          shortagePriceCap,
+          maxRarity,
+          maxCmc,
+          null,
+          context.collectionNames,
+          currency,
+          arenaOnly,
+          scryfallQuery,
+          collectionStrategy, // real strategy → HARD-gates to owned cards
+          ignoreOwnedBudget,
+          ignoreOwnedRarity
+        );
+        for (const c of ownedFill) addOwnedCard(c);
+        if (ownedFill.length > 0) {
+          logger.debug(
+            `[DeckGen] Backfilled ${ownedFill.length} owned card(s) from the collection`
+          );
+        }
+      }
+
+      // ── Tier 3: reach outside the collection (flagged) only if still short ──
+      currentCount = countAllCards();
+      if (currentCount < targetDeckSize) {
+        const relaxedCards = await fillWithScryfall(
+          '(t:creature OR t:instant OR t:sorcery OR t:artifact OR t:enchantment)',
+          colorIdentity,
+          targetDeckSize - currentCount,
+          usedNames,
+          bannedCards,
+          shortagePriceCap,
+          maxRarity,
+          maxCmc,
+          null,
+          context.collectionNames,
+          currency,
+          arenaOnly,
+          scryfallQuery,
+          'prefer', // drops the hard owned gate — last resort
+          ignoreOwnedBudget,
+          ignoreOwnedRarity
+        );
+        for (const c of relaxedCards) {
+          addOwnedCard(c);
+          if (notInCollection(c.name, context.collectionNames)) relaxedNames.add(c.name);
+        }
+        if (relaxedCards.length > 0) {
+          logger.debug(
+            `[DeckGen] Collection exhausted — relaxed to ${relaxedCards.length} cards from outside it`
+          );
+        }
       }
     }
 
@@ -3084,6 +3195,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
     }
 
+    // In owned-only modes, fixup swaps must never inject an unowned card —
+    // restrict replacement candidates to cards the user owns.
+    const ownedOnly = constrainsToCollection(collectionStrategy);
+    const isOwnedCandidate = (name: string) =>
+      !ownedOnly || !notInCollection(name, context.collectionNames);
+
     // Helper: find best EDHREC candidate for a role that's already fetched
     function findRoleCandidate(role: RoleKey): ScryfallCard | null {
       const candidates = state
@@ -3092,7 +3209,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             !usedNames.has(c.name) &&
             !bannedCards.has(c.name) &&
             getCardRole(c.name) === role &&
-            scryfallCardMap.has(c.name)
+            scryfallCardMap.has(c.name) &&
+            isOwnedCandidate(c.name)
         )
         .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
       return candidates.length > 0 ? scryfallCardMap.get(candidates[0].name)! : null;
@@ -3151,6 +3269,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                     !usedNames.has(c.name) &&
                     !bannedCards.has(c.name) &&
                     scryfallCardMap.has(c.name) &&
+                    isOwnedCandidate(c.name) &&
                     (scryfallCardMap.get(c.name)!.cmc ?? 0) === targetCmc
                 )
                 .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
@@ -3217,14 +3336,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
   // fixup passes above (they can evict cards added to categories.synergy), so
   // the report never overstates what actually came from outside the collection.
+  const finalNames = new Set(
+    Object.values(categories)
+      .flat()
+      .map((c) => c.name)
+  );
   if (relaxedNames.size > 0) {
-    const finalNames = new Set(
-      Object.values(categories)
-        .flat()
-        .map((c) => c.name)
-    );
     for (const n of relaxedNames) if (finalNames.has(n)) collectionRelaxedCount += 1;
   }
+  // Keep only substitutions whose owned card survived the audit/fixup passes.
+  const survivingSubstitutions = substitutionRows.filter((r) => finalNames.has(r.usedName));
 
   return {
     commander,
@@ -3241,6 +3362,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ? basicLandFillCount
         : undefined,
     collectionRelaxedCount: collectionRelaxedCount > 0 ? collectionRelaxedCount : undefined,
+    collectionSubstitutions: survivingSubstitutions.length > 0 ? survivingSubstitutions : undefined,
     typeTargets,
     dataSource: state.dataSource,
     generationMode: mode,

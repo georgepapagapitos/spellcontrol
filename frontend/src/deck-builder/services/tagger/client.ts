@@ -70,6 +70,18 @@ export function hasTag(cardName: string, tag: string): boolean {
   return tagSets?.[tag]?.has(cardName) ?? false;
 }
 
+/**
+ * All tagger tags a card carries (e.g. ['mana-rock', 'ramp']). Used as a
+ * functional fingerprint for card-similarity (Jaccard overlap). Empty when
+ * tagger data isn't loaded. O(#tags) — there are ~two dozen tags, so cheap.
+ */
+export function getCardTags(cardName: string): string[] {
+  if (!tagSets) return [];
+  const out: string[] = [];
+  for (const tag in tagSets) if (tagSets[tag].has(cardName)) out.push(tag);
+  return out;
+}
+
 /** Check if tagger data is available */
 export function hasTaggerData(): boolean {
   return tagSets !== null;

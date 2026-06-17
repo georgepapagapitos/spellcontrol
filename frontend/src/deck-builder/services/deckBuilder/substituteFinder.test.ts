@@ -26,9 +26,20 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
     'Llanowar Elves': 'mana-producer',
     Cultivate: 'ramp',
   };
+  // Functional fingerprints for the similarity Jaccard. Cards omitted here fall
+  // back to their role list (so existing fixtures keep a sensible overlap).
+  const tags: Record<string, string[]> = {
+    'Talisman of Dominance': ['mana-rock', 'ramp'],
+    'Dimir Signet': ['mana-rock', 'ramp'],
+    'Mind Stone': ['mana-rock', 'ramp'],
+    'Worn Powerstone': ['mana-rock', 'ramp'],
+    'Llanowar Elves': ['mana-dork', 'ramp'],
+    Cultivate: ['ramp', 'mana-fix'],
+  };
   return {
     cardMatchesRole: (name: string, role: string) => (roles[name] ?? []).includes(role),
     getCardSubtype: (name: string) => subtypes[name] ?? null,
+    getCardTags: (name: string) => tags[name] ?? roles[name] ?? [],
   };
 });
 
@@ -99,6 +110,22 @@ describe('findOwnedSubstitute', () => {
     );
     expect(row!.usedName).toBe('Worn Powerstone');
     expect(row!.usedSubtypeMatch).toBe(true);
+  });
+
+  it('prefers the higher tag-overlap substitute when subtype and CMC tie', () => {
+    // Both are owned ramp pieces at the same CMC; Mind Stone shares the wanted
+    // card's full tag fingerprint (mana-rock+ramp) while Llanowar Elves only
+    // shares 'ramp' — similarity should pick the closer functional match.
+    const row = findOwnedSubstitute(
+      missing({ name: 'Talisman of Dominance', role: 'ramp', cmc: 2 }),
+      [
+        owned({ name: 'Llanowar Elves', cmc: 2 }), // shares only 'ramp'
+        owned({ name: 'Mind Stone', cmc: 2 }), // shares mana-rock + ramp
+      ],
+      new Set(),
+      DIMIR
+    );
+    expect(row!.usedName).toBe('Mind Stone');
   });
 
   it('excludes owned cards outside the deck color identity', () => {

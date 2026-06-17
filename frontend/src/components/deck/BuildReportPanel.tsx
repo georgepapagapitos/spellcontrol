@@ -64,6 +64,7 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
     ownedPercentTarget,
     basicsPadded,
     collectionRelaxed,
+    collectionSubstitutions,
     roleGaps,
     claimedConflicts,
     generationMode,
@@ -101,10 +102,30 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
       )}
 
       {typeof collectionRelaxed === 'number' && collectionRelaxed > 0 && (
-        <p className="build-report-line">
-          added <strong>{collectionRelaxed}</strong> card{collectionRelaxed === 1 ? '' : 's'} from
-          outside your collection to complete the deck
+        <p className="build-report-flag">
+          Your collection ran short — added <strong>{collectionRelaxed}</strong> card
+          {collectionRelaxed === 1 ? '' : 's'} from outside it to complete the deck.
         </p>
+      )}
+
+      {collectionSubstitutions && collectionSubstitutions.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            Used <strong>{collectionSubstitutions.length}</strong> owned card
+            {collectionSubstitutions.length === 1 ? '' : 's'} in place of staples you don’t own —
+            why these cards?
+          </summary>
+          <ul className="build-report-subs-list">
+            {collectionSubstitutions.map((s) => (
+              <li key={s.usedName} className="build-report-sub">
+                <span className="build-report-sub-map">
+                  Wanted <strong>{s.wantedName}</strong>
+                </span>
+                <span className="build-report-sub-reason">{s.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {typeof basicsPadded === 'number' && basicsPadded > 0 && (

@@ -2,6 +2,7 @@ import type { GapAnalysisCard } from '@/deck-builder/types';
 import {
   cardMatchesRole,
   getCardSubtype,
+  getCardTags,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 
@@ -30,6 +31,8 @@ export interface SubstituteCandidate {
   colorIdentity: string[];
   /** Mana value, for slot-closeness ranking. */
   cmc?: number;
+  /** Type line (`EnrichedCard.typeLine` / `ScryfallCard.type_line`), for type-overlap closeness. */
+  typeLine?: string;
 }
 
 /** A candidate fits when its whole color identity sits inside the deck's (mirrors `fitsColorIdentity`). */
@@ -91,7 +94,49 @@ interface RankedCandidate {
   card: SubstituteCandidate;
   subtypeMatch: boolean;
   cmcDelta: number;
+  similarity: number;
   inclusion: number;
+}
+
+/** Lowercased word set of a type line, dash stripped: "Legendary Creature — Elf Druid" → {legendary, creature, elf, druid}. */
+function typeTokens(typeLine: string | undefined): Set<string> {
+  if (!typeLine) return new Set();
+  return new Set(typeLine.toLowerCase().replace(/[—-]/g, ' ').split(/\s+/).filter(Boolean));
+}
+
+/** Jaccard overlap of two sets (0 when either is empty). */
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+// Similarity weights — how "close" an owned card feels to the wanted staple.
+// Tags (the tagger's functional fingerprint) dominate; type overlap and exact
+// subtype refine; CMC closeness is a gentle nudge. Tunable; sum need not be 1.
+// ponytail: hand-weighted heuristic, not learned — revisit if swaps feel off.
+const W_TAGS = 0.5;
+const W_TYPE = 0.25;
+const W_SUBTYPE = 0.15;
+const W_CMC = 0.1;
+
+/**
+ * How closely an owned candidate mirrors the wanted card (0–1ish). Combines the
+ * tagger functional fingerprint (Jaccard over all tags), type-line overlap,
+ * exact subtype match, and CMC closeness. Both cards are already role-matched,
+ * so this picks the *closest* same-role card rather than just any same-role one.
+ */
+function similarityScore(
+  missing: GapAnalysisCard,
+  candidate: SubstituteCandidate,
+  subtypeMatch: boolean,
+  cmcDelta: number
+): number {
+  const tagSim = jaccard(new Set(getCardTags(missing.name)), new Set(getCardTags(candidate.name)));
+  const typeSim = jaccard(typeTokens(missing.typeLine), typeTokens(candidate.typeLine));
+  const cmcSim = Number.isFinite(cmcDelta) ? 1 / (1 + cmcDelta) : 0;
+  return W_TAGS * tagSim + W_TYPE * typeSim + W_SUBTYPE * (subtypeMatch ? 1 : 0) + W_CMC * cmcSim;
 }
 
 /**
@@ -99,7 +144,7 @@ interface RankedCandidate {
  * when nothing in the collection fits (→ a genuine "buy"). Candidates must be
  * owned, in color identity, role-matched, and not already in the deck.
  *
- * Ranking (best first): same-subtype, then closest CMC to the wanted slot, then
+ * Ranking (best first): highest similarity (tags + type + subtype + CMC), then
  * highest EDHREC inclusion, then name (for determinism).
  */
 export function findOwnedSubstitute(
@@ -129,6 +174,7 @@ export function findOwnedSubstitute(
       card,
       subtypeMatch,
       cmcDelta,
+      similarity: similarityScore(missing, card, subtypeMatch, cmcDelta),
       inclusion: inclusionByName?.get(card.name) ?? 0,
     });
   }
@@ -136,8 +182,7 @@ export function findOwnedSubstitute(
   if (ranked.length === 0) return null;
 
   ranked.sort((a, b) => {
-    if (a.subtypeMatch !== b.subtypeMatch) return a.subtypeMatch ? -1 : 1;
-    if (a.cmcDelta !== b.cmcDelta) return a.cmcDelta - b.cmcDelta;
+    if (a.similarity !== b.similarity) return b.similarity - a.similarity;
     if (a.inclusion !== b.inclusion) return b.inclusion - a.inclusion;
     return a.card.name.localeCompare(b.card.name);
   });
