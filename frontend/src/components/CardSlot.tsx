@@ -1,5 +1,6 @@
 import { Layers } from 'lucide-react';
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { isLand } from '../lib/colors';
@@ -212,70 +213,75 @@ export function CardSlot({ card, showImage }: Props) {
           </span>
         )}
       </div>
-      {hovered && (
-        <div
-          ref={tooltipRef}
-          className="tooltip"
-          role="tooltip"
-          style={{
-            left: pos ? pos.x : 0,
-            top: pos ? pos.y : 0,
-            visibility: pos ? 'visible' : 'hidden',
-          }}
-        >
-          <div className="tooltip-name">{card.name}</div>
-          <div className="tooltip-meta">
-            <span className={`tooltip-rarity rarity-${(card.rarity || '').toLowerCase()}`}>
-              {card.rarity}
-            </span>
-            {card.foil && <span className="tooltip-foil">foil</span>}
-            {' · '}
-            {formatMoney(card.purchasePrice)}
-          </div>
-          {(card.setName || card.setCode) && (
-            <div className="tooltip-set">
-              {card.setCode && setMap?.[card.setCode.toUpperCase()]?.iconSvgUri ? (
+      {hovered &&
+        createPortal(
+          // Portaled to <body>: `.slot` sets `container-type: inline-size`, which
+          // traps `position: fixed` to the slot's box (the coords below are
+          // viewport-space). Portaling escapes that containing block.
+          <div
+            ref={tooltipRef}
+            className="tooltip"
+            role="tooltip"
+            style={{
+              left: pos ? pos.x : 0,
+              top: pos ? pos.y : 0,
+              visibility: pos ? 'visible' : 'hidden',
+            }}
+          >
+            <div className="tooltip-name">{card.name}</div>
+            <div className="tooltip-meta">
+              <span className={`tooltip-rarity rarity-${(card.rarity || '').toLowerCase()}`}>
+                {card.rarity}
+              </span>
+              {card.foil && <span className="tooltip-foil">foil</span>}
+              {' · '}
+              {formatMoney(card.purchasePrice)}
+            </div>
+            {(card.setName || card.setCode) && (
+              <div className="tooltip-set">
+                {card.setCode && setMap?.[card.setCode.toUpperCase()]?.iconSvgUri ? (
+                  <img
+                    src={setMap[card.setCode.toUpperCase()].iconSvgUri}
+                    alt=""
+                    aria-hidden="true"
+                    className="tooltip-set-icon"
+                  />
+                ) : null}
+                <span>{card.setName || card.setCode}</span>
+              </div>
+            )}
+            {card.imageNormal && !imgError && (
+              <div className="tooltip-image-wrap">
                 <img
-                  src={setMap[card.setCode.toUpperCase()].iconSvgUri}
-                  alt=""
-                  aria-hidden="true"
-                  className="tooltip-set-icon"
+                  src={card.imageNormal}
+                  alt={card.name}
+                  className="tooltip-image"
+                  loading="lazy"
+                  onError={() => setImgError(true)}
+                  onLoad={reposition}
                 />
-              ) : null}
-              <span>{card.setName || card.setCode}</span>
-            </div>
-          )}
-          {card.imageNormal && !imgError && (
-            <div className="tooltip-image-wrap">
-              <img
-                src={card.imageNormal}
-                alt={card.name}
-                className="tooltip-image"
-                loading="lazy"
-                onError={() => setImgError(true)}
-                onLoad={reposition}
-              />
-              {allocation && (
-                <span
-                  className="slot-deck-badge tooltip-deck-badge"
-                  style={
-                    {
-                      '--deck-color': allocation.deckColor || 'var(--accent)',
-                    } as React.CSSProperties
-                  }
-                  title={`In deck: ${allocation.deckName}`}
-                  aria-hidden="true"
-                >
-                  <Layers width={14} height={14} strokeWidth={2.2} aria-hidden />
-                </span>
-              )}
-            </div>
-          )}
-          {card.imageNormal && imgError && (
-            <div className="tooltip-img-fallback">Image unavailable</div>
-          )}
-        </div>
-      )}
+                {allocation && (
+                  <span
+                    className="slot-deck-badge tooltip-deck-badge"
+                    style={
+                      {
+                        '--deck-color': allocation.deckColor || 'var(--accent)',
+                      } as React.CSSProperties
+                    }
+                    title={`In deck: ${allocation.deckName}`}
+                    aria-hidden="true"
+                  >
+                    <Layers width={14} height={14} strokeWidth={2.2} aria-hidden />
+                  </span>
+                )}
+              </div>
+            )}
+            {card.imageNormal && imgError && (
+              <div className="tooltip-img-fallback">Image unavailable</div>
+            )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

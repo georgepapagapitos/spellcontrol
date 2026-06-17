@@ -870,12 +870,11 @@
   color: var(--text-primary);
 }
 
-/* Portaled to <body> and positioned `fixed` via inline styles — visual surface
-   only; position/top/right are set on the element by the React component. */
+/* Portaled to <body> by ToolbarPopover and positioned `fixed` via inline styles
+   (with viewport flip/clamp) — this rule is the visual surface only. */
 .deck-row-menu-popover {
   z-index: var(--z-dropdown);
   min-width: 11rem;
-  margin-top: 0.25rem;
   padding: 0.25rem;
   background: var(--surface);
   border: 0.5px solid var(--border);
@@ -883,6 +882,9 @@
   box-shadow: var(--shadow-modal);
   display: flex;
   flex-direction: column;
+  /* Tall menus on a short viewport scroll rather than overflow off-screen. */
+  max-height: min(360px, calc(100vh - 4rem));
+  overflow-y: auto;
 }
 
 /* Popover enter (STYLE_GUIDE Motion pattern 4): fade + scale(0.98) + 2px
