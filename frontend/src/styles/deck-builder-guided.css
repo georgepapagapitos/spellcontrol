@@ -183,39 +183,7 @@
   margin-top: var(--space-4);
 }
 
-/* ── Pick-mode toggle + play-style picker ─────────────────────────────── */
-.pick-mode-toggle {
-  display: inline-flex;
-  gap: 0.25rem;
-  padding: 0.2rem;
-  margin-bottom: 0.85rem;
-  background: var(--surface-raised);
-  border: 0.5px solid var(--border);
-  border-radius: 999px;
-}
-
-.pick-mode-btn {
-  padding: 0.35rem 0.9rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-
-.pick-mode-btn.is-active {
-  background: var(--accent);
-  color: var(--accent-text, #fff);
-}
-
-.playstyle-picker-hint {
-  margin: 0 0 0.7rem 0;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
+/* ── Play-style picker (CommanderSearch "By playstyle" tab) ────────────── */
 .playstyle-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
