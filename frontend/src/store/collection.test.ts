@@ -473,6 +473,35 @@ describe('refreshPrices', () => {
     expect(useCollectionStore.getState().priceRefreshProgress).toBeNull(); // cleared after
   });
 
+  it('keeps prices from earlier chunks when a later chunk drops (no all-or-nothing $0)', async () => {
+    // The flaky-network bug: a multi-chunk refresh used to persist only after
+    // ALL chunks landed, so one dropped chunk discarded everything → the whole
+    // collection stuck at $0. Now each chunk persists as it lands.
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    let call = 0;
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: { body: string }) => {
+      call++;
+      // Chunk 1 succeeds; chunk 2 drops the connection on every (retried) attempt.
+      if (call >= 2) return Promise.reject(new Error('network'));
+      const { scryfallIds } = JSON.parse(init.body) as { scryfallIds: string[] };
+      const prices = Object.fromEntries(scryfallIds.map((id) => [id, { usd: 5, pricedAt: 1000 }]));
+      return Promise.resolve({ ok: true, json: async () => ({ prices }) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: Array.from({ length: 1001 }, (_, i) =>
+        enriched({ copyId: `c${i}`, scryfallId: `sf${i}`, purchasePrice: 0 })
+      ),
+    });
+
+    await expect(useCollectionStore.getState().refreshPrices()).rejects.toThrow();
+
+    // Chunk 1's 1000 cards are priced despite chunk 2 failing — not stuck at $0.
+    const cards = useCollectionStore.getState().cards;
+    expect(cards.filter((c) => c.purchasePrice === 5)).toHaveLength(1000);
+  });
+
   it('leaves progress null for an untracked (background) refresh', async () => {
     resetPriceCache();
     localStorage.removeItem('spellcontrol:card-prices');
