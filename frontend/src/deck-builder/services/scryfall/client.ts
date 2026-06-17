@@ -1054,10 +1054,13 @@ export function getCardImageUrl(
  * Falls back through: usd → usd_foil → usd_etched → eur → eur_foil
  * Returns the price string or null if no price is available.
  */
-const BASIC_LAND_NAMES = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+// Non-snow basics only — deliberately NOT the canonical land-identity set in
+// lib/allocations. Snow-Covered basics carry a real market price, so they must
+// fall through to their actual `prices`, not the $0.05 basic floor below.
+const ZERO_PRICE_BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 
 export function getCardPrice(card: ScryfallCard, currency: 'USD' | 'EUR' = 'USD'): string | null {
-  if (BASIC_LAND_NAMES.has(card.name)) return '0.05';
+  if (ZERO_PRICE_BASICS.has(card.name)) return '0.05';
   const p = card.prices;
   if (currency === 'EUR')
     return p?.eur || p?.eur_foil || p?.usd || p?.usd_foil || p?.usd_etched || null;

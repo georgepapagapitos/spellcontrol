@@ -320,6 +320,35 @@ function parseManaCurve(rawCurve?: Record<string, number>): Record<number, numbe
 }
 
 /**
+ * Parse the top-level stats block (averages, type/land distribution, curve)
+ * out of a raw EDHREC response. Identical across the single-commander, theme,
+ * and partner-theme fetches.
+ */
+function parseEdhrecStats(response: RawEDHRECResponse): EDHRECCommanderStats {
+  return {
+    avgPrice: response.avg_price || 0,
+    numDecks: response.num_decks_avg || 0,
+    deckSize: response.deck_size || 81, // Default to 81 if missing
+    manaCurve: parseManaCurve(response.panels?.mana_curve),
+    typeDistribution: {
+      creature: response.creature || 0,
+      instant: response.instant || 0,
+      sorcery: response.sorcery || 0,
+      artifact: response.artifact || 0,
+      enchantment: response.enchantment || 0,
+      land: response.land || 0,
+      planeswalker: response.planeswalker || 0,
+      battle: response.battle || 0,
+    },
+    landDistribution: {
+      basic: response.basic || 0,
+      nonbasic: response.nonbasic || 0,
+      total: response.land || 0,
+    },
+  };
+}
+
+/**
  * Build both possible EDHREC slugs for partner commanders.
  * EDHREC doesn't always use alphabetical order (e.g. commander before background),
  * so we return both orderings to try.
@@ -356,27 +385,7 @@ function parseEdhrecResponse(response: RawEDHRECResponse, cacheKey: string): EDH
   themes.sort((a, b) => b.count - a.count);
 
   // Parse stats — mana_curve lives inside panels, not at the top level
-  const stats: EDHRECCommanderStats = {
-    avgPrice: response.avg_price || 0,
-    numDecks: response.num_decks_avg || 0,
-    deckSize: response.deck_size || 81, // Default to 81 if missing
-    manaCurve: parseManaCurve(response.panels?.mana_curve),
-    typeDistribution: {
-      creature: response.creature || 0,
-      instant: response.instant || 0,
-      sorcery: response.sorcery || 0,
-      artifact: response.artifact || 0,
-      enchantment: response.enchantment || 0,
-      land: response.land || 0,
-      planeswalker: response.planeswalker || 0,
-      battle: response.battle || 0,
-    },
-    landDistribution: {
-      basic: response.basic || 0,
-      nonbasic: response.nonbasic || 0,
-      total: response.land || 0,
-    },
-  };
+  const stats = parseEdhrecStats(response);
 
   // Parse card lists directly from EDHREC tags
   const cardlists = parseCardlists(response);
@@ -765,27 +774,7 @@ export async function fetchCommanderThemeData(
     );
 
     // Parse stats
-    const stats: EDHRECCommanderStats = {
-      avgPrice: response.avg_price || 0,
-      numDecks: response.num_decks_avg || 0,
-      deckSize: response.deck_size || 81,
-      manaCurve: parseManaCurve(response.panels?.mana_curve),
-      typeDistribution: {
-        creature: response.creature || 0,
-        instant: response.instant || 0,
-        sorcery: response.sorcery || 0,
-        artifact: response.artifact || 0,
-        enchantment: response.enchantment || 0,
-        land: response.land || 0,
-        planeswalker: response.planeswalker || 0,
-        battle: response.battle || 0,
-      },
-      landDistribution: {
-        basic: response.basic || 0,
-        nonbasic: response.nonbasic || 0,
-        total: response.land || 0,
-      },
-    };
+    const stats = parseEdhrecStats(response);
 
     // Parse card lists using shared parser
     const cardlists = parseCardlists(response);
@@ -844,27 +833,7 @@ export async function fetchPartnerThemeData(
         `[EDHREC] Found partner theme page: ${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}`
       );
 
-      const stats: EDHRECCommanderStats = {
-        avgPrice: response.avg_price || 0,
-        numDecks: response.num_decks_avg || 0,
-        deckSize: response.deck_size || 81,
-        manaCurve: parseManaCurve(response.panels?.mana_curve),
-        typeDistribution: {
-          creature: response.creature || 0,
-          instant: response.instant || 0,
-          sorcery: response.sorcery || 0,
-          artifact: response.artifact || 0,
-          enchantment: response.enchantment || 0,
-          land: response.land || 0,
-          planeswalker: response.planeswalker || 0,
-          battle: response.battle || 0,
-        },
-        landDistribution: {
-          basic: response.basic || 0,
-          nonbasic: response.nonbasic || 0,
-          total: response.land || 0,
-        },
-      };
+      const stats = parseEdhrecStats(response);
 
       const cardlists = parseCardlists(response);
 
