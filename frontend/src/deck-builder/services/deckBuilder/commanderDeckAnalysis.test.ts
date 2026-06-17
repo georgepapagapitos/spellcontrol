@@ -137,6 +137,102 @@ describe('comboMatchesToDetected', () => {
     });
     expect(comboMatchesToDetected(null)).toEqual([]);
   });
+
+  // b1: bracketTag must be threaded through comboMatchesToDetected so the
+  // estimator can detect R-tagged (fast/ruthless) combos that auto-escalate to
+  // Bracket 4 even without high acceleration. If bracketTag is dropped here the
+  // R-tag signal silently disappears for manual decks (audit P1 #4 + ingest fix).
+  it('b1: threads bracketTag from the combo response into DetectedCombo', () => {
+    const resp: ComboMatchResponse = {
+      inDeck: [
+        {
+          combo: {
+            id: 'fast-1',
+            identity: 'BR',
+            produces: ['Win the game'],
+            prerequisites: null,
+            description: null,
+            manaNeeded: null,
+            popularity: 800,
+            cardCount: 2,
+            bracket: 4,
+            bracketTag: 'R', // Ruthless — fast/infinite-turns combo
+            cards: [
+              { oracleId: 'x1', cardName: 'Hulk', quantity: 1 },
+              { oracleId: 'x2', cardName: 'Flash', quantity: 1 },
+            ],
+          },
+          presentOracleIds: ['x1', 'x2'],
+          missingOracleIds: [],
+        },
+        {
+          combo: {
+            id: 'slow-1',
+            identity: 'G',
+            produces: ['Infinite mana'],
+            prerequisites: null,
+            description: null,
+            manaNeeded: null,
+            popularity: 200,
+            cardCount: 2,
+            bracket: 3,
+            bracketTag: 'P', // Powerful — late-game 2-card
+            cards: [
+              { oracleId: 'y1', cardName: 'Selvala', quantity: 1 },
+              { oracleId: 'y2', cardName: 'Umbral Mantle', quantity: 1 },
+            ],
+          },
+          presentOracleIds: ['y1', 'y2'],
+          missingOracleIds: [],
+        },
+      ],
+      oneAway: [],
+      almostInCollection: [],
+    };
+    const detected = comboMatchesToDetected(resp);
+    expect(detected).toHaveLength(2);
+    // R-tag must survive the mapping so estimateBracket can use it for B4 escalation.
+    expect(detected.find((c) => c.comboId === 'fast-1')?.bracketTag).toBe('R');
+    // P-tag must survive too (no auto-escalation, but tracked for future use).
+    expect(detected.find((c) => c.comboId === 'slow-1')?.bracketTag).toBe('P');
+  });
+
+  it('b1: null bracketTag from the DB (pre-ingest) is preserved as null — not coerced', () => {
+    // Before a re-ingest populates bracket_tag, the DB column is NULL. The estimator
+    // must receive null (not undefined/missing) so it can distinguish "not tagged" from
+    // "field absent". The combo 2-card count path still fires correctly (bracketTag
+    // is only a secondary signal; the primary floor is twoCardComboCount > 0).
+    const resp: ComboMatchResponse = {
+      inDeck: [
+        {
+          combo: {
+            id: 'untagged',
+            identity: 'WU',
+            produces: ['Infinite turns'],
+            prerequisites: null,
+            description: null,
+            manaNeeded: null,
+            popularity: 100,
+            cardCount: 2,
+            bracket: null,
+            bracketTag: null, // pre-ingest NULL
+            cards: [
+              { oracleId: 'z1', cardName: 'Time Walk', quantity: 1 },
+              { oracleId: 'z2', cardName: 'Narset', quantity: 1 },
+            ],
+          },
+          presentOracleIds: ['z1', 'z2'],
+          missingOracleIds: [],
+        },
+      ],
+      oneAway: [],
+      almostInCollection: [],
+    };
+    const detected = comboMatchesToDetected(resp);
+    expect(detected[0].bracketTag).toBeNull();
+    expect(detected[0].cardCount).toBe(2);
+    expect(detected[0].bracket).toBeNull();
+  });
 });
 
 describe('computeGradeAndBracket', () => {

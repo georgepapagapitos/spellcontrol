@@ -330,6 +330,172 @@ describe('estimateBracket — hard floors', () => {
     expect(r.breakdown.interactionCount).toBe(12);
   });
 
+  // ── P1/P2 targeted regression tests ──────────────────────────────────────
+
+  // b1: Tagger load race — when tagger data isn't loaded yet, all tag-based
+  // lookups (isMassLandDenial, isExtraTurn, hasTag) return false. The estimator
+  // must NOT erroneously set a hard floor based on those signals; that would
+  // over-rate and cache a wrong answer. By contrast, once the tagger resolves
+  // the correct signals fire. The fix (audit P1 #4) is in analyzeCommanderDeck
+  // which awaits loadTaggerData() before calling estimateBracket. Here we assert
+  // the estimator's own signal-counting logic: with tagger returning all-false
+  // (simulating not-ready), MLD and extra-turn counts stay at 0.
+  it('b1: MLD and extra-turn counts are 0 when tagger not loaded (all-false mocks)', () => {
+    // Mocks default to false (see beforeEach) — exactly what hasTaggerData()=false produces.
+    // A deck containing Armageddon + Time Warp should produce no MLD/extra-turn signals
+    // when the tagger hasn't loaded; only after loadTaggerData resolves do they fire.
+    const r = estimateBracket(
+      ['Armageddon', 'Time Warp', 'Temporal Mastery', 'Walk the Aeons', 'Forest'],
+      undefined,
+      3.5,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.massLandDenialCount).toBe(0);
+    expect(r.breakdown.extraTurnCount).toBe(0);
+    // With no floors from either signal, deck stays at Core (2) baseline.
+    expect(r.bracket).toBe(2);
+    expect(
+      r.hardFloors.filter((f) => f.reason.includes('land') || f.reason.includes('extra'))
+    ).toHaveLength(0);
+  });
+
+  it('b1: MLD fires correctly once tagger is ready (mocks return true)', () => {
+    // Contrast: when tagger IS ready (isMassLandDenial returns true), the B4 floor fires.
+    mockIsMLD.mockImplementation((name: string) => name === 'Armageddon');
+    const r = estimateBracket(
+      ['Armageddon', 'Forest'],
+      undefined,
+      3.5,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.massLandDenialCount).toBe(1);
+    expect(
+      r.hardFloors.some((f) => f.bracket === 4 && f.reason.toLowerCase().includes('land'))
+    ).toBe(true);
+    expect(r.bracket).toBeGreaterThanOrEqual(4);
+  });
+
+  it('b1: extra-turn floor fires correctly once tagger is ready (mocks return true)', () => {
+    const etCards = ['Time Warp', 'Temporal Mastery', 'Walk the Aeons'];
+    mockIsExtraTurn.mockImplementation((name: string) => etCards.includes(name));
+    const r = estimateBracket(
+      [...etCards, 'Forest'],
+      undefined,
+      3.5,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.extraTurnCount).toBe(3);
+    // 3 extra turns → bracket-3 floor (sub-theme, not provable chaining)
+    expect(r.hardFloors.some((f) => f.bracket === 3 && f.reason.includes('extra turn'))).toBe(true);
+    expect(r.bracket).toBeGreaterThanOrEqual(3);
+  });
+
+  // b2: Counterspell undercount — counterspells whose primary role is not
+  // 'removal' were invisible to interactionCount (audit P2 #6). The fix adds a
+  // dedicated counterspells Set populated when hasTag(name, 'counterspell') &&
+  // getCardRole(name) === null. Test with a realistic blue-control mix.
+  it('b2: counterspells mixed with removal both count toward interactionCount signal', () => {
+    const counters = ['Counterspell', 'Force of Will', 'Mana Drain'];
+    const removal = ['Path to Exile', 'Swords to Plowshares'];
+    const counterSet = new Set(counters);
+    const removalSet = new Set(removal);
+    // Counters: hasTag 'counterspell'=true, getCardRole=null (not tagged removal)
+    // Removal: getCardRole='removal'
+    mockHasTag.mockImplementation(
+      (name: string, tag: string) => tag === 'counterspell' && counterSet.has(name)
+    );
+    mockGetRole.mockImplementation((name: string) => (removalSet.has(name) ? 'removal' : null));
+    const r = estimateBracket(
+      [...counters, ...removal, 'Forest'],
+      undefined,
+      3,
+      undefined,
+      { removal: removal.length, boardwipe: 0 }, // roleCounts from the tagger
+      new Set()
+    );
+    // interactionCount = roleCounts.removal (2) + roleCounts.boardwipe (0) + counterspells (3) = 5
+    expect(r.breakdown.interactionCount).toBe(5);
+  });
+
+  it('b2: counterspells also tagged removal are not double-counted (getCardRole guard)', () => {
+    // If a card is tagged 'counterspell' AND getCardRole(name)='removal' (e.g.
+    // a hybrid instant that counters/burns/draws), getCardRole !== null so the
+    // counterspells dedup guard skips it. It's already captured in roleCounts.removal.
+    const hybridCard = 'Izzet Charm';
+    const pureCounters = ['Counterspell', 'Force of Will'];
+    const taggedCounterspell = new Set([...pureCounters, hybridCard]);
+    // Only the explicitly named cards are tagged counterspell (not Forest etc.)
+    mockHasTag.mockImplementation(
+      (name: string, tag: string) => tag === 'counterspell' && taggedCounterspell.has(name)
+    );
+    mockGetRole.mockImplementation((name: string) => (name === hybridCard ? 'removal' : null));
+    const r = estimateBracket(
+      [...pureCounters, hybridCard, 'Forest'],
+      undefined,
+      3,
+      undefined,
+      { removal: 1, boardwipe: 0 }, // hybridCard already in roleCounts.removal
+      new Set()
+    );
+    // pureCounters (2) via counterspells Set + hybridCard in roleCounts.removal (1) = 3 total
+    expect(r.breakdown.interactionCount).toBe(3);
+  });
+
+  // b3: STAX over-triggers on casual white — Thalia, Guardian of Thraben /
+  // Esper Sentinel / Aven Mindcensor are common white hatebears that trip the
+  // STAX/heavy signal in casual white decks (audit P2 #8). The fix excludes
+  // single-bodied "spell-tax creatures" from STAX_PIECES. Even three of them
+  // together should NOT trigger a bracket floor.
+  it('b3: Thalia + Esper Sentinel + Aven Mindcensor are not stax pieces (casual white hatebears)', () => {
+    const r = estimateBracket(
+      ['Thalia, Guardian of Thraben', 'Esper Sentinel', 'Aven Mindcensor', 'Plains', 'Forest'],
+      undefined,
+      3,
+      undefined,
+      undefined,
+      new Set()
+    );
+    // None of these should appear in the stax signal — they are hatebears, not lock pieces.
+    expect(r.breakdown.staxPieceCount).toBe(0);
+    expect(r.breakdown.staxPieceNames).not.toContain('Thalia, Guardian of Thraben');
+    expect(r.breakdown.staxPieceNames).not.toContain('Esper Sentinel');
+    expect(r.breakdown.staxPieceNames).not.toContain('Aven Mindcensor');
+    // Without a stax floor, a casual white deck stays at Core (2).
+    expect(r.hardFloors.find((f) => f.reason.includes('stax'))).toBeUndefined();
+    expect(r.bracket).toBe(2);
+  });
+
+  it('b3: casual white hatebears + 2 real stax pieces stay below the 3-piece floor', () => {
+    // Only genuinely lock/resource-denial pieces count toward the stax threshold.
+    // Even with Thalia + Esper Sentinel + Aven Mindcensor, only the real lock
+    // pieces (Winter Orb, Static Orb) count — so total = 2, below the 3-piece floor.
+    const r = estimateBracket(
+      [
+        'Thalia, Guardian of Thraben',
+        'Esper Sentinel',
+        'Aven Mindcensor',
+        'Winter Orb',
+        'Static Orb',
+        'Plains',
+      ],
+      undefined,
+      3,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.staxPieceCount).toBe(2); // only the 2 real lock pieces
+    // 2 real stax pieces = below the 3-piece floor threshold
+    expect(r.hardFloors.find((f) => f.reason.includes('stax'))).toBeUndefined();
+    expect(r.bracket).toBe(2);
+  });
+
   it('0–2 stax pieces do not trigger a bracket floor (toolbox use)', () => {
     const r = estimateBracket(
       ['Cursed Totem', 'Null Rod', 'Forest'],
