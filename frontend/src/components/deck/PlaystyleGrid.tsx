@@ -7,9 +7,9 @@ interface Props {
 }
 
 /**
- * Descriptive playstyle picker — a grid of label + blurb cards. Shared by the
- * guided build flow (PlaystylePicker) and the new-deck "By playstyle" tab
- * (CommanderSearch) so both surfaces stay in lockstep. Purely presentational;
+ * Descriptive playstyle picker — a grid of label + blurb cards. Rendered by
+ * the "By playstyle" tab in CommanderSearch, which both deck-generation
+ * surfaces share. Purely presentational;
  * the parent owns the selected-state swap (collapse to a back-bar + the
  * commander list once a style is chosen). Styles live in deck-builder-guided.css
  * (`.playstyle-grid` / `.playstyle-card`).

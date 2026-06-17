@@ -88,9 +88,6 @@ vi.mock('../lib/save-generated-deck', () => ({
 vi.mock('../components/deck/CommanderSearch', () => ({
   CommanderSearch: () => <div data-testid="commander-search" />,
 }));
-vi.mock('../components/deck/PlaystylePicker', () => ({
-  PlaystylePicker: () => <div />,
-}));
 vi.mock('../components/deck/CommanderProfileCard', () => ({
   CommanderProfileCard: () => <div />,
 }));
@@ -103,7 +100,7 @@ vi.mock('../components/deck/ThemePicker', () => ({
 vi.mock('../components/deck/DeckCustomizer', () => ({
   DeckCustomizer: () => <div data-testid="deck-customizer" />,
 }));
-vi.mock('../components/GenerationTakeover', () => ({
+vi.mock('../components/deck/GenerationTakeover', () => ({
   GenerationTakeover: () => <div />,
 }));
 
