@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
@@ -419,7 +420,12 @@ export function CardPreview({
   if (!cards[selected]) return null;
   const current = cards[selected];
 
-  return (
+  // Portaled to <body>: this is a `position: fixed; inset: 0` full-screen modal.
+  // When dropped inside an ancestor that establishes a containing block for
+  // fixed descendants — e.g. `.deck-bento` (container-type: inline-size), which
+  // wraps the Win-conditions panel — the backdrop would otherwise be trapped to
+  // that box instead of the viewport. Portaling escapes any such ancestor.
+  return createPortal(
     <div
       className={`card-preview-backdrop${isClosing ? ' is-closing' : ''}`}
       onClick={() => beginClose()}
@@ -750,7 +756,8 @@ export function CardPreview({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

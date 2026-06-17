@@ -2238,6 +2238,10 @@ function ToolbarPopover({
   triggerTitle,
   triggerAriaLabel,
   wrapperClassName,
+  haspopup,
+  panelClassName,
+  panelRole,
+  panelAriaLabel,
   children,
 }: {
   label?: string;
@@ -2252,6 +2256,12 @@ function ToolbarPopover({
   triggerTitle?: string;
   triggerAriaLabel?: string;
   wrapperClassName?: string;
+  // Panel semantics/skin overrides. Default is the toolbar dialog look; a
+  // role="menu" caller (e.g. the deck-row kebab) passes its own class + role.
+  haspopup?: 'menu' | 'dialog';
+  panelClassName?: string;
+  panelRole?: string;
+  panelAriaLabel?: string;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -2337,7 +2347,9 @@ function ToolbarPopover({
     createPortal(
       <div
         ref={panelRef}
-        className="toolbar-popover-panel toolbar-popover-panel--fixed"
+        className={panelClassName ?? 'toolbar-popover-panel toolbar-popover-panel--fixed'}
+        role={panelRole}
+        aria-label={panelAriaLabel}
         style={{
           position: 'fixed',
           left: panelPos.left,
@@ -2363,8 +2375,9 @@ function ToolbarPopover({
         ref={buttonRef}
         type="button"
         className={triggerClassName ?? `toolbar-pill${open ? ' open' : ''}`}
-        aria-haspopup={triggerClassName ? 'dialog' : 'menu'}
+        aria-haspopup={haspopup ?? (triggerClassName ? 'dialog' : 'menu')}
         aria-expanded={open}
+        data-open={open || undefined}
         aria-label={triggerAriaLabel ?? (!label ? ariaLabel : undefined)}
         title={triggerTitle}
         onClick={handleToggle}
@@ -2766,25 +2779,6 @@ function DeckCardRow({
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuOpen]);
-
   const canRemove = !!onRemoveCard && row.slotIds.length > 0;
   const canEditQty = !!onSetQty && row.slotIds.length > 0;
   const [editingQty, setEditingQty] = useState(false);
@@ -2794,14 +2788,14 @@ function DeckCardRow({
   const [expanded, setExpanded] = useState(false);
   const subListId = `printings-${row.slotIds[0] ?? row.name}`;
 
-  const handleRemoveOne = (e: React.MouseEvent | React.KeyboardEvent) => {
+  const handleRemoveOne = (e: React.MouseEvent | React.KeyboardEvent, close: () => void) => {
     e.stopPropagation();
-    setMenuOpen(false);
+    close();
     if (canRemove) onRemoveCard!(row.slotIds[row.slotIds.length - 1]);
   };
-  const handleRemoveAll = (e: React.MouseEvent) => {
+  const handleRemoveAll = (e: React.MouseEvent, close: () => void) => {
     e.stopPropagation();
-    setMenuOpen(false);
+    close();
     // Prefer the bulk path so the host can show one undo toast for the whole batch.
     if (canEditQty) onSetQty!(row.card, 0);
     else if (canRemove) {
@@ -2988,19 +2982,15 @@ function DeckCardRow({
             // aligned across rows (mirrors the empty mana-cost placeholder).
             <span className="deck-row-price" aria-hidden />
           ))}
-        <div className="deck-row-menu" ref={menuRef}>
-          <button
-            type="button"
-            className="deck-row-menu-trigger"
-            aria-label="Card actions"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            data-open={menuOpen || undefined}
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenuOpen((v) => !v);
-            }}
-          >
+        <ToolbarPopover
+          wrapperClassName="deck-row-menu"
+          triggerClassName="deck-row-menu-trigger"
+          triggerAriaLabel="Card actions"
+          haspopup="menu"
+          panelClassName="deck-row-menu-popover toolbar-popover-panel--fixed"
+          panelRole="menu"
+          panelAriaLabel={`Actions for ${row.name}`}
+          triggerContent={
             <MoreVertical
               className="deck-row-menu-icon"
               width={14}
@@ -3008,9 +2998,10 @@ function DeckCardRow({
               strokeWidth={2}
               aria-hidden
             />
-          </button>
-          {menuOpen && (
-            <div role="menu" className="deck-row-menu-popover">
+          }
+        >
+          {(close) => (
+            <>
               {onEditCard && row.slotIds.length > 0 && (
                 <button
                   type="button"
@@ -3018,7 +3009,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onEditCard(row.slotIds[0], row.card);
                   }}
                 >
@@ -3032,7 +3023,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onSetQty!(row.card, row.qty + 1);
                   }}
                 >
@@ -3044,7 +3035,7 @@ function DeckCardRow({
                 role="menuitem"
                 className="deck-row-menu-item"
                 disabled={!canRemove}
-                onClick={handleRemoveOne}
+                onClick={(e) => handleRemoveOne(e, close)}
               >
                 {row.qty > 1 ? 'Remove one copy' : 'Remove from deck'}
               </button>
@@ -3054,7 +3045,7 @@ function DeckCardRow({
                   role="menuitem"
                   className="deck-row-menu-item"
                   disabled={!canRemove && !canEditQty}
-                  onClick={handleRemoveAll}
+                  onClick={(e) => handleRemoveAll(e, close)}
                 >
                   Remove all {row.qty} copies
                 </button>
@@ -3066,7 +3057,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onMoveToZone(row.slotIds[0]);
                   }}
                 >
@@ -3080,7 +3071,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onUseOwnCopy(row.card);
                   }}
                 >
@@ -3094,7 +3085,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onMoveToAnotherDeck(row.card);
                   }}
                 >
@@ -3108,7 +3099,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onReleaseCopy(row.card);
                   }}
                 >
@@ -3122,7 +3113,7 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onMakeCommander(row.slotIds[0], row.card);
                   }}
                 >
@@ -3136,16 +3127,16 @@ function DeckCardRow({
                   className="deck-row-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMenuOpen(false);
+                    close();
                     onMakePartner(row.slotIds[0], row.card);
                   }}
                 >
                   Make partner
                 </button>
               )}
-            </div>
+            </>
           )}
-        </div>
+        </ToolbarPopover>
       </li>
       {multiPrinting && expanded && !leaving && (
         <li className="deck-row-printings-wrap">

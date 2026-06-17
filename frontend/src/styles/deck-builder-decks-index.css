@@ -197,9 +197,12 @@
 .decks-index-list.is-compact .decks-index-card {
   /* Grid items default to min-width: auto which means they grow to fit
      content. Narrow viewports + long commander names then push the row
-     past the right edge. Clamp every li to the column width. */
+     past the right edge. Clamp every li to the column width. `overflow:
+     hidden` used to live here too, but it clipped the absolutely-positioned
+     3-dot menu panel — the name is already truncated inside `-card-link`/
+     `-card-body` (overflow: hidden + ellipsis), so the outer clip isn't
+     needed. Mirrors the binders-index compact card. */
   min-width: 0;
-  overflow: hidden;
 }
 
 .decks-index-list.is-compact .decks-index-card-link {
@@ -279,6 +282,13 @@
   border-radius: var(--radius-lg);
   overflow: visible;
   transition: border-color var(--motion-fast) ease;
+}
+
+/* Lift the card above its siblings while its 3-dot popover is open so
+   the menu panel paints over the cards that follow it in the list
+   instead of slipping behind them. Mirrors the binders-index card. */
+.decks-index-card:has(.decks-index-card-menu-btn[aria-expanded='true']) {
+  z-index: var(--z-dropdown);
 }
 
 /* On hover, every side of the border tints to the deck's chosen color so
