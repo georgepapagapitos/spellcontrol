@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCollectionStore } from '@/store/collection';
 import { useToastsStore } from '@/store/toasts';
-import { getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
+import { getCardByNameResilient, getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard, Finish } from '@/types';
@@ -14,9 +14,11 @@ import type { EnrichedCard, Finish } from '@/types';
 vi.mock('@/deck-builder/services/scryfall/client', () => ({
   getCardByName: vi.fn(),
   getCardByNameResilient: vi.fn(),
+  getOwnedPrinting: vi.fn(),
 }));
 
 const mockResolve = vi.mocked(getCardByNameResilient);
+const mockOwnedPrinting = vi.mocked(getOwnedPrinting);
 
 // Capture the cards/index CardPreview is handed so we can assert what the hook
 // produced without depending on the real (DOM-heavy) preview component.
@@ -53,6 +55,7 @@ beforeEach(() => {
   previewCards.mockClear();
   previewIndex.mockClear();
   mockResolve.mockReset();
+  mockOwnedPrinting.mockReset();
 });
 
 afterEach(() => {
@@ -181,6 +184,33 @@ describe('useCardCarousel instant open', () => {
     });
     // Opens instantly with a placeholder, then pulls full data for what's in view.
     await waitFor(() => expect(mockResolve).toHaveBeenCalledWith('Sol Ring'));
+  });
+
+  it('resolves a name-only entry to the OWNED printing when the card is in the collection', async () => {
+    // The player owns Sol Ring (printing id "print-Sol Ring"); a name-only entry
+    // must show THAT printing, not Scryfall's default — resolved by scryfallId.
+    useCollectionStore.setState({ cards: [owned('Sol Ring', 'oracle-sol', 'nonfoil')] });
+    mockOwnedPrinting.mockResolvedValue(scry('Sol Ring', 'oracle-sol'));
+    const { result } = renderHook(() => useCardCarousel('Test Binder'));
+    act(() => {
+      result.current.open([{ name: 'Sol Ring', label: '1 copy' }], 'Sol Ring');
+    });
+    await waitFor(() =>
+      expect(mockOwnedPrinting).toHaveBeenCalledWith('print-Sol Ring', 'Sol Ring')
+    );
+    expect(mockResolve).not.toHaveBeenCalled();
+  });
+
+  it('falls back to name resolution for an unowned name-only entry (suggestion)', async () => {
+    // Collection holds a different card → Sol Ring is unowned → default printing.
+    useCollectionStore.setState({ cards: [owned('Counterspell', 'oracle-cs', 'foil')] });
+    mockResolve.mockResolvedValue(scry('Sol Ring', 'oracle-sol'));
+    const { result } = renderHook(() => useCardCarousel('Test Binder'));
+    act(() => {
+      result.current.open([{ name: 'Sol Ring', label: 'In 80% of decks' }], 'Sol Ring');
+    });
+    await waitFor(() => expect(mockResolve).toHaveBeenCalledWith('Sol Ring'));
+    expect(mockOwnedPrinting).not.toHaveBeenCalled();
   });
 });
 
