@@ -105,6 +105,73 @@
   overflow-wrap: anywhere;
 }
 
+/* Loud, up-front flag when the owned pool was exhausted and the build had to
+   reach outside the collection. */
+.build-report-flag {
+  margin: 0.15rem 0;
+  padding: 0.4rem 0.55rem;
+  font-size: var(--text-sm);
+  color: var(--warn-text);
+  background: var(--warn-surface);
+  border: 0.5px solid var(--warn-border);
+  border-radius: var(--radius);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.build-report-flag strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Why these cards?" disclosure listing the owned substitutions. */
+.build-report-subs {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.build-report-subs > summary {
+  cursor: pointer;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.build-report-subs > summary strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.build-report-subs-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.build-report-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--border);
+}
+
+.build-report-sub-map {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.build-report-sub-map strong {
+  color: var(--text-primary);
+}
+
+.build-report-sub-reason {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 /* Phones: tighten the inter-line gap. Report lines wrap (overflow-wrap:
    anywhere) and the gap chips already flex-wrap, so no reflow is needed —

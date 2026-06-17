@@ -10,6 +10,7 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { saveGeneratedDeck } from './save-generated-deck';
 import { buildAvailableCollection } from './collection-availability';
+import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { ScryfallCard, EDHRECTheme, ThemeResult } from '@/deck-builder/types';
 
 interface Options {
@@ -163,6 +164,26 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
         }
       }
 
+      // Lean owned pool (one entry per available card name) so the owned-only
+      // relaxation can substitute the closest owned card rather than reaching
+      // outside the collection. `collectionNames` already reflects the chosen
+      // strategy (free copies for 'available', all owned for 'full'), so keying
+      // off it keeps the pool strategy-correct.
+      let collectionPool: SubstituteCandidate[] | undefined;
+      if (collectionNames) {
+        const byName = new Map<string, SubstituteCandidate>();
+        for (const c of collectionCards) {
+          if (!collectionNames.has(c.name) || byName.has(c.name)) continue;
+          byName.set(c.name, {
+            name: c.name,
+            colorIdentity: c.colorIdentity ?? [],
+            cmc: c.cmc,
+            typeLine: c.typeLine,
+          });
+        }
+        if (byName.size > 0) collectionPool = [...byName.values()];
+      }
+
       const themesForGenerator: ThemeResult[] = selectedThemes.map((t) => ({
         name: t.name,
         source: 'edhrec',
@@ -180,6 +201,7 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
         selectedThemes: themesForGenerator,
         collectionNames,
         collectionAvailableCounts,
+        collectionPool,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });
 

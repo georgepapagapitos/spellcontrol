@@ -70,6 +70,11 @@ export function assembleBuildReport(input: {
     report.collectionRelaxed = generated.collectionRelaxedCount;
   }
 
+  // Owned cards substituted in for unowned staples ("Wanted X → used your Y").
+  if (generated.collectionSubstitutions && generated.collectionSubstitutions.length > 0) {
+    report.collectionSubstitutions = generated.collectionSubstitutions;
+  }
+
   // Per-role "wanted N, got M" gaps where the deck fell short of target.
   const roleTargets = generated.roleTargets;
   if (roleTargets) {

@@ -30,6 +30,7 @@ import type {
   GeneratedDeck,
 } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
+import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
 
 export interface GenerationContext {
@@ -40,6 +41,14 @@ export interface GenerationContext {
   selectedThemes?: ThemeResult[];
   collectionNames?: Set<string>;
   collectionAvailableCounts?: Map<string, number>;
+  /**
+   * Lean owned-card pool (name + color identity + CMC + type line) for the
+   * owned-only relaxation step: when the EDHREC pool can't fill an owned-only
+   * deck, we substitute the closest card the user *owns* (similarity-ranked)
+   * instead of reaching outside the collection. Only the available copies —
+   * cards whose every copy is committed to another deck are excluded upstream.
+   */
+  collectionPool?: SubstituteCandidate[];
   optimizeDeckCards?: string[];
   onProgress?: (message: string, percent: number) => void;
 }

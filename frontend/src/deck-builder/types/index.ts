@@ -1,3 +1,5 @@
+import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
+
 /**
  * A token (or emblem) a card can create, derived from Scryfall's `all_parts`
  * relationship array. Carried through the offline slim payload so the deck
@@ -340,6 +342,9 @@ export interface BuildReport {
   /** Cards added from outside the collection to complete an owned-only build
    *  (the collection was exhausted before the deck was full). */
   collectionRelaxed?: number;
+  /** "Wanted X → used your Y" substitutions: closest owned cards swapped in for
+   *  unowned staples to keep an owned-only deck inside the collection. */
+  collectionSubstitutions?: SubstituteRow[];
   /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
   roleGaps?: Array<{ role: string; have: number; want: number }>;
   /** Cards that are owned but all copies are committed to other decks. */
@@ -359,6 +364,9 @@ export interface GeneratedDeck {
   /** Cards pulled from OUTSIDE the collection to complete an owned-constrained
    *  deck when the owned pool was exhausted — relaxation before basic padding. */
   collectionRelaxedCount?: number;
+  /** "Wanted X → used your Y" substitutions: owned cards swapped in for unowned
+   *  EDHREC staples to complete an owned-only deck from the collection. */
+  collectionSubstitutions?: SubstituteRow[];
   detectedCombos?: DetectedCombo[];
   typeTargets?: Record<string, number>;
   dataSource?: DeckDataSource;

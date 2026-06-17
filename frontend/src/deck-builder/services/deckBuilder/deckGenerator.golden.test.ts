@@ -309,6 +309,42 @@ describe('generateDeck — invariants', () => {
 });
 
 describe('generateDeck — collection relaxation (T43 PR-3)', () => {
+  it('fills an owned-only deck from the collection (no outside cards) when owned cards suffice', async () => {
+    // Owned-only ('full') with a collection large enough to complete the deck.
+    const ctx = baseContext();
+    ctx.customization = customization({ collectionMode: true, collectionStrategy: 'full' });
+    const ownedNames = [
+      'Test Commander',
+      ...Array.from({ length: 60 }, (_, i) => `Owned_${i + 1}`),
+    ];
+    (ctx as { collectionNames?: Set<string> }).collectionNames = new Set(ownedNames);
+
+    // Scryfall returns OWNED cards — the owned-gated backfill (Tier 2) keeps them,
+    // so the gap closes from the collection and the outside-reach tier never runs.
+    const ownedCards = Array.from({ length: 60 }, (_, i) =>
+      mkSC(`Owned_${i + 1}`, 'Creature', (i % 5) + 1)
+    );
+    const mocked = vi.mocked(searchCards);
+    mocked.mockResolvedValue({ data: ownedCards } as unknown as Awaited<
+      ReturnType<typeof searchCards>
+    >);
+    clearGenerationCache();
+    try {
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      // Nothing was pulled from outside the collection…
+      expect(deck.collectionRelaxedCount ?? 0).toBe(0);
+      // …and the deck is built from the owned pool.
+      expect(names.some((n) => n.startsWith('Owned_'))).toBe(true);
+      expect(names.every((n) => n.startsWith('Owned_') || n === 'Forest')).toBe(true);
+    } finally {
+      mocked.mockResolvedValue({ data: [] } as unknown as Awaited<ReturnType<typeof searchCards>>);
+      clearGenerationCache();
+    }
+  });
+
   it('pulls cards from OUTSIDE an exhausted owned-only collection before padding basics', async () => {
     // Owned-only ('full') with a tiny collection that cannot fill the deck.
     const ctx = baseContext();
