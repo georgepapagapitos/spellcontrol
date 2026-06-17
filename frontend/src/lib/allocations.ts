@@ -212,13 +212,7 @@ export function pickCollectionCopy(
     const printingMatches = free.filter((c) => c.scryfallId === preferredScryfallId);
     if (printingMatches.length > 0) candidates = printingMatches;
   }
-  const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
-  candidates.sort((a, b) => {
-    const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
-    const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
-    if (aRank !== bRank) return aRank - bRank;
-    return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
-  });
+  candidates.sort(compareCopyPreference);
   return candidates[0];
 }
 
@@ -416,7 +410,7 @@ export interface StealableCopy {
 }
 
 /** Same finish-then-price ranking pickCollectionCopy uses, as a comparator. */
-function compareCopyPreference(a: EnrichedCard, b: EnrichedCard): number {
+export function compareCopyPreference(a: EnrichedCard, b: EnrichedCard): number {
   const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
   const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
   const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);

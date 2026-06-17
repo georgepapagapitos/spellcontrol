@@ -2,7 +2,6 @@ import {
   type JSX,
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -24,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 import { useCardThumb } from '../../lib/card-thumbs';
 import { ColorPip } from '../shared/ManaSymbol';
 import { useCollectionStore } from '../../store/collection';
@@ -63,32 +63,6 @@ interface Props {
 
 type Tab = 'inDeck' | 'oneAway';
 type OwnershipFilter = 'all' | 'owned' | 'notOwned';
-
-const COLLAPSED_STORAGE_KEY = 'spellcontrol-combos-panel-collapsed';
-
-function readCollapsedPref(): boolean {
-  // Default to collapsed when no preference is stored. The panel is opt-in
-  // discovery — most deck-page loads don't need to render the full combo
-  // list, and the always-visible header summary already shows the at-a-
-  // glance counts. Users who toggle it open will see their preference
-  // persist via the writeCollapsedPref call.
-  if (typeof window === 'undefined') return true;
-  try {
-    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
-    return raw === null ? true : raw === '1';
-  } catch {
-    return true;
-  }
-}
-
-function writeCollapsedPref(collapsed: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    /* ignore quota / privacy-mode failures */
-  }
-}
 
 export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function DeckCombosPanel(
   { deckId: _deckId, deckOracleIds, format, onAdd, embedded = false },
@@ -228,7 +202,10 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
   );
 
   const [tab, setTab] = useState<Tab>('inDeck');
-  const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
+  // Default to collapsed: the panel is opt-in discovery — most deck-page loads
+  // don't need the full combo list, and the always-visible header summary
+  // already shows the at-a-glance counts.
+  const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-combos-panel-collapsed');
   // Embedded in a tab: no header chrome, body always open.
   const isCollapsed = embedded ? false : collapsed;
   const [announce, setAnnounce] = useState('');
@@ -244,10 +221,6 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     // results and debounces requests, so the cost on idle deck-views is
     // small and the at-a-glance value is high.
   });
-
-  useEffect(() => {
-    writeCollapsedPref(collapsed);
-  }, [collapsed]);
 
   useImperativeHandle(ref, () => ({
     reveal: (revealTab) => {

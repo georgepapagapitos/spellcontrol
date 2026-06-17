@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
+import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
@@ -55,30 +56,6 @@ interface Props {
 }
 
 const HAND_SIZE = 7;
-const COLLAPSED_STORAGE_KEY = 'spellcontrol-test-hand-panel-collapsed';
-
-function readCollapsedPref(): boolean {
-  // Default to collapsed when no preference is stored. Test-hand is opt-in
-  // — most users don't need a fresh hand on every deck-page load. The
-  // header summary already shows total cards / land count for at-a-glance
-  // sanity. Users who toggle it open get their preference persisted.
-  if (typeof window === 'undefined') return true;
-  try {
-    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
-    return raw === null ? true : raw === '1';
-  } catch {
-    return true;
-  }
-}
-
-function writeCollapsedPref(collapsed: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
-}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -155,8 +132,10 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
-    useEffect(() => writeCollapsedPref(collapsed), [collapsed]);
+    // Default to collapsed: test-hand is opt-in — most users don't need a fresh
+    // hand on every deck-page load, and the header summary already shows total
+    // cards / land count for at-a-glance sanity.
+    const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-test-hand-panel-collapsed');
     // Embedded in a tab: no header chrome, body always open.
     const isCollapsed = embedded ? false : collapsed;
 

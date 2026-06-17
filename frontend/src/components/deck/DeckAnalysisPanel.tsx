@@ -10,6 +10,7 @@ import {
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Gauge, Plus } from 'lucide-react';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
+import { useCollapsedPref } from '@/lib/use-collapsed-pref';
 import {
   fetchCommanderData,
   fetchCommanderThemeData,
@@ -57,42 +58,17 @@ interface Props {
   embedded?: boolean;
 }
 
-const COLLAPSED_STORAGE_KEY = 'spellcontrol-analysis-panel-collapsed';
-
-function readCollapsedPref(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
-    return raw === null ? true : raw === '1';
-  } catch {
-    return true;
-  }
-}
-
-function writeCollapsedPref(collapsed: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
-}
-
 export const DeckAnalysisPanel = forwardRef<DeckAnalysisPanelHandle, Props>(
   function DeckAnalysisPanel(
     { deckId, format, commander, partnerCommander, mainboard, onAdd, embedded = false },
     ref
   ) {
-    const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
+    const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-analysis-panel-collapsed');
     const [tab, setTab] = useState<'diagnosis' | 'suggestions'>('diagnosis');
     // Embedded in a tab: no header chrome, body always open, Suggestions only.
     const isCollapsed = embedded ? false : collapsed;
     const containerRef = useRef<HTMLDivElement>(null);
     const focusTargetRef = useRef<HTMLButtonElement>(null);
-
-    useEffect(() => {
-      writeCollapsedPref(collapsed);
-    }, [collapsed]);
 
     useImperativeHandle(ref, () => ({
       reveal: () => {

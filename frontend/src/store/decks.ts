@@ -16,13 +16,19 @@ import type { OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnal
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { SynergyAnalysis } from '@/deck-builder/services/synergy/analysis';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
-import { dedupeDeckAllocations, pickCollectionCopy, type AllocationInfo } from '../lib/allocations';
+import {
+  dedupeDeckAllocations,
+  pickCollectionCopy,
+  compareCopyPreference,
+  type AllocationInfo,
+} from '../lib/allocations';
 import { createIndexedDbStorage } from '../lib/idb-storage';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from './../lib/preset-colors';
 import type { EnrichedCard } from '../types';
 import { toast } from './toasts';
+import { genId } from '../lib/id';
 
 /**
  * Persisted deck shape. Stores full ScryfallCard payloads so a saved deck
@@ -282,13 +288,6 @@ interface DecksState {
   remapAllocations(newCollection: EnrichedCard[]): void;
 }
 
-function newId(prefix: string): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `${prefix}_${crypto.randomUUID()}`;
-  }
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 function touch(deck: Deck): Deck {
   return { ...deck, updatedAt: Date.now() };
 }
@@ -300,7 +299,7 @@ export const useDecksStore = create<DecksState>()(
       hydrated: false,
 
       createDeck: (input) => {
-        const id = newId('deck');
+        const id = genId('deck');
         const now = Date.now();
         const deck: Deck = {
           id,
@@ -381,7 +380,7 @@ export const useDecksStore = create<DecksState>()(
         const state = useDecksStore.getState();
         const original = state.decks.find((d) => d.id === id);
         if (!original) return null;
-        const newDeckId = newId('deck');
+        const newDeckId = genId('deck');
         const now = Date.now();
         const copy: Deck = {
           ...original,
@@ -390,12 +389,12 @@ export const useDecksStore = create<DecksState>()(
           commanderAllocatedCopyId: null,
           partnerCommanderAllocatedCopyId: null,
           cards: original.cards.map((c) => ({
-            slotId: newId('slot'),
+            slotId: genId('slot'),
             card: c.card,
             allocatedCopyId: null,
           })),
           sideboard: original.sideboard.map((c) => ({
-            slotId: newId('slot'),
+            slotId: genId('slot'),
             card: c.card,
             allocatedCopyId: null,
           })),
@@ -407,7 +406,7 @@ export const useDecksStore = create<DecksState>()(
       },
 
       addCard: (deckId, card, allocatedCopyId = null) => {
-        const slotId = newId('slot');
+        const slotId = genId('slot');
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
@@ -441,7 +440,7 @@ export const useDecksStore = create<DecksState>()(
         })),
 
       swapCard: (deckId, outSlotId, inCard, allocatedCopyId = null) => {
-        const slotId = newId('slot');
+        const slotId = genId('slot');
         let applied = false;
         set((s) => ({
           decks: s.decks.map((d) => {
@@ -466,7 +465,7 @@ export const useDecksStore = create<DecksState>()(
         })),
 
       addSideboardCard: (deckId, card, allocatedCopyId = null) => {
-        const slotId = newId('slot');
+        const slotId = genId('slot');
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
@@ -754,13 +753,7 @@ export const useDecksStore = create<DecksState>()(
               // Match pickCollectionCopy's secondary preferences: nonfoil > foil,
               // then cheapest. Same scryfallId means same printing, but finish
               // and price still vary.
-              list.sort((a, b) => {
-                const finishRank = { nonfoil: 0, foil: 1, etched: 2 } as const;
-                const aRank = finishRank[a.finish] ?? (a.foil ? 1 : 0);
-                const bRank = finishRank[b.finish] ?? (b.foil ? 1 : 0);
-                if (aRank !== bRank) return aRank - bRank;
-                return (a.purchasePrice ?? 0) - (b.purchasePrice ?? 0);
-              });
+              list.sort(compareCopyPreference);
               const pick = list[0];
               claim(pick.copyId, slot.deckId, slot.deckName, slot.deckColor, slot.cardName);
               removeFromFree(pick);
@@ -937,7 +930,7 @@ export const useDecksStore = create<DecksState>()(
 );
 
 export function newDeckCard(card: ScryfallCard, allocatedCopyId: string | null = null): DeckCard {
-  return { slotId: newId('slot'), card, allocatedCopyId, addedAt: Date.now() };
+  return { slotId: genId('slot'), card, allocatedCopyId, addedAt: Date.now() };
 }
 
 function defaultDeckName(commander: ScryfallCard | null): string {

@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import type { CommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 
 interface CommanderProfileCardProps {
   profile: CommanderProfile;
@@ -9,26 +9,6 @@ interface CommanderProfileCardProps {
    * page (one-shot builder); 'next-step' = the guided wizard's next step.
    */
   themesLocation?: 'below' | 'next-step';
-}
-
-const COLLAPSED_STORAGE_KEY = 'spellcontrol-game-plan-collapsed';
-
-function readCollapsedPref(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeCollapsedPref(collapsed: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    /* ignore */
-  }
 }
 
 /**
@@ -46,8 +26,8 @@ export function CommanderProfileCard({
       ? 'Suggested themes are preselected on the next step'
       : 'Suggested themes are preselected below';
 
-  const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsedPref());
-  useEffect(() => writeCollapsedPref(collapsed), [collapsed]);
+  // Default to expanded — the commander breakdown is a discovery feature.
+  const [collapsed, setCollapsed] = useCollapsedPref('spellcontrol-game-plan-collapsed', false);
 
   return (
     <section className="deck-builder-section cmdr-profile">

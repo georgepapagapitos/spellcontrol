@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { addToast } from '../lib/toast-stack';
+import { genId } from '../lib/id';
 
 export type ToastTone = 'info' | 'success' | 'warn' | 'error';
 
@@ -33,17 +34,10 @@ interface ToastsState {
   clear(): void;
 }
 
-function newId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return `toast_${crypto.randomUUID()}`;
-  }
-  return `toast_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
 export const useToastsStore = create<ToastsState>((set) => ({
   toasts: [],
   push: ({ message, tone = 'info', actionLabel, onAction, durationMs = 5000 }) => {
-    const id = newId();
+    const id = genId('toast');
     const toast: Toast = {
       id,
       message,
