@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 
 interface Props {
@@ -15,19 +16,59 @@ interface ZoneEntry {
   peek: 'top' | 'back';
 }
 
+const MENU_GAP = 4;
+const MENU_MARGIN = 8;
+
 export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }: Props) {
   const [open, setOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<Zone | null>(null);
+  // The kebab's viewport rect, captured on open — the portaled menu is a fixed
+  // overlay anchored to it (the panel itself scrolls + clips, so an in-panel
+  // absolute menu got cut off for the bottom-row tiles).
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!menuFor) return;
     const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuFor(null);
+      const t = e.target as HTMLElement;
+      if (menuRef.current?.contains(t)) return;
+      // Let a kebab tap reach its own click handler (toggle/switch) instead of
+      // this listener swallowing it first.
+      if (t.closest?.('.playtest-zone-tile__kebab')) return;
+      setMenuFor(null);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuFor(null);
+    };
+    // The zones drawer scrolls; the fixed menu would otherwise drift off its
+    // kebab. Close on any scroll, matching the app's other anchored popovers.
+    const onScroll = () => setMenuFor(null);
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('scroll', onScroll, { capture: true });
+    };
   }, [menuFor]);
+
+  // Measure the mounted menu and place it under the kebab, right-aligned, with
+  // a flip-up when it would overflow the bottom and viewport clamping.
+  useLayoutEffect(() => {
+    if (!menuFor || !anchor || !menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = anchor.right - rect.width;
+    let top = anchor.bottom + MENU_GAP;
+    if (top + rect.height > vh - MENU_MARGIN) top = anchor.top - MENU_GAP - rect.height;
+    left = Math.max(MENU_MARGIN, Math.min(left, vw - rect.width - MENU_MARGIN));
+    top = Math.max(MENU_MARGIN, Math.min(top, vh - rect.height - MENU_MARGIN));
+    setPos((p) => (p && p.left === left && p.top === top ? p : { left, top }));
+  }, [menuFor, anchor]);
 
   const entries: ZoneEntry[] = [
     { key: 'library', label: 'Library', cards: zones.library, peek: 'back' },
@@ -36,6 +77,11 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
     { key: 'command', label: 'Command', cards: zones.command, peek: 'top' },
   ];
 
+  const closePanel = () => {
+    setOpen(false);
+    setMenuFor(null);
+  };
+
   return (
     <>
       <button
@@ -43,7 +89,7 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
         className={`playtest-zones-tab${open ? ' is-open' : ''}`}
         aria-expanded={open}
         aria-label={open ? 'Hide other zones' : 'View other zones'}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? closePanel() : setOpen(true))}
       >
         <span>{open ? 'Hide' : 'Zones'}</span>
       </button>
@@ -62,9 +108,14 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
                     type="button"
                     className="playtest-zone-tile__kebab"
                     aria-label={`${e.label} actions`}
+                    aria-haspopup="menu"
+                    aria-expanded={menuFor === e.key}
                     onClick={(ev) => {
                       ev.stopPropagation();
+                      const rect = ev.currentTarget.getBoundingClientRect();
                       setMenuFor((cur) => (cur === e.key ? null : e.key));
+                      setAnchor(rect);
+                      setPos(null);
                     }}
                   >
                     ⋮
@@ -74,7 +125,7 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
                   type="button"
                   className="playtest-zone-tile__body"
                   onClick={() => {
-                    setOpen(false);
+                    closePanel();
                     onOpenZone(e.key);
                   }}
                 >
@@ -86,51 +137,61 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
                     <div className="playtest-zone-tile__back" />
                   )}
                 </button>
-                {menuFor === e.key && (
-                  <div ref={menuRef} className="playtest-zone-tile__menu" role="menu">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setMenuFor(null);
-                        setOpen(false);
-                        onOpenZone(e.key);
-                      }}
-                    >
-                      Browse
-                    </button>
-                    {e.key === 'library' && (
-                      <>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuFor(null);
-                            onShuffleLibrary();
-                          }}
-                        >
-                          Shuffle
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMenuFor(null);
-                            setOpen(false);
-                            onScry();
-                          }}
-                        >
-                          Scry 3
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {menuFor &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="playtest-zone-tile__menu"
+            role="menu"
+            style={{
+              left: pos?.left ?? 0,
+              top: pos?.top ?? 0,
+              visibility: pos ? 'visible' : 'hidden',
+            }}
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                closePanel();
+                onOpenZone(menuFor);
+              }}
+            >
+              Browse
+            </button>
+            {menuFor === 'library' && (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuFor(null);
+                    onShuffleLibrary();
+                  }}
+                >
+                  Shuffle
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    closePanel();
+                    onScry();
+                  }}
+                >
+                  Scry 3
+                </button>
+              </>
+            )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

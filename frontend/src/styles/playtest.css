@@ -728,10 +728,12 @@ body:has(.playtest-page) .modal-backdrop {
 }
 
 .playtest-zone-tile__menu {
-  position: absolute;
-  top: 32px;
-  right: 6px;
-  z-index: 1;
+  /* Portaled to <body> and positioned `fixed` from the kebab's rect (left/top
+     set inline by the component). The zones drawer is `position: fixed;
+     overflow-y: auto`, which clipped an in-panel absolute menu for the
+     bottom-row tiles — a body-level fixed overlay escapes that clip. */
+  position: fixed;
+  z-index: 1100;
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
