@@ -1,5 +1,6 @@
 import type { EnrichedCard } from '../types';
 import { isCommanderEligible } from './commanders';
+import { frontFaceName } from './card-text';
 
 /**
  * Commander Spotlight readiness scoring — pure, network-free logic.
@@ -54,7 +55,7 @@ function importIdOf(card: EnrichedCard): string {
 
 /** Short display name: drop the title and any back-face. "Atraxa, Praetors' Voice" → "Atraxa". */
 function shortCommanderName(name: string): string {
-  return name.split(' // ')[0].split(',')[0].trim() || name;
+  return frontFaceName(name).split(',')[0].trim() || name;
 }
 
 /**

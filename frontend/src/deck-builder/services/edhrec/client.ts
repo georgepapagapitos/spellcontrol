@@ -11,6 +11,7 @@ import type {
   TargetBracket,
 } from '@/deck-builder/types';
 import { offlineSearchCards } from '@/lib/offline';
+import { frontFaceName } from '@/lib/card-text';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
 
@@ -171,7 +172,7 @@ interface RawEDHRECResponse {
  */
 export function formatCommanderNameForUrl(name: string): string {
   // Handle double-faced cards - use only the front face name
-  const frontFace = name.split(' // ')[0];
+  const frontFace = frontFaceName(name);
 
   return frontFace
     .normalize('NFD') // Decompose accented chars (ñ -> n + combining tilde)

@@ -4,6 +4,7 @@ import type { CardRepository, CardSearchOptions, CardFetchProgress } from './car
 import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUtils';
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
+import { frontFaceName } from '@/lib/card-text';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
@@ -427,7 +428,7 @@ async function offlineGetCardsByNamesImpl(
     cardCache.set(name, card);
     result.set(name, freshCopy(card));
     if (card.name.includes(' // ')) {
-      const front = card.name.split(' // ')[0];
+      const front = frontFaceName(card.name);
       result.set(front, freshCopy(card));
       cardCache.set(front, card);
     }
@@ -490,7 +491,7 @@ async function liveGetCardsByNames(
           result.set(card.name, copy);
           // For DFCs, also store under front-face name so EDHREC lookups match
           if (card.name.includes(' // ')) {
-            const frontFace = card.name.split(' // ')[0];
+            const frontFace = frontFaceName(card.name);
             result.set(frontFace, copy);
             if (preferredSet) cardCache.set(`${frontFace}|${preferredSet}`, card);
             else cardCache.set(frontFace, card);
@@ -552,7 +553,7 @@ async function liveGetCardsByNames(
             const copy = freshCopy(card);
             result.set(card.name, copy);
             if (card.name.includes(' // ')) {
-              const frontFace = card.name.split(' // ')[0];
+              const frontFace = frontFaceName(card.name);
               result.set(frontFace, copy);
               cardCache.set(frontFace, card);
             }
@@ -652,7 +653,7 @@ async function liveUpgradeCardPrintings(
   // Collect card names, using front-face name for DFCs in search queries
   const entries: { searchName: string; mapKey: string }[] = [];
   for (const [key, card] of cards) {
-    const searchName = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
+    const searchName = frontFaceName(card.name);
     entries.push({ searchName, mapKey: key });
   }
 
@@ -706,7 +707,7 @@ async function liveUpgradeCardPrintings(
         const matchMap = new Map<string, ScryfallCard>();
         for (const card of data.data) {
           if (!isPlayableCard(card)) continue;
-          const frontName = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
+          const frontName = frontFaceName(card.name);
           if (!matchMap.has(card.name) && !matchMap.has(frontName)) {
             matchMap.set(card.name, card);
             if (frontName !== card.name) matchMap.set(frontName, card);
@@ -723,7 +724,7 @@ async function liveUpgradeCardPrintings(
             matchedKeys.add(entry.mapKey);
             // Also update front-face key if it exists
             if (match.name.includes(' // ')) {
-              const frontFace = match.name.split(' // ')[0];
+              const frontFace = frontFaceName(match.name);
               if (cards.has(frontFace)) {
                 cards.set(frontFace, freshCopy(match));
                 matchedKeys.add(frontFace);
@@ -885,7 +886,7 @@ async function liveGetGameChangerNames(): Promise<Set<string>> {
         names.add(card.name);
         // For DFCs, also index by front face so EDHREC name lookups match
         if (card.name.includes(' // ')) {
-          names.add(card.name.split(' // ')[0]);
+          names.add(frontFaceName(card.name));
         }
       }
       hasMore = response.has_more;
@@ -1152,22 +1153,6 @@ export function getCardBackFaceUrl(
 ): string | null {
   if (!isDoubleFacedCard(card)) return null;
   return card.card_faces![1].image_uris![size] ?? null;
-}
-
-// Helper to get oracle text including both faces for DFCs
-export function getOracleText(card: ScryfallCard): string {
-  if (card.oracle_text) {
-    return card.oracle_text;
-  }
-
-  if (card.card_faces) {
-    return card.card_faces
-      .map((face) => face.oracle_text || '')
-      .filter(Boolean)
-      .join('\n\n');
-  }
-
-  return '';
 }
 
 /**

@@ -31,6 +31,7 @@ import {
 import { getBaseRoleTargets as getRoleTargets } from './roleTargets';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
+import { frontFaceName } from '@/lib/card-text';
 
 export interface EnrichResult {
   categories: Record<DeckCategory, ScryfallCard[]>;
@@ -215,7 +216,7 @@ export async function enrichDeckCards(
           if (BASIC_LAND_NAMES.has(card.name)) continue;
           let incl = inclusionIndex.get(card.name);
           if (incl === undefined && card.name.includes(' // ')) {
-            incl = inclusionIndex.get(card.name.split(' // ')[0]);
+            incl = inclusionIndex.get(frontFaceName(card.name));
           }
           const val = incl ?? 0;
           inclMap[card.name] = val;
@@ -309,7 +310,7 @@ export async function enrichDeckCards(
           const ec =
             edhrecCardIndex.get(card.name) ??
             (card.name.includes(' // ')
-              ? edhrecCardIndex.get(card.name.split(' // ')[0])
+              ? edhrecCardIndex.get(frontFaceName(card.name))
               : undefined);
           if (!ec) {
             relMap[card.name] = 0;

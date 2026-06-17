@@ -37,6 +37,7 @@ import { getDynamicRoleTargets } from './roleTargets';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
+import { frontFaceName } from '@/lib/card-text';
 import { analyzeDeckSynergy, isLoadBearing, type DeckSynergy } from '../synergy/deckSynergy';
 import {
   buildSynergyAnalysis,
@@ -142,7 +143,7 @@ export function buildInclusionIndex(edhrecData: EDHRECCommanderData): Map<string
 export function lookupInclusion(index: Map<string, number>, name: string): number | undefined {
   const direct = index.get(name);
   if (direct !== undefined) return direct;
-  if (name.includes(' // ')) return index.get(name.split(' // ')[0]);
+  if (name.includes(' // ')) return index.get(frontFaceName(name));
   return undefined;
 }
 
@@ -180,7 +181,7 @@ export function buildCardSynergyMap(
   for (const name of cardNames) {
     if (isBasicLandName(name)) continue;
     const direct = index.get(name);
-    const val = direct ?? (name.includes(' // ') ? index.get(name.split(' // ')[0]) : undefined);
+    const val = direct ?? (name.includes(' // ') ? index.get(frontFaceName(name)) : undefined);
     if (val != null) map[name] = val;
   }
   return map;
@@ -413,7 +414,7 @@ export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promi
     const byName = new Map<string, ScryfallCard>();
     for (const c of cardMap.values()) {
       byName.set(c.name.toLowerCase(), c);
-      if (c.name.includes(' // ')) byName.set(c.name.split(' // ')[0].toLowerCase(), c);
+      if (c.name.includes(' // ')) byName.set(frontFaceName(c.name).toLowerCase(), c);
     }
     for (const r of recs) {
       const c = byName.get(r.name.toLowerCase());

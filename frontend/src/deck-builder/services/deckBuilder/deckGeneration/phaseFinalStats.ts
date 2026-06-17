@@ -3,6 +3,7 @@ import { fetchSaltIndex } from '@/deck-builder/services/edhrec/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { calculateStats } from '../deckStats';
 import type { GenerationState } from './state';
+import { frontFaceName } from '@/lib/card-text';
 
 // Calculate final deck stats + salt stats. Verbatim extraction from
 // generateDeck: `categories` -> `state.categories`. `saltIndex` is passed in
@@ -27,7 +28,7 @@ export async function finalStatsPhase(
     const saltyCards: Array<{ name: string; salt: number }> = [];
     let saltSum = 0;
     for (const card of nonLandCards) {
-      const key = card.name.includes(' // ') ? card.name.split(' // ')[0] : card.name;
+      const key = frontFaceName(card.name);
       const salt = saltIndex.get(card.name) ?? saltIndex.get(key) ?? 0;
       saltSum += salt;
       if (salt > 0) saltyCards.push({ name: card.name, salt });

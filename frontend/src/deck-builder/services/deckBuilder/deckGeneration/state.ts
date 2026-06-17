@@ -32,6 +32,7 @@ import type {
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
+import { frontFaceName } from '@/lib/card-text';
 
 export interface GenerationContext {
   commander: ScryfallCard;
@@ -205,7 +206,7 @@ export function createState(context: GenerationContext): GenerationState {
 export function markUsed(state: GenerationState, name: string): void {
   state.usedNames.add(name);
   if (name.includes(' // ')) {
-    state.usedNames.add(name.split(' // ')[0]);
+    state.usedNames.add(frontFaceName(name));
   }
 }
 
@@ -213,7 +214,7 @@ export function markUsed(state: GenerationState, name: string): void {
 export function markBanned(state: GenerationState, name: string): void {
   state.bannedCards.add(name);
   if (name.includes(' // ')) {
-    state.bannedCards.add(name.split(' // ')[0]);
+    state.bannedCards.add(frontFaceName(name));
   }
 }
 
