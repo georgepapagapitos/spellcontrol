@@ -245,6 +245,20 @@ async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCa
   const encodedName = encodeURIComponent(name);
   const card = await scryfallFetch<ScryfallCard>(`/cards/named?${param}=${encodedName}`);
 
+  // `/cards/named` returns Scryfall's DEFAULT printing, which can be foil-only
+  // (e.g. a Secret Lair: usd:null, usd_foil:"89.28"). Callers treat this as the
+  // cheapest printing for deck/market pricing, so when the default lacks a nonfoil
+  // USD price, fall back to the price-ordered search (same cheapest-nonfoil
+  // resolution the batch path uses). Only fires for foil-only defaults.
+  if (!card.prices?.usd) {
+    const cheapest = await fetchCardByNameThrottled(card.name);
+    if (cheapest?.prices?.usd) {
+      cardCache.set(name, cheapest);
+      cardCache.set(cheapest.name, cheapest);
+      return freshCopy(cheapest);
+    }
+  }
+
   cardCache.set(card.name, card);
   return freshCopy(card);
 }
@@ -271,7 +285,7 @@ export async function getCardByName(name: string, exact = true): Promise<Scryfal
 /**
  * Fetch a single card by its exact Scryfall printing id (live API only).
  *
- * `getCardByName` resolves to the cheapest/default printing — fine for deck
+ * `getCardByName` resolves to the cheapest nonfoil printing — fine for deck
  * cards, wrong when the *specific* printing matters (an owned commander the
  * user picked from their collection). This hits `/cards/:id`, preserving the
  * printing's id/set/finishes so downstream allocation binds the exact copy.
@@ -555,12 +569,16 @@ async function liveGetCardsByNames(
     }
   }
 
-  // Re-fetch cards that came back with no price (e.g. unreleased reprints)
+  // Re-fetch cards that came back with no NONFOIL price (e.g. unreleased reprints,
+  // or a default printing that's foil-only like a Secret Lair). We gate on
+  // `prices.usd` specifically, NOT getCardPrice() — the latter falls back to
+  // usd_foil, so a $1 common whose default printing only has a $89 foil price
+  // would look "priced" and skip the cheapest-nonfoil re-fetch below.
   // Skip when user specified a preferred set — they want that set's printing, not the cheapest
   if (!preferredSet) {
     const noPriceNames = uncachedNames.filter((name) => {
       const card = result.get(name);
-      return card && !getCardPrice(card);
+      return card && !card.prices?.usd;
     });
     if (noPriceNames.length > 0) {
       logger.debug(
