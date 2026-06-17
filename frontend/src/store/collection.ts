@@ -638,39 +638,84 @@ export const useCollectionStore = create<CollectionState>()(
         });
         try {
           // The server caps each request at 1000 printings, so page through the
-          // collection in chunks and merge. Without this, a large collection
-          // only ever prices its first 1000 unique printings — and *which* 1000
-          // depends on array order, so an imported device and a synced device
-          // price different subsets and show $0 on different cards (the
-          // cross-device price divergence). priceLimiter is 30 req/min, so even
-          // a ~20k-printing collection (20 requests) stays well under the cap.
+          // collection in chunks. Without this, a large collection only ever
+          // prices its first 1000 unique printings — and *which* 1000 depends on
+          // array order, so two devices price different subsets and show $0 on
+          // different cards. priceLimiter is 30 req/min, so even a ~20k-printing
+          // collection (20 requests) stays well under the cap.
           const PRICE_CHUNK = 1000;
           // The server returns a price per FINISH for each printing (foil and
           // non-foil of the same printing differ); each value is already
           // fallback-resolved server-side. `usdFoil`/`usdEtched` are absent from
           // a pre-finish server — those cards just degrade to the non-foil price.
-          const prices: Record<
+          type FinishPrices = Record<
             string,
             { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
-          > = {};
-          for (let i = 0; i < ids.length; i += PRICE_CHUNK) {
-            const batch = ids.slice(i, i + PRICE_CHUNK);
-            const res = await fetch(apiUrl('/api/refresh-prices'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ scryfallIds: batch }),
-            });
-            if (!res.ok) {
-              const body = (await res.json().catch(() => ({}))) as { error?: string };
-              throw new Error(body.error || `HTTP ${res.status}`);
+          >;
+          // Fan a printing's per-finish prices out to finish-keyed cache entries.
+          // Only positive values are written — a $0 finish (Scryfall has none)
+          // stays unkeyed so the card keeps counting as stale rather than
+          // freezing at $0.
+          const fanOut = (src: FinishPrices): Record<string, { usd: number; pricedAt: number }> => {
+            const e: Record<string, { usd: number; pricedAt: number }> = {};
+            for (const [id, p] of Object.entries(src)) {
+              if (p.usd > 0) e[priceKey(id, 'nonfoil')] = { usd: p.usd, pricedAt: p.pricedAt };
+              if (p.usdFoil && p.usdFoil > 0)
+                e[priceKey(id, 'foil')] = { usd: p.usdFoil, pricedAt: p.pricedAt };
+              if (p.usdEtched && p.usdEtched > 0)
+                e[priceKey(id, 'etched')] = { usd: p.usdEtched, pricedAt: p.pricedAt };
             }
-            const { prices: batch_prices } = (await res.json()) as {
-              prices: Record<
-                string,
-                { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
-              >;
-            };
-            Object.assign(prices, batch_prices);
+            return e;
+          };
+          // Fetch one chunk, retrying a dropped CONNECTION a couple times before
+          // giving up. Cold price lookups take tens of seconds, so a flaky mobile
+          // link is likely to drop mid-request; without the retry the whole
+          // refresh aborts. Only a network rejection retries — an HTTP error
+          // (4xx/5xx) is surfaced immediately so a real server problem isn't
+          // masked behind silent retries.
+          const fetchChunk = async (batch: string[]): Promise<FinishPrices> => {
+            let lastErr: unknown;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              let res: Response;
+              try {
+                res = await fetch(apiUrl('/api/refresh-prices'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ scryfallIds: batch }),
+                });
+              } catch (err) {
+                lastErr = err;
+                if (attempt < 2) {
+                  await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+                  continue;
+                }
+                throw err;
+              }
+              if (!res.ok) {
+                const body = (await res.json().catch(() => ({}))) as { error?: string };
+                throw new Error(body.error || `HTTP ${res.status}`);
+              }
+              return ((await res.json()) as { prices: FinishPrices }).prices;
+            }
+            throw lastErr;
+          };
+
+          // Accumulate across chunks for the final carry-over reconciliation, but
+          // PERSIST each chunk to the device cache as it lands. A later chunk's
+          // network drop must not discard prices we already fetched — that
+          // all-or-nothing failure is what left a whole collection stuck at $0 on
+          // a flaky connection. setPrices is idempotent, so the final write below
+          // is a harmless no-op for chunks already stored here.
+          // Snapshot binder membership BEFORE any price is applied this run — the
+          // incremental per-chunk apply below mutates `cards`, so the auto-move
+          // diff must compare against this pristine "before".
+          const beforeCards = get().cards;
+          const prices: FinishPrices = {};
+          for (let i = 0; i < ids.length; i += PRICE_CHUNK) {
+            const batchPrices = await fetchChunk(ids.slice(i, i + PRICE_CHUNK));
+            Object.assign(prices, batchPrices);
+            setPrices(fanOut(batchPrices));
+            set({ cards: applyPrices(get().cards) });
             if (track)
               set({ priceRefreshProgress: { done: i / PRICE_CHUNK + 1, total: totalChunks } });
           }
@@ -682,18 +727,7 @@ export const useCollectionStore = create<CollectionState>()(
           // churn + the boot OOM).
           const requested = new Set(ids);
           const now = Date.now();
-          // Fan each printing's per-finish prices out to finish-keyed entries.
-          // Only positive values are written — a $0 finish (Scryfall has none)
-          // stays unkeyed so the card keeps counting as stale rather than
-          // freezing at $0.
-          const entries: Record<string, { usd: number; pricedAt: number }> = {};
-          for (const [id, p] of Object.entries(prices)) {
-            if (p.usd > 0) entries[priceKey(id, 'nonfoil')] = { usd: p.usd, pricedAt: p.pricedAt };
-            if (p.usdFoil && p.usdFoil > 0)
-              entries[priceKey(id, 'foil')] = { usd: p.usdFoil, pricedAt: p.pricedAt };
-            if (p.usdEtched && p.usdEtched > 0)
-              entries[priceKey(id, 'etched')] = { usd: p.usdEtched, pricedAt: p.pricedAt };
-          }
+          const entries = fanOut(prices);
           // For requested copies the server returned no price for, carry over a
           // POSITIVE last-known value (keyed by their own finish) with a fresh
           // pricedAt so a transient server miss doesn't flash $0. A copy whose
@@ -710,8 +744,7 @@ export const useCollectionStore = create<CollectionState>()(
             }
           }
           setPrices(entries);
-          const beforeCards = get().cards;
-          const afterCards = applyPrices(beforeCards);
+          const afterCards = applyPrices(get().cards);
           set({ cards: afterCards });
 
           // Rule-based binders re-route silently when a price crosses a
