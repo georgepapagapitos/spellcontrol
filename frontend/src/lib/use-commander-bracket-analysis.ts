@@ -5,6 +5,7 @@ import {
   analyzeCommanderDeck,
   comboMatchesToDetected,
 } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
+import { setApplyingAnalysis } from './applying-analysis';
 
 interface Args {
   deck: Deck | null;
@@ -151,27 +152,36 @@ export function useCommanderBracketAnalysis(args: Args): void {
             return;
           }
           failedSignatureRef.current = null;
-          updateDeck(
-            deckId,
-            {
-              deckGrade: result.deckGrade,
-              bracketEstimation: result.bracketEstimation,
-              roleTargets: result.roleTargets,
-              gapAnalysis: result.gapAnalysis,
-              cardInclusionMap: result.cardInclusionMap,
-              planScore: result.planScore,
-              optimizeSwaps: result.optimizeSwaps,
-              costPlan: result.costPlan,
-              synergyAnalysis: result.synergyAnalysis,
-              winConditions: result.winConditions,
-              // null when no target set / non-commander — clears a stale plan.
-              bracketFit: result.bracketFit ?? null,
-              gradeBracketSignature: signature,
-              // silent: derived analysis, not a user edit — don't bump updatedAt
-              // (else merely viewing a deck marks it "edited just now").
-            },
-            true
-          );
+          // Flag the write as analysis-derived so the decks-store subscriber
+          // skips enqueueing it into the sync queue. The flag is set
+          // synchronously around the store mutation so the subscriber (which
+          // also checks synchronously, before the lazy sync import) sees it.
+          setApplyingAnalysis(true);
+          try {
+            updateDeck(
+              deckId,
+              {
+                deckGrade: result.deckGrade,
+                bracketEstimation: result.bracketEstimation,
+                roleTargets: result.roleTargets,
+                gapAnalysis: result.gapAnalysis,
+                cardInclusionMap: result.cardInclusionMap,
+                planScore: result.planScore,
+                optimizeSwaps: result.optimizeSwaps,
+                costPlan: result.costPlan,
+                synergyAnalysis: result.synergyAnalysis,
+                winConditions: result.winConditions,
+                // null when no target set / non-commander — clears a stale plan.
+                bracketFit: result.bracketFit ?? null,
+                gradeBracketSignature: signature,
+                // silent: derived analysis, not a user edit — don't bump updatedAt
+                // (else merely viewing a deck marks it "edited just now").
+              },
+              true
+            );
+          } finally {
+            setApplyingAnalysis(false);
+          }
         })
         .catch(() => {
           if (reqIdRef.current !== myReqId) return;
