@@ -18,7 +18,13 @@ vi.mock('@/lib/offline', () => ({
   offlineSearchCards: vi.fn(),
 }));
 
-import { isPlayableCard, getCardById, getOwnedPrinting, getCardByNameResilient } from './client';
+import {
+  isPlayableCard,
+  getCardById,
+  getCardByName,
+  getOwnedPrinting,
+  getCardByNameResilient,
+} from './client';
 
 function makeCard(overrides: Partial<ScryfallCard>): ScryfallCard {
   return {
@@ -245,5 +251,71 @@ describe('getCardByNameResilient', () => {
 
     expect(result).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('getCardByName foil-only-default fallback', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('re-resolves to the cheapest nonfoil printing when /cards/named is foil-only', async () => {
+    // Unique name to dodge the module-level cardCache leaking across tests.
+    const name = 'Foilonly Test Elf';
+    // Default printing (e.g. a Secret Lair): no nonfoil USD, only a $89 foil.
+    const foilDefault = makeCard({
+      id: 'sld-foil',
+      name,
+      layout: 'normal',
+      prices: { usd: null, usd_foil: '89.28' },
+    });
+    // Cheapest nonfoil printing returned by the price-ordered prints search.
+    const cheapest = makeCard({
+      id: 'cheap-nonfoil',
+      name,
+      layout: 'normal',
+      prices: { usd: '1.28' },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/cards/named')) return { ok: true, json: async () => foilDefault };
+        if (url.includes('/cards/search'))
+          return { ok: true, json: async () => ({ data: [cheapest], has_more: false }) };
+        return { ok: false, status: 404, statusText: 'Not Found' };
+      })
+    );
+
+    const result = await getCardByName(name);
+
+    expect(result.id).toBe('cheap-nonfoil');
+    expect(result.prices.usd).toBe('1.28');
+  });
+
+  it('keeps the default printing when no nonfoil printing exists anywhere', async () => {
+    const name = 'Truly Foil Exclusive';
+    const foilOnly = makeCard({
+      id: 'foil-exclusive',
+      name,
+      layout: 'normal',
+      prices: { usd: null, usd_foil: '12.00' },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/cards/named')) return { ok: true, json: async () => foilOnly };
+        // Prints search finds no nonfoil-priced printing.
+        if (url.includes('/cards/search'))
+          return { ok: true, json: async () => ({ data: [foilOnly], has_more: false }) };
+        return { ok: false, status: 404, statusText: 'Not Found' };
+      })
+    );
+
+    const result = await getCardByName(name);
+
+    expect(result.id).toBe('foil-exclusive');
   });
 });
