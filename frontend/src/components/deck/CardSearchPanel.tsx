@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { searchCards, getCardByName } from '@/deck-builder/services/scryfall/client';
+import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -473,6 +473,7 @@ function CollectionResults({
   setFilter,
 }: CollectionResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
+  const pushToast = useToastsStore((s) => s.push);
   const decks = useDecksStore((s) => s.decks);
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
 
@@ -544,8 +545,11 @@ function CollectionResults({
   const addAtIndex = async (index: number) => {
     const c = filtered[index];
     if (!c) return;
-    const full = await getCardByName(c.name).catch(() => null);
-    if (!full) return;
+    const full = await getCardByNameResilient(c.name);
+    if (!full) {
+      pushToast({ message: `Couldn't load ${c.name} — try again`, tone: 'error' });
+      return;
+    }
     const claim = pickCollectionCopy(c.name, collection, allocations, c.scryfallId);
     onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${c.name}`);
@@ -556,7 +560,7 @@ function CollectionResults({
   const previewFitAt = async (index: number) => {
     const c = filtered[index];
     if (!c || !onPreviewFit) return;
-    const full = await getCardByName(c.name).catch(() => null);
+    const full = await getCardByNameResilient(c.name);
     if (full) onPreviewFit(full);
   };
 
@@ -676,6 +680,7 @@ function SuggestionsResults({
   pending,
 }: SuggestionsResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
+  const pushToast = useToastsStore((s) => s.push);
   const decks = useDecksStore((s) => s.decks);
   const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
 
@@ -704,8 +709,11 @@ function SuggestionsResults({
   const addAtIndex = async (index: number) => {
     const row = rows[index];
     if (!row) return;
-    const full = await getCardByName(row.name).catch(() => null);
-    if (!full) return;
+    const full = await getCardByNameResilient(row.name);
+    if (!full) {
+      pushToast({ message: `Couldn't load ${row.name} — try again`, tone: 'error' });
+      return;
+    }
     const claim = pickCollectionCopy(row.name, collection, allocations, full.id);
     onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
     onAnnounce(`Added ${row.name}`);
@@ -714,7 +722,7 @@ function SuggestionsResults({
   const previewFitAt = async (index: number) => {
     const row = rows[index];
     if (!row || !onPreviewFit) return;
-    const full = await getCardByName(row.name).catch(() => null);
+    const full = await getCardByNameResilient(row.name);
     if (full) onPreviewFit(full);
   };
 
