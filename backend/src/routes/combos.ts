@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { desc, eq, inArray, isNotNull } from 'drizzle-orm';
-import { requireAuth } from '../auth';
+import { requireAuth, getAdminUsernames } from '../auth';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
 import { matchCombos, type ComboInput } from '../combos/match';
@@ -139,16 +139,6 @@ export function __resetMatchCacheForTesting(): void {
  */
 export function __expireDatasetVersionForTesting(): void {
   datasetVersion = null;
-}
-
-function adminUsernames(): Set<string> {
-  const raw = process.env.ADMIN_USERNAMES ?? '';
-  return new Set(
-    raw
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-  );
 }
 
 function asStringArray(value: unknown, max: number): string[] | null {
@@ -317,7 +307,7 @@ combosRouter.get('/:id', requireAuth, async (req: Request, res: Response) => {
 });
 
 combosRouter.post('/admin/refresh', requireAuth, async (req: Request, res: Response) => {
-  const admins = adminUsernames();
+  const admins = getAdminUsernames();
   if (admins.size === 0 || !admins.has(req.user!.username.toLowerCase())) {
     return res.status(403).json({ error: 'Admin access required.' });
   }

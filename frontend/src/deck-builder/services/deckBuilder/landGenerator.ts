@@ -2,6 +2,7 @@
 // channel/MDFC/tapland pacing boosts, and pip-proportional basics.
 // Extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
+import { BASIC_LAND_NAMES } from '@/lib/allocations';
 import type {
   EDHRECCard,
   ScryfallCard,
@@ -25,20 +26,10 @@ import { pickFromPrefetched } from './cardPicking';
 import { fillWithScryfall } from './scryfallFill';
 import { constrainsToCollection, notInCollection } from './deckFilters';
 
-// Basic land names to filter out from EDHREC suggestions
-export const BASIC_LAND_NAMES = new Set([
-  'Plains',
-  'Island',
-  'Swamp',
-  'Mountain',
-  'Forest',
-  'Snow-Covered Plains',
-  'Snow-Covered Island',
-  'Snow-Covered Swamp',
-  'Snow-Covered Mountain',
-  'Snow-Covered Forest',
-  'Wastes',
-]);
+// Basic land names to filter out from EDHREC suggestions — canonical set lives
+// in lib/allocations; re-exported here so existing './landGenerator' importers
+// keep working.
+export { BASIC_LAND_NAMES };
 
 /** Priority boost for Kamigawa channel lands — near-auto-includes in their color. */
 export const CHANNEL_LAND_BOOST = 80;

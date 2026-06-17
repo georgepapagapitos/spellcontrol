@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { BASIC_LAND_NAMES } from '@/lib/allocations';
 import type {
   ScryfallCard,
   DeckCategory,
@@ -30,20 +31,6 @@ import {
 import { getBaseRoleTargets as getRoleTargets } from './roleTargets';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { scoreRecommendation, type ScoringContext } from './deckAnalyzer';
-
-const BASIC_LAND_NAMES = new Set([
-  'Plains',
-  'Island',
-  'Swamp',
-  'Mountain',
-  'Forest',
-  'Snow-Covered Plains',
-  'Snow-Covered Island',
-  'Snow-Covered Swamp',
-  'Snow-Covered Mountain',
-  'Snow-Covered Forest',
-  'Wastes',
-]);
 
 export interface EnrichResult {
   categories: Record<DeckCategory, ScryfallCard[]>;

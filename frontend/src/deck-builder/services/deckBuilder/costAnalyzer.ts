@@ -51,8 +51,12 @@ export interface BuildCostPlanOptions {
   excludeFromSuggestions?: Set<string>;
 }
 
-/** Basic lands are protected from swap suggestions (no cheaper equivalent matters). */
-const BASIC_LAND_NAMES = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+/**
+ * Basic lands are protected from swap suggestions (no cheaper equivalent matters).
+ * Local, non-snow set by design — not the canonical land-identity set in
+ * lib/allocations (snow basics already swap-protect via other rules here).
+ */
+const PROTECTED_BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
 
 /** Confidence-band constants (mirror the reference). */
 export const DROP_IN_INCLUSION_BAND = 15;
@@ -279,7 +283,7 @@ export function buildCostPlan(
       card.name === commanderName ||
       (partnerCommanderName && card.name === partnerCommanderName) ||
       mustIncludeNames.has(card.name) ||
-      BASIC_LAND_NAMES.has(card.name) ||
+      PROTECTED_BASICS.has(card.name) ||
       price == null
     ) {
       protectedCount += 1;

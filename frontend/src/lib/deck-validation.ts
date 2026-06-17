@@ -1,19 +1,6 @@
 import type { ScryfallCard, DeckFormatConfig } from '@/deck-builder/types';
 import type { DeckCard } from '@/store/decks';
-
-const BASIC_LAND_NAMES = new Set([
-  'Plains',
-  'Island',
-  'Swamp',
-  'Mountain',
-  'Forest',
-  'Wastes',
-  'Snow-Covered Plains',
-  'Snow-Covered Island',
-  'Snow-Covered Swamp',
-  'Snow-Covered Mountain',
-  'Snow-Covered Forest',
-]);
+import { BASIC_LAND_NAMES } from './allocations';
 
 type LegalityIssueKind = 'not-legal' | 'over-copy-limit' | 'color-identity';
 
