@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import type { DetectedCombo } from '@/deck-builder/types';
 import type { GenerationState } from './state';
+import { frontFaceName } from '@/lib/card-text';
 
 // Detect combos present in the generated deck.
 // Verbatim extraction from generateDeck: the closed-over containers
@@ -15,16 +16,16 @@ export function detectCombosPhase(state: GenerationState): DetectedCombo[] | und
     // Include commander(s) — they're part of the deck but not in categories
     if (commander) {
       allDeckNames.add(commander.name);
-      if (commander.name.includes(' // ')) allDeckNames.add(commander.name.split(' // ')[0]);
+      if (commander.name.includes(' // ')) allDeckNames.add(frontFaceName(commander.name));
     }
     if (partnerCommander) {
       allDeckNames.add(partnerCommander.name);
       if (partnerCommander.name.includes(' // '))
-        allDeckNames.add(partnerCommander.name.split(' // ')[0]);
+        allDeckNames.add(frontFaceName(partnerCommander.name));
     }
     for (const c of Object.values(state.categories).flat()) {
       allDeckNames.add(c.name);
-      if (c.name.includes(' // ')) allDeckNames.add(c.name.split(' // ')[0]);
+      if (c.name.includes(' // ')) allDeckNames.add(frontFaceName(c.name));
     }
 
     detectedCombos = state.combos
@@ -69,12 +70,12 @@ export function detectCombosPhase(state: GenerationState): DetectedCombo[] | und
     const commanderNames = new Set<string>();
     if (commander) {
       commanderNames.add(commander.name);
-      if (commander.name.includes(' // ')) commanderNames.add(commander.name.split(' // ')[0]);
+      if (commander.name.includes(' // ')) commanderNames.add(frontFaceName(commander.name));
     }
     if (partnerCommander) {
       commanderNames.add(partnerCommander.name);
       if (partnerCommander.name.includes(' // '))
-        commanderNames.add(partnerCommander.name.split(' // ')[0]);
+        commanderNames.add(frontFaceName(partnerCommander.name));
     }
     detectedCombos.sort((a, b) => {
       if (a.isComplete !== b.isComplete) return a.isComplete ? -1 : 1;

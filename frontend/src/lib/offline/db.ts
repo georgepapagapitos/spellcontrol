@@ -1,5 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { OfflineCombo, OfflineManifest, SlimCard } from './types';
+import { frontFaceName } from '../card-text';
 
 /**
  * Dedicated IndexedDB database for the offline oracle/combo snapshot.
@@ -88,7 +89,7 @@ export async function replaceOracleCards(
       }
       // Split-card front halves (e.g. "Fire" from "Fire // Ice")
       if (card.name.includes(' // ')) {
-        const front = card.name.split(' // ')[0]?.toLowerCase();
+        const front = frontFaceName(card.name).toLowerCase();
         if (front && front !== primary) nameStore.put(card.oracleId, front);
       }
     }

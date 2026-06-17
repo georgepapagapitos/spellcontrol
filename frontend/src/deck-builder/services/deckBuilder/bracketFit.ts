@@ -32,6 +32,7 @@ import type {
 import type { ComboMatch } from '@/types/combos';
 import { estimateBracket, isStaxPiece, type BracketEstimation } from './bracketEstimator';
 import { getCardRole, isMassLandDenial, isExtraTurn } from '@/deck-builder/services/tagger/client';
+import { frontFaceName } from '@/lib/card-text';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -235,7 +236,7 @@ function deckNameSet(allCardNames: string[]): Set<string> {
   const set = new Set<string>();
   for (const name of allCardNames) {
     set.add(name);
-    if (name.includes(' // ')) set.add(name.split(' // ')[0]);
+    if (name.includes(' // ')) set.add(frontFaceName(name));
   }
   return set;
 }

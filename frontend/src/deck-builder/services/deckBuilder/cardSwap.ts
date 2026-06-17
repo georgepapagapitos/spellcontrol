@@ -10,6 +10,7 @@ import {
 } from '@/deck-builder/services/tagger/client';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { estimateBracket } from './bracketEstimator';
+import { frontFaceName } from '@/lib/card-text';
 
 const ROLE_TO_CATEGORY: Record<RoleKey, DeckCategory> = {
   ramp: 'ramp',
@@ -153,16 +154,16 @@ export function swapCard(
     if (deck.commander) {
       allDeckNames.add(deck.commander.name);
       if (deck.commander.name.includes(' // '))
-        allDeckNames.add(deck.commander.name.split(' // ')[0]);
+        allDeckNames.add(frontFaceName(deck.commander.name));
     }
     if (deck.partnerCommander) {
       allDeckNames.add(deck.partnerCommander.name);
       if (deck.partnerCommander.name.includes(' // '))
-        allDeckNames.add(deck.partnerCommander.name.split(' // ')[0]);
+        allDeckNames.add(frontFaceName(deck.partnerCommander.name));
     }
     for (const c of Object.values(newCategories).flat()) {
       allDeckNames.add(c.name);
-      if (c.name.includes(' // ')) allDeckNames.add(c.name.split(' // ')[0]);
+      if (c.name.includes(' // ')) allDeckNames.add(frontFaceName(c.name));
     }
 
     newDetectedCombos = deck.detectedCombos
@@ -185,14 +186,14 @@ export function swapCard(
   if (deck.cardInclusionMap) {
     newCardInclusionMap = { ...deck.cardInclusionMap };
     const oldName = oldCard.name;
-    const oldNorm = oldName.includes(' // ') ? oldName.split(' // ')[0] : oldName;
+    const oldNorm = frontFaceName(oldName);
     const oldIncl = newCardInclusionMap[oldName] ?? newCardInclusionMap[oldNorm] ?? 0;
     delete newCardInclusionMap[oldName];
     delete newCardInclusionMap[oldNorm];
 
     // Look up new card's inclusion from gap analysis
     const newName = newCard.name;
-    const newNorm = newName.includes(' // ') ? newName.split(' // ')[0] : newName;
+    const newNorm = frontFaceName(newName);
     const gapEntry = deck.gapAnalysis?.find((g) => g.name === newName || g.name === newNorm);
     const newIncl = gapEntry ? gapEntry.inclusion : 0;
     newCardInclusionMap[newName] = newIncl;
@@ -207,7 +208,7 @@ export function swapCard(
   if (deck.cardRelevancyMap) {
     newCardRelevancyMap = { ...deck.cardRelevancyMap };
     const oldName = oldCard.name;
-    const oldNorm = oldName.includes(' // ') ? oldName.split(' // ')[0] : oldName;
+    const oldNorm = frontFaceName(oldName);
     delete newCardRelevancyMap[oldName];
     delete newCardRelevancyMap[oldNorm];
     // New card should already be pre-indexed (from swap candidates/gap analysis)
@@ -276,12 +277,12 @@ export function getSwapCandidatesForCard(deck: GeneratedDeck, card: ScryfallCard
 
   // Build a set of name variants to exclude (handles DFC "Front // Back" vs "Front")
   const excludeNames = new Set<string>([card.name]);
-  if (card.name.includes(' // ')) excludeNames.add(card.name.split(' // ')[0]);
+  if (card.name.includes(' // ')) excludeNames.add(frontFaceName(card.name));
   // Never suggest commander(s) as swap candidates
   for (const cmdr of [deck.commander, deck.partnerCommander]) {
     if (cmdr) {
       excludeNames.add(cmdr.name);
-      if (cmdr.name.includes(' // ')) excludeNames.add(cmdr.name.split(' // ')[0]);
+      if (cmdr.name.includes(' // ')) excludeNames.add(frontFaceName(cmdr.name));
     }
   }
 

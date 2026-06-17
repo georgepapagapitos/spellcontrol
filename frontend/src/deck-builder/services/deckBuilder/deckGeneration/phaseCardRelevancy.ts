@@ -9,6 +9,7 @@ import {
 import { scoreRecommendation, type ScoringContext } from '../deckAnalyzer';
 import { BASIC_LAND_NAMES, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from '../landGenerator';
 import type { GenerationState } from './state';
+import { frontFaceName } from '@/lib/card-text';
 
 // Build per-card relevancy scores (composite: synergy + inclusion + role
 // deficit + curve fit + type balance). Verbatim extraction from generateDeck:
@@ -92,9 +93,7 @@ export function cardRelevancyPhase(
         if (BASIC_LAND_NAMES.has(card.name)) continue;
         const ec =
           edhrecCardIndex.get(card.name) ??
-          (card.name.includes(' // ')
-            ? edhrecCardIndex.get(card.name.split(' // ')[0])
-            : undefined);
+          (card.name.includes(' // ') ? edhrecCardIndex.get(frontFaceName(card.name)) : undefined);
         if (!ec) {
           relMap[card.name] = 0;
           continue;
@@ -123,7 +122,7 @@ export function cardRelevancyPhase(
           const ec =
             edhrecCardIndex.get(card.name) ??
             (card.name.includes(' // ')
-              ? edhrecCardIndex.get(card.name.split(' // ')[0])
+              ? edhrecCardIndex.get(frontFaceName(card.name))
               : undefined);
           if (!ec) continue;
           const role = (card.deckRole as RoleKey) || null;

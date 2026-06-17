@@ -96,6 +96,7 @@ import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
+import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
@@ -836,7 +837,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       const saltFor = (name: string): number | undefined => {
         const direct = saltIndex.get(name);
         if (direct !== undefined) return direct;
-        if (name.includes(' // ')) return saltIndex.get(name.split(' // ')[0]);
+        if (name.includes(' // ')) return saltIndex.get(frontFaceName(name));
         return undefined;
       };
       const filterFn = (card: EDHRECCard): boolean => {
@@ -3109,16 +3110,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       const newDeckNames = new Set<string>();
       if (commander) {
         newDeckNames.add(commander.name);
-        if (commander.name.includes(' // ')) newDeckNames.add(commander.name.split(' // ')[0]);
+        if (commander.name.includes(' // ')) newDeckNames.add(frontFaceName(commander.name));
       }
       if (partnerCommander) {
         newDeckNames.add(partnerCommander.name);
         if (partnerCommander.name.includes(' // '))
-          newDeckNames.add(partnerCommander.name.split(' // ')[0]);
+          newDeckNames.add(frontFaceName(partnerCommander.name));
       }
       for (const c of Object.values(categories).flat()) {
         newDeckNames.add(c.name);
-        if (c.name.includes(' // ')) newDeckNames.add(c.name.split(' // ')[0]);
+        if (c.name.includes(' // ')) newDeckNames.add(frontFaceName(c.name));
       }
       detectedCombos = detectedCombos
         .map((dc) => {

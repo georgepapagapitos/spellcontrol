@@ -1,6 +1,7 @@
 import type { EDHRECCard, EDHRECCommanderData, GapAnalysisCard } from '@/deck-builder/types';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { isBasicLandName } from '@/lib/allocations';
+import { frontFaceName } from '@/lib/card-text';
 
 /** Default number of EDHREC-recommended cards to surface as "cards to consider". */
 const DEFAULT_GAP_LIMIT = 30;
@@ -55,7 +56,7 @@ export function buildGapAnalysis(
   const inDeck = new Set<string>();
   for (const name of toNameSet(deckCardNames)) {
     inDeck.add(name);
-    if (name.includes(' // ')) inDeck.add(name.split(' // ')[0]);
+    if (name.includes(' // ')) inDeck.add(frontFaceName(name));
   }
 
   return edhrecData.cardlists.allNonLand

@@ -4,6 +4,7 @@ import { getCardsByNames, getCardPrice } from '@/deck-builder/services/scryfall/
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority } from '../cardPicking';
 import type { GenerationState } from './state';
+import { frontFaceName } from '@/lib/card-text';
 
 // Gap analysis: find top unowned cards that would improve the deck.
 // Verbatim extraction from generateDeck: closed-over free vars are rewritten
@@ -18,7 +19,7 @@ export async function gapAnalysisPhase(
     for (const c of Object.values(state.categories).flat()) {
       allDeckCardNames.add(c.name);
       // DFCs: also add front-face name so EDHREC's front-face-only names match
-      if (c.name.includes(' // ')) allDeckCardNames.add(c.name.split(' // ')[0]);
+      if (c.name.includes(' // ')) allDeckCardNames.add(frontFaceName(c.name));
     }
 
     const gapCandidates = state.edhrecData.cardlists.allNonLand

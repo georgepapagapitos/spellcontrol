@@ -25,6 +25,7 @@ import {
 import { calculateCurvePercentages } from './curveUtils';
 import { detectPacing, type Pacing } from './pacingDetector';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
+import { frontFaceName } from '@/lib/card-text';
 
 export interface RoleDeficit {
   role: string;
@@ -2046,7 +2047,7 @@ export function analyzeDeck(
   const currentCardNames = new Set(
     currentCards.flatMap((c) => {
       const names = [c.name];
-      if (c.name.includes(' // ')) names.push(c.name.split(' // ')[0]);
+      if (c.name.includes(' // ')) names.push(frontFaceName(c.name));
       if (c.card_faces?.[0]?.name && c.card_faces[0].name !== c.name)
         names.push(c.card_faces[0].name);
       return names;

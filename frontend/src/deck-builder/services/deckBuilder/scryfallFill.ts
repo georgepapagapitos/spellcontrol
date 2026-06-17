@@ -14,6 +14,7 @@ import {
   notOnArena,
   exceedsCmcCap,
 } from './deckFilters';
+import { frontFaceName } from '@/lib/card-text';
 
 // Fill remaining slots with Scryfall search (fallback)
 export async function fillWithScryfall(
@@ -78,7 +79,7 @@ export async function fillWithScryfall(
       result.push(card);
       usedNames.add(card.name);
       // Also mark front-face name for DFCs so EDHREC-sourced checks match
-      if (card.name.includes(' // ')) usedNames.add(card.name.split(' // ')[0]);
+      if (card.name.includes(' // ')) usedNames.add(frontFaceName(card.name));
       if (!ownedExempt) budgetTracker?.deductCard(card);
     }
 
