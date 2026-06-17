@@ -870,10 +870,9 @@
   color: var(--text-primary);
 }
 
+/* Portaled to <body> and positioned `fixed` via inline styles — visual surface
+   only; position/top/right are set on the element by the React component. */
 .deck-row-menu-popover {
-  position: absolute;
-  top: 100%;
-  right: 0;
   z-index: var(--z-dropdown);
   min-width: 11rem;
   margin-top: 0.25rem;
