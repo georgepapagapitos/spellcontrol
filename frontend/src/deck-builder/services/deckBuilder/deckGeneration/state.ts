@@ -33,6 +33,7 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import { parseSetFromQuery } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/card-text';
+import type { BasicPrintingAvail } from '@/lib/collection-availability';
 
 export interface GenerationContext {
   commander: ScryfallCard;
@@ -42,6 +43,12 @@ export interface GenerationContext {
   selectedThemes?: ThemeResult[];
   collectionNames?: Set<string>;
   collectionAvailableCounts?: Map<string, number>;
+  /**
+   * Per-printing breakdown of free owned basic lands (name → printings sorted
+   * by owned count). Lets land generation pull real groups of the player's
+   * basics across their owned printings instead of N of one default printing.
+   */
+  collectionBasicPrintings?: Map<string, BasicPrintingAvail[]>;
   /**
    * Lean owned-card pool (name + color identity + CMC + type line) for the
    * owned-only relaxation step: when the EDHREC pool can't fill an owned-only

@@ -1880,7 +1880,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionOwnedPercent,
         ignoreOwnedBudget,
         ignoreOwnedRarity,
-        resolvedPacing
+        resolvedPacing,
+        undefined,
+        context.collectionBasicPrintings
       )),
     ];
 
@@ -2191,7 +2193,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionOwnedPercent,
         ignoreOwnedBudget,
         ignoreOwnedRarity,
-        resolvedPacing
+        resolvedPacing,
+        undefined,
+        context.collectionBasicPrintings
       )),
     ];
   }
@@ -2809,8 +2813,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             }
           }
 
+          // Top-up copies share card.id so the deck view aggregates them into
+          // one row; allocation still claims any free owned copy by name.
           for (let j = 0; j < countForColor; j++) {
-            categories.lands.push({ ...basicCard, id: `${basicCard.id}-fill-${j}-${color}` });
+            categories.lands.push({ ...basicCard });
           }
         }
       } else {
@@ -2825,7 +2831,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         }
         if (wastesCard) {
           for (let j = 0; j < remainingShortage; j++) {
-            categories.lands.push({ ...wastesCard, id: `${wastesCard.id}-fill-${j}-C` });
+            categories.lands.push({ ...wastesCard });
           }
         }
       }
