@@ -44,20 +44,28 @@ interface TargetsFile {
 
 const data = raw as unknown as TargetsFile;
 
-/** The cube sizes we offer — players × 3 × 15, all multiples of 45. */
-export const CUBE_SIZES = [360, 450, 540, 720] as const;
+// Cube sizes we offer — each is players × 3 packs × 15 cards (45 per drafter).
+// A draft pod is conventionally 8 players (8 × 45 = 360), so 360–720 are all
+// 8-player cubes that differ by how much of the cube one pod sees; the smaller
+// 180/270 sizes are for 4- and 6-player playgroups.
+export const CUBE_SIZES = [180, 270, 360, 450, 540, 720] as const;
 export type CubeSize = (typeof CUBE_SIZES)[number];
 
-/** Player count a size drafts (size / 45) and how much of the cube gets seen in one pod. */
+/** Pod size a cube is built for, plus a one-line note explaining the trade-off. */
 export const SIZE_INFO: Record<CubeSize, { players: number; note: string }> = {
-  360: { players: 8, note: '8 players draft the whole cube — tight, every card matters' },
-  450: { players: 8, note: '~80% seen per draft — room for more variety' },
-  540: { players: 8, note: '~67% seen per draft — the classic MTGO Vintage Cube size' },
-  720: { players: 8, note: '50% seen per draft, or two 8-player pods at once' },
+  180: { players: 4, note: '180 cards — a tight 4-player pod drafts the whole cube' },
+  270: { players: 6, note: '270 cards — a 6-player pod drafts the whole cube' },
+  360: { players: 8, note: 'An 8-player draft sees the whole cube — every card matters' },
+  450: { players: 8, note: 'An 8-player draft sees ~80% — room for more variety' },
+  540: { players: 8, note: 'An 8-player draft sees ~67% — the classic MTGO Vintage Cube size' },
+  720: { players: 8, note: 'An 8-player draft sees 50%, or run two pods at once' },
 };
 
 export const provenance = data.provenance;
 
 export function targetsForSize(size: CubeSize): BandTargets {
-  return data.bands[String(size)];
+  // Bands are mined for 360/450/540/720. Smaller pods (180/270) reuse the
+  // closest mined band (360): the targets are size-relative ratios, so they
+  // apportion correctly to the smaller size — we don't fabricate new ratios.
+  return data.bands[String(size)] ?? data.bands['360'];
 }

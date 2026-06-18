@@ -1123,9 +1123,10 @@ async function resetInMemoryStores(): Promise<void> {
   } finally {
     setApplyingServer(false);
   }
-  // Clear the cube store (persisted in localStorage). Not user-account data but
-  // must be wiped on logout so one user's generated cube doesn't leak to the next.
+  // Wipe the cube store (persisted in localStorage). Not user-account data but
+  // must be cleared on logout so one user's working + saved cubes don't leak to
+  // the next — reset() drops the saved list too, which clear() intentionally keeps.
   const { useCubeStore } = await import('../store/cube');
-  useCubeStore.getState().clear();
+  useCubeStore.getState().reset();
   localStorage.removeItem('spellcontrol-cube');
 }

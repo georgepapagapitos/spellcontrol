@@ -93,6 +93,22 @@ describe('generateCube — rich pool', () => {
   });
 });
 
+describe('generateCube — small pods (180 / 270)', () => {
+  it('builds a full cube at the requested small size', () => {
+    for (const size of [180, 270] as const) {
+      const cube = generateCube(richPool(), size);
+      expect(cube.picks.length).toBe(size);
+      expect(cube.shortfall).toBe(0);
+    }
+  });
+
+  it('reuses the 360 band targets when no band is mined for the size', () => {
+    // 180/270 have no mined band — targetsForSize falls back to 360's ratios.
+    expect(targetsForSize(180)).toBe(targetsForSize(360));
+    expect(targetsForSize(270)).toBe(targetsForSize(360));
+  });
+});
+
 describe('generateCube — collection light in a color', () => {
   it('flags the under-supported color as a gap', () => {
     const pool = richPool().filter((c) => !(c.colors.length === 1 && c.colors[0] === 'U'));

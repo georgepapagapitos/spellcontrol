@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Pencil, Trash2 } from 'lucide-react';
 import './CubePage.css';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
 import { OwnershipBadge } from '../components/deck/OwnershipBadge';
 import { CardPreview } from '../components/CardPreview';
+import { NameInputDialog } from '../components/NameInputDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useToastsStore } from '../store/toasts';
-import { useCubeStore } from '../store/cube';
+import { useCubeStore, SavedCube } from '../store/cube';
+import { formatRelativeTime } from '../lib/format-time';
 import { buildAllocationMap } from '../lib/allocations';
 import { getCardsByNames } from '../deck-builder/services/scryfall/client';
 import { loadTaggerData, getCardRole } from '../deck-builder/services/tagger/client';
@@ -127,6 +131,12 @@ function BuildCube() {
   );
   const [error, setError] = useState('');
   const cube = cubeStore.result;
+  const saved = cubeStore.saved;
+
+  // Save / rename / delete dialog targets.
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<SavedCube | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SavedCube | null>(null);
 
   // Cache the enriched Scryfall map so CubeResult can build EnrichedCards for preview.
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
@@ -193,6 +203,25 @@ function BuildCube() {
     });
   }, [cube, pushToast]);
 
+  const handleSave = (name: string) => {
+    cubeStore.saveCurrent(name);
+    setSaveOpen(false);
+    pushToast({ message: `Saved “${name}”`, tone: 'success' });
+  };
+  const handleLoad = (sc: SavedCube) => {
+    cubeStore.loadSaved(sc.id);
+    setSize(sc.size);
+    setStatus('done');
+  };
+  const handleRename = (name: string) => {
+    if (renameTarget) cubeStore.renameSaved(renameTarget.id, name);
+    setRenameTarget(null);
+  };
+  const handleDelete = () => {
+    if (deleteTarget) cubeStore.removeSaved(deleteTarget.id);
+    setDeleteTarget(null);
+  };
+
   if (collectionCards.length === 0) {
     return (
       <div className="cube-empty">
@@ -210,12 +239,12 @@ function BuildCube() {
   return (
     <div className="cube-build">
       <div className="cube-controls">
-        <div className="rule-segmented cube-size-picker" role="group" aria-label="Cube size">
+        <div className="cube-size-picker" role="group" aria-label="Cube size">
           {CUBE_SIZES.map((s) => (
             <button
               key={s}
               type="button"
-              className={`rule-segmented-pill cube-size-pill${s === size ? ' active' : ''}`}
+              className={`cube-size-opt${s === size ? ' active' : ''}`}
               aria-pressed={s === size}
               onClick={() => setSize(s)}
             >
@@ -237,6 +266,43 @@ function BuildCube() {
           {uniqueNames.length.toLocaleString()} unique cards in your collection
         </p>
       </div>
+
+      {saved.length > 0 && (
+        <section className="cube-saved" aria-label="Saved cubes">
+          <h3 className="cube-saved-head">My cubes</h3>
+          <ul className="cube-saved-list">
+            {saved.map((sc) => (
+              <li key={sc.id} className="cube-saved-row">
+                <button type="button" className="cube-saved-load" onClick={() => handleLoad(sc)}>
+                  <span className="cube-saved-name">{sc.name}</span>
+                  <span className="cube-saved-meta">
+                    {sc.size} cards · {SIZE_INFO[sc.size].players} players · saved{' '}
+                    {formatRelativeTime(sc.savedAt)}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="cube-saved-action"
+                  onClick={() => setRenameTarget(sc)}
+                  aria-label={`Rename ${sc.name}`}
+                  title="Rename"
+                >
+                  <Pencil width={15} height={15} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="cube-saved-action cube-saved-delete"
+                  onClick={() => setDeleteTarget(sc)}
+                  aria-label={`Delete ${sc.name}`}
+                  title="Delete"
+                >
+                  <Trash2 width={15} height={15} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* aria-live region: always in DOM so screen readers catch transitions */}
       <div aria-live="polite" aria-atomic="true">
@@ -264,11 +330,43 @@ function BuildCube() {
           <CubeResult
             cube={cube}
             onCopy={copyList}
+            onSave={() => setSaveOpen(true)}
             ownershipFor={ownershipFor}
             enrichedMap={enrichedMap}
           />
         )}
       </div>
+
+      {saveOpen && (
+        <NameInputDialog
+          title="Save this cube"
+          label="Cube name"
+          placeholder="My Vintage 540"
+          confirmLabel="Save"
+          onSubmit={handleSave}
+          onCancel={() => setSaveOpen(false)}
+        />
+      )}
+      {renameTarget && (
+        <NameInputDialog
+          title="Rename cube"
+          label="Cube name"
+          initialValue={renameTarget.name}
+          confirmLabel="Rename"
+          onSubmit={handleRename}
+          onCancel={() => setRenameTarget(null)}
+        />
+      )}
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Delete cube?"
+          body={`“${deleteTarget.name}” will be removed. This can’t be undone.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
     </div>
   );
 }
@@ -276,11 +374,13 @@ function BuildCube() {
 function CubeResult({
   cube,
   onCopy,
+  onSave,
   ownershipFor,
   enrichedMap,
 }: {
   cube: GeneratedCube;
   onCopy: () => void;
+  onSave: () => void;
   ownershipFor: (name: string) => Ownership;
   enrichedMap: Map<string, ScryfallCard>;
 }) {
@@ -359,9 +459,14 @@ function CubeResult({
             Drawn from {cube.poolSize.toLocaleString()} eligible singles you own.
           </p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={onCopy}>
-          Copy cube list
-        </button>
+        <div className="cube-result-actions">
+          <button type="button" className="btn btn-primary" onClick={onSave}>
+            Save cube
+          </button>
+          <button type="button" className="btn" onClick={onCopy}>
+            Copy cube list
+          </button>
+        </div>
       </div>
 
       <div className="cube-balance">
