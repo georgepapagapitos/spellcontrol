@@ -575,8 +575,11 @@ export function DeckEditorPage() {
       roleCounts,
       roleTargets: deck.roleTargets ?? {},
       gapAnalysis: deck.gapAnalysis,
-      cardCount: deck.cards.length,
-      deckTarget: DECK_FORMAT_CONFIGS[deck.format].mainboardSize,
+      // Count the commander zone too (incl. a partner) so the total matches
+      // the Deck tab's header and the 100-card (deckSize) target — commanders
+      // live in their own fields, not in deck.cards.
+      cardCount: deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0),
+      deckTarget: DECK_FORMAT_CONFIGS[deck.format].deckSize,
       oneAwayCombos: comboData.data?.oneAway,
       ownedNames,
       winConditions: deck.winConditions,
@@ -1972,8 +1975,10 @@ export function DeckEditorPage() {
                   planScore={deck.planScore}
                   roleCounts={deck.roleCounts ?? {}}
                   roleTargets={deck.roleTargets ?? {}}
-                  deckSize={deck.cards.length}
-                  deckTarget={DECK_FORMAT_CONFIGS[deck.format].mainboardSize}
+                  deckSize={
+                    deck.cards.length + (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0)
+                  }
+                  deckTarget={DECK_FORMAT_CONFIGS[deck.format].deckSize}
                   bracketOverridePresent={deck.bracketOverride != null}
                   resolveOwnership={ownershipFor}
                   ownedNames={ownedNames}
