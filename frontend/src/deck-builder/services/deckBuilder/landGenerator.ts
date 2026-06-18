@@ -3,6 +3,7 @@
 // Extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
 import { BASIC_LAND_NAMES } from '@/lib/allocations';
+import { planBasicPrintings, type BasicPrintingAvail } from '@/lib/collection-availability';
 import type {
   EDHRECCard,
   ScryfallCard,
@@ -43,6 +44,21 @@ const TAPLAND_PENALTIES: Record<Pacing, number> = {
   midrange: -5,
   'late-game': 0,
 };
+
+// Stamp a basic-land copy with a real owned printing (id/set/collector_number)
+// so the deck binds to the user's actual copies, or fall back to the default
+// printing when unowned (`p === null`). Copies of the same printing share
+// `card.id`, so the deck view aggregates them into one row instead of N rows.
+function stampBasic(basicCard: ScryfallCard, p: BasicPrintingAvail | null): ScryfallCard {
+  if (!p) return { ...basicCard };
+  return {
+    ...basicCard,
+    id: p.scryfallId,
+    set: p.set,
+    collector_number: p.collectorNumber,
+    set_name: p.setName,
+  };
+}
 
 // Count color pips across all cards' mana costs (including hybrid mana)
 export function countColorPips(cards: ScryfallCard[]): Record<string, number> {
@@ -100,7 +116,8 @@ export async function generateLands(
   ignoreOwnedBudget: boolean = false,
   ignoreOwnedRarity: boolean = false,
   pacing: Pacing = 'balanced',
-  priorityBoosts?: Map<string, number>
+  priorityBoosts?: Map<string, number>,
+  basicPrintings?: Map<string, BasicPrintingAvail[]>
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   const enforceAvailableCounts = collectionStrategy === 'available';
@@ -327,10 +344,11 @@ export async function generateLands(
         }
       }
 
-      // Add multiple copies with unique IDs
-      for (let j = 0; j < countForColor; j++) {
-        lands.push({ ...basicCard, id: `${basicCard.id}-${j}-${color}` });
-      }
+      // Split copies across the user's owned printings (largest group first)
+      // so the deck pulls real stacks of their basics — 12 of one Forest
+      // printing + 8 of another — instead of N copies of one default printing.
+      const plan = planBasicPrintings(countForColor, basicPrintings?.get(basicName) ?? []);
+      for (const p of plan) lands.push(stampBasic(basicCard, p));
     }
   } else if (colorsWithBasics.length === 0 && basicsNeeded > 0) {
     // Colorless deck — use Wastes as the basic land
@@ -345,9 +363,8 @@ export async function generateLands(
     }
     if (wastesCard) {
       const countForColor = Math.min(basicsNeeded, availableCount('Wastes'));
-      for (let j = 0; j < countForColor; j++) {
-        lands.push({ ...wastesCard, id: `${wastesCard.id}-${j}-C` });
-      }
+      const plan = planBasicPrintings(countForColor, basicPrintings?.get('Wastes') ?? []);
+      for (const p of plan) lands.push(stampBasic(wastesCard, p));
     }
   }
 

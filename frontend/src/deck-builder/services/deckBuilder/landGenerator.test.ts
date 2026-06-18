@@ -116,4 +116,47 @@ describe('generateLands', () => {
 
     expect(lands.map((c) => c.name)).toEqual(['Plains']);
   });
+
+  it('splits basics across owned printings by available count (largest group first)', async () => {
+    const lands = await generateLands(
+      [],
+      ['G'],
+      5,
+      new Set(),
+      5,
+      99,
+      [], // no non-land cards → even split, single color gets all 5
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'full',
+      100,
+      false,
+      false,
+      'balanced',
+      undefined,
+      new Map([
+        [
+          'Forest',
+          [
+            { scryfallId: 'sf-A', set: 'A', collectorNumber: '1', setName: 'A', count: 3 },
+            { scryfallId: 'sf-B', set: 'B', collectorNumber: '2', setName: 'B', count: 2 },
+          ],
+        ],
+      ])
+    );
+
+    expect(lands.map((c) => c.id)).toEqual(['sf-A', 'sf-A', 'sf-A', 'sf-B', 'sf-B']);
+    // set/collector_number track the stamped printing so the deck view groups them.
+    expect(lands.map((c) => c.set)).toEqual(['A', 'A', 'A', 'B', 'B']);
+  });
 });

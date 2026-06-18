@@ -9,7 +9,11 @@ import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { saveGeneratedDeck } from './save-generated-deck';
-import { buildAvailableCollection } from './collection-availability';
+import {
+  buildAvailableCollection,
+  buildBasicPrintingAvailability,
+  type BasicPrintingAvail,
+} from './collection-availability';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { ScryfallCard, EDHRECTheme, ThemeResult } from '@/deck-builder/types';
 
@@ -142,7 +146,12 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
 
       let collectionNames: Set<string> | undefined;
       let collectionAvailableCounts: Map<string, number> | undefined;
+      // Per-printing breakdown of free owned basics, so generation pulls real
+      // groups of the player's basic-land printings (built for any owned-aware
+      // mode; based on free copies so we never stamp a printing they can't supply).
+      let collectionBasicPrintings: Map<string, BasicPrintingAvail[]> | undefined;
       if (customization.collectionMode) {
+        collectionBasicPrintings = buildBasicPrintingAvailability(collectionCards, decks);
         if (customization.collectionStrategy === 'available') {
           const available = buildAvailableCollection(collectionCards, decks);
           collectionNames = available.names;
@@ -201,6 +210,7 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
         selectedThemes: themesForGenerator,
         collectionNames,
         collectionAvailableCounts,
+        collectionBasicPrintings,
         collectionPool,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });

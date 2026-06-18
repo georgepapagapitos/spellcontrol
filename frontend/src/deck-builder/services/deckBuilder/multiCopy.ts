@@ -130,10 +130,12 @@ export async function resolveMultiCopyCards(
         }
       }
 
-      // Step 8: Create copies with unique IDs
+      // Step 8: Create the copies. They share card.id (and printing) so the
+      // deck view aggregates them into one row; per-slot uniqueness comes from
+      // the slotId assigned at save time, not from card.id.
       const copies: ScryfallCard[] = [];
       for (let i = 0; i < copiesToAdd; i++) {
-        copies.push({ ...card, id: `${card.id}-multi-${i}` });
+        copies.push({ ...card });
       }
 
       logger.debug(
