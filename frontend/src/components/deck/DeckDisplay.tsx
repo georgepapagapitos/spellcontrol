@@ -585,9 +585,18 @@ function buildRows(
     const status = classify(dc);
     const owned = dc.allocatedCopyId ? collectionById?.get(dc.allocatedCopyId) : undefined;
 
-    // Per-printing bucket (keyed by the slot's printing). Only the owned copy
-    // that actually matches this printing upgrades its set/finish display.
-    const pkey = card.id || `${card.set}|${card.collector_number ?? ''}`;
+    // Per-printing bucket, keyed by the slot's *printing identity* (set +
+    // collector number), not the raw card.id. Generated decks may carry
+    // per-copy-unique synthetic ids (older builds suffixed basics/multi-copy
+    // ids), so keying on card.id would split N copies of one printing into N
+    // qty-1 sub-rows. set|collector_number is the true printing key and is 1:1
+    // with card.id for normal cards. Falls back to card.id when a card has no
+    // set/collector (e.g. some tokens). Only the owned copy that actually
+    // matches this printing upgrades its set/finish display.
+    const pkey =
+      card.set && card.collector_number
+        ? `${card.set}|${card.collector_number}`
+        : card.id || card.name;
     const matchOwned = owned && owned.scryfallId === card.id ? owned : undefined;
     let pmap = printingMaps.get(card.name);
     if (!pmap) {
