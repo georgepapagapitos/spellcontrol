@@ -110,29 +110,30 @@
   flex: 0 0 auto;
 }
 
-/* MTG-canonical mana colors — never themed. */
+/* MTG-canonical mana colors — the shared mana-identity palette (styles/tokens.css),
+   never themed. */
 .deck-color-balance-pip-w {
-  background: #f8f6d8;
+  background: var(--mtg-w);
 }
 
 .deck-color-balance-pip-u {
-  background: #4a90d9;
+  background: var(--mtg-u);
 }
 
 .deck-color-balance-pip-b {
-  background: #4a4a4a;
+  background: var(--mtg-b);
 }
 
 .deck-color-balance-pip-r {
-  background: #d8442a;
+  background: var(--mtg-r);
 }
 
 .deck-color-balance-pip-g {
-  background: #4ca352;
+  background: var(--mtg-g);
 }
 
 .deck-color-balance-pip-c {
-  background: #b8b8b8;
+  background: var(--mtg-colorless);
 }
 
 .deck-color-balance-flag {

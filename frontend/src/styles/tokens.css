@@ -199,4 +199,18 @@
   --rarity-uncommon: var(--rarity-uncommon-to);
   --rarity-rare: var(--rarity-rare-to);
   --rarity-mythic: var(--rarity-mythic-to);
+
+  /* ── Mana identity palette (MTG-canonical, do not retheme) ─────────────
+     One palette for the five colors (+ multicolor / colorless / land),
+     shared by the deck mana-base chart (DeckColorBalance) and the cube
+     color-balance bars/legend so both render the same WUBRG. The WUBRG
+     values are the established DeckColorBalance chart colors. */
+  --mtg-w: #f8f6d8;
+  --mtg-u: #4a90d9;
+  --mtg-b: #4a4a4a;
+  --mtg-r: #d8442a;
+  --mtg-g: #4ca352;
+  --mtg-multicolor: #c8a02e;
+  --mtg-colorless: #b8b8b8;
+  --mtg-land: #9c7a4d;
 }

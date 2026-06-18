@@ -185,6 +185,14 @@
   color: var(--on-accent);
 }
 
+/* Inset ring — the .rule-segmented container is overflow:hidden, so an outset
+   outline would be clipped. */
+.rule-segmented-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
 /* ── Chip group ─────────────────────────────────────────────────────────── */
 .chip-group {
   display: flex;
