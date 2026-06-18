@@ -1,15 +1,20 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './CubePage.css';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
 import { OwnershipBadge } from '../components/deck/OwnershipBadge';
+import { CardPreview } from '../components/CardPreview';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useToastsStore } from '../store/toasts';
+import { useCubeStore } from '../store/cube';
 import { buildAllocationMap } from '../lib/allocations';
 import { getCardsByNames } from '../deck-builder/services/scryfall/client';
 import { loadTaggerData, getCardRole } from '../deck-builder/services/tagger/client';
+import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import type { ScryfallCard } from '@/deck-builder/types';
+import type { EnrichedCard } from '../types';
 import { CUBE_SIZES, CubeSize, SIZE_INFO, ColorBucket, provenance } from '../lib/cube/targets';
 import { generateCube, GeneratedCube, CubeCard } from '../lib/cube/generate';
 import { toCubeCobraList } from '../lib/cube/format';
@@ -21,8 +26,6 @@ import {
   Ownership,
   CubeImportError,
 } from '../lib/cube/import';
-
-type Ownership3 = Ownership;
 
 // Bucket display order, names, and segment colors for the balance bars.
 const BUCKET_ORDER: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
@@ -62,7 +65,7 @@ function useOwnershipFor() {
       else e.free += 1;
       byName.set(key, e);
     }
-    const ownershipFor = (name: string): Ownership3 => {
+    const ownershipFor = (name: string): Ownership => {
       const e = byName.get(name.toLowerCase());
       if (!e) return 'unowned';
       if (e.free > 0) return 'owned';
@@ -90,11 +93,16 @@ export function CubePage() {
         value={mode}
         onChange={setMode}
         tabs={[
-          { id: 'build', label: 'Build from my collection' },
-          { id: 'import', label: 'Import a cube' },
+          { id: 'build', label: 'Build from my collection', controls: 'cube-panel' },
+          { id: 'import', label: 'Import a cube', controls: 'cube-panel' },
         ]}
       />
-      <div role="tabpanel" aria-labelledby={`sc-tab-${mode}`} className="cube-panel">
+      <div
+        id="cube-panel"
+        role="tabpanel"
+        aria-labelledby={`sc-tab-${mode}`}
+        className="cube-panel"
+      >
         {mode === 'build' ? <BuildCube /> : <ImportCube />}
       </div>
     </div>
@@ -110,10 +118,16 @@ function BuildCube() {
   const pushToast = useToastsStore((s) => s.push);
   const ownershipFor = useOwnershipFor();
 
-  const [size, setSize] = useState<CubeSize>(540);
-  const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
+  const cubeStore = useCubeStore();
+  const [size, setSize] = useState<CubeSize>(cubeStore.size);
+  const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>(
+    cubeStore.result ? 'done' : 'idle'
+  );
   const [error, setError] = useState('');
-  const [cube, setCube] = useState<GeneratedCube | null>(null);
+  const cube = cubeStore.result;
+
+  // Cache the enriched Scryfall map so CubeResult can build EnrichedCards for preview.
+  const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
   const uniqueNames = useMemo(() => {
     const set = new Set<string>();
@@ -124,9 +138,11 @@ function BuildCube() {
   const generate = useCallback(async () => {
     setStatus('working');
     setError('');
+    cubeStore.clear();
     try {
       await loadTaggerData(); // ensures getCardRole is populated; cached/deduped
       const enriched = await getCardsByNames(uniqueNames);
+      setEnrichedMap(enriched);
       const ownedByName = new Map<string, (typeof collectionCards)[number]>();
       for (const c of collectionCards)
         if (c.name && !ownedByName.has(c.name)) ownedByName.set(c.name, c);
@@ -143,13 +159,28 @@ function BuildCube() {
           rank: s?.edhrec_rank ?? card?.edhrecRank,
         };
       });
-      setCube(generateCube(pool, size));
+      const newCube = generateCube(pool, size);
+      cubeStore.setResult(size, newCube);
       setStatus('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong building the cube.');
       setStatus('error');
     }
-  }, [uniqueNames, collectionCards, size]);
+  }, [uniqueNames, collectionCards, size, cubeStore]);
+
+  // When the store has a persisted result but enrichedMap is empty (e.g. after
+  // a tab-switch or page reload), re-fetch Scryfall data so CardPreview can
+  // show images. Mirrors the generate path.
+  useEffect(() => {
+    if (cube === null || enrichedMap.size > 0) return;
+    let cancelled = false;
+    getCardsByNames(uniqueNames).then((enriched) => {
+      if (!cancelled) setEnrichedMap(enriched);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cube, enrichedMap.size, uniqueNames]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -205,24 +236,37 @@ function BuildCube() {
         </p>
       </div>
 
-      {status === 'working' && (
-        <div className="cube-loading" aria-busy="true">
-          Selecting your best cards and balancing the cube…
-        </div>
-      )}
+      {/* aria-live region: always in DOM so screen readers catch transitions */}
+      <div aria-live="polite" aria-atomic="true">
+        {status === 'working' && (
+          <div className="cube-loading" role="status" aria-busy="true">
+            <div className="cube-skeleton">
+              <div className="deck-analysis-skeleton-bar is-headline" />
+              <div className="deck-analysis-skeleton-bar is-body" />
+              <div className="deck-analysis-skeleton-bar is-body is-short" />
+            </div>
+            <p className="cube-loading-text">Selecting your best cards and balancing the cube…</p>
+          </div>
+        )}
 
-      {status === 'error' && (
-        <div className="cube-error" role="alert">
-          {error}
-          <button type="button" className="cube-link-btn" onClick={generate}>
-            Try again
-          </button>
-        </div>
-      )}
+        {status === 'error' && (
+          <div className="cube-error" role="alert">
+            {error}
+            <button type="button" className="cube-link-btn" onClick={generate}>
+              Try again
+            </button>
+          </div>
+        )}
 
-      {status === 'done' && cube && (
-        <CubeResult cube={cube} onCopy={copyList} ownershipFor={ownershipFor} />
-      )}
+        {status === 'done' && cube && (
+          <CubeResult
+            cube={cube}
+            onCopy={copyList}
+            ownershipFor={ownershipFor}
+            enrichedMap={enrichedMap}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -231,10 +275,12 @@ function CubeResult({
   cube,
   onCopy,
   ownershipFor,
+  enrichedMap,
 }: {
   cube: GeneratedCube;
   onCopy: () => void;
-  ownershipFor: (name: string) => Ownership3;
+  ownershipFor: (name: string) => Ownership;
+  enrichedMap: Map<string, ScryfallCard>;
 }) {
   const built = cube.picks.length;
   const segments = BUCKET_ORDER.filter((b) => cube.byBucket[b] > 0).map((b) => ({
@@ -246,15 +292,56 @@ function CubeResult({
   const shorts = cube.gaps.filter((g) => g.severity === 'short');
   const notes = cube.gaps.filter((g) => g.severity === 'note');
 
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  // Flat list of all picks (for preview carousel index mapping).
   const allPicks = cube.picks;
+
+  // Build EnrichedCard[] parallel to allPicks for CardPreview.
+  const previewCards = useMemo<EnrichedCard[]>(() => {
+    return allPicks.map((p) => {
+      const s = enrichedMap.get(p.card.name);
+      if (s) return scryfallToEnrichedCard(s);
+      // Minimal fallback if Scryfall data not in cache (e.g. restored from localStorage).
+      return {
+        copyId: p.card.oracleId || p.card.name.toLowerCase(),
+        name: p.card.name,
+        setCode: '',
+        setName: '',
+        collectorNumber: '',
+        rarity: '',
+        scryfallId: '',
+        purchasePrice: 0,
+        sourceCategory: '',
+        sourceFormat: 'manual' as const,
+        finish: 'nonfoil' as const,
+        foil: false,
+        oracleId: p.card.oracleId,
+        cmc: p.card.cmc,
+        typeLine: p.card.typeLine,
+        colorIdentity: p.card.colors,
+        colors: p.card.colors,
+      };
+    });
+  }, [allPicks, enrichedMap]);
+
   const groups = useMemo(() => {
-    const m = new Map<ColorBucket, typeof allPicks>();
+    const m = new Map<ColorBucket, { pick: (typeof allPicks)[number]; flatIndex: number }[]>();
     for (const b of BUCKET_ORDER) m.set(b, []);
-    for (const p of allPicks) m.get(p.bucket)!.push(p);
-    return BUCKET_ORDER.map((b) => ({ bucket: b, picks: m.get(b)! })).filter(
-      (g) => g.picks.length > 0
+    allPicks.forEach((p, flatIndex) => {
+      m.get(p.bucket)!.push({ pick: p, flatIndex });
+    });
+    return BUCKET_ORDER.map((b) => ({ bucket: b, items: m.get(b)! })).filter(
+      (g) => g.items.length > 0
     );
   }, [allPicks]);
+
+  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setPreviewIndex(idx);
+    }
+  };
 
   return (
     <section className="cube-result" aria-label="Generated cube">
@@ -314,7 +401,7 @@ function CubeResult({
 
       <div className="cube-list">
         <h3>The cards, and why</h3>
-        {groups.map(({ bucket, picks }) => (
+        {groups.map(({ bucket, items }) => (
           <div key={bucket} className="cube-group">
             <h4 className="cube-group-head">
               <span
@@ -322,17 +409,26 @@ function CubeResult({
                 style={{ background: BUCKET_COLOR[bucket] }}
                 aria-hidden
               />
-              {BUCKET_LABEL[bucket]} <span className="cube-group-count">{picks.length}</span>
+              {BUCKET_LABEL[bucket]} <span className="cube-group-count">{items.length}</span>
             </h4>
             <ul className="cube-rows">
-              {picks.map((p) => {
+              {items.map(({ pick: p, flatIndex }) => {
                 const own = ownershipFor(p.card.name);
                 return (
-                  <li key={p.card.oracleId || p.card.name} className="cube-row">
+                  <li
+                    key={p.card.oracleId || p.card.name}
+                    className="cube-row cube-row-interactive"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${p.card.name} — open preview`}
+                    onClick={() => setPreviewIndex(flatIndex)}
+                    onKeyDown={(e) => handleKeyDown(e, flatIndex)}
+                  >
                     <span className="cube-row-name">{p.card.name}</span>
                     <span className="cube-row-reason">{p.reason}</span>
                     <OwnershipBadge
                       owned={own === 'owned'}
+                      showUnowned={own === 'in-other-deck'}
                       detail={own === 'in-other-deck' ? 'in a deck' : undefined}
                       title={
                         own === 'in-other-deck'
@@ -347,6 +443,20 @@ function CubeResult({
           </div>
         ))}
       </div>
+
+      {previewIndex !== null && previewCards[previewIndex] && (
+        <CardPreview
+          source="collection"
+          cards={previewCards}
+          index={previewIndex}
+          binderName="Cube"
+          sectionLabels={[]}
+          pageNumbers={[]}
+          totalPages={0}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
     </section>
   );
 }
@@ -366,6 +476,7 @@ function ImportCube() {
     null
   );
   const [filter, setFilter] = useState<OwnFilter>('all');
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const run = useCallback(async () => {
     if (!url.trim()) return;
@@ -387,6 +498,36 @@ function ImportCube() {
     if (filter === 'all') return result.overlay.rows;
     return result.overlay.rows.filter((r) => r.ownership === filter);
   }, [result, filter]);
+
+  // Build EnrichedCard[] from import rows for CardPreview (minimal shape — no Scryfall fetch).
+  const previewCards = useMemo<EnrichedCard[]>(() => {
+    return rows.map((r) => ({
+      copyId: r.card.oracleId || r.card.name.toLowerCase(),
+      name: r.card.name,
+      setCode: '',
+      setName: '',
+      collectorNumber: '',
+      rarity: '',
+      scryfallId: '',
+      purchasePrice: 0,
+      sourceCategory: '',
+      sourceFormat: 'manual' as const,
+      finish: 'nonfoil' as const,
+      foil: false,
+      oracleId: r.card.oracleId,
+      cmc: r.card.cmc,
+      typeLine: r.card.typeLine,
+      colorIdentity: r.card.colors,
+      colors: r.card.colors,
+    }));
+  }, [rows]);
+
+  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setPreviewIndex(idx);
+    }
+  };
 
   return (
     <div className="cube-import">
@@ -418,17 +559,28 @@ function ImportCube() {
         </p>
       )}
 
-      {status === 'working' && (
-        <div className="cube-loading" aria-busy="true">
-          Fetching the cube and matching your collection…
-        </div>
-      )}
+      {/* aria-live region: always in DOM so screen readers catch transitions */}
+      <div aria-live="polite" aria-atomic="true">
+        {status === 'working' && (
+          <div className="cube-loading" role="status" aria-busy="true">
+            <div className="cube-skeleton">
+              <div className="deck-analysis-skeleton-bar is-headline" />
+              <div className="deck-analysis-skeleton-bar is-body" />
+              <div className="deck-analysis-skeleton-bar is-body is-short" />
+            </div>
+            <p className="cube-loading-text">Fetching the cube and matching your collection…</p>
+          </div>
+        )}
 
-      {status === 'error' && (
-        <div className="cube-error" role="alert">
-          {error}
-        </div>
-      )}
+        {status === 'error' && (
+          <div className="cube-error" role="alert">
+            {error}
+            <button type="button" className="cube-link-btn" onClick={run}>
+              Try again
+            </button>
+          </div>
+        )}
+      </div>
 
       {status === 'done' && result && (
         <section className="cube-result" aria-label="Imported cube ownership">
@@ -454,34 +606,46 @@ function ImportCube() {
                 {
                   key: 'owned',
                   value: result.overlay.owned,
-                  color: '#3f9b6d',
+                  color: 'var(--success)',
                   title: `Owned: ${result.overlay.owned}`,
                 },
                 {
                   key: 'deck',
                   value: result.overlay.inDeck,
-                  color: '#c8a02e',
+                  color: 'var(--warn-text)',
                   title: `In a deck: ${result.overlay.inDeck}`,
                 },
                 {
                   key: 'missing',
                   value: result.overlay.missing,
-                  color: '#9aa3ad',
+                  color: 'var(--text-muted)',
                   title: `Missing: ${result.overlay.missing}`,
                 },
               ]}
             />
             <ul className="cube-legend">
               <li>
-                <span className="cube-swatch" style={{ background: '#3f9b6d' }} aria-hidden />
+                <span
+                  className="cube-swatch"
+                  style={{ background: 'var(--success)' }}
+                  aria-hidden
+                />
                 Owned <strong>{result.overlay.owned}</strong>
               </li>
               <li>
-                <span className="cube-swatch" style={{ background: '#c8a02e' }} aria-hidden />
+                <span
+                  className="cube-swatch"
+                  style={{ background: 'var(--warn-text)' }}
+                  aria-hidden
+                />
                 In a deck <strong>{result.overlay.inDeck}</strong>
               </li>
               <li>
-                <span className="cube-swatch" style={{ background: '#9aa3ad' }} aria-hidden />
+                <span
+                  className="cube-swatch"
+                  style={{ background: 'var(--text-muted)' }}
+                  aria-hidden
+                />
                 Missing <strong>{result.overlay.missing}</strong>
               </li>
             </ul>
@@ -491,7 +655,10 @@ function ImportCube() {
             ariaLabel="Filter cards by ownership"
             variant="fitted"
             value={filter}
-            onChange={setFilter}
+            onChange={(f) => {
+              setFilter(f);
+              setPreviewIndex(null);
+            }}
             tabs={[
               { id: 'all', label: 'All', count: result.overlay.rows.length },
               { id: 'owned', label: 'Owned', count: result.overlay.owned },
@@ -500,8 +667,16 @@ function ImportCube() {
             ]}
           />
           <ul className="cube-rows cube-import-rows">
-            {rows.map((r) => (
-              <li key={r.card.oracleId || r.card.name} className="cube-row">
+            {rows.map((r, idx) => (
+              <li
+                key={r.card.oracleId || r.card.name}
+                className="cube-row cube-row-interactive"
+                role="button"
+                tabIndex={0}
+                aria-label={`${r.card.name} — open preview`}
+                onClick={() => setPreviewIndex(idx)}
+                onKeyDown={(e) => handleKeyDown(e, idx)}
+              >
                 <span className="cube-row-name">{r.card.name}</span>
                 <span className="cube-row-reason">{r.card.typeLine}</span>
                 <OwnershipBadge
@@ -512,6 +687,20 @@ function ImportCube() {
               </li>
             ))}
           </ul>
+
+          {previewIndex !== null && previewCards[previewIndex] && (
+            <CardPreview
+              source="collection"
+              cards={previewCards}
+              index={previewIndex}
+              binderName="Cube"
+              sectionLabels={[]}
+              pageNumbers={[]}
+              totalPages={0}
+              onIndexChange={setPreviewIndex}
+              onClose={() => setPreviewIndex(null)}
+            />
+          )}
         </section>
       )}
     </div>
