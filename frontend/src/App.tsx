@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-rou
 import { Layout } from './components/Layout';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 import { CollectionPage } from './pages/CollectionPage';
+import { CubePage } from './pages/CubePage';
 import { BinderPage } from './pages/BinderPage';
 import { BindersIndexPage } from './pages/BindersIndexPage';
 import { ListsPage } from './pages/ListsPage';
@@ -225,6 +226,7 @@ export default function App() {
             <Route path="binders/:id" element={<BinderPage />} />
             <Route path="lists" element={<ListsPage />} />
             <Route path="lists/:id" element={<ListsPage />} />
+            <Route path="cube" element={<CubePage />} />
           </Route>
 
           <Route path="/decks" element={<DecksIndexPage />} />
