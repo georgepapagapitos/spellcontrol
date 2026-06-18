@@ -76,6 +76,19 @@ describe('DeckDisplay per-printing expand', () => {
     expect(qtys.reduce((a, b) => a + b, 0)).toBe(22);
   });
 
+  it('aggregates copies of one printing even when each copy has a synthetic per-copy id (older generated decks)', () => {
+    // Pre-fix generated decks stamped each basic copy a unique synthetic id
+    // (`${realId}-${j}-${color}`) while keeping the real set/collector_number.
+    // Grouping by printing identity must collapse them into one row.
+    const cards = Array.from({ length: 20 }, (_, i) => ({
+      slotId: `slot-${i}`,
+      card: mountain({ id: `sf-198-${i}-G`, set: 'hob', collector_number: '198' }),
+    }));
+    const { container } = renderDeck(cards);
+    expect(container.querySelector('.deck-row-printings-toggle')).toBeNull();
+    expect(container.querySelectorAll('.deck-printing-sub')).toHaveLength(0);
+  });
+
   it('shows no disclosure for a uniform single-printing stack', () => {
     const { container } = renderDeck(
       copies(mountain({ id: 'sf-2418', set: 'sld', collector_number: '2418' }), 12)
