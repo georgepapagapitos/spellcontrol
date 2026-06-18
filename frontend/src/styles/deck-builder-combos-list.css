@@ -318,7 +318,7 @@
   color: var(--text-secondary);
   display: flex;
   align-items: baseline;
-  gap: 0;
+  gap: 0.25em;
 }
 
 .deck-combos-piece-count-have {
