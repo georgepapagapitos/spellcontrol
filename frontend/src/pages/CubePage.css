@@ -30,19 +30,29 @@
   font-weight: 600;
   font-size: var(--text-sm);
   padding: var(--space-2) var(--space-4);
+  min-height: 44px;
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--motion-fast);
 }
 .cube-cta:hover:not(:disabled) {
   background: var(--accent-hover);
 }
+.cube-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .cube-cta:disabled {
   opacity: 0.55;
   cursor: progress;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cube-cta {
+    transition: background var(--motion-fast);
+  }
 }
 
 .cube-link-btn {
@@ -56,6 +66,10 @@
   padding: 0;
   margin-left: var(--space-2);
   text-decoration: underline;
+}
+.cube-link-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .cube-loading,
@@ -112,13 +126,26 @@
   flex-direction: column;
   align-items: center;
   min-width: 72px;
-  transition:
-    border-color var(--motion-fast),
-    background var(--motion-fast);
+}
+.cube-size:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .cube-size.active {
   border-color: var(--accent);
   background: var(--accent-light);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cube-size {
+    transition:
+      border-color var(--motion-fast),
+      background var(--motion-fast);
+  }
+}
+@media (pointer: coarse) {
+  .cube-size {
+    min-height: 44px;
+  }
 }
 .cube-size-n {
   font-size: var(--text-base);
@@ -138,6 +165,19 @@
   margin: 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+/* ---- skeleton loading ---- */
+.cube-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  max-width: 360px;
+  margin-inline: auto;
+}
+.cube-loading-text {
+  margin: 0;
 }
 
 /* ---- result ---- */
@@ -275,6 +315,21 @@
   padding: 6px var(--space-2);
   border-bottom: 1px solid var(--border);
   font-size: var(--text-sm);
+  /* A cube is 360–720 rows. Let the browser skip render/layout/paint for
+     off-screen rows natively — same win as JS virtualization, no structural or
+     a11y change, no library. `auto` remembers each row's real height once seen. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 33px;
+}
+.cube-row-interactive {
+  cursor: pointer;
+}
+.cube-row-interactive:hover {
+  background: var(--surface-raised);
+}
+.cube-row-interactive:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .cube-row-name {
   color: var(--text-primary);
@@ -308,6 +363,10 @@
   color: var(--text-primary);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
+}
+.cube-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .cube-import-hint {
   margin: 0;
