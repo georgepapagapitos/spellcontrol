@@ -8,6 +8,7 @@
   },
   "scripts": {
     "refresh-tags": "node scripts/refresh-tagger.mjs --force",
+    "mine:cube-targets": "node scripts/mine-cube-targets.mjs",
     "build:shared": "npm --prefix ../packages/game-core run build && npm --prefix ../packages/binder-routing run build",
     "predev": "npm run build:shared && node scripts/refresh-tagger.mjs",
     "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs",
