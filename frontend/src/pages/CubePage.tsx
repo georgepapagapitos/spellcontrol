@@ -39,15 +39,17 @@ const BUCKET_LABEL: Record<ColorBucket, string> = {
   colorless: 'Colorless',
   land: 'Lands',
 };
+// Fills point at the shared mana-identity tokens (styles/tokens.css) so the cube
+// bars and the deck mana-base chart show one palette for five colors.
 const BUCKET_COLOR: Record<ColorBucket, string> = {
-  W: '#e8e0bf',
-  U: '#3a7bd5',
-  B: '#6b5b73',
-  R: '#cb4b3f',
-  G: '#3f9b6d',
-  multicolor: '#c8a02e',
-  colorless: '#9aa3ad',
-  land: '#9c7a4d',
+  W: 'var(--mtg-w)',
+  U: 'var(--mtg-u)',
+  B: 'var(--mtg-b)',
+  R: 'var(--mtg-r)',
+  G: 'var(--mtg-g)',
+  multicolor: 'var(--mtg-multicolor)',
+  colorless: 'var(--mtg-colorless)',
+  land: 'var(--mtg-land)',
 };
 
 /** Build a tri-state `ownershipFor(name)` from the live collection + deck allocations. */
@@ -195,7 +197,7 @@ function BuildCube() {
     return (
       <div className="cube-empty">
         <p>You haven&apos;t imported a collection yet.</p>
-        <Link to="/collection" className="cube-cta">
+        <Link to="/collection" className="btn btn-primary">
           Import your collection
         </Link>
         <p className="cube-empty-hint">
@@ -208,12 +210,12 @@ function BuildCube() {
   return (
     <div className="cube-build">
       <div className="cube-controls">
-        <div className="cube-size-picker" role="group" aria-label="Cube size">
+        <div className="rule-segmented cube-size-picker" role="group" aria-label="Cube size">
           {CUBE_SIZES.map((s) => (
             <button
               key={s}
               type="button"
-              className={s === size ? 'cube-size active' : 'cube-size'}
+              className={`rule-segmented-pill cube-size-pill${s === size ? ' active' : ''}`}
               aria-pressed={s === size}
               onClick={() => setSize(s)}
             >
@@ -225,7 +227,7 @@ function BuildCube() {
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
         <button
           type="button"
-          className="cube-cta"
+          className="btn btn-primary"
           onClick={generate}
           disabled={status === 'working'}
         >
@@ -252,7 +254,7 @@ function BuildCube() {
         {status === 'error' && (
           <div className="cube-error" role="alert">
             {error}
-            <button type="button" className="cube-link-btn" onClick={generate}>
+            <button type="button" className="btn-link" onClick={generate}>
               Try again
             </button>
           </div>
@@ -357,7 +359,7 @@ function CubeResult({
             Drawn from {cube.poolSize.toLocaleString()} eligible singles you own.
           </p>
         </div>
-        <button type="button" className="cube-cta" onClick={onCopy}>
+        <button type="button" className="btn btn-primary" onClick={onCopy}>
           Copy cube list
         </button>
       </div>
@@ -547,7 +549,11 @@ function ImportCube() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
-        <button type="submit" className="cube-cta" disabled={status === 'working' || !url.trim()}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={status === 'working' || !url.trim()}
+        >
           {status === 'working' ? 'Importing…' : 'Import'}
         </button>
       </form>
@@ -575,7 +581,7 @@ function ImportCube() {
         {status === 'error' && (
           <div className="cube-error" role="alert">
             {error}
-            <button type="button" className="cube-link-btn" onClick={run}>
+            <button type="button" className="btn-link" onClick={run}>
               Try again
             </button>
           </div>

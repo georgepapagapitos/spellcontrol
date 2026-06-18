@@ -354,6 +354,18 @@ check `matchMedia` and complete immediately under reduce (see
 - **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,
   `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--border-strong`, `--accent`,
   `--accent-light`, `--on-accent`, etc. This is what makes light/dark themes work.
+- **Mana identity palette — one set of WUBRG colors.** Color-identity fills (the
+  five colors + multicolor/colorless/land) come from the canonical
+  `--mtg-w` / `--mtg-u` / `--mtg-b` / `--mtg-r` / `--mtg-g` /
+  `--mtg-multicolor` / `--mtg-colorless` / `--mtg-land` tokens in
+  `styles/tokens.css`. These are MTG-canonical and **not** themed (the same hex in
+  light and dark — each pip/swatch carries a `--border` outline so the pale/dark
+  ends still read on any surface). Used by the deck mana-base chart
+  (`DeckColorBalance`) and the cube color-balance bars/legend. Never hardcode a
+  WUBRG hex for a new color-distribution chart — point at these so the app shows
+  one palette for five colors. (The mana-font glyph pip `ColorPip` is the right
+  marker when you want the *symbol*; for a bar **fill** or a legend swatch that
+  must match its bar segment exactly, use the token.)
 - **No raw `px`/`rem` font sizes** — use the `--text-*` scale (`--text-xs`,
   `--text-sm`, `--text-base`, …). stylelint enforces this on `src/**/*.css`.
 - **Spacing scale:** a 4px-base `--space-*` scale (`--space-1` = 0.25rem …
