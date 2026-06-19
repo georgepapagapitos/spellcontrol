@@ -142,12 +142,13 @@
      when the one-shot ends so the swipe-down-dismiss inline translateY
      still works (its value is 0 at mount, so there's no conflict). */
   animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
-  /* Vertical pans are handled by the JS swipe-down-dismiss gesture;
-     horizontal pans are owned by the nested .card-preview-track
-     (which sets its own touch-action: pan-x). Telling the browser
-     "no native vertical pan here" prevents the touch from leaking
-     to underlying scrollers on iOS Safari during an up-swipe. */
-  touch-action: pan-x;
+  /* No touch-action here (defaults to `auto`) so it doesn't intersect away the
+     axes its children need: the nested .card-preview-track owns horizontal pans
+     (`pan-x`, drives the carousel) and .card-preview-panel-inner owns vertical
+     pans (`pan-y`, scrolls the expanded panel). A blanket `pan-x` on the sheet
+     would intersect with the panel's `pan-y` to "no panning", making the tall
+     panel unscrollable on touch. Vertical dismiss is handled in JS regardless;
+     the track's own pan-x still blocks native vertical leak over the card area. */
 }
 
 .card-preview-sheet:not(.is-dragging) {
@@ -669,6 +670,10 @@
   .binder-pages-cell-skeleton {
     animation: none;
   }
+  .card-preview-panel,
+  .card-preview-details-chevron {
+    transition: none;
+  }
 }
 
 .card-preview-image-fallback {
@@ -700,6 +705,25 @@
   flex-direction: column;
   height: min(15rem, 44vh);
   overflow: hidden;
+  /* The expand toggle animates this between the compact and tall heights; the
+     `1fr` track absorbs the delta so the hero card resizes via its container
+     query. ponytail: animating `height` relayouts each frame, but it's one
+     panel + one card and stays smooth on-device; revisit with a transform if a
+     low-end device ever struggles. */
+  transition: height var(--motion-gentle) var(--ease-out-soft);
+}
+
+/* Details toggle: chevron points up to expand, flips down to collapse; the
+   active pill reads brighter so its on-state is obvious. */
+.card-preview-details-chevron {
+  transition: transform var(--motion-base) var(--ease-out-soft);
+}
+.card-preview-details-chevron.is-open {
+  transform: rotate(180deg);
+}
+.card-preview-flip-btn.is-on {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 /* EVERY source uses the base fixed frame above — no per-source `height: auto`.
@@ -734,6 +758,20 @@
   }
 }
 
+/* Expanded (text-hero): a fixed taller height applied to EVERY card — never
+   per-card content-driven — so swiping between cards stays height-stable (the
+   card just shrinks via the track's container query). Declared AFTER the
+   base/source/desktop height rules (and re-declared inside the desktop media
+   query) so it wins on equal specificity for every source and breakpoint. */
+.card-preview-panel[data-expanded='true'] {
+  height: min(34rem, 72vh);
+}
+@media (min-width: 1024px) {
+  .card-preview-panel[data-expanded='true'] {
+    height: min(34rem, 72vh);
+  }
+}
+
 .card-preview-panel-inner {
   display: flex;
   flex-direction: column;
@@ -743,8 +781,13 @@
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
-  /* Always scrollable: the full info is present and reached by scrolling. */
+  /* Always scrollable: the full info is present and reached by scrolling.
+     pan-y so native vertical scroll works under the sheet's pan-x; contain so a
+     fling can't chain to the page behind. The swipe-down-dismiss gate defers to
+     this scroll until it's at the top (see CardPreview `canStartDrag`). */
   overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 /* Caller-injected panel slots (renderPanelMeta / renderPanelExtra). Full width,

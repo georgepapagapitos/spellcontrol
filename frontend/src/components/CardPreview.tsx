@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   ExternalLink,
   Layers,
   Notebook,
@@ -20,6 +21,8 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { CardRulings } from './CardRulings';
+import { CardText, CardLegalities } from './CardDetails';
+import { useCardDetail } from '../lib/use-card-detail';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
@@ -170,8 +173,17 @@ export function CardPreview({
 }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const panelInnerRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selected, setSelected] = useState(index);
+  // Compact (image-hero) ↔ expanded (text-hero) panel. Expanded is a fixed
+  // taller height applied to every card, so swiping between cards stays
+  // height-stable — the card just shrinks via the track's container query.
+  const [expanded, setExpanded] = useState(false);
+  // Full Scryfall card for the focused slide — supplies flavor text, P/T, and
+  // authoritative legalities that EnrichedCard doesn't carry. Offline-first,
+  // cached; oracle text already renders instantly from the EnrichedCard.
+  const detail = useCardDetail(cards[selected]?.name);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
   // Per-card art-loaded flag. Drives the skeleton→image cross-fade so the
   // hero image lands gracefully under the sheet's rise animation instead
@@ -331,6 +343,10 @@ export function CardPreview({
     onDismiss: beginClose,
     sheetRef,
     trackRef,
+    // Only let a downward swipe dismiss when the panel is scrolled to the top;
+    // otherwise the gesture scrolls the (taller, expanded) panel content. The
+    // panel's own `overflow-y` handles the scroll once we defer to native.
+    canStartDrag: () => (panelInnerRef.current?.scrollTop ?? 0) <= 0,
   });
 
   // The drag offset is applied imperatively to the sheet by the hook. Once the
@@ -489,6 +505,27 @@ export function CardPreview({
             same vertical space — otherwise navigating between them would
             shift the panel up/down. */}
         <div className="card-preview-flip-row" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className={`card-preview-flip-btn${expanded ? ' is-on' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
+            aria-expanded={expanded}
+            aria-controls="card-preview-panel-inner"
+            aria-label={expanded ? 'Collapse card details' : 'Expand card details'}
+            title={expanded ? 'Collapse details' : 'Expand details'}
+          >
+            <ChevronUp
+              width={18}
+              height={18}
+              strokeWidth={2}
+              aria-hidden
+              className={`card-preview-details-chevron${expanded ? ' is-open' : ''}`}
+            />
+            <span>Details</span>
+          </button>
           {current.imageNormalBack && (
             <button
               type="button"
@@ -542,9 +579,14 @@ export function CardPreview({
         <div
           className="card-preview-panel"
           data-source={source}
+          data-expanded={expanded}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="card-preview-panel-inner">
+          <div
+            className="card-preview-panel-inner"
+            id="card-preview-panel-inner"
+            ref={panelInnerRef}
+          >
             <div className="card-preview-name-row">
               <div className="card-preview-name">{current.name}</div>
             </div>
@@ -556,6 +598,7 @@ export function CardPreview({
                 {current.typeLine && <span className="card-preview-type">{current.typeLine}</span>}
               </div>
             )}
+            <CardText card={current} detail={detail} />
             <div className="card-preview-context">
               {binderName}
               {(() => {
@@ -754,6 +797,7 @@ export function CardPreview({
             {UUID_RE.test(current.scryfallId) && (
               <CardRulings key={current.scryfallId} scryfallId={current.scryfallId} />
             )}
+            <CardLegalities legalities={detail?.legalities ?? current.legalities} />
             {renderPanelExtra && (
               <div className="card-preview-slot">{renderPanelExtra(selected)}</div>
             )}
