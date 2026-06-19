@@ -41,7 +41,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/game-core": "file:../packages/game-core",
-    "@tanstack/react-virtual": "^3.14.2",
+    "@tanstack/react-virtual": "^3.14.3",
     "idb": "^8.0.0",
     "idb-keyval": "^6.2.4",
     "keyrune": "^3.19.0",
