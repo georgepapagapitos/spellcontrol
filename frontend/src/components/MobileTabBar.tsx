@@ -1,6 +1,7 @@
-import { Layers, List, Settings, Users } from 'lucide-react';
+import { BookOpen, Layers, List, Settings, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
+import { useRulesReferenceStore } from '../store/rules-reference';
 
 const ICON_PROPS = {
   className: 'mobile-tab-bar-icon',
@@ -12,6 +13,7 @@ const ICON_PROPS = {
 
 export function MobileTabBar() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
+  const openRules = useRulesReferenceStore((s) => s.open);
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -50,6 +52,12 @@ export function MobileTabBar() {
         </span>
         <span className="mobile-tab-bar-label">Play</span>
       </NavLink>
+      <button type="button" className="mobile-tab-bar-link" onClick={openRules}>
+        <span className="mobile-tab-bar-glyph">
+          <BookOpen {...ICON_PROPS} />
+        </span>
+        <span className="mobile-tab-bar-label">Rules</span>
+      </button>
       <NavLink
         to="/settings"
         className={({ isActive }) =>

@@ -2,7 +2,7 @@ import { logger } from './logger';
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import type { ScryfallCard } from './types';
+import type { ScryfallCard, Ruling } from './types';
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -22,6 +22,7 @@ export class ScryfallCache {
   private db: Database.Database;
   private setStmt: Database.Statement;
   private setLookupStmt: Database.Statement;
+  private setRulingsStmt: Database.Statement;
 
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath);
@@ -43,6 +44,11 @@ export class ScryfallCache {
         cached_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_lookups_cached_at ON card_lookups(cached_at);
+      CREATE TABLE IF NOT EXISTS card_rulings (
+        scryfall_id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        cached_at INTEGER NOT NULL
+      );
     `);
 
     this.setStmt = this.db.prepare(
@@ -50,6 +56,9 @@ export class ScryfallCache {
     );
     this.setLookupStmt = this.db.prepare(
       'INSERT OR REPLACE INTO card_lookups (lookup_key, scryfall_id, cached_at) VALUES (?, ?, ?)'
+    );
+    this.setRulingsStmt = this.db.prepare(
+      'INSERT OR REPLACE INTO card_rulings (scryfall_id, data, cached_at) VALUES (?, ?, ?)'
     );
   }
 
@@ -163,6 +172,29 @@ export class ScryfallCache {
       insert(cards);
     } catch (err) {
       logger.error('[cache] setMany failed, cards will not be cached:', err);
+    }
+  }
+
+  /** Returns cached rulings for a card id, or null on miss/stale. */
+  getRulings(scryfallId: string): Ruling[] | null {
+    try {
+      const row = this.db
+        .prepare('SELECT data, cached_at FROM card_rulings WHERE scryfall_id = ?')
+        .get(scryfallId) as { data: string; cached_at: number } | undefined;
+      if (!row || Date.now() - row.cached_at > TTL_MS) return null;
+      return JSON.parse(row.data) as Ruling[];
+    } catch (err) {
+      logger.error('[cache] getRulings failed, treating as cache miss:', err);
+      return null;
+    }
+  }
+
+  /** Persists rulings for a card id. An empty array is a valid cache entry. */
+  setRulings(scryfallId: string, rulings: Ruling[]): void {
+    try {
+      this.setRulingsStmt.run(scryfallId, JSON.stringify(rulings), Date.now());
+    } catch (err) {
+      logger.error('[cache] setRulings failed, rulings will not be cached:', err);
     }
   }
 

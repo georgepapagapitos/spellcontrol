@@ -92,6 +92,35 @@ describe('ScryfallCache', () => {
   });
 });
 
+describe('ScryfallCache rulings', () => {
+  const rulings = [
+    { published_at: '2020-01-01', comment: 'It does the thing.', source: 'wotc' },
+    { published_at: '2021-06-15', comment: 'And the other thing.', source: 'scryfall' },
+  ];
+
+  it('round-trips rulings and distinguishes "no rulings" from a miss', () => {
+    cache.setRulings('id-a', rulings);
+    expect(cache.getRulings('id-a')).toEqual(rulings);
+    // An empty array is a real cached answer, not a miss (null).
+    cache.setRulings('id-empty', []);
+    expect(cache.getRulings('id-empty')).toEqual([]);
+    expect(cache.getRulings('never-stored')).toBeNull();
+  });
+
+  it('treats rulings older than the TTL as a miss', () => {
+    cache.setRulings('id-a', rulings);
+    const eightDaysAgo = Date.now() - 8 * 24 * 60 * 60 * 1000;
+    (
+      cache as unknown as {
+        db: { prepare: (sql: string) => { run: (...args: unknown[]) => void } };
+      }
+    ).db
+      .prepare('UPDATE card_rulings SET cached_at = ? WHERE scryfall_id = ?')
+      .run(eightDaysAgo, 'id-a');
+    expect(cache.getRulings('id-a')).toBeNull();
+  });
+});
+
 describe('ScryfallCache identifier lookups', () => {
   it('returns an empty map for empty input', () => {
     expect(cache.getManyByKeys([]).size).toBe(0);

@@ -7,6 +7,7 @@ import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
+import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { ScrollContainerContext } from '../lib/scroll-container';
 import { isNativePlatform, isTouchDevice } from '../lib/platform';
 import { PullToRefresh } from './PullToRefresh';
@@ -112,6 +113,7 @@ function LayoutShell() {
           the open web). */}
       {isNativePlatform() ? <NavFab /> : <MobileTabBar />}
       <ToastViewport />
+      <RulesReferenceSheet />
       {open && <KeyboardShortcutsOverlay groups={overlayGroups} onClose={hide} />}
     </div>
   );
