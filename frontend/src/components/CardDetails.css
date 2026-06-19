@@ -1,0 +1,171 @@
+/* Card detail blocks injected into the card-preview panel: oracle/flavor/P-T
+   text and the format-legalities disclosure. The preview panel is an
+   always-dark surface (rgba(15,15,18,0.92)) regardless of app theme, so these
+   use explicit white-alpha values like the rest of footer-card-preview.css —
+   not theme text tokens, which would invert and vanish in light mode. */
+
+/* ── Card text ─────────────────────────────────────────────────────────── */
+.card-text {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.1rem;
+}
+
+.card-text-face {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* Divider between the two halves of a double-faced / split / adventure card. */
+.card-text-face + .card-text-face {
+  border-top: 0.5px solid rgba(255, 255, 255, 0.12);
+  padding-top: 0.5rem;
+}
+
+.card-text-face-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.card-text-face-name {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.card-text-face-mana {
+  font-size: var(--text-xs);
+}
+
+.card-text-face-type {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Rules text — preserve Scryfall's line breaks; symbols render via MagicText. */
+.card-text-oracle {
+  display: block;
+  white-space: pre-wrap;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* Inline mana/tap symbols sit at body-text size, not the mana-font default. */
+.card-text-oracle .ms {
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list */
+  font-size: 1em;
+  vertical-align: -0.05em;
+}
+
+.card-text-flavor {
+  margin: 0;
+  font-style: italic;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Power/toughness or loyalty — small badge, card-bottom-right convention. */
+.card-text-stat {
+  align-self: flex-end;
+  padding: 0.05rem 0.5rem;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ── Legalities disclosure ─────────────────────────────────────────────── */
+.card-legalities {
+  width: 100%;
+  margin-top: 0.3rem;
+}
+
+.card-disc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.4rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--text-sm);
+}
+
+.card-disc-toggle:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.card-disc-chevron {
+  transition: transform var(--motion-fast) var(--ease-out-soft);
+}
+
+.card-disc-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-disc-chevron {
+    transition: none;
+  }
+}
+
+.card-legalities-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem 0.75rem;
+  padding: 0.2rem 0 0.4rem;
+}
+
+@media (max-width: 380px) {
+  .card-legalities-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card-legality {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.card-legality svg {
+  flex-shrink: 0;
+}
+
+.card-legality--legal {
+  color: rgba(255, 255, 255, 0.85);
+}
+.card-legality--legal svg {
+  color: #5bd49a;
+}
+.card-legality--not_legal svg {
+  color: rgba(255, 255, 255, 0.3);
+}
+.card-legality--banned svg {
+  color: #ff8a8a;
+}
+.card-legality--banned .card-legality-fmt {
+  color: rgba(255, 138, 138, 0.95);
+}
+.card-legality--restricted svg {
+  color: #f0c040;
+}
+.card-legality--restricted .card-legality-fmt {
+  color: rgba(240, 192, 64, 0.95);
+}
