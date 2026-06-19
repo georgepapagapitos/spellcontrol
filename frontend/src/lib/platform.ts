@@ -6,6 +6,13 @@ export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform();
 }
 
+// Touch-capable device (native, phone/tablet browser, or touchscreen laptop).
+// Used to enable touch-only affordances (e.g. pull-to-refresh) on web. Harmless
+// if a touchscreen-laptop user is on a mouse — the gesture just never fires.
+export function isTouchDevice(): boolean {
+  return isNativePlatform() || navigator.maxTouchPoints > 0;
+}
+
 // Tag <html> so platform-specific CSS can branch (e.g. fullscreen camera on
 // native, bottom safe-area inset for the mobile tab bar). Call once at boot,
 // before the first render, so initial paint already has the right class.

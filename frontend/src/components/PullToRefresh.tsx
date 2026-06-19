@@ -8,7 +8,7 @@ import './PullToRefresh.css';
  * Material-style — the content itself does not move. `onRefresh` should be
  * awaitable so the spinner holds until the refresh settles.
  *
- * Native-only: gate the render site with `isNativePlatform()`.
+ * Touch-only: gate the render site with `isTouchDevice()` (native + touch web).
  */
 export function PullToRefresh({
   scrollEl,
