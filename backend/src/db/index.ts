@@ -153,6 +153,16 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX IF NOT EXISTS user_lists_rev_idx ON user_lists(user_id, rev);
+    CREATE TABLE IF NOT EXISTS user_cubes (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS user_cubes_rev_idx ON user_cubes(user_id, rev);
 
     -- NOTE: the one-shot migration that folded the legacy single-blob
     -- user_data table into the per-entity tables above has been removed. It

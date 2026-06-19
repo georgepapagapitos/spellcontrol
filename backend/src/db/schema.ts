@@ -132,6 +132,11 @@ export const userLists = pgTable('user_lists', { ...entityColumns }, (t) => ({
   revIdx: index('user_lists_rev_idx').on(t.userId, t.rev),
 }));
 
+export const userCubes = pgTable('user_cubes', { ...entityColumns }, (t) => ({
+  pk: primaryKey({ columns: [t.userId, t.id] }),
+  revIdx: index('user_cubes_rev_idx').on(t.userId, t.rev),
+}));
+
 /**
  * Live multi-device game sessions. The full game state (players, life totals,
  * commander damage, event log) lives in `state` JSONB; clients poll GET and
@@ -244,6 +249,7 @@ export type UserBinderRow = typeof userBinders.$inferSelect;
 export type UserDeckRow = typeof userDecks.$inferSelect;
 export type UserGameRow = typeof userGames.$inferSelect;
 export type UserListRow = typeof userLists.$inferSelect;
+export type UserCubeRow = typeof userCubes.$inferSelect;
 export type GameSessionRow = typeof gameSessions.$inferSelect;
 export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;

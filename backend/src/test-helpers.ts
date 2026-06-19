@@ -145,6 +145,16 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (user_id, id)
     );
     CREATE INDEX user_lists_rev_idx ON user_lists(user_id, rev);
+    CREATE TABLE user_cubes (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      id TEXT NOT NULL,
+      data JSONB,
+      rev BIGINT NOT NULL,
+      deleted_at BIGINT,
+      updated_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+    CREATE INDEX user_cubes_rev_idx ON user_cubes(user_id, rev);
     CREATE TABLE game_sessions (
       id TEXT PRIMARY KEY,
       code TEXT NOT NULL UNIQUE,
