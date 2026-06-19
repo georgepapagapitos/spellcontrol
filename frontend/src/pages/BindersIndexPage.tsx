@@ -349,11 +349,6 @@ export function BindersIndexPage() {
               style={{ ['--binder-color' as string]: b.def.color }}
             >
               <Link to={`/collection/binders/${b.def.id}`} className="binders-index-card-link">
-                <span
-                  className="binders-index-card-swatch"
-                  aria-hidden
-                  style={{ background: b.def.color }}
-                />
                 <div className="binders-index-card-body">
                   <div className="binders-index-card-name">{b.def.name}</div>
                   <div className="binders-index-card-meta">
