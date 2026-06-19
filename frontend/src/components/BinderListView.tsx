@@ -53,6 +53,14 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   const allocations = useAllocations();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  // True when editing a single physical copy vs the whole printing stack:
+  // always so in ungrouped view, and when "Change one copy's printing" splits
+  // one copy off a grouped 2+ stack.
+  const [editingSingle, setEditingSingle] = useState(false);
+  const openEdit = (card: EnrichedCard, single: boolean) => {
+    setEditingCard(card);
+    setEditingSingle(single);
+  };
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
 
@@ -152,7 +160,10 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
-    replaceAllCards(buildEditedCards(editingCard, selection, allCards));
+    // Single-copy edit re-points just this one copy, leaving siblings on the old
+    // printing — that's how a stack of identical printings gets split.
+    const copyId = editingSingle ? editingCard.copyId : undefined;
+    replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
     setEditingCard(null);
   };
 
@@ -292,7 +303,10 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
                     menu={
                       <CardRowMenu
                         card={r.card}
-                        onEditCard={() => setEditingCard(r.card)}
+                        onEditCard={() => openEdit(r.card, !isGrouped)}
+                        onSplitCopy={
+                          isGrouped && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
+                        }
                         currentBinder={{
                           id: binder.def.id,
                           name: binder.def.name,
@@ -326,7 +340,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
             setPreviewIndex(null);
-            setEditingCard(c);
+            openEdit(c, !isGrouped);
           }}
         />
       )}
@@ -336,7 +350,8 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
-          quantity={editingQty}
+          quantity={editingSingle ? undefined : editingQty}
+          singleCopy={editingSingle}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
@@ -356,7 +371,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);
-            setEditingCard(c);
+            openEdit(c, !isGrouped);
           }}
         />
       )}

@@ -762,6 +762,14 @@ export function CardListTable({
   });
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
+  // True when the edit targets a single physical copy rather than the whole
+  // printing stack: always so in ungrouped view, and when "Change one copy's
+  // printing" is picked from a grouped 2+ stack (splitting one copy off).
+  const [editingSingle, setEditingSingle] = useState(false);
+  const openEdit = (card: EnrichedCard, single: boolean) => {
+    setEditingCard(card);
+    setEditingSingle(single);
+  };
   const editingQty = useMemo(() => {
     if (!editingCard) return 0;
     return cards.filter(
@@ -802,7 +810,10 @@ export function CardListTable({
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
-    replaceAllCards(buildEditedCards(editingCard, selection, allCards));
+    // Single-copy edit re-points just this one copy, leaving siblings on the old
+    // printing — that's how a stack of identical printings gets split.
+    const copyId = editingSingle ? editingCard.copyId : undefined;
+    replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
     setEditingCard(null);
   };
 
@@ -1526,7 +1537,7 @@ export function CardListTable({
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
             setPreviewIndex(null);
-            setEditingCard(c);
+            openEdit(c, !groupPrintings);
           }}
         />
       )}
@@ -1786,7 +1797,10 @@ export function CardListTable({
                   menu={
                     <CardRowMenu
                       card={r.card}
-                      onEditCard={() => setEditingCard(r.card)}
+                      onEditCard={() => openEdit(r.card, !groupPrintings)}
+                      onSplitCopy={
+                        groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
+                      }
                       onDelete={() => handleDeleteRow(r)}
                       currentBinder={
                         r.binderId && r.binderName
@@ -1829,7 +1843,8 @@ export function CardListTable({
           cardName={editingCard.name}
           currentScryfallId={editingCard.scryfallId}
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
-          quantity={editingQty}
+          quantity={editingSingle ? undefined : editingQty}
+          singleCopy={editingSingle}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
