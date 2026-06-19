@@ -26,12 +26,19 @@ export function pickPrice(card: ScryfallCard, foil: boolean): number {
  * copies drop; shortfalls are filled with fresh copies that carry the original
  * source provenance. Pure: callers wrap the result with `replaceAllCards(...)`
  * (which re-runs allocation remapping) and clear the edit dialog. Shared by the
- * collection table and the binder list so the edit semantics can't drift.
+ * collection table and both binder views so the edit semantics can't drift.
+ *
+ * When `copyId` is given (the ungrouped "All copies" view, where each row is a
+ * single physical copy), only that one copy is re-pointed to the new printing —
+ * its siblings on the old printing are untouched. This is how a stack of
+ * identical printings gets split into different printings. Quantity is ignored
+ * in this mode (you're editing exactly one copy).
  */
 export function buildEditedCards(
   editingCard: EnrichedCard,
   selection: PrintingSelection,
-  allCards: EnrichedCard[]
+  allCards: EnrichedCard[],
+  copyId?: string
 ): EnrichedCard[] {
   const sc = selection.card;
   const firstFace = sc.card_faces?.[0];
@@ -58,6 +65,14 @@ export function buildEditedCards(
     purchasePrice: pickPrice(sc, selection.finish !== 'nonfoil'),
     pricedAt: Date.now(),
   };
+
+  // Single-copy split (ungrouped view): re-point just this one physical copy,
+  // leaving any siblings on the old printing.
+  if (copyId !== undefined) {
+    return allCards.map((c) =>
+      c.copyId === copyId ? ({ ...c, ...cardFields, copyId: c.copyId } as EnrichedCard) : c
+    );
+  }
 
   // Existing copies of this printing/finish — updated in place, copyId kept so
   // deck allocations stay intact.
