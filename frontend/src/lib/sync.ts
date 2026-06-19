@@ -543,6 +543,9 @@ export const persistDecksState = (decks: ReadonlyArray<{ id: string }>): Promise
 export const persistGamesState = (games: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('game', games as Array<{ id: string }>, (g) => g.id);
 
+export const persistCubesState = (cubes: ReadonlyArray<{ id: string }>): Promise<void> =>
+  persistKind('cube', cubes as Array<{ id: string }>, (c) => c.id);
+
 // ── Pull / push ─────────────────────────────────────────────────────────────
 
 async function pull(): Promise<void> {
@@ -1028,13 +1031,14 @@ function onStorageBroadcast(ev: StorageEvent): void {
  * module for the persist helpers).
  */
 async function rehydrateStoresFromIdb(): Promise<void> {
-  const [cards, imports, lists, binders, decks, games] = await Promise.all([
+  const [cards, imports, lists, binders, decks, games, cubes] = await Promise.all([
     estore.getAllLive('card'),
     estore.getAllLive('import'),
     estore.getAllLive('list'),
     estore.getAllLive('binder'),
     estore.getAllLive('deck'),
     estore.getAllLive('game'),
+    estore.getAllLive('cube'),
   ]);
 
   type AnyRecord = Record<string, unknown>;
@@ -1065,10 +1069,14 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   const gameData = games
     .map((r) => r.data)
     .filter((d): d is AnyRecord => d != null && typeof d === 'object');
+  const cubeData = cubes
+    .map((r) => r.data)
+    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
 
   const { useCollectionStore } = await import('../store/collection');
   const { useDecksStore } = await import('../store/decks');
   const { usePlayStore } = await import('../store/play');
+  const { useCubeStore } = await import('../store/cube');
 
   setApplyingServer(true);
   try {
@@ -1089,6 +1097,9 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     >[0]);
     usePlayStore.setState({ history: gameData, hydrated: true } as unknown as Parameters<
       typeof usePlayStore.setState
+    >[0]);
+    useCubeStore.setState({ saved: cubeData } as unknown as Parameters<
+      typeof useCubeStore.setState
     >[0]);
   } finally {
     setApplyingServer(false);
