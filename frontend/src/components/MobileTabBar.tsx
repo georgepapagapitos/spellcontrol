@@ -1,7 +1,9 @@
-import { BookOpen, Layers, List, Settings, Users } from 'lucide-react';
+import { BookOpen, Layers, List, Settings, Users, UserPlus } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 import { useRulesReferenceStore } from '../store/rules-reference';
+import { useAuth } from '../store/auth';
+import { useFriendRequests } from '../lib/use-friend-requests';
 
 const ICON_PROPS = {
   className: 'mobile-tab-bar-icon',
@@ -14,6 +16,8 @@ const ICON_PROPS = {
 export function MobileTabBar() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   const openRules = useRulesReferenceStore((s) => s.open);
+  const isAuthed = useAuth((s) => s.status === 'authed');
+  const pendingRequests = useFriendRequests();
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -58,6 +62,29 @@ export function MobileTabBar() {
         </span>
         <span className="mobile-tab-bar-label">Rules</span>
       </button>
+      {isAuthed && (
+        <NavLink
+          to="/friends"
+          className={({ isActive }) =>
+            isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
+          }
+          aria-label={
+            pendingRequests > 0
+              ? `Friends, ${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}`
+              : 'Friends'
+          }
+        >
+          <span className="mobile-tab-bar-glyph mobile-tab-bar-glyph-wrap">
+            <UserPlus {...ICON_PROPS} />
+            {pendingRequests > 0 && (
+              <span className="mobile-tab-bar-badge" aria-hidden="true">
+                {pendingRequests > 9 ? '9+' : pendingRequests}
+              </span>
+            )}
+          </span>
+          <span className="mobile-tab-bar-label">Friends</span>
+        </NavLink>
+      )}
       <NavLink
         to="/settings"
         className={({ isActive }) =>

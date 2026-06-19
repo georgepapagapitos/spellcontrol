@@ -18,6 +18,8 @@ import { sharesRouter } from './routes/shares';
 import { createShareLandingHandler } from './shares/og';
 import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
+import { friendsRouter } from './routes/friends';
+import { usersRouter } from './routes/users';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import {
@@ -137,6 +139,8 @@ app.use('/api/combos', combosRouter);
 app.use('/api/shares', sharesRouter);
 app.use('/api/offline', offlineRouter);
 app.use('/api/scanner', scannerRouter);
+app.use('/api/friends', friendsRouter);
+app.use('/api/users', usersRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
