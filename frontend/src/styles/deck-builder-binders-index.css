@@ -106,13 +106,6 @@
   gap: 0;
 }
 
-/* In grid mode the binder color becomes the card header that holds
-   the name — an empty color block read as wasted space. The
-   standalone swatch dot is redundant here, so it collapses. */
-.binders-index-list.is-grid .binders-index-card-swatch {
-  display: none;
-}
-
 .binders-index-list.is-grid .binders-index-card-body {
   padding: 0;
 }
@@ -135,8 +128,8 @@
   margin-top: 0;
 }
 
-/* List: horizontal row — swatch dot on the left, name + meta on
-   the right. Distinct from Grid (color banner on top). */
+/* List: horizontal row — name + meta, colored left border carries the
+   binder color. Distinct from Grid (color banner on top). */
 .binders-index-list.is-list {
   grid-template-columns: 1fr;
   gap: 0.5rem;
@@ -182,14 +175,6 @@
   padding: 0.85rem 1rem;
   text-decoration: none;
   color: inherit;
-}
-
-.binders-index-card-swatch {
-  flex: 0 0 auto;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  border: 0.5px solid var(--border-strong);
 }
 
 .binders-index-card-body {
@@ -262,11 +247,6 @@
   text-overflow: ellipsis;
   min-width: 0;
   flex: 0 1 auto;
-}
-
-.binders-index-list.is-compact .binders-index-card-swatch {
-  width: 0.7rem;
-  height: 0.7rem;
 }
 
 .binders-index-list.is-compact .binders-index-card-meta {
