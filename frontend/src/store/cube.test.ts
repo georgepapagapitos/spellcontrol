@@ -2,8 +2,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useCubeStore } from './cube';
+import { migrateLegacyCubes } from '../lib/sync';
 import type { GeneratedCube } from '../lib/cube/generate';
-import type { CubeSize } from '../lib/cube/targets';
 import * as queue from '../lib/mutation-queue';
 import * as estore from '../lib/entity-store';
 
@@ -168,53 +168,40 @@ describe('useCubeStore — sync subscriber (via IDB queue)', () => {
   });
 });
 
-describe('useCubeStore — legacy localStorage migration', () => {
-  it('seeds saved cubes from old localStorage blob via merge', () => {
-    // Simulate the old blob format that carried `saved`
-    const legacyCube: GeneratedCube = makeCube(540);
-    const legacySaved: Array<{
-      id: string;
-      name: string;
-      size: CubeSize;
-      cube: GeneratedCube;
-      savedAt: number;
-    }> = [
-      {
-        id: 'legacy-1',
-        name: 'Old cube',
-        size: 540 as CubeSize,
-        cube: legacyCube,
-        savedAt: 1000,
+describe('migrateLegacyCubes — pre-sync localStorage → IDB/sync', () => {
+  it('moves legacy localStorage cubes into IDB + the sync queue, then strips the blob', async () => {
+    const legacy = {
+      state: {
+        size: 540,
+        result: null,
+        saved: [
+          { id: 'legacy-1', name: 'Old cube', size: 540, cube: makeCube(540), savedAt: 1000 },
+        ],
       },
-    ];
+      version: 0,
+    };
+    localStorage.setItem('spellcontrol-cube', JSON.stringify(legacy));
 
-    // Invoke the merge function directly (as zustand-persist would on rehydrate)
-    const { merge } = (
-      useCubeStore as unknown as {
-        persist: { getOptions: () => { merge: (p: unknown, c: unknown) => unknown } };
-      }
-    ).persist.getOptions();
+    await migrateLegacyCubes();
 
-    const merged = merge(
-      { size: 540, result: null, saved: legacySaved },
-      useCubeStore.getState()
-    ) as { saved: typeof legacySaved };
-
-    expect(merged.saved).toHaveLength(1);
-    expect(merged.saved[0]).toMatchObject({ id: 'legacy-1', name: 'Old cube' });
+    // Enqueued for upload as a cube row…
+    const ops = await waitForQueue((o) =>
+      o.some((x) => x.op === 'upsert' && x.kind === 'cube' && x.id === 'legacy-1')
+    );
+    expect(ops.some((o) => o.op === 'upsert' && o.kind === 'cube' && o.id === 'legacy-1')).toBe(
+      true
+    );
+    // …written to IDB so the next hydrate shows it without a flash…
+    expect(await estore.getById('cube', 'legacy-1')).toBeTruthy();
+    // …and `saved` stripped from the blob so it never runs twice.
+    const after = JSON.parse(localStorage.getItem('spellcontrol-cube')!) as {
+      state?: { saved?: unknown };
+    };
+    expect(after.state?.saved).toBeUndefined();
   });
 
-  it('merge with no legacy saved yields empty saved', () => {
-    const { merge } = (
-      useCubeStore as unknown as {
-        persist: { getOptions: () => { merge: (p: unknown, c: unknown) => unknown } };
-      }
-    ).persist.getOptions();
-
-    const merged = merge({ size: 360, result: null }, useCubeStore.getState()) as {
-      saved: unknown[];
-    };
-
-    expect(merged.saved).toHaveLength(0);
+  it('is a no-op with no legacy blob (and idempotent on a second run)', async () => {
+    await migrateLegacyCubes();
+    expect(await queue.peekBatch(1000)).toHaveLength(0);
   });
 });

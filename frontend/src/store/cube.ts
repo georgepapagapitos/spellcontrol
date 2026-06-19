@@ -68,22 +68,13 @@ export const useCubeStore = create<CubeState>()(
     {
       name: 'spellcontrol-cube',
       storage: createJSONStorage(() => localStorage),
-      // ponytail: only working state in localStorage; saved cubes live in IDB/sync now
+      // ponytail: only working state in localStorage; saved cubes live in IDB/sync
+      // now. Legacy localStorage cubes (pre-sync, #737) are migrated into IDB by
+      // sync.ts's migrateLegacyCubes() before the first hydrate — NOT seeded via a
+      // persist `merge`, which runs before the subscriber attaches and would be
+      // clobbered by the authoritative IDB hydrate (losing them for guests, who
+      // have no pull to restore them).
       partialize: (state) => ({ size: state.size, result: state.result }),
-      // Migration: if the OLD localStorage blob carried a `saved` array (feature
-      // shipped 2026-06-18), seed it into the in-memory store so the sync subscriber
-      // uploads those rows on first boot. Subsequent persists drop `saved` from
-      // localStorage via the new partialize above — idempotent on re-hydrate.
-      merge: (persisted, current) => {
-        const p = persisted as Partial<CubeState & { saved?: SavedCube[] }>;
-        const legacySaved = Array.isArray(p.saved) && p.saved.length > 0 ? p.saved : [];
-        return {
-          ...current,
-          size: p.size ?? current.size,
-          result: p.result ?? current.result,
-          saved: legacySaved,
-        };
-      },
     }
   )
 );
