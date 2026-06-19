@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { isApplyingServer } from '../lib/applying-server';
 import type { GeneratedCube } from '../lib/cube/generate';
 import type { CubeSize } from '../lib/cube/targets';
 
-/** A cube the user named and kept. Local-only (not synced). */
+/** A cube the user named and kept. Synced via the `cube` entity kind. */
 export interface SavedCube {
   id: string;
   name: string;
@@ -17,7 +18,7 @@ interface CubeState {
   size: CubeSize;
   /** The current working cube (unsaved until the user names it). */
   result: GeneratedCube | null;
-  /** Named cubes the user kept, newest first. */
+  /** Named cubes the user kept, newest first. Synced via IDB; NOT in localStorage. */
   saved: SavedCube[];
   setResult: (size: CubeSize, cube: GeneratedCube) => void;
   /** Clear only the working result (used before a regenerate) — keeps saved cubes. */
@@ -67,7 +68,23 @@ export const useCubeStore = create<CubeState>()(
     {
       name: 'spellcontrol-cube',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ size: state.size, result: state.result, saved: state.saved }),
+      // ponytail: only working state in localStorage; saved cubes live in IDB/sync
+      // now. Legacy localStorage cubes (pre-sync, #737) are migrated into IDB by
+      // sync.ts's migrateLegacyCubes() before the first hydrate — NOT seeded via a
+      // persist `merge`, which runs before the subscriber attaches and would be
+      // clobbered by the authoritative IDB hydrate (losing them for guests, who
+      // have no pull to restore them).
+      partialize: (state) => ({ size: state.size, result: state.result }),
     }
   )
 );
+
+/**
+ * Sync subscriber: every in-memory change to the saved cubes array flows through
+ * the per-row sync layer, mirroring the pattern in store/decks.ts.
+ */
+useCubeStore.subscribe((state, prev) => {
+  if (state.saved === prev.saved) return;
+  if (isApplyingServer()) return;
+  void import('../lib/sync').then((s) => s.persistCubesState(state.saved)).catch(() => {});
+});

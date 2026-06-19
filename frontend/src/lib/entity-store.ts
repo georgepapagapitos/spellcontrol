@@ -20,9 +20,9 @@ import { openDB, type IDBPDatabase } from 'idb';
 import { logger } from '@/lib/logger';
 
 const DB_NAME = 'spellcontrol-sync';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-export type EntityKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
+export type EntityKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list' | 'cube';
 
 const STORE_NAMES: Record<EntityKind, string> = {
   import: 'imports',
@@ -31,9 +31,10 @@ const STORE_NAMES: Record<EntityKind, string> = {
   deck: 'decks',
   game: 'games',
   list: 'lists',
+  cube: 'cubes',
 };
 
-export const ALL_KINDS: EntityKind[] = ['import', 'card', 'binder', 'deck', 'game', 'list'];
+export const ALL_KINDS: EntityKind[] = ['import', 'card', 'binder', 'deck', 'game', 'list', 'cube'];
 
 export interface StoredRow {
   id: string;

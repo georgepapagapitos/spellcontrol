@@ -17,7 +17,7 @@ const DB_NAME = 'spellcontrol-sync-queue';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending';
 
-export type EntityKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
+export type EntityKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list' | 'cube';
 
 export type Mutation =
   | {

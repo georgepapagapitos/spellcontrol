@@ -20,7 +20,7 @@ export interface SyncRow {
   importId?: string;
 }
 
-export type SyncKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
+export type SyncKind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list' | 'cube';
 
 export interface SyncPullPage {
   rows: SyncRow[];

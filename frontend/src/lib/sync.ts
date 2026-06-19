@@ -543,6 +543,9 @@ export const persistDecksState = (decks: ReadonlyArray<{ id: string }>): Promise
 export const persistGamesState = (games: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('game', games as Array<{ id: string }>, (g) => g.id);
 
+export const persistCubesState = (cubes: ReadonlyArray<{ id: string }>): Promise<void> =>
+  persistKind('cube', cubes as Array<{ id: string }>, (c) => c.id);
+
 // ── Pull / push ─────────────────────────────────────────────────────────────
 
 async function pull(): Promise<void> {
@@ -1022,19 +1025,63 @@ function onStorageBroadcast(ev: StorageEvent): void {
 
 // ── Store hydration (loads IDB rows into Zustand state) ────────────────────
 
+const LEGACY_CUBE_KEY = 'spellcontrol-cube';
+
+/**
+ * One-time migration of saved cubes from their pre-sync home. Feature #737
+ * (2026-06-18) persisted `saved` cubes in localStorage under `spellcontrol-cube`
+ * before cubes were a synced entity kind. Move any such cubes into IDB as `cube`
+ * rows (+ enqueue for upload) and strip `saved` from the blob so it runs once.
+ *
+ * Runs at the TOP of every rehydrate but is self-disabling (the blob no longer
+ * carries `saved` after the first run, and the store's partialize never writes it
+ * back). recordUpsert here behaves exactly like the user saving those cubes:
+ * IDB-persisted for everyone, durably queued for guests, uploaded once signed in.
+ * Safe to delete once all clients have upgraded past 0.8.0.
+ */
+export async function migrateLegacyCubes(): Promise<void> {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(LEGACY_CUBE_KEY);
+  } catch {
+    return; // no/blocked localStorage (SSR, privacy mode)
+  }
+  if (!raw) return;
+  try {
+    const blob = JSON.parse(raw) as { state?: { saved?: Array<{ id?: unknown }> } };
+    const saved = blob?.state?.saved;
+    if (!Array.isArray(saved) || saved.length === 0) return;
+    for (const c of saved) {
+      if (c && typeof c.id === 'string') await recordUpsert('cube', c.id, c);
+    }
+    // Drop `saved` so this is a no-op on every later rehydrate; keep size/result.
+    if (blob.state) {
+      delete blob.state.saved;
+      localStorage.setItem(LEGACY_CUBE_KEY, JSON.stringify(blob));
+    }
+  } catch {
+    /* malformed blob — nothing safe to migrate */
+  }
+}
+
 /**
  * Read every live row from IDB and set it onto the appropriate Zustand store.
  * Late-imports the stores to break a circular dependency (stores import this
  * module for the persist helpers).
  */
 async function rehydrateStoresFromIdb(): Promise<void> {
-  const [cards, imports, lists, binders, decks, games] = await Promise.all([
+  // One-time: fold any pre-sync localStorage cubes into IDB BEFORE we read it,
+  // so they're part of the hydrated set (no flash, and guests — who have no pull
+  // to restore them — don't lose them). Idempotent + self-disabling.
+  await migrateLegacyCubes();
+  const [cards, imports, lists, binders, decks, games, cubes] = await Promise.all([
     estore.getAllLive('card'),
     estore.getAllLive('import'),
     estore.getAllLive('list'),
     estore.getAllLive('binder'),
     estore.getAllLive('deck'),
     estore.getAllLive('game'),
+    estore.getAllLive('cube'),
   ]);
 
   type AnyRecord = Record<string, unknown>;
@@ -1065,10 +1112,14 @@ async function rehydrateStoresFromIdb(): Promise<void> {
   const gameData = games
     .map((r) => r.data)
     .filter((d): d is AnyRecord => d != null && typeof d === 'object');
+  const cubeData = cubes
+    .map((r) => r.data)
+    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
 
   const { useCollectionStore } = await import('../store/collection');
   const { useDecksStore } = await import('../store/decks');
   const { usePlayStore } = await import('../store/play');
+  const { useCubeStore } = await import('../store/cube');
 
   setApplyingServer(true);
   try {
@@ -1089,6 +1140,9 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     >[0]);
     usePlayStore.setState({ history: gameData, hydrated: true } as unknown as Parameters<
       typeof usePlayStore.setState
+    >[0]);
+    useCubeStore.setState({ saved: cubeData } as unknown as Parameters<
+      typeof useCubeStore.setState
     >[0]);
   } finally {
     setApplyingServer(false);
