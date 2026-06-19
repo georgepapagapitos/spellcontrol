@@ -56,7 +56,7 @@ jobs:
       # lfs: true so card-embeddings.bin checks out as the real binary (not a
       # pointer) and Git LFS is initialized — the regenerated DB must commit
       # back through the LFS filter, and the size report needs real bytes.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           lfs: true
 
