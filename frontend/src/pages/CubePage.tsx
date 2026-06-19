@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
 import './CubePage.css';
 import { Tabs } from '../components/Tabs';
-import { StackedBar } from '../components/shared/MeterBar';
+import { MeterBar, StackedBar } from '../components/shared/MeterBar';
 import { OwnershipBadge } from '../components/deck/OwnershipBadge';
 import { CardPreview } from '../components/CardPreview';
 import { NameInputDialog } from '../components/NameInputDialog';
@@ -130,6 +130,12 @@ function BuildCube() {
     cubeStore.result ? 'done' : 'idle'
   );
   const [error, setError] = useState('');
+  // Determinate progress state for the Scryfall batch fetch phase.
+  // null = not yet started (or fetch complete); once the first batch resolves
+  // these hold cumulative fetched vs total so the MeterBar can be honest.
+  const [fetchProgress, setFetchProgress] = useState<{ fetched: number; total: number } | null>(
+    null
+  );
   const cube = cubeStore.result;
   const saved = cubeStore.saved;
 
@@ -150,10 +156,15 @@ function BuildCube() {
   const generate = useCallback(async () => {
     setStatus('working');
     setError('');
+    setFetchProgress(null);
     cubeStore.clear();
     try {
       await loadTaggerData(); // ensures getCardRole is populated; cached/deduped
-      const enriched = await getCardsByNames(uniqueNames);
+      const enriched = await getCardsByNames(uniqueNames, (fetched, total) => {
+        setFetchProgress({ fetched, total });
+      });
+      // Fetch phase complete — clear progress so we show the "finalizing" skeleton.
+      setFetchProgress(null);
       setEnrichedMap(enriched);
       const ownedByName = new Map<string, (typeof collectionCards)[number]>();
       for (const c of collectionCards)
@@ -308,12 +319,32 @@ function BuildCube() {
       <div aria-live="polite" aria-atomic="true">
         {status === 'working' && (
           <div className="cube-loading" role="status" aria-busy="true">
-            <div className="cube-skeleton">
-              <div className="deck-analysis-skeleton-bar is-headline" />
-              <div className="deck-analysis-skeleton-bar is-body" />
-              <div className="deck-analysis-skeleton-bar is-body is-short" />
-            </div>
-            <p className="cube-loading-text">Selecting your best cards and balancing the cube…</p>
+            {fetchProgress !== null ? (
+              /* Determinate phase: batch-fetching card data from Scryfall */
+              <div className="cube-progress">
+                <MeterBar
+                  value={fetchProgress.fetched}
+                  max={fetchProgress.total}
+                  size="md"
+                  role="progressbar"
+                  label="Looking up your cards"
+                />
+                <p className="cube-loading-text">
+                  Looking up your cards… {fetchProgress.fetched.toLocaleString()} /{' '}
+                  {fetchProgress.total.toLocaleString()}
+                </p>
+              </div>
+            ) : (
+              /* Indeterminate phase: tagger load + synchronous generate step */
+              <div className="cube-skeleton">
+                <div className="deck-analysis-skeleton-bar is-headline" />
+                <div className="deck-analysis-skeleton-bar is-body" />
+                <div className="deck-analysis-skeleton-bar is-body is-short" />
+              </div>
+            )}
+            {fetchProgress === null && (
+              <p className="cube-loading-text">Selecting your best cards and balancing the cube…</p>
+            )}
           </div>
         )}
 
@@ -508,8 +539,12 @@ function CubeResult({
 
       <div className="cube-list">
         <h3>The cards, and why</h3>
-        {groups.map(({ bucket, items }) => (
-          <div key={bucket} className="cube-group">
+        {groups.map(({ bucket, items }, groupIndex) => (
+          <div
+            key={bucket}
+            className="cube-group"
+            style={{ '--group-index': groupIndex } as React.CSSProperties}
+          >
             <h4 className="cube-group-head">
               <span
                 className="cube-swatch"

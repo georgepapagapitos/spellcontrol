@@ -235,6 +235,54 @@
   margin: 0;
 }
 
+/* ---- determinate progress (fetch phase) ---- */
+.cube-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 360px;
+  margin-inline: auto;
+}
+/* The MeterBar needs a small bottom gap before the label */
+.cube-progress .meterbar {
+  margin-bottom: var(--space-1);
+}
+
+/* ---- result reveal animation ---- */
+/* Fade-rise on the whole result block so it doesn't flash in abruptly.
+   Groups stagger via CSS custom property set inline on each .cube-group.
+   Uses content-visibility:auto on rows — JS-per-row would force layout;
+   the group-level stagger is layout-safe (one transform per group, not per row). */
+@media (prefers-reduced-motion: no-preference) {
+  .cube-result {
+    animation: cube-result-appear var(--motion-slow, 240ms) ease both;
+  }
+  .cube-group {
+    animation: cube-group-rise 280ms ease both;
+    animation-delay: calc(var(--group-index, 0) * 60ms + 80ms);
+  }
+}
+
+@keyframes cube-result-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes cube-group-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ---- result ---- */
 .cube-result {
   display: flex;
