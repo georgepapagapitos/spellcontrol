@@ -33,7 +33,7 @@ jobs:
       # tracked. Without it the checkout yields a 133-byte LFS pointer, which
       # ships to Fly and makes the scanner matcher throw "bad magic" at boot
       # → every /api/scanner/match fails and clients fall back to weak pHash.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           lfs: true
 

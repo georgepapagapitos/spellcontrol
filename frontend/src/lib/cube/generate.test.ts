@@ -102,10 +102,27 @@ describe('generateCube — small pods (180 / 270)', () => {
     }
   });
 
-  it('reuses the 360 band targets when no band is mined for the size', () => {
-    // 180/270 have no mined band — targetsForSize falls back to 360's ratios.
-    expect(targetsForSize(180)).toBe(targetsForSize(360));
-    expect(targetsForSize(270)).toBe(targetsForSize(360));
+  it('reuses the 360 band RATIOS but scales the absolute fixing-land count down', () => {
+    const base = targetsForSize(360);
+    const small = targetsForSize(180);
+    // Color/curve/role are size-free ratios → identical to the 360 band.
+    expect(small.color).toEqual(base.color);
+    expect(small.curve).toEqual(base.curve);
+    expect(small.role).toEqual(base.role);
+    // fixingLands is an absolute count → scaled by size (180/360 = ½), so a 180
+    // cube isn't judged against 360-card fixing counts.
+    expect(small.size).toBe(180);
+    expect(small.fixingLands.p25).toBeCloseTo(base.fixingLands.p25 / 2);
+    expect(small.fixingLands.median).toBeCloseTo(base.fixingLands.median / 2);
+    expect(small.fixingLands.p75).toBeCloseTo(base.fixingLands.p75 / 2);
+  });
+
+  it('does not flag a healthy small-pod cube as short on fixing', () => {
+    // A 180 cube at the scaled fixing median should NOT raise the fixing gap that
+    // the unscaled 360 thresholds used to (29 lands vs the old 39–70).
+    const cube = generateCube(richPool(), 180);
+    const fixingGap = cube.gaps.find((g) => /fixing lands/i.test(g.text));
+    expect(fixingGap).toBeUndefined();
   });
 });
 

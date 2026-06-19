@@ -64,8 +64,23 @@ export const SIZE_INFO: Record<CubeSize, { players: number; note: string }> = {
 export const provenance = data.provenance;
 
 export function targetsForSize(size: CubeSize): BandTargets {
+  const exact = data.bands[String(size)];
+  if (exact) return exact;
   // Bands are mined for 360/450/540/720. Smaller pods (180/270) reuse the
-  // closest mined band (360): the targets are size-relative ratios, so they
-  // apportion correctly to the smaller size — we don't fabricate new ratios.
-  return data.bands[String(size)] ?? data.bands['360'];
+  // closest mined band (360). Color/curve/role/type are size-free RATIOS, so they
+  // apportion correctly to the smaller size as-is. `fixingLands` is the one
+  // ABSOLUTE count, so it must scale with the cube — otherwise a 180-card cube is
+  // judged against 360-card fixing counts (29 lands flagged "short of 39–70" even
+  // though that's a healthy ~16% land density at either size).
+  const base = data.bands['360'];
+  const k = size / base.size;
+  return {
+    ...base,
+    size,
+    fixingLands: {
+      median: base.fixingLands.median * k,
+      p25: base.fixingLands.p25 * k,
+      p75: base.fixingLands.p75 * k,
+    },
+  };
 }
