@@ -38,6 +38,13 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const labelId = useId();
 
+  // Don't autofocus the search on touch — it raises the soft keyboard the
+  // instant the sheet opens and squashes the layout. Desktop (fine pointer +
+  // hover, per the project's touch gate) still gets focus-on-open for typing.
+  const autoFocusSearch =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
   useLockBodyScroll();
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'modal-panel-out');
 
@@ -116,7 +123,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search rules reference"
-            autoFocus
+            autoFocus={autoFocusSearch}
           />
         </div>
 
