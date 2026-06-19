@@ -493,3 +493,160 @@
     display: none;
   }
 }
+
+/* ---- collaborative cube ---- */
+
+.cube-collab-fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.cube-collab-legend {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0 var(--space-1);
+}
+
+.cube-collab-legend-hint {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.cube-collab-friends-loading {
+  text-align: left;
+  padding: var(--space-2);
+}
+
+.cube-collab-friends-error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--err-text);
+}
+
+.cube-collab-friend-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.cube-collab-friend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.cube-collab-friend-row:hover:not(.disabled) {
+  background: var(--surface-raised);
+}
+
+.cube-collab-friend-row.checked {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.cube-collab-friend-row.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cube-collab-friend-row {
+    transition:
+      background var(--motion-fast),
+      border-color var(--motion-fast);
+  }
+}
+
+.cube-collab-friend-name {
+  font-weight: 500;
+}
+
+.cube-collab-max-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Warning banner for failed friend fetches */
+.cube-collab-warn-banner {
+  margin-bottom: var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--warn-border);
+  background: var(--warn-bg);
+  padding: var(--space-2) var(--space-3);
+}
+
+.cube-collab-warn-line {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--warn-text);
+}
+
+.cube-collab-warn-line + .cube-collab-warn-line {
+  margin-top: var(--space-1);
+}
+
+/* Contributor summary pill row */
+.cube-collab-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.cube-collab-contributor-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cube-collab-contributor-pill.is-me {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--text-primary);
+}
+
+.cube-collab-pill-name {
+  font-weight: 600;
+}
+
+.cube-collab-pill-count {
+  color: var(--text-muted);
+}
+
+.cube-collab-contributor-pill.is-me .cube-collab-pill-count {
+  color: var(--accent);
+}
+
+/* Per-card supplier chip (non-actionable, shown when the current user
+   does NOT supply the card) */
+.cube-collab-supplier-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex: none;
+}
