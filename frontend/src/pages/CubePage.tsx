@@ -5,6 +5,7 @@ import './CubePage.css';
 import { Tabs } from '../components/Tabs';
 import { MeterBar, StackedBar } from '../components/shared/MeterBar';
 import { OwnershipBadge } from '../components/deck/OwnershipBadge';
+import { VerdictBadge } from '../components/deck/VerdictBadge';
 import { CardPreview } from '../components/CardPreview';
 import { NameInputDialog } from '../components/NameInputDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -572,16 +573,15 @@ function CubeResult({
                   >
                     <span className="cube-row-name">{p.card.name}</span>
                     <span className="cube-row-reason">{p.reason}</span>
-                    <OwnershipBadge
-                      owned={own === 'owned'}
-                      showUnowned={own === 'in-other-deck'}
-                      detail={own === 'in-other-deck' ? 'in a deck' : undefined}
-                      title={
-                        own === 'in-other-deck'
-                          ? 'You own this, but it’s currently in a deck'
-                          : undefined
-                      }
-                    />
+                    {own === 'in-other-deck' ? (
+                      <VerdictBadge
+                        tone="neutral"
+                        label="In a deck"
+                        title="You own this, but it’s currently in a deck"
+                      />
+                    ) : (
+                      <OwnershipBadge owned={own === 'owned'} />
+                    )}
                   </li>
                 );
               })}
@@ -1149,11 +1149,15 @@ function CollabCube() {
                         <span className="cube-row-name">{p.card.name}</span>
                         <span className="cube-row-reason">{p.reason}</span>
                         {iSupply ? (
-                          <OwnershipBadge
-                            owned={own === 'owned'}
-                            showUnowned={own === 'in-other-deck'}
-                            detail={own === 'in-other-deck' ? 'in a deck' : undefined}
-                          />
+                          own === 'in-other-deck' ? (
+                            <VerdictBadge
+                              tone="neutral"
+                              label="In a deck"
+                              title="You own this, but it’s currently in a deck"
+                            />
+                          ) : (
+                            <OwnershipBadge owned={own === 'owned'} />
+                          )
                         ) : friendSuppliers.length > 0 ? (
                           <span
                             className="cube-collab-supplier-chip"
@@ -1414,11 +1418,15 @@ function ImportCube() {
               >
                 <span className="cube-row-name">{r.card.name}</span>
                 <span className="cube-row-reason">{r.card.typeLine}</span>
-                <OwnershipBadge
-                  owned={r.ownership === 'owned'}
-                  showUnowned
-                  detail={r.ownership === 'in-other-deck' ? 'in a deck' : undefined}
-                />
+                {r.ownership === 'in-other-deck' ? (
+                  <VerdictBadge
+                    tone="neutral"
+                    label="In a deck"
+                    title="You own this, but it’s currently in a deck"
+                  />
+                ) : (
+                  <OwnershipBadge owned={r.ownership === 'owned'} showUnowned />
+                )}
               </li>
             ))}
           </ul>
