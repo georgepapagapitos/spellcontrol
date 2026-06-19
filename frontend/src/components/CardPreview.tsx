@@ -19,6 +19,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
+import { CardRulings } from './CardRulings';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
@@ -33,6 +34,9 @@ import { useSwipeDownDismiss } from '../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../lib/use-sheet-exit';
 import type { AllocationInfo } from '../lib/allocations';
 import type { BinderInfo } from './BinderBadge';
+
+/** Scryfall card UUID — gates the rulings fetch to real printings. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Which surface opened the preview. Drives per-context panel content
  *  (exposed as `data-source` on the panel for context-specific styling). */
@@ -746,6 +750,10 @@ export function CardPreview({
                 />
               </a>
             </div>
+            {/* Real Scryfall printings only — placeholder/synthetic ids would 400. */}
+            {UUID_RE.test(current.scryfallId) && (
+              <CardRulings key={current.scryfallId} scryfallId={current.scryfallId} />
+            )}
             {renderPanelExtra && (
               <div className="card-preview-slot">{renderPanelExtra(selected)}</div>
             )}

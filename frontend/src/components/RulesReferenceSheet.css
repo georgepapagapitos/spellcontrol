@@ -1,0 +1,194 @@
+/* Rules Reference sheet — reuses the shared .modal shell; this styles the
+   search bar, tabs, and the keyword/glossary/rules lists. */
+
+.rules-ref-modal {
+  /* Fill the available height so the reference reads like a tall scrollable
+     panel rather than a short box that resizes per tab. */
+  height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
+}
+
+.rules-ref-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1.5rem 0;
+}
+
+.rules-ref-search-icon {
+  position: absolute;
+  left: 2.15rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.rules-ref-search-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem 0.6rem 2.4rem;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rules-ref-search-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.rules-ref-tabs {
+  padding: 0.65rem 1.5rem 0;
+}
+
+.rules-ref-body {
+  padding-top: 0.75rem;
+}
+
+.rules-ref-status {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.rules-ref-foot {
+  margin: 0;
+  padding: 0.6rem 1.5rem;
+  border-top: 0.5px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+/* Inline jump links to other rules. */
+.rules-ref-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rules-ref-link:hover {
+  color: var(--accent-hover);
+}
+
+/* ── Keywords ─────────────────────────────────────────────────────────── */
+.rules-ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rules-ref-keyword {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.rules-ref-keyword-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+}
+.rules-ref-keyword-head:hover {
+  background: var(--surface-raised);
+}
+
+.rules-ref-keyword-name {
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.rules-ref-keyword-rule {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.rules-ref-badge {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  color: var(--accent-text);
+}
+.rules-ref-badge-ability {
+  background: var(--accent);
+}
+.rules-ref-badge-action {
+  background: var(--text-secondary);
+}
+
+.rules-ref-keyword-summary {
+  margin: 0;
+  padding: 0 0.75rem 0.6rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.rules-ref-keyword-body {
+  padding: 0.25rem 0.75rem 0.6rem;
+  border-top: 0.5px solid var(--border);
+}
+
+/* ── Glossary ─────────────────────────────────────────────────────────── */
+.rules-ref-glossary {
+  margin: 0;
+}
+
+.rules-ref-glossary-entry {
+  padding: 0.55rem 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.rules-ref-glossary-entry:last-child {
+  border-bottom: none;
+}
+
+.rules-ref-glossary-term {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.rules-ref-glossary-def {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* ── Rules / subrules ─────────────────────────────────────────────────── */
+.rules-ref-rule {
+  display: flex;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.35rem 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.rules-ref-rule-num {
+  flex: 0 0 auto;
+  min-width: 3.5rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.rules-ref-rule-text {
+  color: var(--text-secondary);
+}

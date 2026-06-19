@@ -1,9 +1,10 @@
-import { Camera, Layers, List, Settings, Users } from 'lucide-react';
+import { BookOpen, Camera, Layers, List, Settings, Users } from 'lucide-react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 import { useCanScan } from '../lib/use-can-scan';
 import { useCollectionStore } from '../store/collection';
+import { useRulesReferenceStore } from '../store/rules-reference';
 import { toast } from '../store/toasts';
 import { importScannedCards } from '../lib/scan-import';
 import { useScanQueueStore } from '../lib/use-scan-queue';
@@ -45,6 +46,7 @@ export function NavFab() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   const canScan = useCanScan();
   const importCards = useCollectionStore((s) => s.importCards);
+  const openRules = useRulesReferenceStore((s) => s.open);
   const [expanded, setExpanded] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -149,6 +151,15 @@ export function NavFab() {
           },
         ]
       : []),
+    {
+      kind: 'action' as const,
+      label: 'Rules',
+      Icon: BookOpen,
+      onClick: () => {
+        openRules();
+        closeForNav();
+      },
+    },
     ...NAV_ITEMS.map((n) => ({
       kind: 'nav' as const,
       to: n.to,

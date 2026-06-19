@@ -20,7 +20,13 @@ import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
-import { resolveCards, fetchCardsByIds, fetchPrintings, getCardById } from './scryfall';
+import {
+  resolveCards,
+  fetchCardsByIds,
+  fetchPrintings,
+  getCardById,
+  fetchRulings,
+} from './scryfall';
 import { runScryfallBulkIngest } from './scryfall-bulk';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
@@ -115,6 +121,9 @@ const importLimiter = rateLimit({ windowMs: 60_000, max: 60 });
 const priceLimiter = rateLimit({ windowMs: 60_000, max: 30 });
 const productLimiter = rateLimit({ windowMs: 60_000, max: 60 });
 
+/** Scryfall card UUID — validates the :id path param on the rulings route. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Kept ABOVE the sync snapshot cap (MAX_SNAPSHOT_BYTES, 64MB) so an oversize
 // collection is rejected by the sync route with a friendly, actionable message
 // rather than a raw body-parser 413.
@@ -151,6 +160,38 @@ app.post('/api/cards/oracle-ids', priceLimiter, (req: Request, res: Response) =>
   }
   res.json({ oracleIds });
 });
+
+/**
+ * Returns Scryfall rulings for a card by Scryfall UUID, cached in SQLite with a 7-day TTL.
+ * - 200 { rulings: Ruling[] } on success (empty array if card has no rulings or Scryfall 404)
+ * - 400 if :id is not a plausible Scryfall UUID
+ * - 502/500 on upstream/transient failure
+ */
+app.get(
+  '/api/cards/:id/rulings',
+  rateLimit({ windowMs: 60_000, max: 60 }),
+  async (req: Request, res: Response) => {
+    const id = typeof req.params.id === 'string' ? req.params.id : '';
+    if (!UUID_RE.test(id)) {
+      return res.status(400).json({ error: 'id must be a Scryfall UUID' });
+    }
+
+    const cached = cache.getRulings(id);
+    if (cached !== null) {
+      return res.json({ rulings: cached });
+    }
+
+    try {
+      const rulings = await fetchRulings(id);
+      cache.setRulings(id, rulings);
+      res.json({ rulings });
+    } catch (err) {
+      logger.error('[rulings] fetch failed:', err);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      res.status(502).json({ error: `Failed to fetch rulings: ${message}` });
+    }
+  }
+);
 
 const upload = multer({
   storage: multer.memoryStorage(),

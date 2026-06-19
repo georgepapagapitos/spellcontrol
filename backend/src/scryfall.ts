@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import type { ScryfallCard } from './types';
+import type { ScryfallCard, Ruling } from './types';
 import type { ScryfallCache } from './cache';
 import type { ImportRow } from './parsers/types';
 
@@ -506,4 +506,53 @@ function identifierMatchesCard(identifier: Identifier, card: ScryfallCard): bool
   }
 
   return true;
+}
+
+interface RulingsResponse {
+  object: 'list';
+  data: Ruling[];
+}
+
+/**
+ * Fetches a card's official rulings from Scryfall by Scryfall ID. Returns an
+ * empty array when the card has no rulings or is unknown (404). Honors 429
+ * backoff like the other Scryfall calls; throws only when it exhausts retries
+ * so the route can surface a transient failure rather than a false "no rulings".
+ */
+export async function fetchRulings(id: string): Promise<Ruling[]> {
+  let backoff = MIN_BACKOFF_MS;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`https://api.scryfall.com/cards/${id}/rulings`, {
+        headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+      });
+
+      if (response.ok) {
+        const body = (await response.json()) as RulingsResponse;
+        return body.data ?? [];
+      }
+      if (response.status === 404) return [];
+      if (response.status === 429) {
+        if (attempt === MAX_RETRIES) {
+          logger.error(`[scryfall] fetchRulings(${id}) gave up after ${MAX_RETRIES} retries`);
+          break;
+        }
+        const retryAfter = response.headers.get('Retry-After');
+        const wait = retryAfter
+          ? Math.min(MAX_BACKOFF_MS, parseRetryAfter(retryAfter))
+          : Math.min(MAX_BACKOFF_MS, backoff);
+        logger.warn(`[scryfall] fetchRulings(${id}) hit 429, waiting ${wait}ms`);
+        await sleep(wait);
+        backoff *= 2;
+        continue;
+      }
+      logger.error(`[scryfall] fetchRulings(${id}) failed: HTTP ${response.status}`);
+      break;
+    } catch (err) {
+      logger.error(`[scryfall] fetchRulings(${id}) network error:`, err);
+      break;
+    }
+  }
+  throw new Error(`fetchRulings(${id}) exhausted retries`);
 }

@@ -1,4 +1,14 @@
 /**
+ * A single Scryfall ruling entry.
+ * Shape: https://scryfall.com/docs/api/rulings
+ */
+export interface Ruling {
+  published_at: string;
+  comment: string;
+  source: string;
+}
+
+/**
  * Subset of fields we use from Scryfall's card object.
  * Full schema: https://scryfall.com/docs/api/cards
  */

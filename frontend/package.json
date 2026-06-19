@@ -8,10 +8,11 @@
   },
   "scripts": {
     "refresh-tags": "node scripts/refresh-tagger.mjs --force",
+    "refresh-rules": "node scripts/refresh-rules.mjs --force",
     "mine:cube-targets": "node scripts/mine-cube-targets.mjs",
     "build:shared": "npm --prefix ../packages/game-core run build && npm --prefix ../packages/binder-routing run build",
-    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs",
-    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs",
+    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs",
+    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs",
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",

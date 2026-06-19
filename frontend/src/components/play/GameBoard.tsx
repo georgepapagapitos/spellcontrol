@@ -8,7 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { MoreHorizontal, Undo2 } from 'lucide-react';
+import { BookOpen, MoreHorizontal, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   DesignationKind,
@@ -42,6 +42,7 @@ import { HOLD_DWELL_MS, HOLD_REPEAT_MS, holdStepFor } from '../../lib/hold-ramp'
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { usePlayStore } from '../../store/play';
+import { useRulesReferenceStore } from '../../store/rules-reference';
 import { LifeKeypad } from './LifeKeypad';
 import { GameHistory } from './GameHistory';
 import { GameTools } from './GameTools';
@@ -1327,6 +1328,7 @@ function GameMenu({
   const setHaptics = usePlayStore((s) => s.setHaptics);
   const preferredLayouts = usePlayStore((s) => s.preferredLayouts);
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
+  const openRules = useRulesReferenceStore((s) => s.open);
   const [editorOpen, setEditorOpen] = useState(false);
   return (
     <div className="game-menu-backdrop" onClick={onClose}>
@@ -1353,6 +1355,19 @@ function GameMenu({
             {game.poisonEnabled && <span className="game-menu-chip">Poison</span>}
             <span className="game-menu-chip is-mode">{game.mode}</span>
           </div>
+
+          <section className="game-menu-section">
+            <button
+              type="button"
+              className="game-menu-pill is-wide"
+              onClick={() => {
+                openRules();
+                onClose();
+              }}
+            >
+              <BookOpen width={16} height={16} strokeWidth={1.8} aria-hidden /> Rules reference
+            </button>
+          </section>
 
           <GameTools game={game} dispatch={dispatch} />
 

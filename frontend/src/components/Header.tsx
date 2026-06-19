@@ -1,14 +1,16 @@
-import { Settings } from 'lucide-react';
+import { BookOpen, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
+import { useRulesReferenceStore } from '../store/rules-reference';
 import { HeaderSyncIndicator } from './SyncIndicator';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const deckCount = useDecksStore((s) => s.decks.length);
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
+  const openRules = useRulesReferenceStore((s) => s.open);
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -54,6 +56,15 @@ export function Header() {
               users see them wherever they are; the full indicator (with "Synced
               Nm ago") lives in the Settings Account card. Silence = synced. */}
           <HeaderSyncIndicator />
+          <button
+            type="button"
+            className="site-nav-settings"
+            onClick={openRules}
+            aria-label="Rules reference"
+          >
+            <BookOpen width={18} height={18} strokeWidth={1.6} aria-hidden />
+            <span className="site-nav-settings-label">Rules</span>
+          </button>
           <NavLink
             to="/settings"
             className={({ isActive }) =>
