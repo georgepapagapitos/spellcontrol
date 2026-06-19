@@ -13,6 +13,8 @@ import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
 import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
+import { friendsRouter } from './routes/friends';
+import { usersRouter } from './routes/users';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -206,6 +208,16 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX shares_user_idx ON shares(user_id);
     CREATE INDEX shares_resource_idx ON shares(user_id, kind, resource_id);
+    CREATE TABLE friendships (
+      requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      accepted_at BIGINT,
+      PRIMARY KEY (requester_id, addressee_id)
+    );
+    CREATE INDEX friendships_addressee_idx ON friendships(addressee_id);
+    CREATE INDEX friendships_status_idx ON friendships(status);
   `);
 
   const db = drizzle(pool, { schema });
@@ -222,6 +234,8 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/shares', sharesRouter);
   app.use('/api/offline', offlineRouter);
   app.use('/api/scanner', scannerRouter);
+  app.use('/api/friends', friendsRouter);
+  app.use('/api/users', usersRouter);
 
   return {
     app,

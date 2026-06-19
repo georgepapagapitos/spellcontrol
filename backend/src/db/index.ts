@@ -241,5 +241,16 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS shares_user_idx ON shares(user_id);
     CREATE INDEX IF NOT EXISTS shares_resource_idx ON shares(user_id, kind, resource_id);
+
+    CREATE TABLE IF NOT EXISTS friendships (
+      requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      accepted_at BIGINT,
+      PRIMARY KEY (requester_id, addressee_id)
+    );
+    CREATE INDEX IF NOT EXISTS friendships_addressee_idx ON friendships(addressee_id);
+    CREATE INDEX IF NOT EXISTS friendships_status_idx ON friendships(status);
   `);
 }

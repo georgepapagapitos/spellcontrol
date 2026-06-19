@@ -240,6 +240,33 @@ export const shares = pgTable(
   })
 );
 
+/**
+ * Friend relationships between users. Stored directionally: the sender is
+ * `requester_id`, the recipient is `addressee_id`. Status is 'pending' until
+ * the addressee accepts, then 'accepted'. Uniqueness across both orderings is
+ * enforced in application code (block (B,A) when (A,B) exists).
+ */
+export const friendships = pgTable(
+  'friendships',
+  {
+    requesterId: text('requester_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    addresseeId: text('addressee_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** 'pending' | 'accepted' */
+    status: text('status').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    acceptedAt: bigint('accepted_at', { mode: 'number' }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.requesterId, t.addresseeId] }),
+    addresseeIdx: index('friendships_addressee_idx').on(t.addresseeId),
+    statusIdx: index('friendships_status_idx').on(t.status),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
@@ -255,3 +282,4 @@ export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
+export type FriendshipRow = typeof friendships.$inferSelect;

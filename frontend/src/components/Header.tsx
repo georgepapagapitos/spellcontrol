@@ -5,12 +5,17 @@ import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import { HeaderSyncIndicator } from './SyncIndicator';
+import { useAuth } from '../store/auth';
+import { useFriendRequests } from '../lib/use-friend-requests';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const deckCount = useDecksStore((s) => s.decks.length);
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   const openRules = useRulesReferenceStore((s) => s.open);
+  const authStatus = useAuth((s) => s.status);
+  const isAuthed = authStatus === 'authed';
+  const pendingRequests = useFriendRequests();
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -50,6 +55,24 @@ export function Header() {
             <span>Play</span>
             {hasActiveGame && <span className="site-nav-game-dot" aria-label="game in progress" />}
           </NavLink>
+          {isAuthed && (
+            <NavLink
+              to="/friends"
+              className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
+              aria-label={
+                pendingRequests > 0
+                  ? `Friends, ${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}`
+                  : 'Friends'
+              }
+            >
+              <span>Friends</span>
+              {pendingRequests > 0 && (
+                <span className="friends-nav-link-badge" aria-hidden="true">
+                  {pendingRequests}
+                </span>
+              )}
+            </NavLink>
+          )}
         </nav>
         <nav className="site-nav">
           {/* Non-happy sync states (offline / error / pending) surface here so
