@@ -1,14 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
+import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 
 let app: Express;
+let pool: Pool;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
+  pool = env.pool;
   cleanup = env.cleanup;
 });
 
@@ -368,4 +371,244 @@ describe('GET /api/friends/requests', () => {
     expect(reqs.body.incoming).toEqual([]);
     expect(reqs.body.outgoing).toEqual([]);
   });
+});
+
+// ─── GET /api/friends/:friendId/collection ────────────────────────────────────
+
+/** Register user and return { cookie, id, username }. */
+async function makeUserFull(
+  username: string
+): Promise<{ cookie: string; id: string; username: string }> {
+  const reg = await request(app)
+    .post('/api/auth/register')
+    .send({ username, password: 'correct horse battery' });
+  expect(reg.status).toBe(201);
+  const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
+  // Get our own id via /api/friends (or auth me) — simpler: look ourselves up via users search
+  // Actually use the pool directly for the id
+  const row = await pool.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [
+    username,
+  ]);
+  return { cookie, id: row.rows[0].id, username };
+}
+
+/** Make two users friends via the mutual-send auto-accept path. */
+async function befriend(
+  a: { cookie: string; username: string },
+  b: { cookie: string; username: string }
+): Promise<void> {
+  await request(app)
+    .post('/api/friends/requests')
+    .set('Cookie', a.cookie)
+    .send({ username: b.username });
+  const res = await request(app)
+    .post('/api/friends/requests')
+    .set('Cookie', b.cookie)
+    .send({ username: a.username });
+  expect(res.status).toBe(201);
+  expect(res.body.friendStatus).toBe('friends');
+}
+
+/** Seed user_cards rows directly via the pool. */
+async function seedUserCards(userId: string, cards: Array<Record<string, unknown>>): Promise<void> {
+  for (let i = 0; i < cards.length; i++) {
+    const card = cards[i];
+    await pool.query(
+      `INSERT INTO user_cards (user_id, id, import_id, data, rev, updated_at)
+       VALUES ($1, $2, $3, $4, nextval('user_data_rev_seq'), $5)`,
+      [userId, `card-${userId}-${i}`, 'import-1', JSON.stringify(card), Date.now()]
+    );
+  }
+}
+
+describe('GET /api/friends/:friendId/collection', () => {
+  it('401 — unauthenticated caller', async () => {
+    const res = await request(app).get('/api/friends/some-user-id/collection');
+    expect(res.status).toBe(401);
+  }, 15000);
+
+  it('404 — unknown friendId', async () => {
+    const alice = await makeUserFull('fc-404-alice');
+    const res = await request(app)
+      .get('/api/friends/nonexistent-user-id/collection')
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/user not found/i);
+  }, 15000);
+
+  it('403 — no friendship row (strangers)', async () => {
+    const alice = await makeUserFull('fc-403-alice');
+    const bob = await makeUserFull('fc-403-bob');
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not friends/i);
+  }, 15000);
+
+  it('403 — only a pending request (not accepted)', async () => {
+    const alice = await makeUserFull('fc-pend-alice');
+    const bob = await makeUserFull('fc-pend-bob');
+    // Alice sends a request but Bob does NOT accept
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', alice.cookie)
+      .send({ username: bob.username });
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not friends/i);
+  }, 15000);
+
+  it('403 — self-request', async () => {
+    const alice = await makeUserFull('fc-self-alice');
+    const res = await request(app)
+      .get(`/api/friends/${alice.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(403);
+  }, 15000);
+
+  it('200 — empty collection returns { ownerUsername, cards: [] }', async () => {
+    const alice = await makeUserFull('fc-empty-alice');
+    const bob = await makeUserFull('fc-empty-bob');
+    await befriend(alice, bob);
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.ownerUsername).toBe(bob.username);
+    expect(res.body.cards).toEqual([]);
+  }, 15000);
+
+  it('200 — dedupes multiple copies of the same oracleId to one card', async () => {
+    const alice = await makeUserFull('fc-dedup-alice');
+    const bob = await makeUserFull('fc-dedup-bob');
+    await befriend(alice, bob);
+
+    // Seed 3 copies of Sol Ring (same oracleId), one card with a different oracleId
+    await seedUserCards(bob.id, [
+      {
+        name: 'Sol Ring',
+        oracleId: 'oracle-solring',
+        scryfallId: 'sf-solring-1',
+        colors: [],
+        cmc: 1,
+        typeLine: 'Artifact',
+      },
+      {
+        name: 'Sol Ring',
+        oracleId: 'oracle-solring',
+        scryfallId: 'sf-solring-2',
+        colors: [],
+        cmc: 1,
+        typeLine: 'Artifact',
+      },
+      {
+        name: 'Sol Ring',
+        oracleId: 'oracle-solring',
+        scryfallId: 'sf-solring-3',
+        colors: [],
+        cmc: 1,
+        typeLine: 'Artifact',
+      },
+      {
+        name: 'Command Tower',
+        oracleId: 'oracle-cmdtower',
+        scryfallId: 'sf-cmdtower',
+        colors: [],
+        cmc: 0,
+        typeLine: 'Land',
+      },
+    ]);
+
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.ownerUsername).toBe(bob.username);
+    expect(res.body.cards).toHaveLength(2);
+    const oracleIds = (res.body.cards as Array<{ oracleId: string }>).map((c) => c.oracleId);
+    expect(oracleIds).toContain('oracle-solring');
+    expect(oracleIds).toContain('oracle-cmdtower');
+  }, 15000);
+
+  it('200 — response contains only public fields, no private fields', async () => {
+    const alice = await makeUserFull('fc-priv-alice');
+    const bob = await makeUserFull('fc-priv-bob');
+    await befriend(alice, bob);
+
+    await seedUserCards(bob.id, [
+      {
+        name: 'Black Lotus',
+        oracleId: 'oracle-black-lotus',
+        scryfallId: 'sf-black-lotus',
+        colors: [],
+        cmc: 0,
+        typeLine: 'Artifact',
+        // private fields that must NOT appear in the response
+        condition: 'NM',
+        language: 'EN',
+        altered: false,
+        proxy: false,
+        misprint: false,
+        purchasePrice: 999.99,
+      },
+    ]);
+
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cards).toHaveLength(1);
+
+    const card = res.body.cards[0] as Record<string, unknown>;
+    // public fields present
+    expect(card.name).toBe('Black Lotus');
+    expect(card.oracleId).toBe('oracle-black-lotus');
+    expect(card.colors).toEqual([]);
+    expect(card.cmc).toBe(0);
+    expect(card.typeLine).toBe('Artifact');
+
+    // private fields absent
+    expect(card).not.toHaveProperty('condition');
+    expect(card).not.toHaveProperty('language');
+    expect(card).not.toHaveProperty('altered');
+    expect(card).not.toHaveProperty('proxy');
+    expect(card).not.toHaveProperty('misprint');
+    expect(card).not.toHaveProperty('purchasePrice');
+    expect(card).not.toHaveProperty('scryfallId');
+  }, 15000);
+
+  it('200 — cards with missing/empty oracleId are skipped', async () => {
+    const alice = await makeUserFull('fc-nooid-alice');
+    const bob = await makeUserFull('fc-nooid-bob');
+    await befriend(alice, bob);
+
+    await seedUserCards(bob.id, [
+      {
+        name: 'Card Without OracleId',
+        oracleId: '',
+        scryfallId: 'sf-no-oracle',
+        colors: [],
+        cmc: 2,
+        typeLine: 'Creature',
+      },
+      {
+        name: 'Valid Card',
+        oracleId: 'oracle-valid',
+        scryfallId: 'sf-valid',
+        colors: ['W'],
+        cmc: 1,
+        typeLine: 'Creature — Human',
+      },
+    ]);
+
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.cards).toHaveLength(1);
+    expect(res.body.cards[0].name).toBe('Valid Card');
+  }, 15000);
 });

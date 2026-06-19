@@ -4,6 +4,7 @@ import { requireAuth } from '../auth';
 import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { getScryfallCache } from '../scryfall-cache';
 
 export const friendsRouter: Router = Router();
 
@@ -12,6 +13,10 @@ const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_UR
 const friendReadLimiter = isTest
   ? (_req: Request, _res: Response, next: () => void) => next()
   : rateLimit({ windowMs: 60_000, max: 60 });
+
+const friendCollectionLimiter = isTest
+  ? (_req: Request, _res: Response, next: () => void) => next()
+  : rateLimit({ windowMs: 60_000, max: 30 });
 
 const friendWriteLimiter = isTest
   ? (_req: Request, _res: Response, next: () => void) => next()
@@ -292,6 +297,127 @@ friendsRouter.delete(
     }
 
     return res.status(204).end();
+  }
+);
+
+// ────────────────────────────────────────────────
+// GET /api/friends/:friendId/collection
+// ────────────────────────────────────────────────
+
+interface FriendCard {
+  name: string;
+  oracleId: string;
+  colors: string[];
+  cmc: number;
+  typeLine: string;
+  edhrecRank?: number;
+}
+
+interface FriendCollectionResponse {
+  ownerUsername: string;
+  cards: FriendCard[];
+}
+
+friendsRouter.get(
+  '/:friendId/collection',
+  requireAuth,
+  friendCollectionLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const friendId = String(req.params.friendId ?? '');
+    const pool = getPool();
+    const db = getDb();
+
+    // 1. Verify the target user exists
+    const targetRows = await db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(eq(users.id, friendId))
+      .limit(1);
+
+    if (targetRows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    const target = targetRows[0];
+
+    // 2. Check for accepted friendship in either direction (self → 403 since no such row exists)
+    const friendship = await pool.query<{ status: string }>(
+      `SELECT status FROM friendships
+       WHERE status = 'accepted'
+         AND ((requester_id = $1 AND addressee_id = $2)
+              OR (requester_id = $2 AND addressee_id = $1))`,
+      [callerId, friendId]
+    );
+
+    if (friendship.rowCount === 0) {
+      return res.status(403).json({ error: 'Not friends.' });
+    }
+
+    // 3. Fetch friend's non-deleted cards
+    const cardRows = await pool.query<{ data: unknown; id: string }>(
+      `SELECT id, data FROM user_cards
+       WHERE user_id = $1 AND deleted_at IS NULL`,
+      [friendId]
+    );
+
+    // 4. Dedupe by oracleId; collect scryfallIds for rank fallback
+    const seenOracleIds = new Set<string>();
+    const deduped: Array<{ data: Record<string, unknown>; scryfallId: string }> = [];
+
+    for (const row of cardRows.rows) {
+      const d = row.data as Record<string, unknown>;
+      if (!d) continue;
+      const oracleId = typeof d.oracleId === 'string' ? d.oracleId : '';
+      if (!oracleId) continue;
+      if (seenOracleIds.has(oracleId)) continue;
+      seenOracleIds.add(oracleId);
+      const scryfallId = typeof d.scryfallId === 'string' ? d.scryfallId : '';
+      deduped.push({ data: d, scryfallId });
+    }
+
+    // 5. Bulk-fetch Scryfall cache for rank fallback (only for cards missing edhrecRank)
+    const scryfallIds = deduped
+      .filter((e) => typeof e.data.edhrecRank !== 'number' && e.scryfallId)
+      .map((e) => e.scryfallId);
+
+    const scryfallMap =
+      scryfallIds.length > 0 ? getScryfallCache().getMany(scryfallIds) : new Map();
+
+    // 6. Project to FriendCard — only public oracle-level fields
+    const cards: FriendCard[] = [];
+    for (const { data: d, scryfallId } of deduped) {
+      const name = typeof d.name === 'string' ? d.name : '';
+      const oracleId = typeof d.oracleId === 'string' ? d.oracleId : '';
+      if (!name || !oracleId) continue;
+
+      const colors = Array.isArray(d.colors)
+        ? (d.colors as unknown[]).filter((c): c is string => typeof c === 'string')
+        : [];
+      const cmc = typeof d.cmc === 'number' ? d.cmc : 0;
+      const typeLine = typeof d.typeLine === 'string' ? d.typeLine : '';
+
+      // Prefer rank from stored JSONB; fall back to SQLite cache
+      let edhrecRank: number | undefined;
+      if (typeof d.edhrecRank === 'number') {
+        edhrecRank = d.edhrecRank;
+      } else if (scryfallId) {
+        const cached = scryfallMap.get(scryfallId);
+        if (cached && typeof cached.edhrec_rank === 'number') {
+          edhrecRank = cached.edhrec_rank;
+        }
+      }
+
+      const card: FriendCard = { name, oracleId, colors, cmc, typeLine };
+      if (edhrecRank !== undefined) card.edhrecRank = edhrecRank;
+      cards.push(card);
+    }
+
+    const response: FriendCollectionResponse = {
+      ownerUsername: target.username,
+      cards,
+    };
+
+    return res.json(response);
   }
 );
 
