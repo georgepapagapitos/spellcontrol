@@ -1,4 +1,4 @@
-import { MoreVertical, Notebook, Pencil, Trash2 } from 'lucide-react';
+import { Layers, MoreVertical, Notebook, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AddToBinderSheet } from './AddToBinderSheet';
@@ -8,6 +8,10 @@ import type { EnrichedCard } from '../types';
 interface Props {
   card: EnrichedCard;
   onEditCard: () => void;
+  /** Re-point a single copy of this stack to a different printing. Pass only
+   *  for grouped rows holding 2+ copies of one printing (so a stack can be
+   *  split); omit otherwise to hide the action. */
+  onSplitCopy?: () => void;
   /** Remove this row's copies from the collection. Omit to hide the action. */
   onDelete?: () => void;
   /** The binder this card is currently routed to, if any. Drives the
@@ -18,7 +22,7 @@ interface Props {
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
 
-export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props) {
+export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBinder }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -140,6 +144,21 @@ export function CardRowMenu({ card, onEditCard, onDelete, currentBinder }: Props
           <Pencil width={12} height={12} strokeWidth={1.6} aria-hidden />
           Edit card
         </button>
+        {onSplitCopy && (
+          <button
+            type="button"
+            role="menuitem"
+            className="deck-row-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              closeAndReturnFocus();
+              onSplitCopy();
+            }}
+          >
+            <Layers width={12} height={12} strokeWidth={1.6} aria-hidden />
+            Change one copy&rsquo;s printing…
+          </button>
+        )}
         <button
           type="button"
           role="menuitem"

@@ -88,4 +88,16 @@ describe('buildEditedCards', () => {
     expect(next).toHaveLength(1);
     expect(next[0].copyId).toBe('a');
   });
+
+  it('single-copy mode re-points only the given copy, splitting a printing stack', () => {
+    // Two copies of the same printing; edit just one to a different printing.
+    const a = enriched({ copyId: 'a', scryfallId: 'old' });
+    const b = enriched({ copyId: 'b', scryfallId: 'old' });
+    const next = buildEditedCards(a, selection({ quantity: 5 }), [a, b], 'a');
+
+    expect(next).toHaveLength(2); // no copies added/dropped — quantity ignored
+    expect(next.find((c) => c.copyId === 'a')?.scryfallId).toBe('sc1'); // split off
+    expect(next.find((c) => c.copyId === 'a')?.setCode).toBe('C21');
+    expect(next.find((c) => c.copyId === 'b')?.scryfallId).toBe('old'); // sibling untouched
+  });
 });

@@ -635,6 +635,16 @@
   border-top: 0.5px solid var(--border);
 }
 
+.card-edit-single-note {
+  margin: 0;
+  width: 100%;
+  padding-top: 0.5rem;
+  border-top: 0.5px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .card-edit-qty-label {
   font-size: var(--text-xs);
   color: var(--text-muted);

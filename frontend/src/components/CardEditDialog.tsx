@@ -16,8 +16,14 @@ interface Props {
   cardName: string;
   currentScryfallId: string;
   currentFinish: Finish;
-  /** When set, shows a quantity editor. Only used for collection edits. */
+  /** When set, shows a quantity editor. Only used for grouped collection edits. */
   quantity?: number;
+  /**
+   * Ungrouped "All copies" edit: the change applies to a single physical copy,
+   * not the whole printing stack. Hides the quantity editor (you're editing one
+   * copy) and shows a note so it's clear siblings stay on the old printing.
+   */
+  singleCopy?: boolean;
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
@@ -58,6 +64,7 @@ export function CardEditDialog({
   currentScryfallId,
   currentFinish,
   quantity,
+  singleCopy,
   onConfirm,
   onCancel,
 }: Props) {
@@ -218,6 +225,12 @@ export function CardEditDialog({
                     </button>
                   ))}
                 </div>
+              )}
+
+              {singleCopy && (
+                <p className="card-edit-single-note">
+                  Editing one copy — other copies of this printing stay as they are.
+                </p>
               )}
 
               {quantity !== undefined && (
