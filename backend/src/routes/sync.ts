@@ -36,7 +36,7 @@ const MAX_PAGE_LIMIT = 5000;
 /** Cap on (upserts + deletions) in a single POST. Protects the tx + JSON body. */
 const MAX_BATCH_SIZE = 5000;
 
-type Kind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list';
+type Kind = 'import' | 'card' | 'binder' | 'deck' | 'game' | 'list' | 'cube';
 
 const KIND_TO_TABLE: Record<Kind, string> = {
   import: 'user_imports',
@@ -45,6 +45,7 @@ const KIND_TO_TABLE: Record<Kind, string> = {
   deck: 'user_decks',
   game: 'user_games',
   list: 'user_lists',
+  cube: 'user_cubes',
 };
 
 function isKind(x: unknown): x is Kind {
@@ -176,6 +177,9 @@ syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     UNION ALL
     SELECT 'list'::text AS kind, id, data, rev, deleted_at, NULL::text
       FROM user_lists WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
+    UNION ALL
+    SELECT 'cube'::text AS kind, id, data, rev, deleted_at, NULL::text
+      FROM user_cubes WHERE user_id = $1 AND rev > $2 AND ($3 OR deleted_at IS NULL)
     ORDER BY rev ASC
     LIMIT $4
     `,

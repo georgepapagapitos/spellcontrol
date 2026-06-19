@@ -436,3 +436,39 @@ describe('tombstones', () => {
     expect((row.data as { name: string }).name).toBe('reborn');
   });
 });
+
+describe('cube kind', () => {
+  it('upserts a cube and retrieves it via delta pull', async () => {
+    const cookie = await registerAndGetCookie('cube_upsert');
+    const res = await push(cookie, {
+      upserts: [{ kind: 'cube', id: 'cube-1', data: { id: 'cube-1', name: 'My Cube' } }],
+    });
+    expect(res.applied).toHaveLength(1);
+    expect(res.applied[0].kind).toBe('cube');
+    expect(res.applied[0].id).toBe('cube-1');
+    expect(res.applied[0].rev).toBeGreaterThan(0);
+    expect(res.applied[0].deletedAt).toBeNull();
+
+    const view = await pull(cookie);
+    const row = view.rows.find((r) => r.kind === 'cube' && r.id === 'cube-1')!;
+    expect(row).toBeDefined();
+    expect((row.data as { name: string }).name).toBe('My Cube');
+    expect(row.deletedAt).toBeNull();
+  });
+
+  it('deletion tombstones a cube and propagates via delta pull', async () => {
+    const cookie = await registerAndGetCookie('cube_delete');
+    await push(cookie, {
+      upserts: [{ kind: 'cube', id: 'cube-del', data: { id: 'cube-del', name: 'Doomed Cube' } }],
+    });
+    const afterUpsert = await pull(cookie);
+    const cursorAfterUpsert = afterUpsert.cursor;
+
+    await push(cookie, { deletions: [{ kind: 'cube', id: 'cube-del' }] });
+    const afterDelete = await pull(cookie, cursorAfterUpsert);
+    expect(afterDelete.rows).toHaveLength(1);
+    expect(afterDelete.rows[0].id).toBe('cube-del');
+    expect(afterDelete.rows[0].deletedAt).not.toBeNull();
+    expect(afterDelete.rows[0].data).toBeNull();
+  });
+});
