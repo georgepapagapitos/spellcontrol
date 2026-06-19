@@ -25,7 +25,7 @@
     "@spellcontrol/binder-routing": "file:../packages/binder-routing",
     "@spellcontrol/game-core": "file:../packages/game-core",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.10.0",
+    "better-sqlite3": "^12.11.1",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
