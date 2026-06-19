@@ -443,6 +443,14 @@
     font-weight: 500;
     line-height: 1.1;
     -webkit-tap-highlight-color: transparent;
+    /* Shared by NavLink (<a>) and the Rules <button> — strip native button
+       chrome (border/background/padding) so the button matches the links. */
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
   }
 
   .mobile-tab-bar-link.active {
