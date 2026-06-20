@@ -10,6 +10,7 @@ interface Props {
   onReset(): void;
   onScry(): void;
   onCreateToken(): void;
+  onOpenStats(): void;
   canUndo: boolean;
 }
 
@@ -25,11 +26,15 @@ export function ActionBar({
   onReset,
   onScry,
   onCreateToken,
+  onOpenStats,
   canUndo,
 }: Props) {
   return (
     <div className="playtest-actionbar" role="toolbar" aria-label="Playtest actions">
       <span className="playtest-actionbar__turn">Turn {turn}</span>
+      <button type="button" onClick={onOpenStats} className="playtest-actionbar__stats">
+        Stats
+      </button>
       <button type="button" onClick={onDraw} disabled={libraryCount === 0}>
         Draw
       </button>
