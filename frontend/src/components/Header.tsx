@@ -7,6 +7,7 @@ import { useRulesReferenceStore } from '../store/rules-reference';
 import { HeaderSyncIndicator } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import { useFriendRequests } from '../lib/use-friend-requests';
+import { BrandMark } from './shared/BrandMark';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
@@ -20,9 +21,7 @@ export function Header() {
     <header className="site-header">
       <div className="site-header-inner">
         <NavLink className="site-brand" to="/collection" aria-label="SpellControl">
-          <span className="site-brand-mark" aria-hidden="true">
-            SC
-          </span>
+          <BrandMark size={28} aria-hidden className="site-brand-mark" />
           <span className="site-brand-text">SpellControl</span>
         </NavLink>
         <nav className="site-nav-links" aria-label="Primary">

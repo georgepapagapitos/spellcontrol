@@ -7,7 +7,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-
         <!--
             Disable Google's Auto Backup / Restore for this app. Auto Backup
             quietly snapshots the WebView's IndexedDB + SharedPreferences to
@@ -64,10 +63,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="spellcontrol.com"
-                    android:pathPrefix="/oauth/callback" />
+                <data android:scheme="https" android:host="spellcontrol.com" android:pathPrefix="/oauth/callback" />
             </intent-filter>
 
             <!--
@@ -82,12 +78,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="spellcontrol.com"
-                    android:pathPrefix="/s/" />
+                <data android:scheme="https" android:host="spellcontrol.com" android:pathPrefix="/s/" />
             </intent-filter>
-
         </activity>
 
         <provider

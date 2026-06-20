@@ -10,6 +10,7 @@ import { preventFocusSteal } from '../lib/keyboard';
 import { markEverVisited } from '../lib/first-run';
 import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
+import { BrandMark } from '../components/shared/BrandMark';
 
 type Mode = 'login' | 'register';
 
@@ -142,6 +143,9 @@ export default function AuthPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-brand-hero" aria-hidden="true">
+          <BrandMark size={48} />
+        </div>
         <h1 className="auth-title">SpellControl</h1>
         <p className="auth-subtitle">
           {mode === 'login'
