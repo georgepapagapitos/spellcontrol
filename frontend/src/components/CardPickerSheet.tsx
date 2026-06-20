@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../lib/use-escape-key';
@@ -6,6 +6,7 @@ import { useSheetExit } from '../lib/use-sheet-exit';
 import { normalizeForSearch } from '../lib/normalize-search';
 import type { EnrichedCard } from '../types';
 import { FoilBadge } from './FoilBadge';
+import { SearchPill } from './SearchPill';
 
 interface Props {
   binderId: string;
@@ -19,7 +20,6 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
   const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
   // Track locally which cards were just added this session for instant "Added" feedback.
   const [addedThisSession, setAddedThisSession] = useState<Set<string>>(() => new Set());
-  const searchRef = useRef<HTMLInputElement>(null);
 
   useLockBodyScroll();
 
@@ -34,10 +34,6 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
     else beginClose();
   }, [beginClose, onClose]);
   useEscapeKey(dismiss);
-
-  useEffect(() => {
-    searchRef.current?.focus();
-  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -89,14 +85,12 @@ export function CardPickerSheet({ binderId, allCards, currentBoundSet, onClose }
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">
           <h2 className="card-picker-title">Add cards</h2>
-          <input
-            ref={searchRef}
-            type="search"
-            className="card-picker-search"
-            placeholder="Search by name, set, or number…"
+          <SearchPill
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search collection"
+            onChange={setQuery}
+            placeholder="Search by name, set, or number…"
+            ariaLabel="Search collection"
+            autoFocus
           />
         </div>
         <ul className="card-picker-list" role="list">

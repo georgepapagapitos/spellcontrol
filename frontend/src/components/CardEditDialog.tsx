@@ -3,6 +3,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import { Modal } from './Modal';
+import { SearchPill } from './SearchPill';
 
 type Finish = 'nonfoil' | 'foil' | 'etched';
 
@@ -281,13 +282,12 @@ export function CardEditDialog({
                   {printings.length} printing{printings.length === 1 ? '' : 's'} across{' '}
                   {setGroups.length} set{setGroups.length === 1 ? '' : 's'}
                 </span>
-                <input
-                  type="search"
+                <SearchPill
                   className="card-edit-set-search"
-                  placeholder="Filter sets..."
+                  placeholder="Filter sets…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  aria-label="Filter by set name or code"
+                  onChange={setSearch}
+                  ariaLabel="Filter by set name or code"
                 />
               </div>
               <div className="card-edit-sets-list">

@@ -1,7 +1,8 @@
-import { Search, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
+import { SearchPill } from './SearchPill';
 import { Tabs } from './Tabs';
 import {
   loadRulesBundle,
@@ -109,20 +110,11 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="rules-ref-search">
-          <Search
-            width={16}
-            height={16}
-            strokeWidth={1.8}
-            aria-hidden
-            className="rules-ref-search-icon"
-          />
-          <input
-            type="search"
-            className="rules-ref-search-input"
-            placeholder={PLACEHOLDER[tab]}
+          <SearchPill
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search rules reference"
+            onChange={setQuery}
+            placeholder={PLACEHOLDER[tab]}
+            ariaLabel="Search rules reference"
             autoFocus={autoFocusSearch}
           />
         </div>

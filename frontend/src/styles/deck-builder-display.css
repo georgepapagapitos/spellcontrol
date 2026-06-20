@@ -280,54 +280,11 @@
   white-space: nowrap;
 }
 
-/* Pill search input — magnifying-glass icon + flat input. */
-.toolbar-search {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 0.3rem 0.85rem;
-  height: 2.1rem;
+/* Width modifier on the shared <SearchPill> for the deck toolbar — caps how
+   wide the field grows so the neighboring toggles keep their room. */
+.deck-toolbar-search {
   min-width: 11rem;
   max-width: 18rem;
-  flex: 1 1 12rem;
-}
-
-.toolbar-search:focus-within {
-  border-color: var(--accent);
-}
-
-.toolbar-search-icon {
-  color: var(--text-muted);
-  flex: 0 0 auto;
-}
-
-input.toolbar-search-input {
-  flex: 1 1 auto;
-  border: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  min-width: 0;
-  padding: 0;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.toolbar-search-input::-webkit-search-decoration,
-.toolbar-search-input::-webkit-search-cancel-button,
-.toolbar-search-input::-webkit-search-results-button,
-.toolbar-search-input::-webkit-search-results-decoration {
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.toolbar-search-input::placeholder {
-  color: var(--text-muted);
 }
 
 /* Segmented view-mode toggle (text | grid | list). */

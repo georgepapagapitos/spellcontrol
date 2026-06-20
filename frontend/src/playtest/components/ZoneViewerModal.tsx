@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { normalizeForSearch } from '@/lib/normalize-search';
+import { SearchPill } from '@/components/SearchPill';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 
 interface Props {
@@ -62,12 +63,11 @@ export function ZoneViewerModal({
         <div className="card-picker-header">
           <h2 className="card-picker-title playtest-zone-title">{titleLabel}</h2>
           {topN == null && (
-            <input
-              type="search"
+            <SearchPill
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={setFilter}
               placeholder={`Search ${zone}…`}
-              className="card-picker-search"
+              ariaLabel={`Search ${zone}`}
               autoFocus
             />
           )}
