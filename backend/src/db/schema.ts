@@ -229,14 +229,22 @@ export const shares = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    kind: text('kind').notNull().$type<'collection' | 'binder' | 'deck' | 'list'>(),
+    kind: text('kind').notNull().$type<'collection' | 'binder' | 'deck' | 'list' | 'cube'>(),
     resourceId: text('resource_id').notNull().default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     revokedAt: bigint('revoked_at', { mode: 'number' }),
+    /**
+     * Who can open the link. 'link' (default, legacy rows) = anyone with the
+     * URL; 'friends' = accepted friends of the owner, signed in. 'direct' (a
+     * share addressed to one friend) lands in a follow-up — the column is typed
+     * for it now so the audience contract is stable. NULL never stored.
+     */
+    audience: text('audience').notNull().default('link').$type<'link' | 'friends' | 'direct'>(),
   },
   (t) => ({
     userIdx: index('shares_user_idx').on(t.userId),
     resourceIdx: index('shares_resource_idx').on(t.userId, t.kind, t.resourceId),
+    audienceIdx: index('shares_audience_idx').on(t.userId, t.audience),
   })
 );
 

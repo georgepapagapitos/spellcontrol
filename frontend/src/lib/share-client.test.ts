@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createShare,
   fetchPublicShare,
+  getFriendShares,
   listShares,
   revokeShare,
+  ShareAuthRequiredError,
   ShareNotFoundError,
   shareUrl,
 } from './share-client';
@@ -44,6 +46,15 @@ describe('createShare', () => {
     );
   });
 
+  it('forwards an audience when given', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ share: {} }, { status: 201 }));
+    await createShare({ kind: 'cube', resourceId: 'c1', audience: 'friends' });
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ kind: 'cube', resourceId: 'c1', audience: 'friends' });
+  });
+
   it('throws with the server error on failure', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ error: 'bad kind' }, { status: 400 })
@@ -82,9 +93,43 @@ describe('fetchPublicShare', () => {
     expect(out.kind).toBe('collection');
   });
 
+  it('sends credentials so friends shares get the session cookie', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ kind: 'collection', data: {} }));
+    await fetchPublicShare('tok');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/shares/public/tok'),
+      expect.objectContaining({ credentials: 'include' })
+    );
+  });
+
   it('throws ShareNotFoundError on 404', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 404 }));
     await expect(fetchPublicShare('tok')).rejects.toBeInstanceOf(ShareNotFoundError);
+  });
+
+  it('throws ShareAuthRequiredError on 401 (friends-only share, no auth)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 401 }));
+    await expect(fetchPublicShare('tok')).rejects.toBeInstanceOf(ShareAuthRequiredError);
+  });
+});
+
+describe('getFriendShares', () => {
+  it('returns the owner username + shares', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ ownerUsername: 'bob', shares: [{ token: 't', kind: 'deck', label: 'X' }] })
+    );
+    const out = await getFriendShares('bob-id');
+    expect(out.ownerUsername).toBe('bob');
+    expect(out.shares).toHaveLength(1);
+  });
+
+  it('throws on a non-ok response (e.g. 403 not friends)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'Not friends.' }, { status: 403 })
+    );
+    await expect(getFriendShares('x')).rejects.toThrow(/Not friends/);
   });
 });
 

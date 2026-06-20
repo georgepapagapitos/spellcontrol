@@ -8,6 +8,7 @@ import {
   userLists,
   userBinders,
   userDecks,
+  userCubes,
 } from '../db/schema';
 import { shareCache, type ShareContext, type ShareDataView } from './cache';
 import { getScryfallCache, pickUsdForFinish } from '../scryfall-cache';
@@ -78,7 +79,7 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
   // Fan-out: live rows per entity for this owner. Tombstones are filtered out.
   // For deck/binder shares we still read the full set because binder
   // materialization (matchers, priority) needs every binder + every card.
-  const [cards, imports, lists, binders, decks] = await Promise.all([
+  const [cards, imports, lists, binders, decks, cubes] = await Promise.all([
     db
       .select({ data: userCards.data })
       .from(userCards)
@@ -99,6 +100,10 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
       .select({ data: userDecks.data })
       .from(userDecks)
       .where(and(eq(userDecks.userId, share.userId), isNull(userDecks.deletedAt))),
+    db
+      .select({ data: userCubes.data })
+      .from(userCubes)
+      .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt))),
   ]);
 
   const data: ShareDataView = {
@@ -109,6 +114,7 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
     },
     binders: binders.map((r) => r.data).filter((d): d is unknown => d != null),
     decks: decks.map((r) => r.data).filter((d): d is unknown => d != null),
+    cubes: cubes.map((r) => r.data).filter((d): d is unknown => d != null),
   };
 
   stampSharePrices(data.collection.cards);

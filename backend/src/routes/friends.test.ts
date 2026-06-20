@@ -612,3 +612,106 @@ describe('GET /api/friends/:friendId/collection', () => {
     expect(res.body.cards[0].name).toBe('Valid Card');
   }, 15000);
 });
+
+// ─── GET /api/friends/:friendId/shares (friend hub) ──────────────────────────
+
+async function seedUserDeck(userId: string, id: string, name: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO user_decks (user_id, id, data, rev, updated_at)
+     VALUES ($1, $2, $3, nextval('user_data_rev_seq'), $4)`,
+    [userId, id, JSON.stringify({ id, name }), Date.now()]
+  );
+}
+
+async function createShare(
+  cookie: string,
+  body: Record<string, unknown>
+): Promise<{ token: string }> {
+  const res = await request(app).post('/api/shares').set('Cookie', cookie).send(body);
+  expect(res.status).toBe(201);
+  return { token: res.body.share.token as string };
+}
+
+describe('GET /api/friends/:friendId/shares', () => {
+  it('rejects an unauthenticated caller (401)', async () => {
+    const owner = await makeUserFull('hub-anon-owner');
+    const res = await request(app).get(`/api/friends/${owner.id}/shares`);
+    expect(res.status).toBe(401);
+  });
+
+  it('403s when the caller is not a friend', async () => {
+    const owner = await makeUserFull('hub-stranger-owner');
+    const stranger = await makeUserFull('hub-stranger');
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/shares`)
+      .set('Cookie', stranger.cookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('404s for an unknown user id', async () => {
+    const me = await makeUserFull('hub-unknown-target');
+    const res = await request(app)
+      .get('/api/friends/nonexistent-id/shares')
+      .set('Cookie', me.cookie);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns a friend’s friends-audience shares with labels, excluding link shares', async () => {
+    const owner = await makeUserFull('hub-owner');
+    const friend = await makeUserFull('hub-friend');
+    await befriend(owner, friend);
+    await seedUserDeck(owner.id, 'deck-1', 'Goblin Tribal');
+
+    await createShare(owner.cookie, { kind: 'deck', resourceId: 'deck-1', audience: 'friends' });
+    await createShare(owner.cookie, { kind: 'collection', audience: 'friends' });
+    // A public link share must NOT surface in the friend hub.
+    await createShare(owner.cookie, { kind: 'collection', audience: 'link' });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/shares`)
+      .set('Cookie', friend.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.ownerUsername).toBe('hub-owner');
+    const kinds = (res.body.shares as Array<{ kind: string; label: string }>).map((s) => s.kind);
+    expect(kinds).toContain('deck');
+    expect(kinds).toContain('collection');
+    const deck = res.body.shares.find((s: { kind: string }) => s.kind === 'deck');
+    expect(deck.label).toBe('Goblin Tribal');
+    const coll = res.body.shares.find((s: { kind: string }) => s.kind === 'collection');
+    expect(coll.label).toBe('Collection');
+    // Exactly the two friends shares — the link share is filtered out.
+    expect(res.body.shares).toHaveLength(2);
+  });
+
+  it('drops a friends share whose underlying resource was deleted', async () => {
+    const owner = await makeUserFull('hub-deleted-owner');
+    const friend = await makeUserFull('hub-deleted-friend');
+    await befriend(owner, friend);
+    // Friends-audience deck share pointing at a deck that doesn't exist.
+    await createShare(owner.cookie, {
+      kind: 'deck',
+      resourceId: 'ghost-deck',
+      audience: 'friends',
+    });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/shares`)
+      .set('Cookie', friend.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.shares).toHaveLength(0);
+  });
+
+  it('excludes revoked shares from the hub', async () => {
+    const owner = await makeUserFull('hub-revoke-owner');
+    const friend = await makeUserFull('hub-revoke-friend');
+    await befriend(owner, friend);
+    const { token } = await createShare(owner.cookie, { kind: 'collection', audience: 'friends' });
+    await request(app).delete(`/api/shares/${token}`).set('Cookie', owner.cookie);
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/shares`)
+      .set('Cookie', friend.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.shares).toHaveLength(0);
+  });
+});

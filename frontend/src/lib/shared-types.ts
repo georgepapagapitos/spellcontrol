@@ -4,13 +4,17 @@
  * file is what the frontend renders the SharedView page from.
  */
 
-export type ShareKind = 'collection' | 'binder' | 'deck' | 'list';
+export type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube';
+
+/** Who can open a share. 'direct' (addressed to one friend) ships in a follow-up. */
+export type ShareAudience = 'link' | 'friends' | 'direct';
 
 export interface ShareRow {
   token: string;
   userId: string;
   kind: ShareKind;
   resourceId: string;
+  audience: ShareAudience;
   createdAt: number;
   revokedAt: number | null;
 }
@@ -125,8 +129,39 @@ export interface PublicBinder {
   updatedAt?: number;
 }
 
+/** One card in a shared cube — oracle-level, plus the bucket it filled. */
+export interface PublicCubeCard {
+  name: string;
+  oracleId: string;
+  colors: string[];
+  cmc: number;
+  typeLine: string;
+  bucket: string;
+  reason: string;
+}
+
+export interface PublicCubeGap {
+  severity: 'short' | 'note';
+  text: string;
+}
+
+export interface PublicCube {
+  ownerUsername: string;
+  id: string;
+  name: string;
+  size: number;
+  cards: PublicCubeCard[];
+  byBucket: Record<string, number>;
+  targetByBucket: Record<string, number>;
+  gaps: PublicCubeGap[];
+  shortfall: number;
+  poolSize: number;
+  savedAt?: number;
+}
+
 export type PublicShareResponse =
   | { kind: 'collection'; data: PublicCollection }
   | { kind: 'binder'; data: PublicBinder }
   | { kind: 'deck'; data: PublicDeck }
-  | { kind: 'list'; data: PublicList };
+  | { kind: 'list'; data: PublicList }
+  | { kind: 'cube'; data: PublicCube };

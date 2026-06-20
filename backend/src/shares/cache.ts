@@ -45,6 +45,7 @@ export interface ShareDataView {
   };
   binders: unknown[];
   decks: unknown[];
+  cubes: unknown[];
 }
 
 export interface ShareContext {

@@ -3,6 +3,7 @@ import { Share } from '@capacitor/share';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { useCubeStore } from '../store/cube';
 import { listShares, revokeShare, shareUrl } from '../lib/share-client';
 import { isNativePlatform } from '../lib/platform';
 import { toast } from '../store/toasts';
@@ -13,6 +14,7 @@ const KIND_LABELS: Record<ShareKind, string> = {
   deck: 'Deck',
   binder: 'Binder',
   list: 'List',
+  cube: 'Cube',
 };
 
 interface ResolvedLabel {
@@ -39,6 +41,7 @@ export function SharedLinksSettings() {
   const decks = useDecksStore((s) => s.decks);
   const binders = useCollectionStore((s) => s.binders);
   const lists = useCollectionStore((s) => s.lists);
+  const cubes = useCubeStore((s) => s.saved);
 
   const [shares, setShares] = useState<ShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,10 @@ export function SharedLinksSettings() {
     if (s.kind === 'binder') {
       const b = binders.find((x) => x.id === s.resourceId);
       return b ? { name: b.name, deleted: false } : { name: 'Deleted binder', deleted: true };
+    }
+    if (s.kind === 'cube') {
+      const c = cubes.find((x) => x.id === s.resourceId);
+      return c ? { name: c.name, deleted: false } : { name: 'Deleted cube', deleted: true };
     }
     const l = lists.find((x) => x.id === s.resourceId);
     return l ? { name: l.name, deleted: false } : { name: 'Deleted list', deleted: true };
@@ -167,6 +174,9 @@ export function SharedLinksSettings() {
                   <span className={label.deleted ? 'settings-share-name--deleted' : undefined}>
                     {label.name}
                   </span>
+                  {s.audience === 'friends' && (
+                    <span className="settings-share-audience"> · Friends only</span>
+                  )}
                 </div>
                 <div className="settings-row-hint">
                   Shared {new Date(s.createdAt).toLocaleDateString()} ·{' '}

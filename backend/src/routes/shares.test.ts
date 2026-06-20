@@ -470,3 +470,180 @@ describe('GET /api/shares/public/:token — list', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ─── helpers for cube + friends-audience tests ───────────────────────────────
+
+function makeSavedCube(id: string, name: string): Record<string, unknown> {
+  return {
+    id,
+    name,
+    size: 360,
+    savedAt: 1700000000000,
+    cube: {
+      size: 360,
+      picks: [
+        {
+          card: {
+            name: 'Lightning Bolt',
+            oracleId: 'o-bolt',
+            colors: ['R'],
+            cmc: 1,
+            typeLine: 'Instant',
+          },
+          bucket: 'R',
+          reason: 'removal',
+        },
+      ],
+      byBucket: { R: 1 },
+      targetByBucket: { R: 60 },
+      gaps: [],
+      shortfall: 359,
+      poolSize: 1,
+    },
+  };
+}
+
+async function userIdByName(cookie: string, username: string): Promise<string> {
+  const search = await request(app).get(`/api/users/search?q=${username}`).set('Cookie', cookie);
+  return search.body.users[0].id as string;
+}
+
+/** Make two registered users accepted friends (A requests, B's reverse request auto-accepts). */
+async function befriend(
+  aCookie: string,
+  aName: string,
+  bCookie: string,
+  bName: string
+): Promise<void> {
+  await request(app).post('/api/friends/requests').set('Cookie', aCookie).send({ username: bName });
+  const auto = await request(app)
+    .post('/api/friends/requests')
+    .set('Cookie', bCookie)
+    .send({ username: aName });
+  expect(auto.body.friendStatus).toBe('friends');
+}
+
+describe('cube shares', () => {
+  it('creates a cube share and projects it publicly', async () => {
+    const cookie = await makeUser('cube-share-owner');
+    await setSnapshot(cookie, 0, { cubes: [makeSavedCube('cube-a', 'My Cube')] });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'cube', resourceId: 'cube-a' });
+    expect(create.status).toBe(201);
+    const token = create.body.share.token as string;
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.kind).toBe('cube');
+    expect(res.body.data.name).toBe('My Cube');
+    expect(res.body.data.cards).toHaveLength(1);
+    expect(res.body.data.cards[0].name).toBe('Lightning Bolt');
+  });
+
+  it('requires resourceId for a cube share', async () => {
+    const cookie = await makeUser('cube-share-noid');
+    const res = await request(app).post('/api/shares').set('Cookie', cookie).send({ kind: 'cube' });
+    expect(res.status).toBe(400);
+  });
+
+  it('404s when the cube no longer exists', async () => {
+    const cookie = await makeUser('cube-share-gone');
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'cube', resourceId: 'never-existed' });
+    const token = create.body.share.token as string;
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('friends-audience shares', () => {
+  it('rejects an invalid audience value', async () => {
+    const cookie = await makeUser('aud-invalid');
+    const res = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'collection', audience: 'public' });
+    expect(res.status).toBe(400);
+  });
+
+  it('link and friends shares of the same resource get distinct tokens', async () => {
+    const cookie = await makeUser('aud-distinct');
+    const link = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'collection', audience: 'link' });
+    const friends = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'collection', audience: 'friends' });
+    expect(friends.body.share.token).not.toBe(link.body.share.token);
+    expect(friends.body.share.audience).toBe('friends');
+  });
+
+  it('a friends share 401s anonymous, 403s a stranger, 200s a friend', async () => {
+    const ownerName = 'aud-owner';
+    const friendName = 'aud-friend';
+    const strangerName = 'aud-stranger';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    const stranger = await makeUser(strangerName);
+    await befriend(owner, ownerName, friend, friendName);
+    await setSnapshot(owner, 0, { collection: { cards: [makeCard({ name: 'Sol Ring' })] } });
+
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'friends' });
+    const token = create.body.share.token as string;
+
+    const anon = await request(app).get(`/api/shares/public/${token}`);
+    expect(anon.status).toBe(401);
+
+    const strangerRes = await request(app)
+      .get(`/api/shares/public/${token}`)
+      .set('Cookie', stranger);
+    expect(strangerRes.status).toBe(403);
+
+    const friendRes = await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend);
+    expect(friendRes.status).toBe(200);
+    expect(friendRes.body.kind).toBe('collection');
+  });
+
+  it('loses friend access after unfriending (re-checked per read)', async () => {
+    const ownerName = 'unfriend-owner';
+    const friendName = 'unfriend-friend';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    await befriend(owner, ownerName, friend, friendName);
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'friends' });
+    const token = create.body.share.token as string;
+    expect(
+      (await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend)).status
+    ).toBe(200);
+
+    const ownerId = await userIdByName(friend, ownerName);
+    const del = await request(app).delete(`/api/friends/${ownerId}`).set('Cookie', friend);
+    expect(del.status).toBe(204);
+
+    const after = await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend);
+    expect(after.status).toBe(403);
+  });
+
+  it('a link share stays anonymously readable (back-compat)', async () => {
+    const cookie = await makeUser('aud-link-anon');
+    await setSnapshot(cookie, 0, { collection: { cards: [makeCard()] } });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'collection' }); // no audience → 'link'
+    const token = create.body.share.token as string;
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.status).toBe(200);
+  });
+});

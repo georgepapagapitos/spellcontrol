@@ -82,6 +82,8 @@
 /* ── Action buttons ─────────────────────────────────────────────────────── */
 .friends-action-btn {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
   padding: 0 var(--space-3);
   height: 2rem;
   border: 0.5px solid var(--border);
@@ -95,6 +97,7 @@
   white-space: nowrap;
   background: var(--surface);
   color: var(--text-primary);
+  text-decoration: none;
 }
 
 .friends-action-btn:hover:not(:disabled) {
