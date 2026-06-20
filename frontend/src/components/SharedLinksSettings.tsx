@@ -177,6 +177,9 @@ export function SharedLinksSettings() {
                   {s.audience === 'friends' && (
                     <span className="settings-share-audience"> · Friends only</span>
                   )}
+                  {s.audience === 'direct' && (
+                    <span className="settings-share-audience"> · Sent to a friend</span>
+                  )}
                 </div>
                 <div className="settings-row-hint">
                   Shared {new Date(s.createdAt).toLocaleDateString()} ·{' '}

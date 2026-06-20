@@ -18,12 +18,14 @@ import {
   type Friend,
   type FriendRequest,
 } from '../lib/friends-client';
+import { useInbox, markInboxSeen } from '../lib/use-inbox';
 
-type TabId = 'friends' | 'requests';
+type TabId = 'friends' | 'requests' | 'inbox';
 
 const TABS = [
   { id: 'friends' as TabId, label: 'Friends' },
   { id: 'requests' as TabId, label: 'Requests' },
+  { id: 'inbox' as TabId, label: 'Inbox' },
 ];
 
 // ── Add Friend row action label ───────────────────────────────────────────────
@@ -53,6 +55,9 @@ function FriendsSkeleton() {
 
 export function FriendsPage() {
   const status = useAuth((s) => s.status);
+  // The inbox + its unseen count come from the shared hook (same source as the
+  // nav badge) — no duplicate fetch/state here.
+  const { count: inboxCount, items: inbox } = useInbox();
 
   const [tab, setTab] = useState<TabId>('friends');
 
@@ -92,6 +97,13 @@ export function FriendsPage() {
       .catch((err: unknown) => {
         setLoadError(err instanceof Error ? err.message : 'Failed to load friends.');
       });
+  }, []);
+
+  // Opening the inbox tab marks it seen — clears the unseen badge here and in
+  // the nav (useInbox's count drops to 0 reactively via markInboxSeen).
+  const handleTabChange = useCallback((next: TabId) => {
+    setTab(next);
+    if (next === 'inbox') markInboxSeen();
   }, []);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
@@ -262,12 +274,18 @@ export function FriendsPage() {
   const friendsList = friends ?? [];
   const incomingList = incoming ?? [];
   const outgoingList = outgoing ?? [];
+  const inboxList = inbox ?? [];
   const requestCount = incomingList.length + outgoingList.length;
+  // Suppress the unseen badge while the inbox tab is open (it's been seen).
+  const unseenInbox = tab === 'inbox' ? 0 : inboxCount;
 
-  const tabsWithCounts = TABS.map((t) => ({
-    ...t,
-    count: t.id === 'friends' ? friendsList.length || null : requestCount > 0 ? requestCount : null,
-  }));
+  const tabsWithCounts = TABS.map((t) => {
+    let count: number | null = null;
+    if (t.id === 'friends') count = friendsList.length || null;
+    else if (t.id === 'requests') count = requestCount > 0 ? requestCount : null;
+    else if (t.id === 'inbox') count = unseenInbox > 0 ? unseenInbox : null;
+    return { ...t, count };
+  });
 
   return (
     <div className="friends-page">
@@ -350,7 +368,7 @@ export function FriendsPage() {
         <Tabs
           tabs={tabsWithCounts}
           value={tab}
-          onChange={setTab}
+          onChange={handleTabChange}
           ariaLabel="Friends sections"
           variant="underline"
         />
@@ -489,6 +507,44 @@ export function FriendsPage() {
                 </section>
               )}
             </>
+          )}
+        </div>
+
+        {/* Inbox panel */}
+        <div
+          role="tabpanel"
+          id="friends-panel-inbox"
+          aria-labelledby="sc-tab-inbox"
+          hidden={tab !== 'inbox'}
+          className="friends-panel"
+        >
+          {inbox === null ? (
+            <FriendsSkeleton />
+          ) : inboxList.length === 0 ? (
+            <p className="friends-empty" role="status">
+              No shared items yet — when a friend sends you something, it appears here.
+            </p>
+          ) : (
+            <ul className="friends-inbox-list" aria-label="Shared with you">
+              {inboxList.map((item) => (
+                <li key={item.token} className="friends-inbox-item">
+                  <div className="friends-inbox-info">
+                    <div className="friends-inbox-text">
+                      <span className="friends-inbox-from">{item.fromUsername}</span> shared a{' '}
+                      {item.kind}: <span className="friends-inbox-label">{item.label}</span>
+                    </div>
+                    <div className="friends-inbox-time">{formatRelativeTime(item.createdAt)}</div>
+                  </div>
+                  <Link
+                    to={`/s/${item.token}`}
+                    className="friends-action-btn is-primary"
+                    aria-label={`View ${item.label} shared by ${item.fromUsername}`}
+                  >
+                    View
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

@@ -3,6 +3,7 @@ import {
   createShare,
   fetchPublicShare,
   getFriendShares,
+  getInbox,
   listShares,
   revokeShare,
   ShareAuthRequiredError,
@@ -53,6 +54,15 @@ describe('createShare', () => {
     await createShare({ kind: 'cube', resourceId: 'c1', audience: 'friends' });
     const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
     expect(body).toMatchObject({ kind: 'cube', resourceId: 'c1', audience: 'friends' });
+  });
+
+  it('forwards addresseeId for a direct share', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ share: {} }, { status: 201 }));
+    await createShare({ kind: 'deck', resourceId: 'd1', audience: 'direct', addresseeId: 'u2' });
+    const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ audience: 'direct', addresseeId: 'u2' });
   });
 
   it('throws with the server error on failure', async () => {
@@ -130,6 +140,24 @@ describe('getFriendShares', () => {
       jsonResponse({ error: 'Not friends.' }, { status: 403 })
     );
     await expect(getFriendShares('x')).rejects.toThrow(/Not friends/);
+  });
+});
+
+describe('getInbox', () => {
+  it('returns the directed shares array', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ shares: [{ token: 't', kind: 'deck', fromUsername: 'a', label: 'X' }] })
+    );
+    const out = await getInbox();
+    expect(out).toHaveLength(1);
+    expect(out[0].fromUsername).toBe('a');
+  });
+
+  it('throws on a non-ok response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'nope' }, { status: 500 })
+    );
+    await expect(getInbox()).rejects.toThrow(/nope/);
   });
 });
 
