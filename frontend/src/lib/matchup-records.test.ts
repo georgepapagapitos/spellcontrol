@@ -165,6 +165,26 @@ describe('aggregateMatchupRecords', () => {
     expect(rows).toHaveLength(6);
   });
 
+  it('4-player online pod — only the calling user’s own matchups, not opponent-vs-opponent', () => {
+    const rec = game(
+      'g1',
+      [
+        player(0, 'd1', { userId: 'u1' }),
+        player(1, 'd2', { userId: 'u2' }),
+        player(2, 'd3', { userId: 'u3' }),
+        player(3, 'd4', { userId: 'u4' }),
+      ],
+      0, // u1 (d1) wins
+      'online'
+    );
+    const rows = aggregateMatchupRecords([rec], 'u1');
+    // u1 took part in 3 of the 6 pairs: d1|d2, d1|d3, d1|d4 — not d2|d3, d2|d4, d3|d4.
+    expect(rows).toHaveLength(3);
+    expect(rows.every((r) => r.deckAId === 'd1' || r.deckBId === 'd1')).toBe(true);
+    // d1 won all three.
+    expect(rows.every((r) => r.deckAId === 'd1' && r.wins === 1 && r.losses === 0)).toBe(true);
+  });
+
   it('key canonicalization — swapped seat order produces one merged row', () => {
     // Game 1: d1 at seat 0, d2 at seat 1
     const g1 = game(

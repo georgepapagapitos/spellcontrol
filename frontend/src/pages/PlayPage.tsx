@@ -942,7 +942,7 @@ function HistoryTab({
             </thead>
             <tbody>
               {matchupRows.map((row) => (
-                <tr key={row.deckAId + row.deckBId}>
+                <tr key={`${row.deckAId}|${row.deckBId}`}>
                   <td>{row.deckAName}</td>
                   <td className="play-matchup-vs">vs</td>
                   <td>{row.deckBName}</td>
@@ -952,8 +952,8 @@ function HistoryTab({
                   <td className="play-matchup-bar">
                     <StackedBar
                       segments={[
-                        { key: 'w', value: row.wins, color: 'var(--ok-text, #1d7a4a)' },
-                        { key: 'l', value: row.losses, color: 'var(--err-text, #b03228)' },
+                        { key: 'w', value: row.wins, color: 'var(--success)' },
+                        { key: 'l', value: row.losses, color: 'var(--err-text)' },
                       ]}
                       max={row.played}
                     />

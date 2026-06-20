@@ -49,8 +49,6 @@ export function aggregateMatchupRecords(
     // Collect players that have a deckId.
     const players = rec.players.filter((p) => p.deckId != null);
 
-    // For online games collect the set of userIds present, to check attribution.
-    const userIds = new Set(rec.players.map((p) => p.userId));
     const isOnline = rec.mode === 'online';
 
     // Generate every unordered pair.
@@ -59,8 +57,9 @@ export function aggregateMatchupRecords(
         const pa = players[i];
         const pb = players[j];
 
-        // For online games, skip pairs where the current user was not present.
-        if (isOnline && !userIds.has(userId)) continue;
+        // For online games, only keep pairs the calling user took part in —
+        // opponent-vs-opponent matchups from a multiplayer pod aren't "my" head-to-head.
+        if (isOnline && pa.userId !== userId && pb.userId !== userId) continue;
 
         // Canonical ordering: lexicographically-lesser deckId is always A.
         const [aPlayer, bPlayer] = pa.deckId! < pb.deckId! ? [pa, pb] : [pb, pa];
