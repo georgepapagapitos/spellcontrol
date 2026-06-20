@@ -495,3 +495,48 @@
   border-color: var(--err-text);
   color: var(--err-text);
 }
+
+/* Section header — a visual chapter-break label between groups of settings
+   cards. Mono uppercase, secondary color, no card chrome. */
+.settings-section-header {
+  margin: 1rem 0 0.35rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* About footer — legal/attribution text demoted from a full card to quiet
+   fine-print below the Danger zone. No card chrome, muted color. */
+.settings-page-about {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.settings-page-about p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.settings-page-about a {
+  color: var(--text-secondary);
+}
+
+.settings-page-about a:hover,
+.settings-page-about a:focus-visible {
+  color: var(--accent);
+}
+
+/* On narrow screens, btn action buttons inside settings rows align right
+   (mirrors the pill-btn behavior added in the original media query). */
+@media (max-width: 520px) {
+  .settings-row .btn {
+    align-self: flex-end;
+  }
+}

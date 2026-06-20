@@ -297,7 +297,7 @@ export function SettingsPage() {
                     <div className="settings-row-label">Signed in as</div>
                     <div className="settings-row-value">{username}</div>
                   </div>
-                  <button type="button" className="pill-btn pill-btn-danger" onClick={openSignOut}>
+                  <button type="button" className="btn" onClick={openSignOut}>
                     Sign out
                   </button>
                 </div>
@@ -354,7 +354,7 @@ export function SettingsPage() {
                 {identities.google ? (
                   <button
                     type="button"
-                    className="pill-btn pill-btn-danger"
+                    className="btn btn-danger"
                     onClick={() => setUnlinkOpen(true)}
                   >
                     Unlink
@@ -362,7 +362,7 @@ export function SettingsPage() {
                 ) : (
                   <button
                     type="button"
-                    className="pill-btn"
+                    className="btn"
                     onClick={() => void handleLinkGoogle()}
                     disabled={linkBusy}
                   >
@@ -374,6 +374,268 @@ export function SettingsPage() {
           </section>
         )}
       </div>
+
+      {/*
+        Appearance card: moved up so everyday preferences (theme) sit right
+        after account, before the admin panel and data/sync tools. Matches
+        the ManaBox pattern of leading with visual preferences.
+      */}
+      <section className="settings-card" aria-labelledby="settings-appearance-title">
+        <header className="settings-card-header">
+          <h2 id="settings-appearance-title" className="settings-card-title">
+            Appearance
+          </h2>
+          <p className="settings-card-hint">Theme re-skins the whole app to a guild palette.</p>
+        </header>
+        <div className="settings-card-body">
+          <ul className="settings-theme-grid" role="listbox" aria-label="Choose theme">
+            {THEMES.map((t) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={t.id === theme}
+                  className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
+                  onClick={() => setTheme(t.id)}
+                >
+                  <span
+                    className="settings-theme-swatch"
+                    aria-hidden="true"
+                    style={{
+                      background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
+                    }}
+                  />
+                  <span className="settings-theme-name">{t.name}</span>
+                  <span className="settings-theme-guild">{t.guild}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {isAdmin && userId && <AdminPanel currentUserId={userId} />}
+
+      {/*
+        Data & Sync group: import/export/prices, offline cache, share links,
+        and troubleshooting are all cache/data concerns — visually grouped
+        under a section header so they read as a coherent block.
+      */}
+      <div role="group" aria-labelledby="settings-data-group-title">
+        <h2 id="settings-data-group-title" className="settings-section-header">
+          Data &amp; Sync
+        </h2>
+
+        <section className="settings-card" aria-labelledby="settings-data-title">
+          <header className="settings-card-header">
+            <h2 id="settings-data-title" className="settings-card-title">
+              Collection
+            </h2>
+            <p className="settings-card-hint">
+              Import, back up, and keep card data fresh. Exports are JSON files you can re-import
+              later.
+            </p>
+          </header>
+          <div className="settings-card-body">
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value">Add cards</div>
+                <div className="settings-row-hint">
+                  Paste a list from ManaBox, Moxfield, Archidekt, or a CSV to add cards to your
+                  collection.
+                </div>
+              </div>
+              <Link to="/collection?add=list" className="btn">
+                Add cards
+              </Link>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value settings-row-value--with-tip">
+                  Export full collection
+                  <InfoTip
+                    label="binders and lists"
+                    wide
+                    text={
+                      <>
+                        <strong>Binders</strong> are rule-driven — you define filters (color, set,
+                        rarity, etc.) and SpellControl automatically routes matching cards into
+                        them.
+                        <br />
+                        <br />
+                        <strong>Lists</strong> are manual — a named group of specific cards you
+                        curate by hand, for things like a wish list or trade targets.
+                        <br />
+                        <br />
+                        The backup includes both binder rule definitions and lists.
+                      </>
+                    }
+                  />
+                </div>
+                <div className="settings-row-hint">
+                  Download a JSON backup containing every card and binder definition.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleExportFull}
+                disabled={cardCount === 0}
+              >
+                Download backup
+              </button>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value">Refresh card prices</div>
+                <div className="settings-row-hint">
+                  Re-fetch USD prices from Scryfall for every card in your collection.
+                  {pricesUpdated && ` Last updated ${pricesUpdated}.`}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void handleRefreshPrices()}
+                disabled={cardCount === 0 || isRefreshingPrices}
+              >
+                {isRefreshingPrices ? 'Refreshing…' : 'Refresh prices'}
+              </button>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value settings-row-value--with-tip">
+                  Repair deck allocations
+                  <InfoTip
+                    label="deck allocations"
+                    text="An allocation links each card slot in a deck to a specific physical copy in your collection — so if you own two copies of a card, SpellControl knows which one is claimed by which deck. Repair re-runs this matching after edits or re-imports."
+                  />
+                </div>
+                <div className="settings-row-hint">
+                  Re-map each deck's reserved copies after edits or re-imports.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleRepairAllocations}
+                disabled={cardCount === 0 || deckCount === 0}
+              >
+                Repair
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <OfflineModeSettings />
+
+        <SharedLinksSettings />
+
+        <section className="settings-card" aria-labelledby="settings-troubleshooting-title">
+          <header className="settings-card-header">
+            <h2 id="settings-troubleshooting-title" className="settings-card-title">
+              Troubleshooting
+            </h2>
+            <p className="settings-card-hint">
+              If the app feels stuck on an old version after an update, reset the cached app shell
+              to fetch the latest from the server.
+            </p>
+          </header>
+          <div className="settings-card-body">
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value">Reset app cache</div>
+                <div className="settings-row-hint">
+                  Clears the cached HTML / JS / CSS bundles, then reloads to fetch the latest from
+                  the server. Your decks, collection, and binders are not affected.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setResetCacheOpen(true)}
+                disabled={resetCacheBusy}
+              >
+                {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section
+        className="settings-card settings-card--danger"
+        aria-labelledby="settings-danger-title"
+      >
+        <header className="settings-card-header">
+          <h2 id="settings-danger-title" className="settings-card-title">
+            Danger zone
+          </h2>
+          <p className="settings-card-hint">
+            Irreversible actions. Make a backup first (Collection → Export full collection).
+          </p>
+        </header>
+        <div className="settings-card-body">
+          <div className="settings-row">
+            <div className="settings-row-text">
+              <div className="settings-row-value">Delete entire collection</div>
+              <div className="settings-row-hint">
+                Removes every card and import-history entry. Binder definitions are kept; they will
+                simply have nothing to match against.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => setWipeStep(1)}
+              disabled={cardCount === 0}
+            >
+              Delete collection
+            </button>
+          </div>
+
+          {username && (
+            <div className="settings-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value">Delete account</div>
+                <div className="settings-row-hint">
+                  Permanently deletes your account and all server-side data — collection, binders,
+                  decks, games, backups, and share links. This cannot be undone.
+                </div>
+              </div>
+              <button type="button" className="btn btn-danger" onClick={() => setDeleteStep(1)}>
+                Delete account
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <footer className="settings-page-about">
+        <p>
+          SpellControl is unofficial Fan Content permitted under the{' '}
+          <a
+            href="https://company.wizards.com/en/legal/fancontentpolicy"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Fan Content Policy
+          </a>
+          . Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards
+          of the Coast. ©Wizards of the Coast LLC.
+        </p>
+        <p>
+          Card data and images are provided by{' '}
+          <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
+            Scryfall
+          </a>
+          . SpellControl is not affiliated with Scryfall, ManaBox, Moxfield, Archidekt, Deckbox,
+          TCGplayer, or Cardsphere.
+        </p>
+      </footer>
 
       {unlinkOpen && (
         <ConfirmDialog
@@ -414,263 +676,6 @@ export function SettingsPage() {
           onCancel={() => setResetCacheOpen(false)}
         />
       )}
-
-      {isAdmin && userId && <AdminPanel currentUserId={userId} />}
-
-      <section className="settings-card" aria-labelledby="settings-appearance-title">
-        <header className="settings-card-header">
-          <h2 id="settings-appearance-title" className="settings-card-title">
-            Appearance
-          </h2>
-          <p className="settings-card-hint">Theme re-skins the whole app to a guild palette.</p>
-        </header>
-        <div className="settings-card-body">
-          <ul className="settings-theme-grid" role="listbox" aria-label="Choose theme">
-            {THEMES.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={t.id === theme}
-                  className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
-                  onClick={() => setTheme(t.id)}
-                >
-                  <span
-                    className="settings-theme-swatch"
-                    aria-hidden="true"
-                    style={{
-                      background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
-                    }}
-                  />
-                  <span className="settings-theme-name">{t.name}</span>
-                  <span className="settings-theme-guild">{t.guild}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <OfflineModeSettings />
-
-      <SharedLinksSettings />
-
-      <section className="settings-card" aria-labelledby="settings-data-title">
-        <header className="settings-card-header">
-          <h2 id="settings-data-title" className="settings-card-title">
-            Data
-          </h2>
-          <p className="settings-card-hint">
-            Import, back up, and keep card data fresh. Exports are JSON files you can re-import
-            later.
-          </p>
-        </header>
-        <div className="settings-card-body">
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <div className="settings-row-value">Add cards</div>
-              <div className="settings-row-hint">
-                Paste a list from ManaBox, Moxfield, Archidekt, or a CSV to add cards to your
-                collection.
-              </div>
-            </div>
-            <Link to="/collection?add=list" className="pill-btn">
-              Add cards
-            </Link>
-          </div>
-
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <div className="settings-row-value settings-row-value--with-tip">
-                Export full collection
-                <InfoTip
-                  label="binders and lists"
-                  wide
-                  text={
-                    <>
-                      <strong>Binders</strong> are rule-driven — you define filters (color, set,
-                      rarity, etc.) and SpellControl automatically routes matching cards into them.
-                      <br />
-                      <br />
-                      <strong>Lists</strong> are manual — a named group of specific cards you curate
-                      by hand, for things like a wish list or trade targets.
-                      <br />
-                      <br />
-                      The backup includes both binder rule definitions and lists.
-                    </>
-                  }
-                />
-              </div>
-              <div className="settings-row-hint">
-                Download a JSON backup containing every card and binder definition.
-              </div>
-            </div>
-            <button
-              type="button"
-              className="pill-btn"
-              onClick={handleExportFull}
-              disabled={cardCount === 0}
-            >
-              Download backup
-            </button>
-          </div>
-
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <div className="settings-row-value">Refresh card prices</div>
-              <div className="settings-row-hint">
-                Re-fetch USD prices from Scryfall for every card in your collection.
-                {pricesUpdated && ` Last updated ${pricesUpdated}.`}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="pill-btn"
-              onClick={() => void handleRefreshPrices()}
-              disabled={cardCount === 0 || isRefreshingPrices}
-            >
-              {isRefreshingPrices ? 'Refreshing…' : 'Refresh prices'}
-            </button>
-          </div>
-
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <div className="settings-row-value settings-row-value--with-tip">
-                Repair deck allocations
-                <InfoTip
-                  label="deck allocations"
-                  text="An allocation links each card slot in a deck to a specific physical copy in your collection — so if you own two copies of a card, SpellControl knows which one is claimed by which deck. Repair re-runs this matching after edits or re-imports."
-                />
-              </div>
-              <div className="settings-row-hint">
-                Re-map each deck's reserved copies after edits or re-imports.
-              </div>
-            </div>
-            <button
-              type="button"
-              className="pill-btn"
-              onClick={handleRepairAllocations}
-              disabled={cardCount === 0 || deckCount === 0}
-            >
-              Repair
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="settings-card" aria-labelledby="settings-troubleshooting-title">
-        <header className="settings-card-header">
-          <h2 id="settings-troubleshooting-title" className="settings-card-title">
-            Troubleshooting
-          </h2>
-          <p className="settings-card-hint">
-            If the app feels stuck on an old version after an update, reset the cached app shell to
-            fetch the latest from the server.
-          </p>
-        </header>
-        <div className="settings-card-body">
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <div className="settings-row-value">Reset app cache</div>
-              <div className="settings-row-hint">
-                Clears the cached HTML / JS / CSS bundles, then reloads to fetch the latest from the
-                server. Your decks, collection, and binders are not affected.
-              </div>
-            </div>
-            <button
-              type="button"
-              className="pill-btn"
-              onClick={() => setResetCacheOpen(true)}
-              disabled={resetCacheBusy}
-            >
-              {resetCacheBusy ? 'Resetting…' : 'Reset cache'}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section
-        className="settings-card settings-card--danger"
-        aria-labelledby="settings-danger-title"
-      >
-        <header className="settings-card-header">
-          <h2 id="settings-danger-title" className="settings-card-title">
-            Danger zone
-          </h2>
-          <p className="settings-card-hint">
-            Irreversible actions. Make a backup first (Data → Export full collection).
-          </p>
-        </header>
-        <div className="settings-card-body">
-          <div className="settings-row">
-            <div className="settings-row-text">
-              <div className="settings-row-value">Delete entire collection</div>
-              <div className="settings-row-hint">
-                Removes every card and import-history entry. Binder definitions are kept; they will
-                simply have nothing to match against.
-              </div>
-            </div>
-            <button
-              type="button"
-              className="pill-btn pill-btn-danger"
-              onClick={() => setWipeStep(1)}
-              disabled={cardCount === 0}
-            >
-              Delete collection
-            </button>
-          </div>
-
-          {username && (
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value">Delete account</div>
-                <div className="settings-row-hint">
-                  Permanently deletes your account and all server-side data — collection, binders,
-                  decks, games, backups, and share links. This cannot be undone.
-                </div>
-              </div>
-              <button
-                type="button"
-                className="pill-btn pill-btn-danger"
-                onClick={() => setDeleteStep(1)}
-              >
-                Delete account
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="settings-card" aria-labelledby="settings-about-title">
-        <header className="settings-card-header">
-          <h2 id="settings-about-title" className="settings-card-title">
-            About
-          </h2>
-          <p className="settings-card-hint">Legal &amp; attribution.</p>
-        </header>
-        <div className="settings-card-body">
-          <p className="settings-row-hint">
-            SpellControl is unofficial Fan Content permitted under the{' '}
-            <a
-              href="https://company.wizards.com/en/legal/fancontentpolicy"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Fan Content Policy
-            </a>
-            . Not approved/endorsed by Wizards. Portions of the materials used are property of
-            Wizards of the Coast. ©Wizards of the Coast LLC.
-          </p>
-          <p className="settings-row-hint">
-            Card data and images are provided by{' '}
-            <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
-              Scryfall
-            </a>
-            . SpellControl is not affiliated with Scryfall, ManaBox, Moxfield, Archidekt, Deckbox,
-            TCGplayer, or Cardsphere.
-          </p>
-        </div>
-      </section>
 
       {wipeStep === 1 && (
         <WipeConfirmDialog
