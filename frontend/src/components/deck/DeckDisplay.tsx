@@ -96,6 +96,7 @@ import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 // classifyType / tallyNames / TypeGroup live in lib/build-mana-data (shared
@@ -2206,24 +2207,19 @@ function ToolbarPopover({
 
   useLayoutEffect(() => {
     if (!open || !panelRef.current || !buttonRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    const triggerRect = buttonRef.current.getBoundingClientRect();
-    setPanelPos((p) => {
-      if (!p) return p;
-      let next = p;
-      if (p.top !== undefined && rect.bottom > window.innerHeight) {
-        next = { ...next, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 };
-      }
-      if (next.bottom !== undefined) {
-        const upwardTop = triggerRect.top - 6 - rect.height;
-        if (upwardTop < 8) {
-          next = { ...next, top: 8, bottom: undefined };
-        }
-      }
-      if (rect.left < 8) {
-        next = { ...next, right: undefined, left: Math.max(8, triggerRect.left) };
-      }
-      return next === p ? p : next;
+    const safe = getSafeViewport();
+    const placement = computePopoverPlacement(
+      buttonRef.current.getBoundingClientRect(),
+      panelRef.current.getBoundingClientRect(),
+      safe,
+      'right',
+      6
+    );
+    setPanelPos({
+      top: placement.top,
+      bottom: placement.bottom,
+      left: placement.left,
+      right: placement.right,
     });
   }, [open]);
 
@@ -2264,8 +2260,9 @@ function ToolbarPopover({
     e.stopPropagation();
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const right = Math.max(0, window.innerWidth - rect.right);
+      const safe = getSafeViewport();
+      const spaceBelow = safe.bottom - rect.bottom;
+      const right = Math.max(0, safe.right - rect.right);
       setPanelPos(
         spaceBelow >= 160
           ? { top: rect.bottom + 6, right }
