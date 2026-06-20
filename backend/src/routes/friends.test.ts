@@ -427,13 +427,13 @@ describe('GET /api/friends/:friendId/collection', () => {
     expect(res.status).toBe(401);
   }, 15000);
 
-  it('404 — unknown friendId', async () => {
+  it('403 — unknown friendId (indistinguishable from non-friend)', async () => {
     const alice = await makeUserFull('fc-404-alice');
     const res = await request(app)
       .get('/api/friends/nonexistent-user-id/collection')
       .set('Cookie', alice.cookie);
-    expect(res.status).toBe(404);
-    expect(res.body.error).toMatch(/user not found/i);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not friends/i);
   }, 15000);
 
   it('403 — no friendship row (strangers)', async () => {
@@ -648,12 +648,13 @@ describe('GET /api/friends/:friendId/shares', () => {
     expect(res.status).toBe(403);
   });
 
-  it('404s for an unknown user id', async () => {
+  it('403s for an unknown user id (indistinguishable from non-friend)', async () => {
     const me = await makeUserFull('hub-unknown-target');
     const res = await request(app)
       .get('/api/friends/nonexistent-id/shares')
       .set('Cookie', me.cookie);
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/not friends/i);
   });
 
   it('returns a friend’s friends-audience shares with labels, excluding link shares', async () => {

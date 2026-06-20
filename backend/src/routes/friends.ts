@@ -330,7 +330,13 @@ friendsRouter.get(
     const pool = getPool();
     const db = getDb();
 
-    // 1. Verify the target user exists
+    // 1. Check friendship first — uniform 403 for both unknown users and non-friends
+    //    so callers cannot distinguish whether a user id exists.
+    if (!(await areFriends(callerId, friendId))) {
+      return res.status(403).json({ error: 'Not friends.' });
+    }
+
+    // 2. Fetch the owner's username (safe — friendship confirmed above)
     const targetRows = await db
       .select({ id: users.id, username: users.username })
       .from(users)
@@ -338,14 +344,9 @@ friendsRouter.get(
       .limit(1);
 
     if (targetRows.length === 0) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-    const target = targetRows[0];
-
-    // 2. Check for accepted friendship in either direction (self → 403 since no such row exists)
-    if (!(await areFriends(callerId, friendId))) {
       return res.status(403).json({ error: 'Not friends.' });
     }
+    const target = targetRows[0];
 
     // 3. Fetch friend's non-deleted cards
     const cardRows = await pool.query<{ data: unknown; id: string }>(
@@ -432,6 +433,11 @@ friendsRouter.get(
     const callerId = req.user!.id;
     const friendId = String(req.params.friendId ?? '');
 
+    // Check friendship first — uniform 403 for both unknown users and non-friends.
+    if (!(await areFriends(callerId, friendId))) {
+      return res.status(403).json({ error: 'Not friends.' });
+    }
+
     const db = getDb();
     const ownerRows = await db
       .select({ username: users.username })
@@ -439,10 +445,6 @@ friendsRouter.get(
       .where(eq(users.id, friendId))
       .limit(1);
     if (ownerRows.length === 0) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    if (!(await areFriends(callerId, friendId))) {
       return res.status(403).json({ error: 'Not friends.' });
     }
 
