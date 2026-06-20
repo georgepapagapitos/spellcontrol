@@ -348,7 +348,7 @@ export function bracketTagToNumber(tag: unknown): number | null {
     case 'R':
       return 4; // Ruthless: fast/infinite-turns/MLD
     case 'S':
-      return 4; // Spicy: competitive/casual bridge
+      return 3; // Spicy: competitive/casual bridge — calibrated B3 (estimator ignores this column; bracketTag drives escalation)
     case 'P':
       return 3; // Powerful: upgraded/optimized
     case 'O':

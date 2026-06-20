@@ -173,6 +173,8 @@
   align-self: stretch;
   justify-content: center;
   padding-block: 0.6rem;
+  /* Explicit radius so btn's var(--radius) wins over any pill-btn inheritance */
+  border-radius: var(--radius);
 }
 
 /* ── Local setup: redesigned ─────────────────────────────────────────────
@@ -269,6 +271,11 @@
   gap: 0.5rem;
 }
 
+/* Section titles inside grids span full width */
+.play-setup-rules > .play-setup-section-title {
+  grid-column: 1 / -1;
+}
+
 .play-rule-pill {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -348,7 +355,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin: 0;
 }
 

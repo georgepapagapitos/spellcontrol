@@ -148,6 +148,25 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
+.seat-menu-action.is-danger {
+  border-color: rgba(220, 38, 38, 0.5);
+  color: rgba(255, 130, 130, 0.9);
+}
+
+.seat-menu-action.is-danger:hover {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.7);
+  color: rgba(255, 160, 160, 1);
+}
+
+/* Thin rule separating functional groups inside the seat menu */
+.seat-menu-divider {
+  height: 0.5px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0.15rem 0;
+  flex-shrink: 0;
+}
+
 .seat-menu-colors {
   display: flex;
   flex-direction: column;
@@ -600,10 +619,10 @@
   gap: 0.45rem;
 }
 
-/* Game-menu pill — same visual language as `.pill-btn`. Picks up the
-   active app theme so the menu reads light or dark with the rest of the
-   app, while the underlying game board stays its own dark overlay. */
-.game-menu-pill {
+/* Game-menu action button — rounded-rect (var(--radius), not pill-shaped).
+   Picks up the active app theme so the menu reads light or dark with the
+   rest of the app, while the underlying game board stays its own dark overlay. */
+.game-menu-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -623,41 +642,41 @@
     transform 80ms ease;
 }
 
-.game-menu-pill:hover {
+.game-menu-btn:hover {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
 }
 
-.game-menu-pill:active {
+.game-menu-btn:active {
   transform: scale(0.98);
 }
 
-.game-menu-pill.is-wide {
+.game-menu-btn.is-wide {
   width: 100%;
   padding: 0.85rem 1rem;
   font-size: var(--text-base);
 }
 
-.game-menu-pill.is-primary {
+.game-menu-btn.is-primary {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
 }
 
-.game-menu-pill.is-primary:hover {
+.game-menu-btn.is-primary:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
   color: var(--on-accent);
 }
 
-.game-menu-pill.is-danger {
+.game-menu-btn.is-danger {
   background: var(--err-bg);
   border-color: var(--err-border);
   color: var(--err-text);
 }
 
-.game-menu-pill.is-danger:hover {
+.game-menu-btn.is-danger:hover {
   background: var(--err-border);
   color: var(--on-accent);
 }
