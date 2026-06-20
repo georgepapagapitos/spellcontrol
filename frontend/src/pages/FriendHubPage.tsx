@@ -60,6 +60,9 @@ export function FriendHubPage() {
         <BackLink />
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to view shared content</p>
+          <p className="friends-signin-body">
+            Sign in to see what your friends have shared with you.
+          </p>
           <Link to="/auth" className="friends-signin-btn">
             Sign in
           </Link>
