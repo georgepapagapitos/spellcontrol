@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import type { EnrichedCard } from '../types';
 import { isLand } from '../lib/colors';
 import { truncateLongWords } from '../lib/slot-text';
+import { getSafeViewport } from '../lib/popover-placement';
 import { CardPreviewContext } from './CardPreviewContext';
 import { getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
@@ -93,8 +94,10 @@ export function CardSlot({ card, showImage }: Props) {
     const tipRect = tip.getBoundingClientRect();
     const tipW = tipRect.width;
     const tipH = tipRect.height;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const safe = getSafeViewport();
+    const vw = safe.right;
+    const vh = safe.bottom;
+    const safeTop = safe.top;
 
     const fitsRight = slotRect.right + TIP_MARGIN + tipW <= vw - VIEWPORT_PAD;
     const fitsLeft = slotRect.left - TIP_MARGIN - tipW >= VIEWPORT_PAD;
@@ -114,7 +117,7 @@ export function CardSlot({ card, showImage }: Props) {
     }
 
     x = Math.max(VIEWPORT_PAD, Math.min(x, vw - tipW - VIEWPORT_PAD));
-    y = Math.max(VIEWPORT_PAD, Math.min(y, vh - tipH - VIEWPORT_PAD));
+    y = Math.max(safeTop + VIEWPORT_PAD, Math.min(y, vh - tipH - VIEWPORT_PAD));
 
     setPos((prev) => (prev && prev.x === x && prev.y === y ? prev : { x, y }));
   }, []);

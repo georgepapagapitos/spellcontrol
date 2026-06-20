@@ -1,9 +1,12 @@
 /**
  * Pure placement math for anchored floating surfaces (dropdowns, popovers, menus).
  *
- * All surfaces that open anchored to a trigger element — OverflowMenu,
- * FilterPopover, DeckFiltersPopover, SortPopover — use this to decide where to
- * position their portaled panel. The math is DOM-free and fully unit-testable.
+ * All surfaces that open anchored to a trigger element use this to decide
+ * where to position their portaled panel. The math is DOM-free and fully
+ * unit-testable. Converged surfaces (all portal to <body>):
+ *   InfoTip, SelectMenu, OverflowMenu, CardRowMenu, FilterPopover,
+ *   DeckFiltersPopover, SortPopover, Legend, CardContextMenu (playtest),
+ *   MobileZonesPanel (playtest), DeckDisplay ToolbarPopover, CardSlot tooltip.
  *
  * Policy
  * ------
