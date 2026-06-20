@@ -2,15 +2,19 @@ import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { and, desc, eq, isNull } from 'drizzle-orm';
-import { requireAuth } from '../auth';
+import { optionalAuth, requireAuth } from '../auth';
 import { getDb } from '../db';
 import { shares } from '../db/schema';
+import { areFriends } from '../friends/relations';
+import type { ShareDataView } from '../shares/cache';
 import { invalidateShareContext, loadShareContext } from '../shares/context';
 import {
+  findCubeById,
   findDeckById,
   findListById,
   projectBinder,
   projectCollection,
+  projectCube,
   projectDeck,
   projectList,
 } from '../shares/projections';
@@ -28,10 +32,20 @@ const publicLimiter = isTest
   ? (_req: Request, _res: Response, next: () => void) => next()
   : rateLimit({ windowMs: 60_000, max: 60 });
 
-type ShareKind = 'collection' | 'binder' | 'deck' | 'list';
+type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube';
 
 function isShareKind(x: unknown): x is ShareKind {
-  return x === 'collection' || x === 'binder' || x === 'deck' || x === 'list';
+  return x === 'collection' || x === 'binder' || x === 'deck' || x === 'list' || x === 'cube';
+}
+
+/**
+ * Who can open a share. 'direct' (a share addressed to one friend) ships in a
+ * follow-up — this route only mints 'link' and 'friends' for now.
+ */
+type ShareAudience = 'link' | 'friends';
+
+function isShareAudience(x: unknown): x is ShareAudience {
+  return x === 'link' || x === 'friends';
 }
 
 function newToken(): string {
@@ -45,23 +59,29 @@ function newToken(): string {
  * unless it was revoked, in which case a new one is minted.
  */
 sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
-  const body = req.body as { kind?: unknown; resourceId?: unknown };
+  const body = req.body as { kind?: unknown; resourceId?: unknown; audience?: unknown };
   if (!isShareKind(body.kind)) {
     return res.status(400).json({
-      error: "kind must be one of 'collection', 'binder', 'deck', or 'list'.",
+      error: "kind must be one of 'collection', 'binder', 'deck', 'list', or 'cube'.",
     });
   }
   const kind = body.kind;
   const resourceId =
     kind === 'collection' ? '' : typeof body.resourceId === 'string' ? body.resourceId : '';
   if (kind !== 'collection' && !resourceId) {
-    return res
-      .status(400)
-      .json({ error: 'resourceId is required for kind=binder, kind=deck, and kind=list.' });
+    return res.status(400).json({ error: 'resourceId is required for this kind.' });
+  }
+  // Absent audience = 'link' so every existing client keeps minting public links.
+  const audience: ShareAudience =
+    body.audience === undefined ? 'link' : (body.audience as ShareAudience);
+  if (!isShareAudience(audience)) {
+    return res.status(400).json({ error: "audience must be 'link' or 'friends'." });
   }
 
   const db = getDb();
-  // Reuse the active token if one exists.
+  // Idempotent per (userId, kind, resourceId, audience): re-opening the dialog on
+  // the same audience returns the same token, but a link and a friends share of
+  // the same resource are distinct rows (different access scope, different token).
   const existing = await db
     .select()
     .from(shares)
@@ -70,6 +90,7 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
         eq(shares.userId, req.user!.id),
         eq(shares.kind, kind),
         eq(shares.resourceId, resourceId),
+        eq(shares.audience, audience),
         isNull(shares.revokedAt)
       )
     )
@@ -83,6 +104,7 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     userId: req.user!.id,
     kind,
     resourceId,
+    audience,
     createdAt: Date.now(),
     revokedAt: null,
   };
@@ -125,18 +147,49 @@ sharesRouter.delete('/:token', requireAuth, async (req: Request, res: Response) 
 });
 
 /**
- * Public read: anyone with the token can view. Rate-limited.
+ * Public read. For audience='link' (the default, and every legacy share):
+ * anyone with the token can view — `optionalAuth` runs but no session is
+ * required. For audience='friends': the caller must be signed in AND an
+ * accepted friend of the owner, else 401/403. Friendship is re-checked on
+ * every read (never cached), so unfriending immediately revokes access.
  * Returns 404 (not 401) for unknown / revoked tokens to keep the surface
  * stealthy — no way to enumerate or distinguish revoked from never-existed.
  */
-sharesRouter.get('/public/:token', publicLimiter, async (req: Request, res: Response) => {
-  const token = readTokenParam(req);
-  const ctx = await loadShareContext(token);
-  if (!ctx) {
-    return res.status(404).json({ error: 'Share not found.' });
-  }
-  const { share, data, ownerUsername: username } = ctx;
+sharesRouter.get(
+  '/public/:token',
+  publicLimiter,
+  optionalAuth,
+  async (req: Request, res: Response) => {
+    const token = readTokenParam(req);
+    const ctx = await loadShareContext(token);
+    if (!ctx) {
+      return res.status(404).json({ error: 'Share not found.' });
+    }
+    const { share, data, ownerUsername: username } = ctx;
 
+    if (share.audience === 'friends') {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Sign in to view this shared content.' });
+      }
+      if (!(await areFriends(req.user.id, share.userId))) {
+        return res
+          .status(403)
+          .json({ error: 'This share is only visible to the owner’s friends.' });
+      }
+    }
+
+    return projectAndRespond(res, share, data, username);
+  }
+);
+
+/** Dispatch a loaded share to its per-kind projector. Extracted so the access
+ *  gate above stays readable. */
+function projectAndRespond(
+  res: Response,
+  share: { kind: string; resourceId: string },
+  data: ShareDataView,
+  username: string
+): Response {
   if (share.kind === 'collection') {
     return res.json({
       kind: 'collection' as const,
@@ -166,6 +219,14 @@ sharesRouter.get('/public/:token', publicLimiter, async (req: Request, res: Resp
     }
     return res.json({ kind: 'binder' as const, data: projected });
   }
+  if (share.kind === 'cube') {
+    const cube = findCubeById(data.cubes, share.resourceId);
+    const projected = projectCube(username, cube);
+    if (!projected) {
+      return res.status(404).json({ error: 'Share not found.' });
+    }
+    return res.json({ kind: 'cube' as const, data: projected });
+  }
   // Unknown kind in the DB — defensive, shouldn't happen post-validation.
   return res.status(404).json({ error: 'Share not found.' });
-});
+}

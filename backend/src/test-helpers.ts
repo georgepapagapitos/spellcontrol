@@ -204,10 +204,12 @@ export async function createTestEnv(): Promise<TestEnv> {
       kind TEXT NOT NULL,
       resource_id TEXT NOT NULL DEFAULT '',
       created_at BIGINT NOT NULL,
-      revoked_at BIGINT
+      revoked_at BIGINT,
+      audience TEXT NOT NULL DEFAULT 'link'
     );
     CREATE INDEX shares_user_idx ON shares(user_id);
     CREATE INDEX shares_resource_idx ON shares(user_id, kind, resource_id);
+    CREATE INDEX shares_audience_idx ON shares(user_id, audience) WHERE revoked_at IS NULL;
     CREATE TABLE friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -288,6 +290,7 @@ export interface SnapshotShape {
   binders?: Array<Record<string, unknown>>;
   decks?: Array<Record<string, unknown>>;
   games?: Array<Record<string, unknown>>;
+  cubes?: Array<Record<string, unknown>>;
 }
 
 export async function setSnapshotViaSyncApi(
@@ -313,6 +316,7 @@ export async function setSnapshotViaSyncApi(
     binder: (body.binders ?? []) as Array<{ id: string }>,
     deck: (body.decks ?? []) as Array<{ id: string }>,
     game: (body.games ?? []) as Array<{ id: string }>,
+    cube: (body.cubes ?? []) as Array<{ id: string }>,
   };
 
   const upserts: Array<{ kind: string; id: string; data: unknown; importId?: string }> = [];
@@ -341,6 +345,10 @@ export async function setSnapshotViaSyncApi(
   for (const e of desired.game) {
     upserts.push({ kind: 'game', id: e.id, data: e });
     (desiredIds.game ??= new Set<string>()).add(e.id);
+  }
+  for (const e of desired.cube) {
+    upserts.push({ kind: 'cube', id: e.id, data: e });
+    (desiredIds.cube ??= new Set<string>()).add(e.id);
   }
 
   const deletions: Array<{ kind: string; id: string }> = [];

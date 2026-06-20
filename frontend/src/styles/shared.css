@@ -440,6 +440,125 @@
   gap: 0.5rem;
 }
 
+/* ── Share audience toggle (segmented: link | friends) ───────────────── */
+.share-audience {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin: 0 0 0.75rem;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.share-audience-option {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: calc(var(--radius) - 0.25rem);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.share-audience-option:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.share-audience-option.is-active {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 0.08));
+}
+
+.share-audience-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Shared cube view (sectioned by color bucket) ────────────────────── */
+.shared-cube-gaps {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.shared-cube-gap {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  border: 0.5px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.shared-cube-gap.is-short {
+  border-color: var(--warn-border, var(--border));
+  background: var(--warn-bg, var(--surface-raised));
+  color: var(--warn-text, var(--text-primary));
+}
+
+.shared-cube-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.shared-cube-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.shared-cube-section-count {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.shared-cube-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shared-cube-card-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.shared-cube-card-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.shared-cube-card-type {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
 /* ── Card preview modal (riding on .choice-dialog) ───────────────────── */
 
 /* Component uses <Modal> with className="choice-dialog shared-card-modal".

@@ -115,6 +115,22 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 }
 
 /**
+ * Non-blocking auth: populates req.user when a valid session cookie is present,
+ * otherwise continues as anonymous (never 401s). For routes that are public for
+ * some inputs but gated for others — e.g. a share link that's open to anyone
+ * when audience='link' but friends-only when audience='friends'. The handler
+ * decides what an absent req.user means.
+ */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+  const token = readSessionCookie(req);
+  if (token) {
+    const user = verifySession(token);
+    if (user) req.user = user;
+  }
+  next();
+}
+
+/**
  * Loads the current user fresh from the DB to confirm they still exist. Use
  * for /auth/me — cheap and avoids "ghost" sessions for deleted accounts.
  * Returns the *current* role from the DB, not whatever was in the cookie, so

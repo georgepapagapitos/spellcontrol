@@ -1,0 +1,105 @@
+/* FriendHubPage.css — /friends/:friendId route */
+
+.friend-hub {
+  max-width: 640px;
+  margin-inline: auto;
+  padding: var(--space-4);
+}
+
+.friend-hub-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  margin-bottom: var(--space-4);
+  transition: color var(--motion-fast);
+}
+
+.friend-hub-back:hover {
+  color: var(--text-primary);
+}
+
+.friend-hub-heading {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.friend-hub-sub {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: var(--space-1) 0 var(--space-5);
+}
+
+.friend-hub-section {
+  margin-bottom: var(--space-5);
+}
+
+.friend-hub-section-head {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+.friend-hub-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.friend-hub-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.friend-hub-row-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.friend-hub-row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-hub-row-open {
+  flex-shrink: 0;
+  padding: 0 var(--space-3);
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background var(--motion-fast);
+}
+
+.friend-hub-row-open:hover {
+  background: var(--surface);
+}

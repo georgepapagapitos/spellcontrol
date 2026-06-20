@@ -130,6 +130,39 @@ export interface PublicBinder {
   updatedAt?: number;
 }
 
+/** One card in a shared cube — oracle-level, plus the "why" (its color bucket). */
+export interface PublicCubeCard {
+  name: string;
+  oracleId: string;
+  colors: string[];
+  cmc: number;
+  typeLine: string;
+  /** ColorBucket the card was slotted into (W/U/B/R/G/multicolor/colorless/land). */
+  bucket: string;
+  reason: string;
+}
+
+export interface PublicCubeGap {
+  severity: 'short' | 'note';
+  text: string;
+}
+
+export interface PublicCube {
+  ownerUsername: string;
+  id: string;
+  name: string;
+  size: number;
+  cards: PublicCubeCard[];
+  /** Achieved count per color bucket — drives the balance display. */
+  byBucket: Record<string, number>;
+  /** Target count per color bucket — the "good cubes run this" comparison. */
+  targetByBucket: Record<string, number>;
+  gaps: PublicCubeGap[];
+  shortfall: number;
+  poolSize: number;
+  savedAt?: number;
+}
+
 type AnyRecord = Record<string, unknown>;
 
 function asRecord(x: unknown): AnyRecord | null {
@@ -299,6 +332,90 @@ export function findDeckById(decks: unknown, deckId: string): unknown {
     const r = asRecord(d);
     return r && asString(r.id) === deckId;
   });
+}
+
+/** Find a saved cube by id in the cubes array. */
+export function findCubeById(cubes: unknown, cubeId: string): unknown {
+  if (!Array.isArray(cubes)) return null;
+  return cubes.find((c) => {
+    const r = asRecord(c);
+    return r && asString(r.id) === cubeId;
+  });
+}
+
+/**
+ * Project a saved cube to its public read-only shape. The owner's stored blob
+ * is a `SavedCube` ({ id, name, size, cube: GeneratedCube, savedAt }); the
+ * backend has no cube types, so every field is parsed defensively (mirrors
+ * projectDeck). Picks whose nested card lacks name/oracleId are dropped rather
+ * than rendered blank.
+ */
+export function projectCube(ownerUsername: string, cubeRaw: unknown): PublicCube | null {
+  const r = asRecord(cubeRaw);
+  if (!r) return null;
+  const id = asString(r.id);
+  const name = asString(r.name);
+  if (!id || !name) return null;
+
+  const cube = asRecord(r.cube);
+  const rawPicks = cube && Array.isArray(cube.picks) ? cube.picks : [];
+  const cards: PublicCubeCard[] = [];
+  for (const p of rawPicks) {
+    const pick = asRecord(p);
+    if (!pick) continue;
+    const card = asRecord(pick.card);
+    if (!card) continue;
+    const cardName = asString(card.name);
+    const oracleId = asString(card.oracleId);
+    if (!cardName || !oracleId) continue;
+    cards.push({
+      name: cardName,
+      oracleId,
+      colors: asStringArray(card.colors) ?? [],
+      cmc: asNumber(card.cmc) ?? 0,
+      typeLine: asString(card.typeLine) ?? '',
+      bucket: asString(pick.bucket) ?? '',
+      reason: asString(pick.reason) ?? '',
+    });
+  }
+
+  const numberMap = (raw: unknown): Record<string, number> => {
+    const out: Record<string, number> = {};
+    const rec = asRecord(raw);
+    if (rec) {
+      for (const [k, v] of Object.entries(rec)) {
+        const n = asNumber(v);
+        if (n !== undefined) out[k] = n;
+      }
+    }
+    return out;
+  };
+  const byBucket = numberMap(cube?.byBucket);
+  const targetByBucket = numberMap(cube?.targetByBucket);
+
+  const gaps: PublicCubeGap[] = [];
+  const rawGaps = cube && Array.isArray(cube.gaps) ? cube.gaps : [];
+  for (const g of rawGaps) {
+    const gr = asRecord(g);
+    if (!gr) continue;
+    const sev = asString(gr.severity);
+    const text = asString(gr.text);
+    if ((sev === 'short' || sev === 'note') && text) gaps.push({ severity: sev, text });
+  }
+
+  return {
+    ownerUsername,
+    id,
+    name,
+    size: asNumber(r.size) ?? asNumber(cube?.size) ?? 0,
+    cards,
+    byBucket,
+    targetByBucket,
+    gaps,
+    shortfall: asNumber(cube?.shortfall) ?? 0,
+    poolSize: asNumber(cube?.poolSize) ?? cards.length,
+    savedAt: asNumber(r.savedAt),
+  };
 }
 
 /** Find a single binder def by id in the binders array. */

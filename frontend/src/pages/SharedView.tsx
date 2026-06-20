@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { fetchPublicShare, ShareNotFoundError } from '../lib/share-client';
+import { Link } from 'react-router-dom';
+import { fetchPublicShare, ShareAuthRequiredError, ShareNotFoundError } from '../lib/share-client';
 import type { PublicShareResponse } from '../lib/shared-types';
 import { SharedCollectionView } from '../components/shared/SharedCollectionView';
 import { SharedBinderView } from '../components/shared/SharedBinderView';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { SharedListView } from '../components/shared/SharedListView';
+import { SharedCubeView } from '../components/shared/SharedCubeView';
 import { SharedShell } from '../components/shared/SharedShell';
 import { CopyDeckButton } from '../components/shared/CopyDeckButton';
+import { CopyCubeButton } from '../components/shared/CopyCubeButton';
 
 /**
  * Public read-only view for /s/:token. Fetches via the unauthed public
@@ -41,6 +44,7 @@ function SharedViewInner({ token }: { token: string }) {
   const [state, setState] = useState<
     | { status: 'loading' }
     | { status: 'notFound' }
+    | { status: 'authRequired' }
     | { status: 'error'; message: string }
     | { status: 'ready'; payload: PublicShareResponse }
   >({ status: 'loading' });
@@ -55,6 +59,8 @@ function SharedViewInner({ token }: { token: string }) {
         if (cancelled) return;
         if (err instanceof ShareNotFoundError) {
           setState({ status: 'notFound' });
+        } else if (err instanceof ShareAuthRequiredError) {
+          setState({ status: 'authRequired' });
         } else {
           setState({
             status: 'error',
@@ -80,6 +86,19 @@ function SharedViewInner({ token }: { token: string }) {
     return (
       <SharedShell>
         <NotFoundView />
+      </SharedShell>
+    );
+  }
+  if (state.status === 'authRequired') {
+    return (
+      <SharedShell>
+        <main className="shared-view shared-view--missing">
+          <h1>Friends only</h1>
+          <p>The owner shared this with their friends. Sign in to view it.</p>
+          <Link to="/auth" className="btn btn-primary shared-copy-btn">
+            Sign in
+          </Link>
+        </main>
       </SharedShell>
     );
   }
@@ -113,6 +132,13 @@ function SharedViewInner({ token }: { token: string }) {
     return (
       <SharedShell action={<CopyDeckButton data={payload.data} variant="bar" />}>
         <SharedDeckView data={payload.data} />
+      </SharedShell>
+    );
+  }
+  if (payload.kind === 'cube') {
+    return (
+      <SharedShell action={<CopyCubeButton data={payload.data} />}>
+        <SharedCubeView data={payload.data} />
       </SharedShell>
     );
   }
