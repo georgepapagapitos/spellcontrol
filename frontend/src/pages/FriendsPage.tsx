@@ -18,12 +18,15 @@ import {
   type Friend,
   type FriendRequest,
 } from '../lib/friends-client';
+import { getInbox, type InboxShareRow } from '../lib/share-client';
+import { countUnseen, markInboxSeen, INBOX_LAST_SEEN_KEY } from '../lib/use-inbox';
 
-type TabId = 'friends' | 'requests';
+type TabId = 'friends' | 'requests' | 'inbox';
 
 const TABS = [
   { id: 'friends' as TabId, label: 'Friends' },
   { id: 'requests' as TabId, label: 'Requests' },
+  { id: 'inbox' as TabId, label: 'Inbox' },
 ];
 
 // ── Add Friend row action label ───────────────────────────────────────────────
@@ -66,7 +69,13 @@ export function FriendsPage() {
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [incoming, setIncoming] = useState<FriendRequest[] | null>(null);
   const [outgoing, setOutgoing] = useState<FriendRequest[] | null>(null);
+  const [inbox, setInbox] = useState<InboxShareRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Device-local "last opened the inbox" mark, for the unseen tab badge.
+  const [inboxSeenAt, setInboxSeenAt] = useState(
+    () => Number(localStorage.getItem(INBOX_LAST_SEEN_KEY)) || 0
+  );
 
   // Busy state per-item (keyed by user/request id)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -83,15 +92,25 @@ export function FriendsPage() {
   // Uses stable setter refs so it doesn't need to be in any dep array.
   const loadData = useCallback(() => {
     setLoadError(null);
-    Promise.all([listFriends(), listRequests()])
-      .then(([friendsRes, requestsRes]) => {
+    Promise.all([listFriends(), listRequests(), getInbox()])
+      .then(([friendsRes, requestsRes, inboxRes]) => {
         setFriends(friendsRes);
         setIncoming(requestsRes.incoming);
         setOutgoing(requestsRes.outgoing);
+        setInbox(inboxRes);
       })
       .catch((err: unknown) => {
         setLoadError(err instanceof Error ? err.message : 'Failed to load friends.');
       });
+  }, []);
+
+  // Opening the inbox tab marks it seen (clears the unseen badge here + in nav).
+  const handleTabChange = useCallback((next: TabId) => {
+    setTab(next);
+    if (next === 'inbox') {
+      markInboxSeen();
+      setInboxSeenAt(Date.now());
+    }
   }, []);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
@@ -101,12 +120,13 @@ export function FriendsPage() {
   useEffect(() => {
     if (status !== 'authed') return;
     let cancelled = false;
-    Promise.all([listFriends(), listRequests()])
-      .then(([friendsRes, requestsRes]) => {
+    Promise.all([listFriends(), listRequests(), getInbox()])
+      .then(([friendsRes, requestsRes, inboxRes]) => {
         if (cancelled) return;
         setFriends(friendsRes);
         setIncoming(requestsRes.incoming);
         setOutgoing(requestsRes.outgoing);
+        setInbox(inboxRes);
         setLoadError(null);
       })
       .catch((err: unknown) => {
@@ -116,6 +136,7 @@ export function FriendsPage() {
         setFriends([]);
         setIncoming([]);
         setOutgoing([]);
+        setInbox([]);
       });
     return () => {
       cancelled = true;
@@ -262,12 +283,18 @@ export function FriendsPage() {
   const friendsList = friends ?? [];
   const incomingList = incoming ?? [];
   const outgoingList = outgoing ?? [];
+  const inboxList = inbox ?? [];
   const requestCount = incomingList.length + outgoingList.length;
+  // Suppress the unseen badge while the inbox tab is open (it's been seen).
+  const unseenInbox = tab === 'inbox' ? 0 : countUnseen(inbox, inboxSeenAt);
 
-  const tabsWithCounts = TABS.map((t) => ({
-    ...t,
-    count: t.id === 'friends' ? friendsList.length || null : requestCount > 0 ? requestCount : null,
-  }));
+  const tabsWithCounts = TABS.map((t) => {
+    let count: number | null = null;
+    if (t.id === 'friends') count = friendsList.length || null;
+    else if (t.id === 'requests') count = requestCount > 0 ? requestCount : null;
+    else if (t.id === 'inbox') count = unseenInbox > 0 ? unseenInbox : null;
+    return { ...t, count };
+  });
 
   return (
     <div className="friends-page">
@@ -350,7 +377,7 @@ export function FriendsPage() {
         <Tabs
           tabs={tabsWithCounts}
           value={tab}
-          onChange={setTab}
+          onChange={handleTabChange}
           ariaLabel="Friends sections"
           variant="underline"
         />
@@ -489,6 +516,44 @@ export function FriendsPage() {
                 </section>
               )}
             </>
+          )}
+        </div>
+
+        {/* Inbox panel */}
+        <div
+          role="tabpanel"
+          id="friends-panel-inbox"
+          aria-labelledby="sc-tab-inbox"
+          hidden={tab !== 'inbox'}
+          className="friends-panel"
+        >
+          {loading ? (
+            <FriendsSkeleton />
+          ) : inboxList.length === 0 ? (
+            <p className="friends-empty" role="status">
+              No shared items yet — when a friend sends you something, it appears here.
+            </p>
+          ) : (
+            <ul className="friends-inbox-list" aria-label="Shared with you">
+              {inboxList.map((item) => (
+                <li key={item.token} className="friends-inbox-item">
+                  <div className="friends-inbox-info">
+                    <div className="friends-inbox-text">
+                      <span className="friends-inbox-from">{item.fromUsername}</span> shared a{' '}
+                      {item.kind}: <span className="friends-inbox-label">{item.label}</span>
+                    </div>
+                    <div className="friends-inbox-time">{formatRelativeTime(item.createdAt)}</div>
+                  </div>
+                  <Link
+                    to={`/s/${item.token}`}
+                    className="friends-action-btn is-primary"
+                    aria-label={`View ${item.label} shared by ${item.fromUsername}`}
+                  >
+                    View
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

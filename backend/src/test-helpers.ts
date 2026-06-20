@@ -205,11 +205,13 @@ export async function createTestEnv(): Promise<TestEnv> {
       resource_id TEXT NOT NULL DEFAULT '',
       created_at BIGINT NOT NULL,
       revoked_at BIGINT,
-      audience TEXT NOT NULL DEFAULT 'link'
+      audience TEXT NOT NULL DEFAULT 'link',
+      addressee_id TEXT REFERENCES users(id) ON DELETE SET NULL
     );
     CREATE INDEX shares_user_idx ON shares(user_id);
     CREATE INDEX shares_resource_idx ON shares(user_id, kind, resource_id);
     CREATE INDEX shares_audience_idx ON shares(user_id, audience) WHERE revoked_at IS NULL;
+    CREATE INDEX shares_addressee_idx ON shares(addressee_id) WHERE addressee_id IS NOT NULL;
     CREATE TABLE friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

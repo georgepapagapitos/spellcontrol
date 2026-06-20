@@ -3,11 +3,12 @@ import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { optionalAuth, requireAuth } from '../auth';
-import { getDb } from '../db';
+import { getDb, getPool } from '../db';
 import { shares } from '../db/schema';
 import { areFriends } from '../friends/relations';
 import type { ShareDataView } from '../shares/cache';
 import { invalidateShareContext, loadShareContext } from '../shares/context';
+import { resolveShareLabels } from '../shares/labels';
 import {
   findCubeById,
   findDeckById,
@@ -39,13 +40,14 @@ function isShareKind(x: unknown): x is ShareKind {
 }
 
 /**
- * Who can open a share. 'direct' (a share addressed to one friend) ships in a
- * follow-up — this route only mints 'link' and 'friends' for now.
+ * Who can open a share. 'link' = anyone with the URL; 'friends' = any accepted
+ * friend, signed in; 'direct' = one specific friend (the addressee), who finds
+ * it in their inbox.
  */
-type ShareAudience = 'link' | 'friends';
+type ShareAudience = 'link' | 'friends' | 'direct';
 
 function isShareAudience(x: unknown): x is ShareAudience {
-  return x === 'link' || x === 'friends';
+  return x === 'link' || x === 'friends' || x === 'direct';
 }
 
 function newToken(): string {
@@ -59,7 +61,12 @@ function newToken(): string {
  * unless it was revoked, in which case a new one is minted.
  */
 sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
-  const body = req.body as { kind?: unknown; resourceId?: unknown; audience?: unknown };
+  const body = req.body as {
+    kind?: unknown;
+    resourceId?: unknown;
+    audience?: unknown;
+    addresseeId?: unknown;
+  };
   if (!isShareKind(body.kind)) {
     return res.status(400).json({
       error: "kind must be one of 'collection', 'binder', 'deck', 'list', or 'cube'.",
@@ -75,13 +82,29 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   const audience: ShareAudience =
     body.audience === undefined ? 'link' : (body.audience as ShareAudience);
   if (!isShareAudience(audience)) {
-    return res.status(400).json({ error: "audience must be 'link' or 'friends'." });
+    return res.status(400).json({ error: "audience must be 'link', 'friends', or 'direct'." });
+  }
+
+  // Directed shares carry the recipient's user id (the client already has it
+  // from the friends list). The recipient must be an accepted friend — that
+  // check also covers a non-existent id (no friendship row), so we return a
+  // uniform 403 rather than leaking whether the id is a real account.
+  let addresseeId: string | null = null;
+  if (audience === 'direct') {
+    const target = typeof body.addresseeId === 'string' ? body.addresseeId : '';
+    if (!target) {
+      return res.status(400).json({ error: 'addresseeId is required for a direct share.' });
+    }
+    if (target === req.user!.id || !(await areFriends(req.user!.id, target))) {
+      return res.status(403).json({ error: 'You can only send a direct share to a friend.' });
+    }
+    addresseeId = target;
   }
 
   const db = getDb();
-  // Idempotent per (userId, kind, resourceId, audience): re-opening the dialog on
-  // the same audience returns the same token, but a link and a friends share of
-  // the same resource are distinct rows (different access scope, different token).
+  // Idempotent per (userId, kind, resourceId, audience, addresseeId): re-opening
+  // the dialog on the same audience+recipient returns the same token. A link, a
+  // friends, and a direct-to-Alice share of one resource are distinct rows.
   const existing = await db
     .select()
     .from(shares)
@@ -91,6 +114,7 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
         eq(shares.kind, kind),
         eq(shares.resourceId, resourceId),
         eq(shares.audience, audience),
+        addresseeId ? eq(shares.addresseeId, addresseeId) : isNull(shares.addresseeId),
         isNull(shares.revokedAt)
       )
     )
@@ -105,6 +129,7 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     kind,
     resourceId,
     audience,
+    addresseeId,
     createdAt: Date.now(),
     revokedAt: null,
   };
@@ -121,6 +146,57 @@ sharesRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     .where(and(eq(shares.userId, req.user!.id), isNull(shares.revokedAt)))
     .orderBy(desc(shares.createdAt));
   res.json({ shares: rows });
+});
+
+/**
+ * The caller's inbox: shares other users directed to them (audience='direct',
+ * addressee = caller). Each carries the sender's username and the resolved
+ * resource label; shares whose underlying resource was deleted are dropped
+ * (they'd 404 on open). Newest first.
+ */
+sharesRouter.get('/inbox', requireAuth, async (req: Request, res: Response) => {
+  const pool = getPool();
+  const rows = await pool.query<{
+    token: string;
+    kind: string;
+    resource_id: string;
+    created_at: string;
+    sender_id: string;
+    sender_username: string;
+  }>(
+    `SELECT s.token, s.kind, s.resource_id, s.created_at,
+            s.user_id AS sender_id, u.username AS sender_username
+       FROM shares s
+       JOIN users u ON u.id = s.user_id
+      WHERE s.addressee_id = $1 AND s.revoked_at IS NULL
+      ORDER BY s.created_at DESC`,
+    [req.user!.id]
+  );
+
+  // Labels resolve against each sender's own resources, so group by sender.
+  const bySender = new Map<string, Array<{ kind: string; resourceId: string }>>();
+  for (const r of rows.rows) {
+    const arr = bySender.get(r.sender_id) ?? [];
+    arr.push({ kind: r.kind, resourceId: r.resource_id });
+    bySender.set(r.sender_id, arr);
+  }
+  const labels = new Map<string, string>();
+  for (const [senderId, refs] of bySender) {
+    const resolved = await resolveShareLabels(senderId, refs);
+    for (const [k, v] of resolved) labels.set(`${senderId}:${k}`, v);
+  }
+
+  const inbox = rows.rows
+    .map((r) => ({
+      token: r.token,
+      kind: r.kind,
+      fromUsername: r.sender_username,
+      label: labels.get(`${r.sender_id}:${r.kind}:${r.resource_id}`) ?? null,
+      createdAt: Number(r.created_at),
+    }))
+    .filter((s) => s.label !== null);
+
+  res.json({ shares: inbox });
 });
 
 function readTokenParam(req: Request): string {
@@ -175,6 +251,15 @@ sharesRouter.get(
         return res
           .status(403)
           .json({ error: 'This share is only visible to the owner’s friends.' });
+      }
+    } else if (share.audience === 'direct') {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Sign in to view this shared content.' });
+      }
+      // Only the addressee may open it. A NULL addressee (recipient deleted →
+      // ON DELETE SET NULL) is inert: 404, never a public fallback.
+      if (!share.addresseeId || req.user.id !== share.addresseeId) {
+        return res.status(404).json({ error: 'Share not found.' });
       }
     }
 
