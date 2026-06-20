@@ -33,4 +33,11 @@ describe('formatRelativeTime', () => {
   it('returns months for older intervals', () => {
     expect(formatRelativeTime(Date.now() - 60 * 24 * 60 * 60 * 1000)).toBe('2mo ago');
   });
+
+  it('returns years for intervals >= 12 months', () => {
+    // 400 days ≈ 13.3 months → floors to 1 year
+    expect(formatRelativeTime(Date.now() - 400 * 24 * 60 * 60 * 1000)).toBe('1y ago');
+    // 730 days ≈ 24 months → 2 years
+    expect(formatRelativeTime(Date.now() - 730 * 24 * 60 * 60 * 1000)).toBe('2y ago');
+  });
 });

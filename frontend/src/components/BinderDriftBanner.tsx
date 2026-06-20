@@ -9,6 +9,7 @@ import {
 } from '../lib/binder-drift';
 import type { MaterializedBinder } from '../types';
 import { InfoTip } from './InfoTip';
+import { formatRelativeTime } from '../lib/format-time';
 
 const DRIFT_TIP = (
   <>
@@ -97,7 +98,7 @@ export function BinderDriftBanner({ binder }: Props) {
           <span className="binder-drift-summary">
             <strong>Since last reviewed</strong>
             {drift.snapshotAt !== undefined && (
-              <span className="binder-drift-when"> ({formatRelative(drift.snapshotAt)})</span>
+              <span className="binder-drift-when"> ({formatRelativeTime(drift.snapshotAt)})</span>
             )}
             : {summarize(drift.added.length, drift.removed.length)}
           </span>
@@ -154,20 +155,4 @@ function summarize(added: number, removed: number): string {
   if (added > 0) parts.push(`+${added} added`);
   if (removed > 0) parts.push(`−${removed} removed`);
   return parts.join(', ');
-}
-
-function formatRelative(epochMs: number): string {
-  const diffMs = Date.now() - epochMs;
-  if (diffMs < 0) return 'just now';
-  const minutes = Math.round(diffMs / 60_000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.round(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  const years = Math.round(months / 12);
-  return `${years}y ago`;
 }
