@@ -9,15 +9,26 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.55rem;
+  border: none;
+  background: none;
   border-radius: var(--radius);
   color: var(--text-secondary);
   text-decoration: none;
   font-size: var(--text-sm);
+  cursor: pointer;
 }
 
 .site-nav-settings:hover {
   color: var(--text-primary);
   background: var(--surface-raised);
+}
+
+/* Replace the browser's default lavender focus box (visible when focus is
+   restored to the button after closing the rules sheet) with the app's
+   accent ring — keyboard-only, intentional. */
+.site-nav-settings:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .site-nav-settings.active {
