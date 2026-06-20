@@ -898,55 +898,37 @@
   padding: 0.6rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-.scanner-search-field {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.7rem;
-  border-radius: 999px;
-  /* Solid (not translucent): a translucent fill reads white if anything behind
-     it ever paints light, so pin the pill to an explicit dark slate. */
+/* Re-skin the shared <SearchPill> for the always-dark scanner island: its
+   default theme-var palette (var(--surface)/--text-primary…) would render
+   light on the black overlay. Pin it to the same dark slate as the rest of
+   the sheet. Solid (not translucent) so it can't read white if anything behind
+   ever paints light. */
+.scanner-search-pill.search-pill {
   background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(241, 245, 249, 0.6);
+  border-color: rgba(255, 255, 255, 0.12);
 }
-.scanner-search-field:focus-within {
+.scanner-search-pill.search-pill:focus-within {
   border-color: rgba(56, 189, 248, 0.55);
   background: rgba(56, 189, 248, 0.08);
 }
-/* Specificity matters here: the global form rule
-   `select, input[type=number], input[type=text], input[type=search]` sets
-   `background: var(--bg); color: var(--text-primary); border/padding/radius` at
-   (0,1,1), which beats a lone `.scanner-search-input` (0,1,0) — so on a light
-   theme the input rendered with the theme's white `--bg`. Scoping with the
-   field class raises this to (0,2,0) so we win, and we explicitly null out the
-   leaked border/padding/radius so the input is a bare transparent field
-   sitting in the dark pill. */
-.scanner-search-field .scanner-search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  background: transparent;
-  color: #f1f5f9;
-  font: inherit;
-  font-size: var(--text-sm);
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
+.scanner-search-pill .search-pill-icon {
+  color: rgba(241, 245, 249, 0.6);
 }
-.scanner-search-field .scanner-search-input::placeholder {
+.scanner-search-pill > input {
+  color: #f1f5f9;
+}
+.scanner-search-pill > input::placeholder {
   color: rgba(241, 245, 249, 0.5);
+}
+.scanner-search-pill .search-pill-clear {
+  color: rgba(241, 245, 249, 0.6);
 }
 /* Autofill would otherwise repaint the field with the WebView's light/white
    fill; pin it to the dark pill instead. */
-.scanner-search-input:-webkit-autofill,
-.scanner-search-input:-webkit-autofill:hover,
-.scanner-search-input:-webkit-autofill:focus {
+.scanner-search-pill > input:-webkit-autofill,
+.scanner-search-pill > input:-webkit-autofill:hover,
+.scanner-search-pill > input:-webkit-autofill:focus {
   -webkit-text-fill-color: #f1f5f9;
-  /* Opaque inset fill so an autofilled value can't show the WebView's white
-     autofill background through it. */
   -webkit-box-shadow: 0 0 0 1000px #1e293b inset;
   caret-color: #f1f5f9;
 }
@@ -1267,27 +1249,6 @@
    and the inline qty/note/target editors). */
 .list-add-search {
   margin-bottom: 1rem;
-}
-
-.list-add-search-field {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text-muted);
-}
-
-.list-add-search-field input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  outline: none;
 }
 
 .list-entry-row {

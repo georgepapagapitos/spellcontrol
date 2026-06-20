@@ -20,11 +20,6 @@
   margin-bottom: var(--space-2);
 }
 
-.friends-search-input {
-  flex: 1;
-  min-width: 0;
-}
-
 .friends-search-btn {
   flex-shrink: 0;
   padding: 0 var(--space-4);

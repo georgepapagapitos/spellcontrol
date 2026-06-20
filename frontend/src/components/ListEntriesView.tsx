@@ -1,10 +1,11 @@
-import { Check, Plus, Search } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ListDef, ListEntry } from '../types';
 import { FoilBadge } from './FoilBadge';
+import { SearchPill } from './SearchPill';
 import { useCollectionStore } from '../store/collection';
 import { ownedCountForEntry } from '../lib/lists';
 import { formatMoney } from '../lib/format-money';
@@ -145,16 +146,12 @@ export function ListEntriesView({ list }: Props) {
       </header>
 
       <div className="list-add-search">
-        <div className="list-add-search-field">
-          <Search width={15} height={15} strokeWidth={1.8} aria-hidden />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Scryfall to add a card…"
-            aria-label="Search Scryfall to add a card"
-          />
-        </div>
+        <SearchPill
+          value={query}
+          onChange={setQuery}
+          placeholder="Search Scryfall to add a card…"
+          ariaLabel="Search Scryfall to add a card"
+        />
         {q.length >= 2 && searching && (
           <p className="inline-card-search-status">Searching Scryfall…</p>
         )}
