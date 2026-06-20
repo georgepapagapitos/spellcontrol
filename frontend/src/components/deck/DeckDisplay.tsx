@@ -40,6 +40,7 @@ import { setSymbolTitle } from '@/lib/set-symbols';
 import { typeIcon } from '../../lib/card-types';
 import { formatMoney } from '../../lib/format-money';
 import { Modal } from '../Modal';
+import { SearchPill } from '../SearchPill';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
@@ -2109,23 +2110,13 @@ function DeckToolbar({
 
         <Legend context="deck" align="right" variant="pill" />
 
-        <div className="toolbar-search">
-          <Search
-            className="toolbar-search-icon"
-            width={14}
-            height={14}
-            strokeWidth={2}
-            aria-hidden
-          />
-          <input
-            type="search"
-            className="toolbar-search-input"
-            placeholder="Search…"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            aria-label="Search this deck"
-          />
-        </div>
+        <SearchPill
+          className="deck-toolbar-search"
+          placeholder="Search…"
+          value={search}
+          onChange={onSearch}
+          ariaLabel="Search this deck"
+        />
 
         <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
 

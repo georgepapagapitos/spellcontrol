@@ -19,6 +19,9 @@ interface Props {
   hideClear?: boolean;
   /** Optional id for the input — used by keyboard-shortcut handlers to focus it. */
   inputId?: string;
+  /** Focus the input on mount. Callers should gate this on a fine pointer so
+   * the soft keyboard doesn't pop up on touch. */
+  autoFocus?: boolean;
 }
 
 /**
@@ -37,6 +40,7 @@ export function SearchPill({
   className,
   hideClear = false,
   inputId,
+  autoFocus,
 }: Props) {
   return (
     <div className={`search-pill${className ? ` ${className}` : ''}`}>
@@ -48,6 +52,7 @@ export function SearchPill({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder}
+        autoFocus={autoFocus}
       />
       {!hideClear && value && (
         <button

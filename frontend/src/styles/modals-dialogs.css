@@ -717,23 +717,10 @@
   gap: 8px;
 }
 
+/* Width modifier on the shared <SearchPill>: keep the set-filter compact on
+   the right of the header rather than letting it grow to fill the row. */
 .card-edit-set-search {
-  flex-shrink: 0;
-  height: 28px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text-primary);
-  padding: 0 8px;
-  font-size: var(--text-sm);
-  font-family: inherit;
-  width: 140px;
-  min-width: 0;
-}
-
-.card-edit-set-search:focus {
-  outline: none;
-  border-color: var(--accent);
+  flex: 0 1 14rem;
 }
 
 .card-edit-sets-empty {
