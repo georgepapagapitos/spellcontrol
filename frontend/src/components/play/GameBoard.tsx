@@ -1202,20 +1202,23 @@ function SeatMenu({
           </div>
         )}
         {canEdit && game.status !== 'finished' && (
-          <button
-            type="button"
-            className="seat-menu-action"
-            onClick={() => {
-              dispatch({
-                type: 'eliminate',
-                seat: player.seat,
-                eliminated: !player.eliminated,
-              });
-              onClose();
-            }}
-          >
-            {player.eliminated ? 'Revive' : 'Concede'}
-          </button>
+          <>
+            <div className="seat-menu-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className={`seat-menu-action ${!player.eliminated ? 'is-danger' : ''}`}
+              onClick={() => {
+                dispatch({
+                  type: 'eliminate',
+                  seat: player.seat,
+                  eliminated: !player.eliminated,
+                });
+                onClose();
+              }}
+            >
+              {player.eliminated ? 'Revive' : 'Concede'}
+            </button>
+          </>
         )}
 
         {/* Turn tracking — only shown while the game is active */}
@@ -1243,45 +1246,48 @@ function SeatMenu({
           </div>
         )}
 
-        {/* Table designations — shown while game is active; any participant
-            can claim/clear them (host-or-all gate is the same as life changes).
-            Text labels carry the full meaning so no external key is needed. */}
+        {/* Divider + table designations — shown while game is active; any
+            participant can claim/clear them (host-or-all gate is the same as
+            life changes). Text labels carry the full meaning. */}
         {game.status === 'active' && !player.eliminated && (
-          <div className="seat-menu-designations">
-            <span className="seat-menu-label">Designations</span>
-            <button
-              type="button"
-              className={`seat-menu-action ${isMonarch ? 'is-designation-active' : ''}`}
-              aria-pressed={isMonarch}
-              onClick={() => {
-                dispatch({
-                  type: 'set-designation',
-                  designation: 'monarch' as DesignationKind,
-                  seat: isMonarch ? null : player.seat,
-                  actorSeat: player.seat,
-                });
-                onClose();
-              }}
-            >
-              {isMonarch ? '👑 Remove Monarch' : '👑 Take Monarch'}
-            </button>
-            <button
-              type="button"
-              className={`seat-menu-action ${isInitiative ? 'is-designation-active' : ''}`}
-              aria-pressed={isInitiative}
-              onClick={() => {
-                dispatch({
-                  type: 'set-designation',
-                  designation: 'initiative' as DesignationKind,
-                  seat: isInitiative ? null : player.seat,
-                  actorSeat: player.seat,
-                });
-                onClose();
-              }}
-            >
-              {isInitiative ? '🧭 Remove Initiative' : '🧭 Take Initiative'}
-            </button>
-          </div>
+          <>
+            <div className="seat-menu-divider" aria-hidden="true" />
+            <div className="seat-menu-designations">
+              <span className="seat-menu-label">Designations</span>
+              <button
+                type="button"
+                className={`seat-menu-action ${isMonarch ? 'is-designation-active' : ''}`}
+                aria-pressed={isMonarch}
+                onClick={() => {
+                  dispatch({
+                    type: 'set-designation',
+                    designation: 'monarch' as DesignationKind,
+                    seat: isMonarch ? null : player.seat,
+                    actorSeat: player.seat,
+                  });
+                  onClose();
+                }}
+              >
+                {isMonarch ? '👑 Remove Monarch' : '👑 Take Monarch'}
+              </button>
+              <button
+                type="button"
+                className={`seat-menu-action ${isInitiative ? 'is-designation-active' : ''}`}
+                aria-pressed={isInitiative}
+                onClick={() => {
+                  dispatch({
+                    type: 'set-designation',
+                    designation: 'initiative' as DesignationKind,
+                    seat: isInitiative ? null : player.seat,
+                    actorSeat: player.seat,
+                  });
+                  onClose();
+                }}
+              >
+                {isInitiative ? '🧭 Remove Initiative' : '🧭 Take Initiative'}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -1356,10 +1362,71 @@ function GameMenu({
             <span className="game-menu-chip is-mode">{game.mode}</span>
           </div>
 
+          {/* ── Primary actions — immediately visible without scrolling ── */}
+          <section className="game-menu-section">
+            <div className="game-menu-actions">
+              {isFinished ? (
+                <>
+                  {onRematch && (
+                    <button
+                      type="button"
+                      className="game-menu-btn is-primary is-wide"
+                      onClick={() => {
+                        onRematch();
+                        onClose();
+                      }}
+                    >
+                      Rematch — same players
+                    </button>
+                  )}
+                  {onLeave && (
+                    <button
+                      type="button"
+                      className="game-menu-btn is-wide"
+                      onClick={() => {
+                        onLeave();
+                        onClose();
+                      }}
+                    >
+                      Close
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {onMinimize && (
+                    <button
+                      type="button"
+                      className="game-menu-btn is-primary is-wide"
+                      onClick={() => {
+                        onMinimize();
+                        onClose();
+                      }}
+                    >
+                      Minimize
+                    </button>
+                  )}
+                  {undoLabel && (
+                    <button
+                      type="button"
+                      className="game-menu-btn is-wide"
+                      onClick={() => {
+                        onUndo();
+                        onClose();
+                      }}
+                    >
+                      ↶ Undo {undoLabel}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+
           <section className="game-menu-section">
             <button
               type="button"
-              className="game-menu-pill is-wide"
+              className="game-menu-btn is-wide"
               onClick={() => {
                 openRules();
                 onClose();
@@ -1371,6 +1438,55 @@ function GameMenu({
 
           <GameTools game={game} dispatch={dispatch} />
 
+          <GameHistory game={game} />
+
+          {/* ── Settings group: tap orientation + haptics ── */}
+          <section className="game-menu-section">
+            {canControlAll && !isFinished && (
+              <ViewModeToggle
+                className="tap-orientation-toggle"
+                ariaLabel="Tap zone orientation"
+                value={game.tapOrientation ?? 'horizontal'}
+                onChange={(next) => dispatch({ type: 'settings', patch: { tapOrientation: next } })}
+                options={[
+                  {
+                    value: 'horizontal',
+                    label: 'Horizontal taps',
+                    icon: (
+                      <>
+                        <TapZoneIcon orientation="horizontal" />
+                        <span>Horizontal taps</span>
+                      </>
+                    ),
+                  },
+                  {
+                    value: 'vertical',
+                    label: 'Vertical taps',
+                    icon: (
+                      <>
+                        <TapZoneIcon orientation="vertical" />
+                        <span>Vertical taps</span>
+                      </>
+                    ),
+                  },
+                ]}
+              />
+            )}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hapticsEnabled}
+              className={`game-menu-setting ${hapticsEnabled ? 'is-on' : ''}`}
+              onClick={() => setHaptics(!hapticsEnabled)}
+            >
+              <span className="game-menu-setting-label">Haptic feedback</span>
+              <span className="game-menu-setting-state" aria-hidden="true">
+                {hapticsEnabled ? 'On' : 'Off'}
+              </span>
+            </button>
+          </section>
+
+          {/* ── Host-only: player roster + layout (set-and-forget) ── */}
           {canControlAll && !isFinished && (
             <section className="game-menu-section">
               <PlayerRoster game={game} dispatch={dispatch} />
@@ -1411,99 +1527,14 @@ function GameMenu({
             </section>
           )}
 
-          {canControlAll && !isFinished && (
+          {/* ── Destructive actions — anchored at the bottom ── */}
+          {!isFinished && (
             <section className="game-menu-section">
-              <ViewModeToggle
-                className="tap-orientation-toggle"
-                ariaLabel="Tap zone orientation"
-                value={game.tapOrientation ?? 'horizontal'}
-                onChange={(next) => dispatch({ type: 'settings', patch: { tapOrientation: next } })}
-                options={[
-                  {
-                    value: 'horizontal',
-                    label: 'Horizontal taps',
-                    icon: (
-                      <>
-                        <TapZoneIcon orientation="horizontal" />
-                        <span>Horizontal taps</span>
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'vertical',
-                    label: 'Vertical taps',
-                    icon: (
-                      <>
-                        <TapZoneIcon orientation="vertical" />
-                        <span>Vertical taps</span>
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            </section>
-          )}
-
-          <GameHistory game={game} />
-
-          <section className="game-menu-section">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={hapticsEnabled}
-              className={`game-menu-setting ${hapticsEnabled ? 'is-on' : ''}`}
-              onClick={() => setHaptics(!hapticsEnabled)}
-            >
-              <span className="game-menu-setting-label">Haptic feedback</span>
-              <span className="game-menu-setting-state" aria-hidden="true">
-                {hapticsEnabled ? 'On' : 'Off'}
-              </span>
-            </button>
-          </section>
-
-          <section className="game-menu-section">
-            <div className="game-menu-actions">
-              {undoLabel && (
-                <button
-                  type="button"
-                  className="game-menu-pill is-wide"
-                  onClick={() => {
-                    onUndo();
-                    onClose();
-                  }}
-                >
-                  ↶ Undo {undoLabel}
-                </button>
-              )}
-              {isFinished && onRematch && (
-                <button
-                  type="button"
-                  className="game-menu-pill is-primary is-wide"
-                  onClick={() => {
-                    onRematch();
-                    onClose();
-                  }}
-                >
-                  Rematch — same players
-                </button>
-              )}
-              {onMinimize && !isFinished && (
-                <button
-                  type="button"
-                  className="game-menu-pill is-primary is-wide"
-                  onClick={() => {
-                    onMinimize();
-                    onClose();
-                  }}
-                >
-                  Minimize
-                </button>
-              )}
-              {!isFinished && (
+              <div className="game-menu-actions">
                 <div className="game-menu-actions-row">
                   <button
                     type="button"
-                    className="game-menu-pill"
+                    className="game-menu-btn"
                     onClick={() => {
                       onEnd?.();
                       onClose();
@@ -1514,7 +1545,7 @@ function GameMenu({
                   {canControlAll && (
                     <button
                       type="button"
-                      className="game-menu-pill"
+                      className="game-menu-btn"
                       onClick={() => {
                         dispatch({ type: 'reset' });
                         onClose();
@@ -1524,21 +1555,21 @@ function GameMenu({
                     </button>
                   )}
                 </div>
-              )}
-              {onLeave && (
-                <button
-                  type="button"
-                  className={`game-menu-pill is-wide ${isFinished ? '' : 'is-danger'}`}
-                  onClick={() => {
-                    onLeave();
-                    onClose();
-                  }}
-                >
-                  {isFinished ? 'Close' : 'Discard game'}
-                </button>
-              )}
-            </div>
-          </section>
+                {onLeave && (
+                  <button
+                    type="button"
+                    className="game-menu-btn is-danger is-wide"
+                    onClick={() => {
+                      onLeave();
+                      onClose();
+                    }}
+                  >
+                    Discard game
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
         </div>
       </div>
       {editorOpen && (
@@ -1994,12 +2025,12 @@ function CustomLayoutEditor({
             {allPlaced ? 'All seats placed' : `${count - placedCount} seat(s) to place`}
           </span>
           <div className="cle-foot-actions">
-            <button type="button" className="game-menu-pill" onClick={onClose}>
+            <button type="button" className="game-menu-btn" onClick={onClose}>
               Cancel
             </button>
             <button
               type="button"
-              className="game-menu-pill is-primary"
+              className="game-menu-btn is-primary"
               disabled={!allPlaced}
               onClick={apply}
             >
