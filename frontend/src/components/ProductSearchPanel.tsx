@@ -14,6 +14,7 @@ import {
 import { createLimiter } from '../lib/concurrency-limit';
 import { useCardCarousel, type CarouselEntry } from './deck/useCardCarousel';
 import { ManaCost } from './ManaCost';
+import { SearchPill } from './SearchPill';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckFormat } from '@/deck-builder/types';
@@ -485,13 +486,11 @@ export function ProductSearchPanel({ onClose }: Props) {
   return (
     <div className="add-card-search-panel">
       <div className="add-card-search-input-wrap">
-        <input
-          type="search"
-          className="card-picker-search"
+        <SearchPill
           placeholder="Search precons — e.g. “Fae Dominion”, “Goblin”"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search precons"
+          onChange={setQuery}
+          ariaLabel="Search precons"
         />
         <div className="product-type-filters" role="group" aria-label="Product type">
           {TYPE_FILTERS.map((t) => (

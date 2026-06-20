@@ -8,32 +8,13 @@ import {
   getLastSyncedAt,
   onSyncedChange,
 } from '../lib/sync';
+import { formatRelativeTime } from '../lib/format-time';
 import { useAuth } from '../store/auth';
 
-/**
- * Render-time pure helper — given a "synced at" timestamp and an
- * "as-of" now, returns the compact relative-time label shown in the
- * indicator tooltip. Exported for testing.
- *
- * Bands (chosen so the label stabilizes quickly — the header isn't a
- * second-by-second timer):
- *   < 45s  → "just now"
- *   < 60m  → "Nm ago"
- *   < 24h  → "Nh ago"
- *   else   → "Nd ago"
- */
-// eslint-disable-next-line react-refresh/only-export-components -- pure helper tested in this file; HMR cost only matters on dev edits, not worth a separate module
-export function formatRelativeTime(syncedAt: number, now: number = Date.now()): string {
-  const diff = Math.max(0, now - syncedAt);
-  const sec = Math.floor(diff / 1000);
-  if (sec < 45) return 'just now';
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.floor(hr / 24);
-  return `${day}d ago`;
-}
+// Sync-badge options: 45s "just now" threshold (label stabilizes quickly —
+// the header isn't a second-by-second timer) + no months/years tier
+// ("3mo ago" would alarm a sync-badge reader; "Nd ago" is the right ceiling).
+const SYNC_FORMAT_OPTS = { justNowThresholdSec: 45, includeMonthsYears: false } as const;
 
 /**
  * Compact sync-state badge for the header. Subscribes to sync.ts so the
@@ -135,7 +116,7 @@ export function SyncIndicator() {
   }
 
   if (state === 'ready' && lastSyncedAt != null) {
-    const rel = formatRelativeTime(lastSyncedAt);
+    const rel = formatRelativeTime(lastSyncedAt, SYNC_FORMAT_OPTS);
     return (
       <span
         className="sync-indicator sync-indicator-ready"
