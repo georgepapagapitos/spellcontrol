@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import './PlaytestStatsSheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
+import { useEscapeKey } from '@/lib/use-escape-key';
 import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
@@ -79,7 +80,7 @@ function HandStatsSection({
             {
               key: 'lands',
               value: stats.lands,
-              color: 'var(--color-green, #3a7d44)',
+              color: 'var(--mtg-g)',
               title: `${stats.lands} land${stats.lands === 1 ? '' : 's'}`,
             },
             {
@@ -330,7 +331,7 @@ function DeckStatsSection({
               <MeterBar
                 value={simResult.avgLands}
                 max={7}
-                color="var(--color-green, #3a7d44)"
+                color="var(--mtg-g)"
                 className="playtest-stats-row__bar"
               />
             </div>
@@ -373,6 +374,7 @@ function DeckStatsSection({
 
 export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onClose }: Props) {
   useLockBodyScroll();
+  useEscapeKey(onClose);
   const [activeTab, setActiveTab] = useState<StatsTab>('hand');
 
   return (
