@@ -51,8 +51,10 @@ const LANE_SUBSCORE: Partial<Record<NonNullable<Change['lane']>, SubScoreKey>> =
   'bracket-fit': 'cardFit',
 };
 
-/** Tier-3-only lanes — budget saves money but is never a quality concern. */
-const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'combos', 'similar']);
+/** Tier-3-only lanes — budget saves money but is never a quality concern.
+ *  Combos are NOT listed here anymore: an owned-piece combo completion is tier 2
+ *  (tonight's "free win"); unowned combo pieces stay tier 3. */
+const ALWAYS_TIER_3 = new Set<Change['lane']>(['budget', 'similar']);
 
 /**
  * Rank a flat list of Changes into tier-ordered RankedMoves.
@@ -91,6 +93,12 @@ export function rankCoachMoves(changes: Change[], ctx: CoachContext): RankedMove
 
     // Tier-3-only lanes.
     if (ALWAYS_TIER_3.has(c.lane)) return 3;
+
+    // Combos lane: owned missing piece = tier 2 ("build it tonight"),
+    // unowned missing piece = tier 3 ("nice to have, go buy it").
+    if (c.lane === 'combos') {
+      return c.ownership === 'owned' ? 2 : 3;
+    }
 
     const targetKey = LANE_SUBSCORE[c.lane];
     if (!targetKey) return 3;

@@ -27,6 +27,7 @@ import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { TokenCreator } from './TokenCreator';
+import { PlaytestStatsSheet } from './PlaytestStatsSheet';
 
 interface Props {
   state: PlaytestState;
@@ -74,6 +75,7 @@ export function PlaytestBoard({ state }: Props) {
   const [viewer, setViewer] = useState<ViewerMode>(null);
   const [ctx, setCtx] = useState<ContextState>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
 
@@ -208,6 +210,7 @@ export function PlaytestBoard({ state }: Props) {
         }}
         onScry={() => setViewer({ zone: 'library', topN: 3 })}
         onCreateToken={() => setTokenCreator(true)}
+        onOpenStats={() => setShowStats(true)}
       />
       <DndContext
         sensors={sensors}
@@ -355,6 +358,16 @@ export function PlaytestBoard({ state }: Props) {
           onKeep={keepOpeningHand}
           onMulligan={mulliganOpeningHand}
           onConfirmBottom={finalizeBottom}
+        />
+      )}
+
+      {showStats && (
+        <PlaytestStatsSheet
+          state={state}
+          deck={deck}
+          cardLookup={cardLookup}
+          mulliganCount={mulliganCount}
+          onClose={() => setShowStats(false)}
         />
       )}
     </div>

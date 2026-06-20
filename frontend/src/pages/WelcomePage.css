@@ -63,6 +63,12 @@
   text-align: center;
 }
 
+.welcome-brand-mark {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
 .welcome-brand {
   font-family: var(--font-serif);
   font-size: var(--text-sm);

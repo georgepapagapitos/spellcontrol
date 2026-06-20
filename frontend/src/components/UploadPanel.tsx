@@ -887,6 +887,9 @@ function formatImportProgressMessage(p: ImportProgressState): string {
   return `Importing your collection — ${batch}…`;
 }
 
+// Intentionally verbose with locale short date for import history display.
+// Different from lib/format-time.ts:formatRelativeTime which uses short tokens
+// (e.g. "3m ago"). Keep local.
 function formatRelative(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60_000);

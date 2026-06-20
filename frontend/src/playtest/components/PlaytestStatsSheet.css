@@ -1,0 +1,231 @@
+/* ── PlaytestStatsSheet — co-located styles ──────────────────────────────── */
+
+/* Desktop: wider modal so stats have more breathing room */
+@media (min-width: 1024px) {
+  .playtest-stats-sheet {
+    width: 600px;
+  }
+}
+
+/* ── Sheet body (the scrollable content area) ──────────────────────────── */
+
+.playtest-stats-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Empty / unavailable states ─────────────────────────────────────────── */
+
+.playtest-stats-empty {
+  padding: 1.5rem 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ── Section headings ────────────────────────────────────────────────────── */
+
+.playtest-stats-section-title {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Stat rows (label + value pairs) ─────────────────────────────────────── */
+
+.playtest-stats-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.playtest-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.playtest-stats-row__label {
+  flex: 0 0 auto;
+  min-width: 6rem;
+  color: var(--text-secondary);
+}
+
+.playtest-stats-row__value {
+  flex: 0 0 auto;
+  font-weight: 600;
+  min-width: 2rem;
+  text-align: right;
+}
+
+.playtest-stats-row__bar {
+  flex: 1;
+}
+
+/* ── CMC histogram ────────────────────────────────────────────────────────── */
+
+.playtest-stats-histogram {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.playtest-stats-histogram__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-xs);
+}
+
+.playtest-stats-histogram__bucket {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.playtest-stats-histogram__bar {
+  flex: 1;
+}
+
+.playtest-stats-histogram__count {
+  flex: 0 0 auto;
+  min-width: 1rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* ── Color pip row ────────────────────────────────────────────────────────── */
+
+.playtest-stats-colors {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.playtest-stats-color-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Verdict chip ─────────────────────────────────────────────────────────── */
+
+.playtest-stats-verdict {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.playtest-stats-verdict--keep {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.playtest-stats-verdict--mulligan {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+/* ── Session zone pills ───────────────────────────────────────────────────── */
+
+.playtest-stats-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.playtest-stats-zone-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.playtest-stats-zone-pill__count {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* ── Simulation sub-section ──────────────────────────────────────────────── */
+
+.playtest-stats-sim {
+  border-top: 0.5px solid var(--border);
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.playtest-stats-sim-title {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.playtest-stats-sim-note {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ── Type glyph rows (battlefield section) ────────────────────────────────── */
+
+.playtest-stats-type-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.playtest-stats-type-row__icon {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  text-align: center;
+  font-size: var(--text-md);
+}
+
+.playtest-stats-type-row__label {
+  flex: 1;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.playtest-stats-type-row__count {
+  flex: 0 0 auto;
+  font-weight: 600;
+  min-width: 1.5rem;
+  text-align: right;
+}
+
+/* ── Divider between sections ─────────────────────────────────────────────── */
+
+.playtest-stats-divider {
+  border: none;
+  border-top: 0.5px solid var(--border);
+  margin: 0;
+}

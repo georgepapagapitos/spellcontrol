@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { BrandMark } from './BrandMark';
 
 interface Props {
   children: ReactNode;
@@ -16,9 +17,7 @@ export function SharedShell({ children, action }: Props) {
     <div className="shared-shell">
       <header className="shared-brandbar">
         <Link className="shared-brand" to="/" aria-label="SpellControl">
-          <span className="shared-brand-mark" aria-hidden="true">
-            SC
-          </span>
+          <BrandMark size={24} aria-hidden className="shared-brand-mark" />
           <span className="shared-brand-text">SpellControl</span>
         </Link>
         {action && <div className="shared-brandbar-action">{action}</div>}

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AddToBinderSheet } from './AddToBinderSheet';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -42,22 +43,21 @@ export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBi
   // escape every row's stacking context. Same approach as SelectMenu.
   useLayoutEffect(() => {
     if (!menuOpen || !panelRef.current || !buttonRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    const triggerRect = buttonRef.current.getBoundingClientRect();
-    setPanelPos((p) => {
-      if (!p) return p;
-      let next = p;
-      if (p.top !== undefined && rect.bottom > window.innerHeight) {
-        next = { ...next, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 };
-      }
-      if (next.bottom !== undefined) {
-        const upwardTop = triggerRect.top - 6 - rect.height;
-        if (upwardTop < 8) next = { ...next, top: 8, bottom: undefined };
-      }
-      if (rect.left < 8) {
-        next = { ...next, right: undefined, left: Math.max(8, triggerRect.left) };
-      }
-      return next === p ? p : next;
+    const anchorRect = buttonRef.current.getBoundingClientRect();
+    const panelRect = panelRef.current.getBoundingClientRect();
+    const safe = getSafeViewport();
+    const placement = computePopoverPlacement(
+      anchorRect,
+      { width: panelRect.width, height: panelRect.height },
+      safe,
+      'right',
+      6
+    );
+    setPanelPos({
+      top: placement.top,
+      bottom: placement.bottom,
+      left: placement.left,
+      right: placement.right,
     });
   }, [menuOpen]);
 

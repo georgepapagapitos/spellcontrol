@@ -137,6 +137,9 @@ export function DeckCardRow({
   // percentage itself is tinted by how staple the card is (red only below ~10% —
   // see inclusionColor), so the "how-staple" signal lives in the number instead
   // of a separate unlabeled bar.
+  //
+  // Combos-lane rows never have an inclusion %, so suppress the "Off-meta"
+  // label for them — a proven combo completion is not off-meta by definition.
   const inclusionNode =
     typeof inclusion === 'number' ? (
       <span className="deck-card-row-incl">
@@ -146,7 +149,7 @@ export function DeckCardRow({
         </span>{' '}
         of {commanderName ? `${commanderName} ` : ''}decks
       </span>
-    ) : (
+    ) : change.lane === 'combos' ? null : (
       <span className="deck-card-row-incl is-offmeta">Off-meta</span>
     );
 

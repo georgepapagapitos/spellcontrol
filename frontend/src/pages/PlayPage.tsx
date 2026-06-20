@@ -15,6 +15,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
+import { StackedBar } from '../components/shared/MeterBar';
+import { aggregateMatchupRecords } from '../lib/matchup-records';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
 type Tab = 'local' | 'online' | 'history';
@@ -368,31 +370,39 @@ function LocalSetup({
         </h2>
       </header>
 
-      <section className="play-setup-row">
-        <div className="play-field play-field-inline">
-          <span>Format</span>
-          <SelectMenu<GameFormat>
-            ariaLabel="Format"
-            value={format}
-            onChange={applyFormat}
-            options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
-          />
-        </div>
+      <section aria-labelledby="play-setup-game-label">
+        <h3 id="play-setup-game-label" className="play-setup-section-title">
+          Game
+        </h3>
+        <div className="play-setup-row" style={{ marginTop: '0.5rem' }}>
+          <div className="play-field play-field-inline">
+            <span>Format</span>
+            <SelectMenu<GameFormat>
+              ariaLabel="Format"
+              value={format}
+              onChange={applyFormat}
+              options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+            />
+          </div>
 
-        <div className="play-field play-field-inline">
-          <span id="starting-life-label">Starting life</span>
-          <Stepper
-            value={startingLife}
-            min={1}
-            max={200}
-            step={5}
-            ariaLabelledBy="starting-life-label"
-            onChange={setStartingLife}
-          />
+          <div className="play-field play-field-inline">
+            <span id="starting-life-label">Starting life</span>
+            <Stepper
+              value={startingLife}
+              min={1}
+              max={200}
+              step={5}
+              ariaLabelledBy="starting-life-label"
+              onChange={setStartingLife}
+            />
+          </div>
         </div>
       </section>
 
-      <section className="play-setup-rules" aria-label="Game rules">
+      <section className="play-setup-rules" aria-labelledby="play-setup-rules-label">
+        <h3 id="play-setup-rules-label" className="play-setup-section-title">
+          Rules
+        </h3>
         <RulePill
           on={commanderDamageEnabled}
           onChange={setCmdDmg}
@@ -464,7 +474,7 @@ function LocalSetup({
         )}
       </section>
 
-      <button type="submit" className="pill-btn pill-btn-primary play-setup-start">
+      <button type="submit" className="btn btn-primary play-setup-start">
         Start game
       </button>
     </form>
@@ -779,7 +789,7 @@ function OnlineSetup({
             </ul>
           </section>
 
-          <button type="submit" className="pill-btn pill-btn-primary play-setup-start">
+          <button type="submit" className="btn btn-primary play-setup-start">
             Create game
           </button>
         </form>
@@ -848,7 +858,7 @@ function OnlineSetup({
 
           <button
             type="submit"
-            className="pill-btn pill-btn-primary play-setup-start"
+            className="btn btn-primary play-setup-start"
             disabled={code.trim().length < 3}
           >
             Join game
@@ -872,6 +882,7 @@ function HistoryTab({
 }) {
   const removeHistory = usePlayStore((s) => s.removeHistory);
   const deckRows = useMemo(() => aggregateDeckRecords(history, userId), [history, userId]);
+  const matchupRows = useMemo(() => aggregateMatchupRecords(history, userId), [history, userId]);
 
   if (history.length === 0) {
     return (
@@ -904,6 +915,49 @@ function HistoryTab({
                   <td>{row.played}</td>
                   <td>{row.wins}</td>
                   <td>{row.losses}</td>
+                  <td>{(row.winRate * 100).toFixed(0)}%</td>
+                  <td>{new Date(row.lastPlayedAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+      {matchupRows.length > 0 && (
+        <section className="play-records">
+          <h2 className="play-records-title">Head-to-head</h2>
+          <table className="play-records-table">
+            <thead>
+              <tr>
+                <th>Deck A</th>
+                <th className="play-matchup-vs">vs</th>
+                <th>Deck B</th>
+                <th>Played</th>
+                <th>W</th>
+                <th>L</th>
+                <th>W/L</th>
+                <th>Win%</th>
+                <th>Last played</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matchupRows.map((row) => (
+                <tr key={`${row.deckAId}|${row.deckBId}`}>
+                  <td>{row.deckAName}</td>
+                  <td className="play-matchup-vs">vs</td>
+                  <td>{row.deckBName}</td>
+                  <td>{row.played}</td>
+                  <td>{row.wins}</td>
+                  <td>{row.losses}</td>
+                  <td className="play-matchup-bar">
+                    <StackedBar
+                      segments={[
+                        { key: 'w', value: row.wins, color: 'var(--success)' },
+                        { key: 'l', value: row.losses, color: 'var(--err-text)' },
+                      ]}
+                      max={row.played}
+                    />
+                  </td>
                   <td>{(row.winRate * 100).toFixed(0)}%</td>
                   <td>{new Date(row.lastPlayedAt).toLocaleDateString()}</td>
                 </tr>
@@ -995,10 +1049,10 @@ function ResumeBanner({
         <span className="play-resume-banner-players">{summary}</span>
       </div>
       <div className="play-resume-banner-actions">
-        <button type="button" className="pill-btn pill-btn-primary" onClick={onResume}>
+        <button type="button" className="btn btn-primary" onClick={onResume}>
           Resume
         </button>
-        <button type="button" className="pill-btn" onClick={onDiscard}>
+        <button type="button" className="btn" onClick={onDiscard}>
           Discard
         </button>
       </div>

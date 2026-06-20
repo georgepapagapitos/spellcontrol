@@ -151,8 +151,8 @@
   display: inline-block;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  font-size: var(--text-xs);
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: 600;
   background: var(--accent-light);
   color: var(--accent);
   white-space: nowrap;

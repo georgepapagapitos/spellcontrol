@@ -24,6 +24,7 @@ import { useCollectionStore } from '../store/collection';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv } from '../lib/samples';
 import { markEverVisited } from '../lib/first-run';
+import { BrandMark } from '../components/shared/BrandMark';
 import './WelcomePage.css';
 
 /** Feature blocks — real prose so the page has something for search engines to
@@ -112,6 +113,9 @@ export function WelcomePage() {
     <div className="welcome-page">
       <main className="welcome-card">
         <header className="welcome-hero">
+          <div className="welcome-brand-mark" aria-hidden="true">
+            <BrandMark size={56} />
+          </div>
           <p className="welcome-brand">SpellControl</p>
           <h1 className="welcome-headline">Plan your Magic: The Gathering collection</h1>
           <p className="welcome-tagline">

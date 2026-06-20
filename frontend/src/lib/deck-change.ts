@@ -491,12 +491,24 @@ export function fromComboCompletion(
   missingCardName: string,
   ownership?: ChangeOwnership
 ): Change {
-  const partners = match.combo.cards
+  const partnerNames = match.combo.cards
     .filter((c) => c.cardName !== missingCardName)
-    .map((c) => c.cardName)
-    .join(' + ');
-  const result = match.combo.produces[0] ?? 'a combo';
-  const reason = `Completes ${partners} → ${result}`;
+    .map((c) => c.cardName);
+  // Cap partner list to 2 names + "+N more" so the reason stays scannable on
+  // narrow screens. The full combo detail is always one tap away in the panel.
+  const partnerStr =
+    partnerNames.length <= 2
+      ? partnerNames.join(' + ')
+      : `${partnerNames.slice(0, 2).join(' + ')} +${partnerNames.length - 2} more`;
+  // Show up to 2 produces results so the payoff is clear without overflowing.
+  const produces = match.combo.produces;
+  const resultStr =
+    produces.length === 0
+      ? 'a combo'
+      : produces.length === 1
+        ? produces[0]
+        : `${produces[0]} + ${produces[1]}${produces.length > 2 ? ` +${produces.length - 2} more` : ''}`;
+  const reason = `Completes ${partnerStr} → ${resultStr}`;
   return {
     id: `combos:${missingCardName}`,
     type: 'add',

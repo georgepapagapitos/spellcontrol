@@ -183,7 +183,7 @@ export function SharedLinksSettings() {
               <div className="settings-share-actions">
                 <button
                   type="button"
-                  className="pill-btn"
+                  className="btn"
                   onClick={() => void handleCopy(s.token)}
                   disabled={revoking}
                   aria-label={`Copy ${KIND_LABELS[s.kind].toLowerCase()} share link`}
@@ -193,7 +193,7 @@ export function SharedLinksSettings() {
                 {isNativePlatform() && (
                   <button
                     type="button"
-                    className="pill-btn"
+                    className="btn"
                     onClick={() => void handleNativeShare(s.token, label.name)}
                     disabled={revoking}
                     aria-label={`Share ${KIND_LABELS[s.kind].toLowerCase()} link`}
@@ -203,7 +203,7 @@ export function SharedLinksSettings() {
                 )}
                 <button
                   type="button"
-                  className="pill-btn pill-btn-danger"
+                  className="btn btn-danger"
                   onClick={() => void handleRevoke(s.token)}
                   disabled={revoking}
                   aria-label={`Revoke ${KIND_LABELS[s.kind].toLowerCase()} share link`}
