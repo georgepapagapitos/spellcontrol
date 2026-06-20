@@ -368,31 +368,39 @@ function LocalSetup({
         </h2>
       </header>
 
-      <section className="play-setup-row">
-        <div className="play-field play-field-inline">
-          <span>Format</span>
-          <SelectMenu<GameFormat>
-            ariaLabel="Format"
-            value={format}
-            onChange={applyFormat}
-            options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
-          />
-        </div>
+      <section aria-labelledby="play-setup-game-label">
+        <h3 id="play-setup-game-label" className="play-setup-section-title">
+          Game
+        </h3>
+        <div className="play-setup-row" style={{ marginTop: '0.5rem' }}>
+          <div className="play-field play-field-inline">
+            <span>Format</span>
+            <SelectMenu<GameFormat>
+              ariaLabel="Format"
+              value={format}
+              onChange={applyFormat}
+              options={FORMAT_OPTIONS.map((f) => ({ value: f.value, label: f.label }))}
+            />
+          </div>
 
-        <div className="play-field play-field-inline">
-          <span id="starting-life-label">Starting life</span>
-          <Stepper
-            value={startingLife}
-            min={1}
-            max={200}
-            step={5}
-            ariaLabelledBy="starting-life-label"
-            onChange={setStartingLife}
-          />
+          <div className="play-field play-field-inline">
+            <span id="starting-life-label">Starting life</span>
+            <Stepper
+              value={startingLife}
+              min={1}
+              max={200}
+              step={5}
+              ariaLabelledBy="starting-life-label"
+              onChange={setStartingLife}
+            />
+          </div>
         </div>
       </section>
 
-      <section className="play-setup-rules" aria-label="Game rules">
+      <section className="play-setup-rules" aria-labelledby="play-setup-rules-label">
+        <h3 id="play-setup-rules-label" className="play-setup-section-title">
+          Rules
+        </h3>
         <RulePill
           on={commanderDamageEnabled}
           onChange={setCmdDmg}
@@ -464,7 +472,7 @@ function LocalSetup({
         )}
       </section>
 
-      <button type="submit" className="pill-btn pill-btn-primary play-setup-start">
+      <button type="submit" className="btn btn-primary play-setup-start">
         Start game
       </button>
     </form>
@@ -779,7 +787,7 @@ function OnlineSetup({
             </ul>
           </section>
 
-          <button type="submit" className="pill-btn pill-btn-primary play-setup-start">
+          <button type="submit" className="btn btn-primary play-setup-start">
             Create game
           </button>
         </form>
@@ -848,7 +856,7 @@ function OnlineSetup({
 
           <button
             type="submit"
-            className="pill-btn pill-btn-primary play-setup-start"
+            className="btn btn-primary play-setup-start"
             disabled={code.trim().length < 3}
           >
             Join game
@@ -995,10 +1003,10 @@ function ResumeBanner({
         <span className="play-resume-banner-players">{summary}</span>
       </div>
       <div className="play-resume-banner-actions">
-        <button type="button" className="pill-btn pill-btn-primary" onClick={onResume}>
+        <button type="button" className="btn btn-primary" onClick={onResume}>
           Resume
         </button>
-        <button type="button" className="pill-btn" onClick={onDiscard}>
+        <button type="button" className="btn" onClick={onDiscard}>
           Discard
         </button>
       </div>
