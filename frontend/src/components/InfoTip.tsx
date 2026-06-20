@@ -2,6 +2,7 @@ import './InfoTip.css';
 import { type JSX, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Info } from 'lucide-react';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 
 /**
  * The shared "ⓘ" info affordance — a small icon button beside a label that
@@ -50,18 +51,10 @@ export function InfoTip({ label, text, wide }: InfoTipProps): JSX.Element {
     const el = btnRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const width = Math.min(wide ? 360 : 300, vw - 16);
-    // Left-align to the trigger, then clamp so the bubble stays on-screen.
-    const left = Math.max(8, Math.min(r.left, vw - width - 8));
-    // Prefer below; flip above when the lower gutter is too short.
-    const belowSpace = vh - r.bottom;
-    if (belowSpace >= 150 || belowSpace >= r.top) {
-      setPos({ left, top: r.bottom + 6, width });
-    } else {
-      setPos({ left, bottom: vh - r.top + 6, width });
-    }
+    const safe = getSafeViewport();
+    const width = Math.min(wide ? 360 : 300, safe.right - 16);
+    const placement = computePopoverPlacement(r, { width, height: 150 }, safe, 'left', 6);
+    setPos({ left: placement.left ?? 8, top: placement.top, bottom: placement.bottom, width });
   }, [wide]);
 
   const close = useCallback(() => setPos(null), []);

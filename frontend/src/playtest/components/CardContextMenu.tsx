@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { getSafeViewport } from '@/lib/popover-placement';
 import type { Zone } from '@/lib/playtest';
 
 interface Props {
@@ -50,8 +51,9 @@ export function CardContextMenu({
     const el = menuRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const safe = getSafeViewport();
+    const vw = safe.right;
+    const vh = safe.bottom;
     const left = Math.max(MENU_MARGIN, Math.min(x, vw - rect.width - MENU_MARGIN));
     const top = Math.max(MENU_MARGIN, Math.min(y, vh - rect.height - MENU_MARGIN));
     setClamped({ left, top });

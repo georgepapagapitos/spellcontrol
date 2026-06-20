@@ -220,6 +220,8 @@ function describeRow(row: TimelineRow, game: GameState): RichEvent {
   }
 }
 
+// Game event granularity: shows seconds. Injectable `now` for deterministic renders.
+// Different from lib/format-time.ts:formatRelativeTime (minute granularity, no injectable now).
 function formatRelative(ts: number, now: number): string {
   const diff = Math.max(0, now - ts);
   const sec = Math.floor(diff / 1000);
