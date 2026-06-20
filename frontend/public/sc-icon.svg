@@ -1,6 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SpellControl">
-  <rect width="512" height="512" rx="96" fill="#0a1f3d" />
-  <g fill="#f5d061" font-family="Georgia, 'Times New Roman', serif" font-weight="700" text-anchor="middle">
-    <text x="248" y="352" font-size="280" letter-spacing="-12">SC</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f1b18"/>
+      <stop offset="1" stop-color="#2c2521"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="0.55" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#fb7185"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <g fill="none" stroke="#5b4a3c" stroke-width="13">
+    <rect x="120" y="120" width="78" height="78" rx="17"/>
+    <rect x="217" y="120" width="78" height="78" rx="17"/>
+    <rect x="314" y="120" width="78" height="78" rx="17"/>
+    <rect x="120" y="217" width="78" height="78" rx="17"/>
+    <rect x="314" y="217" width="78" height="78" rx="17"/>
+    <rect x="120" y="314" width="78" height="78" rx="17"/>
+    <rect x="217" y="314" width="78" height="78" rx="17"/>
+    <rect x="314" y="314" width="78" height="78" rx="17"/>
   </g>
+  <path d="M256 168
+           C264 226 286 248 344 256
+           C286 264 264 286 256 344
+           C248 286 226 264 168 256
+           C226 248 248 226 256 168 Z"
+        fill="url(#spark)"/>
 </svg>

@@ -55,6 +55,14 @@
   }
 }
 
+/* Brand mark hero — grid+spark displayed above the wordmark. Sits centered,
+   with a small bottom gap before the title, keeping the card compact. */
+.auth-brand-hero {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
 /* Serif wordmark — matches the WelcomePage brand block so the two first-run
    surfaces read as siblings. */
 .auth-title {
