@@ -279,12 +279,23 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       const missingName = missingCard?.cardName;
       if (!missingName || usedCards.has(missingName)) continue;
       const produces = match.combo.produces[0] ?? 'a combo';
+      const partnerNames = match.combo.cards
+        .filter((c) => c.oracleId !== missingId)
+        .map((c) => c.cardName);
+      const partnerStr =
+        partnerNames.length <= 2
+          ? partnerNames.join(' + ')
+          : `${partnerNames.slice(0, 2).join(' + ')} +${partnerNames.length - 2} more`;
+      const alreadyOwns = input.ownedNames?.has(missingName) ?? false;
+      const detail = alreadyOwns
+        ? `You already own ${missingName} — add it to complete ${partnerStr} → ${produces}.`
+        : `Completes ${partnerStr} → ${produces}. Add ${missingName} to finish the combo.`;
       moves.push({
         id: `combo-${match.combo.id}`,
         tier: 3,
-        title: 'Complete a combo',
+        title: `Add ${missingName}`,
         cardName: missingName,
-        detail: `You're one card from ${produces}. Add ${missingName} to complete the combo.`,
+        detail,
         navigateTo: 'power',
         focus: 'combos',
       });

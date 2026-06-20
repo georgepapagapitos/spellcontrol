@@ -394,7 +394,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 strokeWidth={2.5}
                 aria-hidden
               />
-              Owned
+              In my collection
               <span className="deck-combos-filter-count">{oneAwayOwned.length}</span>
             </button>
             <button
@@ -409,7 +409,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 strokeWidth={2.5}
                 aria-hidden
               />
-              Not owned
+              Need to buy
               <span className="deck-combos-filter-count">{oneAwayNotOwned.length}</span>
             </button>
           </div>
@@ -559,7 +559,8 @@ function ComboRow({
     !!combo.prerequisites?.easy ||
     !!combo.prerequisites?.notable ||
     !!combo.manaNeeded ||
-    steps.length > 0;
+    steps.length > 0 ||
+    combo.popularity > 0;
 
   // Combo title — full card names joined. Truncated via CSS so long combos
   // don't overflow the card; the full string is exposed via title for hover.
@@ -611,22 +612,42 @@ function ComboRow({
         </span>
       </header>
 
-      {/* ── Piece count — scans at a glance ("3 of 4 in deck") ── */}
+      {/* ── Piece count — scans at a glance ("3 of 4 in deck · {mana}") ── */}
       <p
         className="deck-combos-piece-count"
         aria-label={`${presentCount} of ${totalCount} pieces in deck`}
       >
         <span className="deck-combos-piece-count-have">{presentCount}</span>
         <span className="deck-combos-piece-count-sep"> of {totalCount} pieces in deck</span>
+        {combo.manaNeeded && (
+          <>
+            <span className="deck-combos-piece-count-sep"> · </span>
+            <MagicText text={combo.manaNeeded} />
+          </>
+        )}
       </p>
 
       {/* ── Card art grid — present cards full colour; missing dimmed ── */}
       <ul className="deck-combos-card-grid" role="list">
         {combo.cards.map((c, i) => {
           const isMissing = c.oracleId === missingOracleId;
-          const isOwned = isMissing && ownedOracleIds.has(c.oracleId);
+          // On the "one-away" tab: owned = in collection but not in deck.
+          // On the "in-deck" tab: check if the piece is actually owned in
+          // the collection — D2: show not-owned icon for unowned pieces.
+          const isOwned = isMissing
+            ? ownedOracleIds.has(c.oracleId)
+            : !isOneAway && ownedOracleIds.has(c.oracleId);
+          const isNotOwnedInDeck = !isOneAway && !isMissing && !ownedOracleIds.has(c.oracleId);
           const tileClass = isMissing ? (isOwned ? ' missing owned' : ' missing') : '';
           const localUrl = resolveComboCardImage(c.oracleId, c.cardName, cardImageIndex);
+          // Determine aria label based on context
+          const ariaContext = isMissing
+            ? isOwned
+              ? ' (owned, not in deck)'
+              : ' (not owned)'
+            : isNotOwnedInDeck
+              ? ' (not owned — need to acquire)'
+              : ' (in deck)';
           return (
             <li key={c.oracleId} className={`deck-combos-card-tile${tileClass}`}>
               {/* Plus separator between cards. Visual rather than semantic
@@ -640,9 +661,10 @@ function ComboRow({
                 type="button"
                 className="deck-combos-card-art"
                 onClick={() => onCardTap(i)}
-                aria-label={`Preview ${c.cardName}${isMissing ? (isOwned ? ' (owned, not in deck)' : ' (not owned)') : ' (in deck)'}`}
+                aria-label={`Preview ${c.cardName}${ariaContext}`}
               >
                 <ComboCardArt localUrl={localUrl} cardName={c.cardName} />
+                {/* One-away: show owned/not-owned status on the missing piece. */}
                 {isMissing && (
                   <span
                     className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}
@@ -653,6 +675,12 @@ function ComboRow({
                     ) : (
                       <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
                     )}
+                  </span>
+                )}
+                {/* In-deck: D2 — show not-owned icon on pieces not in collection. */}
+                {isNotOwnedInDeck && (
+                  <span className="deck-combos-card-status" aria-hidden>
+                    <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
                   </span>
                 )}
                 {c.quantity > 1 && (
@@ -683,11 +711,8 @@ function ComboRow({
         </div>
       )}
 
-      {/* ── Meta line — popularity + bracket ── */}
-      <p className="deck-combos-row-meta">
-        {formatDeckCount(combo.popularity)}
-        {combo.bracket != null ? <> · Bracket {combo.bracket}</> : null}
-      </p>
+      {/* ── Meta line — bracket only; popularity moves into the detail section ── */}
+      {combo.bracket != null && <p className="deck-combos-row-meta">Bracket {combo.bracket}</p>}
 
       {/* ── Details toggle — prerequisites + steps (results are already visible) ── */}
       {hasDetails && (
@@ -757,6 +782,10 @@ function ComboRow({
                     ))}
                   </ul>
                 </DetailSection>
+              )}
+
+              {combo.popularity > 0 && (
+                <p className="deck-combos-row-meta">{formatDeckCount(combo.popularity)}</p>
               )}
             </div>
           )}

@@ -323,9 +323,9 @@
 }
 
 .deck-combos-row-title {
-  font-weight: 600;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
   flex: 1 1 auto;
 }
 
