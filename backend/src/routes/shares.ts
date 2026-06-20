@@ -168,7 +168,7 @@ sharesRouter.get('/inbox', requireAuth, async (req: Request, res: Response) => {
             s.user_id AS sender_id, u.username AS sender_username
        FROM shares s
        JOIN users u ON u.id = s.user_id
-      WHERE s.addressee_id = $1 AND s.revoked_at IS NULL
+      WHERE s.addressee_id = $1 AND s.audience = 'direct' AND s.revoked_at IS NULL
       ORDER BY s.created_at DESC`,
     [req.user!.id]
   );

@@ -18,8 +18,7 @@ import {
   type Friend,
   type FriendRequest,
 } from '../lib/friends-client';
-import { getInbox, type InboxShareRow } from '../lib/share-client';
-import { countUnseen, markInboxSeen, INBOX_LAST_SEEN_KEY } from '../lib/use-inbox';
+import { useInbox, markInboxSeen } from '../lib/use-inbox';
 
 type TabId = 'friends' | 'requests' | 'inbox';
 
@@ -56,6 +55,9 @@ function FriendsSkeleton() {
 
 export function FriendsPage() {
   const status = useAuth((s) => s.status);
+  // The inbox + its unseen count come from the shared hook (same source as the
+  // nav badge) — no duplicate fetch/state here.
+  const { count: inboxCount, items: inbox } = useInbox();
 
   const [tab, setTab] = useState<TabId>('friends');
 
@@ -69,13 +71,7 @@ export function FriendsPage() {
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [incoming, setIncoming] = useState<FriendRequest[] | null>(null);
   const [outgoing, setOutgoing] = useState<FriendRequest[] | null>(null);
-  const [inbox, setInbox] = useState<InboxShareRow[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Device-local "last opened the inbox" mark, for the unseen tab badge.
-  const [inboxSeenAt, setInboxSeenAt] = useState(
-    () => Number(localStorage.getItem(INBOX_LAST_SEEN_KEY)) || 0
-  );
 
   // Busy state per-item (keyed by user/request id)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -92,25 +88,22 @@ export function FriendsPage() {
   // Uses stable setter refs so it doesn't need to be in any dep array.
   const loadData = useCallback(() => {
     setLoadError(null);
-    Promise.all([listFriends(), listRequests(), getInbox()])
-      .then(([friendsRes, requestsRes, inboxRes]) => {
+    Promise.all([listFriends(), listRequests()])
+      .then(([friendsRes, requestsRes]) => {
         setFriends(friendsRes);
         setIncoming(requestsRes.incoming);
         setOutgoing(requestsRes.outgoing);
-        setInbox(inboxRes);
       })
       .catch((err: unknown) => {
         setLoadError(err instanceof Error ? err.message : 'Failed to load friends.');
       });
   }, []);
 
-  // Opening the inbox tab marks it seen (clears the unseen badge here + in nav).
+  // Opening the inbox tab marks it seen — clears the unseen badge here and in
+  // the nav (useInbox's count drops to 0 reactively via markInboxSeen).
   const handleTabChange = useCallback((next: TabId) => {
     setTab(next);
-    if (next === 'inbox') {
-      markInboxSeen();
-      setInboxSeenAt(Date.now());
-    }
+    if (next === 'inbox') markInboxSeen();
   }, []);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
@@ -120,13 +113,12 @@ export function FriendsPage() {
   useEffect(() => {
     if (status !== 'authed') return;
     let cancelled = false;
-    Promise.all([listFriends(), listRequests(), getInbox()])
-      .then(([friendsRes, requestsRes, inboxRes]) => {
+    Promise.all([listFriends(), listRequests()])
+      .then(([friendsRes, requestsRes]) => {
         if (cancelled) return;
         setFriends(friendsRes);
         setIncoming(requestsRes.incoming);
         setOutgoing(requestsRes.outgoing);
-        setInbox(inboxRes);
         setLoadError(null);
       })
       .catch((err: unknown) => {
@@ -136,7 +128,6 @@ export function FriendsPage() {
         setFriends([]);
         setIncoming([]);
         setOutgoing([]);
-        setInbox([]);
       });
     return () => {
       cancelled = true;
@@ -286,7 +277,7 @@ export function FriendsPage() {
   const inboxList = inbox ?? [];
   const requestCount = incomingList.length + outgoingList.length;
   // Suppress the unseen badge while the inbox tab is open (it's been seen).
-  const unseenInbox = tab === 'inbox' ? 0 : countUnseen(inbox, inboxSeenAt);
+  const unseenInbox = tab === 'inbox' ? 0 : inboxCount;
 
   const tabsWithCounts = TABS.map((t) => {
     let count: number | null = null;
@@ -527,7 +518,7 @@ export function FriendsPage() {
           hidden={tab !== 'inbox'}
           className="friends-panel"
         >
-          {loading ? (
+          {inbox === null ? (
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
             <p className="friends-empty" role="status">
