@@ -351,6 +351,8 @@
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1rem;
+  /* Wide matchup table (9 cols) scrolls within its card rather than overflowing the body at 320px. */
+  overflow-x: auto;
 }
 
 .play-records-title {
@@ -488,4 +490,18 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+}
+
+/* ── Matchup table ───────────────────────────────────────────────────────── */
+
+.play-matchup-vs {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.play-matchup-bar {
+  min-width: 4rem;
+  width: 6rem;
 }
