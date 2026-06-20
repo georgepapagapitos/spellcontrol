@@ -2,7 +2,8 @@
 import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SyncIndicator, HeaderSyncIndicator, formatRelativeTime } from './SyncIndicator';
+import { SyncIndicator, HeaderSyncIndicator } from './SyncIndicator';
+import { formatRelativeTime } from '../lib/format-time';
 import { useAuth } from '../store/auth';
 import * as sync from '../lib/sync';
 
@@ -25,34 +26,47 @@ beforeEach(() => {
   });
 });
 
-describe('formatRelativeTime', () => {
+// Thin smoke-tests confirming the SyncIndicator options (45s threshold, no
+// months/years) are wired correctly. Full coverage lives in format-time.test.ts.
+const SYNC_OPTS = { justNowThresholdSec: 45, includeMonthsYears: false } as const;
+describe('formatRelativeTime (SyncIndicator config)', () => {
   it('returns "just now" within the first 45 seconds', () => {
-    expect(formatRelativeTime(1_000_000, 1_000_000)).toBe('just now');
-    expect(formatRelativeTime(1_000_000, 1_000_000 + 44_000)).toBe('just now');
+    expect(formatRelativeTime(1_000_000, { now: 1_000_000, ...SYNC_OPTS })).toBe('just now');
+    expect(formatRelativeTime(1_000_000, { now: 1_000_000 + 44_000, ...SYNC_OPTS })).toBe(
+      'just now'
+    );
   });
 
   it('returns "Nm ago" for the minutes band', () => {
     const base = 1_000_000;
-    expect(formatRelativeTime(base, base + 60_000)).toBe('1m ago');
-    expect(formatRelativeTime(base, base + 5 * 60_000)).toBe('5m ago');
-    expect(formatRelativeTime(base, base + 59 * 60_000)).toBe('59m ago');
+    expect(formatRelativeTime(base, { now: base + 60_000, ...SYNC_OPTS })).toBe('1m ago');
+    expect(formatRelativeTime(base, { now: base + 5 * 60_000, ...SYNC_OPTS })).toBe('5m ago');
+    expect(formatRelativeTime(base, { now: base + 59 * 60_000, ...SYNC_OPTS })).toBe('59m ago');
   });
 
   it('returns "Nh ago" for the hours band', () => {
     const base = 1_000_000;
-    expect(formatRelativeTime(base, base + 60 * 60_000)).toBe('1h ago');
-    expect(formatRelativeTime(base, base + 12 * 60 * 60_000)).toBe('12h ago');
-    expect(formatRelativeTime(base, base + 23 * 60 * 60_000)).toBe('23h ago');
+    expect(formatRelativeTime(base, { now: base + 60 * 60_000, ...SYNC_OPTS })).toBe('1h ago');
+    expect(formatRelativeTime(base, { now: base + 12 * 60 * 60_000, ...SYNC_OPTS })).toBe(
+      '12h ago'
+    );
+    expect(formatRelativeTime(base, { now: base + 23 * 60 * 60_000, ...SYNC_OPTS })).toBe(
+      '23h ago'
+    );
   });
 
-  it('returns "Nd ago" for >= 24h', () => {
+  it('returns "Nd ago" for >= 24h, no months tier', () => {
     const base = 1_000_000;
-    expect(formatRelativeTime(base, base + 24 * 60 * 60_000)).toBe('1d ago');
-    expect(formatRelativeTime(base, base + 3 * 24 * 60 * 60_000)).toBe('3d ago');
+    expect(formatRelativeTime(base, { now: base + 24 * 60 * 60_000, ...SYNC_OPTS })).toBe('1d ago');
+    expect(formatRelativeTime(base, { now: base + 3 * 24 * 60 * 60_000, ...SYNC_OPTS })).toBe(
+      '3d ago'
+    );
   });
 
   it('clamps future timestamps to "just now"', () => {
-    expect(formatRelativeTime(1_000_000 + 5_000, 1_000_000)).toBe('just now');
+    expect(formatRelativeTime(1_000_000 + 5_000, { now: 1_000_000, ...SYNC_OPTS })).toBe(
+      'just now'
+    );
   });
 });
 

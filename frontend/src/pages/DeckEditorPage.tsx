@@ -420,6 +420,9 @@ export function DeckEditorPage() {
     return Array.from(ids);
   }, [collectionCards]);
 
+  // Set-form of ownedOracleIds for O(1) membership checks in combo filtering.
+  const ownedOracleIdSet = useMemo(() => new Set(ownedOracleIds), [ownedOracleIds]);
+
   // Owned card names — lets the gap-analysis suggestions flag cards the user
   // already has in their collection.
   const ownedNames = useMemo(() => {
@@ -518,6 +521,18 @@ export function DeckEditorPage() {
 
   const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
 
+  // Count one-away combos whose missing piece the user already owns.
+  // Uses the `oneAway` bucket (not `almostInCollection`, which is empty for
+  // decks with oracle IDs — see match.ts:112) filtered against the owned set.
+  const comboOwnedMissingCount = useMemo(
+    () =>
+      (comboData.data?.oneAway ?? []).filter((m) => {
+        const id = m.missingOracleIds[0];
+        return id && ownedOracleIdSet.has(id);
+      }).length,
+    [comboData.data?.oneAway, ownedOracleIdSet]
+  );
+
   // The Power hero's summary lines deep-link to their detail panels below.
   // Bracket and Engine are always-open panels, so a scroll suffices; Combos is
   // collapsible, so reuse its reveal() handle (expand + scroll + focus), landing
@@ -538,8 +553,8 @@ export function DeckEditorPage() {
     [scrollToPowerPanel]
   );
   const handleViewCombos = useCallback(() => {
-    combosRef.current?.reveal(comboData.data?.almostInCollection.length ? 'oneAway' : 'inDeck');
-  }, [comboData.data?.almostInCollection.length]);
+    combosRef.current?.reveal(comboOwnedMissingCount > 0 ? 'oneAway' : 'inDeck');
+  }, [comboOwnedMissingCount]);
 
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
@@ -1925,7 +1940,7 @@ export function DeckEditorPage() {
                   enginePayoffs={deck.synergyAnalysis?.axes[0]?.payoffs}
                   engineLopsided={(deck.synergyAnalysis?.warnings.length ?? 0) > 0}
                   comboInDeck={comboData.data?.inDeck.length ?? 0}
-                  comboOwnedMissing={comboData.data?.almostInCollection.length ?? 0}
+                  comboOwnedMissing={comboOwnedMissingCount}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   // Link a pillar to its panel only when that panel actually renders below.
                   onViewBracket={

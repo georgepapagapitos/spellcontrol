@@ -34,7 +34,9 @@
   flex-shrink: 0;
 }
 
-.search-pill > input[type='search'] {
+/* The input may be type=search or type=text (see SearchPill inputType), so
+   match the element, not the type. */
+.search-pill > input {
   background: transparent;
   border: 0;
   padding: 0.3rem 0;
@@ -46,16 +48,16 @@
   color: var(--text-primary);
 }
 
-.search-pill > input[type='search']::placeholder {
+.search-pill > input::placeholder {
   color: var(--text-muted);
 }
 
 /* Native search-input UI chrome (the cancel ×, decoration) collides with
    the custom clear button visually — mute it across browsers. */
-.search-pill > input[type='search']::-webkit-search-decoration,
-.search-pill > input[type='search']::-webkit-search-cancel-button,
-.search-pill > input[type='search']::-webkit-search-results-button,
-.search-pill > input[type='search']::-webkit-search-results-decoration {
+.search-pill > input::-webkit-search-decoration,
+.search-pill > input::-webkit-search-cancel-button,
+.search-pill > input::-webkit-search-results-button,
+.search-pill > input::-webkit-search-results-decoration {
   -webkit-appearance: none;
   appearance: none;
 }

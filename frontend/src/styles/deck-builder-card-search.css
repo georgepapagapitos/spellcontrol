@@ -142,25 +142,6 @@
 
 /* Tab strip uses the shared <Tabs variant="fitted"> primitive (.sc-tabs). */
 
-.card-search-input {
-  width: 100%;
-}
-
-/* Wraps the search input + filter-dialog trigger so the trigger sits to
-   the right of the input on the same row. Only the input flexes; the
-   trigger keeps its intrinsic size. Mirrors the SearchPill trailing-slot
-   layout from the collection page so the affordance feels familiar. */
-.card-search-input-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.card-search-input-row .card-search-input {
-  flex: 1;
-  min-width: 0;
-}
-
 .card-search-empty {
   font-size: var(--text-sm);
   color: var(--text-muted);

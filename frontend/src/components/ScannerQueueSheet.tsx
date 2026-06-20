@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronDown, Minus, Plus, Search, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { fetchPrintings } from '../lib/api';
+import { SearchPill } from './SearchPill';
 import { formatMoney } from '../lib/format-money';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import {
@@ -244,28 +245,27 @@ export function ScannerQueueSheet({
         </header>
 
         <div className="scanner-search">
-          <div className="scanner-search-field">
-            <Search width={16} height={16} strokeWidth={1.8} aria-hidden />
-            {/* type="text" (not "search"): the Android WebView paints the
-                native search control with an opaque white background that
-                ignores author `background` + `appearance`, and it resolves the
-                control's color-scheme from <html> (a light theme) rather than
-                our dark scanner island. A plain text input honors the
-                transparent background, so the dark pill shows through. */}
-            <input
-              type="text"
-              inputMode="search"
-              enterKeyHint="search"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              className="scanner-search-input"
-              placeholder="Search Scryfall to add a card…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search Scryfall to add a card"
-            />
-          </div>
+          {/* inputType="text" (not search): the Android WebView paints the
+              native search control with an opaque white background that ignores
+              author `background` + `appearance`, resolving its color-scheme from
+              <html> (a light theme) rather than our dark scanner island. A plain
+              text input honors the transparent background. The .scanner-search-pill
+              class re-skins the shared SearchPill dark to match the overlay. */}
+          <SearchPill
+            className="scanner-search-pill"
+            inputType="text"
+            placeholder="Search Scryfall to add a card…"
+            value={query}
+            onChange={setQuery}
+            ariaLabel="Search Scryfall to add a card"
+            inputProps={{
+              inputMode: 'search',
+              enterKeyHint: 'search',
+              autoCapitalize: 'none',
+              autoCorrect: 'off',
+              spellCheck: false,
+            }}
+          />
           {query.trim().length >= 2 && (
             <div className="scanner-search-results">
               {searching && <div className="scanner-search-status">Searching…</div>}
