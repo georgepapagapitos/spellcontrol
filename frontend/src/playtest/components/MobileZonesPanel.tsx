@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
 
 interface Props {
@@ -56,17 +57,29 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
   }, [menuFor]);
 
   // Measure the mounted menu and place it under the kebab, right-aligned, with
-  // a flip-up when it would overflow the bottom and viewport clamping.
+  // a flip-up when it would overflow the safe viewport (subtracts playtest
+  // chrome — header is hidden in fullscreen so getSafeViewport returns 0).
   useLayoutEffect(() => {
     if (!menuFor || !anchor || !menuRef.current) return;
     const rect = menuRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let left = anchor.right - rect.width;
-    let top = anchor.bottom + MENU_GAP;
-    if (top + rect.height > vh - MENU_MARGIN) top = anchor.top - MENU_GAP - rect.height;
-    left = Math.max(MENU_MARGIN, Math.min(left, vw - rect.width - MENU_MARGIN));
-    top = Math.max(MENU_MARGIN, Math.min(top, vh - rect.height - MENU_MARGIN));
+    const safe = getSafeViewport();
+    const placement = computePopoverPlacement(
+      anchor,
+      { width: rect.width, height: rect.height },
+      safe,
+      'right',
+      MENU_GAP
+    );
+    const left = placement.left ?? Math.max(MENU_MARGIN, anchor.right - rect.width);
+    // computePopoverPlacement returns top or bottom (fixed); convert to a top value.
+    let top: number;
+    if (placement.top !== undefined) {
+      top = placement.top;
+    } else if (placement.bottom !== undefined) {
+      top = window.innerHeight - placement.bottom - rect.height;
+    } else {
+      top = anchor.bottom + MENU_GAP;
+    }
     setPos((p) => (p && p.left === left && p.top === top ? p : { left, top }));
   }, [menuFor, anchor]);
 
