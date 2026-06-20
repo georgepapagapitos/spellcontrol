@@ -11,6 +11,15 @@ export interface FriendShareRow {
   createdAt: number;
 }
 
+/** A share another user directed to you (your inbox). */
+export interface InboxShareRow {
+  token: string;
+  kind: ShareKind;
+  fromUsername: string;
+  label: string;
+  createdAt: number;
+}
+
 /**
  * Public origin the web app is hosted at. Used to build share links inside the
  * native app, where `window.location.origin` is the WebView origin
@@ -33,6 +42,8 @@ export async function createShare(input: {
   kind: ShareKind;
   resourceId?: string;
   audience?: ShareAudience;
+  /** Required when audience==='direct' — the recipient friend's user id. */
+  addresseeId?: string;
 }): Promise<ShareRow> {
   const res = await fetch(apiUrl('/api/shares'), {
     method: 'POST',
@@ -102,6 +113,16 @@ export async function getFriendShares(
     throw new Error(await readError(res, 'Failed to load shared content.'));
   }
   return (await res.json()) as { ownerUsername: string; shares: FriendShareRow[] };
+}
+
+/** Shares other users have directed to the authenticated caller (their inbox). */
+export async function getInbox(): Promise<InboxShareRow[]> {
+  const res = await fetch(apiUrl('/api/shares/inbox'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(await readError(res, 'Failed to load your inbox.'));
+  }
+  const body = (await res.json()) as { shares: InboxShareRow[] };
+  return body.shares;
 }
 
 export class ShareNotFoundError extends Error {

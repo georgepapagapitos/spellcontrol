@@ -240,11 +240,19 @@ export const shares = pgTable(
      * for it now so the audience contract is stable. NULL never stored.
      */
     audience: text('audience').notNull().default('link').$type<'link' | 'friends' | 'direct'>(),
+    /**
+     * Recipient for audience='direct' (a share addressed to one friend); NULL
+     * otherwise. ON DELETE SET NULL so deleting the recipient doesn't destroy
+     * the sender's row — it goes inert (the read gate treats a NULL-addressee
+     * direct share as inaccessible, never as a public fallback).
+     */
+    addresseeId: text('addressee_id').references(() => users.id, { onDelete: 'set null' }),
   },
   (t) => ({
     userIdx: index('shares_user_idx').on(t.userId),
     resourceIdx: index('shares_resource_idx').on(t.userId, t.kind, t.resourceId),
     audienceIdx: index('shares_audience_idx').on(t.userId, t.audience),
+    addresseeIdx: index('shares_addressee_idx').on(t.addresseeId),
   })
 );
 

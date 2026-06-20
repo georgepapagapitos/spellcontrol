@@ -6,7 +6,7 @@
 
 export type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube';
 
-/** Who can open a share. 'direct' (addressed to one friend) ships in a follow-up. */
+/** Who can open a share. 'direct' = addressed to one friend (the addressee). */
 export type ShareAudience = 'link' | 'friends' | 'direct';
 
 export interface ShareRow {
@@ -15,6 +15,8 @@ export interface ShareRow {
   kind: ShareKind;
   resourceId: string;
   audience: ShareAudience;
+  /** Recipient user id for audience='direct'; null otherwise. */
+  addresseeId: string | null;
   createdAt: number;
   revokedAt: number | null;
 }

@@ -240,9 +240,11 @@ export async function ensureSchema(): Promise<void> {
       revoked_at BIGINT
     );
     ALTER TABLE shares ADD COLUMN IF NOT EXISTS audience TEXT NOT NULL DEFAULT 'link';
+    ALTER TABLE shares ADD COLUMN IF NOT EXISTS addressee_id TEXT REFERENCES users(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS shares_user_idx ON shares(user_id);
     CREATE INDEX IF NOT EXISTS shares_resource_idx ON shares(user_id, kind, resource_id);
     CREATE INDEX IF NOT EXISTS shares_audience_idx ON shares(user_id, audience) WHERE revoked_at IS NULL;
+    CREATE INDEX IF NOT EXISTS shares_addressee_idx ON shares(addressee_id) WHERE addressee_id IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

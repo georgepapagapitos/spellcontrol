@@ -7,6 +7,7 @@ import { useRulesReferenceStore } from '../store/rules-reference';
 import { HeaderSyncIndicator } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import { useFriendRequests } from '../lib/use-friend-requests';
+import { useInbox } from '../lib/use-inbox';
 import { BrandMark } from './shared/BrandMark';
 
 export function Header() {
@@ -17,6 +18,9 @@ export function Header() {
   const authStatus = useAuth((s) => s.status);
   const isAuthed = authStatus === 'authed';
   const pendingRequests = useFriendRequests();
+  const { count: inboxCount } = useInbox();
+  // One "Friends" badge covers both pending requests and unseen directed shares.
+  const socialCount = pendingRequests + inboxCount;
   return (
     <header className="site-header">
       <div className="site-header-inner">
@@ -59,15 +63,15 @@ export function Header() {
               to="/friends"
               className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
               aria-label={
-                pendingRequests > 0
-                  ? `Friends, ${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}`
+                socialCount > 0
+                  ? `Friends, ${socialCount} notification${socialCount === 1 ? '' : 's'}`
                   : 'Friends'
               }
             >
               <span>Friends</span>
-              {pendingRequests > 0 && (
+              {socialCount > 0 && (
                 <span className="friends-nav-link-badge" aria-hidden="true">
-                  {pendingRequests}
+                  {socialCount}
                 </span>
               )}
             </NavLink>

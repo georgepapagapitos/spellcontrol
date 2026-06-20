@@ -647,3 +647,144 @@ describe('friends-audience shares', () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe('directed shares + inbox', () => {
+  it('requires addresseeId and an accepted friendship to create a direct share', async () => {
+    const ownerName = 'dir-owner';
+    const friendName = 'dir-friend';
+    const strangerName = 'dir-stranger';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    const stranger = await makeUser(strangerName);
+    await befriend(owner, ownerName, friend, friendName);
+    const friendId = await userIdByName(owner, friendName);
+    const strangerId = await userIdByName(owner, strangerName);
+
+    // Missing addresseeId → 400.
+    const noId = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct' });
+    expect(noId.status).toBe(400);
+
+    // Directing to a non-friend → 403.
+    const toStranger = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: strangerId });
+    expect(toStranger.status).toBe(403);
+    void stranger;
+
+    // Directing to a friend → 201.
+    const ok = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: friendId });
+    expect(ok.status).toBe(201);
+    expect(ok.body.share.audience).toBe('direct');
+    expect(ok.body.share.addresseeId).toBe(friendId);
+  });
+
+  it('only the addressee can open a direct share (401 anon, 404 wrong user, 200 addressee)', async () => {
+    const ownerName = 'dir2-owner';
+    const friendName = 'dir2-friend';
+    const otherName = 'dir2-other';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    const other = await makeUser(otherName);
+    await befriend(owner, ownerName, friend, friendName);
+    await befriend(owner, ownerName, other, otherName);
+    const friendId = await userIdByName(owner, friendName);
+    await setSnapshot(owner, 0, { collection: { cards: [makeCard()] } });
+
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: friendId });
+    const token = create.body.share.token as string;
+
+    expect((await request(app).get(`/api/shares/public/${token}`)).status).toBe(401);
+    // A different friend (not the addressee) gets a stealthy 404, not 403.
+    expect(
+      (await request(app).get(`/api/shares/public/${token}`).set('Cookie', other)).status
+    ).toBe(404);
+    const addresseeRes = await request(app)
+      .get(`/api/shares/public/${token}`)
+      .set('Cookie', friend);
+    expect(addresseeRes.status).toBe(200);
+  });
+
+  it('the same resource can be directed to two friends with distinct tokens', async () => {
+    const ownerName = 'dir3-owner';
+    const aName = 'dir3-a';
+    const bName = 'dir3-b';
+    const owner = await makeUser(ownerName);
+    const a = await makeUser(aName);
+    const b = await makeUser(bName);
+    await befriend(owner, ownerName, a, aName);
+    await befriend(owner, ownerName, b, bName);
+    const aId = await userIdByName(owner, aName);
+    const bId = await userIdByName(owner, bName);
+
+    const toA = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: aId });
+    const toB = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: bId });
+    expect(toA.body.share.token).not.toBe(toB.body.share.token);
+    // Re-directing to A returns the same token (idempotent per recipient).
+    const toAagain = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: aId });
+    expect(toAagain.body.share.token).toBe(toA.body.share.token);
+  });
+
+  it('GET /api/shares/inbox returns directed shares with sender + label', async () => {
+    const ownerName = 'inbox-owner';
+    const friendName = 'inbox-friend';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    await befriend(owner, ownerName, friend, friendName);
+    const friendId = await userIdByName(owner, friendName);
+    await setSnapshot(owner, 0, { cubes: [makeSavedCube('inbox-cube', 'Sent Cube')] });
+
+    await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'cube', resourceId: 'inbox-cube', audience: 'direct', addresseeId: friendId });
+
+    const inbox = await request(app).get('/api/shares/inbox').set('Cookie', friend);
+    expect(inbox.status).toBe(200);
+    expect(inbox.body.shares).toHaveLength(1);
+    expect(inbox.body.shares[0].fromUsername).toBe(ownerName);
+    expect(inbox.body.shares[0].kind).toBe('cube');
+    expect(inbox.body.shares[0].label).toBe('Sent Cube');
+
+    // The sender does not see it in their own inbox.
+    const senderInbox = await request(app).get('/api/shares/inbox').set('Cookie', owner);
+    expect(senderInbox.body.shares).toHaveLength(0);
+  });
+
+  it('inbox excludes revoked directed shares', async () => {
+    const ownerName = 'inbox-rev-owner';
+    const friendName = 'inbox-rev-friend';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    await befriend(owner, ownerName, friend, friendName);
+    const friendId = await userIdByName(owner, friendName);
+
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: friendId });
+    const token = create.body.share.token as string;
+    await request(app).delete(`/api/shares/${token}`).set('Cookie', owner);
+
+    const inbox = await request(app).get('/api/shares/inbox').set('Cookie', friend);
+    expect(inbox.body.shares).toHaveLength(0);
+  });
+});

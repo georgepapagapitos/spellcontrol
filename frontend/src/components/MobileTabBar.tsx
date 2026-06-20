@@ -4,6 +4,7 @@ import { usePlayStore } from '../store/play';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import { useAuth } from '../store/auth';
 import { useFriendRequests } from '../lib/use-friend-requests';
+import { useInbox } from '../lib/use-inbox';
 
 const ICON_PROPS = {
   className: 'mobile-tab-bar-icon',
@@ -18,6 +19,8 @@ export function MobileTabBar() {
   const openRules = useRulesReferenceStore((s) => s.open);
   const isAuthed = useAuth((s) => s.status === 'authed');
   const pendingRequests = useFriendRequests();
+  const { count: inboxCount } = useInbox();
+  const socialCount = pendingRequests + inboxCount;
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
@@ -69,16 +72,16 @@ export function MobileTabBar() {
             isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
           }
           aria-label={
-            pendingRequests > 0
-              ? `Friends, ${pendingRequests} pending request${pendingRequests === 1 ? '' : 's'}`
+            socialCount > 0
+              ? `Friends, ${socialCount} notification${socialCount === 1 ? '' : 's'}`
               : 'Friends'
           }
         >
           <span className="mobile-tab-bar-glyph mobile-tab-bar-glyph-wrap">
             <UserPlus {...ICON_PROPS} />
-            {pendingRequests > 0 && (
+            {socialCount > 0 && (
               <span className="mobile-tab-bar-badge" aria-hidden="true">
-                {pendingRequests > 9 ? '9+' : pendingRequests}
+                {socialCount > 9 ? '9+' : socialCount}
               </span>
             )}
           </span>
