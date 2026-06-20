@@ -324,8 +324,8 @@
 
 .deck-combos-row-title {
   font-weight: 500;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
   flex: 1 1 auto;
 }
 
@@ -512,4 +512,10 @@
 
 .deck-combos-card-status.is-owned {
   color: #30a46c;
+}
+
+/* "own the missing piece" suffix on the piece-count line (one-away tab). */
+.deck-combos-piece-count-owned {
+  color: #30a46c;
+  font-weight: 600;
 }

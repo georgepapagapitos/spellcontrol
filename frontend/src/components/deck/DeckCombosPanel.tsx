@@ -615,10 +615,16 @@ function ComboRow({
       {/* ── Piece count — scans at a glance ("3 of 4 in deck · {mana}") ── */}
       <p
         className="deck-combos-piece-count"
-        aria-label={`${presentCount} of ${totalCount} pieces in deck`}
+        aria-label={`${presentCount} of ${totalCount} pieces in deck${isOneAway && missingIsOwned ? ' · own the missing piece' : ''}`}
       >
         <span className="deck-combos-piece-count-have">{presentCount}</span>
         <span className="deck-combos-piece-count-sep"> of {totalCount} pieces in deck</span>
+        {isOneAway && missingIsOwned && (
+          <span className="deck-combos-piece-count-sep">
+            {' · '}
+            <span className="deck-combos-piece-count-owned">own the missing piece</span>
+          </span>
+        )}
         {combo.manaNeeded && (
           <>
             <span className="deck-combos-piece-count-sep"> · </span>
@@ -666,21 +672,22 @@ function ComboRow({
                 <ComboCardArt localUrl={localUrl} cardName={c.cardName} />
                 {/* One-away: show owned/not-owned status on the missing piece. */}
                 {isMissing && (
-                  <span
-                    className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}
-                    aria-hidden
-                  >
+                  <span className={`deck-combos-card-status${isOwned ? ' is-owned' : ''}`}>
                     {isOwned ? (
                       <CheckCircle2 width={18} height={18} strokeWidth={2.5} aria-hidden />
                     ) : (
                       <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
                     )}
+                    <span className="sr-only">
+                      {isOwned ? 'In collection' : 'Not in collection'}
+                    </span>
                   </span>
                 )}
                 {/* In-deck: D2 — show not-owned icon on pieces not in collection. */}
                 {isNotOwnedInDeck && (
-                  <span className="deck-combos-card-status" aria-hidden>
+                  <span className="deck-combos-card-status">
                     <Circle width={18} height={18} strokeWidth={2.5} aria-hidden />
+                    <span className="sr-only">Not in collection</span>
                   </span>
                 )}
                 {c.quantity > 1 && (
@@ -711,8 +718,7 @@ function ComboRow({
         </div>
       )}
 
-      {/* ── Meta line — bracket only; popularity moves into the detail section ── */}
-      {combo.bracket != null && <p className="deck-combos-row-meta">Bracket {combo.bracket}</p>}
+      {/* Bracket meta is now inside the detail section (see below). */}
 
       {/* ── Details toggle — prerequisites + steps (results are already visible) ── */}
       {hasDetails && (
@@ -786,6 +792,14 @@ function ComboRow({
 
               {combo.popularity > 0 && (
                 <p className="deck-combos-row-meta">{formatDeckCount(combo.popularity)}</p>
+              )}
+              {combo.bracket != null && (
+                <p
+                  className="deck-combos-row-meta"
+                  title="The bracket this combo is associated with in Commander Spellbook"
+                >
+                  Bracket {combo.bracket}
+                </p>
               )}
             </div>
           )}
