@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 import { TYPE_ORDER } from '@/lib/card-types';
 import { ROLE_BADGE_BY_TONE } from '@/lib/role-badges';
 import type { RarityTint } from '@/lib/set-symbols';
@@ -72,22 +73,19 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const width = Math.min(320, vw - 16);
-    // Respect the caller's edge preference, then clamp fully on-screen.
-    const preferred = align === 'right' ? r.right - width : r.left;
-    const left = Math.max(8, Math.min(preferred, vw - width - 8));
-    // Prefer below the trigger; flip above (bottom-anchored, content height
-    // unknown) when the lower gutter is shorter than the upper one. The key
-    // scrolls internally, so even a short gutter works.
-    const below = vh - r.bottom - 14; // 6px gap + 8px screen margin
-    const above = r.top - 14;
-    if (below >= 240 || below >= above) {
-      setPos({ left, width, top: r.bottom + 6, maxHeight: Math.min(below, 480) });
-    } else {
-      setPos({ left, width, bottom: vh - r.top + 6, maxHeight: Math.min(above, 480) });
-    }
+    const safe = getSafeViewport();
+    const width = Math.min(320, safe.right - 16);
+    const placement = computePopoverPlacement(r, { width, height: 240 }, safe, align, 6);
+    const maxHeight = placement.opensAbove
+      ? Math.min(r.top - safe.top - 14, 480)
+      : Math.min(safe.bottom - r.bottom - 14, 480);
+    setPos({
+      left: placement.left ?? 8,
+      width,
+      top: placement.top,
+      bottom: placement.bottom,
+      maxHeight: Math.max(0, maxHeight),
+    });
   }, [align]);
 
   useEffect(() => {
