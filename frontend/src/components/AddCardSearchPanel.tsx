@@ -2,6 +2,7 @@ import { Check } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from './ManaCost';
+import { SearchPill } from './SearchPill';
 import { useCollectionStore } from '../store/collection';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { haptics } from '../lib/haptics';
@@ -33,12 +34,7 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
   const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
-  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (autoFocus) inputRef.current?.focus();
-  }, [autoFocus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,15 +114,13 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
   return (
     <div className="add-card-search-panel">
       <div className="add-card-search-input-wrap">
-        <input
-          ref={inputRef}
-          type="search"
-          className="card-picker-search"
-          placeholder="Search Scryfall..."
+        <SearchPill
+          placeholder="Search Scryfall…"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          aria-label="Search Scryfall"
+          onChange={setQuery}
+          ariaLabel="Search Scryfall"
+          autoFocus={autoFocus}
+          inputProps={{ onKeyDown: handleKeyDown }}
         />
       </div>
 

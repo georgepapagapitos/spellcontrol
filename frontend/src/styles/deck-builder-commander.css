@@ -6,10 +6,6 @@
   position: relative;
 }
 
-.commander-search-input {
-  width: 100%;
-}
-
 /* ── Search results panel ──────────────────────────────────────────────
    Sits below the input and sizes to its content (one result → one short
    row), so there's no dead space. It only ever grows *downward*, so the
@@ -428,11 +424,6 @@
   margin: 0 auto;
 }
 
-.commander-search > .commander-search-input {
-  display: block;
-  width: 100%;
-}
-
 /* ── Owned-only toggle ──────────────────────────────────────────────── */
 .commander-owned-toggle {
   display: flex;
@@ -718,10 +709,6 @@
 
 .partner-picker {
   margin-top: 0.75rem;
-}
-
-.partner-search-input {
-  width: 100%;
 }
 
 /* Reset the column layout of .commander-search-item for the two-up partner

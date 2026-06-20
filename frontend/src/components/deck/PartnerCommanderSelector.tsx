@@ -9,6 +9,7 @@ import { fetchPartnerPopularity } from '@/deck-builder/services/edhrec/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { OwnershipBadge } from './OwnershipBadge';
+import { SearchPill } from '../SearchPill';
 import { ManaCost } from '../ManaCost';
 
 interface Props {
@@ -253,13 +254,12 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
       {enabled && (
         <div className="partner-picker">
           {canSearch && (
-            <input
-              type="text"
-              className="commander-search-input partner-search-input"
+            <SearchPill
+              inputType="text"
               placeholder="Search valid partners…"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search valid partner commanders"
+              onChange={setQuery}
+              ariaLabel="Search valid partner commanders"
             />
           )}
 

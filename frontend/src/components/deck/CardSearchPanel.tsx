@@ -20,6 +20,7 @@ import {
   substringMatchesExpression,
 } from '../../lib/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard } from '@/deck-builder/types';
@@ -280,63 +281,64 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         variant="fitted"
       />
 
-      <div className="card-search-input-row">
-        <input
-          ref={inputRef}
-          type="search"
-          className="card-search-input"
-          placeholder={
-            activeMode === 'collection'
-              ? 'Search your collection…'
-              : activeMode === 'suggestions'
-                ? 'Filter suggestions…'
-                : 'Search all of Scryfall…'
-          }
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          aria-label={
-            activeMode === 'collection'
-              ? 'Search your collection'
-              : activeMode === 'suggestions'
-                ? 'Filter suggestions'
-                : 'Search Scryfall'
-          }
-          aria-controls="card-search-results"
-          aria-activedescendant={visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined}
-        />
-        {activeMode === 'collection' && (
-          <CollectionFiltersDialog
-            supertypeExpr={supertypeExpr}
-            setSupertypeExpr={setSupertypeExpr}
-            typesExpr={typesExpr}
-            setTypesExpr={setTypesExpr}
-            subtypeExpr={subtypeExpr}
-            setSubtypeExpr={setSubtypeExpr}
-            subtypeSuggestions={subtypeSuggestions}
-            colorFilter={colorFilter}
-            setColorFilter={setColorFilter}
-            colorOptions={COLOR_FILTERS}
-            rarityExpr={rarityExpr}
-            setRarityExpr={setRarityExpr}
-            rarities={RARITIES}
-            oracleExpr={oracleExpr}
-            setOracleExpr={setOracleExpr}
-            legalityExpr={legalityExpr}
-            setLegalityExpr={setLegalityExpr}
-            layoutExpr={layoutExpr}
-            setLayoutExpr={setLayoutExpr}
-            treatmentExpr={treatmentExpr}
-            setTreatmentExpr={setTreatmentExpr}
-            borderExpr={borderExpr}
-            setBorderExpr={setBorderExpr}
-            setFilter={setFilter}
-            setSetFilter={setSetFilter}
-            setMap={setMap}
-            activeCount={activeFilterCount}
-          />
-        )}
-      </div>
+      <SearchPill
+        ref={inputRef}
+        placeholder={
+          activeMode === 'collection'
+            ? 'Search your collection…'
+            : activeMode === 'suggestions'
+              ? 'Filter suggestions…'
+              : 'Search all of Scryfall…'
+        }
+        value={query}
+        onChange={setQuery}
+        ariaLabel={
+          activeMode === 'collection'
+            ? 'Search your collection'
+            : activeMode === 'suggestions'
+              ? 'Filter suggestions'
+              : 'Search Scryfall'
+        }
+        inputProps={{
+          onKeyDown: handleKeyDown,
+          'aria-controls': 'card-search-results',
+          'aria-activedescendant':
+            visibleCount > 0 ? `card-search-result-${activeIndex}` : undefined,
+        }}
+        trailing={
+          activeMode === 'collection' ? (
+            <CollectionFiltersDialog
+              supertypeExpr={supertypeExpr}
+              setSupertypeExpr={setSupertypeExpr}
+              typesExpr={typesExpr}
+              setTypesExpr={setTypesExpr}
+              subtypeExpr={subtypeExpr}
+              setSubtypeExpr={setSubtypeExpr}
+              subtypeSuggestions={subtypeSuggestions}
+              colorFilter={colorFilter}
+              setColorFilter={setColorFilter}
+              colorOptions={COLOR_FILTERS}
+              rarityExpr={rarityExpr}
+              setRarityExpr={setRarityExpr}
+              rarities={RARITIES}
+              oracleExpr={oracleExpr}
+              setOracleExpr={setOracleExpr}
+              legalityExpr={legalityExpr}
+              setLegalityExpr={setLegalityExpr}
+              layoutExpr={layoutExpr}
+              setLayoutExpr={setLayoutExpr}
+              treatmentExpr={treatmentExpr}
+              setTreatmentExpr={setTreatmentExpr}
+              borderExpr={borderExpr}
+              setBorderExpr={setBorderExpr}
+              setFilter={setFilter}
+              setSetFilter={setSetFilter}
+              setMap={setMap}
+              activeCount={activeFilterCount}
+            />
+          ) : undefined
+        }
+      />
       <p className="card-search-hint" aria-hidden>
         ↑ ↓ to navigate · Enter to add · Esc to close
       </p>

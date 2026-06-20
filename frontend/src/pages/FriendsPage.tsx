@@ -1,9 +1,10 @@
 import './FriendsPage.css';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
+import { SearchPill } from '../components/SearchPill';
 import { formatRelativeTime } from '../lib/format-time';
 import {
   searchUsers,
@@ -133,8 +134,6 @@ export function FriendsPage() {
       cancelled = true;
     };
   }, [status]);
-
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,23 +293,18 @@ export function FriendsPage() {
       {/* ── Add Friend search ──────────────────────────────────────────────── */}
       <section aria-label="Add a friend">
         <form className="friends-search-form" onSubmit={(e) => void handleSearch(e)}>
-          <input
-            ref={searchInputRef}
-            className="friends-search-input"
-            type="search"
+          <SearchPill
             placeholder="Search by username…"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              if (!e.target.value) {
+            onChange={(next) => {
+              setQuery(next);
+              if (!next) {
                 setSearchResults(null);
                 setSearchError(null);
               }
             }}
-            aria-label="Search users by username"
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
+            ariaLabel="Search users by username"
+            inputProps={{ autoComplete: 'off', autoCapitalize: 'none', spellCheck: false }}
           />
           <button
             type="submit"
