@@ -732,6 +732,35 @@
   top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h, 3.7rem));
 }
 
+/* Sticky section overlay — floats above the virtualized list/grid and swaps
+   its label as the active section changes on scroll. Pinned below the sticky
+   controls row via an inline `top` measured from getBoundingClientRect; the
+   CSS fallback is the combined search + controls stack height (~6.9 rem).
+   Shares the pip/label/count child classes with the inline section headers. */
+.collection-section-sticky-header {
+  position: sticky;
+  top: var(--collection-controls-sticky-h, 6.9rem);
+  z-index: var(--z-dropdown); /* 50 — below sticky chrome (--z-popover: 60) */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 1px 0 var(--border);
+  /* Bleed full-width to match the search / controls rows */
+  margin-left: calc(var(--page-gutter, 1rem) * -1);
+  margin-right: calc(var(--page-gutter, 1rem) * -1);
+  padding-left: calc(var(--page-gutter, 1rem) + 0.75rem);
+  padding-right: calc(var(--page-gutter, 1rem) + 0.75rem);
+  pointer-events: none; /* passthrough — rows below remain tappable */
+}
+
 /* Result count — only rendered when filters reduce the visible set. */
 .card-list-result-count {
   font-size: var(--text-xs);

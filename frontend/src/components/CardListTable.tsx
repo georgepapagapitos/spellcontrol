@@ -378,6 +378,7 @@ export function CardListTable({
   const { confirm, dialog: confirmDialog } = useConfirm();
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
+  const controlsRowRef = useRef<HTMLDivElement>(null);
 
   // The window no longer scrolls — .app-main is the scroll container. The
   // virtualized list lives below the hero/search/toolbar inside it, so the
@@ -386,6 +387,10 @@ export function CardListTable({
   // wrappers are positioned and to toolbar reflow.
   const scrollEl = useScrollContainer();
   const [scrollMargin, setScrollMargin] = useState(0);
+  // Measured bottom of the controls row relative to the scroll container top —
+  // used as the `top` for the sticky section overlay so it sits flush below
+  // the full sticky chrome stack regardless of filter-chip row height.
+  const [controlsBottom, setControlsBottom] = useState(0);
 
   // Global hotkeys while the table is mounted. We ignore key events when the
   // user is typing into an input/textarea/contenteditable so the shortcuts
@@ -731,9 +736,15 @@ export function CardListTable({
     const measure = () => {
       const el = view === 'grid' ? gridContainerRef.current : listContainerRef.current;
       if (!el) return;
-      const top =
-        el.getBoundingClientRect().top - scrollEl.getBoundingClientRect().top + scrollEl.scrollTop;
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const top = el.getBoundingClientRect().top - scrollRect.top + scrollEl.scrollTop;
       setScrollMargin((prev) => (Math.abs(prev - top) > 0.5 ? top : prev));
+      // Measure controls row bottom so the overlay sits snug below it.
+      const ctrl = controlsRowRef.current;
+      if (ctrl) {
+        const ctrlBottom = ctrl.getBoundingClientRect().bottom - scrollRect.top;
+        setControlsBottom((prev) => (Math.abs(prev - ctrlBottom) > 0.5 ? ctrlBottom : prev));
+      }
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -760,6 +771,80 @@ export function CardListTable({
     overscan: 8,
     scrollMargin,
   });
+
+  // Height of the sticky overlay — used to trigger the swap when the incoming
+  // inline header's content edge reaches the overlay's bottom edge.
+  const OVERLAY_H = 40;
+
+  // Flat sorted array of section boundary pixel offsets, recomputed whenever
+  // the layout changes. Each entry maps to a section's label, count, and pip.
+  type BoundaryEntry = {
+    label: string;
+    count: number;
+    pip: SectionHeader['meta']['pip'];
+    start: number;
+  };
+  const boundaries = useMemo<BoundaryEntry[]>(() => {
+    if (groupKey === 'none') return [];
+    const out: BoundaryEntry[] = [];
+    if (view !== 'grid' && sectionHeaders) {
+      for (const [idx, header] of sectionHeaders) {
+        const start = listVirtualizer.measurementsCache?.[idx]?.start ?? 0;
+        out.push({ label: header.meta.label, count: header.count, pip: header.meta.pip, start });
+      }
+    } else if (view === 'grid') {
+      for (let gi = 0; gi < gridLayout.length; gi++) {
+        const layoutRow = gridLayout[gi];
+        if (layoutRow.kind === 'header') {
+          const start = gridVirtualizer.measurementsCache?.[gi]?.start ?? 0;
+          out.push({
+            label: layoutRow.meta.label,
+            count: layoutRow.count,
+            pip: layoutRow.meta.pip,
+            start,
+          });
+        }
+      }
+    }
+    out.sort((a, b) => a.start - b.start);
+    return out;
+  }, [
+    groupKey,
+    view,
+    sectionHeaders,
+    gridLayout,
+    listVirtualizer.measurementsCache,
+    gridVirtualizer.measurementsCache,
+  ]);
+
+  // Active section index into `boundaries` (-1 = overlay not shown).
+  const [activeSectionIdx, setActiveSectionIdx] = useState(-1);
+
+  // Update active section on scroll.
+  useEffect(() => {
+    if (!scrollEl || groupKey === 'none' || boundaries.length === 0) {
+      setActiveSectionIdx(-1);
+      return;
+    }
+    const onScroll = () => {
+      const raw = scrollEl.scrollTop - scrollMargin + OVERLAY_H;
+      let active = -1;
+      for (let i = 0; i < boundaries.length; i++) {
+        if (boundaries[i].start <= raw) active = i;
+        else break;
+      }
+      setActiveSectionIdx(active);
+    };
+    scrollEl.addEventListener('scroll', onScroll, { passive: true });
+    // Run once immediately to sync with current scroll position.
+    onScroll();
+    return () => scrollEl.removeEventListener('scroll', onScroll);
+  }, [scrollEl, groupKey, boundaries, scrollMargin]);
+
+  // Reset when grouping is turned off.
+  useEffect(() => {
+    if (groupKey === 'none') setActiveSectionIdx(-1);
+  }, [groupKey]);
 
   const [editingCard, setEditingCard] = useState<EnrichedCard | null>(null);
   // True when the edit targets a single physical copy rather than the whole
@@ -1396,7 +1481,7 @@ export function CardListTable({
           A control row (STYLE_GUIDE "Toolbars & action rows") → flex-wrap,
           never clips. The --z-popover tier matches the search bar so neither
           row "wins" against the other — they form one sticky stack. */}
-      <div className="card-list-summary-line card-list-controls-sticky">
+      <div ref={controlsRowRef} className="card-list-summary-line card-list-controls-sticky">
         <div className="card-list-summary-actions">
           {/* Result count — only when filters/search narrow the set */}
           {(activeFilterCount > 0 || search.trim()) && sorted.length < rows.length && (
@@ -1518,6 +1603,36 @@ export function CardListTable({
           >
             Done
           </button>
+        </div>
+      )}
+
+      {/* Sticky section overlay — floats above the virtualized list/grid and
+          swaps its label as the active section changes on scroll. */}
+      {groupKey !== 'none' && activeSectionIdx >= 0 && boundaries[activeSectionIdx] && (
+        <div
+          className="collection-section-sticky-header"
+          role="heading"
+          aria-level={3}
+          aria-live="polite"
+          aria-atomic="true"
+          style={{ top: controlsBottom > 0 ? controlsBottom : undefined }}
+        >
+          {boundaries[activeSectionIdx].pip && (
+            <span
+              className="collection-list-section-pip"
+              style={{
+                background: boundaries[activeSectionIdx].pip!.background,
+                borderColor: boundaries[activeSectionIdx].pip!.border,
+              }}
+              aria-hidden
+            />
+          )}
+          <span className="collection-list-section-label">
+            {boundaries[activeSectionIdx].label}
+          </span>
+          <span className="collection-list-section-count">
+            {boundaries[activeSectionIdx].count}
+          </span>
         </div>
       )}
 
