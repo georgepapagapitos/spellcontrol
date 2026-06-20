@@ -119,10 +119,9 @@ function formatBytes(b: number): string {
   return `${b} B`;
 }
 
-/**
- * "2 days ago" / "just now" style — matches the casual tone of the rest of
- * the settings page. Falls back to a locale date for stale data.
- */
+// Intentionally verbose — settings page prose tone, locale date for old data.
+// Different from lib/format-time.ts:formatRelativeTime which uses short tokens
+// (e.g. "3m ago"). Keep local.
 function formatRelative(ms: number): string {
   if (!ms) return 'never';
   const deltaSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));

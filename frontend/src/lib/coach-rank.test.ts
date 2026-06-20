@@ -94,10 +94,15 @@ describe('Fixture 1: gap-heavy precon (roles=45, all subscores below 60)', () =>
     upgrades.forEach((r) => expect(r.tier).toBe(1));
   });
 
-  it('combos and budget are always tier 3', () => {
+  it('unowned combos are tier 3 and budget is always tier 3', () => {
     const ranked = rankCoachMoves(changes, ctx);
-    const t3 = ranked.filter((r) => r.change.lane === 'combos' || r.change.lane === 'budget');
-    t3.forEach((r) => expect(r.tier).toBe(3));
+    const budget = ranked.filter((r) => r.change.lane === 'budget');
+    budget.forEach((r) => expect(r.tier).toBe(3));
+    // The combo in the fixture is unowned — stays tier 3.
+    const unownedCombos = ranked.filter(
+      (r) => r.change.lane === 'combos' && r.change.ownership === 'unowned'
+    );
+    unownedCombos.forEach((r) => expect(r.tier).toBe(3));
   });
 
   it('every source kind is represented in the output', () => {
@@ -204,6 +209,66 @@ describe('Fixture 3: over-budget deck (tuned quality, several budget swaps)', ()
     const ranked1 = rankCoachMoves([...changes], ctx);
     const ranked2 = rankCoachMoves([...changes], ctx);
     expect(ranked1.map((r) => r.change.name)).toEqual(ranked2.map((r) => r.change.name));
+  });
+});
+
+// ── D1: combo ownership → tier promotion ─────────────────────────────────────
+
+describe('D1: combos-lane ownership determines tier', () => {
+  const planScore = makePlanScore({ roles: 80, cardFit: 80, strategy: 80, curve: 80 });
+  const ctx: CoachContext = { ...BASE_CTX, planScore };
+
+  it('a combos-lane change with ownership=owned is elevated to tier 2', () => {
+    const owned = makeChange({ name: "Thassa's Oracle", lane: 'combos', ownership: 'owned' });
+    const ranked = rankCoachMoves([owned], ctx);
+    expect(ranked[0].tier).toBe(2);
+  });
+
+  it('a combos-lane change with ownership=unowned stays tier 3', () => {
+    const unowned = makeChange({
+      name: 'Demonic Consultation',
+      lane: 'combos',
+      ownership: 'unowned',
+    });
+    const ranked = rankCoachMoves([unowned], ctx);
+    expect(ranked[0].tier).toBe(3);
+  });
+
+  it('a combos-lane change with ownership=in-other-deck stays tier 3', () => {
+    // "In other deck" means you have it but every copy is allocated elsewhere —
+    // not a free immediate add, so it stays tier 3 like unowned.
+    const inOtherDeck = makeChange({
+      name: 'Thassa’s Oracle',
+      lane: 'combos',
+      ownership: 'in-other-deck',
+    });
+    const ranked = rankCoachMoves([inOtherDeck], ctx);
+    expect(ranked[0].tier).toBe(3);
+  });
+
+  it('owned combo is ranked above unowned combo (tier 2 vs tier 3)', () => {
+    const owned = makeChange({ name: "Thassa's Oracle", lane: 'combos', ownership: 'owned' });
+    const unowned = makeChange({
+      name: 'Demonic Consultation',
+      lane: 'combos',
+      ownership: 'unowned',
+    });
+    const ranked = rankCoachMoves([unowned, owned], ctx);
+    expect(ranked[0].change.name).toBe("Thassa's Oracle");
+    expect(ranked[0].tier).toBe(2);
+    expect(ranked[1].tier).toBe(3);
+  });
+
+  it('budget remains always tier 3 regardless of ownership', () => {
+    const ownedBudget = makeChange({
+      name: 'Cheaper Card',
+      lane: 'budget',
+      type: 'swap',
+      inName: 'Expensive Card',
+      ownership: 'owned',
+    });
+    const ranked = rankCoachMoves([ownedBudget], ctx);
+    expect(ranked[0].tier).toBe(3);
   });
 });
 

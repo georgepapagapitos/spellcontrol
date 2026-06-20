@@ -314,4 +314,84 @@ describe('scryfallToEnrichedCard', () => {
     expect(result.finishes).toEqual(['nonfoil', 'foil']);
     expect(result.promoTypes).toEqual(['boosterfun']);
   });
+
+  // ── opts overload ──────────────────────────────────────────────────────────
+
+  it('back-compat: bare finish string still works', () => {
+    const result = scryfallToEnrichedCard(makeScryfall(), 'foil');
+    expect(result.finish).toBe('foil');
+    expect(result.foil).toBe(true);
+    // imageLarge should come through normally (no override)
+    expect(result.imageLarge).toBe('https://example.com/large.jpg');
+  });
+
+  it('suppresses imageLarge when frontImageOverride is present', () => {
+    const result = scryfallToEnrichedCard(makeScryfall(), {
+      frontImageOverride: 'https://override.example.com/normal.jpg',
+    });
+    expect(result.imageNormal).toBe('https://override.example.com/normal.jpg');
+    // Must be undefined — the Scryfall large belongs to a potentially different printing
+    expect(result.imageLarge).toBeUndefined();
+  });
+
+  it('suppresses imageLargeBack when backImageOverride is present', () => {
+    const scryfall = makeScryfall({
+      image_uris: undefined,
+      card_faces: [
+        {
+          name: 'Front',
+          type_line: 'Creature',
+          oracle_text: '',
+          image_uris: {
+            small: 'https://example.com/front-small.jpg',
+            normal: 'https://example.com/front.jpg',
+            large: 'https://example.com/front-large.jpg',
+          },
+        },
+        {
+          name: 'Back',
+          type_line: 'Creature',
+          oracle_text: '',
+          image_uris: {
+            small: 'https://example.com/back-small.jpg',
+            normal: 'https://example.com/back.jpg',
+            large: 'https://example.com/back-large.jpg',
+          },
+        },
+      ],
+    });
+    const result = scryfallToEnrichedCard(scryfall, {
+      backImageOverride: 'https://override.example.com/back-normal.jpg',
+    });
+    expect(result.imageNormalBack).toBe('https://override.example.com/back-normal.jpg');
+    // Must be undefined when backImageOverride is set
+    expect(result.imageLargeBack).toBeUndefined();
+  });
+
+  it('override fields win over scryfall base fields', () => {
+    const result = scryfallToEnrichedCard(makeScryfall(), {
+      sourceFormat: 'deck-builder',
+      overrides: {
+        setCode: 'M21',
+        setName: 'Core Set 2021',
+        collectorNumber: '999',
+        rarity: 'mythic',
+        foil: true,
+        finish: 'foil',
+        finishes: ['foil'],
+        promoTypes: ['surgefoil'],
+        frameEffects: ['extendedart'],
+      },
+    });
+    expect(result.sourceFormat).toBe('deck-builder');
+    expect(result.setCode).toBe('M21');
+    expect(result.setName).toBe('Core Set 2021');
+    expect(result.collectorNumber).toBe('999');
+    expect(result.rarity).toBe('mythic');
+    expect(result.foil).toBe(true);
+    expect(result.finish).toBe('foil');
+    expect(result.finishes).toEqual(['foil']);
+    expect(result.promoTypes).toEqual(['surgefoil']);
+    expect(result.frameEffects).toEqual(['extendedart']);
+  });
 });

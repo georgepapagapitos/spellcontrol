@@ -94,6 +94,7 @@ import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
+import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 // classifyType / tallyNames / TypeGroup live in lib/build-mana-data (shared
@@ -1359,16 +1360,21 @@ export function DeckDisplay({
           if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
           rows.push(row);
           enrichedCards.push(
-            scryfallToEnriched(row.card, row.imageNormal, row.imageNormalBack, {
-              foil: row.foil,
-              finish: row.finish,
-              finishes: row.finishes,
-              promoTypes: row.promoTypes,
-              frameEffects: row.frameEffects,
-              setCode: row.setCode,
-              setName: row.setName,
-              collectorNumber: row.collectorNumber,
-              rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
+            scryfallToEnrichedCard(row.card, {
+              frontImageOverride: row.imageNormal,
+              backImageOverride: row.imageNormalBack,
+              sourceFormat: 'deck-builder',
+              overrides: {
+                foil: row.foil,
+                finish: row.finish,
+                finishes: row.finishes,
+                promoTypes: row.promoTypes,
+                frameEffects: row.frameEffects,
+                setCode: row.setCode,
+                setName: row.setName,
+                collectorNumber: row.collectorNumber,
+                rarity: row.card.oracle_id ? rarityCorrections.get(row.card.oracle_id) : undefined,
+              },
             })
           );
           labels.push(g.title);
@@ -1916,78 +1922,6 @@ function ExportDialog({
       </div>
     </Modal>
   );
-}
-
-// ── ScryfallCard → EnrichedCard adapter for the preview carousel ─────────
-// Deck-builder cards never went through our import flow, so they have no
-// "purchase price" from a CSV. We fall back to Scryfall's listed USD price
-// so the carousel still shows a meaningful number instead of $0.00.
-interface EnrichedOverrides {
-  foil?: boolean;
-  finish?: EnrichedCard['finish'];
-  finishes?: string[];
-  promoTypes?: string[];
-  frameEffects?: string[];
-  setCode?: string;
-  setName?: string;
-  collectorNumber?: string;
-  rarity?: string;
-}
-
-function scryfallToEnriched(
-  card: ScryfallCard,
-  frontOverride?: string,
-  backOverride?: string,
-  overrides?: EnrichedOverrides
-): EnrichedCard {
-  const front =
-    frontOverride ?? card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
-  const back =
-    backOverride ??
-    (card.card_faces && card.card_faces.length > 1
-      ? card.card_faces[1].image_uris?.normal
-      : undefined);
-  // An override is a specific normal-res printing URL with no large
-  // counterpart; pulling `large` off the base card here could surface a
-  // different printing's art, so suppress it and let the consumer fall
-  // back to the override normal.
-  const frontLarge = frontOverride
-    ? undefined
-    : (card.image_uris?.large ?? card.card_faces?.[0]?.image_uris?.large);
-  const backLarge =
-    backOverride || !(card.card_faces && card.card_faces.length > 1)
-      ? undefined
-      : card.card_faces[1].image_uris?.large;
-  const usd = card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched;
-  const price = usd ? Number(usd) : NaN;
-  return {
-    copyId: crypto.randomUUID(),
-    name: card.name,
-    setCode: overrides?.setCode ?? card.set,
-    setName: overrides?.setName ?? card.set_name,
-    collectorNumber: overrides?.collectorNumber ?? card.collector_number ?? '',
-    rarity: overrides?.rarity ?? card.rarity,
-    scryfallId: card.id,
-    purchasePrice: Number.isFinite(price) ? price : 0,
-    sourceCategory: '',
-    sourceFormat: 'deck-builder',
-    foil: overrides?.foil ?? false,
-    finish: overrides?.finish ?? ('nonfoil' as const),
-    finishes: overrides?.finishes,
-    promoTypes: overrides?.promoTypes,
-    frameEffects: overrides?.frameEffects,
-    cmc: card.cmc,
-    typeLine: card.type_line,
-    colorIdentity: card.color_identity,
-    colors: card.colors,
-    imageNormal: front,
-    imageNormalBack: back,
-    imageLarge: frontLarge,
-    imageLargeBack: backLarge,
-    layout: card.layout,
-    manaCost: card.mana_cost,
-    oracleText: card.oracle_text,
-  };
 }
 
 // ── Toolbar ───────────────────────────────────────────────────────────────

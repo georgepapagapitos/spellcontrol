@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
+import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
 
 export interface SelectOption<T extends string | number> {
   value: T;
@@ -75,31 +76,26 @@ export function SelectMenu<T extends string | number>({
     initialItemSelector: '[role="option"][aria-selected="true"]',
   });
 
-  // After the panel renders in the portal, clamp it to the viewport: flip
-  // upward if it overflows the bottom, and left-anchor if it clips the left
-  // edge. useLayoutEffect fires before paint so there is no visible flash.
-  // Deps are [open] only — the functional setter reads the latest panelPos
-  // without creating a re-run loop when panelPos changes.
+  // After the panel renders in the portal, measure it and clamp/flip it into
+  // the safe viewport (subtracts sticky header + mobile tab-bar + keyboard
+  // inset). useLayoutEffect fires before paint so there is no visible flash.
   useLayoutEffect(() => {
     if (!open || !panelRef.current || !buttonRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    const triggerRect = buttonRef.current.getBoundingClientRect();
-    setPanelPos((p) => {
-      if (!p) return p;
-      let next = p;
-      if (p.top !== undefined && rect.bottom > window.innerHeight) {
-        next = { ...next, top: undefined, bottom: window.innerHeight - triggerRect.top + 6 };
-      }
-      if (next.bottom !== undefined) {
-        const upwardTop = triggerRect.top - 6 - rect.height;
-        if (upwardTop < 8) {
-          next = { ...next, top: 8, bottom: undefined };
-        }
-      }
-      if (rect.left < 8) {
-        next = { ...next, right: undefined, left: Math.max(8, triggerRect.left) };
-      }
-      return next === p ? p : next;
+    const anchorRect = buttonRef.current.getBoundingClientRect();
+    const panelRect = panelRef.current.getBoundingClientRect();
+    const safe = getSafeViewport();
+    const placement = computePopoverPlacement(
+      anchorRect,
+      { width: panelRect.width, height: panelRect.height },
+      safe,
+      'right',
+      6
+    );
+    setPanelPos({
+      top: placement.top,
+      bottom: placement.bottom,
+      left: placement.left,
+      right: placement.right,
     });
   }, [open]);
 
