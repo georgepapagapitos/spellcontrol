@@ -32,6 +32,7 @@ import type { EnrichedCard } from '../../types';
 import { ManaCost } from '../ManaCost';
 import { ColorPip } from '../shared/ManaSymbol';
 import { Tabs } from '../Tabs';
+import { SearchPill } from '../SearchPill';
 import { InfoTip } from '../InfoTip';
 
 interface Props {
@@ -836,17 +837,18 @@ export function CommanderSearch({ value, onSelect }: Props) {
       />
 
       {searchMode === 'name' && (
-        <input
-          type="text"
-          className="commander-search-input"
-          role="combobox"
-          aria-expanded={queried}
-          aria-controls={listboxId}
-          aria-autocomplete="list"
+        <SearchPill
+          inputType="text"
           placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          aria-label={ownedOnly ? 'Search your commanders' : 'Search for a commander'}
+          onChange={setQuery}
+          ariaLabel={ownedOnly ? 'Search your commanders' : 'Search for a commander'}
+          inputProps={{
+            role: 'combobox',
+            'aria-expanded': queried,
+            'aria-controls': listboxId,
+            'aria-autocomplete': 'list',
+          }}
         />
       )}
 
