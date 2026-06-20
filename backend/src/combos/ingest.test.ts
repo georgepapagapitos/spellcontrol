@@ -210,7 +210,7 @@ describe('parseVariant', () => {
 describe('bracketTagToNumber', () => {
   it.each<[unknown, number | null]>([
     ['R', 4],
-    ['S', 4],
+    ['S', 3],
     ['P', 3],
     ['O', 3],
     ['C', 2],
@@ -377,7 +377,7 @@ describe('ingestCombos (db)', () => {
     expect(runs.rows[0].error).toBeNull();
   });
 
-  it('bracketTag S variant persisted with bracket 4 and bracket_tag S', async () => {
+  it('bracketTag S variant persisted with bracket 3 and bracket_tag S', async () => {
     await ingestCombos([
       {
         id: 'tag-s',
@@ -390,7 +390,7 @@ describe('ingestCombos (db)', () => {
       },
     ]);
     const row = await pool.query("SELECT bracket, bracket_tag FROM combos WHERE id = 'tag-s'");
-    expect(row.rows[0].bracket).toBe(4);
+    expect(row.rows[0].bracket).toBe(3);
     expect(row.rows[0].bracket_tag).toBe('S');
   });
 
