@@ -25,6 +25,10 @@ interface CubeState {
   clear: () => void;
   /** Snapshot the current working cube into the saved list under `name`. */
   saveCurrent: (name: string) => void;
+  /** Insert a cube into the saved list directly (e.g. copying a shared cube),
+   *  WITHOUT touching the working `result` — so a copy never clobbers an
+   *  in-progress generate. Returns the new id. */
+  saveDirectly: (name: string, size: CubeSize, cube: GeneratedCube) => string;
   /** Make a saved cube the current working result. */
   loadSaved: (id: string) => void;
   renameSaved: (id: string, name: string) => void;
@@ -53,6 +57,11 @@ export const useCubeStore = create<CubeState>()(
           };
           return { saved: [entry, ...s.saved] };
         }),
+      saveDirectly: (name, size, cube) => {
+        const id = crypto.randomUUID();
+        set((s) => ({ saved: [{ id, name, size, cube, savedAt: Date.now() }, ...s.saved] }));
+        return id;
+      },
       loadSaved: (id) =>
         set((s) => {
           const found = s.saved.find((c) => c.id === id);

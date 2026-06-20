@@ -390,6 +390,13 @@ export function FriendsPage() {
                       Friends since {formatRelativeTime(friend.friendedAt)}
                     </div>
                   </div>
+                  <Link
+                    to={`/friends/${friend.id}`}
+                    className="friends-action-btn"
+                    aria-label={`View what ${friend.username} shared with friends`}
+                  >
+                    View shared
+                  </Link>
                   <button
                     type="button"
                     className="friends-action-btn is-danger"

@@ -5,6 +5,8 @@ import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
+import { areFriends } from '../friends/relations';
+import { resolveShareLabels } from '../shares/labels';
 
 export const friendsRouter: Router = Router();
 
@@ -341,15 +343,7 @@ friendsRouter.get(
     const target = targetRows[0];
 
     // 2. Check for accepted friendship in either direction (self → 403 since no such row exists)
-    const friendship = await pool.query<{ status: string }>(
-      `SELECT status FROM friendships
-       WHERE status = 'accepted'
-         AND ((requester_id = $1 AND addressee_id = $2)
-              OR (requester_id = $2 AND addressee_id = $1))`,
-      [callerId, friendId]
-    );
-
-    if (friendship.rowCount === 0) {
+    if (!(await areFriends(callerId, friendId))) {
       return res.status(403).json({ error: 'Not friends.' });
     }
 
@@ -418,6 +412,72 @@ friendsRouter.get(
     };
 
     return res.json(response);
+  }
+);
+
+// ────────────────────────────────────────────────
+// GET /api/friends/:friendId/shares  (friend hub — a friend's friends-visible shares)
+// ────────────────────────────────────────────────
+//
+// Registered before DELETE /:friendId; the literal /requests routes above
+// already win over the /:friendId wildcard, so /:friendId/shares is the right
+// slot. Returns only audience='friends' shares — directed shares are private to
+// their recipient and never surface here. The viewer opens /s/:token, which
+// re-checks friendship server-side, so the token list is not a capability leak.
+friendsRouter.get(
+  '/:friendId/shares',
+  requireAuth,
+  friendReadLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const friendId = String(req.params.friendId ?? '');
+
+    const db = getDb();
+    const ownerRows = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, friendId))
+      .limit(1);
+    if (ownerRows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (!(await areFriends(callerId, friendId))) {
+      return res.status(403).json({ error: 'Not friends.' });
+    }
+
+    const pool = getPool();
+    const rows = await pool.query<{
+      token: string;
+      kind: string;
+      resource_id: string;
+      created_at: string;
+    }>(
+      `SELECT token, kind, resource_id, created_at
+         FROM shares
+        WHERE user_id = $1 AND audience = 'friends' AND revoked_at IS NULL
+        ORDER BY created_at DESC`,
+      [friendId]
+    );
+
+    const labels = await resolveShareLabels(
+      friendId,
+      rows.rows.map((r) => ({ kind: r.kind, resourceId: r.resource_id }))
+    );
+
+    const shares = rows.rows
+      .map((r) => ({
+        token: r.token,
+        kind: r.kind,
+        resourceId: r.resource_id,
+        label: labels.get(`${r.kind}:${r.resource_id}`) ?? null,
+        createdAt: Number(r.created_at),
+      }))
+      // Drop shares whose underlying resource no longer exists (deleted deck /
+      // cube / list) — they'd 404 on open, so don't advertise them.
+      .filter((s) => s.label !== null);
+
+    return res.json({ ownerUsername: ownerRows[0].username, shares });
   }
 );
 

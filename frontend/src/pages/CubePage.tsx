@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Share2, Trash2 } from 'lucide-react';
 import './CubePage.css';
+import { ShareDialog } from '../components/ShareDialog';
 import { Tabs } from '../components/Tabs';
 import { MeterBar, StackedBar } from '../components/shared/MeterBar';
 import { OwnershipBadge } from '../components/deck/OwnershipBadge';
@@ -148,6 +149,7 @@ function BuildCube() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<SavedCube | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SavedCube | null>(null);
+  const [shareTarget, setShareTarget] = useState<SavedCube | null>(null);
 
   // Cache the enriched Scryfall map so CubeResult can build EnrichedCards for preview.
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
@@ -299,6 +301,15 @@ function BuildCube() {
                 <button
                   type="button"
                   className="cube-saved-action"
+                  onClick={() => setShareTarget(sc)}
+                  aria-label={`Share ${sc.name}`}
+                  title="Share"
+                >
+                  <Share2 width={15} height={15} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="cube-saved-action"
                   onClick={() => setRenameTarget(sc)}
                   aria-label={`Rename ${sc.name}`}
                   title="Rename"
@@ -401,6 +412,14 @@ function BuildCube() {
           danger
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+      {shareTarget && (
+        <ShareDialog
+          kind="cube"
+          resourceId={shareTarget.id}
+          resourceLabel={shareTarget.name}
+          onClose={() => setShareTarget(null)}
         />
       )}
     </div>

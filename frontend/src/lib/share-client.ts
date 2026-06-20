@@ -1,6 +1,15 @@
-import type { PublicShareResponse, ShareKind, ShareRow } from './shared-types';
+import type { PublicShareResponse, ShareAudience, ShareKind, ShareRow } from './shared-types';
 import { apiUrl } from './api-base';
 import { isNativePlatform } from './platform';
+
+/** A friend's friends-visible share, with its resolved display label. */
+export interface FriendShareRow {
+  token: string;
+  kind: ShareKind;
+  resourceId: string;
+  label: string;
+  createdAt: number;
+}
 
 /**
  * Public origin the web app is hosted at. Used to build share links inside the
@@ -18,10 +27,12 @@ async function readError(res: Response, fallback: string): Promise<string> {
   }
 }
 
-/** Create (or return existing) share for the authenticated user. */
+/** Create (or return existing) share for the authenticated user. Omitting
+ *  `audience` mints a public 'link' share (the default everywhere). */
 export async function createShare(input: {
   kind: ShareKind;
   resourceId?: string;
+  audience?: ShareAudience;
 }): Promise<ShareRow> {
   const res = await fetch(apiUrl('/api/shares'), {
     method: 'POST',
@@ -57,11 +68,21 @@ export async function revokeShare(token: string): Promise<void> {
   }
 }
 
-/** Public read — no auth required. */
+/**
+ * Read a share. Public 'link' shares need no auth; 'friends' shares require the
+ * session cookie (sent via credentials:'include' — a harmless no-op for link
+ * shares) and throw ShareAuthRequiredError on 401 so the viewer can prompt
+ * sign-in instead of showing a raw error.
+ */
 export async function fetchPublicShare(token: string): Promise<PublicShareResponse> {
-  const res = await fetch(apiUrl(`/api/shares/public/${encodeURIComponent(token)}`));
+  const res = await fetch(apiUrl(`/api/shares/public/${encodeURIComponent(token)}`), {
+    credentials: 'include',
+  });
   if (res.status === 404) {
     throw new ShareNotFoundError();
+  }
+  if (res.status === 401) {
+    throw new ShareAuthRequiredError();
   }
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to load shared content.'));
@@ -69,10 +90,32 @@ export async function fetchPublicShare(token: string): Promise<PublicShareRespon
   return (await res.json()) as PublicShareResponse;
 }
 
+/** A friend's friends-visible shares (the friend hub). Requires friendship —
+ *  the server 403s otherwise. */
+export async function getFriendShares(
+  friendId: string
+): Promise<{ ownerUsername: string; shares: FriendShareRow[] }> {
+  const res = await fetch(apiUrl(`/api/friends/${encodeURIComponent(friendId)}/shares`), {
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, 'Failed to load shared content.'));
+  }
+  return (await res.json()) as { ownerUsername: string; shares: FriendShareRow[] };
+}
+
 export class ShareNotFoundError extends Error {
   constructor() {
     super('Share not found.');
     this.name = 'ShareNotFoundError';
+  }
+}
+
+/** Thrown when a friends-only share is opened without (or with insufficient) auth. */
+export class ShareAuthRequiredError extends Error {
+  constructor() {
+    super('Sign in to view this shared content.');
+    this.name = 'ShareAuthRequiredError';
   }
 }
 

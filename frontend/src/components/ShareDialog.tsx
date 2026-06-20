@@ -8,6 +8,21 @@ import type { ShareKind, ShareRow } from '../lib/shared-types';
 import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
+/** Audiences the dialog can mint. 'direct' (send to one friend) ships later. */
+type DialogAudience = 'link' | 'friends';
+const AUDIENCE_OPTIONS: { value: DialogAudience; label: string; hint: string }[] = [
+  {
+    value: 'link',
+    label: 'Anyone with link',
+    hint: 'Anyone with this link can view it. No account needed.',
+  },
+  {
+    value: 'friends',
+    label: 'My friends',
+    hint: 'Only your accepted friends can open this — they’ll need to be signed in.',
+  },
+];
+
 interface Props {
   kind: ShareKind;
   resourceId?: string;
@@ -26,16 +41,22 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
   // Share links are per-account (they stay tied to the owner and are
   // revocable), so a guest can't mint one — prompt them to sign in instead.
   const isGuest = useAuth((s) => s.status === 'guest');
+  const [audience, setAudience] = useState<DialogAudience>('link');
   const [share, setShare] = useState<ShareRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Guests take the sign-in branch below and never reach the loading state.
   const [loading, setLoading] = useState(!isGuest);
   const [working, setWorking] = useState(false);
 
+  // Mint (or reuse) the token for the selected audience. Re-runs when the user
+  // switches audience — each audience has its own idempotent token, so a 'link'
+  // and a 'friends' share of the same resource coexist. Default 'link' on open
+  // keeps the one-tap copy-link flow unchanged. State resets on switch happen in
+  // the click handler (selectAudience), not here, to keep the effect setState-free.
   useEffect(() => {
     if (isGuest) return;
     let cancelled = false;
-    createShare({ kind, resourceId })
+    createShare({ kind, resourceId, audience })
       .then((row) => {
         if (!cancelled) setShare(row);
       })
@@ -48,7 +69,19 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
     return () => {
       cancelled = true;
     };
-  }, [kind, resourceId, isGuest]);
+  }, [kind, resourceId, isGuest, audience]);
+
+  const selectAudience = (next: DialogAudience) => {
+    if (next === audience || working) return;
+    // Reset to the loading state for the new audience before the effect refetches.
+    setLoading(true);
+    setShare(null);
+    setError(null);
+    setAudience(next);
+  };
+
+  const audienceHint =
+    AUDIENCE_OPTIONS.find((o) => o.value === audience)?.hint ?? AUDIENCE_OPTIONS[0].hint;
 
   const url = share ? shareUrl(share.token) : '';
 
@@ -125,9 +158,23 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
       <h2 id="share-dialog-title" className="choice-dialog-title">
         Share {resourceLabel}
       </h2>
-      <p className="choice-dialog-body">
-        Anyone with this link can view it. They don&apos;t need an account.
-      </p>
+
+      <div className="share-audience" role="radiogroup" aria-label="Who can view this">
+        {AUDIENCE_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={audience === opt.value}
+            className={`share-audience-option${audience === opt.value ? ' is-active' : ''}`}
+            onClick={() => selectAudience(opt.value)}
+            disabled={working}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <p className="choice-dialog-body">{audienceHint}</p>
 
       {loading && <p className="choice-dialog-body">Generating link…</p>}
       {error && (

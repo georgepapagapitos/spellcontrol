@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   findBinderById,
+  findCubeById,
   findDeckById,
   findListById,
   projectBinder,
   projectCard,
   projectCollection,
+  projectCube,
   projectDeck,
   projectList,
 } from './projections';
@@ -174,6 +176,108 @@ describe('findListById / findDeckById / findBinderById', () => {
     expect(findDeckById('not-an-array', 'x')).toBeNull();
     expect(findBinderById(null, 'x')).toBeNull();
     expect(findBinderById('not-an-array', 'x')).toBeNull();
+  });
+});
+
+function savedCube(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'cube-1',
+    name: 'My Pauper Cube',
+    size: 360,
+    savedAt: 1700000000000,
+    cube: {
+      size: 360,
+      picks: [
+        {
+          card: {
+            name: 'Lightning Bolt',
+            oracleId: 'o-bolt',
+            colors: ['R'],
+            cmc: 1,
+            typeLine: 'Instant',
+          },
+          bucket: 'R',
+          reason: 'premium removal',
+        },
+        {
+          card: {
+            name: 'Counterspell',
+            oracleId: 'o-cs',
+            colors: ['U'],
+            cmc: 2,
+            typeLine: 'Instant',
+          },
+          bucket: 'U',
+          reason: 'interaction',
+        },
+      ],
+      byBucket: { R: 1, U: 1 },
+      targetByBucket: { R: 60, U: 60 },
+      gaps: [{ severity: 'short', text: '58 short on red' }],
+      shortfall: 358,
+      poolSize: 2,
+    },
+    ...overrides,
+  };
+}
+
+describe('findCubeById', () => {
+  it('finds a saved cube by id; null for non-array / missing', () => {
+    const cubes = [{ id: 'a' }, savedCube({ id: 'cube-1' })];
+    expect(findCubeById(cubes, 'cube-1')).toMatchObject({ id: 'cube-1' });
+    expect(findCubeById(cubes, 'missing')).toBeUndefined();
+    expect(findCubeById(null, 'x')).toBeNull();
+    expect(findCubeById('nope', 'x')).toBeNull();
+  });
+});
+
+describe('projectCube', () => {
+  it('returns null for malformed input / missing id or name', () => {
+    expect(projectCube('alice', null)).toBeNull();
+    expect(projectCube('alice', 42)).toBeNull();
+    expect(projectCube('alice', { id: 'c1' })).toBeNull();
+    expect(projectCube('alice', { name: 'no id' })).toBeNull();
+  });
+
+  it('projects a valid saved cube faithfully', () => {
+    const out = projectCube('alice', savedCube());
+    expect(out).not.toBeNull();
+    const o = out!;
+    expect(o.ownerUsername).toBe('alice');
+    expect(o.id).toBe('cube-1');
+    expect(o.name).toBe('My Pauper Cube');
+    expect(o.size).toBe(360);
+    expect(o.cards).toHaveLength(2);
+    expect(o.cards[0]).toMatchObject({
+      name: 'Lightning Bolt',
+      bucket: 'R',
+      reason: 'premium removal',
+    });
+    expect(o.byBucket).toEqual({ R: 1, U: 1 });
+    expect(o.targetByBucket).toEqual({ R: 60, U: 60 });
+    expect(o.gaps).toEqual([{ severity: 'short', text: '58 short on red' }]);
+    expect(o.shortfall).toBe(358);
+    expect(o.poolSize).toBe(2);
+  });
+
+  it('drops picks whose nested card lacks name/oracleId', () => {
+    const cube = savedCube();
+    (cube.cube as { picks: unknown[] }).picks.push(
+      { card: { name: 'No Oracle' }, bucket: 'G', reason: 'x' },
+      { card: null, bucket: 'G', reason: 'x' },
+      'not a pick'
+    );
+    const out = projectCube('alice', cube);
+    expect(out?.cards).toHaveLength(2);
+  });
+
+  it('drops malformed gaps and tolerates a missing inner cube', () => {
+    const out = projectCube('alice', { id: 'c', name: 'Empty' });
+    expect(out).not.toBeNull();
+    expect(out?.cards).toEqual([]);
+    expect(out?.byBucket).toEqual({});
+    expect(out?.gaps).toEqual([]);
+    expect(out?.shortfall).toBe(0);
   });
 });
 

@@ -22,6 +22,7 @@ import { SharedView } from './pages/SharedView';
 import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
 import { FriendsPage } from './pages/FriendsPage';
+import { FriendHubPage } from './pages/FriendHubPage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -238,6 +239,7 @@ export default function App() {
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/friends/:friendId" element={<FriendHubPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route
             path="/admin"
