@@ -489,3 +489,17 @@
   font-family: var(--font-mono);
   font-size: var(--text-xs);
 }
+
+/* ── Matchup table ───────────────────────────────────────────────────────── */
+
+.play-matchup-vs {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.play-matchup-bar {
+  min-width: 4rem;
+  width: 6rem;
+}

@@ -15,6 +15,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
+import { StackedBar } from '../components/shared/MeterBar';
+import { aggregateMatchupRecords } from '../lib/matchup-records';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
 type Tab = 'local' | 'online' | 'history';
@@ -880,6 +882,7 @@ function HistoryTab({
 }) {
   const removeHistory = usePlayStore((s) => s.removeHistory);
   const deckRows = useMemo(() => aggregateDeckRecords(history, userId), [history, userId]);
+  const matchupRows = useMemo(() => aggregateMatchupRecords(history, userId), [history, userId]);
 
   if (history.length === 0) {
     return (
@@ -912,6 +915,49 @@ function HistoryTab({
                   <td>{row.played}</td>
                   <td>{row.wins}</td>
                   <td>{row.losses}</td>
+                  <td>{(row.winRate * 100).toFixed(0)}%</td>
+                  <td>{new Date(row.lastPlayedAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+      {matchupRows.length > 0 && (
+        <section className="play-records">
+          <h2 className="play-records-title">Head-to-head</h2>
+          <table className="play-records-table">
+            <thead>
+              <tr>
+                <th>Deck A</th>
+                <th className="play-matchup-vs">vs</th>
+                <th>Deck B</th>
+                <th>Played</th>
+                <th>W</th>
+                <th>L</th>
+                <th>W/L</th>
+                <th>Win%</th>
+                <th>Last played</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matchupRows.map((row) => (
+                <tr key={row.deckAId + row.deckBId}>
+                  <td>{row.deckAName}</td>
+                  <td className="play-matchup-vs">vs</td>
+                  <td>{row.deckBName}</td>
+                  <td>{row.played}</td>
+                  <td>{row.wins}</td>
+                  <td>{row.losses}</td>
+                  <td className="play-matchup-bar">
+                    <StackedBar
+                      segments={[
+                        { key: 'w', value: row.wins, color: 'var(--ok-text, #1d7a4a)' },
+                        { key: 'l', value: row.losses, color: 'var(--err-text, #b03228)' },
+                      ]}
+                      max={row.played}
+                    />
+                  </td>
                   <td>{(row.winRate * 100).toFixed(0)}%</td>
                   <td>{new Date(row.lastPlayedAt).toLocaleDateString()}</td>
                 </tr>
