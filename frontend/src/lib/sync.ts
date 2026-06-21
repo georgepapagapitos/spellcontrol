@@ -1068,9 +1068,7 @@ type AnyRecord = Record<string, unknown>;
 
 /** Extract the non-null data payloads from a set of IDB rows. */
 function liveData(rows: estore.StoredRow[]): AnyRecord[] {
-  return rows
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
+  return rows.map((r) => r.data).filter((d): d is AnyRecord => d != null && typeof d === 'object');
 }
 
 /**
