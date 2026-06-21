@@ -12,6 +12,9 @@ export interface FriendCard {
   cmc: number;
   typeLine: string;
   edhrecRank?: number;
+  // Populated during Scryfall enrichment (see CubePage), not by the API.
+  synergyProducers?: CubeCard['synergyProducers'];
+  synergyPayoffs?: CubeCard['synergyPayoffs'];
 }
 
 export interface FriendCollectionResponse {
@@ -126,6 +129,8 @@ export function mergePools(
         typeLine: fc.typeLine,
         role: null,
         rank: fc.edhrecRank,
+        synergyProducers: fc.synergyProducers,
+        synergyPayoffs: fc.synergyPayoffs,
       };
 
       const existing = byOracle.get(key);

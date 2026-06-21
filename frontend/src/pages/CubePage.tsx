@@ -122,6 +122,44 @@ function OwnRowBadge({ own }: { own: Ownership }) {
   return <OwnershipBadge owned={own === 'owned'} />;
 }
 
+/** Readable label for a synergy-slider value. */
+function synergyLabel(v: number): string {
+  if (v <= 0) return 'Best cards';
+  if (v >= 1) return 'Max synergy';
+  return `${Math.round(v * 100)}% synergy`;
+}
+
+/**
+ * Trades raw card power (goodstuff) against archetype synergy when generating a
+ * cube. 0 keeps today's pure best-cards selection; higher values prioritise
+ * cards that deepen the archetypes your collection can actually support.
+ */
+function SynergySlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="cube-synergy">
+      <div className="cube-synergy-head">
+        <span className="cube-synergy-title">Card priority</span>
+        <span className="cube-synergy-val">{synergyLabel(value)}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="cube-synergy-range"
+        aria-label="Card priority — from best cards to most archetype synergy"
+        aria-valuetext={synergyLabel(value)}
+      />
+      <div className="cube-synergy-ends" aria-hidden="true">
+        <span>Best cards</span>
+        <span>Synergy</span>
+      </div>
+    </div>
+  );
+}
+
 export function CubePage() {
   // `/collection/cube/:id` deep-links a specific saved cube — it lives in the
   // build tab's "My cubes" list, so a deep-link always lands on build mode.
@@ -182,6 +220,8 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
 
   const cubeStore = useCubeStore();
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
+  // 0 = best cards (today's goodstuff); higher leans into supportable archetypes.
+  const [synergyLevel, setSynergyLevel] = useState(0);
   const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>(
     cubeStore.result ? 'done' : 'idle'
   );
@@ -253,14 +293,14 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
           ...synergyTags(s ?? { name }),
         };
       });
-      const newCube = generateCube(pool, size);
+      const newCube = generateCube(pool, size, { synergyLevel });
       cubeStore.setResult(size, newCube);
       setStatus('done');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong building the cube.');
       setStatus('error');
     }
-  }, [uniqueNames, collectionCards, size, cubeStore]);
+  }, [uniqueNames, collectionCards, size, synergyLevel, cubeStore]);
 
   // When the store has a persisted result but enrichedMap is empty (e.g. after
   // a tab-switch or page reload), re-fetch Scryfall data so CardPreview can
@@ -393,6 +433,7 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
           ))}
         </div>
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+        <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
         <label
           className="field-checkbox cube-available-toggle"
           title="When on, cards whose only copies are already committed to a deck or another physical cube are left out — a cube you can physically pull. Turn off to draw from everything you own."
@@ -825,6 +866,7 @@ function CollabCube() {
   const pushToast = useToastsStore((s) => s.push);
 
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
+  const [synergyLevel, setSynergyLevel] = useState(0);
   // Mirror Build mode: only my cards are filtered for availability (friends'
   // cards arrive deduped without copy-level data, so they're always included).
   const [availableOnly, setAvailableOnly] = useState(true);
@@ -970,6 +1012,7 @@ function CollabCube() {
             cmc: s?.cmc ?? fc.cmc,
             typeLine: s?.type_line ?? fc.typeLine,
             edhrecRank: s?.edhrec_rank ?? fc.edhrecRank,
+            ...synergyTags(s ?? { name: fc.name }),
           };
         }),
       }));
@@ -977,7 +1020,7 @@ function CollabCube() {
       const { pool, supplierMap: sm } = mergePools(myPool, myUsername, enrichedFriendCollections);
       setSupplierMap(sm);
 
-      const newCube = generateCube(pool, size);
+      const newCube = generateCube(pool, size, { synergyLevel });
       setCube(newCube);
       setStatus('done');
     } catch (e) {
@@ -986,7 +1029,7 @@ function CollabCube() {
       );
       setStatus('error');
     }
-  }, [selectedIds, friends, collectionCards, myUniqueNames, myUsername, size]);
+  }, [selectedIds, friends, collectionCards, myUniqueNames, myUsername, size, synergyLevel]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -1160,6 +1203,7 @@ function CollabCube() {
           ))}
         </div>
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+        <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
         <label
           className="field-checkbox cube-available-toggle"
           title="When on, your cards whose only copies are committed to a deck or physical cube are left out. Friends' cards are always included."

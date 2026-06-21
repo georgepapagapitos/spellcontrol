@@ -49,6 +49,16 @@ export interface GeneratedCube {
   poolSize: number;
 }
 
+/** Optional knobs for cube generation. */
+export interface CubeGenOptions {
+  /**
+   * 0 = pure goodstuff by EDHREC rank (today's behavior, byte-for-byte).
+   * 1 = lean hard into the archetypes the owned pool can actually support.
+   * Scales the per-axis inclusion floors; anything in between interpolates.
+   */
+  synergyLevel?: number;
+}
+
 const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 const BUCKETS: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
 const COLOR_NAME: Record<ColorBucket, string> = {
@@ -101,12 +111,69 @@ function apportion(shares: Record<ColorBucket, number>, size: number): Record<Co
   return out;
 }
 
+/** Distinct archetype axes a card touches (as enabler or payoff). */
+function axesTouched(c: CubeCard): AxisKey[] {
+  const prod = c.synergyProducers ?? [];
+  const pay = c.synergyPayoffs ?? [];
+  if (!prod.length && !pay.length) return [];
+  return [...new Set([...prod, ...pay])];
+}
+
+/**
+ * Per-axis inclusion floors from the owned pool: aim to include `synergyLevel`
+ * of every owned card on each archetype axis that has BOTH enablers and
+ * payoffs. An axis with only one side isn't draftable (enablers with nothing to
+ * cash them in, or vice-versa), so it gets no selection pressure — PR4 surfaces
+ * that as an explicit gap instead.
+ */
+function deriveAxisFloors(pool: CubeCard[], synergyLevel: number): Map<AxisKey, number> {
+  const support = new Map<AxisKey, number>();
+  const hasProducer = new Set<AxisKey>();
+  const hasPayoff = new Set<AxisKey>();
+  for (const c of pool) {
+    for (const k of c.synergyProducers ?? []) hasProducer.add(k);
+    for (const k of c.synergyPayoffs ?? []) hasPayoff.add(k);
+    for (const k of axesTouched(c)) support.set(k, (support.get(k) ?? 0) + 1);
+  }
+  const floors = new Map<AxisKey, number>();
+  for (const [k, n] of support) {
+    if (!hasProducer.has(k) || !hasPayoff.has(k)) continue; // needs both sides to be draftable
+    const floor = Math.round(n * synergyLevel);
+    if (floor > 0) floors.set(k, floor);
+  }
+  return floors;
+}
+
+/**
+ * Pick the best cards to MEET the axis floors, across the whole pool (an enabler
+ * in Black and its payoff in Red are one archetype). Greedy best-first so a card
+ * serving two axes fills both. These get reserved a slot in their bucket even if
+ * a higher-ranked goodstuff card would otherwise edge them out — that
+ * displacement is exactly what makes the archetype draftable.
+ */
+function selectAxisReserved(pool: CubeCard[], floors: Map<AxisKey, number>): Set<CubeCard> {
+  const reserved = new Set<CubeCard>();
+  if (floors.size === 0) return reserved;
+  const filled = new Map<AxisKey, number>();
+  const candidates = pool.filter((c) => axesTouched(c).length > 0).sort(byQuality);
+  for (const card of candidates) {
+    const axes = axesTouched(card);
+    if (!axes.some((k) => (filled.get(k) ?? 0) < (floors.get(k) ?? 0))) continue;
+    reserved.add(card);
+    for (const k of axes) {
+      if ((filled.get(k) ?? 0) < (floors.get(k) ?? 0)) filled.set(k, (filled.get(k) ?? 0) + 1);
+    }
+  }
+  return reserved;
+}
+
 /** Select up to `target` cards from a bucket pool, shaping toward curve & role sub-targets. */
 function selectBucket(
   pool: CubeCard[],
   target: number,
   band: BandTargets,
-  isLandBucket: boolean
+  isLandBucket: boolean,
+  reserved?: ReadonlySet<CubeCard>
 ): { picks: CubeCard[]; deferred: CubeCard[] } {
   const sorted = [...pool].sort(byQuality);
   if (isLandBucket || sorted.length <= target) {
@@ -132,7 +199,24 @@ function selectBucket(
 
   const picks: CubeCard[] = [];
   const deferred: CubeCard[] = [];
+  const take = (card: CubeCard) => {
+    picks.push(card);
+    curveFill[curveSlotOf(card.cmc)]++;
+    if (card.role) roleFill[card.role]++;
+  };
+
+  // Archetype-reserved cards go in first (best-first, capped at target). They
+  // count toward curve/role so the rest of the bucket shapes around them.
+  if (reserved) {
+    for (const card of sorted) {
+      if (picks.length >= target) break;
+      if (reserved.has(card)) take(card);
+    }
+  }
+
+  // Fill the remaining slots by quality, shaping toward curve & role sub-targets.
   for (const card of sorted) {
+    if (reserved?.has(card)) continue;
     if (picks.length >= target) {
       deferred.push(card);
       continue;
@@ -141,9 +225,7 @@ function selectBucket(
     const fillsCurve = curveFill[slot] < curveCap[slot];
     const fillsRole = card.role != null && roleFill[card.role] < roleTarget[card.role];
     if (fillsCurve || fillsRole) {
-      picks.push(card);
-      curveFill[slot]++;
-      if (card.role) roleFill[card.role]++;
+      take(card);
     } else {
       deferred.push(card);
     }
@@ -163,8 +245,13 @@ function reasonFor(c: CubeCard, bucket: ColorBucket): string {
   return `${base} · ${slot === '7' ? '7+' : slot}-drop`;
 }
 
-export function generateCube(rawPool: CubeCard[], size: CubeSize): GeneratedCube {
+export function generateCube(
+  rawPool: CubeCard[],
+  size: CubeSize,
+  options?: CubeGenOptions
+): GeneratedCube {
   const band = targetsForSize(size);
+  const synergyLevel = Math.max(0, Math.min(1, options?.synergyLevel ?? 0));
 
   // Singleton, no basics. Dedupe by oracleId keeping the best-ranked copy.
   const byOracle = new Map<string, CubeCard>();
@@ -186,13 +273,26 @@ export function generateCube(rawPool: CubeCard[], size: CubeSize): GeneratedCube
   for (const b of BUCKETS) shares[b] = band.color[b].median;
   const targetByBucket = apportion(shares, size);
 
+  // Archetype-density floors from the owned pool, reserved across buckets so an
+  // enabler and its payoff in different colors fill one axis. synergyLevel 0
+  // (the default) skips this entirely → output identical to pure goodstuff.
+  const reserved =
+    synergyLevel > 0 ? selectAxisReserved(pool, deriveAxisFloors(pool, synergyLevel)) : undefined;
+
   // Select per bucket, capping at what's owned.
   const picks: Pick[] = [];
   const byBucket = {} as Record<ColorBucket, number>;
   const leftovers: CubeCard[] = [];
   for (const b of BUCKETS) {
     const want = Math.min(targetByBucket[b], buckets[b].length);
-    const { picks: sel, deferred } = selectBucket(buckets[b], want, band, b === 'land');
+    // Lands don't carry archetype identity → never reserved.
+    const { picks: sel, deferred } = selectBucket(
+      buckets[b],
+      want,
+      band,
+      b === 'land',
+      b === 'land' ? undefined : reserved
+    );
     byBucket[b] = sel.length;
     for (const c of sel) picks.push({ card: c, bucket: b, reason: reasonFor(c, b) });
     leftovers.push(...deferred);
