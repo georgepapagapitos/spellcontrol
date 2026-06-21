@@ -659,13 +659,15 @@ interface SuggestionsResultsProps extends ResultsProps {
 
 // Availability badge copy/tone per ownership state. "owned" = a free copy you
 // can field tonight; "in-other-deck" = owned but every copy is in another deck
-// (adding triggers the cross-deck resolver); "unowned" = you'd have to buy it.
+// (adding triggers the cross-deck resolver); "in-cube" = owned but every copy is
+// committed to a physical cube; "unowned" = you'd have to buy it.
 const OWNERSHIP_BADGE: Record<
-  'owned' | 'in-other-deck' | 'unowned',
+  'owned' | 'in-other-deck' | 'in-cube' | 'unowned',
   { label: string; className: string }
 > = {
   owned: { label: 'Available', className: 'card-search-avail' },
   'in-other-deck': { label: 'In a deck', className: 'card-search-claimed' },
+  'in-cube': { label: 'In a cube', className: 'card-search-claimed' },
   unowned: { label: 'Unowned', className: 'card-search-unowned' },
 };
 
@@ -689,10 +691,11 @@ function SuggestionsResults({
   const savedCubes = useCubeStore((s) => s.saved);
   const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
-  // Three independent availability toggles; all on = the full discovery list.
+  // Independent availability toggles; all on = the full discovery list.
   const [show, setShow] = useState<SuggestionFilter>({
     owned: true,
     inOtherDeck: true,
+    inCube: true,
     unowned: true,
   });
 
@@ -749,7 +752,7 @@ function SuggestionsResults({
     return <p className="card-search-empty">Analyzing your deck…</p>;
   }
 
-  const total = counts.owned + counts.inOtherDeck + counts.unowned;
+  const total = counts.owned + counts.inOtherDeck + counts.inCube + counts.unowned;
   if (total === 0) {
     return (
       <p className="card-search-empty">
@@ -763,6 +766,7 @@ function SuggestionsResults({
   const filters: Array<{ key: keyof SuggestionFilter; label: string; count: number }> = [
     { key: 'owned', label: 'Available', count: counts.owned },
     { key: 'inOtherDeck', label: 'In a deck', count: counts.inOtherDeck },
+    { key: 'inCube', label: 'In a cube', count: counts.inCube },
     { key: 'unowned', label: 'Unowned', count: counts.unowned },
   ];
 

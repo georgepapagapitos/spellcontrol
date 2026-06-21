@@ -4,13 +4,14 @@ import type { ChangeOwnership } from './deck-change';
 import { normalizeForSearch } from './normalize-search';
 
 /**
- * Physical availability of a suggested card — the same tri-state every Tune
+ * Physical availability of a suggested card — the same state every Tune
  * surface uses (`ownershipFor`). `owned` = a free/unallocated copy exists, so
  * it's addable tonight; `in-other-deck` = you own copies but they're all
- * claimed by other decks (adding triggers the cross-deck resolver); `unowned`
- * = you'd have to acquire it.
+ * claimed by other decks (adding triggers the cross-deck resolver); `in-cube` =
+ * owned but every copy is committed to a physical cube; `unowned` = you'd have
+ * to acquire it.
  */
-export type Ownership = 'owned' | 'in-other-deck' | 'unowned';
+export type Ownership = 'owned' | 'in-other-deck' | 'in-cube' | 'unowned';
 
 /**
  * One row in the deck editor's "Suggestions" add-cards tab. Both kinds are
@@ -37,13 +38,15 @@ export interface SuggestionRow {
 export interface SuggestionCounts {
   owned: number;
   inOtherDeck: number;
+  inCube: number;
   unowned: number;
 }
 
-/** Which availability buckets the three filter toggles are currently showing. */
+/** Which availability buckets the filter toggles are currently showing. */
 export interface SuggestionFilter {
   owned: boolean;
   inOtherDeck: boolean;
+  inCube: boolean;
   unowned: boolean;
 }
 
@@ -54,8 +57,14 @@ export interface SuggestionRows {
   counts: SuggestionCounts;
 }
 
-// Owned (addable now) sorts above in-a-deck, which sorts above unowned.
-const RANK: Record<Ownership, number> = { owned: 0, 'in-other-deck': 1, unowned: 2 };
+// Owned (addable now) sorts above owned-but-committed (deck or cube), which
+// sorts above unowned.
+const RANK: Record<Ownership, number> = {
+  owned: 0,
+  'in-other-deck': 1,
+  'in-cube': 1,
+  unowned: 2,
+};
 
 /**
  * Build the Suggestions-tab rows from the deck's live gap analysis + one-away
@@ -83,17 +92,19 @@ export function buildSuggestionRows(
   const matchesQuery = (name: string) => !nq || normalizeForSearch(name).includes(nq);
   const ownershipOf = (name: string): Ownership => {
     const o = ownershipFor(name);
-    return o === 'owned' || o === 'in-other-deck' ? o : 'unowned';
+    return o === 'owned' || o === 'in-other-deck' || o === 'in-cube' ? o : 'unowned';
   };
   const shown = (o: Ownership) =>
     (o === 'owned' && show.owned) ||
     (o === 'in-other-deck' && show.inOtherDeck) ||
+    (o === 'in-cube' && show.inCube) ||
     (o === 'unowned' && show.unowned);
 
-  const counts: SuggestionCounts = { owned: 0, inOtherDeck: 0, unowned: 0 };
+  const counts: SuggestionCounts = { owned: 0, inOtherDeck: 0, inCube: 0, unowned: 0 };
   const tally = (o: Ownership) => {
     if (o === 'owned') counts.owned += 1;
     else if (o === 'in-other-deck') counts.inOtherDeck += 1;
+    else if (o === 'in-cube') counts.inCube += 1;
     else counts.unowned += 1;
   };
 

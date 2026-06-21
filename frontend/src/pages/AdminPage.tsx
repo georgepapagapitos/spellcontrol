@@ -5,6 +5,7 @@ import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { SearchPill } from '../components/SearchPill';
 import { useDecksStore, type Deck } from '../store/decks';
+import { useCubeStore, type SavedCube } from '../store/cube';
 import { buildAllocationMap, findSuboptimalPrintings } from '../lib/allocations';
 import type { EnrichedCard } from '../types';
 
@@ -23,6 +24,7 @@ export function AdminPage() {
   const decks = useDecksStore((s) => s.decks);
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
   const remapAllocations = useDecksStore((s) => s.remapAllocations);
+  const savedCubes = useCubeStore((s) => s.saved);
 
   const [tab, setTab] = useState<Tab>('overview');
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
@@ -418,7 +420,7 @@ export function AdminPage() {
       )}
 
       {tab === 'allocations' && (
-        <AllocationsTab decks={decks} collectionByCopyId={collectionByCopyId} />
+        <AllocationsTab decks={decks} cubes={savedCubes} collectionByCopyId={collectionByCopyId} />
       )}
 
       {tab === 'collection' && (
@@ -603,9 +605,11 @@ function DeckDetail({
 
 function AllocationsTab({
   decks,
+  cubes,
   collectionByCopyId,
 }: {
   decks: Deck[];
+  cubes: SavedCube[];
   collectionByCopyId: Map<string, EnrichedCard>;
 }) {
   const rows = useMemo(() => {
@@ -647,6 +651,29 @@ function AllocationsTab({
     }
     return [...byCopyId.values()].sort((a, b) => b.claimedBy.length - a.claimedBy.length);
   }, [decks, collectionByCopyId]);
+
+  const cubeRows = useMemo(() => {
+    type CubeRow = {
+      copyId: string;
+      cubeName: string;
+      pickName: string;
+      copy?: EnrichedCard;
+    };
+    const rows: CubeRow[] = [];
+    for (const cube of cubes) {
+      if (!cube.isPhysical) continue;
+      for (const pick of cube.picks) {
+        if (!pick.allocatedCopyId) continue;
+        rows.push({
+          copyId: pick.allocatedCopyId,
+          cubeName: cube.name,
+          pickName: pick.card.name,
+          copy: collectionByCopyId.get(pick.allocatedCopyId),
+        });
+      }
+    }
+    return rows;
+  }, [cubes, collectionByCopyId]);
 
   const multi = rows.filter((r) => r.claimedBy.length > 1);
 
@@ -691,6 +718,38 @@ function AllocationsTab({
           ))}
         </tbody>
       </table>
+
+      <h2>Cube allocations ({cubeRows.length} picks bound)</h2>
+      {cubeRows.length === 0 ? (
+        <p className="admin-sub">No cube allocations.</p>
+      ) : (
+        <table className="admin-table admin-table--dense">
+          <thead>
+            <tr>
+              <th>copyId</th>
+              <th>Card</th>
+              <th>Set / #</th>
+              <th>Finish</th>
+              <th>Cube · pick</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cubeRows.map((r, i) => (
+              <tr key={i}>
+                <td className="admin-mono">{r.copyId.slice(0, 8)}…</td>
+                <td>
+                  {r.copy?.name ?? <span className="admin-err">missing from collection</span>}
+                </td>
+                <td>{r.copy ? `${r.copy.setCode} #${r.copy.collectorNumber}` : '—'}</td>
+                <td>{r.copy?.finish ?? '—'}</td>
+                <td>
+                  <strong>{r.cubeName}</strong> → {r.pickName}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }

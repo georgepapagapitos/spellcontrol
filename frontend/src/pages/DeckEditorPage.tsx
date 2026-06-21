@@ -452,14 +452,17 @@ export function DeckEditorPage() {
   // copies are all elsewhere can't actually be added tonight.
   const ownershipByName = useMemo(() => {
     const allocations = buildAllocationMap(decks, savedCubes);
-    const byName = new Map<string, { free: number; claimed: number }>();
+    const byName = new Map<string, { free: number; deck: number; cube: number }>();
     for (const copy of collectionCards) {
       if (!copy.name) continue;
       const key = copy.name.toLowerCase();
-      const e = byName.get(key) ?? { free: 0, claimed: 0 };
+      const e = byName.get(key) ?? { free: 0, deck: 0, cube: 0 };
       const claim = allocations.get(copy.copyId);
+      // A copy claimed by THIS deck counts as free (we can keep it); a cube claim
+      // (deckId='') never matches deck?.id, so cube copies are never "free here".
       if (!claim || claim.deckId === deck?.id) e.free += 1;
-      else e.claimed += 1;
+      else if (claim.ownerKind === 'cube') e.cube += 1;
+      else e.deck += 1;
       byName.set(key, e);
     }
     return byName;
@@ -470,7 +473,10 @@ export function DeckEditorPage() {
       const e = ownershipByName.get(name.toLowerCase());
       if (!e) return 'unowned';
       if (e.free > 0) return 'owned';
-      if (e.claimed > 0) return 'in-other-deck';
+      // Prefer the deck label over the cube label when copies are split — a deck
+      // is the more familiar, more actionable place to pull from.
+      if (e.deck > 0) return 'in-other-deck';
+      if (e.cube > 0) return 'in-cube';
       return 'unowned';
     },
     [ownershipByName]

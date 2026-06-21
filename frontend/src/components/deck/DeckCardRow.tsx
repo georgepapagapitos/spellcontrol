@@ -205,6 +205,13 @@ export function DeckCardRow({
               title="Owned, but every copy is in another deck"
             />
           )}
+          {ownership === 'in-cube' && (
+            <VerdictBadge
+              tone="neutral"
+              label="In a cube"
+              title="Owned, but every copy is committed to a physical cube"
+            />
+          )}
           {change.lane === 'budget' && change.confidence && CONFIDENCE_BADGE[change.confidence] && (
             <VerdictBadge
               tone={CONFIDENCE_BADGE[change.confidence].tone}
