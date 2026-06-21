@@ -429,6 +429,69 @@
   flex: none;
 }
 
+/* ---- archetype support ---- */
+.cube-archetypes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.cube-archetypes-head h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+.cube-draftability {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: none;
+}
+.cube-draftability strong {
+  font-size: var(--text-lg);
+  color: var(--accent);
+}
+.cube-draftability span {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.cube-archetypes-sub {
+  margin: var(--space-1) 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.cube-archetype-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+.cube-archetype {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cube-archetype-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.cube-archetype-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.cube-archetype-counts {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 /* ---- gaps ---- */
 .cube-gaps {
   display: flex;
