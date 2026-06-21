@@ -9,7 +9,9 @@ import {
   Plus,
   Wand2,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useStoredSort } from '../lib/use-stored-sort';
+import { useStoredView } from '../lib/use-stored-view';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
@@ -73,8 +75,6 @@ function deckValue(deck: Deck): number {
   return total;
 }
 
-const STORAGE_KEY = 'decks-index-sort';
-const VIEW_KEY = 'mtg-decks-view-mode';
 const FILTERS_KEY = 'decks-index-filters';
 
 type StoredFilters = {
@@ -117,29 +117,6 @@ function persistFilters(formats: Set<DeckFormat>, sources: Set<DeckSource>, colo
 
 type DecksViewMode = 'grid' | 'list' | 'compact';
 
-function readStoredView(): DecksViewMode {
-  try {
-    const v = localStorage.getItem(VIEW_KEY);
-    if (v === 'grid' || v === 'list' || v === 'compact') return v;
-  } catch {
-    /* ignore */
-  }
-  return 'grid';
-}
-
-function loadSort(): { field: DeckSortField; dir: SortDir } {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.field in DECK_SORT_DEFAULT_DIR) return parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-  return { field: 'edited', dir: 'desc' };
-}
-
 function deckSortValue(deck: Deck, field: DeckSortField): number | string {
   switch (field) {
     case 'edited':
@@ -163,8 +140,11 @@ export function DecksIndexPage() {
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
   const navigate = useNavigate();
 
-  const [sortField, setSortField] = useState<DeckSortField>(loadSort().field);
-  const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
+  const { sortField, sortDir, toggleSort } = useStoredSort<DeckSortField>(
+    'decks-index-sort',
+    DECK_SORT_DEFAULT_DIR,
+    'edited'
+  );
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [formatFilter, setFormatFilterRaw] = useState<Set<DeckFormat>>(
@@ -188,39 +168,13 @@ export function DecksIndexPage() {
     setColorFilterRaw(next);
     persistFilters(formatFilter, sourceFilter, next);
   };
-  const [view, setViewRaw] = useState<DecksViewMode>(readStoredView);
-  const setView = (v: DecksViewMode) => {
-    setViewRaw(v);
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const persistSort = useCallback((field: DeckSortField, dir: SortDir) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ field, dir }));
-  }, []);
-
   // Combined sort pill: clicking the active field flips direction;
   // clicking a different field switches to it with its default direction.
   // Mirrors the collection page so the gesture is consistent app-wide.
-  const toggleSort = useCallback(
-    (field: DeckSortField) => {
-      if (field === sortField) {
-        setSortDir((prev) => {
-          const next = prev === 'asc' ? 'desc' : 'asc';
-          persistSort(sortField, next);
-          return next;
-        });
-      } else {
-        const dir = DECK_SORT_DEFAULT_DIR[field];
-        setSortField(field);
-        setSortDir(dir);
-        persistSort(field, dir);
-      }
-    },
-    [sortField, persistSort]
+  const [view, setView] = useStoredView<DecksViewMode>(
+    'mtg-decks-view-mode',
+    ['grid', 'list', 'compact'],
+    'grid'
   );
 
   const sorted = useMemo(() => {

@@ -7,6 +7,8 @@ import {
   Upload,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useStoredSort } from '../lib/use-stored-sort';
+import { useStoredView } from '../lib/use-stored-view';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useAllocations } from '../lib/allocations';
@@ -43,32 +45,6 @@ const SORT_DEFAULT_DIR: Record<BinderSortField, SortDir> = {
   cards: 'desc',
   pages: 'desc',
 };
-
-const SORT_KEY = 'binders-index-sort';
-const VIEW_KEY = 'mtg-binders-view-mode';
-
-function loadSort(): { field: BinderSortField; dir: SortDir } {
-  try {
-    const raw = localStorage.getItem(SORT_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.field in SORT_DEFAULT_DIR) return parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-  return { field: 'position', dir: 'asc' };
-}
-
-function readStoredView(): BindersViewMode {
-  try {
-    const v = localStorage.getItem(VIEW_KEY);
-    if (v === 'grid' || v === 'list' || v === 'compact') return v;
-  } catch {
-    /* ignore */
-  }
-  return 'grid';
-}
 
 export function BindersIndexPage() {
   const rawCards = useCollectionStore((s) => s.cards);
@@ -117,42 +93,19 @@ export function BindersIndexPage() {
     }).binders;
   }, [cards, binders, allocatedCopyIds, setMap]);
 
-  const [sortField, setSortField] = useState<BinderSortField>(loadSort().field);
-  const [sortDir, setSortDir] = useState<SortDir>(loadSort().dir);
+  const { sortField, sortDir, toggleSort } = useStoredSort<BinderSortField>(
+    'binders-index-sort',
+    SORT_DEFAULT_DIR,
+    'position'
+  );
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 180);
-  const [view, setViewRaw] = useState<BindersViewMode>(readStoredView);
-  const setView = (v: BindersViewMode) => {
-    setViewRaw(v);
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {
-      /* ignore */
-    }
-  };
-  const [exportOpen, setExportOpen] = useState(false);
-
-  const persistSort = useCallback((field: BinderSortField, dir: SortDir) => {
-    localStorage.setItem(SORT_KEY, JSON.stringify({ field, dir }));
-  }, []);
-
-  const toggleSort = useCallback(
-    (field: BinderSortField) => {
-      if (field === sortField) {
-        setSortDir((prev) => {
-          const next = prev === 'asc' ? 'desc' : 'asc';
-          persistSort(sortField, next);
-          return next;
-        });
-      } else {
-        const dir = SORT_DEFAULT_DIR[field];
-        setSortField(field);
-        setSortDir(dir);
-        persistSort(field, dir);
-      }
-    },
-    [sortField, persistSort]
+  const [view, setView] = useStoredView<BindersViewMode>(
+    'mtg-binders-view-mode',
+    ['grid', 'list', 'compact'],
+    'grid'
   );
+  const [exportOpen, setExportOpen] = useState(false);
 
   const sorted = useMemo(() => {
     const dirMul = sortDir === 'asc' ? 1 : -1;
