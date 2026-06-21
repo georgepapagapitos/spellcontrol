@@ -1317,6 +1317,8 @@ function CollabCube() {
                     const own = ownershipFor(p.card.name);
                     // Show friend supplier chip when I can't supply the card myself.
                     const friendSuppliers = suppliers.filter((s) => s !== myUsername);
+                    const s = enrichedMap.get(p.card.name);
+                    const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
                     return (
                       <li
                         key={p.card.oracleId || p.card.name}
@@ -1327,21 +1329,30 @@ function CollabCube() {
                         onClick={() => setPreviewIndex(flatIndex)}
                         onKeyDown={(e) => handleKeyDown(e, flatIndex)}
                       >
-                        <span className="cube-row-name">{p.card.name}</span>
-                        <span className="cube-row-reason">{p.reason}</span>
-                        {iSupply ? (
-                          <OwnRowBadge own={own} />
-                        ) : friendSuppliers.length > 0 ? (
-                          <span
-                            className="cube-collab-supplier-chip"
-                            aria-label={`Supplied by ${friendSuppliers.join(', ')}`}
-                          >
-                            {friendSuppliers[0]}
-                            {friendSuppliers.length > 1 && (
-                              <span aria-hidden> +{friendSuppliers.length - 1}</span>
-                            )}
+                        {img ? (
+                          <img src={img} alt="" loading="lazy" className="cube-row-thumb" />
+                        ) : (
+                          <span className="cube-row-thumb cube-row-thumb-ph" aria-hidden />
+                        )}
+                        <div className="cube-row-body">
+                          <span className="cube-row-title">
+                            <span className="cube-row-name">{p.card.name}</span>
+                            {iSupply ? (
+                              <OwnRowBadge own={own} />
+                            ) : friendSuppliers.length > 0 ? (
+                              <span
+                                className="cube-collab-supplier-chip"
+                                aria-label={`Supplied by ${friendSuppliers.join(', ')}`}
+                              >
+                                {friendSuppliers[0]}
+                                {friendSuppliers.length > 1 && (
+                                  <span aria-hidden> +{friendSuppliers.length - 1}</span>
+                                )}
+                              </span>
+                            ) : null}
                           </span>
-                        ) : null}
+                          {p.reason && <span className="cube-row-reason">{p.reason}</span>}
+                        </div>
                       </li>
                     );
                   })}
@@ -1434,6 +1445,7 @@ function ImportCube() {
       typeLine: r.card.typeLine,
       colorIdentity: r.card.colors,
       colors: r.card.colors,
+      imageSmall: r.card.image,
     }));
   }, [rows]);
 
@@ -1596,23 +1608,32 @@ function ImportCube() {
                 onClick={() => setPreviewIndex(idx)}
                 onKeyDown={(e) => handleKeyDown(e, idx)}
               >
-                <span className="cube-row-name">{r.card.name}</span>
-                <span className="cube-row-reason">{r.card.typeLine}</span>
-                {r.ownership === 'in-other-deck' ? (
-                  <VerdictBadge
-                    tone="neutral"
-                    label="In a deck"
-                    title="You own this, but it’s currently in a deck"
-                  />
-                ) : r.ownership === 'in-cube' ? (
-                  <VerdictBadge
-                    tone="neutral"
-                    label="In a cube"
-                    title="You own this, but it’s reserved by a physical cube"
-                  />
+                {r.card.image ? (
+                  <img src={r.card.image} alt="" loading="lazy" className="cube-row-thumb" />
                 ) : (
-                  <OwnershipBadge owned={r.ownership === 'owned'} showUnowned />
+                  <span className="cube-row-thumb cube-row-thumb-ph" aria-hidden />
                 )}
+                <div className="cube-row-body">
+                  <span className="cube-row-title">
+                    <span className="cube-row-name">{r.card.name}</span>
+                    {r.ownership === 'in-other-deck' ? (
+                      <VerdictBadge
+                        tone="neutral"
+                        label="In a deck"
+                        title="You own this, but it’s currently in a deck"
+                      />
+                    ) : r.ownership === 'in-cube' ? (
+                      <VerdictBadge
+                        tone="neutral"
+                        label="In a cube"
+                        title="You own this, but it’s reserved by a physical cube"
+                      />
+                    ) : (
+                      <OwnershipBadge owned={r.ownership === 'owned'} showUnowned />
+                    )}
+                  </span>
+                  <span className="cube-row-reason">{r.card.typeLine}</span>
+                </div>
               </li>
             ))}
           </ul>

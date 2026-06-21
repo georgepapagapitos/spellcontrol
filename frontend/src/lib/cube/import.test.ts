@@ -33,7 +33,16 @@ describe('fetchCubeCobraCube', () => {
     cards: {
       mainboard: [
         // details-first card (no top-level fields)
-        { details: { name: 'Sol Ring', type: 'Artifact', cmc: 1, colors: [], oracle_id: 'o-sol' } },
+        {
+          details: {
+            name: 'Sol Ring',
+            type: 'Artifact',
+            cmc: 1,
+            colors: [],
+            oracle_id: 'o-sol',
+            image_small: 'https://cards.scryfall.io/small/sol-ring.jpg',
+          },
+        },
         // top-level card
         { name: 'Llanowar Elves', type_line: 'Creature — Elf Druid', cmc: 1, colors: ['G'] },
         { name: '' }, // junk, dropped
@@ -50,7 +59,9 @@ describe('fetchCubeCobraCube', () => {
     expect(cube.name).toBe('Test Cube');
     expect(cube.cards.map((c) => c.name)).toEqual(['Sol Ring', 'Llanowar Elves']);
     expect(cube.cards[0].oracleId).toBe('o-sol');
+    expect(cube.cards[0].image).toBe('https://cards.scryfall.io/small/sol-ring.jpg');
     expect(cube.cards[1].colors).toEqual(['G']);
+    expect(cube.cards[1].image).toBeUndefined(); // no details → graceful placeholder
   });
 
   it('maps 404 / 429 / empty to friendly errors', async () => {
