@@ -164,6 +164,26 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
           <Entry
             interactive
             glyph={
+              <DeckBadge
+                allocations={[
+                  {
+                    ownerKind: 'cube',
+                    ownerId: 'legend-cube',
+                    ownerName: 'a cube',
+                    ownerColor: 'var(--cube-color)',
+                    deckId: '',
+                    deckName: 'a cube',
+                    deckColor: 'var(--cube-color)',
+                    cardName: '',
+                  },
+                ]}
+              />
+            }
+            word="In a physical cube"
+          />
+          <Entry
+            interactive
+            glyph={
               <BinderBadge binders={[{ id: 'legend-sample', name: 'a binder', color: null }]} />
             }
             word="In a binder"

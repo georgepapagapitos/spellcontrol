@@ -4,6 +4,7 @@ import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scr
 import { ManaCost } from '../ManaCost';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { useToastsStore } from '../../store/toasts';
@@ -477,7 +478,8 @@ function CollectionResults({
   const collection = useCollectionStore((s) => s.cards);
   const pushToast = useToastsStore((s) => s.push);
   const decks = useDecksStore((s) => s.decks);
-  const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
+  const savedCubes = useCubeStore((s) => s.saved);
+  const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
   const filtered = useMemo(() => {
     const nq = normalizeForSearch(query);
@@ -684,7 +686,8 @@ function SuggestionsResults({
   const collection = useCollectionStore((s) => s.cards);
   const pushToast = useToastsStore((s) => s.push);
   const decks = useDecksStore((s) => s.decks);
-  const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
+  const savedCubes = useCubeStore((s) => s.saved);
+  const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
   // Three independent availability toggles; all on = the full discovery list.
   const [show, setShow] = useState<SuggestionFilter>({
@@ -879,6 +882,7 @@ function ScryfallResults({
 }: ResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
+  const savedCubes = useCubeStore((s) => s.saved);
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -886,7 +890,7 @@ function ScryfallResults({
 
   const pushToast = useToastsStore((s) => s.push);
 
-  const allocations = useMemo(() => buildAllocationMap(decks), [decks]);
+  const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
   const ownedNames = useMemo(() => new Set(collection.map((c) => c.name)), [collection]);
 
   useEffect(() => {

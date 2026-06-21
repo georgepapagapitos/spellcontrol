@@ -213,4 +213,10 @@
   --mtg-multicolor: #c8a02e;
   --mtg-colorless: #b8b8b8;
   --mtg-land: #9c7a4d;
+
+  /* Cube identity color — a single fixed hue for every "in a cube" badge/link
+     (cubes have no per-cube user color, unlike decks). A violet, deliberately
+     distinct from the deck-blue accent and the WUBRG set so a cube marker is
+     never mistaken for a deck. Referenced as CUBE_BADGE_COLOR in allocations.ts. */
+  --cube-color: #8b5cf6;
 }

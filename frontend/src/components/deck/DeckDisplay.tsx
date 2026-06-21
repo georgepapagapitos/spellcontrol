@@ -3,6 +3,7 @@ import {
   CircleAlert,
   ChevronDown,
   ChevronRight,
+  Boxes,
   Clipboard,
   Download,
   Eye,
@@ -57,6 +58,7 @@ import {
   type AllocationStatus,
 } from '../../lib/allocations';
 import { useDecksStore } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { useRarityCorrections } from '../../lib/use-rarity-corrections';
 import type { EnrichedCard } from '../../types';
 import {
@@ -727,7 +729,7 @@ function allocationSummary(row: Row): string {
       return 'The collection copy this slot was assigned to is no longer present';
     if (row.unownedQty > 0) return 'Not in your collection';
     return row.claimedBy
-      ? `Owned, but currently in deck: ${row.claimedBy.deckName}`
+      ? `Owned, but currently in ${row.claimedBy.ownerKind === 'cube' ? 'cube' : 'deck'}: ${row.claimedBy.ownerName}`
       : 'Owned, but currently in another deck';
   }
   const parts: string[] = [];
@@ -766,21 +768,31 @@ function AllocationChip({ row }: { row: Row }) {
   // unowned/orphan slot mixed in, the chip is purely a navigation affordance.
   if (row.claimedElsewhereQty > 0 && row.unownedQty === 0 && row.orphanQty === 0 && row.claimedBy) {
     const info = row.claimedBy;
+    const isCube = info.ownerKind === 'cube';
+    const noun = isCube ? 'cube' : 'deck';
     const title =
       row.claimedElsewhereQty === row.qty
-        ? `In deck: ${info.deckName}`
-        : `${row.claimedElsewhereQty} of ${row.qty} in deck: ${info.deckName}`;
+        ? `In ${noun}: ${info.ownerName}`
+        : `${row.claimedElsewhereQty} of ${row.qty} in ${noun}: ${info.ownerName}`;
     return (
       <Link
-        to={`/decks/${info.deckId}`}
+        to={isCube ? '/collection/cube' : `/decks/${info.ownerId}`}
         className="deck-row-alloc-badge"
-        style={{ ['--deck-color']: info.deckColor || 'var(--accent)' } as React.CSSProperties}
+        style={
+          {
+            ['--deck-color']: isCube ? 'var(--cube-color)' : info.ownerColor || 'var(--accent)',
+          } as React.CSSProperties
+        }
         title={title}
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
       >
-        <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
-        <span className="deck-row-alloc-badge-label">{info.deckName}</span>
+        {isCube ? (
+          <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
+        ) : (
+          <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
+        )}
+        <span className="deck-row-alloc-badge-label">{info.ownerName}</span>
       </Link>
     );
   }
@@ -975,6 +987,7 @@ export function DeckDisplay({
   // current deck's own allocations so a slot in *this* deck doesn't count
   // as "claimed elsewhere" against itself.
   const allDecks = useDecksStore((s) => s.decks);
+  const savedCubes = useCubeStore((s) => s.saved);
   const crossDeck: CrossDeckCtx = useMemo(() => {
     if (!collectionByCopyId) return {};
     const copiesByName = new Map<string, EnrichedCard[]>();
@@ -985,9 +998,11 @@ export function DeckDisplay({
       else copiesByName.set(key, [copy]);
     }
     const others = deckId ? allDecks.filter((d) => d.id !== deckId) : allDecks;
-    const otherDeckAllocations = buildAllocationMap(others);
+    // Physical cubes are always "other" (a cube is never the deck being viewed),
+    // so a copy committed to a cube reads as claimed-elsewhere here too.
+    const otherDeckAllocations = buildAllocationMap(others, savedCubes);
     return { copiesByName, otherDeckAllocations };
-  }, [collectionByCopyId, allDecks, deckId]);
+  }, [collectionByCopyId, allDecks, savedCubes, deckId]);
 
   const claimedByForName = useCallback(
     (cardName: string): AllocationInfo | undefined => {
@@ -1788,8 +1803,10 @@ export function DeckDisplay({
               const out: AllocationInfo[] = [];
               for (const cid of r.allocatedCopyIds) {
                 const a = crossDeck.otherDeckAllocations.get(cid);
-                if (a && !seen.has(a.deckId)) {
-                  seen.add(a.deckId);
+                // Dedupe on ownerId, not the legacy deckId alias — every cube
+                // claim shares deckId='' and would otherwise collapse to one.
+                if (a && !seen.has(a.ownerId)) {
+                  seen.add(a.ownerId);
                   out.push(a);
                 }
               }

@@ -1,4 +1,5 @@
 import {
+  Boxes,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
@@ -612,11 +613,17 @@ export function CardPreview({
 
                 const allocs = getStackAllocations?.(selected) ?? [];
                 const deckById = new Map<string, AllocationInfo>();
+                const cubeById = new Map<string, AllocationInfo>();
                 for (const a of allocs) {
-                  if (a.deckId === currentDeckId) continue;
-                  deckById.set(a.deckId, a);
+                  if (a.ownerKind === 'cube') {
+                    cubeById.set(a.ownerId, a);
+                  } else {
+                    if (a.deckId === currentDeckId) continue;
+                    deckById.set(a.deckId, a);
+                  }
                 }
                 const uniqueDecks = [...deckById.values()];
+                const uniqueCubes = [...cubeById.values()];
                 const sectionLabel = sectionLabels[selected] ?? '';
 
                 return (
@@ -647,7 +654,7 @@ export function CardPreview({
                       <span key={`d-${d.deckId}`}>
                         {i > 0 && ' · '}
                         <Link
-                          to={`/decks/${d.deckId}`}
+                          to={`/decks/${d.ownerId}`}
                           className="card-preview-context-pill card-preview-context-pill--deck"
                           style={
                             {
@@ -655,10 +662,32 @@ export function CardPreview({
                             } as React.CSSProperties
                           }
                           onClick={onClose}
-                          title={`Open deck ${d.deckName}`}
+                          title={`In deck: ${d.deckName}`}
+                          aria-label={`In deck: ${d.deckName}`}
                         >
                           <Layers width={11} height={11} strokeWidth={2.2} aria-hidden />
                           <span>{d.deckName}</span>
+                        </Link>
+                      </span>
+                    ))}
+                    {uniqueCubes.length > 0 && ' · '}
+                    {uniqueCubes.map((c, i) => (
+                      <span key={`c-${c.ownerId}`}>
+                        {i > 0 && ' · '}
+                        <Link
+                          to="/collection/cube"
+                          className="card-preview-context-pill card-preview-context-pill--cube"
+                          style={
+                            {
+                              '--pill-color': 'var(--cube-color)',
+                            } as React.CSSProperties
+                          }
+                          onClick={onClose}
+                          title={`In cube: ${c.ownerName}`}
+                          aria-label={`In cube: ${c.ownerName}`}
+                        >
+                          <Boxes width={11} height={11} strokeWidth={2.2} aria-hidden />
+                          <span>{c.ownerName}</span>
                         </Link>
                       </span>
                     ))}

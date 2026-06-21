@@ -1,42 +1,49 @@
-import { Layers } from 'lucide-react';
+import { Layers, Boxes } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { AllocationInfo } from '../lib/allocations';
 
 interface Props {
-  /** All deck allocations covering this row's copies. Empty/undefined → no badge. */
+  /** All allocations (deck and/or cube) covering this row's copies. Empty → no badge. */
   allocations: AllocationInfo[];
 }
 
 /**
- * Small "in a deck" indicator used by the binder + collection lists.
- * Single allocation → links to that deck. Multiple → unlinked badge with
- * a tooltip listing every deck name (clicking would have to pick one,
- * and that's a worse experience than just "tells you it's elsewhere").
+ * One badge for a set of same-kind owners (decks or physical cubes).
+ * Single owner → links to it. Multiple → unlinked count badge whose tooltip
+ * lists every name (clicking would have to pick one — worse than just telling
+ * you it's committed elsewhere). Cube badges are violet (--cube-color) with a
+ * Boxes glyph; deck badges keep their deck color and the Layers glyph.
  */
-export function DeckBadge({ allocations }: Props) {
-  if (allocations.length === 0) return null;
-
-  // Dedupe by deckId — a single deck can claim multiple copies of the
-  // same card, but the badge shouldn't repeat a deck name.
-  const byDeck = new Map<string, AllocationInfo>();
-  for (const a of allocations) byDeck.set(a.deckId, a);
-  const decks = [...byDeck.values()];
-  const summary = decks.map((d) => d.deckName).join(', ');
+function OwnerBadge({ kind, owners }: { kind: 'deck' | 'cube'; owners: AllocationInfo[] }) {
+  if (owners.length === 0) return null;
+  const Icon = kind === 'cube' ? Boxes : Layers;
+  const noun = kind === 'cube' ? 'cube' : 'deck';
+  const plural = kind === 'cube' ? 'cubes' : 'decks';
+  const names = owners.map((o) => o.ownerName).join(', ');
   const label =
-    decks.length === 1 ? `In deck: ${decks[0].deckName}` : `In ${decks.length} decks: ${summary}`;
+    owners.length === 1
+      ? `In ${noun}: ${owners[0].ownerName}`
+      : `In ${owners.length} ${plural}: ${names}`;
+  const color =
+    kind === 'cube'
+      ? 'var(--cube-color)'
+      : owners.length === 1
+        ? owners[0].ownerColor || 'var(--accent)'
+        : 'var(--accent)';
+  const style = { '--deck-color': color } as React.CSSProperties;
 
-  if (decks.length === 1) {
-    const color = decks[0].deckColor || 'var(--accent)';
+  if (owners.length === 1) {
+    const to = kind === 'cube' ? '/collection/cube' : `/decks/${owners[0].ownerId}`;
     return (
       <Link
-        to={`/decks/${decks[0].deckId}`}
+        to={to}
         className="card-list-deck-badge"
-        style={{ '--deck-color': color } as React.CSSProperties}
+        style={style}
         title={label}
         aria-label={label}
         onClick={(e) => e.stopPropagation()}
       >
-        <Layers width={11} height={11} strokeWidth={2} aria-hidden />
+        <Icon width={11} height={11} strokeWidth={2} aria-hidden />
       </Link>
     );
   }
@@ -44,13 +51,35 @@ export function DeckBadge({ allocations }: Props) {
   return (
     <span
       className="card-list-deck-badge card-list-deck-badge--multi"
+      style={style}
       title={label}
       aria-label={label}
     >
-      <Layers width={11} height={11} strokeWidth={2} aria-hidden />
+      <Icon width={11} height={11} strokeWidth={2} aria-hidden />
       <span className="card-list-deck-badge-count" aria-hidden>
-        {decks.length}
+        {owners.length}
       </span>
     </span>
+  );
+}
+
+/**
+ * "Committed elsewhere" indicator for the binder + collection lists. Renders a
+ * deck badge and/or a cube badge depending on where this row's copies live (a
+ * card can have copies in both). Deduped per owner so one deck/cube never
+ * repeats.
+ */
+export function DeckBadge({ allocations }: Props) {
+  if (allocations.length === 0) return null;
+  const dedupe = (kind: 'deck' | 'cube'): AllocationInfo[] => {
+    const m = new Map<string, AllocationInfo>();
+    for (const a of allocations) if (a.ownerKind === kind) m.set(a.ownerId, a);
+    return [...m.values()];
+  };
+  return (
+    <>
+      <OwnerBadge kind="deck" owners={dedupe('deck')} />
+      <OwnerBadge kind="cube" owners={dedupe('cube')} />
+    </>
   );
 }

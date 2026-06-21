@@ -1,4 +1,4 @@
-import { Layers } from 'lucide-react';
+import { Layers, Boxes } from 'lucide-react';
 import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -182,7 +182,11 @@ export function CardSlot({ card, showImage }: Props) {
         tabIndex={0}
         role="button"
         aria-label={`Open details for ${card.name}${card.foil ? ' (foil)' : ''}${
-          allocation ? ` (in deck: ${allocation.deckName})` : ''
+          allocation
+            ? allocation.ownerKind === 'cube'
+              ? ` (in cube: ${allocation.ownerName})`
+              : ` (in deck: ${allocation.ownerName})`
+            : ''
         }`}
       >
         {showImage && card.imageSmall ? (
@@ -198,16 +202,35 @@ export function CardSlot({ card, showImage }: Props) {
         )}
         {allocation && (
           <Link
-            to={`/decks/${allocation.deckId}`}
+            to={
+              allocation.ownerKind === 'cube' ? '/collection/cube' : `/decks/${allocation.ownerId}`
+            }
             className="slot-deck-badge"
             style={
-              { '--deck-color': allocation.deckColor || 'var(--accent)' } as React.CSSProperties
+              {
+                '--deck-color':
+                  allocation.ownerKind === 'cube'
+                    ? 'var(--cube-color)'
+                    : allocation.ownerColor || 'var(--accent)',
+              } as React.CSSProperties
             }
-            title={`In deck: ${allocation.deckName}`}
+            title={
+              allocation.ownerKind === 'cube'
+                ? `In cube: ${allocation.ownerName}`
+                : `In deck: ${allocation.ownerName}`
+            }
             onClick={(e) => e.stopPropagation()}
-            aria-label={`Open deck ${allocation.deckName}`}
+            aria-label={
+              allocation.ownerKind === 'cube'
+                ? `Open cube ${allocation.ownerName}`
+                : `Open deck ${allocation.ownerName}`
+            }
           >
-            <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
+            {allocation.ownerKind === 'cube' ? (
+              <Boxes width={9} height={9} strokeWidth={2.2} aria-hidden />
+            ) : (
+              <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
+            )}
           </Link>
         )}
         {groupedQty > 1 && (
@@ -268,13 +291,24 @@ export function CardSlot({ card, showImage }: Props) {
                     className="slot-deck-badge tooltip-deck-badge"
                     style={
                       {
-                        '--deck-color': allocation.deckColor || 'var(--accent)',
+                        '--deck-color':
+                          allocation.ownerKind === 'cube'
+                            ? 'var(--cube-color)'
+                            : allocation.ownerColor || 'var(--accent)',
                       } as React.CSSProperties
                     }
-                    title={`In deck: ${allocation.deckName}`}
+                    title={
+                      allocation.ownerKind === 'cube'
+                        ? `In cube: ${allocation.ownerName}`
+                        : `In deck: ${allocation.ownerName}`
+                    }
                     aria-hidden="true"
                   >
-                    <Layers width={14} height={14} strokeWidth={2.2} aria-hidden />
+                    {allocation.ownerKind === 'cube' ? (
+                      <Boxes width={14} height={14} strokeWidth={2.2} aria-hidden />
+                    ) : (
+                      <Layers width={14} height={14} strokeWidth={2.2} aria-hidden />
+                    )}
                   </span>
                 )}
               </div>

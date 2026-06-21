@@ -113,7 +113,7 @@ describe('Legend (context-aware symbol key)', () => {
     renderLegend('collection');
     openKey();
     const inertSamples = document.querySelectorAll('.legend-glyph[inert]');
-    expect(inertSamples.length).toBe(2); // deck badge + binder badge
+    expect(inertSamples.length).toBe(3); // deck badge + cube badge + binder badge
   });
 
   // Placement: the popover is PORTALED to <body> and positioned fixed from

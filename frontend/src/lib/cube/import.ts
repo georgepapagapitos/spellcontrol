@@ -20,7 +20,7 @@ export interface ImportedCube {
 }
 
 /** Tri-state ownership, matching the app's `ChangeOwnership`. */
-export type Ownership = 'owned' | 'in-other-deck' | 'unowned';
+export type Ownership = 'owned' | 'in-other-deck' | 'in-cube' | 'unowned';
 
 export interface OwnershipOverlay {
   rows: { card: CubeCobraCard; ownership: Ownership }[];
@@ -112,7 +112,11 @@ export function overlayOwnership(
 ): OwnershipOverlay {
   const rows = cards.map((card) => ({ card, ownership: ownershipFor(card.name) }));
   const owned = rows.filter((r) => r.ownership === 'owned').length;
-  const inDeck = rows.filter((r) => r.ownership === 'in-other-deck').length;
+  // "inDeck" is the committed-elsewhere bucket — counts copies locked into a deck
+  // OR a physical cube (both are unavailable to field this cube).
+  const inDeck = rows.filter(
+    (r) => r.ownership === 'in-other-deck' || r.ownership === 'in-cube'
+  ).length;
   const missing = rows.filter((r) => r.ownership === 'unowned').length;
   return {
     rows,

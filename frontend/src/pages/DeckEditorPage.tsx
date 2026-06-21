@@ -11,6 +11,7 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { useDecksStore, effectiveBracket } from '../store/decks';
+import { useCubeStore } from '../store/cube';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
 import {
@@ -141,6 +142,9 @@ export function DeckEditorPage() {
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
   const decks = useDecksStore((s) => s.decks);
+  // Physical cubes claim copies too — every allocation/ownership computation here
+  // folds them in so a copy in a cube reads as committed (not free for a deck).
+  const savedCubes = useCubeStore((s) => s.saved);
   const rawCollectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
   // Decorate with oracle tags so the per-card binder badge respects tag rules
@@ -447,7 +451,7 @@ export function DeckEditorPage() {
   // matters because pickCollectionCopy only claims FREE copies, so a card whose
   // copies are all elsewhere can't actually be added tonight.
   const ownershipByName = useMemo(() => {
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, savedCubes);
     const byName = new Map<string, { free: number; claimed: number }>();
     for (const copy of collectionCards) {
       if (!copy.name) continue;
@@ -459,7 +463,7 @@ export function DeckEditorPage() {
       byName.set(key, e);
     }
     return byName;
-  }, [collectionCards, decks, deck?.id]);
+  }, [collectionCards, decks, savedCubes, deck?.id]);
 
   const ownershipFor = useCallback(
     (name: string): ChangeOwnership => {
@@ -850,7 +854,7 @@ export function DeckEditorPage() {
         pickCollectionCopy(
           replacement.name,
           collectionCards,
-          buildAllocationMap(useDecksStore.getState().decks),
+          buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved),
           replacement.card.id
         )?.copyId ?? null;
       if (zone === 'sideboard') {
@@ -972,7 +976,8 @@ export function DeckEditorPage() {
       collectionCards,
       useDecksStore.getState().decks,
       deck.id,
-      slot.card.id
+      slot.card.id,
+      useCubeStore.getState().saved
     );
     if (stealable) {
       executeReallocation({
@@ -996,7 +1001,7 @@ export function DeckEditorPage() {
     const claim = pickCollectionCopy(
       slot.card.name,
       collectionCards,
-      buildAllocationMap(useDecksStore.getState().decks),
+      buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved),
       slot.card.id
     );
     if (claim) {
@@ -1028,7 +1033,13 @@ export function DeckEditorPage() {
     notify: boolean
   ): void => {
     if (!deck) return;
-    const plan = planCardAdd(card.name, card.id, collectionCards, useDecksStore.getState().decks);
+    const plan = planCardAdd(
+      card.name,
+      card.id,
+      collectionCards,
+      useDecksStore.getState().decks,
+      useCubeStore.getState().saved
+    );
     const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
     recordEdit(
       deck.id,
@@ -1110,7 +1121,10 @@ export function DeckEditorPage() {
         return;
       }
       const before = beginEdit(deck.id);
-      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const allocations = buildAllocationMap(
+        useDecksStore.getState().decks,
+        useCubeStore.getState().saved
+      );
       const claim = pickCollectionCopy(name, collectionCards, allocations, scry.id);
       // Atomic 1-for-1: never passes through a transient over/under-size state.
       swapCard(deck.id, cutSlotId, scry, claim?.copyId ?? null);
@@ -1242,7 +1256,10 @@ export function DeckEditorPage() {
         return;
       }
       const before = beginEdit(deck.id);
-      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const allocations = buildAllocationMap(
+        useDecksStore.getState().decks,
+        useCubeStore.getState().saved
+      );
       const claim = pickCollectionCopy(newName, collectionCards, allocations, scry.id);
       // Atomic swap: one state update, so no transient "card removed" deck row.
       swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
@@ -1351,7 +1368,10 @@ export function DeckEditorPage() {
         try {
           const scry = await getCardByName(addName);
           if (!scry) continue;
-          const allocations = buildAllocationMap(useDecksStore.getState().decks);
+          const allocations = buildAllocationMap(
+            useDecksStore.getState().decks,
+            useCubeStore.getState().saved
+          );
           const claim = pickCollectionCopy(addName, collectionCards, allocations, scry.id);
           swapCard(deck.id, slotId, scry, claim?.copyId ?? null);
           done += 1;
@@ -1519,7 +1539,10 @@ export function DeckEditorPage() {
     if (slot) {
       allocated = slot.allocatedCopyId ?? null;
     } else {
-      const allocations = buildAllocationMap(useDecksStore.getState().decks);
+      const allocations = buildAllocationMap(
+        useDecksStore.getState().decks,
+        useCubeStore.getState().saved
+      );
       allocated =
         pickCollectionCopy(card.name, collectionCards, allocations, card.id)?.copyId ?? null;
     }
@@ -1551,7 +1574,10 @@ export function DeckEditorPage() {
       recordEdit(deck.id, label, () => {
         // Reuse the live allocations between iterations so two adds don't try to
         // claim the same collection copy.
-        const allocations = buildAllocationMap(useDecksStore.getState().decks);
+        const allocations = buildAllocationMap(
+          useDecksStore.getState().decks,
+          useCubeStore.getState().saved
+        );
         for (let i = 0; i < delta; i++) {
           const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
           const allocatedId = claim?.copyId ?? null;
@@ -2380,7 +2406,7 @@ export function DeckEditorPage() {
       {showSharedCopies && deck && (
         <SharedCopiesSheet
           deckName={deck.name}
-          contested={listContestedCards(deck, collectionCards, decks)}
+          contested={listContestedCards(deck, collectionCards, decks, savedCubes)}
           onMove={handleMoveSharedCopy}
           onClose={() => setShowSharedCopies(false)}
         />
