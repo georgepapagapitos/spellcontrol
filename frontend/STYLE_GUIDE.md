@@ -364,7 +364,7 @@ check `matchMedia` and complete immediately under reduce (see
   (`DeckColorBalance`) and the cube color-balance bars/legend. Never hardcode a
   WUBRG hex for a new color-distribution chart — point at these so the app shows
   one palette for five colors. (The mana-font glyph pip `ColorPip` is the right
-  marker when you want the *symbol*; for a bar **fill** or a legend swatch that
+  marker when you want the _symbol_; for a bar **fill** or a legend swatch that
   must match its bar segment exactly, use the token.)
 - **No raw `px`/`rem` font sizes** — use the `--text-*` scale (`--text-xs`,
   `--text-sm`, `--text-base`, …). stylelint enforces this on `src/**/*.css`.
@@ -563,21 +563,29 @@ Collection/binder rows represent a **specific printing**, not just a card name �
 the density tiers decide which fields drop, but never the printing identity.
 
 **Printing-identity floor.** Any row that represents a specific printing carries
-the **rarity-tinted set symbol** (`components/shared/SetSymbol`, keyrune glyph
-tinted via the `--rarity-*` tokens — collector-app standard: common = muted
-text, uncommon = silver, rare = gold, mythic = orange-red) at **every viewport
+the **type glyph + accessible rarity chip + set code** at **every viewport
 width**. This is the floor that keeps two printings of the same card name from
 rendering pixel-identical (the pre-T36 compact-row bug: SET/#CN/foil all hidden
-<768px). Text tokens may drop with density; the glyph never does.
+<768px). Only the wider #CN token and badge pills drop with density.
+
+**Rarity is letter-first, not color-only.** Rarity rides as a small **C/U/R/M
+letter chip** (`components/shared/RarityBadge`, gradient-tinted with the shared
+`--rarity-*-from/to/border/text` palette). The **letter** is the signal so a
+colorblind/low-vision user can read rarity (WCAG 1.4.1); the tint reinforces.
+This **replaced** the old rarity-tinted keyrune set glyph on rows (`SetSymbol`),
+which conveyed rarity by color alone and duplicated the set code's identity
+role. `SetSymbol` lives on elsewhere (the Key, deck displays); the row identity
+is now the legible 3-char **set code** text. Rarity shows in **list, compact and
+grid** — consistently, not just where the row had room.
 
 **Per-density field budgets.** Each density has a fixed budget — add a field by
 trading one out, not by squeezing:
 
-| Density            | Fields                                                                                                                                                                                                              |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · set glyph + set code + CN · mana · qty · value                                                                                                              |
-| **Compact** (32px) | name · type glyph · set glyph · mana · qty · value — set code + CN return ≥768px; foil/deck/binder badges return ≥1024px                                                                                            |
-| **Grid** (tile)    | art + qty badge + corner deck/binder badges; a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
+| Density            | Fields                                                                                                                                                                                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value                                                                                                                                                             |
+| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px                                                                                                                                          |
+| **Grid** (tile)    | art + qty badge + corner deck/binder badges + **rarity chip** (top-right corner, every tile); a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing

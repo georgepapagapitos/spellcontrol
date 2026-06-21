@@ -5,8 +5,7 @@ import type { AllocationInfo } from '../../lib/allocations';
 import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
 import { BinderBadge } from '../BinderBadge';
-import { SetSymbol } from './SetSymbol';
-import { setSymbolTitle } from '../../lib/set-symbols';
+import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
 import { getCardType } from '../../lib/card-types';
@@ -41,8 +40,8 @@ interface CardRowProps {
 /**
  * The single card row used by the collection table and the binder list (and a
  * candidate for shared views). Owns the `.collection-list-*` visual contract —
- * thumb, name + badges, the rarity-tinted set symbol + primary-type glyph
- * "printing-identity floor", the mana-cost column, qty and price — so the two
+ * thumb, name + badges, the primary-type glyph + accessible rarity chip + set
+ * code "printing-identity floor", the mana-cost column, qty and price — so the two
  * surfaces stay consistent by construction. Interaction (preview vs. select),
  * virtualization, and the action menu stay with the caller; this is purely
  * presentational. See STYLE_GUIDE "Card row information hierarchy".
@@ -104,17 +103,10 @@ export function CardRow({
         </div>
         <div className="collection-list-meta">
           <TypeIcon type={type} label={typeLabel} className="card-list-type" />
-          <SetSymbol
-            setCode={card.setCode}
-            rarity={card.rarity}
-            title={setSymbolTitle({
-              setCode: card.setCode,
-              setName: setName ?? card.setName,
-              collectorNumber: card.collectorNumber,
-              rarity: card.rarity,
-            })}
-          />
-          <span className="card-list-set-code">{card.setCode.toUpperCase()}</span>
+          <RarityBadge rarity={card.rarity} />
+          <span className="card-list-set-code" title={setName ?? card.setName}>
+            {card.setCode.toUpperCase()}
+          </span>
           <span className="card-list-cn">#{card.collectorNumber}</span>
           {pageNum !== undefined && pageNum > 0 && (
             <span className="card-list-page" title={`Page ${pageNum}`}>
