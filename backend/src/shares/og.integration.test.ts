@@ -56,7 +56,7 @@ async function setSnapshot(
 
 async function mintShare(
   cookie: string,
-  kind: 'collection' | 'binder' | 'deck' | 'list',
+  kind: 'collection' | 'binder' | 'deck' | 'list' | 'cube',
   resourceId?: string
 ): Promise<string> {
   const body: Record<string, unknown> = { kind };
@@ -153,6 +153,20 @@ describe('lookupShareLandingMeta', () => {
     expect(meta!.title).toBe('Edric Combo — shared by og-deck');
     expect(meta!.description).toContain('A commander deck (2 cards)');
     expect(meta!.description).toContain('shared by og-deck');
+  });
+
+  it('builds cube metadata with name and card count', async () => {
+    const cookie = await makeUser('og-cube');
+    await setSnapshot(cookie, 0, {
+      cubes: [
+        { id: 'cube-1', name: 'Powered Vintage', size: 360, cube: { picks: [] }, savedAt: 1 },
+      ],
+    });
+    const token = await mintShare(cookie, 'cube', 'cube-1');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).not.toBeNull();
+    expect(meta!.title).toBe('Powered Vintage — shared by og-cube');
+    expect(meta!.description).toContain('A 360-card cube shared by og-cube');
   });
 
   it('returns null when the deck behind a share token was deleted', async () => {

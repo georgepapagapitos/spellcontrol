@@ -47,6 +47,17 @@ describe('POST /api/friends/requests', () => {
     expect(res.body.addressee.username).toBe('fr-send-bob');
   });
 
+  it('normalizes the requested username (case-insensitive) → 201', async () => {
+    const alice = await makeUser('fr-case-alice');
+    await makeUser('fr-case-bob');
+    const res = await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', alice)
+      .send({ username: '  FR-Case-Bob  ' });
+    expect(res.status).toBe(201);
+    expect(res.body.addressee.username).toBe('fr-case-bob');
+  });
+
   it('returns 400 when trying to friend yourself', async () => {
     const alice = await makeUser('fr-self');
     const res = await request(app)

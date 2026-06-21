@@ -3,7 +3,14 @@ import path from 'node:path';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { logger } from '../logger';
 import { loadShareContext } from './context';
-import { asRecord, asString, findBinderById, findDeckById, findListById } from './projections';
+import {
+  asRecord,
+  asString,
+  findBinderById,
+  findCubeById,
+  findDeckById,
+  findListById,
+} from './projections';
 
 const ORIGIN = 'https://spellcontrol.com';
 const SITE_NAME = 'SpellControl';
@@ -132,6 +139,18 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     return {
       title: `${name} — shared by ${ownerUsername}`,
       description: `A binder shared by ${ownerUsername} on ${SITE_NAME}.`,
+      url,
+    };
+  }
+  if (share.kind === 'cube') {
+    const cube = asRecord(findCubeById(data.cubes, share.resourceId));
+    if (!cube) return null;
+    const name = asString(cube.name) ?? 'Untitled cube';
+    const size = typeof cube.size === 'number' && Number.isFinite(cube.size) ? cube.size : 0;
+    const sizeText = size > 0 ? `${size}-card cube` : 'cube';
+    return {
+      title: `${name} — shared by ${ownerUsername}`,
+      description: `A ${sizeText} shared by ${ownerUsername} on ${SITE_NAME}.`,
       url,
     };
   }

@@ -1,5 +1,6 @@
 import { logger } from '../logger';
 import { Router, type Request, type Response } from 'express';
+import { requireAuth, getAdminUsernames } from '../auth';
 import { testAwareLimiter } from '../route-utils';
 import {
   ensureOracleBulkBuilding,
@@ -120,7 +121,11 @@ offlineRouter.get('/combos', bulkLimiter, async (req: Request, res: Response) =>
  * Admin-only manual refresh of the oracle bulk. The combos bulk follows the
  * existing nightly combo ingest, so no manual trigger is exposed here.
  */
-offlineRouter.post('/admin/refresh-oracle', async (_req: Request, res: Response) => {
+offlineRouter.post('/admin/refresh-oracle', requireAuth, async (req: Request, res: Response) => {
+  const admins = getAdminUsernames();
+  if (admins.size === 0 || !admins.has(req.user!.username.toLowerCase())) {
+    return res.status(403).json({ error: 'Admin access required.' });
+  }
   try {
     const bulk = await refreshOracleBulk();
     res.json({
