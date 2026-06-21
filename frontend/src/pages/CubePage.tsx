@@ -303,18 +303,22 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
   }, [uniqueNames, collectionCards, size, synergyLevel, cubeStore]);
 
   // When the store has a persisted result but enrichedMap is empty (e.g. after
-  // a tab-switch or page reload), re-fetch Scryfall data so CardPreview can
-  // show images. Mirrors the generate path.
+  // a tab-switch or page reload), re-fetch Scryfall data for the cube's own
+  // cards so the row thumbnails and CardPreview have images. We fetch the cube's
+  // PICK names (always present in the persisted result) — not the collection's
+  // `uniqueNames`, which hydrates from IDB asynchronously and, under "available
+  // only", excludes the very cards already committed to this cube.
   useEffect(() => {
     if (cube === null || enrichedMap.size > 0) return;
     let cancelled = false;
-    getCardsByNames(uniqueNames).then((enriched) => {
+    const names = [...new Set(cube.picks.map((p) => p.card.name))];
+    getCardsByNames(names).then((enriched) => {
       if (!cancelled) setEnrichedMap(enriched);
     });
     return () => {
       cancelled = true;
     };
-  }, [cube, enrichedMap.size, uniqueNames]);
+  }, [cube, enrichedMap.size]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
