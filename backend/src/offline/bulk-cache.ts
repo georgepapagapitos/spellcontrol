@@ -6,6 +6,8 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import streamArray from 'stream-json/streamers/stream-array.js';
 import type { SlimCard, SlimTokenRef } from './types';
+import { SCRYFALL_USER_AGENT } from '../scryfall';
+import { NON_PLAYABLE_LAYOUTS } from '../scryfall-bulk';
 
 /**
  * Superset of the backend's ScryfallCard type — Scryfall's oracle_cards bulk
@@ -108,7 +110,7 @@ async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }>
   // Scryfall requires a descriptive User-Agent — requests without one now get a
   // 400 (matches the header the per-import resolver in scryfall.ts already sends).
   const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
-    headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+    headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
   });
   if (!res.ok) {
     throw new Error(`Scryfall bulk index returned ${res.status}`);
@@ -118,22 +120,6 @@ async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }>
   if (!entry) throw new Error('Scryfall bulk index has no oracle_cards entry');
   return { url: entry.download_uri, updatedAt: entry.updated_at };
 }
-
-// Scryfall layouts that aren't real game pieces (art cards, tokens, emblems,
-// schemes, planes, vanguards). They carry their own oracle_id so they land in
-// the oracle_cards bulk, and many share a `name` with the real card they depict
-// (e.g. the "Arcane Signet" art card vs. the real Arcane Signet). Since the
-// offline name index is keyed by name, an art card can shadow the real card —
-// so they must never enter the offline dataset.
-const NON_PLAYABLE_LAYOUTS = new Set([
-  'art_series',
-  'token',
-  'double_faced_token',
-  'emblem',
-  'scheme',
-  'planar',
-  'vanguard',
-]);
 
 /**
  * Distill a card's token output from Scryfall's `all_parts` array: keep only the
@@ -209,7 +195,7 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
 async function buildPayload(): Promise<BulkPayload> {
   const { url, updatedAt } = await fetchOracleBulkUrl();
   logger.info('[offline] downloading Scryfall oracle bulk from', url);
-  const dlRes = await fetch(url, { headers: { 'User-Agent': 'spellcontrol/1.0' } });
+  const dlRes = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
   if (!dlRes.ok || !dlRes.body) {
     throw new Error(`Scryfall oracle bulk download returned ${dlRes.status}`);
   }

@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { testAwareLimiter } from '../route-utils';
 import { and, eq, lt } from 'drizzle-orm';
 import { requireAuth } from '../auth';
 import { getDb } from '../db';
@@ -18,13 +18,8 @@ import {
 
 export const gamesRouter: Router = Router();
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-const writeLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 300 });
-const createLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 20 });
+const writeLimiter = testAwareLimiter({ windowMs: 60_000, max: 300 });
+const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 
 const VALID_FORMATS: ReadonlyArray<GameFormat> = [
   'commander',

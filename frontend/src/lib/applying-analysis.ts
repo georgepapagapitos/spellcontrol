@@ -12,13 +12,15 @@
  * re-derived data: losing it on a cache miss is acceptable, and pushing it to
  * the server on every deck open is wasteful.
  */
-let applyingAnalysis = false;
+import { makeFlag } from './make-flag';
+
+const { get, set } = makeFlag();
 
 /** Decks subscriber checks this synchronously to skip persisting analysis writes. */
 export function isApplyingAnalysis(): boolean {
-  return applyingAnalysis;
+  return get();
 }
 
 export function setApplyingAnalysis(value: boolean): void {
-  applyingAnalysis = value;
+  set(value);
 }

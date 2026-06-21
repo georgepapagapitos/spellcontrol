@@ -7,6 +7,7 @@ import jsonParser from 'stream-json';
 import streamArray from 'stream-json/streamers/stream-array.js';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
+import { SCRYFALL_USER_AGENT } from '../scryfall';
 
 const SPELLBOOK_BULK_URL = 'https://json.commanderspellbook.com/variants.json';
 
@@ -80,7 +81,7 @@ export async function* streamSpellbookVariants(): AsyncIterable<unknown> {
   const response = await fetch(SPELLBOOK_BULK_URL, {
     headers: {
       Accept: 'application/json',
-      'User-Agent': 'spellcontrol/1.0 (combo-ingest)',
+      'User-Agent': `${SCRYFALL_USER_AGENT} (combo-ingest)`,
     },
   });
   if (!response.ok) {

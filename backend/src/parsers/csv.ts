@@ -213,7 +213,7 @@ function buildFieldMap(headers: string[]): FieldMap {
   return map;
 }
 
-function detectDelimiter(headerLine: string): string {
+export function detectDelimiter(headerLine: string): string {
   if (headerLine.includes('\t')) return '\t';
   if (headerLine.includes(';') && !headerLine.includes(',')) return ';';
   return ',';
@@ -338,7 +338,7 @@ export function parseLanguage(raw: string | undefined): string | undefined {
   return FULL[v] ?? v;
 }
 
-function parseBool(raw: string | undefined): boolean | undefined {
+export function parseBool(raw: string | undefined): boolean | undefined {
   if (raw === undefined) return undefined;
   const v = raw.toLowerCase().trim();
   if (v === '') return undefined;
