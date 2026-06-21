@@ -1,4 +1,5 @@
 import { logger } from '../logger';
+import { errorMessage } from '../error-utils';
 import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
@@ -313,7 +314,7 @@ combosRouter.post('/admin/refresh', requireAuth, async (req: Request, res: Respo
     res.json(result);
   } catch (err) {
     logger.error('[combos] admin refresh failed:', err);
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    const message = errorMessage(err);
     res.status(500).json({ error: `Refresh failed: ${message}` });
   }
 });
