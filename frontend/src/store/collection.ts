@@ -316,6 +316,16 @@ function remapBinderRefs(prevCards: EnrichedCard[], newCards: EnrichedCard[]): v
   if (result.changed) useCollectionStore.setState({ binders: result.binders });
 }
 
+/**
+ * Call both remap helpers in the correct order whenever the collection
+ * cards array changes wholesale (import / delete / restore / clear).
+ * `prev` is the cards array BEFORE the mutation; `next` is after.
+ */
+function remapCollectionDependents(prev: EnrichedCard[], next: EnrichedCard[]): void {
+  remapDeckAllocations(next);
+  remapBinderRefs(prev, next);
+}
+
 /** Open a binder from a toast action: select its tab, then route to it. */
 function openBinder(binderId: string): void {
   useCollectionStore.getState().setActiveTab(binderId);
@@ -494,12 +504,11 @@ export const useCollectionStore = create<CollectionState>()(
 
         set(stateUpdate);
 
-        remapDeckAllocations(newCards);
         // Re-resolve binder pins/exclusions from their durable key shadow. This
         // is the headline recovery path: re-uploading a CSV after a cache/sync
         // loss mints new copyIds, and this re-binds the user's pins to the
         // equivalent new copies instead of silently dropping them.
-        remapBinderRefs(existing, newCards);
+        remapCollectionDependents(existing, newCards);
 
         try {
           await saveCollection(
@@ -557,8 +566,7 @@ export const useCollectionStore = create<CollectionState>()(
             : {}),
         });
         if (remainingCards.length < s.cards.length) {
-          remapDeckAllocations(remainingCards);
-          remapBinderRefs(s.cards, remainingCards);
+          remapCollectionDependents(s.cards, remainingCards);
         }
         try {
           if (remainingCards.length === 0 && remainingHistory.length === 0) {
@@ -600,8 +608,7 @@ export const useCollectionStore = create<CollectionState>()(
         const lostCopy = s.cards.some((c) => !newCopyIds.has(c.copyId));
         set({ cards });
         if (lostCopy) {
-          remapDeckAllocations(cards);
-          remapBinderRefs(s.cards, cards);
+          remapCollectionDependents(s.cards, cards);
         }
         try {
           await saveCollection(buildStored({ ...get() }));
@@ -847,11 +854,10 @@ export const useCollectionStore = create<CollectionState>()(
           importHistory: [],
           error: null,
         });
-        remapDeckAllocations([]);
         // Empties each binder's resolved pinnedCopyIds but RETAINS the durable
         // pinnedKeys, so re-importing the same collection restores the pins
         // rather than clearing them forever.
-        remapBinderRefs(prevCards, []);
+        remapCollectionDependents(prevCards, []);
         try {
           await clearCollection();
         } catch (err) {
@@ -911,8 +917,7 @@ export const useCollectionStore = create<CollectionState>()(
           error: null,
         });
 
-        remapDeckAllocations(collection?.cards ?? []);
-        remapBinderRefs(prevCards, collection?.cards ?? []);
+        remapCollectionDependents(prevCards, collection?.cards ?? []);
 
         if (collection) {
           try {
@@ -951,8 +956,7 @@ export const useCollectionStore = create<CollectionState>()(
         // restored cards (binders keep their durable key shadow), so restoring
         // just the collection slice reproduces the prior deck/binder state —
         // same self-healing path as importCards / restoreFromBackup.
-        remapDeckAllocations(snap.cards);
-        remapBinderRefs(prevCards, snap.cards);
+        remapCollectionDependents(prevCards, snap.cards);
         try {
           if (
             snap.cards.length === 0 &&
