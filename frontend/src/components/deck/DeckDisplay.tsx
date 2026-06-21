@@ -575,15 +575,7 @@ function buildRows(
       copiesByName: crossDeck?.copiesByName,
       allocations: crossDeck?.otherDeckAllocations,
     });
-  const claimedByFor = (cardName: string): AllocationInfo | undefined => {
-    const copies = crossDeck?.copiesByName?.get(cardName.toLowerCase());
-    if (!copies || !crossDeck?.otherDeckAllocations) return undefined;
-    for (const c of copies) {
-      const info = crossDeck.otherDeckAllocations.get(c.copyId);
-      if (info) return info;
-    }
-    return undefined;
-  };
+  const claimedByFor = (cardName: string) => findClaimedBy(cardName, crossDeck ?? {});
   for (const dc of cards) {
     const card = dc.card;
     const existing = map.get(card.name);
@@ -851,6 +843,60 @@ function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
   return sorted;
 }
 
+type TypedGroup = { title: string; icon: string; rows: Row[] };
+
+// Shared impl for the claimedByFor closure inside buildRows and the
+// claimedByForName useCallback inside the component — identical logic.
+function findClaimedBy(cardName: string, ctx: CrossDeckCtx): AllocationInfo | undefined {
+  const copies = ctx.copiesByName?.get(cardName.toLowerCase());
+  if (!copies || !ctx.otherDeckAllocations) return undefined;
+  for (const c of copies) {
+    const info = ctx.otherDeckAllocations.get(c.copyId);
+    if (info) return info;
+  }
+  return undefined;
+}
+
+// Group a flat Row[] by canonical card type, optionally prepending a
+// commander group. Used for both mainboard and sideboard.
+function groupByType(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
+  const buckets = new Map<TypeGroup, Row[]>();
+  for (const row of rows) {
+    const t = classifyType(row.card);
+    const bucket = buckets.get(t) ?? [];
+    bucket.push(row);
+    buckets.set(t, bucket);
+  }
+  const ordered: TypedGroup[] = [];
+  if (commanderRows && commanderRows.length > 0) {
+    ordered.push({
+      title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
+      icon: 'commander',
+      rows: commanderRows,
+    });
+  }
+  for (const t of DISPLAY_ORDER) {
+    const r = buckets.get(t);
+    if (r && r.length > 0) ordered.push({ title: t, icon: typeIcon(t.toLowerCase()), rows: r });
+  }
+  return ordered;
+}
+
+// Filter by search query and sort each group's rows. Used for both
+// mainboard (visibleGroups) and sideboard (visibleSideboardGroups).
+function applyFilterSort(
+  groups: TypedGroup[],
+  search: string,
+  sort: SortMode,
+  sortDir: 'asc' | 'desc'
+): TypedGroup[] {
+  const q = search.trim().toLowerCase();
+  return groups.map((g) => {
+    const filtered = q ? g.rows.filter((r) => r.name.toLowerCase().includes(q)) : g.rows;
+    return { ...g, rows: sortRows(filtered, sort, sortDir) };
+  });
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 export function DeckDisplay({
   title,
@@ -1005,15 +1051,7 @@ export function DeckDisplay({
   }, [collectionByCopyId, allDecks, savedCubes, deckId]);
 
   const claimedByForName = useCallback(
-    (cardName: string): AllocationInfo | undefined => {
-      const copies = crossDeck.copiesByName?.get(cardName.toLowerCase());
-      if (!copies || !crossDeck.otherDeckAllocations) return undefined;
-      for (const c of copies) {
-        const info = crossDeck.otherDeckAllocations.get(c.copyId);
-        if (info) return info;
-      }
-      return undefined;
-    },
+    (cardName: string) => findClaimedBy(cardName, crossDeck),
     [crossDeck]
   );
 
@@ -1078,48 +1116,19 @@ export function DeckDisplay({
   ]);
 
   // Non-commander rows grouped by canonical type.
-  const groups = useMemo(() => {
-    const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
-    const buckets = new Map<TypeGroup, Row[]>();
-    for (const row of rows) {
-      const t = classifyType(row.card);
-      const bucket = buckets.get(t) ?? [];
-      bucket.push(row);
-      buckets.set(t, bucket);
-    }
-    const ordered: { title: string; icon: string; rows: Row[] }[] = [];
-    if (commanderRows.length > 0) {
-      ordered.push({
-        title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
-        icon: 'commander',
-        rows: commanderRows,
-      });
-    }
-    for (const t of DISPLAY_ORDER) {
-      const r = buckets.get(t);
-      if (r && r.length > 0) ordered.push({ title: t, icon: typeIcon(t.toLowerCase()), rows: r });
-    }
-    return ordered;
-  }, [cards, commanderRows, collectionByCopyId, crossDeck]);
+  const groups = useMemo(
+    () => groupByType(buildRows(cards, currency, collectionByCopyId, crossDeck), commanderRows),
+    [cards, commanderRows, collectionByCopyId, crossDeck]
+  );
 
   // Sideboard rows grouped by canonical type.
-  const sideboardGroups = useMemo(() => {
-    if (sideboard.length === 0) return [];
-    const rows = buildRows(sideboard, currency, collectionByCopyId, crossDeck);
-    const buckets = new Map<TypeGroup, Row[]>();
-    for (const row of rows) {
-      const t = classifyType(row.card);
-      const bucket = buckets.get(t) ?? [];
-      bucket.push(row);
-      buckets.set(t, bucket);
-    }
-    const ordered: { title: string; icon: string; rows: Row[] }[] = [];
-    for (const t of DISPLAY_ORDER) {
-      const r = buckets.get(t);
-      if (r && r.length > 0) ordered.push({ title: t, icon: typeIcon(t.toLowerCase()), rows: r });
-    }
-    return ordered;
-  }, [sideboard, collectionByCopyId, crossDeck]);
+  const sideboardGroups = useMemo(
+    () =>
+      sideboard.length === 0
+        ? []
+        : groupByType(buildRows(sideboard, currency, collectionByCopyId, crossDeck)),
+    [sideboard, collectionByCopyId, crossDeck]
+  );
 
   // Legality issues for the current format.
   const legalityIssues = useMemo(() => {
@@ -1158,21 +1167,15 @@ export function DeckDisplay({
     [cards.length, formatConfig]
   );
 
-  const visibleGroups = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return groups.map((g) => {
-      const filtered = q ? g.rows.filter((r) => r.name.toLowerCase().includes(q)) : g.rows;
-      return { ...g, rows: sortRows(filtered, sort, sortDir) };
-    });
-  }, [groups, sort, sortDir, search]);
+  const visibleGroups = useMemo(
+    () => applyFilterSort(groups, search, sort, sortDir),
+    [groups, search, sort, sortDir]
+  );
 
-  const visibleSideboardGroups = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return sideboardGroups.map((g) => {
-      const filtered = q ? g.rows.filter((r) => r.name.toLowerCase().includes(q)) : g.rows;
-      return { ...g, rows: sortRows(filtered, sort, sortDir) };
-    });
-  }, [sideboardGroups, sort, sortDir, search]);
+  const visibleSideboardGroups = useMemo(
+    () => applyFilterSort(sideboardGroups, search, sort, sortDir),
+    [sideboardGroups, search, sort, sortDir]
+  );
 
   // No card in the deck (main or sideboard) matches the current query —
   // the cue to surface the "search Scryfall to add it" trigger.
