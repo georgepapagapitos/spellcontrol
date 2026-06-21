@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { logger } from '../logger';
 import { loadShareContext } from './context';
-import { findBinderById, findDeckById, findListById } from './projections';
+import { asRecord, asString, findBinderById, findDeckById, findListById } from './projections';
 
 const ORIGIN = 'https://spellcontrol.com';
 const SITE_NAME = 'SpellControl';
@@ -65,14 +65,6 @@ export function injectShareHead(html: string, meta: ShareLandingMeta | null): st
   if (idx === -1) return html;
   const block = buildShareHeadTags(meta);
   return `${html.slice(0, idx)}    ${block}\n  ${html.slice(idx)}`;
-}
-
-function asRecord(x: unknown): Record<string, unknown> | null {
-  return x && typeof x === 'object' && !Array.isArray(x) ? (x as Record<string, unknown>) : null;
-}
-
-function asString(x: unknown): string | undefined {
-  return typeof x === 'string' && x.length > 0 ? x : undefined;
 }
 
 function countCollectionCards(collection: unknown): number {

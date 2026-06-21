@@ -1,6 +1,6 @@
 import { logger } from '../logger';
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { testAwareLimiter } from '../route-utils';
 import {
   ensureOracleBulkBuilding,
   getOracleBulkStatus,
@@ -15,10 +15,7 @@ export const offlineRouter: Router = Router();
 // Bulk downloads are large (multi-megabyte) but called rarely — once per
 // user per week typically. Keep a generous limiter to allow re-downloads
 // after a clear-and-retry without rate-limiting normal users.
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-const bulkLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 10 });
+const bulkLimiter = testAwareLimiter({ windowMs: 60_000, max: 10 });
 
 /**
  * Tell the client to retry in a few seconds rather than blocking the request

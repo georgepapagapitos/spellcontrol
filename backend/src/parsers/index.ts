@@ -1,6 +1,6 @@
 import type { ParseResult } from './types';
 import { looksLikeManabox, parseManabox } from './manabox';
-import { detectCsvFormat, parseCsvAuto } from './csv';
+import { detectCsvFormat, detectDelimiter, parseCsvAuto } from './csv';
 import { parseTextList } from './text';
 
 /**
@@ -27,11 +27,7 @@ export function parseImport(text: string): ParseResult {
   const firstLine = text.split(/\r?\n/, 1)[0] || '';
   const hasDelim = firstLine.includes(',') || firstLine.includes('\t') || firstLine.includes(';');
   if (hasDelim) {
-    const delim = firstLine.includes('\t')
-      ? '\t'
-      : firstLine.includes(';') && !firstLine.includes(',')
-        ? ';'
-        : ',';
+    const delim = detectDelimiter(firstLine);
     const headers = firstLine.split(delim).map((h) => h.trim().replace(/^"|"$/g, ''));
     const csvFormat = detectCsvFormat(headers);
     if (csvFormat) {

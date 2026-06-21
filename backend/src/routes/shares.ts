@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { testAwareLimiter } from '../route-utils';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { optionalAuth, requireAuth } from '../auth';
 import { getDb, getPool } from '../db';
@@ -28,10 +28,7 @@ import {
  */
 export const sharesRouter: Router = Router();
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-const publicLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 60 });
+const publicLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
 type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube';
 
