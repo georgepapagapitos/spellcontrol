@@ -3,6 +3,7 @@ import { getColorKey } from './colors.js';
 import { isCommanderEligible } from './commanders-core.js';
 import { parseTypeLine } from './card-types.js';
 import { normalizeForSearch } from './normalize-search.js';
+import { getFinishKey } from './sorting.js';
 
 /**
  * Pre-processed filter ready for the per-card matching hot path.
@@ -138,8 +139,7 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
     // available finishes. `card.finishes` from Scryfall lists every finish
     // a printing comes in — for most modern basics that's both nonfoil and
     // foil, which would make "Finishes IS foil" match every nonfoil basic.
-    const owned = card.finish ?? (card.foil ? 'foil' : 'nonfoil');
-    if (!setMatchesExpression([owned], f.finishes)) return false;
+    if (!setMatchesExpression([getFinishKey(card)], f.finishes)) return false;
   }
 
   if (f.layouts && !exactMatchesExpression(card.layout, f.layouts)) return false;
