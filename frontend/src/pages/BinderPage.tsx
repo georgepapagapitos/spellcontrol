@@ -30,21 +30,10 @@ import { SearchPill } from '../components/SearchPill';
 import { FilterPopover } from '../components/FilterPopover';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
+import { useStoredView } from '../lib/use-stored-view';
 import { ShareDialog } from '../components/ShareDialog';
 
 type BinderViewMode = 'pages' | 'list' | 'compact';
-
-const BINDER_VIEW_KEY = 'mtg-binder-view-mode';
-
-function readStoredBinderView(): BinderViewMode {
-  try {
-    const v = localStorage.getItem(BINDER_VIEW_KEY);
-    if (v === 'pages' || v === 'list' || v === 'compact') return v;
-  } catch {
-    /* ignore */
-  }
-  return 'pages';
-}
 
 export function BinderPage() {
   const { id: routeId } = useParams<{ id: string }>();
@@ -71,15 +60,11 @@ export function BinderPage() {
   const [cardEditorOpen, setCardEditorOpen] = useState(false);
   const [addCardSheetOpen, setAddCardSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [view, setViewRaw] = useState<BinderViewMode>(readStoredBinderView);
-  const setView = (v: BinderViewMode) => {
-    setViewRaw(v);
-    try {
-      localStorage.setItem(BINDER_VIEW_KEY, v);
-    } catch {
-      /* ignore */
-    }
-  };
+  const [view, setView] = useStoredView<BinderViewMode>(
+    'mtg-binder-view-mode',
+    ['pages', 'list', 'compact'],
+    'pages'
+  );
   const [showImages, setShowImagesRaw] = useState(() => {
     try {
       // On by default — only an explicit persisted opt-out turns it off.
