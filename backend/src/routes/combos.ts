@@ -1,7 +1,7 @@
 import { logger } from '../logger';
 import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { testAwareLimiter } from '../route-utils';
 import { desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import { requireAuth, getAdminUsernames } from '../auth';
 import { getDb } from '../db';
@@ -16,10 +16,7 @@ export const combosRouter: Router = Router();
 // that has OOM-crashed under load. Without a limiter any one authed user can
 // loop it (varying inputs to dodge the LRU cache) and 502 everyone. Disabled
 // under test so the suite can fire many matches without tripping it.
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-const matchLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 30 });
+const matchLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
 
 const MAX_OWNED_IDS = 10_000;
 const MAX_DECK_IDS = 500;

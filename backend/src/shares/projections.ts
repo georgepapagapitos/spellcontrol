@@ -165,12 +165,12 @@ export interface PublicCube {
 
 type AnyRecord = Record<string, unknown>;
 
-function asRecord(x: unknown): AnyRecord | null {
+export function asRecord(x: unknown): AnyRecord | null {
   return x && typeof x === 'object' && !Array.isArray(x) ? (x as AnyRecord) : null;
 }
 
-function asString(x: unknown): string | undefined {
-  return typeof x === 'string' ? x : undefined;
+export function asString(x: unknown): string | undefined {
+  return typeof x === 'string' && x.length > 0 ? x : undefined;
 }
 
 function asNumber(x: unknown): number | undefined {

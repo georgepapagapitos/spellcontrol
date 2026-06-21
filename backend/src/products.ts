@@ -13,6 +13,7 @@
  * products (esp. Secret Lair) can lag, and the daily refresh picks them up.
  */
 import type { MtgjsonDeckFile } from './product-map';
+import { SCRYFALL_USER_AGENT } from './scryfall';
 
 const INDEX_TTL_MS = 24 * 60 * 60 * 1000;
 const DECK_TTL_MS = 24 * 60 * 60 * 1000;
@@ -20,7 +21,7 @@ const DECK_LRU_MAX = 50;
 const SEARCH_LIMIT = 50;
 
 const MTGJSON_BASE = 'https://mtgjson.com/api/v5';
-const FETCH_HEADERS = { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' };
+const FETCH_HEADERS = { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT };
 
 /** A row of MTGJSON's `DeckList.json`. */
 interface DeckListEntry {
