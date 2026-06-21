@@ -12,6 +12,8 @@ function card(p: Partial<CubeCard>): CubeCard {
     typeLine: p.typeLine ?? 'Creature — Human',
     role: p.role ?? null,
     rank: p.rank,
+    synergyProducers: p.synergyProducers,
+    synergyPayoffs: p.synergyPayoffs,
   };
 }
 
@@ -145,6 +147,62 @@ describe('generateCube — pool smaller than size', () => {
     expect(cube.gaps.some((g) => g.severity === 'short' && /short of a 360/i.test(g.text))).toBe(
       true
     );
+  });
+});
+
+describe('generateCube — synergy slider', () => {
+  // A rich pool plus deliberately LOW-quality (high-rank) Black sacrifice cards:
+  // pure goodstuff would never pick them, so any that appear came from the axis
+  // reserve. 10 enablers + 10 payoffs = a draftable archetype.
+  function withSacrifice(): CubeCard[] {
+    const pool = richPool();
+    for (let i = 0; i < 10; i++) {
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 5000 + i, synergyProducers: ['sacrifice'] }));
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 6000 + i, synergyPayoffs: ['sacrifice'] }));
+    }
+    return pool;
+  }
+  const sacCount = (c: ReturnType<typeof generateCube>) =>
+    c.picks.filter(
+      (p) =>
+        p.card.synergyProducers?.includes('sacrifice') ||
+        p.card.synergyPayoffs?.includes('sacrifice')
+    ).length;
+
+  it('synergyLevel 0 is byte-for-byte identical to no options', () => {
+    const pool = withSacrifice();
+    const a = generateCube(pool, 360);
+    const b = generateCube(pool, 360, { synergyLevel: 0 });
+    expect(b.picks.map((p) => p.card.oracleId)).toEqual(a.picks.map((p) => p.card.oracleId));
+  });
+
+  it('pulls in more on-axis cards as synergy rises', () => {
+    const pool = withSacrifice();
+    const lo = sacCount(generateCube(pool, 360, { synergyLevel: 0 }));
+    const hi = sacCount(generateCube(pool, 360, { synergyLevel: 1 }));
+    expect(lo).toBe(0); // low-quality sacrifice cards never make a goodstuff cube
+    expect(hi).toBeGreaterThan(lo);
+  });
+
+  it('reserves an archetype across colors (enabler + payoff in different buckets)', () => {
+    const pool = richPool();
+    pool.push(card({ name: 'Outlet', colors: ['B'], rank: 9000, synergyProducers: ['sacrifice'] }));
+    pool.push(card({ name: 'Payoff', colors: ['R'], rank: 9001, synergyPayoffs: ['sacrifice'] }));
+    const cube = generateCube(pool, 360, { synergyLevel: 1 });
+    const names = cube.picks.map((p) => p.card.name);
+    expect(names).toContain('Outlet');
+    expect(names).toContain('Payoff');
+  });
+
+  it('does not force a one-sided axis (enablers with no payoff)', () => {
+    const pool = richPool();
+    // 10 sacrifice ENABLERS, zero payoffs → not draftable → no reserve.
+    for (let i = 0; i < 10; i++) {
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 5000 + i, synergyProducers: ['sacrifice'] }));
+    }
+    const cube = generateCube(pool, 360, { synergyLevel: 1 });
+    const forced = cube.picks.filter((p) => p.card.synergyProducers?.includes('sacrifice')).length;
+    expect(forced).toBe(0);
   });
 });
 
