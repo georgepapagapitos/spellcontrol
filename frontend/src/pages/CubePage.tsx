@@ -721,6 +721,8 @@ function CubeResult({
             <ul className="cube-rows">
               {items.map(({ pick: p, flatIndex }) => {
                 const own = ownershipFor(p.card.name);
+                const s = enrichedMap.get(p.card.name);
+                const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
                 return (
                   <li
                     key={p.card.oracleId || p.card.name}
@@ -731,9 +733,18 @@ function CubeResult({
                     onClick={() => setPreviewIndex(flatIndex)}
                     onKeyDown={(e) => handleKeyDown(e, flatIndex)}
                   >
-                    <span className="cube-row-name">{p.card.name}</span>
-                    <span className="cube-row-reason">{p.reason}</span>
-                    <OwnRowBadge own={own} />
+                    {img ? (
+                      <img src={img} alt="" loading="lazy" className="cube-row-thumb" />
+                    ) : (
+                      <span className="cube-row-thumb cube-row-thumb-ph" aria-hidden />
+                    )}
+                    <div className="cube-row-body">
+                      <span className="cube-row-title">
+                        <span className="cube-row-name">{p.card.name}</span>
+                        <OwnRowBadge own={own} />
+                      </span>
+                      {p.reason && <span className="cube-row-reason">{p.reason}</span>}
+                    </div>
                   </li>
                 );
               })}

@@ -42,7 +42,12 @@ const combo = (
   missingOracleIds: [`miss-${id}`],
 });
 
-const ALL_ON: SuggestionFilter = { owned: true, inOtherDeck: true, unowned: true };
+const ALL_ON: SuggestionFilter = {
+  owned: true,
+  inOtherDeck: true,
+  inCube: true,
+  unowned: true,
+};
 
 // ownershipFor backed by a name→state map; absent = unowned.
 const ownership = (m: Record<string, ChangeOwnership>) => (name: string) => m[name] ?? 'unowned';
@@ -62,13 +67,35 @@ const opts = (
 });
 
 describe('buildSuggestionRows', () => {
-  it('classifies cards into owned / in-other-deck / unowned and counts each bucket', () => {
+  it('classifies cards into owned / in-other-deck / in-cube / unowned and counts each bucket', () => {
     const { counts } = buildSuggestionRows(
-      [gap('Sol Ring', 92), gap('Cyclonic Rift', 71), gap('Rhystic Study', 69)],
+      [
+        gap('Sol Ring', 92),
+        gap('Cyclonic Rift', 71),
+        gap('Mana Crypt', 80),
+        gap('Rhystic Study', 69),
+      ],
       [],
-      opts({ ownershipFor: ownership({ 'Sol Ring': 'owned', 'Cyclonic Rift': 'in-other-deck' }) })
+      opts({
+        ownershipFor: ownership({
+          'Sol Ring': 'owned',
+          'Cyclonic Rift': 'in-other-deck',
+          'Mana Crypt': 'in-cube',
+        }),
+      })
     );
-    expect(counts).toEqual({ owned: 1, inOtherDeck: 1, unowned: 1 });
+    expect(counts).toEqual({ owned: 1, inOtherDeck: 1, inCube: 1, unowned: 1 });
+  });
+
+  it('labels a cube-committed card as in-cube (not unowned) and ranks it with in-other-deck', () => {
+    const { staples } = buildSuggestionRows(
+      [gap('Free Now', 10), gap('In Cube', 99), gap('Buy Me', 50)],
+      [],
+      opts({ ownershipFor: ownership({ 'Free Now': 'owned', 'In Cube': 'in-cube' }) })
+    );
+    // owned first, then the owned-but-committed cube card, then unowned.
+    expect(staples.map((s) => s.name)).toEqual(['Free Now', 'In Cube', 'Buy Me']);
+    expect(staples.find((s) => s.name === 'In Cube')?.ownership).toBe('in-cube');
   });
 
   it('orders staples available-first, then in-a-deck, then unowned, then by inclusion %', () => {
@@ -88,7 +115,7 @@ describe('buildSuggestionRows', () => {
       [],
       opts({
         ownershipFor: ownership({ 'Sol Ring': 'owned' }),
-        show: { owned: true, inOtherDeck: true, unowned: false },
+        show: { owned: true, inOtherDeck: true, inCube: true, unowned: false },
       })
     );
     expect(staples.map((s) => s.name)).toEqual(['Sol Ring']); // unowned hidden

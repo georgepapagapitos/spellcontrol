@@ -46,11 +46,16 @@ export type LaneId =
  * Allocation-aware ownership, evaluated at render time:
  * - `owned`         — at least one free (unallocated) copy in the collection.
  * - `in-other-deck` — owned, but every copy is claimed by another deck.
+ * - `in-cube`       — owned, but every copy is committed to a physical cube.
  * - `unowned`       — not in the collection.
  * - `undefined`     — ownership intentionally not evaluated (a cut side is
  *   ownership-blind; you remove a card regardless of whether you own it).
+ *
+ * `in-other-deck` wins over `in-cube` when copies are split across both — a deck
+ * is the more familiar, more actionable place to pull from (mirrors CubePage's
+ * `useOwnershipFor` ordering).
  */
-export type ChangeOwnership = 'owned' | 'in-other-deck' | 'unowned' | undefined;
+export type ChangeOwnership = 'owned' | 'in-other-deck' | 'in-cube' | 'unowned' | undefined;
 
 export interface Change {
   /** Stable key, survives re-sorts. cut → slotId; add → `lane:name`; swap → currentName. */
@@ -116,10 +121,10 @@ export interface Change {
   imageUrl?: string;
 }
 
-/** Sort rank: a free owned copy beats an only-in-other-deck copy beats unowned. */
+/** Sort rank: a free owned copy beats an owned-but-committed copy beats unowned. */
 function ownershipRank(o: ChangeOwnership): number {
   if (o === 'owned') return 0;
-  if (o === 'in-other-deck') return 1;
+  if (o === 'in-other-deck' || o === 'in-cube') return 1;
   return 2; // 'unowned' or undefined
 }
 
@@ -276,7 +281,7 @@ function improveSignal(c: Change): number {
   let s = 0;
   if (c.ownership === 'owned')
     s += 1000; // owned beats everything (zero-spend)
-  else if (c.ownership === 'in-other-deck') s += 500;
+  else if (c.ownership === 'in-other-deck' || c.ownership === 'in-cube') s += 500;
   if (c.isThemeSynergy || typeof c.synergy === 'number') s += 100; // load-bearing synergy
   if (c.lane === 'upgrade') s += 10; // optimizer-scored (whole-deck balanced)
   return s + (c.inclusion ?? 0); // EDHREC inclusion as the fine tiebreak
