@@ -450,6 +450,12 @@
   outline: none;
 }
 
+/* "Clear all sets" ✕ — reuses .search-pill-clear visuals; margin-left:auto
+   pins it to the pill's trailing edge regardless of chip wrapping. */
+.set-filter-clear-all {
+  margin-left: auto;
+}
+
 .set-filter-results {
   position: absolute;
   top: calc(100% + 4px);
