@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { testAwareLimiter } from '../route-utils';
 import { and, eq } from 'drizzle-orm';
 import {
   clearSessionCookie,
@@ -61,16 +61,9 @@ function nativeCallbackUrl(): string {
 }
 
 // Disable rate limiting in tests to avoid state persisting across test cases
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-const registerLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
-const loginLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
-const oauthLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
+const registerLimiter = testAwareLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
+const loginLimiter = testAwareLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
+const oauthLimiter = testAwareLimiter({ windowMs: 15 * 60 * 1000, max: 30 });
 
 export const authRouter: Router = Router();
 
