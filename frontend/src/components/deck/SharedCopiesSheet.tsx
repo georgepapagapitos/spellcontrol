@@ -1,5 +1,5 @@
 import { type JSX, useId } from 'react';
-import { X, Layers } from 'lucide-react';
+import { X, Layers, Boxes } from 'lucide-react';
 import './SharedCopiesSheet.css';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../../lib/use-escape-key';
@@ -82,8 +82,12 @@ export function SharedCopiesSheet({
                 <span className="shared-copies-row-text">
                   <span className="shared-copies-row-name">{c.cardName}</span>
                   <span className="shared-copies-row-where">
-                    <Layers width={13} height={13} strokeWidth={2} aria-hidden />
-                    You own {c.owned} · also in{' '}
+                    {c.donorKind === 'cube' ? (
+                      <Boxes width={13} height={13} strokeWidth={2} aria-hidden />
+                    ) : (
+                      <Layers width={13} height={13} strokeWidth={2} aria-hidden />
+                    )}
+                    You own {c.owned} · also in {c.donorKind === 'cube' ? 'cube' : 'deck'}{' '}
                     <span
                       className="shared-copies-row-deck"
                       style={{ ['--deck-color' as string]: c.donorDeckColor }}
