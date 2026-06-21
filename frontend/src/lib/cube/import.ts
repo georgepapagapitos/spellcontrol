@@ -9,6 +9,8 @@ export interface CubeCobraCard {
   cmc: number;
   typeLine: string;
   colors: string[];
+  /** Scryfall CDN art from CubeCobra's `details` (free in the payload); absent → row shows a placeholder. */
+  image?: string;
 }
 
 export interface ImportedCube {
@@ -61,6 +63,8 @@ interface RawCard {
     cmc?: number;
     colors?: string[];
     oracle_id?: string;
+    image_normal?: string;
+    image_small?: string;
   };
 }
 
@@ -73,6 +77,7 @@ function normalizeCard(c: RawCard): CubeCobraCard | null {
     typeLine: c.details?.type_line ?? c.details?.type ?? c.type_line ?? '',
     cmc: Number(c.details?.cmc ?? c.cmc ?? 0) || 0,
     colors: c.details?.colors ?? c.colors ?? [],
+    image: c.details?.image_small ?? c.details?.image_normal,
   };
 }
 
