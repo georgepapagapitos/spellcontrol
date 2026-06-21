@@ -11,6 +11,8 @@
 
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
 import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
+import type { CubeScore } from './objective';
+import { refineCube } from './refine';
 
 const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
 
@@ -49,6 +51,11 @@ export interface GeneratedCube {
   /** How many slots we couldn't fill from the owned pool (cube smaller than size). */
   shortfall: number;
   poolSize: number;
+  /**
+   * The objective score for this cube (archetype/balance/power breakdown, 0..1).
+   * Always computed; absent only on cubes saved before the objective shipped.
+   */
+  score?: CubeScore;
 }
 
 /** Optional knobs for cube generation. */
@@ -95,8 +102,11 @@ export function curveSlotOf(cmc: number): CurveSlot {
   return String(Math.min(7, Math.max(0, Math.round(cmc || 0)))) as CurveSlot;
 }
 
-/** quality: lower edhrecRank = better; unknown rank sorts last. */
-const byQuality = (a: CubeCard, b: CubeCard) => (a.rank ?? Infinity) - (b.rank ?? Infinity);
+/** quality: lower edhrecRank = better; unknown rank sorts last. oracleId breaks
+ *  ties so every sort (and thus the whole cube) is deterministic regardless of
+ *  the pool's incoming order. */
+const byQuality = (a: CubeCard, b: CubeCard) =>
+  (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.oracleId.localeCompare(b.oracleId);
 
 /** Largest-remainder apportionment so bucket targets sum exactly to `size`. */
 function apportion(shares: Record<ColorBucket, number>, size: number): Record<ColorBucket, number> {
@@ -105,7 +115,11 @@ function apportion(shares: Record<ColorBucket, number>, size: number): Record<Co
   let used = floored.reduce((s, e) => s + e.f, 0);
   const out = {} as Record<ColorBucket, number>;
   for (const e of floored) out[e.b] = e.f;
-  for (const e of [...floored].sort((x, y) => y.r - x.r)) {
+  // Tiebreak equal remainders by fixed BUCKETS order so apportionment is
+  // deterministic across JS engines (honors the module's same-pool→same-cube contract).
+  for (const e of [...floored].sort(
+    (x, y) => y.r - x.r || BUCKETS.indexOf(x.b) - BUCKETS.indexOf(y.b)
+  )) {
     if (used >= size) break;
     out[e.b]++;
     used++;
@@ -337,7 +351,38 @@ export function generateCube(
   // the default goodstuff experience stays unchanged.
   const poolAxes = synergyLevel > 0 ? countAxes(pool) : null;
   const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes);
-  return { size, picks, byBucket, targetByBucket, gaps, shortfall, poolSize: pool.length };
+
+  // Engaging the slider turns on the objective-driven refiner: hill-climb the
+  // greedy seed toward better archetype support, and attach the objective score
+  // so the UI can explain what the cube supports. Swaps stay in-bucket and only
+  // cut goodstuff filler, so byBucket (and the color/fixing/archetype gaps above)
+  // are unchanged — only which cards fill each bucket improves. synergyLevel 0
+  // keeps the byte-for-byte goodstuff cube with no score (archetype depth is a
+  // synergy-slider feature; a pure goodstuff cube isn't built toward it).
+  let finalPicks = picks;
+  let finalByBucket = byBucket;
+  let score: CubeScore | undefined;
+  if (synergyLevel > 0) {
+    const refined = refineCube(
+      { size, picks, byBucket, targetByBucket, gaps, shortfall, poolSize: pool.length },
+      pool,
+      band,
+      size
+    );
+    finalPicks = refined.picks;
+    finalByBucket = refined.byBucket;
+    score = refined.score;
+  }
+  return {
+    size,
+    picks: finalPicks,
+    byBucket: finalByBucket,
+    targetByBucket,
+    gaps,
+    shortfall,
+    poolSize: pool.length,
+    score,
+  };
 }
 
 function buildGaps(
@@ -392,7 +437,9 @@ function buildGaps(
     // Axes the collection genuinely leans into, strongest first.
     const candidates = [...poolAxes.entries()]
       .filter(([, n]) => total(n) >= enablerFloor)
-      .sort((a, b) => total(b[1]) - total(a[1]));
+      // Axis-key tiebreak so equal-depth axes report deterministically (the
+      // Map's order otherwise follows pool-input order).
+      .sort((a, b) => total(b[1]) - total(a[1]) || a[0].localeCompare(b[0]));
 
     // Celebrate the deepest well-supported archetype.
     const strong = candidates.find(

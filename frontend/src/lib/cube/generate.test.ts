@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateCube, bucketOf, curveSlotOf, CubeCard } from './generate';
 import { targetsForSize } from './targets';
+import { scoreCube } from './objective';
 
 let id = 0;
 function card(p: Partial<CubeCard>): CubeCard {
@@ -235,6 +236,54 @@ describe('generateCube — archetype gaps', () => {
   it('flags a thin archetype below the draftable floor', () => {
     const cube = generateCube(addSac(richPool(), 8, 8), 360, { synergyLevel: 1 });
     expect(hasGap(cube, 'short', /Sacrifice.*thin for a draftable archetype/i)).toBe(true);
+  });
+});
+
+describe('generateCube — objective score + refiner', () => {
+  // Deliberately LOW-quality (high-rank) Black sacrifice cards: goodstuff would
+  // never pick them, so any depth in the cube came from the reserve + refiner.
+  function withSacrifice(): CubeCard[] {
+    const pool = richPool();
+    for (let i = 0; i < 12; i++) {
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 5000 + i, synergyProducers: ['sacrifice'] }));
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 6000 + i, synergyPayoffs: ['sacrifice'] }));
+    }
+    return pool;
+  }
+
+  it('attaches a bounded objective score when synergy is engaged', () => {
+    const cube = generateCube(withSacrifice(), 360, { synergyLevel: 1 });
+    expect(cube.score).toBeDefined();
+    expect(cube.score!.total).toBeGreaterThan(0);
+    expect(cube.score!.total).toBeLessThanOrEqual(1);
+  });
+
+  it('attaches no score at synergyLevel 0 (archetype depth is a slider feature)', () => {
+    expect(generateCube(withSacrifice(), 360).score).toBeUndefined();
+  });
+
+  it('synergyLevel 0 does not refine — picks are byte-for-byte the greedy cube', () => {
+    // Build the score independently and confirm the picks are exactly the
+    // goodstuff selection (no swaps happened at level 0).
+    const pool = withSacrifice();
+    const a = generateCube(pool, 360);
+    const b = generateCube(pool, 360, { synergyLevel: 0 });
+    expect(b.picks.map((p) => p.card.oracleId)).toEqual(a.picks.map((p) => p.card.oracleId));
+  });
+
+  it('refining (synergyLevel > 0) scores at least as high as the un-refined seed', () => {
+    const pool = withSacrifice();
+    const band = targetsForSize(360);
+    const seedScore = scoreCube(generateCube(pool, 360).picks, pool, band, 360).total;
+    const refined = generateCube(pool, 360, { synergyLevel: 1 });
+    expect(refined.score!.total).toBeGreaterThanOrEqual(seedScore);
+  });
+
+  it('is deterministic under refinement (same pool + size → identical cube)', () => {
+    const pool = withSacrifice();
+    const a = generateCube(pool, 360, { synergyLevel: 1 });
+    const b = generateCube(pool, 360, { synergyLevel: 1 });
+    expect(a.picks.map((p) => p.card.oracleId)).toEqual(b.picks.map((p) => p.card.oracleId));
   });
 });
 
