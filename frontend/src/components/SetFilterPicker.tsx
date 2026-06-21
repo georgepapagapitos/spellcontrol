@@ -149,6 +149,22 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
           aria-expanded={open}
           role="combobox"
         />
+        {value.size > 0 && (
+          <button
+            type="button"
+            className="search-pill-clear set-filter-clear-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(new Set());
+              setQuery('');
+              inputRef.current?.focus();
+            }}
+            aria-label="Clear all sets"
+            title="Clear all sets"
+          >
+            ×
+          </button>
+        )}
       </div>
       {open && matches.length > 0 && (
         <ul className="set-filter-results" role="listbox">
