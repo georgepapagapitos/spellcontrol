@@ -122,8 +122,7 @@ export function finishRank(card: EnrichedCard, ctx?: SortContext): number {
 
 /** Key used to group physical copies of the same printing (scryfallId + finish). */
 export function printingKey(card: EnrichedCard): string {
-  const finish = card.finish ?? (card.foil ? 'foil' : 'nonfoil');
-  return `${card.scryfallId}|${finish}`;
+  return `${card.scryfallId}|${getFinishKey(card)}`;
 }
 
 /** Build a count of physical copies per printing key. */

@@ -64,3 +64,15 @@ export const COLOR_INFO: Record<string, ColorInfo> = {
 };
 
 export const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G', 'M', 'C', 'L', '?'];
+
+/**
+ * Map a color-identity array (e.g. ['G', 'U']) to the canonical color key
+ * used across the app: single-color → that letter, empty → 'C' (colorless),
+ * multiple → 'M' (multicolor). Does NOT resolve land bucketing — use
+ * `getColorKey(card)` when you have a full EnrichedCard.
+ */
+export function getColorKeyFromIdentity(colorIdentity: string[]): string {
+  if (colorIdentity.length === 0) return 'C';
+  if (colorIdentity.length === 1) return colorIdentity[0];
+  return 'M';
+}
