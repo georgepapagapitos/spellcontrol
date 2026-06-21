@@ -26,6 +26,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
 import { CUBE_SIZES, CubeSize, SIZE_INFO, ColorBucket, provenance } from '../lib/cube/targets';
 import { generateCube, GeneratedCube, CubeCard } from '../lib/cube/generate';
+import { synergyTags } from '../lib/cube/synergy-tags';
 import { toCubeCobraList } from '../lib/cube/format';
 import {
   fetchCubeCobraCube,
@@ -249,6 +250,7 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
           typeLine: s?.type_line ?? card?.typeLine ?? '',
           role: getCardRole(name),
           rank: s?.edhrec_rank ?? card?.edhrecRank,
+          ...synergyTags(s ?? { name }),
         };
       });
       const newCube = generateCube(pool, size);
@@ -952,6 +954,7 @@ function CollabCube() {
           typeLine: s?.type_line ?? card?.typeLine ?? '',
           role: getCardRole(name),
           rank: s?.edhrec_rank ?? card?.edhrecRank,
+          ...synergyTags(s ?? { name }),
         };
       });
 

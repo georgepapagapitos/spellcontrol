@@ -10,6 +10,7 @@
 // into CubeCard[]; this module does the selection and the explanation.
 
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
+import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
 export interface CubeCard {
   name: string;
@@ -19,6 +20,8 @@ export interface CubeCard {
   typeLine: string;
   role: Role | null; // precomputed via the shared tagger
   rank?: number; // edhrecRank — lower is more-played; undefined = unknown
+  synergyProducers?: AxisKey[]; // archetype axes this card enables (see synergy-tags)
+  synergyPayoffs?: AxisKey[]; // archetype axes this card pays off
 }
 
 /** One selected card plus the slot it was picked to fill (the "why"). */
