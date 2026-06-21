@@ -8,13 +8,15 @@
  * rows into the stores; subscribers checking it synchronously then correctly
  * skip re-persisting (and re-pushing) data we just received.
  */
-let applyingServer = false;
+import { makeFlag } from './make-flag';
+
+const { get, set } = makeFlag();
 
 /** Subscribers in collection.ts / decks.ts / play.ts check this synchronously. */
 export function isApplyingServer(): boolean {
-  return applyingServer;
+  return get();
 }
 
 export function setApplyingServer(value: boolean): void {
-  applyingServer = value;
+  set(value);
 }
