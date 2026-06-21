@@ -847,6 +847,13 @@ export function DeckEditorPage() {
     outcome: DonorOutcome,
     replacement: { name: string; card: ScryfallCard } | null
   ): void => {
+    // Cube donors never route here — a cube is freed via releaseCubePick (no slot,
+    // leave-gap only). Guard so a future cube-outbound path can't silently no-op.
+    if (zone === 'cube') {
+      if (import.meta.env.DEV)
+        throw new Error('[applyDonorOutcome] cube zone must use releaseCubePick');
+      return;
+    }
     if (zone === 'commander') return void setCommander(donorDeckId, donorCard, null);
     if (zone === 'partner') return void setPartnerCommander(donorDeckId, donorCard, null);
     if (!slotId) return;
@@ -890,6 +897,9 @@ export function DeckEditorPage() {
   // atomically restores both decks.
   const executeReallocation = (opts: {
     donorDeckId: string;
+    /** Set when the donor is a physical cube (instead of a deck) — snapshot the
+     *  cube so Undo restores the released pick atomically alongside the deck. */
+    donorCubeId?: string;
     recipientDeckId: string;
     recipientApply: () => void;
     donorApply: () => void;
@@ -901,8 +911,22 @@ export function DeckEditorPage() {
       opts.recipientDeckId === opts.donorDeckId
         ? null
         : (decksNow.find((d) => d.id === opts.recipientDeckId) ?? null);
-    opts.recipientApply();
-    opts.donorApply();
+    const snapCube = opts.donorCubeId
+      ? (useCubeStore.getState().saved.find((c) => c.id === opts.donorCubeId) ?? null)
+      : null;
+    // Ordering matters for crash-safety. A cube steal writes two different entity
+    // rows (cube + deck) with no cross-entity dedupe heal, so RELEASE from the cube
+    // first: a crash between the two writes then leaves the copy FREE (re-bindable),
+    // never double-claimed. The deck→deck path keeps recipient-first because its
+    // `replace` donor outcome must pick a free copy AFTER the moved copy is still
+    // claimed (reversing it would let the replacement grab the copy being moved).
+    if (opts.donorCubeId) {
+      opts.donorApply();
+      opts.recipientApply();
+    } else {
+      opts.recipientApply();
+      opts.donorApply();
+    }
     pushToast({
       message: opts.label,
       tone: 'success',
@@ -910,6 +934,8 @@ export function DeckEditorPage() {
       onAction: () => {
         if (snapDonor) replaceDeck(opts.donorDeckId, snapDonor);
         if (snapRecipient) replaceDeck(opts.recipientDeckId, snapRecipient);
+        // Restore the cube's pre-release picks (re-binds the freed copy).
+        if (snapCube) useCubeStore.getState().updateSaved(snapCube.id, { picks: snapCube.picks });
       },
     });
   };
@@ -968,11 +994,12 @@ export function DeckEditorPage() {
   };
 
   // Pull an owned copy of a slot's card into THIS deck from whichever other deck
-  // holds it, leaving that deck a gap (it keeps the card listed, now shown
-  // "In [this deck]"). One atomic Undo restores both. The explicit "Move here…" /
-  // "Use my copy" click IS the conscious choice — we don't pop a second sheet; the
-  // donor always gets leave-gap. (Replace/remove live in the outbound "Move to
-  // another deck" flow.) Keyed by slotId so duplicate-name rows are exact.
+  // OR physical cube holds it, leaving that donor a gap (it keeps the card
+  // listed, now shown "In [this deck]"). One atomic Undo restores both. The
+  // explicit "Move here…" / "Use my copy" click IS the conscious choice — we
+  // don't pop a second sheet; the donor always gets leave-gap. (Replace/remove
+  // live in the outbound "Move to another deck" flow; a cube only ever leaves a
+  // gap.) Keyed by slotId so duplicate-name rows are exact.
   const handleMoveSharedCopy = (slotId: string): void => {
     if (!deck) return;
     const slot = deck.cards.find((c) => c.slotId === slotId);
@@ -986,19 +1013,23 @@ export function DeckEditorPage() {
       useCubeStore.getState().saved
     );
     if (stealable) {
+      const fromCube = stealable.donorKind === 'cube';
       executeReallocation({
         donorDeckId: stealable.donorDeckId,
+        donorCubeId: fromCube ? stealable.donorId : undefined,
         recipientDeckId: deck.id,
         recipientApply: () => setCardAllocation(deck.id, slotId, stealable.copyId),
         donorApply: () =>
-          applyDonorOutcome(
-            stealable.donorDeckId,
-            stealable.donorZone,
-            stealable.donorSlotId,
-            stealable.donorCard,
-            'leave-gap',
-            null
-          ),
+          fromCube
+            ? useCubeStore.getState().releaseCubePick(stealable.donorId, stealable.copyId)
+            : applyDonorOutcome(
+                stealable.donorDeckId,
+                stealable.donorZone,
+                stealable.donorSlotId,
+                stealable.donorCard!,
+                'leave-gap',
+                null
+              ),
         label: `Moved ${slot.card.name} here from ${stealable.donorDeckName}`,
       });
       return;

@@ -515,7 +515,8 @@ describe('findStealableCopy', () => {
       donorZone: 'main',
       donorSlotId: 'slot-x',
     });
-    expect(res?.donorCard.name).toBe('Sol Ring');
+    expect(res?.donorKind).toBe('deck');
+    expect(res?.donorCard?.name).toBe('Sol Ring');
   });
 
   it('locates a copy held as another deck commander', () => {
@@ -650,6 +651,7 @@ describe('listContestedCards', () => {
       {
         slotId: 's1',
         cardName: 'Sol Ring',
+        donorKind: 'deck',
         donorDeckName: 'Morcant',
         donorDeckColor: '#abc',
         owned: 1,
@@ -780,16 +782,60 @@ describe('buildAllocationMap with physical cubes', () => {
     expect(buildAllocationMap([d]).get('c1')?.ownerKind).toBe('deck');
   });
 
-  it('does not let a deck steal a copy held by a physical cube', () => {
+  it('lets a deck steal a copy held by a physical cube (leave-gap cube donor)', () => {
     const collection = [card({ copyId: 'copy-x', name: 'Sol Ring' })];
     const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] });
-    // The only copy is committed to a cube → no free copy AND cube isn't stealable.
+    // The only copy is committed to a cube → no free copy, but a cube copy is now
+    // consciously pullable as a leave-gap (released by copyId, no slot).
+    const res = findStealableCopy('Sol Ring', collection, [], 'd-target', undefined, [cube]);
+    expect(res).toMatchObject({
+      copyId: 'copy-x',
+      donorKind: 'cube',
+      donorId: 'cube-1',
+      donorDeckId: '', // legacy alias '' → "is it in THIS deck" checks treat it elsewhere
+      donorDeckName: 'My Cube',
+      donorZone: 'cube',
+      donorSlotId: null,
+    });
+    expect(res?.donorCard).toBeUndefined(); // cube donor carries no card payload
+  });
+
+  it('prefers a free copy over pulling from a physical cube', () => {
+    const collection = [
+      card({ copyId: 'in-cube', name: 'Sol Ring' }),
+      card({ copyId: 'free', name: 'Sol Ring' }),
+    ];
+    const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'in-cube')] });
+    // A free copy exists → no steal needed at all.
     expect(findStealableCopy('Sol Ring', collection, [], 'd-target', undefined, [cube])).toBeNull();
+  });
+
+  it('ignores a non-physical cube as a donor', () => {
+    const collection = [card({ copyId: 'copy-x', name: 'Sol Ring' })];
+    const cube = savedCube({ isPhysical: false, picks: [cubeSlot('Sol Ring', 'copy-x')] });
+    // A draft (non-physical) cube claims nothing → the copy reads as free → no steal.
+    expect(findStealableCopy('Sol Ring', collection, [], 'd-target', undefined, [cube])).toBeNull();
+  });
+
+  it('lists a cube-committed card as contested with a cube donor', () => {
+    const collection = [card({ copyId: 'copy-x', name: 'Sol Ring' })];
+    const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] });
+    const current = deck({
+      id: 'd1',
+      cards: [
+        { slotId: 's1', card: { name: 'Sol Ring', id: 'sf-1' } as never, allocatedCopyId: null },
+      ],
+    });
+    const contested = listContestedCards(current, collection, [current], [cube]);
+    expect(contested).toMatchObject([
+      { slotId: 's1', cardName: 'Sol Ring', donorKind: 'cube', donorDeckName: 'My Cube', owned: 1 },
+    ]);
   });
 
   it('planCardAdd lists (not binds) when the only copy is in a physical cube', () => {
     const collection = [card({ copyId: 'copy-x', name: 'Sol Ring' })];
     const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] });
+    // An add never steals — it only binds free copies; a cube-only card stays listed.
     expect(planCardAdd('Sol Ring', undefined, collection, [], [cube]).kind).toBe('list');
   });
 });

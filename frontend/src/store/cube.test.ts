@@ -118,6 +118,67 @@ describe('useCubeStore — saved cubes', () => {
     expect(useCubeStore.getState().saved).toHaveLength(0);
   });
 
+  it('releaseCubePick nulls the matching pick (leave-gap) and leaves others intact', () => {
+    useCubeStore.setState({
+      saved: [
+        {
+          id: 'cube-1',
+          name: 'Physical',
+          size: 360,
+          cube: makeCube(360),
+          isPhysical: true,
+          savedAt: 0,
+          picks: [
+            {
+              slotId: '0',
+              card: { name: 'Sol Ring' } as never,
+              allocatedCopyId: 'copy-a',
+              printingFinishKey: 'sf-1:nonfoil',
+            },
+            {
+              slotId: '1',
+              card: { name: 'Arcane Signet' } as never,
+              allocatedCopyId: 'copy-b',
+              printingFinishKey: 'sf-2:nonfoil',
+            },
+          ],
+        },
+      ],
+    });
+    useCubeStore.getState().releaseCubePick('cube-1', 'copy-a');
+    const picks = useCubeStore.getState().saved[0].picks;
+    // The released pick keeps its card but drops the copy + printing shadow.
+    expect(picks[0]).toMatchObject({ allocatedCopyId: null, printingFinishKey: null });
+    expect(picks[0].card.name).toBe('Sol Ring');
+    // The sibling pick is untouched.
+    expect(picks[1].allocatedCopyId).toBe('copy-b');
+  });
+
+  it('releaseCubePick is a no-op when no pick holds the copy', () => {
+    useCubeStore.setState({
+      saved: [
+        {
+          id: 'cube-1',
+          name: 'Physical',
+          size: 360,
+          cube: makeCube(360),
+          isPhysical: true,
+          savedAt: 0,
+          picks: [
+            {
+              slotId: '0',
+              card: { name: 'Sol Ring' } as never,
+              allocatedCopyId: 'copy-a',
+              printingFinishKey: 'sf-1:nonfoil',
+            },
+          ],
+        },
+      ],
+    });
+    useCubeStore.getState().releaseCubePick('cube-1', 'nonexistent');
+    expect(useCubeStore.getState().saved[0].picks[0].allocatedCopyId).toBe('copy-a');
+  });
+
   it('reset wipes both the working result and every saved cube (logout)', () => {
     useCubeStore.getState().setResult(360, makeCube(360));
     useCubeStore.getState().saveCurrent('Gone on logout');

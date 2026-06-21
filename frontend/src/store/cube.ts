@@ -70,6 +70,11 @@ interface CubeState {
   /** Toggle a saved cube's physical flag. Pass the freshly-bound `picks` when
    *  turning ON (claims copies); pass `[]` when turning OFF (releases them). */
   setPhysical: (id: string, isPhysical: boolean, picks: CubePickSlot[]) => void;
+  /** Release one bound pick (by the collection copy it holds) so a deck can pull
+   *  that copy out of a physical cube — a conscious leave-gap. Nulls the pick's
+   *  `allocatedCopyId` + `printingFinishKey`; the pick stays listed (the cube
+   *  just loses one physical slot). No-op if no pick holds `copyId`. */
+  releaseCubePick: (cubeId: string, copyId: string) => void;
   /** Low-level patch of a saved cube (used by remap-on-reimport to rebind picks). */
   updateSaved: (id: string, patch: Partial<SavedCube>) => void;
   /** Full wipe (logout) — drops the working result AND every saved cube. */
@@ -130,6 +135,21 @@ export const useCubeStore = create<CubeState>()(
         set((s) => ({
           saved: s.saved.map((c) =>
             c.id === id ? { ...c, isPhysical, picks: isPhysical ? picks : [] } : c
+          ),
+        })),
+      releaseCubePick: (cubeId, copyId) =>
+        set((s) => ({
+          saved: s.saved.map((c) =>
+            c.id === cubeId
+              ? {
+                  ...c,
+                  picks: c.picks.map((p) =>
+                    p.allocatedCopyId === copyId
+                      ? { ...p, allocatedCopyId: null, printingFinishKey: null }
+                      : p
+                  ),
+                }
+              : c
           ),
         })),
       updateSaved: (id, patch) =>
