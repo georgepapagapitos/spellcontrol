@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { Boxes, Pencil, Share2, Trash2 } from 'lucide-react';
 import './CubePage.css';
 import { ShareDialog } from '../components/ShareDialog';
@@ -122,6 +122,9 @@ function OwnRowBadge({ own }: { own: Ownership }) {
 }
 
 export function CubePage() {
+  // `/collection/cube/:id` deep-links a specific saved cube — it lives in the
+  // build tab's "My cubes" list, so a deep-link always lands on build mode.
+  const { id: deepLinkId } = useParams();
   const [mode, setMode] = useState<'build' | 'import' | 'collaborate'>('build');
   return (
     <div className="cube-page">
@@ -149,7 +152,13 @@ export function CubePage() {
         aria-labelledby={`sc-tab-${mode}`}
         className="cube-panel"
       >
-        {mode === 'build' ? <BuildCube /> : mode === 'import' ? <ImportCube /> : <CollabCube />}
+        {mode === 'build' ? (
+          <BuildCube highlightId={deepLinkId} />
+        ) : mode === 'import' ? (
+          <ImportCube />
+        ) : (
+          <CollabCube />
+        )}
       </div>
     </div>
   );
@@ -159,7 +168,7 @@ export function CubePage() {
 // Build mode
 // ---------------------------------------------------------------------------
 
-function BuildCube() {
+function BuildCube({ highlightId }: { highlightId?: string }) {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
@@ -284,6 +293,29 @@ function BuildCube() {
     setSize(sc.size);
     setStatus('done');
   };
+
+  // Deep-link (`/collection/cube/:id`): once the saved list has hydrated, load
+  // the matching cube and scroll its row into view. Handled once per id (a ref
+  // gate) so an unrelated `saved` change doesn't re-load or yank scroll; we wait
+  // for `saved` to populate because sync hydrates it asynchronously after mount.
+  const deepLinkHandled = useRef<string | null>(null);
+  useEffect(() => {
+    if (!highlightId || deepLinkHandled.current === highlightId) return;
+    const target = saved.find((c) => c.id === highlightId);
+    if (!target) return; // not hydrated yet — re-runs when `saved` populates
+    deepLinkHandled.current = highlightId;
+    // Load + scroll on the next frame (off the effect's synchronous path): load
+    // the cube into the working view, then bring its row into focus.
+    requestAnimationFrame(() => {
+      handleLoad(target);
+      document
+        .getElementById(`cube-saved-${target.id}`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    // Key only on the id + the hydrated list so a content edit elsewhere doesn't
+    // retrigger; handleLoad is recreated each render but the ref gate guards it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, saved]);
   const handleRename = (name: string) => {
     if (renameTarget) cubeStore.renameSaved(renameTarget.id, name);
     setRenameTarget(null);
@@ -361,7 +393,7 @@ function BuildCube() {
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
         <label
           className="field-checkbox cube-available-toggle"
-          title="When on, cards whose only copies are already committed to a deck are left out — a cube you can physically pull. Turn off to draw from everything you own."
+          title="When on, cards whose only copies are already committed to a deck or another physical cube are left out — a cube you can physically pull. Turn off to draw from everything you own."
         >
           <input
             type="checkbox"
@@ -383,7 +415,7 @@ function BuildCube() {
             <>
               {uniqueNames.length.toLocaleString()} available cards
               {committedCount > 0 && (
-                <> · {committedCount.toLocaleString()} committed to a deck (hidden)</>
+                <> · {committedCount.toLocaleString()} committed to a deck or cube (hidden)</>
               )}
             </>
           ) : (
@@ -397,7 +429,12 @@ function BuildCube() {
           <h3 className="cube-saved-head">My cubes</h3>
           <ul className="cube-saved-list">
             {saved.map((sc) => (
-              <li key={sc.id} className="cube-saved-row">
+              <li
+                key={sc.id}
+                id={`cube-saved-${sc.id}`}
+                className={`cube-saved-row${sc.id === highlightId ? ' cube-saved-row--target' : ''}`}
+                aria-current={sc.id === highlightId ? 'true' : undefined}
+              >
                 <button type="button" className="cube-saved-load" onClick={() => handleLoad(sc)}>
                   <span className="cube-saved-name">{sc.name}</span>
                   <span className="cube-saved-meta">
@@ -1122,7 +1159,7 @@ function CollabCube() {
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
         <label
           className="field-checkbox cube-available-toggle"
-          title="When on, your cards whose only copies are committed to a deck are left out. Friends' cards are always included."
+          title="When on, your cards whose only copies are committed to a deck or physical cube are left out. Friends' cards are always included."
         >
           <input
             type="checkbox"

@@ -726,7 +726,11 @@ function Cell({
       )}
       {allocation && (
         <Link
-          to={allocation.ownerKind === 'cube' ? '/collection/cube' : `/decks/${allocation.ownerId}`}
+          to={
+            allocation.ownerKind === 'cube'
+              ? `/collection/cube/${allocation.ownerId}`
+              : `/decks/${allocation.ownerId}`
+          }
           className="slot-deck-badge"
           style={
             {
