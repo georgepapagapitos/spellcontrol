@@ -165,11 +165,11 @@ function BuildCube() {
   // gap between them is how many cards are fully committed elsewhere and hidden
   // when "Available cards only" is on.
   const { availableNames, committedCount } = useMemo(() => {
-    const avail = buildAvailableCollection(collectionCards, decks);
+    const avail = buildAvailableCollection(collectionCards, decks, saved);
     const owned = new Set<string>();
     for (const c of collectionCards) if (c.name) owned.add(c.name);
     return { availableNames: avail.names, committedCount: owned.size - avail.names.size };
-  }, [collectionCards, decks]);
+  }, [collectionCards, decks, saved]);
 
   const uniqueNames = useMemo(() => {
     if (availableOnly) return [...availableNames];
@@ -737,11 +737,13 @@ function CollabCube() {
   };
 
   const myUniqueNames = useMemo(() => {
-    if (availableOnly) return [...buildAvailableCollection(collectionCards, decks).names];
+    if (availableOnly) {
+      return [...buildAvailableCollection(collectionCards, decks, cubeStore.saved).names];
+    }
     const set = new Set<string>();
     for (const c of collectionCards) if (c.name) set.add(c.name);
     return [...set];
-  }, [availableOnly, collectionCards, decks]);
+  }, [availableOnly, collectionCards, decks, cubeStore.saved]);
 
   const generate = useCallback(async () => {
     if (selectedIds.size === 0) return;

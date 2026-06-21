@@ -1,7 +1,12 @@
 import { useCallback } from 'react';
 import { useDecksStore, newDeckCard, type DeckSource, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
-import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from './allocations';
+import {
+  buildAllocationMap,
+  pickCollectionCopy,
+  makeDeckAllocationInfo,
+  type AllocationInfo,
+} from './allocations';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import type { DeckImportResponse, EnrichedCard } from '../types';
 import type { Deck } from '../store/decks';
@@ -40,12 +45,8 @@ export interface BuiltDeckInput {
   sourceProduct?: SourceProduct;
 }
 
-const pendingClaim = (cardName: string): AllocationInfo => ({
-  deckId: '__pending__',
-  deckName: '__pending__',
-  deckColor: '',
-  cardName,
-});
+const pendingClaim = (cardName: string): AllocationInfo =>
+  makeDeckAllocationInfo('__pending__', '__pending__', '', cardName);
 
 /**
  * Pure core: builds the fully-allocated `createDeck` input from a resolved

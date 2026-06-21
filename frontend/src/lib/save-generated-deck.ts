@@ -2,7 +2,12 @@ import type { ScryfallCard, GeneratedDeck, DeckCategory, ThemeResult } from '@/d
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore, newDeckCard } from '../store/decks';
-import { buildAllocationMap, pickCollectionCopy, type AllocationInfo } from './allocations';
+import {
+  buildAllocationMap,
+  pickCollectionCopy,
+  makeDeckAllocationInfo,
+  type AllocationInfo,
+} from './allocations';
 import { assembleBuildReport } from '@/deck-builder/services/deckBuilder/buildReport';
 
 /**
@@ -29,12 +34,7 @@ export function saveGeneratedDeck(
     // falls back to "cheapest same-name" and ignores intent.
     const pick = pickCollectionCopy(card.name, collection, claimed, card.id);
     if (!pick) return null;
-    claimed.set(pick.copyId, {
-      deckId: '__pending__',
-      deckName: '__pending__',
-      deckColor: '',
-      cardName: card.name,
-    });
+    claimed.set(pick.copyId, makeDeckAllocationInfo('__pending__', '__pending__', '', card.name));
     return pick.copyId;
   };
 

@@ -1,4 +1,5 @@
 import type { Deck } from '../store/decks';
+import type { SavedCube } from '../store/cube';
 import type { EnrichedCard } from '../types';
 import { buildAllocationMap, isBasicLandName } from './allocations';
 
@@ -24,9 +25,10 @@ export interface BasicPrintingAvail {
  */
 export function buildBasicPrintingAvailability(
   collection: EnrichedCard[],
-  decks: Deck[]
+  decks: Deck[],
+  physicalCubes?: SavedCube[]
 ): Map<string, BasicPrintingAvail[]> {
-  const claimed = buildAllocationMap(decks);
+  const claimed = buildAllocationMap(decks, physicalCubes);
   const byName = new Map<string, Map<string, BasicPrintingAvail>>();
   for (const c of collection) {
     if (!isBasicLandName(c.name) || claimed.has(c.copyId)) continue;
@@ -78,9 +80,10 @@ export function planBasicPrintings(
 
 export function buildAvailableCollection(
   collection: EnrichedCard[],
-  decks: Deck[]
+  decks: Deck[],
+  physicalCubes?: SavedCube[]
 ): AvailableCollection {
-  const claimed = buildAllocationMap(decks);
+  const claimed = buildAllocationMap(decks, physicalCubes);
   const names = new Set<string>();
   const counts = new Map<string, number>();
 

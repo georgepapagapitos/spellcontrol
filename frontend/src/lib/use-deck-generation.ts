@@ -8,6 +8,7 @@ import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator'
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { useCubeStore } from '../store/cube';
 import { saveGeneratedDeck } from './save-generated-deck';
 import {
   buildAvailableCollection,
@@ -47,6 +48,7 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
 
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
+  const savedCubes = useCubeStore((s) => s.saved);
   const createDeck = useDecksStore((s) => s.createDeck);
 
   const [progress, setProgress] = useState<{ message: string; percent: number } | null>(null);
@@ -151,9 +153,13 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
       // mode; based on free copies so we never stamp a printing they can't supply).
       let collectionBasicPrintings: Map<string, BasicPrintingAvail[]> | undefined;
       if (customization.collectionMode) {
-        collectionBasicPrintings = buildBasicPrintingAvailability(collectionCards, decks);
+        collectionBasicPrintings = buildBasicPrintingAvailability(
+          collectionCards,
+          decks,
+          savedCubes
+        );
         if (customization.collectionStrategy === 'available') {
-          const available = buildAvailableCollection(collectionCards, decks);
+          const available = buildAvailableCollection(collectionCards, decks, savedCubes);
           collectionNames = available.names;
           collectionAvailableCounts = available.counts;
         } else {
@@ -244,6 +250,7 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
     selectedThemes,
     collectionCards,
     decks,
+    savedCubes,
     createDeck,
     setEdhrecStats,
     setEdhrecLandSuggestion,
