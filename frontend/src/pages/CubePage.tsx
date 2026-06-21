@@ -303,18 +303,22 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
   }, [uniqueNames, collectionCards, size, synergyLevel, cubeStore]);
 
   // When the store has a persisted result but enrichedMap is empty (e.g. after
-  // a tab-switch or page reload), re-fetch Scryfall data so CardPreview can
-  // show images. Mirrors the generate path.
+  // a tab-switch or page reload), re-fetch Scryfall data for the cube's own
+  // cards so the row thumbnails and CardPreview have images. We fetch the cube's
+  // PICK names (always present in the persisted result) — not the collection's
+  // `uniqueNames`, which hydrates from IDB asynchronously and, under "available
+  // only", excludes the very cards already committed to this cube.
   useEffect(() => {
     if (cube === null || enrichedMap.size > 0) return;
     let cancelled = false;
-    getCardsByNames(uniqueNames).then((enriched) => {
+    const names = [...new Set(cube.picks.map((p) => p.card.name))];
+    getCardsByNames(names).then((enriched) => {
       if (!cancelled) setEnrichedMap(enriched);
     });
     return () => {
       cancelled = true;
     };
-  }, [cube, enrichedMap.size, uniqueNames]);
+  }, [cube, enrichedMap.size]);
 
   const copyList = useCallback(async () => {
     if (!cube) return;
@@ -647,6 +651,50 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
   );
 }
 
+/**
+ * Explainable archetype-support panel: the objective's per-axis breakdown plus
+ * the overall draftability score. Rendered only when the cube actually fields
+ * archetypes (synergy slider engaged → refiner ran).
+ */
+function CubeArchetypes({ score }: { score: GeneratedCube['score'] }) {
+  if (!score || score.axes.length === 0) return null;
+  return (
+    <div className="cube-archetypes">
+      <div className="cube-archetypes-head">
+        <h3>Archetype support</h3>
+        <span className="cube-draftability" title="Overall objective score, 0–100">
+          <strong>{Math.round(score.total * 100)}</strong>
+          <span>draftability</span>
+        </span>
+      </div>
+      <p className="cube-archetypes-sub">
+        How deeply a drafter can commit to each strategy your collection supports — balanced
+        enablers and payoffs, concentrated in their colors.
+      </p>
+      <ul className="cube-archetype-list">
+        {score.axes.slice(0, 8).map((a) => (
+          <li key={a.axis} className="cube-archetype">
+            <div className="cube-archetype-row">
+              <span className="cube-archetype-name">{a.label}</span>
+              <span className="cube-archetype-counts">
+                {a.enablers} enabler{a.enablers === 1 ? '' : 's'} · {a.payoffs} payoff
+                {a.payoffs === 1 ? '' : 's'}
+              </span>
+            </div>
+            <MeterBar
+              value={a.score}
+              max={1}
+              size="sm"
+              role="meter"
+              label={`${a.label} draftability`}
+            />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function CubeResult({
   cube,
   onCopy,
@@ -758,6 +806,8 @@ function CubeResult({
           ))}
         </ul>
       </div>
+
+      <CubeArchetypes score={cube.score} />
 
       <div className="cube-gaps">
         <h3>Where your collection lands</h3>
@@ -1349,6 +1399,8 @@ function CollabCube() {
               )}
             </ul>
           </div>
+
+          <CubeArchetypes score={cube.score} />
 
           <div className="cube-gaps">
             <h3>Where your pooled collection lands</h3>
