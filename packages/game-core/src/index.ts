@@ -283,6 +283,16 @@ function resolveDesignations(raw: GameDesignations | undefined | null): GameDesi
   };
 }
 
+/**
+ * Look up a player by seat; throws with a standard message if the seat is
+ * unknown. Use this in action handlers that require the seat to exist.
+ */
+function requireSeat(players: GamePlayer[], seat: number): GamePlayer {
+  const p = players.find((p) => p.seat === seat);
+  if (!p) throw new Error(`No player at seat ${seat}.`);
+  return p;
+}
+
 function checkLossConditions(player: GamePlayer, state: GameState): boolean {
   if (player.eliminated) return true;
   if (player.life <= 0) return true;
@@ -487,8 +497,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'remove-player': {
-      const target = prev.players.find((p) => p.seat === action.seat);
-      if (!target) throw new Error(`No player at seat ${action.seat}.`);
+      const target = requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: prev.players.filter((p) => p.seat !== action.seat),
@@ -503,8 +512,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'update-player': {
-      const target = prev.players.find((p) => p.seat === action.seat);
-      if (!target) throw new Error(`No player at seat ${action.seat}.`);
+      requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => ({ ...p, ...action.patch })),
@@ -512,9 +520,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'life': {
-      if (!prev.players.some((p) => p.seat === action.seat)) {
-        throw new Error(`No player at seat ${action.seat}.`);
-      }
+      requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => ({ ...p, life: p.life + action.delta })),
@@ -529,9 +535,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'set-life': {
-      if (!prev.players.some((p) => p.seat === action.seat)) {
-        throw new Error(`No player at seat ${action.seat}.`);
-      }
+      requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => ({ ...p, life: action.value })),
@@ -546,9 +550,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'poison': {
-      if (!prev.players.some((p) => p.seat === action.seat)) {
-        throw new Error(`No player at seat ${action.seat}.`);
-      }
+      requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => ({
@@ -566,9 +568,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'cmd-dmg': {
-      if (!prev.players.some((p) => p.seat === action.seat)) {
-        throw new Error(`No player at seat ${action.seat}.`);
-      }
+      requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => {
@@ -651,8 +651,6 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       const newActive = target ?? nextActiveSeat(prev.players, currentActive);
       next = {
         ...next,
-        // Legacy tolerance: carry forward the designations field even if missing.
-        designations: resolveDesignations((prev as GameState).designations),
         activeSeat: newActive,
         events: pushEvent(next, {
           kind: 'turn',
@@ -664,15 +662,12 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'set-designation': {
-      const designations = resolveDesignations((prev as GameState).designations);
       // Validate the target seat exists (unless clearing with null).
-      if (action.seat !== null && !prev.players.some((p) => p.seat === action.seat)) {
-        throw new Error(`No player at seat ${action.seat}.`);
-      }
+      if (action.seat !== null) requireSeat(prev.players, action.seat);
       next = {
         ...next,
         designations: {
-          ...designations,
+          ...next.designations,
           [action.designation]: action.seat,
         },
         events: pushEvent(next, {
@@ -681,7 +676,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           // targetSeat = new holder (or null if cleared)
           targetSeat: action.seat,
           // fromSeat = previous holder (null if unclaimed)
-          fromSeat: designations[action.designation] ?? undefined,
+          fromSeat: next.designations[action.designation] ?? undefined,
           message: action.designation,
           ts,
         }),
