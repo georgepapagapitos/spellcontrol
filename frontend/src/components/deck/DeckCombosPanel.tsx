@@ -25,6 +25,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { getCardByName } from '@/deck-builder/services/scryfall/client';
 import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
 import { ColorPip } from '../shared/ManaSymbol';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -82,86 +83,9 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
 
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === _deckId) ?? null);
 
-  // Cards rendered in the panel come from two sources whose images we can
-  // pull for free: the user's collection (EnrichedCard.imageNormal) and the
-  // deck's own ScryfallCard payload (image_uris.normal — populated even when
-  // no collection copy is allocated to the slot). We index by both oracle id
-  // AND lowercased name so cards imported before EnrichedCard.oracleId
-  // existed (and therefore lack the oracle id) still resolve via name match.
-  // We prefer the `normal` (488×680) variant because cards render at ~120px
-  // wide which looks soft using the `small` (146×204) source on retina.
-  const cardImageIndex = useMemo(() => {
-    const byOracle = new Map<string, string>();
-    const byName = new Map<string, string>();
-    const remember = (
-      oracleId: string | undefined,
-      name: string | undefined,
-      img: string | undefined
-    ) => {
-      if (!img) return;
-      if (oracleId && !byOracle.has(oracleId)) byOracle.set(oracleId, img);
-      if (name) {
-        const key = name.toLowerCase();
-        if (!byName.has(key)) byName.set(key, img);
-      }
-    };
-    for (const c of collection) remember(c.oracleId, c.name, c.imageNormal ?? c.imageSmall);
-    if (deck) {
-      const fromScryfall = (
-        card: {
-          name?: string;
-          oracle_id?: string;
-          image_uris?: { small?: string; normal?: string };
-          card_faces?: Array<{ image_uris?: { small?: string; normal?: string } }>;
-        } | null
-      ) => {
-        if (!card) return;
-        const face = card.image_uris ?? card.card_faces?.[0]?.image_uris;
-        const url = face?.normal ?? face?.small;
-        remember(card.oracle_id, card.name, url);
-      };
-      fromScryfall(deck.commander);
-      fromScryfall(deck.partnerCommander);
-      for (const c of deck.cards) fromScryfall(c.card);
-      for (const c of deck.sideboard) fromScryfall(c.card);
-    }
-    return { byOracle, byName };
-  }, [collection, deck]);
+  const cardImageIndex = useMemo(() => buildCardImageIndex(collection, deck), [collection, deck]);
 
-  // Index that resolves combo card refs to full EnrichedCard objects for the
-  // carousel preview. Priority: collection copy (richest metadata — shows
-  // ownership, price, foil status) → deck ScryfallCard → null (will fetch
-  // on demand from Scryfall API when the thumbnail is tapped).
-  const cardIndex = useMemo(() => {
-    const byOracle = new Map<string, EnrichedCard>();
-    const byName = new Map<string, EnrichedCard>();
-    // Collection cards are already EnrichedCard — best source.
-    for (const c of collection) {
-      if (c.oracleId && !byOracle.has(c.oracleId)) byOracle.set(c.oracleId, c);
-      if (c.name) {
-        const key = c.name.toLowerCase();
-        if (!byName.has(key)) byName.set(key, c);
-      }
-    }
-    // Deck's Scryfall payloads converted to EnrichedCard as fallback.
-    if (deck) {
-      const indexScryfall = (card: ScryfallCard | null) => {
-        if (!card) return;
-        const oid = card.oracle_id;
-        const name = card.name;
-        if (oid && byOracle.has(oid)) return;
-        if (name && byName.has(name.toLowerCase())) return;
-        const enriched = scryfallToEnrichedCard(card);
-        if (oid) byOracle.set(oid, enriched);
-        if (name) byName.set(name.toLowerCase(), enriched);
-      };
-      indexScryfall(deck.commander);
-      indexScryfall(deck.partnerCommander);
-      for (const c of deck.cards) indexScryfall(c.card);
-      for (const c of deck.sideboard) indexScryfall(c.card);
-    }
-    return { byOracle, byName };
-  }, [collection, deck]);
+  const cardIndex = useMemo(() => buildCardIndex(collection, deck), [collection, deck]);
 
   // ── Combo card preview state ────────────────────────────────────────────
   const [previewCards, setPreviewCards] = useState<EnrichedCard[] | null>(null);
