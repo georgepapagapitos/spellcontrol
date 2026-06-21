@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 
-import { symbolToClass } from '@/lib/mana-symbols';
+import { parseSymbol } from '@/lib/mana-symbols';
+import { ManaSymbol } from '../shared/ManaSymbol';
 
 interface Props {
   text: string;
@@ -21,15 +22,11 @@ export function MagicText({ text, className }: Props) {
   const parts = parseMagicText(text);
   return (
     <span className={className}>
-      {parts.map((p, i) => (
-        <Fragment key={i}>
-          {p.kind === 'symbol' ? (
-            <i className={symbolToClass(p.value)} title={`{${p.value}}`} aria-hidden />
-          ) : (
-            p.value
-          )}
-        </Fragment>
-      ))}
+      {parts.map((p, i) => {
+        if (p.kind !== 'symbol') return <Fragment key={i}>{p.value}</Fragment>;
+        const { token, split } = parseSymbol(p.value);
+        return <ManaSymbol key={i} symbol={token} cost split={split} title={`{${p.value}}`} />;
+      })}
     </span>
   );
 }

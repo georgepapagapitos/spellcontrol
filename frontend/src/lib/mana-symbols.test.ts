@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { symbolToClass, colorGlyph } from './mana-symbols';
+import { symbolToClass, parseSymbol, colorGlyph } from './mana-symbols';
 
 describe('symbolToClass', () => {
   it('maps a plain mana symbol to its cost glyph class', () => {
@@ -13,8 +13,21 @@ describe('symbolToClass', () => {
     expect(symbolToClass('B/G')).toBe('ms ms-bg ms-cost ms-split');
   });
 
-  it('handles tap and other named symbols', () => {
-    expect(symbolToClass('T')).toBe('ms ms-t ms-cost');
+  it('aliases tap/untap to their real mana-font classes (no ms-t/ms-q exists)', () => {
+    expect(symbolToClass('T')).toBe('ms ms-tap ms-cost');
+    expect(symbolToClass('Q')).toBe('ms ms-untap ms-cost');
+  });
+});
+
+describe('parseSymbol', () => {
+  it('returns the glyph token and split flag', () => {
+    expect(parseSymbol('W')).toEqual({ token: 'w', split: false });
+    expect(parseSymbol('2/W')).toEqual({ token: '2w', split: true });
+  });
+
+  it('aliases tap/untap', () => {
+    expect(parseSymbol('T')).toEqual({ token: 'tap', split: false });
+    expect(parseSymbol('Q')).toEqual({ token: 'untap', split: false });
   });
 });
 
