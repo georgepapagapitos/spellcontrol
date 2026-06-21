@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pencil, Share2, Trash2 } from 'lucide-react';
+import { Boxes, Pencil, Share2, Trash2 } from 'lucide-react';
 import './CubePage.css';
 import { ShareDialog } from '../components/ShareDialog';
 import { Tabs } from '../components/Tabs';
@@ -18,6 +18,7 @@ import { useAuth } from '../store/auth';
 import { formatRelativeTime } from '../lib/format-time';
 import { buildAllocationMap } from '../lib/allocations';
 import { buildAvailableCollection } from '../lib/collection-availability';
+import { bindCubeCopies } from '../lib/bind-cube-copies';
 import { getCardsByNames } from '../deck-builder/services/scryfall/client';
 import { loadTaggerData, getCardRole } from '../deck-builder/services/tagger/client';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
@@ -62,30 +63,62 @@ const BUCKET_COLOR: Record<ColorBucket, string> = {
   land: 'var(--mtg-land)',
 };
 
-/** Build a tri-state `ownershipFor(name)` from the live collection + deck allocations. */
+/**
+ * Build an `ownershipFor(name)` from the live collection + deck AND physical-cube
+ * allocations: 'owned' (a free copy exists), 'in-other-deck' / 'in-cube' (every
+ * copy is committed — distinguished so the badge names the right place), or
+ * 'unowned'. Deck wins the label when copies are split across both.
+ */
 function useOwnershipFor() {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
+  const savedCubes = useCubeStore((s) => s.saved);
   return useMemo(() => {
-    const allocations = buildAllocationMap(decks);
-    const byName = new Map<string, { free: number; claimed: number }>();
+    const allocations = buildAllocationMap(decks, savedCubes);
+    const byName = new Map<string, { free: number; deck: number; cube: number }>();
     for (const copy of collectionCards) {
       if (!copy.name) continue;
       const key = copy.name.toLowerCase();
-      const e = byName.get(key) ?? { free: 0, claimed: 0 };
-      if (allocations.get(copy.copyId)) e.claimed += 1;
-      else e.free += 1;
+      const e = byName.get(key) ?? { free: 0, deck: 0, cube: 0 };
+      const claim = allocations.get(copy.copyId);
+      if (!claim) e.free += 1;
+      else if (claim.ownerKind === 'cube') e.cube += 1;
+      else e.deck += 1;
       byName.set(key, e);
     }
     const ownershipFor = (name: string): Ownership => {
       const e = byName.get(name.toLowerCase());
       if (!e) return 'unowned';
       if (e.free > 0) return 'owned';
-      if (e.claimed > 0) return 'in-other-deck';
+      if (e.deck > 0) return 'in-other-deck';
+      if (e.cube > 0) return 'in-cube';
       return 'unowned';
     };
     return ownershipFor;
-  }, [collectionCards, decks]);
+  }, [collectionCards, decks, savedCubes]);
+}
+
+/** Ownership chip for a cube row — names where a committed copy actually lives. */
+function OwnRowBadge({ own }: { own: Ownership }) {
+  if (own === 'in-other-deck') {
+    return (
+      <VerdictBadge
+        tone="neutral"
+        label="In a deck"
+        title="You own this, but it’s currently in a deck"
+      />
+    );
+  }
+  if (own === 'in-cube') {
+    return (
+      <VerdictBadge
+        tone="neutral"
+        label="In a cube"
+        title="You own this, but it’s reserved by a physical cube"
+      />
+    );
+  }
+  return <OwnershipBadge owned={own === 'owned'} />;
 }
 
 export function CubePage() {
@@ -157,6 +190,8 @@ function BuildCube() {
   const [renameTarget, setRenameTarget] = useState<SavedCube | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SavedCube | null>(null);
   const [shareTarget, setShareTarget] = useState<SavedCube | null>(null);
+  // Cube the user is about to mark "physical" (claims copies) — confirmed first.
+  const [physicalTarget, setPhysicalTarget] = useState<SavedCube | null>(null);
 
   // Cache the enriched Scryfall map so CubeResult can build EnrichedCards for preview.
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
@@ -257,6 +292,40 @@ function BuildCube() {
     if (deleteTarget) cubeStore.removeSaved(deleteTarget.id);
     setDeleteTarget(null);
   };
+  // Marking a cube physical reserves a real collection copy for each pick (so
+  // decks/binders see them as unavailable); unmarking frees them. Turning ON is
+  // confirmed first because it consciously commits copies.
+  const handleTogglePhysical = (sc: SavedCube) => {
+    if (sc.isPhysical) {
+      cubeStore.setPhysical(sc.id, false, []);
+      pushToast({
+        message: `“${sc.name}” is no longer physical — its copies are free again`,
+        tone: 'success',
+      });
+    } else {
+      setPhysicalTarget(sc);
+    }
+  };
+  const confirmPhysical = () => {
+    if (!physicalTarget) return;
+    // Read live store state at confirm-time (the dialog can sit open while a
+    // background sync mutates the collection/decks) so binding never claims a
+    // copy that was reallocated after the dialog opened — the project's
+    // standard for every allocation mutation.
+    const liveCollection = useCollectionStore.getState().cards;
+    const liveDecks = useDecksStore.getState().decks;
+    const others = useCubeStore
+      .getState()
+      .saved.filter((c) => c.isPhysical && c.id !== physicalTarget.id);
+    const picks = bindCubeCopies(physicalTarget.cube.picks, liveCollection, liveDecks, others);
+    const reserved = picks.filter((p) => p.allocatedCopyId).length;
+    cubeStore.setPhysical(physicalTarget.id, true, picks);
+    pushToast({
+      message: `“${physicalTarget.name}” marked physical — reserved ${reserved} of your copies`,
+      tone: 'success',
+    });
+    setPhysicalTarget(null);
+  };
 
   if (collectionCards.length === 0) {
     return (
@@ -334,7 +403,32 @@ function BuildCube() {
                   <span className="cube-saved-meta">
                     {sc.size} cards · {SIZE_INFO[sc.size].players} players · saved{' '}
                     {formatRelativeTime(sc.savedAt)}
+                    {sc.isPhysical && (
+                      <span className="cube-saved-physical-tag">
+                        {' · '}
+                        <Boxes width={10} height={10} aria-hidden /> Physical ·{' '}
+                        {sc.picks.filter((p) => p.allocatedCopyId).length} reserved
+                      </span>
+                    )}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  className={`cube-saved-action${sc.isPhysical ? ' is-physical' : ''}`}
+                  onClick={() => handleTogglePhysical(sc)}
+                  aria-pressed={sc.isPhysical}
+                  aria-label={
+                    sc.isPhysical
+                      ? `Unmark ${sc.name} as physical`
+                      : `Mark ${sc.name} as physically built`
+                  }
+                  title={
+                    sc.isPhysical
+                      ? 'Physical cube — reserves your copies. Click to unmark.'
+                      : 'Mark as physically built (reserves your copies so decks can’t use them)'
+                  }
+                >
+                  <Boxes width={15} height={15} aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -458,6 +552,15 @@ function BuildCube() {
           resourceId={shareTarget.id}
           resourceLabel={shareTarget.name}
           onClose={() => setShareTarget(null)}
+        />
+      )}
+      {physicalTarget && (
+        <ConfirmDialog
+          title="Mark as a physical cube?"
+          body={`“${physicalTarget.name}” will reserve one of your copies for each card it can. Those copies stop showing as available for decks and binders — like sleeving the cards into the cube. You can unmark it any time to free them.`}
+          confirmLabel="Mark physical"
+          onConfirm={confirmPhysical}
+          onCancel={() => setPhysicalTarget(null)}
         />
       )}
     </div>
@@ -630,15 +733,7 @@ function CubeResult({
                   >
                     <span className="cube-row-name">{p.card.name}</span>
                     <span className="cube-row-reason">{p.reason}</span>
-                    {own === 'in-other-deck' ? (
-                      <VerdictBadge
-                        tone="neutral"
-                        label="In a deck"
-                        title="You own this, but it’s currently in a deck"
-                      />
-                    ) : (
-                      <OwnershipBadge owned={own === 'owned'} />
-                    )}
+                    <OwnRowBadge own={own} />
                   </li>
                 );
               })}
@@ -1224,15 +1319,7 @@ function CollabCube() {
                         <span className="cube-row-name">{p.card.name}</span>
                         <span className="cube-row-reason">{p.reason}</span>
                         {iSupply ? (
-                          own === 'in-other-deck' ? (
-                            <VerdictBadge
-                              tone="neutral"
-                              label="In a deck"
-                              title="You own this, but it’s currently in a deck"
-                            />
-                          ) : (
-                            <OwnershipBadge owned={own === 'owned'} />
-                          )
+                          <OwnRowBadge own={own} />
                         ) : friendSuppliers.length > 0 ? (
                           <span
                             className="cube-collab-supplier-chip"
@@ -1306,6 +1393,13 @@ function ImportCube() {
   const rows = useMemo(() => {
     if (!result) return [];
     if (filter === 'all') return result.overlay.rows;
+    // The "In a deck" tab is the committed-elsewhere bucket — its count includes
+    // cube-reserved copies, so the filter must match those too.
+    if (filter === 'in-other-deck') {
+      return result.overlay.rows.filter(
+        (r) => r.ownership === 'in-other-deck' || r.ownership === 'in-cube'
+      );
+    }
     return result.overlay.rows.filter((r) => r.ownership === filter);
   }, [result, filter]);
 
@@ -1498,6 +1592,12 @@ function ImportCube() {
                     tone="neutral"
                     label="In a deck"
                     title="You own this, but it’s currently in a deck"
+                  />
+                ) : r.ownership === 'in-cube' ? (
+                  <VerdictBadge
+                    tone="neutral"
+                    label="In a cube"
+                    title="You own this, but it’s reserved by a physical cube"
                   />
                 ) : (
                   <OwnershipBadge owned={r.ownership === 'owned'} showUnowned />

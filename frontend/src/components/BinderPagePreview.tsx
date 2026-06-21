@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Layers } from 'lucide-react';
+import { Boxes, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { BinderPage, EnrichedCard, PocketSize } from '../types';
@@ -708,7 +708,9 @@ function Cell({
       }`}
       onClick={() => onTap(card)}
       aria-label={`Open ${card.name}${card.foil ? ' (foil)' : ''}${
-        allocation ? ` (in deck: ${allocation.deckName})` : ''
+        allocation
+          ? ` (in ${allocation.ownerKind === 'cube' ? 'cube' : 'deck'}: ${allocation.ownerName})`
+          : ''
       }`}
     >
       {card.imageNormal ? (
@@ -724,14 +726,25 @@ function Cell({
       )}
       {allocation && (
         <Link
-          to={`/decks/${allocation.deckId}`}
+          to={allocation.ownerKind === 'cube' ? '/collection/cube' : `/decks/${allocation.ownerId}`}
           className="slot-deck-badge"
-          style={{ '--deck-color': allocation.deckColor || 'var(--accent)' } as React.CSSProperties}
-          title={`In deck: ${allocation.deckName}`}
+          style={
+            {
+              '--deck-color':
+                allocation.ownerKind === 'cube'
+                  ? 'var(--cube-color)'
+                  : allocation.ownerColor || 'var(--accent)',
+            } as React.CSSProperties
+          }
+          title={`In ${allocation.ownerKind === 'cube' ? 'cube' : 'deck'}: ${allocation.ownerName}`}
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Open deck ${allocation.deckName}`}
+          aria-label={`Open ${allocation.ownerKind === 'cube' ? 'cube' : 'deck'} ${allocation.ownerName}`}
         >
-          <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
+          {allocation.ownerKind === 'cube' ? (
+            <Boxes width={9} height={9} strokeWidth={2.2} aria-hidden />
+          ) : (
+            <Layers width={9} height={9} strokeWidth={2.2} aria-hidden />
+          )}
         </Link>
       )}
     </button>

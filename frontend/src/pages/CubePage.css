@@ -221,6 +221,18 @@
 .cube-saved-delete:hover {
   color: var(--err-text);
 }
+/* Active "physical cube" toggle + its meta tag share the cube identity color. */
+.cube-saved-action.is-physical {
+  color: var(--cube-color);
+}
+.cube-saved-physical-tag {
+  color: var(--cube-color);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cube-saved-physical-tag svg {
+  vertical-align: -1px;
+}
 
 /* ---- skeleton loading ---- */
 .cube-skeleton {

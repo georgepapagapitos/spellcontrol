@@ -727,18 +727,18 @@ export function BinderEditor() {
               )}
               <div className="editor-row">
                 <div className="field" style={{ flex: 1 }}>
-                  <label>Deck cards</label>
+                  <label>Deck / cube cards</label>
                   <label
                     className="field-checkbox"
                     style={{ margin: 0 }}
-                    title="When off, cards currently allocated to any deck are hidden from this binder until the deck releases them. Pins and manual order are preserved."
+                    title="When off, cards currently allocated to any deck or cube are hidden from this binder until they are released. Pins and manual order are preserved."
                   >
                     <input
                       type="checkbox"
                       checked={showDeckAllocated}
                       onChange={(e) => setShowDeckAllocated(e.target.checked)}
                     />
-                    Show cards that are in a deck
+                    Show cards that are in a deck or cube
                   </label>
                 </div>
               </div>

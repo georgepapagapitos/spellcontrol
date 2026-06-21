@@ -27,6 +27,7 @@ import {
 } from '../../lib/deck-analysis';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
+import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { useCardThumb } from '../../lib/card-thumbs';
@@ -303,6 +304,7 @@ function SuggestionsSection({
 }: SuggestionsSectionProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
+  const savedCubes = useCubeStore((s) => s.saved);
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
   const [filter, setFilter] = useState<SuggestionFilter>('gaps');
   const [loading, setLoading] = useState(false);
@@ -457,7 +459,7 @@ function SuggestionsSection({
    *  - `in-other-deck`: all copies are allocated to other decks.
    *  - `unowned`: not in collection at all. */
   const ownershipByName = useMemo(() => {
-    const allocations = buildAllocationMap(decks);
+    const allocations = buildAllocationMap(decks, savedCubes);
     const byName = new Map<string, { free: number; otherDeckNames: Set<string> }>();
     for (const copy of collection) {
       if (!copy.name) continue;
@@ -476,7 +478,7 @@ function SuggestionsSection({
       byName.set(key, entry);
     }
     return byName;
-  }, [collection, decks, deckId]);
+  }, [collection, decks, savedCubes, deckId]);
 
   const ownershipFor = useCallback(
     (name: string): Ownership => {
@@ -592,7 +594,7 @@ function SuggestionsSection({
           setError(`Couldn't resolve ${card.name}.`);
           return;
         }
-        const allocations = buildAllocationMap(decks);
+        const allocations = buildAllocationMap(decks, savedCubes);
         const claim = pickCollectionCopy(card.name, collection, allocations, scry.id);
         onAdd(scry, claim?.copyId ?? null);
         setCandidates((prev) => prev.filter((c) => c.name !== card.name));
@@ -602,7 +604,7 @@ function SuggestionsSection({
         setAdding(null);
       }
     },
-    [collection, decks, onAdd]
+    [collection, decks, savedCubes, onAdd]
   );
 
   if (!hasCommander) {

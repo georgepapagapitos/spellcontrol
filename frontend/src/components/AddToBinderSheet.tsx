@@ -25,6 +25,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
   const [addedTo, setAddedTo] = useState<string | null>(null);
   const allocations = useAllocations();
   const isAllocated = allocations.has(card.copyId);
+  const allocatedKind = allocations.get(card.copyId)?.ownerKind;
 
   useLockBodyScroll();
 
@@ -130,7 +131,11 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
                     <span className="add-to-binder-mismatch">Does not match rules</span>
                   )}
                   {isAllocated && binder.hideDeckAllocated === false && !isCurrent && !isAdded && (
-                    <span className="add-to-binder-mismatch">Hidden while in a deck</span>
+                    <span className="add-to-binder-mismatch">
+                      {allocatedKind === 'cube'
+                        ? 'Hidden while in a cube'
+                        : 'Hidden while in a deck'}
+                    </span>
                   )}
                   {isAdded ? (
                     <span className="add-to-binder-added" aria-live="polite">
