@@ -92,167 +92,167 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuth = create<AuthState>((set, get) => ({
-  // Seed from the remembered identity so an offline launch shows the user as
-  // signed in immediately (status stays 'unknown' until bootstrap resolves).
-  user: loadStoredUser(),
-  status: 'unknown',
-  error: null,
-  autoLinkedAt: null,
+export const useAuth = create<AuthState>((set, get) => {
+  /** Shared success path: persist user identity, update store, mark visited. */
+  function signInAs(user: AuthUser): void {
+    storeUser(user);
+    set({ user, status: 'authed', error: null });
+    markEverVisited();
+  }
 
-  bootstrap: async () => {
-    set({ status: 'loading' });
-    try {
-      const me = await authApi.fetchMe();
-      if (me) {
-        storeUser(me.user);
-        set({ user: me.user, status: 'authed', error: null, autoLinkedAt: me.autoLinkedAt });
-      } else {
-        // A real 401 — the session is gone. Forget the cached identity.
-        storeUser(null);
-        set({ user: null, status: 'guest', autoLinkedAt: null });
+  return {
+    // Seed from the remembered identity so an offline launch shows the user as
+    // signed in immediately (status stays 'unknown' until bootstrap resolves).
+    user: loadStoredUser(),
+    status: 'unknown',
+    error: null,
+    autoLinkedAt: null,
+
+    bootstrap: async () => {
+      set({ status: 'loading' });
+      try {
+        const me = await authApi.fetchMe();
+        if (me) {
+          storeUser(me.user);
+          set({ user: me.user, status: 'authed', error: null, autoLinkedAt: me.autoLinkedAt });
+        } else {
+          // A real 401 — the session is gone. Forget the cached identity.
+          storeUser(null);
+          set({ user: null, status: 'guest', autoLinkedAt: null });
+        }
+      } catch {
+        // Network failure is NOT a sign-out. If we remember a signed-in identity,
+        // stay authed in offline mode (local data + account preserved); the
+        // cookie re-validates on the next online bootstrap. Only fall back to the
+        // login screen when there's no remembered user.
+        const remembered = loadStoredUser();
+        if (remembered)
+          set({ user: remembered, status: 'authed', error: null, autoLinkedAt: null });
+        else set({ user: null, status: 'guest', autoLinkedAt: null });
       }
-    } catch {
-      // Network failure is NOT a sign-out. If we remember a signed-in identity,
-      // stay authed in offline mode (local data + account preserved); the
-      // cookie re-validates on the next online bootstrap. Only fall back to the
-      // login screen when there's no remembered user.
-      const remembered = loadStoredUser();
-      if (remembered) set({ user: remembered, status: 'authed', error: null, autoLinkedAt: null });
-      else set({ user: null, status: 'guest', autoLinkedAt: null });
-    }
-  },
+    },
 
-  login: async (username, password) => {
-    set({ error: null });
-    try {
-      const user = await authApi.login(username, password);
-      storeUser(user);
-      set({ user, status: 'authed', error: null });
-      // Any intentional first auth choice satisfies the first-run gate.
-      markEverVisited();
+    login: async (username, password) => {
+      set({ error: null });
+      try {
+        const user = await authApi.login(username, password);
+        // Any intentional first auth choice satisfies the first-run gate.
+        signInAs(user);
+        return true;
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : 'Login failed.' });
+        return false;
+      }
+    },
+
+    register: async (username, password) => {
+      set({ error: null });
+      try {
+        const user = await authApi.register(username, password);
+        signInAs(user);
+        return true;
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : 'Registration failed.' });
+        return false;
+      }
+    },
+
+    completeGoogleOAuth: async (code) => {
+      set({ error: null });
+      try {
+        const user = await authApi.exchangeGoogleCode(code);
+        signInAs(user);
+        return true;
+      } catch (err) {
+        // Don't downgrade an already-authed session: a replayed handoff code
+        // (e.g. the user taps "Open SpellControl" on the stranded /oauth/callback
+        // page after the first deep-link delivery already signed them in, or
+        // Android fires appUrlOpen twice) returns 401 because handoff codes are
+        // single-use — that must be a no-op, not a logout.
+        const stillAuthed = get().status === 'authed';
+        set({
+          error: stillAuthed ? null : err instanceof Error ? err.message : 'Google sign-in failed.',
+          status: stillAuthed ? 'authed' : 'guest',
+        });
+        return stillAuthed;
+      }
+    },
+
+    completeGoogleSignup: async (signupToken, username) => {
+      set({ error: null });
+      try {
+        const user = await authApi.completeGoogleSignup(signupToken, username);
+        signInAs(user);
+        return { ok: true };
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        set({ error: err instanceof Error ? err.message : 'Could not finish sign-up.' });
+        return { ok: false, status };
+      }
+    },
+
+    linkGoogleWithPassword: async (signupToken, username, password) => {
+      set({ error: null });
+      try {
+        const user = await authApi.linkGoogleWithPassword(signupToken, username, password);
+        signInAs(user);
+        return true;
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : 'Could not link the account.' });
+        return false;
+      }
+    },
+
+    logout: async () => {
+      // Best-effort flush of any pending writes before tearing down. Failure
+      // is fine — user explicitly chose to leave.
+      try {
+        await flushSync();
+      } catch {
+        /* ignore */
+      }
+      try {
+        await authApi.logout();
+      } catch {
+        /* ignore */
+      }
+      await stopSyncAndWipeLocal();
+      storeUser(null);
+      set({ user: null, status: 'guest', error: null });
+    },
+
+    deleteAccount: async () => {
+      set({ error: null });
+      try {
+        // Delete server-side first. Crucially we do NOT flushSync() beforehand —
+        // unlike logout, pushing the soon-to-be-deleted snapshot is exactly the
+        // wrong move. If the call fails the user stays signed in with data intact.
+        await authApi.deleteAccount();
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : 'Could not delete account.' });
+        return false;
+      }
+      // Server rows are gone and the cookie is cleared. stopSyncAndWipeLocal
+      // detaches subscribers (cancelling any pending debounced push) and clears
+      // the zustand-persist + IndexedDB cache so nothing can re-push it.
+      await stopSyncAndWipeLocal();
+      storeUser(null);
+      set({ user: null, status: 'guest', error: null });
       return true;
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Login failed.' });
-      return false;
-    }
-  },
+    },
 
-  register: async (username, password) => {
-    set({ error: null });
-    try {
-      const user = await authApi.register(username, password);
-      storeUser(user);
-      set({ user, status: 'authed', error: null });
-      markEverVisited();
-      return true;
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Registration failed.' });
-      return false;
-    }
-  },
+    acknowledgeAutoLink: async () => {
+      // Optimistic: clear the banner immediately so it doesn't flash back on
+      // the next bootstrap if the request is slow. The server side is the
+      // authoritative source though; if it fails the next /me will resurface.
+      set({ autoLinkedAt: null });
+      try {
+        await authApi.acknowledgeAutoLink();
+      } catch {
+        /* ignore — next /me will restore the flag if needed */
+      }
+    },
 
-  completeGoogleOAuth: async (code) => {
-    set({ error: null });
-    try {
-      const user = await authApi.exchangeGoogleCode(code);
-      storeUser(user);
-      set({ user, status: 'authed', error: null });
-      markEverVisited();
-      return true;
-    } catch (err) {
-      // Don't downgrade an already-authed session: a replayed handoff code
-      // (e.g. the user taps "Open SpellControl" on the stranded /oauth/callback
-      // page after the first deep-link delivery already signed them in, or
-      // Android fires appUrlOpen twice) returns 401 because handoff codes are
-      // single-use — that must be a no-op, not a logout.
-      const stillAuthed = get().status === 'authed';
-      set({
-        error: stillAuthed ? null : err instanceof Error ? err.message : 'Google sign-in failed.',
-        status: stillAuthed ? 'authed' : 'guest',
-      });
-      return stillAuthed;
-    }
-  },
-
-  completeGoogleSignup: async (signupToken, username) => {
-    set({ error: null });
-    try {
-      const user = await authApi.completeGoogleSignup(signupToken, username);
-      storeUser(user);
-      set({ user, status: 'authed', error: null });
-      markEverVisited();
-      return { ok: true };
-    } catch (err) {
-      const status = (err as { status?: number }).status;
-      set({ error: err instanceof Error ? err.message : 'Could not finish sign-up.' });
-      return { ok: false, status };
-    }
-  },
-
-  linkGoogleWithPassword: async (signupToken, username, password) => {
-    set({ error: null });
-    try {
-      const user = await authApi.linkGoogleWithPassword(signupToken, username, password);
-      storeUser(user);
-      set({ user, status: 'authed', error: null });
-      markEverVisited();
-      return true;
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Could not link the account.' });
-      return false;
-    }
-  },
-
-  logout: async () => {
-    // Best-effort flush of any pending writes before tearing down. Failure
-    // is fine — user explicitly chose to leave.
-    try {
-      await flushSync();
-    } catch {
-      /* ignore */
-    }
-    try {
-      await authApi.logout();
-    } catch {
-      /* ignore */
-    }
-    await stopSyncAndWipeLocal();
-    storeUser(null);
-    set({ user: null, status: 'guest', error: null });
-  },
-
-  deleteAccount: async () => {
-    set({ error: null });
-    try {
-      // Delete server-side first. Crucially we do NOT flushSync() beforehand —
-      // unlike logout, pushing the soon-to-be-deleted snapshot is exactly the
-      // wrong move. If the call fails the user stays signed in with data intact.
-      await authApi.deleteAccount();
-    } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Could not delete account.' });
-      return false;
-    }
-    // Server rows are gone and the cookie is cleared. stopSyncAndWipeLocal
-    // detaches subscribers (cancelling any pending debounced push) and clears
-    // the zustand-persist + IndexedDB cache so nothing can re-push it.
-    await stopSyncAndWipeLocal();
-    storeUser(null);
-    set({ user: null, status: 'guest', error: null });
-    return true;
-  },
-
-  acknowledgeAutoLink: async () => {
-    // Optimistic: clear the banner immediately so it doesn't flash back on
-    // the next bootstrap if the request is slow. The server side is the
-    // authoritative source though; if it fails the next /me will resurface.
-    set({ autoLinkedAt: null });
-    try {
-      await authApi.acknowledgeAutoLink();
-    } catch {
-      /* ignore — next /me will restore the flag if needed */
-    }
-  },
-
-  clearError: () => set({ error: null }),
-}));
+    clearError: () => set({ error: null }),
+  };
+});

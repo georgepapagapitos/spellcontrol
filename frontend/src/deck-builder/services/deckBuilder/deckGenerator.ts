@@ -96,6 +96,7 @@ import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
+import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
@@ -3136,6 +3137,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (detectedCombos.length === 0) detectedCombos = undefined;
       logger.debug(`[DeckGen] Combo audit complete: ${auditSwaps} swap(s) applied`);
     }
+  }
+
+  // ── Combo Floor ──
+  // If the deck has zero complete 2-card combos and bracket allows it,
+  // seed the single best available 2-card combo (1-card-missing).
+  {
+    const mustIncludeSet = new Set([
+      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+    ]);
+    const floorResult = applyComboFloor(state, {
+      detectedCombos,
+      scryfallCardMap,
+      mustIncludeNames: mustIncludeSet,
+      targetBracket,
+    });
+    detectedCombos = floorResult.detectedCombos;
   }
 
   // ── Post-Generation Fixup Pass (light touch) ──
