@@ -6,17 +6,36 @@
 //
 // Pass --force to re-fetch/re-parse unconditionally.
 //
-// ponytail: the CR txt URL is dated per release (~quarterly) and the WotC
-// rules page is JS-rendered so it can't be scraped. Bump FALLBACK_URL when a
-// new CR drops, or set RULES_SOURCE_URL to override without editing this file.
+// The CR txt URL is dated per release (~quarterly). We auto-discover the latest
+// from the WotC rules page (it serves the dated .txt href in static HTML), and
+// fall back to FALLBACK_URL if discovery fails. Set RULES_SOURCE_URL to pin a
+// specific release without touching the network discovery.
 
 import { stat, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const FALLBACK_URL = 'https://media.wizards.com/2026/downloads/MagicCompRules%2020260227.txt';
-const SOURCE_URL = process.env.RULES_SOURCE_URL ?? FALLBACK_URL;
+const RULES_PAGE = 'https://magic.wizards.com/en/rules';
+const FALLBACK_URL = 'https://media.wizards.com/2026/downloads/MagicCompRules%2020260417.txt';
 const MAX_AGE_DAYS = 30;
+
+// Scrape the rules page for the dated CR .txt link; href carries a literal
+// space ("MagicCompRules 20260417.txt") that fetch needs percent-encoded.
+async function discoverLatest() {
+  try {
+    const res = await fetch(RULES_PAGE);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const m = html.match(
+      /https:\/\/media\.wizards\.com\/\d{4}\/downloads\/MagicCompRules[^"<]*\.txt/i
+    );
+    return m ? m[0].replace(/ /g, '%20') : null;
+  } catch (err) {
+    console.warn(`[rules] Auto-discovery failed (${err.message}), using FALLBACK_URL`);
+    return null;
+  }
+}
+
 const force = process.argv.includes('--force');
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +56,7 @@ if (!force && age < MAX_AGE_DAYS) {
   process.exit(0);
 }
 
+const SOURCE_URL = process.env.RULES_SOURCE_URL ?? (await discoverLatest()) ?? FALLBACK_URL;
 console.log(`[rules] Fetching ${SOURCE_URL}`);
 let text;
 try {
@@ -45,7 +65,9 @@ try {
   text = await res.text();
 } catch (err) {
   if (Number.isFinite(age)) {
-    console.warn(`[rules] Fetch failed (${err.message}), keeping snapshot (${age.toFixed(1)}d old)`);
+    console.warn(
+      `[rules] Fetch failed (${err.message}), keeping snapshot (${age.toFixed(1)}d old)`
+    );
     process.exit(0);
   }
   console.error(`[rules] Fetch failed and no local copy exists: ${err.message}`);
@@ -64,7 +86,10 @@ console.log(
 
 function parse(raw, source) {
   // Strip BOM + carriage returns (the file ships CRLF from WotC).
-  const lines = raw.replace(/^\uFEFF/, '').replace(/\r/g, '').split('\n');
+  const lines = raw
+    .replace(/^\uFEFF/, '')
+    .replace(/\r/g, '')
+    .split('\n');
 
   // The document is: intro, table of contents, rules body, glossary, credits.
   // Section/subsection headers appear in BOTH the TOC and the body, so anchor
