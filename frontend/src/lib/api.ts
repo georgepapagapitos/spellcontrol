@@ -7,8 +7,7 @@ import type {
   UploadResponse,
 } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { handleResponse } from './fetch-utils';
-import { apiUrl } from './api-base';
+import { handleResponse, fetchWithAbortTimeout } from './fetch-utils';
 import { chunkImportText } from './import-chunker';
 import { mergeUploadResponses } from './merge-upload-responses';
 
@@ -50,25 +49,23 @@ function isRetryableStatus(err: unknown): boolean {
 }
 
 function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  return fetch(apiUrl(url), { ...opts, signal: controller.signal })
-    .catch((err) => {
-      if (err.name === 'AbortError') {
-        throw new Error(
-          'The request timed out. This can happen with very large collections. Try importing a smaller batch.'
-        );
-      }
-      // Any other rejection — DNS, connection reset, TLS, the browser killing
-      // a long-running fetch (mobile tab suspension, cellular handoff). Tag so
-      // the import-chunk caller knows it's safe to retry.
-      const e: NetworkError = Object.assign(
-        new Error('The server is not responding. Give it a moment and try again.'),
-        { isNetworkError: true as const }
-      );
-      throw e;
-    })
-    .finally(() => clearTimeout(timer));
+  return fetchWithAbortTimeout(
+    url,
+    opts,
+    TIMEOUT_MS,
+    'The request timed out. This can happen with very large collections. Try importing a smaller batch.'
+  ).catch((err: unknown) => {
+    // fetchWithAbortTimeout rethrows AbortError as the timeout message above.
+    // Any other rejection is a network-level failure — DNS, connection reset,
+    // TLS, the browser killing a long-running fetch (mobile tab suspension,
+    // cellular handoff). Tag it so the import-chunk caller knows it's retryable.
+    if (err instanceof Error && err.message.startsWith('The request timed out')) throw err;
+    const e: NetworkError = Object.assign(
+      new Error('The server is not responding. Give it a moment and try again.'),
+      { isNetworkError: true as const }
+    );
+    throw e;
+  });
 }
 
 export interface ImportProgress {

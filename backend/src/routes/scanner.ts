@@ -19,7 +19,7 @@
 
 import * as path from 'node:path';
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
+import { testAwareLimiter } from '../route-utils';
 import multer from 'multer';
 import { logger } from '../logger';
 import { getMatcher } from '../scanner/matcher';
@@ -28,10 +28,13 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
 const DEFAULT_DATA_DIR = path.resolve(__dirname, '..', '..', 'data', 'scanner');
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-const matchLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 200 });
+function getScannerDataDir(): string {
+  return process.env.SCANNER_DATA_DIR
+    ? path.resolve(process.env.SCANNER_DATA_DIR)
+    : DEFAULT_DATA_DIR;
+}
+
+const matchLimiter = testAwareLimiter({ windowMs: 60_000, max: 200 });
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -51,11 +54,7 @@ scannerRouter.post(
         .json({ error: 'Provide a multipart/form-data request with field "image".' });
     }
 
-    const dataDir = process.env.SCANNER_DATA_DIR
-      ? path.resolve(process.env.SCANNER_DATA_DIR)
-      : DEFAULT_DATA_DIR;
-
-    const matcher = await getMatcher(dataDir);
+    const matcher = await getMatcher(getScannerDataDir());
     if (!matcher) {
       return res
         .status(503)
@@ -74,10 +73,7 @@ scannerRouter.post(
 );
 
 scannerRouter.get('/stats', async (_req: Request, res: Response) => {
-  const dataDir = process.env.SCANNER_DATA_DIR
-    ? path.resolve(process.env.SCANNER_DATA_DIR)
-    : DEFAULT_DATA_DIR;
-  const matcher = await getMatcher(dataDir);
+  const matcher = await getMatcher(getScannerDataDir());
   if (!matcher) {
     return res.status(503).json({ error: 'Scanner data not provisioned.' });
   }

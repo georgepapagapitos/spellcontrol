@@ -5,7 +5,7 @@ import { Readable } from 'node:stream';
 import streamArray from 'stream-json/streamers/stream-array.js';
 import type { ScryfallCard } from './types';
 import type { ScryfallCache } from './cache';
-import { cardAliasKeys } from './scryfall';
+import { cardAliasKeys, SCRYFALL_USER_AGENT } from './scryfall';
 
 /**
  * Ingests Scryfall's daily `default_cards` bulk dump into the SQLite card cache so
@@ -54,7 +54,7 @@ interface BulkIndexResponse {
 /** Scryfall layouts that aren't real game pieces and can share a name with the
  *  card they depict — excluded from name+set alias generation so they don't
  *  shadow the real card. (They still resolve fine by id.) */
-const NON_PLAYABLE_LAYOUTS = new Set([
+export const NON_PLAYABLE_LAYOUTS = new Set([
   'art_series',
   'token',
   'double_faced_token',
@@ -68,7 +68,7 @@ async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string 
   // Scryfall requires a descriptive User-Agent — requests without one now get a
   // 400 (matches the header the per-import resolver in scryfall.ts already sends).
   const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
-    headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+    headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
   });
   if (!res.ok) throw new Error(`Scryfall bulk index returned ${res.status}`);
   const body = (await res.json()) as BulkIndexResponse;
@@ -86,7 +86,7 @@ async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string 
 export async function* streamDefaultCards(): AsyncGenerator<BulkCard> {
   const { url } = await fetchDefaultCardsUrl();
   logger.info('[scryfall-bulk] downloading default_cards from', url);
-  const res = await fetch(url, { headers: { 'User-Agent': 'spellcontrol/1.0' } });
+  const res = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
   if (!res.ok || !res.body) {
     throw new Error(`Scryfall default_cards download returned ${res.status}`);
   }
