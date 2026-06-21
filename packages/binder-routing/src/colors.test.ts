@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getColorKey, isLand, COLOR_INFO } from './colors.js';
+import { getColorKey, getColorKeyFromIdentity, isLand, COLOR_INFO } from './colors.js';
 import type { EnrichedCard } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -140,6 +140,20 @@ describe('COLOR_INFO', () => {
       expect(COLOR_INFO[k].pip).toMatch(/^#[0-9a-f]{3,8}$/i);
       expect(COLOR_INFO[k].label.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('getColorKeyFromIdentity', () => {
+  it('returns C for empty identity (colorless)', () => {
+    expect(getColorKeyFromIdentity([])).toBe('C');
+  });
+  it('returns the single color letter for mono-color identity', () => {
+    expect(getColorKeyFromIdentity(['W'])).toBe('W');
+    expect(getColorKeyFromIdentity(['G'])).toBe('G');
+  });
+  it('returns M for multicolor identity', () => {
+    expect(getColorKeyFromIdentity(['U', 'R'])).toBe('M');
+    expect(getColorKeyFromIdentity(['W', 'U', 'B', 'R', 'G'])).toBe('M');
   });
 });
 

@@ -165,6 +165,55 @@ let flushPromise: Promise<void> | null = null;
 let serverVersion = 0;
 let serverCode: string | null = null;
 
+/**
+ * Refetch server state after a patch conflict. Drains the pending queue,
+ * re-fetches the authoritative game, and updates the online slice with
+ * the supplied `onlineError` message. `fallbackError` is set when the
+ * refetch itself fails (or returns null) — pass null to silently swallow
+ * those cases (409 pattern) or a string to surface them (403 pattern).
+ */
+async function recoverFromServerState(
+  code: string,
+  successError: string,
+  fallbackError: string | null,
+  set: (partial: Partial<PlayState>) => void
+): Promise<void> {
+  pendingActions = [];
+  try {
+    const fresh = await apiGetGame(code);
+    if (fresh) {
+      serverVersion = fresh.version;
+      set({ online: fresh, onlineError: successError });
+    } else if (fallbackError !== null) {
+      set({ onlineError: fallbackError });
+    }
+  } catch {
+    if (fallbackError !== null) {
+      set({ onlineError: fallbackError });
+    }
+    /* else: surfaced via subsequent poll (409 pattern) */
+  }
+}
+
+/**
+ * Shared teardown for leaveOnline / clearOnline: stop polling, drain the
+ * pending-action queue, reset module-level server identity, and clear the
+ * online slice of store state. Does NOT call apiLeaveGame — that's the
+ * caller's responsibility when the server needs to be notified.
+ */
+function resetOnlineState(
+  game: GameState,
+  set: (partial: Partial<PlayState>) => void,
+  stopPollingFn: () => void
+): void {
+  clearUndo(game.id);
+  stopPollingFn();
+  pendingActions = [];
+  serverCode = null;
+  serverVersion = 0;
+  set({ online: null, onlineError: null, boardVisible: true });
+}
+
 function recordIfFinished(
   state: GameState,
   set: (fn: (s: PlayState) => Partial<PlayState>) => void
@@ -357,29 +406,19 @@ export const usePlayStore = create<PlayState>()(
                   // Server is ahead — drop the optimistic stack and refetch.
                   // No knownVersion here, so apiGetGame always returns the full
                   // state (never the null short-circuit).
-                  pendingActions = [];
-                  try {
-                    const fresh = await apiGetGame(code);
-                    if (fresh) {
-                      serverVersion = fresh.version;
-                      set({ online: fresh, onlineError: 'Action lost a race — refreshed.' });
-                    }
-                  } catch {
-                    /* surfaced via subsequent poll */
-                  }
+                  await recoverFromServerState(
+                    code,
+                    'Action lost a race — refreshed.',
+                    null, // 409: silently ignore !fresh / fetch errors (poll will catch up)
+                    set
+                  );
                 } else if (e.status === 403) {
-                  pendingActions = [];
-                  try {
-                    const fresh = await apiGetGame(code);
-                    if (fresh) {
-                      serverVersion = fresh.version;
-                      set({ online: fresh, onlineError: e.message || 'Not allowed.' });
-                    } else {
-                      set({ onlineError: e.message || 'Not allowed.' });
-                    }
-                  } catch {
-                    set({ onlineError: e.message || 'Not allowed.' });
-                  }
+                  await recoverFromServerState(
+                    code,
+                    e.message || 'Not allowed.',
+                    e.message || 'Not allowed.',
+                    set
+                  );
                 } else {
                   set({ onlineError: e.message || 'Action failed.' });
                 }
@@ -400,22 +439,21 @@ export const usePlayStore = create<PlayState>()(
         } catch {
           /* best effort */
         }
-        clearUndo(cur.id);
-        get().stopPolling();
-        pendingActions = [];
-        serverCode = null;
-        serverVersion = 0;
-        set({ online: null, onlineError: null, boardVisible: true });
+        resetOnlineState(cur, set, () => get().stopPolling());
       },
 
       clearOnline: () => {
         const cur = get().online;
-        if (cur) clearUndo(cur.id);
-        get().stopPolling();
-        pendingActions = [];
-        serverCode = null;
-        serverVersion = 0;
-        set({ online: null, onlineError: null, boardVisible: true });
+        if (cur) {
+          resetOnlineState(cur, set, () => get().stopPolling());
+        } else {
+          // No active game but still clean up polling/queue in case they drifted.
+          get().stopPolling();
+          pendingActions = [];
+          serverCode = null;
+          serverVersion = 0;
+          set({ online: null, onlineError: null, boardVisible: true });
+        }
       },
 
       startPolling: () => {
