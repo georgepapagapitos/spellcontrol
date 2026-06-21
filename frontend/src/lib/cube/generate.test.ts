@@ -206,6 +206,38 @@ describe('generateCube — synergy slider', () => {
   });
 });
 
+describe('generateCube — archetype gaps', () => {
+  const addSac = (pool: CubeCard[], producers: number, payoffs: number) => {
+    for (let i = 0; i < producers; i++)
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 5000 + i, synergyProducers: ['sacrifice'] }));
+    for (let i = 0; i < payoffs; i++)
+      pool.push(card({ colors: ['B'], cmc: 3, rank: 6000 + i, synergyPayoffs: ['sacrifice'] }));
+    return pool;
+  };
+  const hasGap = (c: ReturnType<typeof generateCube>, sev: 'short' | 'note', re: RegExp) =>
+    c.gaps.some((g) => g.severity === sev && re.test(g.text));
+
+  it('stays silent about archetypes at synergyLevel 0', () => {
+    const cube = generateCube(addSac(richPool(), 14, 8), 360);
+    expect(cube.gaps.some((g) => /enablers|payoff/i.test(g.text))).toBe(false);
+  });
+
+  it('celebrates a deeply supported archetype', () => {
+    const cube = generateCube(addSac(richPool(), 14, 8), 360, { synergyLevel: 1 });
+    expect(hasGap(cube, 'note', /Strong Sacrifice.*support/i)).toBe(true);
+  });
+
+  it('flags an enabler-rich archetype with no payoff', () => {
+    const cube = generateCube(addSac(richPool(), 12, 0), 360, { synergyLevel: 1 });
+    expect(hasGap(cube, 'short', /Sacrifice.*no payoff/i)).toBe(true);
+  });
+
+  it('flags a thin archetype below the draftable floor', () => {
+    const cube = generateCube(addSac(richPool(), 8, 8), 360, { synergyLevel: 1 });
+    expect(hasGap(cube, 'short', /Sacrifice.*thin for a draftable archetype/i)).toBe(true);
+  });
+});
+
 describe('generateCube — dedupes duplicate printings to one copy', () => {
   it('keeps the best-ranked copy of a repeated oracle id', () => {
     const dupes = [
