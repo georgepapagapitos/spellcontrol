@@ -447,24 +447,45 @@ export function findSuboptimalPrintings(
  */
 export type DonorOutcome = 'leave-gap' | 'replace' | 'remove';
 
-/** Where a physical copy currently lives inside a donor deck. */
-export type DonorZone = 'main' | 'sideboard' | 'commander' | 'partner';
+/**
+ * Where a physical copy currently lives in its donor. Deck zones are a slot in
+ * the donor deck; `cube` means a physical-cube pick (released by copyId, not a
+ * slot — a cube's only donor outcome is leave-gap).
+ */
+export type DonorZone = 'main' | 'sideboard' | 'commander' | 'partner' | 'cube';
 
 /**
- * A physical copy that can be pulled out of another deck to satisfy an add in
- * the current deck. Carries enough context to (a) confirm the move with the
- * user and (b) apply their chosen donor outcome to the right slot.
+ * A physical copy that can be pulled out of another deck OR a physical cube to
+ * satisfy an add in the current deck. Carries enough context to (a) confirm the
+ * move with the user and (b) apply the donor outcome to the right place.
+ *
+ * The `donor*` fields mirror {@link AllocationInfo}'s alias shape: `donorId` is
+ * the canonical owner id (Deck.id or SavedCube.id), and the legacy `donorDeck*`
+ * names stay populated (`donorDeckId` is `''` for a cube, so any
+ * `=== thisDeck.id` check treats it as elsewhere) so the existing deck-steal
+ * call sites don't churn. Branch on `donorKind` to route the apply.
  */
 export interface StealableCopy {
   copyId: string;
+  /** Whether the copy is currently held by a deck or a physical cube. */
+  donorKind: 'deck' | 'cube';
+  /** Canonical owner id: Deck.id for a deck donor, SavedCube.id for a cube. */
+  donorId: string;
+  /** Legacy alias = donorId for a deck donor, `''` for a cube donor. */
   donorDeckId: string;
+  /** Display name of the donor (the cube name for a cube donor). */
   donorDeckName: string;
+  /** Donor accent color (the shared cube color for a cube donor). */
   donorDeckColor: string;
   donorZone: DonorZone;
-  /** Slot id for `main`/`sideboard` zones; `null` for commander/partner. */
+  /** Slot id for `main`/`sideboard`; `null` for commander/partner and cube. */
   donorSlotId: string | null;
-  /** The donor slot's card payload — for the replace-suggestion target and display. */
-  donorCard: ScryfallCard;
+  /**
+   * The donor deck slot's card payload — for the replace-suggestion target and
+   * display. Absent for a cube donor: its only outcome is leave-gap (released by
+   * copyId), so no card payload is needed.
+   */
+  donorCard?: ScryfallCard;
 }
 
 /** Same finish-then-price ranking pickCollectionCopy uses, as a comparator. */
@@ -505,10 +526,13 @@ function locateCopyInDeck(
  *  - at least one owned copy is free (unallocated),
  *  - every owned copy is already allocated to `excludeDeckId` itself.
  *
- * Otherwise returns the best copy to pull — restricted to copies held by OTHER
- * decks and ranked with the same non-foil → cheapest preference as
+ * Otherwise returns the best copy to pull — held by another deck OR a physical
+ * cube — ranked with the same non-foil → cheapest preference as
  * {@link pickCollectionCopy} (honoring `preferredScryfallId` for non-basics) —
- * plus where it currently lives so the donor outcome can be applied.
+ * plus where it currently lives so the donor outcome can be applied. A cube
+ * donor is always a leave-gap release (a 540-card cube just loses one slot); a
+ * deck donor lets the caller pick leave-gap / replace / remove. Either way the
+ * pull is a conscious per-card choice — this function only surfaces it.
  */
 export function findStealableCopy(
   cardName: string,
@@ -525,12 +549,14 @@ export function findStealableCopy(
   // A free copy exists → no steal needed; the normal allocator handles it.
   if (owned.some((c) => !allocations.has(c.copyId))) return null;
 
-  // Copies held by a DECK other than the one we're adding to. Copies held by a
-  // physical cube are deliberately not stealable in v1 (no silent move out of a
-  // cube — the user releases it consciously), so the ownerKind guard skips them.
+  // Stealable = held by a DECK other than the one we're adding to, OR by a
+  // physical cube (cube copies are now consciously pullable as a leave-gap —
+  // the move still requires the explicit per-card choice in the UI).
   let stealable = owned.filter((c) => {
     const info = allocations.get(c.copyId);
-    return !!info && info.ownerKind === 'deck' && info.deckId !== excludeDeckId;
+    if (!info) return false;
+    if (info.ownerKind === 'cube') return true;
+    return info.deckId !== excludeDeckId;
   });
   if (stealable.length === 0) return null;
 
@@ -544,6 +570,21 @@ export function findStealableCopy(
 
   const best = [...stealable].sort(compareCopyPreference)[0];
   const info = allocations.get(best.copyId)!;
+
+  // Cube donor: release by copyId (no slot), leave-gap only.
+  if (info.ownerKind === 'cube') {
+    return {
+      copyId: best.copyId,
+      donorKind: 'cube',
+      donorId: info.ownerId,
+      donorDeckId: '',
+      donorDeckName: info.ownerName,
+      donorDeckColor: info.ownerColor,
+      donorZone: 'cube',
+      donorSlotId: null,
+    };
+  }
+
   const donorDeck = decks.find((d) => d.id === info.deckId);
   const located = donorDeck ? locateCopyInDeck(donorDeck, best.copyId) : null;
   // Defensive: the allocation map said a deck claims this copy, so the slot
@@ -552,6 +593,8 @@ export function findStealableCopy(
 
   return {
     copyId: best.copyId,
+    donorKind: 'deck',
+    donorId: donorDeck.id,
     donorDeckId: donorDeck.id,
     donorDeckName: donorDeck.name,
     donorDeckColor: donorDeck.color,
@@ -591,11 +634,13 @@ export function planCardAdd(
   return claim ? { kind: 'bind', copyId: claim.copyId } : { kind: 'list' };
 }
 
-/** A mainboard slot whose card you own but every copy is currently in another deck. */
+/** A mainboard slot whose card you own but every copy is currently committed elsewhere. */
 export interface ContestedCard {
   slotId: string;
   cardName: string;
-  /** The deck a copy currently lives in (best donor) — for the "also in [deck]" line. */
+  /** Whether the best donor is another deck or a physical cube (drives the icon/wording). */
+  donorKind: 'deck' | 'cube';
+  /** The deck/cube a copy currently lives in (best donor) — for the "also in […]" line. */
   donorDeckName: string;
   donorDeckColor: string;
   /** How many copies you own (honest shortage line: "you own N, also wanted by …"). */
@@ -632,6 +677,7 @@ export function listContestedCards(
     out.push({
       slotId: slot.slotId,
       cardName: slot.card.name,
+      donorKind: donor.donorKind,
       donorDeckName: donor.donorDeckName,
       donorDeckColor: donor.donorDeckColor,
       owned,
