@@ -23,7 +23,7 @@ import { cardAliasKeys, SCRYFALL_USER_AGENT } from './scryfall';
  * {@link resolveCards}. The ingest only ever *adds* cache hits.
  */
 
-const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
+export const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
 /** Flush to SQLite every N cards so peak memory stays flat regardless of dump size. */
 const FLUSH_AT = 1000;
 
@@ -40,15 +40,33 @@ interface BulkCard extends Partial<ScryfallCard> {
   set_type?: string;
 }
 
-interface BulkIndexEntry {
+export interface BulkIndexEntry {
   type: string;
   download_uri: string;
   updated_at: string;
   size?: number;
 }
 
-interface BulkIndexResponse {
+export interface BulkIndexResponse {
   data: BulkIndexEntry[];
+}
+
+/**
+ * Fetches the Scryfall bulk-data index and returns the entry for the given
+ * `type` (e.g. `'default_cards'` or `'oracle_cards'`). Throws if the request
+ * fails or the type is absent from the index.
+ */
+export async function fetchScryfallBulkEntry(
+  type: string
+): Promise<{ url: string; updatedAt: string }> {
+  const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
+    headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
+  });
+  if (!res.ok) throw new Error(`Scryfall bulk index returned ${res.status}`);
+  const body = (await res.json()) as BulkIndexResponse;
+  const entry = body.data.find((e) => e.type === type);
+  if (!entry) throw new Error(`Scryfall bulk index has no ${type} entry`);
+  return { url: entry.download_uri, updatedAt: entry.updated_at };
 }
 
 /** Scryfall layouts that aren't real game pieces and can share a name with the
@@ -65,16 +83,7 @@ export const NON_PLAYABLE_LAYOUTS = new Set([
 ]);
 
 async function fetchDefaultCardsUrl(): Promise<{ url: string; updatedAt: string }> {
-  // Scryfall requires a descriptive User-Agent — requests without one now get a
-  // 400 (matches the header the per-import resolver in scryfall.ts already sends).
-  const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
-    headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
-  });
-  if (!res.ok) throw new Error(`Scryfall bulk index returned ${res.status}`);
-  const body = (await res.json()) as BulkIndexResponse;
-  const entry = body.data.find((e) => e.type === 'default_cards');
-  if (!entry) throw new Error('Scryfall bulk index has no default_cards entry');
-  return { url: entry.download_uri, updatedAt: entry.updated_at };
+  return fetchScryfallBulkEntry('default_cards');
 }
 
 /**

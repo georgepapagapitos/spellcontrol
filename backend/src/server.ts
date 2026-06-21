@@ -30,6 +30,8 @@ import {
   fetchRulings,
 } from './scryfall';
 import { runScryfallBulkIngest } from './scryfall-bulk';
+import { errorMessage } from './error-utils';
+import { dedupePreservingOrder } from './utils';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
 import { resolveDeckRows } from './deck-import';
@@ -191,7 +193,7 @@ app.get(
       res.json({ rulings });
     } catch (err) {
       logger.error('[rulings] fetch failed:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = errorMessage(err);
       res.status(502).json({ error: `Failed to fetch rulings: ${message}` });
     }
   }
@@ -468,7 +470,7 @@ app.post(
         return res.status(413).json({ error: err.message });
       }
       logger.error('[import] error:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = errorMessage(err);
       res.status(500).json({
         error: `Import failed: ${message}. Please check your file format and try again.`,
       });
@@ -535,7 +537,7 @@ app.post(
         return res.status(413).json({ error: err.message });
       }
       logger.error('[import-deck] error:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = errorMessage(err);
       res.status(500).json({
         error: `Deck import failed: ${message}. Please check the format and try again.`,
       });
@@ -579,7 +581,7 @@ app.get(
       res.json({ printings: cards });
     } catch (err) {
       logger.error('[printings] error:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = errorMessage(err);
       res.status(500).json({ error: `Failed to fetch printings: ${message}` });
     }
   }
@@ -608,7 +610,7 @@ app.get(
       res.json({ card });
     } catch (err) {
       logger.error('[cards/by-id] error:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = errorMessage(err);
       res.status(500).json({ error: `by-id lookup failed: ${message}` });
     }
   }
@@ -654,7 +656,7 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
     res.json({ prices });
   } catch (err) {
     logger.error('[refresh-prices] error:', err);
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    const message = errorMessage(err);
     res.status(500).json({ error: `Price refresh failed: ${message}.` });
   }
 });
@@ -700,18 +702,6 @@ async function readImportText(req: Request): Promise<string | null> {
     return req.body.text;
   }
   return null;
-}
-
-function dedupePreservingOrder<T>(arr: T[]): T[] {
-  const seen = new Set<T>();
-  const out: T[] = [];
-  for (const x of arr) {
-    if (!seen.has(x)) {
-      seen.add(x);
-      out.push(x);
-    }
-  }
-  return out;
 }
 
 /**
