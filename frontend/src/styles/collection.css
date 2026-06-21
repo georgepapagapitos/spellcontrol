@@ -892,6 +892,59 @@ i.ss.set-symbol--mythic {
   color: var(--rarity-mythic);
 }
 
+/* Accessible rarity chip (components/shared/RarityBadge) — a C/U/R/M letter
+   tinted by rarity. The letter is the signal (so rarity isn't color-only,
+   WCAG 1.4.1); the gradient tint reinforces it. Replaces the old rarity-only
+   color on the row set glyph (T36). Reuses the --rarity-*-from/to/border/text
+   palette shared with the binder grid slots. */
+.rarity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.rarity-badge--common {
+  background: linear-gradient(135deg, var(--rarity-common-from), var(--rarity-common-to));
+  border-color: var(--rarity-common-border);
+  color: var(--rarity-common-text);
+}
+
+.rarity-badge--uncommon {
+  background: linear-gradient(135deg, var(--rarity-uncommon-from), var(--rarity-uncommon-to));
+  border-color: var(--rarity-uncommon-border);
+  color: var(--rarity-uncommon-text);
+}
+
+.rarity-badge--rare {
+  background: linear-gradient(135deg, var(--rarity-rare-from), var(--rarity-rare-to));
+  border-color: var(--rarity-rare-border);
+  color: var(--rarity-rare-text);
+}
+
+.rarity-badge--mythic {
+  background: linear-gradient(135deg, var(--rarity-mythic-from), var(--rarity-mythic-to));
+  border-color: var(--rarity-mythic-border);
+  color: var(--rarity-mythic-text);
+}
+
+/* Grid-tile placement: top-right corner (top-left holds the select check). */
+.collection-grid-rarity {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
 /* Page-number chip — shown on binder list rows so the user can find a
    card in physical storage without leaving the list. */
 .card-list-page {
@@ -1533,21 +1586,20 @@ i.ss.set-symbol--mythic {
   flex-shrink: 0;
 }
 
-/* Note: the rarity-tinted set glyph (.set-symbol) and the type glyph
-   (.card-list-type) are deliberately NOT in this hide list — they are the
-   printing-identity floor that keeps two printings of the same card name
-   distinguishable on the narrowest compact rows (T36). Only the wider text
-   tokens and badge pills drop below 768px. */
+/* Note: the type glyph (.card-list-type), the accessible rarity chip
+   (.rarity-badge) and the 3-char set code (.card-list-set-code) are
+   deliberately NOT in this hide list — together they are the printing-identity
+   floor that keeps two printings of the same card name distinguishable on the
+   narrowest compact rows (T36). Only the wider #CN token and badge pills drop
+   below 768px. */
 .collection-list.is-compact .foil-badge-pill,
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
-.collection-list.is-compact .card-list-set-code,
 .collection-list.is-compact .card-list-cn {
   display: none;
 }
 
 @media (min-width: 768px) {
-  .collection-list.is-compact .card-list-set-code,
   .collection-list.is-compact .card-list-cn {
     display: inline-block;
   }

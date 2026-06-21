@@ -63,6 +63,7 @@ import {
 import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
+import { RarityBadge } from './shared/RarityBadge';
 import { buildEditedCards } from '../lib/edit-card';
 import {
   compileExpression,
@@ -1813,6 +1814,7 @@ export function CardListTable({
                           <div className="card-preview-foil-glare" aria-hidden="true" />
                         </>
                       )}
+                      <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
                       {(r.qty > 1 || duplicateNames.has(r.card.name)) && (
                         <div className="collection-grid-corner">
                           {r.qty > 1 && (
