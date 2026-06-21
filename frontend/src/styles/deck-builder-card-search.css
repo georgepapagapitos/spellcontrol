@@ -12,6 +12,15 @@
   gap: 0.5rem;
 }
 
+/* SearchPill defaults to flex:1 1 12rem so it grows along a horizontal
+   toolbar. Here it's a child of a flex COLUMN, where that flex-grow would
+   stretch the pill vertically to fill the panel — and on the empty Scryfall
+   tab (no results list competing for space) it ballooned into a giant
+   border-radius:999px ellipse. Pin it to its natural height. */
+.card-search-panel > .search-pill {
+  flex: 0 0 auto;
+}
+
 /* Add-cards sheet: the shared card-picker sheet (bottom sheet on
    mobile, centered modal ≥1024px) hosts the deck's CardSearchPanel.
    Strip the panel's own card chrome — the sheet is the surface — and

@@ -164,15 +164,13 @@
   margin: 0;
   font-size: var(--text-xs);
 }
+/* SearchPill brings its own frame (background/border/radius/padding); only
+   the layout sizing lives here. The parent is a plain block, not flex, so
+   cap the width directly rather than via flex-basis. */
 .admin-search {
   width: 100%;
   max-width: 320px;
-  padding: 0.4rem 0.6rem;
   margin-bottom: 0.5rem;
-  background: var(--surface-raised);
-  color: inherit;
-  border: 1px solid var(--border, #333);
-  border-radius: var(--radius);
 }
 .admin-danger-h {
   color: var(--err-text);

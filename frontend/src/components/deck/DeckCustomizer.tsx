@@ -9,6 +9,7 @@ import type {
   Pacing,
 } from '@/deck-builder/types';
 import { autocompleteCardName } from '@/deck-builder/services/scryfall/client';
+import { SearchPill } from '../SearchPill';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
 
@@ -757,17 +758,20 @@ function CardNameAutocomplete({ onPick }: { onPick: (name: string) => void }) {
 
   return (
     <div className="deck-customizer-autocomplete">
-      <input
-        type="text"
+      <SearchPill
+        inputType="text"
         className="deck-customizer-autocomplete-input"
-        value={input}
         placeholder="Search cards…"
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && suggestions[0]) {
-            e.preventDefault();
-            handlePick(suggestions[0]);
-          }
+        ariaLabel="Search cards to add"
+        value={input}
+        onChange={setInput}
+        inputProps={{
+          onKeyDown: (e) => {
+            if (e.key === 'Enter' && suggestions[0]) {
+              e.preventDefault();
+              handlePick(suggestions[0]);
+            }
+          },
         }}
       />
       {input.trim().length >= 2 && (
