@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { Express } from 'express';
-import { createTestEnv } from '../test-helpers';
+import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { __resetOracleBulkForTesting, refreshOracleBulk } from '../offline/bulk-cache';
 import { __resetCombosBulkForTesting } from '../offline/combos-export';
 
@@ -142,15 +142,44 @@ describe('GET /api/offline/combos', () => {
   });
 });
 
+async function registerCookie(username: string): Promise<string> {
+  const reg = await request(app)
+    .post('/api/auth/register')
+    .send({ username, password: 'correct horse battery' });
+  expect(reg.status).toBe(201);
+  return extractSessionCookie(reg.headers['set-cookie'])!;
+}
+
 describe('POST /api/offline/admin/refresh-oracle', () => {
-  it('returns version + counts after a refresh', async () => {
+  it('401s for unauthenticated callers', async () => {
     const res = await request(app).post('/api/offline/admin/refresh-oracle');
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
-      version: expect.any(String),
-      cardCount: expect.any(Number),
-      gzippedBytes: expect.any(Number),
-    });
+    expect(res.status).toBe(401);
+  });
+
+  it('403s for authenticated non-admins', async () => {
+    const cookie = await registerCookie('offline_grace');
+    const res = await request(app).post('/api/offline/admin/refresh-oracle').set('Cookie', cookie);
+    expect(res.status).toBe(403);
+  });
+
+  it('returns version + counts for an admin', async () => {
+    const cookie = await registerCookie('offline_admin');
+    const prev = process.env.ADMIN_USERNAMES;
+    process.env.ADMIN_USERNAMES = 'offline_admin';
+    try {
+      const res = await request(app)
+        .post('/api/offline/admin/refresh-oracle')
+        .set('Cookie', cookie);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        version: expect.any(String),
+        cardCount: expect.any(Number),
+        gzippedBytes: expect.any(Number),
+      });
+    } finally {
+      if (prev === undefined) delete process.env.ADMIN_USERNAMES;
+      else process.env.ADMIN_USERNAMES = prev;
+    }
   });
 });
 

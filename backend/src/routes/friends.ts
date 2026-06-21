@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { requireAuth } from '../auth';
+import { requireAuth, normalizeUsername } from '../auth';
 import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -124,10 +124,10 @@ friendsRouter.post(
     const body = req.body as { username?: unknown };
     const rawUsername = body.username;
 
-    if (typeof rawUsername !== 'string' || !/^[a-z0-9_-]{3,32}$/.test(rawUsername)) {
+    const username = normalizeUsername(rawUsername);
+    if (!username) {
       return res.status(400).json({ error: 'Invalid username.' });
     }
-    const username = rawUsername;
 
     const db = getDb();
 
