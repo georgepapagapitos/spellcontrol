@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
+import { availableFinishes } from '../lib/scanner-feedback';
 import { ManaCost } from './ManaCost';
 import { CardPreview } from './CardPreview';
 import { useCollectionStore } from '../store/collection';
@@ -35,13 +36,6 @@ function priceForFinish(card: ScryfallCard, finish: Finish): number {
 
 function cardThumb(card: ScryfallCard): string | undefined {
   return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
-}
-
-function cardFinishes(card: ScryfallCard): Finish[] {
-  const all = (card.finishes ?? ['nonfoil']).filter(
-    (f): f is Finish => f === 'nonfoil' || f === 'foil' || f === 'etched'
-  );
-  return all.length > 0 ? all : ['nonfoil'];
 }
 
 /**
@@ -173,7 +167,7 @@ export function InlineCardSearch({ query, onClose }: Props) {
             const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
             const added = addedCounts[c.id] ?? 0;
             const printingsOpen = openPrintingsId === c.id;
-            const finishes = cardFinishes(c);
+            const finishes = availableFinishes(c.finishes);
             return (
               <li key={c.id} className="inline-card-search-item">
                 <div className="inline-card-search-row">
@@ -359,7 +353,7 @@ function PrintingPicker({
 
   const selected = printings?.find((p) => p.id === selectedId) ?? null;
   const finishes = useMemo<Finish[]>(
-    () => (selected ? cardFinishes(selected) : ['nonfoil']),
+    () => (selected ? availableFinishes(selected.finishes) : ['nonfoil']),
     [selected]
   );
   // The user's explicit pick may not exist on a newly selected printing —

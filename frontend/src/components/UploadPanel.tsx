@@ -1,5 +1,6 @@
 import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { Suspense, lazy, useMemo, useRef, useState } from 'react';
+import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
@@ -887,19 +888,6 @@ function formatImportProgressMessage(p: ImportProgressState): string {
   return `Importing your collection — ${batch}…`;
 }
 
-// Intentionally verbose with locale short date for import history display.
-// Different from lib/format-time.ts:formatRelativeTime which uses short tokens
-// (e.g. "3m ago"). Keep local.
 function formatRelative(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days = Math.floor(diff / 86_400_000);
-  if (days >= 7) {
-    return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-  if (days >= 1) return `${days} day${days === 1 ? '' : 's'} ago`;
-  if (hours >= 1) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-  if (minutes >= 1) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  return 'just now';
+  return formatRelativeTime(timestamp, { verbose: true });
 }
