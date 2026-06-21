@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useOfflineStore } from '@/store/offline';
 import { isNativePlatform } from '@/lib/platform';
 import type { DownloadPhase } from '@/lib/offline';
+import { formatRelativeTime } from '@/lib/format-time';
 
 /**
  * Status for the always-on local card data, plus a manual "Refresh" and an
@@ -119,22 +120,6 @@ function formatBytes(b: number): string {
   return `${b} B`;
 }
 
-// Intentionally verbose — settings page prose tone, locale date for old data.
-// Different from lib/format-time.ts:formatRelativeTime which uses short tokens
-// (e.g. "3m ago"). Keep local.
 function formatRelative(ms: number): string {
-  if (!ms) return 'never';
-  const deltaSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
-  if (deltaSec < 60) return 'just now';
-  const deltaMin = Math.floor(deltaSec / 60);
-  if (deltaMin < 60) return `${deltaMin} minute${deltaMin === 1 ? '' : 's'} ago`;
-  const deltaHr = Math.floor(deltaMin / 60);
-  if (deltaHr < 24) return `${deltaHr} hour${deltaHr === 1 ? '' : 's'} ago`;
-  const deltaDay = Math.floor(deltaHr / 24);
-  if (deltaDay < 30) return `${deltaDay} day${deltaDay === 1 ? '' : 's'} ago`;
-  try {
-    return new Date(ms).toLocaleDateString();
-  } catch {
-    return 'a while ago';
-  }
+  return formatRelativeTime(ms, { verbose: true, neverLabel: 'never' });
 }
