@@ -138,23 +138,38 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     return { detectedCombos, seeded: false };
   }
 
-  // Find the weakest non-land, non-protected, non-combo-piece card to evict.
+  // Names that must never be evicted to make room for the seed: the pieces of
+  // the very combo we're completing (evicting the partner would defeat the
+  // seed), plus any cards already flagged as combo pieces upstream.
+  const protectedNames = new Set<string>(best.combo.cards.map((p) => p.name));
+
+  // Find the weakest evictable card. Categories are searched weakest-filler
+  // first; within a category the LAST-appended card is the weakest (generation
+  // appends best-fit first, filler last). Lands are never evicted (they hold the
+  // mana base), nor are must-include cards, known combo pieces, or this combo's
+  // own pieces.
+  const EVICTION_ORDER: DeckCategory[] = [
+    'synergy',
+    'utility',
+    'creatures',
+    'cardDraw',
+    'singleRemoval',
+    'boardWipes',
+    'ramp',
+  ];
   function findWeakest(): { card: ScryfallCard; category: DeckCategory } | null {
-    let weakest: { card: ScryfallCard; category: DeckCategory; idx: number } | null = null;
-    for (const cat of Object.keys(state.categories) as DeckCategory[]) {
-      if (cat === 'lands') continue;
+    for (const cat of EVICTION_ORDER) {
       const cards = state.categories[cat];
+      if (!cards) continue;
       for (let i = cards.length - 1; i >= 0; i--) {
         const card = cards[i];
         if (mustIncludeNames.has(card.name.toLowerCase())) continue;
         if (state.comboCardNames.has(card.name)) continue;
-        // idx serves as a proxy for priority — later-appended cards are weaker.
-        if (!weakest || i < weakest.idx) {
-          weakest = { card, category: cat, idx: i };
-        }
+        if (protectedNames.has(card.name)) continue;
+        return { card, category: cat };
       }
     }
-    return weakest ? { card: weakest.card, category: weakest.category } : null;
+    return null;
   }
 
   const evict = findWeakest();

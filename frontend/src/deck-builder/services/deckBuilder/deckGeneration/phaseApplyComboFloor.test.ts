@@ -236,6 +236,12 @@ describe('applyComboFloor', () => {
     expect(state.usedNames.has('Gravecrawler')).toBe(true);
     // One filler was evicted — total card count stays the same (1-for-1 swap)
     expect(Object.values(state.categories).flat().length).toBe(totalCardsBefore);
+    // The combo's EXISTING partner piece must never be the card we evict —
+    // doing so would defeat the very combo we're seeding.
+    expect(state.usedNames.has('Phyrexian Altar')).toBe(true);
+    expect(state.categories.creatures.some((c) => c.name === 'Phyrexian Altar')).toBe(true);
+    // A filler creature was the one evicted, not the combo piece.
+    expect(state.categories.creatures.some((c) => c.name === 'Filler Creature B')).toBe(false);
     // Detected combos updated with the seeded entry
     const seeded = result.detectedCombos?.find((dc) => dc.comboId === 'c1');
     expect(seeded?.isComplete).toBe(true);
