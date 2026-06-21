@@ -109,3 +109,60 @@ describe('formatRelativeTime — options', () => {
     expect(formatRelativeTime(1_000_000 + 5_000, { now: 1_000_000, ...opts })).toBe('just now');
   });
 });
+
+describe('formatRelativeTime — verbose mode', () => {
+  const base = 1_000_000_000; // arbitrary stable reference
+
+  it('returns "just now" within the first minute', () => {
+    expect(formatRelativeTime(base, { now: base + 30_000, verbose: true })).toBe('just now');
+  });
+
+  it('returns singular "1 minute ago"', () => {
+    expect(formatRelativeTime(base, { now: base + 60_000, verbose: true })).toBe('1 minute ago');
+  });
+
+  it('returns plural "N minutes ago"', () => {
+    expect(formatRelativeTime(base, { now: base + 5 * 60_000, verbose: true })).toBe(
+      '5 minutes ago'
+    );
+  });
+
+  it('returns singular "1 hour ago"', () => {
+    expect(formatRelativeTime(base, { now: base + 60 * 60_000, verbose: true })).toBe('1 hour ago');
+  });
+
+  it('returns plural "N hours ago"', () => {
+    expect(formatRelativeTime(base, { now: base + 3 * 60 * 60_000, verbose: true })).toBe(
+      '3 hours ago'
+    );
+  });
+
+  it('returns singular "1 day ago"', () => {
+    expect(formatRelativeTime(base, { now: base + 24 * 60 * 60_000, verbose: true })).toBe(
+      '1 day ago'
+    );
+  });
+
+  it('returns plural "N days ago" for 2–6 days', () => {
+    expect(formatRelativeTime(base, { now: base + 3 * 24 * 60 * 60_000, verbose: true })).toBe(
+      '3 days ago'
+    );
+  });
+
+  it('returns a locale short date for timestamps >= 7 days old', () => {
+    const sevenDaysMs = base + 7 * 24 * 60 * 60_000;
+    const result = formatRelativeTime(base, { now: sevenDaysMs, verbose: true });
+    // Should be a locale date string, not "7 days ago"
+    expect(result).not.toBe('7 days ago');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('returns neverLabel for falsy timestamp', () => {
+    expect(formatRelativeTime(0, { verbose: true, neverLabel: 'never' })).toBe('never');
+  });
+
+  it('does not apply neverLabel when not provided (treats 0 as "just now")', () => {
+    // 0 timestamp with now near 0 → "just now"
+    expect(formatRelativeTime(0, { now: 0, verbose: true })).toBe('just now');
+  });
+});

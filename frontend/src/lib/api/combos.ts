@@ -1,7 +1,6 @@
-import { handleResponse } from '../fetch-utils';
+import { handleResponse, fetchWithAbortTimeout } from '../fetch-utils';
 import { ensureCombosCached, matchCombosLocal } from '../offline';
 import type { ComboDetail, ComboMatchResponse } from '../../types/combos';
-import { apiUrl } from '../api-base';
 
 export interface MatchRequest {
   ownedOracleIds: string[];
@@ -15,21 +14,16 @@ export interface MatchRequest {
 const TIMEOUT_MS = 30_000;
 
 async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const response = await fetch(apiUrl(url), { ...init, signal: controller.signal }).catch(
-      (err) => {
-        if (err && (err as Error).name === 'AbortError') {
-          throw new Error('Combos request timed out — the server is taking too long. Try again.');
-        }
-        throw new Error('The server is not responding. Try again in a moment.');
-      }
-    );
-    return await handleResponse<T>(response);
-  } finally {
-    clearTimeout(timer);
-  }
+  const response = await fetchWithAbortTimeout(
+    url,
+    init,
+    TIMEOUT_MS,
+    'Combos request timed out — the server is taking too long. Try again.'
+  ).catch((err: unknown) => {
+    if (err instanceof Error && err.message.startsWith('Combos request timed out')) throw err;
+    throw new Error('The server is not responding. Try again in a moment.');
+  });
+  return handleResponse<T>(response);
 }
 
 export async function matchCombos(req: MatchRequest): Promise<ComboMatchResponse> {

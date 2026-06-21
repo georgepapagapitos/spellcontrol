@@ -3,6 +3,8 @@ import type { ScryfallCard, Ruling } from './types';
 import type { ScryfallCache } from './cache';
 import type { ImportRow } from './parsers/types';
 
+export const SCRYFALL_USER_AGENT = 'spellcontrol/1.0';
+
 const SCRYFALL_COLLECTION_URL = 'https://api.scryfall.com/cards/collection';
 const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 const BATCH_SIZE = 75;
@@ -280,7 +282,7 @@ async function fetchBatchWithRetry(
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
-          'User-Agent': 'spellcontrol/1.0',
+          'User-Agent': SCRYFALL_USER_AGENT,
         },
         body: JSON.stringify({ identifiers }),
       });
@@ -448,7 +450,7 @@ async function fetchSearchPageWithRetry(url: string): Promise<SearchResponse | n
       const response = await fetch(url, {
         headers: {
           Accept: 'application/json',
-          'User-Agent': 'spellcontrol/1.0',
+          'User-Agent': SCRYFALL_USER_AGENT,
         },
       });
 
@@ -525,7 +527,7 @@ export async function fetchRulings(id: string): Promise<Ruling[]> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(`https://api.scryfall.com/cards/${id}/rulings`, {
-        headers: { Accept: 'application/json', 'User-Agent': 'spellcontrol/1.0' },
+        headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
       });
 
       if (response.ok) {

@@ -31,7 +31,7 @@ import { BulkMoveToBinderSheet } from './BulkMoveToBinderSheet';
 import { useConfirm } from '../lib/use-confirm';
 import { removeCopiesOfPrinting, printingFinishKey } from '../lib/collection-mutations';
 import { useToastsStore } from '../store/toasts';
-import { useRegisterShortcuts } from '../lib/shortcut-registry';
+import { useRegisterShortcuts, isTypingTarget } from '../lib/shortcut-registry';
 import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
@@ -400,13 +400,6 @@ export function CardListTable({
   // don't fight with normal text entry.
   // NOTE: `?` is handled globally by Layout's ShortcutRegistryProvider.
   useEffect(() => {
-    function isTypingTarget(t: EventTarget | null): boolean {
-      if (!(t instanceof HTMLElement)) return false;
-      const tag = t.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-      if (t.isContentEditable) return true;
-      return false;
-    }
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTypingTarget(e.target)) return;

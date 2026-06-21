@@ -3,6 +3,8 @@
  * Refreshes once per TTL window. Concurrent calls share a single in-flight request.
  */
 
+import { SCRYFALL_USER_AGENT } from './scryfall';
+
 interface ScryfallSet {
   code: string;
   name: string;
@@ -50,7 +52,7 @@ async function fetchSetMap(): Promise<SetMap> {
   const response = await fetch(SCRYFALL_SETS_URL, {
     headers: {
       Accept: 'application/json',
-      'User-Agent': 'spellcontrol/1.0',
+      'User-Agent': SCRYFALL_USER_AGENT,
     },
   });
   if (!response.ok) {

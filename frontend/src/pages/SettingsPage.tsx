@@ -272,16 +272,10 @@ export function SettingsPage() {
         </div>
       </header>
 
-      {/*
-        Account & Sign-in: visually a single top-of-page section, implemented
-        as a labeled group wrapping the existing Account and Sign-in-methods
-        cards. Wrapping (rather than merging the card bodies) preserves the
-        cards' own headers, aria-labelledby ids, and conditional rendering
-        for the sign-in-methods card so no handler logic moves around.
-      */}
+      {/* ── 1. Account ─────────────────────────────────────────────────────── */}
       <div role="group" aria-labelledby="settings-account-group-title">
         <h2 id="settings-account-group-title" className="sr-only">
-          Account & Sign-in
+          Account
         </h2>
         <section className="settings-card" aria-labelledby="settings-account-title">
           <header className="settings-card-header">
@@ -338,6 +332,8 @@ export function SettingsPage() {
               </p>
             </header>
             <div className="settings-card-body">
+              {/* Password row: status-only for now; action slot left open for a
+                  future Set/Change password flow to slot in. */}
               <div className="settings-row">
                 <div className="settings-row-text">
                   <div className="settings-row-label">Password</div>
@@ -375,81 +371,61 @@ export function SettingsPage() {
         )}
       </div>
 
-      {/*
-        Appearance card: moved up so everyday preferences (theme) sit right
-        after account, before the admin panel and data/sync tools. Matches
-        the ManaBox pattern of leading with visual preferences.
-      */}
-      <section className="settings-card" aria-labelledby="settings-appearance-title">
-        <header className="settings-card-header">
-          <h2 id="settings-appearance-title" className="settings-card-title">
-            Appearance
-          </h2>
-          <p className="settings-card-hint">Theme re-skins the whole app to a guild palette.</p>
-        </header>
-        <div className="settings-card-body">
-          <ul className="settings-theme-grid" role="listbox" aria-label="Choose theme">
-            {THEMES.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={t.id === theme}
-                  className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
-                  onClick={() => setTheme(t.id)}
-                >
-                  <span
-                    className="settings-theme-swatch"
-                    aria-hidden="true"
-                    style={{
-                      background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
-                    }}
-                  />
-                  <span className="settings-theme-name">{t.name}</span>
-                  <span className="settings-theme-guild">{t.guild}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      {isAdmin && userId && <AdminPanel currentUserId={userId} />}
-
-      {/*
-        Data & Sync group: import/export/prices, offline cache, share links,
-        and troubleshooting are all cache/data concerns — visually grouped
-        under a section header so they read as a coherent block.
-      */}
-      <div role="group" aria-labelledby="settings-data-group-title">
-        <h2 id="settings-data-group-title" className="settings-section-header">
-          Data &amp; Sync
+      {/* ── 2. Appearance ──────────────────────────────────────────────────── */}
+      <div role="group" aria-labelledby="settings-appearance-group-title">
+        <h2 id="settings-appearance-group-title" className="settings-section-header">
+          Appearance
         </h2>
-
-        <section className="settings-card" aria-labelledby="settings-data-title">
+        <section className="settings-card" aria-labelledby="settings-appearance-title">
           <header className="settings-card-header">
-            <h2 id="settings-data-title" className="settings-card-title">
+            <h2 id="settings-appearance-title" className="settings-card-title">
+              Theme
+            </h2>
+            <p className="settings-card-hint">Theme re-skins the whole app to a guild palette.</p>
+          </header>
+          <div className="settings-card-body">
+            <ul className="settings-theme-grid" role="listbox" aria-label="Choose theme">
+              {THEMES.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={t.id === theme}
+                    className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
+                    onClick={() => setTheme(t.id)}
+                  >
+                    <span
+                      className="settings-theme-swatch"
+                      aria-hidden="true"
+                      style={{
+                        background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
+                      }}
+                    />
+                    <span className="settings-theme-name">{t.name}</span>
+                    <span className="settings-theme-guild">{t.guild}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </div>
+
+      {/* ── 3. Collection ──────────────────────────────────────────────────── */}
+      <div role="group" aria-labelledby="settings-collection-group-title">
+        <h2 id="settings-collection-group-title" className="settings-section-header">
+          Collection
+        </h2>
+        <section className="settings-card" aria-labelledby="settings-collection-title">
+          <header className="settings-card-header">
+            <h2 id="settings-collection-title" className="settings-card-title">
               Collection
             </h2>
             <p className="settings-card-hint">
-              Import, back up, and keep card data fresh. Exports are JSON files you can re-import
-              later.
+              Back up and keep card data fresh. Exports are JSON files you can re-import later.
             </p>
           </header>
           <div className="settings-card-body">
-            <div className="settings-row">
-              <div className="settings-row-text">
-                <div className="settings-row-value">Add cards</div>
-                <div className="settings-row-hint">
-                  Paste a list from ManaBox, Moxfield, Archidekt, or a CSV to add cards to your
-                  collection.
-                </div>
-              </div>
-              <Link to="/collection?add=list" className="btn">
-                Add cards
-              </Link>
-            </div>
-
             <div className="settings-row">
               <div className="settings-row-text">
                 <div className="settings-row-value settings-row-value--with-tip">
@@ -515,7 +491,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="settings-row-hint">
-                  Re-map each deck's reserved copies after edits or re-imports.
+                  Re-map each deck’s reserved copies after edits or re-imports.
                 </div>
               </div>
               <button
@@ -529,10 +505,26 @@ export function SettingsPage() {
             </div>
           </div>
         </section>
+      </div>
+
+      {/* ── 4. Sharing (authed only — SharedLinksSettings self-hides for guests,
+              so the whole group is suppressed when there’s no username) ─────── */}
+      {username && (
+        <div role="group" aria-labelledby="settings-sharing-group-title">
+          <h2 id="settings-sharing-group-title" className="settings-section-header">
+            Sharing
+          </h2>
+          <SharedLinksSettings />
+        </div>
+      )}
+
+      {/* ── 5. Data & Storage ─────────────────────────────────────── */}
+      <div role="group" aria-labelledby="settings-data-group-title">
+        <h2 id="settings-data-group-title" className="settings-section-header">
+          Data &amp; Storage
+        </h2>
 
         <OfflineModeSettings />
-
-        <SharedLinksSettings />
 
         <section className="settings-card" aria-labelledby="settings-troubleshooting-title">
           <header className="settings-card-header">
@@ -566,6 +558,20 @@ export function SettingsPage() {
         </section>
       </div>
 
+      {/* ── 6. Admin (admin users only) ────────────────────────────────── */}
+      {isAdmin && userId && (
+        <div role="group" aria-labelledby="settings-admin-group-title">
+          <h2 id="settings-admin-group-title" className="settings-section-header">
+            Admin
+          </h2>
+          <AdminPanel currentUserId={userId} />
+        </div>
+      )}
+
+      {/* ── 7. Danger zone ─────────────────────────────────────────────── */}
+      <h2 id="settings-danger-group-title" className="settings-section-header">
+        Danger zone
+      </h2>
       <section
         className="settings-card settings-card--danger"
         aria-labelledby="settings-danger-title"
@@ -575,7 +581,8 @@ export function SettingsPage() {
             Danger zone
           </h2>
           <p className="settings-card-hint">
-            Irreversible actions. Make a backup first (Collection → Export full collection).
+            Irreversible actions. Make a backup first — Settings → Collection → Export full
+            collection.
           </p>
         </header>
         <div className="settings-card-body">
@@ -614,6 +621,7 @@ export function SettingsPage() {
         </div>
       </section>
 
+      {/* ── 8. Footer ─────────────────────────────────────────────────────── */}
       <footer className="settings-page-about">
         <p>
           SpellControl is unofficial Fan Content permitted under the{' '}
