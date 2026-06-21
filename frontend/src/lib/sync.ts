@@ -1064,6 +1064,13 @@ export async function migrateLegacyCubes(): Promise<void> {
   }
 }
 
+type AnyRecord = Record<string, unknown>;
+
+/** Extract the non-null data payloads from a set of IDB rows. */
+function liveData(rows: estore.StoredRow[]): AnyRecord[] {
+  return rows.map((r) => r.data).filter((d): d is AnyRecord => d != null && typeof d === 'object');
+}
+
 /**
  * Read every live row from IDB and set it onto the appropriate Zustand store.
  * Late-imports the stores to break a circular dependency (stores import this
@@ -1084,37 +1091,22 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     estore.getAllLive('cube'),
   ]);
 
-  type AnyRecord = Record<string, unknown>;
   // Card rows are stored WITHOUT price (it lives device-local, see card-prices).
   // Merge the live price back on before the cards reach the in-memory store, so
   // every downstream consumer (display, sort, binder routing) sees a price.
   const cardData = applyPrices(
-    cards
-      .map((r) => r.data)
-      .filter((d): d is AnyRecord => d != null && typeof d === 'object') as unknown as Array<{
+    liveData(cards) as unknown as Array<{
       scryfallId: string;
       purchasePrice?: number;
       pricedAt?: number;
     }>
   );
-  const importData = imports
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
-  const listData = lists
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
-  const binderData = binders
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
-  const deckData = decks
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
-  const gameData = games
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
-  const cubeData = cubes
-    .map((r) => r.data)
-    .filter((d): d is AnyRecord => d != null && typeof d === 'object');
+  const importData = liveData(imports);
+  const listData = liveData(lists);
+  const binderData = liveData(binders);
+  const deckData = liveData(decks);
+  const gameData = liveData(games);
+  const cubeData = liveData(cubes);
 
   const { useCollectionStore } = await import('../store/collection');
   const { useDecksStore } = await import('../store/decks');
