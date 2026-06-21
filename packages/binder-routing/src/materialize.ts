@@ -42,6 +42,12 @@ const DEFAULT_UNCATEGORIZED_SORTS: SortEntry[] = [
 /** Fallback pocket size for binders that don't specify one and for the uncategorized bucket. */
 const DEFAULT_POCKET_SIZE: PocketSize = 9;
 
+/** Number of pages needed to hold `cardCount` cards in a pocket of `slotSize`. */
+function countPages(cardCount: number, slotSize: number): number {
+  const effective = slotSize > 0 ? slotSize : 9;
+  return Math.ceil(cardCount / effective);
+}
+
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 /**
@@ -296,8 +302,7 @@ function buildSections(
   const useGrouping = !!primary && primary.field !== 'none';
 
   const buildSection = (meta: SectionMeta, sectionCards: EnrichedCard[]): BinderSection | null => {
-    const effectiveSlots = slotSize > 0 ? slotSize : 9;
-    const sectionPageCount = Math.ceil(sectionCards.length / effectiveSlots);
+    const sectionPageCount = countPages(sectionCards.length, slotSize);
     const pages = chunkIntoPages(sectionCards, slotSize, isMatch, pageOffsetRef.value);
     pageOffsetRef.value += sectionPageCount;
     const matchingCards = sectionCards.filter(isMatch);
@@ -407,8 +412,7 @@ function buildGroupSections(
     const key = `group-${i}`;
     const sorted = sortCards(groupCards, sorts, ctx);
 
-    const effectiveSlots = slotSize > 0 ? slotSize : 9;
-    const sectionPageCount = Math.ceil(sorted.length / effectiveSlots);
+    const sectionPageCount = countPages(sorted.length, slotSize);
     const pages = chunkIntoPages(sorted, slotSize, isMatch, pageOffset);
     pageOffset += sectionPageCount;
     const matchingCards = sorted.filter(isMatch);
