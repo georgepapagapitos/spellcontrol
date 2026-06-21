@@ -70,6 +70,7 @@ import {
   findStealableCopy,
   planCardAdd,
   listContestedCards,
+  makeDeckAllocationInfo,
   useCollectionByCopyId,
   type DonorOutcome,
   type DonorZone,
@@ -1555,12 +1556,10 @@ export function DeckEditorPage() {
           const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
           const allocatedId = claim?.copyId ?? null;
           if (allocatedId) {
-            allocations.set(allocatedId, {
-              deckId: deck.id,
-              deckName: deck.name,
-              deckColor: deck.color,
-              cardName: card.name,
-            });
+            allocations.set(
+              allocatedId,
+              makeDeckAllocationInfo(deck.id, deck.name, deck.color, card.name)
+            );
           }
           addCard(deck.id, card, allocatedId);
         }

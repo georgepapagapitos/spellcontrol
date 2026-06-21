@@ -20,6 +20,7 @@ import {
   dedupeDeckAllocations,
   pickCollectionCopy,
   compareCopyPreference,
+  makeDeckAllocationInfo,
   type AllocationInfo,
 } from '../lib/allocations';
 import { createIndexedDbStorage } from '../lib/idb-storage';
@@ -577,7 +578,7 @@ export const useDecksStore = create<DecksState>()(
             deckColor: string,
             cardName: string
           ): void => {
-            allocated.set(copyId, { deckId, deckName, deckColor, cardName });
+            allocated.set(copyId, makeDeckAllocationInfo(deckId, deckName, deckColor, cardName));
           };
 
           // Two passes: first preserve every still-valid binding so they get

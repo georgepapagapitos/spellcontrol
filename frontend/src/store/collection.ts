@@ -13,6 +13,7 @@ import type {
   UploadResponse,
 } from '../types';
 import { useDecksStore } from './decks';
+import { useCubeStore } from './cube';
 import {
   saveCollection,
   loadCollection,
@@ -30,6 +31,7 @@ import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/bin
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
+import { remapCubeAllocations } from '../lib/remap-cube-allocations';
 import { appNavigate } from '../lib/navigate-bridge';
 import { MAX_VISIBLE_TOASTS } from '../lib/toast-stack';
 import { clampListName, entryToCards, makeListEntry } from '../lib/lists';
@@ -293,6 +295,9 @@ function remapDeckAllocations(newCards: EnrichedCard[]): void {
   if (decks.length > 0) {
     remapAllocations(newCards);
   }
+  // Physical cubes claim copies too — re-resolve their bindings on the same
+  // collection-replace so a reimport doesn't orphan them (no-op if none exist).
+  remapCubeAllocations(newCards);
 }
 
 /**
@@ -752,7 +757,9 @@ export const useCollectionStore = create<CollectionState>()(
           // Allocations are passed through so the diff matches the live view
           // (copies hidden via hideDeckAllocated don't "move"). Device-local,
           // no sync touched.
-          const allocated = new Set(buildAllocationMap(useDecksStore.getState().decks).keys());
+          const allocated = new Set(
+            buildAllocationMap(useDecksStore.getState().decks, useCubeStore.getState().saved).keys()
+          );
           // Decorate with oracle tags so moves into/out of a tag-ruled binder
           // are detected (no-op unless a binder uses one). Tags are name-derived
           // and price-invariant, so this only matters when a tag binder's

@@ -8,6 +8,7 @@ import { TypeIcon } from './shared/ManaSymbol';
 import { SetSymbol } from './shared/SetSymbol';
 import { FoilBadge } from './FoilBadge';
 import { DeckBadge } from './DeckBadge';
+import { makeDeckAllocationInfo } from '@/lib/allocations';
 import { BinderBadge } from './BinderBadge';
 
 /**
@@ -155,9 +156,7 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
             interactive
             glyph={
               <DeckBadge
-                allocations={[
-                  { deckId: 'legend-sample', deckName: 'a deck', deckColor: '', cardName: '' },
-                ]}
+                allocations={[makeDeckAllocationInfo('legend-sample', 'a deck', '', '')]}
               />
             }
             word="In a deck"

@@ -8,8 +8,10 @@ import {
   findStealableCopy,
   planCardAdd,
   listContestedCards,
+  makeDeckAllocationInfo,
   type AllocationInfo,
 } from './allocations';
+import type { SavedCube, CubePickSlot } from '../store/cube';
 import type { EnrichedCard } from '../types';
 import type { Deck, DeckCard } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -248,7 +250,7 @@ describe('pickCollectionCopy', () => {
 
   it('skips copies that are already allocated', () => {
     const claimed = new Map<string, AllocationInfo>();
-    claimed.set('a', { deckId: 'd1', deckName: 'X', deckColor: '#000', cardName: 'Sol Ring' });
+    claimed.set('a', makeDeckAllocationInfo('d1', 'X', '#000', 'Sol Ring'));
     const a = card({ copyId: 'a', purchasePrice: 1 });
     const b = card({ copyId: 'b', purchasePrice: 5 });
     expect(pickCollectionCopy('Sol Ring', [a, b], claimed)?.copyId).toBe('b');
@@ -281,7 +283,7 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
 
   it('returns null when all candidates are allocated even with a preference', () => {
     const claimed = new Map<string, AllocationInfo>();
-    claimed.set('a', { deckId: 'd1', deckName: 'X', deckColor: '#000', cardName: 'Sol Ring' });
+    claimed.set('a', makeDeckAllocationInfo('d1', 'X', '#000', 'Sol Ring'));
     const a = card({ copyId: 'a', scryfallId: 'sf-ONE' });
     expect(pickCollectionCopy('Sol Ring', [a], claimed, 'sf-ONE')).toBeNull();
   });
@@ -721,5 +723,73 @@ describe('classifyAllocation', () => {
 
   it('returns orphan when the copy is gone', () => {
     expect(classifyAllocation('missing', new Map())).toBe('orphan');
+  });
+});
+
+describe('buildAllocationMap with physical cubes', () => {
+  function cubeSlot(name: string, copyId: string | null): CubePickSlot {
+    return {
+      slotId: name,
+      card: { name } as never,
+      allocatedCopyId: copyId,
+      printingFinishKey: null,
+    };
+  }
+  function savedCube(overrides: Partial<SavedCube> = {}): SavedCube {
+    return {
+      id: 'cube-1',
+      name: 'My Cube',
+      size: 540,
+      cube: { picks: [] } as never,
+      picks: [],
+      isPhysical: true,
+      savedAt: 0,
+      ...overrides,
+    };
+  }
+
+  it("folds a physical cube's picks into the map as cube claims", () => {
+    const map = buildAllocationMap([], [savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] })]);
+    const info = map.get('copy-x');
+    expect(info?.ownerKind).toBe('cube');
+    expect(info?.ownerName).toBe('My Cube');
+    expect(info?.cardName).toBe('Sol Ring');
+    // Legacy aliases: deckId is '' so "is it in THIS deck" checks treat it as elsewhere.
+    expect(info?.deckId).toBe('');
+    expect(info?.deckName).toBe('My Cube');
+  });
+
+  it('ignores cubes not flagged physical', () => {
+    const map = buildAllocationMap(
+      [],
+      [savedCube({ isPhysical: false, picks: [cubeSlot('Sol Ring', 'copy-x')] })]
+    );
+    expect(map.size).toBe(0);
+  });
+
+  it('ignores cube slots with no bound copy', () => {
+    const map = buildAllocationMap([], [savedCube({ picks: [cubeSlot('Sol Ring', null)] })]);
+    expect(map.size).toBe(0);
+  });
+
+  it('stays deck-only when no cubes are passed (back-compat)', () => {
+    const d = deck({
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'c1' }],
+    });
+    expect(buildAllocationMap([d]).size).toBe(1);
+    expect(buildAllocationMap([d]).get('c1')?.ownerKind).toBe('deck');
+  });
+
+  it('does not let a deck steal a copy held by a physical cube', () => {
+    const collection = [card({ copyId: 'copy-x', name: 'Sol Ring' })];
+    const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] });
+    // The only copy is committed to a cube → no free copy AND cube isn't stealable.
+    expect(findStealableCopy('Sol Ring', collection, [], 'd-target', undefined, [cube])).toBeNull();
+  });
+
+  it('planCardAdd lists (not binds) when the only copy is in a physical cube', () => {
+    const collection = [card({ copyId: 'copy-x', name: 'Sol Ring' })];
+    const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] });
+    expect(planCardAdd('Sol Ring', undefined, collection, [], [cube]).kind).toBe('list');
   });
 });

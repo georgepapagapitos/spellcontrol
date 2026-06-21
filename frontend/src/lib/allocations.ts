@@ -2,8 +2,16 @@ import { logger } from '@/lib/logger';
 import { useMemo } from 'react';
 import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
+import { useCubeStore, type SavedCube } from '../store/cube';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+/**
+ * Cubes have no per-cube user color (unlike decks), so every cube badge/link
+ * tints with one shared identity color — a CSS var distinct from any deck
+ * swatch so a "in a cube" marker never reads as a deck. Defined in tokens.css.
+ */
+export const CUBE_BADGE_COLOR = 'var(--cube-color)';
 
 /**
  * Basic-land names — fungible across printings. A deck slot for a Swamp
@@ -32,13 +40,27 @@ export function isBasicLandName(name: string): boolean {
 }
 
 /**
- * Per-allocation info: which deck claims this physical card copy,
- * and which logical card slot in that deck.
+ * Per-allocation info: which container (a deck OR a physical cube) claims this
+ * physical card copy, and which card it stands in for.
+ *
+ * The `owner*` fields are the allocator-agnostic shape. The `deck*` fields are
+ * kept as aliases so the ~25 sites that read `deckId`/`deckName`/`deckColor`
+ * don't all need touching — for a cube claim `deckId` is `''` (so existing
+ * `claim.deckId === thisDeck.id` "is it in *this* deck" checks correctly treat
+ * a cube copy as elsewhere), while `deckName`/`deckColor` mirror the cube's.
+ * Anything that must route or label differently branches on `ownerKind`.
  */
 export interface AllocationInfo {
+  ownerKind: 'deck' | 'cube';
+  /** Deck.id for a deck claim; SavedCube.id for a cube claim. */
+  ownerId: string;
+  ownerName: string;
+  ownerColor: string;
+  /** Legacy alias = ownerId for decks, '' for cubes. */
   deckId: string;
+  /** Legacy alias = ownerName. */
   deckName: string;
-  /** Deck's swatch color, mirrored from the Deck record so badges/links can tint without re-fetching. */
+  /** Legacy alias = ownerColor. */
   deckColor: string;
   cardName: string;
 }
@@ -52,10 +74,64 @@ export interface AllocationInfo {
  */
 export function useAllocations(): Map<string, AllocationInfo> {
   const decks = useDecksStore((s) => s.decks);
-  return useMemo(() => buildAllocationMap(decks), [decks]);
+  const cubes = useCubeStore((s) => s.saved);
+  return useMemo(() => buildAllocationMap(decks, cubes), [decks, cubes]);
 }
 
-export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
+/**
+ * Build a deck AllocationInfo with the owner* fields and the legacy deck*
+ * aliases both populated. Exported so the transient claimed-maps in
+ * save-generated-deck / build-deck-from-import / the deck remap can construct
+ * the full shape without repeating the alias boilerplate.
+ */
+export function makeDeckAllocationInfo(
+  deckId: string,
+  deckName: string,
+  deckColor: string,
+  cardName: string
+): AllocationInfo {
+  return {
+    ownerKind: 'deck',
+    ownerId: deckId,
+    ownerName: deckName,
+    ownerColor: deckColor,
+    deckId,
+    deckName,
+    deckColor,
+    cardName,
+  };
+}
+
+/** Full AllocationInfo for a deck claim, with legacy aliases populated. */
+function deckClaim(deck: Deck, cardName: string): AllocationInfo {
+  return makeDeckAllocationInfo(deck.id, deck.name, deck.color, cardName);
+}
+
+/** Full AllocationInfo for a physical-cube claim. `deckId` is '' on purpose. */
+function cubeClaim(cube: SavedCube, cardName: string): AllocationInfo {
+  return {
+    ownerKind: 'cube',
+    ownerId: cube.id,
+    ownerName: cube.name,
+    ownerColor: CUBE_BADGE_COLOR,
+    deckId: '',
+    deckName: cube.name,
+    deckColor: CUBE_BADGE_COLOR,
+    cardName,
+  };
+}
+
+/**
+ * Map<copyId → AllocationInfo> of every physical copy "checked out" to a deck
+ * or to a cube the user flagged as physical (`isPhysical`). Read by `CardSlot`,
+ * the binder UI, and the deck editor to grey out / badge copies that aren't
+ * free. Pass `physicalCubes` (the raw saved-cube list — non-physical cubes are
+ * filtered out here) to fold cube claims in; omit it for deck-only behavior.
+ */
+export function buildAllocationMap(
+  decks: Deck[],
+  physicalCubes?: SavedCube[]
+): Map<string, AllocationInfo> {
   const m = new Map<string, AllocationInfo>();
   const isDev =
     typeof import.meta !== 'undefined' && (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
@@ -63,47 +139,29 @@ export function buildAllocationMap(decks: Deck[]): Map<string, AllocationInfo> {
     if (isDev && m.has(copyId)) {
       const prior = m.get(copyId)!;
       logger.warn(
-        `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" (${prior.deckId}) and "${info.cardName}" in "${info.deckName}" (${info.deckId})`
+        `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" and "${info.cardName}" in "${info.deckName}"`
       );
     }
     m.set(copyId, info);
   };
   for (const deck of decks) {
     if (deck.commander && deck.commanderAllocatedCopyId) {
-      claim(deck.commanderAllocatedCopyId, {
-        deckId: deck.id,
-        deckName: deck.name,
-        deckColor: deck.color,
-        cardName: deck.commander.name,
-      });
+      claim(deck.commanderAllocatedCopyId, deckClaim(deck, deck.commander.name));
     }
     if (deck.partnerCommander && deck.partnerCommanderAllocatedCopyId) {
-      claim(deck.partnerCommanderAllocatedCopyId, {
-        deckId: deck.id,
-        deckName: deck.name,
-        deckColor: deck.color,
-        cardName: deck.partnerCommander.name,
-      });
+      claim(deck.partnerCommanderAllocatedCopyId, deckClaim(deck, deck.partnerCommander.name));
     }
     for (const c of deck.cards) {
-      if (c.allocatedCopyId) {
-        claim(c.allocatedCopyId, {
-          deckId: deck.id,
-          deckName: deck.name,
-          deckColor: deck.color,
-          cardName: c.card.name,
-        });
-      }
+      if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }
     for (const c of deck.sideboard ?? []) {
-      if (c.allocatedCopyId) {
-        claim(c.allocatedCopyId, {
-          deckId: deck.id,
-          deckName: deck.name,
-          deckColor: deck.color,
-          cardName: c.card.name,
-        });
-      }
+      if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
+    }
+  }
+  for (const cube of physicalCubes ?? []) {
+    if (!cube.isPhysical) continue;
+    for (const slot of cube.picks ?? []) {
+      if (slot.allocatedCopyId) claim(slot.allocatedCopyId, cubeClaim(cube, slot.card.name));
     }
   }
   return m;
@@ -457,19 +515,22 @@ export function findStealableCopy(
   collection: EnrichedCard[],
   decks: Deck[],
   excludeDeckId: string,
-  preferredScryfallId?: string
+  preferredScryfallId?: string,
+  physicalCubes?: SavedCube[]
 ): StealableCopy | null {
   const owned = collection.filter((c) => c.name === cardName);
   if (owned.length === 0) return null;
 
-  const allocations = buildAllocationMap(decks);
+  const allocations = buildAllocationMap(decks, physicalCubes);
   // A free copy exists → no steal needed; the normal allocator handles it.
   if (owned.some((c) => !allocations.has(c.copyId))) return null;
 
-  // Copies held by a deck OTHER than the one we're adding to.
+  // Copies held by a DECK other than the one we're adding to. Copies held by a
+  // physical cube are deliberately not stealable in v1 (no silent move out of a
+  // cube — the user releases it consciously), so the ownerKind guard skips them.
   let stealable = owned.filter((c) => {
     const info = allocations.get(c.copyId);
-    return !!info && info.deckId !== excludeDeckId;
+    return !!info && info.ownerKind === 'deck' && info.deckId !== excludeDeckId;
   });
   if (stealable.length === 0) return null;
 
@@ -520,9 +581,12 @@ export function planCardAdd(
   cardName: string,
   preferredScryfallId: string | undefined,
   collection: EnrichedCard[],
-  decks: Deck[]
+  decks: Deck[],
+  physicalCubes?: SavedCube[]
 ): AddPlan {
-  const allocations = buildAllocationMap(decks);
+  // Including physicalCubes here is what stops an add from binding a copy that
+  // already lives in a physical cube — a card can't be in two places at once.
+  const allocations = buildAllocationMap(decks, physicalCubes);
   const claim = pickCollectionCopy(cardName, collection, allocations, preferredScryfallId);
   return claim ? { kind: 'bind', copyId: claim.copyId } : { kind: 'list' };
 }
@@ -548,14 +612,22 @@ export interface ContestedCard {
 export function listContestedCards(
   deck: Deck,
   collection: EnrichedCard[],
-  decks: Deck[]
+  decks: Deck[],
+  physicalCubes?: SavedCube[]
 ): ContestedCard[] {
   const out: ContestedCard[] = [];
   for (const slot of deck.cards) {
     if (slot.allocatedCopyId) continue;
     const owned = collection.filter((c) => c.name === slot.card.name).length;
     if (owned === 0) continue;
-    const donor = findStealableCopy(slot.card.name, collection, decks, deck.id, slot.card.id);
+    const donor = findStealableCopy(
+      slot.card.name,
+      collection,
+      decks,
+      deck.id,
+      slot.card.id,
+      physicalCubes
+    );
     if (!donor) continue; // a free copy exists, or not actually elsewhere — not contested
     out.push({
       slotId: slot.slotId,

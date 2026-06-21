@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '../store/decks';
+import type { SavedCube } from '../store/cube';
 import type { EnrichedCard } from '../types';
 import {
   buildAvailableCollection,
@@ -70,6 +71,32 @@ describe('buildAvailableCollection', () => {
     expect(available.counts.get('Free Card')).toBe(1);
     expect(available.counts.get('Partly Claimed Card')).toBe(1);
     expect(available.counts.has('Fully Claimed Card')).toBe(false);
+  });
+
+  it('excludes copies committed to a physical cube', () => {
+    const cube: SavedCube = {
+      id: 'cube-1',
+      name: 'My Cube',
+      size: 540,
+      cube: { picks: [] } as never,
+      picks: [
+        {
+          slotId: '0',
+          card: { name: 'Cubed Card' } as never,
+          allocatedCopyId: 'cubed-copy',
+          printingFinishKey: null,
+        },
+      ],
+      isPhysical: true,
+      savedAt: 0,
+    };
+    const available = buildAvailableCollection(
+      [owned('Free Card', 'free-copy'), owned('Cubed Card', 'cubed-copy')],
+      [],
+      [cube]
+    );
+    expect([...available.names]).toEqual(['Free Card']);
+    expect(available.counts.has('Cubed Card')).toBe(false);
   });
 });
 
