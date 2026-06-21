@@ -7,7 +7,7 @@ import { Readable } from 'node:stream';
 import streamArray from 'stream-json/streamers/stream-array.js';
 import type { SlimCard, SlimTokenRef } from './types';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
-import { NON_PLAYABLE_LAYOUTS } from '../scryfall-bulk';
+import { NON_PLAYABLE_LAYOUTS, fetchScryfallBulkEntry } from '../scryfall-bulk';
 
 /**
  * Superset of the backend's ScryfallCard type — Scryfall's oracle_cards bulk
@@ -54,7 +54,6 @@ interface ScryfallBulkCard {
   all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
 }
 
-const SCRYFALL_BULK_INDEX_URL = 'https://api.scryfall.com/bulk-data';
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 
 /**
@@ -95,30 +94,8 @@ let refreshTimer: NodeJS.Timeout | null = null;
  */
 let lastError: { message: string; at: number } | null = null;
 
-interface BulkIndexEntry {
-  type: string;
-  download_uri: string;
-  updated_at: string;
-  size?: number;
-}
-
-interface BulkIndexResponse {
-  data: BulkIndexEntry[];
-}
-
 async function fetchOracleBulkUrl(): Promise<{ url: string; updatedAt: string }> {
-  // Scryfall requires a descriptive User-Agent — requests without one now get a
-  // 400 (matches the header the per-import resolver in scryfall.ts already sends).
-  const res = await fetch(SCRYFALL_BULK_INDEX_URL, {
-    headers: { Accept: 'application/json', 'User-Agent': SCRYFALL_USER_AGENT },
-  });
-  if (!res.ok) {
-    throw new Error(`Scryfall bulk index returned ${res.status}`);
-  }
-  const body = (await res.json()) as BulkIndexResponse;
-  const entry = body.data.find((e) => e.type === 'oracle_cards');
-  if (!entry) throw new Error('Scryfall bulk index has no oracle_cards entry');
-  return { url: entry.download_uri, updatedAt: entry.updated_at };
+  return fetchScryfallBulkEntry('oracle_cards');
 }
 
 /**
