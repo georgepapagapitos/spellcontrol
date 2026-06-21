@@ -3,8 +3,6 @@ import { synergyTags } from './synergy-tags';
 
 describe('synergyTags', () => {
   it('delegates to the classifier for non-spell cards', () => {
-    // Ashnod's Altar is an Artifact, so the spellslinger patch never fires —
-    // the result is exactly what classifyCard returns.
     const tags = synergyTags({
       name: "Ashnod's Altar",
       type_line: 'Artifact',
@@ -15,43 +13,34 @@ describe('synergyTags', () => {
     expect(tags.synergyPayoffs).toEqual([]);
   });
 
-  it('treats every instant/sorcery as a spellslinger enabler (cube patch)', () => {
+  it('does NOT tag a plain instant/sorcery as spellslinger', () => {
+    // Spells are universal — counting every one as a spellslinger enabler makes
+    // spellslinger the dominant archetype for any collection and floods the
+    // high-synergy reserve. A vanilla burn/draw spell carries no axis.
     const bolt = synergyTags({
       name: 'Lightning Bolt',
       type_line: 'Instant',
       oracle_text: 'Lightning Bolt deals 3 damage to any target.',
       keywords: [],
     });
-    expect(bolt.synergyProducers).toContain('spellslinger');
+    expect(bolt.synergyProducers).not.toContain('spellslinger');
+    expect(bolt.synergyProducers).toEqual([]);
 
     const sorc = synergyTags({
       name: 'Divination',
       type_line: 'Sorcery',
       oracle_text: 'Draw two cards.',
     });
-    expect(sorc.synergyProducers).toContain('spellslinger');
+    expect(sorc.synergyProducers).toEqual([]);
   });
 
-  it('does not add spellslinger to permanents', () => {
-    const bear = synergyTags({
-      name: 'Grizzly Bears',
-      type_line: 'Creature — Bear',
-      oracle_text: '',
-    });
-    expect(bear.synergyProducers).not.toContain('spellslinger');
-    expect(bear.synergyProducers).toEqual([]);
-    expect(bear.synergyPayoffs).toEqual([]);
-  });
-
-  it('does not duplicate spellslinger when the classifier already tagged it', () => {
-    // A cost-reducer instant/sorcery the classifier tags spellslinger itself.
+  it('tags a genuine spellslinger enabler (spell-cost reducer)', () => {
     const tags = synergyTags({
-      name: 'Cost Reducer Test',
-      type_line: 'Instant',
+      name: 'Goblin Electromancer',
+      type_line: 'Creature — Goblin Wizard',
       oracle_text: 'Instant and sorcery spells you cast cost {1} less to cast.',
       keywords: [],
     });
-    const count = tags.synergyProducers.filter((a) => a === 'spellslinger').length;
-    expect(count).toBe(1);
+    expect(tags.synergyProducers).toContain('spellslinger');
   });
 });
