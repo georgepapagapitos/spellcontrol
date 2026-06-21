@@ -26,6 +26,14 @@ export interface EnrichedCard {
    */
   pricedAt?: number;
   /**
+   * Epoch ms this physical copy was last edited — created via quick-add, or
+   * changed through the edit-card flow (printing/finish/quantity/condition).
+   * Powers the collection "Last edited" sort. Optional: cards predating this
+   * field (or imported, which doesn't stamp it) fall back to their import time.
+   * NOT bumped by price refreshes (price is stripped off the synced row).
+   */
+  updatedAt?: number;
+  /**
    * Optional category label from the source export — ManaBox binder name, Moxfield tag, etc.
    * Kept on the card for debugging/display, but no longer filterable.
    */
@@ -209,7 +217,9 @@ export type SortField =
   | 'finish'
   // Collection-only import-date sort (see binder-routing SortField); kept in sync
   // with the canonical union in `@spellcontrol/binder-routing`.
-  | 'dateAdded';
+  | 'dateAdded'
+  // Collection-only last-edit sort (see binder-routing SortField); kept in sync.
+  | 'dateEdited';
 
 export type SortDir = 'asc' | 'desc';
 

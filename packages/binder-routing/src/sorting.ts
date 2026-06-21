@@ -245,6 +245,11 @@ export function cardSortValue(
       // Whole-import granularity: every card from one import shares its addedAt.
       // Unknown/legacy cards (no importId, or an id not in the map) sort as oldest.
       return ctx?.addedAtByImportId?.get(card.importId ?? '') ?? 0;
+    case 'dateEdited':
+      // Per-copy edit time, set on quick-add/edit. Cards never manually edited
+      // (imported, or predating the field) fall back to their import time so the
+      // sort stays meaningful for an untouched collection.
+      return card.updatedAt ?? ctx?.addedAtByImportId?.get(card.importId ?? '') ?? 0;
     default:
       return 0;
   }
