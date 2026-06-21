@@ -39,6 +39,12 @@ interface ManaSymbolProps {
    * most call sites label a parent button/row instead).
    */
   label?: string;
+  /**
+   * Native tooltip for a decorative glyph (e.g. `{T}` inside rules prose) — kept
+   * `aria-hidden` since the surrounding text already carries the meaning. Ignored
+   * when `label` is set.
+   */
+  title?: string;
 }
 
 /**
@@ -47,7 +53,7 @@ interface ManaSymbolProps {
  * conventions live in exactly one place. Prefer the `ColorPip` / `TypeIcon`
  * wrappers below for those two common cases.
  */
-export function ManaSymbol({ symbol, cost, split, pip, className, label }: ManaSymbolProps) {
+export function ManaSymbol({ symbol, cost, split, pip, className, label, title }: ManaSymbolProps) {
   const cls = joinClasses(
     'ms',
     `ms-${symbol}`,
@@ -59,7 +65,7 @@ export function ManaSymbol({ symbol, cost, split, pip, className, label }: ManaS
   return label ? (
     <i className={cls} role="img" aria-label={label} title={label} />
   ) : (
-    <i className={cls} aria-hidden />
+    <i className={cls} title={title} aria-hidden />
   );
 }
 

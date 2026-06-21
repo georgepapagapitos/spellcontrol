@@ -1,4 +1,5 @@
-import { symbolToClass } from '@/lib/mana-symbols';
+import { parseSymbol } from '@/lib/mana-symbols';
+import { ManaSymbol } from './shared/ManaSymbol';
 
 interface Props {
   cost: string | undefined;
@@ -19,9 +20,10 @@ export function ManaCost({ cost, className }: Props) {
       {faces.map((face, fi) => (
         <span key={fi} className="mana-cost-face">
           {fi > 0 && <span className="mana-cost-sep">{'//'}</span>}
-          {parseSymbols(face).map((sym, i) => (
-            <i key={i} className={symbolToClass(sym)} title={`{${sym}}`} aria-hidden />
-          ))}
+          {parseSymbols(face).map((sym, i) => {
+            const { token, split } = parseSymbol(sym);
+            return <ManaSymbol key={i} symbol={token} cost split={split} title={`{${sym}}`} />;
+          })}
         </span>
       ))}
     </span>
