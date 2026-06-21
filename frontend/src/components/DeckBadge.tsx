@@ -33,7 +33,8 @@ function OwnerBadge({ kind, owners }: { kind: 'deck' | 'cube'; owners: Allocatio
   const style = { '--deck-color': color } as React.CSSProperties;
 
   if (owners.length === 1) {
-    const to = kind === 'cube' ? '/collection/cube' : `/decks/${owners[0].ownerId}`;
+    const to =
+      kind === 'cube' ? `/collection/cube/${owners[0].ownerId}` : `/decks/${owners[0].ownerId}`;
     return (
       <Link
         to={to}

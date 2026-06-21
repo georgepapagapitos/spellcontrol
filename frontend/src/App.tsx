@@ -229,6 +229,7 @@ export default function App() {
             <Route path="lists" element={<ListsPage />} />
             <Route path="lists/:id" element={<ListsPage />} />
             <Route path="cube" element={<CubePage />} />
+            <Route path="cube/:id" element={<CubePage />} />
           </Route>
 
           <Route path="/decks" element={<DecksIndexPage />} />

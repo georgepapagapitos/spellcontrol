@@ -675,7 +675,7 @@ export function CardPreview({
                       <span key={`c-${c.ownerId}`}>
                         {i > 0 && ' · '}
                         <Link
-                          to="/collection/cube"
+                          to={`/collection/cube/${c.ownerId}`}
                           className="card-preview-context-pill card-preview-context-pill--cube"
                           style={
                             {

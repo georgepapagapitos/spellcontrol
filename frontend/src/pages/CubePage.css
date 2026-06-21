@@ -161,6 +161,12 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
+/* Deep-link target (`/collection/cube/:id`) — ring it in the cube identity color
+   so a badge that links here makes the specific cube obvious. */
+.cube-saved-row--target {
+  border-color: var(--cube-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cube-color) 35%, transparent);
+}
 /* The name/meta block is the load affordance; fills the row, the two action
    buttons sit flush on the trailing edge. */
 .cube-saved-load {

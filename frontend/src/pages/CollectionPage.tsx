@@ -82,6 +82,13 @@ export function CollectionPage() {
 
   const allocations = useAllocations();
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
+  // Copies reserved by a physical cube (unavailable to decks) — surfaced in the
+  // hero so the "committed elsewhere" gap has a visible home on the collection.
+  const cubeReservedCount = useMemo(() => {
+    let n = 0;
+    for (const a of allocations.values()) if (a.ownerKind === 'cube') n += 1;
+    return n;
+  }, [allocations]);
   const setMap = useSetMap();
 
   // Materialize without search — the collection table has its own local search.
@@ -145,6 +152,12 @@ export function CollectionPage() {
                   ) : (
                     <span title="Current market value (Scryfall)">
                       {formatMoney(displayValue, { wholeDollars: true })}
+                    </span>
+                  )}
+                  {cubeReservedCount > 0 && (
+                    <span title="Copies reserved by a physical cube (unavailable to decks)">
+                      {' · '}
+                      {cubeReservedCount.toLocaleString()} reserved by cubes
                     </span>
                   )}
                 </span>
