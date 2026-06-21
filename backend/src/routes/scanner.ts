@@ -22,6 +22,7 @@ import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import multer from 'multer';
 import { logger } from '../logger';
+import { errorMessage } from '../error-utils';
 import { getMatcher } from '../scanner/matcher';
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
@@ -66,7 +67,7 @@ scannerRouter.post(
       res.json(result);
     } catch (err) {
       logger.error('[scanner/match] error:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = errorMessage(err);
       res.status(500).json({ error: `Match failed: ${message}` });
     }
   }
