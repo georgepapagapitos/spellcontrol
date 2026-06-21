@@ -10,7 +10,9 @@
 // into CubeCard[]; this module does the selection and the explanation.
 
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
-import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
+
+const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
 
 export interface CubeCard {
   name: string;
@@ -117,6 +119,23 @@ function axesTouched(c: CubeCard): AxisKey[] {
   const pay = c.synergyPayoffs ?? [];
   if (!prod.length && !pay.length) return [];
   return [...new Set([...prod, ...pay])];
+}
+
+type AxisCount = { producers: number; payoffs: number };
+
+/** Per-axis enabler/payoff tallies across a set of cards. */
+function countAxes(cards: CubeCard[]): Map<AxisKey, AxisCount> {
+  const counts = new Map<AxisKey, AxisCount>();
+  const bump = (k: AxisKey, side: keyof AxisCount) => {
+    const cur = counts.get(k) ?? { producers: 0, payoffs: 0 };
+    cur[side]++;
+    counts.set(k, cur);
+  };
+  for (const c of cards) {
+    for (const k of c.synergyProducers ?? []) bump(k, 'producers');
+    for (const k of c.synergyPayoffs ?? []) bump(k, 'payoffs');
+  }
+  return counts;
 }
 
 /**
@@ -313,7 +332,11 @@ export function generateCube(
     shortfall = Math.max(0, size - picks.length);
   }
 
-  const gaps = buildGaps(byBucket, band, size, pool.length, shortfall);
+  // Archetype gaps reflect the owned COLLECTION's capacity (not how dense the
+  // slider made this cube), and only show once the user engages synergy — so
+  // the default goodstuff experience stays unchanged.
+  const poolAxes = synergyLevel > 0 ? countAxes(pool) : null;
+  const gaps = buildGaps(byBucket, band, size, pool.length, shortfall, poolAxes);
   return { size, picks, byBucket, targetByBucket, gaps, shortfall, poolSize: pool.length };
 }
 
@@ -322,7 +345,8 @@ function buildGaps(
   band: BandTargets,
   size: number,
   poolSize: number,
-  shortfall: number
+  shortfall: number,
+  poolAxes?: Map<AxisKey, AxisCount> | null
 ): Gap[] {
   const gaps: Gap[] = [];
 
@@ -356,6 +380,51 @@ function buildGaps(
         band.fixingLands.p25
       )}–${Math.round(band.fixingLands.p75)}. Drafters may struggle to cast multicolor cards.`,
     });
+  }
+
+  // Archetype support: does the COLLECTION have the enabler/payoff density a
+  // draftable archetype needs? Thresholds scale from the cube-design rule of
+  // thumb (~12 enablers / ~6 payoffs per 360) by size.
+  if (poolAxes && poolAxes.size) {
+    const enablerFloor = Math.max(3, Math.round((12 * size) / 360));
+    const payoffFloor = Math.max(2, Math.round((6 * size) / 360));
+    const total = (n: AxisCount) => n.producers + n.payoffs;
+    // Axes the collection genuinely leans into, strongest first.
+    const candidates = [...poolAxes.entries()]
+      .filter(([, n]) => total(n) >= enablerFloor)
+      .sort((a, b) => total(b[1]) - total(a[1]));
+
+    // Celebrate the deepest well-supported archetype.
+    const strong = candidates.find(
+      ([, n]) => n.producers >= enablerFloor && n.payoffs >= payoffFloor
+    );
+    if (strong) {
+      const [axis, n] = strong;
+      gaps.push({
+        severity: 'note',
+        text: `Strong ${AXIS_LABEL.get(axis) ?? axis} support — ${n.producers} enablers / ${n.payoffs} payoffs in your collection. Slide toward Synergy to lean in.`,
+      });
+    }
+
+    // Flag up to two archetypes the collection reaches for but can't fill.
+    let reported = 0;
+    for (const [axis, n] of candidates) {
+      if (reported >= 2) break;
+      const label = AXIS_LABEL.get(axis) ?? axis;
+      if (n.payoffs === 0) {
+        gaps.push({
+          severity: 'short',
+          text: `${label}: ${n.producers} enablers but no payoff in your collection — fuel with nothing to cash it in. Add payoff cards to make it draftable.`,
+        });
+        reported++;
+      } else if (n.producers < enablerFloor || n.payoffs < payoffFloor) {
+        gaps.push({
+          severity: 'short',
+          text: `${label}: ${n.producers} enablers / ${n.payoffs} payoffs — thin for a draftable archetype (good ${size}-card cubes want ~${enablerFloor} / ~${payoffFloor}). More in your collection would deepen it.`,
+        });
+        reported++;
+      }
+    }
   }
 
   // A short, positive note on what the cube does well (balance is the headline metric).
