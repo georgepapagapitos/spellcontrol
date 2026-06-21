@@ -113,28 +113,38 @@ export type RemovalSubtype = 'counterspell' | 'bounce' | 'spot-removal' | 'remov
 export type BoardwipeSubtype = 'bounce-wipe' | 'boardwipe';
 export type CardDrawSubtype = 'tutor' | 'wheel' | 'cantrip' | 'card-draw' | 'card-advantage';
 
+// ── Private role-membership predicates ──────────────────────────────────────
+// These consolidate the repeated tag-set checks used by getCardRole,
+// cardMatchesRole, hasMultipleRoles, and getAllCardRoles.
+
+function isRampCard(cardName: string): boolean {
+  return !!(
+    tagSets?.['ramp']?.has(cardName) ||
+    tagSets?.['cost-reducer']?.has(cardName) ||
+    tagSets?.['mana-dork']?.has(cardName) ||
+    tagSets?.['mana-rock']?.has(cardName)
+  );
+}
+
+function isCardDrawCard(cardName: string): boolean {
+  return !!(
+    tagSets?.['card-advantage']?.has(cardName) ||
+    tagSets?.['tutor']?.has(cardName) ||
+    tagSets?.['draw']?.has(cardName) ||
+    tagSets?.['wheel']?.has(cardName) ||
+    tagSets?.['looting']?.has(cardName) ||
+    tagSets?.['cantrip']?.has(cardName)
+  );
+}
+
 /** Categorize a card by its tagger tags. Returns the best-fit deck role, or null if no tag matches / data unavailable. */
 export function getCardRole(cardName: string): RoleKey | null {
   if (!tagSets) return null;
   // Check in priority order — boardwipe before removal (it's more specific)
   if (tagSets['boardwipe']?.has(cardName)) return 'boardwipe';
   if (tagSets['removal']?.has(cardName)) return 'removal';
-  if (
-    tagSets['ramp']?.has(cardName) ||
-    tagSets['cost-reducer']?.has(cardName) ||
-    tagSets['mana-dork']?.has(cardName) ||
-    tagSets['mana-rock']?.has(cardName)
-  )
-    return 'ramp';
-  if (
-    tagSets['card-advantage']?.has(cardName) ||
-    tagSets['tutor']?.has(cardName) ||
-    tagSets['draw']?.has(cardName) ||
-    tagSets['wheel']?.has(cardName) ||
-    tagSets['looting']?.has(cardName) ||
-    tagSets['cantrip']?.has(cardName)
-  )
-    return 'cardDraw';
+  if (isRampCard(cardName)) return 'ramp';
+  if (isCardDrawCard(cardName)) return 'cardDraw';
   return null;
 }
 
@@ -147,21 +157,9 @@ export function cardMatchesRole(cardName: string, role: RoleKey): boolean {
     case 'removal':
       return !!tagSets['removal']?.has(cardName);
     case 'ramp':
-      return !!(
-        tagSets['ramp']?.has(cardName) ||
-        tagSets['cost-reducer']?.has(cardName) ||
-        tagSets['mana-dork']?.has(cardName) ||
-        tagSets['mana-rock']?.has(cardName)
-      );
+      return isRampCard(cardName);
     case 'cardDraw':
-      return !!(
-        tagSets['card-advantage']?.has(cardName) ||
-        tagSets['tutor']?.has(cardName) ||
-        tagSets['draw']?.has(cardName) ||
-        tagSets['wheel']?.has(cardName) ||
-        tagSets['looting']?.has(cardName) ||
-        tagSets['cantrip']?.has(cardName)
-      );
+      return isCardDrawCard(cardName);
     default:
       return false;
   }
@@ -172,22 +170,8 @@ export function hasMultipleRoles(cardName: string): boolean {
   if (!tagSets) return false;
   let count = 0;
   if (tagSets['boardwipe']?.has(cardName) || tagSets['removal']?.has(cardName)) count++;
-  if (
-    tagSets['ramp']?.has(cardName) ||
-    tagSets['cost-reducer']?.has(cardName) ||
-    tagSets['mana-dork']?.has(cardName) ||
-    tagSets['mana-rock']?.has(cardName)
-  )
-    count++;
-  if (
-    tagSets['card-advantage']?.has(cardName) ||
-    tagSets['tutor']?.has(cardName) ||
-    tagSets['draw']?.has(cardName) ||
-    tagSets['wheel']?.has(cardName) ||
-    tagSets['looting']?.has(cardName) ||
-    tagSets['cantrip']?.has(cardName)
-  )
-    count++;
+  if (isRampCard(cardName)) count++;
+  if (isCardDrawCard(cardName)) count++;
   return count > 1;
 }
 
@@ -197,22 +181,8 @@ export function getAllCardRoles(cardName: string): RoleKey[] {
   const roles: RoleKey[] = [];
   if (tagSets['boardwipe']?.has(cardName)) roles.push('boardwipe');
   if (tagSets['removal']?.has(cardName)) roles.push('removal');
-  if (
-    tagSets['ramp']?.has(cardName) ||
-    tagSets['cost-reducer']?.has(cardName) ||
-    tagSets['mana-dork']?.has(cardName) ||
-    tagSets['mana-rock']?.has(cardName)
-  )
-    roles.push('ramp');
-  if (
-    tagSets['card-advantage']?.has(cardName) ||
-    tagSets['tutor']?.has(cardName) ||
-    tagSets['draw']?.has(cardName) ||
-    tagSets['wheel']?.has(cardName) ||
-    tagSets['looting']?.has(cardName) ||
-    tagSets['cantrip']?.has(cardName)
-  )
-    roles.push('cardDraw');
+  if (isRampCard(cardName)) roles.push('ramp');
+  if (isCardDrawCard(cardName)) roles.push('cardDraw');
   return roles;
 }
 

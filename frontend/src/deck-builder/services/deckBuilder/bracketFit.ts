@@ -33,6 +33,8 @@ import type { ComboMatch } from '@/types/combos';
 import { estimateBracket, isStaxPiece, type BracketEstimation } from './bracketEstimator';
 import { getCardRole, isMassLandDenial, isExtraTurn } from '@/deck-builder/services/tagger/client';
 import { frontFaceName } from '@/lib/card-text';
+import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
+import { ROLE_LABELS } from './deckAnalyzer';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,14 +52,6 @@ export type BracketFitSignal =
   | 'upshift-gc'
   | 'upshift-combo'
   | 'upshift-fill';
-
-/** Display labels for the tagger functional roles (mirrors gapAnalysisBuilder). */
-const ROLE_LABELS: Record<string, string> = {
-  ramp: 'Ramp',
-  removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
-};
 
 /**
  * A single proposed move, shaped so the UI can convert it 1:1 into a `Change`:
@@ -309,11 +303,7 @@ export function findReplacement(
   const role = getCardRole(best.name) || undefined;
   return {
     name: best.name,
-    price: best.prices?.tcgplayer?.price
-      ? best.prices.tcgplayer.price.toFixed(2)
-      : best.prices?.cardkingdom?.price
-        ? best.prices.cardkingdom.price.toFixed(2)
-        : null,
+    price: getEdhrecCardPrice(best) ?? null,
     inclusion: best.inclusion,
     synergy: best.synergy ?? 0,
     typeLine: best.primary_type ?? '',

@@ -33,11 +33,7 @@ const GUILD_BORDER: Record<string, string> = {
   GR: '28 50% 38%',
 };
 
-// WUBRG sort order for consistent color ordering
-const WUBRG_ORDER = ['W', 'U', 'B', 'R', 'G'];
-function sortWUBRG(colors: string[]): string[] {
-  return [...colors].sort((a, b) => WUBRG_ORDER.indexOf(a) - WUBRG_ORDER.indexOf(b));
-}
+import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
 
 // Default theme values
 const DEFAULT_RING = '262 83% 58%';

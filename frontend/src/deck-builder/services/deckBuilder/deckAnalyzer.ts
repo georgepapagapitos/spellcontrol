@@ -26,6 +26,7 @@ import { calculateCurvePercentages } from './curveUtils';
 import { detectPacing, type Pacing } from './pacingDetector';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
 import { frontFaceName } from '@/lib/card-text';
+import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
 
 export interface RoleDeficit {
   role: string;
@@ -228,7 +229,7 @@ export interface DeckAnalysis {
   pacingLabel: string;
 }
 
-const ROLE_LABELS: Record<string, string> = {
+export const ROLE_LABELS: Record<string, string> = {
   ramp: 'Ramp',
   removal: 'Removal',
   boardwipe: 'Board Wipes',
@@ -1194,13 +1195,6 @@ export interface OptimizeSwaps {
   additions: OptimizeCard[];
 }
 
-const ROLE_LABELS_MAP: Record<string, string> = {
-  ramp: 'Ramp',
-  removal: 'Removal',
-  boardwipe: 'Board Wipes',
-  cardDraw: 'Card Advantage',
-};
-
 /**
  * Compute balanced swap suggestions: cards to remove and cards to add.
  * Pure function — no side effects.
@@ -1306,7 +1300,7 @@ export function computeOptimizeSwaps(
     if (synergyProtectedNames?.has(card.name)) continue; // load-bearing for an invested axis
 
     const role = card.deckRole || getCardRole(card.name) || undefined;
-    const roleLabel = role ? ROLE_LABELS_MAP[role] || role : undefined;
+    const roleLabel = role ? ROLE_LABELS[role] || role : undefined;
     const cmdInclusion = inclusionMap[card.name] ?? null;
     const globalInclusion =
       card.edhrec_rank != null ? Math.max(1, 100 - Math.floor(card.edhrec_rank / 100)) : null;
@@ -1464,7 +1458,7 @@ export function computeOptimizeSwaps(
       if (isChannelLand(card)) continue; // channel lands are too good to ever cut
       if (isMdfcLand(card)) continue; // MDFCs double as spells — never cut
       const role = card.deckRole || getCardRole(card.name) || undefined;
-      const roleLabel = role ? ROLE_LABELS_MAP[role] || role : undefined;
+      const roleLabel = role ? ROLE_LABELS[role] || role : undefined;
       const cmdInclusion = inclusionMap[card.name] ?? null;
       const globalInclusion =
         card.edhrec_rank != null ? Math.max(1, 100 - Math.floor(card.edhrec_rank / 100)) : null;
@@ -2130,12 +2124,6 @@ export function analyzeDeck(
       const allRoles = getAllCardRoles(card.name);
       const fillsDeficit = role ? deficitRoles.has(role) : false;
 
-      const price = card.prices?.tcgplayer?.price
-        ? card.prices.tcgplayer.price.toFixed(2)
-        : card.prices?.cardkingdom?.price
-          ? card.prices.cardkingdom.price.toFixed(2)
-          : undefined;
-
       return {
         name: card.name,
         inclusion: card.inclusion,
@@ -2147,7 +2135,7 @@ export function analyzeDeck(
         fillsDeficit,
         primaryType: card.primary_type,
         imageUrl: resolveImageUrl(card.name, card.image_uris),
-        price,
+        price: getEdhrecCardPrice(card),
         isThemeSynergy: card.isThemeSynergyCard || undefined,
         score: cached?.score ?? 0,
         cmc: card.cmc,
@@ -2232,11 +2220,6 @@ export function analyzeDeck(
     if (allRoles.length === 0) continue;
     candidateRolesMap.set(name, allRoles);
     const role = getCardRole(name);
-    const price = card.prices?.tcgplayer?.price
-      ? card.prices.tcgplayer.price.toFixed(2)
-      : card.prices?.cardkingdom?.price
-        ? card.prices.cardkingdom.price.toFixed(2)
-        : undefined;
     const cached = candidateScoreCache.get(name);
     roleCandidates.push({
       name,
@@ -2249,7 +2232,7 @@ export function analyzeDeck(
       fillsDeficit: role ? deficitRoles.has(role) : false,
       primaryType: card.primary_type,
       imageUrl: resolveImageUrl(name, card.image_uris),
-      price,
+      price: getEdhrecCardPrice(card),
       score: cached?.score ?? 0,
       cmc: card.cmc,
       isUtilityLand: isUtilityLand(name) || undefined,
@@ -2487,11 +2470,6 @@ export function analyzeDeck(
     .filter((c) => !currentCardNames.has(c.name) && !BASIC_LANDS.has(c.name))
     .map((card) => {
       const role = getCardRole(card.name);
-      const price = card.prices?.tcgplayer?.price
-        ? card.prices.tcgplayer.price.toFixed(2)
-        : card.prices?.cardkingdom?.price
-          ? card.prices.cardkingdom.price.toFixed(2)
-          : undefined;
       // Base score from cache (or compute fresh for land-only cards not in candidateMap)
       const cached = candidateScoreCache.get(card.name);
       let landScore = cached?.score ?? scoreRecommendation(card, role, null, scoringContext);
@@ -2517,7 +2495,7 @@ export function analyzeDeck(
         fillsDeficit: false,
         primaryType: card.primary_type,
         imageUrl: resolveImageUrl(card.name, card.image_uris),
-        price,
+        price: getEdhrecCardPrice(card),
         producedColors: getRecommendationColors(card.name, card.color_identity),
         isThemeSynergy: card.isThemeSynergyCard || undefined,
         score: landScore,
@@ -2637,11 +2615,6 @@ export function analyzeDeck(
     const relevantColors = cardColors.filter((c) => ci.includes(c));
     const role = getCardRole(name);
     const allRoles = getAllCardRoles(name);
-    const price = card.prices?.tcgplayer?.price
-      ? card.prices.tcgplayer.price.toFixed(2)
-      : card.prices?.cardkingdom?.price
-        ? card.prices.cardkingdom.price.toFixed(2)
-        : undefined;
     // Weakness coverage dominates, base score breaks ties
     const weaknessScore =
       ci.length >= 2 ? relevantColors.reduce((s, c) => s + (demandVsSupplyRatio[c] || 0), 0) : 0;
@@ -2658,7 +2631,7 @@ export function analyzeDeck(
       fillsDeficit: role ? deficitRoles.has(role) : false,
       primaryType: card.primary_type,
       imageUrl: resolveImageUrl(name, card.image_uris),
-      price,
+      price: getEdhrecCardPrice(card),
       producedColors: cardColors,
       isThemeSynergy: card.isThemeSynergyCard || undefined,
       score: combinedScore,

@@ -12,6 +12,7 @@ import type {
 } from '@/deck-builder/types';
 import { offlineSearchCards } from '@/lib/offline';
 import { frontFaceName } from '@/lib/card-text';
+import { sortWUBRG } from '@/deck-builder/lib/edhrecUtils';
 
 const BASE_URL = import.meta.env.DEV ? '/edhrec-api' : 'https://json.edhrec.com';
 
@@ -618,6 +619,26 @@ export async function fetchCommanderData(
 }
 
 /**
+ * Try both partner-slug orderings with a caller-supplied fetch function.
+ * Returns the first successful result, or null when both orderings fail.
+ * Used to factor out the "try [slugA, slugB]" loop shared by partner data
+ * and partner theme-data fetches.
+ */
+async function tryPartnerSlugs<T>(
+  slugs: [string, string],
+  fetchFn: (slug: string) => Promise<T>
+): Promise<T | null> {
+  for (const slug of slugs) {
+    try {
+      return await fetchFn(slug);
+    } catch {
+      // Try the other ordering
+    }
+  }
+  return null;
+}
+
+/**
  * Fetch EDHREC data for partner commanders.
  * Tries the combined partner page first, falls back to merging individual data.
  */
@@ -644,20 +665,17 @@ export async function fetchPartnerCommanderData(
 
   // Try both orderings - EDHREC doesn't always use alphabetical order
   // (redirects are detected and thrown by edhrecFetch)
-  for (const slug of [slugA, slugB]) {
+  const partnerData = await tryPartnerSlugs([slugA, slugB], async (slug) => {
     const cacheKey = `${slug}${bracketSuffix}${budgetSuffix}`;
-    try {
-      const response = await edhrecFetch<RawEDHRECResponse>(
-        `/pages/commanders/${slug}${bracketSuffix}${budgetSuffix}.json`
-      );
-      logger.debug(
-        `[EDHREC] Found partner page: /pages/commanders/${slug}${bracketSuffix}${budgetSuffix}.json`
-      );
-      return parseEdhrecResponse(response, cacheKey);
-    } catch {
-      logger.debug(`[EDHREC] No partner page at ${slug}${bracketSuffix}${budgetSuffix}`);
-    }
-  }
+    const response = await edhrecFetch<RawEDHRECResponse>(
+      `/pages/commanders/${slug}${bracketSuffix}${budgetSuffix}.json`
+    );
+    logger.debug(
+      `[EDHREC] Found partner page: /pages/commanders/${slug}${bracketSuffix}${budgetSuffix}.json`
+    );
+    return parseEdhrecResponse(response, cacheKey);
+  });
+  if (partnerData) return partnerData;
 
   logger.debug(`[EDHREC] No partner page found, merging individual data`);
 
@@ -824,33 +842,24 @@ export async function fetchPartnerThemeData(
   if (offlineActive()) return emptyCommanderData();
 
   // Try both orderings
-  for (const slug of [slugA, slugB]) {
+  const themeData = await tryPartnerSlugs([slugA, slugB], async (slug) => {
     const cacheKey = `${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}`;
-    try {
-      const response = await edhrecFetch<RawEDHRECResponse>(
-        `/pages/commanders/${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}.json`
-      );
-      logger.debug(
-        `[EDHREC] Found partner theme page: ${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}`
-      );
-
-      const stats = parseEdhrecStats(response);
-
-      const cardlists = parseCardlists(response);
-
-      const data: EDHRECCommanderData = {
-        themes: [],
-        stats,
-        cardlists,
-        similarCommanders: [],
-      };
-
-      commanderCache.set(cacheKey, { data, timestamp: Date.now() });
-      return data;
-    } catch {
-      // This ordering didn't work, try the other
-    }
-  }
+    const response = await edhrecFetch<RawEDHRECResponse>(
+      `/pages/commanders/${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}.json`
+    );
+    logger.debug(
+      `[EDHREC] Found partner theme page: ${slug}${bracketSuffix}/${themeSlug}${budgetSuffix}`
+    );
+    const data: EDHRECCommanderData = {
+      themes: [],
+      stats: parseEdhrecStats(response),
+      cardlists: parseCardlists(response),
+      similarCommanders: [],
+    };
+    commanderCache.set(cacheKey, { data, timestamp: Date.now() });
+    return data;
+  });
+  if (themeData) return themeData;
 
   logger.debug(`[EDHREC] No partner theme page found, falling back to primary commander`);
   // Fallback: use primary commander's theme data
@@ -941,8 +950,6 @@ export function fetchSaltIndex(): Promise<Map<string, number>> {
 
 // --- Top commanders (fetched live from EDHREC) ---
 
-const WUBRG = 'WUBRG';
-
 /** Map sorted color key → EDHREC URL slug */
 const COLOR_SLUG_MAP: Record<string, string> = {
   '': 'year',
@@ -1031,9 +1038,7 @@ export async function fetchAllCommanderNames(): Promise<string[]> {
  */
 export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCommander[]> {
   // Sort colors in WUBRG order and build cache key
-  const sorted = [...colors]
-    .filter((c) => c !== 'C')
-    .sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
+  const sorted = sortWUBRG(colors, /* excludeC */ true);
   const key = colors.includes('C') ? 'C' : sorted.join('');
   const slug = COLOR_SLUG_MAP[key];
   if (!slug) return [];
@@ -1202,9 +1207,7 @@ export async function fetchCommandersIncludingColors(
 const fullCommanderCache = new Map<string, { data: EDHRECTopCommander[]; timestamp: number }>();
 
 async function fetchAllCommandersForColor(colors: string[]): Promise<EDHRECTopCommander[]> {
-  const sorted = [...colors]
-    .filter((c) => c !== 'C')
-    .sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
+  const sorted = sortWUBRG(colors, /* excludeC */ true);
   const key = colors.includes('C') ? 'C' : sorted.join('');
   const slug = COLOR_SLUG_MAP[key];
   if (!slug) return [];
