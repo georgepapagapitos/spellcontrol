@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
+import { SearchPill } from '../components/SearchPill';
 import { useDecksStore, type Deck } from '../store/decks';
 import { buildAllocationMap, findSuboptimalPrintings } from '../lib/allocations';
 import type { EnrichedCard } from '../types';
@@ -732,12 +733,12 @@ function CollectionTab({
       <h2>
         Collection by name ({cards.length} physical copies, {cardsByName.size} unique names)
       </h2>
-      <input
-        type="text"
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        placeholder="Filter by card name…"
+      <SearchPill
         className="admin-search"
+        value={filter}
+        onChange={setFilter}
+        placeholder="Filter by card name…"
+        ariaLabel="Filter collection by card name"
       />
       <p className="admin-sub">
         Showing {shown.length} of {filtered.length} rows.
