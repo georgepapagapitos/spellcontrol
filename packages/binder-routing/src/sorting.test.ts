@@ -173,6 +173,27 @@ describe('cardSortValue', () => {
     expect(sorted.map((c) => c.name)).toEqual(['Recent', 'Old', 'Legacy']);
   });
 
+  it('dateEdited: uses card.updatedAt when present', () => {
+    const card = makeCard({ updatedAt: 1700000000000 });
+    expect(cardSortValue(card, 'dateEdited')).toBe(1700000000000);
+  });
+
+  it('dateEdited: falls back to import time for never-edited cards', () => {
+    const ctx = { addedAtByImportId: new Map([['imp-1', 1500]]) };
+    // No updatedAt → fall back to the card's import addedAt.
+    expect(cardSortValue(makeCard({ importId: 'imp-1' }), 'dateEdited', ctx)).toBe(1500);
+    // No updatedAt and no import mapping → oldest (0).
+    expect(cardSortValue(makeCard({ importId: undefined }), 'dateEdited', ctx)).toBe(0);
+  });
+
+  it('dateEdited: edited cards sort ahead of untouched ones (newest-first desc)', () => {
+    const edited = makeCard({ name: 'Edited', importId: 'imp-1', updatedAt: 3000 });
+    const untouched = makeCard({ name: 'Untouched', importId: 'imp-1' });
+    const ctx = { addedAtByImportId: new Map([['imp-1', 1000]]) };
+    const sorted = sortCards([untouched, edited], [{ field: 'dateEdited', dir: 'desc' }], ctx);
+    expect(sorted.map((c) => c.name)).toEqual(['Edited', 'Untouched']);
+  });
+
   it('price: returns raw price (direction handled by sortCards)', () => {
     expect(cardSortValue(multiCreature, 'price')).toBe(15);
     expect(cardSortValue(redInstant, 'price')).toBe(2);

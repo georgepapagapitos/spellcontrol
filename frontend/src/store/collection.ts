@@ -584,7 +584,7 @@ export const useCollectionStore = create<CollectionState>()(
       updateCard: async (copyId, updates) => {
         const s = get();
         const updated = s.cards.map((c) =>
-          c.copyId === copyId ? { ...c, ...updates, copyId } : c
+          c.copyId === copyId ? { ...c, ...updates, copyId, updatedAt: Date.now() } : c
         );
         set({ cards: updated });
         try {
@@ -611,7 +611,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       addCard: async (card, finish) => {
-        const enriched = scryfallToEnrichedCard(card, finish);
+        const enriched = { ...scryfallToEnrichedCard(card, finish), updatedAt: Date.now() };
         const s = get();
         const updated = [...s.cards, enriched];
         set({ cards: updated });

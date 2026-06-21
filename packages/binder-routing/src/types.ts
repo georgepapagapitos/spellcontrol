@@ -30,6 +30,14 @@ export interface EnrichedCard {
   scryfallId: string;
   purchasePrice: number;
   pricedAt?: number;
+  /**
+   * Epoch ms this physical copy was last edited — created via quick-add, or
+   * changed through the edit-card flow (printing/finish/quantity/condition).
+   * Powers the collection "Last edited" sort. Optional: cards predating this
+   * field (or imported, which doesn't stamp it) fall back to their import time.
+   * NOT bumped by price refreshes (price is stripped off the synced row).
+   */
+  updatedAt?: number;
   sourceCategory: string;
   sourceFormat: string;
   importId?: string;
@@ -88,7 +96,10 @@ export type SortField =
   // SortContext.addedAtByImportId. Intentionally NOT in SORT_FIELDS — it has no
   // value in binder views (which don't supply that context), so it stays out of
   // the binder sort picker and is offered only by the collection sort UI.
-  | 'dateAdded';
+  | 'dateAdded'
+  // Collection-only: per-copy last-edit time (card.updatedAt), falling back to
+  // import time. Like dateAdded, NOT in SORT_FIELDS — collection sort UI only.
+  | 'dateEdited';
 
 export type SortDir = 'asc' | 'desc';
 

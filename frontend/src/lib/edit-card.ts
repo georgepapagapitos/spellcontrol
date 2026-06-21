@@ -64,6 +64,10 @@ export function buildEditedCards(
     promoTypes: sc.promo_types,
     purchasePrice: pickPrice(sc, selection.finish !== 'nonfoil'),
     pricedAt: Date.now(),
+    // Stamp last-edit time on every copy this edit touches (printing/finish/qty).
+    // Spread onto the split/updated/added copies below; untouched `others` keep
+    // their existing updatedAt. Powers the collection "Last edited" sort.
+    updatedAt: Date.now(),
   };
 
   // Single-copy split (ungrouped view): re-point just this one physical copy,
