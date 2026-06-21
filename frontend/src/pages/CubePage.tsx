@@ -17,6 +17,7 @@ import { useCubeStore, SavedCube } from '../store/cube';
 import { useAuth } from '../store/auth';
 import { formatRelativeTime } from '../lib/format-time';
 import { buildAllocationMap } from '../lib/allocations';
+import { buildAvailableCollection } from '../lib/collection-availability';
 import { getCardsByNames } from '../deck-builder/services/scryfall/client';
 import { loadTaggerData, getCardRole } from '../deck-builder/services/tagger/client';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
@@ -127,8 +128,14 @@ export function CubePage() {
 
 function BuildCube() {
   const collectionCards = useCollectionStore((s) => s.cards);
+  const decks = useDecksStore((s) => s.decks);
   const pushToast = useToastsStore((s) => s.push);
   const ownershipFor = useOwnershipFor();
+
+  // Default ON: a physical cube is built from cards you can actually pull, so
+  // copies already committed elsewhere (today: decks) are excluded. Toggle off
+  // to draw from everything you own by name.
+  const [availableOnly, setAvailableOnly] = useState(true);
 
   const cubeStore = useCubeStore();
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
@@ -154,11 +161,22 @@ function BuildCube() {
   // Cache the enriched Scryfall map so CubeResult can build EnrichedCards for preview.
   const [enrichedMap, setEnrichedMap] = useState<Map<string, ScryfallCard>>(new Map());
 
+  // Names with at least one free (unallocated) copy vs every owned name. The
+  // gap between them is how many cards are fully committed elsewhere and hidden
+  // when "Available cards only" is on.
+  const { availableNames, committedCount } = useMemo(() => {
+    const avail = buildAvailableCollection(collectionCards, decks);
+    const owned = new Set<string>();
+    for (const c of collectionCards) if (c.name) owned.add(c.name);
+    return { availableNames: avail.names, committedCount: owned.size - avail.names.size };
+  }, [collectionCards, decks]);
+
   const uniqueNames = useMemo(() => {
+    if (availableOnly) return [...availableNames];
     const set = new Set<string>();
     for (const c of collectionCards) if (c.name) set.add(c.name);
     return [...set];
-  }, [collectionCards]);
+  }, [availableOnly, availableNames, collectionCards]);
 
   const generate = useCallback(async () => {
     setStatus('working');
@@ -272,6 +290,17 @@ function BuildCube() {
           ))}
         </div>
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+        <label
+          className="field-checkbox cube-available-toggle"
+          title="When on, cards whose only copies are already committed to a deck are left out — a cube you can physically pull. Turn off to draw from everything you own."
+        >
+          <input
+            type="checkbox"
+            checked={availableOnly}
+            onChange={(e) => setAvailableOnly(e.target.checked)}
+          />
+          Available cards only
+        </label>
         <button
           type="button"
           className="btn btn-primary"
@@ -281,7 +310,16 @@ function BuildCube() {
           {status === 'working' ? 'Building…' : cube ? 'Rebuild cube' : 'Build cube'}
         </button>
         <p className="cube-pool-note">
-          {uniqueNames.length.toLocaleString()} unique cards in your collection
+          {availableOnly ? (
+            <>
+              {uniqueNames.length.toLocaleString()} available cards
+              {committedCount > 0 && (
+                <> · {committedCount.toLocaleString()} committed to a deck (hidden)</>
+              )}
+            </>
+          ) : (
+            <>{uniqueNames.length.toLocaleString()} unique cards in your collection</>
+          )}
         </p>
       </div>
 
@@ -634,6 +672,7 @@ const MAX_FRIENDS = 3;
 
 function CollabCube() {
   const collectionCards = useCollectionStore((s) => s.cards);
+  const decks = useDecksStore((s) => s.decks);
   const authUser = useAuth((s) => s.user);
   const myUsername = authUser?.username ?? '';
   const ownershipFor = useOwnershipFor();
@@ -641,6 +680,9 @@ function CollabCube() {
   const pushToast = useToastsStore((s) => s.push);
 
   const [size, setSize] = useState<CubeSize>(cubeStore.size);
+  // Mirror Build mode: only my cards are filtered for availability (friends'
+  // cards arrive deduped without copy-level data, so they're always included).
+  const [availableOnly, setAvailableOnly] = useState(true);
 
   // Friends list — start in loading so we don't flicker the empty-state.
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -695,10 +737,11 @@ function CollabCube() {
   };
 
   const myUniqueNames = useMemo(() => {
+    if (availableOnly) return [...buildAvailableCollection(collectionCards, decks).names];
     const set = new Set<string>();
     for (const c of collectionCards) if (c.name) set.add(c.name);
     return [...set];
-  }, [collectionCards]);
+  }, [availableOnly, collectionCards, decks]);
 
   const generate = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -969,6 +1012,17 @@ function CollabCube() {
           ))}
         </div>
         <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+        <label
+          className="field-checkbox cube-available-toggle"
+          title="When on, your cards whose only copies are committed to a deck are left out. Friends' cards are always included."
+        >
+          <input
+            type="checkbox"
+            checked={availableOnly}
+            onChange={(e) => setAvailableOnly(e.target.checked)}
+          />
+          My available cards only
+        </label>
         <button
           type="button"
           className="btn btn-primary"
