@@ -28,6 +28,7 @@ function makeInput(overrides: Partial<CollectionFilterInput> = {}): CollectionFi
     subtypeExpr: EMPTY_EXPR,
     rarityExpr: EMPTY_EXPR,
     oracleExpr: EMPTY_EXPR,
+    oracleTagExpr: EMPTY_EXPR,
     legalityExpr: EMPTY_EXPR,
     layoutExpr: EMPTY_EXPR,
     treatmentExpr: EMPTY_EXPR,
@@ -69,6 +70,10 @@ describe('hasStructuredFilter', () => {
   it('true when priceMin is set', () => {
     expect(hasStructuredFilter(makeInput({ priceMin: 5 }))).toBe(true);
   });
+
+  it('true when an oracle tag is set', () => {
+    expect(hasStructuredFilter(makeInput({ oracleTagExpr: chip('mana-rock') }))).toBe(true);
+  });
 });
 
 describe('collectionFiltersToFilterGroup', () => {
@@ -100,6 +105,15 @@ describe('collectionFiltersToFilterGroup', () => {
   it('maps subtypeExpr → subtypeChips', () => {
     const { group } = collectionFiltersToFilterGroup(makeInput({ subtypeExpr: chip('angel') }));
     expect(group.filter.subtypeChips).toEqual(chip('angel'));
+  });
+
+  it('maps oracleTagExpr → oracleTagChips (cloned)', () => {
+    const oracleTagExpr = chips('mana-rock', 'mana-dork');
+    const { group } = collectionFiltersToFilterGroup(makeInput({ oracleTagExpr }));
+    expect(group.filter.oracleTagChips).toEqual(oracleTagExpr);
+    // clone guard — mutating the result must not touch the input
+    group.filter.oracleTagChips!.chips.push({ value: 'ramp', negate: false });
+    expect(oracleTagExpr.chips).toHaveLength(2);
   });
 
   it('maps setFilter → setCodes (uppercased)', () => {

@@ -10,6 +10,7 @@ import type {
   EnrichedCard,
   Finish,
   ListDef,
+  ListEntry,
   UploadResponse,
 } from '../types';
 import { useDecksStore } from './decks';
@@ -206,6 +207,16 @@ interface CollectionState {
     card: Parameters<typeof makeListEntry>[0],
     quantity?: number
   ) => Promise<void>;
+  /**
+   * Bulk-add cards to a list in one mutation (one persist, not N). Dedups by
+   * printing+finish against the list's existing entries so re-saving a filtered
+   * collection group doesn't pile up duplicate rows. Returns how many were
+   * added vs. skipped as already present.
+   */
+  addListEntries: (
+    listId: string,
+    cards: Array<{ card: Parameters<typeof makeListEntry>[0]; quantity?: number }>
+  ) => Promise<{ added: number; skipped: number }>;
   updateListEntry: (
     listId: string,
     entryId: string,
@@ -1147,6 +1158,36 @@ export const useCollectionStore = create<CollectionState>()(
           ),
         });
         await persistListsOnly(get().lists);
+      },
+      addListEntries: async (listId, cards) => {
+        const list = get().lists.find((l) => l.id === listId);
+        if (!list) return { added: 0, skipped: 0 };
+        // Dedup by printing+finish — the same identity the collection table
+        // rolls duplicate copies into. finish is always set on a ListEntry, so
+        // the nonfoil fallback only guards malformed legacy data.
+        const keyOf = (e: Pick<ListEntry, 'scryfallId' | 'finish'>) =>
+          `${e.scryfallId}:${e.finish ?? 'nonfoil'}`;
+        const seen = new Set(list.entries.map(keyOf));
+        const fresh: ListEntry[] = [];
+        let skipped = 0;
+        for (const { card, quantity } of cards) {
+          const entry = makeListEntry(card, quantity ?? 1);
+          const k = keyOf(entry);
+          if (seen.has(k)) {
+            skipped += 1;
+            continue;
+          }
+          seen.add(k);
+          fresh.push(entry);
+        }
+        if (fresh.length === 0) return { added: 0, skipped };
+        set({
+          lists: get().lists.map((l) =>
+            l.id === listId ? { ...l, entries: [...l.entries, ...fresh], updatedAt: Date.now() } : l
+          ),
+        });
+        await persistListsOnly(get().lists);
+        return { added: fresh.length, skipped };
       },
       updateListEntry: async (listId, entryId, patch) => {
         set({
