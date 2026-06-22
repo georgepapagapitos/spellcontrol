@@ -1,4 +1,5 @@
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
+import { isPlaytestLand } from './zones';
 
 /**
  * Type-based battlefield zoning, oriented to the player (mobile portrait /
@@ -41,7 +42,7 @@ export function rowForCard(card: PlaytestCard): BattlefieldRow {
   const t = (card.typeLine ?? '').toLowerCase();
   // "Tribal" / "Kindred" carry no permanent connotation; classify by the
   // accompanying noun (`Tribal — Goblin Creature`).
-  if (t.includes('land')) return 'lands';
+  if (isPlaytestLand(card.typeLine)) return 'lands';
   if (t.includes('creature')) return 'creatures';
   return 'permanents';
 }
