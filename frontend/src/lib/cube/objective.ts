@@ -87,6 +87,19 @@ function minDepth(size: number): number {
 }
 
 /**
+ * How many distinct archetypes a cube of this size should actually deliver. A
+ * pod can only commit to so many lanes, so a good cube nails a focused handful
+ * deeply rather than gesturing at every theme its collection could enable.
+ * ~1.25 archetypes per drafter → a 4-player 180 aims for ~5, a full 8-player
+ * cube ~10, matching how real cubes are built. The archetype term averages the
+ * cube's best-K axis scores against this, so (correctly) ignoring the long tail
+ * of unsupportable themes isn't penalized.
+ */
+export function targetArchetypeCount(size: number): number {
+  return Math.round(1.25 * podSize(size));
+}
+
+/**
  * Rank value at the 80th percentile of the pool — the "good enough" floor used
  * to normalize EDHREC rank into a 0..1 power component. Pool-relative so a
  * budget collection isn't judged against a cEDH one.
@@ -220,13 +233,22 @@ export function scoreCube(
   // Archetype term: how well the cube drafts the archetypes its COLLECTION can
   // support. Absent-but-draftable axes score 0 (the cube failed to build them);
   // a tag-less pool has no draftable axes → 1.0 (M4, nothing to penalize).
+  // Score the cube's BEST-supported archetypes, not every theme its collection
+  // could enable. Averaging over ALL draftable axes punishes a focused cube for
+  // (correctly) ignoring archetypes no pod this size can draft — so a 12k-card
+  // collection that can support ~20 themes drags the term toward 0 no matter how
+  // well the cube nails its 5. Instead average the top-K axis scores, K = what a
+  // cube this size should deliver. A pool supporting fewer than K axes uses all
+  // of them, so sparse/tag-less pools are unchanged (M4 still holds: 0 → 1).
   const draftable = draftablePoolAxes(pool);
-  let portfolioSum = 0;
-  for (const ax of draftable) {
-    const d = axisData.get(ax);
-    portfolioSum += d ? axisScoreOf(ax, d) : 0;
-  }
-  const archetype = draftable.length > 0 ? portfolioSum / draftable.length : 1;
+  const axisScores = draftable
+    .map((ax) => {
+      const d = axisData.get(ax);
+      return d ? axisScoreOf(ax, d) : 0;
+    })
+    .sort((a, b) => b - a);
+  const k = Math.min(axisScores.length, targetArchetypeCount(size));
+  const archetype = k > 0 ? axisScores.slice(0, k).reduce((s, v) => s + v, 0) / k : 1;
 
   // UI breakdown: the archetypes the cube actually fields, strongest first.
   const axes: AxisSupport[] = [];

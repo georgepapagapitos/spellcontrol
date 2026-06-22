@@ -22,7 +22,7 @@ import { buildAllocationMap } from '../lib/allocations';
 import { buildAvailableCollection } from '../lib/collection-availability';
 import { bindCubeCopies } from '../lib/bind-cube-copies';
 import { getCardsByNames } from '../deck-builder/services/scryfall/client';
-import { loadTaggerData, getCardRole } from '../deck-builder/services/tagger/client';
+import { loadTaggerData, cubeRole } from '../deck-builder/services/tagger/client';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
@@ -271,7 +271,7 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
     setFetchProgress(null);
     cubeStore.clear();
     try {
-      await loadTaggerData(); // ensures getCardRole is populated; cached/deduped
+      await loadTaggerData(); // ensures cubeRole is populated; cached/deduped
       const enriched = await getCardsByNames(uniqueNames, (fetched, total) => {
         setFetchProgress({ fetched, total });
       });
@@ -290,7 +290,7 @@ function BuildCube({ highlightId }: { highlightId?: string }) {
           colors: s?.colors ?? card?.colors ?? [],
           cmc: s?.cmc ?? card?.cmc ?? 0,
           typeLine: s?.type_line ?? card?.typeLine ?? '',
-          role: getCardRole(name),
+          role: cubeRole(name),
           rank: s?.edhrec_rank ?? card?.edhrecRank,
           ...synergyTags(s ?? { name }),
         };
@@ -1126,7 +1126,7 @@ function CollabCube() {
           colors: s?.colors ?? card?.colors ?? [],
           cmc: s?.cmc ?? card?.cmc ?? 0,
           typeLine: s?.type_line ?? card?.typeLine ?? '',
-          role: getCardRole(name),
+          role: cubeRole(name),
           rank: s?.edhrec_rank ?? card?.edhrecRank,
           ...synergyTags(s ?? { name }),
         };

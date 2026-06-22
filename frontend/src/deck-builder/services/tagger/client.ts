@@ -148,6 +148,20 @@ export function getCardRole(cardName: string): RoleKey | null {
   return null;
 }
 
+/**
+ * Role label for cube generation. `getCardRole` folds cost-reducers into `ramp`
+ * (they cut spell costs, not produce mana) — in a cube that reads as mana
+ * acceleration a drafter won't actually get (Puresteel Paladin, Starfield
+ * Mystic, Cloud Key…). Demote cost-reducer-only "ramp" to no role so the card
+ * falls back to its curve descriptor instead of a misleading one. (Real ramp —
+ * mana dorks/rocks and the raw `ramp` tag — is unaffected.)
+ */
+export function cubeRole(cardName: string): RoleKey | null {
+  const r = getCardRole(cardName);
+  if (r === 'ramp' && getRampSubtype(cardName) === 'cost-reducer') return null;
+  return r;
+}
+
 /** Check if a card matches a specific role (regardless of priority). */
 export function cardMatchesRole(cardName: string, role: RoleKey): boolean {
   if (!tagSets) return false;
