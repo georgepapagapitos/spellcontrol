@@ -256,5 +256,21 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS friendships_addressee_idx ON friendships(addressee_id);
     CREATE INDEX IF NOT EXISTS friendships_status_idx ON friendships(status);
+
+    CREATE TABLE IF NOT EXISTS game_results (
+      session_id TEXT PRIMARY KEY,
+      code TEXT NOT NULL,
+      format TEXT NOT NULL,
+      starting_life INTEGER NOT NULL,
+      winner_seat INTEGER,
+      winner_user_id TEXT,
+      started_at BIGINT,
+      ended_at BIGINT NOT NULL,
+      duration_ms BIGINT NOT NULL,
+      participants JSONB NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS game_results_participants_idx ON game_results USING GIN (participants);
+    CREATE INDEX IF NOT EXISTS game_results_ended_idx ON game_results(ended_at DESC);
   `);
 }

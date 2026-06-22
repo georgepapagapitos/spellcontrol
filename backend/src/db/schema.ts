@@ -8,6 +8,7 @@ import {
   primaryKey,
   index,
 } from 'drizzle-orm/pg-core';
+import type { GameResultParticipant } from '../games/result-types';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -283,6 +284,36 @@ export const friendships = pgTable(
   })
 );
 
+/**
+ * Canonical record of a finished *online* game, keyed by the live session id.
+ * Unlike `user_games` (per-user, synced, one divergent copy each), this is a
+ * single shared row every participant reads, so head-to-head and leaderboards
+ * have one source of truth. Written once when an online game flips to
+ * 'finished' (see `games/persist-result.ts`); never swept. Local games (no
+ * authed participants) are not recorded.
+ */
+export const gameResults = pgTable(
+  'game_results',
+  {
+    /** The `game_sessions.id` (UUID) — natural idempotency key. */
+    sessionId: text('session_id').primaryKey(),
+    code: text('code').notNull(),
+    format: text('format').notNull(),
+    startingLife: integer('starting_life').notNull(),
+    winnerSeat: integer('winner_seat'),
+    winnerUserId: text('winner_user_id'),
+    startedAt: bigint('started_at', { mode: 'number' }),
+    endedAt: bigint('ended_at', { mode: 'number' }).notNull(),
+    durationMs: bigint('duration_ms', { mode: 'number' }).notNull(),
+    /** One object per seat; see GameResultParticipant in games/result-types.ts. */
+    participants: jsonb('participants').notNull().$type<GameResultParticipant[]>(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    endedIdx: index('game_results_ended_idx').on(t.endedAt),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
@@ -299,3 +330,4 @@ export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
+export type GameResultRow = typeof gameResults.$inferSelect;
