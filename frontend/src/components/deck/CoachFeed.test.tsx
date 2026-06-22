@@ -86,6 +86,8 @@ function makeProps(over: Partial<CoachFeedProps> = {}): CoachFeedProps {
     deckNames: new Set(['smothering tithe']),
     onApplyMove: vi.fn(),
     onApplyAllDropIns: vi.fn(),
+    ownedOnly: false,
+    onOwnedOnlyChange: vi.fn(),
     ...over,
   };
 }
@@ -342,12 +344,10 @@ describe('CoachFeed', () => {
 
   // ── "Owned only" count/body consistency ───────────────────────────────────
 
-  it('counts honor "Owned only" and the all-unowned lane offers a one-tap relax', () => {
-    localStorage.clear(); // default the toggle off regardless of prior tests
-    render(<CoachFeed {...makeProps()} />);
+  it('counts honor "Owned only": the all-unowned lane stays visible but empties', () => {
     // Only Heliod (the combo) is owned; Cultivate (gap) and Esper Sentinel
-    // (budget swap) are not. Turning on "Owned only" empties the Fix gaps lane.
-    fireEvent.click(screen.getByLabelText('Owned only'));
+    // (budget swap) are not — so the Fix gaps lane has no owned suggestion.
+    render(<CoachFeed {...makeProps({ ownedOnly: true })} />);
 
     // The chip stays visible (so the gap isn't silently hidden) but carries no
     // count badge — the number always matches what the body would show.
@@ -358,9 +358,21 @@ describe('CoachFeed', () => {
     fireEvent.click(fixGaps);
     expect(screen.queryByText('Cultivate')).toBeNull();
     expect(screen.getByText(/you don't own yet/)).toBeTruthy();
+  });
 
-    // One tap relaxes the global toggle and brings the suggestion back.
+  it('"Owned only" checkbox and "Show unowned too" both call onOwnedOnlyChange', () => {
+    const onOwnedOnlyChange = vi.fn();
+    const { rerender } = render(
+      <CoachFeed {...makeProps({ ownedOnly: false, onOwnedOnlyChange })} />
+    );
+    fireEvent.click(screen.getByLabelText('Owned only'));
+    expect(onOwnedOnlyChange).toHaveBeenLastCalledWith(true);
+
+    // With the toggle on and a fresh callback, the empty-state relax button fires it.
+    onOwnedOnlyChange.mockClear();
+    rerender(<CoachFeed {...makeProps({ ownedOnly: true, onOwnedOnlyChange })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Fix gaps/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Show unowned too' }));
-    expect(screen.getByText('Cultivate')).toBeTruthy();
+    expect(onOwnedOnlyChange).toHaveBeenLastCalledWith(false);
   });
 });

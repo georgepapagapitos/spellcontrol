@@ -160,6 +160,16 @@
   color: var(--text-primary);
 }
 
+/* Stand-ins lane — explains the substitution lane (owned cards covering missing staples). */
+.coach-feed-collection-strip {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
 /* Aligned confirmation — a single VerdictBadge chip, min 44px touch target. */
 .coach-feed-bracket-aligned {
   display: flex;
