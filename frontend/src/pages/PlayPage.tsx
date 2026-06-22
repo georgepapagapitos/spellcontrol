@@ -16,6 +16,7 @@ import { Modal } from '../components/Modal';
 import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
+import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
@@ -884,7 +885,9 @@ function HistoryTab({
   const deckRows = useMemo(() => aggregateDeckRecords(history, userId), [history, userId]);
   const matchupRows = useMemo(() => aggregateMatchupRecords(history, userId), [history, userId]);
 
-  if (history.length === 0) {
+  // Authed users always get the server-authoritative Friends leaderboard, even
+  // before any local games are recorded on this device.
+  if (history.length === 0 && userId === null) {
     return (
       <div className="empty-state">
         <p className="empty-state-tagline">No games yet. Play one!</p>
@@ -894,6 +897,10 @@ function HistoryTab({
 
   return (
     <div className="play-history">
+      {userId !== null && <FriendsLeaderboard />}
+      {history.length === 0 && (
+        <p className="empty-state-tagline">No games on this device yet. Play one!</p>
+      )}
       {deckRows.length > 0 && (
         <section className="play-records">
           <h2 className="play-records-title">Deck win-loss</h2>

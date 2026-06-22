@@ -1,0 +1,82 @@
+.leaderboard-empty,
+.leaderboard-error {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.leaderboard-error {
+  color: var(--err-text);
+}
+
+/* Link-styled inline action (Retry / View / Hide). */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  text-decoration: none;
+}
+
+.leaderboard-skeleton {
+  height: 3.5rem;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--surface) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: leaderboard-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes leaderboard-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaderboard-skeleton {
+    animation: none;
+  }
+}
+
+/* The expanded head-to-head row spans the full table width. */
+.leaderboard-detail-cell {
+  padding: 0;
+  background: var(--surface);
+}
+
+.h2h-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.h2h-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.h2h-summary-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.h2h-matchups {
+  font-size: var(--text-sm);
+}
