@@ -19,6 +19,7 @@ import type { CubeCard, GeneratedCube, Pick } from './generate';
 import { bucketOf, curveSlotOf } from './generate';
 import type { BandTargets, ColorBucket } from './targets';
 import {
+  AXIS_LABEL,
   contributes,
   computeRankP80,
   draftablePoolAxes,
@@ -26,9 +27,7 @@ import {
   scoreCube,
   type CubeScore,
 } from './objective';
-import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
-
-const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
+import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 
 /** How many top candidates to try per axis per pass (bounds per-pass cost). */
 const CANDIDATES_PER_AXIS = 6;
