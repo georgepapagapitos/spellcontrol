@@ -339,4 +339,28 @@ describe('CoachFeed', () => {
     // The budget swap (Smothering Tithe → Esper Sentinel) has no live target slot.
     expect(screen.queryByText('Esper Sentinel')).toBeNull();
   });
+
+  // ── "Owned only" count/body consistency ───────────────────────────────────
+
+  it('counts honor "Owned only" and the all-unowned lane offers a one-tap relax', () => {
+    localStorage.clear(); // default the toggle off regardless of prior tests
+    render(<CoachFeed {...makeProps()} />);
+    // Only Heliod (the combo) is owned; Cultivate (gap) and Esper Sentinel
+    // (budget swap) are not. Turning on "Owned only" empties the Fix gaps lane.
+    fireEvent.click(screen.getByLabelText('Owned only'));
+
+    // The chip stays visible (so the gap isn't silently hidden) but carries no
+    // count badge — the number always matches what the body would show.
+    const fixGaps = screen.getByRole('button', { name: /Fix gaps/ });
+    expect(fixGaps.textContent).toBe('Fix gaps');
+
+    // Its body explains the empty state instead of dead-ending.
+    fireEvent.click(fixGaps);
+    expect(screen.queryByText('Cultivate')).toBeNull();
+    expect(screen.getByText(/you don't own yet/)).toBeTruthy();
+
+    // One tap relaxes the global toggle and brings the suggestion back.
+    fireEvent.click(screen.getByRole('button', { name: 'Show unowned too' }));
+    expect(screen.getByText('Cultivate')).toBeTruthy();
+  });
 });

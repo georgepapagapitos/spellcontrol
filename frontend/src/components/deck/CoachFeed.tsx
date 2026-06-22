@@ -459,23 +459,45 @@ export function CoachFeed({
   }, [addsAndSwaps, activeFilter, ownedOnly]);
 
   // ── Chip counts ──────────────────────────────────────────────────────────
-
-  const filterCounts = useMemo(() => {
-    const counts: Record<FilterId, number> = {
-      all: addsAndSwaps.length,
+  //
+  // Two count maps per lane:
+  //  • shown  — rows that survive the current `ownedOnly` filter. This is the
+  //    badge number, so it always matches the body (the chip is a faceted-search
+  //    preview of what clicking yields — never a count that disagrees with the
+  //    list, which is the bug this replaced).
+  //  • total  — rows ignoring `ownedOnly`. Drives chip *visibility* and the
+  //    "all N are unowned" empty-state hint, so a lane the toggle emptied stays
+  //    reachable instead of silently vanishing.
+  const { shownCounts, totalCounts } = useMemo(() => {
+    const make = (): Record<FilterId, number> => ({
+      all: 0,
       'fill-gaps': 0,
       upgrade: 0,
       budget: 0,
       collection: 0,
       'bracket-fit': 0,
       combos: 0,
-    };
+    });
+    const shown = make();
+    const total = make();
     for (const r of addsAndSwaps) {
       const lane = r.change.lane as FilterId;
-      if (lane in counts) counts[lane]++;
+      const visible = !ownedOnly || r.change.ownership === 'owned';
+      if (lane in total) {
+        total[lane]++;
+        if (visible) shown[lane]++;
+      }
+      total.all++;
+      if (visible) shown.all++;
     }
-    return counts;
-  }, [addsAndSwaps]);
+    return { shownCounts: shown, totalCounts: total };
+  }, [addsAndSwaps, ownedOnly]);
+
+  // Body empty purely because `ownedOnly` hid every match in this lane — drives
+  // the context-aware empty state (explain + one-tap relax) rather than a bare
+  // "nothing here", which reads as a dead-end.
+  const hiddenByOwned = totalCounts[activeFilter] - shownCounts[activeFilter];
+  const isOwnedEmpty = ownedOnly && filteredAdds.length === 0 && hiddenByOwned > 0;
 
   // ── Update cyclable-filters ref (for `f` key cycle) ─────────────────────
   // The `f` key listener uses a ref so it doesn't need to re-register on
@@ -483,8 +505,8 @@ export function CoachFeed({
   // flagged by react-hooks/refs).
   const cyclableList = useMemo<FilterId[]>(
     () =>
-      (Object.keys(FILTER_LABELS) as FilterId[]).filter((f) => f === 'all' || filterCounts[f] > 0),
-    [filterCounts]
+      (Object.keys(FILTER_LABELS) as FilterId[]).filter((f) => f === 'all' || totalCounts[f] > 0),
+    [totalCounts]
   );
   useEffect(() => {
     cyclableFiltersRef.current = cyclableList;
@@ -578,19 +600,27 @@ export function CoachFeed({
           <div className="coach-feed-header">
             <div className="coach-feed-filters" role="group" aria-label="Filter suggestions">
               {(Object.keys(FILTER_LABELS) as FilterId[]).map((f) => {
-                const count = filterCounts[f];
-                if (f !== 'all' && count === 0) return null;
+                const shown = shownCounts[f];
+                const total = totalCounts[f];
+                // Visible when the lane has any match at all (owned or not), so a
+                // lane `ownedOnly` has emptied stays reachable — clicking it lands
+                // on the "all N are unowned" empty state rather than disappearing.
+                if (f !== 'all' && total === 0) return null;
+                const ownedEmpty = f !== 'all' && shown === 0 && total > 0;
                 return (
                   <button
                     key={f}
                     type="button"
-                    className="coach-feed-filter-chip"
+                    className={
+                      'coach-feed-filter-chip' +
+                      (ownedEmpty ? ' coach-feed-filter-chip--owned-empty' : '')
+                    }
                     aria-pressed={activeFilter === f}
                     onClick={() => setActiveFilter(f)}
                   >
                     {FILTER_LABELS[f]}
-                    {count > 0 && f !== 'all' && (
-                      <span className="coach-feed-chip-count">{count}</span>
+                    {shown > 0 && f !== 'all' && (
+                      <span className="coach-feed-chip-count">{shown}</span>
                     )}
                   </button>
                 );
@@ -709,12 +739,31 @@ export function CoachFeed({
               })}
             </ul>
           ) : (
-            !isPending && (
+            !isPending &&
+            (isOwnedEmpty ? (
+              <div className="coach-feed-empty-filter coach-feed-empty-owned">
+                <p>
+                  {hiddenByOwned === 1 ? 'The only' : `All ${hiddenByOwned}`}{' '}
+                  {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
+                  suggestion{hiddenByOwned === 1 ? ' is a card' : 's are cards'} you don't own yet.
+                </p>
+                <button
+                  type="button"
+                  className="coach-feed-show-unowned"
+                  onClick={() => {
+                    setOwnedOnly(false);
+                    writeOwnedOnly(false);
+                  }}
+                >
+                  Show unowned too
+                </button>
+              </div>
+            ) : (
               <p className="coach-feed-empty-filter">
                 No {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}suggestions
                 right now.
               </p>
-            )
+            ))
           )}
 
           {/* Cuts disclosure group */}
