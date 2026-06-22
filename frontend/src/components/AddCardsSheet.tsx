@@ -110,7 +110,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
     },
     {
       id: 'product',
-      label: 'Precons',
+      label: 'Products',
       icon: <Package width={14} height={14} aria-hidden />,
       available: true,
     },
