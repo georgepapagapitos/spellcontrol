@@ -175,6 +175,39 @@ describe('refineCube', () => {
     expect(r.picks.map((p) => p.card.oracleId)).toEqual(seed.picks.map((p) => p.card.oracleId));
   });
 
+  it('cuts a dead-axis card (mill enabler, no payoff) to deepen a real archetype', () => {
+    // The seed has a payoff-only tokens axis (6 payoffs, no enablers → it scores
+    // 0 on balance) and its ONLY cuttable slots are 8 mill ENABLERS. The pool has
+    // no mill payoff anywhere, so mill is non-draftable dead weight. The old
+    // refiner (cut only tag-less filler) couldn't touch the mill cards → zero
+    // swaps; now they're cuttable, so it trades them for the pool's tokens
+    // enablers, balancing the axis.
+    let n = 0;
+    const tok = (kind: 'p' | 'y', rank: number) =>
+      card({
+        name: `tok${n++}`,
+        colors: ['W'],
+        cmc: 3,
+        rank,
+        synergyProducers: kind === 'p' ? ['tokens'] : undefined,
+        synergyPayoffs: kind === 'y' ? ['tokens'] : undefined,
+      });
+    const seedCards: CubeCard[] = [];
+    for (let i = 0; i < 6; i++) seedCards.push(tok('y', 200 + i)); // payoff-only → unbalanced
+    const deadMill = Array.from({ length: 8 }, (_, i) =>
+      card({ colors: ['W'], cmc: 3, rank: i + 1, synergyProducers: ['mill'] })
+    );
+    const extras = Array.from({ length: 6 }, (_, i) => tok('p', 300 + i)); // the missing enablers
+    const seed = seedOf([...seedCards, ...deadMill], 360);
+    const pool = [...seedCards, ...deadMill, ...extras];
+    const millCount = (picks: Pick[]) =>
+      picks.filter((p) => p.card.synergyProducers?.includes('mill')).length;
+    const r = refineCube(seed, pool, band360, 360);
+    expect(r.swapLog.length).toBeGreaterThan(0);
+    expect(tokenCount(r.picks)).toBeGreaterThan(tokenCount(seed.picks));
+    expect(millCount(r.picks)).toBeLessThan(millCount(seed.picks)); // dead cards were cut
+  });
+
   it('never returns a worse cube than a real greedy seed', () => {
     // A real (synergy-free) cube → refine has nothing to chase → equal, not worse.
     const pool: CubeCard[] = [];

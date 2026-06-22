@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { generateCube, bucketOf, type CubeCard, type Pick } from './generate';
 import { targetsForSize, type CubeSize } from './targets';
-import { scoreCube, rawPower, computeRankP80, type CubeScore } from './objective';
+import {
+  scoreCube,
+  rawPower,
+  computeRankP80,
+  targetArchetypeCount,
+  type CubeScore,
+} from './objective';
 
 let id = 0;
 function card(p: Partial<CubeCard>): CubeCard {
@@ -146,6 +152,48 @@ describe('scoreCube — archetype portfolio', () => {
     const ss = s.axes.find((a) => a.axis === 'spellslinger');
     // 1 payoff vs a capped enabler count → balance is tiny → score stays low.
     expect(ss!.score).toBeLessThan(0.2);
+  });
+
+  it('targetArchetypeCount scales ~1.25 per drafter (5 at 180, 10 at a full pod)', () => {
+    expect(targetArchetypeCount(180)).toBe(5); // round(1.25 * 4 drafters)
+    expect(targetArchetypeCount(360)).toBe(10); // round(1.25 * 8 drafters)
+  });
+
+  it('scores the best-K archetypes — extra unsupportable themes do not dilute it', () => {
+    // A 180 cube (targetArchetypeCount = 5) that deeply, mono-color drafts five
+    // archetypes scores ~1 on each. Adding TEN more axes the *pool* can draft but
+    // the cube never touches must NOT drag the term down — a focused cube isn't
+    // penalized for ignoring themes no 4-player pod can pursue. The old
+    // mean-over-all-draftable would have collapsed this from 1.0 → 5/15 ≈ 0.33.
+    const b180 = targetsForSize(180);
+    const CUBE_AXES = ['sacrifice', 'tokens', 'landfall', 'graveyard', 'artifacts'] as const;
+    const EXTRA_AXES = [
+      'counters',
+      'lifegain',
+      'enchantress',
+      'tribal',
+      'blink',
+      'grouphug',
+      'discard',
+      'mill',
+      'monarch',
+      'venture',
+    ] as const;
+    const cube: CubeCard[] = [];
+    for (const ax of CUBE_AXES) {
+      for (let i = 0; i < 6; i++) cube.push(card({ colors: ['B'], synergyProducers: [ax] }));
+      for (let i = 0; i < 6; i++) cube.push(card({ colors: ['B'], synergyPayoffs: [ax] }));
+    }
+    // Extras live only in the pool (never picked) but make 10 more axes draftable.
+    const extras: CubeCard[] = [];
+    for (const ax of EXTRA_AXES) {
+      extras.push(card({ colors: ['G'], synergyProducers: [ax] }));
+      extras.push(card({ colors: ['G'], synergyPayoffs: [ax] }));
+    }
+    const focused = scoreCube(picksOf(cube), cube, b180, 180).archetype;
+    const withTail = scoreCube(picksOf(cube), [...cube, ...extras], b180, 180).archetype;
+    expect(focused).toBeGreaterThan(0.9); // five deep, balanced, concentrated axes
+    expect(withTail).toBeCloseTo(focused, 10); // the long tail is ignored, not averaged in
   });
 
   it('rewards a balanced, color-concentrated axis above a smeared one', () => {

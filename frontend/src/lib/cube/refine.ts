@@ -53,9 +53,18 @@ export interface RefineResult {
 
 const slotNum = (c: CubeCard) => Number(curveSlotOf(c.cmc));
 
-/** Pure goodstuff with no archetype role — the only cards the refiner will cut. */
-const isFiller = (c: CubeCard) =>
-  !(c.synergyProducers?.length ?? 0) && !(c.synergyPayoffs?.length ?? 0);
+/**
+ * Cards the refiner is allowed to cut: pure goodstuff with no archetype role,
+ * OR cards whose EVERY tagged axis is non-draftable in this pool (e.g. a mill
+ * enabler when the pool has no mill payoff) — dead weight a real archetype card
+ * strictly improves on. A card carrying even one draftable axis is never cut, so
+ * the refiner still can't rob one live strategy to feed another.
+ */
+const isCuttable = (c: CubeCard, draftable: ReadonlySet<AxisKey>): boolean => {
+  const axes = [...(c.synergyProducers ?? []), ...(c.synergyPayoffs ?? [])];
+  if (axes.length === 0) return true;
+  return axes.every((a) => !draftable.has(a));
+};
 
 /**
  * Find the best objective-improving swap that adds an enabler/payoff for `axis`.
@@ -71,7 +80,8 @@ function bestSwapForAxis(
   size: number,
   currentScore: number,
   rankP80: number,
-  power: (c: CubeCard) => number
+  power: (c: CubeCard) => number,
+  draftable: ReadonlySet<AxisKey>
 ): { picks: Pick[]; out: CubeCard; in: CubeCard; newScore: number } | null {
   const ins = pool
     .filter((c) => !pickedIds.has(c.oracleId) && bucketOf(c) !== 'land' && contributes(c, axis))
@@ -79,13 +89,13 @@ function bestSwapForAxis(
     .slice(0, CANDIDATES_PER_AXIS);
   if (ins.length === 0) return null;
 
-  // Weakest-first cuttable picks. We only cut pure goodstuff FILLER (cards with
-  // no synergy tags at all) — never a card already carrying an archetype, so the
+  // Weakest-first cuttable picks. We only cut pure goodstuff filler or dead-axis
+  // cards (see isCuttable) — never a card carrying a live archetype, so the
   // refiner can't rob one strategy (or a greedy-reserved floor, or a multi-axis
-  // glue card) to feed another. It only converts spare slots into synergy.
+  // glue card) to feed another. It only converts spare/dead slots into synergy.
   const outs = picks
     .map((p, idx) => ({ p, idx }))
-    .filter(({ p }) => bucketOf(p.card) !== 'land' && isFiller(p.card))
+    .filter(({ p }) => bucketOf(p.card) !== 'land' && isCuttable(p.card, draftable))
     .sort(
       (a, b) =>
         power(a.p.card) - power(b.p.card) || a.p.card.oracleId.localeCompare(b.p.card.oracleId)
@@ -138,6 +148,7 @@ export function refineCube(
   const swapLog: SwapLogEntry[] = [];
 
   const poolAxes = draftablePoolAxes(pool);
+  const draftableSet = new Set(poolAxes);
   if (poolAxes.length === 0) {
     return {
       picks,
@@ -168,7 +179,8 @@ export function refineCube(
         size,
         currentScore,
         rankP80,
-        power
+        power,
+        draftableSet
       );
       if (swap) {
         picks = swap.picks;
