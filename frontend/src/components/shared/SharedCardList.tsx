@@ -23,41 +23,43 @@ interface Props {
  */
 export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
   return (
-    <table className="shared-list-table shared-list-table--clickable">
-      <thead>
-        <tr>
-          <th>Qty</th>
-          <th>Name</th>
-          <th>Set</th>
-          <th>Finish</th>
-          {showPrice && <th>Price</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((it) => (
-          <tr
-            key={it.key}
-            onClick={() => onPreview(it.card)}
-            tabIndex={0}
-            role="button"
-            aria-label={`Preview ${it.card.name}`}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onPreview(it.card);
-              }
-            }}
-          >
-            <td>{it.quantity}</td>
-            <td>{it.card.name}</td>
-            <td>
-              {it.card.setCode.toUpperCase()} {it.card.collectorNumber}
-            </td>
-            <td>{it.card.finish}</td>
-            {showPrice && <td>{formatMoney(it.card.purchasePrice)}</td>}
+    <div className="shared-table-scroll">
+      <table className="shared-list-table shared-list-table--clickable">
+        <thead>
+          <tr>
+            <th>Qty</th>
+            <th>Name</th>
+            <th>Set</th>
+            <th>Finish</th>
+            {showPrice && <th>Price</th>}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {items.map((it) => (
+            <tr
+              key={it.key}
+              onClick={() => onPreview(it.card)}
+              tabIndex={0}
+              role="button"
+              aria-label={`Preview ${it.card.name}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onPreview(it.card);
+                }
+              }}
+            >
+              <td>{it.quantity}</td>
+              <td>{it.card.name}</td>
+              <td>
+                {it.card.setCode.toUpperCase()} {it.card.collectorNumber}
+              </td>
+              <td>{it.card.finish}</td>
+              {showPrice && <td>{formatMoney(it.card.purchasePrice)}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

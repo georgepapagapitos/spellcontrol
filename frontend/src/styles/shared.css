@@ -18,8 +18,11 @@
   background: var(--bg);
   /* The shell is the scroll root for the entire shared page. The sticky brand
      bar stays at top:0 within this scroll container so the Copy button is
-     always reachable while scrolling the deck. */
+     always reachable while scrolling the deck. overflow-x:hidden keeps a stray
+     wide descendant (long card name, etc.) from making the whole page scroll
+     sideways on mobile — wide content scrolls inside its own container. */
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -138,6 +141,7 @@
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
@@ -358,10 +362,24 @@
 
 /* ── List table ───────────────────────────────────────────────────────── */
 
+/* Backstop for very narrow viewports: if the table's natural width still
+   exceeds the page, it scrolls within this wrapper instead of the whole page
+   (the shell clips page-level x-overflow). */
+.shared-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .shared-list-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-sm);
+}
+
+/* Long single-word card names (e.g. Asmoranomardicadaistinaculdacar) would
+   otherwise force the Name column — and the page — wider than the screen. */
+.shared-list-table td {
+  overflow-wrap: anywhere;
 }
 
 .shared-list-table th,
