@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../../components/deck/VerdictBadge';
@@ -6,7 +7,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap } from '../../lib/allocations';
-import type { ColorBucket } from '../../lib/cube/targets';
+import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
 import type { GeneratedCube } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
 
@@ -186,6 +187,133 @@ export function CubeArchetypes({ score }: { score: GeneratedCube['score'] }) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Empty state shared by the build modes — a message, a CTA link, and a hint. */
+export function CubeEmptyState({
+  message,
+  ctaHref,
+  ctaLabel,
+  hint,
+}: {
+  message: string;
+  ctaHref: string;
+  ctaLabel: string;
+  hint: string;
+}) {
+  return (
+    <div className="cube-empty">
+      <p>{message}</p>
+      <Link to={ctaHref} className="btn btn-primary">
+        {ctaLabel}
+      </Link>
+      <p className="cube-empty-hint">{hint}</p>
+    </div>
+  );
+}
+
+/** The cube-size segmented picker plus its descriptive note. */
+export function CubeSizePicker({
+  size,
+  onSize,
+}: {
+  size: CubeSize;
+  onSize: (s: CubeSize) => void;
+}) {
+  return (
+    <>
+      <div className="cube-size-picker" role="group" aria-label="Cube size">
+        {CUBE_SIZES.map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={`cube-size-opt${s === size ? ' active' : ''}`}
+            aria-pressed={s === size}
+            onClick={() => onSize(s)}
+          >
+            <span className="cube-size-n">{s}</span>
+            <span className="cube-size-sub">{SIZE_INFO[s].players} players</span>
+          </button>
+        ))}
+      </div>
+      <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+    </>
+  );
+}
+
+/** "Available cards only" checkbox — label/title vary per mode. */
+export function AvailableToggle({
+  checked,
+  onChange,
+  label,
+  title,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  title: string;
+}) {
+  return (
+    <label className="field-checkbox cube-available-toggle" title={title}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+/**
+ * The cube generation progress block: a determinate Scryfall-lookup bar while
+ * `fetchProgress` is set, otherwise an indeterminate skeleton + finalizing line.
+ * `lookupLabel` names the determinate phase (omit for modes with no per-card
+ * progress, e.g. import).
+ */
+export function CubeLoadingBlock({
+  fetchProgress,
+  lookupLabel = 'Looking up cards',
+  finalizingLabel,
+}: {
+  fetchProgress: { fetched: number; total: number } | null;
+  lookupLabel?: string;
+  finalizingLabel: string;
+}) {
+  return (
+    <div className="cube-loading" role="status" aria-busy="true">
+      {fetchProgress !== null ? (
+        <div className="cube-progress">
+          <MeterBar
+            value={fetchProgress.fetched}
+            max={fetchProgress.total}
+            size="md"
+            role="progressbar"
+            label={lookupLabel}
+          />
+          <p className="cube-loading-text">
+            {lookupLabel}… {fetchProgress.fetched.toLocaleString()} /{' '}
+            {fetchProgress.total.toLocaleString()}
+          </p>
+        </div>
+      ) : (
+        <div className="cube-skeleton">
+          <div className="deck-analysis-skeleton-bar is-headline" />
+          <div className="deck-analysis-skeleton-bar is-body" />
+          <div className="deck-analysis-skeleton-bar is-body is-short" />
+        </div>
+      )}
+      {fetchProgress === null && <p className="cube-loading-text">{finalizingLabel}</p>}
+    </div>
+  );
+}
+
+/** Error alert with a retry action, shared by all build modes. */
+export function CubeErrorBlock({ error, onRetry }: { error: string; onRetry: () => void }) {
+  return (
+    <div className="cube-error" role="alert">
+      {error}
+      <button type="button" className="btn-link" onClick={onRetry}>
+        Try again
+      </button>
     </div>
   );
 }

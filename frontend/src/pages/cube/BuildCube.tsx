@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Boxes, ChevronDown, LayoutGrid, LayoutList, Pencil, Share2, Trash2 } from 'lucide-react';
 import { ShareDialog } from '../../components/ShareDialog';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { useStoredView } from '../../lib/use-stored-view';
-import { MeterBar, StackedBar } from '../../components/shared/MeterBar';
+import { StackedBar } from '../../components/shared/MeterBar';
 import { CardPreview } from '../../components/CardPreview';
 import { NameInputDialog } from '../../components/NameInputDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -20,7 +19,7 @@ import { loadTaggerData, cubeRole } from '../../deck-builder/services/tagger/cli
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
-import { CUBE_SIZES, CubeSize, SIZE_INFO, ColorBucket, provenance } from '../../lib/cube/targets';
+import { CubeSize, SIZE_INFO, ColorBucket, provenance } from '../../lib/cube/targets';
 import { generateCube, GeneratedCube, CubeCard } from '../../lib/cube/generate';
 import { synergyTags } from '../../lib/cube/synergy-tags';
 import { toCubeCobraList } from '../../lib/cube/format';
@@ -33,6 +32,11 @@ import {
   OwnRowBadge,
   SynergySlider,
   CubeArchetypes,
+  CubeEmptyState,
+  CubeSizePicker,
+  AvailableToggle,
+  CubeLoadingBlock,
+  CubeErrorBlock,
 } from './shared';
 
 export function BuildCube({ highlightId }: { highlightId?: string }) {
@@ -235,48 +239,26 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
 
   if (collectionCards.length === 0) {
     return (
-      <div className="cube-empty">
-        <p>You haven&apos;t imported a collection yet.</p>
-        <Link to="/collection" className="btn btn-primary">
-          Import your collection
-        </Link>
-        <p className="cube-empty-hint">
-          A cube is built from the cards you own — bring them in first.
-        </p>
-      </div>
+      <CubeEmptyState
+        message="You haven't imported a collection yet."
+        ctaHref="/collection"
+        ctaLabel="Import your collection"
+        hint="A cube is built from the cards you own — bring them in first."
+      />
     );
   }
 
   return (
     <div className="cube-build">
       <div className="cube-controls">
-        <div className="cube-size-picker" role="group" aria-label="Cube size">
-          {CUBE_SIZES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`cube-size-opt${s === size ? ' active' : ''}`}
-              aria-pressed={s === size}
-              onClick={() => setSize(s)}
-            >
-              <span className="cube-size-n">{s}</span>
-              <span className="cube-size-sub">{SIZE_INFO[s].players} players</span>
-            </button>
-          ))}
-        </div>
-        <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+        <CubeSizePicker size={size} onSize={setSize} />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
-        <label
-          className="field-checkbox cube-available-toggle"
+        <AvailableToggle
+          checked={availableOnly}
+          onChange={setAvailableOnly}
+          label="Available cards only"
           title="When on, cards whose only copies are already committed to a deck or another physical cube are left out — a cube you can physically pull. Turn off to draw from everything you own."
-        >
-          <input
-            type="checkbox"
-            checked={availableOnly}
-            onChange={(e) => setAvailableOnly(e.target.checked)}
-          />
-          Available cards only
-        </label>
+        />
         <button
           type="button"
           className="btn btn-primary"
@@ -378,44 +360,14 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
       {/* aria-live region: always in DOM so screen readers catch transitions */}
       <div aria-live="polite" aria-atomic="true">
         {status === 'working' && (
-          <div className="cube-loading" role="status" aria-busy="true">
-            {fetchProgress !== null ? (
-              /* Determinate phase: batch-fetching card data from Scryfall */
-              <div className="cube-progress">
-                <MeterBar
-                  value={fetchProgress.fetched}
-                  max={fetchProgress.total}
-                  size="md"
-                  role="progressbar"
-                  label="Looking up your cards"
-                />
-                <p className="cube-loading-text">
-                  Looking up your cards… {fetchProgress.fetched.toLocaleString()} /{' '}
-                  {fetchProgress.total.toLocaleString()}
-                </p>
-              </div>
-            ) : (
-              /* Indeterminate phase: tagger load + synchronous generate step */
-              <div className="cube-skeleton">
-                <div className="deck-analysis-skeleton-bar is-headline" />
-                <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-              </div>
-            )}
-            {fetchProgress === null && (
-              <p className="cube-loading-text">Selecting your best cards and balancing the cube…</p>
-            )}
-          </div>
+          <CubeLoadingBlock
+            fetchProgress={fetchProgress}
+            lookupLabel="Looking up your cards"
+            finalizingLabel="Selecting your best cards and balancing the cube…"
+          />
         )}
 
-        {status === 'error' && (
-          <div className="cube-error" role="alert">
-            {error}
-            <button type="button" className="btn-link" onClick={generate}>
-              Try again
-            </button>
-          </div>
-        )}
+        {status === 'error' && <CubeErrorBlock error={error} onRetry={generate} />}
 
         {status === 'done' && cube && (
           <CubeResult
