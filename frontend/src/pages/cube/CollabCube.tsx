@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { MeterBar, StackedBar } from '../../components/shared/MeterBar';
+import { StackedBar } from '../../components/shared/MeterBar';
 import { CardPreview } from '../../components/CardPreview';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
@@ -13,7 +12,7 @@ import { loadTaggerData, cubeRole } from '../../deck-builder/services/tagger/cli
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
-import { CUBE_SIZES, CubeSize, SIZE_INFO, ColorBucket } from '../../lib/cube/targets';
+import { CubeSize, ColorBucket } from '../../lib/cube/targets';
 import { generateCube, GeneratedCube, CubeCard } from '../../lib/cube/generate';
 import { synergyTags } from '../../lib/cube/synergy-tags';
 import { toCubeCobraList } from '../../lib/cube/format';
@@ -27,6 +26,11 @@ import {
   OwnRowBadge,
   SynergySlider,
   CubeArchetypes,
+  CubeEmptyState,
+  CubeSizePicker,
+  AvailableToggle,
+  CubeLoadingBlock,
+  CubeErrorBlock,
 } from './shared';
 
 const MAX_FRIENDS = 3;
@@ -294,15 +298,12 @@ export function CollabCube() {
   // Empty state: no friends (rendered after all hooks).
   if (friendsStatus === 'done' && friends.length === 0) {
     return (
-      <div className="cube-empty">
-        <p>You don&apos;t have any friends added yet.</p>
-        <Link to="/friends" className="btn btn-primary">
-          Add friends first
-        </Link>
-        <p className="cube-empty-hint">
-          Once you&apos;ve added friends, you can pool your collections to build a cube together.
-        </p>
-      </div>
+      <CubeEmptyState
+        message="You don't have any friends added yet."
+        ctaHref="/friends"
+        ctaLabel="Add friends first"
+        hint="Once you've added friends, you can pool your collections to build a cube together."
+      />
     );
   }
 
@@ -363,33 +364,14 @@ export function CollabCube() {
 
       {/* Size picker (mirrors BuildCube) */}
       <div className="cube-controls">
-        <div className="cube-size-picker" role="group" aria-label="Cube size">
-          {CUBE_SIZES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`cube-size-opt${s === size ? ' active' : ''}`}
-              aria-pressed={s === size}
-              onClick={() => setSize(s)}
-            >
-              <span className="cube-size-n">{s}</span>
-              <span className="cube-size-sub">{SIZE_INFO[s].players} players</span>
-            </button>
-          ))}
-        </div>
-        <p className="cube-size-note">{SIZE_INFO[size].note}</p>
+        <CubeSizePicker size={size} onSize={setSize} />
         <SynergySlider value={synergyLevel} onChange={setSynergyLevel} />
-        <label
-          className="field-checkbox cube-available-toggle"
+        <AvailableToggle
+          checked={availableOnly}
+          onChange={setAvailableOnly}
+          label="My available cards only"
           title="When on, your cards whose only copies are committed to a deck or physical cube are left out. Friends' cards are always included."
-        >
-          <input
-            type="checkbox"
-            checked={availableOnly}
-            onChange={(e) => setAvailableOnly(e.target.checked)}
-          />
-          My available cards only
-        </label>
+        />
         <button
           type="button"
           className="btn btn-primary"
@@ -417,42 +399,14 @@ export function CollabCube() {
       {/* aria-live region */}
       <div aria-live="polite" aria-atomic="true">
         {status === 'working' && (
-          <div className="cube-loading" role="status" aria-busy="true">
-            {fetchProgress !== null ? (
-              <div className="cube-progress">
-                <MeterBar
-                  value={fetchProgress.fetched}
-                  max={fetchProgress.total}
-                  size="md"
-                  role="progressbar"
-                  label="Looking up cards"
-                />
-                <p className="cube-loading-text">
-                  Looking up cards… {fetchProgress.fetched.toLocaleString()} /{' '}
-                  {fetchProgress.total.toLocaleString()}
-                </p>
-              </div>
-            ) : (
-              <div className="cube-skeleton">
-                <div className="deck-analysis-skeleton-bar is-headline" />
-                <div className="deck-analysis-skeleton-bar is-body" />
-                <div className="deck-analysis-skeleton-bar is-body is-short" />
-              </div>
-            )}
-            {fetchProgress === null && (
-              <p className="cube-loading-text">Pooling collections and balancing the cube…</p>
-            )}
-          </div>
+          <CubeLoadingBlock
+            fetchProgress={fetchProgress}
+            lookupLabel="Looking up cards"
+            finalizingLabel="Pooling collections and balancing the cube…"
+          />
         )}
 
-        {status === 'error' && (
-          <div className="cube-error" role="alert">
-            {error}
-            <button type="button" className="btn-link" onClick={generate}>
-              Try again
-            </button>
-          </div>
-        )}
+        {status === 'error' && <CubeErrorBlock error={error} onRetry={generate} />}
       </div>
 
       {status === 'done' && cube && (

@@ -12,7 +12,7 @@ import {
   OwnershipOverlay,
   CubeImportError,
 } from '../../lib/cube/import';
-import { useOwnershipFor } from './shared';
+import { useOwnershipFor, CubeLoadingBlock, CubeErrorBlock } from './shared';
 
 type OwnFilter = 'all' | 'owned' | 'in-other-deck' | 'unowned';
 
@@ -123,24 +123,13 @@ export function ImportCube() {
       {/* aria-live region: always in DOM so screen readers catch transitions */}
       <div aria-live="polite" aria-atomic="true">
         {status === 'working' && (
-          <div className="cube-loading" role="status" aria-busy="true">
-            <div className="cube-skeleton">
-              <div className="deck-analysis-skeleton-bar is-headline" />
-              <div className="deck-analysis-skeleton-bar is-body" />
-              <div className="deck-analysis-skeleton-bar is-body is-short" />
-            </div>
-            <p className="cube-loading-text">Fetching the cube and matching your collection…</p>
-          </div>
+          <CubeLoadingBlock
+            fetchProgress={null}
+            finalizingLabel="Fetching the cube and matching your collection…"
+          />
         )}
 
-        {status === 'error' && (
-          <div className="cube-error" role="alert">
-            {error}
-            <button type="button" className="btn-link" onClick={run}>
-              Try again
-            </button>
-          </div>
-        )}
+        {status === 'error' && <CubeErrorBlock error={error} onRetry={run} />}
       </div>
 
       {status === 'done' && result && (
