@@ -53,7 +53,7 @@ const FILTER_LABELS: Record<FilterId, string> = {
   'fill-gaps': 'Fix gaps',
   upgrade: 'Upgrades',
   budget: 'Budget',
-  collection: 'My collection',
+  collection: 'Stand-ins',
   'bracket-fit': 'Bracket',
   combos: 'Combos',
 };
@@ -682,6 +682,15 @@ export function CoachFeed({
               {bracketFit.note && (
                 <span className="coach-feed-bracket-note">{bracketFit.note}</span>
               )}
+            </div>
+          )}
+
+          {/* Stand-ins strip — collection filter only */}
+          {activeFilter === 'collection' && filteredAdds.length > 0 && (
+            <div className="coach-feed-collection-strip">
+              <span className="coach-feed-collection-summary">
+                Cards you already own that cover staples this deck is missing.
+              </span>
             </div>
           )}
 
