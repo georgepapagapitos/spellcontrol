@@ -586,11 +586,14 @@
   flex-shrink: 0;
 }
 
+/* Non-actionable mode label → outline pill in the chip family (mirrors
+   .tab-mode-badge, PR #824). --surface-3 was undefined (no bg → invisible
+   fill), so use a theme-safe border instead. */
 .add-to-binder-mode-hint {
   font-size: var(--text-xs);
-  padding: 0.05rem 0.3rem;
-  border-radius: 3px;
-  background: var(--surface-3);
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
