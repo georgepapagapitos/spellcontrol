@@ -49,11 +49,13 @@
   display: inline;
 }
 
+/* Non-actionable mode label → outline pill in the chip family. --surface-3 was
+   undefined (no bg → invisible fill), so use a theme-safe border instead. */
 .tab-mode-badge {
   font-size: var(--text-xs);
-  padding: 0.05rem 0.3rem;
-  border-radius: var(--radius);
-  background: var(--surface-3);
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
