@@ -5,16 +5,21 @@
    no new keyframes (reuses shared fade-in from global.css). */
 
 .gen-takeover {
-  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  min-height: 18rem;
   border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface-raised);
   animation: fade-in var(--motion-base) var(--ease-out-soft) both;
+}
+
+/* Hero region — art + headline; fixed minimum so the art always reads. */
+.gen-takeover-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 18rem;
 }
 
 /* ── Art layer ─────────────────────────────────────────────────────────── */
@@ -93,14 +98,92 @@
   /* Let the bar fill the panel width. */
 }
 
+/* ── Phase outline ─────────────────────────────────────────────────────────
+   Macro build checklist below the hero — fills the otherwise-empty vertical
+   space and gives the wait a sense of forward motion. */
+.gen-takeover-phases {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.gen-takeover-phase {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.gen-takeover-phase-mark {
+  flex: none;
+  position: relative;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+}
+
+/* Upcoming — hollow ring, dimmed label (inherits the defaults above). */
+.gen-takeover-phase--upcoming {
+  opacity: 0.55;
+}
+
+/* Current — filled accent dot that gently pulses; label brightened. */
+.gen-takeover-phase--current {
+  color: var(--text-primary);
+}
+
+.gen-takeover-phase--current .gen-takeover-phase-mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  animation: gen-takeover-pulse 1.6s var(--ease-out-soft) infinite;
+}
+
+/* Done — accent ring with a CSS checkmark. */
+.gen-takeover-phase--done .gen-takeover-phase-mark {
+  border-color: var(--accent);
+}
+
+.gen-takeover-phase--done .gen-takeover-phase-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0.28rem;
+  height: 0.5rem;
+  border: solid var(--accent);
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+@keyframes gen-takeover-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 0.28rem color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
-  .gen-takeover {
+  .gen-takeover-hero {
     min-height: 14rem;
   }
 
   .gen-takeover-body {
     padding: var(--space-4);
+  }
+
+  .gen-takeover-phases {
+    padding: var(--space-4);
+    gap: var(--space-2);
   }
 }
 
@@ -112,5 +195,9 @@
 
   .gen-takeover-flavor {
     transition: none;
+  }
+
+  .gen-takeover-phase--current .gen-takeover-phase-mark {
+    animation: none;
   }
 }
