@@ -82,6 +82,33 @@ describe('list entries', () => {
     expect(useCollectionStore.getState().lists[0].entries).toHaveLength(0);
   });
 
+  it('addListEntries bulk-adds, dedups by printing+finish, returns counts', async () => {
+    const id = useCollectionStore.getState().createList('Ramp');
+    // Seed one card so the dedup path has something to skip.
+    await useCollectionStore.getState().addListEntry(id, enriched('c1', 'sf1'), 1);
+
+    const res = await useCollectionStore.getState().addListEntries(id, [
+      { card: enriched('c2', 'sf1') }, // same printing as the seed → skipped
+      { card: enriched('c3', 'sf2'), quantity: 3 }, // new → added
+      { card: enriched('c4', 'sf2') }, // dup of sf2 within the batch → skipped
+    ]);
+
+    expect(res).toEqual({ added: 1, skipped: 2 });
+    const entries = useCollectionStore.getState().lists[0].entries;
+    expect(entries.map((e) => e.scryfallId).sort()).toEqual(['sf1', 'sf2']);
+    expect(entries.find((e) => e.scryfallId === 'sf2')?.quantity).toBe(3);
+
+    const stored = await loadCollection();
+    expect(stored?.lists?.[0].entries).toHaveLength(2);
+  });
+
+  it('addListEntries on a missing list is a no-op', async () => {
+    const res = await useCollectionStore
+      .getState()
+      .addListEntries('nope', [{ card: enriched('c1', 'sf1') }]);
+    expect(res).toEqual({ added: 0, skipped: 0 });
+  });
+
   it('moveListEntryToCollection adds owned cards and removes the entry', async () => {
     const id = useCollectionStore.getState().createList('Wants');
     await useCollectionStore.getState().addListEntry(id, enriched('c1', 'sf1'), 3);

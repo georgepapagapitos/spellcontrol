@@ -44,6 +44,15 @@ interface Props {
   oracleExpr: ChipExpression;
   setOracleExpr: (next: ChipExpression) => void;
 
+  /**
+   * Oracle tag (Scryfall otag) filter — collection-page-only. Matches against
+   * `card.tags` decorated from the bundled tagger snapshot. The deck-editor
+   * card search omits these props (its cards aren't tag-decorated) so the row
+   * disappears, same pattern as Finish/Binder.
+   */
+  oracleTagExpr?: ChipExpression;
+  setOracleTagExpr?: (next: ChipExpression) => void;
+
   legalityExpr: ChipExpression;
   setLegalityExpr: (next: ChipExpression) => void;
 
@@ -177,6 +186,8 @@ function DialogBody({
   rarities,
   oracleExpr,
   setOracleExpr,
+  oracleTagExpr,
+  setOracleTagExpr,
   legalityExpr,
   setLegalityExpr,
   layoutExpr,
@@ -216,6 +227,7 @@ function DialogBody({
   const [draftColor, setDraftColor] = useState<Set<string>>(() => new Set(colorFilter));
   const [draftRarity, setDraftRarity] = useState<ChipExpression>(rarityExpr);
   const [draftOracle, setDraftOracle] = useState<ChipExpression>(oracleExpr);
+  const [draftOracleTag, setDraftOracleTag] = useState<ChipExpression>(oracleTagExpr ?? EMPTY_EXPR);
   const [draftLegality, setDraftLegality] = useState<ChipExpression>(legalityExpr);
   const [draftLayout, setDraftLayout] = useState<ChipExpression>(layoutExpr);
   const [draftTreatment, setDraftTreatment] = useState<ChipExpression>(treatmentExpr);
@@ -234,6 +246,7 @@ function DialogBody({
   const [draftGroup, setDraftGroup] = useState<boolean>(groupPrintings ?? true);
 
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
+  const showOracleTags = oracleTagExpr !== undefined;
   const showOptions = groupPrintings !== undefined;
   const showFinish = finishExpr !== undefined;
   const showCondition = conditionExpr !== undefined;
@@ -247,6 +260,7 @@ function DialogBody({
     draftColor.size > 0 ||
     draftRarity.chips.length > 0 ||
     draftOracle.chips.length > 0 ||
+    (showOracleTags && draftOracleTag.chips.length > 0) ||
     draftLegality.chips.length > 0 ||
     draftLayout.chips.length > 0 ||
     draftTreatment.chips.length > 0 ||
@@ -265,6 +279,7 @@ function DialogBody({
   // uses the caller-supplied `rarities` options list; price/CMC are conditional.
   const draftAsFilter: import('../types').BinderFilter = {
     oracleChips: draftOracle,
+    ...(showOracleTags ? { oracleTagChips: draftOracleTag } : {}),
     legalities: draftLegality,
     layouts: draftLayout,
     treatments: draftTreatment,
@@ -274,6 +289,7 @@ function DialogBody({
 
   const handleFilterPatch = (p: Partial<import('../types').BinderFilter>) => {
     if (p.oracleChips !== undefined) setDraftOracle(p.oracleChips);
+    if (p.oracleTagChips !== undefined) setDraftOracleTag(p.oracleTagChips);
     if (p.legalities !== undefined) setDraftLegality(p.legalities);
     if (p.layouts !== undefined) setDraftLayout(p.layouts);
     if (p.treatments !== undefined) setDraftTreatment(p.treatments);
@@ -297,6 +313,7 @@ function DialogBody({
     setColorFilter(draftColor);
     setRarityExpr(draftRarity);
     setOracleExpr(draftOracle);
+    if (showOracleTags) setOracleTagExpr?.(draftOracleTag);
     setLegalityExpr(draftLegality);
     setLayoutExpr(draftLayout);
     setTreatmentExpr(draftTreatment);
@@ -324,6 +341,7 @@ function DialogBody({
     setDraftColor(new Set());
     setDraftRarity(EMPTY_EXPR);
     setDraftOracle(EMPTY_EXPR);
+    setDraftOracleTag(EMPTY_EXPR);
     setDraftLegality(EMPTY_EXPR);
     setDraftLayout(EMPTY_EXPR);
     setDraftTreatment(EMPTY_EXPR);
@@ -424,6 +442,7 @@ function DialogBody({
         <FilterFieldEditor
           value={draftAsFilter}
           onPatch={handleFilterPatch}
+          showOracleTags={showOracleTags}
           showFinish={showFinish}
           variant="dialog"
         />

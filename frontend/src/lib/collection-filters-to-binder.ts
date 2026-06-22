@@ -12,6 +12,7 @@ export interface CollectionFilterInput {
   subtypeExpr: ChipExpression;
   rarityExpr: ChipExpression;
   oracleExpr: ChipExpression;
+  oracleTagExpr: ChipExpression;
   legalityExpr: ChipExpression;
   layoutExpr: ChipExpression;
   treatmentExpr: ChipExpression;
@@ -40,6 +41,7 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
     !isExpressionEmpty(input.subtypeExpr) ||
     !isExpressionEmpty(input.rarityExpr) ||
     !isExpressionEmpty(input.oracleExpr) ||
+    !isExpressionEmpty(input.oracleTagExpr) ||
     !isExpressionEmpty(input.legalityExpr) ||
     !isExpressionEmpty(input.layoutExpr) ||
     !isExpressionEmpty(input.treatmentExpr) ||
@@ -99,6 +101,11 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   // Oracle text
   if (!isExpressionEmpty(input.oracleExpr)) {
     filter.oracleChips = cloneExpr(input.oracleExpr);
+  }
+
+  // Oracle tags (Scryfall otags)
+  if (!isExpressionEmpty(input.oracleTagExpr)) {
+    filter.oracleTagChips = cloneExpr(input.oracleTagExpr);
   }
 
   // Legalities

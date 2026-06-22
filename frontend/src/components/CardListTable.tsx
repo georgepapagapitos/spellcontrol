@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   Layers,
   List as ListIconLucide,
+  ListPlus,
   Plus,
   Search,
   X,
@@ -41,6 +42,8 @@ import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
+import { SaveToListDialog } from './SaveToListDialog';
+import { useCardsWithTags, cardTagLabel } from '../lib/card-tags';
 import { InlineCardSearch } from './InlineCardSearch';
 import { SortDirArrow } from './SortDirArrow';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -344,6 +347,7 @@ export function CardListTable({
   });
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [legalityExpr, setLegalityExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [layoutExpr, setLayoutExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
@@ -453,10 +457,16 @@ export function CardListTable({
     return map;
   }, [binders]);
 
+  // Decorate cards with Scryfall oracle tags only when the live filter uses a
+  // tag chip — otherwise this is a zero-cost pass-through (the snapshot isn't
+  // even loaded). Needed because the collection matcher reads `card.tags`, and
+  // CollectionPage only decorates when an existing binder uses tags.
+  const cardsForMatch = useCardsWithTags(cards, !isExpressionEmpty(oracleTagExpr));
+
   const rows = useMemo<Row[]>(() => {
     if (!groupPrintings) {
       // One row per physical copy.
-      return cards.map((card) => {
+      return cardsForMatch.map((card) => {
         const assignment = cardToBinder.get(card.copyId) ?? null;
         return {
           // copyId is unique per physical copy — gives every row a
@@ -476,7 +486,7 @@ export function CardListTable({
     // `binders` array aggregates every distinct binder across the stack so
     // the badge can show all of them.
     const grouped = new Map<string, Row & { binderIds: Set<string> }>();
-    for (const card of cards) {
+    for (const card of cardsForMatch) {
       const key = `${card.scryfallId}:${card.finish ?? (card.foil ? 'foil' : 'nonfoil')}`;
       const assignment = cardToBinder.get(card.copyId) ?? null;
       const existing = grouped.get(key);
@@ -507,7 +517,7 @@ export function CardListTable({
       }
     }
     return [...grouped.values()].map(({ binderIds: _ids, ...row }) => row);
-  }, [cards, cardToBinder, groupPrintings]);
+  }, [cardsForMatch, cardToBinder, groupPrintings]);
 
   // Binder membership and condition are collection-only post-checks that don't
   // map directly to BinderFilter fields, so they're compiled separately.
@@ -524,6 +534,7 @@ export function CardListTable({
     if (!isExpressionEmpty(subtypeExpr)) f.subtypeChips = subtypeExpr;
     if (!isExpressionEmpty(rarityExpr)) f.rarities = rarityExpr;
     if (!isExpressionEmpty(oracleExpr)) f.oracleChips = oracleExpr;
+    if (!isExpressionEmpty(oracleTagExpr)) f.oracleTagChips = oracleTagExpr;
     if (!isExpressionEmpty(legalityExpr)) f.legalities = legalityExpr;
     if (!isExpressionEmpty(layoutExpr)) f.layouts = layoutExpr;
     if (!isExpressionEmpty(treatmentExpr)) f.treatments = treatmentExpr;
@@ -543,6 +554,7 @@ export function CardListTable({
     subtypeExpr,
     rarityExpr,
     oracleExpr,
+    oracleTagExpr,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -860,6 +872,10 @@ export function CardListTable({
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const allCards = useCollectionStore((s) => s.cards);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
+  const lists = useCollectionStore((s) => s.lists);
+  const createList = useCollectionStore((s) => s.createList);
+  const addListEntries = useCollectionStore((s) => s.addListEntries);
+  const [saveToListOpen, setSaveToListOpen] = useState(false);
   const allocations = useAllocations();
   // Index allocations by printing (scryfallId + foil) once so per-row lookups
   // stay O(1). Without this, allocationsFor scans allCards on every call —
@@ -1006,6 +1022,7 @@ export function CardListTable({
     (colorFilter.size > 0 ? 1 : 0) +
     (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
     (!isExpressionEmpty(oracleExpr) ? 1 : 0) +
+    (!isExpressionEmpty(oracleTagExpr) ? 1 : 0) +
     (!isExpressionEmpty(legalityExpr) ? 1 : 0) +
     (!isExpressionEmpty(layoutExpr) ? 1 : 0) +
     (!isExpressionEmpty(treatmentExpr) ? 1 : 0) +
@@ -1035,6 +1052,7 @@ export function CardListTable({
     subtypeExpr,
     rarityExpr,
     oracleExpr,
+    oracleTagExpr,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1058,6 +1076,7 @@ export function CardListTable({
       subtypeExpr,
       rarityExpr,
       oracleExpr,
+      oracleTagExpr,
       legalityExpr,
       layoutExpr,
       treatmentExpr,
@@ -1082,6 +1101,7 @@ export function CardListTable({
     subtypeExpr,
     rarityExpr,
     oracleExpr,
+    oracleTagExpr,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1098,6 +1118,39 @@ export function CardListTable({
     setEditingBinder,
   ]);
 
+  // Aggregate the current filter result into one entry per printing+finish
+  // (summing copies), independent of the group-printings toggle — that's the
+  // set "Save to list" captures.
+  const saveToListCards = useMemo(() => {
+    const byKey = new Map<string, { card: EnrichedCard; quantity: number }>();
+    for (const r of filtered) {
+      const key = printingFinishKey(r.card);
+      const existing = byKey.get(key);
+      if (existing) existing.quantity += r.qty;
+      else byKey.set(key, { card: r.card, quantity: r.qty });
+    }
+    return [...byKey.values()];
+  }, [filtered]);
+
+  const handleSaveToList = useCallback(
+    async (target: { listId: string } | { newName: string }) => {
+      const listId = 'listId' in target ? target.listId : createList(target.newName);
+      const { added, skipped } = await addListEntries(listId, saveToListCards);
+      setSaveToListOpen(false);
+      const name = useCollectionStore.getState().lists.find((l) => l.id === listId)?.name ?? 'list';
+      pushToast({
+        message:
+          added > 0
+            ? `Added ${added} ${added === 1 ? 'card' : 'cards'} to “${name}”${
+                skipped > 0 ? ` · ${skipped} already there` : ''
+              }`
+            : `Already in “${name}” — nothing to add`,
+        tone: added > 0 ? 'success' : 'info',
+      });
+    },
+    [createList, addListEntries, saveToListCards, pushToast]
+  );
+
   // Clear all active filters and the search term at once.
   const clearAllFilters = useCallback(() => {
     setSearch('');
@@ -1107,6 +1160,7 @@ export function CardListTable({
     setSubtypeExpr(EMPTY_EXPR);
     setRarityExpr(EMPTY_EXPR);
     setOracleExpr(EMPTY_EXPR);
+    setOracleTagExpr(EMPTY_EXPR);
     setLegalityExpr(EMPTY_EXPR);
     setLayoutExpr(EMPTY_EXPR);
     setTreatmentExpr(EMPTY_EXPR);
@@ -1210,6 +1264,17 @@ export function CardListTable({
         id: 'oracle',
         label: `Text: ${labels}`,
         onClear: () => setOracleExpr(EMPTY_EXPR),
+      });
+    }
+    if (!isExpressionEmpty(oracleTagExpr)) {
+      const labels = oracleTagExpr.chips
+        .filter((c) => c.value.trim())
+        .map((c) => (c.negate ? `not ${cardTagLabel(c.value)}` : cardTagLabel(c.value)))
+        .join(', ');
+      chips.push({
+        id: 'oracleTag',
+        label: `Tags: ${labels}`,
+        onClear: () => setOracleTagExpr(EMPTY_EXPR),
       });
     }
     if (!isExpressionEmpty(legalityExpr)) {
@@ -1345,6 +1410,7 @@ export function CardListTable({
     typesExpr,
     subtypeExpr,
     oracleExpr,
+    oracleTagExpr,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1397,6 +1463,8 @@ export function CardListTable({
               rarities={RARITIES}
               oracleExpr={oracleExpr}
               setOracleExpr={setOracleExpr}
+              oracleTagExpr={oracleTagExpr}
+              setOracleTagExpr={setOracleTagExpr}
               legalityExpr={legalityExpr}
               setLegalityExpr={setLegalityExpr}
               layoutExpr={layoutExpr}
@@ -1470,7 +1538,26 @@ export function CardListTable({
               <span>Save as binder</span>
             </button>
           )}
+          {saveToListCards.length > 0 && (
+            <button
+              type="button"
+              className="collection-save-as-binder-btn"
+              onClick={() => setSaveToListOpen(true)}
+            >
+              <ListPlus width={12} height={12} strokeWidth={2} aria-hidden />
+              <span>Save to list</span>
+            </button>
+          )}
         </div>
+      )}
+
+      {saveToListOpen && (
+        <SaveToListDialog
+          cardCount={saveToListCards.length}
+          lists={lists}
+          onSubmit={handleSaveToList}
+          onCancel={() => setSaveToListOpen(false)}
+        />
       )}
 
       {/* Sort/group/view controls — sticky beneath the search bar.
