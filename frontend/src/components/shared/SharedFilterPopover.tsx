@@ -23,6 +23,9 @@ interface Props {
   rarities: string[];
   types: DeckBucketKey[];
   sets: Array<{ code: string; name: string }>;
+  /** Show the Value (price) facet. Off for deck shares — deck cards carry no
+   *  real price (placeholder 0), so a price range would match nothing. */
+  showValue?: boolean;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -35,15 +38,24 @@ function toggle<T>(set: ReadonlySet<T>, key: T): Set<T> {
 }
 
 /**
- * Faceted filter popover for the shared-collection view, anchored to the
- * search pill's trailing slot. Mirrors DeckFiltersPopover (live-toggling, no
- * Apply staging) so the on-toolbar filter affordance looks identical to the
- * decks index and the main collection. Facets are limited to what the public
- * share payload carries: Color, Rarity, Type, Set, Value, Mana value.
+ * Faceted filter popover for the shared collection / binder / deck views,
+ * anchored to the search pill's trailing slot. Mirrors DeckFiltersPopover
+ * (live-toggling, no Apply staging) so the on-toolbar filter affordance looks
+ * identical to the decks index and the main collection. Facets are limited to
+ * what the public share payload carries: Color, Rarity, Type, Set, Value
+ * (optional), Mana value. Each facet section only renders when that facet has
+ * options present in the data, so a view without (say) rarities just omits it.
  *
  * Portals the panel to `<body>` and clamps it into the safe viewport.
  */
-export function SharedCollectionFilters({ filters, setFilters, rarities, types, sets }: Props) {
+export function SharedFilterPopover({
+  filters,
+  setFilters,
+  rarities,
+  types,
+  sets,
+  showValue = true,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -226,16 +238,18 @@ export function SharedCollectionFilters({ filters, setFilters, rarities, types, 
               </section>
             )}
 
-            <section className="deck-filters-section">
-              <div className="deck-filters-section-label">Value</div>
-              <NumberRangeInput
-                min={filters.priceMin}
-                max={filters.priceMax}
-                step={0.01}
-                onMinChange={(v) => setFilters({ ...filters, priceMin: v })}
-                onMaxChange={(v) => setFilters({ ...filters, priceMax: v })}
-              />
-            </section>
+            {showValue && (
+              <section className="deck-filters-section">
+                <div className="deck-filters-section-label">Value</div>
+                <NumberRangeInput
+                  min={filters.priceMin}
+                  max={filters.priceMax}
+                  step={0.01}
+                  onMinChange={(v) => setFilters({ ...filters, priceMin: v })}
+                  onMaxChange={(v) => setFilters({ ...filters, priceMax: v })}
+                />
+              </section>
+            )}
 
             <section className="deck-filters-section">
               <div className="deck-filters-section-label">Mana value</div>

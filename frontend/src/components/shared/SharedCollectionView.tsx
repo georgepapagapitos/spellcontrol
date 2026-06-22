@@ -17,7 +17,7 @@ import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
-import { SharedCollectionFilters } from './SharedCollectionFilters';
+import { SharedFilterPopover } from './SharedFilterPopover';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
@@ -51,9 +51,9 @@ export function SharedCollectionView({ data }: Props) {
 
   // Facet options come from the data present, so the popover only offers
   // rarities/types/sets that actually exist in this collection.
-  const rarityOptions = useMemo(() => availableRarities(grouped), [grouped]);
-  const typeOptions = useMemo(() => availableTypes(grouped), [grouped]);
-  const setOptions = useMemo(() => availableSets(grouped), [grouped]);
+  const rarityOptions = useMemo(() => availableRarities(data.cards), [data.cards]);
+  const typeOptions = useMemo(() => availableTypes(data.cards), [data.cards]);
+  const setOptions = useMemo(() => availableSets(data.cards), [data.cards]);
 
   const filtered = useMemo(
     () => applySharedFilters(filterBySearch(grouped, search), filters),
@@ -94,7 +94,7 @@ export function SharedCollectionView({ data }: Props) {
           ariaLabel="Search cards"
           className="shared-toolbar-search"
           trailing={
-            <SharedCollectionFilters
+            <SharedFilterPopover
               filters={filters}
               setFilters={setFilters}
               rarities={rarityOptions}

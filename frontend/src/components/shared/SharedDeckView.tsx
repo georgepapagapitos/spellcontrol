@@ -1,11 +1,22 @@
 import { useMemo, useState } from 'react';
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
-import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
+import {
+  availableRarities,
+  availableSets,
+  availableTypes,
+  deckBucketFor,
+  DECK_BUCKET_ORDER,
+  emptySharedFilters,
+  matchesSharedFilters,
+  type DeckBucketKey,
+  type SharedFilters,
+} from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList, type SharedCardListItem } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
+import { SharedFilterPopover } from './SharedFilterPopover';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { CopyDeckButton } from './CopyDeckButton';
@@ -67,8 +78,22 @@ function toListItems(cards: BucketedCard[]): SharedCardListItem[] {
 
 export function SharedDeckView({ data }: Props) {
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<SharedFilters>(emptySharedFilters);
   const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
+
+  // Facet options derive from every card in the deck (mainboard + commanders
+  // + sideboard), coerced to the PublicCard shape.
+  const allCards = useMemo(() => {
+    const cards = data.cards.map((slot) => deckCardToPublicCard(slot));
+    if (data.commander) cards.push(deckCardToPublicCard({ card: data.commander }));
+    if (data.partnerCommander) cards.push(deckCardToPublicCard({ card: data.partnerCommander }));
+    for (const slot of data.sideboard) cards.push(deckCardToPublicCard(slot));
+    return cards;
+  }, [data.cards, data.commander, data.partnerCommander, data.sideboard]);
+  const rarityOptions = useMemo(() => availableRarities(allCards), [allCards]);
+  const typeOptions = useMemo(() => availableTypes(allCards), [allCards]);
+  const setOptions = useMemo(() => availableSets(allCards), [allCards]);
 
   // Group identical card names within the mainboard (same physical printing
   // would be the same scryfallId; a decklist usually shows "Forest x4").
@@ -115,7 +140,8 @@ export function SharedDeckView({ data }: Props) {
   }, [data.sideboard]);
 
   const q = normalizeForSearch(search);
-  const matches = (pc: PublicCard) => (q ? normalizeForSearch(pc.name).includes(q) : true);
+  const matches = (pc: PublicCard) =>
+    (q ? normalizeForSearch(pc.name).includes(q) : true) && matchesSharedFilters(pc, filters);
 
   const mainboardCount =
     data.cards.length + (data.commander ? 1 : 0) + (data.partnerCommander ? 1 : 0);
@@ -138,6 +164,16 @@ export function SharedDeckView({ data }: Props) {
           placeholder="Search cards in this deck…"
           ariaLabel="Search cards"
           className="shared-toolbar-search"
+          trailing={
+            <SharedFilterPopover
+              filters={filters}
+              setFilters={setFilters}
+              rarities={rarityOptions}
+              types={typeOptions}
+              sets={setOptions}
+              showValue={false}
+            />
+          }
         />
         <ViewModeToggle<ViewKind>
           ariaLabel="Deck view mode"
