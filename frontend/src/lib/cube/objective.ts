@@ -11,11 +11,10 @@
 // panel → adversary). The adversary mitigations are inline-commented (M#).
 
 import type { CubeCard, Pick } from './generate';
-import { bucketOf, curveSlotOf } from './generate';
+import { bucketOf, curveSlotOf, isLand, COLORS } from './generate';
 import type { BandTargets, ColorBucket, CurveSlot } from './targets';
 import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
 
-const WUBRG: ColorBucket[] = ['W', 'U', 'B', 'R', 'G'];
 const CURVE_SLOTS: CurveSlot[] = ['0', '1', '2', '3', '4', '5', '6', '7'];
 export const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
 
@@ -70,8 +69,6 @@ export interface CubeScore {
   /** Activated axes, strongest support first (for the explainable UI). */
   axes: AxisSupport[];
 }
-
-const isLand = (c: CubeCard) => /\bland\b/i.test(c.typeLine);
 
 /** Drafters per pod for a cube of this size (8-player pods cap the big cubes). */
 function podSize(size: number): number {
@@ -277,13 +274,13 @@ export function scoreCube(
   // internally well-proportioned isn't penalized on every color.
   const pickCount = Math.max(1, cards.length);
   let colorSum = 0;
-  for (const c of WUBRG) {
+  for (const c of COLORS) {
     const share = (byBucket[c] ?? 0) / pickCount;
     const t = band.color[c];
     const tol = Math.max(0.01, (t.p75 - t.p25) / 2);
     colorSum += Math.max(0, 1 - Math.abs(share - t.median) / tol);
   }
-  const color = colorSum / WUBRG.length;
+  const color = colorSum / COLORS.length;
 
   // ── Term D: curve balance (over nonland cards) ──────────────────────────
   const nonland = cards.filter((c) => !isLand(c));

@@ -12,7 +12,7 @@
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
-import { AXIS_LABEL } from './objective';
+import { AXIS_LABEL, draftablePoolAxes } from './objective';
 import { refineCube } from './refine';
 
 export interface CubeCard {
@@ -160,17 +160,14 @@ function countAxes(cards: CubeCard[]): Map<AxisKey, AxisCount> {
  */
 function deriveAxisFloors(pool: CubeCard[], synergyLevel: number): Map<AxisKey, number> {
   const support = new Map<AxisKey, number>();
-  const hasProducer = new Set<AxisKey>();
-  const hasPayoff = new Set<AxisKey>();
   for (const c of pool) {
-    for (const k of c.synergyProducers ?? []) hasProducer.add(k);
-    for (const k of c.synergyPayoffs ?? []) hasPayoff.add(k);
     for (const k of axesTouched(c)) support.set(k, (support.get(k) ?? 0) + 1);
   }
   const floors = new Map<AxisKey, number>();
-  for (const [k, n] of support) {
-    if (!hasProducer.has(k) || !hasPayoff.has(k)) continue; // needs both sides to be draftable
-    const floor = Math.round(n * synergyLevel);
+  // Only draftable axes (BOTH an enabler and a payoff in the pool) get selection
+  // pressure — reuse the canonical predicate so this can't drift from objective/refine.
+  for (const k of draftablePoolAxes(pool)) {
+    const floor = Math.round((support.get(k) ?? 0) * synergyLevel);
     if (floor > 0) floors.set(k, floor);
   }
   return floors;
