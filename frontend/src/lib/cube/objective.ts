@@ -17,7 +17,7 @@ import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
 
 const WUBRG: ColorBucket[] = ['W', 'U', 'B', 'R', 'G'];
 const CURVE_SLOTS: CurveSlot[] = ['0', '1', '2', '3', '4', '5', '6', '7'];
-const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
+export const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
 
 /**
  * M2 — axes whose *producer* predicate is keyword/blanket-gated and over-fires

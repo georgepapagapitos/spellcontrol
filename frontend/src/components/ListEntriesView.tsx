@@ -1,8 +1,8 @@
 import { Check, Plus } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { useSearchCards } from '../lib/use-search-cards';
 import type { ListDef, ListEntry } from '../types';
 import { FoilBadge } from './FoilBadge';
 import { SearchPill } from './SearchPill';
@@ -52,55 +52,19 @@ export function ListEntriesView({ list }: Props) {
   const moveListEntryToCollection = useCollectionStore((s) => s.moveListEntryToCollection);
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const q = query.trim();
   const [visible, setVisible] = useState(SEARCH_PAGE);
   const [addedIds, setAddedIds] = useState<Record<string, number>>({});
   const [editing, setEditing] = useState<ListEntry | null>(null);
-  const debounceRef = useRef<number | null>(null);
 
-  const q = query.trim();
+  const { results, loading: searching, error: searchError } = useSearchCards(query, RESULT_LIMIT);
 
+  // Reset progressive-reveal window when new results arrive. Defer to a
+  // microtask to avoid synchronous setState inside an effect body
+  // (react-hooks/set-state-in-effect).
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (q.length < 2) {
-        if (!cancelled) {
-          setResults([]);
-          setSearchError(null);
-          setSearching(false);
-        }
-        return;
-      }
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-      await new Promise<void>((resolve) => {
-        debounceRef.current = window.setTimeout(resolve, 300);
-      });
-      if (cancelled) return;
-      setSearching(true);
-      setSearchError(null);
-      try {
-        const resp = await searchCards(q, [], { skipFormatFilter: true });
-        if (!cancelled) {
-          setResults(resp.data.slice(0, RESULT_LIMIT));
-          setVisible(SEARCH_PAGE);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setSearchError(e instanceof Error ? e.message : 'Search failed');
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) setSearching(false);
-      }
-    }
-    void run();
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [q]);
+    void Promise.resolve().then(() => setVisible(SEARCH_PAGE));
+  }, [results]);
 
   const handleAdd = async (card: ScryfallCard) => {
     // Default to the latest printing Scryfall returns, nonfoil — same

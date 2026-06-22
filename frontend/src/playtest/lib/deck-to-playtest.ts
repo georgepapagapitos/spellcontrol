@@ -1,15 +1,14 @@
 import type { Deck, DeckCard } from '@/store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { PlaytestCard, PlaytestInit } from '@/lib/playtest';
+import { imageFromCard } from '@/lib/card-thumbs';
 
 function instanceId(slotId: string, copy: number): string {
   return `${slotId}#${copy}`;
 }
 
 function toPlaytestCard(card: ScryfallCard, id: string): PlaytestCard {
-  const face = card.card_faces?.[0];
-  const imageUrl =
-    card.image_uris?.normal ?? card.image_uris?.large ?? face?.image_uris?.normal ?? undefined;
+  const imageUrl = imageFromCard(card, 'normal');
   return {
     id,
     name: card.name,

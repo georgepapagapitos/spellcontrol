@@ -1,5 +1,6 @@
 import { colorGlyph } from '@/lib/mana-symbols';
 import { typeIcon } from '@/lib/card-types';
+import { joinClasses } from '@/lib/join-classes';
 
 /**
  * Pip sizing — maps onto the existing `.color-pip-mana` CSS treatment (the
@@ -8,10 +9,6 @@ import { typeIcon } from '@/lib/card-types';
  * modifier; `false`/omitted = a bare cost glyph with no pip background.
  */
 type Pip = boolean | 'md' | 'lg';
-
-function joinClasses(...parts: Array<string | false | undefined>): string {
-  return parts.filter(Boolean).join(' ');
-}
 
 function pipClasses(pip: Pip | undefined): string {
   if (!pip) return '';

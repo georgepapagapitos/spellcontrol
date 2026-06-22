@@ -10,11 +10,10 @@
 // into CubeCard[]; this module does the selection and the explanation.
 
 import { CubeSize, ColorBucket, CurveSlot, Role, targetsForSize, BandTargets } from './targets';
-import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
+import type { AxisKey } from '@/deck-builder/services/synergy/axes';
 import type { CubeScore } from './objective';
+import { AXIS_LABEL } from './objective';
 import { refineCube } from './refine';
-
-const AXIS_LABEL = new Map<AxisKey, string>(AXES.map((a) => [a.key, a.label]));
 
 export interface CubeCard {
   name: string;
@@ -68,7 +67,7 @@ export interface CubeGenOptions {
   synergyLevel?: number;
 }
 
-const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
+export const COLORS = ['W', 'U', 'B', 'R', 'G'] as const;
 const BUCKETS: ColorBucket[] = ['W', 'U', 'B', 'R', 'G', 'multicolor', 'colorless', 'land'];
 const COLOR_NAME: Record<ColorBucket, string> = {
   W: 'White',
@@ -87,7 +86,7 @@ const ROLE_NAME: Record<Role, string> = {
   cardDraw: 'card draw',
 };
 
-const isLand = (c: CubeCard) => /\bland\b/i.test(c.typeLine);
+export const isLand = (c: CubeCard) => /\bland\b/i.test(c.typeLine);
 const isBasic = (c: CubeCard) => /basic/i.test(c.typeLine) && isLand(c);
 
 export function bucketOf(c: CubeCard): ColorBucket {
@@ -105,7 +104,7 @@ export function curveSlotOf(cmc: number): CurveSlot {
 /** quality: lower edhrecRank = better; unknown rank sorts last. oracleId breaks
  *  ties so every sort (and thus the whole cube) is deterministic regardless of
  *  the pool's incoming order. */
-const byQuality = (a: CubeCard, b: CubeCard) =>
+export const byQuality = (a: CubeCard, b: CubeCard) =>
   (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.oracleId.localeCompare(b.oracleId);
 
 /** Largest-remainder apportionment so bucket targets sum exactly to `size`. */
@@ -128,7 +127,7 @@ function apportion(shares: Record<ColorBucket, number>, size: number): Record<Co
 }
 
 /** Distinct archetype axes a card touches (as enabler or payoff). */
-function axesTouched(c: CubeCard): AxisKey[] {
+export function axesTouched(c: CubeCard): AxisKey[] {
   const prod = c.synergyProducers ?? [];
   const pay = c.synergyPayoffs ?? [];
   if (!prod.length && !pay.length) return [];
