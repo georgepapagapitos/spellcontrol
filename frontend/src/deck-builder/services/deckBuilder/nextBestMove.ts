@@ -61,6 +61,11 @@ export interface NextBestMoveInput {
   winConditions?: WinConditionAnalysis;
   /** Whether Bracket Fit has card moves ready (bracketFit?.moves.length > 0). */
   bracketFitHasMoves?: boolean;
+  /** Mirrors the Coach feed's "Owned only" toggle. When set, card-naming moves
+   *  only name cards the player owns (role/synergy gaps fall back to generic
+   *  advice; an unowned-only combo completion is dropped) so the hero never
+   *  tells you to go buy a card while you've asked to see owned moves only. */
+  ownedOnly?: boolean;
 }
 
 /** Display labels for the functional roles (mirrors planScore's ROLE_LABELS). */
@@ -107,28 +112,40 @@ function mostDeficitRole(
 }
 
 /** Gap card matching `role` whose name isn't already claimed — preferring one
- *  the player already owns (owned-first), else the top (inclusion-ranked) match. */
+ *  the player already owns (owned-first), else the top (inclusion-ranked) match.
+ *  Under `ownedOnly`, owned-first hardens to owned-only (unowned gaps drop out,
+ *  so the move falls back to generic advice rather than naming a card to buy). */
 function gapForRole(
   gapAnalysis: GapAnalysisCard[] | undefined,
   role: string,
   used: Set<string>,
-  ownedNames?: Set<string>
+  ownedNames?: Set<string>,
+  ownedOnly?: boolean
 ): GapAnalysisCard | undefined {
-  const matches = gapAnalysis?.filter((g) => g.role === role && !used.has(g.name)) ?? [];
+  const matches =
+    gapAnalysis?.filter(
+      (g) =>
+        g.role === role && !used.has(g.name) && (!ownedOnly || (ownedNames?.has(g.name) ?? false))
+    ) ?? [];
   if (matches.length === 0) return undefined;
   return matches.find((g) => ownedNames?.has(g.name)) ?? matches[0];
 }
 
 /** Highest-synergy gap card whose name isn't already claimed — preferring one
- *  the player already owns (owned-first) among the positive-synergy candidates. */
+ *  the player already owns (owned-first) among the positive-synergy candidates.
+ *  Under `ownedOnly`, restricted to owned candidates only. */
 function topSynergyGap(
   gapAnalysis: GapAnalysisCard[] | undefined,
   used: Set<string>,
-  ownedNames?: Set<string>
+  ownedNames?: Set<string>,
+  ownedOnly?: boolean
 ): GapAnalysisCard | undefined {
   const positive =
     gapAnalysis
-      ?.filter((g) => g.synergy > 0 && !used.has(g.name))
+      ?.filter(
+        (g) =>
+          g.synergy > 0 && !used.has(g.name) && (!ownedOnly || (ownedNames?.has(g.name) ?? false))
+      )
       .sort((a, b) => b.synergy - a.synergy) ?? [];
   return positive.find((g) => ownedNames?.has(g.name)) ?? positive[0];
 }
@@ -149,6 +166,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
     oneAwayCombos,
     ownedNames,
     winConditions,
+    ownedOnly,
   } = input;
 
   const moves: NextBestMove[] = [];
@@ -206,7 +224,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
         const deficit = mostDeficitRole(roleCounts, roleTargets);
         if (!deficit) continue;
         const label = roleLabel(deficit.role);
-        const gap = gapForRole(gapAnalysis, deficit.role, usedCards, ownedNames);
+        const gap = gapForRole(gapAnalysis, deficit.role, usedCards, ownedNames, ownedOnly);
         const owns = gap != null && (ownedNames?.has(gap.name) ?? false);
         moves.push({
           id: `roles-${deficit.role}`,
@@ -249,7 +267,7 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       }
 
       if (key === 'strategy') {
-        const gap = topSynergyGap(gapAnalysis, usedCards, ownedNames);
+        const gap = topSynergyGap(gapAnalysis, usedCards, ownedNames, ownedOnly);
         const owns = gap != null && (ownedNames?.has(gap.name) ?? false);
         moves.push({
           id: 'strategy',
@@ -287,6 +305,9 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
           ? partnerNames.join(' + ')
           : `${partnerNames.slice(0, 2).join(' + ')} +${partnerNames.length - 2} more`;
       const alreadyOwns = input.ownedNames?.has(missingName) ?? false;
+      // Owned-only: can't complete this combo without buying — skip and keep
+      // scanning for one the player can finish with cards in hand.
+      if (ownedOnly && !alreadyOwns) continue;
       const detail = alreadyOwns
         ? `You already own ${missingName} — add it to complete ${partnerStr} → ${produces}.`
         : `Completes ${partnerStr} → ${produces}. Add ${missingName} to finish the combo.`;

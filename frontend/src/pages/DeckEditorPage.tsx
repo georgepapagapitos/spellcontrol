@@ -125,6 +125,17 @@ const DECK_EDITOR_SHORTCUTS = [
   { keys: ['Cmd/Ctrl', 'Shift+Z'], description: 'Redo last edit' },
 ];
 
+// "Owned only" Coach toggle — persisted here (the page owns the state) so both
+// the feed and the Next-best-move hero, which is built upstream, share it.
+const OWNED_ONLY_KEY = 'spellcontrol-improve-owned-only';
+function readOwnedOnly(): boolean {
+  try {
+    return window.localStorage.getItem(OWNED_ONLY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function DeckEditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -216,6 +227,16 @@ export function DeckEditorPage() {
   const [showPartnerPicker, setShowPartnerPicker] = useState(false);
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Coach "Owned only" filter — shared by the feed and the Next-best-move hero.
+  const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
+  const handleOwnedOnlyChange = useCallback((next: boolean) => {
+    setOwnedOnly(next);
+    try {
+      window.localStorage.setItem(OWNED_ONLY_KEY, next ? '1' : '0');
+    } catch {
+      /* storage unavailable — non-fatal */
+    }
+  }, []);
   // One-shot build-report sheet: shown once immediately after deck generation.
   // Gated on BOTH the justGenerated router state (set by GuidedBuildPage's
   // post-save navigate — so pre-existing generated decks never pop it) AND the
@@ -610,8 +631,9 @@ export function DeckEditorPage() {
       ownedNames,
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
+      ownedOnly,
     });
-  }, [deck, comboData.data, ownedNames]);
+  }, [deck, comboData.data, ownedNames, ownedOnly]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
@@ -2083,6 +2105,8 @@ export function DeckEditorPage() {
                       onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                     />
                   }
+                  ownedOnly={ownedOnly}
+                  onOwnedOnlyChange={handleOwnedOnlyChange}
                   nextBestMoves={nextBestMoves}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   onNbmNavigate={handleNbmNavigate}
