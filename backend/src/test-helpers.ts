@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth';
 import { adminRouter } from './routes/admin';
 import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
+import { gameResultsRouter } from './routes/game-results';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
 import { offlineRouter } from './routes/offline';
@@ -222,6 +223,22 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX friendships_addressee_idx ON friendships(addressee_id);
     CREATE INDEX friendships_status_idx ON friendships(status);
+
+    CREATE TABLE game_results (
+      session_id TEXT PRIMARY KEY,
+      code TEXT NOT NULL,
+      format TEXT NOT NULL,
+      starting_life INTEGER NOT NULL,
+      winner_seat INTEGER,
+      winner_user_id TEXT,
+      started_at BIGINT,
+      ended_at BIGINT NOT NULL,
+      duration_ms BIGINT NOT NULL,
+      participants JSONB NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);
+    CREATE INDEX game_results_ended_idx ON game_results(ended_at DESC);
   `);
 
   const db = drizzle(pool, { schema });
@@ -234,6 +251,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/admin', adminRouter);
   app.use('/api/sync', syncRouter);
   app.use('/api/games', gamesRouter);
+  app.use('/api/game-results', gameResultsRouter);
   app.use('/api/combos', combosRouter);
   app.use('/api/shares', sharesRouter);
   app.use('/api/offline', offlineRouter);
