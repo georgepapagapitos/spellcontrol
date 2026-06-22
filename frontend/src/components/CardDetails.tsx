@@ -2,12 +2,43 @@ import { AlertTriangle, Ban, Check, ChevronDown, Minus } from 'lucide-react';
 import { useState } from 'react';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { cardFaces, legalityRows, type LegalityStatus } from '../lib/card-details';
+import { cardFaces, isKeywordLine, legalityRows, type LegalityStatus } from '../lib/card-details';
 import { ManaCost } from './ManaCost';
 import { MagicText } from './deck/MagicText';
 import './CardDetails.css';
 
 /* ── Card text (oracle / flavor / P-T) ─────────────────────────────────── */
+
+/** One oracle line: parenthetical reminder text → italic, the rest → symbols. */
+function OracleLine({ text }: { text: string }) {
+  const segs = text.split(/(\([^)]*\))/g).filter(Boolean);
+  return (
+    <>
+      {segs.map((s, i) =>
+        s.startsWith('(') && s.endsWith(')') ? (
+          <em key={i} className="card-text-reminder">
+            {s}
+          </em>
+        ) : (
+          <MagicText key={i} text={s} />
+        )
+      )}
+    </>
+  );
+}
+
+/** Rules text split into per-ability paragraphs; leading keyword lines emphasized. */
+function OracleText({ text }: { text: string }) {
+  return (
+    <div className="card-text-oracle">
+      {text.split('\n').map((line, i) => (
+        <p key={i} className={`card-text-line${isKeywordLine(line) ? ' is-keyword' : ''}`}>
+          <OracleLine text={line} />
+        </p>
+      ))}
+    </div>
+  );
+}
 
 export function CardText({ card, detail }: { card: EnrichedCard; detail: ScryfallCard | null }) {
   const faces = cardFaces(card, detail);
@@ -25,7 +56,7 @@ export function CardText({ card, detail }: { card: EnrichedCard; detail: Scryfal
               {f.typeLine && <span className="card-text-face-type">{f.typeLine}</span>}
             </div>
           )}
-          {f.oracleText && <MagicText text={f.oracleText} className="card-text-oracle" />}
+          {f.oracleText && <OracleText text={f.oracleText} />}
           {f.flavorText && <p className="card-text-flavor">{f.flavorText}</p>}
           {(f.pt || f.loyalty) && (
             <div
