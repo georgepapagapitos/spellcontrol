@@ -1,15 +1,11 @@
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
 import { requireAuth } from '../auth';
 import { getPool } from '../db';
+import { testAwareLimiter } from '../route-utils';
 
 export const usersRouter: Router = Router();
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-
-const searchLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 30 });
+const searchLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
 
 // ────────────────────────────────────────────────
 // GET /api/users/search?q=
