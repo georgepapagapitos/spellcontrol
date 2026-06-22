@@ -239,6 +239,43 @@ async function edhrecFetch<T>(endpoint: string): Promise<T> {
 // Tags that represent high-priority theme synergy cards
 const THEME_SYNERGY_TAGS = new Set(['highsynergycards', 'topcards', 'gamechangers']);
 
+/** Map from cardlist tag (lowercased) to the MTG card type it implies. */
+const TAG_TYPE_MAP: Record<string, string> = {
+  creatures: 'Creature',
+  instants: 'Instant',
+  sorceries: 'Sorcery',
+  utilityartifacts: 'Artifact',
+  manaartifacts: 'Artifact',
+  enchantments: 'Enchantment',
+  planeswalkers: 'Planeswalker',
+  utilitylands: 'Land',
+  lands: 'Land',
+};
+
+/**
+ * Backfill color identities on commanders whose colorIdentity is empty by
+ * fetching the missing names from Scryfall. Mutates the passed array in-place
+ * and returns the updated array.
+ */
+async function backfillColorIdentities(
+  commanders: EDHRECTopCommander[]
+): Promise<EDHRECTopCommander[]> {
+  if (!commanders.some((c) => c.colorIdentity.length === 0)) return commanders;
+  try {
+    const { getCardsByNames } = await import('@/deck-builder/services/scryfall/client');
+    const names = commanders.filter((c) => c.colorIdentity.length === 0).map((c) => c.name);
+    const cardMap = await getCardsByNames(names);
+    return commanders.map((c) => {
+      if (c.colorIdentity.length > 0) return c;
+      const card = cardMap.get(c.name);
+      return { ...c, colorIdentity: card?.color_identity ?? [] };
+    });
+  } catch {
+    // Scryfall lookup failed — show without color pips
+    return commanders;
+  }
+}
+
 /**
  * Parse raw EDHREC card into our format
  * @param raw - Raw card data from EDHREC
@@ -251,17 +288,8 @@ function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
   const inclusionPercent = potentialDecks > 0 ? (inclusionCount / potentialDecks) * 100 : 0;
 
   // Derive primary_type from the cardlist tag if available
-  let primaryType = 'Unknown';
   const tagLower = tagHint?.toLowerCase() || '';
-
-  if (tagLower === 'creatures') primaryType = 'Creature';
-  else if (tagLower === 'instants') primaryType = 'Instant';
-  else if (tagLower === 'sorceries') primaryType = 'Sorcery';
-  else if (tagLower === 'utilityartifacts' || tagLower === 'manaartifacts')
-    primaryType = 'Artifact';
-  else if (tagLower === 'enchantments') primaryType = 'Enchantment';
-  else if (tagLower === 'planeswalkers') primaryType = 'Planeswalker';
-  else if (tagLower === 'utilitylands' || tagLower === 'lands') primaryType = 'Land';
+  let primaryType = TAG_TYPE_MAP[tagLower] ?? 'Unknown';
 
   // Fallback: derive from type_line if EDHREC provided it
   if (primaryType === 'Unknown' && raw.type_line) {
@@ -450,17 +478,6 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
     logger.debug(`[EDHREC] Processing list "${list.tag}" with ${list.cardviews.length} cards`);
 
     // Determine the type this tag implies (if any)
-    const TAG_TYPE_MAP: Record<string, string> = {
-      creatures: 'Creature',
-      instants: 'Instant',
-      sorceries: 'Sorcery',
-      utilityartifacts: 'Artifact',
-      manaartifacts: 'Artifact',
-      enchantments: 'Enchantment',
-      planeswalkers: 'Planeswalker',
-      utilitylands: 'Land',
-      lands: 'Land',
-    };
     const impliedType = TAG_TYPE_MAP[tag];
 
     for (const rawCard of list.cardviews) {
@@ -1072,20 +1089,7 @@ export async function fetchTopCommanders(colors: string[]): Promise<EDHRECTopCom
 
     // The overall "year" endpoint doesn't include color_identity on page 1.
     // Batch-fetch from Scryfall to fill them in.
-    if (isOverall && commanders.some((c) => c.colorIdentity.length === 0)) {
-      try {
-        const { getCardsByNames } = await import('@/deck-builder/services/scryfall/client');
-        const names = commanders.filter((c) => c.colorIdentity.length === 0).map((c) => c.name);
-        const cardMap = await getCardsByNames(names);
-        commanders = commanders.map((c) => {
-          if (c.colorIdentity.length > 0) return c;
-          const card = cardMap.get(c.name);
-          return { ...c, colorIdentity: card?.color_identity ?? [] };
-        });
-      } catch {
-        // Scryfall lookup failed — show without color pips
-      }
-    }
+    if (isOverall) commanders = await backfillColorIdentities(commanders);
 
     topCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
     return commanders;
@@ -1136,20 +1140,7 @@ export async function fetchPlaystyleCommanders(tagSlug: string): Promise<EDHRECT
     }));
 
     // Tag pages omit color_identity — backfill from Scryfall for the pips.
-    if (commanders.some((c) => c.colorIdentity.length === 0)) {
-      try {
-        const { getCardsByNames } = await import('@/deck-builder/services/scryfall/client');
-        const names = commanders.filter((c) => c.colorIdentity.length === 0).map((c) => c.name);
-        const cardMap = await getCardsByNames(names);
-        commanders = commanders.map((c) => {
-          if (c.colorIdentity.length > 0) return c;
-          const card = cardMap.get(c.name);
-          return { ...c, colorIdentity: card?.color_identity ?? [] };
-        });
-      } catch {
-        // Scryfall lookup failed — show without color pips
-      }
-    }
+    commanders = await backfillColorIdentities(commanders);
 
     playstyleCommanderCache.set(key, { data: commanders, timestamp: Date.now() });
     return commanders;

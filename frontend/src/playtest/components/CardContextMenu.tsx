@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { useSheetExit } from '@/lib/use-sheet-exit';
 import { getSafeViewport } from '@/lib/popover-placement';
 import type { Zone } from '@/lib/playtest';
+import { MOVE_DESTINATIONS } from '../lib/zones';
 
 interface Props {
   x: number;
@@ -18,13 +20,6 @@ interface Props {
 }
 
 const COUNTER_KINDS = ['+1/+1', '-1/-1', 'loyalty', 'charge'];
-const ZONES: { key: Zone; label: string }[] = [
-  { key: 'hand', label: 'Hand' },
-  { key: 'graveyard', label: 'Graveyard' },
-  { key: 'exile', label: 'Exile' },
-  { key: 'library', label: 'Library (bottom)' },
-  { key: 'command', label: 'Command' },
-];
 
 const MENU_MARGIN = 8;
 
@@ -42,9 +37,10 @@ export function CardContextMenu({
 }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
 
   useLockBodyScroll();
-  useEscapeKey(onClose);
+  useEscapeKey(variant === 'sheet' ? beginClose : onClose);
 
   useEffect(() => {
     if (variant !== 'floating') return;
@@ -85,7 +81,7 @@ export function CardContextMenu({
       </div>
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Move to</div>
-        {ZONES.map((z) => (
+        {MOVE_DESTINATIONS.map((z) => (
           <button
             key={z.key}
             type="button"
@@ -101,14 +97,15 @@ export function CardContextMenu({
 
   if (variant === 'sheet') {
     return (
-      <div className="card-picker-root" role="presentation" onClick={onClose}>
+      <div className="card-picker-root" role="presentation" onClick={() => beginClose()}>
         <div className="card-picker-backdrop" />
         <div
-          className="card-picker-sheet playtest-ctx-sheet"
+          className={`card-picker-sheet playtest-ctx-sheet${isClosing ? ' is-closing' : ''}`}
           role="dialog"
           aria-modal="true"
           aria-label={cardName}
           onClick={(e) => e.stopPropagation()}
+          onAnimationEnd={onAnimationEnd}
         >
           <div className="card-picker-handle" aria-hidden />
           <div className="card-picker-header">
@@ -116,7 +113,7 @@ export function CardContextMenu({
           </div>
           <div className="playtest-ctx-menu">{items}</div>
           <div className="card-picker-footer">
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={() => beginClose()}>
               Close
             </button>
           </div>
