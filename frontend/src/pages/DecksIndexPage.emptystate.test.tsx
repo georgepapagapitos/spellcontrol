@@ -127,12 +127,12 @@ describe('DecksIndexPage — empty state three doors (UX-317)', () => {
     expect(screen.getByTestId('import-dialog')).toBeTruthy();
   });
 
-  it('has an "Add precon" button in the empty-state area that opens the product dialog', () => {
+  it('has an "Add a product" button in the empty-state area that opens the product dialog', () => {
     renderEmpty();
     const emptyActions = document.querySelector('.decks-empty-actions');
     expect(emptyActions).toBeTruthy();
     const addPreconBtn = Array.from(emptyActions!.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Add precon')
+      b.textContent?.includes('Add a product')
     );
     expect(addPreconBtn).toBeTruthy();
     fireEvent.click(addPreconBtn!);

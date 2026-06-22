@@ -203,8 +203,18 @@ const TYPE_FILTERS: { value: string; label: string }[] = [
   { value: 'Planeswalker Deck', label: 'Planeswalker' },
   { value: 'Challenger Deck', label: 'Challenger' },
   { value: 'Duel Deck', label: 'Duel Deck' },
+  { value: 'Secret Lair Drop', label: 'Secret Lair' },
   { value: '', label: 'All types' },
 ];
+
+/**
+ * Secret Lair drops are a curated card list, not a playable deck — they have no
+ * commander/main 100, so only "Add to collection" makes sense. (Secret Lair
+ * *Commander Decks* carry MTGJSON type "Commander Deck", so they're unaffected.)
+ */
+function isCardListProduct(type: string): boolean {
+  return type === 'Secret Lair Drop';
+}
 
 const FORMAT_KEYS = Object.keys(DECK_FORMAT_CONFIGS);
 
@@ -217,8 +227,9 @@ function deckFormatOf(resp: ProductResolveResponse): DeckFormat {
 
 /**
  * Search the MTGJSON product catalog and add a known product (Commander precons
- * first) as a deck and/or into the collection (T17). The Products tab of the
- * Add-cards sheet.
+ * first, Secret Lair drops, etc.) as a deck and/or into the collection (T17/E31).
+ * Card-list products like Secret Lair drops are collection-only. The Products tab
+ * of the Add-cards sheet.
  */
 export function ProductSearchPanel({ onClose }: Props) {
   const navigate = useNavigate();
@@ -284,7 +295,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       const resolved = await fetchProduct(p.fileName);
       setSelected(resolved);
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Could not load this precon.');
+      setProductError(e instanceof Error ? e.message : 'Could not load this product.');
     } finally {
       setLoadingProduct(false);
     }
@@ -449,32 +460,47 @@ export function ProductSearchPanel({ onClose }: Props) {
           {banner && <div className="success-banner product-banner">{banner}</div>}
           {productError && <div className="error-banner product-banner">{productError}</div>}
           <div className="product-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy}
-              onClick={() => addAsDeck(selected)}
-            >
-              <Layers width={16} height={16} aria-hidden />
-              <span>Add as deck</span>
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void handleAddToCollection(selected)}
-            >
-              <Package width={16} height={16} aria-hidden />
-              <span>Add to collection</span>
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void handleAddBoth(selected)}
-            >
-              <span>Add both</span>
-            </button>
+            {isCardListProduct(selected.product.type) ? (
+              // Card-list products (Secret Lair drops) aren't a deck — collection only.
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => void handleAddToCollection(selected)}
+              >
+                <Package width={16} height={16} aria-hidden />
+                <span>Add to collection</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy}
+                  onClick={() => addAsDeck(selected)}
+                >
+                  <Layers width={16} height={16} aria-hidden />
+                  <span>Add as deck</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void handleAddToCollection(selected)}
+                >
+                  <Package width={16} height={16} aria-hidden />
+                  <span>Add to collection</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void handleAddBoth(selected)}
+                >
+                  <span>Add both</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
         {carousel.preview}
@@ -487,10 +513,10 @@ export function ProductSearchPanel({ onClose }: Props) {
     <div className="add-card-search-panel">
       <div className="add-card-search-input-wrap">
         <SearchPill
-          placeholder="Search precons — e.g. “Fae Dominion”, “Goblin”"
+          placeholder="Search products — e.g. “Fae Dominion”, “Goblin Storm”"
           value={query}
           onChange={setQuery}
-          ariaLabel="Search precons"
+          ariaLabel="Search products"
         />
         <div className="product-type-filters" role="group" aria-label="Product type">
           {TYPE_FILTERS.map((t) => (
@@ -508,7 +534,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       </div>
 
       <div className="add-card-sheet-body">
-        {loadingProduct && <p className="card-picker-empty">Loading precon…</p>}
+        {loadingProduct && <p className="card-picker-empty">Loading product…</p>}
         {!loadingProduct && loadingList && <p className="card-picker-empty">Searching…</p>}
         {productError && !loadingProduct && (
           <p className="card-picker-empty add-card-sheet-error">{productError}</p>
@@ -516,7 +542,7 @@ export function ProductSearchPanel({ onClose }: Props) {
         {listError && <p className="card-picker-empty add-card-sheet-error">{listError}</p>}
         {!loadingList && !listError && results.length === 0 && (
           <p className="card-picker-empty">
-            No matching precons. Newly released precons may not be catalogued yet.
+            No matching products. Newly released products may not be catalogued yet.
           </p>
         )}
         {!loadingList && results.length > 0 && (

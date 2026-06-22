@@ -267,7 +267,7 @@ export function DecksIndexPage() {
           </p>
         </div>
         <div className="decks-index-actions">
-          {/* Import + Add precon are secondary: full pills on desktop/tablet,
+          {/* Import + Add a product are secondary: full pills on desktop/tablet,
               collapsed into the ⋮ kebab on phones so the primary "New deck"
               CTA never gets crowded off the row. */}
           <button
@@ -286,7 +286,7 @@ export function DecksIndexPage() {
             onClick={() => setShowProductSearch(true)}
           >
             <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>Add precon</span>
+            <span>Add a product</span>
           </button>
           <OverflowMenu
             className="decks-index-actions-overflow"
@@ -294,7 +294,7 @@ export function DecksIndexPage() {
             ariaLabel="More deck actions"
             items={[
               { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
-              { label: 'Add precon', icon: Package, onClick: () => setShowProductSearch(true) },
+              { label: 'Add a product', icon: Package, onClick: () => setShowProductSearch(true) },
             ]}
           />
           <Link to="/decks/new" className="pill-btn pill-btn-primary">
@@ -397,7 +397,7 @@ export function DecksIndexPage() {
           <p className="empty-state-tagline">No decks yet.</p>
           <p className="empty-state-hint">
             Build a deck from scratch with the guided builder, import a list you already have, or
-            add a preconstructed deck from your collection.
+            add a known product — a preconstructed deck or Secret Lair drop.
           </p>
           <div className="empty-state-actions decks-empty-actions">
             <Link to="/decks/new/guided" className="btn btn-primary empty-state-action">
@@ -418,7 +418,7 @@ export function DecksIndexPage() {
               onClick={() => setShowProductSearch(true)}
             >
               <Package width={14} height={14} strokeWidth={2} aria-hidden />
-              Add precon
+              Add a product
             </button>
           </div>
         </div>
