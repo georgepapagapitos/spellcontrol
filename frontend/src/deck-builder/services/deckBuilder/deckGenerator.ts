@@ -97,6 +97,7 @@ import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
+import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
 import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
@@ -3320,6 +3321,44 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // ── Bracket Convergence ──
+  // Close the loop on the target bracket: the pick-time guard caps hard-floor
+  // signals, but the estimator's soft score (fast mana/tutors/low curve) can
+  // still bump the deck one bracket above target. Re-run the real estimator and
+  // swap soft-signal cards for neutral filler until the deck lands in-band.
+  // Runs before scoring/relevancy/grade so they all see the converged deck.
+  {
+    const convergeMustInclude = new Set([
+      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+    ]);
+    const converge = applyBracketConvergence(state, {
+      scryfallCardMap,
+      detectedCombos,
+      mustIncludeNames: convergeMustInclude,
+    });
+    // Convergence can cut a combo piece (target <= 2 breaks incidental combos).
+    // Refresh combo completeness against the live deck so the final bracket
+    // estimate + report don't keep a now-broken combo's floor (mirrors the
+    // combo-audit refresh above).
+    if (converge.applied > 0 && detectedCombos) {
+      const liveNames = new Set<string>();
+      for (const c of Object.values(categories).flat()) {
+        liveNames.add(c.name);
+        if (c.name.includes(' // ')) liveNames.add(frontFaceName(c.name));
+      }
+      if (commander) liveNames.add(commander.name);
+      if (partnerCommander) liveNames.add(partnerCommander.name);
+      detectedCombos = detectedCombos
+        .map((dc) => {
+          const missing = dc.cards.filter((n) => !liveNames.has(n));
+          return { ...dc, isComplete: missing.length === 0, missingCards: missing };
+        })
+        .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
+      if (detectedCombos.length === 0) detectedCombos = undefined;
+    }
+  }
+
   // Build deck score from EDHREC inclusion percentages
   const { deckScore, cardInclusionMap } = deckScorePhase(state, swapCandidates, gapAnalysis);
 
@@ -3339,10 +3378,24 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     .map((c) => c.name);
   if (commander) allDeckCardNames.push(commander.name);
   if (partnerCommander) allDeckCardNames.push(partnerCommander.name);
+  // Recompute the non-land average CMC from the FINAL deck: `stats` was taken
+  // before the combo-floor / fixup / bracket-convergence swap passes, so its
+  // averageCmc is stale (convergence in particular systematically removes
+  // 0-cmc fast mana). The bracket estimate must score the deck as it ships, so
+  // the report matches what convergence verified. Uses the SAME non-land basis
+  // the convergence pass scored on (every category except `lands`) so the two
+  // estimates agree exactly.
+  const nonLandCards = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
+    .filter(([cat]) => cat !== 'lands')
+    .flatMap(([, cards]) => cards);
+  const finalAverageCmc =
+    nonLandCards.length > 0
+      ? nonLandCards.reduce((sum, c) => sum + (c.cmc ?? 0), 0) / nonLandCards.length
+      : stats.averageCmc;
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
     allCardNames: allDeckCardNames,
     detectedCombos,
-    averageCmc: stats.averageCmc,
+    averageCmc: finalAverageCmc,
     deckScore,
     bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
     gameChangerNames: state.gameChangerNames,
