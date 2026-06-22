@@ -77,24 +77,6 @@ const COACH_SHORTCUTS = [
   { keys: ['f'], description: 'Cycle suggestion filters (All → Fix gaps → Upgrades → …)' },
 ];
 
-const OWNED_ONLY_KEY = 'spellcontrol-improve-owned-only';
-
-function readOwnedOnly(): boolean {
-  try {
-    return window.localStorage.getItem(OWNED_ONLY_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeOwnedOnly(v: boolean): void {
-  try {
-    window.localStorage.setItem(OWNED_ONLY_KEY, v ? '1' : '0');
-  } catch {
-    /* storage unavailable — non-fatal */
-  }
-}
-
 // ── Props ──────────────────────────────────────────────────────────────────
 
 export interface CoachFeedProps {
@@ -153,6 +135,10 @@ export interface CoachFeedProps {
   nextBestMoves?: NextBestMove[];
   combosLoading?: boolean;
   onNbmNavigate?: (view: DeckView, focus?: NextBestMoveFocus) => void;
+  /** "Owned only" toggle — controlled by the parent so the Next-best-move hero
+   *  (built upstream) respects the same filter as the feed. */
+  ownedOnly: boolean;
+  onOwnedOnlyChange: (ownedOnly: boolean) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -193,6 +179,8 @@ export function CoachFeed({
   nextBestMoves = [],
   combosLoading,
   onNbmNavigate,
+  ownedOnly,
+  onOwnedOnlyChange,
 }: CoachFeedProps): JSX.Element {
   const busy = busyNames ?? new Set<string>();
   const carousel = useCardCarousel('Coach');
@@ -213,7 +201,6 @@ export function CoachFeed({
   const [activeFilter, setActiveFilter] = useState<FilterId>(() =>
     initialFilter ? (FOCUS_TO_FILTER[initialFilter] ?? 'all') : 'all'
   );
-  const [ownedOnly, setOwnedOnly] = useState<boolean>(readOwnedOnly);
 
   const ackedFilterRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -630,10 +617,7 @@ export function CoachFeed({
                   type="checkbox"
                   className="field-checkbox"
                   checked={ownedOnly}
-                  onChange={(e) => {
-                    setOwnedOnly(e.target.checked);
-                    writeOwnedOnly(e.target.checked);
-                  }}
+                  onChange={(e) => onOwnedOnlyChange(e.target.checked)}
                 />
                 Owned only
               </label>
@@ -750,10 +734,7 @@ export function CoachFeed({
                 <button
                   type="button"
                   className="coach-feed-show-unowned"
-                  onClick={() => {
-                    setOwnedOnly(false);
-                    writeOwnedOnly(false);
-                  }}
+                  onClick={() => onOwnedOnlyChange(false)}
                 >
                   Show unowned too
                 </button>
