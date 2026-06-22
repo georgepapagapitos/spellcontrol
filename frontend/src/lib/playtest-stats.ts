@@ -10,6 +10,8 @@ import type { PlaytestCard, BattlefieldCard, PlaytestState } from './playtest';
 import type { SimCard } from './opening-hand-sim';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { toSimCard as scryToSimCard, isLand } from './hand-classify';
+import { isPlaytestLand } from '@/playtest/lib/zones';
+import { classifyTypeLine } from './build-mana-data';
 
 // ── Output types ──────────────────────────────────────────────────────────────
 
@@ -48,22 +50,6 @@ export interface DeckSessionStats {
   cardsDrawn: number | null;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Classify a PlaytestCard into its primary permanent type bucket.
- * Creature wins over other types for dual-type cards (e.g. "Artifact Creature").
- */
-function classifyType(typeLine: string | undefined): string {
-  const tl = (typeLine ?? '').toLowerCase();
-  if (tl.includes('creature')) return 'creature';
-  if (tl.includes('planeswalker')) return 'planeswalker';
-  if (tl.includes('land')) return 'land';
-  if (tl.includes('artifact')) return 'artifact';
-  if (tl.includes('enchantment')) return 'enchantment';
-  return 'other';
-}
-
 // ── Public functions ──────────────────────────────────────────────────────────
 
 /**
@@ -80,7 +66,7 @@ export function toHandSimCards(
     const scry = cardLookup?.get(c.id);
     if (scry) return scryToSimCard(scry);
     return {
-      isLand: (c.typeLine ?? '').toLowerCase().includes('land'),
+      isLand: isPlaytestLand(c.typeLine),
       cmc: c.manaValue ?? 0,
       role: null,
       colors: [],
@@ -106,7 +92,7 @@ export function computeHandStats(
 
   for (const c of hand) {
     const scry = cardLookup?.get(c.id);
-    const isCardLand = scry ? isLand(scry) : (c.typeLine ?? '').toLowerCase().includes('land');
+    const isCardLand = scry ? isLand(scry) : isPlaytestLand(c.typeLine);
 
     if (isCardLand) {
       lands++;
@@ -156,12 +142,11 @@ export function computeBattlefieldStats(battlefield: BattlefieldCard[]): Battlef
     if (b.tapped) tapped++;
     else untapped++;
 
-    const typeBucket = classifyType(b.card.typeLine);
+    const typeBucket = classifyTypeLine(b.card.typeLine);
     permanentsByType[typeBucket] = (permanentsByType[typeBucket] ?? 0) + 1;
 
     // Exclude lands from CMC average — they're mana sources, not spells.
-    const isLandCard = (b.card.typeLine ?? '').toLowerCase().includes('land');
-    if (!isLandCard) {
+    if (!isPlaytestLand(b.card.typeLine)) {
       cmcSum += b.card.manaValue ?? 0;
       cmcCount++;
     }

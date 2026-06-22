@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import './PlaytestStatsSheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { useSheetExit } from '@/lib/use-sheet-exit';
 import type { PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
@@ -373,18 +374,20 @@ function DeckStatsSection({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onClose }: Props) {
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(onClose);
+  useEscapeKey(beginClose);
   const [activeTab, setActiveTab] = useState<StatsTab>('hand');
 
   return (
     <div className="card-picker-root" role="presentation">
-      <div className="card-picker-backdrop" role="presentation" onClick={onClose} />
+      <div className="card-picker-backdrop" role="presentation" onClick={() => beginClose()} />
       <div
-        className="card-picker-sheet playtest-stats-sheet"
+        className={`card-picker-sheet playtest-stats-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="playtest-stats-title"
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-header">
           <h2 id="playtest-stats-title" className="card-picker-title">
@@ -423,7 +426,7 @@ export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onC
         </div>
 
         <div className="card-picker-footer" style={{ justifyContent: 'flex-end' }}>
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" onClick={() => beginClose()}>
             Close
           </button>
         </div>
