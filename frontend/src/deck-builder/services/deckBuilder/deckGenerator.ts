@@ -106,6 +106,27 @@ export { stampRoleSubtypes } from './categorize';
 export { CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 export type { GenerationContext };
 
+/**
+ * Return the simple card type string from a lowercased type line, or null for
+ * lands and unrecognised types. Used for counting/targeting by type.
+ */
+function getSimpleCardType(typeLine: string): string | null {
+  if (typeLine.includes('land')) return null;
+  return typeLine.includes('creature')
+    ? 'creature'
+    : typeLine.includes('instant')
+      ? 'instant'
+      : typeLine.includes('sorcery')
+        ? 'sorcery'
+        : typeLine.includes('artifact')
+          ? 'artifact'
+          : typeLine.includes('enchantment')
+            ? 'enchantment'
+            : typeLine.includes('planeswalker')
+              ? 'planeswalker'
+              : null;
+}
+
 // Merge cardlists from multiple theme results
 function mergeThemeCardlists(themeDataResults: EDHRECCommanderData[]): {
   cardlists: EDHRECCommanderData['cardlists'];
@@ -1132,21 +1153,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // so we can reduce type targets and avoid overfilling the deck
   const preFilledTypeCounts: Record<string, number> = {};
   for (const card of Object.values(categories).flat()) {
-    const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-    if (typeLine.includes('land')) continue; // lands handled separately
-    const type = typeLine.includes('creature')
-      ? 'creature'
-      : typeLine.includes('instant')
-        ? 'instant'
-        : typeLine.includes('sorcery')
-          ? 'sorcery'
-          : typeLine.includes('artifact')
-            ? 'artifact'
-            : typeLine.includes('enchantment')
-              ? 'enchantment'
-              : typeLine.includes('planeswalker')
-                ? 'planeswalker'
-                : null;
+    const type = getSimpleCardType(getFrontFaceTypeLine(card).toLowerCase());
     if (type) {
       preFilledTypeCounts[type] = (preFilledTypeCounts[type] ?? 0) + 1;
     }
@@ -2373,21 +2380,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // Calculate current type counts to prioritize types with the largest deficit
       const currentTypeCounts: Record<string, number> = {};
       for (const card of Object.values(categories).flat()) {
-        const tl = getFrontFaceTypeLine(card).toLowerCase();
-        if (tl.includes('land')) continue;
-        const t = tl.includes('creature')
-          ? 'creature'
-          : tl.includes('instant')
-            ? 'instant'
-            : tl.includes('sorcery')
-              ? 'sorcery'
-              : tl.includes('artifact')
-                ? 'artifact'
-                : tl.includes('enchantment')
-                  ? 'enchantment'
-                  : tl.includes('planeswalker')
-                    ? 'planeswalker'
-                    : null;
+        const t = getSimpleCardType(getFrontFaceTypeLine(card).toLowerCase());
         if (t) currentTypeCounts[t] = (currentTypeCounts[t] ?? 0) + 1;
       }
 
@@ -2426,20 +2419,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
         // If advanced type overrides are active, prioritize cards that fill type deficits
         if (customization.advancedTargets?.typePercentages && totalTypeNeed > 0) {
-          const tl = getFrontFaceTypeLine(scryfallCard).toLowerCase();
-          const cardType = tl.includes('creature')
-            ? 'creature'
-            : tl.includes('instant')
-              ? 'instant'
-              : tl.includes('sorcery')
-                ? 'sorcery'
-                : tl.includes('artifact')
-                  ? 'artifact'
-                  : tl.includes('enchantment')
-                    ? 'enchantment'
-                    : tl.includes('planeswalker')
-                      ? 'planeswalker'
-                      : null;
+          const cardType = getSimpleCardType(getFrontFaceTypeLine(scryfallCard).toLowerCase());
           // Skip cards of types the user set to 0 (or already at target)
           if (cardType && typeNeed[cardType] <= 0) continue;
           // Track the fill
