@@ -210,6 +210,20 @@ export function isMassLandDenialFloor(name: string): boolean {
   return isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name);
 }
 
+// Fast mana / tutors drive the estimator's SOFT score (the `floor+1` bump),
+// which the pick-time BracketGuard doesn't cap. Exported as the exact same
+// predicates the estimator counts below, so the generation convergence pass can
+// refuse to swap one back in and re-inflate the soft score it just lowered.
+export function isFastMana(name: string): boolean {
+  return FAST_MANA.has(name);
+}
+
+export function isTutor(name: string): boolean {
+  // Mirror the estimator's tutor count: only cardDraw-role tutors. Cards like
+  // Cultivate carry the tutor tag but are primarily ramp, not tutoring.
+  return hasTag(name, 'tutor') && getCardRole(name) === 'cardDraw';
+}
+
 /**
  * Tutor handling — known divergence from current strict-RC text.
  *
