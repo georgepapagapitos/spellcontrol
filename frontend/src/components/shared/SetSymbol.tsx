@@ -1,4 +1,5 @@
 import { rarityTint } from '@/lib/set-symbols';
+import { joinClasses } from '@/lib/join-classes';
 
 /**
  * The atomic keyrune set-symbol glyph — one `<i class="ss ss-…">`, the sister
@@ -13,10 +14,6 @@ import { rarityTint } from '@/lib/set-symbols';
  * than keyrune's baked-in `ss-uncommon`/`ss-rare`/`ss-mythic` colors, so the
  * colors track the app's rarity tokens and stay legible at row-glyph sizes.
  */
-
-function joinClasses(...parts: Array<string | false | undefined>): string {
-  return parts.filter(Boolean).join(' ');
-}
 
 interface SetSymbolProps {
   /** Scryfall set code (e.g. "mh2"). Renders nothing when falsy. */

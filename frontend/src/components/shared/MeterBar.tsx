@@ -1,5 +1,6 @@
 import './MeterBar.css';
 import type { CSSProperties, JSX } from 'react';
+import { joinClasses } from '@/lib/join-classes';
 
 /**
  * MeterBar / StackedBar — THE shared horizontal bar-track primitives.
@@ -23,10 +24,6 @@ import type { CSSProperties, JSX } from 'react';
  */
 
 type Size = 'sm' | 'md';
-
-function joinClasses(...parts: Array<string | false | undefined>): string {
-  return parts.filter(Boolean).join(' ');
-}
 
 /** Fill percentage for a value/max pair — clamped to [0, 100]; degenerate
  *  inputs (non-finite, `max <= 0`) read as empty, never NaN/overflow. */

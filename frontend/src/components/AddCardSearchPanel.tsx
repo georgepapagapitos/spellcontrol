@@ -1,11 +1,11 @@
 import { Check } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { useEffect, useState } from 'react';
 import { ManaCost } from './ManaCost';
 import { SearchPill } from './SearchPill';
 import { useCollectionStore } from '../store/collection';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { haptics } from '../lib/haptics';
+import { useSearchCards } from '../lib/use-search-cards';
 
 interface Props {
   /** When provided, the card is also pinned to this binder after being added. */
@@ -29,52 +29,17 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
   const collection = useCollectionStore((s) => s.cards);
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
-  const debounceRef = useRef<number | null>(null);
 
+  const { results, loading, error } = useSearchCards(query);
+
+  // Reset keyboard-navigation index whenever the result set changes.
+  // Defer to a microtask to avoid synchronous setState inside an effect body
+  // (react-hooks/set-state-in-effect).
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const q = query.trim();
-      if (q.length < 2) {
-        if (!cancelled) {
-          setError(null);
-          setResults([]);
-        }
-        return;
-      }
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-      await new Promise<void>((resolve) => {
-        debounceRef.current = window.setTimeout(resolve, 300);
-      });
-      if (cancelled) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await searchCards(q, [], { skipFormatFilter: true });
-        if (!cancelled) {
-          setResults(resp.data.slice(0, 60));
-          setActiveIndex(0);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Search failed');
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void run();
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [query]);
+    void Promise.resolve().then(() => setActiveIndex(0));
+  }, [results]);
 
   const ownedNames = new Set(collection.map((c) => c.name));
 
