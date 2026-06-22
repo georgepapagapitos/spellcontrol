@@ -620,10 +620,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 0.2rem var(--space-2);
+  padding: 0.2rem 0.6rem;
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
+  /* Non-actionable active-filter label → pill, matching its sibling filter chips. */
+  border-radius: 999px;
   font-size: var(--text-xs);
   color: var(--text-primary);
   line-height: 1.4;
