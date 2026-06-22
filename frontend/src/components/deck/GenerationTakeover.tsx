@@ -186,6 +186,26 @@ const FALLBACK_LINES = [
   'A worthy deck demands patience.',
 ];
 
+// Macro build outline shown as a checklist below the hero, lit progressively
+// by `percent`. Coarse on purpose — the hero's live `message` carries the
+// precise step; this is the at-a-glance map of where the build is.
+// ponytail: percent-threshold mapping (monotonic across both the EDHREC and
+// Scryfall-fallback paths). If the paths' pacing ever diverges enough to
+// mislabel a stage, thread a real phase id through `onProgress` instead.
+const MILESTONES: { at: number; label: string }[] = [
+  { at: 0, label: 'Consulting the Oracle' },
+  { at: 18, label: 'Scrying the multiverse' },
+  { at: 35, label: 'Summoning creatures' },
+  { at: 45, label: 'Weaving the spells' },
+  { at: 78, label: 'Tapping the mana base' },
+  { at: 95, label: 'Shuffling up' },
+];
+
+/** Index of the in-progress milestone for a given percent (highest passed). */
+function currentMilestone(percent: number): number {
+  return MILESTONES.reduce((acc, m, i) => (percent >= m.at ? i : acc), 0);
+}
+
 function getFlavorLines(message: string): string[] {
   for (const [key, lines] of FLAVOR_LINES) {
     if (message.includes(key)) return lines;
@@ -251,30 +271,47 @@ export function GenerationTakeover({ commanderName, commanderImageUrl, message, 
 
   const flavorLines = getFlavorLines(message);
   const flavorText = flavorLines[flavorIndex % flavorLines.length];
+  const activeMilestone = currentMilestone(percent);
 
   return (
     <div className="gen-takeover" role="status" aria-live="polite" aria-label="Building deck…">
-      {artUrl && (
-        <div className="gen-takeover-art" aria-hidden>
-          <img src={artUrl} alt="" className="gen-takeover-art-img" />
-          <div className="gen-takeover-art-fade" aria-hidden />
-        </div>
-      )}
-      <div className="gen-takeover-body">
-        {commanderName && (
-          <p className="gen-takeover-commander" aria-hidden>
-            {commanderName}
-          </p>
+      <div className="gen-takeover-hero">
+        {artUrl && (
+          <div className="gen-takeover-art" aria-hidden>
+            <img src={artUrl} alt="" className="gen-takeover-art-img" />
+            <div className="gen-takeover-art-fade" aria-hidden />
+          </div>
         )}
-        <p className="gen-takeover-step">{message}</p>
-        <p
-          className={`gen-takeover-flavor${visible ? '' : ' gen-takeover-flavor--hidden'}`}
-          aria-hidden="true"
-        >
-          {flavorText}
-        </p>
-        <ProgressBar percent={percent} className="gen-takeover-bar" />
+        <div className="gen-takeover-body">
+          {commanderName && (
+            <p className="gen-takeover-commander" aria-hidden>
+              {commanderName}
+            </p>
+          )}
+          <p className="gen-takeover-step">{message}</p>
+          <p
+            className={`gen-takeover-flavor${visible ? '' : ' gen-takeover-flavor--hidden'}`}
+            aria-hidden="true"
+          >
+            {flavorText}
+          </p>
+          <ProgressBar percent={percent} className="gen-takeover-bar" />
+        </div>
       </div>
+      {/* Macro outline — aria-hidden; the live region above already
+          announces the precise current step. */}
+      <ol className="gen-takeover-phases" aria-hidden>
+        {MILESTONES.map((m, i) => {
+          const state =
+            i < activeMilestone ? 'done' : i === activeMilestone ? 'current' : 'upcoming';
+          return (
+            <li key={m.label} className={`gen-takeover-phase gen-takeover-phase--${state}`}>
+              <span className="gen-takeover-phase-mark" aria-hidden />
+              <span className="gen-takeover-phase-label">{m.label}</span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
