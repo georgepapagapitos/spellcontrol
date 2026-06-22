@@ -4,8 +4,9 @@ import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { and, eq, lt } from 'drizzle-orm';
 import { requireAuth } from '../auth';
-import { getDb } from '../db';
+import { getDb, getPool } from '../db';
 import { gameSessions } from '../db/schema';
+import { persistGameResult } from '../games/persist-result';
 import {
   applyAction,
   createGameState,
@@ -391,6 +392,16 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
       .status(409)
       .json({ error: 'Version conflict.', current: fresh[0]?.state as GameState | undefined });
   }
+
+  // Canonical shared record: written once, by whichever client wins the
+  // optimistic-lock race that flips an online game to 'finished'. Subsequent
+  // PATCHes of an already-finished game don't re-fire (current.status check),
+  // and persistGameResult is idempotent on session_id besides. Fire-and-forget
+  // — a record-write failure must not break the game's PATCH response.
+  if (current.status !== 'finished' && next.status === 'finished' && next.mode === 'online') {
+    void persistGameResult(next, getPool());
+  }
+
   res.json({ game: next });
 });
 
