@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Boxes, Pencil, Share2, Trash2 } from 'lucide-react';
+import { Boxes, ChevronDown, LayoutGrid, LayoutList, Pencil, Share2, Trash2 } from 'lucide-react';
 import './CubePage.css';
 import { ShareDialog } from '../components/ShareDialog';
 import { Tabs } from '../components/Tabs';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { useStoredView } from '../lib/use-stored-view';
 import { MeterBar, StackedBar } from '../components/shared/MeterBar';
 import { OwnershipBadge } from '../components/deck/OwnershipBadge';
 import { VerdictBadge } from '../components/deck/VerdictBadge';
@@ -720,6 +722,23 @@ function CubeResult({
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
+  // Gallery (image grid) vs list (rows + reasons). Gallery scans a 360–720-card
+  // cube in a fraction of the scroll; list keeps the per-card "why".
+  const [view, setView] = useStoredView<'gallery' | 'list'>(
+    'cube-result-view',
+    ['gallery', 'list'],
+    'gallery'
+  );
+  // Color sections you've collapsed (ephemeral — a navigation aid, not a setting).
+  const [collapsed, setCollapsed] = useState<Set<ColorBucket>>(new Set());
+  const toggleBucket = (b: ColorBucket) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(b)) next.delete(b);
+      else next.add(b);
+      return next;
+    });
+
   // Flat list of all picks (for preview carousel index mapping).
   const allPicks = cube.picks;
 
@@ -833,54 +852,117 @@ function CubeResult({
       </div>
 
       <div className="cube-list">
-        <h3>The cards, and why</h3>
-        {groups.map(({ bucket, items }, groupIndex) => (
-          <div
-            key={bucket}
-            className="cube-group"
-            style={{ '--group-index': groupIndex } as React.CSSProperties}
-          >
-            <h4 className="cube-group-head">
-              <span
-                className="cube-swatch"
-                style={{ background: BUCKET_COLOR[bucket] }}
-                aria-hidden
-              />
-              {BUCKET_LABEL[bucket]} <span className="cube-group-count">{items.length}</span>
-            </h4>
-            <ul className="cube-rows">
-              {items.map(({ pick: p, flatIndex }) => {
-                const own = ownershipFor(p.card.name);
-                const s = enrichedMap.get(p.card.name);
-                const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
-                return (
-                  <li
-                    key={p.card.oracleId || p.card.name}
-                    className="cube-row cube-row-interactive"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${p.card.name} — open preview`}
-                    onClick={() => setPreviewIndex(flatIndex)}
-                    onKeyDown={(e) => handleKeyDown(e, flatIndex)}
-                  >
-                    {img ? (
-                      <img src={img} alt="" loading="lazy" className="cube-row-thumb" />
-                    ) : (
-                      <span className="cube-row-thumb cube-row-thumb-ph" aria-hidden />
-                    )}
-                    <div className="cube-row-body">
-                      <span className="cube-row-title">
-                        <span className="cube-row-name">{p.card.name}</span>
-                        <OwnRowBadge own={own} />
-                      </span>
-                      {p.reason && <span className="cube-row-reason">{p.reason}</span>}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+        <div className="cube-list-head">
+          <h3>The cards</h3>
+          <ViewModeToggle<'gallery' | 'list'>
+            ariaLabel="Cube card view"
+            value={view}
+            onChange={setView}
+            options={[
+              {
+                value: 'gallery',
+                label: 'Gallery view',
+                icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
+              {
+                value: 'list',
+                label: 'List view (with reasons)',
+                icon: <LayoutList width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
+            ]}
+          />
+        </div>
+        {groups.map(({ bucket, items }, groupIndex) => {
+          const isCollapsed = collapsed.has(bucket);
+          return (
+            <div
+              key={bucket}
+              className="cube-group"
+              style={{ '--group-index': groupIndex } as React.CSSProperties}
+            >
+              <h4 className="cube-group-head">
+                <button
+                  type="button"
+                  className="cube-group-toggle"
+                  aria-expanded={!isCollapsed}
+                  onClick={() => toggleBucket(bucket)}
+                >
+                  <ChevronDown className="cube-group-chevron" width={14} height={14} aria-hidden />
+                  <span
+                    className="cube-swatch"
+                    style={{ background: BUCKET_COLOR[bucket] }}
+                    aria-hidden
+                  />
+                  {BUCKET_LABEL[bucket]} <span className="cube-group-count">{items.length}</span>
+                </button>
+              </h4>
+              {!isCollapsed &&
+                (view === 'gallery' ? (
+                  <ul className="cube-gallery">
+                    {items.map(({ pick: p, flatIndex }) => {
+                      const own = ownershipFor(p.card.name);
+                      const s = enrichedMap.get(p.card.name);
+                      const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
+                      return (
+                        <li key={p.card.oracleId || p.card.name} className="cube-tile">
+                          <button
+                            type="button"
+                            className="cube-tile-btn"
+                            aria-label={`${p.card.name} — open preview`}
+                            title={p.card.name}
+                            onClick={() => setPreviewIndex(flatIndex)}
+                          >
+                            {img ? (
+                              <img src={img} alt="" loading="lazy" className="cube-tile-img" />
+                            ) : (
+                              <span className="cube-tile-ph">{p.card.name}</span>
+                            )}
+                            {own !== 'owned' && (
+                              <span className="cube-tile-badge">
+                                <OwnRowBadge own={own} />
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <ul className="cube-rows">
+                    {items.map(({ pick: p, flatIndex }) => {
+                      const own = ownershipFor(p.card.name);
+                      const s = enrichedMap.get(p.card.name);
+                      const img = s?.image_uris?.small ?? s?.card_faces?.[0]?.image_uris?.small;
+                      return (
+                        <li
+                          key={p.card.oracleId || p.card.name}
+                          className="cube-row cube-row-interactive"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${p.card.name} — open preview`}
+                          onClick={() => setPreviewIndex(flatIndex)}
+                          onKeyDown={(e) => handleKeyDown(e, flatIndex)}
+                        >
+                          {img ? (
+                            <img src={img} alt="" loading="lazy" className="cube-row-thumb" />
+                          ) : (
+                            <span className="cube-row-thumb cube-row-thumb-ph" aria-hidden />
+                          )}
+                          <div className="cube-row-body">
+                            <span className="cube-row-title">
+                              <span className="cube-row-name">{p.card.name}</span>
+                              <OwnRowBadge own={own} />
+                            </span>
+                            {p.reason && <span className="cube-row-reason">{p.reason}</span>}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ))}
+            </div>
+          );
+        })}
       </div>
 
       {previewIndex !== null && previewCards[previewIndex] && (
