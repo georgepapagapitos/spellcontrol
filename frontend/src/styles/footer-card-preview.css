@@ -788,6 +788,21 @@
   overflow-y: auto;
   touch-action: pan-y;
   overscroll-behavior: contain;
+
+  /* The panel is an always-dark surface regardless of app theme. Remap the
+     theme COLOR tokens to dark-appropriate white-alpha here so every descendant
+     that styles with them — including shared components injected into the slots
+     (DeckCardRow, SimilarCardsStrip, SwapThisCard, DeckCardPreviewMeta) — reads
+     correctly without each one hand-rolling white-alpha. In the dark app theme
+     these tokens are already light, so this is a no-op there; it fixes the
+     dark-on-dark leak that only showed in light themes. --accent is left alone
+     (saturated, readable on dark, and load-bearing for pills / focus rings). */
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --border: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.25);
+  --surface-raised: rgba(255, 255, 255, 0.1);
 }
 
 /* Caller-injected panel slots (renderPanelMeta / renderPanelExtra). Full width,
