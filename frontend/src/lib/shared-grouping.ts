@@ -195,38 +195,51 @@ function inRange(value: number, min: number | undefined, max: number | undefined
   return true;
 }
 
-export function applySharedFilters(grouped: GroupedCard[], f: SharedFilters): GroupedCard[] {
-  let out = filterByColors(grouped, f.colors);
-  if (f.rarities.size > 0) out = out.filter((g) => f.rarities.has(g.card.rarity.toLowerCase()));
-  if (f.types.size > 0) out = out.filter((g) => f.types.has(deckBucketFor(g.card.typeLine)));
-  if (f.sets.size > 0) out = out.filter((g) => f.sets.has(g.card.setCode));
+/**
+ * Per-card filter predicate — the shared core used by both the flat collection
+ * view (via applySharedFilters) and the sectioned binder/deck views (which
+ * filter each section's cards in place). Empty facets pass.
+ */
+export function matchesSharedFilters(card: PublicCard, f: SharedFilters): boolean {
+  if (f.colors.size > 0) {
+    const ci = card.colorIdentity ?? [];
+    const colorOk = (f.colors.has('C') && ci.length === 0) || ci.some((c) => f.colors.has(c));
+    if (!colorOk) return false;
+  }
+  if (f.rarities.size > 0 && !f.rarities.has(card.rarity.toLowerCase())) return false;
+  if (f.types.size > 0 && !f.types.has(deckBucketFor(card.typeLine))) return false;
+  if (f.sets.size > 0 && !f.sets.has(card.setCode)) return false;
   if (f.priceMin !== undefined || f.priceMax !== undefined) {
-    out = out.filter(
-      (g) => g.card.purchasePrice > 0 && inRange(g.card.purchasePrice, f.priceMin, f.priceMax)
-    );
+    if (!(card.purchasePrice > 0 && inRange(card.purchasePrice, f.priceMin, f.priceMax))) {
+      return false;
+    }
   }
   if (f.cmcMin !== undefined || f.cmcMax !== undefined) {
-    out = out.filter((g) => g.card.cmc !== undefined && inRange(g.card.cmc, f.cmcMin, f.cmcMax));
+    if (!(card.cmc !== undefined && inRange(card.cmc, f.cmcMin, f.cmcMax))) return false;
   }
-  return out;
+  return true;
+}
+
+export function applySharedFilters(grouped: GroupedCard[], f: SharedFilters): GroupedCard[] {
+  return grouped.filter((g) => matchesSharedFilters(g.card, f));
 }
 
 /** Rarities present in the data, ordered mythic→common (then unknown). */
-export function availableRarities(grouped: GroupedCard[]): string[] {
-  const present = new Set(grouped.map((g) => g.card.rarity.toLowerCase()));
+export function availableRarities(cards: PublicCard[]): string[] {
+  const present = new Set(cards.map((c) => c.rarity.toLowerCase()));
   return [...present].sort((a, b) => rarityRank(a) - rarityRank(b));
 }
 
 /** Type buckets present in the data, in reader-friendly decklist order. */
-export function availableTypes(grouped: GroupedCard[]): DeckBucketKey[] {
-  const present = new Set(grouped.map((g) => deckBucketFor(g.card.typeLine)));
+export function availableTypes(cards: PublicCard[]): DeckBucketKey[] {
+  const present = new Set(cards.map((c) => deckBucketFor(c.typeLine)));
   return DECK_BUCKET_ORDER.filter((t) => present.has(t));
 }
 
 /** Sets present in the data as {code,name}, ordered by set name. */
-export function availableSets(grouped: GroupedCard[]): Array<{ code: string; name: string }> {
+export function availableSets(cards: PublicCard[]): Array<{ code: string; name: string }> {
   const byCode = new Map<string, string>();
-  for (const g of grouped) byCode.set(g.card.setCode, g.card.setName || g.card.setCode);
+  for (const c of cards) byCode.set(c.setCode, c.setName || c.setCode);
   return [...byCode.entries()]
     .map(([code, name]) => ({ code, name }))
     .sort((a, b) => a.name.localeCompare(b.name));

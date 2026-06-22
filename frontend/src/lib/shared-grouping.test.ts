@@ -10,6 +10,7 @@ import {
   filterByColors,
   filterBySearch,
   groupCards,
+  matchesSharedFilters,
   sortGrouped,
   type DeckBucketKey,
   type SharedFilters,
@@ -242,8 +243,20 @@ describe('shared faceted filters', () => {
   });
 
   it('derives facet options from the data present', () => {
-    expect(availableRarities(grouped)).toEqual(['mythic', 'uncommon', 'common']); // rank order
-    expect(availableTypes(grouped)).toEqual(['Instant', 'Artifact']); // decklist order
-    expect(availableSets(grouped).map((s) => s.code)).toEqual(['cmr', 'ema', 'mh2']); // by name
+    const cards = grouped.map((g) => g.card);
+    expect(availableRarities(cards)).toEqual(['mythic', 'uncommon', 'common']); // rank order
+    expect(availableTypes(cards)).toEqual(['Instant', 'Artifact']); // decklist order
+    expect(availableSets(cards).map((s) => s.code)).toEqual(['cmr', 'ema', 'mh2']); // by name
+  });
+
+  it('matchesSharedFilters is the per-card predicate behind applySharedFilters', () => {
+    const sol = grouped[0].card; // Sol Ring: artifact, colorless, uncommon, cmr, $1.5, cmc 1
+    expect(matchesSharedFilters(sol, emptySharedFilters())).toBe(true);
+    expect(matchesSharedFilters(sol, { ...emptySharedFilters(), colors: new Set(['U']) })).toBe(
+      false
+    );
+    expect(matchesSharedFilters(sol, { ...emptySharedFilters(), sets: new Set(['cmr']) })).toBe(
+      true
+    );
   });
 });
