@@ -49,6 +49,19 @@ export function cardFaces(card: EnrichedCard, detail: ScryfallCard | null): Card
   return oracleText || face.flavorText || face.pt || face.loyalty ? [face] : [];
 }
 
+/**
+ * A leading "keyword line" in a rules box — the comma-separated innate keywords
+ * (Flying, Menace, Trample, Equip {2}) that head a card's oracle text, as
+ * opposed to a full ability sentence. Reminder text is stripped first; anything
+ * with sentence/mode/bullet punctuation (`. : • —`) is an ability, not keywords.
+ */
+export function isKeywordLine(line: string): boolean {
+  const t = line.replace(/\s*\([^)]*\)/g, '').trim();
+  if (!t) return false;
+  if (/[.:•—]/.test(t)) return false;
+  return t.length <= 40;
+}
+
 const LEGALITY_FORMATS: ReadonlyArray<readonly [string, string]> = [
   ['standard', 'Standard'],
   ['pioneer', 'Pioneer'],

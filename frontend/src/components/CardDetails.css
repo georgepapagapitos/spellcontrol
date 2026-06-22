@@ -7,11 +7,14 @@
 /* ── Card text ─────────────────────────────────────────────────────────── */
 .card-text {
   width: 100%;
+  /* Constrain to a readable measure and center the block under the (centered)
+     name/type lines — rules text stays left-aligned inside it for legibility. */
+  max-width: 38ch;
+  margin: 0.1rem auto 0;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 0.1rem;
 }
 
 .card-text-face {
@@ -49,13 +52,34 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* Rules text — preserve Scryfall's line breaks; symbols render via MagicText. */
+/* Rules text — one paragraph per ability (split on Scryfall's line breaks),
+   spaced like the card's printed rules box rather than a single flat blob. */
 .card-text-oracle {
-  display: block;
-  white-space: pre-wrap;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.card-text-line {
+  margin: 0;
   font-size: var(--text-sm);
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.88);
+}
+
+/* Leading innate keywords (Menace, Flying…) — a centered, emphasized header for
+   the rules box, set apart from the ability sentences below. */
+.card-text-line.is-keyword {
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+/* Reminder text — italic + dimmed, matching the printed card. */
+.card-text-reminder {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* Inline mana/tap symbols sit at body-text size, not the mana-font default. */

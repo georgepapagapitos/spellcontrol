@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardFaces, legalityRows } from './card-details';
+import { cardFaces, isKeywordLine, legalityRows } from './card-details';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -46,6 +46,25 @@ describe('cardFaces', () => {
     expect(faces).toHaveLength(2);
     expect(faces[0]).toMatchObject({ name: 'Front', pt: '2/2' });
     expect(faces[1]).toMatchObject({ name: 'Back', oracleText: 'B' });
+  });
+});
+
+describe('isKeywordLine', () => {
+  it('flags bare keyword lines', () => {
+    expect(isKeywordLine('Menace')).toBe(true);
+    expect(isKeywordLine('Flying, vigilance')).toBe(true);
+    expect(isKeywordLine('Equip {2}')).toBe(true);
+  });
+
+  it('ignores reminder text when classifying', () => {
+    expect(isKeywordLine('Flying (This creature can only be blocked by fliers.)')).toBe(true);
+  });
+
+  it('rejects ability sentences, mode headers, and bullets', () => {
+    expect(isKeywordLine('Other enchantment creatures you control have menace.')).toBe(false);
+    expect(isKeywordLine('Choose one —')).toBe(false);
+    expect(isKeywordLine('• Draw a card.')).toBe(false);
+    expect(isKeywordLine('')).toBe(false);
   });
 });
 
