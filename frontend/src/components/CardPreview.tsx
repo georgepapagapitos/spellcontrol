@@ -597,9 +597,19 @@ export function CardPreview({
                   <ManaCost cost={current.manaCost} className="card-preview-mana" />
                 )}
                 {current.typeLine && <span className="card-preview-type">{current.typeLine}</span>}
+                {(() => {
+                  // Whole-card stat (single-face only) — pulled up beside the type
+                  // line as card identity; DFC per-face P/T stays in CardText.
+                  const stat =
+                    detail?.power != null && detail?.toughness != null
+                      ? `${detail.power}/${detail.toughness}`
+                      : detail?.loyalty != null
+                        ? `Loyalty ${detail.loyalty}`
+                        : null;
+                  return stat ? <span className="card-preview-pt">{stat}</span> : null;
+                })()}
               </div>
             )}
-            <CardText card={current} detail={detail} />
             <div className="card-preview-context">
               {binderName}
               {(() => {
@@ -822,6 +832,9 @@ export function CardPreview({
                 />
               </a>
             </div>
+            {/* Rules-reference depth, below the collection facts — revealed when
+                the panel expands (compact height shows the facts first). */}
+            <CardText card={current} detail={detail} />
             {/* Real Scryfall printings only — placeholder/synthetic ids would 400. */}
             {UUID_RE.test(current.scryfallId) && (
               <CardRulings key={current.scryfallId} scryfallId={current.scryfallId} />
