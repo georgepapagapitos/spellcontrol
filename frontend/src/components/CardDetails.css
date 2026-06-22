@@ -67,12 +67,10 @@
   color: rgba(255, 255, 255, 0.88);
 }
 
-/* Leading innate keywords (Menace, Flying…) — a centered, emphasized header for
-   the rules box, set apart from the ability sentences below. */
+/* Leading innate keywords (Menace, Flying…) — left-aligned like the printed
+   rules box, italicized to set them apart from the ability sentences below. */
 .card-text-line.is-keyword {
-  text-align: center;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-style: italic;
   color: rgba(255, 255, 255, 0.96);
 }
 
