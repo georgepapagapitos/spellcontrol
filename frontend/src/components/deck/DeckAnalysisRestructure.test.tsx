@@ -16,6 +16,16 @@ import { BracketBreakdown } from './BracketBreakdown';
 import { PowerHero } from './PowerHero';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 
+// Stub the CDN thumb resolver. DeckDisplay's rows call `useCardThumb(name)`, which
+// schedules a fire-and-forget `getCardsByNames` fetch (card-thumbs.ts) that, with no
+// network in the test, logs `[Scryfall] Collection batch failed` *after* the test ends —
+// racing vitest's worker teardown into `EnvironmentTeardownError: Closing rpc while
+// "onUserConsoleLog" was pending`. Stubbing the hook removes the async fetch at the source.
+vi.mock('@/lib/card-thumbs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/card-thumbs')>()),
+  useCardThumb: () => undefined,
+}));
+
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
 let seq = 0;
