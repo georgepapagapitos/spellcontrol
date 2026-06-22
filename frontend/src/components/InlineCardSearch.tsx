@@ -1,7 +1,7 @@
 import { Check, ChevronDown, ChevronRight, Layers, Plus } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchPrintings } from '../lib/api';
+import { useSearchCards } from '../lib/use-search-cards';
 import { formatMoney } from '../lib/format-money';
 import { availableFinishes } from '../lib/scanner-feedback';
 import { ManaCost } from './ManaCost';
@@ -52,9 +52,6 @@ export function InlineCardSearch({ query, onClose }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
   const collection = useCollectionStore((s) => s.cards);
 
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [openPrintingsId, setOpenPrintingsId] = useState<string | null>(null);
   // How many copies the user added this session, keyed by scryfall id, so
   // the row can confirm the action without re-deriving from the collection.
@@ -68,52 +65,20 @@ export function InlineCardSearch({ query, onClose }: Props) {
   // Within the preview, which result has its printing/finish picker expanded
   // (keyed by scryfall id). Independent of the row-level disclosure above.
   const [previewPrintingsId, setPreviewPrintingsId] = useState<string | null>(null);
-  const debounceRef = useRef<number | null>(null);
 
   const q = query.trim();
+  const { results, loading, error } = useSearchCards(query, RESULT_LIMIT);
 
+  // Reset per-result UI state when new results arrive. Defer to a microtask
+  // to avoid synchronous setState inside an effect body (react-hooks/set-state-in-effect).
   useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (q.length < 2) {
-        if (!cancelled) {
-          setResults([]);
-          setError(null);
-          setLoading(false);
-        }
-        return;
-      }
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-      await new Promise<void>((resolve) => {
-        debounceRef.current = window.setTimeout(resolve, 300);
-      });
-      if (cancelled) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const resp = await searchCards(q, [], { skipFormatFilter: true });
-        if (!cancelled) {
-          setResults(resp.data.slice(0, RESULT_LIMIT));
-          setVisible(PAGE_SIZE);
-          setOpenPrintingsId(null);
-          setPreviewIndex(null);
-          setPreviewPrintingsId(null);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Search failed');
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void run();
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [q]);
+    void Promise.resolve().then(() => {
+      setVisible(PAGE_SIZE);
+      setOpenPrintingsId(null);
+      setPreviewIndex(null);
+      setPreviewPrintingsId(null);
+    });
+  }, [results]);
 
   const ownedCounts = useMemo(() => {
     const m = new Map<string, number>();
