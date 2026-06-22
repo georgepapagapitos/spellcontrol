@@ -855,6 +855,20 @@
   overflow-wrap: anywhere;
 }
 
+/* Whole-card P/T or loyalty, beside the type line — a compact stat badge
+   (mirrors .card-text-stat, sized to the type line). */
+.card-preview-pt {
+  flex-shrink: 0;
+  padding: 0.02rem 0.35rem;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .card-preview-mana {
   /* Pin to the type-line size — the shared .mana-cost base bumps to --text-base. */
   font-size: var(--text-sm);

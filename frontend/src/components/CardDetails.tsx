@@ -58,7 +58,8 @@ export function CardText({ card, detail }: { card: EnrichedCard; detail: Scryfal
           )}
           {f.oracleText && <OracleText text={f.oracleText} />}
           {f.flavorText && <p className="card-text-flavor">{f.flavorText}</p>}
-          {(f.pt || f.loyalty) && (
+          {/* Single-face P/T is shown at the type line; only DFC per-face stats render here. */}
+          {multi && (f.pt || f.loyalty) && (
             <div
               className="card-text-stat"
               aria-label={f.pt ? `Power/toughness ${f.pt}` : `Loyalty ${f.loyalty}`}
