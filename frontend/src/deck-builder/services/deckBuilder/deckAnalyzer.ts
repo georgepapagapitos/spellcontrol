@@ -27,6 +27,7 @@ import { detectPacing, type Pacing } from './pacingDetector';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
 import { frontFaceName } from '@/lib/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
+import { isBasicLandName } from '@/lib/allocations';
 
 export interface RoleDeficit {
   role: string;
@@ -1217,7 +1218,6 @@ export function computeOptimizeSwaps(
    */
   synergyProtectedNames?: Set<string>
 ): OptimizeSwaps {
-  const BASIC_LANDS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
   const inclusionMap = cardInclusionMap ?? {};
   const synergyMap = cardSynergyMap ?? {};
   const currentCardNames = new Set(currentCards.map((c) => c.name));
@@ -1291,7 +1291,7 @@ export function computeOptimizeSwaps(
   const generalCandidates: CandidateCard[] = [];
 
   for (const card of currentCards) {
-    if (BASIC_LANDS.has(card.name)) continue;
+    if (isBasicLandName(card.name)) continue;
     if (card.name === commanderName || card.name === partnerCommanderName) continue;
     if (mustIncludeNames.has(card.name)) continue;
     if (card.isGameChanger) continue; // never suggest cutting a game changer
@@ -1447,7 +1447,7 @@ export function computeOptimizeSwaps(
     const alreadyPicked = new Set(removalCandidates.map((c) => c.name));
     const fallbackCandidates: CandidateCard[] = [];
     for (const card of currentCards) {
-      if (BASIC_LANDS.has(card.name)) continue;
+      if (isBasicLandName(card.name)) continue;
       if (card.name === commanderName || card.name === partnerCommanderName) continue;
       if (mustIncludeNames.has(card.name)) continue;
       if (alreadyPicked.has(card.name)) continue;
@@ -2049,7 +2049,6 @@ export function analyzeDeck(
   );
   const deficitRoles = new Set(roleDeficits.filter((d) => d.deficit > 0).map((d) => d.role));
 
-  const BASIC_LANDS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
   const candidateMap = new Map<string, { card: EDHRECCard; source: 'nonland' | 'land' }>();
 
   for (const card of edhrecData.cardlists.allNonLand) {
@@ -2061,7 +2060,7 @@ export function analyzeDeck(
     if (
       !currentCardNames.has(card.name) &&
       !candidateMap.has(card.name) &&
-      !BASIC_LANDS.has(card.name)
+      !isBasicLandName(card.name)
     ) {
       candidateMap.set(card.name, { card, source: 'land' });
     }
@@ -2467,7 +2466,7 @@ export function analyzeDeck(
 
   // Land recommendations from EDHREC (scored with color fixing bonus)
   const landRecommendations: RecommendedCard[] = edhrecData.cardlists.lands
-    .filter((c) => !currentCardNames.has(c.name) && !BASIC_LANDS.has(c.name))
+    .filter((c) => !currentCardNames.has(c.name) && !isBasicLandName(c.name))
     .map((card) => {
       const role = getCardRole(card.name);
       // Base score from cache (or compute fresh for land-only cards not in candidateMap)

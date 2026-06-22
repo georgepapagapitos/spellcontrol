@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { useSheetExit } from '@/lib/use-sheet-exit';
 import { normalizeForSearch } from '@/lib/normalize-search';
 import { SearchPill } from '@/components/SearchPill';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
+import { MOVE_DESTINATIONS } from '../lib/zones';
 
 interface Props {
   zone: Zone;
@@ -17,13 +19,13 @@ interface Props {
   onShuffleAfter?(): void;
 }
 
+// ZoneViewerModal's destination list extends the shared MOVE_DESTINATIONS with
+// 'battlefield' (between 'hand' and 'graveyard'), since cards in a zone can be
+// played directly onto the battlefield.
 const DESTINATIONS: Array<{ key: Zone | 'battlefield'; label: string }> = [
-  { key: 'hand', label: 'Hand' },
+  MOVE_DESTINATIONS[0], // hand
   { key: 'battlefield', label: 'Battlefield' },
-  { key: 'graveyard', label: 'Graveyard' },
-  { key: 'exile', label: 'Exile' },
-  { key: 'library', label: 'Library (bottom)' },
-  { key: 'command', label: 'Command' },
+  ...MOVE_DESTINATIONS.slice(1), // graveyard, exile, library (bottom), command
 ];
 
 export function ZoneViewerModal({
@@ -35,8 +37,9 @@ export function ZoneViewerModal({
   onMove,
   onShuffleAfter,
 }: Props) {
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(onClose);
+  useEscapeKey(beginClose);
   const [filter, setFilter] = useState('');
 
   const visible = useMemo(() => {
@@ -50,14 +53,15 @@ export function ZoneViewerModal({
   const titleLabel = topN != null ? `Top ${topN} of ${zone}` : zone;
 
   return (
-    <div className="card-picker-root" role="presentation" onClick={onClose}>
+    <div className="card-picker-root" role="presentation" onClick={() => beginClose()}>
       <div className="card-picker-backdrop" />
       <div
-        className="card-picker-sheet playtest-zone-sheet"
+        className={`card-picker-sheet playtest-zone-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={`${zone} viewer`}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">

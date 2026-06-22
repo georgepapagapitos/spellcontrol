@@ -329,6 +329,74 @@ describe('buildNextBestMoves', () => {
     expect(moves.find((m) => m.id === 'no-win-condition')).toBeUndefined();
   });
 
+  // ── "Owned only" filter (mirrors the Coach feed toggle) ──────────────────
+
+  it('ownedOnly: a role gap with no owned card falls back to generic advice (no cardName)', () => {
+    const moves = buildNextBestMoves(
+      base({
+        roleCounts: { ramp: 2 },
+        roleTargets: { ramp: 10 },
+        gapAnalysis: [gap('Sol Ring', { role: 'ramp', inclusion: 95 })],
+        planScore: plan({ roles: sub(40) }),
+        ownedNames: new Set(), // Sol Ring not owned
+        ownedOnly: true,
+      })
+    );
+    const roleMove = moves.find((m) => m.id === 'roles-ramp');
+    expect(roleMove).toBeDefined();
+    expect(roleMove?.cardName).toBeUndefined(); // never names a card to go buy
+    expect(roleMove?.detail).not.toContain('Sol Ring');
+  });
+
+  it('ownedOnly: still names an OWNED role gap', () => {
+    const moves = buildNextBestMoves(
+      base({
+        roleCounts: { ramp: 2 },
+        roleTargets: { ramp: 10 },
+        gapAnalysis: [
+          gap('Sol Ring', { role: 'ramp', inclusion: 95 }),
+          gap('Arcane Signet', { role: 'ramp', inclusion: 80 }),
+        ],
+        planScore: plan({ roles: sub(40) }),
+        ownedNames: new Set(['Arcane Signet']),
+        ownedOnly: true,
+      })
+    );
+    expect(moves.find((m) => m.id === 'roles-ramp')?.cardName).toBe('Arcane Signet');
+  });
+
+  it('ownedOnly: skips an unowned combo completion but keeps an owned one', () => {
+    const combo = (id: string, missName: string): ComboMatch => ({
+      combo: {
+        id,
+        identity: 'U',
+        produces: ['Infinite mana'],
+        prerequisites: null,
+        description: null,
+        manaNeeded: null,
+        popularity: 100,
+        cardCount: 2,
+        bracket: 3,
+        cards: [
+          { oracleId: `${id}-have`, cardName: 'Have', quantity: 1 },
+          { oracleId: `${id}-miss`, cardName: missName, quantity: 1 },
+        ],
+      },
+      presentOracleIds: [`${id}-have`],
+      missingOracleIds: [`${id}-miss`],
+    });
+    const moves = buildNextBestMoves(
+      base({
+        oneAwayCombos: [combo('c1', 'Unowned Piece'), combo('c2', 'Owned Piece')],
+        ownedNames: new Set(['Owned Piece']),
+        ownedOnly: true,
+      })
+    );
+    const comboMoves = moves.filter((m) => m.id.startsWith('combo-'));
+    expect(comboMoves).toHaveLength(1);
+    expect(comboMoves[0].cardName).toBe('Owned Piece');
+  });
+
   it('no-win-condition is the first move and counts against the MAX_MOVES cap', () => {
     // 3 other tier-1/tier-2 moves + win-condition — cap should still give us 3 total,
     // with the win-condition move appearing first (it's tier 1, inserted first).

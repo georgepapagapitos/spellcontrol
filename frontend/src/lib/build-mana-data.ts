@@ -40,6 +40,22 @@ export function classifyType(card: ScryfallCard): TypeGroup {
   return 'Artifact';
 }
 
+/**
+ * Classify a raw typeLine string into a playtest permanent-type bucket.
+ * Returns lowercase: 'creature' | 'planeswalker' | 'land' | 'artifact' |
+ * 'enchantment' | 'other'. Used by the battlefield stats panel where creature
+ * wins over other types for dual-type cards (e.g. "Artifact Creature").
+ */
+export function classifyTypeLine(typeLine: string | undefined): string {
+  const tl = (typeLine ?? '').toLowerCase();
+  if (tl.includes('creature')) return 'creature';
+  if (tl.includes('planeswalker')) return 'planeswalker';
+  if (tl.includes('land')) return 'land';
+  if (tl.includes('artifact')) return 'artifact';
+  if (tl.includes('enchantment')) return 'enchantment';
+  return 'other';
+}
+
 /** Collapse a list of cards to unique name → copy count (keeping one
  *  representative card object so the drill-down carousel renders without
  *  re-fetching), sorted by count desc then name. */

@@ -184,11 +184,33 @@ function asBool(x: unknown): boolean | undefined {
 function asStringArray(x: unknown): string[] | undefined {
   if (!Array.isArray(x)) return undefined;
   const out = x.filter((s): s is string => typeof s === 'string');
-  return out.length === x.length ? out : out;
+  return out.length > 0 ? out : undefined;
 }
 
 function asFinish(x: unknown): 'nonfoil' | 'foil' | 'etched' {
   return x === 'foil' || x === 'etched' ? x : 'nonfoil';
+}
+
+/** Coerce a record's values to numbers, dropping non-finite entries. */
+function numberMap(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  const rec = asRecord(raw);
+  if (rec) {
+    for (const [k, v] of Object.entries(rec)) {
+      const n = asNumber(v);
+      if (n !== undefined) out[k] = n;
+    }
+  }
+  return out;
+}
+
+/** Find an item by its `id` field in an array of unknown records. */
+function findInArray(arr: unknown, id: string): unknown {
+  if (!Array.isArray(arr)) return null;
+  return arr.find((item) => {
+    const r = asRecord(item);
+    return r && asString(r.id) === id;
+  });
 }
 
 export function projectCard(raw: unknown): PublicCard | null {
@@ -327,20 +349,12 @@ export function findListById(collection: unknown, listId: string): unknown {
 
 /** Find a single deck by id in the decks array. */
 export function findDeckById(decks: unknown, deckId: string): unknown {
-  if (!Array.isArray(decks)) return null;
-  return decks.find((d) => {
-    const r = asRecord(d);
-    return r && asString(r.id) === deckId;
-  });
+  return findInArray(decks, deckId);
 }
 
 /** Find a saved cube by id in the cubes array. */
 export function findCubeById(cubes: unknown, cubeId: string): unknown {
-  if (!Array.isArray(cubes)) return null;
-  return cubes.find((c) => {
-    const r = asRecord(c);
-    return r && asString(r.id) === cubeId;
-  });
+  return findInArray(cubes, cubeId);
 }
 
 /**
@@ -379,17 +393,6 @@ export function projectCube(ownerUsername: string, cubeRaw: unknown): PublicCube
     });
   }
 
-  const numberMap = (raw: unknown): Record<string, number> => {
-    const out: Record<string, number> = {};
-    const rec = asRecord(raw);
-    if (rec) {
-      for (const [k, v] of Object.entries(rec)) {
-        const n = asNumber(v);
-        if (n !== undefined) out[k] = n;
-      }
-    }
-    return out;
-  };
   const byBucket = numberMap(cube?.byBucket);
   const targetByBucket = numberMap(cube?.targetByBucket);
 
@@ -420,11 +423,7 @@ export function projectCube(ownerUsername: string, cubeRaw: unknown): PublicCube
 
 /** Find a single binder def by id in the binders array. */
 export function findBinderById(binders: unknown, binderId: string): unknown {
-  if (!Array.isArray(binders)) return null;
-  return binders.find((b) => {
-    const r = asRecord(b);
-    return r && asString(r.id) === binderId;
-  });
+  return findInArray(binders, binderId);
 }
 
 /**
