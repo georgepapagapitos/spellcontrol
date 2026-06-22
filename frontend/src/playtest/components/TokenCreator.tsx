@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
+import { useSheetExit } from '@/lib/use-sheet-exit';
 
 interface Props {
   onCreate(name: string): void;
@@ -10,18 +11,20 @@ interface Props {
 const PRESETS = ['Treasure', 'Clue', 'Food', 'Soldier 1/1', 'Zombie 2/2', 'Spirit 1/1 flying'];
 
 export function TokenCreator({ onCreate, onClose }: Props) {
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   useLockBodyScroll();
-  useEscapeKey(onClose);
+  useEscapeKey(beginClose);
   const [name, setName] = useState('');
   return (
-    <div className="card-picker-root" role="presentation" onClick={onClose}>
+    <div className="card-picker-root" role="presentation" onClick={() => beginClose()}>
       <div className="card-picker-backdrop" />
       <div
-        className="card-picker-sheet playtest-token-sheet"
+        className={`card-picker-sheet playtest-token-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Create token"
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <div className="card-picker-header">

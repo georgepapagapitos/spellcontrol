@@ -1,5 +1,6 @@
 import { apiUrl } from '../api-base';
 import type { CubeCard } from './generate';
+import { byQuality } from './generate';
 
 // ---------------------------------------------------------------------------
 // API contract types
@@ -139,10 +140,9 @@ export function mergePools(
         if (!existing.suppliers.includes(username)) {
           existing.suppliers.push(username);
         }
-        // Keep the lower-rank (better) copy.
-        const existingRank = existing.card.rank ?? Infinity;
-        const friendRank = friendCard.rank ?? Infinity;
-        if (friendRank < existingRank) {
+        // Keep the better copy (lower rank; oracleId tiebreaks so the winner is
+        // deterministic regardless of insertion order — mirrors byQuality in generate.ts).
+        if (byQuality(friendCard, existing.card) < 0) {
           byOracle.set(key, { card: friendCard, suppliers: existing.suppliers });
         }
       } else {

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchCards } from '../lib/use-search-cards';
 import { Check, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { fetchPrintings } from '../lib/api';
 import { SearchPill } from './SearchPill';
 import { formatMoney } from '../lib/format-money';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
 import {
   FINISH_LABELS,
   availableFinishes,
@@ -109,51 +109,11 @@ export function ScannerQueueSheet({
   // tap-to-add; mirrors the collection's AddCardSearchPanel but routes adds
   // into the scan queue instead of straight to the collection.
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ScryfallCard[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
   // Printing ids added this session — flips the row's + to a ✓ so the user
   // sees the tap registered without the result list reshuffling.
   const [addedIds, setAddedIds] = useState<Set<string>>(() => new Set());
-  const debounceRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      const q = query.trim();
-      if (q.length < 2) {
-        if (!cancelled) {
-          setSearchError(null);
-          setResults([]);
-          setSearching(false);
-        }
-        return;
-      }
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-      await new Promise<void>((resolve) => {
-        debounceRef.current = window.setTimeout(resolve, 300);
-      });
-      if (cancelled) return;
-      setSearching(true);
-      setSearchError(null);
-      try {
-        const resp = await searchCards(q, [], { skipFormatFilter: true });
-        if (!cancelled) setResults(resp.data.slice(0, 40));
-      } catch (e) {
-        if (!cancelled) {
-          setSearchError(e instanceof Error ? e.message : 'Search failed');
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) setSearching(false);
-      }
-    }
-    void run();
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [query]);
+  const { results, loading: searching, error: searchError } = useSearchCards(query, 40);
 
   const handleAddFromSearch = useCallback(
     (card: ScryfallCard) => {

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useConfirm } from '@/lib/use-confirm';
 import {
   DndContext,
   DragOverlay,
@@ -70,6 +71,8 @@ export function PlaytestBoard({ state }: Props) {
     if (deck.partnerCommander) map.set(`cmd-${deck.partnerCommander.id}`, deck.partnerCommander);
     return map;
   }, [deck]);
+
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const battlefieldRef = useRef<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<ViewerMode>(null);
@@ -203,10 +206,14 @@ export function PlaytestBoard({ state }: Props) {
           haptics.tap();
           dispatch({ type: 'UNDO' });
         }}
-        onReset={() => {
-          if (window.confirm('Reset the game? This clears history.')) {
-            dispatch({ type: 'RESET' });
-          }
+        onReset={async () => {
+          const ok = await confirm({
+            title: 'Reset the game?',
+            body: 'This clears undo history and returns all cards to the starting state.',
+            confirmLabel: 'Reset',
+            danger: true,
+          });
+          if (ok) dispatch({ type: 'RESET' });
         }}
         onScry={() => setViewer({ zone: 'library', topN: 3 })}
         onCreateToken={() => setTokenCreator(true)}
@@ -370,6 +377,8 @@ export function PlaytestBoard({ state }: Props) {
           onClose={() => setShowStats(false)}
         />
       )}
+
+      {confirmDialog}
     </div>
   );
 }

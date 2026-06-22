@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from 'express';
-import { rateLimit } from 'express-rate-limit';
 import { requireAuth, normalizeUsername } from '../auth';
 import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
@@ -7,22 +6,13 @@ import { eq } from 'drizzle-orm';
 import { getScryfallCache } from '../scryfall-cache';
 import { areFriends } from '../friends/relations';
 import { resolveShareLabels } from '../shares/labels';
+import { testAwareLimiter } from '../route-utils';
 
 export const friendsRouter: Router = Router();
 
-const isTest = process.env.NODE_ENV === 'test' || !!process.env.TEST_DATABASE_URL;
-
-const friendReadLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 60 });
-
-const friendCollectionLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 30 });
-
-const friendWriteLimiter = isTest
-  ? (_req: Request, _res: Response, next: () => void) => next()
-  : rateLimit({ windowMs: 60_000, max: 20 });
+const friendReadLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
+const friendCollectionLimiter = testAwareLimiter({ windowMs: 60_000, max: 30 });
+const friendWriteLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 
 // ────────────────────────────────────────────────
 // GET /api/friends
@@ -320,6 +310,33 @@ interface FriendCollectionResponse {
   cards: FriendCard[];
 }
 
+/**
+ * Confirms the caller is friends with friendId and returns the friend's
+ * { id, username }. Returns null and writes a 403 if not friends or user
+ * not found — callers must return immediately on null.
+ */
+async function requireFriendship(
+  res: Response,
+  callerId: string,
+  friendId: string
+): Promise<{ id: string; username: string } | null> {
+  if (!(await areFriends(callerId, friendId))) {
+    res.status(403).json({ error: 'Not friends.' });
+    return null;
+  }
+  const db = getDb();
+  const rows = await db
+    .select({ id: users.id, username: users.username })
+    .from(users)
+    .where(eq(users.id, friendId))
+    .limit(1);
+  if (rows.length === 0) {
+    res.status(403).json({ error: 'Not friends.' });
+    return null;
+  }
+  return rows[0];
+}
+
 friendsRouter.get(
   '/:friendId/collection',
   requireAuth,
@@ -328,25 +345,10 @@ friendsRouter.get(
     const callerId = req.user!.id;
     const friendId = String(req.params.friendId ?? '');
     const pool = getPool();
-    const db = getDb();
 
-    // 1. Check friendship first — uniform 403 for both unknown users and non-friends
-    //    so callers cannot distinguish whether a user id exists.
-    if (!(await areFriends(callerId, friendId))) {
-      return res.status(403).json({ error: 'Not friends.' });
-    }
-
-    // 2. Fetch the owner's username (safe — friendship confirmed above)
-    const targetRows = await db
-      .select({ id: users.id, username: users.username })
-      .from(users)
-      .where(eq(users.id, friendId))
-      .limit(1);
-
-    if (targetRows.length === 0) {
-      return res.status(403).json({ error: 'Not friends.' });
-    }
-    const target = targetRows[0];
+    // 1. Confirm friendship and fetch the owner's username
+    const target = await requireFriendship(res, callerId, friendId);
+    if (!target) return;
 
     // 3. Fetch friend's non-deleted cards
     const cardRows = await pool.query<{ data: unknown; id: string }>(
@@ -433,20 +435,9 @@ friendsRouter.get(
     const callerId = req.user!.id;
     const friendId = String(req.params.friendId ?? '');
 
-    // Check friendship first — uniform 403 for both unknown users and non-friends.
-    if (!(await areFriends(callerId, friendId))) {
-      return res.status(403).json({ error: 'Not friends.' });
-    }
-
-    const db = getDb();
-    const ownerRows = await db
-      .select({ username: users.username })
-      .from(users)
-      .where(eq(users.id, friendId))
-      .limit(1);
-    if (ownerRows.length === 0) {
-      return res.status(403).json({ error: 'Not friends.' });
-    }
+    // Confirm friendship and fetch the owner's username.
+    const owner = await requireFriendship(res, callerId, friendId);
+    if (!owner) return;
 
     const pool = getPool();
     const rows = await pool.query<{
@@ -479,7 +470,7 @@ friendsRouter.get(
       // cube / list) — they'd 404 on open, so don't advertise them.
       .filter((s) => s.label !== null);
 
-    return res.json({ ownerUsername: ownerRows[0].username, shares });
+    return res.json({ ownerUsername: owner.username, shares });
   }
 );
 
