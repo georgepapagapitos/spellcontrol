@@ -150,3 +150,84 @@ export function deckBucketFor(typeLine: string | undefined): DeckBucketKey {
   if (t.includes('artifact')) return 'Artifact';
   return 'Other';
 }
+
+/* ── Faceted filtering (shared-collection filter popover) ─────────────────
+ * All filters are multi-select (OR within a facet) and compose with AND
+ * across facets, matching the main collection's filter semantics. Empty
+ * facets are no-ops. Range facets exclude "unknown" values (price 0 = no
+ * price recorded; cmc undefined) when a bound is set — same as the
+ * collection page, so a value/mana-value range never silently includes
+ * cards with no data. */
+
+export interface SharedFilters {
+  /** Color identity codes (W/U/B/R/G + C for colorless). */
+  colors: Set<string>;
+  rarities: Set<string>;
+  types: Set<DeckBucketKey>;
+  /** Set codes (lowercase, as stored). */
+  sets: Set<string>;
+  priceMin?: number;
+  priceMax?: number;
+  cmcMin?: number;
+  cmcMax?: number;
+}
+
+export function emptySharedFilters(): SharedFilters {
+  return { colors: new Set(), rarities: new Set(), types: new Set(), sets: new Set() };
+}
+
+/** Count of active facets — drives the trigger badge. Each color/rarity/type/
+ *  set selection counts once; each range counts once if either bound is set. */
+export function countSharedFilters(f: SharedFilters): number {
+  return (
+    f.colors.size +
+    f.rarities.size +
+    f.types.size +
+    f.sets.size +
+    (f.priceMin !== undefined || f.priceMax !== undefined ? 1 : 0) +
+    (f.cmcMin !== undefined || f.cmcMax !== undefined ? 1 : 0)
+  );
+}
+
+function inRange(value: number, min: number | undefined, max: number | undefined): boolean {
+  if (min !== undefined && value < min) return false;
+  if (max !== undefined && value > max) return false;
+  return true;
+}
+
+export function applySharedFilters(grouped: GroupedCard[], f: SharedFilters): GroupedCard[] {
+  let out = filterByColors(grouped, f.colors);
+  if (f.rarities.size > 0) out = out.filter((g) => f.rarities.has(g.card.rarity.toLowerCase()));
+  if (f.types.size > 0) out = out.filter((g) => f.types.has(deckBucketFor(g.card.typeLine)));
+  if (f.sets.size > 0) out = out.filter((g) => f.sets.has(g.card.setCode));
+  if (f.priceMin !== undefined || f.priceMax !== undefined) {
+    out = out.filter(
+      (g) => g.card.purchasePrice > 0 && inRange(g.card.purchasePrice, f.priceMin, f.priceMax)
+    );
+  }
+  if (f.cmcMin !== undefined || f.cmcMax !== undefined) {
+    out = out.filter((g) => g.card.cmc !== undefined && inRange(g.card.cmc, f.cmcMin, f.cmcMax));
+  }
+  return out;
+}
+
+/** Rarities present in the data, ordered mythic→common (then unknown). */
+export function availableRarities(grouped: GroupedCard[]): string[] {
+  const present = new Set(grouped.map((g) => g.card.rarity.toLowerCase()));
+  return [...present].sort((a, b) => rarityRank(a) - rarityRank(b));
+}
+
+/** Type buckets present in the data, in reader-friendly decklist order. */
+export function availableTypes(grouped: GroupedCard[]): DeckBucketKey[] {
+  const present = new Set(grouped.map((g) => deckBucketFor(g.card.typeLine)));
+  return DECK_BUCKET_ORDER.filter((t) => present.has(t));
+}
+
+/** Sets present in the data as {code,name}, ordered by set name. */
+export function availableSets(grouped: GroupedCard[]): Array<{ code: string; name: string }> {
+  const byCode = new Map<string, string>();
+  for (const g of grouped) byCode.set(g.card.setCode, g.card.setName || g.card.setCode);
+  return [...byCode.entries()]
+    .map(([code, name]) => ({ code, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

@@ -1,18 +1,23 @@
 import { useMemo, useState } from 'react';
 import type { PublicCard, PublicCollection } from '../../lib/shared-types';
 import {
-  filterByColors,
+  applySharedFilters,
+  availableRarities,
+  availableSets,
+  availableTypes,
+  emptySharedFilters,
   filterBySearch,
   groupCards,
   sortGrouped,
+  type SharedFilters,
   type SharedSortKey,
   type SortDir,
 } from '../../lib/shared-grouping';
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
-import { ColorPip } from './ManaSymbol';
 import { SharedCardModal } from './SharedCardModal';
+import { SharedCollectionFilters } from './SharedCollectionFilters';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
@@ -24,15 +29,6 @@ interface Props {
 }
 
 type ViewKind = 'grid' | 'list';
-
-const COLOR_CHIPS: Array<{ key: string; label: string }> = [
-  { key: 'W', label: 'White' },
-  { key: 'U', label: 'Blue' },
-  { key: 'B', label: 'Black' },
-  { key: 'R', label: 'Red' },
-  { key: 'G', label: 'Green' },
-  { key: 'C', label: 'Colorless' },
-];
 
 const SORT_OPTIONS: Array<{ key: SharedSortKey; label: string }> = [
   { key: 'name', label: 'Name' },
@@ -47,30 +43,27 @@ export function SharedCollectionView({ data }: Props) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SharedSortKey>('name');
   const [dir, setDir] = useState<SortDir>('asc');
-  const [colors, setColors] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<SharedFilters>(emptySharedFilters);
   const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
   const grouped = useMemo(() => groupCards(data.cards), [data.cards]);
 
-  const filtered = useMemo(() => {
-    const searched = filterBySearch(grouped, search);
-    return filterByColors(searched, colors);
-  }, [grouped, search, colors]);
+  // Facet options come from the data present, so the popover only offers
+  // rarities/types/sets that actually exist in this collection.
+  const rarityOptions = useMemo(() => availableRarities(grouped), [grouped]);
+  const typeOptions = useMemo(() => availableTypes(grouped), [grouped]);
+  const setOptions = useMemo(() => availableSets(grouped), [grouped]);
+
+  const filtered = useMemo(
+    () => applySharedFilters(filterBySearch(grouped, search), filters),
+    [grouped, search, filters]
+  );
 
   const sorted = useMemo(() => sortGrouped(filtered, sort, dir), [filtered, sort, dir]);
 
   const totalCards = data.cards.length;
   const totalValue = data.cards.reduce((sum, c) => sum + c.purchasePrice, 0);
-
-  const toggleColor = (key: string) => {
-    setColors((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
 
   // Mirrors the collection's SelectMenu sort behavior: re-picking the active
   // field flips direction, picking a new field resets to ascending.
@@ -100,6 +93,15 @@ export function SharedCollectionView({ data }: Props) {
           placeholder="Search cards…"
           ariaLabel="Search cards"
           className="shared-toolbar-search"
+          trailing={
+            <SharedCollectionFilters
+              filters={filters}
+              setFilters={setFilters}
+              rarities={rarityOptions}
+              types={typeOptions}
+              sets={setOptions}
+            />
+          }
         />
         <SelectMenu<SharedSortKey>
           ariaLabel="Sort"
@@ -110,24 +112,6 @@ export function SharedCollectionView({ data }: Props) {
           leadingIcon={<SortDirArrow dir={dir} />}
           renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={dir} /> : null)}
         />
-        <div className="color-filter-row" role="group" aria-label="Filter by color">
-          {COLOR_CHIPS.map((c) => {
-            const active = colors.has(c.key);
-            return (
-              <button
-                key={c.key}
-                type="button"
-                className={`color-filter-btn${active ? ' is-active' : ''}`}
-                onClick={() => toggleColor(c.key)}
-                aria-pressed={active}
-                aria-label={c.label}
-                title={c.label}
-              >
-                <ColorPip color={c.key} pip="lg" />
-              </button>
-            );
-          })}
-        </div>
         <ViewModeToggle<ViewKind>
           ariaLabel="Collection view mode"
           value={view}
