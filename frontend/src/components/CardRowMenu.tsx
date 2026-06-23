@@ -1,9 +1,7 @@
-import { Layers, MoreVertical, Notebook, Pencil, Trash2 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Layers, Notebook, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { AddToBinderSheet } from './AddToBinderSheet';
-import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 import type { EnrichedCard } from '../types';
 
 interface Props {
@@ -21,196 +19,53 @@ interface Props {
   currentBinder?: { id: string; name: string; color: string | null } | null;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
-
+/**
+ * The per-row card-actions kebab. A thin wrapper over the shared
+ * {@link OverflowMenu} (which owns portaling, viewport placement, keyboard,
+ * scroll-close and the trigger style) that adds the card-specific actions and
+ * the "Add to binder" sheet. `.deck-row-menu` keeps the fixed-width column
+ * sizing; `card-edit-btn` keeps the ghost-kebab trigger look.
+ */
 export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBinder }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  const { closeAndReturnFocus } = useMenuKeyboard({
-    open: menuOpen,
-    onClose: () => setMenuOpen(false),
-    panelRef,
-    triggerRef: buttonRef,
-  });
-
-  // The list is window-virtualized: each row is its own stacking context, so
-  // an absolutely-positioned popover gets painted under later rows (clicks
-  // land on the row behind). Portal to <body> with fixed positioning to
-  // escape every row's stacking context. Same approach as SelectMenu.
-  useLayoutEffect(() => {
-    if (!menuOpen || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const safe = getSafeViewport();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      safe,
-      'right',
-      6
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [menuOpen]);
-
-  // Keyboard semantics + Escape + outside-pointerdown close live in
-  // useMenuKeyboard. This effect only handles the scroll-close: if the row
-  // scrolls, the fixed panel would otherwise detach from its trigger.
-  // Delayed a frame so the opening click's micro-scroll doesn't immediately
-  // close it.
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onScroll = (e: Event) => {
-      const target = e.target as Node | null;
-      if (target && panelRef.current && panelRef.current.contains(target)) return;
-      setMenuOpen(false);
-    };
-    const scrollRaf = requestAnimationFrame(() => {
-      document.addEventListener('scroll', onScroll, { capture: true, passive: true });
-    });
-    return () => {
-      cancelAnimationFrame(scrollRaf);
-      document.removeEventListener('scroll', onScroll, { capture: true });
-    };
-  }, [menuOpen]);
-
-  const handleToggle = () => {
-    if (!menuOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const right = Math.max(0, window.innerWidth - rect.right);
-      setPanelPos(
-        spaceBelow >= 160
-          ? { top: rect.bottom + 6, right }
-          : { bottom: window.innerHeight - rect.top + 6, right }
-      );
-    }
-    setMenuOpen((v) => !v);
-  };
-
-  const panel =
-    menuOpen &&
-    panelPos &&
-    createPortal(
-      <div
-        ref={panelRef}
-        role="menu"
-        className="deck-row-menu-popover"
-        style={{
-          position: 'fixed',
-          left: panelPos.left,
-          right: panelPos.right,
-          top: panelPos.top,
-          bottom: panelPos.bottom,
-          margin: 0,
-          zIndex: 1200,
-          // Scale the enter animation from the trigger corner: anchored-side
-          // top/bottom + left/right mirror how the panel was placed.
-          transformOrigin: `${panelPos.top !== undefined ? 'top' : 'bottom'} ${
-            panelPos.left !== undefined ? 'left' : 'right'
-          }`,
-        }}
-      >
-        {currentBinder && (
-          <div className="deck-row-menu-status" aria-live="polite">
-            <span
-              className="card-list-binder-badge-swatch"
-              style={{ background: currentBinder.color || 'var(--accent)' }}
-              aria-hidden
-            />
-            <span>
-              In <strong>{currentBinder.name}</strong>
-            </span>
-          </div>
-        )}
-        <button
-          type="button"
-          role="menuitem"
-          className="deck-row-menu-item"
-          onClick={(e) => {
-            e.stopPropagation();
-            closeAndReturnFocus();
-            onEditCard();
-          }}
-        >
-          <Pencil width={12} height={12} strokeWidth={1.6} aria-hidden />
-          Edit card
-        </button>
-        {onSplitCopy && (
-          <button
-            type="button"
-            role="menuitem"
-            className="deck-row-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              closeAndReturnFocus();
-              onSplitCopy();
-            }}
-          >
-            <Layers width={12} height={12} strokeWidth={1.6} aria-hidden />
-            Change one copy&rsquo;s printing…
-          </button>
-        )}
-        <button
-          type="button"
-          role="menuitem"
-          className="deck-row-menu-item"
-          onClick={(e) => {
-            e.stopPropagation();
-            closeAndReturnFocus();
-            setBinderSheetOpen(true);
-          }}
-        >
-          <Notebook width={12} height={12} strokeWidth={1.6} aria-hidden />
-          {currentBinder ? 'Move to binder' : 'Add to binder'}
-        </button>
-        {onDelete && (
-          <button
-            type="button"
-            role="menuitem"
-            className="deck-row-menu-item deck-row-menu-item--danger"
-            onClick={(e) => {
-              e.stopPropagation();
-              closeAndReturnFocus();
-              onDelete();
-            }}
-          >
-            <Trash2 width={12} height={12} strokeWidth={1.6} aria-hidden />
-            Remove from collection
-          </button>
-        )}
-      </div>,
-      document.body
-    );
+  const items: OverflowMenuItem[] = [
+    { label: 'Edit card', icon: Pencil, onClick: onEditCard },
+    ...(onSplitCopy
+      ? [{ label: 'Change one copy’s printing…', icon: Layers, onClick: onSplitCopy }]
+      : []),
+    {
+      label: currentBinder ? 'Move to binder' : 'Add to binder',
+      icon: Notebook,
+      onClick: () => setBinderSheetOpen(true),
+    },
+    ...(onDelete
+      ? [{ label: 'Remove from collection', icon: Trash2, danger: true, onClick: onDelete }]
+      : []),
+  ];
 
   return (
     <>
-      <div className="deck-row-menu">
-        <button
-          ref={buttonRef}
-          type="button"
-          className="card-edit-btn"
-          aria-label="Card actions"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          data-open={menuOpen || undefined}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleToggle();
-          }}
-        >
-          <MoreVertical width={14} height={14} strokeWidth={2} aria-hidden />
-        </button>
-        {panel}
-      </div>
+      <OverflowMenu
+        className="deck-row-menu"
+        triggerClassName="card-edit-btn"
+        ariaLabel="Card actions"
+        items={items}
+        header={
+          currentBinder ? (
+            <div className="deck-row-menu-status" aria-live="polite">
+              <span
+                className="card-list-binder-badge-swatch"
+                style={{ background: currentBinder.color || 'var(--accent)' }}
+                aria-hidden
+              />
+              <span>
+                In <strong>{currentBinder.name}</strong>
+              </span>
+            </div>
+          ) : undefined
+        }
+      />
 
       {binderSheetOpen && (
         <AddToBinderSheet

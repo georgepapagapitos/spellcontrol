@@ -69,4 +69,37 @@ describe('OverflowMenu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it('renders a header node and disabled items', () => {
+    render(
+      <OverflowMenu
+        header={<div>In Binder X</div>}
+        items={[
+          { label: 'Move up', onClick: () => {}, disabled: true },
+          { label: 'Edit', onClick: () => {} },
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByText('In Binder X')).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Move up' })).toHaveProperty('disabled', true);
+  });
+
+  it('does not bubble trigger or item clicks to a clickable ancestor row', () => {
+    const onRowClick = vi.fn();
+    const onItem = vi.fn();
+    render(
+      <div role="button" tabIndex={0} onClick={onRowClick} onKeyDown={() => {}}>
+        <OverflowMenu items={[{ label: 'Edit card', onClick: onItem }]} />
+      </div>
+    );
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+
+    fireEvent.click(trigger);
+    expect(onRowClick).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit card' }));
+    expect(onItem).toHaveBeenCalledOnce();
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
 });

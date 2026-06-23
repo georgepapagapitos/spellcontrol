@@ -1,5 +1,5 @@
 import { MoreVertical, type LucideIcon } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
@@ -17,6 +17,9 @@ interface Props {
   items: OverflowMenuItem[];
   /** aria-label + title for the kebab trigger. */
   ariaLabel?: string;
+  /** Optional non-interactive node rendered at the top of the panel (e.g. a
+   *  status badge). Caller owns its markup/styling. */
+  header?: ReactNode;
   /** Class on the wrapper — e.g. to gate visibility by breakpoint. */
   className?: string;
   /**
@@ -46,6 +49,7 @@ type PanelPos = { top?: number; bottom?: number; left?: number; right?: number }
 export function OverflowMenu({
   items,
   ariaLabel = 'More actions',
+  header,
   className,
   triggerClassName,
   align = 'right',
@@ -100,6 +104,26 @@ export function OverflowMenu({
     setOpen((v) => !v);
   };
 
+  // Close on scroll outside the panel: the fixed-positioned panel would
+  // otherwise detach from its trigger when the page (or a virtualized row
+  // list) scrolls. Scrolling *inside* a tall panel is exempt. Attach a frame
+  // late so the opening click's micro-scroll doesn't immediately close it.
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target && panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const raf = requestAnimationFrame(() => {
+      document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('scroll', onScroll, { capture: true });
+    };
+  }, [open]);
+
   return (
     <div className={`overflow-menu${className ? ` ${className}` : ''}`}>
       <button
@@ -111,7 +135,12 @@ export function OverflowMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         data-open={open || undefined}
-        onClick={handleToggle}
+        onClick={(e) => {
+          // Stop the row/card click handler from also firing when the menu
+          // lives inside a clickable row (e.g. CardRow's role="button").
+          e.stopPropagation();
+          handleToggle();
+        }}
       >
         <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
       </button>
@@ -133,6 +162,7 @@ export function OverflowMenu({
               }`,
             }}
           >
+            {header}
             {items.map((item) => {
               const Icon = item.icon;
               return (
@@ -142,7 +172,10 @@ export function OverflowMenu({
                   role="menuitem"
                   disabled={item.disabled}
                   className={`deck-row-menu-item${item.danger ? ' deck-row-menu-item--danger' : ''}`}
-                  onClick={() => {
+                  onClick={(e) => {
+                    // Portaled clicks still bubble through the React tree to a
+                    // clickable ancestor row — stop that here.
+                    e.stopPropagation();
                     closeAndReturnFocus();
                     item.onClick();
                   }}
