@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { LayoutList, AlignJustify } from 'lucide-react';
+import { LayoutList, AlignJustify, Search } from 'lucide-react';
+import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderFilter,
   ChipExpression,
+  Finish,
   ListDef,
   ListEntry,
   SortDir,
@@ -24,6 +26,8 @@ import { SortDirArrow } from './SortDirArrow';
 import { CardRow } from './shared/CardRow';
 import { CardPreview } from './CardPreview';
 import { OverflowMenu } from './OverflowMenu';
+import { InlineCardSearch } from './InlineCardSearch';
+import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
@@ -89,6 +93,12 @@ export function ListDetailView({ list }: Props) {
   const removeListEntry = useCollectionStore((s) => s.removeListEntry);
   const moveListEntryToCollection = useCollectionStore((s) => s.moveListEntryToCollection);
   const updateListEntry = useCollectionStore((s) => s.updateListEntry);
+  const addListEntry = useCollectionStore((s) => s.addListEntry);
+
+  // Add a Scryfall result as a list entry — the retarget the collection's
+  // InlineCardSearch (which would call addCard) to lists instead.
+  const addToList = (card: ScryfallCard, finish?: Finish) =>
+    addListEntry(list.id, scryfallToEnrichedCard(card, finish ?? 'nonfoil'), 1);
 
   const { rows: enrichedRows, loading } = useEnrichedListEntries(list.entries);
 
@@ -115,6 +125,10 @@ export function ListDetailView({ list }: Props) {
   const [view, setView] = useState<'list' | 'compact'>('list');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState<ListEntry | null>(null);
+  // Inline "Search Scryfall to add" affordance — same pattern as the
+  // collection table: the list search doubles as the add query, and when it
+  // doesn't match a card already in the list you can search Scryfall and add.
+  const [scryfallOpen, setScryfallOpen] = useState(false);
 
   // Decorate with oracle tags only when the tag filter is active (lazy — the
   // snapshot isn't loaded otherwise), then re-pair with entries by index.
@@ -476,6 +490,30 @@ export function ListDetailView({ list }: Props) {
           ))}
         </div>
       )}
+
+      {search.trim().length >= 2 &&
+        (scryfallOpen ? (
+          <InlineCardSearch
+            query={search.trim()}
+            onClose={() => setScryfallOpen(false)}
+            onAdd={addToList}
+          />
+        ) : (
+          <button
+            type="button"
+            className="collection-list-scryfall collection-list-scryfall--standalone"
+            aria-label={`Search Scryfall for ${search.trim()}`}
+            onClick={() => setScryfallOpen(true)}
+          >
+            <span className="collection-list-scryfall-icon">
+              <Search width={18} height={18} strokeWidth={1.7} aria-hidden />
+            </span>
+            <span className="collection-list-scryfall-text">
+              <span className="collection-list-scryfall-title">Search Scryfall</span>
+              <span className="collection-list-scryfall-sub">for “{search.trim()}”</span>
+            </span>
+          </button>
+        ))}
 
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview
