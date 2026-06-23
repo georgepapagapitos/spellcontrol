@@ -34,6 +34,16 @@ interface Props<T extends string | number> {
   className?: string;
   /** When false the panel stays open after picking an option (e.g. sort toggle). */
   closeOnSelect?: boolean;
+  /**
+   * Render a filter input atop the panel that narrows the option list as you
+   * type (a searchable dropdown / combobox). Use for long closed vocabularies
+   * like oracle tags. The input gets initial focus on open; ArrowDown moves
+   * into the list, Enter picks the first match. Matches each option's label
+   * text + value.
+   */
+  searchable?: boolean;
+  /** Placeholder for the search input (searchable mode). */
+  searchPlaceholder?: string;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -58,8 +68,11 @@ export function SelectMenu<T extends string | number>({
   disabled = false,
   className,
   closeOnSelect = true,
+  searchable = false,
+  searchPlaceholder = 'Search…',
 }: Props<T>) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -73,7 +86,11 @@ export function SelectMenu<T extends string | number>({
     panelRef,
     triggerRef: buttonRef,
     itemSelector: '[role="option"]',
-    initialItemSelector: '[role="option"][aria-selected="true"]',
+    // Searchable mode lands focus on the filter input; otherwise on the
+    // currently-selected option.
+    initialItemSelector: searchable
+      ? '.toolbar-popover-search-input'
+      : '[role="option"][aria-selected="true"]',
   });
 
   // After the panel renders in the portal, measure it and clamp/flip it into
@@ -121,6 +138,9 @@ export function SelectMenu<T extends string | number>({
   }, [open]);
 
   const handleToggle = () => {
+    if (!open) {
+      setQuery(''); // fresh filter each time the panel opens
+    }
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
@@ -136,6 +156,22 @@ export function SelectMenu<T extends string | number>({
 
   const active = options.find((o) => o.value === value);
   const triggerValue = active?.triggerLabel ?? active?.label;
+
+  const pick = (v: T) => {
+    onChange(v);
+    if (closeOnSelect) closeAndReturnFocus();
+    else setQuery(''); // stay open (multi-pick) — reset the filter for the next add
+  };
+
+  // Filter by option label text + value when searching.
+  const q = query.trim().toLowerCase();
+  const visibleOptions =
+    searchable && q
+      ? options.filter((o) => {
+          const text = typeof o.label === 'string' ? o.label : String(o.value);
+          return text.toLowerCase().includes(q) || String(o.value).toLowerCase().includes(q);
+        })
+      : options;
 
   const panel =
     open &&
@@ -158,31 +194,53 @@ export function SelectMenu<T extends string | number>({
           }`,
         }}
       >
+        {searchable && (
+          <input
+            type="search"
+            className="toolbar-popover-search-input"
+            value={query}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+            autoComplete="off"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter picks the first match; ArrowDown/Escape are handled by
+              // useMenuKeyboard at the document level (it ignores text keys).
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (visibleOptions[0]) pick(visibleOptions[0].value);
+              }
+            }}
+          />
+        )}
         <ul className="toolbar-popover-list" role="listbox" aria-label={ariaLabel ?? undefined}>
-          {options.map((opt) => {
-            const isActive = opt.value === value;
-            return (
-              <li key={String(opt.value)}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  className={`toolbar-popover-item${isActive ? ' active' : ''}`}
-                  onClick={() => {
-                    onChange(opt.value);
-                    if (closeOnSelect) closeAndReturnFocus();
-                  }}
-                >
-                  {renderItemPrefix && (
-                    <span className="toolbar-popover-check" aria-hidden>
-                      {renderItemPrefix(opt, isActive)}
-                    </span>
-                  )}
-                  {opt.itemLabel ?? opt.label}
-                </button>
-              </li>
-            );
-          })}
+          {visibleOptions.length === 0 ? (
+            <li className="toolbar-popover-empty" aria-disabled>
+              No matches
+            </li>
+          ) : (
+            visibleOptions.map((opt) => {
+              const isActive = opt.value === value;
+              return (
+                <li key={String(opt.value)}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    className={`toolbar-popover-item${isActive ? ' active' : ''}`}
+                    onClick={() => pick(opt.value)}
+                  >
+                    {renderItemPrefix && (
+                      <span className="toolbar-popover-check" aria-hidden>
+                        {renderItemPrefix(opt, isActive)}
+                      </span>
+                    )}
+                    {opt.itemLabel ?? opt.label}
+                  </button>
+                </li>
+              );
+            })
+          )}
         </ul>
       </div>,
       document.body

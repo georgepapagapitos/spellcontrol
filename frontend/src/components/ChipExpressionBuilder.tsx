@@ -4,6 +4,10 @@ import { SelectMenu } from './SelectMenu';
 
 const MAX_SUGGESTIONS = 8;
 
+// Enum dropdowns longer than this get a searchable filter input (oracle tags
+// = 23, layouts = 18); shorter closed lists stay a plain pick list.
+const SEARCHABLE_OPTION_THRESHOLD = 10;
+
 type Joiner = 'AND' | 'OR';
 
 interface CommonProps {
@@ -324,6 +328,10 @@ function EnumAdd({
       placeholder={available.length === 0 ? 'all added' : (placeholder ?? 'add…')}
       ariaLabel={placeholder ?? 'add'}
       disabled={available.length === 0}
+      // Long closed vocabularies (oracle tags, layouts) get a searchable
+      // dropdown; short lists (rarity, format, border…) stay a plain pick list.
+      searchable={options.length > SEARCHABLE_OPTION_THRESHOLD}
+      searchPlaceholder={placeholder ? `Search ${placeholder.replace(/[…\s]+$/, '')}…` : 'Search…'}
     />
   );
 }

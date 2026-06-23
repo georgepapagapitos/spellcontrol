@@ -49,6 +49,33 @@ describe('SelectMenu', () => {
     expect(screen.getByRole('listbox')).toBeTruthy();
   });
 
+  it('searchable: focuses the filter input on open, narrows options, picks first match on Enter', () => {
+    const onChange = vi.fn();
+    render(
+      <SelectMenu value="" options={options} onChange={onChange} ariaLabel="Tags" searchable />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Tags/ }));
+    const input = screen.getByRole('searchbox');
+    expect(document.activeElement).toBe(input);
+
+    fireEvent.change(input, { target: { value: 'rar' } });
+    expect(screen.queryByRole('option', { name: 'Name' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Rarity' })).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('rarity');
+  });
+
+  it('searchable: shows "No matches" when the query matches nothing', () => {
+    render(
+      <SelectMenu value="" options={options} onChange={() => {}} ariaLabel="Tags" searchable />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Tags/ }));
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzz' } });
+    expect(screen.queryByRole('option')).toBeNull();
+    expect(screen.getByText('No matches')).toBeTruthy();
+  });
+
   it('closes on Escape (focus to trigger) and on an outside pointerdown', () => {
     render(<SelectMenu value="name" options={options} onChange={() => {}} ariaLabel="Sort" />);
     const trigger = screen.getByRole('button', { name: /Sort/ });
