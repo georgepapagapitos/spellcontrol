@@ -202,6 +202,7 @@ interface CollectionState {
   renameList: (id: string, name: string) => void;
   reorderLists: (orderedIds: string[]) => void;
   deleteList: (id: string) => void;
+  deleteAllLists: () => void;
   addListEntry: (
     listId: string,
     card: Parameters<typeof makeListEntry>[0],
@@ -1149,6 +1150,10 @@ export const useCollectionStore = create<CollectionState>()(
             .map((l, i) => ({ ...l, order: i })),
         });
         void persistListsOnly(get().lists);
+      },
+      deleteAllLists: () => {
+        set({ lists: [] });
+        void persistListsOnly([]);
       },
       addListEntry: async (listId, card, quantity) => {
         const entry = makeListEntry(card, quantity);
