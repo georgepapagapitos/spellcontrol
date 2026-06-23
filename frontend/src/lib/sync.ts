@@ -14,6 +14,7 @@ import * as queue from './mutation-queue';
 import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from './card-prices';
+import { fetchOracleIds } from './api/combos';
 import { toast } from '../store/toasts';
 
 /**
@@ -545,6 +546,102 @@ export const persistGamesState = (games: ReadonlyArray<{ id: string }>): Promise
 
 export const persistCubesState = (cubes: ReadonlyArray<{ id: string }>): Promise<void> =>
   persistKind('cube', cubes as Array<{ id: string }>, (c) => c.id);
+
+// ── Oracle-id backfill ───────────────────────────────────────────────────────
+
+/** Device-local one-shot marker so a converged collection isn't re-scanned. */
+const ORACLE_BACKFILL_DONE_KEY = 'spellcontrol:oracleIdBackfillDone';
+let backfillingOracleIds = false;
+
+/**
+ * Backfill `oracleId` on cards saved before that field existed, resolving it
+ * from the server's Scryfall cache (`/api/cards/oracle-ids`) so combos and the
+ * Scryfall-query binder rule can join on it.
+ *
+ * This is a **local-only enrichment**: it patches the IDB card rows in place
+ * (preserving `rev`, so they don't look locally-dirty) and reflects the change
+ * into the in-memory store under the `applyingServer` guard — it never enqueues
+ * or pushes. `oracleId` is derivable from `scryfallId`, so every device just
+ * self-heals on hydration rather than one device pushing thousands of rows.
+ *
+ * Trigger from App's post-hydration effect (keyed on `hasCards`, like the price
+ * auto-refresh): on a fresh device the cache is empty and this no-ops, then
+ * re-fires once the server pull delivers cards. The localStorage marker + the
+ * in-flight guard keep the steady-state firings cheap.
+ */
+export async function backfillOracleIds(): Promise<void> {
+  if (backfillingOracleIds) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  try {
+    if (localStorage.getItem(ORACLE_BACKFILL_DONE_KEY)) return;
+  } catch {
+    /* localStorage unavailable (private mode) — fall through, retry next boot */
+  }
+
+  const { useCollectionStore } = await import('../store/collection');
+  const cards = useCollectionStore.getState().cards;
+  if (cards.length === 0) return; // not hydrated yet — effect re-fires on hasCards
+
+  const missing = cards.filter((c) => !c.oracleId && c.scryfallId);
+  const markDone = () => {
+    try {
+      localStorage.setItem(ORACLE_BACKFILL_DONE_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+  };
+  if (missing.length === 0) {
+    markDone();
+    return;
+  }
+
+  backfillingOracleIds = true;
+  try {
+    // Resolve scryfallId → oracleId, chunked to the server's 1000-id cap.
+    const ids = [...new Set(missing.map((c) => c.scryfallId))];
+    const map: Record<string, string> = {};
+    for (let i = 0; i < ids.length; i += 1000) {
+      Object.assign(map, await fetchOracleIds(ids.slice(i, i + 1000)));
+    }
+
+    if (Object.keys(map).length > 0) {
+      // Patch IDB rows in place, preserving rev / syncedRev / importId.
+      const rows = await estore.getAllLive('card');
+      const patched: estore.StoredRow[] = [];
+      for (const r of rows) {
+        const d = r.data as { scryfallId?: string; oracleId?: string } | null;
+        if (d && !d.oracleId && d.scryfallId && map[d.scryfallId]) {
+          patched.push({ ...r, data: { ...d, oracleId: map[d.scryfallId] } });
+        }
+      }
+      if (patched.length > 0) await estore.putMany('card', patched);
+
+      // Reflect into the in-memory store WITHOUT enqueuing (guard the binder
+      // subscriber; cards have no auto-persist subscriber).
+      setApplyingServer(true);
+      try {
+        const updated = useCollectionStore
+          .getState()
+          .cards.map((c) =>
+            !c.oracleId && c.scryfallId && map[c.scryfallId]
+              ? { ...c, oracleId: map[c.scryfallId] }
+              : c
+          );
+        useCollectionStore.setState({ cards: updated } as unknown as Parameters<
+          typeof useCollectionStore.setState
+        >[0]);
+      } finally {
+        setApplyingServer(false);
+      }
+    }
+    // Converged (or the cache had nothing for these printings) — don't rescan.
+    markDone();
+  } catch {
+    // Network / endpoint failure: leave the marker unset so it retries next boot.
+  } finally {
+    backfillingOracleIds = false;
+  }
+}
 
 // ── Pull / push ─────────────────────────────────────────────────────────────
 

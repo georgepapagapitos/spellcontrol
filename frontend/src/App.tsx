@@ -141,6 +141,10 @@ export default function App() {
   useEffect(() => {
     if (hydrating) return;
     void useCollectionStore.getState().autoRefreshStalePrices();
+    // Same hydration gating: backfill oracleId on pre-oracleId cards so combos
+    // and the Scryfall-query binder rule can join on it. One-shot per device,
+    // local-only (no push) — see backfillOracleIds.
+    void import('./lib/sync').then((s) => s.backfillOracleIds());
   }, [hydrating, hasCards]);
 
   // Pull the server snapshot once per authed user. The ref prevents a re-pull
