@@ -3,6 +3,9 @@ import {
   Bookmark,
   Check,
   CheckSquare,
+  ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
   LayoutGrid,
   Layers,
   List as ListIconLucide,
@@ -11,7 +14,16 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useScrollContainer } from '../lib/scroll-container';
 import { formatMoney } from '../lib/format-money';
@@ -53,9 +65,12 @@ import { getSectionMeta } from '@spellcontrol/binder-routing';
 import {
   groupRowsIntoSections,
   buildGridLayout,
+  buildListLayout,
   type SectionHeader,
   type GridLayoutRow,
+  type ListLayoutRow,
 } from '../lib/group-sections';
+import { readLocalStorage } from '../lib/local-storage';
 import { getColorKey } from '../lib/colors';
 import { useCollectionStore } from '../store/collection';
 import {
@@ -227,6 +242,77 @@ const GROUP_KEY_TO_FIELD: Record<Exclude<GroupKey, 'none'>, SortField> = {
   set: 'setReleaseDate',
 };
 
+// Per-group-field localStorage key for the set of collapsed section keys, so a
+// "Red" fold under Color grouping is remembered independently of a "Lands" fold
+// under Type grouping.
+const COLLAPSED_KEY_PREFIX = 'spellcontrol:collection:collapsed:';
+const loadCollapsedKeys = (g: GroupKey): Set<string> =>
+  g === 'none'
+    ? new Set()
+    : new Set(readLocalStorage<string[]>(COLLAPSED_KEY_PREFIX + g, JSON.parse, []));
+const persistCollapsedKeys = (g: GroupKey, keys: Set<string>) => {
+  if (g === 'none') return;
+  try {
+    localStorage.setItem(COLLAPSED_KEY_PREFIX + g, JSON.stringify([...keys]));
+  } catch {
+    /* ignore – SSR / private-browsing / quota errors */
+  }
+};
+
+// Shared section-header bar: a disclosure button (chevron + pip + label + count)
+// reused by the inline list/grid headers and the floating sticky overlay. The
+// `className` carries the per-surface look; this adds the button reset, the
+// rotating chevron, and the expanded/collapsed a11y state.
+function SectionHeaderBar({
+  pip,
+  label,
+  count,
+  collapsed,
+  onToggle,
+  className,
+  style,
+  tabIndex,
+}: {
+  pip: SectionHeader['meta']['pip'];
+  label: string;
+  count: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  className: string;
+  style?: CSSProperties;
+  tabIndex?: number;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${className} collection-section-header-btn`}
+      style={style}
+      tabIndex={tabIndex}
+      aria-expanded={!collapsed}
+      aria-label={`${label}, ${count} cards, ${collapsed ? 'collapsed' : 'expanded'}`}
+      onClick={onToggle}
+    >
+      <ChevronDown
+        className="collection-section-chevron"
+        width={16}
+        height={16}
+        strokeWidth={2.25}
+        aria-hidden
+        data-collapsed={collapsed || undefined}
+      />
+      {pip && (
+        <span
+          className="collection-list-section-pip"
+          style={{ background: pip.background, borderColor: pip.border }}
+          aria-hidden
+        />
+      )}
+      <span className="collection-list-section-label">{label}</span>
+      <span className="collection-list-section-count">{count}</span>
+    </button>
+  );
+}
+
 export function CardListTable({
   cards,
   binders,
@@ -240,6 +326,24 @@ export function CardListTable({
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [groupKey, setGroupKey] = useState<GroupKey>('none');
+  // Collapsed section keys for the active group field, persisted per field so the
+  // fold state survives reloads. Reloaded whenever the grouping changes.
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => loadCollapsedKeys('none'));
+  useEffect(() => {
+    setCollapsedKeys(loadCollapsedKeys(groupKey));
+  }, [groupKey]);
+  const toggleCollapsed = useCallback(
+    (key: string) => {
+      setCollapsedKeys((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        persistCollapsedKeys(groupKey, next);
+        return next;
+      });
+    },
+    [groupKey]
+  );
   // Import history powers the "Date added" sort (timestamp keyed by importId).
   const importHistory = useCollectionStore((s) => s.importHistory);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
@@ -635,6 +739,20 @@ export function CardListTable({
     return { displayRows: grouped, sectionHeaders: headers };
   }, [sorted, groupField, setMap]);
 
+  // Every section key in the current grouping, for the collapse-all/expand-all
+  // toggle. Empty when ungrouped.
+  const allSectionKeys = useMemo(
+    () => (sectionHeaders ? [...sectionHeaders.values()].map((h) => h.meta.key) : []),
+    [sectionHeaders]
+  );
+  const allCollapsed =
+    allSectionKeys.length > 0 && allSectionKeys.every((k) => collapsedKeys.has(k));
+  const toggleAllCollapsed = useCallback(() => {
+    const next = allCollapsed ? new Set<string>() : new Set(allSectionKeys);
+    setCollapsedKeys(next);
+    persistCollapsedKeys(groupKey, next);
+  }, [allCollapsed, allSectionKeys, groupKey]);
+
   // Card names that appear as more than one printing in the current rows
   // (rows are one-per-printing, so count > 1 = the art alone is ambiguous).
   // Grid tiles for these names grow a small set-code chip so the user can
@@ -713,9 +831,25 @@ export function CardListTable({
   const gridLayout = useMemo<GridLayoutRow[]>(
     () =>
       view === 'grid'
-        ? buildGridLayout(displayRows.length, gridCols, sectionHeaders, showScryfallTrigger ? 1 : 0)
+        ? buildGridLayout(
+            displayRows.length,
+            gridCols,
+            sectionHeaders,
+            showScryfallTrigger ? 1 : 0,
+            collapsedKeys
+          )
         : [],
-    [view, displayRows.length, gridCols, sectionHeaders, showScryfallTrigger]
+    [view, displayRows.length, gridCols, sectionHeaders, showScryfallTrigger, collapsedKeys]
+  );
+
+  // List/compact mirror of `gridLayout`: header rows interleaved with one row
+  // per card, collapsed sections folding to their header. Headers ride as their
+  // own virtual rows (not inside the first card) so a folded section keeps a
+  // tappable header with zero card rows below it.
+  const listLayout = useMemo<ListLayoutRow[]>(
+    () =>
+      view === 'grid' ? [] : buildListLayout(displayRows.length, sectionHeaders, collapsedKeys),
+    [view, displayRows.length, sectionHeaders, collapsedKeys]
   );
 
   // When the query is cleared (or drops below the 2-char threshold), leave
@@ -764,10 +898,20 @@ export function CardListTable({
     };
   }, [scrollEl, view, gridCols, sorted.length]);
 
+  // Header rows are short; card rows fall back to the per-view estimate. Exact
+  // heights still come from measureElement, so the estimate only seeds layout.
+  const estimateListRowHeight = useCallback(
+    (index: number) => {
+      if (listLayout[index]?.kind === 'header') return GRID_SECTION_HEADER_H;
+      return view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST;
+    },
+    [listLayout, view]
+  );
+
   const listVirtualizer = useVirtualizer({
-    count: view !== 'grid' ? displayRows.length : 0,
+    count: view !== 'grid' ? listLayout.length : 0,
     getScrollElement: () => scrollEl,
-    estimateSize: () => (view === 'compact' ? ROW_HEIGHT_COMPACT : ROW_HEIGHT_LIST),
+    estimateSize: estimateListRowHeight,
     overscan: 20,
     scrollMargin,
   });
@@ -787,6 +931,7 @@ export function CardListTable({
   // Flat sorted array of section boundary pixel offsets, recomputed whenever
   // the layout changes. Each entry maps to a section's label, count, and pip.
   type BoundaryEntry = {
+    key: string;
     label: string;
     count: number;
     pip: SectionHeader['meta']['pip'];
@@ -795,17 +940,27 @@ export function CardListTable({
   const boundaries = useMemo<BoundaryEntry[]>(() => {
     if (groupKey === 'none') return [];
     const out: BoundaryEntry[] = [];
-    if (view !== 'grid' && sectionHeaders) {
-      for (const [idx, header] of sectionHeaders) {
-        const start = listVirtualizer.measurementsCache?.[idx]?.start ?? 0;
-        out.push({ label: header.meta.label, count: header.count, pip: header.meta.pip, start });
+    if (view !== 'grid') {
+      for (let li = 0; li < listLayout.length; li++) {
+        const item = listLayout[li];
+        if (item.kind === 'header') {
+          const start = listVirtualizer.measurementsCache?.[li]?.start ?? 0;
+          out.push({
+            key: item.meta.key,
+            label: item.meta.label,
+            count: item.count,
+            pip: item.meta.pip,
+            start,
+          });
+        }
       }
-    } else if (view === 'grid') {
+    } else {
       for (let gi = 0; gi < gridLayout.length; gi++) {
         const layoutRow = gridLayout[gi];
         if (layoutRow.kind === 'header') {
           const start = gridVirtualizer.measurementsCache?.[gi]?.start ?? 0;
           out.push({
+            key: layoutRow.meta.key,
             label: layoutRow.meta.label,
             count: layoutRow.count,
             pip: layoutRow.meta.pip,
@@ -819,7 +974,7 @@ export function CardListTable({
   }, [
     groupKey,
     view,
-    sectionHeaders,
+    listLayout,
     gridLayout,
     listVirtualizer.measurementsCache,
     gridVirtualizer.measurementsCache,
@@ -828,7 +983,12 @@ export function CardListTable({
   // Active section index into `boundaries` (-1 = overlay not shown).
   const [activeSectionIdx, setActiveSectionIdx] = useState(-1);
 
-  // Update active section on scroll.
+  // Update active section on scroll. Also re-measures the controls row's bottom
+  // here: the useLayoutEffect measure runs at scrollTop 0, where the controls
+  // sit at their natural position *below* the non-sticky filter-chips row, so
+  // that reading overshoots by whatever scrolls away above the pinned bar. Once
+  // scrolled (when the overlay is actually shown) the controls are pinned and
+  // `rect.bottom` is the true sticky offset the overlay must clear.
   useEffect(() => {
     if (!scrollEl || groupKey === 'none' || boundaries.length === 0) {
       setActiveSectionIdx(-1);
@@ -842,6 +1002,11 @@ export function CardListTable({
         else break;
       }
       setActiveSectionIdx(active);
+      const ctrl = controlsRowRef.current;
+      if (ctrl) {
+        const cb = ctrl.getBoundingClientRect().bottom - scrollEl.getBoundingClientRect().top;
+        setControlsBottom((prev) => (Math.abs(prev - cb) > 0.5 ? cb : prev));
+      }
     };
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     // Run once immediately to sync with current scroll position.
@@ -1590,6 +1755,22 @@ export function CardListTable({
             onChange={setGroupKey}
             leadingIcon={<Layers width={14} height={14} strokeWidth={2} aria-hidden />}
           />
+          {groupKey !== 'none' && allSectionKeys.length > 0 && (
+            <button
+              type="button"
+              className="toolbar-pill"
+              aria-pressed={allCollapsed}
+              onClick={toggleAllCollapsed}
+              title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+            >
+              {allCollapsed ? (
+                <ChevronsUpDown width={14} height={14} strokeWidth={2} aria-hidden />
+              ) : (
+                <ChevronsDownUp width={14} height={14} strokeWidth={2} aria-hidden />
+              )}
+              <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
+            </button>
+          )}
           <SelectMenu
             ariaLabel="Sort"
             value={sortKey}
@@ -1689,33 +1870,24 @@ export function CardListTable({
         </div>
       )}
 
-      {/* Sticky section overlay — floats above the virtualized list/grid and
-          swaps its label as the active section changes on scroll. */}
+      {/* Sticky section overlay — floats below the sticky controls and swaps its
+          label as the active section changes on scroll. Tapping it folds/unfolds
+          that section, mirroring the inline header. */}
       {groupKey !== 'none' && activeSectionIdx >= 0 && boundaries[activeSectionIdx] && (
         <div
           className="collection-section-sticky-header"
-          role="heading"
-          aria-level={3}
-          aria-live="polite"
-          aria-atomic="true"
           style={{ top: controlsBottom > 0 ? controlsBottom : undefined }}
+          aria-hidden
         >
-          {boundaries[activeSectionIdx].pip && (
-            <span
-              className="collection-list-section-pip"
-              style={{
-                background: boundaries[activeSectionIdx].pip!.background,
-                borderColor: boundaries[activeSectionIdx].pip!.border,
-              }}
-              aria-hidden
-            />
-          )}
-          <span className="collection-list-section-label">
-            {boundaries[activeSectionIdx].label}
-          </span>
-          <span className="collection-list-section-count">
-            {boundaries[activeSectionIdx].count}
-          </span>
+          <SectionHeaderBar
+            className="collection-section-sticky-inner"
+            tabIndex={-1}
+            pip={boundaries[activeSectionIdx].pip}
+            label={boundaries[activeSectionIdx].label}
+            count={boundaries[activeSectionIdx].count}
+            collapsed={collapsedKeys.has(boundaries[activeSectionIdx].key)}
+            onToggle={() => toggleCollapsed(boundaries[activeSectionIdx].key)}
+          />
         </div>
       )}
 
@@ -1785,11 +1957,9 @@ export function CardListTable({
             if (!layoutRow) return null;
             if (layoutRow.kind === 'header') {
               return (
-                <div
+                <SectionHeaderBar
                   key={virtualRow.key}
                   className="collection-grid-section-header"
-                  role="heading"
-                  aria-level={3}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -1798,20 +1968,12 @@ export function CardListTable({
                     height: GRID_SECTION_HEADER_H,
                     transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                   }}
-                >
-                  {layoutRow.meta.pip && (
-                    <span
-                      className="collection-list-section-pip"
-                      style={{
-                        background: layoutRow.meta.pip.background,
-                        borderColor: layoutRow.meta.pip.border,
-                      }}
-                      aria-hidden
-                    />
-                  )}
-                  <span className="collection-list-section-label">{layoutRow.meta.label}</span>
-                  <span className="collection-list-section-count">{layoutRow.count}</span>
-                </div>
+                  pip={layoutRow.meta.pip}
+                  label={layoutRow.meta.label}
+                  count={layoutRow.count}
+                  collapsed={collapsedKeys.has(layoutRow.meta.key)}
+                  onToggle={() => toggleCollapsed(layoutRow.meta.key)}
+                />
               );
             }
             return (
@@ -1944,14 +2106,14 @@ export function CardListTable({
           }}
         >
           {listVirtualizer.getVirtualItems().map((virtualRow) => {
-            const r = displayRows[virtualRow.index];
-            const selected = selectedRowKeys.has(r.key);
-            // When grouping is active, the first row of each section carries its
-            // header *inside* the measured cell, so the virtualizer's dynamic
-            // measureElement folds the header height into the row offset (no
-            // drift) without needing a separate virtual item.
-            const header = sectionHeaders?.get(virtualRow.index);
-            return (
+            const item = listLayout[virtualRow.index];
+            if (!item) return null;
+            // Headers ride as their own measured virtual rows (mirroring the
+            // grid), so a collapsed section keeps a tappable header with no card
+            // rows below it. `measureElement` folds each row's real height into
+            // the offset, so a header row and a card row can differ in height
+            // without drift.
+            const rowBox = (children: ReactNode) => (
               <div
                 key={virtualRow.key}
                 data-index={virtualRow.index}
@@ -1964,52 +2126,51 @@ export function CardListTable({
                   transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 }}
               >
-                {header && (
-                  <div className="collection-list-section-header" role="heading" aria-level={3}>
-                    {header.meta.pip && (
-                      <span
-                        className="collection-list-section-pip"
-                        style={{
-                          background: header.meta.pip.background,
-                          borderColor: header.meta.pip.border,
-                        }}
-                        aria-hidden
-                      />
-                    )}
-                    <span className="collection-list-section-label">{header.meta.label}</span>
-                    <span className="collection-list-section-count">{header.count}</span>
-                  </div>
-                )}
-                <CardRow
-                  card={r.card}
-                  qty={r.qty}
-                  allocations={allocationsFor(r.card)}
-                  binders={r.binders}
-                  setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
-                  isLastRow={virtualRow.index === displayRows.length - 1}
-                  selectMode={selectMode}
-                  selected={selected}
-                  pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
-                  onActivate={() =>
-                    selectMode ? toggleRow(r.key) : setPreviewIndex(virtualRow.index)
-                  }
-                  menu={
-                    <CardRowMenu
-                      card={r.card}
-                      onEditCard={() => openEdit(r.card, !groupPrintings)}
-                      onSplitCopy={
-                        groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
-                      }
-                      onDelete={() => handleDeleteRow(r)}
-                      currentBinder={
-                        r.binderId && r.binderName
-                          ? { id: r.binderId, name: r.binderName, color: r.binderColor }
-                          : null
-                      }
-                    />
-                  }
-                />
+                {children}
               </div>
+            );
+            if (item.kind === 'header') {
+              return rowBox(
+                <SectionHeaderBar
+                  className="collection-list-section-header"
+                  pip={item.meta.pip}
+                  label={item.meta.label}
+                  count={item.count}
+                  collapsed={collapsedKeys.has(item.meta.key)}
+                  onToggle={() => toggleCollapsed(item.meta.key)}
+                />
+              );
+            }
+            const r = displayRows[item.index];
+            const selected = selectedRowKeys.has(r.key);
+            return rowBox(
+              <CardRow
+                card={r.card}
+                qty={r.qty}
+                allocations={allocationsFor(r.card)}
+                binders={r.binders}
+                setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
+                isLastRow={item.index === displayRows.length - 1}
+                selectMode={selectMode}
+                selected={selected}
+                pricePending={isRefreshingPrices && !((r.card.purchasePrice ?? 0) > 0)}
+                onActivate={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(item.index))}
+                menu={
+                  <CardRowMenu
+                    card={r.card}
+                    onEditCard={() => openEdit(r.card, !groupPrintings)}
+                    onSplitCopy={
+                      groupPrintings && r.qty >= 2 ? () => openEdit(r.card, true) : undefined
+                    }
+                    onDelete={() => handleDeleteRow(r)}
+                    currentBinder={
+                      r.binderId && r.binderName
+                        ? { id: r.binderId, name: r.binderName, color: r.binderColor }
+                        : null
+                    }
+                  />
+                }
+              />
             );
           })}
         </div>

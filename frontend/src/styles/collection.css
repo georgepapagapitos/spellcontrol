@@ -739,23 +739,16 @@
   top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h, 3.7rem));
 }
 
-/* Sticky section overlay — floats above the virtualized list/grid and swaps
-   its label as the active section changes on scroll. Pinned below the sticky
-   controls row via an inline `top` measured from getBoundingClientRect; the
-   CSS fallback is the combined search + controls stack height (~6.9 rem).
-   Shares the pip/label/count child classes with the inline section headers. */
+/* Sticky section overlay — floats below the sticky controls and swaps its label
+   as the active section changes on scroll. Pinned below the sticky controls row
+   via an inline `top` measured from getBoundingClientRect; the CSS fallback is
+   the combined search + controls stack height (~6.9 rem). The inner button is a
+   disclosure that folds/unfolds the section it labels. */
 .collection-section-sticky-header {
   position: sticky;
   top: var(--collection-controls-sticky-h, 6.9rem);
   z-index: var(--z-dropdown); /* 50 — below sticky chrome (--z-popover: 60) */
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem 0.4rem;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
+  padding: 0;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -763,9 +756,18 @@
   /* Bleed full-width to match the search / controls rows */
   margin-left: calc(var(--page-gutter, 1rem) * -1);
   margin-right: calc(var(--page-gutter, 1rem) * -1);
-  padding-left: calc(var(--page-gutter, 1rem) + 0.75rem);
-  padding-right: calc(var(--page-gutter, 1rem) + 0.75rem);
-  pointer-events: none; /* passthrough — rows below remain tappable */
+}
+
+.collection-section-sticky-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem calc(var(--page-gutter, 1rem) + 0.75rem) 0.4rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: transparent;
 }
 
 /* Result count — only rendered when filters reduce the visible set. */
@@ -1333,8 +1335,51 @@ i.ss.set-symbol--mythic {
   background: var(--surface-raised);
 }
 
-/* "Group by" section header, rendered inside the first row's measured cell so
-   the virtualizer folds its height into the row offset (see CardListTable). */
+/* All three "Group by" section headers (list, grid, sticky overlay) are
+   disclosure buttons. This carries only the button reset + interactive states;
+   the per-surface `.collection-*-section-header` / `-inner` classes own the
+   look. Reset props are chosen to not collide with those, so source order is
+   irrelevant. */
+.collection-section-header-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background-color var(--motion-fast);
+}
+
+.collection-section-header-btn:hover {
+  background: var(--surface-raised);
+}
+
+.collection-section-header-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Disclosure chevron — points down when expanded, rotates to point right when
+   the section is folded. */
+.collection-section-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--motion-fast);
+}
+
+.collection-section-chevron[data-collapsed] {
+  transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collection-section-header-btn,
+  .collection-section-chevron {
+    transition: none;
+  }
+}
+
+/* "Group by" section header, rendered as its own virtual row above its cards. */
 .collection-list-section-header {
   display: flex;
   align-items: center;
