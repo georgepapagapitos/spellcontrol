@@ -81,6 +81,24 @@ interface Props {
   list: ListDef;
 }
 
+/** Placeholder rows shown while entries resolve to card data — count mirrors
+ *  the list's entry count (capped) so real rows drop in with no layout shift. */
+function SkeletonRows({ count }: { count: number }) {
+  return (
+    <div className="collection-list" role="status" aria-label="Loading this list’s cards">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="collection-list-row-skeleton" aria-hidden>
+          <div className="collection-list-skeleton-thumb" />
+          <div className="collection-list-skeleton-lines">
+            <div className="collection-list-skeleton-bar is-name" />
+            <div className="collection-list-skeleton-bar is-meta" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * The filterable, sortable card table for a single list — the same filter
  * dialog, sort menu, view toggle, card rows and preview the collection uses,
@@ -459,7 +477,7 @@ export function ListDetailView({ list }: Props) {
       </div>
 
       {loading ? (
-        <p className="inline-card-search-status">Loading cards…</p>
+        <SkeletonRows count={Math.min(Math.max(list.entries.length, 3), 10)} />
       ) : sorted.length === 0 ? (
         <div className="empty-state">
           <p className="empty-state-tagline">

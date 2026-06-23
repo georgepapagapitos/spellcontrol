@@ -1,6 +1,7 @@
 import { AlignJustify, List as ListIconLucide, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
 import { useStoredSort } from '../lib/use-stored-sort';
@@ -87,6 +88,22 @@ export function ListsPage() {
     () => (routeId ? lists.find((l) => l.id === routeId) : undefined),
     [lists, routeId]
   );
+
+  // Warm the card cache for every list's entries while the index is shown, so
+  // opening a list resolves its cards (name → card data) from cache instead of
+  // a cold network round-trip. getCardsByNames dedups + caches per card, so
+  // this is idempotent and cheap to re-run.
+  // ponytail: prefetches all lists up front; lists are small wishlists so this
+  // is fine — switch to visible-only / on-hover prefetch if a user keeps huge lists.
+  const prefetchKey = useMemo(
+    () => lists.flatMap((l) => l.entries.map((e) => e.name)).join('|'),
+    [lists]
+  );
+  useEffect(() => {
+    if (routeId || !prefetchKey) return;
+    const names = [...new Set(prefetchKey.split('|').filter(Boolean))];
+    if (names.length) void getCardsByNames(names).catch(() => {});
+  }, [routeId, prefetchKey]);
 
   const handleCreate = () => setNameDialog({ mode: 'create' });
 
