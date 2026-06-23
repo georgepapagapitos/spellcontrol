@@ -2,6 +2,16 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { SlimCard, SlimCardFace } from './types';
 
 /**
+ * Derive a Scryfall art-crop URL from a full-card image URL. The slim bundle
+ * only carries the `normal` image, but Scryfall CDN URLs differ solely by the
+ * size segment (`.../normal/...` vs `.../art_crop/...`), so the crop is a pure
+ * string swap. Non-Scryfall URLs (no `/normal/` segment) pass through unchanged.
+ */
+export function scryfallArtCrop(imageNormal: string): string {
+  return imageNormal.replace('/normal/', '/art_crop/');
+}
+
+/**
  * Inflate a SlimCard back into a ScryfallCard-shaped object so existing
  * consumers (deck builder, card lists, combo UI) don't need to learn about
  * the slim shape. Fields the slim payload doesn't carry (`set_name`, the
@@ -32,11 +42,13 @@ export function slimToScryfall(s: SlimCard): ScryfallCard {
           small: s.imageSmall ?? s.imageNormal,
           normal: s.imageNormal,
           large: s.imageLarge ?? s.imageNormal,
-          // ScryfallCard's image_uris type marks these as required; pass
-          // through the normal URL as a fallback since we never render them.
+          // ScryfallCard's image_uris type marks these as required; png/
+          // border_crop are never rendered, so pass the normal URL through.
           png: s.imageLarge ?? s.imageNormal,
-          art_crop: s.imageNormal,
           border_crop: s.imageNormal,
+          // art_crop IS rendered (deck thumbnails) — derive the real crop so we
+          // don't show the full card frame where a cropped art is expected.
+          art_crop: scryfallArtCrop(s.imageNormal),
         }
       : undefined,
     card_faces: s.faces?.map(slimFaceToScryfall),
@@ -70,6 +82,7 @@ function slimFaceToScryfall(f: SlimCardFace): NonNullable<ScryfallCard['card_fac
           small: f.imageSmall ?? f.imageNormal,
           normal: f.imageNormal,
           large: f.imageLarge ?? f.imageNormal,
+          art_crop: scryfallArtCrop(f.imageNormal),
         }
       : undefined,
   };
