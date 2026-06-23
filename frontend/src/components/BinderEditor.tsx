@@ -353,8 +353,11 @@ export function BinderEditor() {
   // Over-capacity check uses the same estimate the editor shows: when
   // "keep all printings together" is on, count the printings it pulls in too,
   // so the warning doesn't silently under-count.
-  // Decorate with oracle tags so the live count reflects a draft tag rule
-  // (gated on the *draft* groups, since the binder isn't committed yet).
+  // Decorate with oracle tags so the live counts reflect a draft tag rule
+  // (gated on the *draft* groups, since the binder isn't committed yet). Feeds
+  // BOTH the over-capacity check below AND the per-group badge in
+  // FilterGroupList — passing the raw `cards` there left an oracle-tag rule's
+  // count stuck at 0 until the tagger snapshot finished loading.
   const taggedCards = useCardsWithTags(cards, groupsUseTags(groups));
   const binderMatchCount = useMemo(() => {
     if (fixedCapacity === null) return 0;
@@ -855,7 +858,7 @@ export function BinderEditor() {
 
                     <FilterGroupList
                       groups={groups}
-                      cards={cards}
+                      cards={taggedCards}
                       keepPrintingsTogether={keepPrintingsTogether}
                       ownedSets={ownedSets}
                       typeSuggestions={typeSuggestions}
@@ -1743,6 +1746,7 @@ function FilterGroupFields({
             oracleSuggestions={oracleSuggestions}
             showTypeRows
             showOracleTags
+            showScryfallQuery
             showFinish
             variant="binder"
           />
@@ -1818,6 +1822,7 @@ function autoSummary(f: BinderFilter): string {
   if (f.edhrecRankMax !== undefined) parts.push(`EDH top ${f.edhrecRankMax}`);
   if (f.manaCost?.trim()) parts.push(f.manaCost.trim());
   if (f.nameContains?.trim()) parts.push(`"${f.nameContains.trim()}"`);
+  if (f.scryfallQuery?.query.trim()) parts.push(`⌕ ${f.scryfallQuery.query.trim()}`);
 
   return parts.slice(0, 4).join(' · ');
 }
@@ -1841,6 +1846,9 @@ function cloneChips(f: BinderFilter): Partial<BinderFilter> {
     treatments: dup(f.treatments),
     borderColors: dup(f.borderColors),
     setCodes: f.setCodes ? [...f.setCodes] : undefined,
+    scryfallQuery: f.scryfallQuery
+      ? { ...f.scryfallQuery, oracleIds: [...f.scryfallQuery.oracleIds] }
+      : undefined,
   };
 }
 

@@ -168,6 +168,20 @@ export interface BinderFilter {
   treatments?: ChipExpression;
   borderColors?: ChipExpression;
   commanderEligible?: boolean;
+  /**
+   * A Scryfall search query (e.g. "is:shockland") snapshot-resolved to a set of
+   * oracle ids. Scryfall's curated filters can't be evaluated offline, so the
+   * editor resolves the query against the live API once and stores the resulting
+   * `oracleIds`; matching is plain `card.oracleId` membership. `resolvedAt` lets
+   * the UI show staleness and offer a manual re-run.
+   */
+  scryfallQuery?: ScryfallQueryRule;
+}
+
+export interface ScryfallQueryRule {
+  query: string;
+  oracleIds: string[];
+  resolvedAt?: number;
 }
 
 /**

@@ -610,3 +610,35 @@ describe('commanderEligible filter', () => {
     expect(isFilterEmpty({})).toBe(true);
   });
 });
+
+describe('scryfallQuery (snapshot-resolved oracle ids)', () => {
+  const shock = makeCard({ oracleId: 'oid-shock' });
+  const other = makeCard({ oracleId: 'oid-other' });
+  const noOracle = makeCard({ oracleId: undefined });
+  const filter: BinderFilter = {
+    scryfallQuery: { query: 'is:shockland', oracleIds: ['oid-shock'] },
+  };
+
+  it('matches a card whose oracleId is in the resolved set', () => {
+    expect(cardMatchesFilter(shock, filter)).toBe(true);
+  });
+
+  it('rejects a card outside the resolved set', () => {
+    expect(cardMatchesFilter(other, filter)).toBe(false);
+  });
+
+  it('rejects a card with no oracleId', () => {
+    expect(cardMatchesFilter(noOracle, filter)).toBe(false);
+  });
+
+  it('an authored-but-unresolved query (empty ids) matches nothing', () => {
+    const unresolved: BinderFilter = { scryfallQuery: { query: 'is:shockland', oracleIds: [] } };
+    expect(cardMatchesFilter(shock, unresolved)).toBe(false);
+    expect(cardMatchesFilter(other, unresolved)).toBe(false);
+  });
+
+  it('isFilterEmpty is false when a query is authored', () => {
+    expect(isFilterEmpty(filter)).toBe(false);
+    expect(isFilterEmpty({ scryfallQuery: { query: '  ', oracleIds: [] } })).toBe(true);
+  });
+});

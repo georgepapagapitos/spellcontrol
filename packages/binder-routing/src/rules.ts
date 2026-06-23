@@ -34,6 +34,13 @@ interface CompiledFilter {
   treatments?: CompiledExpression;
   borderColors?: CompiledExpression;
   setCodesLower?: string[];
+  /**
+   * Present iff the filter has a `scryfallQuery`. Membership against the
+   * snapshot-resolved oracle ids. An empty set (query authored but not yet
+   * resolved) is a real constraint that matches nothing — it must not silently
+   * behave like "no constraint".
+   */
+  scryfallOracleIds?: Set<string>;
   nameContainsNormalized?: string;
   manaCostNormalized?: string;
   priceMin?: number;
@@ -62,6 +69,10 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
 
   if (filter.setCodes && filter.setCodes.length > 0) {
     out.setCodesLower = filter.setCodes.map((s) => s.toLowerCase());
+  }
+
+  if (filter.scryfallQuery) {
+    out.scryfallOracleIds = new Set(filter.scryfallQuery.oracleIds);
   }
 
   const nameRaw = filter.nameContains?.trim();
@@ -132,6 +143,10 @@ export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): bool
   if (f.setCodesLower) {
     const sc = card.setCode.toLowerCase();
     if (!f.setCodesLower.includes(sc)) return false;
+  }
+
+  if (f.scryfallOracleIds) {
+    if (!card.oracleId || !f.scryfallOracleIds.has(card.oracleId)) return false;
   }
 
   if (f.finishes) {
@@ -257,7 +272,8 @@ export function isFilterEmpty(filter: BinderFilter): boolean {
     !filter.nameContains?.trim() &&
     (!filter.setCodes || filter.setCodes.length === 0) &&
     filter.edhrecRankMax === undefined &&
-    filter.commanderEligible === undefined
+    filter.commanderEligible === undefined &&
+    !filter.scryfallQuery?.query.trim()
   );
 }
 
