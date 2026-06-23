@@ -17,7 +17,12 @@ interface Props {
   ariaLabel?: string;
   /** Class on the wrapper — e.g. to gate visibility by breakpoint. */
   className?: string;
-  /** Class on the trigger button — pass `pill-btn` to match a toolbar row. */
+  /**
+   * Class on the trigger button — pass `pill-btn` to match a toolbar row.
+   * When omitted, a built-in ghost-kebab style (`overflow-menu-trigger`,
+   * matching the card-row kebab) is applied so the trigger never falls back to
+   * the unstyled browser-default button.
+   */
   triggerClassName?: string;
   /**
    * Horizontal alignment of the panel.
@@ -98,7 +103,7 @@ export function OverflowMenu({
       <button
         ref={buttonRef}
         type="button"
-        className={triggerClassName}
+        className={triggerClassName ?? 'overflow-menu-trigger'}
         aria-label={ariaLabel}
         title={ariaLabel}
         aria-haspopup="menu"

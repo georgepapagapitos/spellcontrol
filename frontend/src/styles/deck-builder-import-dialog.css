@@ -448,6 +448,27 @@
   display: inline-flex;
 }
 
+/* Default trigger style, applied by OverflowMenu when no `triggerClassName`
+   override is given — a ghost kebab matching the card-row `.card-edit-btn`, so
+   the trigger never falls back to the unstyled browser-default button. */
+.overflow-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.overflow-menu-trigger:hover,
+.overflow-menu-trigger[aria-expanded='true'] {
+  color: var(--accent);
+  background: var(--surface-raised);
+}
+
 /* Portaled `position:fixed` overflow menu panel. transform-origin is set inline
    by OverflowMenu.tsx based on computed placement (top/bottom × left/right). */
 .overflow-menu-popover {
