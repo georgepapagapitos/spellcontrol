@@ -40,6 +40,7 @@ export function ListsPage() {
   const createList = useCollectionStore((s) => s.createList);
   const renameList = useCollectionStore((s) => s.renameList);
   const deleteList = useCollectionStore((s) => s.deleteList);
+  const deleteAllLists = useCollectionStore((s) => s.deleteAllLists);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
@@ -129,6 +130,16 @@ export function ListsPage() {
       danger: true,
     });
     if (ok) deleteList(id);
+  };
+
+  const handleDeleteAll = async () => {
+    const ok = await confirm({
+      title: `Delete all ${lists.length} lists?`,
+      body: `Every list and all of its entries will be removed. This cannot be undone.`,
+      confirmLabel: 'Delete all lists',
+      danger: true,
+    });
+    if (ok) deleteAllLists();
   };
 
   // Per-list view: the real entries view (add via Scryfall search, the
@@ -268,6 +279,18 @@ export function ListsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {lists.length > 1 && (
+        <div className="binders-index-danger">
+          <button
+            type="button"
+            className="btn-link binders-index-danger-btn"
+            onClick={() => void handleDeleteAll()}
+          >
+            Delete all lists
+          </button>
+        </div>
       )}
 
       {confirmDialog}

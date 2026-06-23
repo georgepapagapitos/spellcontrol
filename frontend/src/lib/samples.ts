@@ -25,7 +25,8 @@ interface SampleBinderTemplate {
  * first-match-wins (see `materialize.ts`), so order is chosen so each binder
  * catches cards without starving the next.
  *
- *   1. Commanders         — typeChip 'legendary creature' + commander legal
+ *   1. Commanders         — commanderEligible toggle (legendary creatures +
+ *                            "can be your commander" cards, Commander-legal)
  *   2. Removal & counters — Scryfall oracle tags 'removal' OR 'counterspell'
  *   3. Mana rocks         — Scryfall oracle tag 'mana-rock'
  */
@@ -40,15 +41,12 @@ export const SAMPLE_BINDERS: SampleBinderTemplate[] = [
       fixedCapacity: null,
       filterGroups: [
         {
+          // Single commander-eligibility toggle — cleaner and more correct than
+          // typeChip 'legendary creature' + commander-legal: it also catches
+          // planeswalker/"can be your commander" cards and excludes
+          // banned-in-Commander legends. See lib/commanders.ts:isCommanderEligible.
           filter: {
-            typeChips: {
-              chips: [{ value: 'legendary creature', negate: false }],
-              joiners: [],
-            },
-            legalities: {
-              chips: [{ value: 'commander', negate: false }],
-              joiners: [],
-            },
+            commanderEligible: true,
           },
         },
       ],

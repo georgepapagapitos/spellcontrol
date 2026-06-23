@@ -1001,6 +1001,14 @@ describe('binder CRUD', () => {
     expect(useCollectionStore.getState().activeTab).toBe('uncategorized');
   });
 
+  it('deleteAllLists clears every list', () => {
+    useCollectionStore.getState().createList('Wishlist');
+    useCollectionStore.getState().createList('Trade pile');
+    expect(useCollectionStore.getState().lists).toHaveLength(2);
+    useCollectionStore.getState().deleteAllLists();
+    expect(useCollectionStore.getState().lists).toEqual([]);
+  });
+
   it('moveBinder swaps neighbors and no-ops at the boundary / unknown id', () => {
     useCollectionStore.setState({
       binders: [makeBinder({ id: 'b1', position: 0 }), makeBinder({ id: 'b2', position: 1 })],
