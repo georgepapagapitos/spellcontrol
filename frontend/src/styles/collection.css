@@ -1464,6 +1464,62 @@ i.ss.set-symbol--mythic {
   border: 1px solid var(--border);
 }
 
+/* Loading skeleton for the list table — placeholder rows that mirror the real
+   row's thumb + two text lines, shown while a list's printing-reference entries
+   resolve to full card data (name → card). Replaces a layout-shifting
+   "Loading…" line; reuses the global skeleton-shimmer keyframe. */
+.collection-list-row-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.collection-list-skeleton-thumb {
+  width: 36px;
+  height: 50px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.collection-list-skeleton-lines {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.collection-list-skeleton-bar {
+  height: 0.6rem;
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.collection-list-skeleton-bar.is-name {
+  width: 45%;
+}
+
+.collection-list-skeleton-bar.is-meta {
+  width: 28%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .collection-list-skeleton-thumb,
+  .collection-list-skeleton-bar {
+    background: linear-gradient(
+      100deg,
+      var(--surface) 30%,
+      var(--surface-raised) 50%,
+      var(--surface) 70%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
 /* Select-mode toggle — a .toolbar-pill (matches the Sort menu + view
    toggle it sits beside). Active = selection mode is on; it fills with
    accent like the segmented view toggle's active segment so an enabled
