@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react';
+import { BookOpen, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
@@ -246,7 +246,12 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
             className="toolbar-pill binder-summary-collapse"
             onClick={allCollapsed ? expandAll : collapseAll}
           >
-            {allCollapsed ? 'Expand all' : 'Collapse all'}
+            {allCollapsed ? (
+              <ChevronsUpDown width={13} height={13} strokeWidth={1.8} aria-hidden />
+            ) : (
+              <ChevronsDownUp width={13} height={13} strokeWidth={1.8} aria-hidden />
+            )}
+            <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
           </button>
         )}
         {viewToggle && <div className="binder-summary-viewmode">{viewToggle}</div>}
