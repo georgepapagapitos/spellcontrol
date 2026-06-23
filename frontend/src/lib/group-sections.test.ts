@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import type { SectionMeta } from '@spellcontrol/binder-routing';
-import { buildGridLayout, groupRowsIntoSections, type SectionHeader } from './group-sections';
+import {
+  buildGridLayout,
+  buildListLayout,
+  groupRowsIntoSections,
+  type SectionHeader,
+} from './group-sections';
 
 interface TestRow {
   id: string;
@@ -148,5 +153,54 @@ describe('buildGridLayout', () => {
   it('returns an empty layout for zero rows and no trailing item', () => {
     expect(buildGridLayout(0, 4, null)).toEqual([]);
     expect(buildGridLayout(0, 4, new Map())).toEqual([]);
+  });
+
+  it('folds a collapsed section to its header alone, keeping later sections intact', () => {
+    const headers = new Map<number, SectionHeader>([
+      [0, hdr('A', 3)],
+      [3, hdr('B', 2)],
+    ]);
+    const layout = buildGridLayout(5, 2, headers, 0, new Set(['A']));
+    expect(layout).toEqual([
+      { kind: 'header', meta: { key: 'A', label: 'A', order: 0 }, count: 3 },
+      { kind: 'header', meta: { key: 'B', label: 'B', order: 0 }, count: 2 },
+      { kind: 'cards', start: 3, end: 5 },
+    ]);
+  });
+});
+
+describe('buildListLayout', () => {
+  it('emits one card row per index when ungrouped', () => {
+    expect(buildListLayout(3, null)).toEqual([
+      { kind: 'card', index: 0 },
+      { kind: 'card', index: 1 },
+      { kind: 'card', index: 2 },
+    ]);
+  });
+
+  it('opens each section with a header, then one row per card', () => {
+    const headers = new Map<number, SectionHeader>([
+      [0, hdr('A', 2)],
+      [2, hdr('B', 1)],
+    ]);
+    expect(buildListLayout(3, headers)).toEqual([
+      { kind: 'header', meta: { key: 'A', label: 'A', order: 0 }, count: 2 },
+      { kind: 'card', index: 0 },
+      { kind: 'card', index: 1 },
+      { kind: 'header', meta: { key: 'B', label: 'B', order: 0 }, count: 1 },
+      { kind: 'card', index: 2 },
+    ]);
+  });
+
+  it('drops a collapsed section’s card rows but keeps its header', () => {
+    const headers = new Map<number, SectionHeader>([
+      [0, hdr('A', 2)],
+      [2, hdr('B', 1)],
+    ]);
+    expect(buildListLayout(3, headers, new Set(['A']))).toEqual([
+      { kind: 'header', meta: { key: 'A', label: 'A', order: 0 }, count: 2 },
+      { kind: 'header', meta: { key: 'B', label: 'B', order: 0 }, count: 1 },
+      { kind: 'card', index: 2 },
+    ]);
   });
 });

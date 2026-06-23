@@ -71,6 +71,10 @@ export type GridLayoutRow =
  * fills the final partial card row (matching the pre-grouping layout); grouped,
  * it lands on its own trailing row after every section.
  *
+ * `collapsed` is the set of section `meta.key`s whose cards are hidden: the
+ * header still emits, but its card chunks are skipped (the section folds to its
+ * header alone).
+ *
  * Pure so the grid virtualizer's row count + per-row height estimate can be
  * derived without React and unit-tested directly.
  */
@@ -78,7 +82,8 @@ export function buildGridLayout(
   rowCount: number,
   gridCols: number,
   sectionHeaders: Map<number, SectionHeader> | null,
-  trailingItems = 0
+  trailingItems = 0,
+  collapsed?: ReadonlySet<string>
 ): GridLayoutRow[] {
   const cols = Math.max(1, gridCols);
   const out: GridLayoutRow[] = [];
@@ -98,8 +103,47 @@ export function buildGridLayout(
     const endIdx = bi + 1 < boundaries.length ? boundaries[bi + 1] : rowCount;
     const header = sectionHeaders.get(startIdx);
     if (header) out.push({ kind: 'header', meta: header.meta, count: header.count });
-    chunk(startIdx, endIdx);
+    if (!header || !collapsed?.has(header.meta.key)) chunk(startIdx, endIdx);
   });
   if (trailingItems > 0) chunk(rowCount, rowCount + trailingItems);
+  return out;
+}
+
+/**
+ * One row of the grouped list/compact view: either a section header or a single
+ * card (`index` into the flat grouped row list). The list mirrors the grid's
+ * header-as-own-row model so a collapsed section keeps a tappable header with no
+ * card rows below it.
+ */
+export type ListLayoutRow =
+  | { kind: 'header'; meta: SectionHeader['meta']; count: number }
+  | { kind: 'card'; index: number };
+
+/**
+ * Flatten `rowCount` grouped cards into the list/compact virtualizer's row list:
+ * a header opens each section, then one row per card (collapsed sections emit
+ * only their header). With no `sectionHeaders` it's a flat run of card rows.
+ *
+ * Pure for direct unit testing, like {@link buildGridLayout}.
+ */
+export function buildListLayout(
+  rowCount: number,
+  sectionHeaders: Map<number, SectionHeader> | null,
+  collapsed?: ReadonlySet<string>
+): ListLayoutRow[] {
+  const out: ListLayoutRow[] = [];
+  if (!sectionHeaders || sectionHeaders.size === 0) {
+    for (let i = 0; i < rowCount; i++) out.push({ kind: 'card', index: i });
+    return out;
+  }
+  const boundaries = [...sectionHeaders.keys()].sort((a, b) => a - b);
+  boundaries.forEach((startIdx, bi) => {
+    const endIdx = bi + 1 < boundaries.length ? boundaries[bi + 1] : rowCount;
+    const header = sectionHeaders.get(startIdx);
+    if (header) out.push({ kind: 'header', meta: header.meta, count: header.count });
+    if (!header || !collapsed?.has(header.meta.key)) {
+      for (let i = startIdx; i < endIdx; i++) out.push({ kind: 'card', index: i });
+    }
+  });
   return out;
 }
