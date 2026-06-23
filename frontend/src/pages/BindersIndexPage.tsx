@@ -1,12 +1,15 @@
 import {
   AlignJustify,
+  ArrowDown,
+  ArrowUp,
   LayoutGrid,
   List as ListIconLucide,
-  MoreVertical,
+  Pencil,
   Plus,
+  Trash2,
   Upload,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { Link } from 'react-router-dom';
@@ -22,6 +25,7 @@ import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { importText } from '../lib/api';
@@ -330,14 +334,37 @@ export function BindersIndexPage() {
                   </div>
                 </div>
               </Link>
-              <BinderCardMenu
-                canMoveUp={idx > 0}
-                canMoveDown={idx < sorted.length - 1}
-                isPositionSort={sortField === 'position' && sortDir === 'asc'}
-                onMoveUp={() => moveBinder(b.def.id, 'up')}
-                onMoveDown={() => moveBinder(b.def.id, 'down')}
-                onEdit={() => setEditingBinder(b.def.id)}
-                onDelete={() => void handleDelete(b.def.id, b.def.name)}
+              <OverflowMenu
+                className="binders-index-card-menu"
+                triggerClassName="binders-index-card-menu-btn"
+                ariaLabel={`Actions for ${b.def.name}`}
+                items={[
+                  // Suppress reorder unless sorted by position asc — moving
+                  // wouldn't visibly change a name/count-sorted list.
+                  ...(sortField === 'position' && sortDir === 'asc'
+                    ? [
+                        {
+                          label: 'Move up',
+                          icon: ArrowUp,
+                          disabled: idx === 0,
+                          onClick: () => moveBinder(b.def.id, 'up'),
+                        },
+                        {
+                          label: 'Move down',
+                          icon: ArrowDown,
+                          disabled: idx === sorted.length - 1,
+                          onClick: () => moveBinder(b.def.id, 'down'),
+                        },
+                      ]
+                    : []),
+                  { label: 'Edit binder', icon: Pencil, onClick: () => setEditingBinder(b.def.id) },
+                  {
+                    label: 'Delete binder',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => void handleDelete(b.def.id, b.def.name),
+                  },
+                ]}
               />
             </li>
           ))}
@@ -452,142 +479,6 @@ function SamplesIntroDialog({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function BinderCardMenu({
-  canMoveUp,
-  canMoveDown,
-  isPositionSort,
-  onMoveUp,
-  onMoveDown,
-  onEdit,
-  onDelete,
-}: {
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  isPositionSort: boolean;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useLockBodyScroll(open);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  // Suppress move actions when the user has sorted by something other than
-  // position — reordering wouldn't visibly change the list and would just
-  // be confusing.
-  const showReorder = isPositionSort;
-
-  return (
-    <div className="binders-index-card-menu" ref={ref}>
-      <button
-        type="button"
-        className="binders-index-card-menu-btn"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Binder actions"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-      >
-        <MoreVertical width={18} height={18} strokeWidth={2.2} aria-hidden />
-      </button>
-      {open && (
-        <>
-          <div
-            className="binders-index-card-menu-backdrop"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setOpen(false);
-            }}
-            aria-hidden
-          />
-          <div className="binders-index-card-menu-panel" role="menu">
-            <div className="binders-index-card-menu-handle" aria-hidden />
-            {showReorder && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="binders-index-card-menu-item"
-                  disabled={!canMoveUp}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setOpen(false);
-                    onMoveUp();
-                  }}
-                >
-                  Move up
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="binders-index-card-menu-item"
-                  disabled={!canMoveDown}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setOpen(false);
-                    onMoveDown();
-                  }}
-                >
-                  Move down
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              className="binders-index-card-menu-item"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                onEdit();
-              }}
-            >
-              Edit binder
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="binders-index-card-menu-item binders-index-card-menu-item--danger"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                onDelete();
-              }}
-            >
-              Delete binder
-            </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }
