@@ -2,14 +2,17 @@ import {
   AlignJustify,
   CircleAlert,
   Download,
+  GitCompareArrows,
   LayoutGrid,
   List as ListIconLucide,
-  MoreVertical,
   Package,
   Plus,
+  RefreshCw,
+  Share2,
+  Trash2,
   Wand2,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
@@ -551,14 +554,37 @@ export function DecksIndexPage() {
                     </div>
                   </div>
                 </Link>
-                <DeckCardMenu
-                  canRegenerate={deck.source === 'generated' && !!deck.commander}
-                  onRegenerate={() => handleRegenerate(deck)}
-                  onShare={() => setShareDeck(deck)}
-                  onCompare={
-                    decks.length >= 2 ? () => navigate(`/decks/compare?a=${deck.id}`) : undefined
-                  }
-                  onDelete={() => handleDelete(deck)}
+                <OverflowMenu
+                  className="decks-index-card-menu"
+                  triggerClassName="decks-index-card-menu-btn"
+                  ariaLabel={`Actions for ${deck.name}`}
+                  items={[
+                    ...(deck.source === 'generated' && deck.commander
+                      ? [
+                          {
+                            label: 'Re-generate',
+                            icon: RefreshCw,
+                            onClick: () => handleRegenerate(deck),
+                          },
+                        ]
+                      : []),
+                    { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
+                    ...(decks.length >= 2
+                      ? [
+                          {
+                            label: 'Compare',
+                            icon: GitCompareArrows,
+                            onClick: () => navigate(`/decks/compare?a=${deck.id}`),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: 'Delete',
+                      icon: Trash2,
+                      danger: true,
+                      onClick: () => handleDelete(deck),
+                    },
+                  ]}
                 />
               </li>
             );
@@ -585,120 +611,6 @@ export function DecksIndexPage() {
           resourceLabel={shareDeck.name}
           onClose={() => setShareDeck(null)}
         />
-      )}
-    </div>
-  );
-}
-
-function DeckCardMenu({
-  canRegenerate,
-  onRegenerate,
-  onShare,
-  onCompare,
-  onDelete,
-}: {
-  canRegenerate: boolean;
-  onRegenerate: () => void;
-  onShare?: () => void;
-  onCompare?: () => void;
-  onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="decks-index-card-menu" ref={wrapperRef}>
-      <button
-        type="button"
-        className="decks-index-card-menu-btn"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Deck actions"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-      >
-        <MoreVertical width={18} height={18} strokeWidth={2.2} aria-hidden />
-      </button>
-      {open && (
-        <div className="decks-index-card-menu-panel" role="menu">
-          {canRegenerate && (
-            <button
-              type="button"
-              role="menuitem"
-              className="decks-index-card-menu-item"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                onRegenerate();
-              }}
-            >
-              Re-generate
-            </button>
-          )}
-          {onShare && (
-            <button
-              type="button"
-              role="menuitem"
-              className="decks-index-card-menu-item"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                onShare();
-              }}
-            >
-              Share
-            </button>
-          )}
-          {onCompare && (
-            <button
-              type="button"
-              role="menuitem"
-              className="decks-index-card-menu-item"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpen(false);
-                onCompare();
-              }}
-            >
-              Compare
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            className="decks-index-card-menu-item decks-index-card-menu-item--danger"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setOpen(false);
-              onDelete();
-            }}
-          >
-            Delete
-          </button>
-        </div>
       )}
     </div>
   );

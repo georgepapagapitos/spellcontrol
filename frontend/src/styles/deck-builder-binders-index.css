@@ -346,59 +346,6 @@
   color: #fff;
 }
 
-.binders-index-card-menu-backdrop {
-  display: none;
-}
-
-.binders-index-card-menu-handle {
-  display: none;
-}
-
-.binders-index-card-menu-panel {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  right: 0;
-  z-index: var(--z-dropdown);
-  min-width: 10rem;
-  background: var(--surface);
-  border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-tooltip);
-  display: flex;
-  flex-direction: column;
-  padding: 0.25rem;
-}
-
-.binders-index-card-menu-item {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  padding: 0.5rem 0.6rem;
-  border-radius: var(--radius);
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-
-.binders-index-card-menu-item:hover:not(:disabled) {
-  background: var(--surface-raised);
-}
-
-.binders-index-card-menu-item:disabled {
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
-
-.binders-index-card-menu-item--danger {
-  color: var(--err-text);
-}
-
-.binders-index-card-menu-item--danger:hover {
-  background: var(--err-bg);
-}
-
 .binders-index-danger,
 .decks-index-danger {
   margin-top: 0.5rem;

@@ -9,6 +9,8 @@ export interface OverflowMenuItem {
   onClick: () => void;
   icon?: LucideIcon;
   danger?: boolean;
+  /** Render the item disabled (non-interactive, muted). */
+  disabled?: boolean;
 }
 
 interface Props {
@@ -138,6 +140,7 @@ export function OverflowMenu({
                   key={item.label}
                   type="button"
                   role="menuitem"
+                  disabled={item.disabled}
                   className={`deck-row-menu-item${item.danger ? ' deck-row-menu-item--danger' : ''}`}
                   onClick={() => {
                     closeAndReturnFocus();
