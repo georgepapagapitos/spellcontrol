@@ -349,6 +349,9 @@ export function CollabCube() {
                     aria-label={`Build with ${f.username}`}
                   />
                   <span className="cube-collab-friend-name">{f.username}</span>
+                  <span className="cube-collab-friend-count">
+                    {f.cardCount.toLocaleString()} {f.cardCount === 1 ? 'card' : 'cards'}
+                  </span>
                 </label>
               );
             })}

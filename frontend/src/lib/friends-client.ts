@@ -20,6 +20,8 @@ export interface Friend {
   id: string;
   username: string;
   friendedAt: number;
+  /** Unique cards (by oracle id) in the friend's collection. */
+  cardCount: number;
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {

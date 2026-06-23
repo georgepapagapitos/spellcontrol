@@ -345,6 +345,45 @@ describe('GET /api/friends', () => {
     const bobFriends = await request(app).get('/api/friends').set('Cookie', bob);
     expect(bobFriends.body.friends).toHaveLength(0);
   });
+
+  it('reports per-friend unique card count (distinct oracleId, excludes deleted, 0 when empty)', async () => {
+    const alice = await makeUserFull('gfc-alice');
+    const bob = await makeUserFull('gfc-bob');
+    await befriend(alice, bob);
+
+    // Bob: 3 rows but only 2 unique oracle ids (Sol Ring duplicated).
+    await seedUserCards(bob.id, [
+      { name: 'Sol Ring', oracleId: 'o-sol' },
+      { name: 'Sol Ring', oracleId: 'o-sol' },
+      { name: 'Counterspell', oracleId: 'o-counter' },
+    ]);
+    // A soft-deleted row must not be counted.
+    await pool.query(
+      `INSERT INTO user_cards (user_id, id, import_id, data, rev, updated_at, deleted_at)
+       VALUES ($1, $2, $3, $4, nextval('user_data_rev_seq'), $5, $6)`,
+      [
+        bob.id,
+        `card-${bob.id}-deleted`,
+        'import-1',
+        JSON.stringify({ name: 'Wrath of God', oracleId: 'o-wrath' }),
+        Date.now(),
+        Date.now(),
+      ]
+    );
+
+    const aliceFriends = await request(app).get('/api/friends').set('Cookie', alice.cookie);
+    const bobRow = aliceFriends.body.friends.find(
+      (f: { username: string }) => f.username === 'gfc-bob'
+    );
+    expect(bobRow.cardCount).toBe(2);
+
+    // Alice has no cards → 0 (COALESCE), not null/undefined.
+    const bobFriends = await request(app).get('/api/friends').set('Cookie', bob.cookie);
+    const aliceRow = bobFriends.body.friends.find(
+      (f: { username: string }) => f.username === 'gfc-alice'
+    );
+    expect(aliceRow.cardCount).toBe(0);
+  });
 });
 
 // ─── GET /api/friends/requests ────────────────────────────────────────────────
