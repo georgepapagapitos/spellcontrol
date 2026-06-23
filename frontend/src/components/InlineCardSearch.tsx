@@ -16,6 +16,13 @@ interface Props {
   query: string;
   /** When provided, a Hide control is shown that calls this. */
   onClose?: () => void;
+  /**
+   * Add action. Defaults to adding the card to the collection
+   * (`store.addCard`). Pass to retarget the same results UI elsewhere — e.g.
+   * the list view adds a list entry instead. Receives the chosen printing and
+   * finish (finish omitted on a plain quick-add → the result's default).
+   */
+  onAdd?: (card: ScryfallCard, finish?: Finish) => Promise<void> | void;
 }
 
 const RESULT_LIMIT = 60;
@@ -48,7 +55,7 @@ function cardThumb(card: ScryfallCard): string | undefined {
  * finish can be chosen inline. All network goes through the shared
  * rate-limited, cached client.
  */
-export function InlineCardSearch({ query, onClose }: Props) {
+export function InlineCardSearch({ query, onClose, onAdd }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
   const collection = useCollectionStore((s) => s.cards);
 
@@ -98,12 +105,14 @@ export function InlineCardSearch({ query, onClose }: Props) {
     setAddedCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
 
   const quickAdd = async (card: ScryfallCard) => {
-    await addCard(card);
+    if (onAdd) await onAdd(card);
+    else await addCard(card);
     confirm(card.id);
   };
 
   const addPrinting = async (card: ScryfallCard, finish: Finish) => {
-    await addCard(card, finish);
+    if (onAdd) await onAdd(card, finish);
+    else await addCard(card, finish);
     confirm(card.id);
   };
 
