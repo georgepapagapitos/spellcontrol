@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
+import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
@@ -435,9 +436,13 @@ export function DecksIndexPage() {
           {sorted.map((deck) => {
             const totalCards =
               (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
-            const art =
+            // Heal decks whose commander was added offline before the slim
+            // inflater derived a real crop: those rows have the full-card URL
+            // baked into art_crop. The swap is a no-op for real crop URLs.
+            const rawArt =
               deck.commander?.image_uris?.art_crop ??
               deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
+            const art = rawArt ? scryfallArtCrop(rawArt) : rawArt;
             const colors = effectiveDeckColors(deck);
             // For non-commander decks sort by how often each color shows up in
             // the cards; commander decks fall through to WUBRG order since
