@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { slimToScryfall } from './slim-to-scryfall';
+import { slimToScryfall, scryfallArtCrop } from './slim-to-scryfall';
 import type { SlimCard } from './types';
 
 describe('slimToScryfall', () => {
@@ -64,6 +64,36 @@ describe('slimToScryfall', () => {
       set: 'tok',
     };
     expect(slimToScryfall(slim).image_uris).toBeUndefined();
+  });
+
+  it('derives the real art_crop from the normal image instead of the full card', () => {
+    const slim: SlimCard = {
+      oracleId: 'o',
+      scryfallId: 's',
+      name: 'High Perfect Morcant',
+      cmc: 4,
+      typeLine: 'Legendary Creature — Elf Noble',
+      colors: ['B', 'G'],
+      colorIdentity: ['B', 'G'],
+      keywords: [],
+      legalities: { commander: 'legal' },
+      set: 'fin',
+      imageNormal: 'https://cards.scryfall.io/normal/front/d/f/dfe7b8bf.jpg?1',
+    };
+    const card = slimToScryfall(slim);
+    expect(card.image_uris?.art_crop).toBe(
+      'https://cards.scryfall.io/art_crop/front/d/f/dfe7b8bf.jpg?1'
+    );
+    // normal stays the full-card image
+    expect(card.image_uris?.normal).toBe(
+      'https://cards.scryfall.io/normal/front/d/f/dfe7b8bf.jpg?1'
+    );
+  });
+
+  it('scryfallArtCrop is a no-op for URLs without a /normal/ segment', () => {
+    expect(scryfallArtCrop('https://example/art_crop/x.jpg')).toBe(
+      'https://example/art_crop/x.jpg'
+    );
   });
 
   it('passes through DFC faces', () => {
