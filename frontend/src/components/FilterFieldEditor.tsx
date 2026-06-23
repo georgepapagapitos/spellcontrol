@@ -8,10 +8,11 @@
  * NumberRangeInput directly. FilterFieldEditor covers the rows that are
  * structurally identical in both consumers.
  */
-import { useMemo, type ReactNode } from 'react';
-import type { BinderFilter, ChipExpression } from '../types';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import type { BinderFilter, ChipExpression, ScryfallQueryRule } from '../types';
 import { SUPERTYPES, TYPES } from '../lib/card-types';
 import { cardTagLabel, listCardTags, useCardTagsReady } from '../lib/card-tags';
+import { searchCardsLive } from '@/deck-builder/services/scryfall/client';
 import { ChipExpressionBuilder } from './ChipExpressionBuilder';
 import { InfoTip } from './InfoTip';
 
@@ -140,6 +141,13 @@ export interface FilterFieldEditorProps {
    */
   showOracleTags?: boolean;
   /**
+   * Show the "Scryfall query" row — a free-text Scryfall search (e.g.
+   * "is:shockland") snapshot-resolved to oracle ids against the live API.
+   * Binder-only: matching needs `card.oracleId`, which the collection filter
+   * dialog's predicate doesn't use.
+   */
+  showScryfallQuery?: boolean;
+  /**
    * Show the Finish row. Collection page passes true (physical copy field).
    * BinderEditor renders its own Finishes row and passes false (or omits).
    */
@@ -187,6 +195,126 @@ function DialogRow({ label, children }: { label: ReactNode; children: ReactNode 
   );
 }
 
+/**
+ * Free-text Scryfall query, snapshot-resolved to oracle ids. The draft lives in
+ * local state and is only committed (with its resolved ids) on "Run" — so the
+ * binder isn't dirtied by typing, and an edited-but-unrun query is visibly
+ * pending. Scryfall's curated filters can't run offline, hence the snapshot +
+ * manual re-run model rather than live evaluation.
+ */
+const MAX_RESOLVED_IDS = 2000;
+
+function ScryfallQueryRow({
+  value,
+  onChange,
+}: {
+  value?: ScryfallQueryRule;
+  onChange: (next: ScryfallQueryRule | undefined) => void;
+}) {
+  const [draft, setDraft] = useState(value?.query ?? '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
+
+  // The draft seeds from the persisted query on mount; the caller keys this
+  // component by that query, so it remounts (re-seeding) when the rule changes
+  // identity beneath us (group duplicated, editor reopened on a different rule).
+  const trimmed = draft.trim();
+  const applied = value?.resolvedAt !== undefined && value.query === trimmed;
+  const canRun = trimmed.length > 0 && !loading && !applied;
+
+  const run = useCallback(async () => {
+    const q = draft.trim();
+    if (!q) return;
+    setLoading(true);
+    setError(null);
+    setTruncated(false);
+    try {
+      const ids = new Set<string>();
+      let page = 1;
+      let hasMore = true;
+      let cut = false;
+      while (hasMore) {
+        const res = await searchCardsLive(q, [], {
+          skipFormatFilter: true,
+          skipColorFilter: true,
+          page,
+        });
+        for (const c of res.data) if (c.oracle_id) ids.add(c.oracle_id);
+        if (ids.size >= MAX_RESOLVED_IDS) {
+          cut = true;
+          break;
+        }
+        hasMore = res.has_more;
+        page++;
+      }
+      setTruncated(cut);
+      onChange({ query: q, oracleIds: [...ids], resolvedAt: Date.now() });
+    } catch (e) {
+      // Scryfall 404s a query that matches nothing — that's a valid empty
+      // result, not a failure.
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('404')) {
+        onChange({ query: q, oracleIds: [], resolvedAt: Date.now() });
+      } else {
+        setError('Search failed — check the query syntax and try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [draft, onChange]);
+
+  const clear = useCallback(() => {
+    setDraft('');
+    setError(null);
+    setTruncated(false);
+    onChange(undefined);
+  }, [onChange]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input
+          type="text"
+          value={draft}
+          placeholder="e.g. is:shockland"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && canRun) {
+              e.preventDefault();
+              void run();
+            }
+          }}
+          style={{ flex: 1, minWidth: 0 }}
+        />
+        <button type="button" className="btn" onClick={() => void run()} disabled={!canRun}>
+          {loading ? 'Running…' : applied ? 'Run' : value?.resolvedAt ? 'Re-run' : 'Run'}
+        </button>
+        {value !== undefined && (
+          <button type="button" className="btn btn-ghost" onClick={clear} disabled={loading}>
+            Clear
+          </button>
+        )}
+      </div>
+      <span
+        role="status"
+        aria-live="polite"
+        style={{ fontSize: '0.78rem', color: error ? 'var(--danger)' : 'var(--text-muted)' }}
+      >
+        {error
+          ? error
+          : loading
+            ? 'Searching Scryfall…'
+            : value?.resolvedAt !== undefined
+              ? `${value.oracleIds.length.toLocaleString()} ${value.oracleIds.length === 1 ? 'card' : 'cards'} matched${truncated ? ` (capped at ${MAX_RESOLVED_IDS.toLocaleString()})` : ''} · resolved ${new Date(value.resolvedAt).toLocaleDateString()}${applied ? '' : ' · edited — re-run to apply'}`
+              : trimmed
+                ? 'Press Run to resolve this query.'
+                : 'Matches the live Scryfall result set, snapshot to your owned cards.'}
+      </span>
+    </div>
+  );
+}
+
 export function FilterFieldEditor({
   value,
   onPatch,
@@ -194,6 +322,7 @@ export function FilterFieldEditor({
   oracleSuggestions = [],
   showTypeRows = false,
   showOracleTags = false,
+  showScryfallQuery = false,
   showFinish = false,
   variant = 'binder',
 }: FilterFieldEditorProps) {
@@ -239,6 +368,27 @@ export function FilterFieldEditor({
             onChange={(next) => onPatch({ oracleTagChips: next })}
             defaultJoiner="OR"
             placeholder={tagsReady ? 'Add tag…' : 'Loading tags…'}
+          />
+        </Row>
+      )}
+
+      {/* Scryfall query — resolved to oracle ids against the live API. */}
+      {showScryfallQuery && (
+        <Row
+          label={
+            <>
+              Scryfall query{' '}
+              <InfoTip
+                label="Scryfall query filter"
+                text="Run any Scryfall search (e.g. is:shockland, is:dual, t:goblin o:haste) and the binder catches every owned card it returns. Scryfall's curated filters can't run offline, so we snapshot the results — re-run after new sets release to pick up new printings."
+              />
+            </>
+          }
+        >
+          <ScryfallQueryRow
+            key={value.scryfallQuery?.query ?? ''}
+            value={value.scryfallQuery}
+            onChange={(next) => onPatch({ scryfallQuery: next })}
           />
         </Row>
       )}

@@ -365,6 +365,20 @@ export interface BinderFilter {
    * (see lib/commanders.ts:isCommanderEligible).
    */
   commanderEligible?: boolean;
+  /**
+   * A Scryfall search query (e.g. "is:shockland") snapshot-resolved to oracle
+   * ids. Scryfall's curated filters can't be evaluated offline, so the editor
+   * resolves the query against the live API once and stores `oracleIds`;
+   * matching is plain `card.oracleId` membership. Mirrors the authoritative
+   * definition in @spellcontrol/binder-routing.
+   */
+  scryfallQuery?: ScryfallQueryRule;
+}
+
+export interface ScryfallQueryRule {
+  query: string;
+  oracleIds: string[];
+  resolvedAt?: number;
 }
 
 /**

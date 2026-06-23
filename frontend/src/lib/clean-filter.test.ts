@@ -104,4 +104,23 @@ describe('cleanFilter', () => {
       manaCost: '{1}{R}',
     });
   });
+
+  it('preserves a resolved scryfallQuery through save (whitelist regression guard)', () => {
+    const f: BinderFilter = {
+      scryfallQuery: { query: 'is:shockland', oracleIds: ['a', 'b'], resolvedAt: 123 },
+    };
+    expect(cleanFilter(f)).toEqual(f);
+  });
+
+  it('trims the query and keeps empty oracleIds (authored but unresolved)', () => {
+    expect(cleanFilter({ scryfallQuery: { query: '  is:dual  ', oracleIds: [] } })).toEqual({
+      scryfallQuery: { query: 'is:dual', oracleIds: [] },
+    });
+  });
+
+  it('drops a blank-query scryfallQuery entirely', () => {
+    expect('scryfallQuery' in cleanFilter({ scryfallQuery: { query: '   ', oracleIds: [] } })).toBe(
+      false
+    );
+  });
 });

@@ -60,5 +60,16 @@ export function cleanFilter(f: BinderFilter): BinderFilter {
   if (f.nameContains?.trim()) out.nameContains = f.nameContains.trim();
   if (f.edhrecRankMax !== undefined && !isNaN(f.edhrecRankMax)) out.edhrecRankMax = f.edhrecRankMax;
   if (f.commanderEligible !== undefined) out.commanderEligible = f.commanderEligible;
+  // Persist a Scryfall query only once it has actual query text. The resolved
+  // oracleIds ride along (may be empty if the user hasn't run it yet).
+  if (f.scryfallQuery?.query.trim()) {
+    out.scryfallQuery = {
+      query: f.scryfallQuery.query.trim(),
+      oracleIds: f.scryfallQuery.oracleIds ?? [],
+      ...(f.scryfallQuery.resolvedAt !== undefined
+        ? { resolvedAt: f.scryfallQuery.resolvedAt }
+        : {}),
+    };
+  }
   return out;
 }
