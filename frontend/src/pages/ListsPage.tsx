@@ -1,11 +1,38 @@
-import { Plus } from 'lucide-react';
+import { AlignJustify, List as ListIconLucide, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useConfirm } from '../lib/use-confirm';
+import { useStoredSort } from '../lib/use-stored-sort';
+import { useStoredView } from '../lib/use-stored-view';
+import { useDebouncedValue } from '../lib/use-debounced-value';
+import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { SortDirArrow } from '../components/SortDirArrow';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { SearchPill } from '../components/SearchPill';
+import { OverflowMenu } from '../components/OverflowMenu';
 import { ListEntriesView } from '../components/ListEntriesView';
 import { ShareDialog } from '../components/ShareDialog';
 import { NameInputDialog } from '../components/NameInputDialog';
+
+type ListSortField = 'order' | 'name' | 'entries';
+type SortDir = 'asc' | 'desc';
+// Lists have no per-item color, so the binder/deck "grid" tile (a colored
+// banner you skim to tell items apart) would render as identical accent
+// banners. Only the two density-distinct row layouts are meaningful here.
+type ListsViewMode = 'list' | 'compact';
+
+const SORT_OPTIONS: SelectOption<ListSortField>[] = [
+  { value: 'order', label: 'Order' },
+  { value: 'name', label: 'Name' },
+  { value: 'entries', label: 'Entry count' },
+];
+
+const SORT_DEFAULT_DIR: Record<ListSortField, SortDir> = {
+  order: 'asc',
+  name: 'asc',
+  entries: 'desc',
+};
 
 export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
@@ -21,7 +48,41 @@ export function ListsPage() {
     { mode: 'create' } | { mode: 'rename'; id: string; current: string } | null
   >(null);
 
-  const sorted = useMemo(() => [...lists].sort((a, b) => a.order - b.order), [lists]);
+  const { sortField, sortDir, toggleSort } = useStoredSort<ListSortField>(
+    'lists-index-sort',
+    SORT_DEFAULT_DIR,
+    'order'
+  );
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebouncedValue(search, 180);
+  const [view, setView] = useStoredView<ListsViewMode>(
+    'mtg-lists-view-mode',
+    ['list', 'compact'],
+    'list'
+  );
+
+  const sorted = useMemo(() => {
+    const dirMul = sortDir === 'asc' ? 1 : -1;
+    const q = debouncedSearch.trim().toLowerCase();
+    const filtered = q ? lists.filter((l) => l.name.toLowerCase().includes(q)) : lists;
+    return [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'order':
+          cmp = a.order - b.order;
+          break;
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+        case 'entries':
+          cmp = a.entries.length - b.entries.length;
+          break;
+      }
+      if (cmp === 0) cmp = a.order - b.order;
+      return cmp * dirMul;
+    });
+  }, [lists, sortField, sortDir, debouncedSearch]);
+
   const activeList = useMemo(
     () => (routeId ? lists.find((l) => l.id === routeId) : undefined),
     [lists, routeId]
@@ -91,6 +152,51 @@ export function ListsPage() {
         </div>
       </header>
 
+      {lists.length > 0 && (
+        <div className="binders-index-search-row">
+          <SearchPill
+            value={search}
+            onChange={setSearch}
+            placeholder="Search lists"
+            ariaLabel="Search lists"
+          />
+        </div>
+      )}
+
+      {lists.length > 0 && (
+        <div className="binders-index-sort-bar">
+          {lists.length > 1 && (
+            <SelectMenu
+              value={sortField}
+              options={SORT_OPTIONS}
+              onChange={toggleSort}
+              ariaLabel="Sort lists by"
+              closeOnSelect={false}
+              leadingIcon={<SortDirArrow dir={sortDir} />}
+              renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
+            />
+          )}
+          <ViewModeToggle<ListsViewMode>
+            ariaLabel="Lists view mode"
+            className="binders-index-viewmode"
+            value={view}
+            onChange={setView}
+            options={[
+              {
+                value: 'list',
+                label: 'List view',
+                icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
+              {
+                value: 'compact',
+                label: 'Compact list (text only)',
+                icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+              },
+            ]}
+          />
+        </div>
+      )}
+
       {lists.length === 0 ? (
         <div className="empty-state">
           <p className="empty-state-tagline">No lists yet.</p>
@@ -104,8 +210,12 @@ export function ListsPage() {
             </button>
           </div>
         </div>
+      ) : sorted.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-state-tagline">No lists match “{search.trim()}”.</p>
+        </div>
       ) : (
-        <ul className="binders-index-list is-list">
+        <ul className={`binders-index-list is-${view}`}>
           {sorted.map((l) => (
             <li key={l.id} className="binders-index-card">
               <Link to={`/collection/lists/${l.id}`} className="binders-index-card-link">
@@ -119,29 +229,25 @@ export function ListsPage() {
                   </div>
                 </div>
               </Link>
-              <div className="binders-index-actions">
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => handleRename(l.id, l.name)}
-                >
-                  Rename
-                </button>
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => setShareList({ id: l.id, name: l.name })}
-                >
-                  Share
-                </button>
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => void handleDelete(l.id, l.name)}
-                >
-                  Delete
-                </button>
-              </div>
+              <OverflowMenu
+                className="binders-index-card-menu"
+                triggerClassName="binders-index-card-menu-btn"
+                ariaLabel={`Actions for ${l.name}`}
+                items={[
+                  { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id, l.name) },
+                  {
+                    label: 'Share',
+                    icon: Share2,
+                    onClick: () => setShareList({ id: l.id, name: l.name }),
+                  },
+                  {
+                    label: 'Delete',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => void handleDelete(l.id, l.name),
+                  },
+                ]}
+              />
             </li>
           ))}
         </ul>
