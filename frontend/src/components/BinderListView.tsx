@@ -243,7 +243,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
         {flat.sectionRows.length > 1 && (
           <button
             type="button"
-            className="btn-link binder-summary-collapse"
+            className="toolbar-pill binder-summary-collapse"
             onClick={allCollapsed ? expandAll : collapseAll}
           >
             {allCollapsed ? 'Expand all' : 'Collapse all'}
