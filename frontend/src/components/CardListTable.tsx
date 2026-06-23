@@ -924,8 +924,8 @@ export function CardListTable({
     scrollMargin,
   });
 
-  // Height of the sticky overlay — used to trigger the swap when the incoming
-  // inline header's content edge reaches the overlay's bottom edge.
+  // Fallback pin line (px) for the active-section trigger, used only until the
+  // sticky controls' bottom has been measured. Roughly one header's height.
   const OVERLAY_H = 40;
 
   // Flat sorted array of section boundary pixel offsets, recomputed whenever
@@ -995,18 +995,27 @@ export function CardListTable({
       return;
     }
     const onScroll = () => {
-      const raw = scrollEl.scrollTop - scrollMargin + OVERLAY_H;
+      // The pin line is the bottom of the sticky chrome stack (search +
+      // controls), measured live so it tracks the full stack height — not the
+      // overlay's own height. A section becomes active the moment its header
+      // reaches that line; using OVERLAY_H here instead left a dead zone where
+      // the header had slid up behind the taller controls but the overlay had
+      // not yet appeared. Re-measured here (vs the scrollTop-0 layout effect)
+      // because only once scrolled are the controls actually pinned.
+      const ctrl = controlsRowRef.current;
+      let pin = controlsBottom;
+      if (ctrl) {
+        pin = ctrl.getBoundingClientRect().bottom - scrollEl.getBoundingClientRect().top;
+        setControlsBottom((prev) => (Math.abs(prev - pin) > 0.5 ? pin : prev));
+      }
+      if (pin <= 0) pin = OVERLAY_H; // fallback before the first measurement
+      const raw = scrollEl.scrollTop - scrollMargin + pin;
       let active = -1;
       for (let i = 0; i < boundaries.length; i++) {
         if (boundaries[i].start <= raw) active = i;
         else break;
       }
       setActiveSectionIdx(active);
-      const ctrl = controlsRowRef.current;
-      if (ctrl) {
-        const cb = ctrl.getBoundingClientRect().bottom - scrollEl.getBoundingClientRect().top;
-        setControlsBottom((prev) => (Math.abs(prev - cb) > 0.5 ? cb : prev));
-      }
     };
     scrollEl.addEventListener('scroll', onScroll, { passive: true });
     // Run once immediately to sync with current scroll position.
