@@ -25,11 +25,23 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
     id: string;
     username: string;
     accepted_at: string;
+    card_count: string;
   }>(
+    // card_count is unique cards by oracle id — matches how the cube collab
+    // pool dedupes (so the picker count == what the friend can bring). The
+    // correlated subquery runs once per friend (a handful) and hits the
+    // user_cards(user_id, …) index, so it stays cheap.
     `SELECT
        CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END AS id,
        CASE WHEN f.requester_id = $1 THEN u2.username ELSE u1.username END AS username,
-       f.accepted_at
+       f.accepted_at,
+       COALESCE((
+         SELECT COUNT(DISTINCT uc.data->>'oracleId')
+         FROM user_cards uc
+         WHERE uc.user_id = CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END
+           AND uc.deleted_at IS NULL
+           AND uc.data->>'oracleId' IS NOT NULL
+       ), 0) AS card_count
      FROM friendships f
      JOIN users u1 ON u1.id = f.requester_id
      JOIN users u2 ON u2.id = f.addressee_id
@@ -43,6 +55,7 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
     id: r.id,
     username: r.username,
     friendedAt: Number(r.accepted_at),
+    cardCount: Number(r.card_count),
   }));
 
   res.json({ friends });

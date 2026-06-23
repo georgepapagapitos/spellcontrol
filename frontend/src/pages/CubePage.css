@@ -813,6 +813,14 @@
   font-weight: 500;
 }
 
+.cube-collab-friend-count {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .cube-collab-max-note {
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
