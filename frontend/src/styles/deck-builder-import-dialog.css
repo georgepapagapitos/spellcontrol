@@ -443,9 +443,13 @@
   align-items: center;
 }
 
-/* Generic kebab wrapper — panel portals to <body>, so no position:relative needed. */
+/* Generic kebab wrapper — panel portals to <body>, so no position:relative needed.
+   Centers its single trigger button (matters when a caller adds a fixed-width
+   wrapper class, e.g. the card-row `.deck-row-menu` column). */
 .overflow-menu {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Default trigger style, applied by OverflowMenu when no `triggerClassName`
