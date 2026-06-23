@@ -1,17 +1,13 @@
 import { Check, Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useSearchCards } from '../lib/use-search-cards';
-import type { ListDef, ListEntry } from '../types';
-import { FoilBadge } from './FoilBadge';
+import type { ListDef } from '../types';
 import { SearchPill } from './SearchPill';
 import { useCollectionStore } from '../store/collection';
-import { ownedCountForEntry } from '../lib/lists';
-import { formatMoney } from '../lib/format-money';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { useCardThumb } from '../lib/card-thumbs';
-import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { ListDetailView } from './ListDetailView';
 
 interface Props {
   list: ListDef;
@@ -20,42 +16,23 @@ interface Props {
 const RESULT_LIMIT = 40;
 const SEARCH_PAGE = 8;
 
-/** List-entry thumbnail: the card's CDN art resolved by name (cached + batched),
- *  or a placeholder while it loads / on a miss — never the rate-limited API host. */
-function ListEntryThumb({ name }: { name: string }) {
-  const url = useCardThumb(name, 'small');
-  return url ? (
-    <img src={url} alt="" loading="lazy" className="collection-list-thumb" />
-  ) : (
-    <div className="collection-list-thumb collection-list-thumb-placeholder" aria-hidden />
-  );
-}
-
 function cardThumb(card: ScryfallCard): string | undefined {
   return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
 }
 
 /**
- * Per-list detail view: a Scryfall search-and-add affordance (reusing the
- * shared rate-limited client, same call as InlineCardSearch) plus the list's
- * entries. Each entry is a printing reference the user does NOT own — rows
- * carry a passive "you own N" badge from the real collection, inline
- * quantity / note / target-price editors, an Edit-printing dialog, a
- * move-to-collection action, and a remove action. Deliberately does not
- * reuse CardListTable (entries are ListEntry, not EnrichedCard + copyId).
+ * Per-list detail page: a Scryfall search-and-add affordance (the only way
+ * cards enter a list — they're printings the user doesn't own) above the
+ * filterable/sortable card table (`ListDetailView`), which reuses the same
+ * filter dialog, sort, view toggle, rows and preview as the collection.
  */
 export function ListEntriesView({ list }: Props) {
-  const cards = useCollectionStore((s) => s.cards);
   const addListEntry = useCollectionStore((s) => s.addListEntry);
-  const updateListEntry = useCollectionStore((s) => s.updateListEntry);
-  const removeListEntry = useCollectionStore((s) => s.removeListEntry);
-  const moveListEntryToCollection = useCollectionStore((s) => s.moveListEntryToCollection);
 
   const [query, setQuery] = useState('');
   const q = query.trim();
   const [visible, setVisible] = useState(SEARCH_PAGE);
   const [addedIds, setAddedIds] = useState<Record<string, number>>({});
-  const [editing, setEditing] = useState<ListEntry | null>(null);
 
   const { results, loading: searching, error: searchError } = useSearchCards(query, RESULT_LIMIT);
 
@@ -69,7 +46,7 @@ export function ListEntriesView({ list }: Props) {
   const handleAdd = async (card: ScryfallCard) => {
     // Default to the latest printing Scryfall returns, nonfoil — same
     // quick-add behaviour as the collection's InlineCardSearch. The picked
-    // printing can be changed afterward via "Edit printing".
+    // printing can be changed afterward via the row's "Edit printing".
     const enriched = scryfallToEnrichedCard(card, 'nonfoil');
     await addListEntry(list.id, enriched, 1);
     setAddedIds((prev) => ({ ...prev, [card.id]: (prev[card.id] ?? 0) + 1 }));
@@ -77,29 +54,13 @@ export function ListEntriesView({ list }: Props) {
 
   const entries = list.entries;
 
-  const sortedEntries = useMemo(
-    () => [...entries].sort((a, b) => a.name.localeCompare(b.name)),
-    [entries]
-  );
-
-  const handleEditConfirm = (sel: PrintingSelection) => {
-    if (!editing) return;
-    void updateListEntry(list.id, editing.id, {
-      scryfallId: sel.card.id,
-      setCode: (sel.card.set || '').toUpperCase(),
-      collectorNumber: sel.card.collector_number || '',
-      finish: sel.finish,
-    });
-    setEditing(null);
-  };
-
   return (
     <div className="binders-index-page">
       <header className="binder-hero binders-index-hero">
         <div className="binders-index-hero-text">
           <h1 className="binder-hero-name">{list.name}</h1>
           <p className="binder-hero-meta">
-            {entries.length.toLocaleString()} {entries.length === 1 ? 'entry' : 'entries'}
+            {entries.length.toLocaleString()} {entries.length === 1 ? 'card' : 'cards'}
           </p>
         </div>
         <div className="binders-index-actions">
@@ -190,145 +151,7 @@ export function ListEntriesView({ list }: Props) {
           </p>
         </div>
       ) : (
-        <div className="collection-list" role="region" aria-label={`${list.name} entries`}>
-          {sortedEntries.map((entry) => {
-            const owned = ownedCountForEntry(entry, cards);
-            return (
-              <div key={entry.id} className="collection-list-row list-entry-row" role="row">
-                <ListEntryThumb name={entry.name} />
-                <div className="collection-list-main">
-                  <div className="collection-list-name">
-                    {entry.name}
-                    {entry.finish !== 'nonfoil' && (
-                      <FoilBadge card={{ foil: true, finishes: [entry.finish] }} showLabel />
-                    )}
-                    {owned > 0 && (
-                      <span className="list-entry-owned" title={`You own ${owned} of this card`}>
-                        own {owned}
-                      </span>
-                    )}
-                  </div>
-                  <div className="collection-list-meta">
-                    <span className="card-list-set-code">{entry.setCode.toUpperCase()}</span>
-                    <span className="card-list-cn">#{entry.collectorNumber}</span>
-                  </div>
-                  <div className="list-entry-controls">
-                    <div className="list-entry-qty" role="group" aria-label="Quantity">
-                      <button
-                        type="button"
-                        className="card-edit-qty-btn"
-                        aria-label="Decrease quantity"
-                        onClick={() =>
-                          void updateListEntry(list.id, entry.id, {
-                            quantity: Math.max(1, entry.quantity - 1),
-                          })
-                        }
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        className="card-edit-qty-input"
-                        min={1}
-                        max={99}
-                        value={entry.quantity}
-                        aria-label={`Quantity of ${entry.name}`}
-                        onChange={(e) => {
-                          const n = Math.floor(Number(e.target.value));
-                          if (Number.isFinite(n)) {
-                            void updateListEntry(list.id, entry.id, {
-                              quantity: Math.max(1, Math.min(99, n)),
-                            });
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="card-edit-qty-btn"
-                        aria-label="Increase quantity"
-                        onClick={() =>
-                          void updateListEntry(list.id, entry.id, {
-                            quantity: Math.min(99, entry.quantity + 1),
-                          })
-                        }
-                      >
-                        +
-                      </button>
-                    </div>
-                    <input
-                      type="text"
-                      className="list-entry-note"
-                      placeholder="Note"
-                      defaultValue={entry.note ?? ''}
-                      aria-label={`Note for ${entry.name}`}
-                      onBlur={(e) => {
-                        const next = e.target.value.trim();
-                        if (next !== (entry.note ?? '')) {
-                          void updateListEntry(list.id, entry.id, { note: next });
-                        }
-                      }}
-                    />
-                    <label className="list-entry-target">
-                      <span className="list-entry-target-label">Target $</span>
-                      <input
-                        type="number"
-                        className="list-entry-target-input"
-                        min={0}
-                        step={0.01}
-                        placeholder="—"
-                        defaultValue={entry.targetPrice ?? ''}
-                        aria-label={`Target price for ${entry.name}`}
-                        onBlur={(e) => {
-                          const raw = e.target.value.trim();
-                          const n = raw === '' ? 0 : Number(raw);
-                          if (Number.isFinite(n) && n !== (entry.targetPrice ?? 0)) {
-                            void updateListEntry(list.id, entry.id, {
-                              targetPrice: Math.max(0, n),
-                            });
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-                <div className="collection-list-right list-entry-actions">
-                  {entry.targetPrice != null && entry.targetPrice > 0 && (
-                    <div className="collection-list-price">
-                      target {formatMoney(entry.targetPrice)}
-                    </div>
-                  )}
-                  <button type="button" className="btn-link" onClick={() => setEditing(entry)}>
-                    Edit printing
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => void moveListEntryToCollection(list.id, entry.id)}
-                  >
-                    Move to collection
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-link btn-link-danger"
-                    onClick={() => void removeListEntry(list.id, entry.id)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {editing && (
-        <CardEditDialog
-          cardName={editing.name}
-          currentScryfallId={editing.scryfallId}
-          currentFinish={editing.finish}
-          onConfirm={handleEditConfirm}
-          onCancel={() => setEditing(null)}
-        />
+        <ListDetailView list={list} />
       )}
     </div>
   );
