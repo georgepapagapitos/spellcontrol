@@ -53,11 +53,6 @@
   flex-wrap: wrap;
 }
 
-.deck-toolbar-search {
-  min-width: 12rem;
-  max-width: 16rem;
-}
-
 /* ── Pill-shaped toolbar controls ─────────────────────────────────────── */
 .toolbar-pill {
   display: inline-flex;
@@ -352,4 +347,15 @@
 .toolbar-viewmode-btn.active {
   background: var(--accent);
   color: var(--on-accent);
+}
+
+@media (pointer: coarse) {
+  .toolbar-viewmode {
+    height: 2.75rem;
+  }
+
+  .toolbar-viewmode-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
 }
