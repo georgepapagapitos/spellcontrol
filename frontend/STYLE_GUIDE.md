@@ -415,6 +415,25 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **No horizontal overflow at 320px** (the hard floor).
 - **Both themes on every tier** — light and dark are independent surfaces.
 
+#### Cross-device primitive rulings (guarded — `styles/responsive-primitives.test.ts`)
+
+The E68 overhaul codified these into a CSS guard test (CSS isn't typecheck/CI
+gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`):
+
+- **Hover visual rules must be gated `@media (hover: hover) and (pointer: fine)`,
+  never bare `(hover: hover)`.** Samsung WebViews report `hover: hover` on touch,
+  so a bare-gated `:hover` that changes background/color/shadow/border sticks
+  after a tap (reads as permanently active/open). Cursor-only `(hover: hover)`
+  blocks (no `:hover` selector) are exempt.
+- **No fixed `width` on a bare global `input[type='text']`.** It caps every text
+  input app-wide and fights the SearchPill flex layout → truncated placeholder /
+  horizontal scroll on Android WebView. Width belongs to the flex/grid context
+  or a scoped form-field selector. The SearchPill input keeps `min-width: 0` so
+  it shrinks to fit the pill.
+- **Filter/control strips wrap, never clip** — `.collection-toolbar-row` (and
+  peers) carry `flex-wrap: wrap`; never force `nowrap` on a strip that can
+  exceed the viewport (collapse to a `⋮` overflow menu at `≤600px` instead).
+
 ## CSS file layout
 
 - **`src/styles/` holds the global (unscoped) stylesheets**, imported once in
