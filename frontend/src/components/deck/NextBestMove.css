@@ -152,9 +152,11 @@
     border-color var(--motion-fast) ease;
 }
 
-.next-best-move-nav:hover {
-  background: var(--surface);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .next-best-move-nav:hover {
+    background: var(--surface);
+    border-color: var(--accent);
+  }
 }
 
 .next-best-move-nav-icon {

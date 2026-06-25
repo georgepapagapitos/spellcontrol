@@ -279,13 +279,17 @@
 
 /* Hover styles only where hover is real (avoid sticky :hover on touch) */
 @media (hover: none) {
-  .upload-card:hover {
-    border-color: var(--border-strong);
-    background: var(--surface);
+  @media (hover: hover) and (pointer: fine) {
+    .upload-card:hover {
+      border-color: var(--border-strong);
+      background: var(--surface);
+    }
   }
 
-  .color-swatch:hover {
-    transform: none;
+  @media (hover: hover) and (pointer: fine) {
+    .color-swatch:hover {
+      transform: none;
+    }
   }
 }
 
@@ -330,9 +334,11 @@
   background: var(--surface);
 }
 
-.site-nav-link:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .site-nav-link:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 .site-nav-link.active {

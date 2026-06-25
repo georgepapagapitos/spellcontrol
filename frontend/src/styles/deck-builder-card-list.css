@@ -274,12 +274,19 @@
     border-color var(--motion-fast);
 }
 
-.deck-display-scryfall-trigger:hover,
 .deck-display-scryfall-trigger:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-display-scryfall-trigger:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .deck-display-scryfall-trigger-text {
@@ -297,9 +304,13 @@
   color: var(--text-muted);
 }
 
-.deck-display-scryfall-trigger:hover .deck-display-scryfall-trigger-sub,
 .deck-display-scryfall-trigger:focus-visible .deck-display-scryfall-trigger-sub {
   color: inherit;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-display-scryfall-trigger:hover .deck-display-scryfall-trigger-sub {
+    color: inherit;
+  }
 }
 
 /* The body holds only the deck composition (the `Deck` view). Kept as a block
@@ -416,9 +427,11 @@
     border-color var(--motion-fast) ease;
 }
 
-.deck-row-printings-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-printings-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }
 
 .deck-row-printings-toggle:focus-visible {
@@ -726,10 +739,15 @@
   text-overflow: ellipsis;
 }
 
-.deck-row-alloc-badge:hover,
 .deck-row-alloc-badge:focus-visible {
   filter: brightness(1.08);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-alloc-badge:hover {
+    filter: brightness(1.08);
+    outline: none;
+  }
 }
 
 .deck-row-alloc-badge svg {
@@ -769,11 +787,17 @@
   text-align: right;
 }
 
-.deck-row:hover,
 .deck-row:focus-visible {
   background: var(--accent-light);
   cursor: pointer;
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-row:hover {
+    background: var(--accent-light);
+    cursor: pointer;
+    outline: none;
+  }
 }
 
 .deck-row:focus-visible {
@@ -864,10 +888,15 @@
   height: 0.875rem;
 }
 
-.deck-row-menu-trigger:hover,
 .deck-row-menu-trigger[data-open] {
   background: var(--surface-raised);
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-menu-trigger:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 /* Portaled to <body> by ToolbarPopover and positioned `fixed` via inline styles
@@ -947,8 +976,10 @@
   font-weight: 600;
 }
 
-.deck-row-menu-item:hover:not(:disabled) {
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-menu-item:hover:not(:disabled) {
+    background: var(--accent-light);
+  }
 }
 
 .deck-row-menu-item:disabled {
@@ -960,8 +991,10 @@
   color: var(--danger, #b94545);
 }
 
-.deck-row-menu-item--danger:hover:not(:disabled) {
-  background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-menu-item--danger:hover:not(:disabled) {
+    background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+  }
 }
 
 .deck-row-role-multi-dot {

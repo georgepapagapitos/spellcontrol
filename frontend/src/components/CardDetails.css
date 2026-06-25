@@ -127,8 +127,10 @@
   font-size: var(--text-sm);
 }
 
-.card-disc-toggle:hover {
-  color: rgba(255, 255, 255, 0.95);
+@media (hover: hover) and (pointer: fine) {
+  .card-disc-toggle:hover {
+    color: rgba(255, 255, 255, 0.95);
+  }
 }
 
 .card-disc-chevron {

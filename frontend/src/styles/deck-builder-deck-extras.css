@@ -32,8 +32,10 @@
   transition: opacity var(--motion-fast) ease;
 }
 
-.decks-index-card-issues:hover {
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .decks-index-card-issues:hover {
+    opacity: 1;
+  }
 }
 
 /* ── Legality banner ──────────────────────────────────────────────── */
@@ -184,11 +186,17 @@
     color var(--motion-fast) ease;
 }
 
-.format-pill:hover,
 .format-pill:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .format-pill:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .format-pill.active {

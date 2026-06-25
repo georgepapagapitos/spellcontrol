@@ -53,8 +53,10 @@
   text-decoration: none;
 }
 
-.shared-brand:hover {
-  color: var(--accent-hover, var(--accent));
+@media (hover: hover) and (pointer: fine) {
+  .shared-brand:hover {
+    color: var(--accent-hover, var(--accent));
+  }
 }
 
 .shared-brand-mark {
@@ -91,8 +93,10 @@
   text-decoration: none;
 }
 
-.shared-footer-cta:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .shared-footer-cta:hover {
+    text-decoration: underline;
+  }
 }
 
 .shared-footer-fineprint {
@@ -399,8 +403,10 @@
   letter-spacing: 0.04em;
 }
 
-.shared-list-table tbody tr:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .shared-list-table tbody tr:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .shared-list-sort-btn {
@@ -414,8 +420,10 @@
   letter-spacing: inherit;
 }
 
-.shared-list-sort-btn:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .shared-list-sort-btn:hover {
+    color: var(--accent);
+  }
 }
 
 /* Collection list view reuses .shared-list-table; rows open the card preview,
@@ -484,8 +492,10 @@
     color var(--motion-fast);
 }
 
-.share-audience-option:hover:not(:disabled) {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .share-audience-option:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
 }
 
 .share-audience-option:focus-visible {

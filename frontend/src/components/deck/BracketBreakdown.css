@@ -103,10 +103,12 @@
   transition: background var(--motion-fast) ease;
 }
 
-.bracket-breakdown-chip-btn:hover {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .bracket-breakdown-chip-btn:hover {
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
+  }
 }
 
 .bracket-breakdown-chip-btn:focus-visible {

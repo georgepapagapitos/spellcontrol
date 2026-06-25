@@ -68,6 +68,46 @@ describe('responsive primitives (E68 cross-device guard)', () => {
     ).toEqual([]);
   });
 
+  // STRICT (E68 exhaustive sweep): NO :hover rule that changes VISUAL state may
+  // be ungated, anywhere. Samsung WebViews report hover:hover on touch, so any
+  // ungated visual :hover sticks after a tap (looks permanently active/open).
+  // Every such rule must live inside `@media (hover: hover) and (pointer: fine)`.
+  // Cursor-only :hover is exempt (nothing visual to stick); compound
+  // `:hover, :focus-visible` selectors must be split (state ungated, hover gated).
+  it('gates every visual :hover behind (hover: hover) and (pointer: fine)', () => {
+    const VISUAL =
+      /\b(background|background-color|color|border|border-color|box-shadow|transform|filter|opacity|text-decoration)\s*:/;
+    const fineRanges = (css: string): Array<[number, number]> => {
+      const ranges: Array<[number, number]> = [];
+      const re = /@media([^{]*)\{/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(css))) {
+        if (!/pointer:\s*fine/.test(m[1])) continue;
+        const block = balancedBlock(css, m.index + m[0].length - 1);
+        ranges.push([m.index, m.index + m[0].length + block.length]);
+      }
+      return ranges;
+    };
+    const offenders: string[] = [];
+    for (const { file, css } of byFile) {
+      const fine = fineRanges(css);
+      const ruleRe = /([^{}]+?)\{([^{}]*)\}/g;
+      let m: RegExpExecArray | null;
+      while ((m = ruleRe.exec(css))) {
+        if (!/:hover\b/.test(m[1])) continue;
+        if (!VISUAL.test(m[2])) continue;
+        const idx = m.index;
+        if (fine.some(([a, b]) => idx > a && idx < b)) continue; // properly gated
+        const line = css.slice(0, idx).split('\n').length;
+        offenders.push(`${rel(file)}:${line} → ${m[1].trim().replace(/\s+/g, ' ').slice(0, 70)}`);
+      }
+    }
+    expect(
+      offenders,
+      `ungated visual :hover (${offenders.length}) — sticky-hover on Samsung touch; wrap each in \`@media (hover: hover) and (pointer: fine)\` (split off any \`:focus-visible\`/state selector, keep it ungated):\n${offenders.join('\n')}`
+    ).toEqual([]);
+  });
+
   // F1: a global \`input[type='text'] { width: <fixed> }\` hard-caps every text
   // input app-wide and fights the SearchPill flex layout → truncated placeholder
   // / horizontal scroll on Android WebView. Width on text inputs belongs to the

@@ -204,8 +204,10 @@
   cursor: pointer;
 }
 
-.playstyle-card:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .playstyle-card:hover {
+    border-color: var(--accent);
+  }
 }
 
 .playstyle-card.active {

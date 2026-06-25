@@ -293,8 +293,10 @@
 
 /* On hover, every side of the border tints to the deck's chosen color so
    the card visually "lights up" in its own theme — not the global accent. */
-.decks-index-card:hover {
-  border-color: var(--deck-color, var(--accent));
+@media (hover: hover) and (pointer: fine) {
+  .decks-index-card:hover {
+    border-color: var(--deck-color, var(--accent));
+  }
 }
 
 .decks-index-card-link {
@@ -396,10 +398,15 @@
     color var(--motion-fast) ease;
 }
 
-.decks-index-card-menu-btn:hover,
 .decks-index-card-menu-btn[aria-expanded='true'] {
   background: var(--surface-raised);
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .decks-index-card-menu-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 /* Grid mode: the button sits on the commander art / colored banner, where
@@ -412,8 +419,13 @@
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
 }
 
-.decks-index-list.is-grid .decks-index-card-menu-btn:hover,
 .decks-index-list.is-grid .decks-index-card-menu-btn[aria-expanded='true'] {
   background: rgba(0, 0, 0, 0.25);
   color: #fff;
+}
+@media (hover: hover) and (pointer: fine) {
+  .decks-index-list.is-grid .decks-index-card-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+  }
 }

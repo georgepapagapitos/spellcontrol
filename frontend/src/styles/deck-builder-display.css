@@ -73,10 +73,15 @@
     background var(--motion-fast) ease;
 }
 
-.toolbar-pill:hover,
 .toolbar-pill:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .toolbar-pill:hover {
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 .toolbar-pill.open {
@@ -180,10 +185,15 @@
   cursor: pointer;
 }
 
-.toolbar-popover-item:hover,
 .toolbar-popover-item:focus-visible {
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .toolbar-popover-item:hover {
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .toolbar-popover-item.active {
@@ -222,11 +232,17 @@
   text-align: left;
 }
 
-.deck-role-legend-trigger:hover,
 .deck-role-legend-trigger:focus-visible {
   background: var(--accent-light);
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-role-legend-trigger:hover {
+    background: var(--accent-light);
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 .deck-role-legend-body {
@@ -338,10 +354,15 @@
     color var(--motion-fast) ease;
 }
 
-.toolbar-viewmode-btn:hover,
 .toolbar-viewmode-btn:focus-visible {
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .toolbar-viewmode-btn:hover {
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 .toolbar-viewmode-btn.active {

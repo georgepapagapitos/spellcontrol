@@ -26,10 +26,12 @@
   flex-shrink: 0;
 }
 
-.upload-action:hover:not(:disabled) {
-  background: var(--surface-raised);
-  color: var(--text-primary);
-  border-color: var(--text-muted);
+@media (hover: hover) and (pointer: fine) {
+  .upload-action:hover:not(:disabled) {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
 }
 
 .upload-action:disabled {
@@ -43,11 +45,13 @@
   color: var(--accent-text, #fff);
 }
 
-.upload-action-primary:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
-  filter: brightness(1.05);
-  color: var(--accent-text, #fff);
+@media (hover: hover) and (pointer: fine) {
+  .upload-action-primary:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+    filter: brightness(1.05);
+    color: var(--accent-text, #fff);
+  }
 }
 
 .upload-action-primary.is-active {
@@ -60,10 +64,12 @@
   color: var(--danger, #b94545);
 }
 
-.upload-action-danger:hover:not(:disabled) {
-  background: var(--danger-bg, rgba(185, 69, 69, 0.1));
-  border-color: var(--danger, #b94545);
-  color: var(--danger, #b94545);
+@media (hover: hover) and (pointer: fine) {
+  .upload-action-danger:hover:not(:disabled) {
+    background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+    border-color: var(--danger, #b94545);
+    color: var(--danger, #b94545);
+  }
 }
 
 .upload-grid {
@@ -196,11 +202,17 @@
   cursor: pointer;
 }
 
-.stats-drawer-close:hover,
 .stats-drawer-close:focus-visible {
   background: var(--surface-raised);
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .stats-drawer-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 .stats-drawer-body {
@@ -313,12 +325,14 @@
     border-color var(--motion-fast) ease;
 }
 
-.import-history-check input[type='checkbox']:hover:not(:disabled),
-.field-checkbox input[type='checkbox']:hover:not(:disabled),
-.commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
-.filter-popover-row input[type='checkbox']:hover:not(:disabled),
-.collection-group-checkbox:hover:not(:disabled) {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .import-history-check input[type='checkbox']:hover:not(:disabled),
+  .field-checkbox input[type='checkbox']:hover:not(:disabled),
+  .commander-owned-toggle input[type='checkbox']:hover:not(:disabled),
+  .filter-popover-row input[type='checkbox']:hover:not(:disabled),
+  .collection-group-checkbox:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
 }
 
 .import-history-check input[type='checkbox']:checked,
@@ -487,9 +501,11 @@
   cursor: pointer;
 }
 
-.staged-files-remove:hover:not(:disabled) {
-  background: var(--surface1);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .staged-files-remove:hover:not(:disabled) {
+    background: var(--surface1);
+    color: var(--text-primary);
+  }
 }
 
 .staged-files-remove:disabled {
@@ -611,8 +627,10 @@
   text-underline-offset: 2px;
 }
 
-.import-card-hint a:hover {
-  color: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .import-card-hint a:hover {
+    color: var(--accent-hover);
+  }
 }
 
 .import-card-restore {
@@ -659,8 +677,10 @@
   font-weight: 600;
 }
 
-.link-warn:hover {
-  color: var(--warn-border);
+@media (hover: hover) and (pointer: fine) {
+  .link-warn:hover {
+    color: var(--warn-border);
+  }
 }
 
 .kbd-inline {
@@ -742,9 +762,11 @@
   justify-content: center;
 }
 
-.upload-card:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .upload-card:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
 }
 
 .upload-card.loading {
@@ -758,9 +780,11 @@
   text-align: left;
 }
 
-.upload-card-paste:hover {
-  border-color: var(--border-strong);
-  background: var(--surface);
+@media (hover: hover) and (pointer: fine) {
+  .upload-card-paste:hover {
+    border-color: var(--border-strong);
+    background: var(--surface);
+  }
 }
 
 .upload-card-paste .upload-icon,

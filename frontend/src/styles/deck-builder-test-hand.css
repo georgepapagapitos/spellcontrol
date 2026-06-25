@@ -52,8 +52,10 @@
   margin-left: auto;
 }
 
-.deck-test-hand-header:hover .deck-test-hand-header-chevron {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-test-hand-header:hover .deck-test-hand-header-chevron {
+    color: var(--accent);
+  }
 }
 
 .deck-test-hand-body {
@@ -164,19 +166,23 @@
   transition: none;
 }
 
-.deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
-  transform: translateY(-8px) scale(1.04);
-  box-shadow:
-    0 6px 14px color-mix(in srgb, black 35%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
+    transform: translateY(-8px) scale(1.04);
+    box-shadow:
+      0 6px 14px color-mix(in srgb, black 35%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .deck-test-hand-card-art.is-newly-drawn {
     animation: none;
   }
-  .deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
-    transform: none;
+  @media (hover: hover) and (pointer: fine) {
+    .deck-test-hand-card:not(.is-dragging):hover .deck-test-hand-card-art {
+      transform: none;
+    }
   }
 }
 
@@ -230,10 +236,12 @@
   min-height: 2.25rem;
 }
 
-.deck-test-hand-action:hover:not([disabled]) {
-  background: var(--surface);
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-test-hand-action:hover:not([disabled]) {
+    background: var(--surface);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .deck-test-hand-action:focus-visible {
@@ -253,9 +261,11 @@
   font-weight: 600;
 }
 
-.deck-test-hand-action.is-primary:hover:not([disabled]) {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-test-hand-action.is-primary:hover:not([disabled]) {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    border-color: var(--accent);
+  }
 }
 
 /* Hand-breakdown chip row — small pills showing the actually-dealt hand

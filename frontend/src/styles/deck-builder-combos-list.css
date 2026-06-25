@@ -28,8 +28,10 @@
     border-color var(--motion-fast);
 }
 
-.deck-combos-filter-pill:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-filter-pill:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .deck-combos-filter-pill.active {
@@ -192,8 +194,10 @@
   cursor: pointer;
 }
 
-.deck-combos-details-toggle:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-details-toggle:hover {
+    text-decoration: underline;
+  }
 }
 
 .deck-combos-details-toggle:focus-visible {
@@ -293,10 +297,12 @@
     background var(--motion-fast) ease;
 }
 
-.deck-combos-add:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-add:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+  }
 }
 
 .deck-combos-add:focus-visible {

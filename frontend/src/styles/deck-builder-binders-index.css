@@ -164,8 +164,10 @@
    No transform on hover — that 1px lift was reading as a layout shift
    between adjacent cards in the list. Border-color alone is enough
    feedback and matches the Decks index card behavior. */
-.binders-index-card:hover {
-  border-color: var(--binder-color, var(--accent));
+@media (hover: hover) and (pointer: fine) {
+  .binders-index-card:hover {
+    border-color: var(--binder-color, var(--accent));
+  }
 }
 
 .binders-index-card-link {
@@ -325,10 +327,15 @@
   cursor: pointer;
 }
 
-.binders-index-card-menu-btn:hover,
 .binders-index-card-menu-btn[aria-expanded='true'] {
   background: var(--surface-raised);
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .binders-index-card-menu-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 /* Grid mode: the button sits on the colored header band, where the
@@ -340,10 +347,15 @@
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5));
 }
 
-.binders-index-list.is-grid .binders-index-card-menu-btn:hover,
 .binders-index-list.is-grid .binders-index-card-menu-btn[aria-expanded='true'] {
   background: rgba(0, 0, 0, 0.25);
   color: #fff;
+}
+@media (hover: hover) and (pointer: fine) {
+  .binders-index-list.is-grid .binders-index-card-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+  }
 }
 
 .binders-index-danger,

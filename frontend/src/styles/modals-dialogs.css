@@ -117,9 +117,11 @@
   border-radius: 50%;
 }
 
-.modal-close:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .modal-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 .modal-body {
@@ -203,9 +205,11 @@
   color: inherit;
 }
 
-.choice-dialog-option:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .choice-dialog-option:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
 }
 
 .choice-dialog-option:focus-visible {
@@ -229,9 +233,11 @@
   color: var(--danger, #b94545);
 }
 
-.choice-dialog-option-danger:hover {
-  border-color: var(--danger, #b94545);
-  background: var(--danger-bg, rgba(185, 69, 69, 0.08));
+@media (hover: hover) and (pointer: fine) {
+  .choice-dialog-option-danger:hover {
+    border-color: var(--danger, #b94545);
+    background: var(--danger-bg, rgba(185, 69, 69, 0.08));
+  }
 }
 
 .choice-dialog-option-active {
@@ -281,8 +287,10 @@
   border-radius: var(--radius);
 }
 
-.shortcuts-overlay-close:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .shortcuts-overlay-close:hover {
+    color: var(--text-primary);
+  }
 }
 
 .shortcuts-overlay-close:focus-visible {
@@ -616,8 +624,10 @@
   text-transform: capitalize;
 }
 
-.card-edit-finish-btn:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .card-edit-finish-btn:hover {
+    border-color: var(--accent);
+  }
 }
 
 .card-edit-finish-btn.is-active {
@@ -675,9 +685,19 @@
   line-height: 1;
 }
 
-.card-edit-qty-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+/* Coarse pointers need a 44px target (WCAG 2.5.5); desktop keeps the 28px pill. */
+@media (pointer: coarse) {
+  .card-edit-qty-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-edit-qty-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .card-edit-qty-input {
@@ -796,8 +816,10 @@
   width: 100%;
 }
 
-.card-edit-printing-row:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .card-edit-printing-row:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .card-edit-printing-row.is-active {
@@ -878,9 +900,11 @@
   justify-content: center;
 }
 
-.card-edit-btn:hover {
-  color: var(--accent);
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .card-edit-btn:hover {
+    color: var(--accent);
+    background: var(--surface-raised);
+  }
 }
 
 @media (max-width: 640px) {

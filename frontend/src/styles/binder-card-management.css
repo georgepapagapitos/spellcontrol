@@ -115,9 +115,11 @@
   min-height: calc(var(--text-sm) + 0.5rem + 2px);
 }
 
-.sort-value-order-reset:hover {
-  color: var(--text-secondary);
-  border-color: var(--text-muted);
+@media (hover: hover) and (pointer: fine) {
+  .sort-value-order-reset:hover {
+    color: var(--text-secondary);
+    border-color: var(--text-muted);
+  }
 }
 
 .sort-value-order-reset:focus-visible {
@@ -226,8 +228,10 @@
   flex-shrink: 0;
 }
 
-.binder-card-editor-remove:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .binder-card-editor-remove:hover {
+    color: var(--text-primary);
+  }
 }
 
 .binder-card-editor-restore {
@@ -242,9 +246,11 @@
   flex-shrink: 0;
 }
 
-.binder-card-editor-restore:hover {
-  color: var(--text-primary);
-  border-color: var(--text-muted);
+@media (hover: hover) and (pointer: fine) {
+  .binder-card-editor-restore:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
 }
 
 .binder-card-editor-section-label {
@@ -678,8 +684,10 @@
     border-color var(--motion-fast);
 }
 
-.add-cards-tab:hover:not([aria-selected='true']) {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .add-cards-tab:hover:not([aria-selected='true']) {
+    color: var(--text-primary);
+  }
 }
 
 .add-cards-tab.active {
@@ -973,11 +981,17 @@
     color var(--motion-fast);
 }
 
-.inline-card-search-more:hover,
 .inline-card-search-more:focus-visible {
   background: var(--accent-light);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-more:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .inline-card-search-more--printings {
@@ -1010,10 +1024,15 @@
   cursor: pointer;
 }
 
-.inline-card-search-hide:hover,
 .inline-card-search-hide:focus-visible {
   text-decoration: underline;
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-hide:hover {
+    text-decoration: underline;
+    outline: none;
+  }
 }
 
 .inline-card-search-status {
@@ -1038,8 +1057,10 @@
   border-top: 0.5px solid var(--border);
 }
 
-.inline-card-search-item:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-item:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .inline-card-search-row {
@@ -1064,10 +1085,15 @@
   transition: filter var(--motion-fast);
 }
 
-.inline-card-search-add:hover,
 .inline-card-search-add:focus-visible {
   filter: brightness(1.1);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-add:hover {
+    filter: brightness(1.1);
+    outline: none;
+  }
 }
 
 .inline-card-search-thumb {
@@ -1108,8 +1134,10 @@
   outline-offset: 2px;
 }
 
-.inline-card-search-preview-trigger:hover .inline-card-search-name {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-preview-trigger:hover .inline-card-search-name {
+    color: var(--accent);
+  }
 }
 
 .inline-card-search-name {
@@ -1173,12 +1201,18 @@
     color var(--motion-fast);
 }
 
-.inline-card-search-printings-toggle:hover,
 .inline-card-search-printings-toggle:focus-visible,
 .inline-card-search-printings-toggle.is-open {
   background: var(--surface-raised);
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-printings-toggle:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 .inline-card-search-printings {
@@ -1207,8 +1241,10 @@
   cursor: pointer;
 }
 
-.inline-card-search-printing:hover {
-  background: var(--surface);
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-printing:hover {
+    background: var(--surface);
+  }
 }
 
 .inline-card-search-printing.is-selected {
@@ -1281,10 +1317,15 @@
   transition: filter var(--motion-fast);
 }
 
-.inline-card-search-add-printing:hover,
 .inline-card-search-add-printing:focus-visible {
   filter: brightness(1.1);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .inline-card-search-add-printing:hover {
+    filter: brightness(1.1);
+    outline: none;
+  }
 }
 
 /* ── Binder mode toggle (new binder form) ────────────────────── */
@@ -1315,8 +1356,10 @@
   border-left: 1px solid var(--border);
 }
 
-.binder-mode-pill:hover:not(.active) {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .binder-mode-pill:hover:not(.active) {
+    background: var(--surface-raised);
+  }
 }
 
 .binder-mode-pill.active {
@@ -1380,11 +1423,17 @@
     background var(--motion-fast) ease;
 }
 
-.back-link:hover,
 .back-link:focus-visible {
   color: var(--text-primary);
   background: var(--surface-raised);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .back-link:hover {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+    outline: none;
+  }
 }
 
 /* Danger-zone variant for /settings sections: tinted left edge so the

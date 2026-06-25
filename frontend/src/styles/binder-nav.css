@@ -60,10 +60,15 @@
   transition: background var(--motion-fast);
 }
 
-.binder-overflow-btn:hover,
 .binder-overflow-btn[aria-expanded='true'] {
   background: var(--surface-raised);
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .binder-overflow-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 .binder-overflow-backdrop {
@@ -275,10 +280,15 @@
     cursor: pointer;
   }
 
-  .binder-picker-row:hover,
   .binder-picker-row:focus-visible {
     background: var(--surface-raised);
     outline: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .binder-picker-row:hover {
+      background: var(--surface-raised);
+      outline: none;
+    }
   }
 
   .binder-picker-row.active {
@@ -345,10 +355,15 @@
   cursor: pointer;
 }
 
-.binder-overflow-item:hover:not(:disabled),
 .binder-overflow-item:focus-visible:not(:disabled) {
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .binder-overflow-item:hover:not(:disabled) {
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .binder-overflow-item:disabled {
@@ -387,8 +402,10 @@
   border-left: none;
 }
 
-.tab-action:hover:not(:disabled) {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .tab-action:hover:not(:disabled) {
+    background: var(--surface-raised);
+  }
 }
 
 .tab-action:disabled {
@@ -400,8 +417,10 @@
   color: var(--err-text);
 }
 
-.tab-action.danger:hover {
-  background: var(--err-bg);
+@media (hover: hover) and (pointer: fine) {
+  .tab-action.danger:hover {
+    background: var(--err-bg);
+  }
 }
 
 .tab-new {
@@ -410,9 +429,11 @@
   font-style: italic;
 }
 
-.tab-new:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .tab-new:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }
 
 .tab-export {
@@ -421,9 +442,11 @@
   gap: 0.4rem;
 }
 
-.tab-export:hover:not(:disabled) {
-  color: var(--accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .tab-export:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }
 
 .tab-export:disabled {
@@ -438,10 +461,12 @@
   color: var(--text-muted);
 }
 
-.tab-delete-all:hover {
-  color: var(--err-text);
-  border-color: var(--err-border);
-  background: var(--err-bg);
+@media (hover: hover) and (pointer: fine) {
+  .tab-delete-all:hover {
+    color: var(--err-text);
+    border-color: var(--err-border);
+    background: var(--err-bg);
+  }
 }
 
 .btn-danger {
@@ -451,9 +476,11 @@
   font-weight: 600;
 }
 
-.btn-danger:hover:not(:disabled),
-.btn.btn-danger:hover:not(:disabled) {
-  background: var(--err-border);
-  border-color: var(--err-border);
-  color: var(--err-bg);
+@media (hover: hover) and (pointer: fine) {
+  .btn-danger:hover:not(:disabled),
+  .btn.btn-danger:hover:not(:disabled) {
+    background: var(--err-border);
+    border-color: var(--err-border);
+    color: var(--err-bg);
+  }
 }

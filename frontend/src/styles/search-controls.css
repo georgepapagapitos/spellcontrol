@@ -81,11 +81,17 @@
     color var(--motion-fast);
 }
 
-.search-pill-clear:hover,
 .search-pill-clear:focus-visible {
   background: var(--accent-light);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .search-pill-clear:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 /* Filter / options popover that lives INSIDE the search bar. Single
@@ -165,8 +171,10 @@
   cursor: pointer;
 }
 
-.filter-popover-row:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .filter-popover-row:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .filter-popover-row input[type='checkbox'] {
@@ -246,10 +254,12 @@
     border-color var(--motion-fast);
 }
 
-.deck-filter-chip:hover {
-  background: var(--accent-light);
-  color: var(--accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-filter-chip:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 }
 
 .deck-filter-chip.is-active {

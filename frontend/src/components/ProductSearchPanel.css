@@ -23,8 +23,10 @@
     color 0.15s ease;
 }
 
-.product-type-chip:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .product-type-chip:hover {
+    border-color: var(--accent);
+  }
 }
 
 .product-type-chip.active {
@@ -60,9 +62,11 @@
     background 0.15s ease;
 }
 
-.product-result-row:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .product-result-row:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--surface-raised);
+  }
 }
 
 .product-result-row:disabled {
@@ -155,8 +159,10 @@
   cursor: pointer;
 }
 
-.product-back:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .product-back:hover {
+    color: var(--accent);
+  }
 }
 
 /* Pinned head — back, name, meta + the card-layout toggle. Stays put while the

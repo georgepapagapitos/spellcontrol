@@ -88,8 +88,10 @@
   background: var(--surface);
   cursor: pointer;
 }
-.cube-size-opt:hover:not(.active) {
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .cube-size-opt:hover:not(.active) {
+    border-color: var(--border-strong);
+  }
 }
 .cube-size-opt.active {
   border-color: var(--accent);
@@ -229,8 +231,10 @@
   cursor: pointer;
   font: inherit;
 }
-.cube-saved-load:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .cube-saved-load:hover {
+    background: var(--surface-raised);
+  }
 }
 .cube-saved-load:focus-visible {
   outline: 2px solid var(--accent);
@@ -263,16 +267,20 @@
   color: var(--text-muted);
   cursor: pointer;
 }
-.cube-saved-action:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .cube-saved-action:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 .cube-saved-action:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-.cube-saved-delete:hover {
-  color: var(--err-text);
+@media (hover: hover) and (pointer: fine) {
+  .cube-saved-delete:hover {
+    color: var(--err-text);
+  }
 }
 /* Active "physical cube" toggle + its meta tag share the cube identity color. */
 .cube-saved-action.is-physical {
@@ -653,8 +661,10 @@
 .cube-row-interactive {
   cursor: pointer;
 }
-.cube-row-interactive:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .cube-row-interactive:hover {
+    background: var(--surface-raised);
+  }
 }
 .cube-row-interactive:focus-visible {
   outline: 2px solid var(--accent);
@@ -787,8 +797,10 @@
   background: transparent;
 }
 
-.cube-collab-friend-row:hover:not(.disabled) {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .cube-collab-friend-row:hover:not(.disabled) {
+    background: var(--surface-raised);
+  }
 }
 
 .cube-collab-friend-row.checked {

@@ -261,8 +261,10 @@
   transform: rotate(180deg);
 }
 
-.coach-feed-cuts-title:hover .coach-feed-cuts-chevron {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .coach-feed-cuts-title:hover .coach-feed-cuts-chevron {
+    color: var(--accent);
+  }
 }
 
 .coach-feed-cuts-list {
@@ -375,8 +377,10 @@
   transform: rotate(180deg);
 }
 
-.coach-feed-browser-section > summary:hover > svg {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .coach-feed-browser-section > summary:hover > svg {
+    color: var(--accent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

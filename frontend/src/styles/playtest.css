@@ -101,9 +101,11 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-sm);
 }
 
-.playtest-actionbar button:hover:not(:disabled) {
-  background: var(--accent-light);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .playtest-actionbar button:hover:not(:disabled) {
+    background: var(--accent-light);
+    border-color: var(--accent);
+  }
 }
 
 .playtest-actionbar button:disabled {
@@ -180,10 +182,15 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-xs);
 }
 
-.playtest-pile:hover,
 .playtest-pile.is-over {
   background: var(--accent-light);
   border-color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .playtest-pile:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+  }
 }
 
 .playtest-pile__label {
@@ -430,11 +437,17 @@ body:has(.playtest-page) .modal-backdrop {
     background var(--motion-fast) ease;
 }
 
-.playtest-zone-card__action:hover,
 .playtest-zone-card__action:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .playtest-zone-card__action:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .playtest-zone-card__action:active {
@@ -474,11 +487,17 @@ body:has(.playtest-page) .modal-backdrop {
     color var(--motion-fast) ease;
 }
 
-.playtest-token-presets button:hover,
 .playtest-token-presets button:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .playtest-token-presets button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .playtest-token-presets button:active {
@@ -537,10 +556,15 @@ body:has(.playtest-page) .modal-backdrop {
   transition: background var(--motion-fast) ease;
 }
 
-.playtest-ctx-action:hover,
 .playtest-ctx-action:focus-visible {
   background: var(--surface-raised);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .playtest-ctx-action:hover {
+    background: var(--surface-raised);
+    outline: none;
+  }
 }
 
 .playtest-ctx-action:active {
@@ -588,11 +612,17 @@ body:has(.playtest-page) .modal-backdrop {
     background var(--motion-fast) ease;
 }
 
-.playtest-ctx-counter button:hover,
 .playtest-ctx-counter button:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .playtest-ctx-counter button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .playtest-ctx-counter button:active {
@@ -756,8 +786,10 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-xs);
 }
 
-.playtest-zone-tile__menu button:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .playtest-zone-tile__menu button:hover {
+    background: var(--surface-raised);
+  }
 }
 
 /* ── Narrow viewport overrides ───────────────────────────────────────── */
@@ -870,8 +902,10 @@ body:has(.playtest-page) .modal-backdrop {
   cursor: pointer;
 }
 
-.playtest-opening-back:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .playtest-opening-back:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .playtest-opening-titleRow {
@@ -954,9 +988,11 @@ body:has(.playtest-page) .modal-backdrop {
   cursor: pointer;
 }
 
-.playtest-opening-card:not(:disabled):hover {
-  transform: translateY(-6px);
-  z-index: 99;
+@media (hover: hover) and (pointer: fine) {
+  .playtest-opening-card:not(:disabled):hover {
+    transform: translateY(-6px);
+    z-index: 99;
+  }
 }
 
 .playtest-opening-card.is-selected {

@@ -38,8 +38,10 @@
     transform 80ms ease;
 }
 
-.pp-counter-chip:hover {
-  background: rgba(0, 0, 0, 0.45);
+@media (hover: hover) and (pointer: fine) {
+  .pp-counter-chip:hover {
+    background: rgba(0, 0, 0, 0.45);
+  }
 }
 
 .pp-counter-chip:active {

@@ -42,8 +42,10 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.rules-ref-link:hover {
-  color: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .rules-ref-link:hover {
+    color: var(--accent-hover);
+  }
 }
 
 /* ── Keywords ─────────────────────────────────────────────────────────── */
@@ -74,8 +76,10 @@
   text-align: left;
   color: var(--text-primary);
 }
-.rules-ref-keyword-head:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .rules-ref-keyword-head:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .rules-ref-keyword-name {

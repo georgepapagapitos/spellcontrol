@@ -41,8 +41,10 @@
   color: var(--text-muted);
 }
 
-.cmdr-profile-toggle:hover .cmdr-profile-chevron {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .cmdr-profile-toggle:hover .cmdr-profile-chevron {
+    color: var(--accent);
+  }
 }
 
 .cmdr-profile-summary {

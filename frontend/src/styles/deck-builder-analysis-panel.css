@@ -198,8 +198,10 @@
   color: inherit;
 }
 
-.deck-analysis-suggest-body:hover .deck-analysis-suggest-name {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-analysis-suggest-body:hover .deck-analysis-suggest-name {
+    color: var(--accent);
+  }
 }
 
 .deck-analysis-suggest-title-row {
@@ -274,8 +276,10 @@
   flex: 0 0 auto;
 }
 
-.deck-analysis-suggest-add:hover {
-  background: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .deck-analysis-suggest-add:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .deck-analysis-suggest-add[disabled] {

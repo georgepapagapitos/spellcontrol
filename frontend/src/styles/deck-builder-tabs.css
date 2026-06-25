@@ -293,8 +293,10 @@
     background var(--motion-fast) ease;
 }
 
-.deck-combos-row:hover {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-row:hover {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  }
 }
 
 .deck-combos-row.expanded {
@@ -353,8 +355,10 @@
   cursor: pointer;
 }
 
-.deck-combos-show-details:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-show-details:hover {
+    text-decoration: underline;
+  }
 }
 
 .deck-combos-show-details:focus-visible {

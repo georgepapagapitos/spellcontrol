@@ -18,8 +18,10 @@
   transition: color var(--motion-fast);
 }
 
-.friend-hub-back:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .friend-hub-back:hover {
+    color: var(--text-primary);
+  }
 }
 
 .friend-hub-heading {
@@ -100,6 +102,8 @@
   transition: background var(--motion-fast);
 }
 
-.friend-hub-row-open:hover {
-  background: var(--surface);
+@media (hover: hover) and (pointer: fine) {
+  .friend-hub-row-open:hover {
+    background: var(--surface);
+  }
 }

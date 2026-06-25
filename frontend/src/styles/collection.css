@@ -28,9 +28,11 @@
   white-space: nowrap;
 }
 
-.collection-type-chip:hover {
-  background: var(--surface);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .collection-type-chip:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
 }
 
 .collection-type-chip.is-active {
@@ -126,10 +128,15 @@
   transition: border-color var(--motion-fast);
 }
 
-.collection-hero-stats-link:hover,
 .collection-hero-stats-link:focus-visible {
   border-bottom-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-hero-stats-link:hover {
+    border-bottom-color: var(--accent);
+    outline: none;
+  }
 }
 
 .collection-hero-stats-link svg {
@@ -223,11 +230,17 @@
   cursor: pointer;
 }
 
-.collection-filters-dialog-close:hover,
 .collection-filters-dialog-close:focus-visible {
   background: var(--surface-raised);
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-filters-dialog-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 .collection-filters-dialog-body {
@@ -296,11 +309,17 @@
   border-radius: var(--radius);
 }
 
-.collection-filters-dialog-clear:hover:not(:disabled),
 .collection-filters-dialog-clear:focus-visible:not(:disabled) {
   color: var(--text-primary);
   background: var(--surface-raised);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-filters-dialog-clear:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+    outline: none;
+  }
 }
 
 .collection-filters-dialog-clear:disabled {
@@ -319,10 +338,15 @@
   cursor: pointer;
 }
 
-.collection-filters-dialog-done:hover,
 .collection-filters-dialog-done:focus-visible {
   filter: brightness(1.05);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-filters-dialog-done:hover {
+    filter: brightness(1.05);
+    outline: none;
+  }
 }
 
 .collection-toolbar-stats-btn {
@@ -344,11 +368,17 @@
     transform var(--motion-fast);
 }
 
-.collection-toolbar-stats-btn:hover,
 .collection-toolbar-stats-btn:focus-visible {
   color: var(--text-primary);
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-toolbar-stats-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
@@ -444,11 +474,17 @@
   flex-shrink: 0;
 }
 
-.set-filter-chip-x:hover,
 .set-filter-chip-x:focus-visible {
   background: var(--accent);
   color: var(--accent-text, #fff);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .set-filter-chip-x:hover {
+    background: var(--accent);
+    color: var(--accent-text, #fff);
+    outline: none;
+  }
 }
 
 /* "Clear all sets" ✕ — reuses .search-pill-clear visuals; margin-left:auto
@@ -535,8 +571,10 @@
     transform 0.15s;
 }
 
-.color-filter-btn:hover {
-  opacity: 0.85;
+@media (hover: hover) and (pointer: fine) {
+  .color-filter-btn:hover {
+    opacity: 0.85;
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6) — transform is already in
@@ -662,10 +700,15 @@
   }
 }
 
-.collection-filter-chip-clear:hover,
 .collection-filter-chip-clear:focus-visible {
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-filter-chip-clear:hover {
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 /* "Clear all" text button — quieter than individual × buttons so it reads
@@ -681,8 +724,10 @@
   transition: opacity var(--motion-fast);
 }
 
-.collection-filter-chips-clear-all:hover {
-  opacity: 0.8;
+@media (hover: hover) and (pointer: fine) {
+  .collection-filter-chips-clear-all:hover {
+    opacity: 0.8;
+  }
 }
 
 .collection-filter-chips-clear-all:focus-visible {
@@ -706,8 +751,10 @@
   transition: opacity var(--motion-fast);
 }
 
-.collection-save-as-binder-btn:hover {
-  opacity: 0.8;
+@media (hover: hover) and (pointer: fine) {
+  .collection-save-as-binder-btn:hover {
+    opacity: 0.8;
+  }
 }
 
 .collection-save-as-binder-btn:focus-visible {
@@ -817,11 +864,17 @@
 
 /* Destructive action: neutral until intent, then the app's error tint —
    keeps the bar calm rather than a permanently-red button. */
-.card-list-bulk-danger:hover:not(:disabled),
 .card-list-bulk-danger:focus-visible:not(:disabled) {
   background: var(--err-bg);
   border-color: var(--err-border);
   color: var(--err-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-list-bulk-danger:hover:not(:disabled) {
+    background: var(--err-bg);
+    border-color: var(--err-border);
+    color: var(--err-text);
+  }
 }
 
 /* "Done" is the bar's primary (exit) action — accent-filled like the
@@ -833,10 +886,15 @@
   font-weight: 600;
 }
 
-.card-list-bulk-done:hover,
 .card-list-bulk-done:focus-visible {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-list-bulk-done:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
 }
 
 .card-list-set-code {
@@ -982,11 +1040,17 @@ i.ss.set-symbol--mythic {
     border-color var(--motion-fast);
 }
 
-.card-list-deck-badge:hover,
 .card-list-deck-badge:focus-visible {
   background: color-mix(in srgb, var(--deck-color, var(--accent)) 28%, transparent);
   border-color: var(--deck-color, var(--accent));
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-list-deck-badge:hover {
+    background: color-mix(in srgb, var(--deck-color, var(--accent)) 28%, transparent);
+    border-color: var(--deck-color, var(--accent));
+    outline: none;
+  }
 }
 
 .card-list-deck-badge--multi {
@@ -1020,11 +1084,17 @@ i.ss.set-symbol--mythic {
     border-color var(--motion-fast);
 }
 
-.card-list-binder-badge:hover,
 .card-list-binder-badge:focus-visible {
   background: color-mix(in srgb, var(--binder-color, var(--accent)) 28%, transparent);
   border-color: var(--binder-color, var(--accent));
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-list-binder-badge:hover {
+    background: color-mix(in srgb, var(--binder-color, var(--accent)) 28%, transparent);
+    border-color: var(--binder-color, var(--accent));
+    outline: none;
+  }
 }
 
 .card-list-binder-badge--multi {
@@ -1034,9 +1104,11 @@ i.ss.set-symbol--mythic {
   border-color: color-mix(in srgb, var(--text-secondary) 35%, transparent);
 }
 
-.card-list-binder-badge--multi:hover {
-  background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
-  border-color: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .card-list-binder-badge--multi:hover {
+    background: color-mix(in srgb, var(--text-secondary) 18%, transparent);
+    border-color: color-mix(in srgb, var(--text-secondary) 35%, transparent);
+  }
 }
 
 /* Mana cost glyphs (rendered via mana-font) */
@@ -1238,20 +1310,34 @@ i.ss.set-symbol--mythic {
     box-shadow var(--motion-fast);
 }
 
-.collection-grid-badges .card-list-binder-badge:hover,
 .collection-grid-badges .card-list-binder-badge:focus-visible {
   background: rgba(0, 0, 0, 0.92);
   border-color: var(--binder-color, var(--accent));
   transform: scale(1.15);
   outline: none;
 }
+@media (hover: hover) and (pointer: fine) {
+  .collection-grid-badges .card-list-binder-badge:hover {
+    background: rgba(0, 0, 0, 0.92);
+    border-color: var(--binder-color, var(--accent));
+    transform: scale(1.15);
+    outline: none;
+  }
+}
 
-.collection-grid-badges .card-list-deck-badge:hover,
 .collection-grid-badges .card-list-deck-badge:focus-visible {
   background: rgba(0, 0, 0, 0.92);
   border-color: var(--deck-color, var(--accent));
   transform: scale(1.15);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-grid-badges .card-list-deck-badge:hover {
+    background: rgba(0, 0, 0, 0.92);
+    border-color: var(--deck-color, var(--accent));
+    transform: scale(1.15);
+    outline: none;
+  }
 }
 
 .collection-grid-badges .card-list-deck-badge:focus-visible,
@@ -1352,8 +1438,10 @@ i.ss.set-symbol--mythic {
   transition: background-color var(--motion-fast);
 }
 
-.collection-section-header-btn:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .collection-section-header-btn:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .collection-section-header-btn:focus-visible {
@@ -1443,8 +1531,10 @@ i.ss.set-symbol--mythic {
   box-shadow: none;
 }
 
-.collection-list-row:hover {
-  background: var(--surface);
+@media (hover: hover) and (pointer: fine) {
+  .collection-list-row:hover {
+    background: var(--surface);
+  }
 }
 
 .collection-list-row:focus-visible {
@@ -1531,10 +1621,15 @@ i.ss.set-symbol--mythic {
   color: var(--on-accent);
 }
 
-.card-list-select-toggle[aria-pressed='true']:hover,
 .card-list-select-toggle[aria-pressed='true']:focus-visible {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-list-select-toggle[aria-pressed='true']:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
 }
 
 /* While select mode is on, the whole row/card is the toggle target — kill
@@ -1818,9 +1913,11 @@ i.ss.set-symbol--mythic {
   transition: transform var(--motion-fast);
 }
 
-.pagination-btn:hover:not(:disabled) {
-  background: var(--surface);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .pagination-btn:hover:not(:disabled) {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
@@ -1867,8 +1964,10 @@ i.ss.set-symbol--mythic {
   border-radius: 4px;
 }
 
-.price-refresh-icon:hover:not(:disabled) {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .price-refresh-icon:hover:not(:disabled) {
+    color: var(--accent);
+  }
 }
 
 .price-refresh-icon:disabled {

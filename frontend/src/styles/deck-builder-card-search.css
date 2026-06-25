@@ -130,9 +130,11 @@
   cursor: pointer;
 }
 
-.deck-test-hand-sheet-close:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .deck-test-hand-sheet-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 @media (pointer: coarse) {
@@ -183,8 +185,10 @@
   border-radius: var(--radius);
 }
 
-.card-search-row:hover {
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .card-search-row:hover {
+    background: var(--accent-light);
+  }
 }
 
 .card-search-add {
@@ -204,10 +208,20 @@
   justify-content: center;
 }
 
-.card-search-add:hover {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
+/* Coarse pointers need a 44px target (WCAG 2.5.5); desktop keeps the compact pill. */
+@media (pointer: coarse) {
+  .card-search-add {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-search-add:hover {
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
+  }
 }
 
 .card-search-name {
@@ -338,8 +352,10 @@
   cursor: pointer;
 }
 
-.card-search-fit:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .card-search-fit:hover {
+    text-decoration: underline;
+  }
 }
 
 @media (pointer: coarse) {

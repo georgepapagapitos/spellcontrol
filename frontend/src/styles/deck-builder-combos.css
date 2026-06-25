@@ -67,8 +67,10 @@
   flex: 0 0 auto;
 }
 
-.deck-combos-header:hover .deck-combos-header-chevron {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-header:hover .deck-combos-header-chevron {
+    color: var(--accent);
+  }
 }
 
 .deck-combos-body {

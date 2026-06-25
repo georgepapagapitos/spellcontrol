@@ -231,9 +231,11 @@
   cursor: pointer;
 }
 
-.import-deck-batch-remove:hover:not(:disabled) {
-  background: var(--surface1);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .import-deck-batch-remove:hover:not(:disabled) {
+    background: var(--surface1);
+    color: var(--text-primary);
+  }
 }
 
 .import-deck-batch-remove:disabled {
@@ -390,9 +392,11 @@
   text-align: left;
 }
 
-.import-deck-commander-option:hover {
-  border-color: var(--accent);
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .import-deck-commander-option:hover {
+    border-color: var(--accent);
+    background: var(--surface-raised);
+  }
 }
 
 /* Selected partner candidate in the opt-in partner picker. */
@@ -467,10 +471,15 @@
   cursor: pointer;
 }
 
-.overflow-menu-trigger:hover,
 .overflow-menu-trigger[aria-expanded='true'] {
   color: var(--accent);
   background: var(--surface-raised);
+}
+@media (hover: hover) and (pointer: fine) {
+  .overflow-menu-trigger:hover {
+    color: var(--accent);
+    background: var(--surface-raised);
+  }
 }
 
 /* Portaled `position:fixed` overflow menu panel. transform-origin is set inline

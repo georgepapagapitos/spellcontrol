@@ -22,8 +22,10 @@
   border-bottom: 1px dotted currentColor;
 }
 
-.footer a:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .footer a:hover {
+    color: var(--text-primary);
+  }
 }
 
 .footer-fineprint {
@@ -57,9 +59,11 @@
     background var(--motion-fast) ease;
 }
 
-.footer-shortcuts-chip:hover {
-  color: var(--text-secondary);
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .footer-shortcuts-chip:hover {
+    color: var(--text-secondary);
+    background: var(--surface-raised);
+  }
 }
 
 .footer-shortcuts-chip:focus-visible {
@@ -179,8 +183,10 @@
     transform var(--motion-fast);
 }
 
-.card-preview-close:hover {
-  background: rgba(0, 0, 0, 0.7);
+@media (hover: hover) and (pointer: fine) {
+  .card-preview-close:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
 }
 
 .card-preview-close:active {
@@ -233,8 +239,10 @@
     transform var(--motion-fast);
 }
 
-.carousel-nav:hover {
-  background: rgba(0, 0, 0, 0.75);
+@media (hover: hover) and (pointer: fine) {
+  .carousel-nav:hover {
+    background: rgba(0, 0, 0, 0.75);
+  }
 }
 
 .carousel-nav:active {
@@ -265,9 +273,11 @@
     background: rgba(0, 0, 0, 0.35);
     opacity: 0.6;
   }
-  .carousel-nav:hover {
-    opacity: 1;
-    background: rgba(0, 0, 0, 0.6);
+  @media (hover: hover) and (pointer: fine) {
+    .carousel-nav:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.6);
+    }
   }
 }
 
@@ -579,8 +589,10 @@
     transform 160ms ease;
 }
 
-.card-preview-flip-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
+@media (hover: hover) and (pointer: fine) {
+  .card-preview-flip-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
 }
 
 .card-preview-flip-btn:active {
@@ -593,8 +605,10 @@
   border-color: rgba(255, 138, 138, 0.4);
 }
 
-.card-preview-flip-btn.is-danger:hover {
-  background: rgba(255, 138, 138, 0.16);
+@media (hover: hover) and (pointer: fine) {
+  .card-preview-flip-btn.is-danger:hover {
+    background: rgba(255, 138, 138, 0.16);
+  }
 }
 
 /* While the cursor is moving, the hook lerps every frame — disable the
@@ -936,11 +950,17 @@
     border-color var(--motion-fast);
 }
 
-.card-preview-context-pill:hover,
 .card-preview-context-pill:focus-visible {
   background: color-mix(in srgb, var(--pill-color, var(--accent)) 28%, transparent);
   border-color: var(--pill-color, var(--accent));
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-preview-context-pill:hover {
+    background: color-mix(in srgb, var(--pill-color, var(--accent)) 28%, transparent);
+    border-color: var(--pill-color, var(--accent));
+    outline: none;
+  }
 }
 
 .card-preview-context-pill svg {
@@ -1037,9 +1057,13 @@
   transition: color 0.15s;
 }
 
-.card-preview-ext-link:hover,
 .card-preview-ext-link:focus-visible {
   color: rgba(255, 255, 255, 0.95);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-preview-ext-link:hover {
+    color: rgba(255, 255, 255, 0.95);
+  }
 }
 
 .card-preview-ext-link:focus-visible {

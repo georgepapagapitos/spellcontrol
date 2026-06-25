@@ -29,9 +29,13 @@
   display: block;
 }
 
-.info-tip-btn:hover,
 .info-tip-btn:focus-visible {
   color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .info-tip-btn:hover {
+    color: var(--accent);
+  }
 }
 
 /* The portaled bubble — position (fixed left/top/width) is set inline by the

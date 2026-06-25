@@ -110,8 +110,10 @@
   white-space: nowrap;
 }
 
-.deck-editor-name:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-editor-name:hover {
+    color: var(--accent);
+  }
 }
 
 .deck-editor-name-input {
@@ -211,10 +213,15 @@
   cursor: pointer;
 }
 
-.deck-editor-overflow-btn:hover,
 .deck-editor-overflow-btn[aria-expanded='true'] {
   background: var(--surface-raised);
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-editor-overflow-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 /* The bottom-sheet backdrop + drag handle aren't used anymore — the
@@ -291,24 +298,34 @@
     color 100ms ease;
 }
 
-.binders-index-card-menu-item:hover:not(:disabled),
 .binders-index-card-menu-item:focus-visible,
-.decks-index-card-menu-item:hover,
 .decks-index-card-menu-item:focus-visible,
-.deck-editor-overflow-item:hover,
 .deck-editor-overflow-item:focus-visible {
   background: var(--surface-raised);
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .binders-index-card-menu-item:hover:not(:disabled),
+  .decks-index-card-menu-item:hover,
+  .deck-editor-overflow-item:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 .deck-editor-overflow-item--danger {
   color: var(--err-text, #d8442a);
 }
 
-.deck-editor-overflow-item--danger:hover,
 .deck-editor-overflow-item--danger:focus-visible {
   color: var(--err-text, #d8442a);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-editor-overflow-item--danger:hover {
+    color: var(--err-text, #d8442a);
+  }
 }
 
 /* ── Page-top distinct-view tabs ──────────────────────────────────────────

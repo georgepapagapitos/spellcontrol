@@ -238,11 +238,17 @@
     color var(--motion-fast) ease;
 }
 
-.play-stepper-btn:hover:not(:disabled),
 .play-stepper-btn:focus-visible {
   background: var(--accent-light);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .play-stepper-btn:hover:not(:disabled) {
+    background: var(--accent-light);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .play-stepper-btn:active:not(:disabled) {
@@ -295,8 +301,10 @@
     color var(--motion-fast) ease;
 }
 
-.play-rule-pill:hover {
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .play-rule-pill:hover {
+    border-color: var(--border-strong);
+  }
 }
 
 .play-rule-pill.is-on {
@@ -458,12 +466,19 @@
     color var(--motion-fast) ease;
 }
 
-.play-setup-seat-deck-add:hover,
 .play-setup-seat-deck-add:focus-visible {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .play-setup-seat-deck-add:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .play-setup-seat-remove,
@@ -486,11 +501,13 @@
     border-color var(--motion-fast) ease;
 }
 
-.play-setup-seat-remove:hover,
-.play-setup-seat-deck-clear:hover {
-  background: var(--err-bg);
-  border-color: var(--err-border);
-  color: var(--err-text);
+@media (hover: hover) and (pointer: fine) {
+  .play-setup-seat-remove:hover,
+  .play-setup-seat-deck-clear:hover {
+    background: var(--err-bg);
+    border-color: var(--err-border);
+    color: var(--err-text);
+  }
 }
 
 .play-setup-roster-add {
@@ -509,12 +526,19 @@
     color var(--motion-fast) ease;
 }
 
-.play-setup-roster-add:hover,
 .play-setup-roster-add:focus-visible {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .play-setup-roster-add:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .play-join-code {
@@ -625,8 +649,10 @@
   cursor: pointer;
 }
 
-.play-end-winner:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .play-end-winner:hover {
+    border-color: var(--accent);
+  }
 }
 
 .play-end-winner.is-selected {

@@ -44,11 +44,17 @@
     background var(--motion-fast) ease;
 }
 
-.export-dialog-close:hover,
 .export-dialog-close:focus-visible {
   color: var(--text-primary);
   background: var(--surface-raised);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .export-dialog-close:hover {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+    outline: none;
+  }
 }
 
 .export-dialog-body {

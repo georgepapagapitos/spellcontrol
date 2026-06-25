@@ -89,8 +89,10 @@
   transition: background var(--motion-fast) ease;
 }
 
-.deck-size-prompt-act:hover:not(:disabled) {
-  background: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .deck-size-prompt-act:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
 }
 
 .deck-size-prompt-act:disabled {
@@ -122,8 +124,10 @@
   cursor: pointer;
 }
 
-.deck-size-prompt-showall:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .deck-size-prompt-showall:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Footer escape hatches wrap on narrow sheets so labels never clip. */
