@@ -60,7 +60,7 @@ export const SearchPill = forwardRef<HTMLInputElement, Props>(function SearchPil
     hideClear = false,
     inputId,
     autoFocus,
-    inputType = 'search',
+    inputType = 'text',
     inputProps,
   },
   ref

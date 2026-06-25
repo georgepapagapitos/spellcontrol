@@ -95,7 +95,7 @@ describe('UX-301 — filter visibility', () => {
       ];
       renderTable(c);
 
-      const searchInput = screen.getByRole('searchbox');
+      const searchInput = screen.getByRole('textbox', { name: /search/i });
       fireEvent.change(searchInput, { target: { value: 'Alpha' } });
 
       // After debounce (useDebouncedValue 180ms) the count appears.
@@ -124,7 +124,7 @@ describe('UX-301 — filter visibility', () => {
 
     it('renders a chip when search term is non-empty', () => {
       renderTable(cards(3));
-      const searchInput = screen.getByRole('searchbox');
+      const searchInput = screen.getByRole('textbox', { name: /search/i });
       fireEvent.change(searchInput, { target: { value: 'foo' } });
 
       const chipsGroup = screen.getByRole('group', { name: 'Active filters' });
@@ -135,7 +135,7 @@ describe('UX-301 — filter visibility', () => {
 
     it('removes the search chip when × is clicked', () => {
       renderTable(cards(3));
-      const searchInput = screen.getByRole('searchbox');
+      const searchInput = screen.getByRole('textbox', { name: /search/i });
       fireEvent.change(searchInput, { target: { value: 'bar' } });
 
       const chipsGroup = screen.getByRole('group', { name: 'Active filters' });
@@ -151,7 +151,7 @@ describe('UX-301 — filter visibility', () => {
 
     it('renders "Clear all" only when more than one chip is active', () => {
       renderTable(cards(3));
-      const searchInput = screen.getByRole('searchbox');
+      const searchInput = screen.getByRole('textbox', { name: /search/i });
       // One filter: no "Clear all"
       fireEvent.change(searchInput, { target: { value: 'test' } });
       expect(screen.queryByRole('button', { name: 'Clear all' })).toBeNull();
@@ -167,7 +167,7 @@ describe('UX-301 — filter visibility', () => {
       // Enter search that does not match any name and is at least 2 chars
       // (otherwise the Scryfall trigger fires, preventing the empty state).
       // We need a term that normalizeForSearch won't match 'gamma'.
-      const searchInput = screen.getByRole('searchbox');
+      const searchInput = screen.getByRole('textbox', { name: /search/i });
       fireEvent.change(searchInput, { target: { value: 'zzz' } });
 
       // With 1-char debounce this doesn't fire. We can't reliably test the

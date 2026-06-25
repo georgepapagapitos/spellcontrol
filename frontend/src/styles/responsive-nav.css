@@ -22,16 +22,7 @@
 /* Tablet & smaller */
 @media (max-width: 900px) {
   body {
-    padding: 0 0.85rem 1.25rem;
-    padding-left: max(0.85rem, var(--safe-left));
-    padding-right: max(0.85rem, var(--safe-right));
-  }
-
-  .site-header {
-    margin-left: -0.85rem;
-    margin-right: -0.85rem;
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
+    padding-bottom: 1.25rem;
   }
 
   .site-header-inner {
@@ -52,19 +43,10 @@
   }
 }
 
-/* Phone */
+/* Nav shell — phone */
 @media (max-width: 1024px) {
   body {
-    padding: 0 0.65rem 0.85rem;
-    padding-left: max(0.65rem, var(--safe-left));
-    padding-right: max(0.65rem, var(--safe-right));
-  }
-
-  .site-header {
-    margin-left: -0.65rem;
-    margin-right: -0.65rem;
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
+    padding-bottom: 0.85rem;
   }
 
   .site-brand {
@@ -74,7 +56,10 @@
   .site-brand-text {
     display: none;
   }
+}
 
+/* Phone content density */
+@media (max-width: 600px) {
   .upload-card {
     min-height: 160px;
     padding: 1.25rem 1rem;
@@ -96,17 +81,8 @@
     gap: 0.6rem;
   }
 
-  .search-pill {
-    flex: 1 1 100%;
-  }
-
   .binder-toolbar .field-checkbox {
     margin-left: auto;
-  }
-
-  input[type='text'] {
-    width: 100%;
-    max-width: 100%;
   }
 
   /* Mobile binder switcher: Material-style scrollable underline tabs.
@@ -409,6 +385,18 @@
   padding: 0 var(--page-gutter, 1rem);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
+  /* Scrollable on narrow screens so all tabs remain reachable. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.collection-hub-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.collection-hub-tabs .site-nav-link {
+  flex: 0 0 auto;
 }
 
 /* ── Mobile bottom tab bar ─────────────────────────────────────────────── */
@@ -447,6 +435,7 @@
 
   .mobile-tab-bar-link {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -489,6 +478,8 @@
   .mobile-tab-bar-label {
     font-size: var(--text-xs);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Friends pending-count badge on the mobile tab bar icon */
@@ -709,7 +700,7 @@
 /* Only fire the hover fill where hover is a real input modality —
    on touch (the FAB's actual habitat) sticky :hover would leave the
    chip looking "active" after every tap. */
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .nav-fab-item-action:hover:not(:disabled) .nav-fab-item-glyph {
     background: var(--accent);
     border-color: var(--accent);
