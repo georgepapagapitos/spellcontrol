@@ -1,4 +1,5 @@
 import { type JSX, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LayoutGrid, Rows3 } from 'lucide-react';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
@@ -96,7 +97,7 @@ export function CardGroupSheet({
 
   const totalCards = tally.reduce((n, t) => n + t.count, 0);
 
-  return (
+  return createPortal(
     <div
       className={`card-group-backdrop${isClosing ? ' is-closing' : ''}`}
       onClick={() => beginClose()}
@@ -218,6 +219,7 @@ export function CardGroupSheet({
           </ul>
         )}
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
