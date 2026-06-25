@@ -41,6 +41,7 @@ body {
      actually scroll instead of expanding the shell. */
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   overflow-x: clip;
   /* Keep scroll/overscroll contained to this region — no chaining to the
      shell and no browser overscroll glow/navigation. */
