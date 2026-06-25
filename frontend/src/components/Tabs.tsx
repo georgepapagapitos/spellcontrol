@@ -189,7 +189,7 @@ export function Tabs<T extends string>({
             onKeyDown={(e) => onKeyDown(e, i)}
           >
             {t.icon}
-            {t.label}
+            <span className="sc-tab-label">{t.label}</span>
             {typeof t.count === 'number' && (
               <span className={countClass} aria-hidden>
                 {t.count}
