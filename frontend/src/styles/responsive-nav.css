@@ -56,6 +56,21 @@
   .site-brand-text {
     display: none;
   }
+
+  /* On mobile the on-page binder strip is replaced by the bottom-nav
+     binder picker (BinderPickerSheet). Keep the desktop chip strip
+     completely out of the layout to avoid duplication. These are
+     layout-mode switches (the mobile shell is everything ≤1024px),
+     not content-density tweaks, so they belong here, not at ≤600px. */
+  .binder-tab-row {
+    display: none;
+  }
+
+  /* Footer is omitted on the mobile shell; the Scryfall attribution is
+     still accessible from the desktop view and via the API metadata. */
+  .footer {
+    display: none;
+  }
 }
 
 /* Phone content density */
@@ -156,13 +171,6 @@
     font-size: var(--text-base);
   }
 
-  /* On mobile the on-page binder strip is replaced by the bottom-nav
-     binder picker (BinderPickerSheet). Keep the desktop chip strip
-     completely out of the layout to avoid duplication. */
-  .binder-tab-row {
-    display: none;
-  }
-
   .btn {
     padding: 8px 14px;
     min-height: 36px;
@@ -243,12 +251,6 @@
   /* Tooltip image: cap to viewport on small screens */
   .tooltip-image {
     width: min(200px, 60vw);
-  }
-
-  /* Footer is omitted on mobile; the Scryfall attribution is still
-     accessible from the desktop view and via the underlying API metadata. */
-  .footer {
-    display: none;
   }
 }
 
