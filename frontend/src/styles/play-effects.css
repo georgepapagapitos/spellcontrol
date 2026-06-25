@@ -251,12 +251,19 @@
     border-color var(--motion-fast) ease;
 }
 
-.life-keypad-close:hover,
 .life-keypad-close:focus-visible {
   background: var(--accent-light);
   color: var(--accent);
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-close:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 .life-keypad-close:active {
@@ -307,11 +314,17 @@
     color var(--motion-fast) ease;
 }
 
-.life-keypad-btn:hover,
 .life-keypad-btn:focus-visible {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-btn:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .life-keypad-btn:active {
@@ -336,8 +349,10 @@
   transition: background var(--motion-fast) ease;
 }
 
-.life-keypad-confirm:hover {
-  background: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .life-keypad-confirm:hover {
+    background: var(--accent-hover);
+  }
 }
 
 /* UX-322 — Delta-mode row: two side-by-side apply buttons (− and +). */
@@ -422,8 +437,10 @@
     transform var(--motion-fast) ease;
 }
 
-.layout-option:hover {
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .layout-option:hover {
+    border-color: var(--border-strong);
+  }
 }
 
 .layout-option.is-selected {

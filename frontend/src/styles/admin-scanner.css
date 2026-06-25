@@ -352,11 +352,19 @@
     background 0.15s ease,
     transform 0.1s ease;
 }
-.scanner-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
 }
 .scanner-icon-btn:active {
   transform: scale(0.95);
+}
+@media (pointer: coarse) {
+  .scanner-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 .scanner-icon-btn.active {
   background: #fde68a;
@@ -409,8 +417,10 @@
   border-radius: var(--radius-lg);
   backdrop-filter: none;
 }
-.scanner-action-stack .scanner-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-action-stack .scanner-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
 }
 /* Numeric badge over the queue button. Animates in on every increment
    so the user sees the count bump when a card is auto-added. Cyan
@@ -547,8 +557,10 @@
   cursor: pointer;
   font: inherit;
 }
-.scanner-card-panel-main:hover {
-  background: rgba(255, 255, 255, 0.04);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-card-panel-main:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
 }
 .scanner-card-panel-main:active {
   background: rgba(255, 255, 255, 0.07);
@@ -638,9 +650,11 @@
   text-underline-offset: 3px;
   transition: transform 0.1s ease;
 }
-.scanner-card-panel-set:hover {
-  color: #fff;
-  text-decoration-color: rgba(125, 211, 252, 0.8);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-card-panel-set:hover {
+    color: #fff;
+    text-decoration-color: rgba(125, 211, 252, 0.8);
+  }
 }
 .scanner-card-panel-set:active {
   transform: scale(0.98);
@@ -706,8 +720,10 @@
     background 0.15s ease,
     transform 0.1s ease;
 }
-.scanner-card-panel-add:hover {
-  background: rgba(56, 189, 248, 0.26);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-card-panel-add:hover {
+    background: rgba(56, 189, 248, 0.26);
+  }
 }
 .scanner-card-panel-add:active {
   transform: scale(0.96);
@@ -960,8 +976,10 @@
   text-align: left;
   cursor: pointer;
 }
-.scanner-search-result:hover {
-  background: rgba(255, 255, 255, 0.07);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-search-result:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
 }
 .scanner-search-result:active {
   background: rgba(255, 255, 255, 0.1);
@@ -1119,12 +1137,20 @@
   color: #f1f5f9;
   cursor: pointer;
 }
-.scanner-qty-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-qty-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
 }
 .scanner-qty-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+@media (pointer: coarse) {
+  .scanner-qty-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 .scanner-qty-value {
   min-width: 1.5rem;
@@ -1146,18 +1172,17 @@
   font-weight: 500;
   cursor: pointer;
 }
-.scanner-printing-toggle:hover {
-  background: rgba(255, 255, 255, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-printing-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
 }
 .scanner-printing-toggle.open {
   background: rgba(56, 189, 248, 0.22);
   border-color: rgba(56, 189, 248, 0.55);
   color: #e0f2fe;
 }
-.scanner-sheet-remove {
-  width: 32px;
-  height: 32px;
-}
+/* .scanner-sheet-remove inherits .scanner-icon-btn size (40px base, 44px on coarse). */
 .scanner-printing-picker {
   margin-top: 0.5rem;
   border-radius: var(--radius-lg);
@@ -1193,8 +1218,10 @@
   cursor: pointer;
   text-align: left;
 }
-.scanner-printing-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+@media (hover: hover) and (pointer: fine) {
+  .scanner-printing-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 .scanner-printing-item.selected {
   background: rgba(56, 189, 248, 0.2);
