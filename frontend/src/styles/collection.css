@@ -74,6 +74,7 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 /* Under the Collection hub the search row pins beneath the sticky hub-tabs
@@ -1730,13 +1731,6 @@ i.ss.set-symbol--mythic {
   .collection-grid {
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
     gap: 0.5rem;
-  }
-
-  /* No flex-wrap on mobile: the search pill is flex-shrinkable, so
-     letting the filter trigger pin to the right side of the same row
-     reads better than dropping it onto a new line. */
-  .collection-toolbar-row {
-    flex-wrap: nowrap;
   }
 
   .collection-list-thumb {
