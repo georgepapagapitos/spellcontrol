@@ -166,6 +166,9 @@
 
 .sc-tabs--fitted .sc-tab {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sc-tabs--scrollable .sc-tab {
@@ -456,7 +459,7 @@
   transform: scale(0.97);
 }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   .deck-combos-card-art:hover {
     box-shadow: 0 2px 8px color-mix(in srgb, black 28%, transparent);
   }
