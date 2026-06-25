@@ -408,6 +408,12 @@
     color: var(--text-primary);
   }
 }
+@media (pointer: coarse) {
+  .decks-index-card-menu-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 /* Grid mode: the button sits on the commander art / colored banner, where
    the default muted gray washes out against arbitrary art colors. White

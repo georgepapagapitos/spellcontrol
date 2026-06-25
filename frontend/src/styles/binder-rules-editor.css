@@ -244,6 +244,18 @@
   cursor: pointer;
   padding: 0;
   transition: transform 0.1s;
+  position: relative;
+}
+@media (pointer: coarse) {
+  .color-swatch::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 .color-swatch.selected {
@@ -264,7 +276,6 @@
   background: var(--surface);
   border: 1.5px dashed var(--text-muted);
   position: relative;
-  overflow: hidden;
 }
 
 .color-swatch-custom.selected {

@@ -337,6 +337,16 @@
     color: var(--text-primary);
   }
 }
+@media (pointer: coarse) {
+  .binders-index-card-menu-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .binders-index-list.is-compact .binders-index-card-menu-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 /* Grid mode: the button sits on the colored header band, where the
    default muted gray washes out. White icon + shadow keeps it visible

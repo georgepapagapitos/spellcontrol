@@ -1095,6 +1095,12 @@
     outline: none;
   }
 }
+@media (pointer: coarse) {
+  .inline-card-search-add {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 
 .inline-card-search-thumb {
   width: 34px;

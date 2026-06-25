@@ -93,6 +93,12 @@
     outline: none;
   }
 }
+@media (pointer: coarse) {
+  .search-pill-clear {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 
 /* Filter / options popover that lives INSIDE the search bar. Single
    icon button → click opens a small panel of toggles. A numeric
@@ -144,6 +150,12 @@
   .filter-popover-btn:hover {
     background: var(--accent-light);
     color: var(--accent);
+  }
+}
+@media (pointer: coarse) {
+  .filter-popover-btn {
+    width: 44px;
+    height: 44px;
   }
 }
 

@@ -61,6 +61,13 @@
     color: var(--text-primary);
   }
 }
+@media (pointer: coarse) {
+  .move-deck-back,
+  .move-deck-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .move-deck-empty {
   padding: 2rem 1rem;

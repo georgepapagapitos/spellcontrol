@@ -122,6 +122,12 @@
   line-height: 1;
   cursor: pointer;
 }
+@media (pointer: coarse) {
+  .cle-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .cle-rows {
   display: flex;

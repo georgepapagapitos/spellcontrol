@@ -242,6 +242,12 @@
     outline: none;
   }
 }
+@media (pointer: coarse) {
+  .collection-filters-dialog-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .collection-filters-dialog-body {
   flex: 1 1 auto;
@@ -472,6 +478,7 @@
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
+  position: relative;
 }
 
 .set-filter-chip-x:focus-visible {
@@ -484,6 +491,17 @@
     background: var(--accent);
     color: var(--accent-text, #fff);
     outline: none;
+  }
+}
+@media (pointer: coarse) {
+  .set-filter-chip-x::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 

@@ -214,6 +214,12 @@
     outline: none;
   }
 }
+@media (pointer: coarse) {
+  .stats-drawer-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .stats-drawer-body {
   flex: 1 1 auto;
@@ -302,6 +308,14 @@
   align-items: center;
   padding-top: 3px;
   cursor: pointer;
+}
+@media (pointer: coarse) {
+  .import-history-check {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    padding-top: 0;
+  }
 }
 
 .import-history-check input[type='checkbox'],
@@ -505,6 +519,12 @@
   .staged-files-remove:hover:not(:disabled) {
     background: var(--surface1);
     color: var(--text-primary);
+  }
+}
+@media (pointer: coarse) {
+  .staged-files-remove {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
