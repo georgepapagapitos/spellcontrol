@@ -1,12 +1,6 @@
 /* Rules Reference sheet — reuses the shared .modal shell; this styles the
    search bar, tabs, and the keyword/glossary/rules lists. */
 
-.rules-ref-modal {
-  /* Fill the available height so the reference reads like a tall scrollable
-     panel rather than a short box that resizes per tab. */
-  height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
-}
-
 /* Wrapper just provides padding; the field is the shared <SearchPill>. */
 .rules-ref-search {
   display: flex;
