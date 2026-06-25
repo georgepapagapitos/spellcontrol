@@ -856,13 +856,20 @@
     border-color var(--motion-fast);
 }
 
-.collection-grid-scryfall:hover,
 .collection-grid-scryfall:focus-visible,
 .collection-grid-scryfall.is-open {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-grid-scryfall:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .collection-grid-scryfall-title {
@@ -903,13 +910,20 @@
   margin-top: 0.85rem;
 }
 
-.collection-list-scryfall:hover,
 .collection-list-scryfall:focus-visible,
 .collection-list-scryfall.is-open {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-list-scryfall:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .collection-list-scryfall-icon {
@@ -932,10 +946,14 @@
   color: var(--text-muted);
 }
 
-.collection-list-scryfall:hover .collection-list-scryfall-sub,
 .collection-list-scryfall:focus-visible .collection-list-scryfall-sub,
 .collection-list-scryfall.is-open .collection-list-scryfall-sub {
   color: inherit;
+}
+@media (hover: hover) and (pointer: fine) {
+  .collection-list-scryfall:hover .collection-list-scryfall-sub {
+    color: inherit;
+  }
 }
 
 /* Reveal-more (replaces inner scrollbars — the page scrolls). */

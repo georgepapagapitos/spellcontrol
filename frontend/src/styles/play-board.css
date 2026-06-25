@@ -340,8 +340,10 @@
   z-index: 3;
 }
 
-.player-panel-menu-btn:hover {
-  background: rgba(0, 0, 0, 0.55);
+@media (hover: hover) and (pointer: fine) {
+  .player-panel-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.55);
+  }
 }
 
 .player-panel-menu-btn:focus-visible {

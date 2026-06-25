@@ -34,9 +34,11 @@
     background var(--motion-fast) ease;
 }
 
-.seat-menu-facing-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .seat-menu-facing-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
 }
 
 .seat-menu-facing-btn.is-selected {
