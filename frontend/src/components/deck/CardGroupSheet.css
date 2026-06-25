@@ -168,8 +168,10 @@
   cursor: pointer;
 }
 
-.card-group-close:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .card-group-close:hover {
+    color: var(--text-primary);
+  }
 }
 
 .card-group-grid {
@@ -280,8 +282,10 @@
   text-align: left;
 }
 
-.card-group-row:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .card-group-row:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .card-group-row-thumb {

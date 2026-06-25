@@ -52,8 +52,10 @@
     transform var(--motion-fast);
 }
 
-.gen-mode-card:hover:not(:disabled) {
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .gen-mode-card:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
 }
 
 .gen-mode-card:focus-visible {
@@ -191,9 +193,11 @@
     color var(--motion-fast);
 }
 
-.gen-mode-chip:hover {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .gen-mode-chip:hover {
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+  }
 }
 
 .gen-mode-chip:focus-visible {

@@ -46,8 +46,10 @@
   transition: transform var(--motion-fast);
 }
 
-.btn-link:hover {
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .btn-link:hover {
+    background: var(--accent-light);
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
@@ -148,9 +150,11 @@
 }
 
 /* Fill-on-hover so the border stays put — no jitter against the input. */
-.number-stepper-btn:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .number-stepper-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
 }
 
 .number-stepper-btn:active:not(:disabled) {

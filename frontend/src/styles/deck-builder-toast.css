@@ -104,11 +104,17 @@
   cursor: pointer;
 }
 
-.toast-action:hover,
 .toast-action:focus-visible {
   background: var(--accent);
   color: var(--on-accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .toast-action:hover {
+    background: var(--accent);
+    color: var(--on-accent);
+    outline: none;
+  }
 }
 
 .toast-close {
@@ -123,11 +129,17 @@
   border-radius: var(--radius);
 }
 
-.toast-close:hover,
 .toast-close:focus-visible {
   color: var(--text-primary);
   background: var(--surface);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .toast-close:hover {
+    color: var(--text-primary);
+    background: var(--surface);
+    outline: none;
+  }
 }
 
 @keyframes toast-slide-in {

@@ -162,9 +162,11 @@
   padding: 0;
 }
 
-.auth-reveal:hover {
-  color: var(--text-primary);
-  background: var(--bg);
+@media (hover: hover) and (pointer: fine) {
+  .auth-reveal:hover {
+    color: var(--text-primary);
+    background: var(--bg);
+  }
 }
 
 .auth-reveal:focus-visible {
@@ -267,8 +269,10 @@
   margin-top: 4px;
 }
 
-.auth-submit:hover:not(:disabled) {
-  background: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .auth-submit:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
 }
 
 .auth-submit:disabled {
@@ -314,9 +318,11 @@
   font-family: inherit;
 }
 
-.auth-google:hover:not(:disabled) {
-  background: var(--bg);
-  border-color: var(--border-strong);
+@media (hover: hover) and (pointer: fine) {
+  .auth-google:hover:not(:disabled) {
+    background: var(--bg);
+    border-color: var(--border-strong);
+  }
 }
 
 .auth-google:disabled {
@@ -362,6 +368,8 @@
   font-family: inherit;
 }
 
-.auth-back:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .auth-back:hover {
+    color: var(--text-primary);
+  }
 }

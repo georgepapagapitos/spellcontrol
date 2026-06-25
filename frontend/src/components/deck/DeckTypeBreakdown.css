@@ -68,9 +68,13 @@
   border-radius: var(--radius);
 }
 
-.deck-type-breakdown-row-btn:hover .deck-type-breakdown-row-name,
 .deck-type-breakdown-row-btn:focus-visible .deck-type-breakdown-row-name {
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-type-breakdown-row-btn:hover .deck-type-breakdown-row-name {
+    text-decoration: underline;
+  }
 }
 
 .deck-type-breakdown-row-btn:focus-visible {

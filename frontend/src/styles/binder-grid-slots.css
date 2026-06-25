@@ -45,8 +45,10 @@
   transition: background var(--motion-fast);
 }
 
-.section-header-toggle:hover {
-  background: var(--accent-light);
+@media (hover: hover) and (pointer: fine) {
+  .section-header-toggle:hover {
+    background: var(--accent-light);
+  }
 }
 
 .section-header-toggle:focus-visible {
@@ -134,11 +136,17 @@
     text-decoration-color var(--motion-fast);
 }
 
-.page-num-link:hover,
 .page-num-link:focus-visible {
   color: var(--accent-hover, var(--accent));
   text-decoration-color: transparent;
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .page-num-link:hover {
+    color: var(--accent-hover, var(--accent));
+    text-decoration-color: transparent;
+    outline: none;
+  }
 }
 
 .page {

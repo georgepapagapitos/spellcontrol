@@ -34,8 +34,10 @@
   border-bottom: 2px solid transparent;
   font-size: var(--text-sm);
 }
-.admin-tab:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .admin-tab:hover {
+    background: var(--surface-raised);
+  }
 }
 .admin-tab--active {
   border-bottom-color: var(--accent);
@@ -106,8 +108,10 @@
   cursor: pointer;
   user-select: none;
 }
-.admin-subopt-info > summary:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .admin-subopt-info > summary:hover {
+    color: var(--text-primary);
+  }
 }
 .admin-deck-layout {
   display: grid;
@@ -143,8 +147,10 @@
   flex-direction: column;
   gap: 0.15rem;
 }
-.admin-deck-link:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .admin-deck-link:hover {
+    background: var(--surface-raised);
+  }
 }
 .admin-deck-link.is-active {
   background: var(--accent-light);
@@ -188,8 +194,10 @@
   border-radius: var(--radius);
   cursor: pointer;
 }
-.admin-danger button:hover {
-  filter: brightness(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .admin-danger button:hover {
+    filter: brightness(1.15);
+  }
 }
 .admin-raw-actions {
   display: flex;
@@ -204,9 +212,11 @@
   border-radius: var(--radius);
   cursor: pointer;
 }
-.admin-raw-actions button:hover {
-  background: var(--accent-light);
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .admin-raw-actions button:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
 }
 .admin-footer-note {
   margin-top: 2rem;
@@ -940,11 +950,17 @@
 /* Autofill would otherwise repaint the field with the WebView's light/white
    fill; pin it to the dark pill instead. */
 .scanner-search-pill > input:-webkit-autofill,
-.scanner-search-pill > input:-webkit-autofill:hover,
 .scanner-search-pill > input:-webkit-autofill:focus {
   -webkit-text-fill-color: #f1f5f9;
   -webkit-box-shadow: 0 0 0 1000px #1e293b inset;
   caret-color: #f1f5f9;
+}
+@media (hover: hover) and (pointer: fine) {
+  .scanner-search-pill > input:-webkit-autofill:hover {
+    -webkit-text-fill-color: #f1f5f9;
+    -webkit-box-shadow: 0 0 0 1000px #1e293b inset;
+    caret-color: #f1f5f9;
+  }
 }
 .scanner-search-results {
   margin-top: 0.5rem;

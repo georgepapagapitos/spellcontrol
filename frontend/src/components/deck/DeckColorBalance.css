@@ -63,9 +63,13 @@
   border-radius: var(--radius);
 }
 
-.deck-color-balance-row-btn:hover .deck-color-balance-row-name,
 .deck-color-balance-row-btn:focus-visible .deck-color-balance-row-name {
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-color-balance-row-btn:hover .deck-color-balance-row-name {
+    text-decoration: underline;
+  }
 }
 
 .deck-color-balance-row-btn:focus-visible {

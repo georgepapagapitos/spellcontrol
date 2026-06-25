@@ -133,9 +133,13 @@ button.deck-color-donut-legend-row {
   border-radius: var(--radius);
 }
 
-button.deck-color-donut-legend-row:hover .deck-color-donut-name,
 button.deck-color-donut-legend-row:focus-visible .deck-color-donut-name {
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  button.deck-color-donut-legend-row:hover .deck-color-donut-name {
+    text-decoration: underline;
+  }
 }
 
 button.deck-color-donut-legend-row:focus-visible {
@@ -153,9 +157,13 @@ button.deck-color-donut-legend-row:focus-visible {
   transition: transform 0.15s ease;
 }
 
-button.deck-color-donut-legend-row:hover .deck-color-donut-chevron,
 button.deck-color-donut-legend-row:focus-visible .deck-color-donut-chevron {
   transform: translateX(2px);
+}
+@media (hover: hover) and (pointer: fine) {
+  button.deck-color-donut-legend-row:hover .deck-color-donut-chevron {
+    transform: translateX(2px);
+  }
 }
 
 .deck-color-donut-name {

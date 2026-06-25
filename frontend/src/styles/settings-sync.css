@@ -18,9 +18,11 @@
   cursor: pointer;
 }
 
-.site-nav-settings:hover {
-  color: var(--text-primary);
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .site-nav-settings:hover {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+  }
 }
 
 /* Replace the browser's default lavender focus box (visible when focus is
@@ -125,8 +127,10 @@
   text-decoration: none;
   cursor: pointer;
 }
-.header-sync-indicator:hover {
-  filter: brightness(0.92);
+@media (hover: hover) and (pointer: fine) {
+  .header-sync-indicator:hover {
+    filter: brightness(0.92);
+  }
 }
 
 /* Global price-refresh progress pill. A manual refresh on a large collection
@@ -360,10 +364,15 @@
   word-break: break-all;
 }
 
-.settings-share-url:hover,
 .settings-share-url:focus-visible {
   color: var(--accent);
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .settings-share-url:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
 }
 
 @media (max-width: 520px) {
@@ -469,8 +478,10 @@
     background var(--motion-fast) ease;
 }
 
-.settings-theme-option:hover {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .settings-theme-option:hover {
+    border-color: var(--accent);
+  }
 }
 
 .settings-theme-option.is-active {
@@ -506,11 +517,17 @@
   border-color: color-mix(in srgb, var(--err-text) 40%, transparent);
 }
 
-.pill-btn-danger:hover,
 .pill-btn-danger:focus-visible {
   background: var(--err-bg);
   border-color: var(--err-text);
   color: var(--err-text);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pill-btn-danger:hover {
+    background: var(--err-bg);
+    border-color: var(--err-text);
+    color: var(--err-text);
+  }
 }
 
 /* Section header — a visual chapter-break label between groups of settings
@@ -545,9 +562,13 @@
   color: var(--text-secondary);
 }
 
-.settings-page-about a:hover,
 .settings-page-about a:focus-visible {
   color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .settings-page-about a:hover {
+    color: var(--accent);
+  }
 }
 
 /* On narrow screens, btn action buttons inside settings rows align right

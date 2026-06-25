@@ -200,8 +200,10 @@
   min-height: 44px;
   transition: color var(--motion-fast);
 }
-.deck-compare-show-more:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .deck-compare-show-more:hover {
+    color: var(--text-primary);
+  }
 }
 
 /* ── Stat chips ───────────────────────────────────────────────────────── */

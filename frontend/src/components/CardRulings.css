@@ -24,8 +24,10 @@
   color: rgba(255, 255, 255, 0.7);
   font-size: var(--text-sm);
 }
-.card-rulings-toggle:hover {
-  color: rgba(255, 255, 255, 0.95);
+@media (hover: hover) and (pointer: fine) {
+  .card-rulings-toggle:hover {
+    color: rgba(255, 255, 255, 0.95);
+  }
 }
 
 .card-rulings-chevron {

@@ -49,10 +49,15 @@
   transition: background var(--motion-fast);
 }
 
-.import-routing-row:hover,
 .import-routing-row:focus-visible {
   background: rgba(0, 0, 0, 0.04);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .import-routing-row:hover {
+    background: rgba(0, 0, 0, 0.04);
+    outline: none;
+  }
 }
 
 .import-routing-pip {

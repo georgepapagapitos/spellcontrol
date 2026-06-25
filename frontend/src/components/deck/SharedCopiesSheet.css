@@ -52,9 +52,11 @@
     color var(--motion-fast);
 }
 
-.shared-copies-close:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .shared-copies-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 .shared-copies-empty {

@@ -56,10 +56,15 @@
   color: var(--text-primary);
 }
 
-.commander-search-item:hover,
 .commander-search-item:focus-visible {
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .commander-search-item:hover {
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .commander-search-item-line {
@@ -164,10 +169,15 @@
     background var(--motion-fast) ease;
 }
 
-.commander-result-card:hover:not(:disabled),
 .commander-result-card:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .commander-result-card:hover:not(:disabled) {
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 .commander-result-card:disabled {
@@ -437,9 +447,13 @@
   user-select: none;
 }
 
-.commander-owned-toggle:hover,
 .commander-owned-toggle:focus-within {
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .commander-owned-toggle:hover {
+    color: var(--text-primary);
+  }
 }
 
 .commander-owned-count {
@@ -503,8 +517,10 @@
   padding: 0.3rem 0.5rem;
 }
 
-.commander-playstyle-more:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .commander-playstyle-more:hover {
+    text-decoration: underline;
+  }
 }
 
 /* Mana-color filter row — circular pips that toggle on click. */
@@ -542,8 +558,10 @@
   font-size: 1.4em;
 }
 
-.commander-color-pip:hover {
-  opacity: 0.85;
+@media (hover: hover) and (pointer: fine) {
+  .commander-color-pip:hover {
+    opacity: 0.85;
+  }
 }
 
 .commander-color-pip.active {
@@ -572,8 +590,10 @@
   padding: 0.2rem 0.4rem;
 }
 
-.commander-color-clear:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .commander-color-clear:hover {
+    color: var(--text-primary);
+  }
 }
 
 /* Pill chip — now only the "Random" surprise-me button. */
@@ -595,12 +615,19 @@
     color var(--motion-fast) ease;
 }
 
-.commander-suggestion-chip:hover:not(:disabled),
 .commander-suggestion-chip:focus-visible {
   border-color: var(--accent);
   background: var(--accent-light);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .commander-suggestion-chip:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .commander-suggestion-chip:disabled {
@@ -629,14 +656,18 @@
   font-weight: 600;
 }
 
-.commander-surprise-chip:hover:not(:disabled) {
-  color: var(--on-accent);
-  background: var(--accent);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .commander-surprise-chip:hover:not(:disabled) {
+    color: var(--on-accent);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
 }
 
-.commander-surprise-chip:hover:not(:disabled) .commander-surprise-icon {
-  color: var(--on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .commander-surprise-chip:hover:not(:disabled) .commander-surprise-icon {
+    color: var(--on-accent);
+  }
 }
 
 .commander-search-error {

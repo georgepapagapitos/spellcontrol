@@ -54,10 +54,12 @@
     color var(--motion-fast);
 }
 
-.move-deck-back:hover,
-.move-deck-close:hover {
-  background: var(--surface-raised);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .move-deck-back:hover,
+  .move-deck-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
 }
 
 .move-deck-empty {
@@ -94,8 +96,10 @@
     background var(--motion-fast);
 }
 
-.move-deck-row-btn:hover {
-  background: color-mix(in srgb, var(--deck-color, var(--accent)) 8%, var(--surface-raised));
+@media (hover: hover) and (pointer: fine) {
+  .move-deck-row-btn:hover {
+    background: color-mix(in srgb, var(--deck-color, var(--accent)) 8%, var(--surface-raised));
+  }
 }
 
 .move-deck-row-art {

@@ -47,8 +47,10 @@
   flex-shrink: 0;
 }
 
-.game-board-undo-btn:hover {
-  background: #1c222d;
+@media (hover: hover) and (pointer: fine) {
+  .game-board-undo-btn:hover {
+    background: #1c222d;
+  }
 }
 
 .game-board-undo-btn:active {
@@ -227,8 +229,10 @@
   transition: background var(--motion-fast) ease;
 }
 
-.win-celebration-dismiss:hover {
-  background: rgba(255, 255, 255, 0.16);
+@media (hover: hover) and (pointer: fine) {
+  .win-celebration-dismiss:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
 }
 
 /* ── Table tools (coin / dice / first player) ── */
@@ -361,13 +365,19 @@
   font-family: var(--font-mono);
 }
 
-.game-tools-btn:hover,
-.game-tools-die:hover,
 .game-tools-btn:focus-visible,
 .game-tools-die:focus-visible {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .game-tools-btn:hover,
+  .game-tools-die:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .game-tools-btn:active,
@@ -461,9 +471,11 @@
   transition: background var(--motion-fast) ease;
 }
 
-.play-history-rematch:hover {
-  background: var(--accent);
-  color: var(--on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .play-history-rematch:hover {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
 }
 
 /* Reduced-motion: keep info, drop the decorative motion. */

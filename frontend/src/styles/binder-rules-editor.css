@@ -176,8 +176,10 @@
   border-left: 1px solid var(--border);
 }
 
-.rule-segmented-pill:hover:not(.active) {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .rule-segmented-pill:hover:not(.active) {
+    background: var(--surface-raised);
+  }
 }
 
 .rule-segmented-pill.active {
@@ -215,8 +217,10 @@
     color 0.1s;
 }
 
-.chip:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .chip.active {
@@ -247,8 +251,10 @@
   box-shadow: 0 0 0 2px var(--surface);
 }
 
-.color-swatch:hover {
-  transform: scale(1.15);
+@media (hover: hover) and (pointer: fine) {
+  .color-swatch:hover {
+    transform: scale(1.15);
+  }
 }
 
 .color-swatch-custom {
@@ -395,8 +401,10 @@
   transition: transform var(--motion-fast);
 }
 
-.btn-link-danger:hover {
-  background: var(--err-bg);
+@media (hover: hover) and (pointer: fine) {
+  .btn-link-danger:hover {
+    background: var(--err-bg);
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
@@ -418,9 +426,11 @@
   transition: transform var(--motion-fast);
 }
 
-.btn-add-group:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .btn-add-group:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
@@ -497,8 +507,10 @@
   color: var(--text-primary);
 }
 
-.filter-group-name:hover {
-  border-color: var(--border1);
+@media (hover: hover) and (pointer: fine) {
+  .filter-group-name:hover {
+    border-color: var(--border1);
+  }
 }
 
 .filter-group-name:focus {
@@ -657,13 +669,17 @@
   line-height: 1.2;
 }
 
-.starter-template-btn:hover {
-  background: var(--accent-light, var(--surface-raised));
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .starter-template-btn:hover {
+    background: var(--accent-light, var(--surface-raised));
+    border-color: var(--accent);
+  }
 }
-.starter-template-btn:hover .starter-template-label,
-.starter-template-btn:hover .starter-template-desc {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .starter-template-btn:hover .starter-template-label,
+  .starter-template-btn:hover .starter-template-desc {
+    color: var(--accent);
+  }
 }
 
 @media (pointer: coarse) {
@@ -698,9 +714,11 @@
   transition: color var(--motion-fast) ease;
 }
 
-.rule-expander-toggle:hover {
-  color: var(--text-secondary);
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .rule-expander-toggle:hover {
+    color: var(--text-secondary);
+    background: var(--surface-raised);
+  }
 }
 
 .rule-expander-chevron {
@@ -799,10 +817,15 @@
   color: var(--text-muted);
 }
 
-.chip-joiner:hover,
 .chip-joiner:focus-visible {
   filter: brightness(1.15);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .chip-joiner:hover {
+    filter: brightness(1.15);
+    outline: none;
+  }
 }
 
 /* TypeLineExpressionBuilder — composite layout: classified rows stack
@@ -904,8 +927,10 @@
   background: #c44a4a;
 }
 
-.chip-builder-toggle:hover {
-  filter: brightness(1.12);
+@media (hover: hover) and (pointer: fine) {
+  .chip-builder-toggle:hover {
+    filter: brightness(1.12);
+  }
 }
 
 .chip-builder-value {
@@ -930,8 +955,10 @@
   align-items: center;
 }
 
-.chip-builder-remove:hover {
-  color: var(--on-accent);
+@media (hover: hover) and (pointer: fine) {
+  .chip-builder-remove:hover {
+    color: var(--on-accent);
+  }
 }
 
 /* ── Chip builder autocomplete dropdown ─────────────────────────────────── */
@@ -968,10 +995,15 @@
   text-overflow: ellipsis;
 }
 
-.chip-suggest-item:hover,
 .chip-suggest-item.active {
   background: var(--accent-light, var(--surface-alt));
   color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .chip-suggest-item:hover {
+    background: var(--accent-light, var(--surface-alt));
+    color: var(--text-primary);
+  }
 }
 
 /* ── Set multi-select dropdown ──────────────────────────────────────────── */
@@ -1006,8 +1038,10 @@
   color: var(--text-primary);
 }
 
-.set-dropdown-item:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .set-dropdown-item:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .set-dropdown-item.selected {

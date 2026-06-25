@@ -50,8 +50,10 @@
     color var(--motion-fast) ease;
 }
 
-.game-history-tab:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .game-history-tab:hover {
+    color: var(--text-primary);
+  }
 }
 
 .game-history-tab.is-active {
@@ -438,8 +440,10 @@
   cursor: pointer;
 }
 
-.play-history-remove:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .play-history-remove:hover {
+    color: var(--text-primary);
+  }
 }
 
 .play-history-remove:focus-visible {

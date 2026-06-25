@@ -217,8 +217,10 @@
     transform 0.06s ease;
 }
 
-.engine-suggestion-add:hover {
-  background: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .engine-suggestion-add:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .engine-suggestion-add:focus-visible {

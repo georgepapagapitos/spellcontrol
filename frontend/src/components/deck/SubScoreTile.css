@@ -49,8 +49,10 @@
     background var(--motion-fast) ease;
 }
 
-.sub-score-tile.is-interactive:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .sub-score-tile.is-interactive:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .sub-score-tile.is-interactive:focus-visible {

@@ -63,8 +63,10 @@
     box-shadow 0.18s ease;
 }
 
-.deck-curve-phases-toggle-btn:hover {
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .deck-curve-phases-toggle-btn:hover {
+    color: var(--text-primary);
+  }
 }
 
 .deck-curve-phases-toggle-btn[aria-pressed='true'] {
@@ -157,9 +159,13 @@
   transition: filter 0.15s ease;
 }
 
-.deck-curve-phases-bar-fill-btn:hover,
 .deck-curve-phases-bar-fill-btn:focus-visible {
   filter: brightness(1.12);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-curve-phases-bar-fill-btn:hover {
+    filter: brightness(1.12);
+  }
 }
 
 .deck-curve-phases-bar-fill-btn:focus-visible {
@@ -202,9 +208,13 @@
   transition: filter 0.15s ease;
 }
 
-.deck-curve-phases-seg-btn:hover,
 .deck-curve-phases-seg-btn:focus-visible {
   filter: brightness(1.12);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-curve-phases-seg-btn:hover {
+    filter: brightness(1.12);
+  }
 }
 
 .deck-curve-phases-seg-btn:focus-visible {
@@ -300,9 +310,13 @@
   border-radius: var(--radius);
 }
 
-.deck-curve-phases-phase-btn:hover .deck-curve-phases-phase-count,
 .deck-curve-phases-phase-btn:focus-visible .deck-curve-phases-phase-count {
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-curve-phases-phase-btn:hover .deck-curve-phases-phase-count {
+    text-decoration: underline;
+  }
 }
 
 .deck-curve-phases-phase-btn:focus-visible {

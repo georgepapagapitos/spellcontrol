@@ -129,8 +129,10 @@
   text-underline-offset: 2px;
 }
 
-.legend-trigger:hover {
-  color: var(--accent-hover, var(--accent));
+@media (hover: hover) and (pointer: fine) {
+  .legend-trigger:hover {
+    color: var(--accent-hover, var(--accent));
+  }
 }
 
 /* Portaled to <body> and positioned `fixed` from the trigger rect (viewport
@@ -311,11 +313,17 @@ hr {
     color 0.15s;
 }
 
-.empty-state-binder-remove:hover,
 .empty-state-binder-remove:focus-visible {
   opacity: 1;
   color: var(--err-text, var(--warn-text));
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .empty-state-binder-remove:hover {
+    opacity: 1;
+    color: var(--err-text, var(--warn-text));
+    outline: none;
+  }
 }
 
 .empty-state-link-warn {
@@ -327,11 +335,16 @@ hr {
   transition: color 0.15s;
 }
 
-.empty-state-link-warn:hover,
-.btn-link.empty-state-link-warn:hover,
 .empty-state-link-warn:focus-visible {
   color: var(--warn-text);
   background: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  .empty-state-link-warn:hover,
+  .btn-link.empty-state-link-warn:hover {
+    color: var(--warn-text);
+    background: transparent;
+  }
 }
 
 .error-banner {
@@ -386,7 +399,9 @@ hr {
   opacity: 0.6;
 }
 
-.banner-dismiss:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.06);
+@media (hover: hover) and (pointer: fine) {
+  .banner-dismiss:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.06);
+  }
 }

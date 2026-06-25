@@ -60,10 +60,15 @@
 
 /* Inspectable on hover/focus — undo the dim so the card you're about to read
    reads clearly. */
-.deck-card-row-out:not(:disabled):hover,
 .deck-card-row-out:not(:disabled):focus-visible {
   opacity: 0.85;
   filter: grayscale(0);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-row-out:not(:disabled):hover {
+    opacity: 0.85;
+    filter: grayscale(0);
+  }
 }
 
 .deck-card-row-out:disabled {
@@ -221,9 +226,11 @@
     color var(--motion-fast) ease;
 }
 
-.deck-card-row-secondary-act:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-row-secondary-act:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 @media (pointer: coarse) {
@@ -251,8 +258,10 @@
   transition: opacity var(--motion-fast) ease;
 }
 
-.deck-card-row-act:hover:not(:disabled) {
-  opacity: 0.9;
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-row-act:hover:not(:disabled) {
+    opacity: 0.9;
+  }
 }
 
 /* Cut variant — a secondary, destructive-leaning action (in "Consider cutting"),
@@ -264,10 +273,12 @@
   color: var(--text-secondary);
 }
 
-.deck-card-row-act.is-cut:hover:not(:disabled) {
-  opacity: 1;
-  border-color: var(--warn-text, #b4690e);
-  color: var(--warn-text, #b4690e);
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-row-act.is-cut:hover:not(:disabled) {
+    opacity: 1;
+    border-color: var(--warn-text, #b4690e);
+    color: var(--warn-text, #b4690e);
+  }
 }
 
 .deck-card-row-act:disabled {

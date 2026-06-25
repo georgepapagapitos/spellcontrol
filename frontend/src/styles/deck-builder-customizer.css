@@ -32,9 +32,11 @@
   white-space: nowrap;
 }
 
-.theme-chip:hover {
-  background: var(--surface);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .theme-chip:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
 }
 
 .theme-chip.is-active {
@@ -63,9 +65,11 @@
   color: var(--text-secondary);
 }
 
-.theme-chip-more:hover {
-  background: var(--surface);
-  color: var(--text-primary);
+@media (hover: hover) and (pointer: fine) {
+  .theme-chip-more:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
 }
 
 /* ── Deck customizer (advanced settings) ──────────────────────────────── */
@@ -259,11 +263,17 @@
     background var(--motion-fast) ease;
 }
 
-.deck-customizer-group-reset:hover,
 .deck-customizer-group-reset:focus-visible {
   color: var(--accent);
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-customizer-group-reset:hover {
+    color: var(--accent);
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .deck-customizer-group-body {
@@ -390,9 +400,13 @@
   transition: transform var(--motion-fast) ease;
 }
 
-.deck-customizer-range::-webkit-slider-thumb:hover,
 .deck-customizer-range:focus-visible::-webkit-slider-thumb {
   transform: scale(1.1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-customizer-range::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+  }
 }
 
 .deck-customizer-range::-moz-range-thumb {
@@ -494,10 +508,15 @@
   min-height: 3rem;
 }
 
-.option-card:hover:not(:disabled),
 .option-card:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .option-card:hover:not(:disabled) {
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 .option-card.active {
@@ -588,10 +607,15 @@
   min-width: 0;
 }
 
-.preset-pill:hover,
 .preset-pill:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .preset-pill:hover {
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 .preset-pill.active {
@@ -703,10 +727,15 @@
   color: var(--text-primary);
 }
 
-.deck-customizer-autocomplete-item:hover,
 .deck-customizer-autocomplete-item:focus-visible {
   background: var(--accent-light);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-customizer-autocomplete-item:hover {
+    background: var(--accent-light);
+    outline: none;
+  }
 }
 
 .deck-customizer-autocomplete-empty {
@@ -754,7 +783,9 @@
   line-height: 1;
 }
 
-.deck-customizer-pill-remove:hover {
-  background: var(--err-bg, var(--surface-raised));
-  color: var(--err, var(--text-primary));
+@media (hover: hover) and (pointer: fine) {
+  .deck-customizer-pill-remove:hover {
+    background: var(--err-bg, var(--surface-raised));
+    color: var(--err, var(--text-primary));
+  }
 }

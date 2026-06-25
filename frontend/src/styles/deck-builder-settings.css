@@ -57,10 +57,15 @@
     background var(--motion-fast) ease;
 }
 
-.bracket-pill:hover,
 .bracket-pill:focus-visible {
   border-color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bracket-pill:hover {
+    border-color: var(--accent);
+    outline: none;
+  }
 }
 
 .bracket-pill.active {

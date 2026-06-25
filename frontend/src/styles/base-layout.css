@@ -146,8 +146,10 @@ select {
   text-decoration: none;
 }
 
-.site-brand:hover {
-  color: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .site-brand:hover {
+    color: var(--accent-hover);
+  }
 }
 
 .site-brand-mark {

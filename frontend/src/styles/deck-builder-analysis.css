@@ -59,8 +59,10 @@
   cursor: pointer;
 }
 
-.deck-saltiest-name:hover {
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .deck-saltiest-name:hover {
+    text-decoration: underline;
+  }
 }
 
 .deck-saltiest-name:focus-visible {
@@ -130,10 +132,12 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
-.deck-stats-header:hover .deck-stats-caret,
-.deck-combos-header:hover .deck-combos-header-chevron,
-.deck-test-hand-header:hover .deck-test-hand-header-chevron {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .deck-stats-header:hover .deck-stats-caret,
+  .deck-combos-header:hover .deck-combos-header-chevron,
+  .deck-test-hand-header:hover .deck-test-hand-header-chevron {
+    color: var(--accent);
+  }
 }
 
 .deck-stats-header:focus-visible,
@@ -171,8 +175,10 @@
   grid-template-columns: auto minmax(0, 1fr);
 }
 
-.deck-stats-header--static:hover .deck-stats-caret {
-  color: inherit;
+@media (hover: hover) and (pointer: fine) {
+  .deck-stats-header--static:hover .deck-stats-caret {
+    color: inherit;
+  }
 }
 
 .deck-stats-title {
@@ -222,9 +228,13 @@
   transition: color var(--motion-fast) ease;
 }
 
-.deck-stat-btn:hover .deck-stat-value,
 .deck-stat-btn:focus-visible .deck-stat-value {
   color: var(--accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-stat-btn:hover .deck-stat-value {
+    color: var(--accent);
+  }
 }
 
 .deck-stat-btn:focus-visible {

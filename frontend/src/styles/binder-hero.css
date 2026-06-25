@@ -111,12 +111,19 @@
   transition: color var(--motion-fast);
 }
 
-.binder-hero-crumb-link:hover,
 .binder-hero-crumb-link:focus-visible {
   color: var(--accent);
   outline: none;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .binder-hero-crumb-link:hover {
+    color: var(--accent);
+    outline: none;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }
 
 .binder-hero-crumb-sep {
@@ -211,10 +218,15 @@
   transition: background var(--motion-fast);
 }
 
-.binder-summary-browse-pages:hover,
 .binder-summary-browse-pages:focus-visible {
   background: var(--accent-hover);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .binder-summary-browse-pages:hover {
+    background: var(--accent-hover);
+    outline: none;
+  }
 }
 
 /* "+N more pages" expander at the bottom of a section's inline grid. */
@@ -235,11 +247,17 @@
     color var(--motion-fast);
 }
 
-.binder-section-show-more:hover,
 .binder-section-show-more:focus-visible {
   background: var(--surface);
   color: var(--text-primary);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .binder-section-show-more:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+    outline: none;
+  }
 }
 
 /* Binder hero UX-305: secondary actions collapse into ⋮ at ≤600px. */
@@ -397,12 +415,19 @@
     transform var(--motion-fast);
 }
 
-.pill-btn:hover,
 .pill-btn:focus-visible {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
   outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .pill-btn:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
 }
 
 .pill-btn:focus-visible {
@@ -428,11 +453,17 @@
   font-weight: 600;
 }
 
-.pill-btn-primary:hover,
 .pill-btn-primary:focus-visible {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
   color: var(--on-accent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .pill-btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--on-accent);
+  }
 }
 
 .page-actions {

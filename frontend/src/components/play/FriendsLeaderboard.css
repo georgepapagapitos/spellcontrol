@@ -20,8 +20,10 @@
   text-decoration: underline;
 }
 
-.link-button:hover {
-  text-decoration: none;
+@media (hover: hover) and (pointer: fine) {
+  .link-button:hover {
+    text-decoration: none;
+  }
 }
 
 .leaderboard-skeleton {

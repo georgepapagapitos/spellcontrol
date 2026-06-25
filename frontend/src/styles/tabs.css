@@ -23,8 +23,10 @@
     color 0.15s;
 }
 
-.tab:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover {
+    background: var(--surface-raised);
+  }
 }
 
 .tab.active {
@@ -89,8 +91,10 @@
   transition: transform var(--motion-fast);
 }
 
-.btn:hover {
-  background: var(--border);
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover {
+    background: var(--border);
+  }
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6) — color-only buttons gave
@@ -111,9 +115,11 @@
   font-weight: 600;
 }
 
-.btn-primary:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
 }
 
 .btn:disabled,
