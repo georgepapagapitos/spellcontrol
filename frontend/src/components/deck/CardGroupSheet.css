@@ -173,6 +173,16 @@
     color: var(--text-primary);
   }
 }
+@media (pointer: coarse) {
+  .card-group-layout-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .card-group-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .card-group-grid {
   list-style: none;

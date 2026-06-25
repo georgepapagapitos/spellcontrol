@@ -58,6 +58,12 @@
     color: var(--text-primary);
   }
 }
+@media (pointer: coarse) {
+  .shared-copies-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .shared-copies-empty {
   padding: 2rem 1rem;

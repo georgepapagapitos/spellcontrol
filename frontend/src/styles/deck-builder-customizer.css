@@ -789,3 +789,9 @@
     color: var(--err, var(--text-primary));
   }
 }
+@media (pointer: coarse) {
+  .deck-customizer-pill-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

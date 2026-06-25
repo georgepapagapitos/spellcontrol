@@ -244,6 +244,14 @@
   cursor: pointer;
   padding: 0;
   transition: transform 0.1s;
+  position: relative;
+}
+@media (pointer: coarse) {
+  .color-swatch::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+  }
 }
 
 .color-swatch.selected {

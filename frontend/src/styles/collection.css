@@ -242,6 +242,12 @@
     outline: none;
   }
 }
+@media (pointer: coarse) {
+  .collection-filters-dialog-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .collection-filters-dialog-body {
   flex: 1 1 auto;
@@ -486,6 +492,12 @@
     outline: none;
   }
 }
+@media (pointer: coarse) {
+  .set-filter-chip-x {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 
 /* "Clear all sets" ✕ — reuses .search-pill-clear visuals; margin-left:auto
    pins it to the pill's trailing edge regardless of chip wrapping. */
@@ -697,6 +709,10 @@
   .collection-filter-chip-clear {
     min-width: 1.5rem;
     min-height: 1.5rem;
+  }
+  .pagination-btn {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 

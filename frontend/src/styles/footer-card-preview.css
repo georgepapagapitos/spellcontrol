@@ -188,6 +188,12 @@
     background: rgba(0, 0, 0, 0.7);
   }
 }
+@media (pointer: coarse) {
+  .card-preview-close {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 .card-preview-close:active {
   transform: scale(0.92);

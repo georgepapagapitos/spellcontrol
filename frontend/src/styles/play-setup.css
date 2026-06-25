@@ -509,6 +509,13 @@
     color: var(--err-text);
   }
 }
+@media (pointer: coarse) {
+  .play-setup-seat-remove,
+  .play-setup-seat-deck-clear {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
 
 .play-setup-roster-add {
   align-self: flex-start;
