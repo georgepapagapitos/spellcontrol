@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { LayoutList, AlignJustify, Search } from 'lucide-react';
+import { LayoutList, AlignJustify, LayoutGrid, Search } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderFilter,
@@ -28,6 +28,7 @@ import { CardPreview } from './CardPreview';
 import { OverflowMenu } from './OverflowMenu';
 import { InlineCardSearch } from './InlineCardSearch';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
+import { useCardThumb } from '../lib/card-thumbs';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
@@ -68,6 +69,11 @@ const VIEW_OPTIONS = [
     label: 'Compact view',
     icon: <AlignJustify width={15} height={15} aria-hidden />,
   },
+  {
+    value: 'grid' as const,
+    label: 'Grid view',
+    icon: <LayoutGrid width={15} height={15} aria-hidden />,
+  },
 ];
 
 function exprLabel(expr: ChipExpression, transform: (v: string) => string = (v) => v): string {
@@ -85,7 +91,7 @@ interface Props {
  *  the list's entry count (capped) so real rows drop in with no layout shift. */
 function SkeletonRows({ count }: { count: number }) {
   return (
-    <div className="collection-list" role="status" aria-label="Loading this list’s cards">
+    <div className="collection-list" role="status" aria-label="Loading this list's cards">
       {Array.from({ length: count }, (_, i) => (
         <div key={i} className="collection-list-row-skeleton" aria-hidden>
           <div className="collection-list-skeleton-thumb" />
@@ -95,6 +101,63 @@ function SkeletonRows({ count }: { count: number }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Placeholder grid cells while entries resolve — aspect-ratio tiles so the
+ *  grid doesn't collapse before real cards arrive. */
+function SkeletonGrid({ count }: { count: number }) {
+  return (
+    <div className="list-entries-grid" role="status" aria-label="Loading this list's cards">
+      {Array.from({ length: count }, (_, i) => (
+        <div
+          key={i}
+          className="list-entries-grid-cell list-entries-grid-cell--skeleton"
+          aria-hidden
+        />
+      ))}
+    </div>
+  );
+}
+
+/** A single card tile in the grid. Uses the CDN-backed `useCardThumb` hook
+ *  (never the rate-limited Scryfall API directly). Clicking opens the preview. */
+function ListEntryGridCell({
+  name,
+  qty,
+  onActivate,
+}: {
+  name: string;
+  qty: number;
+  onActivate: () => void;
+}) {
+  const url = useCardThumb(name, 'normal');
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className="list-entries-grid-cell"
+      aria-label={`${name}${qty > 1 ? `, quantity ${qty}` : ''}`}
+      onClick={onActivate}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onActivate();
+        }
+      }}
+    >
+      {url ? (
+        <img src={url} alt={name} loading="lazy" className="list-entries-grid-img" />
+      ) : (
+        <div className="list-entries-grid-placeholder">{name}</div>
+      )}
+      {qty > 1 && (
+        <span className="list-entries-grid-qty" aria-hidden>
+          <span className="list-entries-grid-qty-x">×</span>
+          {qty}
+        </span>
+      )}
     </div>
   );
 }
@@ -140,7 +203,7 @@ export function ListDetailView({ list }: Props) {
 
   const [sortKey, setSortKey] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [view, setView] = useState<'list' | 'compact'>('list');
+  const [view, setView] = useState<'list' | 'compact' | 'grid'>('list');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState<ListEntry | null>(null);
   // Inline "Search Scryfall to add" affordance — same pattern as the
@@ -477,7 +540,11 @@ export function ListDetailView({ list }: Props) {
       </div>
 
       {loading ? (
-        <SkeletonRows count={Math.min(Math.max(list.entries.length, 3), 10)} />
+        view === 'grid' ? (
+          <SkeletonGrid count={Math.min(Math.max(list.entries.length, 6), 18)} />
+        ) : (
+          <SkeletonRows count={Math.min(Math.max(list.entries.length, 3), 10)} />
+        )
       ) : sorted.length === 0 ? (
         <div className="empty-state">
           <p className="empty-state-tagline">
@@ -488,6 +555,17 @@ export function ListDetailView({ list }: Props) {
               Clear filters
             </button>
           )}
+        </div>
+      ) : view === 'grid' ? (
+        <div className="list-entries-grid" role="region" aria-label={`${list.name} cards`}>
+          {sorted.map((r, i) => (
+            <ListEntryGridCell
+              key={r.card.copyId}
+              name={r.card.name}
+              qty={r.entry.quantity}
+              onActivate={() => setPreviewIndex(i)}
+            />
+          ))}
         </div>
       ) : (
         <div
@@ -528,7 +606,7 @@ export function ListDetailView({ list }: Props) {
             </span>
             <span className="collection-list-scryfall-text">
               <span className="collection-list-scryfall-title">Search Scryfall</span>
-              <span className="collection-list-scryfall-sub">for “{search.trim()}”</span>
+              <span className="collection-list-scryfall-sub">for "{search.trim()}"</span>
             </span>
           </button>
         ))}
