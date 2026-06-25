@@ -10,6 +10,7 @@ import type {
 } from '@/deck-builder/types';
 import { autocompleteCardName } from '@/deck-builder/services/scryfall/client';
 import { SearchPill } from '../SearchPill';
+import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
 
@@ -710,50 +711,17 @@ function CardListGroup({
 
 function CardNameAutocomplete({ onPick }: { onPick: (name: string) => void }) {
   const [input, setInput] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const q = input.trim();
-    if (q.length < 2) {
-      Promise.resolve().then(() => {
-        if (!cancelled) {
-          setSuggestions([]);
-          setLoading(false);
-        }
-      });
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    Promise.resolve().then(() => {
-      if (!cancelled) setLoading(true);
-    });
-    debounceRef.current = window.setTimeout(() => {
-      autocompleteCardName(q)
-        .then((list) => {
-          if (!cancelled) setSuggestions(list.slice(0, 8));
-        })
-        .catch(() => {
-          if (!cancelled) setSuggestions([]);
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    }, 200);
-    return () => {
-      cancelled = true;
-      if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    };
-  }, [input]);
+  // Card-name autocomplete returns plain name strings, not full cards — the
+  // shared search hook drives the debounce/loading/cancellation via a custom fetcher.
+  const { results: suggestions, loading } = useSearchCards<string>(input, {
+    fetcher: autocompleteCardName,
+    debounceMs: 200,
+    limit: 8,
+  });
 
   const handlePick = (name: string) => {
     onPick(name);
     setInput('');
-    setSuggestions([]);
   };
 
   return (

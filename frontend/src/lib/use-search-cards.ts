@@ -2,29 +2,65 @@ import { useEffect, useRef, useState } from 'react';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 
-const DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 2;
+const DEFAULT_DEBOUNCE_MS = 300;
+const DEFAULT_MIN_QUERY_LENGTH = 2;
 
-interface UseSearchCardsResult {
-  results: ScryfallCard[];
+interface UseSearchCardsResult<T> {
+  results: T[];
   loading: boolean;
   error: string | null;
 }
 
+interface UseSearchCardsOptions<T> {
+  /**
+   * Fetcher run on the trimmed, debounced query. Defaults to Scryfall
+   * `searchCards` (skipFormatFilter). Must be a STABLE reference (module-level
+   * fn or `useCallback`) — it's an effect dependency, so a fresh closure each
+   * render re-fires the search.
+   */
+  fetcher?: (query: string) => Promise<T[]>;
+  /** Max results kept from the response. Default 60. */
+  limit?: number;
+  /** Min trimmed query length before fetching. Default 2; pass 0 to fetch on empty. */
+  minLength?: number;
+  /** Debounce in ms. Default 300. */
+  debounceMs?: number;
+  /** When false the hook stays idle (no fetch, results/loading/error cleared). Default true. */
+  enabled?: boolean;
+}
+
+const defaultFetcher = (q: string): Promise<ScryfallCard[]> =>
+  searchCards(q, [], { skipFormatFilter: true }).then((resp) => resp.data);
+
 /**
- * Debounced Scryfall card search hook. Shared by the collection add-card panel,
- * inline search, scanner queue sheet, and list entries view.
+ * Debounced search hook. Defaults to Scryfall card search, but accepts a custom
+ * `fetcher` (any result type) so callers that search a different endpoint —
+ * commander autocomplete, valid-partner lookup — reuse the same debounce /
+ * loading / error / cancellation machinery instead of re-rolling it.
  *
- * Fires `searchCards` (skipFormatFilter=true) after a 300ms debounce whenever
- * `query` changes. Returns nothing until `query.trim()` reaches 2 characters.
  * Each call site keeps its own UI-side state (visible count, open printings,
  * active index) — those side effects don't belong here.
- *
- * @param query  Raw search string (trimming happens internally).
- * @param limit  Max results to keep from Scryfall's response. Default 60.
  */
-export function useSearchCards(query: string, limit = 60): UseSearchCardsResult {
-  const [results, setResults] = useState<ScryfallCard[]>([]);
+export function useSearchCards(query: string, limit?: number): UseSearchCardsResult<ScryfallCard>;
+export function useSearchCards<T>(
+  query: string,
+  options: UseSearchCardsOptions<T>
+): UseSearchCardsResult<T>;
+export function useSearchCards<T = ScryfallCard>(
+  query: string,
+  arg?: number | UseSearchCardsOptions<T>
+): UseSearchCardsResult<T> {
+  const opts: UseSearchCardsOptions<T> =
+    typeof arg === 'number' || arg === undefined ? { limit: arg } : arg;
+  const {
+    fetcher = defaultFetcher as unknown as (q: string) => Promise<T[]>,
+    limit = 60,
+    minLength = DEFAULT_MIN_QUERY_LENGTH,
+    debounceMs = DEFAULT_DEBOUNCE_MS,
+    enabled = true,
+  } = opts;
+
+  const [results, setResults] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -33,7 +69,7 @@ export function useSearchCards(query: string, limit = 60): UseSearchCardsResult 
     let cancelled = false;
     async function run() {
       const q = query.trim();
-      if (q.length < MIN_QUERY_LENGTH) {
+      if (!enabled || q.length < minLength) {
         if (!cancelled) {
           setResults([]);
           setError(null);
@@ -43,14 +79,14 @@ export function useSearchCards(query: string, limit = 60): UseSearchCardsResult 
       }
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       await new Promise<void>((resolve) => {
-        debounceRef.current = window.setTimeout(resolve, DEBOUNCE_MS);
+        debounceRef.current = window.setTimeout(resolve, debounceMs);
       });
       if (cancelled) return;
       setLoading(true);
       setError(null);
       try {
-        const resp = await searchCards(q, [], { skipFormatFilter: true });
-        if (!cancelled) setResults(resp.data.slice(0, limit));
+        const data = await fetcher(q);
+        if (!cancelled) setResults(data.slice(0, limit));
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Search failed');
@@ -65,7 +101,7 @@ export function useSearchCards(query: string, limit = 60): UseSearchCardsResult 
       cancelled = true;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [query, limit]);
+  }, [query, limit, fetcher, minLength, debounceMs, enabled]);
 
   return { results, loading, error };
 }
