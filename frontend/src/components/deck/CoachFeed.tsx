@@ -1,5 +1,6 @@
 import './CoachFeed.css';
 import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
 import { DeckHoverPeek } from './DeckHoverPeek';
@@ -814,15 +815,20 @@ export function CoachFeed({
         </details>
       )}
 
-      {/* Desktop hover-peek — floats card art beside the pointer */}
-      {hoverPeek.peek && peekUrl && (
-        <DeckHoverPeek
-          imageUrl={peekUrl}
-          left={hoverPeek.peek.left}
-          top={hoverPeek.peek.top}
-          width={hoverPeek.peek.width}
-        />
-      )}
+      {/* Desktop hover-peek — portaled to <body> so it escapes any
+          container-type ancestor (e.g. .deck-bento--tune) that would
+          make position:fixed relative to the container, not the viewport. */}
+      {hoverPeek.peek &&
+        peekUrl &&
+        createPortal(
+          <DeckHoverPeek
+            imageUrl={peekUrl}
+            left={hoverPeek.peek.left}
+            top={hoverPeek.peek.top}
+            width={hoverPeek.peek.width}
+          />,
+          document.body
+        )}
 
       {/* Card carousel — tap-to-preview on touch */}
       {carousel.preview}
