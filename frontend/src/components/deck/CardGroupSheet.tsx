@@ -6,8 +6,18 @@ import { useSwipeDownDismiss } from '../../lib/use-swipe-down-dismiss';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import { CardThumb } from '../CardThumb';
+import { VerdictBadge } from './VerdictBadge';
+import type { VerdictTone } from './VerdictBadge';
 import type { CardTally } from './useCardCarousel';
 import './CardGroupSheet.css';
+
+/** A role/label annotation for a card in the group sheet. */
+export interface CardAnnotation {
+  tone: VerdictTone;
+  label: string;
+  /** Optional one-liner shown beside the chip in list view (omitted in grid to save space). */
+  reason?: string;
+}
 
 type GroupLayout = 'grid' | 'list';
 
@@ -40,6 +50,7 @@ export function CardGroupSheet({
   tally,
   onPick,
   onClose,
+  annotate,
 }: {
   title: string;
   subtitle?: string;
@@ -47,6 +58,12 @@ export function CardGroupSheet({
   /** Tapped one card → hand off to the carousel for the detail read. */
   onPick: (picked: CardTally) => void;
   onClose: () => void;
+  /**
+   * Optional annotation per card — supply when the caller has deck context
+   * (e.g. synergy role on an axis). Returns one or more chips, or null for
+   * no annotation. Always rendered (not hover-only) per the touch rule.
+   */
+  annotate?: (tally: CardTally) => CardAnnotation | CardAnnotation[] | null;
 }): JSX.Element {
   const labelId = useId();
   const [layout, setLayout] = useState<GroupLayout>(readLayout);
@@ -96,6 +113,14 @@ export function CardGroupSheet({
   };
 
   const totalCards = tally.reduce((n, t) => n + t.count, 0);
+
+  /** Normalize the annotate return value to an array (empty = no chips). */
+  const getChips = (t: CardTally): CardAnnotation[] => {
+    if (!annotate) return [];
+    const result = annotate(t);
+    if (!result) return [];
+    return Array.isArray(result) ? result : [result];
+  };
 
   return createPortal(
     <div
@@ -169,7 +194,13 @@ export function CardGroupSheet({
                   type="button"
                   className="card-group-card"
                   onClick={() => onPick(t)}
-                  aria-label={`Inspect ${t.name}${t.count > 1 ? ` (${t.count} copies)` : ''}`}
+                  aria-label={`Inspect ${t.name}${t.count > 1 ? ` (${t.count} copies)` : ''}${
+                    getChips(t).length > 0
+                      ? ` — ${getChips(t)
+                          .map((c) => c.label)
+                          .join(', ')}`
+                      : ''
+                  }`}
                 >
                   {t.card ? (
                     <CardThumb
@@ -181,6 +212,13 @@ export function CardGroupSheet({
                     <span className="card-group-img card-group-img-fallback">{t.name}</span>
                   )}
                   {t.count > 1 && <span className="card-group-qty">×{t.count}</span>}
+                  {getChips(t).length > 0 && (
+                    <span className="card-group-annotation" aria-hidden="true">
+                      {getChips(t).map((chip, i) => (
+                        <VerdictBadge key={i} tone={chip.tone} label={chip.label} />
+                      ))}
+                    </span>
+                  )}
                   <span className="card-group-name">{t.name}</span>
                 </button>
               </li>
@@ -208,6 +246,18 @@ export function CardGroupSheet({
                   )}
                   <span className="card-group-row-meta">
                     <span className="card-group-row-name">{t.name}</span>
+                    {getChips(t).length > 0 && (
+                      <span className="card-group-row-annotations">
+                        {getChips(t).map((chip, i) => (
+                          <VerdictBadge
+                            key={i}
+                            tone={chip.tone}
+                            label={chip.label}
+                            reason={chip.reason}
+                          />
+                        ))}
+                      </span>
+                    )}
                     {t.card?.type_line && (
                       <span className="card-group-row-type">{t.card.type_line}</span>
                     )}
