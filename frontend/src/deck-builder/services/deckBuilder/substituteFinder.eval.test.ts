@@ -17,7 +17,7 @@
 //   * grid search (TUNE=1):     prints the weight vector that maximizes mean nDCG@5.
 //     `TUNE=1 npx vitest run src/deck-builder/services/deckBuilder/substituteFinder.eval.test.ts`
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,16 +54,15 @@ beforeAll(async () => {
     'utf8'
   );
   const data = JSON.parse(taggerJson);
-  // loadTaggerData() fetches TAG_REPO_URL; feed it the on-disk snapshot.
-  (globalThis as unknown as { fetch: unknown }).fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => data,
-  });
+  // loadTaggerData() fetches TAG_REPO_URL; feed it the on-disk snapshot via a
+  // TRACKED stub so it's restored afterAll (no leak into other node-env tests).
+  vi.stubGlobal('fetch', async () => ({ ok: true, status: 200, json: async () => data }));
   const loaded = await loadTaggerData();
   if (!loaded) throw new Error('tagger data failed to load for eval');
   queries = buildQueries(); // needs tagger roles → must run AFTER load, not at import
 });
+
+afterAll(() => vi.unstubAllGlobals());
 
 // ── eval-set construction ────────────────────────────────────────────────────
 // Faithful to the finder: the weights only re-rank candidates that already pass

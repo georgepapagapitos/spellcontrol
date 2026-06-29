@@ -73,6 +73,7 @@ import {
 } from './categorize';
 import { fillWithScryfall } from './scryfallFill';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
+import { loadCardSimilar } from './cardSimilar';
 import { resolveMultiCopyCards } from './multiCopy';
 import {
   generateLands,
@@ -400,6 +401,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       getGameChangerNames(),
       fetchCommanderCombos(commander.name).catch(() => [] as EDHRECCombo[]),
       loadTaggerData(),
+      loadCardSimilar(), // EDHREC substitute index for shortage-fill ranking
     ]);
     state.gameChangerNames = fetchedGCNames;
     state.combos = fetchedCombos;
