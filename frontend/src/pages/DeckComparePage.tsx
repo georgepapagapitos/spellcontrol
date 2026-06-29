@@ -403,9 +403,6 @@ export function DeckComparePage() {
                     <h3 className="deck-compare-deck-label">{deckA.name}</h3>
                     <p className="deck-compare-bracket-num">
                       {diff.bracket.a.bracket != null ? `B${diff.bracket.a.bracket}` : '—'}
-                      {diff.bracket.a.gradeLetter && (
-                        <span className="deck-compare-grade"> · {diff.bracket.a.gradeLetter}</span>
-                      )}
                     </p>
                     <BracketVerdictStrip
                       target={deckA.bracketOverride ?? undefined}
@@ -416,9 +413,6 @@ export function DeckComparePage() {
                     <h3 className="deck-compare-deck-label">{deckB.name}</h3>
                     <p className="deck-compare-bracket-num">
                       {diff.bracket.b.bracket != null ? `B${diff.bracket.b.bracket}` : '—'}
-                      {diff.bracket.b.gradeLetter && (
-                        <span className="deck-compare-grade"> · {diff.bracket.b.gradeLetter}</span>
-                      )}
                     </p>
                     <BracketVerdictStrip
                       target={deckB.bracketOverride ?? undefined}

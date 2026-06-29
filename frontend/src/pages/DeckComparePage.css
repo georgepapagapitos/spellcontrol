@@ -288,10 +288,6 @@
   color: var(--text-primary);
   margin-bottom: var(--space-2);
 }
-.deck-compare-grade {
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
 .deck-compare-price-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

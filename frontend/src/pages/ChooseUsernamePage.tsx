@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
+import { BrandMark } from '../components/shared/BrandMark';
 
 // Mirrors the backend USERNAME_REGEX.
 const USERNAME_RE = /^[a-z0-9_-]{3,32}$/;
@@ -82,6 +83,9 @@ export default function ChooseUsernamePage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
+        <div className="auth-brand-hero" aria-hidden="true">
+          <BrandMark size={48} />
+        </div>
         <h1 className="auth-title">Pick a username</h1>
         <p className="auth-subtitle">
           This is how you&apos;ll appear in SpellControl. It can be anything — it doesn&apos;t have
