@@ -40,6 +40,7 @@ import { useFloatingDelta } from '../../lib/use-floating-delta';
 import { haptics } from '../../lib/haptics';
 import { HOLD_DWELL_MS, HOLD_REPEAT_MS, holdStepFor } from '../../lib/hold-ramp';
 import { useWakeLock } from '../../lib/use-wake-lock';
+import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
@@ -154,13 +155,7 @@ export function GameBoard({
   }, [onUndo, undoLabel]);
 
   // Lock body scroll while the board is mounted — it's a fullscreen overlay.
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useLockBodyScroll();
 
   return (
     <div
