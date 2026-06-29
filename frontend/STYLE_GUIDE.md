@@ -6,12 +6,68 @@ agents: when you make a styling ruling that should hold across the app, write it
 down here so the next person (or session) doesn't re-litigate it.
 
 > Scope note: this is the **design language** (shape, color, spacing, responsive
-> rules). Architecture, build, and test conventions live in the repo-root
-> `CLAUDE.md`, not here.
+> rules) **and the copy voice**. Architecture, build, and test conventions live
+> in the repo-root `CLAUDE.md`, not here.
 
 CSS is **not** covered by typecheck/eslint/CI (only stylelint, narrowly), so most
 of these rules are enforced by review and visual checks, not the gate. Treat them
 as real constraints anyway.
+
+---
+
+## Voice & copy
+
+SpellControl talks to a Magic player who knows the game. Copy is **confident,
+concrete, and MTG-literate** — it says what to do and what something means,
+never what the app "is."
+
+**The five rules:**
+
+1. **Second person, imperative, concrete verb.** "Import your collection",
+   "Pick a commander". Not "Collections can be imported" / "Deck building".
+2. **Assume MTG literacy; don't over-explain.** Use commander, bracket,
+   singleton, EDHREC, combo as a player would. Jargon a _casual_ player
+   wouldn't know gets an InfoTip (see Info tooltips), not inline hand-holding.
+3. **Be honest, including about limits.** "no account required", "No password
+   reset — pick something you'll remember", "many casual decks genuinely have
+   none". Never oversell; admitting a limit builds trust. Convey sophistication
+   by being **specific about what the feature does**, never with adjectives
+   ("powerful", "advanced", "AI-powered", "seamless") — a literate audience
+   reads those as noise.
+4. **Sentence case, no exclamation marks, no cutesy filler.** No "Oops!",
+   "Awesome!", emoji, or marketing adjectives.
+5. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
+   the human register everywhere user-facing (errors, confirms, hints).
+
+**Empty states are two parts: tagline + hint.** A short tagline naming the state
+("No decks yet."), then ONE hint sentence giving the reason and the action that
+changes it ("Build a deck from scratch…"). Never a bare line, never an
+exclamation. (Outliers to fix when next touched: PlayPage, FriendsPage.)
+
+**Confirm dialogs:** the title is the question ("Delete \"{name}\"?"); the body
+is a declarative consequence ending in a period ("This cannot be undone."). The
+body never re-asks the question.
+
+**Toasts:** a status fragment takes no period ("Added Sol Ring", "Undone: cut
+Llanowar Elves"); a complete sentence takes one ("Prices refreshed.", "Link
+copied to clipboard."). Pick fragment for action confirmations, sentence for
+state announcements.
+
+**Punctuation:** complete sentences end with a period; a trailing `…` means
+"in progress" (loading) only. One em-dash max per string.
+
+**Canonical terms (use exactly):** _collection_ (your cards), _binder_ (a
+rule-defined group), _deck_, _power bracket_ (the 1–5 Commander tier — not
+"bracket level"/"bracket target" in user-facing copy), _Coach_ (the
+suggestion/tuning tab). The product's one-line promise leads with **collection**
+("Plan your Magic: The Gathering collection") — binders, decks, and games all
+live under it.
+
+**One sanctioned exception — generation flavor.** `GenerationTakeover`'s loading
+lines ("Knowledge is mana.", "The oracle reads between the lines…") are
+deliberately atmospheric MTG flavor — the app's one cinematic moment. This is
+the _only_ surface exempt from the functional-prose rules above. Don't extend
+this register elsewhere, and don't flatten it here.
 
 ---
 
