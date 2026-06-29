@@ -22,6 +22,7 @@ import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { ViewModeToggle } from './ViewModeToggle';
+import { Legend } from './Legend';
 import { SortDirArrow } from './SortDirArrow';
 import { CardRow } from './shared/CardRow';
 import { CardPreview } from './CardPreview';
@@ -536,6 +537,10 @@ export function ListDetailView({ list }: Props) {
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
           <ViewModeToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
+          {/* Lists reuses CardRow's collection glyph set (TypeIcon, FoilBadge,
+              RarityBadge) — mount the Key at the trailing end of the toolbar so
+              those glyphs are explained, same as collection/binder surfaces. */}
+          <Legend context="collection" variant="pill" align="right" />
         </div>
       </div>
 
