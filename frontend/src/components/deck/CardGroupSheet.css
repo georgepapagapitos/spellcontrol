@@ -273,7 +273,7 @@
 
 /* Scale the verdict chip down to fit the small card thumbnail. */
 .card-group-annotation .verdict-chip {
-  font-size: 0.6rem;
+  font-size: var(--text-xs);
   padding: 0.02rem 0.28rem;
   background: rgba(0, 0, 0, 0.55);
 }
