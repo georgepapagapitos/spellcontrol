@@ -11,7 +11,9 @@ import { type CSSProperties, useCallback, useRef, useState } from 'react';
  * tap-to-close, the swipe `onDismiss`) through `beginClose` instead of
  * the raw `onClose`. Spread `onAnimationEnd` on the sheet element and add
  * the `is-closing` class while `isClosing` is true; the CSS plays
- * `sheet-fall`, and the real `onClose` fires when it finishes.
+ * `sheet-fall`, and the real `onClose` fires when it finishes. Responsive
+ * surfaces that swap exit keyframes by media query can pass multiple accepted
+ * animation names.
  *
  * The `sheet-fall` keyframe animates transform, which sits in the CSS
  * Animation cascade origin — above inline style — so it cleanly overrides
@@ -28,7 +30,10 @@ import { type CSSProperties, useCallback, useRef, useState } from 'react';
  * symmetric exit keyframe name so `onAnimationEnd` unmounts on the right
  * animation — everything else about the contract is identical.
  */
-export function useSheetExit(onClose: () => void, exitAnimationName = 'sheet-fall') {
+export function useSheetExit(
+  onClose: () => void,
+  exitAnimationName: string | string[] = 'sheet-fall'
+) {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
   // Ref guard so a double-trigger (e.g. Escape + backdrop in the same
@@ -64,7 +69,8 @@ export function useSheetExit(onClose: () => void, exitAnimationName = 'sheet-fal
     (e: React.AnimationEvent) => {
       // Ignore the on-mount entry animation (and any descendant animation
       // that bubbles up) — only the exit animation should unmount.
-      if (closingRef.current && e.animationName === exitAnimationName) onClose();
+      const exitNames = Array.isArray(exitAnimationName) ? exitAnimationName : [exitAnimationName];
+      if (closingRef.current && exitNames.includes(e.animationName)) onClose();
     },
     [onClose, exitAnimationName]
   );

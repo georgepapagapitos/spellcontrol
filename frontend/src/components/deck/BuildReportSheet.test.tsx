@@ -80,6 +80,18 @@ describe('BuildReportSheet', () => {
     expect(viewBtn).toBeTruthy();
   });
 
+  it('unmounts after the desktop modal exit animation finishes', () => {
+    const onClose = vi.fn();
+    render(<BuildReportSheet deckId="desktop-exit" report={makeReport()} onClose={onClose} />);
+
+    fireEvent.click(screen.getByText('View my deck'));
+    const sheet = document.body.querySelector('.build-report-sheet');
+    expect(sheet).toBeTruthy();
+
+    fireEvent.animationEnd(sheet!, { animationName: 'modal-panel-out' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('renders into the document body (portal)', () => {
     render(<BuildReportSheet deckId="d4" report={makeReport()} onClose={vi.fn()} />);
     // The sheet is portalled to document.body; check it exists there.
