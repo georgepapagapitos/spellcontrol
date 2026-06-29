@@ -14,7 +14,7 @@
      on web (no insets) so the visual is unchanged; on native it expands to
      clear the status bar / home gesture. Any new backdrop that centers a
      child surface should use this exact rule. */
-  padding: var(--overlay-pad-top) 1rem var(--overlay-pad-bottom);
+  padding: var(--overlay-pad-top) var(--space-4) var(--overlay-pad-bottom);
   overflow-y: auto;
   /* Entrance — STYLE_GUIDE § Motion pattern (3): backdrop fade 160ms,
      panel scale 0.96→1 + fade 180ms. Keyed off the structural classes so
@@ -90,7 +90,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem var(--space-5);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -125,7 +125,7 @@
 }
 
 .modal-body {
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem var(--space-5);
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
@@ -133,9 +133,9 @@
 
 .modal-footer {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   justify-content: flex-end;
-  padding: 1rem 1.5rem;
+  padding: var(--space-4) var(--space-5);
   border-top: 0.5px solid var(--border);
   background: var(--surface-raised);
   border-bottom-left-radius: var(--radius-lg);
@@ -147,12 +147,12 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
-  padding: 1.5rem;
+  padding: var(--space-5);
   max-width: 460px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   align-self: flex-start;
 }
 
@@ -174,7 +174,7 @@
   font-size: var(--text-sm);
   line-height: 1.5;
   margin: 0;
-  padding: 0.6rem 0.75rem;
+  padding: 0.6rem var(--space-3);
   border-radius: var(--radius);
   background: var(--warn-bg);
   border: 1px solid var(--warn-border);
@@ -188,14 +188,14 @@
 .choice-dialog-options {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .choice-dialog-option {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0.85rem 1rem;
+  gap: var(--space-1);
+  padding: 0.85rem var(--space-4);
   border-radius: var(--radius);
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -252,12 +252,12 @@
   background: var(--surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
-  padding: 1.25rem 1.5rem 1.5rem;
+  padding: 1.25rem var(--space-5) var(--space-5);
   max-width: 520px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   align-self: flex-start;
 }
 
@@ -265,7 +265,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .shortcuts-overlay-title {
@@ -282,7 +282,7 @@
   color: var(--text-muted);
   font-size: var(--text-xl);
   line-height: 1;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-1);
   cursor: pointer;
   border-radius: var(--radius);
 }
@@ -310,7 +310,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-2);
 }
 
 .shortcuts-overlay-list {
@@ -325,7 +325,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
   padding: 0.4rem 0;
   border-bottom: 1px solid var(--border);
   font-size: var(--text-sm);
@@ -373,8 +373,8 @@
 
 .binder-name-input-row {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .binder-name-input {
@@ -408,11 +408,11 @@
 .name-input-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .name-input-form .choice-dialog-actions {
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .name-input-label {
@@ -443,12 +443,12 @@
   top: 0;
   /* Sticky page chrome — use the scale, not a raw 50. See STYLE_GUIDE. */
   z-index: var(--z-popover);
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   background: var(--accent-light, var(--surface-raised));
   border-bottom: 1px solid var(--accent, var(--border));
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
   flex-wrap: wrap;
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -461,7 +461,7 @@
 
 .auto-link-banner-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
@@ -473,7 +473,7 @@
 .account-merge-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 /* On phones the two side-summary columns get too cramped to read the
@@ -486,7 +486,7 @@
 }
 
 .account-merge-side {
-  padding: 0.75rem;
+  padding: var(--space-3);
   border-radius: var(--radius);
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -498,7 +498,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .account-merge-side-counts {
@@ -506,7 +506,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
@@ -514,13 +514,13 @@
 .account-merge-side-counts li strong {
   color: var(--text-primary);
   font-weight: 600;
-  margin-right: 0.25rem;
+  margin-right: var(--space-1);
 }
 
 .account-merge-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .account-merge-actions .btn {
@@ -552,7 +552,7 @@
 .card-edit-loading,
 .card-edit-error {
   text-align: center;
-  padding: 2rem;
+  padding: var(--space-6);
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -564,13 +564,13 @@
 .card-edit-layout {
   display: grid;
   grid-template-columns: 250px 1fr;
-  gap: 1.5rem;
+  gap: var(--space-5);
 }
 
 .card-edit-preview {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: center;
 }
 
@@ -590,7 +590,7 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
   text-align: center;
-  padding: 1rem;
+  padding: var(--space-4);
 }
 
 .card-edit-preview-info {
@@ -607,13 +607,13 @@
 
 .card-edit-finishes {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
   width: 100%;
 }
 
 .card-edit-finish-btn {
   flex: 1;
-  padding: 6px 8px;
+  padding: 6px var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -639,16 +639,16 @@
 .card-edit-qty {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   width: 100%;
-  padding-top: 0.5rem;
+  padding-top: var(--space-2);
   border-top: 0.5px solid var(--border);
 }
 
 .card-edit-single-note {
   margin: 0;
   width: 100%;
-  padding-top: 0.5rem;
+  padding-top: var(--space-2);
   border-top: 0.5px solid var(--border);
   font-size: var(--text-xs);
   color: var(--text-muted);
@@ -710,7 +710,7 @@
   text-align: center;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   min-width: 0;
 }
 
@@ -722,19 +722,19 @@
 .card-edit-sets {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .card-edit-sets-header {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--space-2);
   border-bottom: 0.5px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* Width modifier on the shared <SearchPill>: keep the set-filter compact on
@@ -745,7 +745,7 @@
 
 .card-edit-sets-empty {
   text-align: center;
-  padding: 1rem;
+  padding: var(--space-4);
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -755,7 +755,7 @@
   max-height: 420px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .card-edit-set-group {
@@ -768,7 +768,7 @@
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-primary);
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   position: sticky;
   top: 0;
   background: var(--surface);
@@ -803,8 +803,8 @@
 .card-edit-printing-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
   border-radius: var(--radius);
   border: 1px solid transparent;
   background: none;
