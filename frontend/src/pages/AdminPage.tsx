@@ -6,10 +6,17 @@ import { useCollectionStore } from '../store/collection';
 import { SearchPill } from '../components/SearchPill';
 import { useDecksStore, type Deck } from '../store/decks';
 import { useCubeStore, type SavedCube } from '../store/cube';
-import { buildAllocationMap, findSuboptimalPrintings } from '../lib/allocations';
+import {
+  buildAllocationMap,
+  findSuboptimalPrintings,
+  useCollectionByCopyId,
+} from '../lib/allocations';
 import type { EnrichedCard } from '../types';
 
 type Tab = 'overview' | 'decks' | 'allocations' | 'collection' | 'binders' | 'storage' | 'raw';
+
+// Stable empty map for the brief pre-hydration window (keeps the prop a Map).
+const EMPTY_COLLECTION: Map<string, EnrichedCard> = new Map();
 
 export function AdminPage() {
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
@@ -29,11 +36,8 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
 
-  const collectionByCopyId = useMemo(() => {
-    const m = new Map<string, EnrichedCard>();
-    for (const c of cards) m.set(c.copyId, c);
-    return m;
-  }, [cards]);
+  // Shared hydration-aware index (undefined while the store hydrates → empty map).
+  const collectionByCopyId = useCollectionByCopyId() ?? EMPTY_COLLECTION;
 
   const cardsByName = useMemo(() => {
     const m = new Map<string, EnrichedCard[]>();

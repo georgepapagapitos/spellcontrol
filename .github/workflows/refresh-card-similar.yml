@@ -1,0 +1,85 @@
+# Push-button refresh of the offline substitute index (public/card-similar.json).
+#
+# Re-scrapes EDHREC's per-card `similar` lists — the data-driven substitute
+# ranking shipped in PR #891 — and opens a PR with the updated snapshot.
+#
+# MANUAL trigger only (no `schedule:`). The data is slow-moving: staple
+# substitutes barely change, and a brand-new card simply falls back to the
+# heuristic until the next refresh, so a recurring scrape would mostly produce
+# no-op diffs. Run this when a new set lands or coverage slips. The refresh is
+# validated IN-WORKFLOW before the PR opens, so a failed scrape (EDHREC errors →
+# a tiny/empty index that would silently downgrade every suggestion to the
+# heuristic) never becomes a PR.
+name: Refresh card-similar
+
+on:
+  workflow_dispatch:
+
+# Never let two refreshes race; the latest wins.
+concurrency:
+  group: refresh-card-similar
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Refresh substitute index from EDHREC
+    runs-on: ubuntu-latest
+    # ~2500 polite EDHREC fetches (70ms apart) ≈ 4-6 min; generous headroom.
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      # The refresh script is pure Node (global fetch + fs) — no install needed.
+      - name: Refresh index from EDHREC
+        working-directory: frontend
+        run: node scripts/refresh-card-similar.mjs --force
+
+      # Gate quality BEFORE opening a PR — mirrors the shipped-data guard in
+      # cardSimilar.test.ts so a broken scrape can't become a PR.
+      - name: Validate the scraped index
+        working-directory: frontend
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const idx = JSON.parse(fs.readFileSync("public/card-similar.json", "utf8"));
+            const fx = JSON.parse(
+              fs.readFileSync("src/deck-builder/services/deckBuilder/__fixtures__/edhrec-similar.fixture.json", "utf8")
+            );
+            const names = Object.keys(idx.similar || {});
+            const empty = names.filter((n) => !Array.isArray(idx.similar[n]) || !idx.similar[n].length);
+            const seeds = Object.keys(fx.similar);
+            const covered = seeds.filter((n) => idx.similar[n]).length;
+            const cov = covered / seeds.length;
+            console.log("count=" + names.length + " empty=" + empty.length + " coverage=" + Math.round(cov * 100) + "%");
+            if (names.length < 500) { console.error("::error::index too small (<500) — EDHREC scrape likely failed"); process.exit(1); }
+            if (empty.length) { console.error("::error::" + empty.length + " entries have empty similar lists"); process.exit(1); }
+            if (cov < 0.6) { console.error("::error::staple coverage <60% — scrape likely incomplete"); process.exit(1); }
+          '
+
+      - name: Open a PR if the index changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- frontend/public/card-similar.json; then
+            echo "No change to card-similar.json — nothing to PR."
+            exit 0
+          fi
+          branch="chore/refresh-card-similar-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add frontend/public/card-similar.json
+          git commit -m "chore(deck): refresh card-similar.json from EDHREC"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore(deck): refresh card-similar.json from EDHREC" \
+            --body "Automated refresh of the substitute index (\`public/card-similar.json\`) via the **Refresh card-similar** workflow. Validated in-workflow before opening: count ≥ 500, no empty similar lists, ≥ 60% eval-staple coverage. Review the diff and merge. Note: bot-token PRs don't auto-trigger CI — if branch protection blocks the merge, push an empty commit (\`git commit --allow-empty\`) to start checks, or admin-merge (the data is already guard-validated)."

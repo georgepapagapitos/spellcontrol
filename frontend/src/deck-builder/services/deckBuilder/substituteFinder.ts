@@ -5,6 +5,7 @@ import {
   getCardTags,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
+import { getSimilarRank } from './cardSimilar';
 
 /**
  * Owned-substitute finder — for a recommended-but-missing staple, find a card
@@ -96,6 +97,8 @@ interface RankedCandidate {
   cmcDelta: number;
   similarity: number;
   inclusion: number;
+  /** EDHREC similar-list rank for this card vs the wanted staple (0 = closest); Infinity when unindexed. */
+  simRank: number;
 }
 
 /** Lowercased word set of a type line, dash stripped: "Legendary Creature — Elf Druid" → {legendary, creature, elf, druid}. */
@@ -112,14 +115,36 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
+/** Tunable weights for the four similarity terms (sum need not be 1). */
+export interface SimilarityWeights {
+  tags: number;
+  type: number;
+  subtype: number;
+  cmc: number;
+}
+
 // Similarity weights — how "close" an owned card feels to the wanted staple.
 // Tags (the tagger's functional fingerprint) dominate; type overlap and exact
-// subtype refine; CMC closeness is a gentle nudge. Tunable; sum need not be 1.
-// ponytail: hand-weighted heuristic, not learned — revisit if swaps feel off.
-const W_TAGS = 0.5;
-const W_TYPE = 0.25;
-const W_SUBTYPE = 0.15;
-const W_CMC = 0.1;
+// subtype refine; CMC closeness is a gentle nudge.
+//
+// VALIDATED, not just guessed. substituteFinder.eval.test.ts scores the
+// within-role ranking these produce against EDHREC's per-card `similar` lists
+// (deck co-occurrence ground truth, independent of the tagger tags this scorer
+// consumes). Findings (TUNE=1 grid search + even/odd holdout, 75-staple fixture):
+//   • all four terms beat any single term (tags-only 0.21, type-only 0.18 vs 0.44),
+//   • the full-set grid optimum (+0.03 nDCG@5) does NOT survive a holdout — the
+//     "tuned" weights underperform these on held-out queries, i.e. overfitting.
+// So these hand-set values are kept deliberately: holdout-stable at ~0.44
+// nDCG@5. That ~0.44 ceiling is also the quantified case for sourcing similarity
+// from EDHREC directly (the index) rather than this heuristic, which stays the
+// cold-start fallback. Re-validate after regenerating the fixture via
+// `node scripts/fetch-edhrec-similar.mjs`; the regression case guards the floor.
+export const DEFAULT_SIMILARITY_WEIGHTS: SimilarityWeights = {
+  tags: 0.5,
+  type: 0.25,
+  subtype: 0.15,
+  cmc: 0.1,
+};
 
 /**
  * How closely an owned candidate mirrors the wanted card (0–1ish). Combines the
@@ -127,16 +152,22 @@ const W_CMC = 0.1;
  * exact subtype match, and CMC closeness. Both cards are already role-matched,
  * so this picks the *closest* same-role card rather than just any same-role one.
  */
-function similarityScore(
+export function similarityScore(
   missing: GapAnalysisCard,
   candidate: SubstituteCandidate,
   subtypeMatch: boolean,
-  cmcDelta: number
+  cmcDelta: number,
+  weights: SimilarityWeights = DEFAULT_SIMILARITY_WEIGHTS
 ): number {
   const tagSim = jaccard(new Set(getCardTags(missing.name)), new Set(getCardTags(candidate.name)));
   const typeSim = jaccard(typeTokens(missing.typeLine), typeTokens(candidate.typeLine));
   const cmcSim = Number.isFinite(cmcDelta) ? 1 / (1 + cmcDelta) : 0;
-  return W_TAGS * tagSim + W_TYPE * typeSim + W_SUBTYPE * (subtypeMatch ? 1 : 0) + W_CMC * cmcSim;
+  return (
+    weights.tags * tagSim +
+    weights.type * typeSim +
+    weights.subtype * (subtypeMatch ? 1 : 0) +
+    weights.cmc * cmcSim
+  );
 }
 
 /**
@@ -159,6 +190,9 @@ export function findOwnedSubstitute(
 
   const wantedSubtype = getCardSubtype(missing.name);
   const inclusionByName = opts.inclusionByName;
+  // EDHREC's own substitute ranking for this staple (deck co-occurrence). When
+  // present it leads the sort; cards it doesn't list keep their heuristic order.
+  const simRanks = getSimilarRank(missing.name);
 
   const ranked: RankedCandidate[] = [];
   for (const card of ownedPool) {
@@ -176,12 +210,16 @@ export function findOwnedSubstitute(
       cmcDelta,
       similarity: similarityScore(missing, card, subtypeMatch, cmcDelta),
       inclusion: inclusionByName?.get(card.name) ?? 0,
+      simRank: simRanks?.get(card.name) ?? Infinity,
     });
   }
 
   if (ranked.length === 0) return null;
 
   ranked.sort((a, b) => {
+    // EDHREC similar rank leads (lower = closer; unindexed → Infinity, sorts
+    // last), then the validated heuristic, then inclusion, then name.
+    if (a.simRank !== b.simRank) return a.simRank - b.simRank;
     if (a.similarity !== b.similarity) return b.similarity - a.similarity;
     if (a.inclusion !== b.inclusion) return b.inclusion - a.inclusion;
     return a.card.name.localeCompare(b.card.name);
@@ -198,19 +236,34 @@ export function findOwnedSubstitute(
     wantedCmc: missing.cmc,
     usedName: best.card.name,
     usedSubtypeMatch: best.subtypeMatch,
-    reason: buildReason(best.card.name, roleLabel, missing.cmc, best.subtypeMatch, usedSubtype),
+    reason: buildReason(
+      best.card.name,
+      roleLabel,
+      missing.cmc,
+      best.subtypeMatch,
+      usedSubtype,
+      best.simRank !== Infinity ? missing.name : null
+    ),
   };
 }
 
-/** Compose the verdict sentence. */
+/**
+ * Compose the verdict sentence. When `similarTo` is set, the pick came from
+ * EDHREC's similar list (deck co-occurrence) rather than the heuristic, so the
+ * copy cites that stronger provenance.
+ */
 function buildReason(
   usedName: string,
   roleLabel: string,
   wantedCmc: number | undefined,
   subtypeMatch: boolean,
-  usedSubtype: string | null
+  usedSubtype: string | null,
+  similarTo: string | null = null
 ): string {
   const slot = wantedCmc != null ? `${wantedCmc}-mana ${roleLabel}` : roleLabel;
+  if (similarTo) {
+    return `${usedName} fills the ${slot} slot — owned, a common substitute for ${similarTo}.`;
+  }
   const tail = subtypeMatch && usedSubtype ? `same ${humanizeSubtype(usedSubtype)}` : 'same role';
   return `${usedName} fills the ${slot} slot — owned, ${tail}.`;
 }

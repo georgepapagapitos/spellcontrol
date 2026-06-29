@@ -70,6 +70,7 @@ import './styles/play-counters-panel.css';
 import './styles/shared.css';
 import { bootstrapTheme, useThemeStore } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
+import { loadCardSimilar } from './deck-builder/services/deckBuilder/cardSimilar';
 import { registerPwa } from './lib/register-pwa';
 import { tagPlatform, syncStatusBar } from './lib/platform';
 import { initKeyboardLayer } from './lib/keyboard';
@@ -86,6 +87,9 @@ useThemeStore.subscribe(() => {
 // Kick off tagger data load eagerly so the deck generator can attach role
 // counts on the first build. Safe to call multiple times — the client caches.
 void loadTaggerData();
+// Likewise the EDHREC substitute index, so the Coach's substitute suggestions
+// rank by deck co-occurrence rather than the heuristic fallback. Cached/deduped.
+void loadCardSimilar();
 // Register the service worker for installable / offline-capable behavior.
 // No-op in dev (devOptions.enabled = false in vite.config.ts).
 void registerPwa();

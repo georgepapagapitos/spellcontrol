@@ -1,4 +1,13 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   KeyboardSensor,
@@ -24,11 +33,11 @@ import {
   Dices,
   Hand,
   Mountain,
+  Play,
   Plus,
   Shuffle,
   Sparkles,
   Sword,
-  X,
 } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '../../store/decks';
@@ -130,8 +139,14 @@ function makeSlot(card: ScryfallCard): HandSlot {
 export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
   function DeckTestHandPanel({ deckId, embedded = false }, ref) {
     const deck = useDecksStore((s) => s.decks.find((d) => d.id === deckId) ?? null);
+    const navigate = useNavigate();
 
     const containerRef = useRef<HTMLDivElement>(null);
+    // Measured inner width of the fan scroller, so the hand lays out against the
+    // space it actually has (a centered desktop modal, a phone, or an embedded
+    // tab) rather than a fixed viewport guess. Drives the spread-vs-overlap math.
+    const fanScrollRef = useRef<HTMLDivElement>(null);
+    const [fanWidth, setFanWidth] = useState(0);
     // Default to collapsed: test-hand is opt-in — most users don't need a fresh
     // hand on every deck-page load, and the header summary already shows total
     // cards / land count for at-a-glance sanity.
@@ -174,7 +189,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
-    // Monte-Carlo opening-hand stats — null until the user runs a simulation.
+    // Monte-Carlo opening-hand stats — auto-run on open (see effect below).
     const [sim, setSim] = useState<SimResult | null>(null);
     const [simulating, setSimulating] = useState(false);
     // Render-phase reset: deal on first mount AND whenever the deck shape
@@ -187,8 +202,6 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       const shuffled = shuffle(library);
       setHand(shuffled.slice(0, HAND_SIZE).map(makeSlot));
       setPile(shuffled.slice(HAND_SIZE));
-      // Drop stale simulation results — they describe the previous deck shape.
-      setSim(null);
     }
 
     // The most-recently-drawn slot id. Only this card plays the slide-in
@@ -215,8 +228,6 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       });
     };
 
-    const simRunRef = useRef<HTMLButtonElement>(null);
-
     const handleSimulate = () => {
       setSimulating(true);
       // Defer one frame so the button's "Simulating…" label paints before the
@@ -228,28 +239,34 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       });
     };
 
-    const handleClearSim = () => {
-      setSim(null);
-      // The Clear button is unmounting with the report — hand focus back to
-      // the run button so keyboard/SR users aren't dropped onto <body>.
-      window.requestAnimationFrame(() => simRunRef.current?.focus());
-    };
-
-    // The report renders below the run button — on a phone that's usually
-    // off-screen, so the tap looks like a no-op. Nudge it into view once it
-    // mounts (gently — `nearest` is a no-op when it's already visible — and
-    // instantly under reduced-motion). Focus deliberately stays on the button:
-    // "Re-run" is the likely repeat action. Screen readers get the result via
-    // the aria-live status node below instead.
-    const simReportRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-      if (!sim) return;
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      simReportRef.current?.scrollIntoView({
-        behavior: reduce ? 'auto' : 'smooth',
-        block: 'nearest',
+    // Measure the fan scroller so the hand can spread to fill the space it has
+    // (and only tuck into an overlap when genuinely crowded). ResizeObserver
+    // fires on observe, so the first real width lands almost immediately;
+    // re-attaches when the deck goes from empty to populated (totalCards dep).
+    useLayoutEffect(() => {
+      const el = fanScrollRef.current;
+      if (!el) return;
+      const ro = new ResizeObserver((entries) => {
+        const w = entries[0]?.contentRect.width;
+        if (w != null) setFanWidth(w);
       });
-    }, [sim]);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, [totalCards]);
+
+    // Odds are this surface's reason to exist, so they're always on: auto-run
+    // the simulation on open and whenever the deck shape or tagger
+    // classification (simLibrary) changes. The button below just re-samples.
+    // The run is deferred a frame (and all state-setting lives in that
+    // callback) so the effect body never synchronously sets state — it's
+    // instant in practice, so no "Simulating…" interstitial is needed here.
+    useEffect(() => {
+      if (totalCards === 0) return;
+      const id = window.requestAnimationFrame(() => {
+        setSim(simulateOpeningHands(simLibrary, { iterations: 1000 }));
+      });
+      return () => window.cancelAnimationFrame(id);
+    }, [simLibrary, totalCards]);
 
     // ── Drag-reorder via @dnd-kit ──────────────────────────────────────────
     // PointerSensor's `distance: 6` activation constraint distinguishes clicks
@@ -282,11 +299,26 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     const previewSectionLabels = useMemo(() => hand.map(() => 'Test hand'), [hand]);
     const previewPageNumbers = useMemo(() => hand.map(() => 1), [hand]);
 
-    // Dynamic overlap so 8+ cards (after Draw) still fit. Mirrors the
-    // reference's formula: grows ~0.35rem per extra card, capped so the cards
-    // never reverse direction.
-    const overlapRem =
-      hand.length <= HAND_SIZE ? 1.5 : Math.min(1.5 + (hand.length - HAND_SIZE) * 0.35, 5.5);
+    // ── Responsive fan layout ──────────────────────────────────────────────
+    // Lay the hand out against the measured space. When the cards fit, they sit
+    // side-by-side with a real gap (readable, no overlap, no scroll); when
+    // crowded (narrow screen, or many cards after Draw) the step shrinks and
+    // they tuck into the classic overlap fan, the last card always fully
+    // visible. Only when even the tightest step would overflow do we fall back
+    // to horizontal scroll. `marginLeft` is applied uniformly to every card and
+    // compensated by the container's paddingLeft, so a card never jumps as it
+    // crosses the index-0 boundary mid-drag.
+    const CARD_MIN = 72; // px — smallest readable card (phones)
+    const CARD_MAX = 148; // px — largest before 7 cards look comical on desktop
+    const SPREAD_GAP = 10; // px — gap between cards when they fit
+    const MIN_STEP = 24; // px — tightest tuck before we allow scroll
+    const containerW = fanWidth || 560; // fallback until the observer measures
+    const cardWidthPx = Math.min(CARD_MAX, Math.max(CARD_MIN, containerW / 7.8));
+    const fitStep = cardWidthPx + SPREAD_GAP;
+    const compressStep = hand.length > 1 ? (containerW - cardWidthPx) / (hand.length - 1) : fitStep;
+    const stepPx = Math.max(MIN_STEP, Math.min(fitStep, compressStep));
+    const marginLeftPx = stepPx - cardWidthPx; // negative = overlap, positive = gap
+    const padLeftPx = Math.max(0, -marginLeftPx);
 
     const canDraw = pile.length > 0;
     const empty = totalCards === 0;
@@ -351,7 +383,7 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
             <p className="deck-test-hand-empty">Add cards to the deck to draw a test hand.</p>
           ) : (
             <>
-              <div className="deck-test-hand-fan-scroll">
+              <div className="deck-test-hand-fan-scroll" ref={fanScrollRef}>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -376,14 +408,15 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                        Keeping the per-card margin uniform (vs. zeroing it on
                        index 0) means a card never visually jumps when it
                        crosses the index-0 boundary during a drag. */
-                      style={{ paddingLeft: `${overlapRem}rem` }}
+                      style={{ paddingLeft: `${padLeftPx}px` }}
                     >
                       {hand.map((slot, i) => (
                         <SortableCard
                           key={slot.id}
                           slot={slot}
                           index={i}
-                          overlapRem={overlapRem}
+                          marginLeftPx={marginLeftPx}
+                          cardWidthPx={cardWidthPx}
                           isNewlyDrawn={slot.id === drawnSlotId}
                           onPreview={() => setPreviewIndex(i)}
                         />
@@ -410,6 +443,14 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                   title="Reshuffle and deal a fresh opening hand"
                 >
                   <Shuffle width={14} height={14} aria-hidden /> Deal another hand
+                </button>
+                <button
+                  type="button"
+                  className="deck-test-hand-action deck-test-hand-action-bridge"
+                  onClick={() => navigate(`/decks/${deckId}/playtest`)}
+                  title="Open the full playtest board — mulligan, draw turn by turn, track the game"
+                >
+                  <Play width={14} height={14} aria-hidden /> Play this out
                 </button>
               </div>
 
@@ -461,40 +502,24 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 
               <section className="deck-test-hand-sim" aria-label="Opening hand simulation">
                 <div className="deck-test-hand-sim-bar">
+                  <span className="deck-test-hand-sim-heading">
+                    Opening-hand odds
+                    <span className="deck-test-hand-sim-heading-sub">across 1,000 shuffles</span>
+                  </span>
                   <button
                     type="button"
-                    ref={simRunRef}
                     className="deck-test-hand-action deck-test-hand-sim-run"
                     onClick={handleSimulate}
                     disabled={simulating}
-                    title="Deal 1,000 hands and report how often this deck keeps"
+                    title="Re-sample — deal a fresh 1,000 hands"
                   >
                     <Dices width={14} height={14} aria-hidden />
-                    {simulating
-                      ? 'Simulating…'
-                      : sim
-                        ? 'Re-run 1,000 hands'
-                        : 'Simulate 1,000 hands'}
+                    {simulating ? 'Simulating…' : 'Re-run'}
                   </button>
-                  {sim && !simulating && (
-                    <button
-                      type="button"
-                      className="deck-test-hand-action"
-                      onClick={handleClearSim}
-                      title="Clear the simulation results"
-                    >
-                      <X width={14} height={14} aria-hidden /> Clear
-                    </button>
-                  )}
-                  {!sim && !simulating && (
-                    <span className="deck-test-hand-sim-hint">
-                      One hand is luck — run a thousand to see the real odds.
-                    </span>
-                  )}
                 </div>
 
                 {sim && (
-                  <div className="deck-test-hand-sim-report" ref={simReportRef}>
+                  <div className="deck-test-hand-sim-report">
                     <ul className="deck-test-hand-sim-stats" aria-label="Simulation results">
                       <SimStat label="Keepable" value={sim.keepableRate} tone="good" />
                       <SimStat
@@ -551,12 +576,23 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
 interface SortableCardProps {
   slot: HandSlot;
   index: number;
-  overlapRem: number;
+  /** Per-card left margin in px: negative tucks cards into an overlap fan,
+   *  positive spreads them with a gap. Uniform across cards (see fan layout). */
+  marginLeftPx: number;
+  /** Measured card width in px, so the hand scales to the surface it's in. */
+  cardWidthPx: number;
   isNewlyDrawn: boolean;
   onPreview: () => void;
 }
 
-function SortableCard({ slot, index, overlapRem, isNewlyDrawn, onPreview }: SortableCardProps) {
+function SortableCard({
+  slot,
+  index,
+  marginLeftPx,
+  cardWidthPx,
+  isNewlyDrawn,
+  onPreview,
+}: SortableCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: slot.id,
   });
@@ -568,10 +604,11 @@ function SortableCard({ slot, index, overlapRem, isNewlyDrawn, onPreview }: Sort
       ref={setNodeRef}
       className={`deck-test-hand-card${isDragging ? ' is-dragging' : ''}`}
       style={{
+        width: `${cardWidthPx}px`,
         // Uniform pull so every card overlaps the previous one by the same
         // amount. The container offsets this with paddingLeft so the first
         // card ends up flush — avoids index-0 layout jumps during drags.
-        marginLeft: `-${overlapRem}rem`,
+        marginLeft: `${marginLeftPx}px`,
         zIndex: isDragging ? 50 : index,
         // No `animationDelay` here on purpose — when cards reorder, their
         // index changes and updating animationDelay would re-trigger the

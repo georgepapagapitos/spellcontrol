@@ -344,7 +344,12 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         ↑ ↓ to navigate · Enter to add · Esc to close
       </p>
 
-      <div role="tabpanel" id="card-search-tabpanel" aria-labelledby={`sc-tab-${activeMode}`}>
+      <div
+        className="card-search-tabpanel"
+        role="tabpanel"
+        id="card-search-tabpanel"
+        aria-labelledby={`sc-tab-${activeMode}`}
+      >
         {activeMode === 'collection' ? (
           <CollectionResults
             deckId={deckId}

@@ -272,4 +272,82 @@ describe('applyBracketConvergence', () => {
     expect(result.applied).toBe(0);
     expect(state.categories.synergy.some((c) => c.name === 'Power Card')).toBe(true);
   });
+
+  // ── powering UP (under-target) ──────────────────────────────────────────────
+
+  // A deck with no Game Changer, a pool that offers one, and a target above its
+  // Core floor: the GC should be swapped in for the weakest card.
+  function underTargetState(): GenerationState {
+    const state = makeState();
+    state.cfg.targetBracket = 3; // no GC in deck → Core (2), under target 3
+    state.gameChangerNames = new Set(['Pool GC']); // the GC lives in the pool, not the deck
+    state.categories.synergy = [
+      scryfallCard('Spell A'),
+      scryfallCard('Spell B'),
+      scryfallCard('Spell C'),
+      scryfallCard('Spell D'),
+    ];
+    state.usedNames = new Set(['Spell A', 'Spell B', 'Spell C', 'Spell D']);
+    return state;
+  }
+
+  it('powers an under-target deck UP by swapping in a Game Changer', () => {
+    const state = underTargetState();
+    const before = deckSize(state);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Pool GC', 95), ...FILLER_POOL] },
+    } as unknown as GenerationState['edhrecData'];
+    const map = fillerScryfallMap();
+    map.set('Pool GC', scryfallCard('Pool GC'));
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+    });
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(result.finalBracket).toBeGreaterThanOrEqual(3);
+    // The Game Changer is now in the deck...
+    expect(state.usedNames.has('Pool GC')).toBe(true);
+    // ...and the deck stayed exactly its size (1-for-1 swap, 100-card legality).
+    expect(deckSize(state)).toBe(before);
+  });
+
+  it('no-ops UP when the target pool has no Game Changer to add', () => {
+    const state = underTargetState();
+    state.gameChangerNames = new Set(); // no GC anywhere → pool is all soft fillers
+    const before = deckSize(state);
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: fillerScryfallMap(),
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+    });
+
+    expect(result.applied).toBe(0);
+    expect(result.finalBracket).toBeLessThan(3); // honestly under target — nothing to add
+    expect(deckSize(state)).toBe(before);
+  });
+
+  it('leaves a deck already at target untouched (UP boundary)', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 3; // default deck's 1 GC ('Power Card') → estimates exactly 3
+    state.gameChangerNames = new Set(['Power Card', 'Pool GC']);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Pool GC', 95), ...FILLER_POOL] },
+    } as unknown as GenerationState['edhrecData'];
+    const map = fillerScryfallMap();
+    map.set('Pool GC', scryfallCard('Pool GC'));
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+    });
+
+    expect(result.applied).toBe(0);
+    expect(state.usedNames.has('Pool GC')).toBe(false); // no needless power-up
+    expect(state.usedNames.has('Power Card')).toBe(true); // and no needless cut
+  });
 });

@@ -1,0 +1,2138 @@
+{
+  "generatedAt": "2026-06-29T05:05:56.731Z",
+  "source": "json.edhrec.com/pages/cards/{slug}.json (similar[]) + api.scryfall.com/cards/collection",
+  "note": "Independent ground truth for substitute-weight calibration. similar[] is EDHREC deck-co-occurrence; metadata is Scryfall type/cmc.",
+  "cards": {
+    "Sol Ring": {
+      "typeLine": "Artifact",
+      "cmc": 1
+    },
+    "Mana Vault": {
+      "typeLine": "Artifact",
+      "cmc": 1
+    },
+    "Grim Monolith": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Worn Powerstone": {
+      "typeLine": "Artifact",
+      "cmc": 3
+    },
+    "Thran Dynamo": {
+      "typeLine": "Artifact",
+      "cmc": 4
+    },
+    "Basalt Monolith": {
+      "typeLine": "Artifact",
+      "cmc": 3
+    },
+    "Mind Stone": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Arcane Signet": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Fellwar Stone": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Commander's Sphere": {
+      "typeLine": "Artifact",
+      "cmc": 3
+    },
+    "Coldsteel Heart": {
+      "typeLine": "Snow Artifact",
+      "cmc": 2
+    },
+    "Star Compass": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Thought Vessel": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Hedron Archive": {
+      "typeLine": "Artifact",
+      "cmc": 4
+    },
+    "Dreamstone Hedron": {
+      "typeLine": "Artifact",
+      "cmc": 6
+    },
+    "Prismatic Lens": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Liquimetal Torque": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Decanter of Endless Water": {
+      "typeLine": "Artifact",
+      "cmc": 3
+    },
+    "Reliquary Tower": {
+      "typeLine": "Land",
+      "cmc": 0
+    },
+    "Spellbook": {
+      "typeLine": "Artifact — Book",
+      "cmc": 0
+    },
+    "Library of Leng": {
+      "typeLine": "Artifact",
+      "cmc": 1
+    },
+    "Palladium Myr": {
+      "typeLine": "Artifact Creature — Myr",
+      "cmc": 3
+    },
+    "Sisay's Ring": {
+      "typeLine": "Artifact",
+      "cmc": 4
+    },
+    "Ur-Golem's Eye": {
+      "typeLine": "Artifact",
+      "cmc": 4
+    },
+    "Gilded Lotus": {
+      "typeLine": "Artifact",
+      "cmc": 5
+    },
+    "Stonespeaker Crystal": {
+      "typeLine": "Artifact",
+      "cmc": 4
+    },
+    "Marble Diamond": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Sky Diamond": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Charcoal Diamond": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Fire Diamond": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Moss Diamond": {
+      "typeLine": "Artifact",
+      "cmc": 2
+    },
+    "Cultivate": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Kodama's Reach": {
+      "typeLine": "Sorcery — Arcane",
+      "cmc": 3
+    },
+    "Nissa's Pilgrimage": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Rampant Growth": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Explosive Vegetation": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Farseek": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Nature's Lore": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Migration Path": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Circuitous Route": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Vastwood Surge": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Three Visits": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Into the North": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Edge of Autumn": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Sakura-Tribe Elder": {
+      "typeLine": "Creature — Snake Shaman",
+      "cmc": 2
+    },
+    "Skyshroud Claim": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Dawntreader Elk": {
+      "typeLine": "Creature — Elk",
+      "cmc": 2
+    },
+    "Diligent Farmhand": {
+      "typeLine": "Creature — Human Druid",
+      "cmc": 1
+    },
+    "Viridian Emissary": {
+      "typeLine": "Creature — Phyrexian Elf Scout",
+      "cmc": 2
+    },
+    "Wayfarer's Bauble": {
+      "typeLine": "Artifact",
+      "cmc": 1
+    },
+    "Font of Fertility": {
+      "typeLine": "Enchantment",
+      "cmc": 1
+    },
+    "Birds of Paradise": {
+      "typeLine": "Creature — Bird",
+      "cmc": 1
+    },
+    "Noble Hierarch": {
+      "typeLine": "Creature — Human Druid",
+      "cmc": 1
+    },
+    "Ignoble Hierarch": {
+      "typeLine": "Creature — Goblin Shaman",
+      "cmc": 1
+    },
+    "Gilded Goose": {
+      "typeLine": "Creature — Bird",
+      "cmc": 1
+    },
+    "Ornithopter of Paradise": {
+      "typeLine": "Artifact Creature — Thopter",
+      "cmc": 2
+    },
+    "Llanowar Elves": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 1
+    },
+    "Elvish Mystic": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 1
+    },
+    "Fyndhorn Elves": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 1
+    },
+    "Arbor Elf": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 1
+    },
+    "Boreal Druid": {
+      "typeLine": "Snow Creature — Elf Druid",
+      "cmc": 1
+    },
+    "Elves of Deep Shadow": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 1
+    },
+    "Wood Elves": {
+      "typeLine": "Creature — Elf Scout",
+      "cmc": 3
+    },
+    "Farhaven Elf": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 3
+    },
+    "Springbloom Druid": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 3
+    },
+    "Yavimaya Dryad": {
+      "typeLine": "Creature — Dryad",
+      "cmc": 3
+    },
+    "Elvish Rejuvenator": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 3
+    },
+    "Civic Wayfinder": {
+      "typeLine": "Creature — Elf Druid Warrior",
+      "cmc": 3
+    },
+    "Topiary Stomper": {
+      "typeLine": "Creature — Plant Dinosaur",
+      "cmc": 3
+    },
+    "Ranger's Path": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Hunting Wilds": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Map the Frontier": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Swords to Plowshares": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Path to Exile": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Condemn": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Dispatch": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Solitude": {
+      "typeLine": "Creature — Elemental Incarnation",
+      "cmc": 5
+    },
+    "Oust": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Fateful Absence": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Winds of Abandon": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Generous Gift": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Beast Within": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Chaos Warp": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Stroke of Midnight": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Assassin's Trophy": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Song of the Dryads": {
+      "typeLine": "Enchantment — Aura",
+      "cmc": 3
+    },
+    "Pongify": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Oblation": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Excise the Imperfect": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Cavalier of Dawn": {
+      "typeLine": "Creature — Elemental Knight",
+      "cmc": 5
+    },
+    "Wild Magic Surge": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Audacious Swap": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Tibalt's Trickery": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Reality Scramble": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Rapid Hybridization": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Reality Shift": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Resculpt": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Ravenform": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Curse of the Swine": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Amphin Mutineer": {
+      "typeLine": "Creature — Salamander Pirate",
+      "cmc": 4
+    },
+    "Anguished Unmaking": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Utter End": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Vindicate": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Despark": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Vanishing Verse": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Mortify": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Putrefy": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Fracture": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Go for the Throat": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Doom Blade": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Cast Down": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Infernal Grasp": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Heartless Act": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Ultimate Price": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Terror": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Murder": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Hero's Downfall": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Victim of Night": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Ruinous Path": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Vraska's Contempt": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Eat to Extinction": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Dreadbore": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Baleful Mastery": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Murderous Rider // Swift End": {
+      "typeLine": "Creature — Zombie Knight // Instant — Adventure",
+      "cmc": 3
+    },
+    "Pile On": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Lethal Scheme": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Abrupt Decay": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Maelstrom Pulse": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Wrath of God": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Day of Judgment": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Damnation": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Doomskar": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Shatter the Sky": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Depopulate": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Cleansing Nova": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Toxic Deluge": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Languish": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Mutilate": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Crux of Fate": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Bontu's Last Reckoning": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Blasphemous Act": {
+      "typeLine": "Sorcery",
+      "cmc": 9
+    },
+    "Chain Reaction": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Vanquish the Horde": {
+      "typeLine": "Sorcery",
+      "cmc": 8
+    },
+    "Star of Extinction": {
+      "typeLine": "Sorcery",
+      "cmc": 7
+    },
+    "Burn Down the House": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Hour of Devastation": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Storm's Wrath": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Black Sun's Zenith": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "The Meathook Massacre": {
+      "typeLine": "Legendary Enchantment",
+      "cmc": 2
+    },
+    "Dead of Winter": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Supreme Verdict": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Time Wipe": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Austere Command": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Farewell": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Merciless Eviction": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Akroma's Vengeance": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Planar Cleansing": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Hour of Revelation": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Vandalblast": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Shatterstorm": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "By Force": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Shattering Spree": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Meltdown": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Fiery Confluence": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Shenanigans": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Cyclonic Rift": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "River's Rebuke": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Evacuation": {
+      "typeLine": "Instant",
+      "cmc": 5
+    },
+    "Devastation Tide": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Engulf the Shore": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Whelming Wave": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Wash Out": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Brutal Cathar // Moonrage Brute": {
+      "typeLine": "Creature — Human Soldier Werewolf // Creature — Werewolf",
+      "cmc": 3
+    },
+    "Fiend Hunter": {
+      "typeLine": "Creature — Human Cleric",
+      "cmc": 3
+    },
+    "Banisher Priest": {
+      "typeLine": "Creature — Human Cleric",
+      "cmc": 3
+    },
+    "Fairgrounds Warden": {
+      "typeLine": "Creature — Dwarf Soldier",
+      "cmc": 3
+    },
+    "Skyclave Apparition": {
+      "typeLine": "Creature — Kor Spirit",
+      "cmc": 3
+    },
+    "Werefox Bodyguard": {
+      "typeLine": "Creature — Elf Fox Knight",
+      "cmc": 3
+    },
+    "Palace Jailer": {
+      "typeLine": "Creature — Human Soldier",
+      "cmc": 4
+    },
+    "Rhystic Study": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Mystic Remora": {
+      "typeLine": "Enchantment",
+      "cmc": 1
+    },
+    "Esper Sentinel": {
+      "typeLine": "Artifact Creature — Human Soldier",
+      "cmc": 1
+    },
+    "Smothering Tithe": {
+      "typeLine": "Enchantment",
+      "cmc": 4
+    },
+    "Faerie Mastermind": {
+      "typeLine": "Creature — Faerie Rogue",
+      "cmc": 2
+    },
+    "Kraum, Ludevic's Opus": {
+      "typeLine": "Legendary Creature — Zombie Horror",
+      "cmc": 5
+    },
+    "Mangara, the Diplomat": {
+      "typeLine": "Legendary Creature — Human Cleric",
+      "cmc": 4
+    },
+    "Nezahal, Primal Tide": {
+      "typeLine": "Legendary Creature — Elder Dinosaur",
+      "cmc": 7
+    },
+    "Mind's Eye": {
+      "typeLine": "Artifact",
+      "cmc": 5
+    },
+    "Phyrexian Arena": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Underworld Connections": {
+      "typeLine": "Enchantment — Aura",
+      "cmc": 3
+    },
+    "Black Market Connections": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Dark Tutelage": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Dark Confidant": {
+      "typeLine": "Creature — Human Wizard",
+      "cmc": 2
+    },
+    "Bloodgift Demon": {
+      "typeLine": "Creature — Demon",
+      "cmc": 5
+    },
+    "Necropotence": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Sign in Blood": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Night's Whisper": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Read the Bones": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Foreboding Fruit": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Succumb to Temptation": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Blood Pact": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Pointed Discussion": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Harmonize": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Concentrate": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Shamanic Revelation": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Rishkar's Expertise": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Soul's Majesty": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Return of the Wildspeaker": {
+      "typeLine": "Instant",
+      "cmc": 5
+    },
+    "Collective Unconscious": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Archivist of Oghma": {
+      "typeLine": "Creature — Halfling Cleric",
+      "cmc": 2
+    },
+    "Smuggler's Share": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Thalia, Guardian of Thraben": {
+      "typeLine": "Legendary Creature — Human Soldier",
+      "cmc": 2
+    },
+    "Deep Gnome Terramancer": {
+      "typeLine": "Creature — Gnome Wizard",
+      "cmc": 2
+    },
+    "Guardian Project": {
+      "typeLine": "Enchantment",
+      "cmc": 4
+    },
+    "Beast Whisperer": {
+      "typeLine": "Creature — Elf Druid",
+      "cmc": 4
+    },
+    "Soul of the Harvest": {
+      "typeLine": "Creature — Elemental",
+      "cmc": 6
+    },
+    "Primordial Sage": {
+      "typeLine": "Creature — Spirit",
+      "cmc": 6
+    },
+    "Lifecrafter's Bestiary": {
+      "typeLine": "Artifact",
+      "cmc": 3
+    },
+    "Elemental Bond": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Garruk's Uprising": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Zendikar Resurgent": {
+      "typeLine": "Enchantment",
+      "cmc": 7
+    },
+    "Glimpse of Nature": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "The Great Henge": {
+      "typeLine": "Legendary Artifact",
+      "cmc": 9
+    },
+    "Tribute to the World Tree": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Fact or Fiction": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Sphinx of Uthuun": {
+      "typeLine": "Creature — Sphinx",
+      "cmc": 7
+    },
+    "Fortune's Favor": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Epiphany at the Drownyard": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Steam Augury": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Atris, Oracle of Half-Truths": {
+      "typeLine": "Legendary Creature — Human Advisor",
+      "cmc": 4
+    },
+    "Truth or Tale": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Live Fast": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Painful Truths": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Ambition's Cost": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Ancient Craving": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Demonic Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Vampiric Tutor": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Grim Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Imperial Seal": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Diabolic Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Profane Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 0
+    },
+    "Diabolic Intent": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Cruel Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Sidisi, Undead Vizier": {
+      "typeLine": "Legendary Creature — Zombie Snake",
+      "cmc": 5
+    },
+    "Enlightened Tutor": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Idyllic Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Mystical Tutor": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Worldly Tutor": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Personal Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Steelshaper's Gift": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Merchant Scroll": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Solve the Equation": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Spellseeker": {
+      "typeLine": "Creature — Human Wizard",
+      "cmc": 3
+    },
+    "Sylvan Tutor": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Green Sun's Zenith": {
+      "typeLine": "Sorcery",
+      "cmc": 1
+    },
+    "Chord of Calling": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Summoner's Pact": {
+      "typeLine": "Instant",
+      "cmc": 0
+    },
+    "Finale of Devastation": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Eladamri's Call": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Altar of Bone": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Congregation at Dawn": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Shared Summons": {
+      "typeLine": "Instant",
+      "cmc": 5
+    },
+    "Moon-Blessed Cleric": {
+      "typeLine": "Creature — Human Elf Cleric",
+      "cmc": 3
+    },
+    "Plea for Guidance": {
+      "typeLine": "Sorcery",
+      "cmc": 6
+    },
+    "Open the Armory": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Sterling Grove": {
+      "typeLine": "Enchantment",
+      "cmc": 2
+    },
+    "Academy Rector": {
+      "typeLine": "Creature — Human Cleric",
+      "cmc": 4
+    },
+    "Mastermind's Acquisition": {
+      "typeLine": "Sorcery",
+      "cmc": 4
+    },
+    "Dark Petition": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Razaketh's Rite": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Counterspell": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Mana Drain": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Cancel": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Deprive": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Arcane Denial": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Negate": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Essence Scatter": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Swan Song": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "An Offer You Can't Refuse": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Flusterstorm": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Spell Pierce": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Dispel": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Miscast": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Stubborn Denial": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Dovin's Veto": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Mana Leak": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Force of Negation": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Fierce Guardianship": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Absorb": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Render Silent": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Dream Fracture": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Remand": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Delay": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Spell Swindle": {
+      "typeLine": "Instant",
+      "cmc": 5
+    },
+    "Plasm Capture": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Rewind": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Force of Will": {
+      "typeLine": "Instant",
+      "cmc": 5
+    },
+    "Deflecting Swat": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Deadly Rollick": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Flawless Maneuver": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Obscuring Haze": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Ertai's Meddling": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Memory Lapse": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Unsubstantiate": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Suspend": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Lightning Greaves": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 2
+    },
+    "Swiftfoot Boots": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 2
+    },
+    "Whispersilk Cloak": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 3
+    },
+    "Champion's Helm": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 3
+    },
+    "Mask of Avacyn": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 2
+    },
+    "Neurok Stealthsuit": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 2
+    },
+    "Mirror Shield": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 2
+    },
+    "Lavaspur Boots": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 1
+    },
+    "Skullclamp": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 1
+    },
+    "Village Rites": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Deadly Dispute": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Corrupted Conviction": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Heirloom Blade": {
+      "typeLine": "Artifact — Equipment",
+      "cmc": 3
+    },
+    "Grim Haruspex": {
+      "typeLine": "Creature — Human Wizard",
+      "cmc": 3
+    },
+    "Midnight Reaper": {
+      "typeLine": "Creature — Zombie Knight",
+      "cmc": 3
+    },
+    "Monologue Tax": {
+      "typeLine": "Enchantment",
+      "cmc": 3
+    },
+    "Alms Collector": {
+      "typeLine": "Creature — Cat Cleric",
+      "cmc": 4
+    },
+    "Dockside Extortionist": {
+      "typeLine": "Creature — Goblin Pirate",
+      "cmc": 2
+    },
+    "Brass's Bounty": {
+      "typeLine": "Sorcery",
+      "cmc": 7
+    },
+    "Jeska's Will": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Mana Geyser": {
+      "typeLine": "Sorcery",
+      "cmc": 5
+    },
+    "Treasure Nabber": {
+      "typeLine": "Creature — Goblin Rogue",
+      "cmc": 3
+    },
+    "Storm-Kiln Artist": {
+      "typeLine": "Creature — Dwarf Shaman",
+      "cmc": 4
+    },
+    "Professional Face-Breaker": {
+      "typeLine": "Creature — Human Warrior",
+      "cmc": 3
+    },
+    "Heroic Intervention": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Wrap in Vigor": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Tamiyo's Safekeeping": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Tyvar's Stand": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Gaea's Gift": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Silkguard": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Inspiring Call": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Teferi's Protection": {
+      "typeLine": "Instant",
+      "cmc": 3
+    },
+    "Clever Concealment": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Everybody Lives!": {
+      "typeLine": "Instant",
+      "cmc": 2
+    },
+    "Flare of Fortitude": {
+      "typeLine": "Instant",
+      "cmc": 4
+    },
+    "Guardian of Faith": {
+      "typeLine": "Creature — Spirit Knight",
+      "cmc": 3
+    },
+    "Galadriel's Dismissal": {
+      "typeLine": "Instant",
+      "cmc": 1
+    },
+    "Eternal Witness": {
+      "typeLine": "Creature — Human Shaman",
+      "cmc": 3
+    },
+    "Timeless Witness": {
+      "typeLine": "Creature — Human Shaman",
+      "cmc": 4
+    },
+    "Skullwinder": {
+      "typeLine": "Creature — Snake",
+      "cmc": 3
+    },
+    "Greenwarden of Murasa": {
+      "typeLine": "Creature — Elemental",
+      "cmc": 6
+    },
+    "Regrowth": {
+      "typeLine": "Sorcery",
+      "cmc": 2
+    },
+    "Bala Ged Recovery // Bala Ged Sanctuary": {
+      "typeLine": "Sorcery // Land",
+      "cmc": 3
+    },
+    "Recollect": {
+      "typeLine": "Sorcery",
+      "cmc": 3
+    },
+    "Reclamation Sage": {
+      "typeLine": "Creature — Elf Shaman",
+      "cmc": 3
+    },
+    "Foundation Breaker": {
+      "typeLine": "Creature — Elemental",
+      "cmc": 4
+    },
+    "Viridian Shaman": {
+      "typeLine": "Creature — Elf Shaman",
+      "cmc": 3
+    },
+    "Indrik Stomphowler": {
+      "typeLine": "Creature — Beast",
+      "cmc": 5
+    },
+    "Conclave Naturalists": {
+      "typeLine": "Creature — Dryad",
+      "cmc": 5
+    },
+    "Acidic Slime": {
+      "typeLine": "Creature — Ooze",
+      "cmc": 5
+    },
+    "Knight of Autumn": {
+      "typeLine": "Creature — Dryad Knight",
+      "cmc": 3
+    }
+  },
+  "similar": {
+    "Sol Ring": [
+      "Mana Vault",
+      "Grim Monolith",
+      "Worn Powerstone",
+      "Thran Dynamo",
+      "Basalt Monolith",
+      "Mind Stone"
+    ],
+    "Arcane Signet": [
+      "Fellwar Stone",
+      "Commander's Sphere",
+      "Mind Stone",
+      "Coldsteel Heart",
+      "Star Compass",
+      "Thought Vessel"
+    ],
+    "Mind Stone": [
+      "Hedron Archive",
+      "Dreamstone Hedron",
+      "Commander's Sphere",
+      "Thought Vessel",
+      "Prismatic Lens",
+      "Liquimetal Torque"
+    ],
+    "Fellwar Stone": [
+      "Arcane Signet",
+      "Star Compass",
+      "Prismatic Lens",
+      "Coldsteel Heart",
+      "Mind Stone",
+      "Thought Vessel"
+    ],
+    "Thought Vessel": [
+      "Decanter of Endless Water",
+      "Reliquary Tower",
+      "Mind Stone",
+      "Spellbook",
+      "Arcane Signet",
+      "Library of Leng"
+    ],
+    "Worn Powerstone": [
+      "Thran Dynamo",
+      "Palladium Myr",
+      "Sisay's Ring",
+      "Ur-Golem's Eye",
+      "Hedron Archive",
+      "Basalt Monolith"
+    ],
+    "Thran Dynamo": [
+      "Hedron Archive",
+      "Sisay's Ring",
+      "Ur-Golem's Eye",
+      "Worn Powerstone",
+      "Gilded Lotus",
+      "Basalt Monolith"
+    ],
+    "Hedron Archive": [
+      "Dreamstone Hedron",
+      "Mind Stone",
+      "Stonespeaker Crystal",
+      "Sisay's Ring",
+      "Ur-Golem's Eye",
+      "Thran Dynamo"
+    ],
+    "Coldsteel Heart": [
+      "Star Compass",
+      "Marble Diamond",
+      "Sky Diamond",
+      "Charcoal Diamond",
+      "Fire Diamond",
+      "Moss Diamond"
+    ],
+    "Star Compass": [
+      "Coldsteel Heart",
+      "Fellwar Stone",
+      "Arcane Signet",
+      "Sky Diamond",
+      "Charcoal Diamond",
+      "Fire Diamond"
+    ],
+    "Cultivate": [
+      "Kodama's Reach",
+      "Nissa's Pilgrimage",
+      "Rampant Growth",
+      "Explosive Vegetation",
+      "Farseek",
+      "Nature's Lore"
+    ],
+    "Kodama's Reach": [
+      "Cultivate",
+      "Nissa's Pilgrimage",
+      "Explosive Vegetation",
+      "Migration Path",
+      "Circuitous Route",
+      "Vastwood Surge"
+    ],
+    "Rampant Growth": [
+      "Farseek",
+      "Nature's Lore",
+      "Three Visits",
+      "Into the North",
+      "Edge of Autumn",
+      "Sakura-Tribe Elder"
+    ],
+    "Farseek": [
+      "Rampant Growth",
+      "Nature's Lore",
+      "Three Visits",
+      "Into the North",
+      "Sakura-Tribe Elder",
+      "Edge of Autumn"
+    ],
+    "Nature's Lore": [
+      "Three Visits",
+      "Rampant Growth",
+      "Farseek",
+      "Into the North",
+      "Sakura-Tribe Elder",
+      "Edge of Autumn"
+    ],
+    "Three Visits": [
+      "Nature's Lore",
+      "Rampant Growth",
+      "Farseek",
+      "Into the North",
+      "Sakura-Tribe Elder",
+      "Skyshroud Claim"
+    ],
+    "Sakura-Tribe Elder": [
+      "Dawntreader Elk",
+      "Diligent Farmhand",
+      "Rampant Growth",
+      "Viridian Emissary",
+      "Wayfarer's Bauble",
+      "Font of Fertility"
+    ],
+    "Birds of Paradise": [
+      "Noble Hierarch",
+      "Ignoble Hierarch",
+      "Gilded Goose",
+      "Ornithopter of Paradise",
+      "Llanowar Elves",
+      "Elvish Mystic"
+    ],
+    "Llanowar Elves": [
+      "Elvish Mystic",
+      "Fyndhorn Elves",
+      "Arbor Elf",
+      "Boreal Druid",
+      "Birds of Paradise",
+      "Elves of Deep Shadow"
+    ],
+    "Wood Elves": [
+      "Farhaven Elf",
+      "Springbloom Druid",
+      "Yavimaya Dryad",
+      "Elvish Rejuvenator",
+      "Civic Wayfinder",
+      "Topiary Stomper"
+    ],
+    "Explosive Vegetation": [
+      "Circuitous Route",
+      "Migration Path",
+      "Vastwood Surge",
+      "Skyshroud Claim",
+      "Ranger's Path",
+      "Hunting Wilds"
+    ],
+    "Skyshroud Claim": [
+      "Ranger's Path",
+      "Hunting Wilds",
+      "Explosive Vegetation",
+      "Migration Path",
+      "Circuitous Route",
+      "Nature's Lore"
+    ],
+    "Migration Path": [
+      "Explosive Vegetation",
+      "Circuitous Route",
+      "Vastwood Surge",
+      "Ranger's Path",
+      "Skyshroud Claim",
+      "Cultivate"
+    ],
+    "Circuitous Route": [
+      "Explosive Vegetation",
+      "Migration Path",
+      "Vastwood Surge",
+      "Map the Frontier",
+      "Skyshroud Claim",
+      "Ranger's Path"
+    ],
+    "Swords to Plowshares": [
+      "Path to Exile",
+      "Condemn",
+      "Dispatch",
+      "Solitude",
+      "Oust",
+      "Fateful Absence"
+    ],
+    "Path to Exile": [
+      "Swords to Plowshares",
+      "Winds of Abandon",
+      "Fateful Absence",
+      "Generous Gift",
+      "Dispatch",
+      "Condemn"
+    ],
+    "Beast Within": [
+      "Generous Gift",
+      "Chaos Warp",
+      "Stroke of Midnight",
+      "Assassin's Trophy",
+      "Song of the Dryads",
+      "Pongify"
+    ],
+    "Generous Gift": [
+      "Beast Within",
+      "Stroke of Midnight",
+      "Chaos Warp",
+      "Oblation",
+      "Excise the Imperfect",
+      "Cavalier of Dawn"
+    ],
+    "Chaos Warp": [
+      "Wild Magic Surge",
+      "Audacious Swap",
+      "Oblation",
+      "Tibalt's Trickery",
+      "Reality Scramble",
+      "Beast Within"
+    ],
+    "Pongify": [
+      "Rapid Hybridization",
+      "Reality Shift",
+      "Resculpt",
+      "Ravenform",
+      "Beast Within",
+      "Generous Gift"
+    ],
+    "Rapid Hybridization": [
+      "Pongify",
+      "Reality Shift",
+      "Resculpt",
+      "Ravenform",
+      "Curse of the Swine",
+      "Amphin Mutineer"
+    ],
+    "Anguished Unmaking": [
+      "Utter End",
+      "Vindicate",
+      "Despark",
+      "Vanishing Verse",
+      "Stroke of Midnight",
+      "Generous Gift"
+    ],
+    "Mortify": ["Anguished Unmaking", "Vindicate", "Putrefy", "Utter End", "Despark", "Fracture"],
+    "Go for the Throat": [
+      "Doom Blade",
+      "Cast Down",
+      "Infernal Grasp",
+      "Heartless Act",
+      "Ultimate Price",
+      "Terror"
+    ],
+    "Murder": [
+      "Hero's Downfall",
+      "Infernal Grasp",
+      "Doom Blade",
+      "Go for the Throat",
+      "Cast Down",
+      "Victim of Night"
+    ],
+    "Hero's Downfall": [
+      "Ruinous Path",
+      "Murder",
+      "Never // Return",
+      "Vraska's Contempt",
+      "Eat to Extinction",
+      "Dreadbore"
+    ],
+    "Vraska's Contempt": [
+      "Eat to Extinction",
+      "Baleful Mastery",
+      "Hero's Downfall",
+      "Murderous Rider",
+      "Pile On",
+      "Lethal Scheme"
+    ],
+    "Despark": [
+      "Anguished Unmaking",
+      "Utter End",
+      "Vindicate",
+      "Vanishing Verse",
+      "Fracture",
+      "Mortify"
+    ],
+    "Assassin's Trophy": [
+      "Abrupt Decay",
+      "Beast Within",
+      "Maelstrom Pulse",
+      "Vindicate",
+      "Putrefy",
+      "Anguished Unmaking"
+    ],
+    "Wrath of God": [
+      "Day of Judgment",
+      "Damnation",
+      "Doomskar",
+      "Shatter the Sky",
+      "Depopulate",
+      "Cleansing Nova"
+    ],
+    "Damnation": [
+      "Wrath of God",
+      "Toxic Deluge",
+      "Languish",
+      "Mutilate",
+      "Crux of Fate",
+      "Bontu's Last Reckoning"
+    ],
+    "Blasphemous Act": [
+      "Chain Reaction",
+      "Vanquish the Horde",
+      "Star of Extinction",
+      "Burn Down the House",
+      "Hour of Devastation",
+      "Storm's Wrath"
+    ],
+    "Toxic Deluge": [
+      "Languish",
+      "Black Sun's Zenith",
+      "Mutilate",
+      "The Meathook Massacre",
+      "Damnation",
+      "Dead of Winter"
+    ],
+    "Supreme Verdict": [
+      "Wrath of God",
+      "Day of Judgment",
+      "Time Wipe",
+      "Shatter the Sky",
+      "Depopulate",
+      "Doomskar"
+    ],
+    "Austere Command": [
+      "Cleansing Nova",
+      "Farewell",
+      "Merciless Eviction",
+      "Akroma's Vengeance",
+      "Planar Cleansing",
+      "Hour of Revelation"
+    ],
+    "Farewell": [
+      "Merciless Eviction",
+      "Austere Command",
+      "Cleansing Nova",
+      "Akroma's Vengeance",
+      "Hour of Revelation",
+      "Planar Cleansing"
+    ],
+    "Vandalblast": [
+      "Shatterstorm",
+      "By Force",
+      "Shattering Spree",
+      "Meltdown",
+      "Fiery Confluence",
+      "Shenanigans"
+    ],
+    "Cyclonic Rift": [
+      "River's Rebuke",
+      "Evacuation",
+      "Devastation Tide",
+      "Engulf the Shore",
+      "Whelming Wave",
+      "Wash Out"
+    ],
+    "Brutal Cathar": [
+      "Fiend Hunter",
+      "Banisher Priest",
+      "Fairgrounds Warden",
+      "Skyclave Apparition",
+      "Werefox Bodyguard",
+      "Palace Jailer"
+    ],
+    "Rhystic Study": [
+      "Mystic Remora",
+      "Esper Sentinel",
+      "Smothering Tithe",
+      "Faerie Mastermind",
+      "Kraum, Ludevic's Opus",
+      "Mangara, the Diplomat"
+    ],
+    "Mystic Remora": [
+      "Rhystic Study",
+      "Esper Sentinel",
+      "Smothering Tithe",
+      "Nezahal, Primal Tide",
+      "Mind's Eye",
+      "Kraum, Ludevic's Opus"
+    ],
+    "Phyrexian Arena": [
+      "Underworld Connections",
+      "Black Market Connections",
+      "Dark Tutelage",
+      "Dark Confidant",
+      "Bloodgift Demon",
+      "Necropotence"
+    ],
+    "Sign in Blood": [
+      "Night's Whisper",
+      "Read the Bones",
+      "Foreboding Fruit",
+      "Succumb to Temptation",
+      "Blood Pact",
+      "Pointed Discussion"
+    ],
+    "Night's Whisper": [
+      "Sign in Blood",
+      "Read the Bones",
+      "Succumb to Temptation",
+      "Blood Pact",
+      "Foreboding Fruit",
+      "Pointed Discussion"
+    ],
+    "Harmonize": [
+      "Concentrate",
+      "Shamanic Revelation",
+      "Rishkar's Expertise",
+      "Soul's Majesty",
+      "Return of the Wildspeaker",
+      "Collective Unconscious"
+    ],
+    "Esper Sentinel": [
+      "Archivist of Oghma",
+      "Smuggler's Share",
+      "Mangara, the Diplomat",
+      "Thalia, Guardian of Thraben",
+      "Deep Gnome Terramancer",
+      "Rhystic Study"
+    ],
+    "Guardian Project": [
+      "Beast Whisperer",
+      "Soul of the Harvest",
+      "Primordial Sage",
+      "Lifecrafter's Bestiary",
+      "Elemental Bond",
+      "Garruk's Uprising"
+    ],
+    "Beast Whisperer": [
+      "Primordial Sage",
+      "Soul of the Harvest",
+      "Guardian Project",
+      "Lifecrafter's Bestiary",
+      "Zendikar Resurgent",
+      "Glimpse of Nature"
+    ],
+    "The Great Henge": [
+      "Guardian Project",
+      "Beast Whisperer",
+      "Tribute to the World Tree",
+      "Elemental Bond",
+      "Garruk's Uprising",
+      "Soul of the Harvest"
+    ],
+    "Fact or Fiction": [
+      "Sphinx of Uthuun",
+      "Fortune's Favor",
+      "Epiphany at the Drownyard",
+      "Steam Augury",
+      "Atris, Oracle of Half-Truths",
+      "Truth or Tale"
+    ],
+    "Read the Bones": [
+      "Night's Whisper",
+      "Sign in Blood",
+      "Succumb to Temptation",
+      "Blood Pact",
+      "Live Fast",
+      "Foreboding Fruit"
+    ],
+    "Painful Truths": [
+      "Read the Bones",
+      "Night's Whisper",
+      "Sign in Blood",
+      "Ambition's Cost",
+      "Ancient Craving",
+      "Succumb to Temptation"
+    ],
+    "Demonic Tutor": [
+      "Vampiric Tutor",
+      "Grim Tutor",
+      "Imperial Seal",
+      "Diabolic Tutor",
+      "Profane Tutor",
+      "Diabolic Intent"
+    ],
+    "Vampiric Tutor": [
+      "Imperial Seal",
+      "Demonic Tutor",
+      "Cruel Tutor",
+      "Grim Tutor",
+      "Diabolic Intent",
+      "Diabolic Tutor"
+    ],
+    "Diabolic Intent": [
+      "Demonic Tutor",
+      "Grim Tutor",
+      "Vampiric Tutor",
+      "Sidisi, Undead Vizier",
+      "Profane Tutor",
+      "Diabolic Tutor"
+    ],
+    "Enlightened Tutor": [
+      "Idyllic Tutor",
+      "Mystical Tutor",
+      "Worldly Tutor",
+      "Vampiric Tutor",
+      "Personal Tutor",
+      "Steelshaper's Gift"
+    ],
+    "Mystical Tutor": [
+      "Personal Tutor",
+      "Merchant Scroll",
+      "Solve the Equation",
+      "Spellseeker",
+      "Vampiric Tutor",
+      "Enlightened Tutor"
+    ],
+    "Worldly Tutor": [
+      "Sylvan Tutor",
+      "Green Sun's Zenith",
+      "Chord of Calling",
+      "Summoner's Pact",
+      "Finale of Devastation",
+      "Eladamri's Call"
+    ],
+    "Eladamri's Call": [
+      "Worldly Tutor",
+      "Altar of Bone",
+      "Congregation at Dawn",
+      "Sylvan Tutor",
+      "Shared Summons",
+      "Summoner's Pact"
+    ],
+    "Idyllic Tutor": [
+      "Enlightened Tutor",
+      "Moon-Blessed Cleric",
+      "Plea for Guidance",
+      "Open the Armory",
+      "Sterling Grove",
+      "Academy Rector"
+    ],
+    "Diabolic Tutor": [
+      "Demonic Tutor",
+      "Mastermind's Acquisition",
+      "Grim Tutor",
+      "Dark Petition",
+      "Cruel Tutor",
+      "Razaketh's Rite"
+    ],
+    "Counterspell": [
+      "Mana Drain",
+      "Cancel",
+      "Deprive",
+      "Arcane Denial",
+      "Negate",
+      "Essence Scatter"
+    ],
+    "Swan Song": [
+      "An Offer You Can't Refuse",
+      "Flusterstorm",
+      "Spell Pierce",
+      "Dispel",
+      "Miscast",
+      "Stubborn Denial"
+    ],
+    "Negate": [
+      "Dovin's Veto",
+      "Spell Pierce",
+      "An Offer You Can't Refuse",
+      "Swan Song",
+      "Counterspell",
+      "Mana Leak"
+    ],
+    "Dovin's Veto": [
+      "Negate",
+      "Force of Negation",
+      "Fierce Guardianship",
+      "Counterspell",
+      "Absorb",
+      "Render Silent"
+    ],
+    "Arcane Denial": [
+      "Dream Fracture",
+      "Remand",
+      "Counterspell",
+      "Swan Song",
+      "An Offer You Can't Refuse",
+      "Delay"
+    ],
+    "An Offer You Can't Refuse": [
+      "Swan Song",
+      "Spell Pierce",
+      "Miscast",
+      "Flusterstorm",
+      "Stubborn Denial",
+      "Dispel"
+    ],
+    "Mana Drain": [
+      "Counterspell",
+      "Spell Swindle",
+      "Plasm Capture",
+      "Rewind",
+      "Arcane Denial",
+      "Force of Will"
+    ],
+    "Fierce Guardianship": [
+      "Deflecting Swat",
+      "Deadly Rollick",
+      "Flawless Maneuver",
+      "Obscuring Haze",
+      "Force of Will",
+      "Force of Negation"
+    ],
+    "Delay": [
+      "Ertai's Meddling",
+      "Remand",
+      "Memory Lapse",
+      "Unsubstantiate",
+      "Arcane Denial",
+      "Suspend"
+    ],
+    "Lightning Greaves": [
+      "Swiftfoot Boots",
+      "Whispersilk Cloak",
+      "Champion's Helm",
+      "Mask of Avacyn",
+      "Neurok Stealthsuit",
+      "Mirror Shield"
+    ],
+    "Swiftfoot Boots": [
+      "Lightning Greaves",
+      "Whispersilk Cloak",
+      "Champion's Helm",
+      "Mask of Avacyn",
+      "Mirror Shield",
+      "Lavaspur Boots"
+    ],
+    "Skullclamp": [
+      "Village Rites",
+      "Deadly Dispute",
+      "Corrupted Conviction",
+      "Heirloom Blade",
+      "Grim Haruspex",
+      "Midnight Reaper"
+    ],
+    "Smothering Tithe": [
+      "Monologue Tax",
+      "Smuggler's Share",
+      "Esper Sentinel",
+      "Mangara, the Diplomat",
+      "Rhystic Study",
+      "Alms Collector"
+    ],
+    "Dockside Extortionist": [
+      "Brass's Bounty",
+      "Jeska's Will",
+      "Mana Geyser",
+      "Treasure Nabber",
+      "Storm-Kiln Artist",
+      "Professional Face-Breaker"
+    ],
+    "Heroic Intervention": [
+      "Wrap in Vigor",
+      "Tamiyo's Safekeeping",
+      "Tyvar's Stand",
+      "Gaea's Gift",
+      "Silkguard",
+      "Inspiring Call"
+    ],
+    "Teferi's Protection": [
+      "Clever Concealment",
+      "Flawless Maneuver",
+      "Everybody Lives!",
+      "Flare of Fortitude",
+      "Guardian of Faith",
+      "Galadriel's Dismissal"
+    ],
+    "Eternal Witness": [
+      "Timeless Witness",
+      "Skullwinder",
+      "Greenwarden of Murasa",
+      "Regrowth",
+      "Bala Ged Recovery",
+      "Recollect"
+    ],
+    "Reclamation Sage": [
+      "Foundation Breaker",
+      "Viridian Shaman",
+      "Indrik Stomphowler",
+      "Conclave Naturalists",
+      "Acidic Slime",
+      "Knight of Autumn"
+    ]
+  }
+}
