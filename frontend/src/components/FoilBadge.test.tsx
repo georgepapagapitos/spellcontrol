@@ -14,10 +14,10 @@ describe('FoilBadge', () => {
     expect(screen.getByRole('img', { name: 'Foil' })).toBeTruthy();
   });
 
-  it('classifies the etched finish and labels it', () => {
-    render(<FoilBadge card={{ foil: true, finishes: ['etched'] }} showLabel />);
-    expect(screen.getByText('Etched')).toBeTruthy();
-    expect(screen.getByText('Etched foil')).toBeTruthy(); // sr-only
+  it('tints the etched finish and names it in the accessible label', () => {
+    const { container } = render(<FoilBadge card={{ foil: true, finishes: ['etched'] }} />);
+    expect(container.querySelector('.foil-badge.foil-etched')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Etched foil' })).toBeTruthy();
   });
 
   it('maps promo treatments (oilslick) to their shared palette class', () => {

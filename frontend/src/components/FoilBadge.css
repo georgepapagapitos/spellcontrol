@@ -43,23 +43,6 @@
   margin-left: 0.4rem;
 }
 
-/* Labeled variant — pip + finish name, for roomy list rows. */
-.foil-badge-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-left: 0.4rem;
-  vertical-align: middle;
-}
-
-.foil-badge-text {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .foil-badge {
     animation: none;
