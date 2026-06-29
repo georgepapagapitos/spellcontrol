@@ -8,6 +8,8 @@ interface Props {
   commanderImageUrl?: string;
   message: string;
   percent: number;
+  isExiting?: boolean;
+  onExitComplete?: () => void;
 }
 
 // Flavor lines keyed by substring match against real generator messages.
@@ -226,7 +228,14 @@ function prefersReducedMotion(): boolean {
  * gated with prefers-reduced-motion. No new keyframes — reuses the
  * shared `fade-in` from styles/footer-card-preview.css.
  */
-export function GenerationTakeover({ commanderName, commanderImageUrl, message, percent }: Props) {
+export function GenerationTakeover({
+  commanderName,
+  commanderImageUrl,
+  message,
+  percent,
+  isExiting = false,
+  onExitComplete,
+}: Props) {
   // Resolve from CDN if we only have a name; direct URL wins immediately.
   const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
   const artUrl = commanderImageUrl ?? resolvedThumb;
@@ -273,8 +282,18 @@ export function GenerationTakeover({ commanderName, commanderImageUrl, message, 
   const flavorText = flavorLines[flavorIndex % flavorLines.length];
   const activeMilestone = currentMilestone(percent);
 
+  const handleAnimationEnd = (e: React.AnimationEvent<HTMLDivElement>) => {
+    if (isExiting && e.animationName === 'gen-takeover-exit') onExitComplete?.();
+  };
+
   return (
-    <div className="gen-takeover" role="status" aria-live="polite" aria-label="Building deck…">
+    <div
+      className={`gen-takeover${isExiting ? ' is-exiting' : ''}`}
+      role="status"
+      aria-live="polite"
+      aria-label="Building deck…"
+      onAnimationEnd={handleAnimationEnd}
+    >
       <div className="gen-takeover-hero">
         {artUrl && (
           <div className="gen-takeover-art" aria-hidden>

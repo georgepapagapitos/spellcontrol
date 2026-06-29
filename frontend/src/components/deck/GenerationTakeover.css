@@ -13,6 +13,10 @@
   animation: fade-in var(--motion-base) var(--ease-out-soft) both;
 }
 
+.gen-takeover.is-exiting {
+  animation: gen-takeover-exit var(--motion-base) var(--ease-in-soft) both;
+}
+
 /* Hero region — art + headline; fixed minimum so the art always reads. */
 .gen-takeover-hero {
   position: relative;
@@ -171,6 +175,18 @@
   }
 }
 
+@keyframes gen-takeover-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(var(--space-4));
+  }
+}
+
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .gen-takeover-hero {
@@ -190,6 +206,10 @@
 /* ── Reduced motion ────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .gen-takeover {
+    animation: none;
+  }
+
+  .gen-takeover.is-exiting {
     animation: none;
   }
 
