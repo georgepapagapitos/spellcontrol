@@ -988,12 +988,12 @@
 }
 
 .deck-row-menu-item--danger {
-  color: var(--danger, #b94545);
+  color: var(--err-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .deck-row-menu-item--danger:hover:not(:disabled) {
-    background: var(--danger-bg, rgba(185, 69, 69, 0.1));
+    background: var(--err-bg);
   }
 }
 

@@ -79,7 +79,7 @@
 }
 
 .sort-value-order-chip.dragging {
-  background: var(--surface3, var(--surface-raised));
+  background: var(--surface-raised);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 1;
 }
@@ -1085,7 +1085,7 @@
   border: 0;
   border-radius: 999px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   cursor: pointer;
   transition: filter var(--motion-fast);
 }
@@ -1313,7 +1313,7 @@
 .inline-card-search-finish.is-active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .inline-card-search-add-printing {
@@ -1321,7 +1321,7 @@
   border: 0;
   border-radius: var(--radius);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
@@ -1375,7 +1375,7 @@
 
 .binder-mode-pill.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 @media (max-width: 480px) {

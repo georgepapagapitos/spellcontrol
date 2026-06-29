@@ -30,7 +30,7 @@
   --hero-score-color: var(--warn-text, #b85c00);
 }
 .hero-score.is-rose {
-  --hero-score-color: var(--danger, var(--err-text, #b94545));
+  --hero-score-color: var(--err-text);
 }
 
 /* ── Ring ── conic sweep masked into an annulus by the inner hole. ─────── */

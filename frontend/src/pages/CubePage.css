@@ -328,7 +328,7 @@
    the group-level stagger is layout-safe (one transform per group, not per row). */
 @media (prefers-reduced-motion: no-preference) {
   .cube-result {
-    animation: cube-result-appear var(--motion-slow, 240ms) ease both;
+    animation: cube-result-appear var(--motion-gentle) ease both;
   }
   .cube-group {
     animation: cube-group-rise 280ms ease both;

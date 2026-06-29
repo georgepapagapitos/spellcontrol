@@ -115,7 +115,7 @@ body:has(.playtest-page) .modal-backdrop {
 
 .playtest-actionbar__reset {
   margin-left: auto;
-  border-color: var(--danger, #b94545) !important;
+  border-color: var(--err-border) !important;
 }
 
 .playtest-main {

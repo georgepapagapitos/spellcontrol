@@ -160,7 +160,7 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius);
-  background: var(--accent-soft, var(--surface-raised));
+  background: var(--accent-light);
   color: var(--accent);
   margin-bottom: 12px;
 }

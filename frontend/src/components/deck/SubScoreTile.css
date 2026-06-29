@@ -32,7 +32,7 @@
   --sub-score-color: var(--warn-text, #b85c00);
 }
 .sub-score-tile.is-rose {
-  --sub-score-color: var(--danger, var(--err-text, #b94545));
+  --sub-score-color: var(--err-text);
 }
 
 /* Partial tiles are de-emphasized: muted accent + dimmed text, no band hue. */

@@ -96,9 +96,9 @@
 }
 
 .sync-indicator-error {
-  color: var(--danger);
-  border-color: var(--danger);
-  background: var(--danger-bg);
+  color: var(--err-text);
+  border-color: var(--err-border);
+  background: var(--err-bg);
 }
 
 .sync-indicator-spinner {
@@ -322,7 +322,7 @@
 }
 
 .settings-row-error {
-  color: var(--danger, #b00);
+  color: var(--err-text);
 }
 
 .settings-share-actions {

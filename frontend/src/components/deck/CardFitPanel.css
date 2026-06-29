@@ -45,7 +45,7 @@
 }
 
 .card-fit-signal.is-mixed {
-  border-left-color: var(--warn, hsl(38 90% 50%));
+  border-left-color: var(--warn-border);
 }
 
 .card-fit-signal-label {
