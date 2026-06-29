@@ -257,6 +257,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Role annotation chips overlaid at the bottom of the card image in grid view.
+   Always rendered (not hover-only) per the touch rule. */
+.card-group-annotation {
+  position: absolute;
+  /* Sit above the card name label — ~name-line-height + gap */
+  bottom: 1.6rem;
+  left: 0.3rem;
+  right: 0.3rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  pointer-events: none;
+}
+
+/* Scale the verdict chip down to fit the small card thumbnail. */
+.card-group-annotation .verdict-chip {
+  font-size: var(--text-xs);
+  padding: 0.02rem 0.28rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
 .card-group-name {
   font-size: var(--text-xs);
   line-height: 1.25;
@@ -323,6 +344,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Annotation chips in list view — one per role, with the reason string beside. */
+.card-group-row-annotations {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .card-group-row-type {
