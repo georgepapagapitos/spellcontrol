@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
@@ -57,6 +57,27 @@ const CATEGORY_LABELS: Partial<Record<DeckCategory, string>> = {
 
 export function GuidedBuildPage() {
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
+  const [takeoverExiting, setTakeoverExiting] = useState(false);
+  const takeoverExitResolveRef = useRef<(() => void) | null>(null);
+
+  const waitForTakeoverExit = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+        if (reduce) {
+          resolve();
+          return;
+        }
+        takeoverExitResolveRef.current = resolve;
+        setTakeoverExiting(true);
+      }),
+    []
+  );
+
+  const handleTakeoverExitComplete = useCallback(() => {
+    takeoverExitResolveRef.current?.();
+    takeoverExitResolveRef.current = null;
+  }, []);
 
   const {
     commander,
@@ -75,7 +96,7 @@ export function GuidedBuildPage() {
     progress,
     error,
     progressRef,
-  } = useDeckGeneration({ haptic: true });
+  } = useDeckGeneration({ haptic: true, beforeNavigate: waitForTakeoverExit });
 
   const [step, setStep] = useState(0);
 
@@ -113,6 +134,8 @@ export function GuidedBuildPage() {
             commanderImageUrl={commanderArtUrl}
             message={progress.message}
             percent={progress.percent}
+            isExiting={takeoverExiting}
+            onExitComplete={handleTakeoverExitComplete}
           />
         </div>
         {error && <div className="error-banner deck-builder-error">{error}</div>}

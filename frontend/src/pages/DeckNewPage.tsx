@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
@@ -38,6 +38,26 @@ export function DeckNewPage() {
   const decks = useDecksStore((s) => s.decks);
   const createDeck = useDecksStore((s) => s.createDeck);
 
+  const [takeoverExiting, setTakeoverExiting] = useState(false);
+  const takeoverExitResolveRef = useRef<(() => void) | null>(null);
+  const waitForTakeoverExit = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+        if (reduce) {
+          resolve();
+          return;
+        }
+        takeoverExitResolveRef.current = resolve;
+        setTakeoverExiting(true);
+      }),
+    []
+  );
+  const handleTakeoverExitComplete = useCallback(() => {
+    takeoverExitResolveRef.current?.();
+    takeoverExitResolveRef.current = null;
+  }, []);
+
   const {
     commander,
     partnerCommander,
@@ -54,7 +74,7 @@ export function DeckNewPage() {
     progress,
     error,
     progressRef,
-  } = useDeckGeneration({ initialThemes: prefill?.themes });
+  } = useDeckGeneration({ initialThemes: prefill?.themes, beforeNavigate: waitForTakeoverExit });
 
   const [showImport, setShowImport] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>('commander');
@@ -157,6 +177,8 @@ export function DeckNewPage() {
             commanderImageUrl={commanderArtUrl}
             message={progress.message}
             percent={progress.percent}
+            isExiting={takeoverExiting}
+            onExitComplete={handleTakeoverExitComplete}
           />
         </div>
         {error && <div className="error-banner deck-builder-error">{error}</div>}

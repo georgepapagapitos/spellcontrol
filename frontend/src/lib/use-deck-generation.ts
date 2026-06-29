@@ -23,6 +23,8 @@ interface Options {
   initialThemes?: EDHRECTheme[];
   /** Fire a success haptic when the build lands (native guided flow). */
   haptic?: boolean;
+  /** Optional page-owned exit animation before the generated deck route takes over. */
+  beforeNavigate?: () => void | Promise<void>;
 }
 
 /**
@@ -33,7 +35,7 @@ interface Options {
  * lifecycle — keeping that here is the only way the two stay in lockstep.
  * The pages own their own layout/chrome; this owns the generation logic.
  */
-export function useDeckGeneration({ initialThemes, haptic = false }: Options = {}) {
+export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigate }: Options = {}) {
   const navigate = useNavigate();
 
   const commander = useDeckBuilderStore((s) => s.commander);
@@ -232,6 +234,7 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
         createDeck
       );
       if (haptic) haptics.success();
+      await beforeNavigate?.();
       // justGenerated → the editor auto-shows the build report once (incl. the
       // "committed to other decks" conflict note).
       navigate(`/decks/${id}`, { state: { justGenerated: true } });
@@ -257,6 +260,7 @@ export function useDeckGeneration({ initialThemes, haptic = false }: Options = {
     updateCustomization,
     navigate,
     haptic,
+    beforeNavigate,
   ]);
 
   return {

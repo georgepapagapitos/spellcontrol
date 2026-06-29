@@ -1,5 +1,5 @@
 import { Coins, Copy, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../lib/haptics';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import {
@@ -64,8 +64,10 @@ import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/cl
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
 import { useCommanderBracketAnalysis } from '../lib/use-commander-bracket-analysis';
+import { useEscapeKey } from '../lib/use-escape-key';
 import { useUndoRedoKeyboard } from '../lib/use-undo-redo-keyboard';
 import { useRegisterShortcuts } from '../lib/shortcut-registry';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import { CardEditDialog, type PrintingSelection } from '../components/CardEditDialog';
 import {
   buildAllocationMap,
@@ -2162,35 +2164,31 @@ export function DeckEditorPage() {
           is a distinct activity, opened on demand from the Deck-view toolbar so
           it's never pinned inline or in a tab. */}
       {showTestHand && (
-        <div
-          className="card-picker-root"
-          role="presentation"
-          onClick={() => setShowTestHand(false)}
+        <DeckEditorCardPickerSheet
+          label="Test hand"
+          className="deck-test-hand-sheet"
+          onClose={() => setShowTestHand(false)}
         >
-          <div
-            className="card-picker-sheet deck-test-hand-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Test hand"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-picker-handle" aria-hidden />
-            <div className="deck-test-hand-sheet-header">
-              <h2 className="deck-test-hand-sheet-title">Test hand</h2>
-              <button
-                type="button"
-                className="deck-test-hand-sheet-close"
-                onClick={() => setShowTestHand(false)}
-                aria-label="Close test hand"
-              >
-                <X width={18} height={18} strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-            <div className="deck-test-hand-sheet-body">
-              <DeckTestHandPanel embedded deckId={deck.id} />
-            </div>
-          </div>
-        </div>
+          {(dismiss) => (
+            <>
+              <div className="card-picker-handle" aria-hidden />
+              <div className="deck-test-hand-sheet-header">
+                <h2 className="deck-test-hand-sheet-title">Test hand</h2>
+                <button
+                  type="button"
+                  className="deck-test-hand-sheet-close"
+                  onClick={dismiss}
+                  aria-label="Close test hand"
+                >
+                  <X width={18} height={18} strokeWidth={2} aria-hidden />
+                </button>
+              </div>
+              <div className="deck-test-hand-sheet-body">
+                <DeckTestHandPanel embedded deckId={deck.id} />
+              </div>
+            </>
+          )}
+        </DeckEditorCardPickerSheet>
       )}
 
       {/* Add cards on a Commander deck with no commander yet: card suggestions
@@ -2198,113 +2196,105 @@ export function DeckEditorPage() {
           meaningfully add to the mainboard. Show an interstitial that points at
           the commander picker instead of silently no-opping. */}
       {showAddPanel && formatConfig?.hasCommander && !deck.commander && (
-        <div
-          className="card-picker-root"
-          role="presentation"
-          onClick={() => setShowAddPanel(false)}
+        <DeckEditorCardPickerSheet
+          label="Pick a commander first"
+          className="deck-add-needs-commander"
+          onClose={() => setShowAddPanel(false)}
         >
-          <div
-            className="card-picker-sheet deck-add-needs-commander"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Pick a commander first"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-picker-handle" aria-hidden />
-            <div className="deck-add-needs-commander-body">
-              <p className="deck-add-needs-commander-title">Pick a commander first</p>
-              <p className="deck-add-needs-commander-hint">
-                This is a Commander deck. Choose a commander before adding cards so suggestions and
-                color identity stay in sync.
-              </p>
-              <div className="deck-add-needs-commander-actions">
-                <button type="button" className="btn" onClick={() => setShowAddPanel(false)}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    setShowAddPanel(false);
-                    openView('deck');
-                  }}
-                >
-                  Choose commander
-                </button>
+          {(dismiss) => (
+            <>
+              <div className="card-picker-handle" aria-hidden />
+              <div className="deck-add-needs-commander-body">
+                <p className="deck-add-needs-commander-title">Pick a commander first</p>
+                <p className="deck-add-needs-commander-hint">
+                  This is a Commander deck. Choose a commander before adding cards so suggestions
+                  and color identity stay in sync.
+                </p>
+                <div className="deck-add-needs-commander-actions">
+                  <button type="button" className="btn" onClick={dismiss}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setShowAddPanel(false);
+                      openView('deck');
+                    }}
+                  >
+                    Choose commander
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+        </DeckEditorCardPickerSheet>
       )}
 
       {/* Add cards — a breakpoint-aware overlay (bottom sheet on
           mobile, centered modal ≥1024px) via the shared card-picker
           sheet, instead of an inline rail. */}
       {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
-        <div
-          className="card-picker-root"
-          role="presentation"
-          onClick={() => setShowAddPanel(false)}
+        <DeckEditorCardPickerSheet
+          label="Add cards"
+          className="deck-add-sheet"
+          onClose={() => setShowAddPanel(false)}
         >
-          <div
-            className="card-picker-sheet deck-add-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Add cards"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-picker-handle" aria-hidden />
-            {formatConfig && formatConfig.sideboardSize > 0 && (
-              <div className="deck-editor-zone-toggle">
-                <button
-                  type="button"
-                  className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}
-                  onClick={() => setAddZone('main')}
-                >
-                  Mainboard
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}
-                  onClick={() => setAddZone('side')}
-                >
-                  Sideboard
-                </button>
-              </div>
-            )}
-            <CardSearchPanel
-              ref={searchPanelRef}
-              deckId={deck.id}
-              commanderColorIdentity={commanderColorIdentity}
-              existingCardCounts={existingCardCounts}
-              onAdd={({ card }) => {
-                if (addZone === 'side') {
-                  // allocateAndAdd resolves the copy itself (free / auto-move /
-                  // proxy) — the panel's own pick only ever sees free copies, so
-                  // routing through it is what makes "add an owned card whose copy
-                  // is in another deck" Just Work instead of silently proxying.
-                  allocateAndAdd(card, 'sideboard', false);
-                  return;
-                }
-                // A full Commander deck would overfill — open the intelligent
-                // replace-when-full prompt instead of silently going to 101.
-                if (deckIsFull) {
-                  setShowAddPanel(false);
-                  setPendingAdd(card.name);
-                  return;
-                }
-                allocateAndAdd(card, 'main', false);
-              }}
-              onPreviewFit={(card) => setAuditionCard(card)}
-              onClose={() => setShowAddPanel(false)}
-              suggestions={deck.gapAnalysis}
-              oneAwayCombos={comboData.data?.oneAway}
-              ownershipFor={ownershipFor}
-              enableSuggestions={!!formatConfig?.hasCommander}
-              suggestionsPending={analysisState === 'pending'}
-            />
-          </div>
-        </div>
+          {(dismiss) => (
+            <>
+              <div className="card-picker-handle" aria-hidden />
+              {formatConfig && formatConfig.sideboardSize > 0 && (
+                <div className="deck-editor-zone-toggle">
+                  <button
+                    type="button"
+                    className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}
+                    onClick={() => setAddZone('main')}
+                  >
+                    Mainboard
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}
+                    onClick={() => setAddZone('side')}
+                  >
+                    Sideboard
+                  </button>
+                </div>
+              )}
+              <CardSearchPanel
+                ref={searchPanelRef}
+                deckId={deck.id}
+                commanderColorIdentity={commanderColorIdentity}
+                existingCardCounts={existingCardCounts}
+                onAdd={({ card }) => {
+                  if (addZone === 'side') {
+                    // allocateAndAdd resolves the copy itself (free / auto-move /
+                    // proxy) — the panel's own pick only ever sees free copies, so
+                    // routing through it is what makes "add an owned card whose copy
+                    // is in another deck" Just Work instead of silently proxying.
+                    allocateAndAdd(card, 'sideboard', false);
+                    return;
+                  }
+                  // A full Commander deck would overfill — open the intelligent
+                  // replace-when-full prompt instead of silently going to 101.
+                  if (deckIsFull) {
+                    setShowAddPanel(false);
+                    setPendingAdd(card.name);
+                    return;
+                  }
+                  allocateAndAdd(card, 'main', false);
+                }}
+                onPreviewFit={(card) => setAuditionCard(card)}
+                onClose={dismiss}
+                suggestions={deck.gapAnalysis}
+                oneAwayCombos={comboData.data?.oneAway}
+                ownershipFor={ownershipFor}
+                enableSuggestions={!!formatConfig?.hasCommander}
+                suggestionsPending={analysisState === 'pending'}
+              />
+            </>
+          )}
+        </DeckEditorCardPickerSheet>
       )}
 
       {auditionCard && auditionReport && deck && (
@@ -2516,6 +2506,47 @@ export function DeckEditorPage() {
 
       {/* Suppress unused-import lint */}
       <span hidden>{updateDeck.name}</span>
+    </div>
+  );
+}
+
+function DeckEditorCardPickerSheet({
+  label,
+  className,
+  onClose,
+  children,
+}: {
+  label: string;
+  className: string;
+  onClose: () => void;
+  children: (dismiss: () => void) => ReactNode;
+}) {
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
+    else beginClose();
+  }, [beginClose, onClose]);
+  useEscapeKey(dismiss);
+
+  return (
+    <div
+      className="card-picker-root"
+      role="presentation"
+      onClick={(e) => {
+        e.stopPropagation();
+        dismiss();
+      }}
+    >
+      <div
+        className={`card-picker-sheet ${className}${isClosing ? ' is-closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
+      >
+        {children(dismiss)}
+      </div>
     </div>
   );
 }

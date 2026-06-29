@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { GenerationTakeover } from './GenerationTakeover';
 
@@ -50,6 +50,26 @@ describe('GenerationTakeover', () => {
     const el = container.querySelector('.gen-takeover');
     expect(el?.getAttribute('role')).toBe('status');
     expect(el?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('fires onExitComplete only after the takeover exit animation', () => {
+    const onExitComplete = vi.fn();
+    const { container } = render(
+      <GenerationTakeover
+        message="Building…"
+        percent={80}
+        isExiting
+        onExitComplete={onExitComplete}
+      />
+    );
+    const el = container.querySelector('.gen-takeover');
+    expect(el?.classList.contains('is-exiting')).toBe(true);
+
+    fireEvent.animationEnd(el!, { animationName: 'fade-in' });
+    expect(onExitComplete).not.toHaveBeenCalled();
+
+    fireEvent.animationEnd(el!, { animationName: 'gen-takeover-exit' });
+    expect(onExitComplete).toHaveBeenCalledTimes(1);
   });
 
   it('passes the percent to the ProgressBar', () => {
