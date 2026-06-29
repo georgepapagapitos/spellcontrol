@@ -2,6 +2,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CardGroupSheet } from './CardGroupSheet';
+import type { CardAnnotation } from './CardGroupSheet';
 import type { CardTally } from './useCardCarousel';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -133,5 +134,110 @@ describe('CardGroupSheet', () => {
     render(<CardGroupSheet title="Bucket" tally={tally} onPick={vi.fn()} onClose={onClose} />);
     fireEvent.click(document.body.querySelector('.card-group-sheet') as Element);
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('CardGroupSheet annotation layer', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  const annotatedTally: CardTally[] = [
+    {
+      name: 'Sol Ring',
+      count: 1,
+      card: { name: 'Sol Ring', type_line: 'Artifact' } as unknown as ScryfallCard,
+    },
+    {
+      name: 'Lightning Bolt',
+      count: 1,
+      card: { name: 'Lightning Bolt', type_line: 'Instant' } as unknown as ScryfallCard,
+    },
+  ];
+
+  const annotate = (t: CardTally): CardAnnotation | null => {
+    if (t.name === 'Sol Ring')
+      return { tone: 'accent', label: 'Producer', reason: 'produces mana' };
+    if (t.name === 'Lightning Bolt')
+      return { tone: 'success', label: 'Payoff', reason: 'spends resources' };
+    return null;
+  };
+
+  it('shows annotation chips in grid layout (aria-hidden overlay)', () => {
+    render(
+      <CardGroupSheet
+        title="Bucket"
+        tally={annotatedTally}
+        onPick={vi.fn()}
+        onClose={vi.fn()}
+        annotate={annotate}
+      />
+    );
+    // Grid is the default layout; annotations are aria-hidden overlays.
+    const overlays = document.body.querySelectorAll('.card-group-annotation');
+    expect(overlays.length).toBe(2); // one per card
+    // Sol Ring → Producer chip
+    expect(overlays[0].querySelector('.verdict-chip')?.textContent).toBe('Producer');
+    // Lightning Bolt → Payoff chip
+    expect(overlays[1].querySelector('.verdict-chip')?.textContent).toBe('Payoff');
+  });
+
+  it('shows no annotation overlays when annotate returns null', () => {
+    render(
+      <CardGroupSheet
+        title="Bucket"
+        tally={annotatedTally}
+        onPick={vi.fn()}
+        onClose={vi.fn()}
+        annotate={() => null}
+      />
+    );
+    expect(document.body.querySelectorAll('.card-group-annotation').length).toBe(0);
+  });
+
+  it('shows no annotation overlays when annotate is not provided', () => {
+    render(
+      <CardGroupSheet title="Bucket" tally={annotatedTally} onPick={vi.fn()} onClose={vi.fn()} />
+    );
+    expect(document.body.querySelectorAll('.card-group-annotation').length).toBe(0);
+  });
+
+  it('shows annotation chips with reason in list layout', () => {
+    localStorage.setItem('sc-cardgroup-layout', 'list');
+    render(
+      <CardGroupSheet
+        title="Bucket"
+        tally={annotatedTally}
+        onPick={vi.fn()}
+        onClose={vi.fn()}
+        annotate={annotate}
+      />
+    );
+    const annotationGroups = document.body.querySelectorAll('.card-group-row-annotations');
+    expect(annotationGroups.length).toBe(2);
+    // Sol Ring annotation has reason text in list view
+    expect(annotationGroups[0].textContent).toContain('produces mana');
+    expect(annotationGroups[1].textContent).toContain('spends resources');
+  });
+
+  it('supports multiple annotations (producer + payoff) on the same card', () => {
+    const both: CardTally[] = [{ name: 'Mycosynth Wellspring', count: 1 }];
+    const annotateMulti = (_t: CardTally): CardAnnotation[] => [
+      { tone: 'accent', label: 'Producer', reason: 'nets a card' },
+      { tone: 'success', label: 'Payoff', reason: 'artifact enters' },
+    ];
+    render(
+      <CardGroupSheet
+        title="Bucket"
+        tally={both}
+        onPick={vi.fn()}
+        onClose={vi.fn()}
+        annotate={annotateMulti}
+      />
+    );
+    const overlay = document.body.querySelector('.card-group-annotation')!;
+    const chips = overlay.querySelectorAll('.verdict-chip');
+    expect(chips.length).toBe(2);
+    expect(chips[0].textContent).toBe('Producer');
+    expect(chips[1].textContent).toBe('Payoff');
   });
 });

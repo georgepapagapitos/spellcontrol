@@ -36,6 +36,7 @@ import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSi
 import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
+import { analyzeDeckSynergy } from '../deck-builder/services/synergy/deckSynergy';
 import {
   buildSubstitutionPlan,
   type SubstituteCandidate,
@@ -439,6 +440,15 @@ export function DeckEditorPage() {
   const deckTokens = useDeckTokens(deckScryCards);
   const [tokensOpen, setTokensOpen] = useState(false);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
+
+  // Flat card list for EnginePanel's tappable axis drill-through — mainboard only
+  // (commanders don't form a typical synergy axis row).
+  const deckCards = useMemo(() => (deck ? deck.cards.map((c) => c.card) : []), [deck]);
+  // Full axis summaries (card names + reasons) for the EnginePanel annotation layer.
+  const axisSummaries = useMemo(
+    () => (deck?.synergyAnalysis ? analyzeDeckSynergy(deckCards).axes : undefined),
+    [deck?.synergyAnalysis, deckCards]
+  );
 
   const ownedOracleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -2123,6 +2133,8 @@ export function DeckEditorPage() {
                   analysis={deck.synergyAnalysis}
                   onAdd={handleAddEngineCard}
                   showSuggestions={false}
+                  axisSummaries={axisSummaries}
+                  allCards={deckCards}
                 />
               ) : undefined
             }
