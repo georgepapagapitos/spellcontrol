@@ -2131,8 +2131,6 @@ function DeckToolbar({
           )}
         </ToolbarPopover>
 
-        <Legend context="deck" align="right" variant="pill" />
-
         <SearchPill
           className="deck-toolbar-search"
           placeholder="Search…"
@@ -2162,6 +2160,11 @@ function DeckToolbar({
             }
           />
         )}
+
+        {/* The symbol key is the trailing reference control, grouped with the
+            view-mode toggles — it sits after them and before the action buttons
+            (Test hand / Export), per STYLE_GUIDE § Symbol key / Legend. */}
+        <Legend context="deck" align="right" variant="pill" />
 
         {onShowTestHand && (
           <button
