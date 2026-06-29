@@ -17,7 +17,7 @@
 .play-page {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 /* Play hero — layout (row-with-actions) and text-flex rules live in
@@ -41,7 +41,7 @@
 .play-setup form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
   /* Prevent the whole panel from growing wider than the page column when
      a long deck name in a child input tries to expand its track. */
   min-width: 0;
@@ -76,7 +76,7 @@
 .play-setup-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
+  gap: var(--space-3);
   /* Each grid cell may contain a <select> with long deck names — let the
      1fr tracks actually flex by killing the default min-content minimum. */
   min-width: 0;
@@ -85,7 +85,7 @@
 .play-field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   /* Same reason as above — fields are grid items; allow them to shrink so
@@ -104,7 +104,7 @@
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-2) 0.6rem;
   color: var(--text-primary);
   font-size: var(--text-base);
   width: 100%;
@@ -121,7 +121,7 @@
 .play-field-checkbox {
   flex-direction: row;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .play-field-checkbox input {
@@ -131,7 +131,7 @@
 .play-setup-players {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -148,11 +148,11 @@
 .play-setup-player {
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.75rem;
+  padding: var(--space-3);
   background: var(--surface-raised);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   /* CRITICAL: <fieldset> defaults to min-width: min-content in every
      browser, which means it refuses to shrink below the intrinsic width of
      its contents (the deck <select> in particular). Without this the
@@ -190,7 +190,7 @@
 .play-setup-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.5rem;
+  gap: var(--space-4) var(--space-5);
   align-items: center;
 }
 
@@ -274,7 +274,7 @@
 .play-setup-rules {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* Section titles inside grids span full width */
@@ -286,7 +286,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-rows: auto auto;
-  column-gap: 0.75rem;
+  column-gap: var(--space-3);
   row-gap: 0.15rem;
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -349,13 +349,13 @@
 .play-setup-roster {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .play-setup-roster-head {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .play-setup-section-title {
@@ -391,7 +391,7 @@
   display: grid;
   grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -447,7 +447,7 @@
   min-width: 0;
   max-width: 12rem;
   font-size: var(--text-sm) !important;
-  padding: 0.3rem 0.5rem !important;
+  padding: 0.3rem var(--space-2) !important;
 }
 
 .play-setup-seat-deck-add {
@@ -522,7 +522,7 @@
   background: transparent;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius);
-  padding: 0.45rem 1rem;
+  padding: 0.45rem var(--space-4);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-secondary);
@@ -603,12 +603,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   flex-wrap: wrap;
   background: var(--accent-light);
   border: 0.5px solid var(--accent);
   border-radius: var(--radius-lg);
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
 }
 
 .play-resume-banner-body {
@@ -649,7 +649,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin: 0.5rem 0 1rem;
+  margin: var(--space-2) 0 var(--space-4);
 }
 
 .play-end-winner {

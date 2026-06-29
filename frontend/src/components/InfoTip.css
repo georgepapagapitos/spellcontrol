@@ -44,7 +44,7 @@
 .info-tip-bubble {
   z-index: var(--z-tooltip);
   max-width: min(18rem, 92vw);
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-2) 0.6rem;
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);

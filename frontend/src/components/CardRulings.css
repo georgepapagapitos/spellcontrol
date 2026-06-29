@@ -8,7 +8,7 @@
 
 .card-rulings {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   text-align: left;
 }
 
@@ -58,7 +58,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  padding: 0.25rem 0 0.4rem;
+  padding: var(--space-1) 0 0.4rem;
 }
 
 .card-rulings-status {

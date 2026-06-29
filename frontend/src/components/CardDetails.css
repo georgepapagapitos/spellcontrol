@@ -14,7 +14,7 @@
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .card-text-face {
@@ -26,7 +26,7 @@
 /* Divider between the two halves of a double-faced / split / adventure card. */
 .card-text-face + .card-text-face {
   border-top: 0.5px solid rgba(255, 255, 255, 0.12);
-  padding-top: 0.5rem;
+  padding-top: var(--space-2);
 }
 
 .card-text-face-head {
@@ -98,7 +98,7 @@
 /* Power/toughness or loyalty — small badge, card-bottom-right convention. */
 .card-text-stat {
   align-self: flex-end;
-  padding: 0.05rem 0.5rem;
+  padding: 0.05rem var(--space-2);
   border: 0.5px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.06);
@@ -150,7 +150,7 @@
 .card-legalities-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.25rem 0.75rem;
+  gap: var(--space-1) var(--space-3);
   padding: 0.2rem 0 0.4rem;
 }
 

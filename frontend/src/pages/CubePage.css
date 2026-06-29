@@ -481,7 +481,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .cube-archetype-row {
   display: flex;
@@ -635,8 +635,8 @@
 }
 .cube-tile-badge {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: var(--space-1);
+  left: var(--space-1);
   pointer-events: none;
 }
 .cube-rows {

@@ -7,7 +7,7 @@
 
 .player-panel-counters {
   position: absolute;
-  bottom: 0.5rem;
+  bottom: var(--space-2);
   left: 0.65rem;
   z-index: 3;
   display: flex;
@@ -19,7 +19,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.22rem;
-  padding: 0.18rem 0.5rem;
+  padding: 0.18rem var(--space-2);
   border-radius: var(--radius);
   background: rgba(0, 0, 0, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -260,7 +260,7 @@
 /* Inline undo button that appears on the eliminated panel during the beat */
 .pp-elim-undo-btn {
   position: absolute;
-  bottom: 0.75rem;
+  bottom: var(--space-3);
   left: 50%;
   transform: translateX(-50%);
   z-index: 4;
@@ -328,7 +328,7 @@
  */
 .pp-designation-chips {
   position: absolute;
-  top: 0.5rem;
+  top: var(--space-2);
   right: 0.6rem;
   z-index: 3;
   display: flex;

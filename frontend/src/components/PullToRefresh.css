@@ -13,7 +13,7 @@
 }
 
 .ptr-badge {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   display: grid;
   place-items: center;
   width: 34px;

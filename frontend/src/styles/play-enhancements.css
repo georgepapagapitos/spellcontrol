@@ -334,7 +334,7 @@
 .game-tools-actions,
 .game-tools-dice {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin-bottom: 0.55rem;
 }
 
@@ -349,7 +349,7 @@
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius);
-  padding: 0.6rem 0.5rem;
+  padding: 0.6rem var(--space-2);
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
@@ -388,7 +388,7 @@
 .game-tools-custom {
   display: flex;
   align-items: flex-end;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .game-tools-custom-field {
@@ -406,7 +406,7 @@
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius);
-  padding: 0.45rem 0.5rem;
+  padding: 0.45rem var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-md);
 }
@@ -428,7 +428,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   background: var(--surface-raised);
   border: 1px solid var(--border);
   color: var(--text-primary);
