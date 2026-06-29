@@ -19,7 +19,15 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Import, FlaskConical, LogIn, Layers, Wand2, BarChart3, Swords } from 'lucide-react';
+import {
+  Import,
+  FlaskConical,
+  LogIn,
+  Layers,
+  Wand2,
+  SlidersHorizontal,
+  Swords,
+} from 'lucide-react';
 import { useCollectionStore } from '../store/collection';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv } from '../lib/samples';
@@ -42,9 +50,9 @@ const FEATURES = [
     body: 'Pick a commander, choose themes, and set a power bracket — then get a full 100-card deck from EDHREC data, balanced for mana curve and card roles.',
   },
   {
-    Icon: BarChart3,
-    title: 'Build & analyze decks',
-    body: 'Build decks in eight formats — Commander, Brawl, Standard, Pauper, Modern, Pioneer, Legacy, and Vintage — with live legality checking, then dig into mana curve, synergy, combos, and power-bracket fit.',
+    Icon: SlidersHorizontal,
+    title: 'Tune any deck with the Coach',
+    body: 'Build in eight formats with live legality checks — then tune with the Coach: a ranked list of moves (add, cut, swap for a card you already own), each with a plain-English reason. Backed by combo, win-condition, and synergy analysis, plus power-bracket fit.',
   },
   {
     Icon: Swords,
@@ -119,8 +127,8 @@ export function WelcomePage() {
           <p className="welcome-brand">SpellControl</p>
           <h1 className="welcome-headline">Plan your Magic: The Gathering collection</h1>
           <p className="welcome-tagline">
-            Import your collection, organize it into binders, build and analyze decks, and track
-            your games — all on your devices, no account required.
+            Import your collection, organize it into binders, build and tune decks, and track your
+            games — all on your devices, no account required.
           </p>
 
           <div className="welcome-doors">
