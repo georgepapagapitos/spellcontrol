@@ -175,6 +175,41 @@
   max-width: none;
 }
 
+/* EDHREC prevalence chip (E63) — at-a-glance "how common for this commander".
+   Subtler than the result pills so it reads as metadata, not a result. */
+.deck-combos-edhrec {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.deck-combos-edhrec-tag {
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.deck-combos-edhrec-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-combos-edhrec-link:hover {
+    text-decoration: underline;
+  }
+}
+
 /* "Show details" / "Hide details" toggle that opens the unified
    Prerequisites + Steps + Results panel for one combo row. Reads as an
    inline link rather than a heavy button — the heading-level chrome

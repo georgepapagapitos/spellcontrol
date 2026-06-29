@@ -1360,6 +1360,7 @@ export async function fetchCommanderCombos(commanderName: string): Promise<EDHRE
         bracketTag: null,
         prereqCount: entry.combo.nonCardPrerequisiteCount || 0,
         cardCount: cards.length,
+        href: entry.href ?? null,
       };
     });
 
