@@ -162,6 +162,7 @@ export default function AuthPage() {
 
         <Tabs<Mode>
           ariaLabel="Sign in or create account"
+          variant="underline"
           className="auth-tabs"
           value={mode}
           onChange={switchMode}
