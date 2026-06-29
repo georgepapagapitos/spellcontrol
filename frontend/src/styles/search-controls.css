@@ -276,7 +276,7 @@
 
 .deck-filter-chip.is-active {
   background: var(--accent);
-  color: var(--accent-text, #fff);
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 

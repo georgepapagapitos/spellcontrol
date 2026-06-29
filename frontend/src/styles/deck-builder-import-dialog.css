@@ -21,7 +21,7 @@
 .import-deck-drop-overlay {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--surface1) 85%, transparent);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -138,7 +138,7 @@
   padding: 0.5rem;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--surface1);
+  background: var(--surface);
 }
 
 .import-deck-commander-selected .import-deck-commander-info {
@@ -174,7 +174,7 @@
 .import-deck-batch {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface1);
+  background: var(--surface);
   padding: 0.75rem;
   margin: 0 0 0.85rem;
 }
@@ -233,7 +233,7 @@
 
 @media (hover: hover) and (pointer: fine) {
   .import-deck-batch-remove:hover:not(:disabled) {
-    background: var(--surface1);
+    background: var(--surface);
     color: var(--text-primary);
   }
 }
@@ -283,7 +283,7 @@
 .import-deck-summary-item {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface1);
+  background: var(--surface);
   padding: 0.6rem 0.75rem;
 }
 
@@ -318,7 +318,7 @@
 }
 
 .import-deck-summary-warn {
-  color: var(--warn-text, var(--danger, var(--text-primary)));
+  color: var(--warn-text);
   font-size: var(--text-xs);
   margin-top: 0.2rem;
 }
@@ -392,7 +392,7 @@
   padding: 0.5rem;
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--surface1);
+  background: var(--surface);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;

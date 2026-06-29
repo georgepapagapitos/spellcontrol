@@ -16,7 +16,7 @@
 }
 
 .deck-analysis-verdict--top-heavy {
-  color: var(--warn, #b85c00);
+  color: var(--warn-text);
 }
 
 .deck-analysis-verdict--low-curve {
@@ -28,7 +28,7 @@
   gap: 0.5rem;
   padding: 0.6rem 0.65rem;
   background: var(--bg);
-  border: 0.5px solid var(--warn, #b85c00);
+  border: 0.5px solid var(--warn-border);
   border-radius: var(--radius);
   color: var(--text-secondary);
   font-size: var(--text-sm);
@@ -36,7 +36,7 @@
 
 .deck-analysis-warning svg {
   flex: 0 0 auto;
-  color: var(--warn, #b85c00);
+  color: var(--warn-text);
   margin-top: 0.15rem;
 }
 
@@ -74,7 +74,7 @@
 }
 
 .deck-analysis-role-row.is-low {
-  border-color: var(--warn, #b85c00);
+  border-color: var(--warn-border);
 }
 .deck-analysis-role-row.is-high {
   border-color: var(--info, #4a6fa5);
@@ -90,7 +90,7 @@
 }
 
 .deck-analysis-role-row.is-low .deck-analysis-role-header > svg {
-  color: var(--warn, #b85c00);
+  color: var(--warn-text);
 }
 .deck-analysis-role-row.is-high .deck-analysis-role-header > svg {
   color: var(--info, #4a6fa5);

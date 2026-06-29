@@ -58,7 +58,7 @@
 }
 
 .next-best-move-row.is-tier-1 {
-  --tier-color: var(--danger, var(--err-text, #b94545));
+  --tier-color: var(--err-text);
 }
 .next-best-move-row.is-tier-2 {
   --tier-color: var(--accent);

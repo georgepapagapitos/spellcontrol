@@ -42,7 +42,7 @@
 .theme-chip.is-active {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent-text, #fff);
+  color: var(--on-accent);
 }
 
 .theme-chip-name {
@@ -56,7 +56,7 @@
 }
 
 .theme-chip.is-active .theme-chip-count {
-  color: var(--accent-text, #fff);
+  color: var(--on-accent);
   opacity: 0.85;
 }
 

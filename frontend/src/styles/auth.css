@@ -229,7 +229,7 @@
 .auth-rule.is-met .auth-rule-mark {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .auth-rule.is-error {
@@ -259,7 +259,7 @@
 .auth-submit {
   appearance: none;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: 0;
   border-radius: var(--radius);
   padding: 10px 14px;

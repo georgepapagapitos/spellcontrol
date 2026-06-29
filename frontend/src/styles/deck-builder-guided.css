@@ -50,7 +50,7 @@
 .guided-step.is-active {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent-text, #fff);
+  color: var(--on-accent);
 }
 
 .guided-step.is-done {

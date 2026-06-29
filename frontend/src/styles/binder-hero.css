@@ -176,7 +176,7 @@
 }
 
 .binder-summary-overcap {
-  color: var(--warn, #c98a3a);
+  color: var(--warn-text);
   font-weight: 600;
 }
 

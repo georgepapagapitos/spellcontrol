@@ -230,13 +230,13 @@
 }
 
 .choice-dialog-option-danger .choice-dialog-option-title {
-  color: var(--danger, #b94545);
+  color: var(--err-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .choice-dialog-option-danger:hover {
-    border-color: var(--danger, #b94545);
-    background: var(--danger-bg, rgba(185, 69, 69, 0.08));
+    border-color: var(--err-border);
+    background: var(--err-bg);
   }
 }
 
@@ -558,7 +558,7 @@
 }
 
 .card-edit-error {
-  color: var(--err-text, var(--danger, #b94545));
+  color: var(--err-text);
 }
 
 .card-edit-layout {
@@ -716,7 +716,7 @@
 
 .card-edit-qty-warn {
   font-size: var(--text-xs);
-  color: var(--err-text, var(--danger, #b94545));
+  color: var(--err-text);
 }
 
 .card-edit-sets {
