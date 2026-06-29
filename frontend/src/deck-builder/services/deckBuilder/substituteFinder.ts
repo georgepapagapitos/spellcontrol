@@ -112,14 +112,36 @@ function jaccard(a: Set<string>, b: Set<string>): number {
   return inter / (a.size + b.size - inter);
 }
 
+/** Tunable weights for the four similarity terms (sum need not be 1). */
+export interface SimilarityWeights {
+  tags: number;
+  type: number;
+  subtype: number;
+  cmc: number;
+}
+
 // Similarity weights — how "close" an owned card feels to the wanted staple.
 // Tags (the tagger's functional fingerprint) dominate; type overlap and exact
-// subtype refine; CMC closeness is a gentle nudge. Tunable; sum need not be 1.
-// ponytail: hand-weighted heuristic, not learned — revisit if swaps feel off.
-const W_TAGS = 0.5;
-const W_TYPE = 0.25;
-const W_SUBTYPE = 0.15;
-const W_CMC = 0.1;
+// subtype refine; CMC closeness is a gentle nudge.
+//
+// VALIDATED, not just guessed. substituteFinder.eval.test.ts scores the
+// within-role ranking these produce against EDHREC's per-card `similar` lists
+// (deck co-occurrence ground truth, independent of the tagger tags this scorer
+// consumes). Findings (TUNE=1 grid search + even/odd holdout, 75-staple fixture):
+//   • all four terms beat any single term (tags-only 0.21, type-only 0.18 vs 0.44),
+//   • the full-set grid optimum (+0.03 nDCG@5) does NOT survive a holdout — the
+//     "tuned" weights underperform these on held-out queries, i.e. overfitting.
+// So these hand-set values are kept deliberately: holdout-stable at ~0.44
+// nDCG@5. That ~0.44 ceiling is also the quantified case for sourcing similarity
+// from EDHREC directly (the index) rather than this heuristic, which stays the
+// cold-start fallback. Re-validate after regenerating the fixture via
+// `node scripts/fetch-edhrec-similar.mjs`; the regression case guards the floor.
+export const DEFAULT_SIMILARITY_WEIGHTS: SimilarityWeights = {
+  tags: 0.5,
+  type: 0.25,
+  subtype: 0.15,
+  cmc: 0.1,
+};
 
 /**
  * How closely an owned candidate mirrors the wanted card (0–1ish). Combines the
@@ -127,16 +149,22 @@ const W_CMC = 0.1;
  * exact subtype match, and CMC closeness. Both cards are already role-matched,
  * so this picks the *closest* same-role card rather than just any same-role one.
  */
-function similarityScore(
+export function similarityScore(
   missing: GapAnalysisCard,
   candidate: SubstituteCandidate,
   subtypeMatch: boolean,
-  cmcDelta: number
+  cmcDelta: number,
+  weights: SimilarityWeights = DEFAULT_SIMILARITY_WEIGHTS
 ): number {
   const tagSim = jaccard(new Set(getCardTags(missing.name)), new Set(getCardTags(candidate.name)));
   const typeSim = jaccard(typeTokens(missing.typeLine), typeTokens(candidate.typeLine));
   const cmcSim = Number.isFinite(cmcDelta) ? 1 / (1 + cmcDelta) : 0;
-  return W_TAGS * tagSim + W_TYPE * typeSim + W_SUBTYPE * (subtypeMatch ? 1 : 0) + W_CMC * cmcSim;
+  return (
+    weights.tags * tagSim +
+    weights.type * typeSim +
+    weights.subtype * (subtypeMatch ? 1 : 0) +
+    weights.cmc * cmcSim
+  );
 }
 
 /**
