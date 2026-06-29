@@ -307,6 +307,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
       >
         <Tabs
           ariaLabel="Combo bucket"
+          variant="scrollable"
           value={tab}
           onChange={setTab}
           firstTabRef={firstButtonRef}

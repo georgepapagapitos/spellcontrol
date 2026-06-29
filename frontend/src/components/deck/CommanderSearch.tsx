@@ -826,7 +826,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
     <div className="commander-search">
       <Tabs
         ariaLabel="Commander search mode"
-        variant="fitted"
+        variant="underline"
         className="commander-search-modes"
         value={searchMode}
         onChange={changeMode}

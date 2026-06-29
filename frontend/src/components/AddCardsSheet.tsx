@@ -8,6 +8,7 @@ import { useCollectionStore } from '../store/collection';
 import { AddCardSearchPanel } from './AddCardSearchPanel';
 import { UploadPanel } from './UploadPanel';
 import { ProductSearchPanel } from './ProductSearchPanel';
+import { Tabs } from './Tabs';
 
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 
@@ -143,35 +144,27 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
           </button>
         </div>
 
-        <div className="add-cards-tabs" role="tablist" aria-label="How to add cards">
-          {tabs
+        <Tabs
+          ariaLabel="How to add cards"
+          variant="underline"
+          className="add-cards-tabs"
+          value={activeTab}
+          onChange={setTab}
+          tabs={tabs
             .filter((t) => t.available)
-            .map((t) => {
-              const active = activeTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  id={`add-cards-tab-${t.id}`}
-                  aria-selected={active}
-                  aria-controls={`add-cards-panel-${t.id}`}
-                  tabIndex={active ? 0 : -1}
-                  className={`add-cards-tab${active ? ' active' : ''}`}
-                  onClick={() => setTab(t.id)}
-                >
-                  <span className="add-cards-tab-icon">{t.icon}</span>
-                  <span className="add-cards-tab-label">{t.label}</span>
-                </button>
-              );
-            })}
-        </div>
+            .map((t) => ({
+              id: t.id,
+              label: t.label,
+              icon: t.icon,
+              controls: `add-cards-panel-${t.id}`,
+            }))}
+        />
 
         <div className="modal-body add-cards-modal-body">
           <div
             role="tabpanel"
             id="add-cards-panel-search"
-            aria-labelledby="add-cards-tab-search"
+            aria-labelledby="sc-tab-search"
             hidden={activeTab !== 'search'}
             className="add-cards-panel add-cards-panel-search"
           >
@@ -181,7 +174,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
           <div
             role="tabpanel"
             id="add-cards-panel-upload"
-            aria-labelledby="add-cards-tab-upload"
+            aria-labelledby="sc-tab-upload"
             hidden={activeTab !== 'upload'}
             className="add-cards-panel add-cards-panel-upload"
           >
@@ -191,7 +184,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
           <div
             role="tabpanel"
             id="add-cards-panel-product"
-            aria-labelledby="add-cards-tab-product"
+            aria-labelledby="sc-tab-product"
             hidden={activeTab !== 'product'}
             className="add-cards-panel add-cards-panel-product"
           >
@@ -202,7 +195,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
             <div
               role="tabpanel"
               id="add-cards-panel-scan"
-              aria-labelledby="add-cards-tab-scan"
+              aria-labelledby="sc-tab-scan"
               hidden={activeTab !== 'scan'}
               className="add-cards-panel add-cards-panel-scan"
             >

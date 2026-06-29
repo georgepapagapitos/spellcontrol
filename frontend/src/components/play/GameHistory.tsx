@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { GameEvent, GameState } from '../../lib/game-state';
 import { paletteForSeat } from '../../lib/seat-palette';
+import { Tabs } from '../Tabs';
 
 type Tab = 'timeline' | 'chart';
 
@@ -18,27 +19,20 @@ export function GameHistory({ game }: Props) {
         <h3 className="game-history-title">History</h3>
         <span className="game-history-count">{total} events</span>
       </header>
-      <div className="game-history-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'timeline'}
-          className={`game-history-tab ${tab === 'timeline' ? 'is-active' : ''}`}
-          onClick={() => setTab('timeline')}
-        >
-          Timeline
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'chart'}
-          className={`game-history-tab ${tab === 'chart' ? 'is-active' : ''}`}
-          onClick={() => setTab('chart')}
-        >
-          Life chart
-        </button>
+      <Tabs
+        ariaLabel="History view"
+        variant="fitted"
+        className="game-history-tabs"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'timeline', label: 'Timeline', controls: 'game-history-panel' },
+          { id: 'chart', label: 'Life chart', controls: 'game-history-panel' },
+        ]}
+      />
+      <div id="game-history-panel" role="tabpanel" aria-labelledby={`sc-tab-${tab}`}>
+        {tab === 'timeline' ? <Timeline game={game} /> : <LifeChart game={game} />}
       </div>
-      {tab === 'timeline' ? <Timeline game={game} /> : <LifeChart game={game} />}
     </section>
   );
 }
