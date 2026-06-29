@@ -28,7 +28,7 @@
   border-top-right-radius: var(--radius-lg);
   border: 0.5px solid var(--border);
   border-bottom: none;
-  padding-bottom: max(0.75rem, var(--safe-bottom));
+  padding-bottom: max(var(--space-3), var(--safe-bottom));
   animation: sheet-rise 0.4s var(--ease-drawer) backwards;
   overflow: hidden;
 }
@@ -54,7 +54,7 @@
 @media (min-width: 600px) {
   .card-group-backdrop {
     align-items: center;
-    padding: 1.5rem;
+    padding: var(--space-5);
   }
 
   .card-group-sheet {
@@ -71,7 +71,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: clamp(0.85rem, 3vw, 1.15rem);
   padding-top: max(1.1rem, var(--safe-top));
   border-bottom: 0.5px solid var(--border);
@@ -125,7 +125,7 @@
 .card-group-head-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex: none;
 }
 
@@ -187,10 +187,10 @@
 .card-group-grid {
   list-style: none;
   margin: 0;
-  padding: clamp(0.75rem, 3vw, 1.1rem);
+  padding: clamp(var(--space-3), 3vw, 1.1rem);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-  gap: clamp(0.5rem, 2vw, 0.85rem);
+  gap: clamp(var(--space-2), 2vw, 0.85rem);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -291,7 +291,7 @@
 .card-group-list {
   list-style: none;
   margin: 0;
-  padding: clamp(0.4rem, 2vw, 0.6rem) clamp(0.5rem, 3vw, 0.9rem);
+  padding: clamp(0.4rem, 2vw, 0.6rem) clamp(var(--space-2), 3vw, 0.9rem);
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
@@ -304,7 +304,7 @@
   align-items: center;
   gap: 0.7rem;
   width: 100%;
-  padding: 0.4rem 0.5rem;
+  padding: 0.4rem var(--space-2);
   border: none;
   border-radius: var(--radius);
   background: none;

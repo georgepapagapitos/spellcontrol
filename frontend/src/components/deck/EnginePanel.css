@@ -13,7 +13,7 @@
 
 .engine-empty {
   margin: 0;
-  padding: 1.25rem 1rem;
+  padding: 1.25rem var(--space-4);
   text-align: center;
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -109,7 +109,7 @@
 }
 
 .engine-warning {
-  padding: 0.5rem 0.7rem;
+  padding: var(--space-2) 0.7rem;
   font-size: var(--text-xs);
   color: var(--warn-text, #b85c00);
   background: var(--warn-bg, rgba(184, 92, 0, 0.08));
@@ -142,7 +142,7 @@
 
 .engine-suggestion-list {
   list-style: none;
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-2);
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -239,7 +239,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.4rem 0.75rem;
+  padding: 0.4rem var(--space-3);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--on-accent);

@@ -13,8 +13,8 @@
 
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.1rem;
+  gap: var(--space-4);
+  padding: var(--space-4) 1.1rem;
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
@@ -84,7 +84,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .hero-score-headline {
@@ -127,7 +127,7 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 0.75rem;
+    gap: var(--space-3);
     padding: 0.9rem 0.85rem;
   }
 

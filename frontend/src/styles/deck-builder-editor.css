@@ -6,21 +6,21 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .deck-builder-actions-hint {
   flex: 1 1 100%;
   font-size: var(--text-xs);
   color: var(--text-muted);
-  margin: 0.25rem 0 0;
+  margin: var(--space-1) 0 0;
 }
 
 /* ── Editor layout ────────────────────────────────────────────────────── */
 .deck-editor-page {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 /* Two-column grid so the title can wrap to multiple lines without ever
@@ -34,13 +34,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .deck-editor-titlebar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .deck-editor-hero {
@@ -126,7 +126,7 @@
 
 .deck-editor-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -239,7 +239,7 @@
      `.decks-index-card-menu-panel` so every 3-dot in the app reads as
      one component. */
   position: absolute;
-  top: calc(100% + 0.25rem);
+  top: calc(100% + var(--space-1));
   right: 0;
   /* This is a menu, so it sits on the --z-menu layer — above the sticky deck
      view-tabs (--z-popover) it drops over, below sheets/modals. */
@@ -254,21 +254,21 @@
   box-shadow: var(--shadow-tooltip);
   display: flex;
   flex-direction: column;
-  padding: 0.25rem;
+  padding: var(--space-1);
   gap: 1px;
 }
 
 /* Hairline between the undo/redo rows and the rest of the deck actions. */
 .deck-editor-overflow-divider {
   height: 1px;
-  margin: 0.25rem 0.3rem;
+  margin: var(--space-1) 0.3rem;
   background: var(--border);
 }
 
 .deck-editor-overflow-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   width: 100%;
   text-align: left;
   font-family: inherit;
@@ -276,7 +276,7 @@
   color: var(--text-primary);
   background: transparent;
   border: 0;
-  padding: 0.5rem 0.6rem;
+  padding: var(--space-2) 0.6rem;
   border-radius: var(--radius);
   cursor: pointer;
   /* Long undo/redo labels (a card name) wrap inside the row rather than
@@ -342,7 +342,7 @@
      instead of dropping behind it. Sheets and modals still win. */
   z-index: var(--z-popover);
   background: var(--bg);
-  padding-top: 0.25rem;
+  padding-top: var(--space-1);
   /* No margin-bottom — the parent `.deck-editor-page` already supplies a 1rem
      flex `gap` between the tab strip and the view below. Adding a margin here
      stacked on top of that gap, doubling the space to 2rem above the toolbar
@@ -390,7 +390,7 @@
   .deck-editor-mobile-actions {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .deck-editor-overflow {

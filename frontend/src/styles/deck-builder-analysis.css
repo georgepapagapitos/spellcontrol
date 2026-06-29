@@ -39,13 +39,13 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .deck-saltiest-row {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .deck-saltiest-name {
@@ -79,7 +79,7 @@
 }
 
 .deck-saltiest-hint {
-  margin: 0.5rem 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
@@ -106,7 +106,7 @@
   background: transparent;
   border: 0;
   border-bottom: 0.5px solid var(--border);
-  padding: 0.25rem 0.1rem 0.55rem;
+  padding: var(--space-1) 0.1rem 0.55rem;
   margin: 0 0 0.55rem 0;
   cursor: pointer;
   color: inherit;
@@ -163,7 +163,7 @@
 .deck-test-hand-panel.is-collapsed .deck-test-hand-header {
   border-bottom: none;
   margin-bottom: 0;
-  padding-bottom: 0.25rem;
+  padding-bottom: var(--space-1);
 }
 
 /* Static variant (desktop): the panel is permanently open and there's
@@ -278,14 +278,14 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
   align-items: stretch;
-  gap: clamp(0.85rem, 2.2cqi, 1.5rem);
+  gap: clamp(0.85rem, 2.2cqi, var(--space-5));
 }
 
 .deck-stats-panel {
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.75rem 0.875rem;
+  padding: var(--space-3) 0.875rem;
 }
 
 /* Span the whole surface row — for panels whose contents lay themselves out in
@@ -324,7 +324,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   grid-auto-flow: row dense;
-  gap: clamp(0.85rem, 2.2cqi, 1.5rem);
+  gap: clamp(0.85rem, 2.2cqi, var(--space-5));
   max-width: var(--analysis-max, 1320px);
   margin-inline: auto;
 }
@@ -396,7 +396,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 var(--space-2) 0;
 }
 
 .deck-stats-empty {
@@ -412,7 +412,7 @@
   /* Scale with viewport height so the curve uses more vertical space on
      taller screens, with a sensible floor/ceiling. */
   height: clamp(120px, 26vh, 300px);
-  padding: 0.25rem 0 0;
+  padding: var(--space-1) 0 0;
 }
 
 .deck-curve-col {
@@ -459,7 +459,7 @@
 .deck-donut {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .deck-donut svg {
@@ -472,7 +472,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
-  column-gap: 0.5rem;
+  column-gap: var(--space-2);
   row-gap: 0.2rem;
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -504,7 +504,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .deck-mana-prod-row {

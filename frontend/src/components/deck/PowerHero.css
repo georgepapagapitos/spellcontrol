@@ -8,7 +8,7 @@
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
   padding: clamp(0.85rem, 2cqi, 1.25rem);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
@@ -26,7 +26,7 @@
 @container bento (min-width: 640px) {
   .power-hero-pillars {
     grid-template-columns: 1fr 1fr;
-    gap: clamp(1rem, 2.5cqi, 1.75rem);
+    gap: clamp(var(--space-4), 2.5cqi, 1.75rem);
   }
 }
 
@@ -150,7 +150,7 @@
 /* Keep the target menu compact so it fits in the pillar without causing a reflow. */
 .power-hero-target-menu .toolbar-pill {
   font-size: var(--text-xs);
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem var(--space-2);
 }
 
 /* ── Gameplan ── */
@@ -261,7 +261,7 @@
   align-items: center;
   gap: 0.45rem;
   margin: 0;
-  padding: 0.5rem 0.65rem;
+  padding: var(--space-2) 0.65rem;
   background: var(--accent-light);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);

@@ -19,7 +19,7 @@
   flex-direction: column;
   gap: 0.3rem;
   margin: 0.35rem 0;
-  padding: 0.5rem 0.65rem;
+  padding: var(--space-2) 0.65rem;
   border: 0.5px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius);
   /* Near-opaque dark plate (stacks with the panel's 0.92) so the block's
@@ -52,7 +52,7 @@
 .deck-card-preview-meta-commander {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-weight: 700;
 }
 
