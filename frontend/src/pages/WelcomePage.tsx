@@ -133,12 +133,7 @@ export function WelcomePage() {
 
           <div className="welcome-doors">
             {/* Door 1 — primary: import */}
-            <button
-              type="button"
-              className="pill-btn pill-btn-primary"
-              onClick={handleImport}
-              disabled={loadingSamples}
-            >
+            <button type="button" className="pill-btn pill-btn-primary" onClick={handleImport}>
               <Import width={16} height={16} aria-hidden />
               Import my collection
             </button>
@@ -159,7 +154,6 @@ export function WelcomePage() {
               type="button"
               className="pill-btn welcome-door-secondary"
               onClick={handleSignIn}
-              disabled={loadingSamples}
             >
               <LogIn width={16} height={16} aria-hidden />
               Sign in
