@@ -236,11 +236,10 @@ export default function AuthPage() {
               </button>
             </div>
             {mode === 'register' ? (
-              <ul className="auth-rules" aria-label="Password requirements">
+              <ul className="auth-rules" aria-label="Password requirements" aria-live="polite">
                 <li
                   className={`auth-rule${password.length >= 10 ? ' is-met' : ''}`}
-                  aria-checked={password.length >= 10}
-                  role="checkbox"
+                  aria-label={`At least 10 characters — ${password.length >= 10 ? 'met' : 'not yet met'}`}
                 >
                   <span className="auth-rule-mark" aria-hidden="true">
                     {password.length >= 10 ? '✓' : '•'}
@@ -285,11 +284,10 @@ export default function AuthPage() {
                   {showConfirm ? <EyeOff size={18} aria-hidden /> : <Eye size={18} aria-hidden />}
                 </button>
               </div>
-              <ul className="auth-rules" aria-label="Confirm requirements">
+              <ul className="auth-rules" aria-label="Confirm requirements" aria-live="polite">
                 <li
                   className={`auth-rule${confirm.length > 0 && confirm === password ? ' is-met' : ''}${confirmError ? ' is-error' : ''}`}
-                  aria-checked={confirm.length > 0 && confirm === password}
-                  role="checkbox"
+                  aria-label={`Passwords match — ${confirm.length > 0 && confirm === password ? 'met' : 'not yet met'}`}
                 >
                   <span className="auth-rule-mark" aria-hidden="true">
                     {confirm.length > 0 && confirm === password ? '✓' : '•'}

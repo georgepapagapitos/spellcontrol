@@ -451,12 +451,26 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  /* <fieldset> reset: drop its default border and the min-content sizing quirk. */
+  border: 0;
+  min-inline-size: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 0.5rem;
 }
 
+/* The radio is the accessible control; the label tile is the visual. Hide the
+   native input but keep it focusable so keyboard selection works. */
+.settings-theme-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .settings-theme-option {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-areas:
@@ -579,8 +593,11 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
-.settings-theme-option:focus-visible {
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+   The tile is a <label> wrapping a visually-hidden radio, so focus lands on the
+   input; surface the ring on the tile via :has(). */
+.settings-theme-option:focus-visible,
+.settings-theme-option:has(.settings-theme-radio:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
