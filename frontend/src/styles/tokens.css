@@ -88,7 +88,14 @@
   --shadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.5);
   --shadow-sheet: 0 -8px 32px rgba(0, 0, 0, 0.22);
+  /* Lightest elevation tier — centered card surfaces (auth/welcome/onboarding). */
+  --shadow-card: 0 4px 16px rgb(0 0 0 / 8%);
   --overlay: rgba(0, 0, 0, 0.6);
+  /* On-art overlay scrim — theme-invariant (sits on card images, not UI). */
+  --art-scrim: rgba(0, 0, 0, 0.75);
+  --art-scrim-text: #fff;
+  /* BrandMark SVG grid stroke (warm taupe). */
+  --brand-mark-grid: #8a7050;
   --overlay-sheet: rgba(0, 0, 0, 0.4);
   --pip-border: rgba(255, 255, 255, 0.15);
 
@@ -213,6 +220,8 @@
   --mtg-multicolor: #c8a02e;
   --mtg-colorless: #b8b8b8;
   --mtg-land: #9c7a4d;
+  /* MTG-canonical counter gold (game-surface convention, do not retheme). */
+  --mtg-counter-gold: #ffd460;
 
   /* Cube identity color — a single fixed hue for every "in a cube" badge/link
      (cubes have no per-cube user color, unlike decks). A violet, deliberately

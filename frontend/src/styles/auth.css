@@ -33,7 +33,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 26px 24px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+  box-shadow: var(--shadow-card);
   animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
 

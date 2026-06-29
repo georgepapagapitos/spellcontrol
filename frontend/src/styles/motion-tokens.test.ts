@@ -91,6 +91,10 @@ describe('shared keyframes are declared exactly once (UX-102)', () => {
     'deck-card-row-spin',
     'deck-card-row-shimmer',
     'cmdr-readiness-shimmer',
+    'leaderboard-shimmer',
+    'gen-mode-shimmer',
+    'friends-shimmer',
+    'deck-compare-shimmer',
   ];
 
   it('no retired spinner/shimmer keyframe is declared or referenced', () => {
@@ -104,5 +108,23 @@ describe('shared keyframes are declared exactly once (UX-102)', () => {
       }
     }
     expect(offenders, `retired keyframes found:\n${offenders.join('\n')}`).toEqual([]);
+  });
+
+  // Forward guard: loading skeletons share ONE gradient-sweep keyframe. A new
+  // bespoke `@keyframes *-shimmer` clone (the recurring drift the UX-cohesion
+  // sweep found) passes the name-specific checks above, so catch the whole
+  // family here — only `skeleton-shimmer` may exist.
+  it('declares no bespoke *-shimmer keyframe other than skeleton-shimmer', () => {
+    const offenders: string[] = [];
+    const re = /@keyframes\s+([\w-]*-shimmer)(?![\w-])/g;
+    for (const { file, css } of byFile) {
+      for (const m of css.matchAll(re)) {
+        if (m[1] !== 'skeleton-shimmer') offenders.push(`${file}: @keyframes ${m[1]}`);
+      }
+    }
+    expect(
+      offenders,
+      `bespoke shimmer keyframes found — use the shared skeleton-shimmer:\n${offenders.join('\n')}`
+    ).toEqual([]);
   });
 });

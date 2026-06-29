@@ -38,7 +38,7 @@ export function BrandMark({ size = 28, className, 'aria-hidden': ariaHidden }: P
         </linearGradient>
       </defs>
       {/* 3×3 grid with the centre cell open (occupied by the spark) */}
-      <g fill="none" stroke="var(--brand-mark-grid, #8a7050)" strokeWidth="13">
+      <g fill="none" stroke="var(--brand-mark-grid)" strokeWidth="13">
         <rect x="120" y="120" width="78" height="78" rx="17" />
         <rect x="217" y="120" width="78" height="78" rx="17" />
         <rect x="314" y="120" width="78" height="78" rx="17" />

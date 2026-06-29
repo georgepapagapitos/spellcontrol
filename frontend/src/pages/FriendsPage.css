@@ -294,19 +294,13 @@
     var(--surface-raised) 75%
   );
   background-size: 200% 100%;
-  animation: friends-shimmer 1.4s ease-in-out infinite;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 .friends-skeleton-bar.is-row {
   height: 3.5rem;
   width: 100%;
   border-radius: var(--radius-lg);
-}
-
-@keyframes friends-shimmer {
-  to {
-    background-position: -200% 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -26,7 +26,7 @@
     var(--surface-raised) 75%
   );
   background-size: 200% 100%;
-  animation: deck-compare-shimmer 1.2s ease-in-out infinite;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 .deck-compare-skeleton-bar.is-headline {
   height: 1.5rem;
@@ -35,11 +35,6 @@
 .deck-compare-skeleton-bar.is-body {
   height: 8rem;
   width: 100%;
-}
-@keyframes deck-compare-shimmer {
-  to {
-    background-position: -200% 0;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   .deck-compare-skeleton-bar {
