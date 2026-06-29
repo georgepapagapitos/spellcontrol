@@ -9,7 +9,7 @@ import { useDecksStore } from '../store/decks';
 import { THEMES } from '../lib/themes';
 import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { Modal } from '../components/Modal';
 import { formatPricedDate, newestPricedAt } from '../lib/price-freshness';
 import {
   fetchIdentities,
@@ -748,51 +748,46 @@ function DeleteAccountDialog({
   onAdvance,
   onCancel,
 }: DeleteAccountDialogProps) {
-  useLockBodyScroll();
   const isFinal = step === 2;
   return (
-    <div className="modal-backdrop" onClick={busy ? undefined : onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-account-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="delete-account-title" className="choice-dialog-title">
-          {isFinal ? 'Last chance — delete your account?' : 'Delete your account?'}
-        </h2>
-        <p className="choice-dialog-body">
-          {isFinal ? (
-            <>
-              This permanently deletes <strong>{username}</strong> and erases every server-side
-              record — collection, binders, decks, games, backups, and share links. There is no
-              undo.
-            </>
-          ) : (
-            <>
-              This permanently deletes the account <strong>{username}</strong> and all of its data
-              from the server. Export a backup first (Data → Export full collection) if you want to
-              keep your collection.
-            </>
-          )}
-        </p>
-        <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel} disabled={busy}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={isFinal ? 'btn btn-danger' : 'btn'}
-            onClick={onAdvance}
-            disabled={busy}
-            autoFocus
-          >
-            {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Continue'}
-          </button>
-        </div>
+    <Modal
+      onClose={onCancel}
+      dismissable={!busy}
+      className="choice-dialog"
+      labelledBy="delete-account-title"
+    >
+      <h2 id="delete-account-title" className="choice-dialog-title">
+        {isFinal ? 'Last chance — delete your account?' : 'Delete your account?'}
+      </h2>
+      <p className="choice-dialog-body">
+        {isFinal ? (
+          <>
+            This permanently deletes <strong>{username}</strong> and erases every server-side record
+            — collection, binders, decks, games, backups, and share links. There is no undo.
+          </>
+        ) : (
+          <>
+            This permanently deletes the account <strong>{username}</strong> and all of its data
+            from the server. Export a backup first (Data → Export full collection) if you want to
+            keep your collection.
+          </>
+        )}
+      </p>
+      <div className="choice-dialog-actions">
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={isFinal ? 'btn btn-danger' : 'btn'}
+          onClick={onAdvance}
+          disabled={busy}
+          autoFocus
+        >
+          {busy ? 'Deleting…' : isFinal ? 'Delete account' : 'Continue'}
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -811,50 +806,46 @@ interface WipeConfirmDialogProps {
  * muscle memory (one click on a danger button is not enough).
  */
 function WipeConfirmDialog({ cardCount, step, busy, onAdvance, onCancel }: WipeConfirmDialogProps) {
-  useLockBodyScroll();
   const isFinal = step === 2;
   return (
-    <div className="modal-backdrop" onClick={busy ? undefined : onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="wipe-collection-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="wipe-collection-title" className="choice-dialog-title">
-          {isFinal ? 'Last chance — delete everything?' : 'Delete entire collection?'}
-        </h2>
-        <p className="choice-dialog-body">
-          {isFinal ? (
-            <>
-              This will permanently remove <strong>{cardCount.toLocaleString()}</strong>{' '}
-              {cardCount === 1 ? 'card' : 'cards'} and the import history. Your binders stay defined
-              but will be empty. There is no undo.
-            </>
-          ) : (
-            <>
-              You are about to remove all <strong>{cardCount.toLocaleString()}</strong>{' '}
-              {cardCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and
-              decks are kept, but decks will lose their physical copy assignments.
-            </>
-          )}
-        </p>
-        <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel} disabled={busy}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={isFinal ? 'btn btn-danger' : 'btn'}
-            onClick={onAdvance}
-            disabled={busy}
-            autoFocus
-          >
-            {busy ? 'Deleting…' : isFinal ? 'Delete everything' : 'Continue'}
-          </button>
-        </div>
+    <Modal
+      onClose={onCancel}
+      dismissable={!busy}
+      className="choice-dialog"
+      labelledBy="wipe-collection-title"
+    >
+      <h2 id="wipe-collection-title" className="choice-dialog-title">
+        {isFinal ? 'Last chance — delete everything?' : 'Delete entire collection?'}
+      </h2>
+      <p className="choice-dialog-body">
+        {isFinal ? (
+          <>
+            This will permanently remove <strong>{cardCount.toLocaleString()}</strong>{' '}
+            {cardCount === 1 ? 'card' : 'cards'} and the import history. Your binders stay defined
+            but will be empty. There is no undo.
+          </>
+        ) : (
+          <>
+            You are about to remove all <strong>{cardCount.toLocaleString()}</strong>{' '}
+            {cardCount === 1 ? 'card' : 'cards'} from your collection. Binder definitions and decks
+            are kept, but decks will lose their physical copy assignments.
+          </>
+        )}
+      </p>
+      <div className="choice-dialog-actions">
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={isFinal ? 'btn btn-danger' : 'btn'}
+          onClick={onAdvance}
+          disabled={busy}
+          autoFocus
+        >
+          {busy ? 'Deleting…' : isFinal ? 'Delete everything' : 'Continue'}
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }
