@@ -1,10 +1,16 @@
 import './EnginePanel.css';
-import { type JSX, useMemo } from 'react';
+import { type JSX, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import type { SynergyAnalysis, SynergyAxisView } from '@/deck-builder/services/synergy/analysis';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
-import { useCardCarousel } from './useCardCarousel';
+import type { AxisSummary } from '@/deck-builder/services/synergy/deckSynergy';
+import type { ScryfallCard } from '@/deck-builder/types';
+import { buildAxisTally } from '@/deck-builder/services/synergy/axisTally';
+import { useCardCarousel, tallyToEntries } from './useCardCarousel';
+import { CardGroupSheet } from './CardGroupSheet';
+import type { CardAnnotation } from './CardGroupSheet';
+import type { CardTally } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { StackedBar } from '../shared/MeterBar';
 
@@ -24,6 +30,15 @@ export interface EnginePanelProps {
    * prescription stays in one place.
    */
   showSuggestions?: boolean;
+  /**
+   * Full axis summaries from `analyzeDeckSynergy` (includes card names and
+   * reasons). When provided alongside `allCards`, each axis row becomes tappable
+   * and opens a `CardGroupSheet` showing that axis's producer/payoff cards with
+   * role annotations.
+   */
+  axisSummaries?: AxisSummary[];
+  /** All deck cards — required for the tappable axis drill-through. */
+  allCards?: ScryfallCard[];
 }
 
 /**
@@ -31,10 +46,22 @@ export interface EnginePanelProps {
  * the axis's weight (its producer+payoff card count) on a scale shared across
  * all displayed axes (`maxTotal`), so a 3-card fringe theme no longer paints
  * the same full-width bar as the 20-card primary engine.
+ *
+ * When `onTap` is provided the row becomes a `<button>` that opens the axis
+ * card drill-through (producers + payoffs in a CardGroupSheet with role chips).
  */
-function AxisBalance({ axis, maxTotal }: { axis: SynergyAxisView; maxTotal: number }): JSX.Element {
-  return (
-    <li className="engine-axis">
+function AxisBalance({
+  axis,
+  maxTotal,
+  onTap,
+}: {
+  axis: SynergyAxisView;
+  maxTotal: number;
+  /** When present: row is tappable; opens the axis card drill-through. */
+  onTap?: () => void;
+}): JSX.Element {
+  const inner = (
+    <>
       <div className="engine-axis-head">
         <span className="engine-axis-label">{axis.label}</span>
         <span className="engine-axis-counts">
@@ -54,6 +81,23 @@ function AxisBalance({ axis, maxTotal }: { axis: SynergyAxisView; maxTotal: numb
           { key: 'payoffs', value: axis.payoffs, color: 'var(--success, #2f7d4f)' },
         ]}
       />
+    </>
+  );
+
+  return (
+    <li className="engine-axis">
+      {onTap ? (
+        <button
+          type="button"
+          className="engine-axis-btn"
+          onClick={onTap}
+          aria-label={`Show ${axis.label} cards — ${axis.producers} producers, ${axis.payoffs} payoffs`}
+        >
+          {inner}
+        </button>
+      ) : (
+        inner
+      )}
     </li>
   );
 }
@@ -122,11 +166,55 @@ export function EnginePanel({
   onAdd,
   addingNames,
   showSuggestions = true,
+  axisSummaries,
+  allCards,
 }: EnginePanelProps): JSX.Element {
   const owned = ownedNames ?? new Set<string>();
   const adding = addingNames ?? new Set<string>();
 
-  const carousel = useCardCarousel('Engine suggestions');
+  const carousel = useCardCarousel('Engine axis cards');
+
+  // Axis tap-through state: holds the tally + annotate fn for the open sheet.
+  const [axisGroup, setAxisGroup] = useState<{
+    title: string;
+    subtitle: string;
+    tally: CardTally[];
+    annotate: (t: CardTally) => CardAnnotation | CardAnnotation[] | null;
+  } | null>(null);
+
+  // Build a map from AxisKey → AxisSummary for O(1) lookup per view axis.
+  const axisSummaryMap = useMemo(() => {
+    if (!axisSummaries) return null;
+    const m = new Map<string, AxisSummary>();
+    for (const s of axisSummaries) m.set(s.axis, s);
+    return m;
+  }, [axisSummaries]);
+
+  const openAxis = (summary: AxisSummary) => {
+    if (!allCards) return;
+    const tally = buildAxisTally(summary, allCards);
+    if (tally.length === 0) return;
+
+    // Build per-card role lookup for annotation chips.
+    const producerReasons = new Map(summary.producers.map((p) => [p.name, p.reason]));
+    const payoffReasons = new Map(summary.payoffs.map((p) => [p.name, p.reason]));
+
+    const annotate = (t: CardTally): CardAnnotation | CardAnnotation[] | null => {
+      const chips: CardAnnotation[] = [];
+      if (producerReasons.has(t.name))
+        chips.push({ tone: 'accent', label: 'Producer', reason: producerReasons.get(t.name) });
+      if (payoffReasons.has(t.name))
+        chips.push({ tone: 'success', label: 'Payoff', reason: payoffReasons.get(t.name) });
+      return chips.length === 1 ? chips[0] : chips.length > 1 ? chips : null;
+    };
+
+    setAxisGroup({
+      title: summary.label,
+      subtitle: `${summary.producers.length} producer${summary.producers.length !== 1 ? 's' : ''} · ${summary.payoffs.length} payoff${summary.payoffs.length !== 1 ? 's' : ''}`,
+      tally,
+      annotate,
+    });
+  };
 
   // Every suggestion (in render order) becomes a carousel slot, labeled with its
   // inclusion. Tapping any tile opens the shared CardPreview carousel at that card.
@@ -161,9 +249,11 @@ export function EnginePanel({
 
       {axes.length > 0 && (
         <ul className="engine-axes">
-          {axes.map((a) => (
-            <AxisBalance key={a.axis} axis={a} maxTotal={maxAxisTotal} />
-          ))}
+          {axes.map((a) => {
+            const summary = axisSummaryMap?.get(a.axis);
+            const onTap = summary && allCards ? () => openAxis(summary) : undefined;
+            return <AxisBalance key={a.axis} axis={a} maxTotal={maxAxisTotal} onTap={onTap} />;
+          })}
         </ul>
       )}
 
@@ -207,6 +297,21 @@ export function EnginePanel({
         ))}
 
       {showSuggestions && carousel.preview}
+
+      {/* ── Axis drill-through: card group sheet with role annotations ── */}
+      {axisGroup && (
+        <CardGroupSheet
+          title={axisGroup.title}
+          subtitle={axisGroup.subtitle}
+          tally={axisGroup.tally}
+          annotate={axisGroup.annotate}
+          onPick={(picked) => {
+            void carousel.open(tallyToEntries(axisGroup.tally), picked.name);
+          }}
+          onClose={() => setAxisGroup(null)}
+        />
+      )}
+      {axisGroup && carousel.preview}
     </section>
   );
 }
