@@ -38,13 +38,13 @@ describe('PlayPage tabs', () => {
     renderPage();
     fireEvent.click(screen.getByRole('tab', { name: 'History' }));
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByText('No games yet. Play one!')).toBeTruthy();
+    expect(screen.getByText('No games yet')).toBeTruthy();
     expect(screen.queryByText('New local game')).toBeNull();
   });
 
   it('honors the ?tab= query param for the initial tab', () => {
     renderPage('/play?tab=history');
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByText('No games yet. Play one!')).toBeTruthy();
+    expect(screen.getByText('No games yet')).toBeTruthy();
   });
 });

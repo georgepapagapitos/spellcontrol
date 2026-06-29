@@ -466,7 +466,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         const files = await pickNativeFiles({ types: DECK_IMPORT_MIME, multiple: true });
         acceptFiles(files);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not open file picker');
+        setError(err instanceof Error ? err.message : "Couldn't open file picker");
       }
       return;
     }

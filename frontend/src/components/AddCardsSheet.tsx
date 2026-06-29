@@ -90,7 +90,7 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
         setScanSuccess(parts.join(' · '));
       }
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : 'Could not save scanned cards.');
+      setScanError(err instanceof Error ? err.message : "Couldn't save scanned cards.");
     } finally {
       setScanBusy(false);
     }

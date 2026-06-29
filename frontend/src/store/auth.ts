@@ -186,7 +186,7 @@ export const useAuth = create<AuthState>((set, get) => {
         return { ok: true };
       } catch (err) {
         const status = (err as { status?: number }).status;
-        set({ error: err instanceof Error ? err.message : 'Could not finish sign-up.' });
+        set({ error: err instanceof Error ? err.message : "Couldn't finish sign-up." });
         return { ok: false, status };
       }
     },
@@ -198,7 +198,7 @@ export const useAuth = create<AuthState>((set, get) => {
         signInAs(user);
         return true;
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Could not link the account.' });
+        set({ error: err instanceof Error ? err.message : "Couldn't link the account." });
         return false;
       }
     },
@@ -229,7 +229,7 @@ export const useAuth = create<AuthState>((set, get) => {
         // wrong move. If the call fails the user stays signed in with data intact.
         await authApi.deleteAccount();
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Could not delete account.' });
+        set({ error: err instanceof Error ? err.message : "Couldn't delete account." });
         return false;
       }
       // Server rows are gone and the cookie is cleared. stopSyncAndWipeLocal

@@ -89,7 +89,7 @@ export async function fetchCubeCobraCube(input: string): Promise<ImportedCube> {
   try {
     res = await fetch(`https://cubecobra.com/cube/api/cubeJSON/${encodeURIComponent(id)}`);
   } catch {
-    throw new CubeImportError('Could not reach CubeCobra. Check your connection and try again.');
+    throw new CubeImportError("Couldn't reach CubeCobra. Check your connection and try again.");
   }
   if (res.status === 404) throw new CubeImportError(`No public cube found for "${id}".`);
   if (res.status === 429)

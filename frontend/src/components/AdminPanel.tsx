@@ -64,7 +64,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
     setDeleting(true);
     try {
       await deleteUser(pending.id);
-      toast.show({ message: `Deleted ${pending.username}.`, tone: 'success' });
+      toast.show({ message: `Deleted ${pending.username}`, tone: 'success' });
       setPending(null);
       await refresh();
     } catch (err) {
@@ -84,7 +84,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           Admin — manage users
         </h2>
         <p className="settings-card-hint">
-          Visible because your role is <strong>admin</strong>. Other users will not see this card.
+          Visible because your role is <strong>admin</strong>. Other users won't see this card.
         </p>
       </header>
       <div className="settings-card-body">
@@ -151,7 +151,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
           </h2>
           <p className="choice-dialog-body">
             This permanently removes the account and all of <strong>{pending.username}</strong>
-            ’s synced collection, binders, decks, and game history. This cannot be undone.
+            ’s synced collection, binders, decks, and game history. This can’t be undone.
           </p>
           <div className="choice-dialog-options admin-delete-actions">
             <button

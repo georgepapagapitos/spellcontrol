@@ -248,7 +248,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         void prewarm();
       } catch (err) {
         logger.error('[scanner] native preview failed:', err);
-        const msg = err instanceof Error ? err.message : 'Could not start the camera.';
+        const msg = err instanceof Error ? err.message : "Couldn't start the camera.";
         setErrorMsg(msg);
         setStatus('error');
       }
@@ -256,7 +256,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     }
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Camera is not available in this browser.');
+        throw new Error("Camera isn't available in this browser.");
       }
       // Request a portrait-oriented stream. Phone cameras are physically
       // landscape sensors, but browsers will crop/rotate to match the
@@ -554,7 +554,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         if (!captureCanvasRef.current) captureCanvasRef.current = document.createElement('canvas');
         const canvas = captureCanvasRef.current;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) throw new Error('Could not get canvas context.');
+        if (!ctx) throw new Error("Couldn't get canvas context.");
 
         // Render the viewfinder crop into a scratch canvas at raw-frame
         // resolution. The v2 pipeline does its own quad detection inside

@@ -240,7 +240,7 @@ export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigat
       navigate(`/decks/${id}`, { state: { justGenerated: true } });
     } catch (e) {
       logger.error('[DeckBuilder] generation failed:', e);
-      setError(e instanceof Error ? e.message : 'Could not build the deck.');
+      setError(e instanceof Error ? e.message : "Couldn't build the deck.");
     } finally {
       setIsBuilding(false);
       setProgress(null);

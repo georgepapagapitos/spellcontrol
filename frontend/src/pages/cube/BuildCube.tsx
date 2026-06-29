@@ -195,7 +195,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
     if (sc.isPhysical) {
       cubeStore.setPhysical(sc.id, false, []);
       pushToast({
-        message: `“${sc.name}” is no longer physical — its copies are free again`,
+        message: `“${sc.name}” is no longer physical — its copies are free again.`,
         tone: 'success',
       });
     } else {

@@ -178,7 +178,7 @@ export function parseBackup(raw: string): Backup {
       : null;
 
   if (collection && !Array.isArray(collection.cards)) {
-    throw new Error('Backup collection is malformed (cards is not a list).');
+    throw new Error("Backup collection is malformed (cards isn't a list).");
   }
 
   return {

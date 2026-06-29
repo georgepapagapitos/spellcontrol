@@ -21,7 +21,7 @@ async function fetchJson<T>(url: string, init: RequestInit): Promise<T> {
     'Combos request timed out — the server is taking too long. Try again.'
   ).catch((err: unknown) => {
     if (err instanceof Error && err.message.startsWith('Combos request timed out')) throw err;
-    throw new Error('The server is not responding. Try again in a moment.');
+    throw new Error("The server isn't responding. Try again in a moment.");
   });
   return handleResponse<T>(response);
 }

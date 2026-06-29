@@ -76,7 +76,7 @@ export function BindersIndexPage() {
       await loadSampleBinders(response);
       setShowSamplesIntro(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load samples');
+      setError(err instanceof Error ? err.message : "Couldn't load samples");
     } finally {
       setLoadingSamples(false);
     }

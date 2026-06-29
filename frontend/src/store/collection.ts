@@ -538,7 +538,7 @@ export const useCollectionStore = create<CollectionState>()(
           logger.warn('[store] Failed to persist collection:', err);
           set({
             error:
-              'Cards imported but could not be saved locally. They will be lost if you refresh the page.',
+              "Cards imported but couldn't be saved locally. They will be lost if you refresh the page.",
           });
         }
         if (replacedSnapshot) {
@@ -938,7 +938,7 @@ export const useCollectionStore = create<CollectionState>()(
             logger.warn('[store] Failed to persist restored collection:', err);
             set({
               error:
-                'Backup restored to memory but could not be saved locally. It will be lost if you refresh the page.',
+                "Backup restored to memory but couldn't be saved locally. It will be lost if you refresh the page.",
             });
           }
         } else {
@@ -1242,7 +1242,7 @@ export const useCollectionStore = create<CollectionState>()(
           logger.warn('[store] Failed to persist collection:', err);
           set({
             error:
-              'Change saved in memory but could not be saved locally. It will be lost if you refresh the page.',
+              "Change saved in memory but couldn't be saved locally. It will be lost if you refresh the page.",
           });
         }
       },

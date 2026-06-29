@@ -417,7 +417,7 @@ function ScryfallPreview({
         {state.status === 'loading' && 'Counting matching cards…'}
         {state.status === 'ok' && caption(state.total)}
         {state.status === 'empty' && emptyHint}
-        {state.status === 'error' && 'Could not reach Scryfall — try again.'}
+        {state.status === 'error' && "Couldn't reach Scryfall — try again."}
       </p>
     </div>
   );
