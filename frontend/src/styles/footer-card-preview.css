@@ -161,8 +161,8 @@
 
 .card-preview-close {
   position: absolute;
-  top: max(0.75rem, var(--safe-top));
-  right: max(0.75rem, var(--safe-right));
+  top: max(var(--space-3), var(--safe-top));
+  right: max(var(--space-3), var(--safe-right));
   z-index: 2;
   width: 2.25rem;
   height: 2.25rem;
@@ -216,8 +216,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-left: max(1rem, var(--safe-left));
-  padding-right: max(1rem, var(--safe-right));
+  padding-left: max(var(--space-4), var(--safe-left));
+  padding-right: max(var(--space-4), var(--safe-right));
   /* Mirror the track's bottom padding so the arrows center on the card, not
      on the raw cell (the track offsets the card up by this much). */
   padding-bottom: 1.25rem;
@@ -303,7 +303,7 @@
 
 .card-preview-grabber {
   position: absolute;
-  top: max(0.5rem, var(--safe-top));
+  top: max(var(--space-2), var(--safe-top));
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
@@ -459,7 +459,7 @@
 /* Flip-row already supplies its own vertical padding, so collapse the
    track's bottom buffer when it is present — otherwise the gap doubles. */
 .card-preview-sheet:has(.card-preview-flip-row) .card-preview-track {
-  padding-bottom: 0.25rem;
+  padding-bottom: var(--space-1);
 }
 
 .card-preview-track::-webkit-scrollbar {
@@ -481,8 +481,8 @@
 
 @media (max-width: 600px) {
   .card-preview-track {
-    padding-top: 0.75rem;
-    padding-inline: 0.75rem;
+    padding-top: var(--space-3);
+    padding-inline: var(--space-3);
   }
 }
 
@@ -563,12 +563,12 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
   /* Always reserved so single-faced and transform cards take the same
      vertical space — flipping between them must not shift the panel. */
   min-height: 2.85rem;
-  padding: 0.35rem 1rem;
+  padding: 0.35rem var(--space-4);
   pointer-events: none;
 }
 
@@ -697,7 +697,7 @@
 }
 
 .card-preview-image-fallback {
-  padding: 2rem;
+  padding: var(--space-6);
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -707,7 +707,7 @@
 .card-preview-panel {
   background: rgba(15, 15, 18, 0.92);
   border-top: 0.5px solid rgba(255, 255, 255, 0.08);
-  padding: 0.5rem 1.1rem;
+  padding: var(--space-2) 1.1rem;
   padding-bottom: max(0.9rem, var(--safe-bottom));
   color: #fff;
   /* One fixed, vh-capped height. The panel always shows its full content; when
@@ -851,7 +851,7 @@
      overlapped the type line under it. */
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-height: 1.5rem;
   max-width: 100%;
 }
@@ -939,7 +939,7 @@
 .card-preview-context-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   padding: 0.05rem 0.45rem;
   margin: 0 0.05rem;
   border-radius: 999px;
@@ -1046,7 +1046,7 @@
 .card-preview-links {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin-top: 0.15rem;
 }
 
@@ -1219,8 +1219,8 @@
 
 @media (max-width: 600px) {
   .binder-pages-track {
-    padding-top: 0.75rem;
-    padding-inline: 0.75rem;
+    padding-top: var(--space-3);
+    padding-inline: var(--space-3);
   }
 }
 
@@ -1263,7 +1263,7 @@
      cell lands at the natural card aspect. Tight gap + padding so the
      pockets sit close together the way they do in a real binder page. */
   width: 100%;
-  gap: 4px;
+  gap: var(--space-1);
   padding: 6px;
   background: rgba(20, 20, 22, 0.6);
   border: 0.5px solid rgba(255, 255, 255, 0.08);
@@ -1341,7 +1341,7 @@
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-mono);
   text-align: center;
-  padding: 4px;
+  padding: var(--space-1);
   pointer-events: none;
 }
 
