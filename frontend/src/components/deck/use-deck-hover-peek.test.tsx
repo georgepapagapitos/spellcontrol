@@ -36,6 +36,11 @@ function fire(handler: (e: any) => void, target: HTMLElement) {
   act(() => handler({ target, clientX: 200, clientY: 100 }));
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fireOut(handler: (e: any) => void, target: HTMLElement, relatedTarget: Element | null) {
+  act(() => handler({ target, relatedTarget }));
+}
+
 describe('useDeckHoverPeek — per-printing peek', () => {
   beforeEach(mockCapable);
 
@@ -64,5 +69,30 @@ describe('useDeckHoverPeek — per-printing peek', () => {
     const first = result.current.peek;
     fire(result.current.listHandlers.onMouseOver, el);
     expect(result.current.peek).toBe(first); // unchanged reference → setPeek skipped
+  });
+
+  it('clears when leaving a card row for non-card space', () => {
+    const { result } = renderHook(() => useDeckHoverPeek({ anchor: 'row' }));
+    const row = peekEl({ 'data-peek-name': 'Sol Ring' });
+    const blank = document.createElement('div');
+
+    fire(result.current.listHandlers.onMouseOver, row);
+    expect(result.current.peek?.name).toBe('Sol Ring');
+
+    fireOut(result.current.listHandlers.onMouseOut, row, blank);
+    expect(result.current.peek).toBeNull();
+  });
+
+  it('keeps the peek while moving within a card row', () => {
+    const { result } = renderHook(() => useDeckHoverPeek({ anchor: 'row' }));
+    const row = peekEl({ 'data-peek-name': 'Sol Ring' });
+    const child = document.createElement('span');
+    row.appendChild(child);
+
+    fire(result.current.listHandlers.onMouseOver, row);
+    const first = result.current.peek;
+
+    fireOut(result.current.listHandlers.onMouseOut, row, child);
+    expect(result.current.peek).toBe(first);
   });
 });
