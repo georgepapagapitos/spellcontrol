@@ -84,6 +84,21 @@ describe('useSheetExit', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('honors any accepted exit animation name', () => {
+    setReducedMotion(false);
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useSheetExit(onClose, ['sheet-fall', 'modal-panel-out']));
+
+    act(() => result.current.beginClose());
+    act(() => result.current.onAnimationEnd({ animationName: 'fade-out' } as React.AnimationEvent));
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() =>
+      result.current.onAnimationEnd({ animationName: 'modal-panel-out' } as React.AnimationEvent)
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('reduced motion closes immediately without animating', () => {
     setReducedMotion(true);
     const onClose = vi.fn();

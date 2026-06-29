@@ -37,7 +37,10 @@ export function BuildReportSheet({
   onClose,
   onReviewConflicts,
 }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'sheet-fall');
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, [
+    'sheet-fall',
+    'modal-panel-out',
+  ]);
 
   // Resolve commander art via CDN hook (no api.scryfall.com/format=image).
   const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
