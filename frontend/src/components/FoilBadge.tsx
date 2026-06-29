@@ -13,40 +13,27 @@ import { classifyFoil, FOIL_LABEL, type FoilClassifiable } from '@/lib/foil-styl
  * that's a frame treatment, not a badge; this is only for the text/list rows
  * that have no art to carry the shine.
  *
- * `showLabel` names a *special* finish beside the chip (Etched, Oil slick, …)
- * for roomy rows like the collection list. Plain foil shows the chip alone —
- * the "F" already says "foil", so the word would be redundant.
+ * The per-finish tint already distinguishes finishes (etched, oil slick, …);
+ * the finish name rides along in the chip's `title`/`aria-label`, so no inline
+ * text label is needed.
  */
 export interface FoilBadgeProps {
   card: FoilClassifiable;
-  /** Name the finish beside the chip for special finishes (roomy list rows). */
-  showLabel?: boolean;
   className?: string;
 }
 
-export function FoilBadge({ card, showLabel, className }: FoilBadgeProps): JSX.Element | null {
+export function FoilBadge({ card, className }: FoilBadgeProps): JSX.Element | null {
   const style = classifyFoil(card);
   if (style === 'none') return null;
-  const label = FOIL_LABEL[style];
   // "Foil foil" reads badly — the generic finish is just "Foil".
-  const aria = style === 'regular' ? 'Foil' : `${label} foil`;
+  const aria = style === 'regular' ? 'Foil' : `${FOIL_LABEL[style]} foil`;
 
-  // The "F" chip alone means "foil"; only special finishes add their name.
-  if (!showLabel || style === 'regular') {
-    return (
-      <span
-        className={`foil-badge foil-${style}${className ? ` ${className}` : ''}`}
-        role="img"
-        aria-label={aria}
-        title={aria}
-      />
-    );
-  }
   return (
-    <span className={`foil-badge-pill${className ? ` ${className}` : ''}`} title={aria}>
-      <span className={`foil-badge foil-${style}`} aria-hidden="true" />
-      <span className="foil-badge-text">{label}</span>
-      <span className="sr-only">{aria}</span>
-    </span>
+    <span
+      className={`foil-badge foil-${style}${className ? ` ${className}` : ''}`}
+      role="img"
+      aria-label={aria}
+      title={aria}
+    />
   );
 }

@@ -1808,7 +1808,6 @@ i.ss.set-symbol--mythic {
    floor that keeps two printings of the same card name distinguishable on the
    narrowest compact rows (T36). Only the wider #CN token and badge pills drop
    below 768px. */
-.collection-list.is-compact .foil-badge-pill,
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
 .collection-list.is-compact .card-list-cn {
@@ -1822,7 +1821,6 @@ i.ss.set-symbol--mythic {
 }
 
 @media (min-width: 1024px) {
-  .collection-list.is-compact .foil-badge-pill,
   .collection-list.is-compact .card-list-deck-badge,
   .collection-list.is-compact .card-list-binder-badge {
     display: inline-flex;
