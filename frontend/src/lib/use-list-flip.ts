@@ -159,7 +159,15 @@ export function useListFlip<T>(
     setExiting((cur) => (cur.some((e) => e.key === key) ? cur.filter((e) => e.key !== key) : cur));
   }, []);
 
-  // ── Measure + FLIP every commit ─────────────────────────────────────────
+  // ── Measure + FLIP when the row order/set (or ghost set) changes ──────────
+  // Gated on a signature, NOT every commit: an unrelated re-render (e.g. the
+  // deck list's hover-peek firing `setPeek` on every card the cursor crosses)
+  // must not re-measure. Re-measuring mid-glide reads the in-flight transform
+  // via getBoundingClientRect and re-fires applyRestackGlide from a bogus
+  // inverted position — that's the jittery loop when hovering a list with an
+  // expanded, multi-column section. Rows only actually move on items/exiting
+  // changes (reorder, add, remove, ghost), so glide only then.
+  const flipSignature = `${currentKeys.join(' ')}|${exiting.map((e) => e.key).join(' ')}`;
   useLayoutEffect(() => {
     const leavingKeys = new Set(exiting.map((e) => e.key));
     const reduce = prefersReducedMotion();
@@ -177,7 +185,8 @@ export function useListFlip<T>(
       nextOffsets.set(key, topOffset);
     }
     topOffsetsRef.current = nextOffsets;
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flipSignature]);
 
   // ── Assemble entries ─────────────────────────────────────────────────────
   const liveKeys = new Set(currentKeys);
