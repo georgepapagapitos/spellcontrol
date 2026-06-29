@@ -118,7 +118,16 @@ export function useDeckHoverPeek({ minViewport = 0, anchor = 'pointer' }: HoverP
     [minViewport, anchor]
   );
 
+  const onMouseOut = useCallback((e: MouseEvent) => {
+    if (!peekRef.current) return;
+    const from = (e.target as HTMLElement).closest<HTMLElement>('[data-peek-name]');
+    if (!from) return;
+    const related = e.relatedTarget;
+    const to = related instanceof Element ? related.closest<HTMLElement>('[data-peek-name]') : null;
+    if (!to) setPeek(null);
+  }, []);
+
   const onMouseLeave = useCallback(() => setPeek(null), []);
 
-  return { peek, clear, listHandlers: { onMouseOver, onMouseLeave } };
+  return { peek, clear, listHandlers: { onMouseOver, onMouseOut, onMouseLeave } };
 }
