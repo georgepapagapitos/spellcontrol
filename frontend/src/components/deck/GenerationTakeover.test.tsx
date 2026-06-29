@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GenerationTakeover } from './GenerationTakeover';
 
 // useCardThumb is an async CDN hook; stub it to a no-op in unit tests so we
@@ -78,5 +78,57 @@ describe('GenerationTakeover', () => {
     expect(flavor?.textContent?.length).toBeGreaterThan(0);
     // Suppress unused variable warning — firstText is checked implicitly above.
     void firstText;
+  });
+});
+
+describe('GenerationTakeover — symmetric exit (E70)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not apply the exiting class by default', () => {
+    const { container } = render(<GenerationTakeover message="Building…" percent={50} />);
+    expect(
+      container.querySelector('.gen-takeover')?.classList.contains('gen-takeover--exiting')
+    ).toBe(false);
+  });
+
+  it('applies the exiting class while isExiting is set', () => {
+    const { container } = render(
+      <GenerationTakeover message="Building…" percent={50} isExiting onExited={() => {}} />
+    );
+    expect(container.querySelector('.gen-takeover--exiting')).toBeTruthy();
+  });
+
+  it('fires onExited when the fade-out animation ends', () => {
+    const onExited = vi.fn();
+    const { container } = render(
+      <GenerationTakeover message="Building…" percent={50} isExiting onExited={onExited} />
+    );
+    const el = container.querySelector('.gen-takeover') as HTMLElement;
+    // An unrelated animation (e.g. fade-in) must NOT unmount.
+    fireEvent.animationEnd(el, { animationName: 'fade-in' });
+    expect(onExited).not.toHaveBeenCalled();
+    fireEvent.animationEnd(el, { animationName: 'fade-out' });
+    expect(onExited).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onExited immediately under reduced motion (no animation to await)', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (q: string) =>
+        ({
+          matches: q.includes('reduce'),
+          media: q,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          onchange: null,
+          dispatchEvent: () => false,
+        }) as unknown as MediaQueryList
+    );
+    const onExited = vi.fn();
+    render(<GenerationTakeover message="Building…" percent={50} isExiting onExited={onExited} />);
+    expect(onExited).toHaveBeenCalledTimes(1);
   });
 });

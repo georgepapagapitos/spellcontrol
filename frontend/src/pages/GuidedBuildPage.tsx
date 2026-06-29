@@ -102,8 +102,29 @@ export function GuidedBuildPage() {
   const commanderArtUrl =
     commander?.image_uris?.art_crop ?? commander?.card_faces?.[0]?.image_uris?.art_crop;
 
-  // If generation is running, replace the whole page body with the takeover.
-  if (isBuilding && progress) {
+  // The takeover replaces the page body while generation runs. On a successful
+  // build the page navigates away (the route change masks the unmount); on an
+  // error/early-out it just flips false — which used to teleport-vanish the
+  // takeover back to the form. Hold it mounted through a fade-out instead.
+  const showTakeover = isBuilding && !!progress;
+
+  // Derive the exit from the showTakeover transition during render (React's
+  // endorsed "adjust state on prop change" pattern — no effect, no ref): when
+  // it flips off we start exiting; a fresh build flips it back on and cancels
+  // any in-flight exit. `onExited` (the fade's animationend) finally unmounts.
+  const [takeoverExiting, setTakeoverExiting] = useState(false);
+  const [prevShowTakeover, setPrevShowTakeover] = useState(showTakeover);
+  if (showTakeover !== prevShowTakeover) {
+    setPrevShowTakeover(showTakeover);
+    setTakeoverExiting(!showTakeover);
+  }
+
+  // Remember the last progress frame so the exit fade keeps rendering the final
+  // state after the hook clears `progress` to null.
+  const [lastFrame, setLastFrame] = useState(progress);
+  if (progress && progress !== lastFrame) setLastFrame(progress);
+
+  if ((showTakeover || takeoverExiting) && lastFrame) {
     return (
       <div className="deck-builder-page" data-testid="guided-build-page">
         <BackLink to="/decks/new" label="New deck" />
@@ -111,8 +132,10 @@ export function GuidedBuildPage() {
           <GenerationTakeover
             commanderName={commander?.name}
             commanderImageUrl={commanderArtUrl}
-            message={progress.message}
-            percent={progress.percent}
+            message={lastFrame.message}
+            percent={lastFrame.percent}
+            isExiting={takeoverExiting}
+            onExited={() => setTakeoverExiting(false)}
           />
         </div>
         {error && <div className="error-banner deck-builder-error">{error}</div>}

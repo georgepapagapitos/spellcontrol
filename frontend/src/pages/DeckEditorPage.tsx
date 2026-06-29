@@ -29,6 +29,7 @@ import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
+import { DeckPickerSheet } from '../components/deck/DeckPickerSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
 import { CoachFeed } from '../components/deck/CoachFeed';
@@ -2162,35 +2163,30 @@ export function DeckEditorPage() {
           is a distinct activity, opened on demand from the Deck-view toolbar so
           it's never pinned inline or in a tab. */}
       {showTestHand && (
-        <div
-          className="card-picker-root"
-          role="presentation"
-          onClick={() => setShowTestHand(false)}
+        <DeckPickerSheet
+          className="deck-test-hand-sheet"
+          ariaLabel="Test hand"
+          onClose={() => setShowTestHand(false)}
         >
-          <div
-            className="card-picker-sheet deck-test-hand-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Test hand"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-picker-handle" aria-hidden />
-            <div className="deck-test-hand-sheet-header">
-              <h2 className="deck-test-hand-sheet-title">Test hand</h2>
-              <button
-                type="button"
-                className="deck-test-hand-sheet-close"
-                onClick={() => setShowTestHand(false)}
-                aria-label="Close test hand"
-              >
-                <X width={18} height={18} strokeWidth={2} aria-hidden />
-              </button>
-            </div>
-            <div className="deck-test-hand-sheet-body">
-              <DeckTestHandPanel embedded deckId={deck.id} />
-            </div>
-          </div>
-        </div>
+          {(close) => (
+            <>
+              <div className="deck-test-hand-sheet-header">
+                <h2 className="deck-test-hand-sheet-title">Test hand</h2>
+                <button
+                  type="button"
+                  className="deck-test-hand-sheet-close"
+                  onClick={close}
+                  aria-label="Close test hand"
+                >
+                  <X width={18} height={18} strokeWidth={2} aria-hidden />
+                </button>
+              </div>
+              <div className="deck-test-hand-sheet-body">
+                <DeckTestHandPanel embedded deckId={deck.id} />
+              </div>
+            </>
+          )}
+        </DeckPickerSheet>
       )}
 
       {/* Add cards on a Commander deck with no commander yet: card suggestions
@@ -2198,19 +2194,12 @@ export function DeckEditorPage() {
           meaningfully add to the mainboard. Show an interstitial that points at
           the commander picker instead of silently no-opping. */}
       {showAddPanel && formatConfig?.hasCommander && !deck.commander && (
-        <div
-          className="card-picker-root"
-          role="presentation"
-          onClick={() => setShowAddPanel(false)}
+        <DeckPickerSheet
+          className="deck-add-needs-commander"
+          ariaLabel="Pick a commander first"
+          onClose={() => setShowAddPanel(false)}
         >
-          <div
-            className="card-picker-sheet deck-add-needs-commander"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Pick a commander first"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-picker-handle" aria-hidden />
+          {(close) => (
             <div className="deck-add-needs-commander-body">
               <p className="deck-add-needs-commander-title">Pick a commander first</p>
               <p className="deck-add-needs-commander-hint">
@@ -2218,13 +2207,15 @@ export function DeckEditorPage() {
                 color identity stay in sync.
               </p>
               <div className="deck-add-needs-commander-actions">
-                <button type="button" className="btn" onClick={() => setShowAddPanel(false)}>
+                <button type="button" className="btn" onClick={close}>
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="btn btn-primary"
                   onClick={() => {
+                    // Handoff: the whole deck view changes underneath, so close
+                    // instantly rather than sliding the sheet out over the swap.
                     setShowAddPanel(false);
                     openView('deck');
                   }}
@@ -2233,78 +2224,74 @@ export function DeckEditorPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          )}
+        </DeckPickerSheet>
       )}
 
       {/* Add cards — a breakpoint-aware overlay (bottom sheet on
           mobile, centered modal ≥1024px) via the shared card-picker
           sheet, instead of an inline rail. */}
       {showAddPanel && (formatConfig?.hasCommander ? deck.commander : true) && (
-        <div
-          className="card-picker-root"
-          role="presentation"
-          onClick={() => setShowAddPanel(false)}
+        <DeckPickerSheet
+          className="deck-add-sheet"
+          ariaLabel="Add cards"
+          onClose={() => setShowAddPanel(false)}
         >
-          <div
-            className="card-picker-sheet deck-add-sheet"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Add cards"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-picker-handle" aria-hidden />
-            {formatConfig && formatConfig.sideboardSize > 0 && (
-              <div className="deck-editor-zone-toggle">
-                <button
-                  type="button"
-                  className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}
-                  onClick={() => setAddZone('main')}
-                >
-                  Mainboard
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}
-                  onClick={() => setAddZone('side')}
-                >
-                  Sideboard
-                </button>
-              </div>
-            )}
-            <CardSearchPanel
-              ref={searchPanelRef}
-              deckId={deck.id}
-              commanderColorIdentity={commanderColorIdentity}
-              existingCardCounts={existingCardCounts}
-              onAdd={({ card }) => {
-                if (addZone === 'side') {
-                  // allocateAndAdd resolves the copy itself (free / auto-move /
-                  // proxy) — the panel's own pick only ever sees free copies, so
-                  // routing through it is what makes "add an owned card whose copy
-                  // is in another deck" Just Work instead of silently proxying.
-                  allocateAndAdd(card, 'sideboard', false);
-                  return;
-                }
-                // A full Commander deck would overfill — open the intelligent
-                // replace-when-full prompt instead of silently going to 101.
-                if (deckIsFull) {
-                  setShowAddPanel(false);
-                  setPendingAdd(card.name);
-                  return;
-                }
-                allocateAndAdd(card, 'main', false);
-              }}
-              onPreviewFit={(card) => setAuditionCard(card)}
-              onClose={() => setShowAddPanel(false)}
-              suggestions={deck.gapAnalysis}
-              oneAwayCombos={comboData.data?.oneAway}
-              ownershipFor={ownershipFor}
-              enableSuggestions={!!formatConfig?.hasCommander}
-              suggestionsPending={analysisState === 'pending'}
-            />
-          </div>
-        </div>
+          {(close) => (
+            <>
+              {formatConfig && formatConfig.sideboardSize > 0 && (
+                <div className="deck-editor-zone-toggle">
+                  <button
+                    type="button"
+                    className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}
+                    onClick={() => setAddZone('main')}
+                  >
+                    Mainboard
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}
+                    onClick={() => setAddZone('side')}
+                  >
+                    Sideboard
+                  </button>
+                </div>
+              )}
+              <CardSearchPanel
+                ref={searchPanelRef}
+                deckId={deck.id}
+                commanderColorIdentity={commanderColorIdentity}
+                existingCardCounts={existingCardCounts}
+                onAdd={({ card }) => {
+                  if (addZone === 'side') {
+                    // allocateAndAdd resolves the copy itself (free / auto-move /
+                    // proxy) — the panel's own pick only ever sees free copies, so
+                    // routing through it is what makes "add an owned card whose copy
+                    // is in another deck" Just Work instead of silently proxying.
+                    allocateAndAdd(card, 'sideboard', false);
+                    return;
+                  }
+                  // A full Commander deck would overfill — open the intelligent
+                  // replace-when-full prompt instead of silently going to 101.
+                  // Handoff to another modal, so close instantly here.
+                  if (deckIsFull) {
+                    setShowAddPanel(false);
+                    setPendingAdd(card.name);
+                    return;
+                  }
+                  allocateAndAdd(card, 'main', false);
+                }}
+                onPreviewFit={(card) => setAuditionCard(card)}
+                onClose={close}
+                suggestions={deck.gapAnalysis}
+                oneAwayCombos={comboData.data?.oneAway}
+                ownershipFor={ownershipFor}
+                enableSuggestions={!!formatConfig?.hasCommander}
+                suggestionsPending={analysisState === 'pending'}
+              />
+            </>
+          )}
+        </DeckPickerSheet>
       )}
 
       {auditionCard && auditionReport && deck && (

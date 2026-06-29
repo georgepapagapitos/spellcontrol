@@ -13,6 +13,14 @@
   animation: fade-in var(--motion-base) var(--ease-out-soft) both;
 }
 
+/* Symmetric exit — the page holds the takeover mounted with --exiting so it
+   fades back out (mirroring fade-in) instead of teleport-vanishing when
+   generation ends. `forwards` keeps it transparent until the page unmounts it
+   on animationend (reuses the shared fade-out keyframe). */
+.gen-takeover--exiting {
+  animation: fade-out var(--motion-base) var(--ease-out-soft) forwards;
+}
+
 /* Hero region — art + headline; fixed minimum so the art always reads. */
 .gen-takeover-hero {
   position: relative;
@@ -189,7 +197,8 @@
 
 /* ── Reduced motion ────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .gen-takeover {
+  .gen-takeover,
+  .gen-takeover--exiting {
     animation: none;
   }
 

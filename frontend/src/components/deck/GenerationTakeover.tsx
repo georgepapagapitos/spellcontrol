@@ -8,6 +8,13 @@ interface Props {
   commanderImageUrl?: string;
   message: string;
   percent: number;
+  /**
+   * When generation ends, the page keeps the takeover mounted with this flag
+   * set so it fades out instead of teleport-vanishing. `onExited` fires when
+   * the fade finishes (or immediately under reduced motion) to unmount it.
+   */
+  isExiting?: boolean;
+  onExited?: () => void;
 }
 
 // Flavor lines keyed by substring match against real generator messages.
@@ -226,7 +233,14 @@ function prefersReducedMotion(): boolean {
  * gated with prefers-reduced-motion. No new keyframes — reuses the
  * shared `fade-in` from styles/footer-card-preview.css.
  */
-export function GenerationTakeover({ commanderName, commanderImageUrl, message, percent }: Props) {
+export function GenerationTakeover({
+  commanderName,
+  commanderImageUrl,
+  message,
+  percent,
+  isExiting = false,
+  onExited,
+}: Props) {
   // Resolve from CDN if we only have a name; direct URL wins immediately.
   const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
   const artUrl = commanderImageUrl ?? resolvedThumb;
@@ -269,12 +283,26 @@ export function GenerationTakeover({ commanderName, commanderImageUrl, message, 
     };
   }, [message, flavorIndex]);
 
+  // Reduced motion neutralizes the fade-out keyframe in CSS, so onAnimationEnd
+  // would never fire — unmount immediately instead of leaving it stuck.
+  useEffect(() => {
+    if (isExiting && prefersReducedMotion()) onExited?.();
+  }, [isExiting, onExited]);
+
   const flavorLines = getFlavorLines(message);
   const flavorText = flavorLines[flavorIndex % flavorLines.length];
   const activeMilestone = currentMilestone(percent);
 
   return (
-    <div className="gen-takeover" role="status" aria-live="polite" aria-label="Building deck…">
+    <div
+      className={`gen-takeover${isExiting ? ' gen-takeover--exiting' : ''}`}
+      role="status"
+      aria-live="polite"
+      aria-label="Building deck…"
+      onAnimationEnd={(e) => {
+        if (isExiting && e.animationName === 'fade-out') onExited?.();
+      }}
+    >
       <div className="gen-takeover-hero">
         {artUrl && (
           <div className="gen-takeover-art" aria-hidden>
