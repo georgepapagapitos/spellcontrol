@@ -1409,6 +1409,13 @@
   }
 }
 
+/* Infinite loop: the global 0.001ms backstop would strobe it (~714Hz). Gate it. */
+@media (prefers-reduced-motion: reduce) {
+  .list-entries-grid-cell--skeleton {
+    animation: none;
+  }
+}
+
 .list-entries-grid-img {
   width: 100%;
   height: 100%;

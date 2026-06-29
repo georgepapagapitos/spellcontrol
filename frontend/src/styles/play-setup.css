@@ -588,6 +588,15 @@
   }
 }
 
+/* The global reduced-motion backstop only shortens animation-duration; on an
+   infinite loop that turns play-pulse into a ~1kHz strobe. Stop it outright. */
+@media (prefers-reduced-motion: reduce) {
+  .site-nav-game-dot,
+  .mobile-tab-bar-game-dot {
+    animation: none;
+  }
+}
+
 /* ── Resume banner ─────────────────────────────────────────────────────── */
 
 .play-resume-banner {
