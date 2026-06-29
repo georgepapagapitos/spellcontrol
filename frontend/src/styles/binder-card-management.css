@@ -335,6 +335,8 @@
      content sits above the home gesture. Both are no-ops on web. Subtract
      the keyboard inset so the sheet shrinks rather than slide behind it. */
   max-height: calc(var(--vh-safe) * 0.85 - var(--keyboard-inset));
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
   padding-bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
@@ -351,6 +353,9 @@
     transform: translate(-50%, -50%);
     width: 480px;
     max-height: 70vh;
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
     border-radius: var(--radius-lg);
     animation: none;
   }

@@ -960,6 +960,7 @@ export function DeckEditorPage() {
       opts.recipientApply();
       opts.donorApply();
     }
+    haptics.tap();
     pushToast({
       message: opts.label,
       tone: 'success',
@@ -969,6 +970,7 @@ export function DeckEditorPage() {
         if (snapRecipient) replaceDeck(opts.recipientDeckId, snapRecipient);
         // Restore the cube's pre-release picks (re-binds the freed copy).
         if (snapCube) useCubeStore.getState().updateSaved(snapCube.id, { picks: snapCube.picks });
+        haptics.tap();
       },
     });
   };
@@ -1079,6 +1081,7 @@ export function DeckEditorPage() {
         setCardAllocation(deck.id, slotId, claim.copyId)
       );
       pushToast({ message: `Using your copy of ${slot.card.name}`, tone: 'success' });
+      haptics.tap();
     }
   };
 
