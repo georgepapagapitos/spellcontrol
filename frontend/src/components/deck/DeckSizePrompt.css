@@ -22,7 +22,7 @@
   flex-direction: column;
   gap: 0.3rem;
   margin: 0;
-  padding: 0 0 0.25rem;
+  padding: 0 0 var(--space-1);
   list-style: none;
   overflow-y: auto;
 }
@@ -107,7 +107,7 @@
 }
 
 .deck-size-prompt-empty {
-  margin: 0.25rem 0;
+  margin: var(--space-1) 0;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }

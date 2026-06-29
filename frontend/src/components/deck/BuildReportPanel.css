@@ -48,7 +48,7 @@
 .build-report-gaps {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   margin-top: 0.15rem;
 }
 

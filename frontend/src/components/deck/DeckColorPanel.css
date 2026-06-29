@@ -11,13 +11,13 @@
 .deck-color-panel {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .deck-color-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -40,7 +40,7 @@
 .deck-color-donut {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -116,7 +116,7 @@
   /* swatch / name / pct / chevron — the chevron column collapses to 0 on
      static rows (no chevron element), keeping pct aligned across both. */
   grid-template-columns: auto 1fr auto auto;
-  column-gap: 0.5rem;
+  column-gap: var(--space-2);
   align-items: center;
   width: 100%;
 }

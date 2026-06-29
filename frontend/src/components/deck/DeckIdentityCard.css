@@ -268,7 +268,7 @@
 @container bento (min-width: 640px) {
   .deck-identity-card-pillars {
     grid-template-columns: 1fr 1fr;
-    gap: clamp(1rem, 2.5cqi, 1.75rem);
+    gap: clamp(var(--space-4), 2.5cqi, 1.75rem);
   }
 
   .deck-identity-card-pillars.is-solo {

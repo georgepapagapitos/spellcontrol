@@ -6,10 +6,10 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 0.75rem;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* SearchPill defaults to flex:1 1 12rem so it grows along a horizontal
@@ -31,7 +31,7 @@
    the results area just scrolls/empties within a constant frame.
    Scoped to the deck sheet so the collection picker is unaffected. */
 .deck-add-sheet {
-  padding-bottom: 0.75rem;
+  padding-bottom: var(--space-3);
   height: 85dvh;
 }
 
@@ -42,7 +42,7 @@
 }
 
 .deck-add-sheet .deck-editor-zone-toggle {
-  padding: 0.25rem 0.85rem 0;
+  padding: var(--space-1) 0.85rem 0;
 }
 
 .deck-add-sheet .card-search-panel {
@@ -51,7 +51,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 0.5rem 0.85rem 0;
+  padding: var(--space-2) 0.85rem 0;
 }
 
 /* The tabpanel wrapper sits between the panel and the results list; it must
@@ -74,12 +74,12 @@
    Commander deck that has no commander yet. Sizes to its content (not the tall
    search sheet). */
 .deck-add-needs-commander-body {
-  padding: 0.5rem 1.25rem 1.5rem;
+  padding: var(--space-2) 1.25rem var(--space-5);
   text-align: center;
 }
 
 .deck-add-needs-commander-title {
-  margin: 0.5rem 0 0.4rem;
+  margin: var(--space-2) 0 0.4rem;
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text-primary);
@@ -96,7 +96,7 @@
 .deck-add-needs-commander-actions {
   display: flex;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* Test-hand sheet: the shared card-picker sheet hosts the embedded
@@ -117,8 +117,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.25rem 1rem 0.5rem;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-4) var(--space-2);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -161,7 +161,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.75rem 1rem 0.25rem;
+  padding: var(--space-3) var(--space-4) var(--space-1);
 }
 
 /* Tab strip uses the shared <Tabs variant="fitted"> primitive (.sc-tabs). */
@@ -169,7 +169,7 @@
 .card-search-empty {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  padding: 0.75rem 0.25rem;
+  padding: var(--space-3) var(--space-1);
   margin: 0;
 }
 
@@ -194,7 +194,7 @@
   align-items: center;
   gap: 0.4rem;
   font-size: var(--text-sm);
-  padding: 0.25rem 0.3rem;
+  padding: var(--space-1) 0.3rem;
   border-radius: var(--radius);
 }
 
@@ -348,7 +348,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
-  padding: 0.5rem 0.3rem 0.2rem;
+  padding: var(--space-2) 0.3rem 0.2rem;
   margin-top: 0.15rem;
   border-top: 0.5px solid var(--border);
 }

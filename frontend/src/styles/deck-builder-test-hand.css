@@ -6,15 +6,15 @@
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 0.75rem;
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .deck-test-hand-panel.is-collapsed {
-  padding: 0.65rem 0.75rem;
+  padding: 0.65rem var(--space-3);
 }
 
 .deck-test-hand-title {
@@ -29,11 +29,11 @@
 .deck-test-hand-header-summary {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  margin-left: 0.25rem;
+  margin-left: var(--space-1);
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -62,7 +62,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 .deck-test-hand-panel.is-collapsed .deck-test-hand-body {
@@ -87,7 +87,7 @@
      shadow blur). Setting overflow-x: auto implicitly makes overflow-y
      also clip, so without this padding the top of a lifted card would be
      cut off. Bottom padding gives the shadow room to land. */
-  padding: 1.5rem 0.5rem 0.75rem;
+  padding: var(--space-5) var(--space-2) var(--space-3);
   /* Hide the scrollbar visually unless the user actually scrolls — keeps the
      resting state clean. */
   scrollbar-width: thin;
@@ -208,17 +208,17 @@
    fan so the layout mirrors the reference. */
 .deck-test-hand-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   justify-content: center;
   flex-wrap: wrap;
-  padding-top: 0.25rem;
+  padding-top: var(--space-1);
 }
 
 .deck-test-hand-action {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 1rem;
+  padding: 0.45rem var(--space-4);
   /* Action buttons use the 8px rounded-rect (--radius); pills are reserved for
      non-actionable chips/badges (.deck-test-hand-chip) and round icon buttons. */
   border-radius: var(--radius);
@@ -300,8 +300,8 @@
 .deck-test-hand-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
+  gap: var(--space-1);
+  padding: 0.2rem var(--space-2);
   border-radius: 999px;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
@@ -329,7 +329,7 @@
 }
 
 .deck-test-hand-chip.is-verdict {
-  margin-left: 0.25rem;
+  margin-left: var(--space-1);
   padding-inline: 0.6rem;
 }
 
