@@ -147,7 +147,18 @@ sans-bold heading reads as off-family.
   reserved for the site/section nav (e.g. the Collection header).
 - All tabbed surfaces go through the shared `components/Tabs.tsx` primitive
   (roving tabindex, arrow-key nav, `role=tablist`/`tab`/`tabpanel`). Don't
-  hand-roll a tab strip.
+  hand-roll a tab strip. **This applies inside overlays, sheets, modals, editor
+  panels, and admin/debug pages too** — an internal audience does not exempt a
+  view from keyboard navigation. Partial ARIA (a hand-rolled `role="tab"` with
+  no roving tabindex or arrow keys) is **worse** than none: it advertises a
+  contract the component then fails to honor. Use the primitive.
+- **`fitted` requires labels that are short AND equal**, never more than three
+  tabs. The concrete test: at 320px and full panel width every label must render
+  in full with no ellipsis (a 3-tab fitted strip gives each tab ~106px ≈ 10
+  characters; a trailing count badge counts toward that width). If any label
+  fails, use `variant="scrollable"` (tabs size to content, the strip scrolls).
+  Four or more tabs always use `scrollable`. "In deck" vs "One card away (N)" and
+  "Battlefield" both fail the test.
 - **Pass `variant="underline"` explicitly on every page/section-level switcher.**
   `Tabs` defaults to `variant="fitted"` (equal-width segments, each label clipped
   with `text-overflow: ellipsis`). `fitted` is **only** for 2–3 short, equal-length
@@ -233,6 +244,13 @@ it rides the existing trailing auto-margins — don't add a competing
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
+- **Destructive confirmations go through the shared `<Modal>`, never
+  `window.confirm()`.** The native dialog can't be themed, freezes the event
+  loop, loses focus on dismiss, and renders inconsistently in Capacitor
+  WebViews. Use a two-step `<Modal dismissable={!busy}>` with a red confirm
+  (reference: `ConfirmDialog.tsx`). Hand-rolled `.modal-backdrop` dialogs are
+  also discouraged — route through `<Modal>` so the exit animation, focus-trap,
+  and scroll-lock come for free (see § Motion).
 
 ## Public shared views (/s/:token)
 
@@ -245,6 +263,16 @@ a full-height scroller in new chrome, the wrapper owns the scroll and the inner 
 The conversion CTA on a shared **deck** is "Copy this deck" into the guest local store (works
 logged-out; sign-in promotes it). Shared binders/collections get the brand bar and footer CTA
 but no deck-copy action. Keep conversion deck-only for now.
+
+Because `/s/:token` is often a non-user's first contact, its **states must be
+brand-complete**: loading shows a spinner/skeleton inside `SharedShell` (not bare
+text); error and notFound include a "Go to SpellControl" link so no state is a
+dead end (the authRequired state's sign-in CTA is the reference). Other rulings:
+`SharedShell` brandbar/footer respect safe-area insets and use `--z-*` tokens
+(never a raw z-index); any `.shared-list-table` is wrapped in
+`.shared-table-scroll` (the shell clips `overflow-x`, so an unwrapped table is
+silently cut off at 320px); mana costs render via the `ManaCost` primitive (never
+raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
 ## Info tooltips
 
@@ -273,6 +301,12 @@ tooltip; reuse this so they behave identically everywhere.
 - The trigger sits inline in a flex label; `.info-tip-btn` zeroes its line-height
   so the glyph centers against the text. Pass rich `text` (a node) for
   multi-point bodies.
+- **`title=` is never the sole path to non-trivial detail.** A `title` attribute
+  doesn't fire on touch and is unreliable for screen readers, so any indicator or
+  toggle whose meaning lives in more than a one-word `title` (a flagged-cards
+  list, a scoring formula, a toggle whose label understates what it does) must
+  use `InfoTip` instead — keep the count/summary in the trigger's `aria-label`
+  and put the detail in the tooltip body.
 
 ## Z-index / layering
 
@@ -318,7 +352,13 @@ auto-close) before unmounting — wire it through `useSheetExit`
 (`src/lib/use-sheet-exit.ts`; pass the surface's exit keyframe name). A
 surface with no entry animation closes instantly — that IS its symmetric
 exit (e.g. the desktop dropdown/centered-panel presentations of the mobile
-sheets skip the hook).
+sheets skip the hook). The rule is about the **entry animation**, not the
+element type: an inline conditional render (`{show && <div className="card-picker-sheet">}`),
+a full-page generation takeover, and a hand-rolled `.modal-backdrop` all need
+it just as much as a named sheet component. Hand-rolled confirm/destructive
+dialogs must route through the shared `<Modal>` (it owns the `is-closing` exit,
+scroll-lock, focus-trap, Escape, and a `dismissable={!busy}` prop to lock
+dismissal while work is in flight) rather than re-implementing the backdrop.
 
 ### Tokens (styles/tokens.css)
 
@@ -410,15 +450,53 @@ needed.
 
 Every keyframe gets a `prefers-reduced-motion: reduce` gate (the global
 0.001ms kill is a backstop, not the mechanism — infinite loops must set
-`animation: none` explicitly). Any JS that waits on `animationend` must
-check `matchMedia` and complete immediately under reduce (see
-`use-sheet-exit.ts` for the reference implementation).
+`animation: none` explicitly). **Why the backstop is not enough for an
+`infinite` loop:** it shortens `animation-duration` to 0.001ms, which on a loop
+runs ~1,000 cycles/second — a strobe categorically _more_ dangerous for
+vestibular/photosensitive users than the original gentle animation. So every
+`infinite` keyframe (pulsing dots, skeletons, winner glows) MUST carry an
+explicit `@media (prefers-reduced-motion: reduce) { animation: none }` in its
+own file. Any JS that waits on `animationend` must check `matchMedia` and
+complete immediately under reduce (see `use-sheet-exit.ts` for the reference
+implementation).
+
+**One shared shimmer.** Every loading skeleton anywhere in the app uses the
+single `skeleton-shimmer` keyframe (declared once in `footer-card-preview.css`);
+do not declare a bespoke `@keyframes *-shimmer` clone. `motion-tokens.test.ts`
+fails CI on any other `*-shimmer` keyframe.
 
 ## Color & spacing
 
 - **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,
   `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--border-strong`, `--accent`,
   `--accent-light`, `--on-accent`, etc. This is what makes light/dark themes work.
+- **`--on-accent` is the sole token for text/icons on an accent-fill surface.**
+  Any element with `background: var(--accent)` sets `color: var(--on-accent)` for
+  its filled/active state. Never use literal `#fff`/`white` there — it's
+  mechanically the same bug as the dead `--accent-text` token and fails WCAG AA
+  on light-accent themes (Gruul, Golgari, Selesnya, Izzet, Orzhov…).
+- **Dead T35-migration tokens — never reference these (CSS resolves an undefined
+  `var()` to a silent fallback, no build error).** `ghost-tokens.test.ts` fails
+  CI on any of them:
+
+  | Dead                                       | → use                                         |
+  | ------------------------------------------ | --------------------------------------------- |
+  | `--surface1` / `--surface2` / `--surface3` | `--surface` / `--surface-raised`              |
+  | `--accent-text`                            | `--on-accent`                                 |
+  | `--accent-soft`                            | `--accent-light`                              |
+  | `--danger` / `--danger-bg`                 | `--err-text` / `--err-border` / `--err-bg`    |
+  | `--warn` (bare)                            | `--warn-text` / `--warn-border` / `--warn-bg` |
+  | `--muted`                                  | `--text-muted`                                |
+  | `--motion-slow`                            | `--motion-base` / `--motion-gentle`           |
+
+- **Elevation tiers:** `--shadow-card` (lightest — centered auth/welcome cards),
+  `--shadow-tooltip`, `--shadow-sheet`, `--shadow-modal`.
+- **On-art scrims are an intentional non-themed exception:** elements that sit on
+  card images (qty/set badges on grid tiles) use `--art-scrim` /
+  `--art-scrim-text`, not inline `rgba`. Card art is theme-invariant, so these
+  tokens are deliberately not themed; using them anywhere else is a smell.
+- **Game-canonical colors** (counter gold, etc.) live in the `--mtg-*` block
+  (`--mtg-counter-gold`) and are not themed — never hard-code a game-surface hex.
 - **Mana identity palette — one set of WUBRG colors.** Color-identity fills (the
   five colors + multicolor/colorless/land) come from the canonical
   `--mtg-w` / `--mtg-u` / `--mtg-b` / `--mtg-r` / `--mtg-g` /
@@ -475,8 +553,14 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 
 ### Other responsive rules
 
-- **44px touch targets** on coarse pointers (`@media (pointer: coarse)`) for
-  anything tappable.
+- **44px touch targets** on coarse pointers for anything tappable. The
+  mechanism is an explicit `@media (pointer: coarse) { .my-btn { min-height: 44px } }`
+  block, separate from the resting style — a button's desktop-density height
+  (~2rem) cannot be assumed to meet the floor. For a small ✕/clear button inside
+  a chip where growing it would distort the chip, expand the hit area with a
+  centered `::after` ghost (`position: absolute; width/height: 44px;
+transform: translate(-50%, -50%)` on a `position: relative` parent) rather
+  than inflating the visible control — reference `.set-filter-chip-x`.
 - **No horizontal overflow at 320px** (the hard floor).
 - **Both themes on every tier** — light and dark are independent surfaces.
 
@@ -498,6 +582,49 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
 - **Filter/control strips wrap, never clip** — `.collection-toolbar-row` (and
   peers) carry `flex-wrap: wrap`; never force `nowrap` on a strip that can
   exceed the viewport (collapse to a `⋮` overflow menu at `≤600px` instead).
+
+## Accessibility
+
+- **Every interactive element with a `:hover` rule also needs a `:focus-visible`
+  ring.** These are independent obligations: the hover-gate
+  (`@media (hover: hover) and (pointer: fine)`) makes hover conditional on
+  pointer capability; `:focus-visible` is unconditional and serves keyboard and
+  switch-access users on any device. Writing the gate and forgetting the ring
+  was the single most common accessibility gap across the app — it appeared on
+  every one of the 20 views in the UX-cohesion sweep. The minimum:
+
+  ```css
+  .your-element:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  ```
+
+  `focus-visible-rings.test.ts` enforces this (subset-coverage aware, with a
+  short justified allowlist for base-class-covered variants).
+
+- **`outline: none` inside a `:focus-visible` block is invalid.** A block that
+  sets `outline: none` and relies only on a border-color or background shift
+  does not meet WCAG 2.4.11's visible-ring requirement. The `outline` property
+  is the mechanism — keep it.
+- **On the always-dark game board / playtest surface, use a white ring**
+  (`outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 3px`) rather
+  than `--accent`, which can read poorly on the near-black board.
+- **In an auth/onboarding form, every button** — submit, OAuth, dismiss/back —
+  needs the ring; a ring on one button does not cover its siblings.
+- **Read-only validation indicators use `aria-live`, not `role="checkbox"`.**
+  Password/username requirement lists are display-only state mirrors. Use
+  `<ul aria-live="polite">` with bare `<li>`s whose `aria-label` encodes the
+  state (`"At least 10 characters — met"` / `"— not yet met"`). `role="checkbox"`
+  is an interactive-widget pattern that tells screen readers the user can toggle
+  it — they can't.
+- **Single-select option groups use `<fieldset>` + `<input type="radio">`, not
+  `role="listbox"`.** Radio inputs provide selection state, arrow-key navigation,
+  and group semantics natively, with no ARIA ownership model to maintain. A
+  `role="listbox"` whose options are wrapped in `<li>`s breaks the
+  owned-elements chain per the ARIA spec.
+- **44px touch targets** — see § Responsive for the `@media (pointer: coarse)`
+  mechanism.
 
 ## CSS file layout
 
@@ -734,7 +861,7 @@ The app's analysis surfaces speak **one vocabulary** so users learn it once:
 | **Numbers**    | Inside their own panel only                        | `78/100` in BracketBreakdown's Power signal table; sub-score bars |
 | **Bracket**    | A number but also a named tier — use "Bracket N"   | "Bracket 3 · Upgraded" in the hero; never just "3"                |
 
-**One grading system.** A letter grade (`A`, `B+`) is a third dialect — it has been removed from the stat-strip. Don't re-introduce letter grades in cross-panel summaries. The `deckGrade` prop exists for backwards compatibility but is not rendered.
+**One grading system.** A letter grade (`A`, `B+`) is a third dialect — it has been removed from the stat-strip. Don't re-introduce letter grades in cross-panel summaries. The `deckGrade` prop exists for backwards compatibility but is not rendered. This applies by name to **Deck Compare** (the bracket columns show bracket number + `BracketVerdictStrip` only — not `gradeLetter`) and to **SharedDeckView**'s subtitle (the most public surface — no ` · B+`). Both regressed and were re-fixed; don't let the letter creep back into either.
 
 **Renamed terms (settled UX-315):**
 
@@ -822,6 +949,15 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   `loadSampleBinders` exactly as BindersIndexPage does (same CSV, same store
   action). No fork of sample data; the import appears as the normal deletable
   "Sample: starter pack" entry in import history.
+- **Disabled-scope matches the interaction, not the page.** When one door runs
+  an async op, only _that_ door is `disabled`. Door 2's sample load must not
+  disable "Import" or "Sign in" — they navigate to independent routes and locking
+  them removes every exit during the wait.
+- **Every step of the auth funnel carries the `BrandMark`.** AuthPage and
+  ChooseUsernamePage (and any future step) open with
+  `<div className="auth-brand-hero" aria-hidden="true"><BrandMark size={48} /></div>`
+  before the `<h1>`, so a mid-funnel screen reads as the same branded flow rather
+  than a disconnected utility form.
 
 ## Keyboard shortcuts — discoverability pattern (UX-334)
 

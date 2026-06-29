@@ -293,21 +293,11 @@
 }
 
 .gen-mode-preview-tile.is-skeleton {
-  animation: gen-mode-shimmer 1.2s ease-in-out infinite;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
 
 .gen-mode-preview-tile.is-blank {
   opacity: 0.4;
-}
-
-@keyframes gen-mode-shimmer {
-  0%,
-  100% {
-    opacity: 0.45;
-  }
-  50% {
-    opacity: 0.8;
-  }
 }
 
 .gen-mode-preview-caption {

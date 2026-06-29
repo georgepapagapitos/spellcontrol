@@ -1250,7 +1250,7 @@ i.ss.set-symbol--mythic {
 }
 
 .collection-grid-set {
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--art-scrim);
   color: #fff;
   font-size: var(--text-xs);
   font-weight: 700;
@@ -1267,7 +1267,7 @@ i.ss.set-symbol--mythic {
   position: absolute;
   bottom: 5px;
   left: 5px;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--art-scrim);
   color: #fff;
   font-size: var(--text-sm);
   font-weight: 800;
@@ -1299,7 +1299,7 @@ i.ss.set-symbol--mythic {
 .collection-grid-badges .card-list-binder-badge {
   margin-left: 0;
   padding: 0.22rem;
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--art-scrim);
   border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
