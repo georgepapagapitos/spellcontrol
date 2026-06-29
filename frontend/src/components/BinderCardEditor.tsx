@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { CardPickerSheet } from './CardPickerSheet';
+import { Tabs } from './Tabs';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 
 interface Props {
@@ -154,24 +155,29 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
           </p>
         )}
 
-        <div className="binder-card-editor-tabs">
-          <button
-            type="button"
-            className={`binder-card-editor-tab${tab === 'cards' ? ' active' : ''}`}
-            onClick={() => setTab('cards')}
-          >
-            Cards{activeCards.length > 0 ? ` (${activeCards.length})` : ''}
-          </button>
-          <button
-            type="button"
-            className={`binder-card-editor-tab${tab === 'order' ? ' active' : ''}`}
-            onClick={() => setTab('order')}
-          >
-            Order
-          </button>
-        </div>
+        <Tabs
+          ariaLabel="Edit cards view"
+          variant="fitted"
+          className="binder-card-editor-tabs"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            {
+              id: 'cards',
+              label: 'Cards',
+              count: activeCards.length > 0 ? activeCards.length : null,
+              controls: 'binder-card-editor-panel',
+            },
+            { id: 'order', label: 'Order', controls: 'binder-card-editor-panel' },
+          ]}
+        />
 
-        <div className="modal-body">
+        <div
+          className="modal-body"
+          id="binder-card-editor-panel"
+          role="tabpanel"
+          aria-labelledby={`sc-tab-${tab}`}
+        >
           {tab === 'cards' && (
             <CardsTab
               activeCards={activeCards}

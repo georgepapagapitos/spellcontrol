@@ -4,6 +4,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { SearchPill } from '../components/SearchPill';
+import { Tabs } from '../components/Tabs';
 import { useDecksStore, type Deck } from '../store/decks';
 import { useCubeStore, type SavedCube } from '../store/cube';
 import {
@@ -196,27 +197,22 @@ export function AdminPage() {
         </p>
       </div>
 
-      <nav className="admin-tabs">
-        {(
-          [
-            ['overview', 'Overview'],
-            ['decks', `Decks (${decks.length})`],
-            ['allocations', `Allocations (${allocationMap.size})`],
-            ['collection', `Collection (${cards.length})`],
-            ['binders', `Binders (${binders.length})`],
-            ['storage', 'Storage'],
-            ['raw', 'Raw JSON'],
-          ] as const
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            className={`admin-tab ${tab === k ? 'admin-tab--active' : ''}`}
-            onClick={() => setTab(k)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        ariaLabel="Admin sections"
+        variant="scrollable"
+        className="admin-tabs"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'decks', label: 'Decks', count: decks.length },
+          { id: 'allocations', label: 'Allocations', count: allocationMap.size },
+          { id: 'collection', label: 'Collection', count: cards.length },
+          { id: 'binders', label: 'Binders', count: binders.length },
+          { id: 'storage', label: 'Storage' },
+          { id: 'raw', label: 'Raw JSON' },
+        ]}
+      />
 
       {hydrating && <p className="admin-warn">Collection store still hydrating from IndexedDB…</p>}
 

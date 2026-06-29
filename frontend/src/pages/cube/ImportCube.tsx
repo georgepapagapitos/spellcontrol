@@ -184,7 +184,7 @@ export function ImportCube() {
 
           <Tabs
             ariaLabel="Filter cards by ownership"
-            variant="fitted"
+            variant="scrollable"
             value={filter}
             onChange={(f) => {
               setFilter(f);

@@ -400,7 +400,7 @@ export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onC
           value={activeTab}
           onChange={setActiveTab}
           ariaLabel="Stats view"
-          variant="fitted"
+          variant="underline"
         />
 
         <div className="playtest-stats-body">

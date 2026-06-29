@@ -18,30 +18,11 @@
   padding: 0.05rem 0.3rem;
   border-radius: 4px;
 }
+/* The admin section nav uses the shared <Tabs variant="scrollable"> primitive
+   (.sc-tabs owns layout/keyboard/ARIA); this just adds the admin chrome. */
 .admin-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  border-bottom: 1px solid var(--border, #333);
+  border-bottom: 1px solid var(--border);
   margin: 1rem 0;
-}
-.admin-tab {
-  background: none;
-  border: none;
-  padding: 0.5rem 0.9rem;
-  color: inherit;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  font-size: var(--text-sm);
-}
-@media (hover: hover) and (pointer: fine) {
-  .admin-tab:hover {
-    background: var(--surface-raised);
-  }
-}
-.admin-tab--active {
-  border-bottom-color: var(--accent);
-  color: var(--accent);
 }
 .admin-section {
   margin: 1.25rem 0;
@@ -1562,10 +1543,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.admin-tab:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
 .scanner-icon-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -1593,7 +1570,6 @@
 
 /* a11y (UX-cohesion): 44px touch targets on coarse pointers. */
 @media (pointer: coarse) {
-  .admin-tab,
   .admin-danger button,
   .admin-raw-actions button {
     min-height: 44px;
