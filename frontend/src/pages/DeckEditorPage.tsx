@@ -695,6 +695,7 @@ export function DeckEditorPage() {
       name: c.name,
       colorIdentity: c.colorIdentity ?? [],
       cmc: c.cmc,
+      typeLine: c.typeLine,
     }));
     const deckNames = new Set(deck.cards.map((c) => c.card.name));
     const inclusionByName = new Map<string, number>(Object.entries(deck.cardInclusionMap ?? {}));
