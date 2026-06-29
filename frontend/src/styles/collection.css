@@ -696,6 +696,7 @@
 }
 
 .collection-filter-chip-clear {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -706,15 +707,21 @@
   cursor: pointer;
   border-radius: 2px;
   transition: color var(--motion-fast);
-  /* 24px touch target on coarse pointers */
   min-width: 1rem;
   min-height: 1rem;
 }
 
 @media (pointer: coarse) {
-  .collection-filter-chip-clear {
-    min-width: 1.5rem;
-    min-height: 1.5rem;
+  /* 44px hit area via ghost so the visible ✕ doesn't distort the chip
+     (mirrors .set-filter-chip-x). */
+  .collection-filter-chip-clear::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 

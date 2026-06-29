@@ -373,3 +373,23 @@
     color: var(--text-primary);
   }
 }
+
+/* a11y (UX-cohesion): 44px touch targets on coarse pointers. The reveal toggle
+   keeps its 32px visual size but gets a 44px ghost hit area. */
+@media (pointer: coarse) {
+  .auth-reveal::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+  .auth-back {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
