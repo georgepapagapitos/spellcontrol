@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { OptimizeCard, OptimizeSwaps } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 
 /** A group checkbox is on (all selected), off (none), or mixed (some). */
 export type TriState = boolean | 'mixed';
@@ -39,16 +40,6 @@ export interface UseOptimizePlanResult {
 }
 
 export type OptimizeSide = 'remove' | 'add';
-
-/** OptimizeCard.price is a free-form string ("1.23", "$4.50", or absent).
- *  Parse defensively — strip anything that isn't a number/dot, then guard NaN. */
-function parsePrice(price: string | undefined): number | null {
-  if (!price) return null;
-  const cleaned = price.replace(/[^0-9.]/g, '');
-  if (!cleaned) return null;
-  const value = Number.parseFloat(cleaned);
-  return Number.isFinite(value) ? value : null;
-}
 
 function triStateFor(names: string[], unchecked: Set<string>): TriState {
   if (names.length === 0) return false;
