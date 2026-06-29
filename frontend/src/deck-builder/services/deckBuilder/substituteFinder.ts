@@ -5,6 +5,7 @@ import {
   getCardTags,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
+import { getSimilarRank } from './cardSimilar';
 
 /**
  * Owned-substitute finder — for a recommended-but-missing staple, find a card
@@ -96,6 +97,8 @@ interface RankedCandidate {
   cmcDelta: number;
   similarity: number;
   inclusion: number;
+  /** EDHREC similar-list rank for this card vs the wanted staple (0 = closest); Infinity when unindexed. */
+  simRank: number;
 }
 
 /** Lowercased word set of a type line, dash stripped: "Legendary Creature — Elf Druid" → {legendary, creature, elf, druid}. */
@@ -187,6 +190,9 @@ export function findOwnedSubstitute(
 
   const wantedSubtype = getCardSubtype(missing.name);
   const inclusionByName = opts.inclusionByName;
+  // EDHREC's own substitute ranking for this staple (deck co-occurrence). When
+  // present it leads the sort; cards it doesn't list keep their heuristic order.
+  const simRanks = getSimilarRank(missing.name);
 
   const ranked: RankedCandidate[] = [];
   for (const card of ownedPool) {
@@ -204,12 +210,16 @@ export function findOwnedSubstitute(
       cmcDelta,
       similarity: similarityScore(missing, card, subtypeMatch, cmcDelta),
       inclusion: inclusionByName?.get(card.name) ?? 0,
+      simRank: simRanks?.get(card.name) ?? Infinity,
     });
   }
 
   if (ranked.length === 0) return null;
 
   ranked.sort((a, b) => {
+    // EDHREC similar rank leads (lower = closer; unindexed → Infinity, sorts
+    // last), then the validated heuristic, then inclusion, then name.
+    if (a.simRank !== b.simRank) return a.simRank - b.simRank;
     if (a.similarity !== b.similarity) return b.similarity - a.similarity;
     if (a.inclusion !== b.inclusion) return b.inclusion - a.inclusion;
     return a.card.name.localeCompare(b.card.name);
@@ -226,19 +236,34 @@ export function findOwnedSubstitute(
     wantedCmc: missing.cmc,
     usedName: best.card.name,
     usedSubtypeMatch: best.subtypeMatch,
-    reason: buildReason(best.card.name, roleLabel, missing.cmc, best.subtypeMatch, usedSubtype),
+    reason: buildReason(
+      best.card.name,
+      roleLabel,
+      missing.cmc,
+      best.subtypeMatch,
+      usedSubtype,
+      best.simRank !== Infinity ? missing.name : null
+    ),
   };
 }
 
-/** Compose the verdict sentence. */
+/**
+ * Compose the verdict sentence. When `similarTo` is set, the pick came from
+ * EDHREC's similar list (deck co-occurrence) rather than the heuristic, so the
+ * copy cites that stronger provenance.
+ */
 function buildReason(
   usedName: string,
   roleLabel: string,
   wantedCmc: number | undefined,
   subtypeMatch: boolean,
-  usedSubtype: string | null
+  usedSubtype: string | null,
+  similarTo: string | null = null
 ): string {
   const slot = wantedCmc != null ? `${wantedCmc}-mana ${roleLabel}` : roleLabel;
+  if (similarTo) {
+    return `${usedName} fills the ${slot} slot — owned, a common substitute for ${similarTo}.`;
+  }
   const tail = subtypeMatch && usedSubtype ? `same ${humanizeSubtype(usedSubtype)}` : 'same role';
   return `${usedName} fills the ${slot} slot — owned, ${tail}.`;
 }
