@@ -13,10 +13,13 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { ComboMatch } from '@/types/combos';
 import { rankReplacementCuts, type CutCandidate } from './intelligent-cuts';
 import { axisKeys, axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf } from './card-matching';
 import { CORPUS, type CorpusCard } from '@/deck-builder/services/synergy/classify.fixtures';
+import { comboNameKey, type EdhrecComboOverlay } from './edhrec-combo-overlay';
 
 function toCard(c: CorpusCard): ScryfallCard {
   return {
@@ -39,6 +42,38 @@ function toCard(c: CorpusCard): ScryfallCard {
 const slot = (c: ScryfallCard): CutCandidate => ({ slotId: `slot-${c.name}`, card: c });
 const axisOf = (keys: Set<string>) => new Set([...keys].map((k) => k.slice(0, k.indexOf(':'))));
 const disjoint = (a: Set<string>, b: Set<string>) => ![...a].some((x) => b.has(x));
+const corpusCard = (name: string): ScryfallCard => {
+  const c = CORPUS.find((e) => e.name === name);
+  if (!c) throw new Error(`corpus card not found: ${name}`);
+  return toCard(c);
+};
+
+function removal(name: string, inclusion: number): OptimizeCard {
+  return { name, reason: 'Low inclusion', reasonCategory: 'low-inclusion', inclusion };
+}
+
+function comboMatch(id: string, names: string[], popularity = 100): ComboMatch {
+  return {
+    combo: {
+      id,
+      identity: '',
+      produces: ['Win the game'],
+      prerequisites: null,
+      description: null,
+      manaNeeded: null,
+      popularity,
+      cardCount: names.length,
+      bracket: null,
+      cards: names.map((name) => ({
+        oracleId: `o-${name}`,
+        cardName: name,
+        quantity: 1,
+      })),
+    },
+    presentOracleIds: names.map((name) => `o-${name}`),
+    missingOracleIds: [],
+  };
+}
 
 // Each corpus card with the engine's own view of it. Sorted by name → the
 // scenario selection below is deterministic across runs.
@@ -114,4 +149,69 @@ describe('rankReplacementCuts — heuristic quality on the real corpus', () => {
       expect(archetypeRanks.length).toBeGreaterThan(0);
     });
   }
+
+  it('protects and explains real in-deck combo pieces before weak-slot cuts', () => {
+    const kiki = corpusCard('Kiki-Jiki, Mirror Breaker');
+    const felidar = corpusCard('Felidar Guardian');
+    const ordinaryWeakSlot = corpusCard('Settle the Wreckage');
+    const addCard = corpusCard('Sylvan Scrying');
+    const inDeckCombos = [
+      comboMatch('kiki-felidar', ['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian'], 900),
+    ];
+    const comboOverlay: EdhrecComboOverlay = new Map([
+      [
+        comboNameKey(['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian']),
+        { rank: 1, deckCount: 1200, percent: 8, href: null },
+      ],
+    ]);
+
+    const cuts = rankReplacementCuts({
+      addCard,
+      deckCards: [slot(kiki), slot(felidar), slot(ordinaryWeakSlot)],
+      removals: [
+        removal('Kiki-Jiki, Mirror Breaker', 1),
+        removal('Felidar Guardian', 2),
+        removal('Settle the Wreckage', 3),
+      ],
+      inDeckCombos,
+      comboOverlay,
+    });
+
+    expect(cuts[0].card.name).toBe('Settle the Wreckage');
+
+    const kikiCut = cuts.find((c) => c.card.name === 'Kiki-Jiki, Mirror Breaker');
+    expect(kikiCut?.reason).toBe(
+      'Breaks combo: Kiki-Jiki, Mirror Breaker + Felidar Guardian (Win the game) - Low inclusion'
+    );
+  });
+
+  it('protects a real signature combo more than an obscure real combo', () => {
+    const addCard = corpusCard('Sylvan Scrying');
+    const signaturePiece = corpusCard('Kiki-Jiki, Mirror Breaker');
+    const obscurePiece = corpusCard('Walking Ballista');
+    const inDeckCombos = [
+      comboMatch('signature', ['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian']),
+      comboMatch('obscure', ['Walking Ballista', 'Hardened Scales']),
+    ];
+    const comboOverlay: EdhrecComboOverlay = new Map([
+      [
+        comboNameKey(['Kiki-Jiki, Mirror Breaker', 'Felidar Guardian']),
+        { rank: 1, deckCount: 1200, percent: 8, href: null },
+      ],
+      [
+        comboNameKey(['Walking Ballista', 'Hardened Scales']),
+        { rank: 40, deckCount: 20, percent: 0.1, href: null },
+      ],
+    ]);
+
+    const cuts = rankReplacementCuts({
+      addCard,
+      deckCards: [slot(signaturePiece), slot(obscurePiece)],
+      removals: [removal('Kiki-Jiki, Mirror Breaker', 1), removal('Walking Ballista', 1)],
+      inDeckCombos,
+      comboOverlay,
+    });
+
+    expect(cuts.map((c) => c.card.name)).toEqual(['Walking Ballista', 'Kiki-Jiki, Mirror Breaker']);
+  });
 });

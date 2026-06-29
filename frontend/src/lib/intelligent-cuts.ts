@@ -24,9 +24,11 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { ComboMatch } from '@/types/combos';
 import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { axisKeys, axisJaccard, sharedAxisNames, axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf, colorsOverlap } from './card-matching';
+import type { EdhrecComboOverlay } from './edhrec-combo-overlay';
 
 // Re-exported so existing import sites (`card-fit`, tests) stay stable now that the
 // canonical definition lives in `card-matching`.
@@ -61,6 +63,10 @@ export interface RankReplacementCutsParams {
    * one to avoid re-classifying every card on a hot path.
    */
   deckSynergy?: DeckSynergy;
+  /** Fully assembled combos already present in the deck, for combo-piece cut protection. */
+  inDeckCombos?: ComboMatch[];
+  /** E63 per-commander EDHREC combo stats, used to protect signature combos harder. */
+  comboOverlay?: EdhrecComboOverlay;
   /** Max suggestions to return (default 8). */
   limit?: number;
 }
@@ -71,6 +77,52 @@ function inclusionOf(card: ScryfallCard, removal: OptimizeCard | undefined): num
   if (removal?.inclusion != null) return removal.inclusion;
   if (card.edhrec_rank != null) return Math.max(1, 100 - Math.floor(card.edhrec_rank / 100));
   return 50;
+}
+
+interface ComboCutProtection {
+  reason: string;
+  strength: number;
+}
+
+function comboCutReason(match: ComboMatch): string {
+  const names = match.combo.cards
+    .map((c) => c.cardName)
+    .filter(Boolean)
+    .join(' + ');
+  const result = match.combo.produces[0];
+  return `Breaks combo: ${names}${result ? ` (${result})` : ''}`;
+}
+
+function comboProtectionStrength(match: ComboMatch, comboOverlay?: EdhrecComboOverlay): number {
+  const stat = comboOverlay?.get(
+    match.combo.cards
+      .map((c) => c.cardName.trim().toLowerCase())
+      .sort()
+      .join('|')
+  );
+  if (!stat) return 1 + Math.min(1.5, match.combo.popularity / 5000);
+  const prevalence = stat.percent == null ? 0 : Math.min(3, stat.percent / 2);
+  const rankBoost = Math.max(0, (25 - stat.rank) / 25);
+  return 2 + prevalence + rankBoost;
+}
+
+function buildComboCutProtection(
+  inDeckCombos: ComboMatch[],
+  comboOverlay?: EdhrecComboOverlay
+): Map<string, ComboCutProtection> {
+  const byName = new Map<string, ComboCutProtection>();
+  for (const match of inDeckCombos) {
+    const protection = {
+      reason: comboCutReason(match),
+      strength: comboProtectionStrength(match, comboOverlay),
+    };
+    for (const card of match.combo.cards) {
+      const key = card.cardName.toLowerCase();
+      const prev = byName.get(key);
+      if (!prev || protection.strength > prev.strength) byName.set(key, protection);
+    }
+  }
+  return byName;
 }
 
 /**
@@ -89,10 +141,13 @@ export function rankReplacementCuts({
   deckCards,
   removals = [],
   deckSynergy,
+  inDeckCombos = [],
+  comboOverlay,
   limit = 8,
 }: RankReplacementCutsParams): RankedCut[] {
   const removalByName = new Map<string, OptimizeCard>();
   for (const r of removals) removalByName.set(r.name.toLowerCase(), r);
+  const comboProtectionByName = buildComboCutProtection(inDeckCombos, comboOverlay);
 
   const addRole = roleOf(addCard);
   const addType = primaryTypeOf(addCard);
@@ -103,7 +158,12 @@ export function rankReplacementCuts({
   const investedAxes = new Set<string>(deckSyn.invested);
   const hasEngine = investedAxes.size > 0;
 
-  type Scored = RankedCut & { tier: number; relScore: number; inclusion: number };
+  type Scored = RankedCut & {
+    tier: number;
+    relScore: number;
+    inclusion: number;
+    comboProtection: number;
+  };
   const scored: Scored[] = [];
 
   for (const { slotId, card } of deckCards) {
@@ -146,7 +206,8 @@ export function rankReplacementCuts({
     else if (related) tier = 3;
     else continue; // unflagged + unrelated → not a suggestion
 
-    const reason =
+    const comboProtection = comboProtectionByName.get(card.name.toLowerCase());
+    const baseReason =
       removal?.reason ??
       (sameAxis
         ? `Overlapping ${axisLabel(shared[0])}`
@@ -155,6 +216,7 @@ export function rankReplacementCuts({
           : sameType
             ? 'Overlapping type'
             : 'Similar cost');
+    const reason = comboProtection ? `${comboProtection.reason} - ${baseReason}` : baseReason;
 
     scored.push({
       slotId,
@@ -164,11 +226,14 @@ export function rankReplacementCuts({
       tier,
       relScore,
       inclusion: inclusionOf(card, removal),
+      comboProtection: comboProtection?.strength ?? 0,
     });
   }
 
   scored.sort((a, b) => {
-    if (a.tier !== b.tier) return a.tier - b.tier;
+    const aTier = a.tier + a.comboProtection;
+    const bTier = b.tier + b.comboProtection;
+    if (aTier !== bTier) return aTier - bTier;
     // Tiers 1 & 3 favor stronger relation first; tier 2 is a flat weakest-first list.
     if (a.tier !== 2 && a.relScore !== b.relScore) return b.relScore - a.relScore;
     return a.inclusion - b.inclusion; // weaker (less-played) cut wins ties
