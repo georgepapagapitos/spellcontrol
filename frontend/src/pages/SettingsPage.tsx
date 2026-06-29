@@ -384,29 +384,32 @@ export function SettingsPage() {
             <p className="settings-card-hint">Theme re-skins the whole app to a guild palette.</p>
           </header>
           <div className="settings-card-body">
-            <ul className="settings-theme-grid" role="listbox" aria-label="Choose theme">
+            <fieldset className="settings-theme-grid" aria-label="Choose theme">
               {THEMES.map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={t.id === theme}
-                    className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
-                    onClick={() => setTheme(t.id)}
-                  >
-                    <span
-                      className="settings-theme-swatch"
-                      aria-hidden="true"
-                      style={{
-                        background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
-                      }}
-                    />
-                    <span className="settings-theme-name">{t.name}</span>
-                    <span className="settings-theme-guild">{t.guild}</span>
-                  </button>
-                </li>
+                <label
+                  key={t.id}
+                  className={`settings-theme-option${t.id === theme ? ' is-active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={t.id}
+                    checked={t.id === theme}
+                    onChange={() => setTheme(t.id)}
+                    className="settings-theme-radio"
+                  />
+                  <span
+                    className="settings-theme-swatch"
+                    aria-hidden="true"
+                    style={{
+                      background: `linear-gradient(135deg, ${t.swatch[0]} 0 50%, ${t.swatch[1]} 50% 100%)`,
+                    }}
+                  />
+                  <span className="settings-theme-name">{t.name}</span>
+                  <span className="settings-theme-guild">{t.guild}</span>
+                </label>
               ))}
-            </ul>
+            </fieldset>
           </div>
         </section>
       </div>

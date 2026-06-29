@@ -111,11 +111,10 @@ export default function ChooseUsernamePage() {
               maxLength={32}
               autoFocus
             />
-            <ul className="auth-rules" aria-label="Username requirements">
+            <ul className="auth-rules" aria-label="Username requirements" aria-live="polite">
               <li
                 className={`auth-rule${valid ? ' is-met' : ''}`}
-                role="checkbox"
-                aria-checked={valid}
+                aria-label={`3–32 characters: lowercase letters, digits, _ or - — ${valid ? 'met' : 'not yet met'}`}
               >
                 <span className="auth-rule-mark" aria-hidden="true">
                   {valid ? '✓' : '•'}
