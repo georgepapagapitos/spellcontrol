@@ -510,3 +510,17 @@
     flex: 0 0 auto; /* stay compact; let the primary CTA take the rest of the row */
   }
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.import-deck-batch-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.import-deck-commander-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.overflow-menu-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

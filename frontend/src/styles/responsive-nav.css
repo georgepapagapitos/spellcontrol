@@ -777,3 +777,13 @@
     min-height: 44px;
   }
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.color-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.site-nav-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

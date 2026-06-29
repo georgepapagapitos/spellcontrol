@@ -533,3 +533,9 @@
   color: #30a46c;
   font-weight: 600;
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.sc-tabs--underline .sc-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
