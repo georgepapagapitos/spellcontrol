@@ -8,12 +8,11 @@ import { useCubeStore } from '../../store/cube';
 import { useAuth } from '../../store/auth';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
-import { loadTaggerData, cubeRole } from '../../deck-builder/services/tagger/client';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { loadTaggerData } from '../../deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
-import { CubeSize, ColorBucket } from '../../lib/cube/targets';
-import { generateCube, GeneratedCube, CubeCard } from '../../lib/cube/generate';
+import { CubeSize } from '../../lib/cube/targets';
+import { generateCube, GeneratedCube } from '../../lib/cube/generate';
 import { synergyTags } from '../../lib/cube/synergy-tags';
 import { toCubeCobraList } from '../../lib/cube/format';
 import { listFriends, Friend } from '../../lib/friends-client';
@@ -31,6 +30,10 @@ import {
   AvailableToggle,
   CubeLoadingBlock,
   CubeErrorBlock,
+  namesToCubePool,
+  pickToPreviewCard,
+  groupPicksByBucket,
+  cubeRowKeyDown,
 } from './shared';
 
 const MAX_FRIENDS = 3;
@@ -146,11 +149,6 @@ export function CollabCube() {
 
       await loadTaggerData();
 
-      // Build my pool (CubeCard[]) from my collection.
-      const ownedByName = new Map<string, (typeof collectionCards)[number]>();
-      for (const c of collectionCards)
-        if (c.name && !ownedByName.has(c.name)) ownedByName.set(c.name, c);
-
       // Collect all unique names across me + friends for Scryfall enrichment.
       const allNames = new Set<string>(myUniqueNames);
       for (const { cards } of friendCollections) {
@@ -163,21 +161,8 @@ export function CollabCube() {
       setFetchProgress(null);
       setEnrichedMap(enriched);
 
-      // Build my CubeCard pool.
-      const myPool: CubeCard[] = myUniqueNames.map((name) => {
-        const card = ownedByName.get(name);
-        const s = enriched.get(name);
-        return {
-          name,
-          oracleId: s?.oracle_id ?? card?.oracleId ?? name.toLowerCase(),
-          colors: s?.colors ?? card?.colors ?? [],
-          cmc: s?.cmc ?? card?.cmc ?? 0,
-          typeLine: s?.type_line ?? card?.typeLine ?? '',
-          role: cubeRole(name),
-          rank: s?.edhrec_rank ?? card?.edhrecRank,
-          ...synergyTags(s ?? { name }),
-        };
-      });
+      // Build my CubeCard pool from my collection.
+      const myPool = namesToCubePool(myUniqueNames, collectionCards, enriched);
 
       // Enrich friend cards with Scryfall data where available.
       const enrichedFriendCollections = friendCollections.map(({ username, cards }) => ({
@@ -223,30 +208,7 @@ export function CollabCube() {
   const allPicks = useMemo(() => cube?.picks ?? [], [cube]);
 
   const previewCards = useMemo<EnrichedCard[]>(
-    () =>
-      allPicks.map((p) => {
-        const s = enrichedMap.get(p.card.name);
-        if (s) return scryfallToEnrichedCard(s);
-        return {
-          copyId: p.card.oracleId || p.card.name.toLowerCase(),
-          name: p.card.name,
-          setCode: '',
-          setName: '',
-          collectorNumber: '',
-          rarity: '',
-          scryfallId: '',
-          purchasePrice: 0,
-          sourceCategory: '',
-          sourceFormat: 'manual' as const,
-          finish: 'nonfoil' as const,
-          foil: false,
-          oracleId: p.card.oracleId,
-          cmc: p.card.cmc,
-          typeLine: p.card.typeLine,
-          colorIdentity: p.card.colors,
-          colors: p.card.colors,
-        };
-      }),
+    () => allPicks.map((p) => pickToPreviewCard(p.card, enrichedMap)),
     [allPicks, enrichedMap]
   );
 
@@ -276,24 +238,7 @@ export function CollabCube() {
     return summary;
   }, [cube, supplierMap, myUsername, friends, selectedIds]);
 
-  const groups = useMemo(() => {
-    if (!cube) return [];
-    const m = new Map<ColorBucket, { pick: (typeof allPicks)[number]; flatIndex: number }[]>();
-    for (const b of BUCKET_ORDER) m.set(b, []);
-    allPicks.forEach((p, flatIndex) => {
-      m.get(p.bucket)!.push({ pick: p, flatIndex });
-    });
-    return BUCKET_ORDER.map((b) => ({ bucket: b, items: m.get(b)! })).filter(
-      (g) => g.items.length > 0
-    );
-  }, [cube, allPicks]);
-
-  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setPreviewIndex(idx);
-    }
-  };
+  const groups = useMemo(() => (cube ? groupPicksByBucket(allPicks) : []), [cube, allPicks]);
 
   // Empty state: no friends (rendered after all hooks).
   if (friendsStatus === 'done' && friends.length === 0) {
@@ -545,7 +490,7 @@ export function CollabCube() {
                         tabIndex={0}
                         aria-label={`${p.card.name} — open preview`}
                         onClick={() => setPreviewIndex(flatIndex)}
-                        onKeyDown={(e) => handleKeyDown(e, flatIndex)}
+                        onKeyDown={(e) => cubeRowKeyDown(e, flatIndex, setPreviewIndex)}
                       >
                         {img ? (
                           <img src={img} alt="" loading="lazy" className="cube-row-thumb" />

@@ -15,13 +15,11 @@ import { formatRelativeTime } from '../../lib/format-time';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { bindCubeCopies } from '../../lib/bind-cube-copies';
 import { getCardsByNames } from '../../deck-builder/services/scryfall/client';
-import { loadTaggerData, cubeRole } from '../../deck-builder/services/tagger/client';
-import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
+import { loadTaggerData } from '../../deck-builder/services/tagger/client';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../../types';
 import { CubeSize, SIZE_INFO, ColorBucket, provenance } from '../../lib/cube/targets';
-import { generateCube, GeneratedCube, CubeCard } from '../../lib/cube/generate';
-import { synergyTags } from '../../lib/cube/synergy-tags';
+import { generateCube, GeneratedCube } from '../../lib/cube/generate';
 import { toCubeCobraList } from '../../lib/cube/format';
 import { Ownership } from '../../lib/cube/import';
 import {
@@ -37,6 +35,10 @@ import {
   AvailableToggle,
   CubeLoadingBlock,
   CubeErrorBlock,
+  namesToCubePool,
+  pickToPreviewCard,
+  groupPicksByBucket,
+  cubeRowKeyDown,
 } from './shared';
 
 export function BuildCube({ highlightId }: { highlightId?: string }) {
@@ -108,23 +110,7 @@ export function BuildCube({ highlightId }: { highlightId?: string }) {
       // Fetch phase complete — clear progress so we show the "finalizing" skeleton.
       setFetchProgress(null);
       setEnrichedMap(enriched);
-      const ownedByName = new Map<string, (typeof collectionCards)[number]>();
-      for (const c of collectionCards)
-        if (c.name && !ownedByName.has(c.name)) ownedByName.set(c.name, c);
-      const pool: CubeCard[] = uniqueNames.map((name) => {
-        const card = ownedByName.get(name);
-        const s = enriched.get(name);
-        return {
-          name,
-          oracleId: s?.oracle_id ?? card?.oracleId ?? name.toLowerCase(),
-          colors: s?.colors ?? card?.colors ?? [],
-          cmc: s?.cmc ?? card?.cmc ?? 0,
-          typeLine: s?.type_line ?? card?.typeLine ?? '',
-          role: cubeRole(name),
-          rank: s?.edhrec_rank ?? card?.edhrecRank,
-          ...synergyTags(s ?? { name }),
-        };
-      });
+      const pool = namesToCubePool(uniqueNames, collectionCards, enriched);
       const newCube = generateCube(pool, size, { synergyLevel });
       cubeStore.setResult(size, newCube);
       setStatus('done');
@@ -477,50 +463,12 @@ function CubeResult({
   const allPicks = cube.picks;
 
   // Build EnrichedCard[] parallel to allPicks for CardPreview.
-  const previewCards = useMemo<EnrichedCard[]>(() => {
-    return allPicks.map((p) => {
-      const s = enrichedMap.get(p.card.name);
-      if (s) return scryfallToEnrichedCard(s);
-      // Minimal fallback if Scryfall data not in cache (e.g. restored from localStorage).
-      return {
-        copyId: p.card.oracleId || p.card.name.toLowerCase(),
-        name: p.card.name,
-        setCode: '',
-        setName: '',
-        collectorNumber: '',
-        rarity: '',
-        scryfallId: '',
-        purchasePrice: 0,
-        sourceCategory: '',
-        sourceFormat: 'manual' as const,
-        finish: 'nonfoil' as const,
-        foil: false,
-        oracleId: p.card.oracleId,
-        cmc: p.card.cmc,
-        typeLine: p.card.typeLine,
-        colorIdentity: p.card.colors,
-        colors: p.card.colors,
-      };
-    });
-  }, [allPicks, enrichedMap]);
+  const previewCards = useMemo<EnrichedCard[]>(
+    () => allPicks.map((p) => pickToPreviewCard(p.card, enrichedMap)),
+    [allPicks, enrichedMap]
+  );
 
-  const groups = useMemo(() => {
-    const m = new Map<ColorBucket, { pick: (typeof allPicks)[number]; flatIndex: number }[]>();
-    for (const b of BUCKET_ORDER) m.set(b, []);
-    allPicks.forEach((p, flatIndex) => {
-      m.get(p.bucket)!.push({ pick: p, flatIndex });
-    });
-    return BUCKET_ORDER.map((b) => ({ bucket: b, items: m.get(b)! })).filter(
-      (g) => g.items.length > 0
-    );
-  }, [allPicks]);
-
-  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setPreviewIndex(idx);
-    }
-  };
+  const groups = useMemo(() => groupPicksByBucket(allPicks), [allPicks]);
 
   return (
     <section className="cube-result" aria-label="Generated cube">
@@ -675,7 +623,7 @@ function CubeResult({
                           tabIndex={0}
                           aria-label={`${p.card.name} — open preview`}
                           onClick={() => setPreviewIndex(flatIndex)}
-                          onKeyDown={(e) => handleKeyDown(e, flatIndex)}
+                          onKeyDown={(e) => cubeRowKeyDown(e, flatIndex, setPreviewIndex)}
                         >
                           {img ? (
                             <img src={img} alt="" loading="lazy" className="cube-row-thumb" />
