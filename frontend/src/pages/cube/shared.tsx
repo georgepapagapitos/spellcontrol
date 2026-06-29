@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { MeterBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
@@ -7,9 +7,14 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap } from '../../lib/allocations';
+import { cubeRole } from '../../deck-builder/services/tagger/client';
+import { synergyTags } from '../../lib/cube/synergy-tags';
+import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { CUBE_SIZES, SIZE_INFO, type ColorBucket, type CubeSize } from '../../lib/cube/targets';
-import type { GeneratedCube } from '../../lib/cube/generate';
+import type { GeneratedCube, CubeCard } from '../../lib/cube/generate';
 import type { Ownership } from '../../lib/cube/import';
+import type { ScryfallCard } from '@/deck-builder/types';
+import type { EnrichedCard } from '../../types';
 
 // Bucket display order, names, and segment colors for the balance bars.
 export const BUCKET_ORDER: ColorBucket[] = [
@@ -44,6 +49,101 @@ export const BUCKET_COLOR: Record<ColorBucket, string> = {
   colorless: 'var(--mtg-colorless)',
   land: 'var(--mtg-land)',
 };
+
+/**
+ * Map unique card names to a `CubeCard[]` pool, preferring Scryfall-enriched data
+ * and falling back to the owned collection copy. Shared by the solo and collab
+ * build flows (both build the same name→CubeCard pool from their own collection).
+ */
+export function namesToCubePool(
+  names: string[],
+  collectionCards: EnrichedCard[],
+  enriched: Map<string, ScryfallCard>
+): CubeCard[] {
+  const ownedByName = new Map<string, EnrichedCard>();
+  for (const c of collectionCards)
+    if (c.name && !ownedByName.has(c.name)) ownedByName.set(c.name, c);
+  return names.map((name) => {
+    const card = ownedByName.get(name);
+    const s = enriched.get(name);
+    return {
+      name,
+      oracleId: s?.oracle_id ?? card?.oracleId ?? name.toLowerCase(),
+      colors: s?.colors ?? card?.colors ?? [],
+      cmc: s?.cmc ?? card?.cmc ?? 0,
+      typeLine: s?.type_line ?? card?.typeLine ?? '',
+      role: cubeRole(name),
+      rank: s?.edhrec_rank ?? card?.edhrecRank,
+      ...synergyTags(s ?? { name }),
+    };
+  });
+}
+
+/**
+ * EnrichedCard for the preview carousel: the cached Scryfall row when available,
+ * else a minimal card built from the pick/import row (restored-from-localStorage
+ * picks, or import rows with no Scryfall fetch). `image` carries through when set.
+ */
+export function cubeCardToEnriched(card: {
+  name: string;
+  oracleId?: string;
+  cmc?: number;
+  typeLine?: string;
+  colors?: string[];
+  image?: string;
+}): EnrichedCard {
+  return {
+    copyId: card.oracleId || card.name.toLowerCase(),
+    name: card.name,
+    setCode: '',
+    setName: '',
+    collectorNumber: '',
+    rarity: '',
+    scryfallId: '',
+    purchasePrice: 0,
+    sourceCategory: '',
+    sourceFormat: 'manual',
+    finish: 'nonfoil',
+    foil: false,
+    oracleId: card.oracleId,
+    cmc: card.cmc,
+    typeLine: card.typeLine,
+    colorIdentity: card.colors,
+    colors: card.colors,
+    ...(card.image ? { imageSmall: card.image } : {}),
+  };
+}
+
+/** Resolve a pick's preview card: cached Scryfall row, else minimal fallback. */
+export function pickToPreviewCard(
+  card: { name: string; oracleId?: string; cmc?: number; typeLine?: string; colors?: string[] },
+  enriched: Map<string, ScryfallCard>
+): EnrichedCard {
+  const s = enriched.get(card.name);
+  return s ? scryfallToEnrichedCard(s) : cubeCardToEnriched(card);
+}
+
+/** Group picks into the fixed bucket order, dropping empty buckets, with flat indices. */
+export function groupPicksByBucket<P extends { bucket: ColorBucket }>(
+  picks: P[]
+): { bucket: ColorBucket; items: { pick: P; flatIndex: number }[] }[] {
+  const m = new Map<ColorBucket, { pick: P; flatIndex: number }[]>();
+  for (const b of BUCKET_ORDER) m.set(b, []);
+  picks.forEach((p, flatIndex) => {
+    m.get(p.bucket)!.push({ pick: p, flatIndex });
+  });
+  return BUCKET_ORDER.map((b) => ({ bucket: b, items: m.get(b)! })).filter(
+    (g) => g.items.length > 0
+  );
+}
+
+/** Enter/Space on a focusable cube row opens its preview. */
+export function cubeRowKeyDown(e: KeyboardEvent, idx: number, open: (idx: number) => void): void {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    open(idx);
+  }
+}
 
 /**
  * Build an `ownershipFor(name)` from the live collection + deck AND physical-cube

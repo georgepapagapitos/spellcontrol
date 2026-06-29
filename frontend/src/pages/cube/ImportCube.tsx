@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Tabs } from '../../components/Tabs';
 import { StackedBar } from '../../components/shared/MeterBar';
 import { OwnershipBadge } from '../../components/deck/OwnershipBadge';
@@ -12,7 +12,13 @@ import {
   OwnershipOverlay,
   CubeImportError,
 } from '../../lib/cube/import';
-import { useOwnershipFor, CubeLoadingBlock, CubeErrorBlock } from './shared';
+import {
+  useOwnershipFor,
+  CubeLoadingBlock,
+  CubeErrorBlock,
+  cubeCardToEnriched,
+  cubeRowKeyDown,
+} from './shared';
 
 type OwnFilter = 'all' | 'owned' | 'in-other-deck' | 'unowned';
 
@@ -56,35 +62,10 @@ export function ImportCube() {
   }, [result, filter]);
 
   // Build EnrichedCard[] from import rows for CardPreview (minimal shape — no Scryfall fetch).
-  const previewCards = useMemo<EnrichedCard[]>(() => {
-    return rows.map((r) => ({
-      copyId: r.card.oracleId || r.card.name.toLowerCase(),
-      name: r.card.name,
-      setCode: '',
-      setName: '',
-      collectorNumber: '',
-      rarity: '',
-      scryfallId: '',
-      purchasePrice: 0,
-      sourceCategory: '',
-      sourceFormat: 'manual' as const,
-      finish: 'nonfoil' as const,
-      foil: false,
-      oracleId: r.card.oracleId,
-      cmc: r.card.cmc,
-      typeLine: r.card.typeLine,
-      colorIdentity: r.card.colors,
-      colors: r.card.colors,
-      imageSmall: r.card.image,
-    }));
-  }, [rows]);
-
-  const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setPreviewIndex(idx);
-    }
-  };
+  const previewCards = useMemo<EnrichedCard[]>(
+    () => rows.map((r) => cubeCardToEnriched(r.card)),
+    [rows]
+  );
 
   return (
     <div className="cube-import">
@@ -225,7 +206,7 @@ export function ImportCube() {
                 tabIndex={0}
                 aria-label={`${r.card.name} — open preview`}
                 onClick={() => setPreviewIndex(idx)}
-                onKeyDown={(e) => handleKeyDown(e, idx)}
+                onKeyDown={(e) => cubeRowKeyDown(e, idx, setPreviewIndex)}
               >
                 {r.card.image ? (
                   <img src={r.card.image} alt="" loading="lazy" className="cube-row-thumb" />
