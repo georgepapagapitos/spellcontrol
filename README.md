@@ -1,15 +1,16 @@
 # SpellControl
 
-Plan your physical Magic: The Gathering binders. Import a collection export from any popular tool, define binders with custom rules, build decks across multiple MTG formats (Commander, Brawl, Standard, Pauper), and sync everything across devices.
+Plan your Magic: The Gathering collection. Import a collection export from any popular tool, sort it into rule-based binders, build and tune decks across eight formats (Commander, Brawl, Standard, Pauper, Modern, Pioneer, Legacy, Vintage), and track multiplayer games — all synced across your devices.
 
 ## What you can do
 
 - **Import a collection** from ManaBox / Moxfield / Archidekt / Deckbox / TCGplayer / Cardsphere / MTGA / plain text. Format is auto-detected.
 - **Define binders** as a set of OR-grouped match rules plus a sort spec and pocket size (4, 9, 12, or 18). Drag to reorder binders and control which gets first dibs on each card.
 - **View binders** as physical pages or as a flat list, with a card preview pane and per-binder export.
-- **Build decks** across multiple formats — Commander, Brawl, Standard, and Pauper. Each format enforces its own rules: singleton vs 4-of, commander requirement, sideboard support, and legality validation against Scryfall data.
-- **Generate Commander decks** from EDHREC data — pick a commander, choose themes, set a bracket level, and get a full 100-card deck with mana curve balancing and role targeting.
-- **Build constructed decks manually** — 60-card Standard or Pauper decks with 15-card sideboards. Cards flagged inline when not legal in the chosen format.
+- **Build decks** across eight formats — Commander, Brawl, Standard, Pauper, Modern, Pioneer, Legacy, and Vintage. Each format enforces its own rules: singleton vs 4-of, commander requirement, sideboard support, and legality validation against Scryfall data.
+- **Generate Commander decks** from EDHREC data — pick a commander, choose themes, set a power bracket, and get a full 100-card deck with mana curve balancing and role targeting.
+- **Tune any deck with the Coach** — a ranked list of moves (add, cut, swap for a card you already own), each with a plain-English reason, backed by combo, win-condition, and synergy analysis plus power-bracket fit.
+- **Build constructed decks manually** — 60-card decks (Standard, Pauper, Modern, Pioneer, Legacy, Vintage) with 15-card sideboards. Cards flagged inline when not legal in the chosen format.
 - **Browse your collection** in a sortable, filterable table with breakdowns by color, type, rarity, and price.
 - **Sign in and sync** — create an account to store your collection, binders, and decks on the server. Changes push automatically and pull on login.
 - **Skin the app** with a guild theme — accents, surfaces, and warning / error colors all re-tint per theme.
