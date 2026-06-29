@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
@@ -11,6 +11,7 @@ import { DeckCustomizer } from '../components/deck/DeckCustomizer';
 import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { useDeckGeneration } from '../lib/use-deck-generation';
+import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
@@ -38,25 +39,11 @@ export function DeckNewPage() {
   const decks = useDecksStore((s) => s.decks);
   const createDeck = useDecksStore((s) => s.createDeck);
 
-  const [takeoverExiting, setTakeoverExiting] = useState(false);
-  const takeoverExitResolveRef = useRef<(() => void) | null>(null);
-  const waitForTakeoverExit = useCallback(
-    () =>
-      new Promise<void>((resolve) => {
-        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-        if (reduce) {
-          resolve();
-          return;
-        }
-        takeoverExitResolveRef.current = resolve;
-        setTakeoverExiting(true);
-      }),
-    []
-  );
-  const handleTakeoverExitComplete = useCallback(() => {
-    takeoverExitResolveRef.current?.();
-    takeoverExitResolveRef.current = null;
-  }, []);
+  const {
+    isExiting: takeoverExiting,
+    waitForExit: waitForTakeoverExit,
+    finishExit: handleTakeoverExitComplete,
+  } = useGenerationTakeoverExit();
 
   const {
     commander,

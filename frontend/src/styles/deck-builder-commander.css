@@ -14,7 +14,7 @@
    the per-list "Show more" expanders keep the initial height short. Hosts
    results, a status line, or EDHREC suggestions. */
 .commander-search-panel {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
   max-height: none;
   overflow: visible;
   background: var(--surface-raised);
@@ -25,19 +25,19 @@
 .commander-search-results {
   list-style: none;
   margin: 0;
-  padding: 0.25rem;
+  padding: var(--space-1);
 }
 
 .commander-search-status {
   margin: 0;
-  padding: 1.5rem 1rem;
+  padding: var(--space-5) var(--space-4);
   text-align: center;
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .commander-search-loading {
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -47,7 +47,7 @@
   flex-direction: column;
   width: 100%;
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
   background: transparent;
   border: 0;
   border-radius: var(--radius);
@@ -71,7 +71,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .commander-search-item-name {
@@ -137,7 +137,7 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .commander-result-grid > li {
@@ -266,7 +266,7 @@
 }
 
 .commander-pick-playstyle-tag {
-  padding: 0.1rem 0.5rem;
+  padding: 0.1rem var(--space-2);
   font-size: var(--text-xs);
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -285,7 +285,7 @@
 .commander-pick {
   display: flex;
   align-items: stretch;
-  gap: 1rem;
+  gap: var(--space-4);
   /* Anchor for the absolutely-positioned Change pill in the top-right. */
   position: relative;
 }
@@ -314,7 +314,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .commander-pick-headline {
@@ -365,7 +365,7 @@
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem var(--space-2);
   font-size: var(--text-xs);
   color: var(--text-muted);
   flex: 0 0 auto;
@@ -464,7 +464,7 @@
 /* Lives inside .commander-search-panel — no top margin; the panel's own
    padding does the spacing. */
 .commander-suggestions {
-  padding: 0.85rem 0.75rem;
+  padding: 0.85rem var(--space-3);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -488,11 +488,11 @@
    "By playstyle" tab reveals. Reuses the suggestion-chip vocabulary so the
    commander results read identically across both facets. */
 .commander-search-modes {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 .commander-playstyle-browse {
-  padding: 0.85rem 0.75rem;
+  padding: 0.85rem var(--space-3);
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -514,7 +514,7 @@
   font-size: var(--text-sm);
   color: var(--accent);
   cursor: pointer;
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem var(--space-2);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -607,7 +607,7 @@
   background: var(--surface-raised);
   border: 0.5px solid var(--border-strong);
   border-radius: 999px;
-  padding: 0.35rem 0.75rem;
+  padding: 0.35rem var(--space-3);
   cursor: pointer;
   transition:
     border-color var(--motion-fast) ease,
@@ -671,7 +671,7 @@
 }
 
 .commander-search-error {
-  margin: 0.5rem 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--text-sm);
   color: var(--err-text);
   text-align: center;
@@ -730,7 +730,7 @@
 
 .partner-warning {
   margin: 0.6rem 0;
-  padding: 0.55rem 0.75rem;
+  padding: 0.55rem var(--space-3);
   font-size: var(--text-xs);
   color: var(--warn-text);
   background: var(--warn-bg);
@@ -739,7 +739,7 @@
 }
 
 .partner-picker {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 /* Reset the column layout of .commander-search-item for the two-up partner
@@ -748,7 +748,7 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .partner-result-main {
@@ -770,7 +770,7 @@
   color: var(--accent);
   background: var(--accent-light);
   border-radius: 999px;
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem var(--space-2);
   white-space: nowrap;
 }
 

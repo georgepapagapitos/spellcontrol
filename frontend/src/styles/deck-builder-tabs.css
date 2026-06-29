@@ -7,7 +7,7 @@
    strip scroll horizontally (the deck-stats analysis surface). */
 .sc-tabs {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--space-1);
   background: var(--bg);
   padding: 0.2rem;
   border-radius: var(--radius);
@@ -110,7 +110,7 @@
 .sc-tabs--underline .sc-tab {
   flex: 0 0 auto;
   border-radius: 0;
-  padding: 0.5rem 0.85rem;
+  padding: var(--space-2) 0.85rem;
   /* Reserve the indicator height and overlap the strip's 1px baseline so the
      active underline reads as one continuous line with the border. */
   border-bottom: 2px solid transparent;
@@ -225,11 +225,11 @@
 .deck-combos-empty {
   font-size: var(--text-sm);
   color: var(--text-muted);
-  padding: 0.75rem 0.25rem;
+  padding: var(--space-3) var(--space-1);
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .deck-combos-empty p {
@@ -239,7 +239,7 @@
 .deck-combos-empty-secondary {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  padding-top: 0.25rem;
+  padding-top: var(--space-1);
   border-top: 0.5px dashed var(--border-strong);
 }
 
@@ -262,7 +262,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
-  padding: 0.25rem 0.4rem;
+  padding: var(--space-1) 0.4rem;
   border: 0.5px dashed var(--border-strong);
   border-radius: var(--radius);
 }
@@ -276,7 +276,7 @@
      any user-widened layout). Mirrors the reference UI's 2-up combo grid. */
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
   overflow: hidden;
 }
 
@@ -344,7 +344,7 @@
 .deck-combos-show-details {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   align-self: flex-start;
   background: transparent;
   border: 0;
@@ -510,8 +510,8 @@
    colors stay legible over any card art. */
 .deck-combos-card-status {
   position: absolute;
-  bottom: 0.25rem;
-  right: 0.25rem;
+  bottom: var(--space-1);
+  right: var(--space-1);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -6,7 +6,7 @@
   display: flex;
   justify-content: center;
   gap: 0.375rem;
-  padding: 0.375rem 0.75rem 0.5rem;
+  padding: 0.375rem var(--space-3) var(--space-2);
 }
 
 .deck-combos-filter-pill {
@@ -66,8 +66,8 @@
 
 .deck-combos-card-qty-badge {
   position: absolute;
-  top: 0.25rem;
-  left: 0.25rem;
+  top: var(--space-1);
+  left: var(--space-1);
   font-size: var(--text-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -90,7 +90,7 @@
   margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: var(--space-1);
   align-items: center;
 }
 
@@ -151,7 +151,7 @@
 
 .deck-combos-produce-chip {
   display: inline-block;
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem var(--space-2);
   border-radius: 999px;
   font-size: var(--text-sm);
   font-weight: 600;
@@ -223,7 +223,7 @@
 .deck-combos-details-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   align-self: flex-start;
   background: transparent;
   border: 0;
@@ -318,7 +318,7 @@
 .deck-combos-add {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   align-self: flex-start;
   max-width: 100%;
   min-width: 0;

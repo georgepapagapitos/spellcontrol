@@ -7,8 +7,9 @@
   /* Sit above whichever is taller: the device's home-gesture inset or the
      on-screen keyboard. Keeps toasts visible while a form field is focused
      and clear of the home indicator on notched devices. */
-  inset: auto calc(1rem + var(--safe-right))
-    calc(1rem + max(var(--safe-bottom), var(--keyboard-inset))) calc(1rem + var(--safe-left));
+  inset: auto calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-4) + max(var(--safe-bottom), var(--keyboard-inset)))
+    calc(var(--space-4) + var(--safe-left));
   pointer-events: none;
   display: flex;
   justify-content: center;
@@ -100,7 +101,7 @@
   color: var(--accent);
   font-weight: 600;
   font-size: var(--text-sm);
-  padding: 0.25rem 0.6rem;
+  padding: var(--space-1) 0.6rem;
   border-radius: var(--radius);
   cursor: pointer;
 }

@@ -7,7 +7,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
-  padding: 0.25rem 0.25rem 0.6rem;
+  padding: var(--space-1) var(--space-1) 0.6rem;
 }
 
 .move-deck-titles {
@@ -70,7 +70,7 @@
 }
 
 .move-deck-empty {
-  padding: 2rem 1rem;
+  padding: var(--space-6) var(--space-4);
   text-align: center;
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -91,7 +91,7 @@
   align-items: center;
   gap: 0.6rem;
   width: 100%;
-  padding: 0.5rem;
+  padding: var(--space-2);
   border: 0.5px solid var(--border);
   border-left: 3px solid var(--deck-color, var(--accent));
   border-radius: var(--radius);
@@ -151,12 +151,12 @@
 }
 
 .move-deck-body {
-  padding: 0.2rem 0.25rem 0.6rem;
+  padding: 0.2rem var(--space-1) 0.6rem;
   overflow-y: auto;
 }
 
 .move-deck-actions {
-  padding: 0.6rem 0.25rem 0.25rem;
+  padding: 0.6rem var(--space-1) var(--space-1);
   border-top: 0.5px solid var(--border);
 }
 

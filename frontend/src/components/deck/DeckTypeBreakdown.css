@@ -8,7 +8,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .deck-type-breakdown-heading {
@@ -46,7 +46,7 @@
 .deck-type-breakdown-row {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 /* A row is a button when its card list is available — tap to open a carousel of
@@ -55,7 +55,7 @@
 .deck-type-breakdown-row-btn {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   width: 100%;
   margin: 0;
   padding: 0;
@@ -92,7 +92,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .deck-type-breakdown-row-name {
@@ -135,7 +135,7 @@
    the sibling stat panels. */
 @media (max-width: 600px) {
   .deck-type-breakdown {
-    gap: 0.5rem;
+    gap: var(--space-2);
   }
 
   .deck-type-breakdown-rows {

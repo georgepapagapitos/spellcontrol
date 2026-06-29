@@ -6,14 +6,14 @@
 .binder-card-editor-manual-hint {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  margin: 0.5rem 1.5rem 0;
+  margin: var(--space-2) var(--space-5) 0;
   font-style: italic;
 }
 
 .binder-card-editor-tabs {
   display: flex;
   border-bottom: 0.5px solid var(--border);
-  padding: 0 1.5rem;
+  padding: 0 var(--space-5);
 }
 
 .binder-card-editor-tab {
@@ -23,7 +23,7 @@
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--text-sm);
-  padding: 0.6rem 0.75rem;
+  padding: 0.6rem var(--space-3);
   margin-bottom: -0.5px;
 }
 
@@ -42,7 +42,7 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .sort-value-order-list {
@@ -59,7 +59,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
+  padding: var(--space-1) 0.6rem;
   border-radius: 999px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -104,7 +104,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
+  padding: var(--space-1) 0.6rem;
   border-radius: var(--radius);
   background: transparent;
   border: 1px dashed var(--border);
@@ -130,7 +130,7 @@
 .binder-card-editor-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.55rem 0;
   border-bottom: 0.5px solid var(--border);
 }
@@ -160,7 +160,7 @@
   border: none;
   color: var(--text-muted);
   cursor: grab;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-1);
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -224,7 +224,7 @@
   cursor: pointer;
   font-size: var(--text-base);
   line-height: 1;
-  padding: 0 0.25rem;
+  padding: 0 var(--space-1);
   flex-shrink: 0;
 }
 
@@ -241,7 +241,7 @@
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--text-xs);
-  padding: 0.15rem 0.5rem;
+  padding: 0.15rem var(--space-2);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -258,13 +258,13 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 1rem 0 0.4rem;
+  margin: var(--space-4) 0 0.4rem;
 }
 
 .binder-card-editor-empty {
   color: var(--text-muted);
   font-size: var(--text-sm);
-  padding: 1.5rem 0;
+  padding: var(--space-5) 0;
   text-align: center;
 }
 
@@ -272,7 +272,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .binder-card-editor-order-hint {
@@ -285,8 +285,8 @@
 .binder-manual-order-bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.4rem 1rem;
+  gap: var(--space-3);
+  padding: 0.4rem var(--space-4);
   background: var(--surface-raised);
   border-bottom: 0.5px solid var(--border);
 }
@@ -296,7 +296,7 @@
   color: var(--accent);
   border: 0.5px solid var(--accent);
   border-radius: 999px;
-  padding: 0.1rem 0.5rem;
+  padding: 0.1rem var(--space-2);
   white-space: nowrap;
 }
 
@@ -393,7 +393,7 @@
 .card-picker-handle {
   width: 2.25rem;
   height: 4px;
-  margin: 0.5rem auto 0.25rem;
+  margin: var(--space-2) auto var(--space-1);
   border-radius: 999px;
   background: var(--border);
 }
@@ -405,10 +405,10 @@
 }
 
 .card-picker-header {
-  padding: 0.75rem 1rem 0.5rem;
+  padding: var(--space-3) var(--space-4) var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -427,7 +427,7 @@
   border-radius: var(--radius);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  padding: 0.45rem 0.75rem;
+  padding: 0.45rem var(--space-3);
 }
 
 .card-picker-search:focus {
@@ -447,8 +447,8 @@
 .card-picker-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -507,7 +507,7 @@
 }
 
 .card-picker-empty {
-  padding: 1.5rem 1rem;
+  padding: var(--space-5) var(--space-4);
   color: var(--text-muted);
   font-size: var(--text-sm);
   text-align: center;
@@ -516,7 +516,7 @@
 .card-picker-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 0.75rem 1rem;
+  padding: var(--space-3) var(--space-4);
   border-top: 0.5px solid var(--border);
   background: var(--surface-raised);
 }
@@ -542,7 +542,7 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.65rem 1rem;
+  padding: 0.65rem var(--space-4);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -628,7 +628,7 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
 }
 
 .add-card-sheet-body .card-search-results {
@@ -664,8 +664,8 @@
 
 .add-cards-tabs {
   display: flex;
-  gap: 0.25rem;
-  padding: 0.65rem 1.5rem 0;
+  gap: var(--space-1);
+  padding: 0.65rem var(--space-5) 0;
   background: var(--surface);
   border-bottom: 0.5px solid var(--border);
 }
@@ -741,12 +741,12 @@
 .add-cards-panel-search,
 .add-cards-panel-upload,
 .add-cards-panel-product {
-  padding: 1rem 1.5rem 1.25rem;
+  padding: var(--space-4) var(--space-5) 1.25rem;
 }
 
 .add-cards-panel-search .add-card-search-input-wrap,
 .add-cards-panel-product .add-card-search-input-wrap {
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--space-2);
 }
 
 .add-cards-panel-search .add-card-sheet-body,
@@ -757,7 +757,7 @@
 /* The scan tab is a one-shot launcher: centred icon, brief copy,
    prominent CTA. Banners stack below the CTA. */
 .add-cards-panel-scan {
-  padding: 2rem 1.5rem;
+  padding: var(--space-6) var(--space-5);
 }
 
 .scan-tab {
@@ -765,7 +765,7 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   max-width: 28rem;
   margin: 0 auto;
 }
@@ -799,12 +799,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 .scan-tab-banner {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 /* Mobile / phones: tighten chrome so as much of the body shows above the
@@ -817,7 +817,7 @@
   }
 
   .add-cards-tabs {
-    padding: 0.5rem 1rem 0;
+    padding: var(--space-2) var(--space-4) 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -828,16 +828,16 @@
   }
 
   .add-cards-tab {
-    padding: 0.5rem 0.65rem;
+    padding: var(--space-2) 0.65rem;
   }
 
   .add-cards-panel-search,
   .add-cards-panel-upload {
-    padding: 0.75rem 1rem 1rem;
+    padding: var(--space-3) var(--space-4) var(--space-4);
   }
 
   .add-cards-panel-scan {
-    padding: 1.5rem 1rem;
+    padding: var(--space-5) var(--space-4);
   }
 }
 
@@ -845,7 +845,7 @@
 
 .inline-card-search {
   max-width: 540px;
-  margin: 1rem auto 0;
+  margin: var(--space-4) auto 0;
   text-align: left;
 }
 
@@ -858,7 +858,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  padding: 0.75rem;
+  padding: var(--space-3);
   border: 1.5px dashed var(--border);
   background: transparent;
   color: var(--text-muted);
@@ -905,7 +905,7 @@
   gap: 0.7rem;
   width: 100%;
   min-height: 56px;
-  padding: 0.5rem 0.85rem;
+  padding: var(--space-2) 0.85rem;
   border: 1.5px dashed var(--border);
   border-radius: var(--radius);
   background: transparent;
@@ -973,8 +973,8 @@
 .inline-card-search-more {
   display: block;
   width: 100%;
-  margin: 0.5rem 0 0;
-  padding: 0.5rem;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -1008,7 +1008,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--space-3);
   margin-bottom: 0.4rem;
 }
 
@@ -1071,7 +1071,7 @@
 .inline-card-search-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.4rem 0.55rem;
 }
 
@@ -1127,7 +1127,7 @@
 .inline-card-search-preview-trigger {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex: 1;
   min-width: 0;
   padding: 0;
@@ -1166,11 +1166,11 @@
    row's left indent (there's no add-button gutter here) and give it a card
    surface so it reads as a contained sub-panel. */
 .card-preview-printings {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 .card-preview-printings .inline-card-search-printings {
-  padding: 0.5rem 0.6rem 0.65rem;
+  padding: var(--space-2) 0.6rem 0.65rem;
   border-radius: var(--radius);
 }
 
@@ -1181,7 +1181,7 @@
 .inline-card-search-meta {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-shrink: 0;
   font-size: var(--text-xs);
 }
@@ -1227,7 +1227,7 @@
 }
 
 .inline-card-search-printings {
-  padding: 0.5rem 0.55rem 0.65rem 2rem;
+  padding: var(--space-2) 0.55rem 0.65rem var(--space-6);
   background: var(--surface-raised);
 }
 
@@ -1240,7 +1240,7 @@
 .inline-card-search-printing {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--space-2);
   width: 100%;
   padding: 0.3rem 0.45rem;
   border: 0;
@@ -1286,7 +1286,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-top: 0.55rem;
 }
@@ -1297,7 +1297,7 @@
 }
 
 .inline-card-search-finish {
-  padding: 0.25rem 0.55rem;
+  padding: var(--space-1) 0.55rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -1343,7 +1343,7 @@
 
 .binder-mode-toggle {
   display: flex;
-  margin: 0 1.25rem 0.25rem;
+  margin: 0 1.25rem var(--space-1);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -1351,7 +1351,7 @@
 
 .binder-mode-pill {
   flex: 1;
-  padding: 0.4rem 0.75rem;
+  padding: 0.4rem var(--space-3);
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -1380,7 +1380,7 @@
 
 @media (max-width: 480px) {
   .binder-mode-toggle {
-    margin: 0 1rem 0.25rem;
+    margin: 0 var(--space-4) var(--space-1);
   }
 }
 
@@ -1395,8 +1395,8 @@
 .import-binder-file-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius);
   background: var(--surface-raised);
   font-size: var(--text-sm);
@@ -1424,7 +1424,7 @@
   align-self: flex-start;
   gap: 0.35rem;
   margin-bottom: 0.6rem;
-  padding: 0.25rem 0.5rem 0.25rem 0.35rem;
+  padding: var(--space-1) var(--space-2) var(--space-1) 0.35rem;
   border-radius: 999px;
   color: var(--text-muted);
   font-size: var(--text-sm);

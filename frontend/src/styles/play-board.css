@@ -19,8 +19,8 @@
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  padding: calc(var(--safe-top) + 8px) calc(var(--safe-right) + 8px) calc(var(--safe-bottom) + 8px)
-    calc(var(--safe-left) + 8px);
+  padding: calc(var(--safe-top) + var(--space-2)) calc(var(--safe-right) + var(--space-2))
+    calc(var(--safe-bottom) + var(--space-2)) calc(var(--safe-left) + var(--space-2));
 }
 
 .game-board-grid {
@@ -28,7 +28,7 @@
   display: grid;
   /* Larger gap so the new panel border-radius is visible between cells
      and the slate-canvas shows through as breathing room. */
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -147,14 +147,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 0.65rem;
+  padding: var(--space-2) 0.65rem;
   pointer-events: none;
   min-height: 0;
 }
 
 @media (min-width: 600px) {
   .player-panel-content {
-    padding: 0.75rem 0.9rem;
+    padding: var(--space-3) 0.9rem;
   }
 }
 
@@ -162,7 +162,7 @@
    panel edges and never compete with the headline number. */
 .player-panel-corner {
   position: absolute;
-  top: 0.5rem;
+  top: var(--space-2);
   max-width: calc(100% - 3.5rem);
   display: flex;
   flex-direction: column;
@@ -335,7 +335,7 @@
    panel renders at the screen's top-left corner — also clear of the hub. */
 .player-panel-menu-btn.is-corner-br {
   position: absolute;
-  bottom: 0.25rem;
+  bottom: var(--space-1);
   right: 0.35rem;
   z-index: 3;
 }

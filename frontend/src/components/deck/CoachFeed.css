@@ -101,7 +101,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.35rem var(--space-3);
   border-radius: var(--radius);
   border: none;
   background: var(--accent);
@@ -122,7 +122,7 @@
 .coach-feed-bracket-strip {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
   background: var(--surface-raised);
   border-radius: var(--radius);
@@ -175,7 +175,7 @@
   display: flex;
   align-items: center;
   min-height: 44px;
-  padding: 0.25rem 0;
+  padding: var(--space-1) 0;
 }
 
 @media (pointer: coarse) {
@@ -230,8 +230,8 @@
 
 .coach-feed-cuts {
   border-top: 0.5px solid var(--border);
-  padding-top: 0.5rem;
-  margin-top: 0.25rem;
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .coach-feed-cuts-title {
@@ -268,7 +268,7 @@
 }
 
 .coach-feed-cuts-list {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -281,7 +281,7 @@
 
 /* Filter empty: when a chip filter returns nothing but allChanges is non-empty. */
 .coach-feed-empty-filter {
-  margin: 0.25rem 0;
+  margin: var(--space-1) 0;
   font-size: var(--text-sm);
   color: var(--text-secondary);
   padding: var(--space-3) 0;
@@ -346,7 +346,7 @@
    same visual treatment, now owned here. */
 .coach-feed-browser-section {
   border-top: 0.5px solid var(--border);
-  padding-top: 0.5rem;
+  padding-top: var(--space-2);
 }
 
 .coach-feed-browser-section > summary {
@@ -390,7 +390,7 @@
 }
 
 .coach-feed-browser {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */

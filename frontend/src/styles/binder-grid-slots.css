@@ -3,7 +3,7 @@
 
 /* Binder sections */
 .binder-section {
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-6);
 }
 
 /* Tighten the gap between sections in list / compact mode — the
@@ -15,19 +15,19 @@
    collapsed state (where .collection-list isn't in the DOM) still
    matches the rule. */
 .binder-section.binder-section--list {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .binder-section.binder-section--compact {
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-1);
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-bottom: 10px;
-  padding-bottom: 8px;
+  padding-bottom: var(--space-2);
   border-bottom: 0.5px solid var(--border);
 }
 
@@ -40,7 +40,7 @@
   font-family: inherit;
   text-align: left;
   cursor: pointer;
-  padding: 4px 4px 8px;
+  padding: var(--space-1) var(--space-1) var(--space-2);
   border-radius: var(--radius) var(--radius) 0 0;
   transition: background var(--motion-fast);
 }
@@ -76,7 +76,7 @@
 .section-controls {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .color-pip {
@@ -103,14 +103,14 @@
 .page-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .page-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .page-num {
@@ -122,7 +122,7 @@
 .page-num-link {
   background: none;
   border: none;
-  padding: 2px 4px;
+  padding: 2px var(--space-1);
   margin: 0;
   cursor: pointer;
   /* Underline at rest signals "this opens something" without hover —
@@ -159,7 +159,7 @@
 .grid-9 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: var(--space-1);
   width: 150px;
 }
 
@@ -173,7 +173,7 @@
 .grid-12 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  gap: var(--space-1);
   width: 200px;
 }
 
@@ -224,8 +224,8 @@
    placement on both. */
 .slot-qty-badge {
   position: absolute;
-  bottom: 4px;
-  left: 4px;
+  bottom: var(--space-1);
+  left: var(--space-1);
   background: var(--accent);
   color: var(--on-accent, #fff);
   font-size: var(--text-xs);

@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius);
@@ -63,7 +63,7 @@
   z-index: 6;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.6rem 0.7rem;
   background: linear-gradient(
     150deg,
@@ -131,7 +131,7 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
   border-radius: var(--radius);
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem var(--space-2);
   font-family: var(--font-mono);
 }
 
@@ -297,7 +297,7 @@
 
 .game-board-banner {
   position: absolute;
-  bottom: 0.75rem;
+  bottom: var(--space-3);
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
@@ -306,7 +306,7 @@
 
 .game-board-error {
   position: absolute;
-  top: 0.75rem;
+  top: var(--space-3);
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
@@ -314,7 +314,7 @@
   color: var(--err-text);
   border: 1px solid var(--err-border);
   border-radius: var(--radius);
-  padding: 0.4rem 0.75rem;
+  padding: 0.4rem var(--space-3);
   font-size: var(--text-sm);
 }
 
@@ -335,7 +335,7 @@
 @media (min-width: 600px) {
   .game-menu-backdrop {
     align-items: center;
-    padding: 1.5rem;
+    padding: var(--space-5);
   }
 }
 
@@ -401,8 +401,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.6rem 1rem 0.75rem;
-  gap: 0.75rem;
+  padding: 0.6rem var(--space-4) var(--space-3);
+  gap: var(--space-3);
   border-bottom: 1px solid var(--border);
 }
 
@@ -461,13 +461,13 @@
 .game-menu-body {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 0.85rem 1rem 1rem;
+  gap: var(--space-4);
+  padding: 0.85rem var(--space-4) var(--space-4);
 }
 
 @media (min-width: 600px) {
   .game-menu-body {
-    padding: 1rem 1.25rem 1.25rem;
+    padding: var(--space-4) 1.25rem 1.25rem;
   }
 }
 
@@ -490,8 +490,8 @@
   flex: 1;
   width: auto;
   height: auto;
-  padding: 0.55rem 0.75rem;
-  gap: 0.5rem;
+  padding: 0.55rem var(--space-3);
+  gap: var(--space-2);
   font-size: var(--text-sm);
   font-weight: 600;
   white-space: nowrap;
@@ -646,7 +646,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.7rem 1rem;
+  padding: 0.7rem var(--space-4);
   border-radius: var(--radius);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -676,7 +676,7 @@
 
 .game-menu-btn.is-wide {
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 0.85rem var(--space-4);
   font-size: var(--text-base);
 }
 

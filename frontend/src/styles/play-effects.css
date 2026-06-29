@@ -180,7 +180,7 @@
   color: #fff;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
   padding: 0.6rem 0.7rem;
   background: linear-gradient(
     150deg,
@@ -226,7 +226,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
   flex: 0 0 auto;
 }
 
@@ -277,7 +277,7 @@
   font-size: clamp(2rem, 10vmin, 4rem);
   font-weight: 700;
   text-align: center;
-  padding: 0.25rem 0;
+  padding: var(--space-1) 0;
   line-height: 1;
   letter-spacing: -0.02em;
   color: #fff;
@@ -458,11 +458,11 @@
   position: relative;
   width: 100%;
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 4px;
+  padding: var(--space-1);
   /* Constrain height so tall layouts (3+ rows) don't blow the thumbnail
      up; the aspect-ratio still applies, but max-height keeps the picker
      compact. */
@@ -525,7 +525,7 @@
 .layout-option-cell-seat {
   position: absolute;
   top: 3px;
-  left: 4px;
+  left: var(--space-1);
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: var(--text-xs, 0.72rem);

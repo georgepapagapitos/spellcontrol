@@ -52,7 +52,7 @@ body {
      rows) can mirror it via negative margins and stay flush with the
      content edge at every breakpoint. */
   --page-gutter: 1rem;
-  padding: 0 var(--page-gutter) 2rem;
+  padding: 0 var(--page-gutter) var(--space-6);
   /* When a focused field is scrolled into view, keep it clear of the soft
      keyboard (and leave a 1rem cushion). No-op when no keyboard is shown. */
   scroll-padding-bottom: calc(var(--keyboard-inset) + 1rem);
