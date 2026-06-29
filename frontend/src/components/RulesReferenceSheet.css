@@ -4,27 +4,27 @@
 /* Wrapper just provides padding; the field is the shared <SearchPill>. */
 .rules-ref-search {
   display: flex;
-  padding: 0.85rem 1.5rem 0;
+  padding: 0.85rem var(--space-5) 0;
 }
 
 .rules-ref-tabs {
-  padding: 0.65rem 1.5rem 0;
+  padding: 0.65rem var(--space-5) 0;
 }
 
 .rules-ref-body {
-  padding-top: 0.75rem;
+  padding-top: var(--space-3);
 }
 
 .rules-ref-status {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  padding: 1rem 0;
+  padding: var(--space-4) 0;
   text-align: center;
 }
 
 .rules-ref-foot {
   margin: 0;
-  padding: 0.6rem 1.5rem;
+  padding: 0.6rem var(--space-5);
   border-top: 0.5px solid var(--border);
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.6rem var(--space-3);
   background: none;
   border: none;
   cursor: pointer;
@@ -121,13 +121,13 @@
 
 .rules-ref-keyword-summary {
   margin: 0;
-  padding: 0 0.75rem 0.6rem;
+  padding: 0 var(--space-3) 0.6rem;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
 .rules-ref-keyword-body {
-  padding: 0.25rem 0.75rem 0.6rem;
+  padding: var(--space-1) var(--space-3) 0.6rem;
   border-top: 0.5px solid var(--border);
 }
 
