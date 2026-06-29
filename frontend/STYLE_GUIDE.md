@@ -92,6 +92,15 @@ sans-bold heading reads as off-family.
 - All tabbed surfaces go through the shared `components/Tabs.tsx` primitive
   (roving tabindex, arrow-key nav, `role=tablist`/`tab`/`tabpanel`). Don't
   hand-roll a tab strip.
+- **Pass `variant="underline"` explicitly on every page/section-level switcher.**
+  `Tabs` defaults to `variant="fitted"` (equal-width segments, each label clipped
+  with `text-overflow: ellipsis`). `fitted` is **only** for 2–3 short, equal-length
+  labels inside a panel (combos/analysis; Play's Host/Join sub-switcher). Omitting
+  the prop on a page-level switcher with unequal labels silently truncates them at
+  every width — "Online"→"Onli…", "Create account"→"Create acc…" — because the
+  segments are forced into equal fractions regardless of available room. This bit
+  both the Play sections switcher and the Auth (Sign in / Create account) toggle.
+  Compliant reference call sites: DeckEditor, Friends, Cube.
 
 ## Toolbars & action rows (responsive)
 

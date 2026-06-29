@@ -101,6 +101,7 @@ export function PlayPage() {
         </div>
         <Tabs<Tab>
           ariaLabel="Play sections"
+          variant="underline"
           value={tab}
           onChange={setTab}
           tabs={[
