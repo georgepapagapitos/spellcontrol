@@ -97,7 +97,7 @@ export function CardRow({
       <div className="collection-list-main">
         <div className="collection-list-name">
           {card.name}
-          {card.foil && <FoilBadge card={card} showLabel />}
+          {card.foil && <FoilBadge card={card} />}
           <DeckBadge allocations={allocations} />
           <BinderBadge binders={binders ?? []} />
         </div>
