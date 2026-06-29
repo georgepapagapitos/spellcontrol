@@ -20,7 +20,7 @@ import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
 import { useConfirm } from '../lib/use-confirm';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { Modal } from '../components/Modal';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -418,67 +418,63 @@ function SamplesIntroDialog({
   onConfirm,
   onCancel,
 }: SamplesIntroDialogProps) {
-  useLockBodyScroll();
   return (
-    <div className="modal-backdrop" onClick={loading ? undefined : onCancel} role="presentation">
-      <div
-        className="choice-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="samples-intro-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 id="samples-intro-title" className="choice-dialog-title">
-          {bindersOnly ? 'Load sample binders?' : 'Load samples?'}
-        </h2>
-        <p className="choice-dialog-body">
-          {bindersOnly
-            ? `This will create ${SAMPLE_BINDERS.length} sample binders that show off the rule system. They will filter against your existing collection — no extra cards are added.`
-            : `This will create ${SAMPLE_BINDERS.length} sample binders that show off the rule system, plus a starter pack of ${SAMPLE_CARDS.length} cards so each binder has visible matches.`}
-        </p>
-        <ul className="samples-intro-list">
-          {SAMPLE_BINDERS.map((s) => (
-            <li key={s.templateId}>
-              <strong>{s.input.name}</strong>
-            </li>
-          ))}
-        </ul>
-        <p className="choice-dialog-body">
-          <strong>Removing samples later:</strong>
-        </p>
-        <ul className="samples-intro-list">
-          <li>Each sample binder has Delete in its card menu — that removes just that binder.</li>
-          {!bindersOnly && (
-            <li>
-              The bundled cards land in{' '}
-              <Link to="/collection" className="link-warn">
-                Collection → Import history
-              </Link>{' '}
-              as "Sample: starter pack". Tick its checkbox and Delete selected to remove them.
-            </li>
-          )}
-        </ul>
-        {loading && (
-          <ProgressBar
-            indeterminate
-            message={bindersOnly ? 'Building sample binders…' : 'Importing starter pack…'}
-          />
+    <Modal
+      onClose={onCancel}
+      dismissable={!loading}
+      className="choice-dialog"
+      labelledBy="samples-intro-title"
+    >
+      <h2 id="samples-intro-title" className="choice-dialog-title">
+        {bindersOnly ? 'Load sample binders?' : 'Load samples?'}
+      </h2>
+      <p className="choice-dialog-body">
+        {bindersOnly
+          ? `This will create ${SAMPLE_BINDERS.length} sample binders that show off the rule system. They will filter against your existing collection — no extra cards are added.`
+          : `This will create ${SAMPLE_BINDERS.length} sample binders that show off the rule system, plus a starter pack of ${SAMPLE_CARDS.length} cards so each binder has visible matches.`}
+      </p>
+      <ul className="samples-intro-list">
+        {SAMPLE_BINDERS.map((s) => (
+          <li key={s.templateId}>
+            <strong>{s.input.name}</strong>
+          </li>
+        ))}
+      </ul>
+      <p className="choice-dialog-body">
+        <strong>Removing samples later:</strong>
+      </p>
+      <ul className="samples-intro-list">
+        <li>Each sample binder has Delete in its card menu — that removes just that binder.</li>
+        {!bindersOnly && (
+          <li>
+            The bundled cards land in{' '}
+            <Link to="/collection" className="link-warn">
+              Collection → Import history
+            </Link>{' '}
+            as "Sample: starter pack". Tick its checkbox and Delete selected to remove them.
+          </li>
         )}
-        <div className="choice-dialog-actions">
-          <button type="button" className="btn" onClick={onCancel} disabled={loading}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onConfirm}
-            disabled={loading}
-            autoFocus
-          >
-            {loading ? 'Loading…' : bindersOnly ? 'Load sample binders' : 'Load samples'}
-          </button>
-        </div>
+      </ul>
+      {loading && (
+        <ProgressBar
+          indeterminate
+          message={bindersOnly ? 'Building sample binders…' : 'Importing starter pack…'}
+        />
+      )}
+      <div className="choice-dialog-actions">
+        <button type="button" className="btn" onClick={onCancel} disabled={loading}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={onConfirm}
+          disabled={loading}
+          autoFocus
+        >
+          {loading ? 'Loading…' : bindersOnly ? 'Load sample binders' : 'Load samples'}
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }
