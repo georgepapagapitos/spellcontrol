@@ -15,11 +15,13 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import type { ComboMatch } from '@/types/combos';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf, withinColorIdentity } from './card-matching';
 import { rankReplacementCuts, type CutCandidate, type RankedCut } from './intelligent-cuts';
+import type { EdhrecComboOverlay } from './edhrec-combo-overlay';
 
 export interface AxisHit {
   axis: string;
@@ -52,6 +54,10 @@ export interface ComputeAddFitParams {
   deckCards: CutCandidate[];
   /** Optimizer removal suggestions (`deck.optimizeSwaps?.removals`) for the cut ranker. */
   removals?: OptimizeCard[];
+  /** Fully assembled combos already present in the deck, for combo-piece cut protection. */
+  inDeckCombos?: ComboMatch[];
+  /** E63 per-commander EDHREC combo stats, used to protect signature combos harder. */
+  comboOverlay?: EdhrecComboOverlay;
   /** Commander color identity — to flag an off-identity / colorless add. */
   commanderColorIdentity?: string[];
   /** Max ranked cuts to return (default 8). */
@@ -74,6 +80,8 @@ export function computeAddFit({
   addCard,
   deckCards,
   removals = [],
+  inDeckCombos = [],
+  comboOverlay,
   commanderColorIdentity,
   cutLimit = 8,
 }: ComputeAddFitParams): AddFitReport {
@@ -136,6 +144,8 @@ export function computeAddFit({
     deckCards,
     removals,
     deckSynergy: deckSyn,
+    inDeckCombos,
+    comboOverlay,
     limit: cutLimit,
   });
 

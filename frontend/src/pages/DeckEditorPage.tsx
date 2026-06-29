@@ -55,6 +55,7 @@ import {
 } from '@/lib/deck-change';
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
 import { computeAddFit } from '@/lib/card-fit';
+import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
@@ -562,6 +563,7 @@ export function DeckEditorPage() {
   }, [collectionCards, binderDefs]);
 
   const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
+  const comboOverlay = useEdhrecComboOverlay(deck?.commander?.name ?? null);
 
   // Count one-away combos whose missing piece the user already owns.
   // Uses the `oneAway` bucket (not `almostInCollection`, which is empty for
@@ -1264,6 +1266,8 @@ export function DeckEditorPage() {
             addCard,
             deckCards: deck.cards,
             removals: deck.optimizeSwaps?.removals,
+            inDeckCombos: comboData.data?.inDeck,
+            comboOverlay,
           });
           const suggested = ranked.map((r) => toOpt({ slotId: r.slotId, card: r.card }, r.reason));
           const anyRelated = ranked.some((r) => r.related);
@@ -1282,6 +1286,8 @@ export function DeckEditorPage() {
           addCard: auditionCard,
           deckCards: deck.cards,
           removals: deck.optimizeSwaps?.removals,
+          inDeckCombos: comboData.data?.inDeck,
+          comboOverlay,
           commanderColorIdentity,
         })
       : null;
