@@ -153,7 +153,6 @@ export function SharedDeckView({ data }: Props) {
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {data.format} · {mainboardCount.toLocaleString()} cards
-          {data.deckGrade ? ` · ${data.deckGrade.letter}` : ''}
         </p>
       </header>
 

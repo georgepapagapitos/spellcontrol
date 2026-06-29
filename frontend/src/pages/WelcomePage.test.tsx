@@ -131,14 +131,16 @@ describe('Door 2 — Try sample cards', () => {
     renderWelcome();
     fireEvent.click(screen.getByRole('button', { name: /try sample cards/i }));
 
-    // During load: button text changes and other buttons are disabled
+    // During load: the samples button shows progress. The other two doors
+    // navigate to independent routes, so they must stay enabled (UX-331:
+    // disabled-scope matches the interaction, not the page).
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /loading samples/i })).toBeTruthy();
     });
     expect(
       screen.getByRole('button', { name: /import my collection/i }).hasAttribute('disabled')
-    ).toBe(true);
-    expect(screen.getByRole('button', { name: /sign in/i }).hasAttribute('disabled')).toBe(true);
+    ).toBe(false);
+    expect(screen.getByRole('button', { name: /sign in/i }).hasAttribute('disabled')).toBe(false);
 
     // Clean up
     resolve(STUB_RESPONSE);
