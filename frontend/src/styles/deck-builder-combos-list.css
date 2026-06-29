@@ -210,6 +210,12 @@
   }
 }
 
+.deck-combos-edhrec-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
 /* "Show details" / "Hide details" toggle that opens the unified
    Prerequisites + Steps + Results panel for one combo row. Reads as an
    inline link rather than a heavy button — the heading-level chrome
