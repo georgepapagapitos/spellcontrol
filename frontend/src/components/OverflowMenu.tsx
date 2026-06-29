@@ -35,6 +35,13 @@ interface Props {
    * 'left' aligns to the left edge (use when the trigger is leftmost).
    */
   align?: 'left' | 'right';
+  /**
+   * Extra class on the portaled panel — for callers whose surface uses a
+   * non-token z-index stack (e.g. the playtest board at 900–1100) and need to
+   * lift the panel above it. The panel is portaled to `<body>`, so a wrapper
+   * `className` can't reach it; this is the only hook that does.
+   */
+  panelClassName?: string;
 }
 
 type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
@@ -53,6 +60,7 @@ export function OverflowMenu({
   className,
   triggerClassName,
   align = 'right',
+  panelClassName,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
@@ -149,7 +157,9 @@ export function OverflowMenu({
         createPortal(
           <div
             ref={panelRef}
-            className="deck-row-menu-popover overflow-menu-popover"
+            className={`deck-row-menu-popover overflow-menu-popover${
+              panelClassName ? ` ${panelClassName}` : ''
+            }`}
             role="menu"
             style={{
               position: 'fixed',

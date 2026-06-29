@@ -712,13 +712,14 @@ body:has(.playtest-page) .modal-backdrop {
 }
 
 .playtest-zone-tile__kebab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: var(--text-md);
-  padding: 0 4px;
-  line-height: 1;
+  padding: 2px 4px;
 }
 
 .playtest-zone-tile__body {
@@ -757,39 +758,11 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-xs);
 }
 
-.playtest-zone-tile__menu {
-  /* Portaled to <body> and positioned `fixed` from the kebab's rect (left/top
-     set inline by the component). The zones drawer is `position: fixed;
-     overflow-y: auto`, which clipped an in-panel absolute menu for the
-     bottom-row tiles — a body-level fixed overlay escapes that clip. */
-  position: fixed;
-  z-index: 1100;
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  box-shadow: var(--shadow-tooltip);
-  min-width: 100px;
-}
-
-.playtest-zone-tile__menu button {
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  text-align: left;
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: var(--text-xs);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .playtest-zone-tile__menu button:hover {
-    background: var(--surface-raised);
-  }
+/* The zone kebab uses the shared <OverflowMenu>, which portals its panel to
+   <body> at the tokenized `--z-menu` (80). The playtest board runs its own
+   ad-hoc z-index stack (900–1100), so lift this instance above it. */
+.overflow-menu-popover.playtest-zone-menu-popover {
+  z-index: 1101;
 }
 
 /* ── Narrow viewport overrides ───────────────────────────────────────── */
