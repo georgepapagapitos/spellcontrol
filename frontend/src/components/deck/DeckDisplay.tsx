@@ -1727,13 +1727,15 @@ export function DeckDisplay({
             gutter beside the list while hovering a row. No-op on touch/native. */}
         {hoverPeek.peek &&
           (() => {
-            // Resolve the hovered card's hero art from the same flat list the
+            // A printing sub-row carries its own art (data-peek-img); use it so
+            // each expanded printing peeks its real card. Otherwise resolve the
+            // hovered card's hero art by name from the same flat list the
             // carousel uses, so the peek matches the owned printing.
             const i = flat.indexByName.get(hoverPeek.peek.name);
             const card = i !== undefined ? flat.cards[i] : undefined;
             return (
               <DeckHoverPeek
-                imageUrl={card?.imageLarge || card?.imageNormal}
+                imageUrl={hoverPeek.peek.img || card?.imageLarge || card?.imageNormal}
                 left={hoverPeek.peek.left}
                 top={hoverPeek.peek.top}
                 width={hoverPeek.peek.width}
@@ -3097,7 +3099,12 @@ function DeckCardRow({
                 "Edit printing" / "Use my copy" menu (a per-printing carousel
                 deep-link is the deferred follow-up). */}
             {row.printings.map((p) => (
-              <li key={p.key} className="deck-printing-sub">
+              <li
+                key={p.key}
+                className="deck-printing-sub"
+                data-peek-name={row.name}
+                data-peek-img={frontFaceImageLarge(p.card) ?? frontFaceImage(p.card)}
+              >
                 {/* Per-printing count, in the same left column as the row's
                     aggregate qty — so it reads as a breakdown (7 + 7 + 8 = 22). */}
                 <span className="deck-printing-sub-qty">{p.qty}</span>
