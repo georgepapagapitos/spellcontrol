@@ -3,6 +3,7 @@ import type { PublicList, PublicListEntry } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
 import { SearchPill } from '../SearchPill';
+import { SortDirArrow } from '../SortDirArrow';
 
 interface Props {
   data: PublicList;
@@ -59,7 +60,7 @@ export function SharedListView({ data }: Props) {
     }
   };
 
-  const sortIndicator = (key: ListSortKey) => (sort === key ? (dir === 'asc' ? ' ↑' : ' ↓') : '');
+  const sortIndicator = (key: ListSortKey) => (sort === key ? <SortDirArrow dir={dir} /> : null);
 
   return (
     <main className="shared-view">
@@ -87,55 +88,57 @@ export function SharedListView({ data }: Props) {
           {data.entries.length === 0 ? 'This list is empty.' : 'No entries match your search.'}
         </p>
       ) : (
-        <table className="shared-list-table">
-          <thead>
-            <tr>
-              <th>
-                <button
-                  type="button"
-                  className="shared-list-sort-btn"
-                  onClick={() => toggleSort('quantity')}
-                >
-                  Qty{sortIndicator('quantity')}
-                </button>
-              </th>
-              <th>
-                <button
-                  type="button"
-                  className="shared-list-sort-btn"
-                  onClick={() => toggleSort('name')}
-                >
-                  Name{sortIndicator('name')}
-                </button>
-              </th>
-              <th>
-                <button
-                  type="button"
-                  className="shared-list-sort-btn"
-                  onClick={() => toggleSort('set')}
-                >
-                  Set{sortIndicator('set')}
-                </button>
-              </th>
-              <th>Finish</th>
-              <th>
-                <button
-                  type="button"
-                  className="shared-list-sort-btn"
-                  onClick={() => toggleSort('targetPrice')}
-                >
-                  Target{sortIndicator('targetPrice')}
-                </button>
-              </th>
-              <th>Note</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((e, idx) => (
-              <ListRow key={`${e.scryfallId}-${idx}`} entry={e} />
-            ))}
-          </tbody>
-        </table>
+        <div className="shared-table-scroll">
+          <table className="shared-list-table">
+            <thead>
+              <tr>
+                <th>
+                  <button
+                    type="button"
+                    className="shared-list-sort-btn"
+                    onClick={() => toggleSort('quantity')}
+                  >
+                    Qty{sortIndicator('quantity')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="shared-list-sort-btn"
+                    onClick={() => toggleSort('name')}
+                  >
+                    Name{sortIndicator('name')}
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="shared-list-sort-btn"
+                    onClick={() => toggleSort('set')}
+                  >
+                    Set{sortIndicator('set')}
+                  </button>
+                </th>
+                <th>Finish</th>
+                <th>
+                  <button
+                    type="button"
+                    className="shared-list-sort-btn"
+                    onClick={() => toggleSort('targetPrice')}
+                  >
+                    Target{sortIndicator('targetPrice')}
+                  </button>
+                </th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((e, idx) => (
+                <ListRow key={`${e.scryfallId}-${idx}`} entry={e} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   );

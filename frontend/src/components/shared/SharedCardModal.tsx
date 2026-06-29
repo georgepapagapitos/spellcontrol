@@ -1,4 +1,5 @@
 import { Modal } from '../Modal';
+import { ManaCost } from '../ManaCost';
 import type { PublicCard } from '../../lib/shared-types';
 import { formatMoney } from '../../lib/format-money';
 
@@ -39,7 +40,9 @@ export function SharedCardModal({ card, onClose }: Props) {
         {card.manaCost && (
           <>
             <dt>Cost</dt>
-            <dd>{card.manaCost}</dd>
+            <dd>
+              <ManaCost cost={card.manaCost} />
+            </dd>
           </>
         )}
         {card.finish !== 'nonfoil' && (

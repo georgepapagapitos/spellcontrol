@@ -36,6 +36,9 @@ function NotFoundView() {
     <main className="shared-view shared-view--missing">
       <h1>Link not found</h1>
       <p>This share link is invalid or has been revoked.</p>
+      <Link to="/" className="btn btn-primary shared-copy-btn">
+        Go to SpellControl
+      </Link>
     </main>
   );
 }
@@ -77,6 +80,7 @@ function SharedViewInner({ token }: { token: string }) {
     return (
       <SharedShell>
         <main className="shared-view shared-view--loading" aria-busy="true">
+          <span className="spinner" aria-hidden="true" />
           <p>Loading…</p>
         </main>
       </SharedShell>
@@ -108,6 +112,9 @@ function SharedViewInner({ token }: { token: string }) {
         <main className="shared-view shared-view--error">
           <h1>Something went wrong</h1>
           <p>{state.message}</p>
+          <Link to="/" className="btn btn-primary shared-copy-btn">
+            Go to SpellControl
+          </Link>
         </main>
       </SharedShell>
     );
