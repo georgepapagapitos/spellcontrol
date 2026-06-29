@@ -49,6 +49,7 @@ function edhrec2CardCombo(id: string, cardNames: [string, string], deckCount = 5
     bracketTag: 'S',
     prereqCount: 0,
     cardCount: 2,
+    href: null,
   };
 }
 

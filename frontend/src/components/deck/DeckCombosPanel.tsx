@@ -31,6 +31,11 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { useDeckCombos } from '../../lib/use-deck-combos';
+import {
+  comboNameKey,
+  useEdhrecComboOverlay,
+  type EdhrecComboStat,
+} from '../../lib/edhrec-combo-overlay';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import type { EnrichedCard } from '../../types';
 import type { ComboMatch, ComboCardRef } from '../../types/combos';
@@ -181,14 +186,43 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     [data?.oneAway, ownedOracleIdSet]
   );
 
-  const filteredOneAway =
-    ownershipFilter === 'owned'
-      ? oneAwayOwned
-      : ownershipFilter === 'notOwned'
-        ? oneAwayNotOwned
-        : (data?.oneAway ?? []);
+  const filteredOneAway = useMemo(
+    () =>
+      ownershipFilter === 'owned'
+        ? oneAwayOwned
+        : ownershipFilter === 'notOwned'
+          ? oneAwayNotOwned
+          : (data?.oneAway ?? []),
+    [ownershipFilter, oneAwayOwned, oneAwayNotOwned, data?.oneAway]
+  );
 
-  const matches = tab === 'inDeck' ? (data?.inDeck ?? []) : filteredOneAway;
+  // EDHREC per-commander combo stats, overlaid by card-name-set onto the
+  // Spellbook matches (E63). Empty for non-commander decks / offline, so the
+  // panel falls back to the backend's global popularity ordering untouched.
+  const edhrecOverlay = useEdhrecComboOverlay(deck?.commander?.name ?? null);
+  const statFor = useCallback(
+    (m: ComboMatch): EdhrecComboStat | null =>
+      edhrecOverlay.get(comboNameKey(m.combo.cards.map((c) => c.cardName))) ?? null,
+    [edhrecOverlay]
+  );
+
+  const unsortedMatches = useMemo(
+    () => (tab === 'inDeck' ? (data?.inDeck ?? []) : filteredOneAway),
+    [tab, data?.inDeck, filteredOneAway]
+  );
+  // Float combos EDHREC lists for this commander to the top (by EDHREC rank),
+  // keeping the rest in their existing global-popularity order below. This is
+  // the "de-emphasize obscure combos for this commander" re-rank.
+  const matches = useMemo(() => {
+    return [...unsortedMatches].sort((a, b) => {
+      const as = statFor(a);
+      const bs = statFor(b);
+      if (as && bs) return as.rank - bs.rank;
+      if (as) return -1;
+      if (bs) return 1;
+      return b.combo.popularity - a.combo.popularity;
+    });
+  }, [unsortedMatches, statFor]);
 
   // Did this deck contribute *any* oracle ids at all? If a deck was imported
   // before EnrichedCard.oracleId existed and the backfill hasn't reached it
@@ -382,6 +416,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
                 key={match.combo.id}
                 match={match}
                 tab={tab}
+                edhrec={statFor(match)}
                 cardImageIndex={cardImageIndex}
                 ownedOracleIds={ownedOracleIdSet}
                 onAddMissing={() => void handleAddMissing(match)}
@@ -452,6 +487,9 @@ function ComboCardArt({
 interface ComboRowProps {
   match: ComboMatch;
   tab: Tab;
+  /** EDHREC per-commander stats for this combo, or null when EDHREC has no
+   *  entry / the deck has no commander (E63). */
+  edhrec: EdhrecComboStat | null;
   cardImageIndex: CardImageIndex;
   /** Oracle IDs of cards the user owns in their collection. */
   ownedOracleIds: Set<string>;
@@ -463,6 +501,7 @@ interface ComboRowProps {
 function ComboRow({
   match,
   tab,
+  edhrec,
   cardImageIndex,
   ownedOracleIds,
   onAddMissing,
@@ -484,7 +523,8 @@ function ComboRow({
     !!combo.prerequisites?.notable ||
     !!combo.manaNeeded ||
     steps.length > 0 ||
-    combo.popularity > 0;
+    combo.popularity > 0 ||
+    !!edhrec;
 
   // Combo title — full card names joined. Truncated via CSS so long combos
   // don't overflow the card; the full string is exposed via title for hover.
@@ -516,6 +556,22 @@ function ComboRow({
             </span>
           )}
         </div>
+      )}
+
+      {/* ── EDHREC prevalence chip — how common this combo is for THIS
+            commander (E63). Only on commander decks where EDHREC lists it. ── */}
+      {edhrec && (edhrec.percent != null || edhrec.deckCount > 0) && (
+        <p
+          className="deck-combos-edhrec"
+          title="How often this commander's decks run this combo, per EDHREC"
+        >
+          <span className="deck-combos-edhrec-tag">EDHREC</span>
+          <span>
+            {edhrec.percent != null
+              ? `${formatPercent(edhrec.percent)} of decks`
+              : `${edhrec.deckCount.toLocaleString()} decks`}
+          </span>
+        </p>
       )}
 
       {/* ── Row header — status icon + color identity + combo name ── */}
@@ -717,6 +773,24 @@ function ComboRow({
               {combo.popularity > 0 && (
                 <p className="deck-combos-row-meta">{formatDeckCount(combo.popularity)}</p>
               )}
+              {edhrec && (
+                <p className="deck-combos-row-meta">
+                  EDHREC rank #{edhrec.rank}
+                  {edhrec.href && (
+                    <>
+                      {' · '}
+                      <a
+                        className="deck-combos-edhrec-link"
+                        href={`https://edhrec.com${edhrec.href}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View on EDHREC
+                      </a>
+                    </>
+                  )}
+                </p>
+              )}
               {combo.bracket != null && (
                 <p
                   className="deck-combos-row-meta"
@@ -817,4 +891,10 @@ function splitSteps(description: string | null): string[] {
 function formatDeckCount(n: number): string {
   if (n <= 0) return 'Popularity unknown';
   return `${n.toLocaleString()} ${n === 1 ? 'deck' : 'decks'}`;
+}
+
+function formatPercent(pct: number): string {
+  if (pct >= 1) return `${Math.round(pct)}%`;
+  if (pct > 0) return '<1%';
+  return '0%';
 }

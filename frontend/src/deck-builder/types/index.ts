@@ -267,6 +267,8 @@ export interface EDHRECCombo {
   bracketTag?: string | null;
   prereqCount: number;
   cardCount: number;
+  /** EDHREC combo-page path (e.g. "/combos/golgari/250-779"), or null. */
+  href: string | null;
 }
 
 export interface DetectedCombo {
