@@ -101,11 +101,14 @@
 
 /* Test-hand sheet: the shared card-picker sheet hosts the embedded
    DeckTestHandPanel. A pinned header (title + close) sits above a scrolling
-   body. Content-sized on mobile (capped by the sheet's base max-height); a
-   touch wider on desktop so the 7-card fan breathes. */
+   body. Content-sized on mobile (capped by the sheet's base max-height). On
+   desktop it scales with the viewport so the hand can spread to a readable
+   size instead of clipping in a fixed-width box — capped so 7 cards never get
+   comically large. The panel measures its own width and lays the fan out to
+   fit, so this just hands it the room. */
 @media (min-width: 1024px) {
   .deck-test-hand-sheet {
-    width: 600px;
+    width: min(94vw, 1180px);
     max-height: 80vh;
   }
 }
