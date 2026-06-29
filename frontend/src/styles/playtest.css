@@ -1036,3 +1036,21 @@ body:has(.playtest-page) .modal-backdrop {
     padding: 1rem 0.25rem 1.25rem;
   }
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.playtest-actionbar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.playtest-opening-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.playtest-opening-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.playtest-pile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

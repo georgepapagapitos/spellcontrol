@@ -556,3 +556,9 @@
     animation-duration: 180ms;
   }
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.layout-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

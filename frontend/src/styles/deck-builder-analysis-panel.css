@@ -314,3 +314,9 @@
   align-self: flex-start;
   max-width: 100%;
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.deck-analysis-suggest-add:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

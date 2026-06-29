@@ -509,3 +509,9 @@
   min-width: 4rem;
   width: 6rem;
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.game-history-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
