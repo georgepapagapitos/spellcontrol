@@ -13,7 +13,7 @@ import {
   isStaxPiece,
   isTutor,
 } from '../bracketEstimator';
-import { computeDownshiftPlan } from '../bracketFit';
+import { computeDownshiftPlan, computeUpshiftPlan } from '../bracketFit';
 
 // ── Bracket Convergence ──
 // T43's pick-time BracketGuard caps the estimator's HARD-floor signals (game
@@ -34,9 +34,19 @@ import { computeDownshiftPlan } from '../bracketFit';
 // later sees in the report. Re-estimates after every swap (minimal cuts) and
 // re-plans each round so a residual is always re-attacked.
 //
-// ponytail: only clamps overshoot DOWN to the target (the "asked casual, got
-// tuned" complaint). Pushing a too-weak deck UP to a high target fights the
-// bracket pool filter and needs the strong-card pool back — deferred.
+// Both directions are handled: an overshooting deck is clamped DOWN (the "asked
+// casual, got tuned" complaint), and an under-target deck is pushed UP by
+// swapping its weakest cards for the Game Changers the target bracket pool offers
+// — the hard floor signal `estimateBracket` actually counts (1 GC → Bracket 3,
+// more → 4). The "strong-card pool" the UP case needs is still live in
+// `state.edhrecData` at converge time; only GCs present in `scryfallCardMap`
+// (fetched during generation) can be added, so a low target whose pool has no
+// game changers simply no-ops.
+// ponytail: UP adds Game Changers only — the deterministic estimator lever. Soft
+// fills (high-inclusion engines) rarely cross a bracket boundary and would churn
+// the deck for no gain; combo-completion adds need oneAwayCombos, not computed at
+// generation time. Wire gapAnalysis/oneAwayCombos through if either is ever worth
+// the extra churn-guarding.
 // ponytail: Bracket 1 (Exhibition) is by design undetectable from card content
 // (the estimator never emits 1), so a target of 1 converges to the same in-band
 // result as target 2 — the lowest the estimator can verify.
@@ -222,6 +232,26 @@ export function applyBracketConvergence(
     return scryfallCardMap.get(ranked[0].name) ?? null;
   };
 
+  // Weakest cuttable in-deck card to make room when powering UP: lowest EDHREC
+  // inclusion, never a protected, power-signal, or land card (cutting a power
+  // card would fight the very bracket we're trying to raise).
+  const pickCut = (): { card: ScryfallCard; category: DeckCategory } | null => {
+    let best: { card: ScryfallCard; category: DeckCategory; incl: number } | null = null;
+    for (const [cat, cards] of Object.entries(state.categories) as [
+      DeckCategory,
+      ScryfallCard[],
+    ][]) {
+      if (cat === 'lands') continue;
+      for (const card of cards) {
+        if (isProtected(card.name)) continue;
+        if (isPowerSignal(card.name, state.gameChangerNames)) continue;
+        const incl = inclusionMap[card.name] ?? 0;
+        if (!best || incl < best.incl) best = { card, category: cat, incl };
+      }
+    }
+    return best ? { card: best.card, category: best.category } : null;
+  };
+
   let applied = 0;
   let est = estimate();
 
@@ -268,6 +298,57 @@ export function applyBracketConvergence(
     }
 
     if (!progressed) break; // every remaining offender is protected/unreplaceable
+  }
+
+  // Under target → push UP. Reuse the same Bracket-Fit upshift planner the Tune
+  // coach uses to pick which power cards to add, then apply each as a 1-for-1
+  // swap (weakest in-deck card out) so the deck stays 100. Re-estimate after each
+  // swap and re-plan per round, mirroring the DOWN loop above. DOWN and UP are
+  // mutually exclusive — only the side matching `est.bracket` vs `target` runs.
+  for (let round = 0; round < MAX_CONVERGE_ROUNDS && est.bracket < target; round++) {
+    const plan = computeUpshiftPlan(
+      {
+        estimation: est,
+        gameChangerNames: state.gameChangerNames,
+        allCardNames: (() => {
+          const names = mainboardNames();
+          for (const cn of commanderNames) names.push(cn);
+          return names;
+        })(),
+        detectedCombos: ctx.detectedCombos ?? [],
+        averageCmc: nonLandAvgCmc(),
+        roleCounts: state.currentRoleCounts,
+        targetPool: state.edhrecData ?? null,
+        cardInclusionMap: inclusionMap,
+        oneAwayCombos: [], // combo-completion adds deferred (not computed at gen time)
+        gapAnalysis: [], // GC-only — soft fills rarely cross a bracket boundary
+        commanderNames,
+        deckFull: false, // we pick our own cut via pickCut(), so keep adds pure
+      },
+      target
+    );
+
+    let progressed = false;
+    for (const move of plan.moves) {
+      if (est.bracket >= target) break;
+      const inName = move.name; // deckFull:false → pure 'add', name is the incoming card
+      if (state.usedNames.has(inName)) continue; // already in the deck
+      if (state.bannedCards.has(inName)) continue;
+      const incoming = scryfallCardMap.get(inName);
+      if (!incoming) continue; // no Scryfall data fetched → can't materialize the card
+      if (ownedOnly && notInCollection(inName, collectionNames)) continue;
+      const cut = pickCut();
+      if (!cut) break; // nothing safe to cut — can't add without overshooting 100
+
+      removeCard(cut.card, cut.category);
+      addCard(incoming);
+      applied++;
+      progressed = true;
+      logger.debug(`[DeckGen] Bracket converge UP: cut ${cut.card.name} → added ${inName}`);
+      est = estimate();
+    }
+
+    if (!progressed) break; // no addable power cards left in the pool
   }
 
   if (applied > 0) {
