@@ -54,6 +54,16 @@
   padding: 0.5rem 0.85rem 0;
 }
 
+/* The tabpanel wrapper sits between the panel and the results list; it must
+   carry the flex chain so the list scrolls within the sheet instead of growing
+   past it. Without this it's an auto-height block and the results overflow. */
+.deck-add-sheet .card-search-tabpanel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .deck-add-sheet .card-search-results {
   flex: 1;
   min-height: 0;
