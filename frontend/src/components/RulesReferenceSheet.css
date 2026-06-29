@@ -177,3 +177,9 @@
 .rules-ref-rule-text {
   color: var(--text-secondary);
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.rules-ref-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

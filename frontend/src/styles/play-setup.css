@@ -688,3 +688,13 @@
 body:has(.game-board) .modal-backdrop {
   z-index: calc(var(--z-overlay) + 50);
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.play-rule-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.play-setup-seat-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

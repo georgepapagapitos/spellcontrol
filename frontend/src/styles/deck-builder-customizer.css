@@ -801,3 +801,17 @@
     transform: translate(-50%, -50%);
   }
 }
+
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+.deck-customizer-pill-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-chip-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
