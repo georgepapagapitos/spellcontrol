@@ -46,6 +46,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => {
 import {
   findOwnedSubstitute,
   buildSubstitutionPlan,
+  buildSubstitutionOptions,
   type SubstituteCandidate,
 } from './substituteFinder';
 
@@ -230,5 +231,52 @@ describe('buildSubstitutionPlan', () => {
     expect(plan.rows).toHaveLength(1);
     expect(plan.rows[0].usedName).toBe('Mind Stone');
     expect(plan.unmatched).toEqual(['Dimir Signet']);
+  });
+});
+
+describe('buildSubstitutionOptions', () => {
+  it('returns the best owned pick as primary plus ranked alternatives with why factors', () => {
+    const plan = buildSubstitutionOptions(
+      [missing({ name: 'Talisman of Dominance', role: 'ramp', cmc: 2 })],
+      [
+        owned({ name: 'Mind Stone', colorIdentity: [], cmc: 2 }),
+        owned({ name: 'Worn Powerstone', colorIdentity: [], cmc: 3 }),
+        owned({ name: 'Llanowar Elves', colorIdentity: ['G'], cmc: 1 }),
+      ],
+      new Set<string>(),
+      DIMIR
+    );
+    expect(plan.rows).toHaveLength(1);
+    const primary = plan.rows[0];
+    // Mana-rock subtype + closer CMC ranks the rocks above the dork.
+    expect(primary.usedName).toBe('Mind Stone');
+    expect(primary.alternatives?.map((a) => a.usedName)).toEqual(['Worn Powerstone']);
+    // Llanowar Elves is out of the Dimir identity, so it never appears.
+    expect(primary.whyFactors && primary.whyFactors.length).toBeGreaterThan(0);
+    expect(primary.alternatives?.[0].whyFactors?.length).toBeGreaterThan(0);
+  });
+
+  it('never offers a card that is already another staple primary as an alternative', () => {
+    // Two ramp staples, two owned rocks: each becomes one staple's primary, so
+    // neither can also be the other staple's alternative (no double-allocation).
+    const plan = buildSubstitutionOptions(
+      [
+        missing({ name: 'Talisman of Dominance', role: 'ramp', cmc: 2 }),
+        missing({ name: 'Dimir Signet', role: 'ramp', cmc: 2 }),
+      ],
+      [
+        owned({ name: 'Mind Stone', colorIdentity: [], cmc: 2 }),
+        owned({ name: 'Worn Powerstone', colorIdentity: [], cmc: 3 }),
+      ],
+      new Set<string>(),
+      DIMIR
+    );
+    const used = plan.rows.map((r) => r.usedName);
+    expect(new Set(used).size).toBe(used.length); // distinct primaries
+    for (const row of plan.rows) {
+      for (const alt of row.alternatives ?? []) {
+        expect(used).not.toContain(alt.usedName);
+      }
+    }
   });
 });

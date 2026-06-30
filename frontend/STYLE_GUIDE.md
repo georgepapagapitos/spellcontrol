@@ -1145,6 +1145,29 @@ default. Opening it does not expand the feed inline — it appends beneath the
 last add/swap row. Mixing cuts into an adds feed reads as noise and makes it
 unclear whether a row is an opportunity or a warning.
 
+### Collection lane — owned alternatives
+
+The collection lane ("Stand-ins") shows one **primary** row per missing staple —
+the single best owned card that fills it — to keep the feed scannable. When the
+collection holds runner-up owned cards for the same staple, the primary row
+carries an **"N other owned options"** disclosure (`SubstituteOptions`),
+collapsed by default, that expands the ranked alternatives as nested
+`DeckCardRow`s (each with its own grounded `WhyBreakdown`). Rules:
+
+- **Best pick stays in the flat feed; alternatives are opt-in** under the
+  expander — never flatten all owned options into the feed (it buries the
+  recommendation and double-lists the same physical copy).
+- The expander toggle matches the Why-disclosure vocabulary (chevron, sentence
+  case, 44px coarse target, hover-gated, focus ring); the alternatives sit under
+  a logical-inline grouping rail (`border-inline-start`), modest indent — no deep
+  margin (it cramps the nested rows at 320px).
+- An owned card chosen as one staple's primary is **never** offered as another
+  staple's alternative (no implying you can apply the same copy twice);
+  `buildSubstitutionOptions` enforces this. Applying any option removes every
+  feed row naming that card on the next render (the live `deckNames` filter).
+- **No fabricated "% match".** The owned-substitute similarity heuristic tops out
+  at ~0.44 nDCG@5, so rank order carries fit — never a false-precision percentage.
+
 ### Apply feedback
 
 When the user clicks Apply on a row, the order is **animate, then apply** —

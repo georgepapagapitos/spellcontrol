@@ -308,7 +308,7 @@ describe('fromSubstituteRow', () => {
     expect(c.type).toBe('add');
     expect(c.lane).toBe('collection');
     expect(c.name).toBe('Evacuation'); // the owned card we actually add
-    expect(c.id).toBe('collection:Evacuation');
+    expect(c.id).toBe('collection:Cyclonic Rift:Evacuation');
     expect(c.ownership).toBe('owned');
     expect(c.reason).toContain('Evacuation');
     expect(c.role).toBe('boardwipe');
