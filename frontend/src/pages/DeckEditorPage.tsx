@@ -1541,7 +1541,7 @@ export function DeckEditorPage() {
     pushToast({
       message: `${target.card.name} is now the commander${
         keepOldInDeck && oldCommander ? ` · ${oldCommander.name} moved to the deck` : ''
-      }`,
+      }.`,
       tone: 'success',
     });
   };
@@ -1598,7 +1598,7 @@ export function DeckEditorPage() {
     pushToast({
       message: `${target.card.name} is now the partner commander${
         keepOldInDeck && oldPartner ? ` · ${oldPartner.name} moved to the deck` : ''
-      }`,
+      }.`,
       tone: 'success',
     });
   };
@@ -1635,7 +1635,7 @@ export function DeckEditorPage() {
       setPartnerCommander(deck.id, card, allocated);
     });
     setShowPartnerPicker(false);
-    pushToast({ message: `${card.name} is now the partner commander`, tone: 'success' });
+    pushToast({ message: `${card.name} is now the partner commander.`, tone: 'success' });
   };
 
   // Click-to-edit qty handler: diffs the desired count against the live

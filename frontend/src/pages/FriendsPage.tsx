@@ -387,9 +387,10 @@ export function FriendsPage() {
           {loading ? (
             <FriendsSkeleton />
           ) : friendsList.length === 0 ? (
-            <p className="friends-empty" role="status">
-              No friends yet — search above to add them.
-            </p>
+            <div className="empty-state" role="status">
+              <p className="empty-state-tagline">No friends yet</p>
+              <p className="empty-state-hint">Search above to find and add other players.</p>
+            </div>
           ) : (
             <ul className="friends-list" aria-label="Your friends">
               {friendsList.map((friend) => (
@@ -515,9 +516,12 @@ export function FriendsPage() {
           {inbox === null ? (
             <FriendsSkeleton />
           ) : inboxList.length === 0 ? (
-            <p className="friends-empty" role="status">
-              No shared items yet — when a friend sends you something, it appears here.
-            </p>
+            <div className="empty-state" role="status">
+              <p className="empty-state-tagline">Nothing shared yet</p>
+              <p className="empty-state-hint">
+                When a friend shares a deck or collection with you, it shows up here.
+              </p>
+            </div>
           ) : (
             <ul className="friends-inbox-list" aria-label="Shared with you">
               {inboxList.map((item) => (
