@@ -3,6 +3,8 @@ import { type JSX, useCallback, useState } from 'react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
+import { WhyBreakdown } from './WhyBreakdown';
+import type { WhyFactor } from '@/lib/why-factors';
 
 export interface SizePromptOption {
   /** Stable key (slotId for cuts, name for adds). */
@@ -12,6 +14,8 @@ export interface SizePromptOption {
   roleLabel?: string;
   /** Short muted "why" ("same role", "weak slot", "fills the Ramp gap"). */
   hint?: string;
+  /** Grounded breakdown behind the hint, for the tappable disclosure. */
+  factors?: WhyFactor[];
   onPick: () => void;
 }
 
@@ -57,6 +61,9 @@ function OptionRow({
           {option.roleLabel && <span className="deck-size-prompt-role">{option.roleLabel}</span>}
           {option.hint && <span className="deck-size-prompt-hint">{option.hint}</span>}
         </span>
+        {option.factors && option.factors.length > 0 && (
+          <WhyBreakdown factors={option.factors} label={`Why cut ${option.name}?`} />
+        )}
       </span>
       <button
         type="button"

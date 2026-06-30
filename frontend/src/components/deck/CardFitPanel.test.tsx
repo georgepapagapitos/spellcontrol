@@ -29,6 +29,7 @@ const cut = (name: string): RankedCut => ({
   card: scry(name),
   reason: 'Overlapping Tokens',
   related: true,
+  factors: [{ text: 'Shares your Tokens engine — a like-for-like swap', tone: 'pro' }],
 });
 
 function baseReport(over: Partial<AddFitReport> = {}): AddFitReport {

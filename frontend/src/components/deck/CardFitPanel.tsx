@@ -65,6 +65,7 @@ function cutToChange(cut: RankedCut): Change {
     name: cut.card.name,
     card: cut.card,
     reason: cut.reason,
+    whyFactors: cut.factors,
     cmc: cut.card.cmc,
     typeLine: cut.card.type_line,
     imageUrl: cut.card.image_uris?.normal ?? cut.card.image_uris?.small,

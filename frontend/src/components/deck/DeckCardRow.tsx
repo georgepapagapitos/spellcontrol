@@ -3,6 +3,7 @@ import './DeckCardRow.css';
 import { ArrowLeftRight, ArrowRight, Loader2, Minus, Plus } from 'lucide-react';
 import { OwnershipBadge } from './OwnershipBadge';
 import { VerdictBadge, type VerdictTone } from './VerdictBadge';
+import { WhyBreakdown } from './WhyBreakdown';
 import type { Change } from '@/lib/deck-change';
 
 /** Budget-swap confidence tier → badge tone + word (STYLE_GUIDE: success/info/warn).
@@ -239,6 +240,12 @@ export function DeckCardRow({
           )}
         </span>
         {reason && <span className="deck-card-row-reason">{reason}</span>}
+        {change.whyFactors && change.whyFactors.length > 0 && (
+          <WhyBreakdown
+            factors={change.whyFactors}
+            label={change.type === 'cut' ? 'Why cut this?' : 'Why this?'}
+          />
+        )}
       </div>
 
       {secondaryAction && (
