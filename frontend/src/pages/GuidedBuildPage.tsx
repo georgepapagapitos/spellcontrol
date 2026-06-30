@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BackLink } from '../components/BackLink';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { CommanderSearch } from '../components/deck/CommanderSearch';
@@ -9,6 +9,7 @@ import { DeckCustomizer } from '../components/deck/DeckCustomizer';
 import { GenerationModePicker } from '../components/deck/GenerationModePicker';
 import { GenerationTakeover } from '../components/deck/GenerationTakeover';
 import { useDeckGeneration } from '../lib/use-deck-generation';
+import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
 import type { DeckCategory } from '@/deck-builder/types';
 
 interface Step {
@@ -57,27 +58,11 @@ const CATEGORY_LABELS: Partial<Record<DeckCategory, string>> = {
 
 export function GuidedBuildPage() {
   const resetDeckBuilder = useDeckBuilderStore((s) => s.reset);
-  const [takeoverExiting, setTakeoverExiting] = useState(false);
-  const takeoverExitResolveRef = useRef<(() => void) | null>(null);
-
-  const waitForTakeoverExit = useCallback(
-    () =>
-      new Promise<void>((resolve) => {
-        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-        if (reduce) {
-          resolve();
-          return;
-        }
-        takeoverExitResolveRef.current = resolve;
-        setTakeoverExiting(true);
-      }),
-    []
-  );
-
-  const handleTakeoverExitComplete = useCallback(() => {
-    takeoverExitResolveRef.current?.();
-    takeoverExitResolveRef.current = null;
-  }, []);
+  const {
+    isExiting: takeoverExiting,
+    waitForExit: waitForTakeoverExit,
+    finishExit: handleTakeoverExitComplete,
+  } = useGenerationTakeoverExit();
 
   const {
     commander,
