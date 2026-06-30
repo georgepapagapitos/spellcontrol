@@ -212,8 +212,12 @@
 }
 
 .shared-toolbar-search {
+  /* min-width:0 (not a px floor) so the pill can shrink in the flex row like
+     the main collection toolbar's SearchPill — a 200px floor kept it from
+     shrinking, pushing the trailing filter button past .shared-shell's
+     overflow-x:hidden edge and clipping it on mobile. */
   flex: 1 1 240px;
-  min-width: 200px;
+  min-width: 0;
 }
 
 .shared-sort-label {
