@@ -12,6 +12,13 @@ import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
+import {
+  SelectToggle,
+  BulkSelectBar,
+  SelectCheck,
+  selectInteraction,
+} from '../components/BulkSelectBar';
+import { useSelection } from '../lib/use-selection';
 import { ListEntriesView } from '../components/ListEntriesView';
 import { ShareDialog } from '../components/ShareDialog';
 import { NameInputDialog } from '../components/NameInputDialog';
@@ -40,7 +47,9 @@ export function ListsPage() {
   const createList = useCollectionStore((s) => s.createList);
   const renameList = useCollectionStore((s) => s.renameList);
   const deleteList = useCollectionStore((s) => s.deleteList);
+  const deleteLists = useCollectionStore((s) => s.deleteLists);
   const deleteAllLists = useCollectionStore((s) => s.deleteAllLists);
+  const sel = useSelection();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
@@ -142,6 +151,22 @@ export function ListsPage() {
     if (ok) deleteAllLists();
   };
 
+  const allSelected = sorted.length > 0 && sorted.every((l) => sel.selected.has(l.id));
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(sel.selected);
+    const ok = await confirm({
+      title: `Delete ${ids.length} selected list${ids.length === 1 ? '' : 's'}?`,
+      body: `Every selected list and all of its entries will be removed. This cannot be undone.`,
+      confirmLabel: 'Delete lists',
+      danger: true,
+    });
+    if (ok) {
+      deleteLists(ids);
+      sel.exit();
+    }
+  };
+
   // Per-list view: the real entries view (add via Scryfall search, the
   // "you own N" badge, inline edits, edit-printing, move-to-collection).
   if (routeId) {
@@ -222,6 +247,12 @@ export function ListsPage() {
               },
             ]}
           />
+          {lists.length > 1 && (
+            <SelectToggle
+              active={sel.selectMode}
+              onToggle={() => (sel.selectMode ? sel.exit() : sel.enter())}
+            />
+          )}
         </div>
       )}
 
@@ -243,42 +274,77 @@ export function ListsPage() {
           <p className="empty-state-tagline">No lists match “{search.trim()}”.</p>
         </div>
       ) : (
-        <ul className={`binders-index-list is-${view}`}>
-          {sorted.map((l) => (
-            <li key={l.id} className="binders-index-card">
-              <Link to={`/collection/lists/${l.id}`} className="binders-index-card-link">
-                <div className="binders-index-card-body">
-                  <div className="binders-index-card-name">{l.name}</div>
-                  <div className="binders-index-card-meta">
-                    <span className="binders-index-card-cards">
-                      {l.entries.length.toLocaleString()}{' '}
-                      {l.entries.length === 1 ? 'entry' : 'entries'}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-              <OverflowMenu
-                className="binders-index-card-menu"
-                triggerClassName="binders-index-card-menu-btn"
-                ariaLabel={`Actions for ${l.name}`}
-                items={[
-                  { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id, l.name) },
-                  {
-                    label: 'Share',
-                    icon: Share2,
-                    onClick: () => setShareList({ id: l.id, name: l.name }),
-                  },
-                  {
-                    label: 'Delete',
-                    icon: Trash2,
-                    danger: true,
-                    onClick: () => void handleDelete(l.id, l.name),
-                  },
-                ]}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          {sel.selectMode && (
+            <BulkSelectBar
+              count={sel.selected.size}
+              total={sorted.length}
+              allSelected={allSelected}
+              onToggleAll={() =>
+                allSelected ? sel.clear() : sel.selectAll(sorted.map((l) => l.id))
+              }
+              onClear={sel.clear}
+              onDone={sel.exit}
+              noun="list"
+            >
+              <button
+                type="button"
+                className="pill-btn bulk-bar-danger"
+                disabled={sel.selected.size === 0}
+                onClick={() => void handleBulkDelete()}
+              >
+                <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Delete selected</span>
+              </button>
+            </BulkSelectBar>
+          )}
+          <ul className={`binders-index-list is-${view}`}>
+            {sorted.map((l) => {
+              const selected = sel.selected.has(l.id);
+              return (
+                <li
+                  key={l.id}
+                  className={`binders-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
+                    selected ? ' bulk-selected' : ''
+                  }`}
+                  {...selectInteraction(sel.selectMode, selected, () => sel.toggle(l.id))}
+                >
+                  {sel.selectMode && <SelectCheck checked={selected} />}
+                  <Link to={`/collection/lists/${l.id}`} className="binders-index-card-link">
+                    <div className="binders-index-card-body">
+                      <div className="binders-index-card-name">{l.name}</div>
+                      <div className="binders-index-card-meta">
+                        <span className="binders-index-card-cards">
+                          {l.entries.length.toLocaleString()}{' '}
+                          {l.entries.length === 1 ? 'entry' : 'entries'}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                  <OverflowMenu
+                    className="binders-index-card-menu"
+                    triggerClassName="binders-index-card-menu-btn"
+                    ariaLabel={`Actions for ${l.name}`}
+                    items={[
+                      { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id, l.name) },
+                      {
+                        label: 'Share',
+                        icon: Share2,
+                        onClick: () => setShareList({ id: l.id, name: l.name }),
+                      },
+                      {
+                        label: 'Delete',
+                        icon: Trash2,
+                        danger: true,
+                        onClick: () => void handleDelete(l.id, l.name),
+                      },
+                    ]}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       {lists.length > 1 && (

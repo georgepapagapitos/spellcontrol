@@ -29,6 +29,13 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
 import { OverflowMenu } from '../components/OverflowMenu';
+import {
+  SelectToggle,
+  BulkSelectBar,
+  SelectCheck,
+  selectInteraction,
+} from '../components/BulkSelectBar';
+import { useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import type { Deck, DeckSource } from '../store/decks';
@@ -141,7 +148,9 @@ function deckSortValue(deck: Deck, field: DeckSortField): number | string {
 export function DecksIndexPage() {
   const decks = useDecksStore((s) => s.decks);
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
+  const deleteDecks = useDecksStore((s) => s.deleteDecks);
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
+  const sel = useSelection();
   const navigate = useNavigate();
 
   const { sortField, sortDir, toggleSort } = useStoredSort<DeckSortField>(
@@ -224,6 +233,8 @@ export function DecksIndexPage() {
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Deck | null>(null);
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const allSelected = sorted.length > 0 && sorted.every((d) => sel.selected.has(d.id));
   const [shareDeck, setShareDeck] = useState<Deck | null>(null);
 
   const handleRegenerate = (deck: Deck) => {
@@ -365,6 +376,12 @@ export function DecksIndexPage() {
               },
             ]}
           />
+          {decks.length > 1 && (
+            <SelectToggle
+              active={sel.selectMode}
+              onToggle={() => (sel.selectMode ? sel.exit() : sel.enter())}
+            />
+          )}
         </div>
       )}
 
@@ -379,6 +396,21 @@ export function DecksIndexPage() {
           danger
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {confirmBulkDelete && (
+        <ConfirmDialog
+          title={`Delete ${sel.selected.size} selected deck${sel.selected.size === 1 ? '' : 's'}?`}
+          body="The selected decks will be removed. You can undo from the toast."
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => {
+            deleteDecks(Array.from(sel.selected));
+            setConfirmBulkDelete(false);
+            sel.exit();
+          }}
+          onCancel={() => setConfirmBulkDelete(false)}
         />
       )}
 
@@ -435,161 +467,193 @@ export function DecksIndexPage() {
           </p>
         </div>
       ) : (
-        <ul className={`decks-index-list is-${view}`}>
-          {sorted.map((deck) => {
-            const totalCards =
-              (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
-            // Heal decks whose commander was added offline before the slim
-            // inflater derived a real crop: those rows have the full-card URL
-            // baked into art_crop. The swap is a no-op for real crop URLs.
-            const rawArt =
-              deck.commander?.image_uris?.art_crop ??
-              deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
-            const art = rawArt ? scryfallArtCrop(rawArt) : rawArt;
-            const colors = effectiveDeckColors(deck);
-            // For non-commander decks sort by how often each color shows up in
-            // the cards; commander decks fall through to WUBRG order since
-            // every color in the identity is "equally used" from a pip
-            // perspective.
-            const freq = deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
-            const colorIdentity = Array.from(colors).sort((a, b) => {
-              if (freq) {
-                const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
-                if (diff !== 0) return diff;
+        <>
+          {sel.selectMode && (
+            <BulkSelectBar
+              count={sel.selected.size}
+              total={sorted.length}
+              allSelected={allSelected}
+              onToggleAll={() =>
+                allSelected ? sel.clear() : sel.selectAll(sorted.map((d) => d.id))
               }
-              return (
-                COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
-                COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
-              );
-            });
-            const themes = deck.generationContext?.selectedThemes ?? [];
-            const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
-            const issues = formatCfg
-              ? validateDeck(deck.cards, deck.sideboard, formatCfg, {
-                  commander: deck.commander,
-                  partnerCommander: deck.partnerCommander,
-                })
-              : [];
-            const flaggedCount = countFlaggedCards(issues);
-            return (
-              <li
-                key={deck.id}
-                className="decks-index-card"
-                /* `--deck-color` drives both the resting left-border accent
-                   and the full hover-border tint via CSS. */
-                style={{ ['--deck-color' as string]: deck.color }}
+              onClear={sel.clear}
+              onDone={sel.exit}
+              noun="deck"
+            >
+              <button
+                type="button"
+                className="pill-btn bulk-bar-danger"
+                disabled={sel.selected.size === 0}
+                onClick={() => setConfirmBulkDelete(true)}
               >
-                <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
-                  {view !== 'compact' && art && (
-                    <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
-                  )}
-                  {view === 'grid' && !art && (
-                    /* Fallback banner for non-commander decks (no art_crop
+                <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Delete selected</span>
+              </button>
+            </BulkSelectBar>
+          )}
+          <ul className={`decks-index-list is-${view}`}>
+            {sorted.map((deck) => {
+              const totalCards =
+                (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
+              // Heal decks whose commander was added offline before the slim
+              // inflater derived a real crop: those rows have the full-card URL
+              // baked into art_crop. The swap is a no-op for real crop URLs.
+              const rawArt =
+                deck.commander?.image_uris?.art_crop ??
+                deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
+              const art = rawArt ? scryfallArtCrop(rawArt) : rawArt;
+              const colors = effectiveDeckColors(deck);
+              // For non-commander decks sort by how often each color shows up in
+              // the cards; commander decks fall through to WUBRG order since
+              // every color in the identity is "equally used" from a pip
+              // perspective.
+              const freq =
+                deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
+              const colorIdentity = Array.from(colors).sort((a, b) => {
+                if (freq) {
+                  const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
+                  if (diff !== 0) return diff;
+                }
+                return (
+                  COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
+                  COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
+                );
+              });
+              const themes = deck.generationContext?.selectedThemes ?? [];
+              const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
+              const issues = formatCfg
+                ? validateDeck(deck.cards, deck.sideboard, formatCfg, {
+                    commander: deck.commander,
+                    partnerCommander: deck.partnerCommander,
+                  })
+                : [];
+              const flaggedCount = countFlaggedCards(issues);
+              const selected = sel.selected.has(deck.id);
+              return (
+                <li
+                  key={deck.id}
+                  className={`decks-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
+                    selected ? ' bulk-selected' : ''
+                  }`}
+                  /* `--deck-color` drives both the resting left-border accent
+                   and the full hover-border tint via CSS. */
+                  style={{ ['--deck-color' as string]: deck.color }}
+                  {...selectInteraction(sel.selectMode, selected, () => sel.toggle(deck.id))}
+                >
+                  {sel.selectMode && <SelectCheck checked={selected} />}
+                  <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
+                    {view !== 'compact' && art && (
+                      <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
+                    )}
+                    {view === 'grid' && !art && (
+                      /* Fallback banner for non-commander decks (no art_crop
                        available). Same height as the commander art banner
                        so grid tiles stay uniform; mirrors binders grid
                        header treatment. */
-                    <span className="decks-index-card-banner" aria-hidden>
-                      {colorIdentity.length > 0 && (
-                        <span className="decks-index-card-banner-pips">
-                          {colorIdentity.map((c) => (
-                            <ColorPip key={c} color={c} pip="lg" />
-                          ))}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  <div className="decks-index-card-body">
-                    <div className="decks-index-card-name">
-                      <span>{deck.name}</span>
-                      {flaggedCount > 0 && (
-                        <span
-                          className="decks-index-card-issues"
-                          title={`${flaggedCount} card${
-                            flaggedCount === 1 ? '' : 's'
-                          } flagged in ${formatCfg?.label ?? deck.format}:\n${issues
-                            .slice(0, 5)
-                            .map((i) => `• ${i.cardName}: ${i.detail}`)
-                            .join(
-                              '\n'
-                            )}${issues.length > 5 ? `\n…and ${issues.length - 5} more` : ''}`}
-                          aria-label={`${flaggedCount} card${
-                            flaggedCount === 1 ? '' : 's'
-                          } flagged`}
-                        >
-                          <CircleAlert width={18} height={18} strokeWidth={1.6} aria-hidden />
-                        </span>
-                      )}
-                    </div>
-                    <div className="decks-index-card-meta">
-                      {colorIdentity.length > 0 && (
-                        <span className="decks-index-card-pips" aria-label="Color identity">
-                          {colorIdentity.map((c) => (
-                            <ColorPip key={c} color={c} />
-                          ))}
-                        </span>
-                      )}
-                      <span className="deck-format-badge">
-                        {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
-                      </span>
-                      <span>
-                        {deck.commander
-                          ? `${deck.commander.name}${
-                              deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
-                            } · `
-                          : ''}
-                        {totalCards} cards · {deck.source === 'generated' ? 'Generated' : 'Manual'}
-                      </span>
-                    </div>
-                    {view !== 'compact' && themes.length > 0 && (
-                      <div className="decks-index-card-themes">
-                        {themes.map((t) => (
-                          <span key={t.slug ?? t.name} className="decks-index-card-theme-chip">
-                            {t.name}
+                      <span className="decks-index-card-banner" aria-hidden>
+                        {colorIdentity.length > 0 && (
+                          <span className="decks-index-card-banner-pips">
+                            {colorIdentity.map((c) => (
+                              <ColorPip key={c} color={c} pip="lg" />
+                            ))}
                           </span>
-                        ))}
-                      </div>
+                        )}
+                      </span>
                     )}
-                    <div className="decks-index-card-time">
-                      Edited {formatRelativeTime(deck.updatedAt)}
+                    <div className="decks-index-card-body">
+                      <div className="decks-index-card-name">
+                        <span>{deck.name}</span>
+                        {flaggedCount > 0 && (
+                          <span
+                            className="decks-index-card-issues"
+                            title={`${flaggedCount} card${
+                              flaggedCount === 1 ? '' : 's'
+                            } flagged in ${formatCfg?.label ?? deck.format}:\n${issues
+                              .slice(0, 5)
+                              .map((i) => `• ${i.cardName}: ${i.detail}`)
+                              .join(
+                                '\n'
+                              )}${issues.length > 5 ? `\n…and ${issues.length - 5} more` : ''}`}
+                            aria-label={`${flaggedCount} card${
+                              flaggedCount === 1 ? '' : 's'
+                            } flagged`}
+                          >
+                            <CircleAlert width={18} height={18} strokeWidth={1.6} aria-hidden />
+                          </span>
+                        )}
+                      </div>
+                      <div className="decks-index-card-meta">
+                        {colorIdentity.length > 0 && (
+                          <span className="decks-index-card-pips" aria-label="Color identity">
+                            {colorIdentity.map((c) => (
+                              <ColorPip key={c} color={c} />
+                            ))}
+                          </span>
+                        )}
+                        <span className="deck-format-badge">
+                          {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
+                        </span>
+                        <span>
+                          {deck.commander
+                            ? `${deck.commander.name}${
+                                deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
+                              } · `
+                            : ''}
+                          {totalCards} cards ·{' '}
+                          {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                        </span>
+                      </div>
+                      {view !== 'compact' && themes.length > 0 && (
+                        <div className="decks-index-card-themes">
+                          {themes.map((t) => (
+                            <span key={t.slug ?? t.name} className="decks-index-card-theme-chip">
+                              {t.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="decks-index-card-time">
+                        Edited {formatRelativeTime(deck.updatedAt)}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-                <OverflowMenu
-                  className="decks-index-card-menu"
-                  triggerClassName="decks-index-card-menu-btn"
-                  ariaLabel={`Actions for ${deck.name}`}
-                  items={[
-                    ...(deck.source === 'generated' && deck.commander
-                      ? [
-                          {
-                            label: 'Re-generate',
-                            icon: RefreshCw,
-                            onClick: () => handleRegenerate(deck),
-                          },
-                        ]
-                      : []),
-                    { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
-                    ...(decks.length >= 2
-                      ? [
-                          {
-                            label: 'Compare',
-                            icon: GitCompareArrows,
-                            onClick: () => navigate(`/decks/compare?a=${deck.id}`),
-                          },
-                        ]
-                      : []),
-                    {
-                      label: 'Delete',
-                      icon: Trash2,
-                      danger: true,
-                      onClick: () => handleDelete(deck),
-                    },
-                  ]}
-                />
-              </li>
-            );
-          })}
-        </ul>
+                  </Link>
+                  <OverflowMenu
+                    className="decks-index-card-menu"
+                    triggerClassName="decks-index-card-menu-btn"
+                    ariaLabel={`Actions for ${deck.name}`}
+                    items={[
+                      ...(deck.source === 'generated' && deck.commander
+                        ? [
+                            {
+                              label: 'Re-generate',
+                              icon: RefreshCw,
+                              onClick: () => handleRegenerate(deck),
+                            },
+                          ]
+                        : []),
+                      { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
+                      ...(decks.length >= 2
+                        ? [
+                            {
+                              label: 'Compare',
+                              icon: GitCompareArrows,
+                              onClick: () => navigate(`/decks/compare?a=${deck.id}`),
+                            },
+                          ]
+                        : []),
+                      {
+                        label: 'Delete',
+                        icon: Trash2,
+                        danger: true,
+                        onClick: () => handleDelete(deck),
+                      },
+                    ]}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       {decks.length > 1 && (

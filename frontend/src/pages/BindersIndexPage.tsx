@@ -26,6 +26,13 @@ import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
+import {
+  SelectToggle,
+  BulkSelectBar,
+  SelectCheck,
+  selectInteraction,
+} from '../components/BulkSelectBar';
+import { useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderExportDialog } from '../components/BinderExportDialog';
 import { importText } from '../lib/api';
@@ -57,7 +64,9 @@ export function BindersIndexPage() {
   const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const deleteBinders = useCollectionStore((s) => s.deleteBinders);
   const deleteAllBinders = useCollectionStore((s) => s.deleteAllBinders);
+  const sel = useSelection();
   const moveBinder = useCollectionStore((s) => s.moveBinder);
   const loadSampleBinders = useCollectionStore((s) => s.loadSampleBinders);
   const setError = useCollectionStore((s) => s.setError);
@@ -110,6 +119,7 @@ export function BindersIndexPage() {
     'grid'
   );
   const [exportOpen, setExportOpen] = useState(false);
+  const [bulkExportOpen, setBulkExportOpen] = useState(false);
 
   const sorted = useMemo(() => {
     const dirMul = sortDir === 'asc' ? 1 : -1;
@@ -160,6 +170,26 @@ export function BindersIndexPage() {
     });
     if (ok) deleteAllBinders();
   }, [confirm, deleteAllBinders, binders.length]);
+
+  const allSelected = sorted.length > 0 && sorted.every((b) => sel.selected.has(b.def.id));
+  const selectedDefs = useMemo(
+    () => materialized.filter((b) => sel.selected.has(b.def.id)),
+    [materialized, sel.selected]
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(sel.selected);
+    const ok = await confirm({
+      title: `Delete ${ids.length} selected binder${ids.length === 1 ? '' : 's'}?`,
+      body: `Their cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
+      confirmLabel: 'Delete binders',
+      danger: true,
+    });
+    if (ok) {
+      deleteBinders(ids);
+      sel.exit();
+    }
+  }, [confirm, deleteBinders, sel]);
 
   return (
     <div className="binders-index-page">
@@ -240,6 +270,12 @@ export function BindersIndexPage() {
               },
             ]}
           />
+          {binders.length > 1 && (
+            <SelectToggle
+              active={sel.selectMode}
+              onToggle={() => (sel.selectMode ? sel.exit() : sel.enter())}
+            />
+          )}
         </div>
       )}
 
@@ -298,77 +334,122 @@ export function BindersIndexPage() {
           <p className="empty-state-tagline">No binders match "{debouncedSearch}".</p>
         </div>
       ) : (
-        <ul className={`binders-index-list is-${view}`}>
-          {sorted.map((b, idx) => (
-            <li
-              key={b.def.id}
-              className="binders-index-card"
-              style={{ ['--binder-color' as string]: b.def.color }}
+        <>
+          {sel.selectMode && (
+            <BulkSelectBar
+              count={sel.selected.size}
+              total={sorted.length}
+              allSelected={allSelected}
+              onToggleAll={() =>
+                allSelected ? sel.clear() : sel.selectAll(sorted.map((b) => b.def.id))
+              }
+              onClear={sel.clear}
+              onDone={sel.exit}
+              noun="binder"
             >
-              <Link to={`/collection/binders/${b.def.id}`} className="binders-index-card-link">
-                <div className="binders-index-card-body">
-                  <div className="binders-index-card-name">{b.def.name}</div>
-                  <div className="binders-index-card-meta">
-                    {b.def.mode === 'manual' && (
-                      <span className="binders-index-card-tag">Manual</span>
-                    )}
-                    {/* Split into two spans so compact mode (which hides the
+              <button
+                type="button"
+                className="pill-btn"
+                disabled={sel.selected.size === 0}
+                onClick={() => setBulkExportOpen(true)}
+              >
+                <Upload width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Export</span>
+              </button>
+              <button
+                type="button"
+                className="pill-btn bulk-bar-danger"
+                disabled={sel.selected.size === 0}
+                onClick={() => void handleBulkDelete()}
+              >
+                <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                <span>Delete selected</span>
+              </button>
+            </BulkSelectBar>
+          )}
+          <ul className={`binders-index-list is-${view}`}>
+            {sorted.map((b, idx) => {
+              const selected = sel.selected.has(b.def.id);
+              return (
+                <li
+                  key={b.def.id}
+                  className={`binders-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
+                    selected ? ' bulk-selected' : ''
+                  }`}
+                  style={{ ['--binder-color' as string]: b.def.color }}
+                  {...selectInteraction(sel.selectMode, selected, () => sel.toggle(b.def.id))}
+                >
+                  {sel.selectMode && <SelectCheck checked={selected} />}
+                  <Link to={`/collection/binders/${b.def.id}`} className="binders-index-card-link">
+                    <div className="binders-index-card-body">
+                      <div className="binders-index-card-name">{b.def.name}</div>
+                      <div className="binders-index-card-meta">
+                        {b.def.mode === 'manual' && (
+                          <span className="binders-index-card-tag">Manual</span>
+                        )}
+                        {/* Split into two spans so compact mode (which hides the
                         cards count via CSS) can still show the page count
                         as a quick skim signal. */}
-                    <span className="binders-index-card-cards">
-                      {b.totalCards.toLocaleString()} {b.totalCards === 1 ? 'card' : 'cards'}
-                    </span>
-                    <span className="binders-index-card-pages">
-                      {b.totalPages.toLocaleString()} {b.totalPages === 1 ? 'page' : 'pages'}
-                    </span>
-                    {b.totalValue > 0 && (
-                      <span className="binders-index-card-value">
-                        {formatMoney(b.totalValue, { wholeDollars: true })}
-                      </span>
-                    )}
-                    {b.def.fixedCapacity != null && (
-                      <span className="binders-index-card-tag">
-                        Cap {b.def.fixedCapacity.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-              <OverflowMenu
-                className="binders-index-card-menu"
-                triggerClassName="binders-index-card-menu-btn"
-                ariaLabel={`Actions for ${b.def.name}`}
-                items={[
-                  // Suppress reorder unless sorted by position asc — moving
-                  // wouldn't visibly change a name/count-sorted list.
-                  ...(sortField === 'position' && sortDir === 'asc'
-                    ? [
-                        {
-                          label: 'Move up',
-                          icon: ArrowUp,
-                          disabled: idx === 0,
-                          onClick: () => moveBinder(b.def.id, 'up'),
-                        },
-                        {
-                          label: 'Move down',
-                          icon: ArrowDown,
-                          disabled: idx === sorted.length - 1,
-                          onClick: () => moveBinder(b.def.id, 'down'),
-                        },
-                      ]
-                    : []),
-                  { label: 'Edit binder', icon: Pencil, onClick: () => setEditingBinder(b.def.id) },
-                  {
-                    label: 'Delete binder',
-                    icon: Trash2,
-                    danger: true,
-                    onClick: () => void handleDelete(b.def.id, b.def.name),
-                  },
-                ]}
-              />
-            </li>
-          ))}
-        </ul>
+                        <span className="binders-index-card-cards">
+                          {b.totalCards.toLocaleString()} {b.totalCards === 1 ? 'card' : 'cards'}
+                        </span>
+                        <span className="binders-index-card-pages">
+                          {b.totalPages.toLocaleString()} {b.totalPages === 1 ? 'page' : 'pages'}
+                        </span>
+                        {b.totalValue > 0 && (
+                          <span className="binders-index-card-value">
+                            {formatMoney(b.totalValue, { wholeDollars: true })}
+                          </span>
+                        )}
+                        {b.def.fixedCapacity != null && (
+                          <span className="binders-index-card-tag">
+                            Cap {b.def.fixedCapacity.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                  <OverflowMenu
+                    className="binders-index-card-menu"
+                    triggerClassName="binders-index-card-menu-btn"
+                    ariaLabel={`Actions for ${b.def.name}`}
+                    items={[
+                      // Suppress reorder unless sorted by position asc — moving
+                      // wouldn't visibly change a name/count-sorted list.
+                      ...(sortField === 'position' && sortDir === 'asc'
+                        ? [
+                            {
+                              label: 'Move up',
+                              icon: ArrowUp,
+                              disabled: idx === 0,
+                              onClick: () => moveBinder(b.def.id, 'up'),
+                            },
+                            {
+                              label: 'Move down',
+                              icon: ArrowDown,
+                              disabled: idx === sorted.length - 1,
+                              onClick: () => moveBinder(b.def.id, 'down'),
+                            },
+                          ]
+                        : []),
+                      {
+                        label: 'Edit binder',
+                        icon: Pencil,
+                        onClick: () => setEditingBinder(b.def.id),
+                      },
+                      {
+                        label: 'Delete binder',
+                        icon: Trash2,
+                        danger: true,
+                        onClick: () => void handleDelete(b.def.id, b.def.name),
+                      },
+                    ]}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       {binders.length > 1 && (
@@ -388,6 +469,14 @@ export function BindersIndexPage() {
           binders={materialized}
           activeId={null}
           onClose={() => setExportOpen(false)}
+        />
+      )}
+
+      {bulkExportOpen && selectedDefs.length > 0 && (
+        <BinderExportDialog
+          binders={selectedDefs}
+          activeId={null}
+          onClose={() => setBulkExportOpen(false)}
         />
       )}
 
