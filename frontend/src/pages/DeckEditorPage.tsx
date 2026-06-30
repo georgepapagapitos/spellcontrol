@@ -1449,9 +1449,14 @@ export function DeckEditorPage() {
     );
   };
 
-  // Apply budget swaps: each pair cuts the pricier card and adds the cheaper
-  // role-equivalent. Same name→slot / resolve+allocate machinery as Optimize.
-  const handleApplyCostSwaps = async (swaps: Array<{ removeName: string; addName: string }>) => {
+  // Apply a batch of 1-for-1 swaps as ONE undo entry: each pair cuts the named
+  // in-deck card and adds the replacement. Drives both the budget "Apply all
+  // drop-ins" and the bracket "Converge to target" bulk actions — both are
+  // swap-only, so the deck size never changes. `kind` only tunes the copy.
+  const handleApplyCostSwaps = async (
+    swaps: Array<{ removeName: string; addName: string }>,
+    kind: 'budget' | 'bracket' = 'budget'
+  ) => {
     if (!deck) return;
     try {
       const slotsByName = new Map<string, string[]>();
@@ -1482,13 +1487,13 @@ export function DeckEditorPage() {
           /* skip cards that won't resolve — leave the original in place */
         }
       }
-      if (before) commitEdit(deck.id, `apply ${done} budget swap${done === 1 ? '' : 's'}`, before);
+      if (before) commitEdit(deck.id, `apply ${done} ${kind} swap${done === 1 ? '' : 's'}`, before);
       pushToast({
-        message: `Applied ${done} budget swap${done === 1 ? '' : 's'}`,
+        message: `Applied ${done} ${kind} swap${done === 1 ? '' : 's'}`,
         tone: 'success',
       });
     } catch {
-      pushToast({ message: "Couldn't apply budget swaps.", tone: 'error' });
+      pushToast({ message: `Couldn't apply ${kind} swaps.`, tone: 'error' });
     }
   };
 
@@ -2128,6 +2133,7 @@ export function DeckEditorPage() {
                   deckNames={deckCardNames}
                   onApplyMove={handleApplyCoachMove}
                   onApplyAllDropIns={handleApplyCostSwaps}
+                  onConvergeBracket={(swaps) => handleApplyCostSwaps(swaps, 'bracket')}
                   onPreviewFit={(change) => void handleCoachPreviewFit(change)}
                   initialFilter={tuneFocusLane ?? undefined}
                   onFilterHandled={clearTuneFocus}

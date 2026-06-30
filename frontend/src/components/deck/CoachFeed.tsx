@@ -116,6 +116,15 @@ export interface CoachFeedProps {
     swaps: Array<{ removeName: string; addName: string }>
   ) => void | Promise<void>;
   /**
+   * Bulk-converge to the target bracket: apply every bracket-fit *swap* move at
+   * once (one atomic undo entry). Swap-only — like the budget drop-ins — so the
+   * deck stays at its legal size; pure cuts and upshift adds keep their per-row
+   * apply (each needs its own size-aware prompt).
+   */
+  onConvergeBracket: (
+    swaps: Array<{ removeName: string; addName: string }>
+  ) => void | Promise<void>;
+  /**
    * Open the "Will it fit?" audition (CardFitPanel) for an add/swap row.
    * Called with the Change so the page can resolve the incoming card name
    * and, for swap rows, pre-seed the outgoing card as the suggested cut.
@@ -171,6 +180,7 @@ export function CoachFeed({
   deckNames,
   onApplyMove,
   onApplyAllDropIns,
+  onConvergeBracket,
   onPreviewFit,
   initialFilter,
   onFilterHandled,
@@ -511,6 +521,18 @@ export function CoachFeed({
     [addsAndSwaps]
   );
 
+  // Size-safe subset of the bracket-fit plan for "Converge to target": only the
+  // net-neutral swap moves (a downshift cut paired with a pool replacement, or an
+  // upshift game-changer swap). Pure cuts / upshift adds are excluded — they
+  // change the deck size and keep their per-row apply + size-aware prompt.
+  const bracketSwaps = useMemo(
+    () =>
+      addsAndSwaps.filter(
+        (r) => r.change.lane === 'bracket-fit' && r.change.type === 'swap' && r.change.inName
+      ),
+    [addsAndSwaps]
+  );
+
   // ── Carousel entries (all previewable changes for swipe support) ─────────
 
   const entryFor = (change: Change): CarouselEntry => ({
@@ -649,6 +671,25 @@ export function CoachFeed({
               >
                 <Check width={14} height={14} aria-hidden />
                 Apply all {dropInChanges.length} drop-in{dropInChanges.length > 1 ? 's' : ''}
+              </button>
+            )}
+
+            {/* Converge to target — bracket-fit filter, swap moves only */}
+            {activeFilter === 'bracket-fit' && bracketSwaps.length > 0 && (
+              <button
+                type="button"
+                className="coach-feed-apply-all"
+                onClick={() =>
+                  void onConvergeBracket(
+                    bracketSwaps.map((r) => ({
+                      removeName: r.change.inName!,
+                      addName: r.change.name,
+                    }))
+                  )
+                }
+              >
+                <Check width={14} height={14} aria-hidden />
+                Apply all {bracketSwaps.length} swap{bracketSwaps.length > 1 ? 's' : ''}
               </button>
             )}
           </div>

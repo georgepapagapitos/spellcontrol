@@ -86,6 +86,7 @@ function makeProps(over: Partial<CoachFeedProps> = {}): CoachFeedProps {
     deckNames: new Set(['smothering tithe']),
     onApplyMove: vi.fn(),
     onApplyAllDropIns: vi.fn(),
+    onConvergeBracket: vi.fn(),
     ownedOnly: false,
     onOwnedOnlyChange: vi.fn(),
     ...over,
@@ -152,6 +153,46 @@ describe('CoachFeed', () => {
     fireEvent.click(btn);
     expect(onApplyAllDropIns).toHaveBeenCalledWith([
       { removeName: 'Smothering Tithe', addName: 'Esper Sentinel' },
+    ]);
+  });
+
+  it('bracket-fit filter shows "Converge to target" and dispatches only the swap moves (size-safe)', () => {
+    const onConvergeBracket = vi.fn();
+    const bracketFit = {
+      direction: 'too-strong',
+      targetBracket: 2,
+      detectedBracket: 3,
+      summary: 'Swap 1 card to reach Bracket 2',
+      achievable: true,
+      moves: [
+        // swap → eligible for bulk converge
+        {
+          type: 'swap',
+          name: 'Rhystic Study',
+          inName: 'Mystic Remora',
+          reason: 'too strong for B2',
+          signal: 'fast-mana',
+        },
+        // pure cut → NOT eligible (changes deck size; keeps per-row apply)
+        { type: 'cut', name: 'Cyclonic Rift', reason: 'too strong for B2', signal: 'stax' },
+      ],
+    } as unknown as CoachFeedProps['bracketFit'];
+    render(
+      <CoachFeed
+        {...makeProps({
+          onConvergeBracket,
+          bracketFit,
+          // both cut cards must be in the deck for their rows to be offered
+          deckNames: new Set(['rhystic study', 'cyclonic rift']),
+          initialFilter: 'bracket-fit',
+        })}
+      />
+    );
+    // Only the single swap is counted, not the pure cut.
+    const btn = screen.getByRole('button', { name: /Apply all 1 swap/ });
+    fireEvent.click(btn);
+    expect(onConvergeBracket).toHaveBeenCalledWith([
+      { removeName: 'Rhystic Study', addName: 'Mystic Remora' },
     ]);
   });
 
