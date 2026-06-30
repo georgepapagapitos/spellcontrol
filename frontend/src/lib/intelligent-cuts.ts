@@ -24,11 +24,13 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
+import { ROLE_LABELS } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { ComboMatch } from '@/types/combos';
 import { analyzeDeckSynergy, type DeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { axisKeys, axisJaccard, sharedAxisNames, axisLabel } from './axis-overlap';
 import { roleOf, primaryTypeOf, colorsOverlap } from './card-matching';
 import type { EdhrecComboOverlay } from './edhrec-combo-overlay';
+import { buildCutFactors, type WhyFactor } from './why-factors';
 
 // Re-exported so existing import sites (`card-fit`, tests) stay stable now that the
 // canonical definition lives in `card-matching`.
@@ -48,6 +50,9 @@ export interface RankedCut {
   /** True when this cut shares a role/type with the card being added — i.e. the
    *  swap reads as a genuine replacement, not just "cut your weakest card". */
   related: boolean;
+  /** Grounded, tone-tagged breakdown behind `reason` (combo-break caution,
+   *  relatedness, play-rate) for the tappable <WhyBreakdown> disclosure. */
+  factors: WhyFactor[];
 }
 
 export interface RankReplacementCutsParams {
@@ -218,14 +223,27 @@ export function rankReplacementCuts({
             : 'Similar cost');
     const reason = comboProtection ? `${comboProtection.reason} - ${baseReason}` : baseReason;
 
+    const inclusion = inclusionOf(card, removal);
+    const factors = buildCutFactors({
+      sameAxis,
+      axisLabel: sameAxis ? axisLabel(shared[0]) : undefined,
+      sameRole,
+      roleLabel: addRole ? ROLE_LABELS[addRole] : undefined,
+      sameType,
+      typeLabel: sameType ? addType : undefined,
+      inclusion,
+      comboWarning: comboProtection?.reason,
+    });
+
     scored.push({
       slotId,
       card,
       reason,
       related,
+      factors,
       tier,
       relScore,
-      inclusion: inclusionOf(card, removal),
+      inclusion,
       comboProtection: comboProtection?.strength ?? 0,
     });
   }
@@ -239,7 +257,11 @@ export function rankReplacementCuts({
     return a.inclusion - b.inclusion; // weaker (less-played) cut wins ties
   });
 
-  return scored
-    .slice(0, limit)
-    .map(({ slotId, card, reason, related }) => ({ slotId, card, reason, related }));
+  return scored.slice(0, limit).map(({ slotId, card, reason, related, factors }) => ({
+    slotId,
+    card,
+    reason,
+    related,
+    factors,
+  }));
 }

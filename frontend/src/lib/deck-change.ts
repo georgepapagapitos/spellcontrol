@@ -22,6 +22,7 @@ import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracket
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
+import type { WhyFactor } from './why-factors';
 
 export { parsePrice };
 
@@ -78,6 +79,10 @@ export interface Change {
    *  Optional: budget-swap rows convey tier + savings via the confidence badge
    *  and price delta instead, so they carry no reason. */
   reason?: string;
+  /** Optional structured breakdown behind `reason` — the engine's grounded,
+   *  tone-tagged factors, rendered as the tappable <WhyBreakdown> disclosure.
+   *  Cut/swap suggestions populate it; other lanes leave it undefined. */
+  whyFactors?: WhyFactor[];
 
   /**
    * Ownership at render time. Re-derive live; never cache from a persisted

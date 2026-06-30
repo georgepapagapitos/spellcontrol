@@ -77,6 +77,10 @@ describe('rankReplacementCuts', () => {
     expect(cuts.map((c) => c.card.name)).toEqual(['Goblin Token Maker', 'Roaming Throne']);
     expect(cuts[0].related).toBe(true);
     expect(cuts[1].related).toBe(false);
+    // The related cut carries a grounded breakdown (a real like-for-like swap),
+    // not just the one-line reason — this is what feeds <WhyBreakdown>.
+    expect(cuts[0].factors.length).toBeGreaterThan(0);
+    expect(cuts[0].factors.some((f) => f.tone === 'pro')).toBe(true);
   });
 
   it('surfaces the optimizer real reason, not a generic label', () => {

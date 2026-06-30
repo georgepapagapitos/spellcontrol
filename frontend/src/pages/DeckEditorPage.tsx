@@ -54,6 +54,7 @@ import {
   type ChangeOwnership,
 } from '@/lib/deck-change';
 import { rankReplacementCuts } from '@/lib/intelligent-cuts';
+import { buildSwapAlternativeFactors, type WhyFactor } from '@/lib/why-factors';
 import { computeAddFit } from '@/lib/card-fit';
 import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
@@ -1251,12 +1252,14 @@ export function DeckEditorPage() {
           };
           const toOpt = (
             c: { slotId: string; card: ScryfallCard },
-            hint?: string
+            hint?: string,
+            factors?: WhyFactor[]
           ): SizePromptOption => ({
             key: c.slotId,
             name: c.card.name,
             roleLabel: labelFor(c.card.name),
             hint,
+            factors,
             onPick: () => void handleReplaceWhenFull(c.slotId),
           });
           // Stub when the add card hasn't resolved yet (or the resolve is for a
@@ -1271,7 +1274,9 @@ export function DeckEditorPage() {
             inDeckCombos: comboData.data?.inDeck,
             comboOverlay,
           });
-          const suggested = ranked.map((r) => toOpt({ slotId: r.slotId, card: r.card }, r.reason));
+          const suggested = ranked.map((r) =>
+            toOpt({ slotId: r.slotId, card: r.card }, r.reason, r.factors)
+          );
           const anyRelated = ranked.some((r) => r.related);
           const all = [...deck.cards]
             .sort((a, b) => a.card.name.localeCompare(b.card.name))
@@ -1392,7 +1397,21 @@ export function DeckEditorPage() {
     // shows the trade: the focused card dimmed on the left, the alternative
     // coming in. The apply path still reads the incoming name (`onSwap`).
     const alternatives = sortOwnedFirst(
-      gaps.map((g) => toSwapAgainst(fromGapCard(g, ownershipFor(g.name)), card.name))
+      gaps.map((g) => {
+        const ownership = ownershipFor(g.name);
+        return {
+          ...toSwapAgainst(fromGapCard(g, ownership), card.name),
+          // Each same-role alternative gets its own grounded "why this over the
+          // others" — replaces the six identical "{role} staple" reason lines.
+          whyFactors: buildSwapAlternativeFactors({
+            inclusion: g.inclusion,
+            synergy: g.synergy,
+            owned: ownership === 'owned',
+            roleLabel: g.roleLabel,
+            commanderName: deck.commander?.name,
+          }),
+        };
+      })
     ).slice(0, 6);
     return (
       <SwapThisCard

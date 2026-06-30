@@ -314,6 +314,10 @@ tooltip; reuse this so they behave identically everywhere.
   list, a scoring formula, a toggle whose label understates what it does) must
   use `InfoTip` instead — keep the count/summary in the trigger's `aria-label`
   and put the detail in the tooltip body.
+- **Not for per-row reasoning.** `InfoTip` explains a _concept_ (a term, a
+  formula). The multi-factor "why this card" behind a cut/swap suggestion is
+  different content — use the `WhyBreakdown` disclosure (see Suggestion feeds →
+  Why disclosure), not an `ⓘ` on every row.
 
 ## Z-index / layering
 
@@ -1052,8 +1056,10 @@ right:
 2. **Body** — card name (bold, `--text-sm`) + verdict chip(s) (shared
    `VerdictBadge`) + plain-English reason (`--text-xs`, `--text-secondary`,
    3-line clamp). Inclusion % is hue-tinted per the verdict badge's
-   red-<10%-only rule. The body is **non-interactive** — only the thumbnail
-   and action buttons are tap targets.
+   red-<10%-only rule. The body text is **non-interactive** — only the
+   thumbnail, action buttons, and the optional **Why disclosure** toggle
+   (below) are tap targets. The reason line gets an optional expandable
+   breakdown when the change carries `whyFactors` (see Why disclosure).
 3. **Secondary action (Fit?)** — an outline rect button (secondary-action
    style: `--surface` bg, `--border` border, `--radius`) rendered just before
    the primary action on every **add** and **swap** row. Absent on cut rows.
@@ -1067,6 +1073,37 @@ right:
 
 Never hand-roll a suggestion row outside `DeckCardRow` — the primitive owns
 the thumb, badges, reason, and action layout.
+
+### Why disclosure (the reasoning behind a suggestion)
+
+The differentiator is **explainable** editing: a cut/swap suggestion must be
+able to show *why this card*, in plain English, from signals the engine already
+computed — never an opaque "weak slot". When a `Change` (or `RankedCut`) carries
+`whyFactors`, the shared **`components/deck/WhyBreakdown.tsx`** renders a quiet,
+tappable disclosure under the reason line.
+
+- **Disclosure, not tooltip.** This is per-row *reasoning* (multiple factors,
+  primary content the user scans while deciding), so it is an inline
+  `aria-expanded` toggle that stays open — **not** an `InfoTip`. `InfoTip` is for
+  a one-off concept/jargon gloss (one per concept); reasoning that differs per
+  row would be both clutter (an `ⓘ` on every row) and touch-hostile in a
+  transient bubble. The two patterns don't overlap — pick by "explaining a term"
+  (InfoTip) vs "justifying this row" (WhyBreakdown).
+- **Collapsed by default** so the feed stays scannable; the heavy reasoning is
+  opt-in. Toggle copy is a question in sentence case ("Why this?" / "Why cut
+  this?"), flipping to "Hide reasoning" when open.
+- **Factors are grounded and tone-tagged.** Each factor is `{ text, tone }` with
+  `tone` ∈ `pro | con | neutral`, shown as a colored dot (`--success` /
+  `--warn-text` / `--text-muted`). Every factor must trace to a real signal —
+  never a fabricated comparison (don't claim "+37% vs X" without X's number).
+  A combo-break is always surfaced first as a `con` so a cut never blindsides.
+- **Token-driven** so it inherits the always-dark card-preview panel's white-alpha
+  remap and the light Tune lanes alike. 44px touch target on coarse pointers; the
+  only `:hover` is capability-gated; the chevron rotation honors reduced-motion;
+  `:focus-visible` ring like every interactive control.
+- Reuse it anywhere a suggestion needs a "why" — the in-deck Swap panel, the
+  `CardFitPanel` audition cuts, and the full-deck `DeckSizePrompt` options all
+  feed it the same `whyFactors`, so the explanation reads identically everywhere.
 
 ### Tiered ordering
 

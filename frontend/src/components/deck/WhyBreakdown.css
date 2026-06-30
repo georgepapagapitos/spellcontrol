@@ -1,0 +1,95 @@
+/* WhyBreakdown — the tappable "why this cut/swap" disclosure. Token-driven so it
+   inherits the always-dark card-preview panel remap and the light Tune lanes
+   alike. */
+
+.why-breakdown {
+  margin-top: var(--space-1);
+}
+
+.why-breakdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.why-breakdown-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .why-breakdown-toggle:hover {
+    color: var(--text-primary);
+  }
+}
+
+/* Comfortable touch target without bloating the visual height (the row stays
+   compact); the hit area grows, the text does not. */
+@media (pointer: coarse) {
+  .why-breakdown-toggle {
+    min-height: 44px;
+    padding-block: 0;
+  }
+}
+
+.why-breakdown-chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--motion-fast) ease;
+}
+
+.why-breakdown-chevron[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .why-breakdown-chevron {
+    transition: none;
+  }
+}
+
+.why-breakdown-list {
+  list-style: none;
+  margin: var(--space-1) 0 var(--space-2);
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.why-breakdown-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.why-breakdown-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-top: 0.45em; /* optical-center against the first text line */
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.why-breakdown-item[data-tone='pro'] .why-breakdown-dot {
+  background: var(--success);
+}
+
+.why-breakdown-item[data-tone='con'] .why-breakdown-dot {
+  background: var(--warn-text);
+}
+
+.why-breakdown-text {
+  min-width: 0; /* let long lines wrap instead of overflowing the row */
+}
