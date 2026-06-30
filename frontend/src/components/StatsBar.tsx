@@ -69,14 +69,14 @@ export function StatsBar({ open, onClose }: Props) {
     <>
       {showStaleBanner && (
         <div className="warn-banner">
-          ⚠️ Your cards are missing some Scryfall fields — re-import your collection to use the new
+          Your cards are missing some Scryfall fields — re-import your collection to use the new
           format / oracle / layout / finish filters.
         </div>
       )}
       {scryfallMisses > 0 && (
         <div className="warn-banner">
-          ⚠️ {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} could not be enriched with
-          Scryfall data — color/CMC/type sorting may be inaccurate for those cards.
+          {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} couldn't be enriched with Scryfall
+          data — color/CMC/type sorting may be inaccurate for those cards.
         </div>
       )}
 

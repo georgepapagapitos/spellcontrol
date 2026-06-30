@@ -722,8 +722,8 @@ export function BinderEditor() {
               </div>
               {overCapacity && (
                 <div className="warn-banner" style={{ marginTop: '0.5rem' }}>
-                  ⚠️ This binder matches {binderMatchCount.toLocaleString()} cards but its capacity
-                  is only {capacity.toLocaleString()}. The extra{' '}
+                  This binder matches {binderMatchCount.toLocaleString()} cards but its capacity is
+                  only {capacity.toLocaleString()}. The extra{' '}
                   {(binderMatchCount - capacity).toLocaleString()} won't fit physically — they'll
                   still display, just flagged as over-capacity.
                 </div>
@@ -880,8 +880,8 @@ export function BinderEditor() {
 
                   {showEmptyWarning && (
                     <div className="warn-banner" style={{ marginTop: '0.75rem' }}>
-                      ⚠️ This binder has no filters — it will match every remaining card. Add at
-                      least one, or place this binder near the bottom of the priority list.
+                      This binder has no filters — it will match every remaining card. Add at least
+                      one, or place this binder near the bottom of the priority list.
                     </div>
                   )}
                 </section>
@@ -1077,7 +1077,7 @@ export function BinderEditor() {
                           stageIncoming(files);
                         } catch (err) {
                           setErrorMsg(
-                            err instanceof Error ? err.message : 'Could not open file picker'
+                            err instanceof Error ? err.message : "Couldn't open file picker"
                           );
                         }
                         return;
@@ -1937,13 +1937,13 @@ function SetMultiSelect({
 
 function validateRanges(f: BinderFilter): string | null {
   if (f.priceMin !== undefined && f.priceMax !== undefined && f.priceMin > f.priceMax) {
-    return 'Price minimum cannot exceed maximum';
+    return "Price minimum can't exceed maximum";
   }
   if (f.cmcMin !== undefined && f.cmcMax !== undefined && f.cmcMin > f.cmcMax) {
-    return 'CMC minimum cannot exceed maximum';
+    return "CMC minimum can't exceed maximum";
   }
-  if (f.priceMin !== undefined && f.priceMin < 0) return 'Price cannot be negative';
-  if (f.cmcMin !== undefined && f.cmcMin < 0) return 'CMC cannot be negative';
+  if (f.priceMin !== undefined && f.priceMin < 0) return "Price can't be negative";
+  if (f.cmcMin !== undefined && f.cmcMin < 0) return "CMC can't be negative";
   if (f.edhrecRankMax !== undefined && f.edhrecRankMax < 1) {
     return 'EDHREC top N must be at least 1';
   }

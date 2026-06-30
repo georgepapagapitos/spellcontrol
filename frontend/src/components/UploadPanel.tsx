@@ -107,7 +107,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         const files = await pickNativeFiles({ types: CSV_MIME_TYPES, multiple: true });
         stageIncoming(files);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not open file picker');
+        setError(err instanceof Error ? err.message : "Couldn't open file picker");
       }
       return;
     }
@@ -236,7 +236,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       setRecentImportIds(newImportIds);
       haptics.success();
     } catch (err) {
-      const fallback = 'Could not read that file. Double-check the format and try again.';
+      const fallback = "Couldn't read that file. Double-check the format and try again.";
       setError(err instanceof Error ? err.message : fallback);
     } finally {
       setLoading(false);
@@ -247,7 +247,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const handleClearAll = async () => {
     const ok = await confirm({
       title: 'Clear your collection?',
-      body: 'All cards will be removed. You will need to re-import them.',
+      body: "All cards will be removed. You'll need to re-import them.",
       confirmLabel: 'Clear all',
       danger: true,
     });
@@ -283,7 +283,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     if (cards.length > 0 || binders.length > 0) {
       const ok = await confirm({
         title: 'Restore backup?',
-        body: 'This will replace your current collection and binders. This cannot be undone.',
+        body: "This will replace your current collection and binders. This can't be undone.",
         confirmLabel: 'Restore',
         danger: true,
       });
@@ -690,7 +690,7 @@ function DeleteImportsDialog({ imports, onConfirm, onCancel }: DeleteImportsDial
           </li>
         ))}
       </ul>
-      <p className="choice-dialog-body">Other cards stay where they are. This cannot be undone.</p>
+      <p className="choice-dialog-body">Other cards stay where they are. This can't be undone.</p>
       <div className="choice-dialog-actions">
         <button type="button" className="upload-action" onClick={onCancel}>
           Cancel
@@ -747,7 +747,7 @@ function ImportModeDialog({
         <p className="choice-dialog-body">
           You already have {existingCount.toLocaleString()} card{existingCount === 1 ? '' : 's'}{' '}
           loaded
-          {incomingPreview ? ` and you are importing ${incomingPreview}` : ''}.
+          {incomingPreview ? ` and you're importing ${incomingPreview}` : ''}.
         </p>
       )}
       {isReimport && (

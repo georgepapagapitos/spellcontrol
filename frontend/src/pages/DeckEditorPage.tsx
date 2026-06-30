@@ -1025,7 +1025,7 @@ export function DeckEditorPage() {
       return;
     }
     pushToast({
-      message: `${card.name} released — the copy is now free`,
+      message: `${card.name} released — the copy is now free.`,
       tone: 'success',
       actionLabel: 'Undo',
       onAction: () => undoEdit(deck.id),
@@ -1466,7 +1466,7 @@ export function DeckEditorPage() {
         tone: 'success',
       });
     } catch {
-      pushToast({ message: 'Could not apply budget swaps.', tone: 'error' });
+      pushToast({ message: "Couldn't apply budget swaps.", tone: 'error' });
     }
   };
 
@@ -1516,7 +1516,7 @@ export function DeckEditorPage() {
         else removeSideboardCard(deck.id, slotId);
         setCommander(deck.id, card, target.allocatedCopyId);
       });
-      pushToast({ message: `${card.name} is now the commander`, tone: 'success' });
+      pushToast({ message: `${card.name} is now the commander.`, tone: 'success' });
       return;
     }
     setMakeCommanderTarget(target);
@@ -1573,7 +1573,7 @@ export function DeckEditorPage() {
         else removeSideboardCard(deck.id, slotId);
         setPartnerCommander(deck.id, card, target.allocatedCopyId);
       });
-      pushToast({ message: `${card.name} is now the partner commander`, tone: 'success' });
+      pushToast({ message: `${card.name} is now the partner commander.`, tone: 'success' });
       return;
     }
     setMakePartnerTarget(target);

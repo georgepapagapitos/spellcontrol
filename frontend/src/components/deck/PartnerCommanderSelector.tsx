@@ -124,7 +124,7 @@ export function PartnerCommanderSelector({ commander, partner, onSelect, collect
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Could not load partners.');
+          setError(e instanceof Error ? e.message : "Couldn't load partners.");
           setResults([]);
         }
       } finally {

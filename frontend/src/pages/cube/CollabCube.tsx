@@ -270,7 +270,7 @@ export function CollabCube() {
         )}
 
         {friendsStatus === 'error' && (
-          <p className="cube-collab-friends-error">Could not load your friends list.</p>
+          <p className="cube-collab-friends-error">Couldn't load your friends list.</p>
         )}
 
         {friendsStatus === 'done' && friends.length > 0 && (
@@ -338,7 +338,7 @@ export function CollabCube() {
         <div className="cube-collab-warn-banner" role="alert">
           {failedFriends.map((name) => (
             <p key={name} className="cube-collab-warn-line">
-              Could not load {name}&apos;s collection — their cards were excluded.
+              Couldn't load {name}&apos;s collection — their cards were excluded.
             </p>
           ))}
         </div>

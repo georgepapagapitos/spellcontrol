@@ -849,7 +849,7 @@ async function webPushInner(
       message:
         typeof navigator !== 'undefined' && !navigator.onLine
           ? "You're offline — changes can't be saved."
-          : 'Change could not be saved. Please try again.',
+          : "Change couldn't be saved. Please try again.",
       tone: 'error',
     });
     pushError = true;
