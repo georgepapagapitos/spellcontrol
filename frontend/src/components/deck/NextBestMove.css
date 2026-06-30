@@ -132,6 +132,49 @@
   line-height: 1.45;
 }
 
+/* Action group: a direct "Add" (card-naming moves) and/or the deep-link nav,
+   right-aligned beside the body on desktop, full-width below the text on mobile. */
+.next-best-move-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: center;
+}
+
+/* Primary action — filled accent, matches .coach-feed-apply-all so "Add" reads
+   as the obvious do-it-now affordance vs the outline nav. */
+.next-best-move-add {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--accent);
+  border: 0.5px solid transparent;
+  border-radius: var(--radius);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--motion-fast) ease;
+}
+
+.next-best-move-add:active {
+  opacity: 0.8;
+}
+
+.next-best-move-add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.next-best-move-add-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .next-best-move-nav {
   flex: 0 0 auto;
   display: inline-flex;
@@ -217,8 +260,16 @@
     flex-basis: 0;
   }
 
-  .next-best-move-nav {
+  /* Actions span the row; Add + nav share the line, each flexing equally so two
+     buttons stay one tap-row (more compact than stacking) and a lone button
+     fills the width. */
+  .next-best-move-actions {
     width: 100%;
+  }
+
+  .next-best-move-add,
+  .next-best-move-nav {
+    flex: 1 1 0;
     margin-left: 0;
     justify-content: center;
   }
@@ -226,6 +277,7 @@
 
 /* 44px touch targets on coarse pointers. */
 @media (pointer: coarse) {
+  .next-best-move-add,
   .next-best-move-nav {
     min-height: 44px;
   }

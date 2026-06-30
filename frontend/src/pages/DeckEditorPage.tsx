@@ -2160,6 +2160,7 @@ export function DeckEditorPage() {
                   nextBestMoves={nextBestMoves}
                   combosLoading={!!formatConfig?.hasCommander && comboData.loading}
                   onNbmNavigate={handleNbmNavigate}
+                  onNbmApply={handleAddEngineCard}
                 />
               ) : undefined
             }

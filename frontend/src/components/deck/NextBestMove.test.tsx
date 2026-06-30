@@ -146,4 +146,28 @@ describe('NextBestMove', () => {
     expect(screen.queryByText(/Coach tab/)).toBeNull();
     expect(screen.getByText(/Swap low-fit cards for stronger options\./)).toBeTruthy();
   });
+
+  it('fires onApply with the card name for a card-naming move, and omits Add otherwise', () => {
+    const onApply = vi.fn();
+    render(<NextBestMove moves={moves} onApply={onApply} />);
+    // 'size-over' names no card → no Add; 'roles-ramp' names Cultivate → Add.
+    const addBtns = screen.getAllByRole('button', { name: /^Add / });
+    expect(addBtns).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cultivate' }));
+    expect(onApply).toHaveBeenCalledWith('Cultivate');
+  });
+
+  it('renders no Add button without onApply (navigate-only stays the default)', () => {
+    render(<NextBestMove moves={moves} />);
+    expect(screen.queryByRole('button', { name: /^Add / })).toBeNull();
+  });
+
+  it('disables the Add button while its card is mid-add', () => {
+    const onApply = vi.fn();
+    render(<NextBestMove moves={moves} onApply={onApply} busyNames={new Set(['Cultivate'])} />);
+    const btn = screen.getByRole('button', { name: 'Add Cultivate' });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(btn);
+    expect(onApply).not.toHaveBeenCalled();
+  });
 });
