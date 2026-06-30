@@ -89,7 +89,7 @@ export function useSearchCards<T = ScryfallCard>(
         if (!cancelled) setResults(data.slice(0, limit));
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Search failed');
+          setError(e instanceof Error ? e.message : 'Search failed.');
           setResults([]);
         }
       } finally {

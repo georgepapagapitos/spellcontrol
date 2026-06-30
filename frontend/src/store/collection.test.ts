@@ -643,7 +643,7 @@ describe('refreshPrices — binder auto-move notifications (T21)', () => {
 
     const toasts = useToastsStore.getState().toasts;
     expect(toasts).toHaveLength(1);
-    expect(toasts[0].message).toBe('5 cards moved between binders (prices updated)');
+    expect(toasts[0].message).toBe('5 cards moved between binders (prices updated).');
     expect(toasts[0].actionLabel).toBe('View');
   });
 
