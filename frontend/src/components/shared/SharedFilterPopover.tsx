@@ -1,10 +1,9 @@
-import { ListFilter } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { ListFilter, X } from 'lucide-react';
+import { useState } from 'react';
 import type { DeckBucketKey, SharedFilters } from '../../lib/shared-grouping';
 import { countSharedFilters, emptySharedFilters } from '../../lib/shared-grouping';
 import { NumberRangeInput } from '../FilterFieldEditor';
+import { Modal } from '../Modal';
 import { ColorPip } from './ManaSymbol';
 
 const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
@@ -28,8 +27,6 @@ interface Props {
   showValue?: boolean;
 }
 
-type PanelPos = { top?: number; bottom?: number; left?: number; right?: number };
-
 function toggle<T>(set: ReadonlySet<T>, key: T): Set<T> {
   const next = new Set(set);
   if (next.has(key)) next.delete(key);
@@ -38,15 +35,16 @@ function toggle<T>(set: ReadonlySet<T>, key: T): Set<T> {
 }
 
 /**
- * Faceted filter popover for the shared collection / binder / deck views,
- * anchored to the search pill's trailing slot. Mirrors DeckFiltersPopover
- * (live-toggling, no Apply staging) so the on-toolbar filter affordance looks
- * identical to the decks index and the main collection. Facets are limited to
- * what the public share payload carries: Color, Rarity, Type, Set, Value
- * (optional), Mana value. Each facet section only renders when that facet has
- * options present in the data, so a view without (say) rarities just omits it.
+ * Faceted filter for the shared collection / binder / deck views. Opens the
+ * same `collection-filters-dialog` Modal the authed collection uses — a
+ * breakpoint-responsive centered sheet (width steps 28→32→36rem, max-height
+ * 90vh, internally scrolling body) — rather than a trigger-anchored popover,
+ * so it can't clip off-screen on mobile. Facets are limited to what the public
+ * share payload carries: Color, Rarity, Type, Set, Value (optional), Mana
+ * value. Each section only renders when that facet has options in the data.
  *
- * Portals the panel to `<body>` and clamps it into the safe viewport.
+ * Filters toggle live (no Apply staging) — the share view re-filters on every
+ * change, matching the decks index and main collection toolbar affordance.
  */
 export function SharedFilterPopover({
   filters,
@@ -57,68 +55,20 @@ export function SharedFilterPopover({
   showValue = true,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [panelPos, setPanelPos] = useState<PanelPos | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
 
   const activeCount = countSharedFilters(filters);
   const hasActive = activeCount > 0;
 
-  useLayoutEffect(() => {
-    if (!open || !panelRef.current || !buttonRef.current) return;
-    const anchorRect = buttonRef.current.getBoundingClientRect();
-    const panelRect = panelRef.current.getBoundingClientRect();
-    const placement = computePopoverPlacement(
-      anchorRect,
-      { width: panelRect.width, height: panelRect.height },
-      getSafeViewport(),
-      'right'
-    );
-    setPanelPos({
-      top: placement.top,
-      bottom: placement.bottom,
-      left: placement.left,
-      right: placement.right,
-    });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const r = buttonRef.current.getBoundingClientRect();
-      setPanelPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
-    }
-    setOpen((v) => !v);
-  };
-
   return (
     <div className="filter-popover">
       <button
-        ref={buttonRef}
         type="button"
         className="filter-popover-btn"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={hasActive ? `Filters (${activeCount} active)` : 'Filters'}
         title="Filters"
-        onClick={handleToggle}
+        onClick={() => setOpen(true)}
       >
         <ListFilter width={16} height={16} strokeWidth={2} aria-hidden />
         {hasActive && (
@@ -127,24 +77,25 @@ export function SharedFilterPopover({
           </span>
         )}
       </button>
-      {open &&
-        panelPos &&
-        createPortal(
-          <div
-            ref={panelRef}
-            className="filter-popover-panel deck-filters-panel shared-filters-panel"
-            role="dialog"
-            aria-label="Filters"
-            style={{
-              position: 'fixed',
-              top: panelPos.top,
-              bottom: panelPos.bottom,
-              left: panelPos.left,
-              right: panelPos.right,
-            }}
-          >
-            <section className="deck-filters-section">
-              <div className="deck-filters-section-label">Color</div>
+
+      {open && (
+        <Modal onClose={() => setOpen(false)} label="Filters" className="collection-filters-dialog">
+          <header className="collection-filters-dialog-header">
+            <span className="collection-filters-dialog-title">Filters</span>
+            <button
+              type="button"
+              className="collection-filters-dialog-close"
+              onClick={() => setOpen(false)}
+              aria-label="Close filters"
+              title="Close"
+            >
+              <X width={20} height={20} strokeWidth={1.8} aria-hidden />
+            </button>
+          </header>
+
+          <div className="collection-filters-dialog-body">
+            <section className="collection-filters-section">
+              <div className="collection-filters-section-label">Color</div>
               <div className="color-filter-row" role="group" aria-label="Filter by color">
                 {COLOR_OPTIONS.map((c) => {
                   const active = filters.colors.has(c.key);
@@ -168,8 +119,8 @@ export function SharedFilterPopover({
             </section>
 
             {rarities.length > 0 && (
-              <section className="deck-filters-section">
-                <div className="deck-filters-section-label">Rarity</div>
+              <section className="collection-filters-section">
+                <div className="collection-filters-section-label">Rarity</div>
                 <div className="deck-filters-chips" role="group" aria-label="Filter by rarity">
                   {rarities.map((r) => {
                     const active = filters.rarities.has(r);
@@ -192,8 +143,8 @@ export function SharedFilterPopover({
             )}
 
             {types.length > 0 && (
-              <section className="deck-filters-section">
-                <div className="deck-filters-section-label">Type</div>
+              <section className="collection-filters-section">
+                <div className="collection-filters-section-label">Type</div>
                 <div className="deck-filters-chips" role="group" aria-label="Filter by type">
                   {types.map((t) => {
                     const active = filters.types.has(t);
@@ -214,8 +165,8 @@ export function SharedFilterPopover({
             )}
 
             {sets.length > 0 && (
-              <section className="deck-filters-section">
-                <div className="deck-filters-section-label">Set</div>
+              <section className="collection-filters-section">
+                <div className="collection-filters-section-label">Set</div>
                 <div className="deck-filters-chips" role="group" aria-label="Filter by set">
                   {sets.map((s) => {
                     const active = filters.sets.has(s.code);
@@ -239,8 +190,8 @@ export function SharedFilterPopover({
             )}
 
             {showValue && (
-              <section className="deck-filters-section">
-                <div className="deck-filters-section-label">Value</div>
+              <section className="collection-filters-section">
+                <div className="collection-filters-section-label">Value</div>
                 <NumberRangeInput
                   min={filters.priceMin}
                   max={filters.priceMax}
@@ -251,8 +202,8 @@ export function SharedFilterPopover({
               </section>
             )}
 
-            <section className="deck-filters-section">
-              <div className="deck-filters-section-label">Mana value</div>
+            <section className="collection-filters-section">
+              <div className="collection-filters-section-label">Mana value</div>
               <NumberRangeInput
                 min={filters.cmcMin}
                 max={filters.cmcMax}
@@ -261,21 +212,27 @@ export function SharedFilterPopover({
                 onMaxChange={(v) => setFilters({ ...filters, cmcMax: v })}
               />
             </section>
+          </div>
 
-            {hasActive && (
-              <div className="deck-filters-footer">
-                <button
-                  type="button"
-                  className="btn-link deck-filters-clear"
-                  onClick={() => setFilters(emptySharedFilters())}
-                >
-                  Clear filters
-                </button>
-              </div>
-            )}
-          </div>,
-          document.body
-        )}
+          <footer className="collection-filters-dialog-footer">
+            <button
+              type="button"
+              className="collection-filters-dialog-clear"
+              onClick={() => setFilters(emptySharedFilters())}
+              disabled={!hasActive}
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              className="collection-filters-dialog-done"
+              onClick={() => setOpen(false)}
+            >
+              Done
+            </button>
+          </footer>
+        </Modal>
+      )}
     </div>
   );
 }
