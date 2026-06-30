@@ -357,7 +357,7 @@ function notifyBinderMoves(moves: BinderMove[]): void {
 
   if (moves.length > MAX_VISIBLE_TOASTS) {
     toast.show({
-      message: `${moves.length} cards moved between binders (prices updated)`,
+      message: `${moves.length} cards moved between binders (prices updated).`,
       tone: 'info',
       actionLabel: 'View',
       onAction: () => appNavigate('/collection/binders'),
@@ -440,7 +440,7 @@ export const useCollectionStore = create<CollectionState>()(
             });
           }
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Failed to load saved collection';
+          const msg = err instanceof Error ? err.message : 'Failed to load saved collection.';
           set({ error: msg });
         } finally {
           set({ hydrating: false });
@@ -797,7 +797,7 @@ export const useCollectionStore = create<CollectionState>()(
             })
           );
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Failed to refresh prices';
+          const msg = err instanceof Error ? err.message : 'Failed to refresh prices.';
           logger.warn('[store] refreshPrices failed:', err);
           set({ error: msg });
           // Re-throw so callers can tell success from failure. SettingsPage's

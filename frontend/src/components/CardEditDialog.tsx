@@ -176,7 +176,7 @@ export function CardEditDialog({
       </div>
 
       <div className="modal-body card-edit-body">
-        {loading && <div className="card-edit-loading">Loading printings...</div>}
+        {loading && <div className="card-edit-loading">Loading printings…</div>}
         {error && <div className="card-edit-error">{error}</div>}
 
         {!loading && !error && (

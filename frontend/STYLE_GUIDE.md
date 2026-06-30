@@ -39,10 +39,14 @@ never what the app "is."
 5. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
    the human register everywhere user-facing (errors, confirms, hints).
 
-**Empty states are two parts: tagline + hint.** A short tagline naming the state
-("No decks yet."), then ONE hint sentence giving the reason and the action that
-changes it ("Build a deck from scratch…"). Never a bare line, never an
-exclamation. (Outliers to fix when next touched: PlayPage, FriendsPage.)
+**Primary empty states are two parts: tagline + hint.** A short tagline naming
+the state ("No decks yet."), then ONE hint sentence giving the reason and the
+action that changes it ("Build a deck from scratch…"). Never a bare line, never
+an exclamation. Use the shared `.empty-state` + `.empty-state-tagline` +
+`.empty-state-hint` markup (don't hand-roll a per-page empty class). This is for
+**primary** (page/section-level) empties. A small **inline sub-panel
+placeholder** (a sideboard slot list, a mini-chart's no-data line) may stay a
+single concise line — the two-part pattern would read visually heavy there.
 
 **Confirm dialogs:** the title is the question ("Delete \"{name}\"?"); the body
 is a declarative consequence ending in a period ("This cannot be undone."). The
