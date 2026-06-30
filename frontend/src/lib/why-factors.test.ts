@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildCutFactors, buildSwapAlternativeFactors } from './why-factors';
+import {
+  buildBudgetSwapFactors,
+  buildCutFactors,
+  buildSwapAlternativeFactors,
+} from './why-factors';
 
 describe('buildSwapAlternativeFactors', () => {
   it('differentiates owned vs unowned and staple vs fringe', () => {
@@ -49,5 +53,40 @@ describe('buildCutFactors', () => {
 
   it('returns nothing when no signal is present (disclosure then hides)', () => {
     expect(buildCutFactors({ sameAxis: false, sameRole: false, sameType: false })).toEqual([]);
+  });
+});
+
+describe('buildBudgetSwapFactors', () => {
+  it('leads with the tier judgement: drop-in pro, budget con', () => {
+    const dropIn = buildBudgetSwapFactors({ confidence: 'drop-in', owned: false });
+    const budget = buildBudgetSwapFactors({ confidence: 'budget', owned: false });
+    expect(dropIn[0].tone).toBe('pro');
+    expect(budget[0].tone).toBe('con');
+    expect(dropIn[0].text).not.toBe(budget[0].text);
+  });
+
+  it('backs the drop-in "same curve slot" wording only when both CMCs are close', () => {
+    const close = buildBudgetSwapFactors({
+      confidence: 'drop-in',
+      owned: false,
+      currentCmc: 3,
+      suggestionCmc: 2,
+    });
+    const far = buildBudgetSwapFactors({
+      confidence: 'drop-in',
+      owned: false,
+      currentCmc: 5,
+      suggestionCmc: 1,
+    });
+    expect(close[0].text).toMatch(/curve slot/);
+    expect(far[0].text).not.toMatch(/curve slot/);
+  });
+
+  it('surfaces ownership only as a bonus, never a "not owned" con', () => {
+    const owned = buildBudgetSwapFactors({ confidence: 'sidegrade', owned: true });
+    const unowned = buildBudgetSwapFactors({ confidence: 'sidegrade', owned: false });
+    expect(owned.some((f) => /already own it/.test(f.text) && f.tone === 'pro')).toBe(true);
+    // Budget downgrades are bought by design — never scold the user for not owning it.
+    expect(unowned.some((f) => /[Nn]ot in your collection/.test(f.text))).toBe(false);
   });
 });
