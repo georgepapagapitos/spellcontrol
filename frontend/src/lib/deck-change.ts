@@ -83,6 +83,10 @@ export interface Change {
    *  tone-tagged factors, rendered as the tappable <WhyBreakdown> disclosure.
    *  Cut/swap suggestions populate it; other lanes leave it undefined. */
   whyFactors?: WhyFactor[];
+  /** Collection lane only — other owned cards that fill the same missing staple,
+   *  ranked, for the "N other owned options" expander. Each is a full add Change.
+   *  Nested (not in the merged feed), so applying one is independent. */
+  alternatives?: Change[];
 
   /**
    * Ownership at render time. Re-derive live; never cache from a persisted
@@ -269,15 +273,20 @@ export function fromOptimizeCard(
  */
 export function fromSubstituteRow(r: SubstituteRow): Change {
   return {
-    id: `collection:${r.usedName}`,
+    // Keyed on wanted+used so the same owned card offered for two different
+    // staples (or as one staple's primary and another's alternative) stays a
+    // distinct row.
+    id: `collection:${r.wantedName}:${r.usedName}`,
     type: 'add',
     lane: 'collection',
     name: r.usedName,
     reason: r.reason,
+    whyFactors: r.whyFactors,
     ownership: 'owned',
     role: r.wantedRole,
     roleLabel: r.wantedRoleLabel,
     cmc: r.wantedCmc,
+    alternatives: r.alternatives?.map(fromSubstituteRow),
   };
 }
 

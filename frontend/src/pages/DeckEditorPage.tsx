@@ -38,7 +38,7 @@ import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
 import { analyzeDeckSynergy } from '../deck-builder/services/synergy/deckSynergy';
 import {
-  buildSubstitutionPlan,
+  buildSubstitutionOptions,
   type SubstituteCandidate,
 } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import {
@@ -704,7 +704,10 @@ export function DeckEditorPage() {
     }));
     const deckNames = new Set(deck.cards.map((c) => c.card.name));
     const inclusionByName = new Map<string, number>(Object.entries(deck.cardInclusionMap ?? {}));
-    return buildSubstitutionPlan(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
+    // Options variant: each primary carries ranked owned alternatives for the
+    // "N other owned options" expander (deck generation still uses the greedy
+    // single-pick buildSubstitutionPlan).
+    return buildSubstitutionOptions(missingStaples, ownedPool, deckNames, commanderColorIdentity, {
       inclusionByName,
     });
   }, [deck, ownedNames, collectionCards, commanderColorIdentity]);
