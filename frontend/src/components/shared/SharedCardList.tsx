@@ -49,13 +49,13 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
                 }
               }}
             >
-              <td>{it.quantity}</td>
-              <td>{it.card.name}</td>
-              <td>
+              <td data-label="Qty">{it.quantity}</td>
+              <td data-label="Name">{it.card.name}</td>
+              <td data-label="Set">
                 {it.card.setCode.toUpperCase()} {it.card.collectorNumber}
               </td>
-              <td>{it.card.finish}</td>
-              {showPrice && <td>{formatMoney(it.card.purchasePrice)}</td>}
+              <td data-label="Finish">{it.card.finish}</td>
+              {showPrice && <td data-label="Price">{formatMoney(it.card.purchasePrice)}</td>}
             </tr>
           ))}
         </tbody>

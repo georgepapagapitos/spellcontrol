@@ -438,6 +438,78 @@
   cursor: pointer;
 }
 
+/* ── Narrow phones: stack list rows, tighten gutter ───────────────────── */
+
+/* Below this the 5–6 column list tables can't fit, so rather than force a
+   sideways drag inside .shared-table-scroll we reflow each row into a stacked
+   card of label:value pairs. Table semantics stay intact for screen readers —
+   only the visual box model changes; per-cell labels come from `data-label`
+   (set on the <td>s in SharedCardList / SharedListView). */
+@media (max-width: 560px) {
+  /* Tighter page gutter on small phones (parity with the app's narrowed gutter). */
+  .shared-view {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .shared-table-scroll {
+    overflow-x: visible;
+  }
+
+  .shared-list-table,
+  .shared-list-table tbody,
+  .shared-list-table tr,
+  .shared-list-table td {
+    display: block;
+  }
+
+  /* Column headers are repeated per-cell via data-label, so drop the row. */
+  .shared-list-table thead {
+    display: none;
+  }
+
+  .shared-list-table tr {
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .shared-list-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 0.15rem 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .shared-list-table td::before {
+    content: attr(data-label);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: left;
+  }
+
+  /* Name leads the card as a full-width title, no inline label. */
+  .shared-list-table td[data-label='Name'] {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+    font-size: var(--text-base);
+    text-align: left;
+  }
+  .shared-list-table td[data-label='Name']::before {
+    content: none;
+  }
+
+  /* Hide empty cells (blank Note / Target) so the card stays tight. */
+  .shared-list-table td:empty {
+    display: none;
+  }
+}
+
 /* ── Share dialog (link mint/copy/revoke) ────────────────────────────── */
 
 /* The dialog itself reuses .choice-dialog from global.css; these rules just
