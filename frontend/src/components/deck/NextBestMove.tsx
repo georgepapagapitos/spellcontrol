@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import './NextBestMove.css';
-import { ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { ArrowRight, Loader2, Plus, Sparkles } from 'lucide-react';
 import type { NextBestMove } from '@/deck-builder/services/deckBuilder/nextBestMove';
 import type { DeckView } from './DeckDisplay';
 
@@ -16,6 +16,13 @@ export interface NextBestMoveProps {
   moves: NextBestMove[];
   /** Deep-link to an analysis view; `focus` optionally targets a panel within it. */
   onNavigate?: (view: DeckView, focus?: NextBestMove['focus']) => void;
+  /** Add the card a move names directly from the hero (every card-naming move is
+   *  an "Add X" — roles/strategy gap or combo completion). Skips the deep-link →
+   *  lane → row round-trip. Moves without a `cardName` keep navigate-only. */
+  onApply?: (cardName: string) => void;
+  /** Cards mid-add (mirrors the Coach feed's busy set) — disables the matching
+   *  "Add" button and shows a spinner while the add resolves. */
+  busyNames?: Set<string>;
   /** Near-miss combos load async (server round-trip), so the "Complete a combo"
    *  move arrives a beat after the rest. While that's in flight, hold a slot
    *  with a placeholder so the suggestion doesn't pop in unannounced. */
@@ -34,6 +41,8 @@ export interface NextBestMoveProps {
 export function NextBestMove({
   moves,
   onNavigate,
+  onApply,
+  busyNames,
   combosLoading,
   currentView,
 }: NextBestMoveProps): JSX.Element {
@@ -59,31 +68,62 @@ export function NextBestMove({
         <span className="next-best-move-header-label">Next best move</span>
       </header>
       <ol className="next-best-move-list">
-        {shown.map((move, i) => (
-          <li
-            key={move.id}
-            className={`next-best-move-row is-tier-${move.tier}${i === 0 ? ' is-primary' : ''}`}
-          >
-            <span className="next-best-move-rank" aria-hidden="true">
-              {i + 1}
-            </span>
-            <div className="next-best-move-body">
-              <p className="next-best-move-title">{move.title}</p>
-              <p className="next-best-move-detail">{move.detail}</p>
-            </div>
-            {move.navigateTo && onNavigate && move.navigateTo !== currentView && (
-              <button
-                type="button"
-                className="next-best-move-nav"
-                onClick={() => onNavigate(move.navigateTo!, move.focus)}
-                aria-label={`Go to ${VIEW_LABELS[move.navigateTo]}`}
-              >
-                <span className="next-best-move-nav-label">{VIEW_LABELS[move.navigateTo]}</span>
-                <ArrowRight className="next-best-move-nav-icon" aria-hidden="true" />
-              </button>
-            )}
-          </li>
-        ))}
+        {shown.map((move, i) => {
+          // Every card-naming move is an "Add X" (role/synergy gap or combo
+          // completion), so a direct apply is unambiguous. Adds route through the
+          // same handler as the Coach rows — including the replace-when-full
+          // prompt on a maxed deck.
+          const canApply = !!move.cardName && !!onApply;
+          const adding = !!move.cardName && (busyNames?.has(move.cardName) ?? false);
+          const showNav = move.navigateTo && onNavigate && move.navigateTo !== currentView;
+          return (
+            <li
+              key={move.id}
+              className={`next-best-move-row is-tier-${move.tier}${i === 0 ? ' is-primary' : ''}`}
+            >
+              <span className="next-best-move-rank" aria-hidden="true">
+                {i + 1}
+              </span>
+              <div className="next-best-move-body">
+                <p className="next-best-move-title">{move.title}</p>
+                <p className="next-best-move-detail">{move.detail}</p>
+              </div>
+              {(canApply || showNav) && (
+                <div className="next-best-move-actions">
+                  {canApply && (
+                    <button
+                      type="button"
+                      className="next-best-move-add"
+                      onClick={() => onApply!(move.cardName!)}
+                      disabled={adding}
+                      aria-label={`Add ${move.cardName}`}
+                    >
+                      {adding ? (
+                        <Loader2 className="next-best-move-spinner" aria-hidden="true" />
+                      ) : (
+                        <Plus className="next-best-move-add-icon" aria-hidden="true" />
+                      )}
+                      Add
+                    </button>
+                  )}
+                  {showNav && (
+                    <button
+                      type="button"
+                      className="next-best-move-nav"
+                      onClick={() => onNavigate!(move.navigateTo!, move.focus)}
+                      aria-label={`Go to ${VIEW_LABELS[move.navigateTo!]}`}
+                    >
+                      <span className="next-best-move-nav-label">
+                        {VIEW_LABELS[move.navigateTo!]}
+                      </span>
+                      <ArrowRight className="next-best-move-nav-icon" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
         {showComboLoading && (
           <li className="next-best-move-row is-tier-3 is-loading" aria-live="polite">
             <span className="next-best-move-rank" aria-hidden="true">
