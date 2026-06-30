@@ -240,6 +240,8 @@ interface DecksState {
   updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>, silent?: boolean): void;
   renameDeck(id: string, name: string): void;
   deleteDeck(id: string): void;
+  /** Delete a set of decks in one shot (bulk-select), with a single undo toast. */
+  deleteDecks(ids: string[]): void;
   /** Delete every deck. Used by the admin "Wipe all decks" button. */
   deleteAllDecks(): void;
   /** Deep-clone a deck. Allocations reset — the original still claims those copies. */
@@ -361,6 +363,21 @@ export const useDecksStore = create<DecksState>()(
           tone: 'success',
           actionLabel: 'Undo',
           onAction: () => set((s) => ({ decks: [...s.decks, deck] })),
+        });
+      },
+
+      deleteDecks: (ids) => {
+        const idSet = new Set(ids);
+        const removed = useDecksStore.getState().decks.filter((d) => idSet.has(d.id));
+        if (removed.length === 0) return;
+        set((s) => ({ decks: s.decks.filter((d) => !idSet.has(d.id)) }));
+        toast.show({
+          message: `Deleted ${removed.length} deck${removed.length === 1 ? '' : 's'}`,
+          tone: 'success',
+          actionLabel: 'Undo',
+          // Re-insert the captured decks (compensating upserts under LWW),
+          // keeping any decks created during the toast window.
+          onAction: () => set((s) => ({ decks: [...removed, ...s.decks] })),
         });
       },
 

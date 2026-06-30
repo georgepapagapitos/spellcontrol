@@ -1009,6 +1009,32 @@ describe('binder CRUD', () => {
     expect(useCollectionStore.getState().lists).toEqual([]);
   });
 
+  it('deleteBinders (bulk) removes the set, renumbers, and re-points active tab', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({ id: 'b1', position: 0 }),
+        makeBinder({ id: 'b2', position: 1 }),
+        makeBinder({ id: 'b3', position: 2 }),
+      ],
+      activeTab: 'b2',
+    });
+    useCollectionStore.getState().deleteBinders(['b1', 'b2']);
+    const s = useCollectionStore.getState();
+    expect(s.binders.map((b) => b.id)).toEqual(['b3']);
+    expect(s.binders.map((b) => b.position)).toEqual([0]);
+    expect(s.activeTab).toBe('b3');
+  });
+
+  it('deleteLists (bulk) removes the set and reorders the rest', () => {
+    const a = useCollectionStore.getState().createList('A');
+    useCollectionStore.getState().createList('B');
+    const c = useCollectionStore.getState().createList('C');
+    useCollectionStore.getState().deleteLists([a, c]);
+    const lists = useCollectionStore.getState().lists;
+    expect(lists.map((l) => l.name)).toEqual(['B']);
+    expect(lists.map((l) => l.order)).toEqual([0]);
+  });
+
   it('moveBinder swaps neighbors and no-ops at the boundary / unknown id', () => {
     useCollectionStore.setState({
       binders: [makeBinder({ id: 'b1', position: 0 }), makeBinder({ id: 'b2', position: 1 })],

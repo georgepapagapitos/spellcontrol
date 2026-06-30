@@ -202,6 +202,8 @@ interface CollectionState {
   renameList: (id: string, name: string) => void;
   reorderLists: (orderedIds: string[]) => void;
   deleteList: (id: string) => void;
+  /** Delete a set of lists in one shot (bulk-select). */
+  deleteLists: (ids: string[]) => void;
   deleteAllLists: () => void;
   addListEntry: (
     listId: string,
@@ -253,6 +255,8 @@ interface CollectionState {
    *  surface drift. See `lib/binder-drift.ts`. */
   markBinderReviewed: (id: string, snapshot: BinderReviewSnapshot) => void;
   deleteBinder: (id: string) => void;
+  /** Delete a set of binders in one shot (bulk-select). Positions renumber; cards re-route. */
+  deleteBinders: (ids: string[]) => void;
   /** Removes every binder. Cards are unaffected — they fall back to Uncategorized. */
   deleteAllBinders: () => void;
   moveBinder: (id: string, direction: 'up' | 'down') => void;
@@ -1151,6 +1155,15 @@ export const useCollectionStore = create<CollectionState>()(
         });
         void persistListsOnly(get().lists);
       },
+      deleteLists: (ids) => {
+        const idSet = new Set(ids);
+        set({
+          lists: get()
+            .lists.filter((l) => !idSet.has(l.id))
+            .map((l, i) => ({ ...l, order: i })),
+        });
+        void persistListsOnly(get().lists);
+      },
       deleteAllLists: () => {
         set({ lists: [] });
         void persistListsOnly([]);
@@ -1310,6 +1323,21 @@ export const useCollectionStore = create<CollectionState>()(
             .sort((a, b) => a.position - b.position)
             .map((b, i) => (b.position === i ? b : { ...b, position: i, updatedAt: now }));
           const newActive = s.activeTab === id ? remaining[0]?.id || 'uncategorized' : s.activeTab;
+          return { binders: remaining, activeTab: newActive };
+        });
+      },
+
+      deleteBinders: (ids) => {
+        const idSet = new Set(ids);
+        set((s) => {
+          const now = Date.now();
+          const remaining = s.binders
+            .filter((b) => !idSet.has(b.id))
+            .sort((a, b) => a.position - b.position)
+            .map((b, i) => (b.position === i ? b : { ...b, position: i, updatedAt: now }));
+          const newActive = idSet.has(s.activeTab)
+            ? remaining[0]?.id || 'uncategorized'
+            : s.activeTab;
           return { binders: remaining, activeTab: newActive };
         });
       },

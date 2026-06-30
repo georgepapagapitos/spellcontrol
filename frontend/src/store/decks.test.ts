@@ -848,3 +848,19 @@ describe('allocation invariants', () => {
     }
   });
 });
+
+describe('deleteDecks (bulk)', () => {
+  it('removes exactly the given ids and leaves the rest', () => {
+    useDecksStore.setState({
+      decks: [baseDeck({ id: 'a' }), baseDeck({ id: 'b' }), baseDeck({ id: 'c' })],
+    });
+    useDecksStore.getState().deleteDecks(['a', 'c']);
+    expect(useDecksStore.getState().decks.map((d) => d.id)).toEqual(['b']);
+  });
+
+  it('is a no-op when no id matches', () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'a' })] });
+    useDecksStore.getState().deleteDecks(['nope']);
+    expect(useDecksStore.getState().decks.map((d) => d.id)).toEqual(['a']);
+  });
+});
