@@ -174,16 +174,18 @@ export function DeckCurvePhases({
               label="avg mana value"
               text={
                 <>
-                  <span className="info-tip-lead">Avg mana value bands</span>
+                  <span className="info-tip-lead">
+                    Average card cost (the typical mana to cast a card)
+                  </span>
                   <ul className="info-tip-list">
                     <li>
-                      <strong>lean</strong> — avg typically below 2.8; deck curves out early
+                      <strong>lean</strong> — cheap deck (avg under 2.8); plays out early
                     </li>
                     <li>
-                      <strong>balanced</strong> — avg 2.8–3.5; healthy Commander spread
+                      <strong>balanced</strong> — healthy mix (avg 2.8–3.5)
                     </li>
                     <li>
-                      <strong>top-heavy</strong> — avg above 3.5; deck leans on expensive spells
+                      <strong>top-heavy</strong> — pricey deck (avg over 3.5); leans on big spells
                     </li>
                   </ul>
                 </>
@@ -328,6 +330,34 @@ export function DeckCurvePhases({
       )}
 
       {/* ── Phase rollup with grades ── */}
+      {total > 0 && (
+        <div className="deck-curve-phases-grade-head">
+          <span className="deck-curve-phases-grade-head-label">Curve grade by phase</span>
+          <InfoTip
+            label="curve grade"
+            wide
+            text={
+              <>
+                <span className="info-tip-lead">What the grade means</span>
+                <ul className="info-tip-list">
+                  <li>
+                    Cards split by cost — <strong>Early</strong> (0–2), <strong>Mid</strong> (3–4),{' '}
+                    <strong>Late</strong> (5+).
+                  </li>
+                  <li>The number is how many cards fall in that phase.</li>
+                  <li>
+                    The letter grades how close that phase is to a healthy Commander curve —{' '}
+                    <strong>A</strong> is on target, <strong>F</strong> is far off.
+                  </li>
+                  <li>
+                    A guideline, not a verdict — an off-target grade can be just what you want.
+                  </li>
+                </ul>
+              </>
+            }
+          />
+        </div>
+      )}
       <ul className="deck-curve-phases-phases" aria-label="Curve phases">
         {phaseTotals.map((phase) => {
           const cards = phase.cmcs.flatMap((cmc) => cardsByCmc?.[cmc] ?? []);

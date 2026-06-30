@@ -274,6 +274,20 @@
 }
 
 /* ── Phase rollup ── */
+.deck-curve-phases-grade-head {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: calc(-1 * var(--space-1));
+}
+
+.deck-curve-phases-grade-head-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
 .deck-curve-phases-phases {
   list-style: none;
   margin: 0;
