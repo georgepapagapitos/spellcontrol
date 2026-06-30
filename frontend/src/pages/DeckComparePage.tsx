@@ -8,6 +8,7 @@ import { DeckCurvePhases } from '../components/deck/DeckCurvePhases';
 import { DeckColorPanel } from '../components/deck/DeckColorPanel';
 import { BracketVerdictStrip } from '../components/deck/BracketVerdictStrip';
 import { MeterBar } from '../components/shared/MeterBar';
+import { InfoTip } from '../components/InfoTip';
 import { diffDecks, type CardDelta } from '@/lib/deck-diff';
 import { buildManaData } from '@/lib/build-mana-data';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
@@ -349,7 +350,37 @@ export function DeckComparePage() {
                     ))}
                   </div>
                   <div className="deck-compare-comp-col">
-                    <h3 className="deck-compare-comp-label">Roles</h3>
+                    <h3 className="deck-compare-comp-label">
+                      Roles{' '}
+                      <InfoTip
+                        label="card roles"
+                        wide
+                        text={
+                          <>
+                            <span className="info-tip-lead">What each role means</span>
+                            <ul className="info-tip-list">
+                              <li>
+                                <strong>Lands</strong> — your mana base.
+                              </li>
+                              <li>
+                                <strong>Ramp</strong> — cards that add extra mana to speed you up.
+                              </li>
+                              <li>
+                                <strong>Card Advantage</strong> — cards that draw or make more
+                                cards.
+                              </li>
+                              <li>
+                                <strong>Spot removal</strong> — kills or neutralizes a single
+                                threat.
+                              </li>
+                              <li>
+                                <strong>Board wipes</strong> — clear many things at once.
+                              </li>
+                            </ul>
+                          </>
+                        }
+                      />
+                    </h3>
                     {diff.stats.taggerReady ? (
                       diff.stats.roles.map((role) => (
                         <DeltaRow
@@ -396,7 +427,29 @@ export function DeckComparePage() {
               {/* 6 — Bracket & price */}
               <section className="deck-compare-section" aria-labelledby="dcp-power-heading">
                 <h2 id="dcp-power-heading" className="deck-compare-section-title">
-                  Bracket &amp; price
+                  Bracket &amp; price{' '}
+                  <InfoTip
+                    label="power bracket"
+                    wide
+                    text={
+                      <>
+                        <span className="info-tip-lead">Power brackets</span>
+                        <ul className="info-tip-list">
+                          <li>
+                            Commander decks rate <strong>1–5</strong> by power — <strong>B1</strong>{' '}
+                            is casual, <strong>B5</strong> is cutthroat (cEDH).
+                          </li>
+                          <li>
+                            <strong>Detected</strong> is our auto-estimate of the deck&apos;s level.
+                          </li>
+                          <li>
+                            <strong>Target</strong> is the bracket you&apos;re aiming for;{' '}
+                            <strong>Auto</strong> means none is set.
+                          </li>
+                        </ul>
+                      </>
+                    }
+                  />
                 </h2>
                 <div className="deck-compare-2up">
                   <div className="deck-compare-col">
