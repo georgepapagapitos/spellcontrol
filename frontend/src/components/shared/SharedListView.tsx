@@ -147,14 +147,14 @@ export function SharedListView({ data }: Props) {
 function ListRow({ entry: e }: { entry: PublicListEntry }) {
   return (
     <tr>
-      <td>{e.quantity}</td>
-      <td>{e.name}</td>
-      <td>
+      <td data-label="Qty">{e.quantity}</td>
+      <td data-label="Name">{e.name}</td>
+      <td data-label="Set">
         {e.setCode.toUpperCase()} {e.collectorNumber}
       </td>
-      <td>{e.finish}</td>
-      <td>{e.targetPrice != null ? formatMoney(e.targetPrice) : ''}</td>
-      <td>{e.note ?? ''}</td>
+      <td data-label="Finish">{e.finish}</td>
+      <td data-label="Target">{e.targetPrice != null ? formatMoney(e.targetPrice) : ''}</td>
+      <td data-label="Note">{e.note ?? ''}</td>
     </tr>
   );
 }
