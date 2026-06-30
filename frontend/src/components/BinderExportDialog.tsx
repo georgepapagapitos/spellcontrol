@@ -84,7 +84,7 @@ export function BinderExportDialog({ binders, activeId, onClose }: Props) {
           <span className="choice-dialog-option-title">All binders</span>
           <span className="choice-dialog-option-desc">
             {binders.length} binder{binders.length === 1 ? '' : 's'} and every card routed to one of
-            them. Uncategorized cards are not included.
+            them. Uncategorized cards aren't included.
           </span>
         </button>
         <button type="button" className="choice-dialog-option" onClick={() => handlePick('full')}>

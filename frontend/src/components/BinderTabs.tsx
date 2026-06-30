@@ -27,7 +27,7 @@ export function BinderTabs({ binders }: Props) {
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({
       title: `Delete "${name}"?`,
-      body: `Its cards will be re-routed through your other binders. Anything that does not match a remaining binder will only show up in the Collection view.`,
+      body: `Its cards will be re-routed through your other binders. Anything that doesn't match a remaining binder will only show up in the Collection view.`,
       confirmLabel: 'Delete binder',
       danger: true,
     });
@@ -37,7 +37,7 @@ export function BinderTabs({ binders }: Props) {
   const handleDeleteAll = async () => {
     const ok = await confirm({
       title: `Delete all ${binders.length} binders?`,
-      body: `Every binder definition will be removed. Your cards stay where they are — they'll fall back to the Uncategorized view until you build new binders. This cannot be undone.`,
+      body: `Every binder definition will be removed. Your cards stay where they are — they'll fall back to the Uncategorized view until you build new binders. This can't be undone.`,
       confirmLabel: 'Delete all binders',
       danger: true,
     });

@@ -43,7 +43,7 @@ export function ImportCube() {
       setResult({ cube, overlay });
       setStatus('done');
     } catch (e) {
-      setError(e instanceof CubeImportError ? e.message : 'Could not import that cube.');
+      setError(e instanceof CubeImportError ? e.message : "Couldn't import that cube.");
       setStatus('error');
     }
   }, [url, ownershipFor]);

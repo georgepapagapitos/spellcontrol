@@ -115,7 +115,7 @@ export function NavFab() {
       });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Could not save scanned cards.',
+        message: err instanceof Error ? err.message : "Couldn't save scanned cards.",
         tone: 'error',
       });
     } finally {

@@ -54,7 +54,10 @@ copied to clipboard."). Pick fragment for action confirmations, sentence for
 state announcements.
 
 **Punctuation:** complete sentences end with a period; a trailing `…` means
-"in progress" (loading) only. One em-dash max per string.
+either "in progress" (loading) **or** an action/control that opens further
+input — a picker, dialog, or share sheet (the "Save As…" convention, e.g.
+"Move to another deck…", "Pick another card…"); never decorative. One em-dash
+max per string.
 
 **Canonical terms (use exactly):** _collection_ (your cards), _binder_ (a
 rule-defined group), _deck_, _power bracket_ (the 1–5 Commander tier — not

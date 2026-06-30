@@ -245,7 +245,7 @@ describe('api', () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockRejectedValue(new TypeError('failed to fetch'));
-    await expect(importText('x')).rejects.toThrow(/not responding/);
+    await expect(importText('x')).rejects.toThrow(/isn't responding/);
     // 1 initial attempt + 2 retries (delays are zero in test env).
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });

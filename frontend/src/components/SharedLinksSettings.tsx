@@ -92,7 +92,7 @@ export function SharedLinksSettings() {
       await navigator.clipboard.writeText(url);
       toast.show({ message: 'Link copied to clipboard.', tone: 'success' });
     } catch {
-      toast.show({ message: 'Could not copy. Select and copy manually.', tone: 'warn' });
+      toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
     }
   }, []);
 
@@ -107,7 +107,7 @@ export function SharedLinksSettings() {
       });
     } catch (err) {
       if (err && (err as { message?: string }).message?.includes('cancel')) return;
-      toast.show({ message: 'Could not open share sheet.', tone: 'warn' });
+      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
     }
   }, []);
 
@@ -122,7 +122,7 @@ export function SharedLinksSettings() {
       toast.show({ message: 'Share link revoked.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Could not revoke share.',
+        message: err instanceof Error ? err.message : "Couldn't revoke share.",
         tone: 'error',
       });
     } finally {

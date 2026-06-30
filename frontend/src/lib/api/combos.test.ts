@@ -34,7 +34,7 @@ describe('timeout + abort handling', () => {
 
   it('throws a friendly error when the network is unreachable', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
-    await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/not responding/i);
+    await expect(matchCombos({ ownedOracleIds: [] })).rejects.toThrow(/isn't responding/i);
   });
 });
 

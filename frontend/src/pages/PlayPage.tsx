@@ -220,7 +220,7 @@ export function PlayPage() {
                 onHost={(opts) =>
                   void hostOnline(opts).catch((err) =>
                     toast.show({
-                      message: err instanceof Error ? err.message : 'Could not create game.',
+                      message: err instanceof Error ? err.message : "Couldn't create game.",
                       tone: 'error',
                     })
                   )
@@ -228,7 +228,7 @@ export function PlayPage() {
                 onJoin={(code, opts) =>
                   void joinOnline(code, opts).catch((err) =>
                     toast.show({
-                      message: err instanceof Error ? err.message : 'Could not join game.',
+                      message: err instanceof Error ? err.message : "Couldn't join game.",
                       tone: 'error',
                     })
                   )
@@ -891,7 +891,8 @@ function HistoryTab({
   if (history.length === 0 && userId === null) {
     return (
       <div className="empty-state">
-        <p className="empty-state-tagline">No games yet. Play one!</p>
+        <p className="empty-state-tagline">No games yet</p>
+        <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
       </div>
     );
   }
@@ -900,7 +901,10 @@ function HistoryTab({
     <div className="play-history">
       {userId !== null && <FriendsLeaderboard />}
       {history.length === 0 && (
-        <p className="empty-state-tagline">No games on this device yet. Play one!</p>
+        <div className="empty-state">
+          <p className="empty-state-tagline">No games on this device yet</p>
+          <p className="empty-state-hint">Head to Local or Online to start your first game.</p>
+        </div>
       )}
       {deckRows.length > 0 && (
         <section className="play-records">

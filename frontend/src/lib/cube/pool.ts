@@ -70,7 +70,7 @@ export async function fetchFriendCollection(friendId: string): Promise<FriendCol
     credentials: 'include',
   });
   if (!res.ok) {
-    const msg = await readError(res, `Could not load friend's collection (${res.status}).`);
+    const msg = await readError(res, `Couldn't load friend's collection (${res.status}).`);
     throw new FriendCollectionError(msg, res.status);
   }
   return (await res.json()) as FriendCollectionResponse;

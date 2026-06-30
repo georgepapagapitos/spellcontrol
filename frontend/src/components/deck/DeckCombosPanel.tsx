@@ -243,7 +243,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
       resolved = null;
     }
     if (!resolved) {
-      setAnnounce(`Could not find a printing for ${card.cardName}.`);
+      setAnnounce(`Couldn't find a printing for ${card.cardName}.`);
       return;
     }
     const claim = pickCollectionCopy(card.cardName, collection, allocations, resolved.id);

@@ -107,7 +107,7 @@ export function SettingsPage() {
           ? 'That Google account is already linked to a different SpellControl account.'
           : linkError === 'has_google'
             ? 'This account already has a Google account linked. Unlink it first.'
-            : 'Could not link Google account.';
+            : "Couldn't link Google account.";
       toast.show({ message: msg, tone: 'error' });
     }
     setSearchParams(
@@ -138,7 +138,7 @@ export function SettingsPage() {
         await Browser.open({ url: googleLinkUrl('native', intent) });
       } catch (err) {
         toast.show({
-          message: err instanceof Error ? err.message : 'Could not start linking.',
+          message: err instanceof Error ? err.message : "Couldn't start linking.",
           tone: 'error',
         });
         setLinkBusy(false);
@@ -159,7 +159,7 @@ export function SettingsPage() {
       setUnlinkOpen(false);
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Could not unlink Google.',
+        message: err instanceof Error ? err.message : "Couldn't unlink Google.",
         tone: 'error',
       });
     } finally {
@@ -188,7 +188,7 @@ export function SettingsPage() {
       toast.show({ message: 'Prices refreshed.', tone: 'success' });
     } catch (err) {
       toast.show({
-        message: err instanceof Error ? err.message : 'Could not refresh prices.',
+        message: err instanceof Error ? err.message : "Couldn't refresh prices.",
         tone: 'error',
       });
     }
@@ -237,7 +237,7 @@ export function SettingsPage() {
         navigate('/auth');
       } else {
         toast.show({
-          message: useAuth.getState().error ?? 'Could not delete account.',
+          message: useAuth.getState().error ?? "Couldn't delete account.",
           tone: 'error',
         });
         setDeleteStep(0);
@@ -666,7 +666,7 @@ export function SettingsPage() {
             signOutPending > 0
               ? `You have ${signOutPending} unsynced ${
                   signOutPending === 1 ? 'change' : 'changes'
-                } that haven't reached the server yet. Signing out removes all data from this device — those changes will be lost. Sign out anyway?`
+                } that haven't reached the server yet. Signing out removes all data from this device — those changes will be lost.`
               : `Your data is synced to ${
                   username ? `@${username}` : 'your account'
                 } and will be restored when you sign back in. It will be removed from this device.`

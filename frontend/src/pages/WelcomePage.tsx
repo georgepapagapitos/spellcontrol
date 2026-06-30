@@ -95,7 +95,7 @@ export function WelcomePage() {
       markEverVisited();
       navigate('/collection');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not load sample cards';
+      const msg = err instanceof Error ? err.message : "Couldn't load sample cards";
       setSampleError(msg);
       // Propagate to the global error banner too (matches BindersIndexPage behaviour)
       setError(msg);

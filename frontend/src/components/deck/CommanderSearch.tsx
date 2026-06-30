@@ -584,7 +584,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
       const card = await getCardByName(name, true);
       selectCard(card);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load card');
+      setError(e instanceof Error ? e.message : "Couldn't load card");
     } finally {
       setSearchLoading(false);
     }
@@ -602,7 +602,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
       const card = await getOwnedPrinting(owned.scryfallId, owned.name);
       selectCard(card);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load card');
+      setError(e instanceof Error ? e.message : "Couldn't load card");
     } finally {
       setSearchLoading(false);
     }
@@ -669,7 +669,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
         const filtered = names.filter((n) => !n.includes('//'));
         const pick = pickRandom(filtered);
         if (!pick) {
-          setError('Could not load EDHREC commander list.');
+          setError("Couldn't load EDHREC commander list.");
           return;
         }
         await selectByName(pick);

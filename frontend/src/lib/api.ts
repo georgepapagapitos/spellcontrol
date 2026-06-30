@@ -61,7 +61,7 @@ function fetchWithTimeout(url: string, opts: RequestInit): Promise<Response> {
     // cellular handoff). Tag it so the import-chunk caller knows it's retryable.
     if (err instanceof Error && err.message.startsWith('The request timed out')) throw err;
     const e: NetworkError = Object.assign(
-      new Error('The server is not responding. Give it a moment and try again.'),
+      new Error("The server isn't responding. Give it a moment and try again."),
       { isNetworkError: true as const }
     );
     throw e;

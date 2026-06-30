@@ -295,7 +295,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       const resolved = await fetchProduct(p.fileName);
       setSelected(resolved);
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Could not load this product.');
+      setProductError(e instanceof Error ? e.message : "Couldn't load this product.");
     } finally {
       setLoadingProduct(false);
     }
@@ -332,7 +332,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       const count = await addToCollection(resp);
       setBanner(`Added ${count.toLocaleString()} cards to your collection.`);
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Could not add to collection.');
+      setProductError(e instanceof Error ? e.message : "Couldn't add to collection.");
     } finally {
       setBusy(false);
     }
@@ -345,7 +345,7 @@ export function ProductSearchPanel({ onClose }: Props) {
       await addToCollection(resp);
       addAsDeck(resp); // navigates + closes
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Could not add this precon.');
+      setProductError(e instanceof Error ? e.message : "Couldn't add this precon.");
       setBusy(false);
     }
   };

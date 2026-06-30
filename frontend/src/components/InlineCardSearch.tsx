@@ -313,7 +313,7 @@ function PrintingPicker({
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Could not load printings');
+        setError(e instanceof Error ? e.message : "Couldn't load printings");
         setPrintings([fallback]);
         setSelectedId(fallback.id);
       })

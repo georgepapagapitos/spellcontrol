@@ -951,7 +951,7 @@ function ScryfallResults({
     onAnnounce(`Added ${c.name}`);
     if (isOffColor(c.color_identity, colorIdentity)) {
       pushToast({
-        message: `${c.name} is outside your commander's color identity`,
+        message: `${c.name} is outside your commander's color identity.`,
         tone: 'warn',
       });
     }
