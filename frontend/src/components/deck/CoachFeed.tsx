@@ -3,6 +3,7 @@ import { type JSX, useMemo, useState, useEffect, useRef, useCallback, type React
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 import { DeckCardRow } from './DeckCardRow';
+import { SubstituteOptions } from './SubstituteOptions';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { NextBestMove as NextBestMoveComponent } from './NextBestMove';
 import { VerdictBadge } from './VerdictBadge';
@@ -512,15 +513,21 @@ export function CoachFeed({
 
   // ── Carousel entries (all previewable changes for swipe support) ─────────
 
+  const entryFor = (change: Change): CarouselEntry => ({
+    name: change.name,
+    label:
+      typeof change.inclusion === 'number'
+        ? `In ${Math.round(change.inclusion)}% of decks`
+        : 'Suggested',
+  });
   const previewEntries = useMemo<CarouselEntry[]>(
     () =>
-      [...addsAndSwaps, ...cuts].map(({ change }) => ({
-        name: change.name,
-        label:
-          typeof change.inclusion === 'number'
-            ? `In ${Math.round(change.inclusion)}% of decks`
-            : 'Suggested',
-      })),
+      // Nested owned-substitute alternatives are previewable too, so the carousel
+      // can swipe to them from their row.
+      [...addsAndSwaps, ...cuts].flatMap(({ change }) => [
+        entryFor(change),
+        ...(change.alternatives ?? []).map(entryFor),
+      ]),
     [addsAndSwaps, cuts]
   );
 
@@ -728,6 +735,15 @@ export function CoachFeed({
                           : undefined
                       }
                     />
+                    {change.alternatives && change.alternatives.length > 0 && (
+                      <SubstituteOptions
+                        alternatives={change.alternatives}
+                        commanderName={commanderName}
+                        onPreview={(name) => carousel.open(previewEntries, name)}
+                        onAct={(c) => handleApplyWithLeave(c)}
+                        acting={(name) => busy.has(name)}
+                      />
+                    )}
                   </li>
                 );
               })}

@@ -6,6 +6,7 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { getSimilarRank } from './cardSimilar';
+import type { WhyFactor } from '@/lib/why-factors';
 
 /**
  * Owned-substitute finder — for a recommended-but-missing staple, find a card
@@ -56,6 +57,13 @@ export interface SubstituteRow {
   usedSubtypeMatch: boolean;
   /** Plain-English rationale (the verdict copy). */
   reason: string;
+  /** Grounded breakdown behind `reason` (EDHREC-substitute provenance, subtype,
+   *  mana closeness, play-rate) for the <WhyBreakdown> disclosure. */
+  whyFactors?: WhyFactor[];
+  /** Other owned cards that could fill the same staple, ranked, best-first —
+   *  populated only on the primary row by `buildSubstitutionOptions` for the
+   *  "N other owned options" expander. Each is itself a full SubstituteRow. */
+  alternatives?: SubstituteRow[];
 }
 
 export interface SubstitutionPlan {
@@ -178,13 +186,19 @@ export function similarityScore(
  * Ranking (best first): highest similarity (tags + type + subtype + CMC), then
  * highest EDHREC inclusion, then name (for determinism).
  */
-export function findOwnedSubstitute(
+/**
+ * Rank every owned card that could substitute `missing`, best-first. The shared
+ * core of `findOwnedSubstitute` (takes `[0]`) and `buildSubstitutionOptions`
+ * (takes the top-N). Returns null when the staple has no matchable role or no
+ * owned candidate clears the gates. The validated weights / sort are untouched.
+ */
+function rankCandidates(
   missing: GapAnalysisCard,
   ownedPool: readonly SubstituteCandidate[],
   deckNames: ReadonlySet<string>,
   identity: string[],
-  opts: SubstituteFinderOptions = {}
-): SubstituteRow | null {
+  opts: SubstituteFinderOptions
+): { ranked: RankedCandidate[]; role: RoleKey; roleLabel: string } | null {
   const role = asRoleKey(missing.role);
   if (!role) return null; // no role → nothing to match against
 
@@ -225,26 +239,84 @@ export function findOwnedSubstitute(
     return a.card.name.localeCompare(b.card.name);
   });
 
-  const best = ranked[0];
-  const roleLabel = missing.roleLabel ?? ROLE_LABELS[role];
-  const usedSubtype = getCardSubtype(best.card.name);
+  return { ranked, role, roleLabel: missing.roleLabel ?? ROLE_LABELS[role] };
+}
 
+/** Turn one ranked candidate into a SubstituteRow (reason + grounded factors). */
+function toRow(
+  missing: GapAnalysisCard,
+  role: RoleKey,
+  roleLabel: string,
+  cand: RankedCandidate
+): SubstituteRow {
+  const usedSubtype = getCardSubtype(cand.card.name);
   return {
     wantedName: missing.name,
     wantedRole: role,
     wantedRoleLabel: roleLabel,
     wantedCmc: missing.cmc,
-    usedName: best.card.name,
-    usedSubtypeMatch: best.subtypeMatch,
+    usedName: cand.card.name,
+    usedSubtypeMatch: cand.subtypeMatch,
     reason: buildReason(
-      best.card.name,
+      cand.card.name,
       roleLabel,
       missing.cmc,
-      best.subtypeMatch,
+      cand.subtypeMatch,
       usedSubtype,
-      best.simRank !== Infinity ? missing.name : null
+      cand.simRank !== Infinity ? missing.name : null
     ),
+    whyFactors: buildSubstituteFactors(missing, cand, usedSubtype),
   };
+}
+
+/**
+ * Grounded "why this owned card fills the staple" — purpose-built for the
+ * collection lane (every row is owned, so ownership is not restated). Leads with
+ * EDHREC-substitute provenance (the strongest signal), then subtype/mana
+ * closeness, then the owned card's own play-rate. No fabricated "% match" — the
+ * heuristic similarity tops out at ~0.44 nDCG, so the relative *rank* carries
+ * fit, not a false precision.
+ */
+function buildSubstituteFactors(
+  missing: GapAnalysisCard,
+  cand: RankedCandidate,
+  usedSubtype: string | null
+): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  if (cand.simRank !== Infinity) {
+    out.push({ text: `A common substitute for ${missing.name} on EDHREC`, tone: 'pro' });
+  }
+  if (cand.subtypeMatch && usedSubtype) {
+    out.push({
+      text: `Same ${humanizeSubtype(usedSubtype)} — fills the slot like-for-like`,
+      tone: 'pro',
+    });
+  }
+  if (cand.cmcDelta === 0) out.push({ text: 'Same mana cost', tone: 'pro' });
+  else if (cand.cmcDelta === 1) out.push({ text: 'Within 1 mana of the staple', tone: 'neutral' });
+  if (cand.inclusion > 0) {
+    out.push({
+      text: `Played in ${Math.round(cand.inclusion)}% of similar decks`,
+      tone: cand.inclusion >= 50 ? 'pro' : 'neutral',
+    });
+  }
+  return out;
+}
+
+/**
+ * For a recommended-but-missing staple, the single best owned card that fills
+ * its role. See {@link rankCandidates} for the gates + sort.
+ */
+export function findOwnedSubstitute(
+  missing: GapAnalysisCard,
+  ownedPool: readonly SubstituteCandidate[],
+  deckNames: ReadonlySet<string>,
+  identity: string[],
+  opts: SubstituteFinderOptions = {}
+): SubstituteRow | null {
+  const r = rankCandidates(missing, ownedPool, deckNames, identity, opts);
+  if (!r) return null;
+  return toRow(missing, r.role, r.roleLabel, r.ranked[0]);
 }
 
 /**
@@ -298,6 +370,63 @@ export function buildSubstitutionPlan(
     } else {
       unmatched.push(missing.name);
     }
+  }
+
+  return { rows, unmatched };
+}
+
+/**
+ * Like {@link buildSubstitutionPlan}, but each primary row carries up to
+ * `topN - 1` ranked `alternatives` — other owned cards that fill the same staple
+ * — for the Coach "N other owned options" expander. Deck generation keeps using
+ * the greedy single-pick `buildSubstitutionPlan`; this is the feed-only,
+ * compare-on-demand variant.
+ *
+ * Two passes, so an alternative is never a card already chosen as another
+ * staple's primary (which would imply applying the same physical copy twice):
+ * pass 1 greedily claims primaries; pass 2 fills each row's alternatives from
+ * its ranked list, excluding every claimed primary.
+ */
+export function buildSubstitutionOptions(
+  missingStaples: readonly GapAnalysisCard[],
+  ownedPool: readonly SubstituteCandidate[],
+  deckNames: ReadonlySet<string>,
+  identity: string[],
+  opts: SubstituteFinderOptions = {},
+  topN = 3
+): SubstitutionPlan {
+  const rows: SubstituteRow[] = [];
+  const unmatched: string[] = [];
+  const claimed = new Set<string>();
+  const ranking = new Map<
+    string,
+    { missing: GapAnalysisCard; ranked: RankedCandidate[]; role: RoleKey; roleLabel: string }
+  >();
+
+  // Pass 1: greedy primaries (each owned card claimed by at most one staple).
+  for (const missing of missingStaples) {
+    const pool = claimed.size === 0 ? ownedPool : ownedPool.filter((c) => !claimed.has(c.name));
+    const r = rankCandidates(missing, pool, deckNames, identity, opts);
+    if (!r) {
+      unmatched.push(missing.name);
+      continue;
+    }
+    rows.push(toRow(missing, r.role, r.roleLabel, r.ranked[0]));
+    claimed.add(r.ranked[0].card.name);
+    ranking.set(missing.name, { missing, ...r });
+  }
+
+  // Pass 2: alternatives = the staple's remaining ranked candidates, minus any
+  // card claimed as another staple's primary, capped to topN-1.
+  for (const row of rows) {
+    const r = ranking.get(row.wantedName);
+    if (!r) continue;
+    const alts = r.ranked
+      .slice(1)
+      .filter((c) => !claimed.has(c.card.name))
+      .slice(0, Math.max(0, topN - 1))
+      .map((c) => toRow(r.missing, r.role, r.roleLabel, c));
+    if (alts.length > 0) row.alternatives = alts;
   }
 
   return { rows, unmatched };
