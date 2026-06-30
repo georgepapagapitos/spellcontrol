@@ -79,6 +79,58 @@ export function buildSwapAlternativeFactors(s: SwapAlternativeSignals): WhyFacto
   return out;
 }
 
+export interface BudgetSwapSignals {
+  /** Confidence tier — the collapsed functional-equivalence judgement. */
+  confidence: 'drop-in' | 'sidegrade' | 'budget';
+  /** EDHREC inclusion % of the cheaper suggestion. */
+  suggestionInclusion?: number;
+  /** Owning the cheaper card makes the swap free — a bonus, surfaced only when true. */
+  owned: boolean;
+  /** CMC of each side, to back the "same curve slot" wording for a drop-in. */
+  currentCmc?: number;
+  suggestionCmc?: number;
+}
+
+/**
+ * Why a cheaper card is a fair stand-in for an expensive one. The row already
+ * shows the dollars saved and the confidence badge; these lines say what that
+ * tier *means* in play terms, so a budget swap isn't a leap of faith. The
+ * savings itself is not restated (it is the row's price delta). Unlike a normal
+ * swap, "not owned" is the expected case (you buy the cheaper card), so a
+ * not-owned con is suppressed — ownership only shows up as a bonus when true.
+ */
+export function buildBudgetSwapFactors(s: BudgetSwapSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  const sameCurve =
+    typeof s.currentCmc === 'number' &&
+    typeof s.suggestionCmc === 'number' &&
+    Math.abs(s.currentCmc - s.suggestionCmc) <= 1;
+  if (s.confidence === 'drop-in') {
+    out.push({
+      text: sameCurve
+        ? 'Plays nearly the same — same curve slot, comparable play-rate'
+        : 'Plays nearly the same — comparable play-rate',
+      tone: 'pro',
+    });
+  } else if (s.confidence === 'sidegrade') {
+    out.push({ text: 'A mild trade — less played, but the same mana cost', tone: 'neutral' });
+  } else {
+    out.push({ text: 'A real step down in power, traded for the savings', tone: 'con' });
+  }
+  if (typeof s.suggestionInclusion === 'number') {
+    const word = stapleWord(s.suggestionInclusion);
+    out.push(
+      word === 'fringe'
+        ? { text: `A fringe pick (${pct(s.suggestionInclusion)})`, tone: 'neutral' }
+        : { text: `Still a ${word} in similar decks (${pct(s.suggestionInclusion)})`, tone: 'pro' }
+    );
+  }
+  if (s.owned) {
+    out.push({ text: 'You already own it — the swap is free', tone: 'pro' });
+  }
+  return out;
+}
+
 export interface CutSignals {
   /** Shares a synergy axis with the card being added. */
   sameAxis: boolean;

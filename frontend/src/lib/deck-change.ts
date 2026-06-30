@@ -22,7 +22,7 @@ import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracket
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
-import type { WhyFactor } from './why-factors';
+import { buildBudgetSwapFactors, type WhyFactor } from './why-factors';
 
 export { parsePrice };
 
@@ -472,9 +472,9 @@ export function toSwapAgainst(incoming: Change, outName: string): Change {
  * card makes the swap free, so it badges and ranks like any other owned move.
  */
 export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): Change {
-  // The confidence tier now renders as a VerdictBadge and the savings as the
-  // row's price delta, so a reason string would just duplicate both. See the
-  // budget confidence badge in DeckCardRow.
+  // The confidence tier renders as a VerdictBadge and the savings as the row's
+  // price delta; the whyFactors disclosure adds what those *mean* (is the cheaper
+  // card a fair replacement?) without restating either. See DeckCardRow.
   return {
     id: `budget:${row.currentName}`,
     type: 'swap',
@@ -486,6 +486,13 @@ export function fromCostSwapRow(row: CostSwapRow, ownership?: ChangeOwnership): 
     confidence: row.confidence,
     inclusion: row.suggestionInclusion,
     cmc: row.suggestionCmc,
+    whyFactors: buildBudgetSwapFactors({
+      confidence: row.confidence,
+      suggestionInclusion: row.suggestionInclusion,
+      owned: ownership === 'owned',
+      currentCmc: row.currentCmc,
+      suggestionCmc: row.suggestionCmc,
+    }),
   };
 }
 
