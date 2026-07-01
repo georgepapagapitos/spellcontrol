@@ -186,7 +186,7 @@ const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
 const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'desc' }> = [
   { key: 'name', label: 'Name', defaultDir: 'asc' },
-  { key: 'cmc', label: 'CMC', defaultDir: 'asc' },
+  { key: 'cmc', label: 'Mana value', defaultDir: 'asc' },
   { key: 'price', label: 'Price', defaultDir: 'desc' },
   { key: 'qty', label: 'Quantity', defaultDir: 'desc' },
   { key: 'rarity', label: 'Rarity', defaultDir: 'asc' },
@@ -1555,10 +1555,10 @@ export function CardListTable({
     if (cmcMin !== undefined || cmcMax !== undefined) {
       const label =
         cmcMin !== undefined && cmcMax !== undefined
-          ? `CMC: ${cmcMin}–${cmcMax}`
+          ? `Mana value: ${cmcMin}–${cmcMax}`
           : cmcMin !== undefined
-            ? `CMC: ≥ ${cmcMin}`
-            : `CMC: ≤ ${cmcMax}`;
+            ? `Mana value: ≥ ${cmcMin}`
+            : `Mana value: ≤ ${cmcMax}`;
       chips.push({
         id: 'cmc',
         label,

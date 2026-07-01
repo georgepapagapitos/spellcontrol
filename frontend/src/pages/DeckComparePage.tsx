@@ -306,7 +306,7 @@ export function DeckComparePage() {
                   {/* Sourced from buildManaData (not the diff engine) so this
                       matches the avg-CMC the curve panels below display. */}
                   <DiffStatChip
-                    label="Avg CMC"
+                    label="Avg mana value"
                     a={manaA.averageCmc}
                     b={manaB.averageCmc}
                     decimals={1}

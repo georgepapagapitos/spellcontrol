@@ -76,7 +76,7 @@ export function StatsBar({ open, onClose }: Props) {
       {scryfallMisses > 0 && (
         <div className="warn-banner">
           {scryfallMisses} card{scryfallMisses !== 1 ? 's' : ''} couldn't be enriched with Scryfall
-          data — color/CMC/type sorting may be inaccurate for those cards.
+          data — color/mana value/type sorting may be inaccurate for those cards.
         </div>
       )}
 

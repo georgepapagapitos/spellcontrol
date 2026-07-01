@@ -1010,6 +1010,32 @@ stays current, so prefer editing it over re-deciding.
 
 ---
 
+## Card-stat terminology (mana value / mana cost / price)
+
+Three distinct card numbers were historically shown under overlapping names
+("CMC", "Avg CMC", "cost"). Users had to learn that "CMC" and "mana value" meant
+the same thing, and "cost" ambiguously meant either the mana number or the dollar
+price. Canonical vocabulary, use it everywhere **user-facing** (labels, aria,
+chips, tooltips, analysis messages):
+
+| Concept                          | Canonical term        | Never say                    |
+| -------------------------------- | --------------------- | ---------------------------- |
+| The converted-cost **number**    | **Mana value** (`Avg mana value` for the average) | ~~CMC~~, ~~Avg CMC~~, ~~cost~~ (for the number) |
+| The **`{2}{G}` pip symbols**     | **Mana cost**         | —                            |
+| The **dollar amount**            | **Price**             | ~~cost~~ (for dollars)       |
+
+- "Mana value" is MTG's official term since 2021; "CMC" is legacy and reads as
+  jargon to newer players. Spell it out ("Mana value"), don't abbreviate to
+  "MV" — an unfamiliar abbreviation trades one bit of jargon for another.
+- **Reserve "cost" for mana _cost_ (the pips) only.** Don't use "cost" for the
+  mana-value number (say "mana value") or for money (say "price"). This keeps
+  "cost" and "price" from colliding on the same screen.
+- **Code is exempt** — field names, sort keys (`key: 'cmc'`), CSS classes, and
+  `cmcMin`/`averageCmc` stay as-is; the Scryfall field really is `cmc`. Only the
+  strings a user reads change. Comments may keep "CMC" for brevity.
+
+---
+
 ## Deck-analysis band words
 
 ### Avg mana value (curve)

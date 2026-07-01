@@ -139,10 +139,10 @@ export function CardFitPanel({
           <li className="card-fit-signal">
             <span className="card-fit-signal-label">Curve</span>
             <span className="card-fit-signal-value">
-              {curve.cmc} CMC —{' '}
+              Mana value {curve.cmc} —{' '}
               {curve.nonlandAtCmc === 0
                 ? 'no other nonland cards here'
-                : `${curve.nonlandAtCmc} other ${curve.nonlandAtCmc === 1 ? 'card' : 'cards'} at this cost`}
+                : `${curve.nonlandAtCmc} other ${curve.nonlandAtCmc === 1 ? 'card' : 'cards'} at this mana value`}
             </span>
           </li>
           {role.label && (

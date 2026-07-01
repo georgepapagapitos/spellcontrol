@@ -175,7 +175,7 @@ export function DeckCurvePhases({
               text={
                 <>
                   <span className="info-tip-lead">
-                    Average card cost (the typical mana to cast a card)
+                    Average mana value (the typical mana to cast a card)
                   </span>
                   <ul className="info-tip-list">
                     <li>
@@ -341,8 +341,8 @@ export function DeckCurvePhases({
                 <span className="info-tip-lead">What the grade means</span>
                 <ul className="info-tip-list">
                   <li>
-                    Cards split by cost — <strong>Early</strong> (0–2), <strong>Mid</strong> (3–4),{' '}
-                    <strong>Late</strong> (5+).
+                    Cards split by mana value — <strong>Early</strong> (0–2), <strong>Mid</strong>{' '}
+                    (3–4), <strong>Late</strong> (5+).
                   </li>
                   <li>The number is how many cards fall in that phase.</li>
                   <li>

@@ -270,19 +270,19 @@ describe('deriveBinderName', () => {
 
   it('cmc min-only', () => {
     expect(deriveBinderName(makeInput({ rarityExpr: chip('rare'), cmcMin: 3 }))).toContain(
-      'CMC 3+'
+      'Mana value 3+'
     );
   });
 
   it('cmc max-only', () => {
     expect(deriveBinderName(makeInput({ rarityExpr: chip('rare'), cmcMax: 2 }))).toContain(
-      'CMC ≤2'
+      'Mana value ≤2'
     );
   });
 
   it('cmc min+max', () => {
     const name = deriveBinderName(makeInput({ rarityExpr: chip('rare'), cmcMin: 2, cmcMax: 4 }));
-    expect(name).toContain('CMC 2–4');
+    expect(name).toContain('Mana value 2–4');
   });
 
   it('set filter included in name when under 3 parts', () => {

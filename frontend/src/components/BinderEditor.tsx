@@ -1569,9 +1569,9 @@ function FilterGroupFields({
         />
       </div>
 
-      {/* CMC (mana value) */}
+      {/* Mana value */}
       <div className="rule-row">
-        <span className="rule-label">Mana value (CMC)</span>
+        <span className="rule-label">Mana value</span>
         <NumberRangeInput
           min={filter.cmcMin}
           max={filter.cmcMax}
@@ -1815,9 +1815,10 @@ function autoSummary(f: BinderFilter): string {
   else if (f.priceMin !== undefined) parts.push(`≥ $${f.priceMin}`);
   else if (f.priceMax !== undefined) parts.push(`≤ $${f.priceMax}`);
 
-  if (f.cmcMin !== undefined && f.cmcMax !== undefined) parts.push(`CMC ${f.cmcMin}–${f.cmcMax}`);
-  else if (f.cmcMin !== undefined) parts.push(`CMC ≥ ${f.cmcMin}`);
-  else if (f.cmcMax !== undefined) parts.push(`CMC ≤ ${f.cmcMax}`);
+  if (f.cmcMin !== undefined && f.cmcMax !== undefined)
+    parts.push(`Mana value ${f.cmcMin}–${f.cmcMax}`);
+  else if (f.cmcMin !== undefined) parts.push(`Mana value ≥ ${f.cmcMin}`);
+  else if (f.cmcMax !== undefined) parts.push(`Mana value ≤ ${f.cmcMax}`);
 
   if (f.edhrecRankMax !== undefined) parts.push(`EDH top ${f.edhrecRankMax}`);
   if (f.manaCost?.trim()) parts.push(f.manaCost.trim());
@@ -1940,10 +1941,10 @@ function validateRanges(f: BinderFilter): string | null {
     return "Price minimum can't exceed maximum";
   }
   if (f.cmcMin !== undefined && f.cmcMax !== undefined && f.cmcMin > f.cmcMax) {
-    return "CMC minimum can't exceed maximum";
+    return "Mana value minimum can't exceed maximum";
   }
   if (f.priceMin !== undefined && f.priceMin < 0) return "Price can't be negative";
-  if (f.cmcMin !== undefined && f.cmcMin < 0) return "CMC can't be negative";
+  if (f.cmcMin !== undefined && f.cmcMin < 0) return "Mana value can't be negative";
   if (f.edhrecRankMax !== undefined && f.edhrecRankMax < 1) {
     return 'EDHREC top N must be at least 1';
   }
