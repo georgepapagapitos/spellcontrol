@@ -23,8 +23,12 @@ function state(overrides: Partial<SharedFilterState> = {}): SharedFilterState {
     subtypeExpr: EMPTY,
     colorFilter: new Set(),
     rarityExpr: EMPTY,
+    oracleExpr: EMPTY,
     oracleTagExpr: EMPTY,
+    legalityExpr: EMPTY,
     layoutExpr: EMPTY,
+    treatmentExpr: EMPTY,
+    borderExpr: EMPTY,
     finishExpr: EMPTY,
     setFilter: new Set(),
     ...overrides,
@@ -81,6 +85,21 @@ describe('buildSharedBinderFilter', () => {
     expect(f.oracleChips).toBeUndefined();
     expect(f.supertypeChips).toBeUndefined();
   });
+
+  it('routes the payload-backed facets (oracle text / legality / treatment / border)', () => {
+    const f = buildSharedBinderFilter(
+      state({
+        oracleExpr: chips('draw a card'),
+        legalityExpr: chips('commander'),
+        treatmentExpr: chips('showcase'),
+        borderExpr: chips('borderless'),
+      })
+    );
+    expect(f.oracleChips).toEqual(chips('draw a card'));
+    expect(f.legalities).toEqual(chips('commander'));
+    expect(f.treatments).toEqual(chips('showcase'));
+    expect(f.borderColors).toEqual(chips('borderless'));
+  });
 });
 
 describe('colorMatches', () => {
@@ -128,6 +147,20 @@ describe('makeSharedMatcher', () => {
     expect(makeSharedMatcher(state({ setFilter: new Set(['cmr']) }))(counter)).toBe(false);
     expect(makeSharedMatcher(state({ cmcMin: 2, cmcMax: 2 }))(counter)).toBe(true);
     expect(makeSharedMatcher(state({ cmcMin: 2, cmcMax: 2 }))(sol)).toBe(false);
+  });
+
+  it('matches the payload-backed facets through the engine', () => {
+    const solRing = card({
+      name: 'Sol Ring',
+      oracleText: 'Add two colorless mana.',
+      legalities: { commander: 'legal', vintage: 'legal' },
+      borderColor: 'black',
+    });
+    expect(makeSharedMatcher(state({ oracleExpr: chips('colorless mana') }))(solRing)).toBe(true);
+    expect(makeSharedMatcher(state({ oracleExpr: chips('flying') }))(solRing)).toBe(false);
+    expect(makeSharedMatcher(state({ legalityExpr: chips('commander') }))(solRing)).toBe(true);
+    expect(makeSharedMatcher(state({ legalityExpr: chips('standard') }))(solRing)).toBe(false);
+    expect(makeSharedMatcher(state({ borderExpr: chips('black') }))(solRing)).toBe(true);
   });
 
   it('composes facets and the color post-check with AND', () => {

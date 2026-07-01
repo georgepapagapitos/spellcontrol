@@ -50,6 +50,16 @@ export interface PublicCard {
   imageNormalBack?: string;
   layout?: string;
   manaCost?: string;
+  /**
+   * Fields the shared-view filter matches on (oracle text / format legality /
+   * treatment / border). `legalities` is trimmed to the formats the filter
+   * offers (see FILTERABLE_FORMATS) to keep the public payload lean.
+   */
+  oracleText?: string;
+  legalities?: Record<string, string>;
+  frameEffects?: string[];
+  fullArt?: boolean;
+  borderColor?: string;
   /** Per-copy quantity is always 1 — this is a per-physical-copy shape. */
 }
 
@@ -191,6 +201,34 @@ function asFinish(x: unknown): 'nonfoil' | 'foil' | 'etched' {
   return x === 'foil' || x === 'etched' ? x : 'nonfoil';
 }
 
+/**
+ * Formats the shared-view filter can query. `legalities` is projected down to
+ * just these keys so the public payload doesn't ship all ~20 Scryfall formats
+ * per card for filters that can only ask about seven. Mirrors
+ * SHARED_FORMAT_OPTIONS in the frontend FilterFieldEditor.
+ */
+const FILTERABLE_FORMATS = [
+  'standard',
+  'pioneer',
+  'modern',
+  'legacy',
+  'vintage',
+  'commander',
+  'pauper',
+] as const;
+
+/** Trim a card's legalities to the filterable formats (non-empty string values). */
+function pickLegalities(raw: unknown): Record<string, string> | undefined {
+  const rec = asRecord(raw);
+  if (!rec) return undefined;
+  const out: Record<string, string> = {};
+  for (const fmt of FILTERABLE_FORMATS) {
+    const v = asString(rec[fmt]);
+    if (v) out[fmt] = v;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 /** Coerce a record's values to numbers, dropping non-finite entries. */
 function numberMap(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
@@ -244,6 +282,11 @@ export function projectCard(raw: unknown): PublicCard | null {
     imageNormalBack: asString(r.imageNormalBack),
     layout: asString(r.layout),
     manaCost: asString(r.manaCost),
+    oracleText: asString(r.oracleText),
+    legalities: pickLegalities(r.legalities),
+    frameEffects: asStringArray(r.frameEffects),
+    fullArt: asBool(r.fullArt),
+    borderColor: asString(r.borderColor),
   };
 }
 

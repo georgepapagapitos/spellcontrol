@@ -50,6 +50,14 @@ function deckCardToPublicCard(slot: PublicDeckCard): PublicCard {
     imageSmall: img.small,
     imageNormal: img.normal ?? img.large,
     manaCost: typeof c.mana_cost === 'string' ? c.mana_cost : undefined,
+    oracleText: typeof c.oracle_text === 'string' ? c.oracle_text : undefined,
+    legalities:
+      c.legalities && typeof c.legalities === 'object'
+        ? (c.legalities as Record<string, string>)
+        : undefined,
+    frameEffects: Array.isArray(c.frame_effects) ? (c.frame_effects as string[]) : undefined,
+    fullArt: typeof c.full_art === 'boolean' ? c.full_art : undefined,
+    borderColor: typeof c.border_color === 'string' ? c.border_color : undefined,
   };
 }
 
