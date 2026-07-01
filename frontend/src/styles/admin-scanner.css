@@ -909,6 +909,11 @@
    the sheet. Solid (not translucent) so it can't read white if anything behind
    ever paints light. */
 .scanner-search-pill.search-pill {
+  /* The base .search-pill uses `flex: 1 1 12rem` for horizontal toolbars,
+     where 12rem is a min-width. Here the pill sits in a column-flex
+     container (.scanner-search), so that basis becomes a min-height and the
+     grow inflates the pill into a giant oval. Pin it to content height. */
+  flex: 0 0 auto;
   background: #1e293b;
   border-color: rgba(255, 255, 255, 0.12);
 }
