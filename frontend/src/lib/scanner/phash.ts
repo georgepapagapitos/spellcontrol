@@ -115,14 +115,38 @@ export const ART_REGION = {
 } as const;
 
 /**
- * Crop the art window out of a warped card canvas. Returns a new canvas
- * sized to the art rectangle so callers can `imshow`-style preview it.
+ * Whole-card art window for **full-art** cards (basic lands, borderless,
+ * full-art promos), whose illustration fills the entire card — so Scryfall's
+ * `art_crop` is ~the whole card, not the {@link ART_REGION} band. Just the
+ * card minus its black border. The scanner tries this crop as a second pass
+ * when the {@link ART_REGION} crop doesn't match confidently; without it,
+ * every full-art card misses (the band crops the wrong region entirely).
+ * Fractions validated against Scryfall `art_crop` references for full-art
+ * basics across sets — tune here if a per-era refinement is ever needed.
  */
-export function cropArtRegion(warped: HTMLCanvasElement): HTMLCanvasElement {
-  const x = Math.round(warped.width * ART_REGION.xFrac);
-  const y = Math.round(warped.height * ART_REGION.yFrac);
-  const w = Math.round(warped.width * ART_REGION.widthFrac);
-  const h = Math.round(warped.height * ART_REGION.heightFrac);
+export const FULL_ART_REGION = {
+  xFrac: 0.06,
+  yFrac: 0.05,
+  widthFrac: 0.88,
+  heightFrac: 0.9,
+} as const;
+
+export type CropRegion = {
+  xFrac: number;
+  yFrac: number;
+  widthFrac: number;
+  heightFrac: number;
+};
+
+/**
+ * Crop a fractional window out of a warped card canvas. Returns a new canvas
+ * sized to the window so callers can `imshow`-style preview it.
+ */
+export function cropRegion(warped: HTMLCanvasElement, region: CropRegion): HTMLCanvasElement {
+  const x = Math.round(warped.width * region.xFrac);
+  const y = Math.round(warped.height * region.yFrac);
+  const w = Math.round(warped.width * region.widthFrac);
+  const h = Math.round(warped.height * region.heightFrac);
   const out = document.createElement('canvas');
   out.width = w;
   out.height = h;
@@ -130,6 +154,16 @@ export function cropArtRegion(warped: HTMLCanvasElement): HTMLCanvasElement {
   if (!ctx) throw new Error('2D canvas context unavailable for art crop');
   ctx.drawImage(warped, x, y, w, h, 0, 0, w, h);
   return out;
+}
+
+/** Crop the normal-frame art window. See {@link ART_REGION}. */
+export function cropArtRegion(warped: HTMLCanvasElement): HTMLCanvasElement {
+  return cropRegion(warped, ART_REGION);
+}
+
+/** Crop the whole-card window for full-art cards. See {@link FULL_ART_REGION}. */
+export function cropFullArtRegion(warped: HTMLCanvasElement): HTMLCanvasElement {
+  return cropRegion(warped, FULL_ART_REGION);
 }
 
 /**
