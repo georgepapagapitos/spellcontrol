@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   classify,
+  pickBetterResult,
   serverBodyToScanResult,
   phashHitsToScanResult,
   CONFIDENT_SCORE,
@@ -217,6 +218,35 @@ describe('phashHitsToScanResult', () => {
       undefined
     );
     expect(r.kind).toBe('borderline');
+  });
+});
+
+describe('pickBetterResult', () => {
+  const confident = classify([mkCandidate(CONFIDENT_SCORE + 10)], ZERO_TIMINGS);
+  const borderline = classify([mkCandidate(BORDERLINE_SCORE + 2)], ZERO_TIMINGS);
+  const miss = classify([mkCandidate(BORDERLINE_SCORE - 10)], ZERO_TIMINGS);
+
+  it('prefers confident over borderline regardless of argument order', () => {
+    expect(pickBetterResult(confident, borderline)).toBe(confident);
+    expect(pickBetterResult(borderline, confident)).toBe(confident);
+  });
+
+  it('prefers borderline over miss regardless of argument order', () => {
+    // The full-art fix: band crop misses, whole-card crop recovers a match.
+    expect(pickBetterResult(miss, borderline)).toBe(borderline);
+    expect(pickBetterResult(borderline, miss)).toBe(borderline);
+  });
+
+  it('breaks a same-kind tie by higher top score', () => {
+    const lo = classify([mkCandidate(CONFIDENT_SCORE + 1)], ZERO_TIMINGS);
+    const hi = classify([mkCandidate(CONFIDENT_SCORE + 20)], ZERO_TIMINGS);
+    expect(pickBetterResult(lo, hi)).toBe(hi);
+    expect(pickBetterResult(hi, lo)).toBe(hi);
+  });
+
+  it('returns the first argument when both are misses', () => {
+    const missB = classify([mkCandidate(BORDERLINE_SCORE - 20)], ZERO_TIMINGS);
+    expect(pickBetterResult(miss, missB)).toBe(miss);
   });
 });
 

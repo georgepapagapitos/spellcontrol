@@ -18,7 +18,7 @@ import { logger } from '../logger';
 import { apiUrl } from '../api-base';
 import { loadOpenCv } from './opencv-loader';
 import { detectAndWarpCard, type Point } from './detect';
-import { hashCanvas, cropArtRegion } from './phash';
+import { hashCanvas, cropArtRegion, cropFullArtRegion } from './phash';
 import { loadHashDb, findNearest, type Match as HashMatch } from './hash-db';
 
 /** Raw dot-product score above which the top-1 is "confident". Must stay
@@ -115,16 +115,51 @@ export async function scan(input: ScanInput): Promise<ScanResult> {
   const quad = detect.quad ?? undefined;
 
   if (navigator.onLine) {
-    const serverResult = await tryServerMatch(detect.warped, detectMs, quad, t0);
-    if (serverResult) return serverResult;
+    // Pass 1: the normal-frame art-region crop. Normal cards resolve here
+    // (confident) in a single request. On a null result the server itself is
+    // unreachable, so skip straight to the on-device fallback.
+    const first = await tryServerMatch(detect.warped, cropArtRegion, detectMs, quad, t0);
+    if (first) {
+      if (first.kind === 'confident') return first;
+      // Pass 2: full-art cards (basic lands, borderless, full-art promos) miss
+      // the art-region band because their art fills the whole card. Retry the
+      // same warp with a whole-card crop and keep whichever matched better.
+      const second = await tryServerMatch(detect.warped, cropFullArtRegion, detectMs, quad, t0);
+      return second ? pickBetterResult(first, second) : first;
+    }
     logger.debug('[scanner] server match unavailable — falling back to on-device pHash');
   }
 
   return onDeviceMatchAsync(detect.warped, detectMs, quad, t0);
 }
 
+/** Rank scan results best-first: confident > borderline > miss. */
+function resultRank(r: ScanResult): number {
+  return r.kind === 'confident' ? 2 : r.kind === 'borderline' ? 1 : 0;
+}
+
+/** Top candidate score of a result, or -Infinity for a miss. */
+function resultTopScore(r: ScanResult): number {
+  if (r.kind === 'confident') return r.match.rawScore;
+  if (r.kind === 'borderline') return r.candidates[0]?.rawScore ?? -Infinity;
+  return -Infinity;
+}
+
+/**
+ * Pick the stronger of two scan results — higher kind wins (confident beats
+ * borderline beats miss), ties broken by top candidate score. Used to merge
+ * the art-region and full-art crop passes. Exported for unit testing.
+ */
+export function pickBetterResult(a: ScanResult, b: ScanResult): ScanResult {
+  const ra = resultRank(a);
+  const rb = resultRank(b);
+  if (ra !== rb) return ra > rb ? a : b;
+  return resultTopScore(a) >= resultTopScore(b) ? a : b;
+}
+
 async function tryServerMatch(
   warped: HTMLCanvasElement,
+  crop: (warped: HTMLCanvasElement) => HTMLCanvasElement,
   detectMs: number,
   quad: Point[] | undefined,
   t0: number
@@ -135,10 +170,10 @@ async function tryServerMatch(
   // with content the reference vectors don't represent (title bar, type
   // line, text box, mana cost, art are all in the upload), so even pHash
   // candidates miss and CLIP can't recover them. Crop to the art region
-  // first so both stages see the same kind of input the references were
-  // built from.
+  // (`crop`) first so both stages see the same kind of input the references
+  // were built from.
   const encodeStart = performance.now();
-  const artCrop = cropArtRegion(warped);
+  const artCrop = crop(warped);
   const blob = await canvasToBlob(artCrop, 'image/jpeg', UPLOAD_JPEG_QUALITY);
   const encodeMs = performance.now() - encodeStart;
   if (!blob) {
