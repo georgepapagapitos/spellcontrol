@@ -575,7 +575,8 @@ app.get(
         return res.status(400).json({ error: 'Card name is required.' });
       }
 
-      const cards = await fetchPrintings(cardName);
+      const setParam = typeof req.query.set === 'string' ? req.query.set : undefined;
+      const cards = await fetchPrintings(cardName, setParam);
       if (cards.length > 0) {
         cache.setMany(cards);
       }

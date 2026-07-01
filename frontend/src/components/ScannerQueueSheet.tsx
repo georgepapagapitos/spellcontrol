@@ -59,6 +59,12 @@ interface Props {
   initialPickerFor?: string | null;
 }
 
+/** Printings-cache key — printings are fetched scoped to a card's set, so the
+ *  cache is keyed by name + set (not name alone). */
+function printingsKey(card: { name: string; set: string }): string {
+  return `${card.name}|${card.set}`;
+}
+
 /**
  * Bottom-sheet review of every card the scanner has captured this session.
  *
@@ -137,11 +143,15 @@ export function ScannerQueueSheet({
   const togglePicker = useCallback(
     async (entry: ScannedEntry) => {
       setOpenPickerFor((current) => (current === entry.id ? null : entry.id));
-      if (!printsCache.has(entry.card.name)) {
+      const key = printingsKey(entry.card);
+      if (!printsCache.has(key)) {
         setLoadingPrintsFor(entry.id);
         try {
-          const prints = await fetchPrintings(entry.card.name);
-          setPrintsCache((prev) => new Map(prev).set(entry.card.name, prints));
+          // Scope to the scanned card's set — a scanned physical card's printing
+          // lives in the set it matched, and unscoped basic lands return ~800
+          // printings (multi-MB, unrenderable on a phone).
+          const prints = await fetchPrintings(entry.card.name, entry.card.set);
+          setPrintsCache((prev) => new Map(prev).set(key, prints));
         } catch (err) {
           logger.warn('[scanner-queue] could not fetch printings:', err);
         } finally {
@@ -284,7 +294,7 @@ export function ScannerQueueSheet({
                 entry.card.image_uris?.small || entry.card.card_faces?.[0]?.image_uris?.small;
               const isOpen = openPickerFor === entry.id;
               const isLoading = loadingPrintsFor === entry.id;
-              const prints = printsCache.get(entry.card.name);
+              const prints = printsCache.get(printingsKey(entry.card));
               const finishes = availableFinishes(entry.card.finishes);
               const unit = finishUnitPrice(entry.card.prices, entry.finish);
               return (
@@ -298,13 +308,34 @@ export function ScannerQueueSheet({
                       )}
                     </div>
                     <div className="scanner-sheet-row-body">
-                      <div className="scanner-sheet-row-name">{entry.card.name}</div>
-                      <div className="scanner-sheet-row-meta">
-                        {entry.card.set.toUpperCase()} · {entry.card.collector_number ?? '—'}
+                      <div className="scanner-sheet-row-name-line">
+                        <span className="scanner-sheet-row-name">{entry.card.name}</span>
                         {unit != null ? (
                           <span className="scanner-sheet-row-price">{formatMoney(unit)}</span>
                         ) : null}
                       </div>
+                      <button
+                        type="button"
+                        className={`scanner-sheet-printing-btn${isOpen ? ' open' : ''}`}
+                        onClick={() => void togglePicker(entry)}
+                        aria-expanded={isOpen}
+                        aria-label={`Change printing of ${entry.card.name}`}
+                      >
+                        <span className="scanner-sheet-printing-label">
+                          <span className="scanner-sheet-printing-code">
+                            {entry.card.set.toUpperCase()} · {entry.card.collector_number ?? '—'}
+                          </span>
+                          <span className="scanner-sheet-printing-setname">
+                            {entry.card.set_name}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className="scanner-sheet-printing-chevron"
+                          width={16}
+                          height={16}
+                          strokeWidth={2}
+                        />
+                      </button>
                       <div className="scanner-sheet-row-controls">
                         <div className="scanner-qty">
                           <button
@@ -344,16 +375,6 @@ export function ScannerQueueSheet({
                         )}
                         <button
                           type="button"
-                          className={`scanner-printing-toggle${isOpen ? ' open' : ''}`}
-                          onClick={() => void togglePicker(entry)}
-                          aria-expanded={isOpen}
-                          aria-label={`Change printing of ${entry.card.name}`}
-                        >
-                          <span>Printing</span>
-                          <ChevronDown width={14} height={14} strokeWidth={2} />
-                        </button>
-                        <button
-                          type="button"
                           className="scanner-icon-btn scanner-sheet-remove"
                           onClick={() => onRemove(entry.id)}
                           aria-label={`Remove ${entry.card.name}`}
@@ -371,7 +392,10 @@ export function ScannerQueueSheet({
                         <ul className="scanner-printing-list">
                           {prints.map((print) => {
                             const printImg =
-                              print.image_uris?.small || print.card_faces?.[0]?.image_uris?.small;
+                              print.image_uris?.normal ||
+                              print.image_uris?.small ||
+                              print.card_faces?.[0]?.image_uris?.normal ||
+                              print.card_faces?.[0]?.image_uris?.small;
                             const selected =
                               print.set === entry.card.set &&
                               print.collector_number === entry.card.collector_number;
@@ -384,16 +408,26 @@ export function ScannerQueueSheet({
                                     onChangePrinting(entry.id, print);
                                     setOpenPickerFor(null);
                                   }}
+                                  aria-label={`Use ${print.set_name} #${print.collector_number ?? '—'}`}
+                                  aria-pressed={selected}
                                 >
                                   <div className="scanner-printing-thumb">
-                                    {printImg ? <img src={printImg} alt="" loading="lazy" /> : null}
+                                    {printImg ? (
+                                      <img src={printImg} alt="" loading="lazy" />
+                                    ) : (
+                                      <div className="scanner-printing-thumb-fallback">
+                                        {print.set.toUpperCase()}
+                                      </div>
+                                    )}
+                                    {selected ? (
+                                      <span className="scanner-printing-check" aria-hidden>
+                                        <Check width={13} height={13} strokeWidth={3} />
+                                      </span>
+                                    ) : null}
                                   </div>
-                                  <div className="scanner-printing-meta">
-                                    <div className="scanner-printing-set">
-                                      {print.set.toUpperCase()} · {print.collector_number ?? '—'}
-                                    </div>
-                                    <div className="scanner-printing-setname">{print.set_name}</div>
-                                  </div>
+                                  <span className="scanner-printing-cn">
+                                    #{print.collector_number ?? '—'}
+                                  </span>
                                 </button>
                               </li>
                             );

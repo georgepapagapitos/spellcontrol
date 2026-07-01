@@ -6,7 +6,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 
 const fetchPrintingsMock = vi.fn();
 vi.mock('../lib/api', () => ({
-  fetchPrintings: (name: string) => fetchPrintingsMock(name),
+  fetchPrintings: (name: string, set?: string) => fetchPrintingsMock(name, set),
 }));
 
 const searchCardsMock = vi.fn();
@@ -160,9 +160,11 @@ describe('ScannerQueueSheet', () => {
       />
     );
     fireEvent.click(screen.getByLabelText(/Change printing of Lightning Bolt/));
-    expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt');
-    await waitFor(() => expect(screen.getByText(/Unlimited Edition/)).toBeTruthy());
-    fireEvent.click(screen.getByText(/2ED · 174/));
+    // Printings are fetched scoped to the scanned card's set.
+    expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt', 'lea');
+    // The picker is an image grid — each cell shows the collector number.
+    await waitFor(() => expect(screen.getByText('#174')).toBeTruthy());
+    fireEvent.click(screen.getByText('#174'));
     expect(onChangePrinting).toHaveBeenCalledWith('oracle-bolt', altPrint);
   });
 
@@ -371,7 +373,7 @@ describe('ScannerQueueSheet', () => {
         onAddCard={vi.fn()}
       />
     );
-    await waitFor(() => expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt'));
+    await waitFor(() => expect(fetchPrintingsMock).toHaveBeenCalledWith('Lightning Bolt', 'lea'));
   });
 
   it('searches Scryfall and adds a result to the queue', async () => {

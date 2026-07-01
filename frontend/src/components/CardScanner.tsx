@@ -109,6 +109,12 @@ const VARIANCE_THRESHOLD = 320; // stddev² of the title band when checked
  */
 const STABLE_FRAMES_REQUIRED = 1;
 const CAPTURE_COOLDOWN_MS = 800;
+/** Consecutive failed capture attempts before the scanner offers a nudge.
+ *  A single miss while the user lines up a card is normal and stays silent
+ *  (the loop re-arms and tries again); only a sustained run of failures on
+ *  the same card surfaces guidance. Keeps the overlay quiet-until-hit instead
+ *  of flashing "didn't recognize" on every intermediate frame. */
+const SUSTAINED_MISS_HINTS = 3;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -134,6 +140,8 @@ export function CardScanner({ onClose, onConfirm }: Props) {
    * card immediately after a successful identify.
    */
   const armedRef = useRef(true);
+  /** Consecutive failed capture attempts, for the quiet-until-hit nudge. */
+  const consecutiveMissRef = useRef(0);
   /** Whether the one-time "tap to add another" hint has been shown this session. */
   const tapHintShownRef = useRef(false);
 
@@ -567,26 +575,27 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
         const result = await scan({ source: canvas });
 
-        if (result.kind === 'miss') {
-          const msg =
-            result.reason === 'no_quad'
-              ? "Couldn't find a card edge — try better lighting."
-              : "Didn't recognize this card — try again.";
-          logger.debug(`[scanner] miss: ${result.reason} ${result.detail ?? ''}`);
-          showHint(msg, 2200);
-          return;
-        }
-
-        if (result.kind === 'borderline') {
-          // Phase E target: surface a picker with `result.candidates` so the
-          // user can pick the printing themselves. For now, treat as a soft
-          // miss with diagnostic text — auto-adding a low-confidence card
-          // would silently pollute the queue.
-          const top = result.candidates[0];
+        if (result.kind === 'miss' || result.kind === 'borderline') {
+          // Quiet-until-hit: a lone miss/ambiguous read while the user is still
+          // lining the card up is normal — stay silent and let the loop re-arm
+          // and try again. Only after several consecutive failures on the same
+          // hold do we surface a calm, actionable nudge (never a raw score, and
+          // never the old per-frame "didn't recognize" flash).
           logger.debug(
-            `[scanner] borderline: top ${top.scryfallId} conf=${top.confidence.toFixed(2)}`
+            result.kind === 'miss'
+              ? `[scanner] miss: ${result.reason} ${result.detail ?? ''}`
+              : `[scanner] borderline: top ${result.candidates[0]?.scryfallId}`
           );
-          showHint(`Ambiguous match (${top.confidence.toFixed(2)}) — try again.`, 2200);
+          consecutiveMissRef.current += 1;
+          if (consecutiveMissRef.current >= SUSTAINED_MISS_HINTS) {
+            const noCard = result.kind === 'miss' && result.reason === 'no_quad';
+            showHint(
+              noCard
+                ? 'Center a card in the frame, in good light.'
+                : "Can't read this card — try better light or lay it flat.",
+              2200
+            );
+          }
           return;
         }
 
@@ -599,6 +608,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           showHint("Found a match but couldn't load the card. Try again.", 2200);
           return;
         }
+
+        // A confident read (even a dedupe) clears the sustained-miss streak.
+        consecutiveMissRef.current = 0;
 
         // Dedupe-or-add. The hook owns the dedupe cursor; 'duplicate'
         // means the same printing was just scanned, so the matcher is
