@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
-import type { PublicBinder, PublicCard } from '../../lib/shared-types';
+import type { PublicBinder } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
 import { groupCards } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
-import { SharedCardModal } from './SharedCardModal';
+import { CardPreview } from '../CardPreview';
+import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
@@ -26,21 +27,47 @@ type ViewKind = 'grid' | 'list';
 export function SharedBinderView({ data }: Props) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewKind>('grid');
-  const [preview, setPreview] = useState<PublicCard | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   // Facet options derive from every card across the binder's sections.
   const allCards = useMemo(() => data.sections.flatMap((s) => s.cards), [data.sections]);
   const { filterNode, matches } = useSharedFilters(allCards);
 
   const q = normalizeForSearch(search);
+  // Filter each section, group duplicate copies (so grid + list agree, matching
+  // the collection view), and stamp each section's start offset into the flat
+  // carousel list so a tile's local index maps to a global carousel index.
   const sections = useMemo(() => {
-    return data.sections
+    const withGroups = data.sections
       .map((s) => ({
         ...s,
         cards: s.cards.filter((c) => (!q || normalizeForSearch(c.name).includes(q)) && matches(c)),
       }))
-      .filter((s) => s.cards.length > 0);
+      .filter((s) => s.cards.length > 0)
+      .map((s) => ({ ...s, groups: groupCards(s.cards) }));
+    // Prefix-sum each section's start offset without a render-scope reassignment
+    // (React Compiler immutability rule).
+    const lengths = withGroups.map((s) => s.groups.length);
+    return withGroups.map((s, i) => ({
+      ...s,
+      start: lengths.slice(0, i).reduce((a, b) => a + b, 0),
+    }));
   }, [data.sections, q, matches]);
+
+  // Flat card list across all sections (in render order) for the carousel.
+  const previewCards = useMemo(
+    () => sections.flatMap((s) => s.groups.map((g) => publicCardToEnriched(g.card))),
+    [sections]
+  );
+  const previewLabels = useMemo(
+    () => sections.flatMap((s) => s.groups.map(() => s.label)),
+    [sections]
+  );
+  const previewQty = useMemo(
+    () => sections.flatMap((s) => s.groups.map((g) => g.quantity)),
+    [sections]
+  );
+  const previewPages = useMemo(() => previewCards.map(() => 0), [previewCards]);
 
   return (
     <main className="shared-view">
@@ -102,20 +129,40 @@ export function SharedBinderView({ data }: Props) {
             </h2>
             {view === 'grid' ? (
               <ul className="shared-card-grid shared-card-grid--small">
-                {section.cards.map((card, idx) => (
-                  <li key={`${card.scryfallId}-${idx}`}>
-                    <SharedCardTile card={card} onClick={() => setPreview(card)} />
+                {section.groups.map((g, j) => (
+                  <li key={g.key}>
+                    <SharedCardTile
+                      card={g.card}
+                      quantity={g.quantity}
+                      onClick={() => setPreviewIndex(section.start + j)}
+                    />
                   </li>
                 ))}
               </ul>
             ) : (
-              <SharedCardList items={groupCards(section.cards)} onPreview={setPreview} />
+              <SharedCardList
+                items={section.groups}
+                onPreview={(j) => setPreviewIndex(section.start + j)}
+              />
             )}
           </section>
         ))
       )}
 
-      {preview && <SharedCardModal card={preview} onClose={() => setPreview(null)} />}
+      {previewIndex !== null && previewCards[previewIndex] && (
+        <CardPreview
+          source="binder"
+          cards={previewCards}
+          index={previewIndex}
+          binderName={data.name}
+          sectionLabels={previewLabels}
+          pageNumbers={previewPages}
+          totalPages={0}
+          getStackQty={(i) => previewQty[i] ?? 1}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
     </main>
   );
 }

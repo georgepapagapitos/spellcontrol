@@ -10,7 +10,9 @@ export interface SharedCardListItem {
 
 interface Props {
   items: SharedCardListItem[];
-  onPreview: (card: PublicCard) => void;
+  /** Row clicked — receives the row's index within `items` (the caller maps it
+   *  to a global index into the flat carousel list). */
+  onPreview: (index: number) => void;
   /** Deck cards carry no real price (placeholder 0), so the column is hidden there. */
   showPrice?: boolean;
 }
@@ -35,17 +37,17 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
           </tr>
         </thead>
         <tbody>
-          {items.map((it) => (
+          {items.map((it, i) => (
             <tr
               key={it.key}
-              onClick={() => onPreview(it.card)}
+              onClick={() => onPreview(i)}
               tabIndex={0}
               role="button"
               aria-label={`Preview ${it.card.name}`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onPreview(it.card);
+                  onPreview(i);
                 }
               }}
             >

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { PublicCard, PublicCollection } from '../../lib/shared-types';
+import type { PublicCollection } from '../../lib/shared-types';
 import {
   filterBySearch,
   groupCards,
@@ -10,7 +10,8 @@ import {
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
-import { SharedCardModal } from './SharedCardModal';
+import { CardPreview } from '../CardPreview';
+import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
@@ -38,7 +39,7 @@ export function SharedCollectionView({ data }: Props) {
   const [sort, setSort] = useState<SharedSortKey>('name');
   const [dir, setDir] = useState<SortDir>('asc');
   const [view, setView] = useState<ViewKind>('grid');
-  const [preview, setPreview] = useState<PublicCard | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const grouped = useMemo(() => groupCards(data.cards), [data.cards]);
 
@@ -50,6 +51,12 @@ export function SharedCollectionView({ data }: Props) {
   );
 
   const sorted = useMemo(() => sortGrouped(filtered, sort, dir), [filtered, sort, dir]);
+
+  // Flat card list for the shared carousel — parallel to `sorted`, so a tile's
+  // index is its carousel index. Rebuilds only when the sorted result changes.
+  const previewCards = useMemo(() => sorted.map((g) => publicCardToEnriched(g.card)), [sorted]);
+  const previewLabels = useMemo(() => sorted.map(() => ''), [sorted]);
+  const previewPages = useMemo(() => sorted.map(() => 0), [sorted]);
 
   const totalCards = data.cards.length;
   const totalValue = data.cards.reduce((sum, c) => sum + c.purchasePrice, 0);
@@ -118,21 +125,34 @@ export function SharedCollectionView({ data }: Props) {
         </p>
       ) : view === 'grid' ? (
         <ul className="shared-card-grid">
-          {sorted.map((g) => (
+          {sorted.map((g, i) => (
             <li key={g.key}>
               <SharedCardTile
                 card={g.card}
                 quantity={g.quantity}
-                onClick={() => setPreview(g.card)}
+                onClick={() => setPreviewIndex(i)}
               />
             </li>
           ))}
         </ul>
       ) : (
-        <SharedCardList items={sorted} onPreview={setPreview} />
+        <SharedCardList items={sorted} onPreview={setPreviewIndex} />
       )}
 
-      {preview && <SharedCardModal card={preview} onClose={() => setPreview(null)} />}
+      {previewIndex !== null && previewCards[previewIndex] && (
+        <CardPreview
+          source="collection"
+          cards={previewCards}
+          index={previewIndex}
+          binderName="Collection"
+          sectionLabels={previewLabels}
+          pageNumbers={previewPages}
+          totalPages={0}
+          getStackQty={(i) => sorted[i]?.quantity ?? 1}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
     </main>
   );
 }
