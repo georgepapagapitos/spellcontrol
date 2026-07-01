@@ -4,6 +4,7 @@ import {
   dedupeDeckAllocations,
   pickCollectionCopy,
   classifyAllocation,
+  classifyPrintingAvailability,
   findSuboptimalPrintings,
   findStealableCopy,
   planCardAdd,
@@ -837,5 +838,94 @@ describe('buildAllocationMap with physical cubes', () => {
     const cube = savedCube({ picks: [cubeSlot('Sol Ring', 'copy-x')] });
     // An add never steals — it only binds free copies; a cube-only card stays listed.
     expect(planCardAdd('Sol Ring', undefined, collection, [], [cube]).kind).toBe('list');
+  });
+});
+
+describe('classifyPrintingAvailability', () => {
+  it('returns unowned when no copy of the printing exists', () => {
+    const collection = [card({ copyId: 'a', scryfallId: 'sf-other' })];
+    const map = buildAllocationMap([]);
+    expect(classifyPrintingAvailability('sf-target', collection, map)).toBe('unowned');
+  });
+
+  it('returns owned when a free copy of the printing exists', () => {
+    const collection = [card({ copyId: 'a', scryfallId: 'sf-target' })];
+    const map = buildAllocationMap([]);
+    expect(classifyPrintingAvailability('sf-target', collection, map)).toBe('owned');
+  });
+
+  it('returns in-other-deck when every copy of the printing is in another deck', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring', scryfallId: 'sf-target' })];
+    const other = deck({
+      id: 'other',
+      cards: [
+        {
+          slotId: 's1',
+          card: { name: 'Sol Ring', id: 'sf-target' } as ScryfallCard,
+          allocatedCopyId: 'a',
+        },
+      ],
+    });
+    const map = buildAllocationMap([other]);
+    expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe(
+      'in-other-deck'
+    );
+  });
+
+  it('counts a copy allocated to the current deck as free (owned)', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring', scryfallId: 'sf-target' })];
+    const current = deck({
+      id: 'current',
+      cards: [
+        {
+          slotId: 's1',
+          card: { name: 'Sol Ring', id: 'sf-target' } as ScryfallCard,
+          allocatedCopyId: 'a',
+        },
+      ],
+    });
+    const map = buildAllocationMap([current]);
+    expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe('owned');
+  });
+
+  it('returns owned when some copies are claimed but at least one is free', () => {
+    const collection = [
+      card({ copyId: 'a', name: 'Sol Ring', scryfallId: 'sf-target' }),
+      card({ copyId: 'b', name: 'Sol Ring', scryfallId: 'sf-target' }),
+    ];
+    const other = deck({
+      id: 'other',
+      cards: [
+        {
+          slotId: 's1',
+          card: { name: 'Sol Ring', id: 'sf-target' } as ScryfallCard,
+          allocatedCopyId: 'a',
+        },
+      ],
+    });
+    const map = buildAllocationMap([other]);
+    expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe('owned');
+  });
+
+  it('returns in-cube when every copy is committed to a physical cube', () => {
+    const collection = [card({ copyId: 'a', name: 'Sol Ring', scryfallId: 'sf-target' })];
+    const cube: SavedCube = {
+      id: 'cube-1',
+      name: 'My Cube',
+      size: 540,
+      cube: { picks: [] } as never,
+      picks: [
+        {
+          slotId: 'Sol Ring',
+          card: { name: 'Sol Ring' } as never,
+          allocatedCopyId: 'a',
+          printingFinishKey: null,
+        },
+      ],
+      isPhysical: true,
+      savedAt: 0,
+    };
+    const map = buildAllocationMap([], [cube]);
+    expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe('in-cube');
   });
 });

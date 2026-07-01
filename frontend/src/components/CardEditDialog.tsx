@@ -2,10 +2,32 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
+import type { ChangeOwnership } from '../lib/deck-change';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 
 type Finish = 'nonfoil' | 'foil' | 'etched';
+
+/** True when a printing's availability means the user owns at least one copy. */
+function isOwnedAvailability(a: ChangeOwnership): boolean {
+  return a === 'owned' || a === 'in-other-deck' || a === 'in-cube';
+}
+
+/** Sort key: free-to-bind first, then owned-but-elsewhere, then unowned. */
+function availabilityRank(a: ChangeOwnership): number {
+  if (a === 'owned') return 0;
+  if (a === 'in-other-deck' || a === 'in-cube') return 1;
+  return 2;
+}
+
+const AVAILABILITY_BADGE: Record<
+  'owned' | 'in-other-deck' | 'in-cube',
+  { label: string; className: string }
+> = {
+  owned: { label: 'Available', className: 'is-available' },
+  'in-other-deck': { label: 'In a deck', className: 'is-in-deck' },
+  'in-cube': { label: 'In a cube', className: 'is-in-cube' },
+};
 
 export interface PrintingSelection {
   card: ScryfallCard;
@@ -25,6 +47,13 @@ interface Props {
    * copy) and shows a note so it's clear siblings stay on the old printing.
    */
   singleCopy?: boolean;
+  /**
+   * Per-printing ownership for the deck-editor picker: marks which printings the
+   * user already owns (and whether a copy is free to bind), floats owned ones to
+   * the top, and enables the "Owned only" filter. Omitted by the collection/
+   * binder callers, where every printing is being edited as owned inventory.
+   */
+  resolveAvailability?: (printing: ScryfallCard) => ChangeOwnership;
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
@@ -66,6 +95,7 @@ export function CardEditDialog({
   currentFinish,
   quantity,
   singleCopy,
+  resolveAvailability,
   onConfirm,
   onCancel,
 }: Props) {
@@ -81,6 +111,7 @@ export function CardEditDialog({
   const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFinish);
   const [qty, setQty] = useState(quantity ?? 1);
   const [search, setSearch] = useState('');
+  const [ownedOnly, setOwnedOnly] = useState(false);
 
   const loading = loadedFor !== cardName && error === null;
 
@@ -117,7 +148,38 @@ export function CardEditDialog({
     };
   }, []);
 
-  const setGroups = useMemo(() => groupBySet(printings), [printings]);
+  const hasAnyOwned = useMemo(
+    () =>
+      resolveAvailability
+        ? printings.some((c) => isOwnedAvailability(resolveAvailability(c)))
+        : false,
+    [printings, resolveAvailability]
+  );
+
+  const setGroups = useMemo(() => {
+    let cards = printings;
+    if (ownedOnly && resolveAvailability) {
+      cards = cards.filter((c) => isOwnedAvailability(resolveAvailability(c)));
+    }
+    const groups = groupBySet(cards);
+    if (resolveAvailability) {
+      // Owned printings first within each set, then float any set that holds an
+      // owned printing to the top — "show me what I already have" without
+      // losing the set grouping. Array#sort is stable, so ties keep set order.
+      for (const g of groups) {
+        g.cards.sort(
+          (a, b) =>
+            availabilityRank(resolveAvailability(a)) - availabilityRank(resolveAvailability(b))
+        );
+      }
+      groups.sort((ga, gb) => {
+        const ra = ga.cards.some((c) => isOwnedAvailability(resolveAvailability(c))) ? 0 : 1;
+        const rb = gb.cards.some((c) => isOwnedAvailability(resolveAvailability(c))) ? 0 : 1;
+        return ra - rb;
+      });
+    }
+    return groups;
+  }, [printings, ownedOnly, resolveAvailability]);
 
   const filteredGroups = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -126,6 +188,11 @@ export function CardEditDialog({
       (g) => g.setName.toLowerCase().includes(q) || g.setCode.toLowerCase().includes(q)
     );
   }, [setGroups, search]);
+
+  const shownCount = useMemo(
+    () => filteredGroups.reduce((n, g) => n + g.cards.length, 0),
+    [filteredGroups]
+  );
 
   const selectedCard = printings.find((c) => c.id === selectedId) ?? null;
   const availableFinishes = useMemo<Finish[]>(() => {
@@ -278,10 +345,22 @@ export function CardEditDialog({
 
             <div className="card-edit-sets">
               <div className="card-edit-sets-header">
-                <span>
-                  {printings.length} printing{printings.length === 1 ? '' : 's'} across{' '}
-                  {setGroups.length} set{setGroups.length === 1 ? '' : 's'}
-                </span>
+                <div className="card-edit-sets-header-left">
+                  <span>
+                    {shownCount} printing{shownCount === 1 ? '' : 's'} across{' '}
+                    {filteredGroups.length} set{filteredGroups.length === 1 ? '' : 's'}
+                  </span>
+                  {hasAnyOwned && (
+                    <button
+                      type="button"
+                      className="card-edit-owned-toggle"
+                      aria-pressed={ownedOnly}
+                      onClick={() => setOwnedOnly((v) => !v)}
+                    >
+                      Owned only
+                    </button>
+                  )}
+                </div>
                 <SearchPill
                   className="card-edit-set-search"
                   placeholder="Filter sets…"
@@ -315,6 +394,11 @@ export function CardEditDialog({
                         card,
                         finishes.includes('nonfoil') ? 'nonfoil' : (finishes[0] as Finish)
                       );
+                      const availability = resolveAvailability?.(card);
+                      const availBadge =
+                        availability && availability !== 'unowned'
+                          ? AVAILABILITY_BADGE[availability]
+                          : null;
                       return (
                         <button
                           key={card.id}
@@ -338,6 +422,11 @@ export function CardEditDialog({
                           <span className="card-edit-printing-price">
                             {formatMoney(price, { zeroAsDash: true })}
                           </span>
+                          {availBadge && (
+                            <span className={`card-edit-avail-badge ${availBadge.className}`}>
+                              {availBadge.label}
+                            </span>
+                          )}
                           {card.id === currentScryfallId && (
                             <span className="card-edit-current-badge">current</span>
                           )}
