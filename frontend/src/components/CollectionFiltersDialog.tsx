@@ -86,6 +86,17 @@ interface Props {
   /** Force-hide binder section even when state is wired (binder-scoped views). */
   hideBinderFilter?: boolean;
 
+  /**
+   * Content facets that need Scryfall fields not every consumer carries. Default
+   * true (collection cards are fully enriched); shared views pass false because
+   * the slim public payload lacks oracleText / legalities / frameEffects /
+   * borderColor. Forwarded to FilterFieldEditor.
+   */
+  showOracleText?: boolean;
+  showLegality?: boolean;
+  showTreatment?: boolean;
+  showBorder?: boolean;
+
   setFilter: Set<string>;
   setSetFilter: (next: Set<string>) => void;
   setMap?: SetMap;
@@ -204,6 +215,10 @@ function DialogBody({
   setBinderExpr,
   binders,
   hideBinderFilter,
+  showOracleText = true,
+  showLegality = true,
+  showTreatment = true,
+  showBorder = true,
   setFilter,
   setSetFilter,
   setMap,
@@ -444,6 +459,10 @@ function DialogBody({
           onPatch={handleFilterPatch}
           showOracleTags={showOracleTags}
           showFinish={showFinish}
+          showOracleText={showOracleText}
+          showLegality={showLegality}
+          showTreatment={showTreatment}
+          showBorder={showBorder}
           variant="dialog"
         />
 
