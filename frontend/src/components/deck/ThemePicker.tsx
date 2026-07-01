@@ -97,7 +97,9 @@ function ThemePickerList({
     <section className="deck-builder-section">
       <h2 className="deck-builder-section-title">Themes</h2>
       <p className="deck-builder-themes-hint">
-        Pick any themes the deck should lean into. Themes guide the EDHREC card pool.
+        {selectedSlugs.size === 0
+          ? "No theme selected — we'll build from this commander's overall top cards."
+          : 'Pick any themes the deck should lean into. Themes guide the EDHREC card pool.'}
       </p>
       <div className="deck-builder-theme-chips">
         {visible.map((theme) => {
