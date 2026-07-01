@@ -117,18 +117,27 @@ export const ART_REGION = {
 /**
  * Whole-card art window for **full-art** cards (basic lands, borderless,
  * full-art promos), whose illustration fills the entire card — so Scryfall's
- * `art_crop` is ~the whole card, not the {@link ART_REGION} band. Just the
- * card minus its black border. The scanner tries this crop as a second pass
- * when the {@link ART_REGION} crop doesn't match confidently; without it,
- * every full-art card misses (the band crops the wrong region entirely).
- * Fractions validated against Scryfall `art_crop` references for full-art
- * basics across sets — tune here if a per-era refinement is ever needed.
+ * `art_crop` is ~the whole card, not the {@link ART_REGION} band. The scanner
+ * tries this crop as a second pass when the {@link ART_REGION} crop doesn't
+ * match confidently; without it, every full-art card misses (the band crops
+ * the wrong region entirely).
+ *
+ * The window is **top-biased** — it drops the bottom ~14% and top ~6% of the
+ * card, where full-art frames overlay the name/type line and the
+ * set/collector/artist band that Scryfall's `art_crop` excludes. Cropping
+ * those off matches the reference framing far more tightly: full-art scans
+ * land CONFIDENT (~111-116 raw) instead of merely BORDERLINE (~93-103), which
+ * is the margin a real foil scan (glare lowers the score) needs to resolve
+ * cleanly instead of surfacing an "ambiguous match" picker. Validated against
+ * Scryfall `art_crop` references for full-art basics across sets, with no
+ * false-confident matches on normal cards. Tune here if a per-era refinement
+ * is ever needed.
  */
 export const FULL_ART_REGION = {
-  xFrac: 0.06,
-  yFrac: 0.05,
-  widthFrac: 0.88,
-  heightFrac: 0.9,
+  xFrac: 0.08,
+  yFrac: 0.06,
+  widthFrac: 0.84,
+  heightFrac: 0.8,
 } as const;
 
 export type CropRegion = {
