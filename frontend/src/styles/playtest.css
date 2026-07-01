@@ -852,7 +852,9 @@ body:has(.playtest-page) .modal-backdrop {
  */
 @media (min-width: 1024px) {
   .playtest-opening-sheet {
-    width: 680px;
+    /* Wide enough for the full 7-card hand shown side-by-side (not overlapped)
+       at a legible size, capped so it never exceeds the viewport. */
+    width: min(94vw, 900px);
   }
 }
 
@@ -931,9 +933,14 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-opening-cards {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
-  padding: 1.25rem var(--space-2) var(--space-5);
+  /* `safe center` centers when the row fits but falls back to start-alignment
+     when it overflows, so the end cards stay reachable by scroll instead of
+     being clipped past the container edge (the plain `center` + overflow trap). */
+  justify-content: safe center;
+  gap: var(--space-2);
+  padding: 1.25rem var(--space-3) var(--space-5);
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .playtest-opening-card {
@@ -941,9 +948,11 @@ body:has(.playtest-page) .modal-backdrop {
   display: block;
   box-sizing: border-box;
   flex: 0 0 auto;
-  width: 104px;
+  /* Fluid width so the full 7-card hand fits the sheet at every viewport:
+     comfortably legible on the desktop modal, shrinking on narrow phones
+     (with horizontal scroll as the final fallback). */
+  width: clamp(72px, 12vw, 116px);
   aspect-ratio: 5 / 7;
-  margin-left: -20px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -951,10 +960,6 @@ body:has(.playtest-page) .modal-backdrop {
   cursor: default;
   overflow: hidden;
   transition: transform var(--motion-fast) ease;
-}
-
-.playtest-opening-card:first-child {
-  margin-left: 0;
 }
 
 .playtest-opening-card:not(:disabled) {
@@ -1024,17 +1029,6 @@ body:has(.playtest-page) .modal-backdrop {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-
-@media (max-width: 480px) {
-  .playtest-opening-card {
-    width: 68px;
-    margin-left: -26px;
-  }
-
-  .playtest-opening-cards {
-    padding: var(--space-4) var(--space-1) 1.25rem;
-  }
 }
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
