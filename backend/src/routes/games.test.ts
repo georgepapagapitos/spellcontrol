@@ -279,6 +279,85 @@ describe('miscellaneous', () => {
     expect(seat1.colorIdentity).toEqual(['W', 'U']);
   });
 
+  it('PATCH whitelists update-player patch (F1: no forged userId/isHost/life)', async () => {
+    const host = await registerAndGetCookie('games_wl_h');
+    const joiner = await registerAndGetCookie('games_wl_j');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+    const before = joined.body.game.players.find((p: { seat: number }) => p.seat === 1);
+
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [
+          {
+            type: 'update-player',
+            seat: 1,
+            patch: {
+              userId: before.userId === 'victim' ? 'other' : 'victim',
+              isHost: true,
+              life: 999,
+              eliminated: true,
+              name: 'ok',
+            },
+          },
+        ],
+      });
+    expect(res.status).toBe(200);
+    const after = res.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    // Whitelisted field applied; smuggled fields ignored.
+    expect(after.name).toBe('ok');
+    expect(after.userId).toBe(before.userId);
+    expect(after.isHost).toBe(false);
+    expect(after.life).toBe(before.life);
+    expect(after.eliminated).toBe(false);
+  });
+
+  it('PATCH caps update-player name at 40 chars (F32)', async () => {
+    const host = await registerAndGetCookie('games_cap_h');
+    const joiner = await registerAndGetCookie('games_cap_j');
+    const created = await request(app).post('/api/games').set('Cookie', host).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joiner)
+      .send({});
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', joiner)
+      .send({
+        baseVersion: joined.body.game.version,
+        actions: [{ type: 'update-player', seat: 1, patch: { name: 'x'.repeat(80) } }],
+      });
+    expect(res.status).toBe(200);
+    const after = res.body.game.players.find((p: { seat: number }) => p.seat === 1);
+    expect(after.name).toHaveLength(40);
+  });
+
+  it('PATCH rejects a non-finite numeric field with 400 (F2)', async () => {
+    const cookie = await registerAndGetCookie('games_num');
+    const created = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    const code = created.body.game.code as string;
+    await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({ baseVersion: created.body.game.version, actions: [{ type: 'start' }] });
+    const res = await request(app)
+      .patch(`/api/games/${code}`)
+      .set('Cookie', cookie)
+      .send({
+        baseVersion: created.body.game.version + 1,
+        actions: [{ type: 'life', seat: 0, delta: 'oops', actorSeat: 0 }],
+      });
+    expect(res.status).toBe(400);
+  });
+
   it('PATCH surfaces reducer errors as 400', async () => {
     const cookie = await registerAndGetCookie('games_misc5');
     const created = await request(app).post('/api/games').set('Cookie', cookie).send({});

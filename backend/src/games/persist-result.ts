@@ -41,8 +41,14 @@ export async function persistGameResult(next: GameState, pool: Pool): Promise<vo
       eliminated: p.eliminated,
     }));
 
+    // Defense-in-depth: an eliminated seat can never be the winner, so never
+    // stamp their userId into the permanent winner_user_id. The reducer already
+    // coerces such a winnerSeat to null; this guards the permanent-write path
+    // directly regardless of how the state was produced.
     const winner =
-      next.winnerSeat != null ? next.players.find((p) => p.seat === next.winnerSeat) : undefined;
+      next.winnerSeat != null
+        ? next.players.find((p) => p.seat === next.winnerSeat && !p.eliminated)
+        : undefined;
     const endedAt = next.endedAt ?? next.updatedAt;
     const durationMs = next.startedAt != null ? Math.max(0, endedAt - next.startedAt) : 0;
 
