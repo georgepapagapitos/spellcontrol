@@ -39,7 +39,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateCode(): string {
   let out = '';
   for (let i = 0; i < 4; i++) {
-    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+    out += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
   }
   return out;
 }
@@ -78,24 +78,61 @@ function sanitizePanelColorKey(raw: unknown): string | null {
   return VALID_PANEL_KEYS.has(up) ? up : null;
 }
 
+type UpdatePlayerPatch = Extract<GameAction, { type: 'update-player' }>['patch'];
+
 /**
  * Scrub user-controllable fields on actions before they hit the reducer.
  * The reducer is pure and trusts its inputs; the route is the place to
- * enforce that, e.g., a panel-color override is one of the seven known
- * keys and not arbitrary text that would land in a CSS class name.
+ * enforce that.
+ *
+ * For `update-player`, the reducer spreads `patch` onto the player wholesale
+ * (`{ ...p, ...patch }`), so we must **whitelist** it to exactly the seven
+ * declared fields — otherwise a participant could smuggle `userId`, `isHost`,
+ * `life`, or `eliminated` into their own seat, and those land verbatim in the
+ * permanent `game_results` row. Never widen this without matching the
+ * `GameAction` `update-player` type. Also caps `name` at 40 chars, matching
+ * the create/join paths.
  */
 function sanitizeAction(action: GameAction): GameAction {
   if (action.type === 'update-player' && action.patch) {
-    const patch = { ...action.patch };
-    if ('panelColorKey' in patch) {
-      patch.panelColorKey = sanitizePanelColorKey(patch.panelColorKey);
+    const raw = action.patch as Record<string, unknown>;
+    const patch: UpdatePlayerPatch = {};
+    if (typeof raw.name === 'string' && raw.name.trim().length > 0) {
+      patch.name = raw.name.trim().slice(0, 40);
     }
-    if ('colorIdentity' in patch) {
-      patch.colorIdentity = sanitizeColorIdentity(patch.colorIdentity);
+    for (const f of ['deckId', 'deckName', 'commander'] as const) {
+      if (f in raw) patch[f] = typeof raw[f] === 'string' ? (raw[f] as string) : null;
     }
+    if ('colorIdentity' in raw) patch.colorIdentity = sanitizeColorIdentity(raw.colorIdentity);
+    if ('panelColorKey' in raw) patch.panelColorKey = sanitizePanelColorKey(raw.panelColorKey);
+    if ('connected' in raw) patch.connected = raw.connected === true;
     return { ...action, patch };
   }
   return action;
+}
+
+/**
+ * Reject actions carrying non-finite numeric fields before they reach the
+ * reducer, which does raw arithmetic (e.g. `p.life + delta`). A string delta
+ * like `"oops"` would otherwise stringify life (`"40oops"`) and permanently
+ * defeat the `life <= 0` loss check. Returns an error string or null.
+ */
+function numericFieldError(action: GameAction): string | null {
+  const check = (v: unknown, field: string): string | null =>
+    typeof v === 'number' && Number.isFinite(v) ? null : `Invalid ${field}.`;
+  switch (action.type) {
+    case 'life':
+    case 'poison':
+      return check(action.delta, 'delta');
+    case 'set-life':
+      return check(action.value, 'value');
+    case 'cmd-dmg':
+      return check(action.delta, 'delta') ?? check(action.fromSeat, 'fromSeat');
+    case 'end':
+      return action.winnerSeat === null ? null : check(action.winnerSeat, 'winnerSeat');
+    default:
+      return null;
+  }
 }
 
 function isParticipant(state: GameState, userId: string): boolean {
@@ -370,6 +407,8 @@ gamesRouter.patch('/:code', writeLimiter, requireAuth, async (req: Request, res:
   for (const raw of body.actions as GameAction[]) {
     const denied = actionIsAllowed(raw, next, req.user!.id);
     if (denied) return res.status(403).json({ error: denied });
+    const numErr = numericFieldError(raw);
+    if (numErr) return res.status(400).json({ error: numErr });
     const action = sanitizeAction(raw);
     try {
       next = applyAction(next, action);
