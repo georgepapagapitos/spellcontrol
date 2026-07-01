@@ -114,8 +114,8 @@ describe('BracketBreakdown', () => {
     // Tutor points: 2 × 5 = 10 / 25
     expect(screen.getByText('10/25')).toBeTruthy();
 
-    // Avg CMC detail
-    expect(screen.getByText(/Avg CMC 2\.80/)).toBeTruthy();
+    // Avg mana value detail
+    expect(screen.getByText(/Avg mana value 2\.80/)).toBeTruthy();
   });
 
   it('renders the calculation summary line (UX-315: power signal language)', () => {

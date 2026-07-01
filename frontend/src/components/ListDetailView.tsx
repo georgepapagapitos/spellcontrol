@@ -347,10 +347,10 @@ export function ListDetailView({ list }: Props) {
     if (cmcMin !== undefined || cmcMax !== undefined) {
       const label =
         cmcMin !== undefined && cmcMax !== undefined
-          ? `CMC: ${cmcMin}–${cmcMax}`
+          ? `Mana value: ${cmcMin}–${cmcMax}`
           : cmcMin !== undefined
-            ? `CMC: ≥ ${cmcMin}`
-            : `CMC: ≤ ${cmcMax}`;
+            ? `Mana value: ≥ ${cmcMin}`
+            : `Mana value: ≤ ${cmcMax}`;
       chips.push({
         id: 'cmc',
         label,

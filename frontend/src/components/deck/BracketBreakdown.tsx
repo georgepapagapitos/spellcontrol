@@ -264,7 +264,7 @@ export function BracketBreakdown({
             label="Low curve"
             value={lowCurvePts}
             max={CMC_CAP}
-            detail={`Avg CMC ${breakdown.averageCmc.toFixed(2)}${
+            detail={`Avg mana value ${breakdown.averageCmc.toFixed(2)}${
               breakdown.averageCmc < CMC_THRESHOLD
                 ? ` (${(CMC_THRESHOLD - breakdown.averageCmc).toFixed(2)} below ${CMC_THRESHOLD})`
                 : ` (no bonus above ${CMC_THRESHOLD})`

@@ -32,7 +32,7 @@ type ViewKind = 'grid' | 'list';
 
 const SORT_OPTIONS: Array<{ key: SharedSortKey; label: string }> = [
   { key: 'name', label: 'Name' },
-  { key: 'cmc', label: 'CMC' },
+  { key: 'cmc', label: 'Mana value' },
   { key: 'price', label: 'Price' },
   { key: 'set', label: 'Set' },
   { key: 'rarity', label: 'Rarity' },

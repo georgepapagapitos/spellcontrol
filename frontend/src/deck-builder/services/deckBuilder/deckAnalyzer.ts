@@ -1150,7 +1150,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       icon: 'curve',
       label: 'Curve',
       tab: 'curve',
-      text: `avg CMC is ${avgCmc.toFixed(1)} — too many expensive spells`,
+      text: `avg mana value is ${avgCmc.toFixed(1)} — too many expensive spells`,
       hint: "you'll be sitting on uncastable hands while opponents develop their boards",
     });
   } else if (curveShape === 'bottom-heavy') {
@@ -1158,7 +1158,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       icon: 'curve',
       label: 'Curve',
       tab: 'curve',
-      text: `avg CMC is ${avgCmc.toFixed(1)} — skews very low`,
+      text: `avg mana value is ${avgCmc.toFixed(1)} — skews very low`,
       hint: "you'll run out of gas in the late game when opponents play their haymakers",
     });
   }

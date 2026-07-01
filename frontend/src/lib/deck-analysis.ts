@@ -193,13 +193,13 @@ function buildCurve(cards: ScryfallCard[]): CurveAnalysis {
   // ~2.5 suggests a fast deck (or a misclassified land base), above ~3.8
   // suggests a top-heavy deck likely to brick on opening hands.
   let verdict: CurveAnalysis['verdict'] = 'curve-ok';
-  let message = `Average CMC ${averageCmc.toFixed(2)} — comfortable middle.`;
+  let message = `Average mana value ${averageCmc.toFixed(2)} — comfortable middle.`;
   if (averageCmc >= 3.8) {
     verdict = 'top-heavy';
-    message = `Average CMC ${averageCmc.toFixed(2)} — top-heavy. Expect slow starts.`;
+    message = `Average mana value ${averageCmc.toFixed(2)} — top-heavy. Expect slow starts.`;
   } else if (averageCmc > 0 && averageCmc < 2.5) {
     verdict = 'low-curve';
-    message = `Average CMC ${averageCmc.toFixed(2)} — fast deck. Make sure threats stay relevant late.`;
+    message = `Average mana value ${averageCmc.toFixed(2)} — fast deck. Make sure threats stay relevant late.`;
   }
   return { buckets, averageCmc, peak, verdict, message };
 }

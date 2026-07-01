@@ -70,7 +70,7 @@ describe('CardFitPanel', () => {
     renderPanel();
     expect(screen.getByText('Young Pyromancer')).toBeTruthy();
     expect(screen.getByText(/Strengthens your Tokens engine/)).toBeTruthy();
-    expect(screen.getByText(/3 other cards at this cost/)).toBeTruthy();
+    expect(screen.getByText(/3 other cards at this mana value/)).toBeTruthy();
     expect(screen.getByText(/Card Advantage/)).toBeTruthy();
   });
 

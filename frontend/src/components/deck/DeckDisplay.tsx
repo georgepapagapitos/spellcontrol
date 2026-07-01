@@ -1489,7 +1489,7 @@ export function DeckDisplay({
               )}
               <span className="deck-stat">
                 <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
-                <span className="deck-stat-label">avg CMC</span>
+                <span className="deck-stat-label">avg mana value</span>
               </span>
               {valueEntries.length > 0 ? (
                 <button
@@ -1970,7 +1970,7 @@ interface ToolbarProps {
 
 const SORT_LABEL: Record<SortMode, string> = {
   name: 'Name',
-  cmc: 'CMC',
+  cmc: 'Mana value',
   color: 'Color',
   price: 'Price',
   added: 'Added',

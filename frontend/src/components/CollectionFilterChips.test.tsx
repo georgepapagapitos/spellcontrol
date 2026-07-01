@@ -16,16 +16,16 @@ describe('price chip label formatting', () => {
     const label = `Price: ${formatMoney(2)}–${formatMoney(8)}`;
     expect(label).toBe('Price: $2.00–$8.00');
   });
-  it('formats CMC min-only as CMC: >= N', () => {
-    const label = `CMC: ≥ 3`;
-    expect(label).toBe('CMC: ≥ 3');
+  it('formats mana value min-only as Mana value: >= N', () => {
+    const label = `Mana value: ≥ 3`;
+    expect(label).toBe('Mana value: ≥ 3');
   });
-  it('formats CMC max-only as CMC: <= N', () => {
-    const label = `CMC: ≤ 5`;
-    expect(label).toBe('CMC: ≤ 5');
+  it('formats mana value max-only as Mana value: <= N', () => {
+    const label = `Mana value: ≤ 5`;
+    expect(label).toBe('Mana value: ≤ 5');
   });
-  it('formats CMC range as CMC: M–N', () => {
-    const label = `CMC: 2–6`;
-    expect(label).toBe('CMC: 2–6');
+  it('formats mana value range as Mana value: M–N', () => {
+    const label = `Mana value: 2–6`;
+    expect(label).toBe('Mana value: 2–6');
   });
 });

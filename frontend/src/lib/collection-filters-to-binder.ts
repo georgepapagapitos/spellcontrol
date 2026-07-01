@@ -236,13 +236,13 @@ export function deriveBinderName(input: CollectionFilterInput): string {
     parts.push(`≤$${input.priceMax}`);
   }
 
-  // CMC
+  // Mana value
   if (input.cmcMin !== undefined && input.cmcMax !== undefined) {
-    parts.push(`CMC ${input.cmcMin}–${input.cmcMax}`);
+    parts.push(`Mana value ${input.cmcMin}–${input.cmcMax}`);
   } else if (input.cmcMin !== undefined) {
-    parts.push(`CMC ${input.cmcMin}+`);
+    parts.push(`Mana value ${input.cmcMin}+`);
   } else if (input.cmcMax !== undefined) {
-    parts.push(`CMC ≤${input.cmcMax}`);
+    parts.push(`Mana value ≤${input.cmcMax}`);
   }
 
   // Sets
