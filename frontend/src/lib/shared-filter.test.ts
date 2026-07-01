@@ -4,7 +4,7 @@ import {
   colorMatches,
   countActiveSharedFilters,
   makeSharedMatcher,
-  toEnrichedForMatch,
+  publicCardToEnriched,
   type SharedFilterState,
 } from './shared-filter';
 import type { ChipExpression } from '../types';
@@ -49,9 +49,9 @@ function card(overrides: Partial<PublicCard> = {}): PublicCard {
   };
 }
 
-describe('toEnrichedForMatch', () => {
+describe('publicCardToEnriched', () => {
   it('maps PublicCard fields onto the engine card shape', () => {
-    const e = toEnrichedForMatch(card({ typeLine: 'Instant', colorIdentity: ['U'], cmc: 2 }));
+    const e = publicCardToEnriched(card({ typeLine: 'Instant', colorIdentity: ['U'], cmc: 2 }));
     expect(e.typeLine).toBe('Instant');
     expect(e.colorIdentity).toEqual(['U']);
     expect(e.cmc).toBe(2);
@@ -85,17 +85,19 @@ describe('buildSharedBinderFilter', () => {
 
 describe('colorMatches', () => {
   it('passes everything when no color is selected', () => {
-    expect(colorMatches(toEnrichedForMatch(card({ colorIdentity: ['U'] })), new Set())).toBe(true);
+    expect(colorMatches(publicCardToEnriched(card({ colorIdentity: ['U'] })), new Set())).toBe(
+      true
+    );
   });
 
   it('matches any selected color in identity', () => {
-    const counterspell = toEnrichedForMatch(card({ colorIdentity: ['U'] }));
+    const counterspell = publicCardToEnriched(card({ colorIdentity: ['U'] }));
     expect(colorMatches(counterspell, new Set(['U']))).toBe(true);
     expect(colorMatches(counterspell, new Set(['W']))).toBe(false);
   });
 
   it("treats 'C' as colorless (empty identity)", () => {
-    const solRing = toEnrichedForMatch(card({ colorIdentity: [] }));
+    const solRing = publicCardToEnriched(card({ colorIdentity: [] }));
     expect(colorMatches(solRing, new Set(['C']))).toBe(true);
     expect(colorMatches(solRing, new Set(['U']))).toBe(false);
   });

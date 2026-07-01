@@ -4,8 +4,9 @@ import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { SharedCardTile } from './SharedCardTile';
-import { SharedCardList, type SharedCardListItem } from './SharedCardList';
-import { SharedCardModal } from './SharedCardModal';
+import { SharedCardList } from './SharedCardList';
+import { CardPreview } from '../CardPreview';
+import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
@@ -57,19 +58,22 @@ interface BucketedCard {
   quantity: number;
 }
 
-/** Map a bucket's stacked cards into the shared list-row shape. */
-function toListItems(cards: BucketedCard[]): SharedCardListItem[] {
-  return cards.map((b, idx) => ({
-    key: `${b.publicCard.scryfallId}-${b.publicCard.name}-${idx}`,
-    card: b.publicCard,
-    quantity: b.quantity,
-  }));
+/** One rendered deck section (commander / type bucket / sideboard) with its
+ *  start offset into the flat carousel list. */
+interface DeckSection {
+  key: string;
+  /** Section heading, incl. count where the original layout showed one. */
+  heading: string;
+  /** Label surfaced in the carousel context line. */
+  carouselLabel: string;
+  items: BucketedCard[];
+  start: number;
 }
 
 export function SharedDeckView({ data }: Props) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewKind>('grid');
-  const [preview, setPreview] = useState<PublicCard | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   // Facet options derive from every card in the deck (mainboard + commanders
   // + sideboard), coerced to the PublicCard shape.
@@ -132,6 +136,69 @@ export function SharedDeckView({ data }: Props) {
   const matches = (pc: PublicCard) =>
     (q ? normalizeForSearch(pc.name).includes(q) : true) && facetMatches(pc);
 
+  // Non-empty deck sections in render order (commander → type buckets →
+  // sideboard), each stamped with its start offset into the flat carousel list
+  // so a tile's local index maps to a global carousel index.
+  const deckSections = useMemo(() => {
+    const commanders = [commanderCard, partnerCard]
+      .filter((c): c is PublicCard => c != null && matches(c))
+      .map((c) => ({ publicCard: c, quantity: 1 }));
+
+    const buckets = DECK_BUCKET_ORDER.map((bucket) => {
+      const cards = (mainboard.get(bucket) ?? []).filter((b) => matches(b.publicCard));
+      const count = cards.reduce((s, b) => s + b.quantity, 0);
+      return { key: bucket, heading: `${bucket} (${count})`, carouselLabel: bucket, items: cards };
+    });
+
+    const side = sideboardCards.filter((b) => matches(b.publicCard));
+
+    const raw: Array<Omit<DeckSection, 'start'>> = [
+      {
+        key: 'commander',
+        heading: partnerCard ? 'Commanders' : 'Commander',
+        carouselLabel: 'Commander',
+        items: commanders,
+      },
+      ...buckets,
+      {
+        key: 'sideboard',
+        heading: `Sideboard (${data.sideboard.length})`,
+        carouselLabel: 'Sideboard',
+        items: side,
+      },
+    ].filter((s) => s.items.length > 0);
+
+    // Prefix-sum each section's start offset into the flat carousel list without
+    // a render-scope reassignment (React Compiler immutability rule).
+    const lengths = raw.map((s) => s.items.length);
+    return raw.map((s, i) => ({ ...s, start: lengths.slice(0, i).reduce((a, b) => a + b, 0) }));
+    // matches closes over search+facet state; listed via facetMatches + q.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    commanderCard,
+    partnerCard,
+    mainboard,
+    sideboardCards,
+    facetMatches,
+    q,
+    data.sideboard.length,
+  ]);
+
+  // Flat card list across all sections (in render order) for the carousel.
+  const previewCards = useMemo(
+    () => deckSections.flatMap((s) => s.items.map((it) => publicCardToEnriched(it.publicCard))),
+    [deckSections]
+  );
+  const previewLabels = useMemo(
+    () => deckSections.flatMap((s) => s.items.map(() => s.carouselLabel)),
+    [deckSections]
+  );
+  const previewQty = useMemo(
+    () => deckSections.flatMap((s) => s.items.map((it) => it.quantity)),
+    [deckSections]
+  );
+  const previewPages = useMemo(() => previewCards.map(() => 0), [previewCards]);
+
   const mainboardCount =
     data.cards.length + (data.commander ? 1 : 0) + (data.partnerCommander ? 1 : 0);
 
@@ -173,97 +240,51 @@ export function SharedDeckView({ data }: Props) {
         />
       </div>
 
-      {(commanderCard || partnerCard) && (
-        <section className="shared-deck-section">
-          <h2 className="shared-deck-section-heading">
-            {partnerCard ? 'Commanders' : 'Commander'}
-          </h2>
-          {(() => {
-            const commanders = [commanderCard, partnerCard].filter(
-              (c): c is PublicCard => c != null && matches(c)
-            );
-            return view === 'grid' ? (
-              <ul className="shared-card-grid shared-card-grid--small">
-                {commanders.map((c, idx) => (
-                  <li key={`${c.scryfallId}-${idx}`}>
-                    <SharedCardTile card={c} onClick={() => setPreview(c)} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <SharedCardList
-                items={commanders.map((c, idx) => ({
-                  key: `${c.scryfallId}-${idx}`,
-                  card: c,
-                  quantity: 1,
-                }))}
-                onPreview={setPreview}
-                showPrice={false}
-              />
-            );
-          })()}
+      {deckSections.map((s) => (
+        <section key={s.key} className="shared-deck-section">
+          <h2 className="shared-deck-section-heading">{s.heading}</h2>
+          {view === 'grid' ? (
+            <ul className="shared-card-grid shared-card-grid--small">
+              {s.items.map((it, j) => (
+                <li key={`${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`}>
+                  <SharedCardTile
+                    card={it.publicCard}
+                    quantity={it.quantity}
+                    onClick={() => setPreviewIndex(s.start + j)}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <SharedCardList
+              items={s.items.map((it, j) => ({
+                key: `${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`,
+                card: it.publicCard,
+                quantity: it.quantity,
+              }))}
+              onPreview={(j) => setPreviewIndex(s.start + j)}
+              showPrice={false}
+            />
+          )}
         </section>
-      )}
-
-      {DECK_BUCKET_ORDER.map((bucket) => {
-        const cards = (mainboard.get(bucket) ?? []).filter((b) => matches(b.publicCard));
-        if (cards.length === 0) return null;
-        const count = cards.reduce((s, b) => s + b.quantity, 0);
-        return (
-          <section key={bucket} className="shared-deck-section">
-            <h2 className="shared-deck-section-heading">
-              {bucket} ({count})
-            </h2>
-            {view === 'grid' ? (
-              <ul className="shared-card-grid shared-card-grid--small">
-                {cards.map((b, idx) => (
-                  <li key={idx}>
-                    <SharedCardTile
-                      card={b.publicCard}
-                      quantity={b.quantity}
-                      onClick={() => setPreview(b.publicCard)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <SharedCardList items={toListItems(cards)} onPreview={setPreview} showPrice={false} />
-            )}
-          </section>
-        );
-      })}
-
-      {sideboardCards.length > 0 && (
-        <section className="shared-deck-section">
-          <h2 className="shared-deck-section-heading">Sideboard ({data.sideboard.length})</h2>
-          {(() => {
-            const visible = sideboardCards.filter((b) => matches(b.publicCard));
-            return view === 'grid' ? (
-              <ul className="shared-card-grid shared-card-grid--small">
-                {visible.map((b, idx) => (
-                  <li key={idx}>
-                    <SharedCardTile
-                      card={b.publicCard}
-                      quantity={b.quantity}
-                      onClick={() => setPreview(b.publicCard)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <SharedCardList
-                items={toListItems(visible)}
-                onPreview={setPreview}
-                showPrice={false}
-              />
-            );
-          })()}
-        </section>
-      )}
+      ))}
 
       <CopyDeckButton data={data} variant="block" />
 
-      {preview && <SharedCardModal card={preview} onClose={() => setPreview(null)} />}
+      {previewIndex !== null && previewCards[previewIndex] && (
+        <CardPreview
+          source="deck"
+          cards={previewCards}
+          index={previewIndex}
+          binderName={data.name}
+          sectionLabels={previewLabels}
+          pageNumbers={previewPages}
+          totalPages={0}
+          getStackQty={(i) => previewQty[i] ?? 1}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      )}
     </main>
   );
 }

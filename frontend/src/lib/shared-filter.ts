@@ -39,12 +39,13 @@ export interface SharedFilterState {
 }
 
 /**
- * Adapt a `PublicCard` to the `EnrichedCard` shape the routing engine matches
- * against. Field names already align; `tags` is decorated from the name-keyed
- * snapshot (empty until it loads), and the required-but-unread copy fields get
+ * Adapt a `PublicCard` to the `EnrichedCard` shape both the routing engine and
+ * the shared card carousel consume. Field names already align; `tags` is
+ * decorated from the name-keyed snapshot (empty until it loads), image fields
+ * carry through for the carousel, and the required-but-unread copy fields get
  * harmless stubs.
  */
-export function toEnrichedForMatch(pc: PublicCard): EnrichedCard {
+export function publicCardToEnriched(pc: PublicCard): EnrichedCard {
   return {
     copyId: pc.scryfallId,
     name: pc.name,
@@ -65,6 +66,9 @@ export function toEnrichedForMatch(pc: PublicCard): EnrichedCard {
     colors: pc.colors,
     layout: pc.layout,
     manaCost: pc.manaCost,
+    imageSmall: pc.imageSmall,
+    imageNormal: pc.imageNormal,
+    imageNormalBack: pc.imageNormalBack,
     tags: getCardTags(pc.name),
   };
 }
@@ -111,7 +115,7 @@ export function colorMatches(card: EnrichedCard, colorFilter: ReadonlySet<string
 export function makeSharedMatcher(state: SharedFilterState): (pc: PublicCard) => boolean {
   const compiled = compileFilter(buildSharedBinderFilter(state));
   return (pc) => {
-    const card = toEnrichedForMatch(pc);
+    const card = publicCardToEnriched(pc);
     if (!colorMatches(card, state.colorFilter)) return false;
     return cardMatchesCompiled(card, compiled);
   };

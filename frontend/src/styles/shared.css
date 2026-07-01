@@ -698,47 +698,9 @@
   text-align: right;
 }
 
-/* ── Card preview modal (riding on .choice-dialog) ───────────────────── */
-
-/* Component uses <Modal> with className="choice-dialog shared-card-modal".
-   The shared rules below only add card-specific layout (image, meta dl)
-   that the base dialog doesn't provide. */
-
-.shared-card-modal-img {
-  width: 100%;
-  border-radius: 4.5% / 3.2%;
-  display: block;
-}
-
-.shared-card-modal-placeholder {
-  width: 100%;
-  aspect-ratio: 488 / 680;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-raised);
-  border-radius: 4.5% / 3.2%;
-  font-size: var(--text-md);
-  color: var(--text-secondary);
-}
-
-.shared-card-modal-meta {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-4);
-  margin: 0;
-  font-size: var(--text-sm);
-}
-
-.shared-card-modal-meta dt {
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.shared-card-modal-meta dd {
-  margin: 0;
-  color: var(--text-primary);
-}
+/* Shared card inspection now reuses the app-wide <CardPreview> carousel
+   (swipe / arrows / next-prev), so the old single-card .shared-card-modal
+   styles were removed with the component. */
 
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .shared-footer-cta:focus-visible {
