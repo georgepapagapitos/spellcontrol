@@ -27,8 +27,12 @@ export interface SharedFilterState {
   /** Color-identity codes W/U/B/R/G + C (colorless). */
   colorFilter: ReadonlySet<string>;
   rarityExpr: ChipExpression;
+  oracleExpr: ChipExpression;
   oracleTagExpr: ChipExpression;
+  legalityExpr: ChipExpression;
   layoutExpr: ChipExpression;
+  treatmentExpr: ChipExpression;
+  borderExpr: ChipExpression;
   finishExpr: ChipExpression;
   /** Selected set codes (uppercased). */
   setFilter: ReadonlySet<string>;
@@ -66,6 +70,11 @@ export function publicCardToEnriched(pc: PublicCard): EnrichedCard {
     colors: pc.colors,
     layout: pc.layout,
     manaCost: pc.manaCost,
+    oracleText: pc.oracleText,
+    legalities: pc.legalities,
+    frameEffects: pc.frameEffects,
+    fullArt: pc.fullArt,
+    borderColor: pc.borderColor,
     imageSmall: pc.imageSmall,
     imageNormal: pc.imageNormal,
     imageNormalBack: pc.imageNormalBack,
@@ -80,8 +89,12 @@ export function buildSharedBinderFilter(s: SharedFilterState): BinderFilter {
   if (!isExpressionEmpty(s.typesExpr)) f.typeTokenChips = s.typesExpr;
   if (!isExpressionEmpty(s.subtypeExpr)) f.subtypeChips = s.subtypeExpr;
   if (!isExpressionEmpty(s.rarityExpr)) f.rarities = s.rarityExpr;
+  if (!isExpressionEmpty(s.oracleExpr)) f.oracleChips = s.oracleExpr;
   if (!isExpressionEmpty(s.oracleTagExpr)) f.oracleTagChips = s.oracleTagExpr;
+  if (!isExpressionEmpty(s.legalityExpr)) f.legalities = s.legalityExpr;
   if (!isExpressionEmpty(s.layoutExpr)) f.layouts = s.layoutExpr;
+  if (!isExpressionEmpty(s.treatmentExpr)) f.treatments = s.treatmentExpr;
+  if (!isExpressionEmpty(s.borderExpr)) f.borderColors = s.borderExpr;
   if (!isExpressionEmpty(s.finishExpr)) f.finishes = s.finishExpr;
   if (s.setFilter.size > 0) f.setCodes = [...s.setFilter].map((c) => c.toUpperCase());
   if (s.priceMin !== undefined) f.priceMin = s.priceMin;
@@ -129,8 +142,12 @@ export function countActiveSharedFilters(s: SharedFilterState): number {
     (isExpressionEmpty(s.subtypeExpr) ? 0 : 1) +
     s.colorFilter.size +
     (isExpressionEmpty(s.rarityExpr) ? 0 : 1) +
+    (isExpressionEmpty(s.oracleExpr) ? 0 : 1) +
     (isExpressionEmpty(s.oracleTagExpr) ? 0 : 1) +
+    (isExpressionEmpty(s.legalityExpr) ? 0 : 1) +
     (isExpressionEmpty(s.layoutExpr) ? 0 : 1) +
+    (isExpressionEmpty(s.treatmentExpr) ? 0 : 1) +
+    (isExpressionEmpty(s.borderExpr) ? 0 : 1) +
     (isExpressionEmpty(s.finishExpr) ? 0 : 1) +
     s.setFilter.size +
     (s.priceMin !== undefined || s.priceMax !== undefined ? 1 : 0) +

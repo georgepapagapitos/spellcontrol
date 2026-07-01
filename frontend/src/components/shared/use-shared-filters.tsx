@@ -12,7 +12,6 @@ import {
 } from '../../lib/shared-filter';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
-const NOOP = () => {};
 
 const COLOR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'W', label: 'White' },
@@ -55,10 +54,10 @@ function setMapFrom(cards: PublicCard[]): SetMap {
 
 /**
  * Shared-view filter: the SAME `CollectionFiltersDialog` the authed collection
- * uses, scoped to the facets the public share payload can back (type line,
+ * uses. The public share payload now carries every field the filter matches on
+ * (oracle text, format legality, treatment, border — added alongside type line,
  * color, rarity, oracle tags, layout, finish, set, mana value, and — for
- * collection/binder shares — price). Oracle-text / legality / treatment / border
- * are hidden because the slim payload lacks those fields.
+ * collection/binder shares — price), so the full facet set is exposed.
  *
  * Returns the wired dialog node (drop into a SearchPill `trailing` slot) plus a
  * `matches` predicate over `PublicCard`, backed by the shared binder-routing
@@ -75,8 +74,12 @@ export function useSharedFilters(
   const [subtypeExpr, setSubtypeExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [layoutExpr, setLayoutExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [borderExpr, setBorderExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [finishExpr, setFinishExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [cmcMin, setCmcMin] = useState<number | undefined>(undefined);
@@ -97,8 +100,12 @@ export function useSharedFilters(
     subtypeExpr,
     colorFilter,
     rarityExpr,
+    oracleExpr,
     oracleTagExpr,
+    legalityExpr,
     layoutExpr,
+    treatmentExpr,
+    borderExpr,
     finishExpr,
     setFilter,
     cmcMin,
@@ -116,8 +123,12 @@ export function useSharedFilters(
       subtypeExpr,
       colorFilter,
       rarityExpr,
+      oracleExpr,
       oracleTagExpr,
+      legalityExpr,
       layoutExpr,
+      treatmentExpr,
+      borderExpr,
       finishExpr,
       setFilter,
       cmcMin,
@@ -146,25 +157,20 @@ export function useSharedFilters(
       rarityExpr={rarityExpr}
       setRarityExpr={setRarityExpr}
       rarities={RARITIES}
+      oracleExpr={oracleExpr}
+      setOracleExpr={setOracleExpr}
       oracleTagExpr={oracleTagExpr}
       setOracleTagExpr={setOracleTagExpr}
+      legalityExpr={legalityExpr}
+      setLegalityExpr={setLegalityExpr}
       layoutExpr={layoutExpr}
       setLayoutExpr={setLayoutExpr}
+      treatmentExpr={treatmentExpr}
+      setTreatmentExpr={setTreatmentExpr}
+      borderExpr={borderExpr}
+      setBorderExpr={setBorderExpr}
       finishExpr={finishExpr}
       setFinishExpr={setFinishExpr}
-      // Facets the slim share payload can't back — hidden.
-      oracleExpr={EMPTY_EXPR}
-      setOracleExpr={NOOP}
-      legalityExpr={EMPTY_EXPR}
-      setLegalityExpr={NOOP}
-      treatmentExpr={EMPTY_EXPR}
-      setTreatmentExpr={NOOP}
-      borderExpr={EMPTY_EXPR}
-      setBorderExpr={NOOP}
-      showOracleText={false}
-      showLegality={false}
-      showTreatment={false}
-      showBorder={false}
       setFilter={setFilter}
       setSetFilter={setSetFilter}
       setMap={setMap}
