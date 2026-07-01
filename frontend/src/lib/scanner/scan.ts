@@ -29,6 +29,16 @@ export const PHASH_CANDIDATE_K = 50;
 export const BORDERLINE_TOP_N = 5;
 export const PHASH_FAST_DISTANCE = 4;
 export const PHASH_FAST_GAP = 6;
+/** Margin-based confidence: a borderline top that clears this raw score AND
+ *  leads the runner-up by {@link CONFIDENT_MARGIN_GAP} is accepted as
+ *  confident. A card that dominates the candidate field is unambiguous even
+ *  when its absolute score sits below {@link CONFIDENT_SCORE} — the common
+ *  case for a correctly-identified foil, whose glare shaves a few points off
+ *  the top score (measured: correct foil matches land ~99-103 with a 33-47
+ *  lead over the runner-up). Genuinely ambiguous scans — two similar cards
+ *  scoring close together — have a small margin and still surface the picker. */
+export const CONFIDENT_MARGIN_FLOOR = 95;
+export const CONFIDENT_MARGIN_GAP = 25;
 /** How long to wait for the server matcher before falling back to on-device. */
 const SERVER_TIMEOUT_MS = 5_000;
 /** JPEG quality used to encode the warped card before upload. */
@@ -237,6 +247,23 @@ export type ServerScanBody =
   | { kind: 'borderline'; candidates: ScanCandidate[] }
   | { kind: 'miss'; reason: 'low_score' | 'no_candidates'; detail?: string };
 
+/**
+ * Promote a borderline candidate list to a confident match when the top
+ * candidate dominates the field — clears {@link CONFIDENT_MARGIN_FLOOR} and
+ * leads the runner-up by at least {@link CONFIDENT_MARGIN_GAP}. Returns the
+ * winning candidate, or null to leave the result borderline. A single-candidate
+ * list has an infinite margin, so it promotes on the floor alone. Exported for
+ * unit testing.
+ */
+export function promoteDominantBorderline(
+  candidates: ReadonlyArray<ScanCandidate>
+): ScanCandidate | null {
+  const top = candidates[0];
+  if (!top || top.rawScore < CONFIDENT_MARGIN_FLOOR) return null;
+  const gap = candidates.length > 1 ? top.rawScore - candidates[1].rawScore : Infinity;
+  return gap >= CONFIDENT_MARGIN_GAP ? top : null;
+}
+
 /** Pure mapping from a `/api/scanner/match` response body to a {@link ScanResult}.
  *  Exported for unit testing; the full network path can't run in node. */
 export function serverBodyToScanResult(
@@ -248,6 +275,10 @@ export function serverBodyToScanResult(
     return { kind: 'confident', match: body.match, quad: quad ?? [], timings, source: 'server' };
   }
   if (body.kind === 'borderline') {
+    const promoted = promoteDominantBorderline(body.candidates);
+    if (promoted) {
+      return { kind: 'confident', match: promoted, quad: quad ?? [], timings, source: 'server' };
+    }
     return { kind: 'borderline', candidates: body.candidates, quad, timings, source: 'server' };
   }
   return {

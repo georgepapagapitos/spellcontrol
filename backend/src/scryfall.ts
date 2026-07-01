@@ -417,9 +417,14 @@ function buildIdentifier(row: ImportRow): Identifier | null {
  * Returns an array of ScryfallCards sorted by release date (newest first).
  * Handles pagination — Scryfall caps search results at 175 per page.
  */
-export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
+export async function fetchPrintings(cardName: string, set?: string): Promise<ScryfallCard[]> {
   const frontFace = cardName.split(' // ')[0].trim();
-  const query = `!"${frontFace}" game:paper unique:prints`;
+  // Optional set scope keeps basic-land print runs sane — "Swamp" alone is
+  // ~800 printings (multi-MB, unusable to render); scoped to one set it's a
+  // handful. The scanner uses this so a scanned card's printing picker only
+  // offers variants from the set it was matched in.
+  const setFilter = set && /^[a-z0-9]{1,6}$/i.test(set) ? ` set:${set.toLowerCase()}` : '';
+  const query = `!"${frontFace}" game:paper unique:prints${setFilter}`;
   const all: ScryfallCard[] = [];
   let url: string | null =
     `${SCRYFALL_SEARCH_URL}?${new URLSearchParams({ q: query, order: 'released', dir: 'desc' })}`;

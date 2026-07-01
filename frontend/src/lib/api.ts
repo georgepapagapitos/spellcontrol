@@ -274,9 +274,12 @@ export async function importDeckFile(file: File): Promise<DeckImportResponse> {
 }
 
 /** Fetch all printings of a card by name. */
-export async function fetchPrintings(cardName: string): Promise<ScryfallCard[]> {
+export async function fetchPrintings(cardName: string, set?: string): Promise<ScryfallCard[]> {
   const encoded = encodeURIComponent(cardName);
-  const response = await fetchWithTimeout(`/api/cards/${encoded}/printings`, { method: 'GET' });
+  const query = set ? `?set=${encodeURIComponent(set)}` : '';
+  const response = await fetchWithTimeout(`/api/cards/${encoded}/printings${query}`, {
+    method: 'GET',
+  });
   const data = await handleResponse<{ printings: ScryfallCard[] }>(response);
   return data.printings;
 }

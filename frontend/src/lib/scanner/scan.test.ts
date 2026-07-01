@@ -8,10 +8,13 @@ import { describe, it, expect } from 'vitest';
 import {
   classify,
   pickBetterResult,
+  promoteDominantBorderline,
   serverBodyToScanResult,
   phashHitsToScanResult,
   CONFIDENT_SCORE,
   BORDERLINE_SCORE,
+  CONFIDENT_MARGIN_FLOOR,
+  CONFIDENT_MARGIN_GAP,
   BORDERLINE_TOP_N,
   PHASH_CANDIDATE_K,
   PHASH_FAST_DISTANCE,
@@ -218,6 +221,40 @@ describe('phashHitsToScanResult', () => {
       undefined
     );
     expect(r.kind).toBe('borderline');
+  });
+});
+
+describe('promoteDominantBorderline', () => {
+  const floor = CONFIDENT_MARGIN_FLOOR;
+  const gap = CONFIDENT_MARGIN_GAP;
+
+  it('promotes a top that clears the floor and dominates the runner-up', () => {
+    // The measured foil case: top ~100 leads the field by ~45.
+    const top = mkCandidate(floor + 5, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    const runnerUp = mkCandidate(floor + 5 - gap - 20, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+    expect(promoteDominantBorderline([top, runnerUp])).toBe(top);
+  });
+
+  it('does not promote when the top is below the floor', () => {
+    const top = mkCandidate(floor - 1);
+    const runnerUp = mkCandidate(0, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+    expect(promoteDominantBorderline([top, runnerUp])).toBeNull();
+  });
+
+  it('does not promote when the field is tight (small margin)', () => {
+    // Two similar cards scoring close — genuinely ambiguous, keep the picker.
+    const top = mkCandidate(floor + 5, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    const runnerUp = mkCandidate(floor + 5 - (gap - 1), 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+    expect(promoteDominantBorderline([top, runnerUp])).toBeNull();
+  });
+
+  it('promotes a lone candidate above the floor (infinite margin)', () => {
+    const only = mkCandidate(floor);
+    expect(promoteDominantBorderline([only])).toBe(only);
+  });
+
+  it('returns null for an empty candidate list', () => {
+    expect(promoteDominantBorderline([])).toBeNull();
   });
 });
 
