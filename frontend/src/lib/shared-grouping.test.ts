@@ -1,20 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  applySharedFilters,
-  availableRarities,
-  availableSets,
-  availableTypes,
-  countSharedFilters,
-  deckBucketFor,
-  emptySharedFilters,
-  filterByColors,
-  filterBySearch,
-  groupCards,
-  matchesSharedFilters,
-  sortGrouped,
-  type DeckBucketKey,
-  type SharedFilters,
-} from './shared-grouping';
+import { deckBucketFor, filterBySearch, groupCards, sortGrouped } from './shared-grouping';
 import type { PublicCard } from './shared-types';
 
 function card(overrides: Partial<PublicCard> = {}): PublicCard {
@@ -105,29 +90,6 @@ describe('filterBySearch', () => {
   });
 });
 
-describe('filterByColors', () => {
-  const grouped = groupCards([
-    card({ name: 'Sol Ring', scryfallId: 'sr', colorIdentity: [] }),
-    card({ name: 'Counterspell', scryfallId: 'cs', colorIdentity: ['U'] }),
-    card({ name: 'Mortify', scryfallId: 'mort', colorIdentity: ['W', 'B'] }),
-  ]);
-
-  it('returns all when filter is empty', () => {
-    expect(filterByColors(grouped, new Set())).toEqual(grouped);
-  });
-
-  it('matches by any color in identity', () => {
-    expect(filterByColors(grouped, new Set(['U'])).map((g) => g.card.name)).toEqual([
-      'Counterspell',
-    ]);
-    expect(filterByColors(grouped, new Set(['W'])).map((g) => g.card.name)).toEqual(['Mortify']);
-  });
-
-  it("treats 'C' as colorless (empty colorIdentity)", () => {
-    expect(filterByColors(grouped, new Set(['C'])).map((g) => g.card.name)).toEqual(['Sol Ring']);
-  });
-});
-
 describe('deckBucketFor', () => {
   it('returns the major type for known type lines', () => {
     expect(deckBucketFor('Creature — Goblin')).toBe('Creature');
@@ -146,117 +108,5 @@ describe('deckBucketFor', () => {
     expect(deckBucketFor(undefined)).toBe('Other');
     expect(deckBucketFor('')).toBe('Other');
     expect(deckBucketFor('Tribal — Wizard')).toBe('Other');
-  });
-});
-
-describe('shared faceted filters', () => {
-  const grouped = groupCards([
-    card({
-      name: 'Sol Ring',
-      scryfallId: 'sr',
-      setCode: 'cmr',
-      setName: 'Commander Legends',
-      rarity: 'uncommon',
-      typeLine: 'Artifact',
-      colorIdentity: [],
-      purchasePrice: 1.5,
-      cmc: 1,
-    }),
-    card({
-      name: 'Counterspell',
-      scryfallId: 'cs',
-      setCode: 'mh2',
-      setName: 'Modern Horizons 2',
-      rarity: 'common',
-      typeLine: 'Instant',
-      colorIdentity: ['U'],
-      purchasePrice: 0.5,
-      cmc: 2,
-    }),
-    card({
-      name: 'Mana Crypt',
-      scryfallId: 'mc',
-      setCode: 'ema',
-      setName: 'Eternal Masters',
-      rarity: 'mythic',
-      typeLine: 'Artifact',
-      colorIdentity: [],
-      purchasePrice: 0, // no price recorded
-      cmc: 0,
-    }),
-  ]);
-
-  const names = (f: SharedFilters) => applySharedFilters(grouped, f).map((g) => g.card.name);
-
-  it('returns all when no facet is active', () => {
-    expect(applySharedFilters(grouped, emptySharedFilters())).toHaveLength(3);
-  });
-
-  it('filters by rarity (OR within facet)', () => {
-    expect(names({ ...emptySharedFilters(), rarities: new Set(['mythic', 'common']) })).toEqual([
-      'Counterspell',
-      'Mana Crypt',
-    ]);
-  });
-
-  it('filters by type bucket', () => {
-    expect(names({ ...emptySharedFilters(), types: new Set<DeckBucketKey>(['Instant']) })).toEqual([
-      'Counterspell',
-    ]);
-  });
-
-  it('filters by set code', () => {
-    expect(names({ ...emptySharedFilters(), sets: new Set(['cmr']) })).toEqual(['Sol Ring']);
-  });
-
-  it('filters by value range and excludes cards with no price recorded', () => {
-    // min 1 keeps Sol Ring (1.5), drops Counterspell (0.5) and Mana Crypt (0 = unknown).
-    expect(names({ ...emptySharedFilters(), priceMin: 1 })).toEqual(['Sol Ring']);
-  });
-
-  it('filters by mana value range', () => {
-    expect(names({ ...emptySharedFilters(), cmcMin: 1, cmcMax: 1 })).toEqual(['Sol Ring']);
-  });
-
-  it('composes facets with AND', () => {
-    expect(
-      names({
-        ...emptySharedFilters(),
-        types: new Set<DeckBucketKey>(['Artifact']),
-        colors: new Set(['C']),
-      })
-    ).toEqual(['Sol Ring', 'Mana Crypt']);
-  });
-
-  it('counts active facets (each range counts once)', () => {
-    expect(countSharedFilters(emptySharedFilters())).toBe(0);
-    expect(
-      countSharedFilters({
-        ...emptySharedFilters(),
-        colors: new Set(['U']),
-        rarities: new Set(['mythic']),
-        priceMin: 1,
-        cmcMin: 0,
-        cmcMax: 3,
-      })
-    ).toBe(4); // 1 color + 1 rarity + 1 price range + 1 cmc range
-  });
-
-  it('derives facet options from the data present', () => {
-    const cards = grouped.map((g) => g.card);
-    expect(availableRarities(cards)).toEqual(['mythic', 'uncommon', 'common']); // rank order
-    expect(availableTypes(cards)).toEqual(['Instant', 'Artifact']); // decklist order
-    expect(availableSets(cards).map((s) => s.code)).toEqual(['cmr', 'ema', 'mh2']); // by name
-  });
-
-  it('matchesSharedFilters is the per-card predicate behind applySharedFilters', () => {
-    const sol = grouped[0].card; // Sol Ring: artifact, colorless, uncommon, cmr, $1.5, cmc 1
-    expect(matchesSharedFilters(sol, emptySharedFilters())).toBe(true);
-    expect(matchesSharedFilters(sol, { ...emptySharedFilters(), colors: new Set(['U']) })).toBe(
-      false
-    );
-    expect(matchesSharedFilters(sol, { ...emptySharedFilters(), sets: new Set(['cmr']) })).toBe(
-      true
-    );
   });
 });

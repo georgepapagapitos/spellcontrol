@@ -96,20 +96,6 @@ export function filterBySearch(grouped: GroupedCard[], query: string): GroupedCa
 }
 
 /**
- * Color filter: a card matches if at least one of the requested color codes
- * is in its color identity. Empty `colors` set means no filter. 'C' represents
- * colorless (empty colorIdentity).
- */
-export function filterByColors(grouped: GroupedCard[], colors: ReadonlySet<string>): GroupedCard[] {
-  if (colors.size === 0) return grouped;
-  return grouped.filter((g) => {
-    const ci = g.card.colorIdentity ?? [];
-    if (colors.has('C') && ci.length === 0) return true;
-    return ci.some((c) => colors.has(c));
-  });
-}
-
-/**
  * Card-type bucket key for grouping a decklist. Uses the first major type
  * found in `typeLine`. Order matches a reader-friendly decklist layout.
  */
@@ -149,98 +135,4 @@ export function deckBucketFor(typeLine: string | undefined): DeckBucketKey {
   if (t.includes('enchantment')) return 'Enchantment';
   if (t.includes('artifact')) return 'Artifact';
   return 'Other';
-}
-
-/* ── Faceted filtering (shared-collection filter popover) ─────────────────
- * All filters are multi-select (OR within a facet) and compose with AND
- * across facets, matching the main collection's filter semantics. Empty
- * facets are no-ops. Range facets exclude "unknown" values (price 0 = no
- * price recorded; cmc undefined) when a bound is set — same as the
- * collection page, so a value/mana-value range never silently includes
- * cards with no data. */
-
-export interface SharedFilters {
-  /** Color identity codes (W/U/B/R/G + C for colorless). */
-  colors: Set<string>;
-  rarities: Set<string>;
-  types: Set<DeckBucketKey>;
-  /** Set codes (lowercase, as stored). */
-  sets: Set<string>;
-  priceMin?: number;
-  priceMax?: number;
-  cmcMin?: number;
-  cmcMax?: number;
-}
-
-export function emptySharedFilters(): SharedFilters {
-  return { colors: new Set(), rarities: new Set(), types: new Set(), sets: new Set() };
-}
-
-/** Count of active facets — drives the trigger badge. Each color/rarity/type/
- *  set selection counts once; each range counts once if either bound is set. */
-export function countSharedFilters(f: SharedFilters): number {
-  return (
-    f.colors.size +
-    f.rarities.size +
-    f.types.size +
-    f.sets.size +
-    (f.priceMin !== undefined || f.priceMax !== undefined ? 1 : 0) +
-    (f.cmcMin !== undefined || f.cmcMax !== undefined ? 1 : 0)
-  );
-}
-
-function inRange(value: number, min: number | undefined, max: number | undefined): boolean {
-  if (min !== undefined && value < min) return false;
-  if (max !== undefined && value > max) return false;
-  return true;
-}
-
-/**
- * Per-card filter predicate — the shared core used by both the flat collection
- * view (via applySharedFilters) and the sectioned binder/deck views (which
- * filter each section's cards in place). Empty facets pass.
- */
-export function matchesSharedFilters(card: PublicCard, f: SharedFilters): boolean {
-  if (f.colors.size > 0) {
-    const ci = card.colorIdentity ?? [];
-    const colorOk = (f.colors.has('C') && ci.length === 0) || ci.some((c) => f.colors.has(c));
-    if (!colorOk) return false;
-  }
-  if (f.rarities.size > 0 && !f.rarities.has(card.rarity.toLowerCase())) return false;
-  if (f.types.size > 0 && !f.types.has(deckBucketFor(card.typeLine))) return false;
-  if (f.sets.size > 0 && !f.sets.has(card.setCode)) return false;
-  if (f.priceMin !== undefined || f.priceMax !== undefined) {
-    if (!(card.purchasePrice > 0 && inRange(card.purchasePrice, f.priceMin, f.priceMax))) {
-      return false;
-    }
-  }
-  if (f.cmcMin !== undefined || f.cmcMax !== undefined) {
-    if (!(card.cmc !== undefined && inRange(card.cmc, f.cmcMin, f.cmcMax))) return false;
-  }
-  return true;
-}
-
-export function applySharedFilters(grouped: GroupedCard[], f: SharedFilters): GroupedCard[] {
-  return grouped.filter((g) => matchesSharedFilters(g.card, f));
-}
-
-/** Rarities present in the data, ordered mythic→common (then unknown). */
-export function availableRarities(cards: PublicCard[]): string[] {
-  const present = new Set(cards.map((c) => c.rarity.toLowerCase()));
-  return [...present].sort((a, b) => rarityRank(a) - rarityRank(b));
-}
-
-/** Type buckets present in the data, in reader-friendly decklist order. */
-export function availableTypes(cards: PublicCard[]): DeckBucketKey[] {
-  const present = new Set(cards.map((c) => deckBucketFor(c.typeLine)));
-  return DECK_BUCKET_ORDER.filter((t) => present.has(t));
-}
-
-/** Sets present in the data as {code,name}, ordered by set name. */
-export function availableSets(cards: PublicCard[]): Array<{ code: string; name: string }> {
-  const byCode = new Map<string, string>();
-  for (const c of cards) byCode.set(c.setCode, c.setName || c.setCode);
-  return [...byCode.entries()]
-    .map(([code, name]) => ({ code, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -3,19 +3,11 @@ import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicBinder, PublicCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
-import {
-  availableRarities,
-  availableSets,
-  availableTypes,
-  emptySharedFilters,
-  groupCards,
-  matchesSharedFilters,
-  type SharedFilters,
-} from '../../lib/shared-grouping';
+import { groupCards } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
-import { SharedFilterPopover } from './SharedFilterPopover';
+import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 
@@ -33,27 +25,22 @@ type ViewKind = 'grid' | 'list';
  */
 export function SharedBinderView({ data }: Props) {
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<SharedFilters>(emptySharedFilters);
   const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
   // Facet options derive from every card across the binder's sections.
   const allCards = useMemo(() => data.sections.flatMap((s) => s.cards), [data.sections]);
-  const rarityOptions = useMemo(() => availableRarities(allCards), [allCards]);
-  const typeOptions = useMemo(() => availableTypes(allCards), [allCards]);
-  const setOptions = useMemo(() => availableSets(allCards), [allCards]);
+  const { filterNode, matches } = useSharedFilters(allCards);
 
   const q = normalizeForSearch(search);
   const sections = useMemo(() => {
     return data.sections
       .map((s) => ({
         ...s,
-        cards: s.cards.filter(
-          (c) => (!q || normalizeForSearch(c.name).includes(q)) && matchesSharedFilters(c, filters)
-        ),
+        cards: s.cards.filter((c) => (!q || normalizeForSearch(c.name).includes(q)) && matches(c)),
       }))
       .filter((s) => s.cards.length > 0);
-  }, [data.sections, q, filters]);
+  }, [data.sections, q, matches]);
 
   return (
     <main className="shared-view">
@@ -73,15 +60,7 @@ export function SharedBinderView({ data }: Props) {
           placeholder="Search cards in this binder…"
           ariaLabel="Search cards"
           className="shared-toolbar-search"
-          trailing={
-            <SharedFilterPopover
-              filters={filters}
-              setFilters={setFilters}
-              rarities={rarityOptions}
-              types={typeOptions}
-              sets={setOptions}
-            />
-          }
+          trailing={filterNode}
         />
         <ViewModeToggle<ViewKind>
           ariaLabel="Binder view mode"

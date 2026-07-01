@@ -1,15 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { PublicCard, PublicCollection } from '../../lib/shared-types';
 import {
-  applySharedFilters,
-  availableRarities,
-  availableSets,
-  availableTypes,
-  emptySharedFilters,
   filterBySearch,
   groupCards,
   sortGrouped,
-  type SharedFilters,
   type SharedSortKey,
   type SortDir,
 } from '../../lib/shared-grouping';
@@ -17,7 +11,7 @@ import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { SharedCardModal } from './SharedCardModal';
-import { SharedFilterPopover } from './SharedFilterPopover';
+import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
@@ -43,21 +37,16 @@ export function SharedCollectionView({ data }: Props) {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SharedSortKey>('name');
   const [dir, setDir] = useState<SortDir>('asc');
-  const [filters, setFilters] = useState<SharedFilters>(emptySharedFilters);
   const [view, setView] = useState<ViewKind>('grid');
   const [preview, setPreview] = useState<PublicCard | null>(null);
 
   const grouped = useMemo(() => groupCards(data.cards), [data.cards]);
 
-  // Facet options come from the data present, so the popover only offers
-  // rarities/types/sets that actually exist in this collection.
-  const rarityOptions = useMemo(() => availableRarities(data.cards), [data.cards]);
-  const typeOptions = useMemo(() => availableTypes(data.cards), [data.cards]);
-  const setOptions = useMemo(() => availableSets(data.cards), [data.cards]);
+  const { filterNode, matches } = useSharedFilters(data.cards);
 
   const filtered = useMemo(
-    () => applySharedFilters(filterBySearch(grouped, search), filters),
-    [grouped, search, filters]
+    () => filterBySearch(grouped, search).filter((g) => matches(g.card)),
+    [grouped, search, matches]
   );
 
   const sorted = useMemo(() => sortGrouped(filtered, sort, dir), [filtered, sort, dir]);
@@ -93,15 +82,7 @@ export function SharedCollectionView({ data }: Props) {
           placeholder="Search cards…"
           ariaLabel="Search cards"
           className="shared-toolbar-search"
-          trailing={
-            <SharedFilterPopover
-              filters={filters}
-              setFilters={setFilters}
-              rarities={rarityOptions}
-              types={typeOptions}
-              sets={setOptions}
-            />
-          }
+          trailing={filterNode}
         />
         <SelectMenu<SharedSortKey>
           ariaLabel="Sort"

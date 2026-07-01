@@ -153,6 +153,16 @@ export interface FilterFieldEditorProps {
    */
   showFinish?: boolean;
   /**
+   * Content facets that need Scryfall fields not every consumer carries. All
+   * default true (binder/collection have the fields); shared views pass false
+   * because the slim public share payload lacks oracleText / legalities /
+   * frameEffects / borderColor, so these rows would silently match nothing.
+   */
+  showOracleText?: boolean;
+  showLegality?: boolean;
+  showTreatment?: boolean;
+  showBorder?: boolean;
+  /**
    * Markup variant for the row wrappers:
    * - 'binder'  (default) — uses `rule-row` / `rule-label` classes from
    *   BinderEditor's modal (label inline at 180 px).
@@ -324,6 +334,10 @@ export function FilterFieldEditor({
   showOracleTags = false,
   showScryfallQuery = false,
   showFinish = false,
+  showOracleText = true,
+  showLegality = true,
+  showTreatment = true,
+  showBorder = true,
   variant = 'binder',
 }: FilterFieldEditorProps) {
   const isBinder = variant === 'binder';
@@ -338,15 +352,17 @@ export function FilterFieldEditor({
   return (
     <>
       {/* Oracle text */}
-      <Row label="Oracle text">
-        <ChipExpressionBuilder
-          value={value.oracleChips ?? EMPTY_EXPR}
-          onChange={(next) => onPatch({ oracleChips: next })}
-          suggestions={oracleSuggestions}
-          defaultJoiner="OR"
-          placeholder={isBinder ? 'e.g. flying, draw a card' : 'e.g. flying, draw a card…'}
-        />
-      </Row>
+      {showOracleText && (
+        <Row label="Oracle text">
+          <ChipExpressionBuilder
+            value={value.oracleChips ?? EMPTY_EXPR}
+            onChange={(next) => onPatch({ oracleChips: next })}
+            suggestions={oracleSuggestions}
+            defaultJoiner="OR"
+            placeholder={isBinder ? 'e.g. flying, draw a card' : 'e.g. flying, draw a card…'}
+          />
+        </Row>
+      )}
 
       {/* Oracle tags (Scryfall otags) — precise semantic concepts that beat
           oracle-text substrings (e.g. "mana-rock" vs the word "add"). */}
@@ -394,15 +410,17 @@ export function FilterFieldEditor({
       )}
 
       {/* Format/Legality */}
-      <Row label={isBinder ? 'Legalities' : 'Format'}>
-        <ChipExpressionBuilder
-          options={SHARED_FORMAT_OPTIONS}
-          value={value.legalities ?? EMPTY_EXPR}
-          onChange={(next) => onPatch({ legalities: next })}
-          defaultJoiner="OR"
-          placeholder="Add format…"
-        />
-      </Row>
+      {showLegality && (
+        <Row label={isBinder ? 'Legalities' : 'Format'}>
+          <ChipExpressionBuilder
+            options={SHARED_FORMAT_OPTIONS}
+            value={value.legalities ?? EMPTY_EXPR}
+            onChange={(next) => onPatch({ legalities: next })}
+            defaultJoiner="OR"
+            placeholder="Add format…"
+          />
+        </Row>
+      )}
 
       {/* Layout */}
       <Row label="Layout">
@@ -417,27 +435,31 @@ export function FilterFieldEditor({
       </Row>
 
       {/* Treatment */}
-      <Row label="Treatment">
-        <ChipExpressionBuilder
-          options={SHARED_TREATMENT_OPTIONS}
-          value={value.treatments ?? EMPTY_EXPR}
-          onChange={(next) => onPatch({ treatments: next })}
-          defaultJoiner="OR"
-          placeholder="Add treatment…"
-        />
-      </Row>
+      {showTreatment && (
+        <Row label="Treatment">
+          <ChipExpressionBuilder
+            options={SHARED_TREATMENT_OPTIONS}
+            value={value.treatments ?? EMPTY_EXPR}
+            onChange={(next) => onPatch({ treatments: next })}
+            defaultJoiner="OR"
+            placeholder="Add treatment…"
+          />
+        </Row>
+      )}
 
       {/* Border */}
-      <Row label="Border">
-        <ChipExpressionBuilder
-          options={SHARED_BORDER_OPTIONS}
-          value={value.borderColors ?? EMPTY_EXPR}
-          onChange={(next) => onPatch({ borderColors: next })}
-          defaultJoiner="OR"
-          lockJoiner="OR"
-          placeholder="Add border…"
-        />
-      </Row>
+      {showBorder && (
+        <Row label="Border">
+          <ChipExpressionBuilder
+            options={SHARED_BORDER_OPTIONS}
+            value={value.borderColors ?? EMPTY_EXPR}
+            onChange={(next) => onPatch({ borderColors: next })}
+            defaultJoiner="OR"
+            lockJoiner="OR"
+            placeholder="Add border…"
+          />
+        </Row>
+      )}
 
       {/* Finish — collection-page only (physical copy field) */}
       {showFinish && (
