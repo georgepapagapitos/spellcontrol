@@ -46,6 +46,14 @@ export interface PublicCard {
   imageNormalBack?: string;
   layout?: string;
   manaCost?: string;
+  /** Facet fields for the shared-view filter (oracle text / format legality /
+   *  treatment / border). `legalities` is trimmed server-side to the filterable
+   *  formats. Mirror backend projectCard. */
+  oracleText?: string;
+  legalities?: Record<string, string>;
+  frameEffects?: string[];
+  fullArt?: boolean;
+  borderColor?: string;
 }
 
 export interface PublicCollection {

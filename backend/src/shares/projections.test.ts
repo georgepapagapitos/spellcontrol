@@ -92,6 +92,44 @@ describe('projectCard', () => {
     const out = projectCard({ name: 'X', scryfallId: 'x', finish: 'gilded' });
     expect(out?.finish).toBe('nonfoil');
   });
+
+  it('carries the filter facet fields and trims legalities to filterable formats', () => {
+    const out = projectCard({
+      name: 'Sol Ring',
+      scryfallId: 'sol-ring-id',
+      oracleText: '{T}: Add {C}{C}.',
+      frameEffects: ['showcase'],
+      fullArt: true,
+      borderColor: 'borderless',
+      legalities: {
+        commander: 'legal',
+        vintage: 'legal',
+        modern: 'not_legal',
+        // Non-filterable formats must be dropped from the public payload:
+        alchemy: 'legal',
+        historic: 'legal',
+        oldschool: 'legal',
+      },
+    });
+    expect(out).not.toBeNull();
+    const o = out!;
+    expect(o.oracleText).toBe('{T}: Add {C}{C}.');
+    expect(o.frameEffects).toEqual(['showcase']);
+    expect(o.fullArt).toBe(true);
+    expect(o.borderColor).toBe('borderless');
+    expect(o.legalities).toEqual({ commander: 'legal', vintage: 'legal', modern: 'not_legal' });
+    expect(o.legalities && 'alchemy' in o.legalities).toBe(false);
+    expect(o.legalities && 'historic' in o.legalities).toBe(false);
+  });
+
+  it('omits legalities entirely when no filterable format is present', () => {
+    const out = projectCard({
+      name: 'X',
+      scryfallId: 'x',
+      legalities: { alchemy: 'legal', historic: 'legal' },
+    });
+    expect(out?.legalities).toBeUndefined();
+  });
 });
 
 describe('projectCollection', () => {
