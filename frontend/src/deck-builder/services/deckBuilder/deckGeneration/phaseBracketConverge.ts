@@ -60,6 +60,8 @@ export interface BracketConvergeContext {
   detectedCombos: DetectedCombo[] | undefined;
   /** Cards the user pinned — never cut to hit a bracket (lower-cased). */
   mustIncludeNames: Set<string>;
+  /** Optional generation-wide card eligibility guard for filler swaps. */
+  cardAllowed?: (card: ScryfallCard) => boolean;
 }
 
 export interface BracketConvergeResult {
@@ -218,6 +220,7 @@ export function applyBracketConvergence(
       !state.comboCardNames.has(c.name) &&
       scryfallCardMap.has(c.name) &&
       !isPowerSignal(c.name, state.gameChangerNames) &&
+      (!ctx.cardAllowed || ctx.cardAllowed(scryfallCardMap.get(c.name)!)) &&
       (!ownedOnly || !notInCollection(c.name, collectionNames));
 
     const ranked = pool
