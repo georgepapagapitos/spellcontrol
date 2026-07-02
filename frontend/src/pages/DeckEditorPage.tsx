@@ -73,6 +73,7 @@ import { CardEditDialog, type PrintingSelection } from '../components/CardEditDi
 import {
   buildAllocationMap,
   pickCollectionCopy,
+  classifyPrintingAvailability,
   findStealableCopy,
   planCardAdd,
   listContestedCards,
@@ -536,6 +537,19 @@ export function DeckEditorPage() {
   const freeCountFor = useCallback(
     (name: string): number => ownershipByName.get(name.toLowerCase())?.free ?? 0,
     [ownershipByName]
+  );
+
+  // Per-printing availability for the edit-printing picker: does the user own
+  // this exact printing, and is a copy free to bind here? Same live sources as
+  // ownershipFor, but keyed by scryfallId rather than name.
+  const printingAllocationMap = useMemo(
+    () => buildAllocationMap(decks, savedCubes),
+    [decks, savedCubes]
+  );
+  const resolveAvailability = useCallback(
+    (printing: ScryfallCard): ChangeOwnership =>
+      classifyPrintingAvailability(printing.id, collectionCards, printingAllocationMap, deck?.id),
+    [collectionCards, printingAllocationMap, deck?.id]
   );
 
   // Which binder(s) each collection copy lives in — mirrors how the
@@ -1728,9 +1742,33 @@ export function DeckEditorPage() {
     if (!editingSlot || !deck) return;
     const newCard = selection.card;
     const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
+    // Bind each rebound slot to a free owned copy of the NEW printing so picking
+    // a printing you own actually sources it from your collection — previously
+    // the swap always nulled the allocation, so an owned printing read as
+    // unowned. Release these slots' own copies first, and pick greedily, so N
+    // same-name slots don't double-claim one physical copy.
+    const allocations = buildAllocationMap(decks, savedCubes);
+    for (const slot of slotsForName) {
+      if (slot.allocatedCopyId) allocations.delete(slot.allocatedCopyId);
+    }
+    const bindings = new Map<string, string | null>();
+    for (const slot of slotsForName) {
+      const copy = pickCollectionCopy(newCard.name, collectionCards, allocations, newCard.id);
+      // pickCollectionCopy falls back to any free copy of the name; the slot now
+      // shows newCard, so only keep a copy that is actually the chosen printing.
+      if (copy && copy.scryfallId === newCard.id) {
+        bindings.set(slot.slotId, copy.copyId);
+        allocations.set(
+          copy.copyId,
+          makeDeckAllocationInfo(deck.id, deck.name, deck.color, newCard.name)
+        );
+      } else {
+        bindings.set(slot.slotId, null);
+      }
+    }
     recordEdit(deck.id, `change printing of ${newCard.name}`, () => {
       for (const slot of slotsForName) {
-        updateCardPrinting(deck.id, slot.slotId, newCard);
+        updateCardPrinting(deck.id, slot.slotId, newCard, bindings.get(slot.slotId) ?? null);
       }
     });
     setEditingSlot(null);
@@ -2369,6 +2407,7 @@ export function DeckEditorPage() {
           cardName={editingSlot.card.name}
           currentScryfallId={editingSlot.card.id}
           currentFinish="nonfoil"
+          resolveAvailability={resolveAvailability}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingSlot(null)}
         />

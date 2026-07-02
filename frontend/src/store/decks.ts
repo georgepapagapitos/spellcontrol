@@ -280,8 +280,17 @@ interface DecksState {
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
 
-  /** Swap the printing on a deck slot. Clears allocation since the new printing may not be owned. */
-  updateCardPrinting(deckId: string, slotId: string, card: ScryfallCard): void;
+  /**
+   * Swap the printing on a deck slot. Pass `allocatedCopyId` to bind a specific
+   * physical copy (the caller resolves a free owned copy of the new printing);
+   * omit it to leave the slot unallocated when the new printing isn't owned.
+   */
+  updateCardPrinting(
+    deckId: string,
+    slotId: string,
+    card: ScryfallCard,
+    allocatedCopyId?: string | null
+  ): void;
 
   /** Replace the whole card list — used when committing a generated deck. */
   replaceCards(deckId: string, cards: DeckCard[]): void;
@@ -555,14 +564,14 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
-      updateCardPrinting: (deckId, slotId, card) =>
+      updateCardPrinting: (deckId, slotId, card, allocatedCopyId = null) =>
         set((s) => ({
           decks: s.decks.map((d) =>
             d.id === deckId
               ? touch({
                   ...d,
                   cards: d.cards.map((c) =>
-                    c.slotId === slotId ? { ...c, card, allocatedCopyId: null } : c
+                    c.slotId === slotId ? { ...c, card, allocatedCopyId } : c
                   ),
                 })
               : d
