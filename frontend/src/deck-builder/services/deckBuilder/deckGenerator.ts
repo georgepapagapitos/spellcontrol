@@ -71,7 +71,7 @@ import {
   collectSwapCandidates,
   computeRoleBoosts,
 } from './categorize';
-import { fillWithScryfall } from './scryfallFill';
+import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { loadCardSimilar } from './cardSimilar';
@@ -266,9 +266,13 @@ export function getGenerationCacheEdhrecData(): EDHRECCommanderData | null {
 
 /**
  * Early lift-seed set (E71 slice 2), collected BEFORE any card is picked:
- * commander(s), then EDHREC-pool cards flagged isThemeSynergyCard (these only
- * exist for a user-SELECTED theme — the theme-intent guard, so a no-theme
- * build never gets an implicit "lift as theme" switch), then must-includes.
+ * commander(s), then EDHREC-pool cards flagged isThemeSynergyCard, then
+ * must-includes. Note isThemeSynergyCard is set on every EDHREC response's
+ * highsynergy/topcards lists (not only theme-slug fetches), so in a no-theme
+ * build these seeds are the commander's own base high-synergy cards — the
+ * same theme-independent bias picking already applies via isHighSynergyCard.
+ * No implicit "lift as theme" switch: with no selected theme the fetched
+ * pool is the base commander page, never a theme page.
  * Deduped, capped at MAX_LIFT_SEEDS. Deck cards picked later add further
  * seeds via phaseLiftPicks' own collectSeeds, sharing the same pool/cap.
  */
@@ -900,25 +904,35 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // top-100 saltiest cards from `top/salt.json` and use that as the index.
   // Cards not in the index are treated as ~0 salt (not salty enough to matter).
   let saltIndex: Map<string, number> = new Map();
+  const saltTolerance = customization.saltTolerance ?? 2;
+  // 0 = unsalted (strict), 1 = low (moderate), 2 = neutral, 3 = extra (boost)
+  const saltCap = saltTolerance === 0 ? 0.75 : saltTolerance === 1 ? 2.0 : Infinity;
+  // Fetched even with no EDHREC data when a cap is active (soft-fails to an
+  // empty map) so the salt gate below still covers Scryfall-only fills.
+  if (state.edhrecData || saltCap !== Infinity) {
+    saltIndex = await fetchSaltIndex();
+  }
+  const saltMustInclude = new Set(customization.mustIncludeCards ?? []);
+  const saltFor = (name: string): number | undefined => {
+    const direct = saltIndex.get(name);
+    if (direct !== undefined) return direct;
+    if (name.includes(' // ')) return saltIndex.get(frontFaceName(name));
+    return undefined;
+  };
+  // Shared salt hard gate for paths that don't read the (trimmed) EDHREC
+  // cardlists — Scryfall fallback fills and lift package picks (E71 controls
+  // audit). undefined when no cap is active, so those paths skip the check.
+  const isSaltBlocked =
+    saltCap === Infinity
+      ? undefined
+      : (name: string): boolean => {
+          if (saltMustInclude.has(name)) return false;
+          const salt = saltFor(name);
+          return salt !== undefined && salt > saltCap;
+        };
   if (state.edhrecData) {
-    const saltTolerance = customization.saltTolerance ?? 2;
     if (saltTolerance !== 2) {
-      saltIndex = await fetchSaltIndex();
-      const mustInclude = new Set(customization.mustIncludeCards ?? []);
-      // 0 = unsalted (strict), 1 = low (moderate), 3 = extra (no filter, boost)
-      const saltCap = saltTolerance === 0 ? 0.75 : saltTolerance === 1 ? 2.0 : Infinity;
-      const saltFor = (name: string): number | undefined => {
-        const direct = saltIndex.get(name);
-        if (direct !== undefined) return direct;
-        if (name.includes(' // ')) return saltIndex.get(frontFaceName(name));
-        return undefined;
-      };
-      const filterFn = (card: EDHRECCard): boolean => {
-        if (mustInclude.has(card.name)) return true;
-        const salt = saltFor(card.name);
-        if (salt === undefined) return true;
-        return salt <= saltCap;
-      };
+      const filterFn = (card: EDHRECCard): boolean => !isSaltBlocked?.(card.name);
       let trimmed = 0;
       const filterList = (list: EDHRECCard[]): EDHRECCard[] => {
         const next = list.filter(filterFn);
@@ -954,10 +968,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           `[DeckGen] Salt tolerance "${saltTolerance}" (cap ${saltCap}): trimmed ${trimmed} card slots`
         );
       }
-    } else {
-      // Default path: still load salt index so stats can show avg salt.
-      // Fire-and-forget — we'll resolve before the stats step anyway.
-      saltIndex = await fetchSaltIndex();
     }
   }
 
@@ -1159,6 +1169,28 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const liftIndex = getLiftIndex(state);
   const liftScoreOf = (name: string) => liftIndex.get(name.toLowerCase())?.clusterScore ?? 0;
   const liftTieBreak = new Map([...liftIndex].map(([name, entry]) => [name, entry.clusterScore]));
+
+  // Bracket band guardrail: cap per-card floor signals (game changers, MLD,
+  // extra turns, stax) so the deck lands at/under the target bracket by
+  // construction instead of overshooting and being patched post-gen. Hoisted
+  // above the EDHREC/Scryfall-only branch so both paths share ONE guard —
+  // counts accumulate across picking phases and fallback fills alike.
+  // undefined (zero per-pick overhead) when no bracket is targeted or the
+  // target is high enough that no ceiling binds.
+  const bracketCeil = bracketCeilings(targetBracket);
+  const bracketGuard = ceilingsAreOpen(bracketCeil)
+    ? undefined
+    : new BracketGuard(bracketCeil, state.gameChangerNames);
+  // Hard gates threaded into every fillWithScryfall call (E71 controls audit):
+  // the fallback fill enforces the same salt / game-changer-cap / bracket-
+  // ceiling gates as the EDHREC-pool picker, sharing its running counts.
+  const fillGates: FillHardGates = {
+    isSaltBlocked,
+    bracketGuard,
+    gameChangerNames: state.gameChangerNames,
+    gameChangerCount,
+    maxGameChangers,
+  };
 
   // ---- Multi-copy card pipeline (self-contained, no impact if nothing found) ----
   if (state.edhrecData) {
@@ -1508,15 +1540,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           strictRoles
         )
       : getComboBoosts();
-    // Bracket band guardrail: cap per-card floor signals (game changers, MLD,
-    // extra turns, stax) so the deck lands at/under the target bracket by
-    // construction instead of overshooting and being patched post-gen. undefined
-    // (zero per-pick overhead) when no bracket is targeted or the target is high
-    // enough that no ceiling binds.
-    const bracketCeil = bracketCeilings(targetBracket);
-    const bracketGuard = ceilingsAreOpen(bracketCeil)
-      ? undefined
-      : new BracketGuard(bracketCeil, state.gameChangerNames);
     const creatures = pickFromPrefetchedWithCurve(
       creaturePool,
       cardMap,
@@ -1582,7 +1605,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedBudget,
         ignoreOwnedRarity,
         isCardAllowedBySynergyDependencies,
-        liftScoreOf
+        liftScoreOf,
+        fillGates
       );
       categories.creatures.push(...moreCreatures);
       logger.debug(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
@@ -2036,7 +2060,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
 
     onProgress?.('Drawing cards…', 30);
@@ -2058,7 +2083,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
 
     onProgress?.('Sharpening removal…', 40);
@@ -2080,7 +2106,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
 
     onProgress?.('Preparing board wipes…', 50);
@@ -2102,7 +2129,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
 
     // Use typeTargets for remaining slots to get a balanced type distribution
@@ -2131,7 +2159,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
     categories.creatures.push(...scryfallCreatures);
 
@@ -2158,7 +2187,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
     categorizeCards(scryfallArtifacts, categories);
 
@@ -2185,7 +2215,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
-      liftScoreOf
+      liftScoreOf,
+      fillGates
     );
     categorizeCards(scryfallEnchantments, categories);
 
@@ -2216,7 +2247,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedBudget,
         ignoreOwnedRarity,
         isCardAllowedBySynergyDependencies,
-        liftScoreOf
+        liftScoreOf,
+        fillGates
       );
       categorizeCards(scryfallInstants, categories);
     }
@@ -2245,7 +2277,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedBudget,
         ignoreOwnedRarity,
         isCardAllowedBySynergyDependencies,
-        liftScoreOf
+        liftScoreOf,
+        fillGates
       );
       categorizeCards(scryfallSorceries, categories);
     }
@@ -2648,7 +2681,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedBudget,
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
-          liftScoreOf
+          liftScoreOf,
+          fillGates
         );
         if (type === 'creature') categories.creatures.push(...cards);
         else if (type === 'instant') categorizeCards(cards, categories);
@@ -2682,7 +2716,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedBudget,
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
-          liftScoreOf
+          liftScoreOf,
+          fillGates
         );
         categories.synergy.push(...moreCards);
         filled += moreCards.length;
@@ -2796,7 +2831,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedBudget,
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
-          liftScoreOf
+          liftScoreOf,
+          fillGates
         );
         for (const c of ownedFill) addOwnedCard(c);
         if (ownedFill.length > 0) {
@@ -2827,7 +2863,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedBudget,
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
-          liftScoreOf
+          liftScoreOf,
+          fillGates
         );
         for (const c of relaxedCards) {
           addOwnedCard(c);
@@ -2963,12 +3000,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs.map((t) => t.name) : undefined;
 
   // Gap analysis: find top unowned cards that would improve the deck
-  const gapAnalysis = await gapAnalysisPhase(state);
+  const gapAnalysis = await gapAnalysisPhase(state, { effectiveScryfallQuery: scryfallQuery });
 
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the
   // deck. Suggestions only — never added to the deck.
-  const liftPicks = await liftPicksPhase(state);
+  const liftPicks = await liftPicksPhase(state, {
+    effectiveScryfallQuery: scryfallQuery,
+    isSaltBlocked,
+  });
 
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);

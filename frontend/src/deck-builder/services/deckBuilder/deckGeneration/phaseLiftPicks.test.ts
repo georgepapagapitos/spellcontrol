@@ -7,10 +7,14 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
 }));
 
 const getCardsByNamesMock = vi.fn<() => Promise<Map<string, ScryfallCard>>>();
+const upgradeCardPrintingsMock =
+  vi.fn<(map: Map<string, ScryfallCard>, query: string, strict: boolean) => Promise<void>>();
 vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   ...(await orig<typeof import('@/deck-builder/services/scryfall/client')>()),
   getCardsByNames: (...args: unknown[]) =>
     getCardsByNamesMock(...(args as Parameters<typeof getCardsByNamesMock>)),
+  upgradeCardPrintings: (...args: Parameters<typeof upgradeCardPrintingsMock>) =>
+    upgradeCardPrintingsMock(...args),
 }));
 
 import { liftPicksPhase } from './phaseLiftPicks';
@@ -129,8 +133,10 @@ describe('liftPicksPhase', () => {
   beforeEach(() => {
     fetchCardLiftPoolMock.mockReset();
     getCardsByNamesMock.mockReset();
+    upgradeCardPrintingsMock.mockReset();
     fetchCardLiftPoolMock.mockResolvedValue([]);
     getCardsByNamesMock.mockResolvedValue(new Map());
+    upgradeCardPrintingsMock.mockResolvedValue(undefined);
   });
 
   it('returns undefined when the generation had no EDHREC data', async () => {
@@ -217,5 +223,116 @@ describe('liftPicksPhase', () => {
 
     const result = await liftPicksPhase(state);
     expect(result?.packagePicks[0]?.owned).toBe(false);
+  });
+});
+
+describe('liftPicksPhase constraint gates (E71 controls audit)', () => {
+  beforeEach(() => {
+    fetchCardLiftPoolMock.mockReset();
+    getCardsByNamesMock.mockReset();
+    upgradeCardPrintingsMock.mockReset();
+    upgradeCardPrintingsMock.mockResolvedValue(undefined);
+    // Every test: commander seed offers two candidates, "Gated Card" (huge
+    // lift) and "Safe Card" — the gate under test must hide the former.
+    fetchCardLiftPoolMock.mockImplementation(async (seed) =>
+      seed === 'Cmd'
+        ? [
+            entry({ name: 'Gated Card', lift: 50, coPlayPct: 90, numDecks: 500 }),
+            entry({ name: 'Safe Card', lift: 6, coPlayPct: 20, numDecks: 200 }),
+          ]
+        : []
+    );
+  });
+
+  const resolveCards = (gated: ScryfallCard) =>
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Gated Card', gated],
+        ['Safe Card', card('Safe Card')],
+      ])
+    );
+
+  it('rejects a salt-blocked candidate and discloses it', async () => {
+    const state = makeState();
+    resolveCards(card('Gated Card'));
+
+    const result = await liftPicksPhase(state, {
+      isSaltBlocked: (name) => name === 'Gated Card',
+    });
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: over salt tolerance');
+  });
+
+  it('enforces the effective Scryfall filter via the strict printing upgrade', async () => {
+    const state = makeState();
+    resolveCards(card('Gated Card'));
+    // Strict upgrade deletes candidates with no printing matching the query.
+    upgradeCardPrintingsMock.mockImplementation(async (map) => {
+      map.delete('Gated Card');
+    });
+
+    const result = await liftPicksPhase(state, { effectiveScryfallQuery: 'is:full-art' });
+    expect(upgradeCardPrintingsMock).toHaveBeenCalledWith(expect.any(Map), 'is:full-art', true);
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: outside your card filters');
+  });
+
+  it('skips the printing upgrade entirely when no filter is set', async () => {
+    const state = makeState();
+    resolveCards(card('Gated Card'));
+
+    await liftPicksPhase(state);
+    expect(upgradeCardPrintingsMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a not-commander-legal candidate', async () => {
+    const state = makeState();
+    resolveCards(card('Gated Card', { legalities: { commander: 'banned' } }));
+
+    const result = await liftPicksPhase(state);
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: not legal in Commander');
+  });
+
+  it('rejects an over-rarity candidate unless owned-exempt', async () => {
+    const state = makeState();
+    state.cfg.maxRarity = 'uncommon';
+    resolveCards(card('Gated Card', { rarity: 'mythic' }));
+
+    const gated = await liftPicksPhase(state);
+    expect(gated?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(gated?.liftPicksNote).toBe('1 higher-lift candidate hidden: over rarity cap');
+
+    // Owned + ignoreOwnedRarity => the same mythic is exempt and surfaces.
+    state.cfg.ignoreOwnedRarity = true;
+    state.context.collectionNames = new Set(['Gated Card']);
+    const exempt = await liftPicksPhase(state);
+    expect(exempt?.packagePicks.map((p) => p.name)).toContain('Gated Card');
+  });
+
+  it('rejects a non-Arena candidate in Arena-only mode', async () => {
+    const state = makeState();
+    state.cfg.arenaOnly = true;
+    resolveCards(card('Gated Card', { games: ['paper'] }));
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Gated Card', card('Gated Card', { games: ['paper'] })],
+        ['Safe Card', card('Safe Card', { games: ['paper', 'arena'] })],
+      ])
+    );
+
+    const result = await liftPicksPhase(state);
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: not on Arena');
+  });
+
+  it('rejects an over-CMC candidate under a mana-value cap (Tiny Leaders)', async () => {
+    const state = makeState();
+    state.cfg.maxCmc = 3;
+    resolveCards(card('Gated Card', { cmc: 6 }));
+
+    const result = await liftPicksPhase(state);
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: over mana-value cap');
   });
 });

@@ -16,6 +16,21 @@ import {
 } from './deckFilters';
 import { frontFaceName } from '@/lib/card-text';
 import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
+import type { BracketGuard } from './bracketGuard';
+
+// Hard gates the EDHREC-pool picker (cardPicking.ts) enforces but a raw
+// Scryfall search can't express in its query string. Threaded here so the
+// fallback fill can never admit a card the primary path would have rejected
+// (E71 controls audit): salt tolerance, the game-changer cap, and the
+// target-bracket ceilings. All shared refs — counts accumulate across every
+// fill in the same generation, exactly like the picking phases.
+export interface FillHardGates {
+  isSaltBlocked?: (name: string) => boolean;
+  bracketGuard?: BracketGuard;
+  gameChangerNames?: Set<string>;
+  gameChangerCount?: { value: number };
+  maxGameChangers?: number;
+}
 
 // Fill remaining slots with Scryfall search (fallback)
 export async function fillWithScryfall(
@@ -40,7 +55,8 @@ export async function fillWithScryfall(
   // 0 for cards with no lift connectivity. Primary re-rank key below — with
   // no lift data every score is 0, so the sort falls through to today's
   // fingerprint order unchanged.
-  liftScoreOf?: (name: string) => number
+  liftScoreOf?: (name: string) => number,
+  gates?: FillHardGates
 ): Promise<ScryfallCard[]> {
   if (count <= 0) return [];
 
@@ -79,6 +95,7 @@ export async function fillWithScryfall(
       }
       if (exceedsCmcCap(card, maxCmc)) continue;
       if (notOnArena(card, arenaOnly)) continue;
+      if (gates?.isSaltBlocked?.(card.name)) continue;
       passing.push(card);
     }
 
@@ -112,6 +129,22 @@ export async function fillWithScryfall(
         const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
         if (exceedsMaxPrice(card, effectiveCap, currency)) continue;
       }
+      // Running-count gates (checked at accept time, like cardPicking's tryPick,
+      // so counts shared with the picking phases stay accurate).
+      if (gates?.bracketGuard?.exceedsCeiling(card.name)) continue;
+      const isGC = gates?.gameChangerNames?.has(card.name) ?? false;
+      if (
+        isGC &&
+        gates?.gameChangerCount &&
+        gates.maxGameChangers !== undefined &&
+        gates.gameChangerCount.value >= gates.maxGameChangers
+      )
+        continue;
+      if (isGC && gates?.gameChangerCount) {
+        card.isGameChanger = true;
+        gates.gameChangerCount.value++;
+      }
+      gates?.bracketGuard?.record(card.name);
       result.push(card);
       usedNames.add(card.name);
       // Also mark front-face name for DFCs so EDHREC-sourced checks match

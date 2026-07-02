@@ -223,3 +223,86 @@ describe('fillWithScryfall lift re-rank (E71 slice 2)', () => {
     expect(withZeroLift.map((c) => c.name)).toEqual(withoutLiftParam.map((c) => c.name));
   });
 });
+
+describe('fillWithScryfall hard gates (E71 controls audit)', () => {
+  // These are the gates the EDHREC-pool picker enforces that a raw Scryfall
+  // query can't express — without them the fallback fill was a bypass path
+  // for salt tolerance, the game-changer cap, and bracket ceilings.
+  const fill = (
+    gates: Parameters<typeof fillWithScryfall>[18],
+    liftScoreOf?: (name: string) => number
+  ) =>
+    fillWithScryfall(
+      't:creature',
+      [],
+      2,
+      new Set(),
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      'USD',
+      false,
+      '',
+      'full',
+      false,
+      false,
+      undefined,
+      liftScoreOf,
+      gates
+    );
+
+  it('skips salt-blocked cards even with a huge lift score', async () => {
+    searchCards.mockResolvedValue({ data: [sc({ name: 'Salty' }), sc({ name: 'Mild' })] });
+    const out = await fill({ isSaltBlocked: (name) => name === 'Salty' }, (name) =>
+      name === 'Salty' ? 99 : 0
+    );
+    expect(out.map((c) => c.name)).toEqual(['Mild']);
+  });
+
+  it('enforces the game-changer cap with a shared running count', async () => {
+    searchCards.mockResolvedValue({
+      data: [sc({ name: 'GC One' }), sc({ name: 'GC Two' }), sc({ name: 'Plain' })],
+    });
+    const gameChangerCount = { value: 0 };
+    const out = await fill({
+      gameChangerNames: new Set(['GC One', 'GC Two']),
+      gameChangerCount,
+      maxGameChangers: 1,
+    });
+    // First GC accepted (and stamped + counted), second blocked by the cap.
+    expect(out.map((c) => c.name)).toEqual(['GC One', 'Plain']);
+    expect(out[0].isGameChanger).toBe(true);
+    expect(gameChangerCount.value).toBe(1);
+  });
+
+  it('a pre-existing game-changer count from the picking phases blocks all GCs', async () => {
+    searchCards.mockResolvedValue({ data: [sc({ name: 'GC One' }), sc({ name: 'Plain' })] });
+    const out = await fill({
+      gameChangerNames: new Set(['GC One']),
+      gameChangerCount: { value: 1 },
+      maxGameChangers: 1,
+    });
+    expect(out.map((c) => c.name)).toEqual(['Plain']);
+  });
+
+  it('honors the bracket guard: gated cards skipped, accepted cards recorded', async () => {
+    searchCards.mockResolvedValue({ data: [sc({ name: 'Stax Piece' }), sc({ name: 'Plain' })] });
+    const recorded: string[] = [];
+    const bracketGuard = {
+      exceedsCeiling: (name: string) => name === 'Stax Piece',
+      record: (name: string) => recorded.push(name),
+    } as unknown as import('./bracketGuard').BracketGuard;
+    const out = await fill({ bracketGuard }, (name) => (name === 'Stax Piece' ? 99 : 0));
+    expect(out.map((c) => c.name)).toEqual(['Plain']);
+    expect(recorded).toEqual(['Plain']);
+  });
+
+  it('no gates object leaves behavior unchanged', async () => {
+    searchCards.mockResolvedValue({ data: [sc({ name: 'A' }), sc({ name: 'B' })] });
+    const out = await fill(undefined);
+    expect(out.map((c) => c.name)).toEqual(['A', 'B']);
+  });
+});
