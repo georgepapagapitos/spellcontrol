@@ -365,6 +365,9 @@ export interface DeckDisplayProps {
   winConditionSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
+  /** Table Record panel (real tracked W/L + head-to-head), rendered on the
+   *  Stats tab. Built by the page (owns its own store reads). */
+  tableRecordSlot?: React.ReactNode;
   /**
    * In-context "Swap this card": for an in-deck card at `slotId`, return the
    * role-scoped replacement section rendered in the card-preview panel. `close`
@@ -957,6 +960,7 @@ export function DeckDisplay({
   engineSlot,
   winConditionSlot,
   powerHeroSlot,
+  tableRecordSlot,
   renderSwapSuggestions,
   renderSimilarCards,
   activeView = 'deck',
@@ -1718,6 +1722,7 @@ export function DeckDisplay({
             engineSlot={engineSlot}
             winConditionSlot={winConditionSlot}
             powerHeroSlot={powerHeroSlot}
+            tableRecordSlot={tableRecordSlot}
             commanderIdentity={commanderIdentity}
             analysisState={analysisState}
             onNavigateToTune={onNavigateToTune}
@@ -3198,6 +3203,7 @@ function DeckAnalysisView({
   engineSlot,
   winConditionSlot,
   powerHeroSlot,
+  tableRecordSlot,
   commanderIdentity,
   analysisState = 'ready',
   onNavigateToTune,
@@ -3235,6 +3241,7 @@ function DeckAnalysisView({
   engineSlot?: React.ReactNode;
   winConditionSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
+  tableRecordSlot?: React.ReactNode;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   commanderIdentity?: string[];
   /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads. */
@@ -3375,6 +3382,13 @@ function DeckAnalysisView({
               </Panel>
             )}
           </div>
+          {/* Table record — this deck's real tracked W/L, full width. Always
+              rendered (owns its own empty state for zero tracked games). */}
+          {tableRecordSlot && (
+            <Panel title="Table record" wide>
+              {tableRecordSlot}
+            </Panel>
+          )}
           {/* Build report — full width, list-heavy. */}
           {buildReport && (
             <Panel title="Build report" wide className={panelCascadeClass(4, cascade.animating)}>

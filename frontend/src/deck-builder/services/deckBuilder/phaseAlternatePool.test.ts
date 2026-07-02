@@ -526,6 +526,34 @@ describe('primaryType bucketing via synthesize (observed through buildAlternateP
 
     expect(result.data.cardlists.creatures.some((c) => c.name === 'Huntmaster')).toBe(true);
   });
+
+  it('uses the first face type line when top-level type line is missing', async () => {
+    const cards = [
+      sc({
+        name: 'Blood Crypt // Blood Crypt',
+        type_line: undefined as unknown as string,
+        card_faces: [
+          { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+          { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+        ] as ScryfallCard['card_faces'],
+        edhrec_rank: 1,
+      }),
+    ];
+    searchCards.mockResolvedValue(okResponse(cards));
+
+    const result = await buildAlternatePool(
+      'oracle-role',
+      cust({ generationMode: 'oracle-role' }),
+      ['B', 'R']
+    );
+
+    expect(
+      result.data.cardlists.allNonLand.some((c) => c.name === 'Blood Crypt // Blood Crypt')
+    ).toBe(false);
+    expect(
+      result.data.cardlists.artifacts.some((c) => c.name === 'Blood Crypt // Blood Crypt')
+    ).toBe(false);
+  });
 });
 
 // ── emptyStats shape ──────────────────────────────────────────────────────────
