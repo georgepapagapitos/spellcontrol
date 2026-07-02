@@ -1,5 +1,6 @@
-import type { JSX } from 'react';
+import { useState, type JSX } from 'react';
 import './BuildReportPanel.css';
+import { Check, Loader2, Plus } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { VerdictBadge } from './VerdictBadge';
@@ -75,12 +76,72 @@ function humanizeDataSource(source: DeckDataSource): string {
 export function BuildReportPanel({
   report,
   onFixGaps,
+  onAddCard,
+  deckCardNames,
+  addingCardNames,
 }: {
   report: BuildReport;
   /** Jump to the Coach "Fix gaps" lane to add cards for the under-target roles.
    *  Omitted (e.g. in the quick-glance sheet) → the gaps stay informational. */
   onFixGaps?: () => void;
+  /** Add a synergyFills/packagePicks card straight from its row. Omitted (e.g.
+   *  the quick-glance sheet) → rows stay read-only prose, same as onFixGaps. */
+  onAddCard?: (cardName: string) => void;
+  /** Lower-cased names currently in the deck — gates "+ Add" vs "In deck" per
+   *  row (a synergyFill card may have since been removed by the user; a
+   *  packagePick may have since been added by hand). */
+  deckCardNames?: ReadonlySet<string>;
+  /** Card names with an add in flight (exact case, mirrors the Coach/NBM
+   *  `busyNames` convention) — shows the row's spinner state. */
+  addingCardNames?: ReadonlySet<string>;
 }): JSX.Element {
+  const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
+
+  const renderAddButton = (name: string) => {
+    if (!onAddCard) return null;
+    const lower = name.toLowerCase();
+    if (addingCardNames?.has(name)) {
+      return (
+        <button
+          type="button"
+          className="build-report-add is-adding"
+          disabled
+          aria-label={`Adding ${name}`}
+        >
+          <Loader2 className="build-report-add-spinner" aria-hidden="true" />
+        </button>
+      );
+    }
+    const added = justAdded.has(lower);
+    if (added || deckCardNames?.has(lower)) {
+      return (
+        <button
+          type="button"
+          className="build-report-add is-added"
+          disabled
+          aria-label={added ? `Added ${name}` : `${name} is already in the deck`}
+        >
+          <Check className="build-report-add-icon" aria-hidden="true" />
+          {added ? 'Added' : 'In deck'}
+        </button>
+      );
+    }
+    return (
+      <button
+        type="button"
+        className="build-report-add"
+        onClick={() => {
+          setJustAdded((prev) => new Set(prev).add(lower));
+          onAddCard(name);
+        }}
+        aria-label={`Add ${name}`}
+      >
+        <Plus className="build-report-add-icon" aria-hidden="true" />
+        Add
+      </button>
+    );
+  };
+
   const {
     targetBracket,
     estimatedBracket,
@@ -168,9 +229,12 @@ export function BuildReportPanel({
           <ul className="build-report-subs-list">
             {synergyFills.map((f) => (
               <li key={f.name} className="build-report-sub">
-                <span className="build-report-sub-map">
-                  <strong>{f.name}</strong>
-                </span>
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{f.name}</strong>
+                  </span>
+                  {renderAddButton(f.name)}
+                </div>
                 <span className="build-report-sub-reason">{synergyFillReason(f)}</span>
               </li>
             ))}
@@ -188,9 +252,12 @@ export function BuildReportPanel({
           <ul className="build-report-subs-list">
             {packagePicks.map((p) => (
               <li key={p.name} className="build-report-sub">
-                <span className="build-report-sub-map">
-                  <strong>{p.name}</strong>
-                </span>
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{p.name}</strong>
+                  </span>
+                  {renderAddButton(p.name)}
+                </div>
                 <span className="build-report-sub-reason">
                   {p.kind === 'bomb'
                     ? `Pairs hard with ${p.liftedBy[0]}`
