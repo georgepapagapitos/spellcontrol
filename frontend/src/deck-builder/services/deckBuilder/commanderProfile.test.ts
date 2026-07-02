@@ -172,10 +172,11 @@ describe('buildCommanderProfile', () => {
   it('surfaces each ability’s primary theme in the top few, not one ability’s whole list', () => {
     // General breadth-first guarantee: a commander with a multi-theme dominant
     // ability (here an ETB → blink/flicker/etb) plus a distinct lower-ranked
-    // ability must still float that other ability's PRIMARY theme into the top-3
-    // preselect window — depth-first flattening buried it below the ETB's
-    // secondary themes. Queen Marchesa is just a convenient fixture (ETB +
-    // token maker + monarch); the property is not monarch-specific.
+    // ability must still float that other ability's PRIMARY theme near the front
+    // of suggestedThemes — depth-first flattening buried it below the ETB's
+    // secondary themes, skewing every consumer of the list (deck-identity
+    // fallback, playstyle index). Queen Marchesa is just a convenient fixture
+    // (ETB + token maker + monarch); the property is not monarch-specific.
     const profile = buildCommanderProfile(
       makeCard({
         name: 'Queen Marchesa',
@@ -189,8 +190,8 @@ describe('buildCommanderProfile', () => {
     expect(kw).toContain('etb');
     expect(kw).toContain('monarch');
 
-    // 'monarch' is the primary theme of a lower-ranked ability; it must land in
-    // the top-3 the customizer preselects, not get crowded out by blink/flicker.
+    // 'monarch' is the primary theme of a lower-ranked ability; it must lead the
+    // list (top 3), not get crowded out by the ETB's blink/flicker cluster.
     expect(profile.suggestedThemes.slice(0, 3)).toContain('monarch');
     // And no near-duplicate cluster: the ETB's own secondary themes shouldn't
     // all precede monarch (that was the depth-first failure).
