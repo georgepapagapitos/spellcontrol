@@ -1216,7 +1216,21 @@ export function computeOptimizeSwaps(
    * auto-cut — this is what keeps the optimizer from hollowing out the deck's
    * own engine, independent of EDHREC inclusion.
    */
-  synergyProtectedNames?: Set<string>
+  synergyProtectedNames?: Set<string>,
+  /**
+   * EDHREC lift connectivity over the analysis seed pools (commander + key
+   * synergy cards — see commanderDeckAnalysis). Bounded E71 Phase-4 signal,
+   * explanation and ranking only:
+   * - a card co-played with 2+ seeds is package-connected → never suggested
+   *   as a cut (same rank as the combo/synergy guards);
+   * - a card with NO co-play link at all — trusted only when enough seed
+   *   pools back the index — has its general-tier cut reason upgraded to
+   *   "off-package" and sorts slightly earlier within its tier.
+   */
+  liftSignal?: {
+    index: Map<string, { clusterScore: number; liftedBy: string[] }>;
+    seedCount: number;
+  }
 ): OptimizeSwaps {
   const inclusionMap = cardInclusionMap ?? {};
   const synergyMap = cardSynergyMap ?? {};
@@ -1280,6 +1294,18 @@ export function computeOptimizeSwaps(
   const isSynergyProtected = (name: string) =>
     (synergyMap[name] ?? -Infinity) >= SYNERGY_PROTECT_FLOOR;
 
+  // ── Lift (co-play) signal — E71 Phase 4 ──
+  // Absence of any co-play link only means something when enough seed pools
+  // back the index; below the floor the negative signal stays silent (the
+  // positive protection needs no floor — a 2-seed cluster link is evidence
+  // on its own). ponytail: fixed floor; revisit if Coach widens its seeding.
+  const LIFT_OFFPACKAGE_MIN_SEEDS = 3;
+  const liftEntryOf = (name: string) => liftSignal?.index.get(name.toLowerCase());
+  // Co-played with 2+ of the deck's key cards → package-connected, never cut.
+  const isLiftProtected = (name: string) => (liftEntryOf(name)?.liftedBy.length ?? 0) >= 2;
+  const offPackageTrusted = liftSignal != null && liftSignal.seedCount >= LIFT_OFFPACKAGE_MIN_SEEDS;
+  const OFF_PACKAGE_REASON = 'Off-package — no co-play links with your key cards';
+
   type CandidateCard = OptimizeCard & { sortScore: number };
 
   // Collect all potential excess-role candidates per role (unsorted, uncapped)
@@ -1298,6 +1324,7 @@ export function computeOptimizeSwaps(
     if (comboCountMap.has(card.name)) continue; // never suggest cutting a combo piece
     if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler (EDHREC)
     if (synergyProtectedNames?.has(card.name)) continue; // load-bearing for an invested axis
+    if (isLiftProtected(card.name)) continue; // package-connected via lift co-play
 
     const role = card.deckRole || getCardRole(card.name) || undefined;
     const roleLabel = role ? ROLE_LABELS[role] || role : undefined;
@@ -1385,12 +1412,17 @@ export function computeOptimizeSwaps(
     const INCLUSION_FLOOR = 70;
     if ((inclusion ?? 0) >= INCLUSION_FLOOR) continue;
 
+    // Off-package (lift): trusted absence of any co-play link upgrades the
+    // general-tier reason and nudges the card earlier within its tier —
+    // bounded ranking, never a new eligibility path.
+    const offPackage = offPackageTrusted && liftEntryOf(card.name) == null;
+
     if (!role && (inclusion ?? 100) < LOW_SYNERGY_INCLUSION_FLOOR) {
       generalCandidates.push({
         ...base,
-        reason: 'Low synergy',
-        reasonCategory: 'low-synergy',
-        sortScore: (inclusion ?? 0) + curveAdjust,
+        reason: offPackage ? OFF_PACKAGE_REASON : 'Low synergy',
+        reasonCategory: offPackage ? 'off-package' : 'low-synergy',
+        sortScore: (inclusion ?? 0) + curveAdjust - (offPackage ? 5 : 0),
       });
     } else if (isTopHeavy && cmc >= 5 && !role && (inclusion ?? 100) < CURVE_FIX_INCLUSION_FLOOR) {
       generalCandidates.push({
@@ -1402,9 +1434,9 @@ export function computeOptimizeSwaps(
     } else if (!role && (inclusion ?? 100) < LOW_INCLUSION_FLOOR) {
       generalCandidates.push({
         ...base,
-        reason: 'Low inclusion',
-        reasonCategory: 'low-inclusion',
-        sortScore: (inclusion ?? 0) + 20 + curveAdjust,
+        reason: offPackage ? OFF_PACKAGE_REASON : 'Low inclusion',
+        reasonCategory: offPackage ? 'off-package' : 'low-inclusion',
+        sortScore: (inclusion ?? 0) + 20 + curveAdjust - (offPackage ? 5 : 0),
       });
     }
   }
@@ -1455,6 +1487,7 @@ export function computeOptimizeSwaps(
       if (comboCountMap.has(card.name)) continue;
       if (isSynergyProtected(card.name)) continue; // commander-defining payoff/enabler (EDHREC)
       if (synergyProtectedNames?.has(card.name)) continue; // load-bearing for an invested axis
+      if (isLiftProtected(card.name)) continue; // package-connected via lift co-play
       if (isChannelLand(card)) continue; // channel lands are too good to ever cut
       if (isMdfcLand(card)) continue; // MDFCs double as spells — never cut
       const role = card.deckRole || getCardRole(card.name) || undefined;

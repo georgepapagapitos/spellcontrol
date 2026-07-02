@@ -71,7 +71,13 @@ const forest = (): ScryfallCard =>
     keywords: [],
   }) as unknown as ScryfallCard;
 
-function runOptimize(withSynergyGuard: boolean, loadBearing?: Set<string>) {
+type LiftSignal = NonNullable<Parameters<typeof computeOptimizeSwaps>[10]>;
+
+function runOptimizeSwaps(
+  withSynergyGuard: boolean,
+  loadBearing?: Set<string>,
+  liftSignal?: LiftSignal
+) {
   const spells = [spell(STAPLE), spell(FRINGE), spell(NARROW)];
   const lands = Array.from({ length: 36 }, forest);
   const cards = [...spells, ...lands];
@@ -84,7 +90,7 @@ function runOptimize(withSynergyGuard: boolean, loadBearing?: Set<string>) {
   const roleTargets = { ramp: 10, removal: 10, boardwipe: 3, cardDraw: 10 };
   const roleCounts = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
   const analysis = analyzeDeck(data, cards, roleCounts, roleTargets, 99, inclusionMap);
-  const swaps = computeOptimizeSwaps(
+  return computeOptimizeSwaps(
     analysis,
     cards,
     inclusionMap,
@@ -94,9 +100,13 @@ function runOptimize(withSynergyGuard: boolean, loadBearing?: Set<string>) {
     new Set<string>(),
     undefined,
     withSynergyGuard ? synergyMap : undefined,
-    loadBearing
+    loadBearing,
+    liftSignal
   );
-  return new Set(swaps.removals.map((r) => r.name));
+}
+
+function runOptimize(withSynergyGuard: boolean, loadBearing?: Set<string>) {
+  return new Set(runOptimizeSwaps(withSynergyGuard, loadBearing).removals.map((r) => r.name));
 }
 
 describe('computeOptimizeSwaps — Commander cut calibration', () => {
@@ -124,5 +134,51 @@ describe('computeOptimizeSwaps — Commander cut calibration', () => {
     // guard (not the inclusion floor) is what spares it.
     const unguarded = runOptimize(false);
     expect(unguarded.has(NARROW)).toBe(true);
+  });
+});
+
+describe('computeOptimizeSwaps — off-package lift signal (E71 Phase 4)', () => {
+  const liftEntry = (liftedBy: string[]) => ({ clusterScore: 100, liftedBy });
+
+  it('never cuts a card co-played with 2+ of the deck’s key cards', () => {
+    // FRINGE (3% inclusion, roleless) is cut by default (proven above) — a
+    // 2-seed lift cluster link protects it, same rank as the synergy guards.
+    const swaps = runOptimizeSwaps(true, undefined, {
+      index: new Map([[FRINGE.toLowerCase(), liftEntry(['Some Commander', STAPLE])]]),
+      seedCount: 3,
+    });
+    expect(swaps.removals.some((r) => r.name === FRINGE)).toBe(false);
+  });
+
+  it('a single co-play link is not protection, and having a link means not off-package', () => {
+    const swaps = runOptimizeSwaps(true, undefined, {
+      index: new Map([[FRINGE.toLowerCase(), liftEntry(['Some Commander'])]]),
+      seedCount: 3,
+    });
+    const fringe = swaps.removals.find((r) => r.name === FRINGE);
+    expect(fringe).toBeDefined();
+    expect(fringe?.reasonCategory).toBe('low-synergy');
+  });
+
+  it('flags a trusted no-link card as off-package and explains it', () => {
+    const swaps = runOptimizeSwaps(true, undefined, { index: new Map(), seedCount: 3 });
+    const fringe = swaps.removals.find((r) => r.name === FRINGE);
+    expect(fringe?.reasonCategory).toBe('off-package');
+    expect(fringe?.reason).toContain('no co-play links');
+  });
+
+  it('stays silent below the seed floor — absence of data is not evidence', () => {
+    const swaps = runOptimizeSwaps(true, undefined, { index: new Map(), seedCount: 2 });
+    const fringe = swaps.removals.find((r) => r.name === FRINGE);
+    expect(fringe).toBeDefined();
+    expect(fringe?.reasonCategory).toBe('low-synergy');
+  });
+
+  it('no lift signal leaves the cut list identical to before the feature', () => {
+    const withUndefined = runOptimizeSwaps(true).removals.map((r) => `${r.name}:${r.reason}`);
+    const baseline = runOptimizeSwaps(true, undefined, undefined).removals.map(
+      (r) => `${r.name}:${r.reason}`
+    );
+    expect(withUndefined).toEqual(baseline);
   });
 });
