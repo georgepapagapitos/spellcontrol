@@ -272,4 +272,57 @@ describe('BuildReportPanel', () => {
       expect(container.querySelector('.build-report-lift-note')).toBeNull();
     });
   });
+
+  describe('one-tap add', () => {
+    const pickReport = makeReport({
+      synergyFills: [{ name: 'Fill A', matchedTags: ['ramp'] }],
+      packagePicks: [
+        { name: 'Bomb Card', kind: 'bomb', liftedBy: ['Sol Ring'], lowSample: false, owned: true },
+      ],
+    });
+
+    it('renders no Add buttons when onAddCard is omitted (read-only sheet usage)', () => {
+      render(<BuildReportPanel report={pickReport} />);
+      expect(screen.queryByRole('button', { name: /^Add /i })).toBeNull();
+    });
+
+    it('fires onAddCard with the row name and flips to "Added" on click', () => {
+      const onAddCard = vi.fn();
+      render(<BuildReportPanel report={pickReport} onAddCard={onAddCard} />);
+
+      const addBtn = screen.getByRole('button', { name: 'Add Fill A' });
+      fireEvent.click(addBtn);
+
+      expect(onAddCard).toHaveBeenCalledWith('Fill A');
+      const addedBtn = screen.getByRole('button', { name: 'Added Fill A' });
+      expect(addedBtn).toBeTruthy();
+      expect(addedBtn.hasAttribute('disabled')).toBe(true);
+    });
+
+    it('shows "In deck" (disabled) for a row already in the deck, without needing a click', () => {
+      render(
+        <BuildReportPanel
+          report={pickReport}
+          onAddCard={vi.fn()}
+          deckCardNames={new Set(['bomb card'])}
+        />
+      );
+      const inDeckBtn = screen.getByRole('button', { name: 'Bomb Card is already in the deck' });
+      expect(inDeckBtn.hasAttribute('disabled')).toBe(true);
+      // The other row is untouched — still a live "+ Add".
+      expect(screen.getByRole('button', { name: 'Add Fill A' })).toBeTruthy();
+    });
+
+    it('shows the in-flight spinner state and disables the button while adding', () => {
+      render(
+        <BuildReportPanel
+          report={pickReport}
+          onAddCard={vi.fn()}
+          addingCardNames={new Set(['Fill A'])}
+        />
+      );
+      const addingBtn = screen.getByRole('button', { name: 'Adding Fill A' });
+      expect(addingBtn.hasAttribute('disabled')).toBe(true);
+    });
+  });
 });

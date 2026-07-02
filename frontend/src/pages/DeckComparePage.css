@@ -9,6 +9,13 @@
   color: var(--text-primary);
   margin-bottom: var(--space-4);
 }
+/* Deck names in the heading link out to their editors — inherit the
+   heading's size/family instead of .btn-link's default small serif. */
+.deck-compare-heading .btn-link {
+  padding-inline: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
 
 /* ── Loading skeleton ─────────────────────────────────────────────────── */
 .deck-compare-skeleton {

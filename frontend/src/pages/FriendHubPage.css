@@ -42,6 +42,32 @@
   margin-bottom: var(--space-5);
 }
 
+.friend-hub-h2h-card {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.friend-hub-h2h-skeleton {
+  height: 4.5rem;
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--surface) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-hub-h2h-skeleton {
+    animation: none;
+  }
+}
+
 .friend-hub-section-head {
   font-size: var(--text-xs);
   font-weight: 600;
