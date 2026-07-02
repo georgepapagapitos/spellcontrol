@@ -1,6 +1,6 @@
 import './DeckComparePage.css';
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useDecksStore, type Deck } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
@@ -225,11 +225,23 @@ export function DeckComparePage() {
     [deckB]
   );
 
-  const heading = deckA && deckB ? `${deckA.name} vs ${deckB.name}` : 'Compare decks';
-
   return (
     <div className="deck-compare-page" aria-busy={!hydrated}>
-      <h1 className="deck-compare-heading">{heading}</h1>
+      <h1 className="deck-compare-heading">
+        {deckA && deckB ? (
+          <>
+            <Link to={`/decks/${deckA.id}`} className="btn-link">
+              {deckA.name}
+            </Link>{' '}
+            vs{' '}
+            <Link to={`/decks/${deckB.id}`} className="btn-link">
+              {deckB.name}
+            </Link>
+          </>
+        ) : (
+          'Compare decks'
+        )}
+      </h1>
 
       {!hydrated ? (
         <div className="deck-compare-skeleton" aria-hidden="true">
