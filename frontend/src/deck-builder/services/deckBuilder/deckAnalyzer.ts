@@ -1176,6 +1176,44 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
 
 // ─── Optimize Swaps ─────────────────────────────────────────────────
 
+// ── Basic-land oversupply helpers (E71 Phase 5) ──
+
+const BASIC_LAND_COLOR: Record<string, string> = {
+  Plains: 'W',
+  Island: 'U',
+  Swamp: 'B',
+  Mountain: 'R',
+  Forest: 'G',
+  Wastes: 'C',
+  'Snow-Covered Plains': 'W',
+  'Snow-Covered Island': 'U',
+  'Snow-Covered Swamp': 'B',
+  'Snow-Covered Mountain': 'R',
+  'Snow-Covered Forest': 'G',
+  'Snow-Covered Wastes': 'C',
+};
+
+// "Search your library for a basic land" in oracle text (front face too) —
+// Cultivate, Kodama's Reach, Rampant Growth, Evolving Wilds, etc.
+const BASIC_FETCH_RE =
+  /search(?:es)?\s+(?:your|their)\s+library\s+for\s+(?:up\s+to\s+\w+\s+)?(?:a\s+)?basic\s+(?:land|forest|island|swamp|mountain|plains)/i;
+
+/** Count cards whose oracle text tutors a basic land. */
+export function countBasicFetchers(cards: ScryfallCard[]): number {
+  let n = 0;
+  for (const c of cards) {
+    const oracle = c.oracle_text || c.card_faces?.[0]?.oracle_text || '';
+    if (BASIC_FETCH_RE.test(oracle)) n++;
+  }
+  return n;
+}
+
+/** Minimum basics to keep so basic-fetchers have live targets — each fetch
+ *  effect can grab up to two basics (Cultivate-style). */
+export function computeBasicFloor(basicFetcherCount: number): number {
+  return Math.max(2, basicFetcherCount * 2);
+}
+
 export interface OptimizeCard {
   name: string;
   reason: string; // "Excess Ramp", "Low synergy", "Fills Removal gap", etc.
@@ -1459,8 +1497,83 @@ export function computeOptimizeSwaps(
   const pickedLandNames = new Set(
     removalCandidates.filter((c) => c.reasonCategory === 'tapland').map((c) => c.name)
   );
-  excessLandCandidates.sort((a, b) => a.sortScore - b.sortScore);
   let landPicked = pickedLandNames.size;
+
+  // ── Oversupplied basics (E71 Phase 5) ──
+  // With excess lands, cut surplus basics of overserved colors (per pip-demand
+  // share) BEFORE nonbasic utility lands — a redundant 12th Island is a better
+  // cut than a utility land. Never below the basic-fetcher floor, so
+  // Cultivate-style decks keep live targets. Greedy most-oversupplied-first,
+  // recomputed per cut (mirrors the reference generator's landCutSelection).
+  if (hasExcessLands && !protectLands) {
+    const basicGroups = new Map<string, { color: string; count: number; sample: ScryfallCard }>();
+    for (const card of currentCards) {
+      if (!isBasicLandName(card.name)) continue;
+      if (mustIncludeNames.has(card.name)) continue;
+      const g = basicGroups.get(card.name);
+      if (g) g.count++;
+      else
+        basicGroups.set(card.name, {
+          color: BASIC_LAND_COLOR[card.name] ?? 'C',
+          count: 1,
+          sample: card,
+        });
+    }
+    const counts = new Map([...basicGroups].map(([name, g]) => [name, g.count]));
+    let totalBasics = [...counts.values()].reduce((s, n) => s + n, 0);
+    const nonLandCurrent = currentCards.filter(
+      (c) => !getFrontFaceTypeLine(c).toLowerCase().includes('land')
+    );
+    const basicFloor = computeBasicFloor(countBasicFetchers(nonLandCurrent));
+    const { pipDemand, pipDemandTotal } = analysis.colorFixing;
+
+    const cutsByName = new Map<string, number>();
+    while (landPicked < landExcess && totalBasics > basicFloor) {
+      // Most-oversupplied color first: current basics of the color minus the
+      // pip-demand-proportional expectation. Only genuinely overserved colors
+      // (> +0.5 basics) are cut — parity/undersupplied colors are left alone
+      // and the remaining excess falls through to the nonbasic pass below.
+      let best: { name: string; over: number; count: number } | null = null;
+      for (const [name, g] of basicGroups) {
+        const cur = counts.get(name) ?? 0;
+        if (cur === 0) continue;
+        const colorTotal = [...basicGroups]
+          .filter(([, other]) => other.color === g.color)
+          .reduce((s, [n]) => s + (counts.get(n) ?? 0), 0);
+        const expected =
+          pipDemandTotal > 0 ? ((pipDemand[g.color] || 0) / pipDemandTotal) * totalBasics : 0;
+        const over = colorTotal - expected;
+        if (over <= 0.5) continue;
+        if (!best || over > best.over || (over === best.over && cur > best.count)) {
+          best = { name, over, count: cur };
+        }
+      }
+      if (!best) break;
+      counts.set(best.name, best.count - 1);
+      totalBasics--;
+      landPicked++;
+      cutsByName.set(best.name, (cutsByName.get(best.name) ?? 0) + 1);
+    }
+
+    for (const [name, cutCount] of cutsByName) {
+      const g = basicGroups.get(name)!;
+      removalCandidates.push({
+        name,
+        reason:
+          cutCount > 1
+            ? `Oversupplied basic — cut ${cutCount} (${g.color} has more basics than its share of mana pips)`
+            : `Oversupplied basic (${g.color} has more basics than its share of mana pips)`,
+        reasonCategory: 'oversupplied-basic',
+        inclusion: null,
+        cmc: 0,
+        primaryType: 'Land',
+        imageUrl: getCardImageUrl(g.sample, 'small'),
+        sortScore: 5, // ahead of nonbasic land cuts (inclusion ?? 50) in the final ordering
+      });
+    }
+  }
+
+  excessLandCandidates.sort((a, b) => a.sortScore - b.sortScore);
   for (const lc of excessLandCandidates) {
     if (landPicked >= landExcess) break;
     if (pickedLandNames.has(lc.name)) continue;
