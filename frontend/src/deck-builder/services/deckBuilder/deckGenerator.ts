@@ -73,6 +73,7 @@ import {
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
+import { computePackageBoosts, tallyAxisInvestment } from './packageBoost';
 import { buildManabaseSummary } from './manabaseMath';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { loadCardSimilar } from './cardSimilar';
@@ -1523,6 +1524,30 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const strictCurve = !!customization.advancedTargets?.curvePercentages;
     const strictRoles = !!customization.advancedTargets?.roleTargets;
 
+    // Package-completion boost (bounded re-rank, cap +30): favors candidates
+    // that complete a live engine's scarcer side — the positive counterpart to
+    // the synergy-dependency gate. Investment is re-tallied per type pass so a
+    // sac outlet picked in creatures raises the pull toward payoffs in spells.
+    const withPackageBoosts = (
+      boosts: Map<string, number>,
+      pool: EDHRECCard[]
+    ): Map<string, number> => {
+      const picked = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
+        .filter(([cat]) => cat !== 'lands')
+        .flatMap(([, cards]) => cards);
+      const investment = tallyAxisInvestment(
+        picked,
+        [commander, partnerCommander].filter((c): c is ScryfallCard => !!c)
+      );
+      const pkg = computePackageBoosts(
+        pool.map((c) => c.name),
+        cardMap,
+        investment
+      );
+      for (const [name, b] of pkg) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      return boosts;
+    };
+
     // Now process each type synchronously using the pre-fetched cards
     // 1. Creatures
     logger.debug(
@@ -1558,7 +1583,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       maxCmc,
       budgetTracker,
       context.collectionNames,
-      creatureBoosts,
+      withPackageBoosts(creatureBoosts, creaturePool),
       currency,
       state.gameChangerNames,
       arenaOnly,
@@ -1649,7 +1674,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       maxCmc,
       budgetTracker,
       context.collectionNames,
-      instantBoosts,
+      withPackageBoosts(instantBoosts, instantPool),
       currency,
       state.gameChangerNames,
       arenaOnly,
@@ -1709,7 +1734,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       maxCmc,
       budgetTracker,
       context.collectionNames,
-      sorceryBoosts,
+      withPackageBoosts(sorceryBoosts, sorceryPool),
       currency,
       state.gameChangerNames,
       arenaOnly,
@@ -1769,7 +1794,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       maxCmc,
       budgetTracker,
       context.collectionNames,
-      artifactBoosts,
+      withPackageBoosts(artifactBoosts, artifactPool),
       currency,
       state.gameChangerNames,
       arenaOnly,
@@ -1829,7 +1854,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       maxCmc,
       budgetTracker,
       context.collectionNames,
-      enchantmentBoosts,
+      withPackageBoosts(enchantmentBoosts, enchantmentPool),
       currency,
       state.gameChangerNames,
       arenaOnly,
@@ -1890,7 +1915,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         maxCmc,
         budgetTracker,
         context.collectionNames,
-        planeswalkerBoosts,
+        withPackageBoosts(planeswalkerBoosts, planeswalkerPool),
         currency,
         state.gameChangerNames,
         arenaOnly,
