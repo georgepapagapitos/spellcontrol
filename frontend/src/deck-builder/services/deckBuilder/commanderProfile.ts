@@ -679,10 +679,11 @@ export function buildCommanderProfile(
   // Suggested themes: strategy-ranked, deduped, breadth-first across abilities.
   // Round-robin (each ability's Nth theme in rank order) instead of draining one
   // ability's whole list first — otherwise a single ability that emits several
-  // themes (e.g. an ETB → blink/flicker/etb) monopolizes the downstream top-3
-  // preselect and starves every other detected ability's primary theme. This
-  // way the preselect spans the top abilities, so a commander's signature theme
-  // isn't dropped just because it sits on a lower-ranked ability.
+  // themes (e.g. an ETB → blink/flicker/etb) dominates the ordering and buries
+  // every other detected ability's primary theme. Consumers (deck-identity
+  // fallback themes, the playstyle index, the profile summary) all read this
+  // list, so leading with one theme per ability keeps it representative of the
+  // commander's distinct strategies rather than one mechanic's near-synonyms.
   const suggestedThemes: string[] = [];
   const maxThemes = rankedAbilities.reduce((m, a) => Math.max(m, a.themes.length), 0);
   for (let i = 0; i < maxThemes; i++) {

@@ -31,8 +31,8 @@ interface Options {
  * Shared orchestration for the two commander deck-generation surfaces
  * (the single-page "New deck" form and the step-by-step "Build together"
  * wizard). Both surfaces drive the same engine with identical EDHREC
- * pre-fetch, theme preselection, collection-mode handling, and progress
- * lifecycle — keeping that here is the only way the two stay in lockstep.
+ * pre-fetch, collection-mode handling, and progress lifecycle — keeping that
+ * here is the only way the two stay in lockstep.
  * The pages own their own layout/chrome; this owns the generation logic.
  */
 export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigate }: Options = {}) {
@@ -93,9 +93,12 @@ export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigat
     [setCommander]
   );
 
-  // Pre-fetch EDHREC land suggestion when a commander is picked so the
-  // customizer can show the "✓ suggested" badge before generation, and
-  // preselect the themes the commander's abilities point at.
+  // Pre-fetch the EDHREC land suggestion when a commander is picked, so the
+  // customizer can show the "✓ suggested" land counts before generation.
+  // Themes are intentionally NOT auto-selected: an oracle-derived guess was
+  // often wrong (it steered off the commander's actual popular archetypes), so
+  // a wrong default was worse than none. The picker (sorted by deck count) +
+  // the no-theme hint cover the empty state instead.
   useEffect(() => {
     if (!commander) return;
     let cancelled = false;
@@ -109,21 +112,6 @@ export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigat
         // Auto-apply suggestion if the user hasn't manually changed lands yet.
         if (!useDeckBuilderStore.getState().userEditedLands) {
           updateCustomization({ landCount: total, nonBasicLandCount: nonbasic });
-        }
-        // Preselect the commander's suggested themes, but never clobber a
-        // selection the user (or a prefill) already made.
-        const profile = buildCommanderProfile(commander);
-        if (profile.suggestedThemes.length > 0 && data.themes.length > 0) {
-          const byName = new Map(data.themes.map((t) => [t.name.toLowerCase().trim(), t]));
-          const picks: EDHRECTheme[] = [];
-          for (const name of profile.suggestedThemes) {
-            const match = byName.get(name);
-            if (match && !picks.some((p) => p.slug === match.slug)) picks.push(match);
-            if (picks.length >= 3) break;
-          }
-          if (picks.length > 0) {
-            setSelectedThemes((prev) => (prev.length > 0 ? prev : picks));
-          }
         }
       })
       .catch(() => {});
