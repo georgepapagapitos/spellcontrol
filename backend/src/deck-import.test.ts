@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sliceResolvedDeckImport } from './deck-import';
+import { expandByQuantity, MAX_QTY_PER_ROW } from './import-limits';
 import type { ImportRow } from './parsers/types';
 import type { ScryfallCard } from './types';
 
@@ -105,6 +106,19 @@ describe('sliceResolvedDeckImport', () => {
     expect(out.commander).toBeNull();
     expect(out.cards).toHaveLength(2);
     expect(out.unresolvedNames).toEqual(['Atraxa', 'Missing Card', 'Missing Card', 'Missing Card']);
+  });
+
+  it('clamps an oversized-quantity row to MAX_QTY_PER_ROW instead of throwing (F8)', () => {
+    // resolved[] is produced from expandByQuantity (the real route path), which
+    // clamps qty to MAX_QTY_PER_ROW. The slice math must clamp the same way, or
+    // a >2000 quantity mismatches expected length and throws a generic 500.
+    const deckRows: ImportRow[] = [row({ name: 'Sol Ring', quantity: 9999, scryfallId: 'sf-sol' })];
+    const resolved = expandByQuantity(deckRows).map(() => card('sf-sol', 'Sol Ring', 'CMR'));
+
+    const out = sliceResolvedDeckImport([], [], deckRows, resolved);
+
+    expect(out.cards).toHaveLength(MAX_QTY_PER_ROW);
+    expect(out.unresolvedNames).toHaveLength(0);
   });
 
   it('throws if the resolved array length does not match total quantity', () => {

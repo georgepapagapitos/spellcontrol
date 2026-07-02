@@ -2,7 +2,7 @@ import type { ImportRow } from './parsers/types';
 import type { ScryfallCard } from './types';
 import type { ScryfallCache } from './cache';
 import { resolveCards } from './scryfall';
-import { expandByQuantity } from './import-limits';
+import { expandByQuantity, MAX_QTY_PER_ROW } from './import-limits';
 
 export interface DeckSections {
   commander: ScryfallCard | null;
@@ -49,8 +49,11 @@ export async function resolveDeckRows(
   return sliceResolvedDeckImport(commanderRows, companionRows, deckRows, resolved);
 }
 
+// MUST mirror expandByQuantity's clamp: the slice boundaries below are derived
+// from these counts and would mis-align (throwing a generic 500) against the
+// clamped resolved[] array when a row's quantity exceeds MAX_QTY_PER_ROW.
 function rowQty(row: ImportRow): number {
-  return Math.max(1, row.quantity || 1);
+  return Math.min(MAX_QTY_PER_ROW, Math.max(1, row.quantity || 1));
 }
 
 function totalQty(rows: ImportRow[]): number {
