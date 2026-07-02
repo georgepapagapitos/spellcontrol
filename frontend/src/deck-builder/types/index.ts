@@ -358,6 +358,20 @@ export interface ManabaseSummary {
   note?: string;
 }
 
+/**
+ * One generation-end coherence-audit finding (see coherenceAudit.ts): a card
+ * the final deck may not support — a payoff whose engine never materialized
+ * ('dead-payoff'), a card with no remaining tie to the deck at all
+ * ('unjustified-slot') — or a deck-level lopsided-engine note.
+ */
+export interface CoherenceFinding {
+  kind: 'dead-payoff' | 'unjustified-slot' | 'lopsided-engine';
+  severity: 'warn' | 'info';
+  /** Card the finding is about; absent for deck-level findings. */
+  card?: string;
+  message: string;
+}
+
 /** Describes which data source was ultimately used for deck generation */
 export type DeckDataSource =
   | 'theme+bracket' // Ideal: theme-specific data with bracket/power level
@@ -430,6 +444,9 @@ export interface BuildReport {
   /** Sources built vs castability-weighted targets per color (the manabase
    *  self-explanation). Undefined on decks generated before this shipped. */
   manabase?: ManabaseSummary;
+  /** Generation-end coherence-audit findings (dead payoffs, unjustified slots,
+   *  lopsided engines). Undefined when the audit found nothing. */
+  coherenceFindings?: CoherenceFinding[];
 }
 
 export interface GeneratedDeck {
@@ -453,6 +470,9 @@ export interface GeneratedDeck {
   /** Sources built vs castability-weighted targets per color, computed over the
    *  final deck (the manabase self-explanation). */
   manabase?: ManabaseSummary;
+  /** Generation-end coherence-audit findings over the final deck (see
+   *  coherenceAudit.ts). Undefined when the audit found nothing. */
+  coherenceFindings?: CoherenceFinding[];
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool

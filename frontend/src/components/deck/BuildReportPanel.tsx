@@ -171,6 +171,7 @@ export function BuildReportPanel({
     packagePicks,
     liftPicksNote,
     manabase,
+    coherenceFindings,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -285,6 +286,41 @@ export function BuildReportPanel({
             ))}
           </ul>
           {liftPicksNote && <p className="build-report-lift-note">{liftPicksNote}</p>}
+        </details>
+      )}
+
+      {coherenceFindings && coherenceFindings.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{coherenceFindings.length}</strong> coherence flag
+            {coherenceFindings.length === 1 ? '' : 's'} — cards this exact build may not support
+          </summary>
+          <ul className="build-report-subs-list">
+            {coherenceFindings.map((f, i) => (
+              <li key={f.card ?? `deck-note-${i}`} className="build-report-sub">
+                {f.card && (
+                  <div className="build-report-sub-head">
+                    <span className="build-report-sub-map">
+                      <strong>{f.card}</strong>
+                    </span>
+                  </div>
+                )}
+                <span className="build-report-sub-reason">{f.message}</span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge
+                    tone={f.severity === 'warn' ? 'warn' : 'info'}
+                    label={
+                      f.kind === 'dead-payoff'
+                        ? 'Dead payoff'
+                        : f.kind === 'unjustified-slot'
+                          ? 'No deck link'
+                          : 'Engine note'
+                    }
+                  />
+                </span>
+              </li>
+            ))}
+          </ul>
         </details>
       )}
 

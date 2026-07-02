@@ -75,6 +75,7 @@ import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import { computePackageBoosts, tallyAxisInvestment } from './packageBoost';
 import { buildManabaseSummary } from './manabaseMath';
+import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { loadCardSimilar } from './cardSimilar';
 import { resolveMultiCopyCards } from './multiCopy';
@@ -3603,6 +3604,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // sources built vs castability-weighted targets per color.
   const manabase = buildManabaseSummary(categories.lands, nonLandCards, new Set(colorIdentity));
 
+  // Coherence audit over the FINAL deck (detection only): the pick-time
+  // dependency gate can't see support that a later swap pass trimmed away, and
+  // some fill paths never route through it — so re-check every shipped card
+  // once nothing can mutate the deck anymore.
+  const coherenceFindings = auditDeckCoherence({
+    nonLandCards,
+    commanders: [commander, partnerCommander].filter((c): c is ScryfallCard => c != null),
+    cardInclusionMap,
+    liftedByMap,
+    detectedCombos,
+    roleOf: getCardRole,
+  });
+
   return {
     commander,
     partnerCommander,
@@ -3613,6 +3627,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
     manabase,
+    coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:
