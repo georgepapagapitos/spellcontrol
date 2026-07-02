@@ -130,6 +130,13 @@ describe('buildOptimizeFactors', () => {
     );
   });
 
+  it('frames a color-rebalance as a paired swap on both sides', () => {
+    const cut = buildOptimizeFactors('cut', { reasonCategory: 'color-rebalance' });
+    const add = buildOptimizeFactors('add', { reasonCategory: 'color-rebalance' });
+    expect(cut[0].text).toMatch(/swap, not a loss/i);
+    expect(add[0].text).toMatch(/net-zero land count/);
+  });
+
   it('handles unknown categories and null inclusion without fabricating lines', () => {
     expect(buildOptimizeFactors('cut', { reasonCategory: 'mystery', inclusion: null })).toEqual([]);
   });

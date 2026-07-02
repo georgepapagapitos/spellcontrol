@@ -311,3 +311,107 @@ describe('computeOptimizeSwaps — oversupplied-basic cuts (E71 Phase 5)', () =>
     expect(swaps.removals.some((r) => r.reasonCategory === 'oversupplied-basic')).toBe(false);
   });
 });
+
+describe('computeOptimizeSwaps — net-zero color rebalance', () => {
+  const uSpell = (name: string): ScryfallCard =>
+    ({
+      name,
+      cmc: 2,
+      type_line: 'Creature',
+      mana_cost: '{U}{U}',
+      prices: {},
+      color_identity: ['U'],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+  const wSpell = (name: string): ScryfallCard =>
+    ({
+      name,
+      cmc: 2,
+      type_line: 'Creature',
+      mana_cost: '{1}{W}',
+      prices: {},
+      color_identity: ['W'],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+  const basic = (name: string, color: string): ScryfallCard =>
+    ({
+      name,
+      cmc: 0,
+      type_line: `Basic Land — ${name}`,
+      prices: {},
+      color_identity: [color],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+
+  function runLandOptimize(cards: ScryfallCard[]) {
+    const names = cards.map((c) => c.name);
+    const data = edhrec();
+    const inclusionMap = buildCardInclusionMap(data, names);
+    const roleTargets = { ramp: 10, removal: 10, boardwipe: 3, cardDraw: 10 };
+    const roleCounts = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const analysis = analyzeDeck(data, cards, roleCounts, roleTargets, 99, inclusionMap);
+    return computeOptimizeSwaps(
+      analysis,
+      cards,
+      inclusionMap,
+      'Some Commander',
+      undefined,
+      new Set<string>(),
+      new Set<string>()
+    );
+  }
+
+  it('proposes one basic-for-basic swap when a color is short and another hoards basics', () => {
+    // Pips lean hard blue, but the manabase is Plains-heavy at a NORMAL land
+    // count (no excess-land pass): expect cut Plains + add Island, both tagged
+    // color-rebalance, phrased as a swap pair.
+    const cards = [
+      ...Array.from({ length: 55 }, (_, i) => uSpell(`U Spell ${i}`)),
+      ...Array.from({ length: 6 }, (_, i) => wSpell(`W Spell ${i}`)),
+      ...Array.from({ length: 32 }, () => basic('Plains', 'W')),
+      ...Array.from({ length: 5 }, () => basic('Island', 'U')),
+    ];
+    const swaps = runLandOptimize(cards);
+    const cut = swaps.removals.find((r) => r.reasonCategory === 'color-rebalance');
+    const add = swaps.additions.find((a) => a.reasonCategory === 'color-rebalance');
+    expect(cut?.name).toBe('Plains');
+    expect(cut?.reason).toContain('Swap for an Island'); // phrased as a pair, not a bare cut
+    expect(add?.name).toBe('Island');
+    expect(add?.reason).toContain('short on sources');
+  });
+
+  it('stays silent when colors are balanced, and defers to the excess-land pass', () => {
+    // Balanced WU deck at a normal land count → no rebalance rows. Single
+    // pips at mv4 so neither color trips the pacing-aware shortfall bar.
+    const mid = (name: string, sym: string): ScryfallCard =>
+      ({
+        name,
+        cmc: 4,
+        type_line: 'Creature',
+        mana_cost: `{3}{${sym}}`,
+        prices: {},
+        color_identity: [sym],
+        keywords: [],
+      }) as unknown as ScryfallCard;
+    const balanced = [
+      ...Array.from({ length: 30 }, (_, i) => mid(`U Spell ${i}`, 'U')),
+      ...Array.from({ length: 31 }, (_, i) => mid(`W Spell ${i}`, 'W')),
+      ...Array.from({ length: 19 }, () => basic('Plains', 'W')),
+      ...Array.from({ length: 18 }, () => basic('Island', 'U')),
+    ];
+    expect(
+      runLandOptimize(balanced).removals.some((r) => r.reasonCategory === 'color-rebalance')
+    ).toBe(false);
+
+    // Way over the land target → the oversupplied-basic pass owns it; the
+    // rebalance pass must not double-propose cuts of the same basics.
+    const excess = [
+      ...Array.from({ length: 45 }, (_, i) => uSpell(`U Spell ${i}`)),
+      ...Array.from({ length: 49 }, () => basic('Plains', 'W')),
+      ...Array.from({ length: 5 }, () => basic('Island', 'U')),
+    ];
+    expect(
+      runLandOptimize(excess).removals.some((r) => r.reasonCategory === 'color-rebalance')
+    ).toBe(false);
+  });
+});

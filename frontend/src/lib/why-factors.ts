@@ -229,6 +229,11 @@ function optimizeCutLine(s: OptimizeSignals): WhyFactor | null {
     return { text: 'The deck is over its land target — a land is the safest trim', tone: 'pro' };
   if (cat === 'oversupplied-basic')
     return { text: 'More basics of this color than your costs actually need', tone: 'pro' };
+  if (cat === 'color-rebalance')
+    return {
+      text: 'A swap, not a loss — this color holds more basics than its costs use',
+      tone: 'pro',
+    };
   if (cat.startsWith('excess:'))
     return {
       text: `You're oversupplied on ${s.roleLabel ?? 'this role'} — this is the weakest copy`,
@@ -264,6 +269,11 @@ function optimizeAddLine(s: OptimizeSignals): WhyFactor | null {
     };
   if (cat === 'color-fix')
     return { text: 'Fixes the color your current sources shortchange', tone: 'pro' };
+  if (cat === 'color-rebalance')
+    return {
+      text: 'Closes a color shortfall the deck itself flags — net-zero land count',
+      tone: 'pro',
+    };
   if (cat === 'flex-land')
     return { text: "A land that's also a spell — flex slots cut flood at no cost", tone: 'pro' };
   if (cat.startsWith('curve:')) return { text: 'Fills a quiet phase of your curve', tone: 'pro' };

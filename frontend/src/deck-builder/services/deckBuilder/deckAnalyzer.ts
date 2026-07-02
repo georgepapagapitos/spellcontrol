@@ -23,6 +23,7 @@ import {
   CHANNEL_LANDS,
 } from '@/deck-builder/services/scryfall/client';
 import { calculateCurvePercentages } from './curveUtils';
+import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
 import { detectPacing, type Pacing } from './pacingDetector';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
 import { frontFaceName } from '@/lib/card-text';
@@ -1193,6 +1194,22 @@ const BASIC_LAND_COLOR: Record<string, string> = {
   'Snow-Covered Wastes': 'C',
 };
 
+/** color → its basic land + plain-English name (color-rebalance swaps). */
+const COLOR_BASIC_NAME: Record<string, string> = {
+  W: 'Plains',
+  U: 'Island',
+  B: 'Swamp',
+  R: 'Mountain',
+  G: 'Forest',
+};
+const COLOR_WORD: Record<string, string> = {
+  W: 'White',
+  U: 'Blue',
+  B: 'Black',
+  R: 'Red',
+  G: 'Green',
+};
+
 // "Search your library for a basic land" in oracle text (front face too) —
 // Cultivate, Kodama's Reach, Rampant Growth, Evolving Wilds, etc.
 const BASIC_FETCH_RE =
@@ -1581,6 +1598,81 @@ export function computeOptimizeSwaps(
     landPicked++;
   }
 
+  // ── Color rebalance (net-zero): right land count, wrong basic colors ──
+  // The excess-land pass above only fires when the deck is OVER its land
+  // target. The complementary failure — correct land count, but a color the
+  // deck actually casts is short on sources while another color hoards
+  // basics — gets one legible basic-for-basic swap per run: cut the most
+  // overserved basic, add the most starved color's basic. Shortfall uses the
+  // same pacing-aware thresholds as the color-balance panel, so Coach and
+  // panel never disagree. One move per run: apply → re-analyze → next.
+  const rebalanceAdditions: OptimizeCard[] = [];
+  if (!hasExcessLands && !protectLands) {
+    const { pipDemand, pipDemandTotal, sourcesPerColor } = analysis.colorFixing;
+    const curve: Record<number, number> = {};
+    for (const card of currentCards) {
+      if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) continue;
+      const mv = Math.round(card.cmc ?? 0);
+      curve[mv] = (curve[mv] ?? 0) + 1;
+    }
+    const thresholds = shortfallThresholdsForCurve(curve);
+
+    let worstShort: { color: string; gap: number } | null = null;
+    for (const [color, demand] of Object.entries(pipDemand)) {
+      const supply = sourcesPerColor[color] ?? 0;
+      if (!isColorShort(demand, supply, thresholds)) continue;
+      const gap = demand * thresholds.ratio - supply;
+      if (!worstShort || gap > worstShort.gap) worstShort = { color, gap };
+    }
+
+    if (worstShort && pipDemandTotal > 0) {
+      const basicsByColor = new Map<string, { count: number; sample: ScryfallCard }>();
+      let totalBasics = 0;
+      for (const card of currentCards) {
+        if (!isBasicLandName(card.name) || mustIncludeNames.has(card.name)) continue;
+        const color = BASIC_LAND_COLOR[card.name] ?? 'C';
+        const g = basicsByColor.get(color);
+        if (g) g.count++;
+        else basicsByColor.set(color, { count: 1, sample: card });
+        totalBasics++;
+      }
+      let worstOver: { color: string; over: number; sample: ScryfallCard } | null = null;
+      for (const [color, g] of basicsByColor) {
+        if (color === worstShort.color) continue;
+        const expected = ((pipDemand[color] || 0) / pipDemandTotal) * totalBasics;
+        const over = g.count - expected;
+        // Require a full basic of slack — a net-zero swap should never create
+        // a new shortfall in the color it takes from.
+        if (over >= 1 && (!worstOver || over > worstOver.over)) {
+          worstOver = { color, over, sample: g.sample };
+        }
+      }
+      const shortBasic = COLOR_BASIC_NAME[worstShort.color];
+      if (worstOver && shortBasic) {
+        const overBasic = worstOver.sample.name;
+        const art = /^[AEIOU]/.test(shortBasic) ? 'an' : 'a';
+        removalCandidates.push({
+          name: overBasic,
+          reason: `Swap for ${art} ${shortBasic} — ${COLOR_WORD[worstOver.color] ?? worstOver.color} has more basics than its pips need`,
+          reasonCategory: 'color-rebalance',
+          inclusion: null,
+          cmc: 0,
+          primaryType: 'Land',
+          imageUrl: getCardImageUrl(worstOver.sample, 'small'),
+          sortScore: 6, // just behind oversupplied-basic (5) in the cut ordering
+        });
+        rebalanceAdditions.push({
+          name: shortBasic,
+          reason: `${COLOR_WORD[worstShort.color] ?? worstShort.color} is short on sources — swap in for a ${overBasic}`,
+          reasonCategory: 'color-rebalance',
+          inclusion: null,
+          cmc: 0,
+          primaryType: 'Land',
+        });
+      }
+    }
+  }
+
   // General candidates
   generalCandidates.sort((a, b) => a.sortScore - b.sortScore);
   removalCandidates.push(...generalCandidates);
@@ -1644,6 +1736,8 @@ export function computeOptimizeSwaps(
 
   // ── Build addition candidates from recommendations (multi-pass, grade-aware) ──
   const additionCandidates: OptimizeCard[] = [];
+  // Color-rebalance adds pair with their cuts above — surface them first.
+  additionCandidates.push(...rebalanceAdditions);
 
   // Deficit roles first, sorted by severity
   const deficitRoles = analysis.roleDeficits
