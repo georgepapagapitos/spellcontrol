@@ -4,6 +4,8 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
+import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
+import { H2HSummary } from '../components/play/H2HSummary';
 import type { ShareKind } from '../lib/shared-types';
 
 /** Display order + presentation for each shareable kind. */
@@ -33,6 +35,8 @@ export function FriendHubPage() {
   const [ownerUsername, setOwnerUsername] = useState<string | null>(null);
   const [shares, setShares] = useState<FriendShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [h2h, setH2h] = useState<H2HResponse | null>(null);
+  const [h2hLoading, setH2hLoading] = useState(true);
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;
@@ -48,6 +52,24 @@ export function FriendHubPage() {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load shared content.');
         setShares([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [friendId, status]);
+
+  useEffect(() => {
+    if (status !== 'authed' || !friendId) return;
+    let cancelled = false;
+    fetchH2H(friendId)
+      .then((data) => {
+        if (!cancelled) setH2h(data);
+      })
+      .catch(() => {
+        // Silently degrade — the hub page works fine without the strip.
+      })
+      .finally(() => {
+        if (!cancelled) setH2hLoading(false);
       });
     return () => {
       cancelled = true;
@@ -80,6 +102,24 @@ export function FriendHubPage() {
       <BackLink />
       <h1 className="friend-hub-heading">{heading}</h1>
       <p className="friend-hub-sub">Shared with friends</p>
+
+      {h2hLoading ? (
+        <div
+          className="friend-hub-h2h-skeleton"
+          aria-label="Loading head-to-head record"
+          aria-busy="true"
+        />
+      ) : (
+        h2h &&
+        h2h.summary.gamesPlayed > 0 && (
+          <section className="friend-hub-section" aria-label="Head-to-head record">
+            <h2 className="friend-hub-section-head">Head-to-head</h2>
+            <div className="friend-hub-h2h-card">
+              <H2HSummary data={h2h} />
+            </div>
+          </section>
+        )
+      )}
 
       {error && (
         <p className="friends-error" role="alert">
