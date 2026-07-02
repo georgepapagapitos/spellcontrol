@@ -138,6 +138,19 @@ describe('producedManaColors', () => {
     expect(producedManaColors(forest, WU)).toEqual(['G']);
   });
 
+  it('falls back to first-face type line when produced_mana and top-level type line are missing', () => {
+    const bloodCrypt = card({
+      name: 'Blood Crypt // Blood Crypt',
+      layout: 'reversible_card',
+      type_line: undefined as unknown as string,
+      card_faces: [
+        { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+        { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+      ] as ScryfallCard['card_faces'],
+    });
+    expect(sorted(producedManaColors(bloodCrypt, WU))).toEqual(['B', 'R']);
+  });
+
   it('clamps a contextual card even when produced_mana is missing from cache', () => {
     const tower = card({
       name: 'Command Tower',
@@ -167,6 +180,21 @@ describe('isManaSourceType', () => {
     expect(isManaSourceType(card({ type_line: 'Land' }))).toBe(true);
     expect(isManaSourceType(card({ type_line: 'Artifact' }))).toBe(true);
     expect(isManaSourceType(card({ type_line: 'Creature — Elf Druid' }))).toBe(true);
+  });
+
+  it('uses the first-face type line when top-level type line is missing', () => {
+    expect(
+      isManaSourceType(
+        card({
+          layout: 'reversible_card',
+          type_line: undefined as unknown as string,
+          card_faces: [
+            { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+            { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+          ] as ScryfallCard['card_faces'],
+        })
+      )
+    ).toBe(true);
   });
 
   it('keeps an MDFC/adventure permanent whose back face is a spell', () => {

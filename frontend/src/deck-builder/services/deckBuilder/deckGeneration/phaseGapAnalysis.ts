@@ -3,6 +3,7 @@ import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import {
   getCardsByNames,
   getCardPrice,
+  getFrontFaceTypeLine,
   upgradeCardPrintings,
 } from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
@@ -99,7 +100,7 @@ export async function gapAnalysisPhase(
             price: scryfall ? getCardPrice(scryfall, state.cfg.currency) : null,
             inclusion: c.inclusion,
             synergy: c.synergy ?? 0,
-            typeLine: scryfall?.type_line ?? '',
+            typeLine: scryfall ? getFrontFaceTypeLine(scryfall) : '',
             cmc: scryfall?.cmc,
             imageUrl: scryfall?.image_uris?.small,
             isOwned: state.context.collectionNames!.has(c.name),
