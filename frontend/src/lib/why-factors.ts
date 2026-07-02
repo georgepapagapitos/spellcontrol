@@ -131,6 +131,271 @@ export function buildBudgetSwapFactors(s: BudgetSwapSignals): WhyFactor[] {
   return out;
 }
 
+export interface GapAddSignals {
+  /** Display label of the role the deck is short on, e.g. "Ramp". */
+  roleLabel?: string;
+  /** EDHREC inclusion % (0–100). */
+  inclusion?: number;
+  /** EDHREC synergy delta (can be negative; only positive is surfaced). */
+  synergy?: number;
+  /** Lift co-play seed names (strongest first) this card is connected to. */
+  liftedBy?: string[];
+  owned: boolean;
+}
+
+/**
+ * Why a missing staple belongs in this deck (the Fill-the-gaps lane and the
+ * in-context same-role alternatives). Leads with the gap it closes, then the
+ * package evidence (lift co-play), then how established the card is.
+ */
+export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  if (s.roleLabel) {
+    out.push({ text: `Your deck is light on ${s.roleLabel} — this closes the gap`, tone: 'pro' });
+  }
+  if (s.liftedBy?.length) {
+    out.push({
+      text: `Co-played with ${s.liftedBy.join(', ')} far beyond chance — a package fit`,
+      tone: 'pro',
+    });
+  }
+  if (typeof s.inclusion === 'number') {
+    const word = stapleWord(s.inclusion);
+    out.push(
+      word === 'fringe'
+        ? { text: `A fringe pick (${pct(s.inclusion)}) — more of a pet card`, tone: 'neutral' }
+        : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
+    );
+  }
+  if (typeof s.synergy === 'number' && s.synergy > 0) {
+    out.push({
+      text: `Overperforms with this commander (+${pct(s.synergy)} vs baseline)`,
+      tone: 'pro',
+    });
+  }
+  if (s.owned) out.push({ text: 'Already in your collection — no purchase', tone: 'pro' });
+  return out;
+}
+
+export interface SynergyPickSignals {
+  /** Display label of the engine axis, e.g. "Tokens". */
+  axisLabel: string;
+  /** Which half of the engine the card is. */
+  side: 'producer' | 'payoff';
+  /** EDHREC inclusion % — undefined for genuinely off-meta (oracle-found) picks. */
+  inclusion?: number;
+}
+
+/**
+ * Why an engine-completion pick fits (the Upgrade lane's synergy picks). These
+ * cards are found by reading oracle text against the deck's own axes, not by
+ * play-rate — the factors own that framing instead of hiding it.
+ */
+export function buildSynergyPickFactors(s: SynergyPickSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  out.push(
+    s.side === 'payoff'
+      ? { text: `A payoff for your ${s.axisLabel} engine — the fuel is already here`, tone: 'pro' }
+      : { text: `Feeds your ${s.axisLabel} payoffs — more fuel for what you run`, tone: 'pro' }
+  );
+  out.push(
+    typeof s.inclusion === 'number'
+      ? { text: `Under the radar — ${pct(s.inclusion)} of similar decks run it`, tone: 'neutral' }
+      : {
+          text: 'Found by reading the card text, not play-rate — an off-meta edge',
+          tone: 'neutral',
+        }
+  );
+  return out;
+}
+
+export interface OptimizeSignals {
+  /** The optimizer's grouping key, e.g. 'tapland', 'excess:ramp', 'fills:removal'.
+   *  Optional: older persisted rows can lack it — the builder then skips the lead line. */
+  reasonCategory?: string;
+  roleLabel?: string;
+  /** EDHREC inclusion % — null when unknown. */
+  inclusion?: number | null;
+  cmc?: number;
+  isGameChanger?: boolean;
+}
+
+/** Category → interpretation for an Optimize CUT. */
+function optimizeCutLine(s: OptimizeSignals): WhyFactor | null {
+  const cat = s.reasonCategory ?? '';
+  if (cat === 'tapland')
+    return { text: 'Enters tapped — a tempo tax every time you draw it', tone: 'pro' };
+  if (cat === 'excess-land')
+    return { text: 'The deck is over its land target — a land is the safest trim', tone: 'pro' };
+  if (cat === 'oversupplied-basic')
+    return { text: 'More basics of this color than your costs actually need', tone: 'pro' };
+  if (cat.startsWith('excess:'))
+    return {
+      text: `You're oversupplied on ${s.roleLabel ?? 'this role'} — this is the weakest copy`,
+      tone: 'pro',
+    };
+  if (cat === 'off-package')
+    return {
+      text: "No co-play ties to anything else here — it isn't part of a package",
+      tone: 'pro',
+    };
+  if (cat === 'low-synergy')
+    return { text: "Underperforms in this commander's decks", tone: 'pro' };
+  if (cat === 'curve-fix')
+    return {
+      text: `Your curve is top-heavy — a ${s.cmc ?? 'high'}-drop is the pressure point`,
+      tone: 'pro',
+    };
+  return null; // low-inclusion & unknown: the inclusion line below carries it
+}
+
+/** Category → interpretation for an Optimize ADD. */
+function optimizeAddLine(s: OptimizeSignals): WhyFactor | null {
+  const cat = s.reasonCategory ?? '';
+  if (cat.startsWith('fills:'))
+    return {
+      text: `Your ${s.roleLabel ?? 'role'} count is under target — this closes the gap`,
+      tone: 'pro',
+    };
+  if (cat === 'mana-fix')
+    return {
+      text: 'Your mana base graded low — another good source helps every game',
+      tone: 'pro',
+    };
+  if (cat === 'color-fix')
+    return { text: 'Fixes the color your current sources shortchange', tone: 'pro' };
+  if (cat === 'flex-land')
+    return { text: "A land that's also a spell — flex slots cut flood at no cost", tone: 'pro' };
+  if (cat.startsWith('curve:')) return { text: 'Fills a quiet phase of your curve', tone: 'pro' };
+  if (cat === 'theme' || cat === 'synergy')
+    return {
+      text: 'Overperforms with this commander — picked on synergy, not just play-rate',
+      tone: 'pro',
+    };
+  return null;
+}
+
+/**
+ * Why the Optimize engine wants this card in or out — the breakdown behind its
+ * one-line reason. The category line interprets the engine's diagnosis; the
+ * inclusion line grounds how established (or cuttable) the card is.
+ */
+export function buildOptimizeFactors(kind: 'add' | 'cut', s: OptimizeSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  const lead = kind === 'cut' ? optimizeCutLine(s) : optimizeAddLine(s);
+  if (lead) out.push(lead);
+  if (typeof s.inclusion === 'number') {
+    if (kind === 'cut') {
+      out.push(
+        s.inclusion < 25
+          ? { text: `Lightly played here (${pct(s.inclusion)} of decks)`, tone: 'pro' }
+          : { text: `Played in ${pct(s.inclusion)} of decks`, tone: 'neutral' }
+      );
+    } else {
+      const word = stapleWord(s.inclusion);
+      out.push(
+        word === 'fringe'
+          ? { text: `A fringe pick (${pct(s.inclusion)})`, tone: 'neutral' }
+          : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
+      );
+    }
+  }
+  if (s.isGameChanger) {
+    out.push(
+      kind === 'cut'
+        ? { text: 'A Game Changer — cutting it also eases your bracket weight', tone: 'neutral' }
+        : {
+            text: 'A Game Changer — real power, and it counts toward your bracket',
+            tone: 'neutral',
+          }
+    );
+  }
+  return out;
+}
+
+export interface BracketMoveSignals {
+  type: 'add' | 'cut' | 'swap';
+  /** The bracket signal that triggered the move (BracketFitSignal). */
+  signal: string;
+  roleLabel?: string;
+  /** Inclusion of the incoming/added card, when known. */
+  inclusion?: number;
+}
+
+/** Bracket-signal → what it means at the table. Grounded in the official bracket definitions. */
+const BRACKET_SIGNAL_LINES: Record<string, string> = {
+  'game-changer': "On the official Game Changers list — over your target bracket's cap",
+  'mass-land-denial': 'Mass land denial — reserved for Bracket 4+',
+  stax: 'A stax piece — heavier than your target bracket expects',
+  combo: 'Part of a compact combo line — plays above your target',
+  'extra-turn': 'Chained extra turns read as Bracket 4–5',
+  'fast-mana': 'Fast mana accelerates everything past your target',
+  tutor: 'Tutors add consistency beyond your target bracket',
+  'upshift-gc': 'A Game Changer — real power toward your target',
+  'upshift-combo': 'Completes a compact combo — a genuine win line at your target',
+  'upshift-fill': 'A proven staple to tighten the deck upward',
+};
+
+/**
+ * Why a Bracket Fit move gets the deck to its target — the signal line says
+ * what the card means for bracket rules; a swap adds the like-for-like comfort.
+ */
+export function buildBracketMoveFactors(s: BracketMoveSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  const line = BRACKET_SIGNAL_LINES[s.signal];
+  if (line) out.push({ text: line, tone: 'pro' });
+  if (s.type === 'swap' && s.roleLabel) {
+    out.push({
+      text: `Same ${s.roleLabel} slot — the function stays, the power moves`,
+      tone: 'neutral',
+    });
+  }
+  if (s.type !== 'cut' && typeof s.inclusion === 'number') {
+    const word = stapleWord(s.inclusion);
+    out.push(
+      word === 'fringe'
+        ? { text: `A fringe pick (${pct(s.inclusion)})`, tone: 'neutral' }
+        : { text: `A ${word} in similar decks (${pct(s.inclusion)})`, tone: 'pro' }
+    );
+  }
+  return out;
+}
+
+export interface ComboCompletionSignals {
+  /** Total pieces in the combo (including the missing one). */
+  totalPieces: number;
+  /** How many decks run this combo (Spellbook/EDHREC global count). */
+  popularity?: number;
+  owned: boolean;
+}
+
+/**
+ * Why completing this combo is the feed's strongest move — the pieces you
+ * already hold, how proven the line is, and the bracket caution a compact
+ * combo deserves (never blindside the user into a power jump).
+ */
+export function buildComboCompletionFactors(s: ComboCompletionSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  out.push({
+    text: `You already run ${s.totalPieces - 1} of ${s.totalPieces} pieces — this is the last one`,
+    tone: 'pro',
+  });
+  if (typeof s.popularity === 'number' && s.popularity >= 1000) {
+    out.push({
+      text: `A proven line — ${s.popularity.toLocaleString()} decks run this combo`,
+      tone: 'pro',
+    });
+  }
+  if (s.totalPieces === 2) {
+    out.push({
+      text: "A live two-card combo once it lands — mind your bracket's expectations",
+      tone: 'con',
+    });
+  }
+  if (s.owned) out.push({ text: 'You own the missing piece — free to assemble', tone: 'pro' });
+  return out;
+}
+
 export interface CutSignals {
   /** Shares a synergy axis with the card being added. */
   sameAxis: boolean;

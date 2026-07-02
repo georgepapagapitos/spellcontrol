@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildBracketMoveFactors,
   buildBudgetSwapFactors,
+  buildComboCompletionFactors,
   buildCutFactors,
+  buildGapAddFactors,
+  buildOptimizeFactors,
   buildSwapAlternativeFactors,
+  buildSynergyPickFactors,
 } from './why-factors';
 
 describe('buildSwapAlternativeFactors', () => {
@@ -53,6 +58,132 @@ describe('buildCutFactors', () => {
 
   it('returns nothing when no signal is present (disclosure then hides)', () => {
     expect(buildCutFactors({ sameAxis: false, sameRole: false, sameType: false })).toEqual([]);
+  });
+});
+
+describe('buildGapAddFactors', () => {
+  it('leads with the role gap and includes lift co-play as package evidence', () => {
+    const f = buildGapAddFactors({
+      roleLabel: 'Removal',
+      inclusion: 62,
+      liftedBy: ['Teysa Karlov', 'Pitiless Plunderer'],
+      owned: false,
+    });
+    expect(f[0]).toMatchObject({ tone: 'pro' });
+    expect(f[0].text).toMatch(/light on Removal/);
+    expect(f.some((x) => /Teysa Karlov, Pitiless Plunderer/.test(x.text))).toBe(true);
+    expect(f.some((x) => /staple/.test(x.text))).toBe(true);
+  });
+
+  it('only emits synergy when positive and owned as a bonus', () => {
+    const f = buildGapAddFactors({ inclusion: 10, synergy: -3, owned: true });
+    expect(f.some((x) => /Overperforms/.test(x.text))).toBe(false);
+    expect(f.some((x) => /Already in your collection/.test(x.text) && x.tone === 'pro')).toBe(true);
+    expect(f.some((x) => /fringe/.test(x.text))).toBe(true);
+  });
+});
+
+describe('buildSynergyPickFactors', () => {
+  it('frames payoff vs producer against the axis, in different words', () => {
+    const payoff = buildSynergyPickFactors({ axisLabel: 'Tokens', side: 'payoff', inclusion: 12 });
+    const producer = buildSynergyPickFactors({ axisLabel: 'Tokens', side: 'producer' });
+    expect(payoff[0].text).toMatch(/payoff for your Tokens engine/);
+    expect(producer[0].text).toMatch(/Feeds your Tokens payoffs/);
+    expect(payoff[0].text).not.toBe(producer[0].text);
+  });
+
+  it('owns the off-meta framing when inclusion is unknown, play-rate when known', () => {
+    const offMeta = buildSynergyPickFactors({ axisLabel: 'Blink', side: 'payoff' });
+    const known = buildSynergyPickFactors({ axisLabel: 'Blink', side: 'payoff', inclusion: 9 });
+    expect(offMeta.some((x) => /off-meta edge/.test(x.text))).toBe(true);
+    expect(known.some((x) => /9% of similar decks/.test(x.text))).toBe(true);
+  });
+});
+
+describe('buildOptimizeFactors', () => {
+  it('interprets cut categories instead of restating them', () => {
+    const tapland = buildOptimizeFactors('cut', { reasonCategory: 'tapland' });
+    expect(tapland[0].text).toMatch(/tempo tax/);
+    const excess = buildOptimizeFactors('cut', {
+      reasonCategory: 'excess:ramp',
+      roleLabel: 'Ramp',
+      inclusion: 12,
+    });
+    expect(excess[0].text).toMatch(/oversupplied on Ramp/);
+    expect(excess.some((x) => /Lightly played/.test(x.text) && x.tone === 'pro')).toBe(true);
+    const offPkg = buildOptimizeFactors('cut', { reasonCategory: 'off-package' });
+    expect(offPkg[0].text).toMatch(/No co-play ties/);
+  });
+
+  it('interprets add categories: role fill, mana fix, flex land, curve phase', () => {
+    expect(
+      buildOptimizeFactors('add', { reasonCategory: 'fills:removal', roleLabel: 'Removal' })[0].text
+    ).toMatch(/Removal count is under target/);
+    expect(buildOptimizeFactors('add', { reasonCategory: 'mana-fix' })[0].text).toMatch(
+      /mana base graded low/
+    );
+    expect(buildOptimizeFactors('add', { reasonCategory: 'flex-land' })[0].text).toMatch(
+      /also a spell/
+    );
+    expect(buildOptimizeFactors('add', { reasonCategory: 'curve:early' })[0].text).toMatch(
+      /quiet phase of your curve/
+    );
+  });
+
+  it('handles unknown categories and null inclusion without fabricating lines', () => {
+    expect(buildOptimizeFactors('cut', { reasonCategory: 'mystery', inclusion: null })).toEqual([]);
+  });
+
+  it('flags a Game Changer as neutral context on both sides', () => {
+    const cut = buildOptimizeFactors('cut', { reasonCategory: 'low-synergy', isGameChanger: true });
+    const add = buildOptimizeFactors('add', { reasonCategory: 'synergy', isGameChanger: true });
+    expect(cut.some((x) => /Game Changer/.test(x.text) && x.tone === 'neutral')).toBe(true);
+    expect(add.some((x) => /Game Changer/.test(x.text) && x.tone === 'neutral')).toBe(true);
+  });
+});
+
+describe('buildBracketMoveFactors', () => {
+  it('grounds each signal in bracket rules', () => {
+    const gc = buildBracketMoveFactors({ type: 'cut', signal: 'game-changer' });
+    expect(gc[0].text).toMatch(/Game Changers list/);
+    const mld = buildBracketMoveFactors({ type: 'cut', signal: 'mass-land-denial' });
+    expect(mld[0].text).toMatch(/Bracket 4\+/);
+    const up = buildBracketMoveFactors({ type: 'add', signal: 'upshift-gc', inclusion: 55 });
+    expect(up[0].text).toMatch(/toward your target/);
+    expect(up.some((x) => /staple/.test(x.text))).toBe(true);
+  });
+
+  it('adds the like-for-like line only on swaps, and no inclusion line on cuts', () => {
+    const swap = buildBracketMoveFactors({
+      type: 'swap',
+      signal: 'game-changer',
+      roleLabel: 'Ramp',
+      inclusion: 30,
+    });
+    expect(swap.some((x) => /Same Ramp slot/.test(x.text))).toBe(true);
+    const cut = buildBracketMoveFactors({ type: 'cut', signal: 'stax', inclusion: 30 });
+    expect(cut.some((x) => /decks/.test(x.text) && /30%/.test(x.text))).toBe(false);
+  });
+});
+
+describe('buildComboCompletionFactors', () => {
+  it('counts held pieces and warns on a two-card combo', () => {
+    const f = buildComboCompletionFactors({ totalPieces: 2, owned: true });
+    expect(f[0].text).toMatch(/1 of 2 pieces/);
+    expect(f.some((x) => /two-card combo/.test(x.text) && x.tone === 'con')).toBe(true);
+    expect(f.some((x) => /own the missing piece/.test(x.text))).toBe(true);
+  });
+
+  it('cites popularity only when the line is actually proven', () => {
+    const popular = buildComboCompletionFactors({
+      totalPieces: 3,
+      popularity: 12400,
+      owned: false,
+    });
+    expect(popular.some((x) => /12,400 decks/.test(x.text))).toBe(true);
+    expect(popular.some((x) => /two-card/.test(x.text))).toBe(false);
+    const niche = buildComboCompletionFactors({ totalPieces: 3, popularity: 40, owned: false });
+    expect(niche.some((x) => /decks run this combo/.test(x.text))).toBe(false);
   });
 });
 

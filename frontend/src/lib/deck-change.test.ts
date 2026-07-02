@@ -593,3 +593,114 @@ describe('fromBracketFitMove swap convention (lock test)', () => {
     expect(c.inName).toBe('Cyclonic Rift'); // OUTGOING (cut)
   });
 });
+
+describe('whyFactors wiring — every lane adapter carries a structured breakdown', () => {
+  it('fromGapCard grounds the breakdown in role gap + lift + inclusion', () => {
+    const c = fromGapCard(
+      {
+        name: 'Cultivate',
+        price: '$1.50',
+        inclusion: 62,
+        synergy: 5,
+        typeLine: 'Sorcery',
+        role: 'ramp',
+        roleLabel: 'Ramp',
+        liftedBy: ['Omnath, Locus of Rage'],
+      },
+      'owned'
+    );
+    const texts = (c.whyFactors ?? []).map((f) => f.text);
+    expect(texts.some((t) => /light on Ramp/.test(t))).toBe(true);
+    expect(texts.some((t) => /Omnath, Locus of Rage/.test(t))).toBe(true);
+    expect(texts.some((t) => /Already in your collection/.test(t))).toBe(true);
+  });
+
+  it('fromSynergySuggestion frames the axis side', () => {
+    const c = fromSynergySuggestion({
+      cardName: 'Cathars’ Crusade',
+      axis: 'tokens',
+      axisLabel: 'Tokens',
+      side: 'payoff',
+      reason: 'rewards going wide',
+    });
+    expect((c.whyFactors ?? []).some((f) => /payoff for your Tokens engine/.test(f.text))).toBe(
+      true
+    );
+  });
+
+  it('fromOptimizeCard interprets the reason category on both sides', () => {
+    const cut = fromOptimizeCard(
+      { name: 'Jungle Hollow', reason: 'Tapland', reasonCategory: 'tapland', inclusion: 8 },
+      'cut'
+    );
+    expect((cut.whyFactors ?? []).some((f) => /tempo tax/.test(f.text))).toBe(true);
+    const add = fromOptimizeCard(
+      {
+        name: 'Swords to Plowshares',
+        reason: 'Fills Removal gap',
+        reasonCategory: 'fills:removal',
+        roleLabel: 'Removal',
+        inclusion: 70,
+      },
+      'add',
+      'unowned'
+    );
+    expect((add.whyFactors ?? []).some((f) => /Removal count is under target/.test(f.text))).toBe(
+      true
+    );
+  });
+
+  it('fromBracketFitMove grounds the breakdown in the bracket signal, on cut and swap', () => {
+    const cut = fromBracketFitMove({
+      type: 'cut',
+      name: 'Armageddon',
+      reason: 'MLD',
+      signal: 'mass-land-denial',
+    });
+    expect((cut.whyFactors ?? []).some((f) => /Bracket 4\+/.test(f.text))).toBe(true);
+    const swap = fromBracketFitMove(
+      {
+        type: 'swap',
+        name: 'Cyclonic Rift',
+        inName: 'Evacuation',
+        reason: 'Too powerful',
+        signal: 'game-changer',
+        roleLabel: 'Board Wipes',
+        inclusion: 40,
+      },
+      'owned'
+    );
+    const texts = (swap.whyFactors ?? []).map((f) => f.text);
+    expect(texts.some((t) => /Game Changers list/.test(t))).toBe(true);
+    expect(texts.some((t) => /Same Board Wipes slot/.test(t))).toBe(true);
+  });
+
+  it('fromComboCompletion counts pieces and flags the two-card caution', () => {
+    const match: ComboMatch = {
+      combo: {
+        id: 'combo-why',
+        identity: 'WG',
+        produces: ['infinite damage'],
+        prerequisites: null,
+        description: null,
+        manaNeeded: null,
+        popularity: 5000,
+        cardCount: 2,
+        bracket: 4,
+        cards: [
+          { oracleId: 'o1', cardName: 'Walking Ballista', quantity: 1 },
+          { oracleId: 'o2', cardName: 'Heliod, Sun-Crowned', quantity: 1 },
+        ],
+      },
+      presentOracleIds: ['o1'],
+      missingOracleIds: ['o2'],
+    };
+    const c = fromComboCompletion(match, 'Heliod, Sun-Crowned', 'owned');
+    const texts = (c.whyFactors ?? []).map((f) => f.text);
+    expect(texts.some((t) => /1 of 2 pieces/.test(t))).toBe(true);
+    expect(texts.some((t) => /5,000 decks/.test(t))).toBe(true);
+    expect(
+      (c.whyFactors ?? []).some((f) => /two-card combo/.test(f.text) && f.tone === 'con')
+    ).toBe(true);
+  });
+});
