@@ -5,6 +5,7 @@ import { useCollectionStore } from '../store/collection';
 import { useCubeStore, type SavedCube } from '../store/cube';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { ChangeOwnership } from './deck-change';
 
 /**
  * Cubes have no per-cube user color (unlike decks), so every cube badge/link
@@ -331,6 +332,41 @@ export function classifyAllocation(
     }
   }
   return 'unowned';
+}
+
+/**
+ * Availability of a specific printing (by `scryfallId`) for binding to a slot in
+ * `currentDeckId`, at printing granularity — `classifyAllocation`/`ownershipFor`
+ * answer by card *name*, but the edit-printing picker needs it per printing.
+ * Speaks the same `ChangeOwnership` vocabulary the Suggestions tab already uses:
+ *
+ *  - 'owned'         → you own ≥1 copy of THIS printing that's free (or already
+ *                       in this deck) — pick it and it binds from your collection.
+ *  - 'in-other-deck' → owned, but every copy of this printing is in another deck.
+ *  - 'in-cube'       → owned, but every copy is committed to a physical cube.
+ *  - 'unowned'       → you don't own this printing.
+ *
+ * A copy already allocated to `currentDeckId` counts as free (it's re-bindable
+ * here), matching `ownershipByName`'s "in THIS deck = free" rule.
+ */
+export function classifyPrintingAvailability(
+  scryfallId: string,
+  collection: EnrichedCard[],
+  allocations: Map<string, AllocationInfo>,
+  currentDeckId?: string
+): Exclude<ChangeOwnership, undefined> {
+  const copies = collection.filter((c) => c.scryfallId === scryfallId);
+  if (copies.length === 0) return 'unowned';
+  let hasDeck = false;
+  for (const c of copies) {
+    const claim = allocations.get(c.copyId);
+    if (!claim || claim.deckId === currentDeckId) return 'owned';
+    if (claim.ownerKind === 'deck') hasDeck = true;
+  }
+  // Every remaining copy is claimed; prefer the deck label when copies are split
+  // across a deck and a cube — a deck is the more actionable place to pull from
+  // (mirrors ownershipFor). No deck claim ⇒ all copies are cube-committed.
+  return hasDeck ? 'in-other-deck' : 'in-cube';
 }
 
 /**
