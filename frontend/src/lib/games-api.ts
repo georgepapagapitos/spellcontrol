@@ -56,20 +56,22 @@ export async function joinGame(code: string, input: JoinGameInput): Promise<Game
   return data.game;
 }
 
+/**
+ * Apply actions to a game. On a version conflict the server answers 409; we let
+ * that (like any non-2xx) throw via `handleResponse` with `.status = 409` set,
+ * so the caller's conflict-recovery branch (`dispatchOnline`) runs. Swallowing
+ * the 409 into a returned snapshot silently desynced near-simultaneous plays.
+ */
 export async function patchGame(
   code: string,
   baseVersion: number,
   actions: GameAction[]
-): Promise<{ game: GameState; conflict?: GameState }> {
+): Promise<{ game: GameState }> {
   const res = await authedFetch(`/api/games/${encodeURIComponent(code)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ baseVersion, actions }),
   });
-  if (res.status === 409) {
-    const body = (await res.json()) as { current?: GameState };
-    return { game: body.current!, conflict: body.current };
-  }
   const data = await handleResponse<{ game: GameState }>(res);
   return { game: data.game };
 }

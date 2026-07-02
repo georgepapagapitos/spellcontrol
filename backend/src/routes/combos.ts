@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { desc, eq, inArray, isNotNull } from 'drizzle-orm';
-import { requireAuth, getAdminUsernames } from '../auth';
+import { requireAuth, requireAdmin } from '../auth';
 import { getDb } from '../db';
 import { combos, comboCards, comboIngestRuns } from '../db/schema';
 import { matchCombos, type ComboInput } from '../combos/match';
@@ -304,11 +304,7 @@ combosRouter.get('/:id', requireAuth, async (req: Request, res: Response) => {
   });
 });
 
-combosRouter.post('/admin/refresh', requireAuth, async (req: Request, res: Response) => {
-  const admins = getAdminUsernames();
-  if (admins.size === 0 || !admins.has(req.user!.username.toLowerCase())) {
-    return res.status(403).json({ error: 'Admin access required.' });
-  }
+combosRouter.post('/admin/refresh', requireAdmin, async (_req: Request, res: Response) => {
   try {
     const result = await ingestCombos(streamSpellbookVariants());
     res.json(result);
