@@ -44,6 +44,11 @@ function generateCode(): string {
   return out;
 }
 
+/** Postgres unique-constraint violation (SQLSTATE 23505). */
+export function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+}
+
 async function generateUniqueCode(): Promise<string> {
   const db = getDb();
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -193,7 +198,6 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
 
   void sweepStale().catch((err) => logger.warn('[games] sweep failed', err));
 
-  const code = await generateUniqueCode();
   const id = crypto.randomUUID();
   const now = Date.now();
 
@@ -210,32 +214,44 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
     isHost: true,
   });
 
-  const state = createGameState({
-    id,
-    code,
-    mode: 'online',
-    hostUserId: req.user!.id,
-    format,
-    startingLife,
-    commanderDamageEnabled,
-    poisonEnabled,
-    players: [hostPlayer],
-    ts: now,
-  });
-
   const db = getDb();
-  await db.insert(gameSessions).values({
-    id,
-    code,
-    hostUserId: req.user!.id,
-    status: state.status,
-    state,
-    version: state.version,
-    createdAt: now,
-    updatedAt: now,
-  });
 
-  res.status(201).json({ game: state });
+  // The pre-check in generateUniqueCode narrows collisions but can't prevent
+  // two concurrent creates picking the same code, so catch the resulting
+  // unique-violation (Postgres 23505) on `code` and re-roll rather than 500.
+  for (let attempt = 0; ; attempt++) {
+    const code = await generateUniqueCode();
+    const state = createGameState({
+      id,
+      code,
+      mode: 'online',
+      hostUserId: req.user!.id,
+      format,
+      startingLife,
+      commanderDamageEnabled,
+      poisonEnabled,
+      players: [hostPlayer],
+      ts: now,
+    });
+
+    try {
+      await db.insert(gameSessions).values({
+        id,
+        code,
+        hostUserId: req.user!.id,
+        status: state.status,
+        state,
+        version: state.version,
+        createdAt: now,
+        updatedAt: now,
+      });
+      res.status(201).json({ game: state });
+      return;
+    } catch (err) {
+      if (isUniqueViolation(err) && attempt < 5) continue;
+      throw err;
+    }
+  }
 });
 
 /**
