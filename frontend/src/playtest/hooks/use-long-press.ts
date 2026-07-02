@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 interface Options {
   delayMs?: number;
@@ -23,6 +23,10 @@ export function useLongPress({ delayMs = 500, onLongPress }: Options) {
       timer.current = null;
     }
   }, []);
+
+  // Clear a pending timer if the element unmounts mid-press (card played,
+  // mulligan re-deal) so it can't fire onLongPress for a card that's gone (F22).
+  useEffect(() => cancel, [cancel]);
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
