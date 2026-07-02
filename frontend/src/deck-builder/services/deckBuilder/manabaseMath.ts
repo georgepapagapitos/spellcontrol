@@ -91,7 +91,40 @@ export function rawColorPips(cards: ScryfallCard[]): Record<ManaColor, number> {
   return pips;
 }
 
-/** Per-color source counts a card list produces, clamped to the deck identity. */
+const BASIC_TYPE_COLORS: ReadonlyArray<[RegExp, ManaColor]> = [
+  [/\bplains\b/, 'W'],
+  [/\bisland\b/, 'U'],
+  [/\bswamp\b/, 'B'],
+  [/\bmountain\b/, 'R'],
+  [/\bforest\b/, 'G'],
+];
+
+/**
+ * Colors a fetch-type LAND effectively provides (Karsten counts a fetch as a
+ * source of every color it can find). Evolving Wilds / Prismatic Vista ("basic
+ * land card") cover every identity color; typed fetches (Flooded Strand:
+ * "Plains or Island card") cover the named basic types, clamped to identity.
+ * Nonland tutors (Cultivate, Kor Cartographer) are ramp, not sources — callers
+ * only ask this for lands. Returns [] for non-fetch text.
+ */
+export function fetchableBasicColors(
+  card: ScryfallCard,
+  identity: ReadonlySet<string>
+): ManaColor[] {
+  const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
+  const m = ot.match(/search your library for [^.]*?card/);
+  if (!m) return [];
+  const clause = m[0];
+  if (/\bbasic land\b/.test(clause)) {
+    return WUBRG.filter((c) => identity.has(c));
+  }
+  const out = BASIC_TYPE_COLORS.filter(([re]) => re.test(clause)).map(([, c]) => c);
+  return out.filter((c) => identity.has(c));
+}
+
+/** Per-color source counts a card list produces, clamped to the deck identity.
+ *  Fetch lands that produce nothing themselves count as sources of every color
+ *  they can find (the Karsten convention). */
 export function colorSourceCounts(
   cards: ScryfallCard[],
   identity: ReadonlySet<string>
@@ -99,7 +132,12 @@ export function colorSourceCounts(
   const sources: Record<ManaColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 };
   for (const card of cards) {
     if (!isManaSourceType(card)) continue;
-    for (const c of producedManaColors(card, identity)) {
+    let colors = producedManaColors(card, identity);
+    const typeLine = (card.type_line || card.card_faces?.[0]?.type_line || '').toLowerCase();
+    if (colors.length === 0 && typeLine.includes('land')) {
+      colors = fetchableBasicColors(card, identity);
+    }
+    for (const c of colors) {
       if ((WUBRG as readonly string[]).includes(c) && identity.has(c)) {
         sources[c as ManaColor] += 1;
       }

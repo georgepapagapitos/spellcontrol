@@ -1998,7 +1998,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity,
         resolvedPacing,
         undefined,
-        context.collectionBasicPrintings
+        context.collectionBasicPrintings,
+        fillGates
       )),
     ];
 
@@ -2338,7 +2339,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity,
         resolvedPacing,
         undefined,
-        context.collectionBasicPrintings
+        context.collectionBasicPrintings,
+        fillGates
       )),
     ];
   }

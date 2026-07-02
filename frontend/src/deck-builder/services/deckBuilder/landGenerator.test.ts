@@ -56,6 +56,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 }));
 
 import { countColorPips, generateLands } from './landGenerator';
+import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 
 describe('countColorPips', () => {
   it('counts colored mana symbols, ignoring generic', () => {
@@ -90,6 +91,142 @@ describe('countColorPips', () => {
 });
 
 describe('generateLands', () => {
+  it('enforces the game-changer cap on lands and flags a picked GC land', async () => {
+    const fotd = sc({ name: 'Field of the Dead', type_line: 'Land', cmc: 0 });
+    const edhrecLands = [
+      {
+        name: 'Field of the Dead',
+        sanitized: 'field-of-the-dead',
+        primary_type: 'Land',
+        inclusion: 60,
+        num_decks: 1000,
+      },
+    ];
+
+    // Cap already spent → the GC land must NOT slip in through the land phase.
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(new Map([['Field of the Dead', fotd]]));
+    const gatesBlocked = {
+      gameChangerNames: new Set(['Field of the Dead']),
+      gameChangerCount: { value: 0 },
+      maxGameChangers: 0,
+    };
+    const blocked = await generateLands(
+      edhrecLands,
+      ['W'],
+      3,
+      new Set(),
+      2,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'full',
+      100,
+      false,
+      false,
+      'balanced',
+      undefined,
+      undefined,
+      gatesBlocked
+    );
+    expect(blocked.map((c) => c.name)).not.toContain('Field of the Dead');
+    expect(gatesBlocked.gameChangerCount.value).toBe(0);
+
+    // Cap open → picked, FLAGGED, and counted against the shared running total.
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(new Map([['Field of the Dead', fotd]]));
+    const gatesOpen = {
+      gameChangerNames: new Set(['Field of the Dead']),
+      gameChangerCount: { value: 0 },
+      maxGameChangers: 2,
+    };
+    const allowed = await generateLands(
+      edhrecLands,
+      ['W'],
+      3,
+      new Set(),
+      2,
+      99,
+      [],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'full',
+      100,
+      false,
+      false,
+      'balanced',
+      undefined,
+      undefined,
+      gatesOpen
+    );
+    const picked = allowed.find((c) => c.name === 'Field of the Dead');
+    expect(picked?.isGameChanger).toBe(true);
+    expect(gatesOpen.gameChangerCount.value).toBe(1);
+  });
+
+  it('boosts lands covering the deck’s weighted color demand over off-color utility', async () => {
+    // Equal inclusion; the colorless utility land is listed FIRST (wins any tie).
+    const wLand = sc({ name: 'Rustvale Bridge', type_line: 'Land', produced_mana: ['W'] });
+    const utility = sc({ name: 'Detection Tower', type_line: 'Land', produced_mana: ['C'] });
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(
+      new Map([
+        ['Detection Tower', utility],
+        ['Rustvale Bridge', wLand],
+      ])
+    );
+    const edhrecLands = ['Detection Tower', 'Rustvale Bridge'].map((name) => ({
+      name,
+      sanitized: name.toLowerCase(),
+      primary_type: 'Land',
+      inclusion: 50,
+      num_decks: 1000,
+    }));
+    const lands = await generateLands(
+      edhrecLands,
+      ['W'],
+      2,
+      new Set(),
+      1,
+      99,
+      [sc({ name: 'Adanto Vanguard', mana_cost: '{W}{W}', cmc: 2 })],
+      undefined,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      false,
+      '',
+      undefined,
+      'full'
+    );
+    // One nonbasic slot: the W-producing land must beat the off-color utility.
+    expect(lands.map((c) => c.name)).toContain('Rustvale Bridge');
+    expect(lands.map((c) => c.name)).not.toContain('Detection Tower');
+  });
+
   it('caps basic lands to available free copies in available-only mode', async () => {
     const lands = await generateLands(
       [],

@@ -4,6 +4,7 @@ import {
   buildManabaseSummary,
   cardColorPips,
   colorSourceCounts,
+  fetchableBasicColors,
   planBasicColorSplit,
   weightedColorDemand,
 } from './manabaseMath';
@@ -124,6 +125,51 @@ describe('colorSourceCounts', () => {
     // Hallowed Fountain (W+U) + Command Tower (clamped W+U) + Plains (W) +
     // Arcane Signet (clamped W+U). Sol Ring is colorless; Cultivate is a ritual-type sorcery.
     expect(sources).toEqual({ W: 4, U: 3, B: 0, R: 0, G: 0 });
+  });
+});
+
+describe('fetchableBasicColors + fetch-aware colorSourceCounts', () => {
+  const evolvingWilds = card({
+    name: 'Evolving Wilds',
+    type_line: 'Land',
+    oracle_text:
+      '{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.',
+  });
+  const floodedStrand = card({
+    name: 'Flooded Strand',
+    type_line: 'Land',
+    oracle_text:
+      '{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.',
+  });
+  const windsweptHeath = card({
+    name: 'Windswept Heath',
+    type_line: 'Land',
+    oracle_text:
+      '{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Plains card, put it onto the battlefield, then shuffle.',
+  });
+
+  it('reads basic-land fetches as all identity colors, typed fetches as their types', () => {
+    expect(fetchableBasicColors(evolvingWilds, WU)).toEqual(['W', 'U']);
+    expect(fetchableBasicColors(floodedStrand, WU)).toEqual(['W', 'U']);
+    // Off-identity fetch types are clamped: Windswept Heath in WU covers only W.
+    expect(fetchableBasicColors(windsweptHeath, WU)).toEqual(['W']);
+    expect(fetchableBasicColors(plains, WU)).toEqual([]);
+  });
+
+  it('counts fetch lands as sources of what they find, but never a nonland tutor', () => {
+    const sources = colorSourceCounts([evolvingWilds, floodedStrand, cultivate], WU);
+    expect(sources.W).toBe(2);
+    expect(sources.U).toBe(2);
+    // Kor Cartographer (creature land-tutor) is ramp, not a source: land-only guard.
+    const korCartographer = card({
+      name: 'Kor Cartographer',
+      type_line: 'Creature — Kor Scout',
+      mana_cost: '{3}{W}',
+      cmc: 4,
+      oracle_text:
+        'When this creature enters, you may search your library for a Plains card, put it onto the battlefield tapped, then shuffle.',
+    });
+    expect(colorSourceCounts([korCartographer], WU)).toEqual({ W: 0, U: 0, B: 0, R: 0, G: 0 });
   });
 });
 
