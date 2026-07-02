@@ -35,6 +35,11 @@ function humanizeRole(role: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/** "ramp", "mana-rock" → "ramp, mana rock" for the synergy-fill rationale. */
+function humanizeTags(tags: string[]): string {
+  return tags.map((t) => t.replace(/-/g, ' ')).join(', ');
+}
+
 /** Plain-English description of which EDHREC pool the generator ended up using. */
 function humanizeDataSource(source: DeckDataSource): string {
   switch (source) {
@@ -65,6 +70,7 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
     basicsPadded,
     collectionRelaxed,
     collectionSubstitutions,
+    synergyFills,
     roleGaps,
     claimedConflicts,
     generationMode,
@@ -122,6 +128,30 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
                   Wanted <strong>{s.wantedName}</strong>
                 </span>
                 <span className="build-report-sub-reason">{s.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {synergyFills && synergyFills.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{synergyFills.length}</strong> card
+            {synergyFills.length === 1 ? '' : 's'} had no EDHREC data for this commander — why
+            they’re here
+          </summary>
+          <ul className="build-report-subs-list">
+            {synergyFills.map((f) => (
+              <li key={f.name} className="build-report-sub">
+                <span className="build-report-sub-map">
+                  <strong>{f.name}</strong>
+                </span>
+                <span className="build-report-sub-reason">
+                  {f.matchedTags.length > 0
+                    ? `Fits your deck’s ${humanizeTags(f.matchedTags)}`
+                    : 'Slot filler — no shared synergy with the deck'}
+                </span>
               </li>
             ))}
           </ul>

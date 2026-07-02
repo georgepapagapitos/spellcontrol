@@ -350,6 +350,11 @@ export interface BuildReport {
   /** "Wanted X → used your Y" substitutions: closest owned cards swapped in for
    *  unowned staples to keep an owned-only deck inside the collection. */
   collectionSubstitutions?: SubstituteRow[];
+  /** Cards in the deck that EDHREC has no inclusion data for (chosen by the
+   *  fallback fill, not the EDHREC pool). `matchedTags` are the deck-synergy tags
+   *  they share with the rest of the deck — empty means a pure slot-filler.
+   *  Owned/collection builds only; explains the "why is this 0%-card here" cards. */
+  synergyFills?: Array<{ name: string; matchedTags: string[] }>;
   /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
   roleGaps?: Array<{ role: string; have: number; want: number }>;
   /** Cards that are owned but all copies are committed to other decks. */
