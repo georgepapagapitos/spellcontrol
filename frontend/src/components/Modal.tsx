@@ -9,6 +9,8 @@ interface Props {
   label?: string;
   /** Class for the inner dialog container. Defaults to `choice-dialog`. */
   className?: string;
+  /** Optional class for the backdrop/root layer. */
+  backdropClassName?: string;
   /** Disable closing on backdrop click or Escape. Used when work is in flight. */
   dismissable?: boolean;
   children: ReactNode;
@@ -69,6 +71,7 @@ export function Modal({
   labelledBy,
   label,
   className = 'choice-dialog',
+  backdropClassName,
   dismissable = true,
   children,
 }: Props) {
@@ -173,7 +176,9 @@ export function Modal({
 
   return (
     <div
-      className={`modal-backdrop${isClosing ? ' is-closing' : ''}`}
+      className={`modal-backdrop${backdropClassName ? ` ${backdropClassName}` : ''}${
+        isClosing ? ' is-closing' : ''
+      }`}
       onClick={dismissable ? beginClose : undefined}
       onAnimationEnd={onAnimationEnd}
       role="presentation"
