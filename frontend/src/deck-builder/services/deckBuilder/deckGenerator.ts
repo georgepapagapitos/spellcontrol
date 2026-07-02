@@ -670,8 +670,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Fetch theme-specific data for all selected themes
     onProgress?.('Consulting the Oracle…', 8);
     try {
+      // Catch each theme fetch individually so one theme's 404/network error
+      // doesn't discard the themes that succeeded (F14). We fall back to base
+      // commander data only if EVERY theme fetch fails (below).
       const themeDataPromises = selectedThemesWithSlugs.map((theme) =>
-        partnerCommander
+        (partnerCommander
           ? fetchPartnerThemeData(
               commander.name,
               partnerCommander.name,
@@ -680,6 +683,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
               targetBracket
             )
           : fetchCommanderThemeData(commander.name, theme.slug!, budgetOption, targetBracket)
+        ).catch((err) => {
+          logger.warn(`[DeckGen] theme fetch failed, skipping "${theme.slug}":`, err);
+          return null;
+        })
       );
 
       // If hyper focus is on, also fetch base commander data in parallel to compare
@@ -695,13 +702,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ).catch(() => null)
         : Promise.resolve(null);
 
-      const [themeDataResults, fetchedBaseData] = await Promise.all([
+      const [themeDataRaw, fetchedBaseData] = await Promise.all([
         Promise.all(themeDataPromises),
         baseDataPromise,
       ]);
       state.baseData = fetchedBaseData;
 
-      // Merge cardlists from all themes
+      // Keep only the themes that resolved. If every theme failed, bail to the
+      // base-commander fallback in the catch below rather than merging nothing.
+      const themeDataResults = themeDataRaw.filter((r): r is NonNullable<typeof r> => r != null);
+      if (themeDataResults.length === 0) {
+        throw new Error('All theme-specific EDHREC fetches failed');
+      }
+
+      // Merge cardlists from all (surviving) themes
       const merged = mergeThemeCardlists(themeDataResults);
       const mergedCardlists = merged.cardlists;
       state.themeOverlapCounts = merged.themeOverlapCounts;
