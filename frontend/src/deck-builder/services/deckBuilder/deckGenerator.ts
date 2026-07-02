@@ -73,6 +73,7 @@ import {
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
+import { buildManabaseSummary } from './manabaseMath';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { loadCardSimilar } from './cardSimilar';
 import { resolveMultiCopyCards } from './multiCopy';
@@ -3571,6 +3572,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (entry) liftedByMap[name.toLowerCase()] = entry.liftedBy;
   }
 
+  // Manabase self-explanation over the FINAL deck (post trim/audit/padding):
+  // sources built vs castability-weighted targets per color.
+  const manabase = buildManabaseSummary(categories.lands, nonLandCards, new Set(colorIdentity));
+
   return {
     commander,
     partnerCommander,
@@ -3580,6 +3585,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gapAnalysis,
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
+    manabase,
     liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:

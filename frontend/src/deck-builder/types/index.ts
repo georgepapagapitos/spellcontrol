@@ -329,6 +329,35 @@ export interface LiftPackagePick {
   owned: boolean;
 }
 
+/** One color's line in the manabase self-explanation (see manabaseMath). */
+export interface ManabaseColorLine {
+  /** WUBRG letter. */
+  color: string;
+  /** Raw colored pips this color must pay in nonland costs. */
+  pips: number;
+  /** Sources in the final deck (lands + rocks/dorks) producing this color. */
+  sources: number;
+  /** Desired source count from the weighted-demand share of total capacity. */
+  target: number;
+  /** Pacing-aware shortfall verdict (same thresholds as the editor panel). */
+  short: boolean;
+}
+
+/**
+ * The generated deck's manabase self-explanation: per demanded color, the
+ * sources actually built vs the castability-weighted target, computed over the
+ * FINAL deck. Assembled by services/deckBuilder/manabaseMath.ts.
+ */
+export interface ManabaseSummary {
+  /** Demanded colors only, WUBRG order. */
+  lines: ManabaseColorLine[];
+  totalLands: number;
+  /** Nonland permanents counted as mana sources (rocks, dorks). */
+  nonlandSources: number;
+  /** Headline, e.g. "2 white sources short for costs at mana value ≤ 2". */
+  note?: string;
+}
+
 /** Describes which data source was ultimately used for deck generation */
 export type DeckDataSource =
   | 'theme+bracket' // Ideal: theme-specific data with bracket/power level
@@ -398,6 +427,9 @@ export interface BuildReport {
   /** Disclosure note: how many higher-lift candidates the hard filters
    *  removed, and the dominant reason. Undefined when nothing was filtered. */
   liftPicksNote?: string;
+  /** Sources built vs castability-weighted targets per color (the manabase
+   *  self-explanation). Undefined on decks generated before this shipped. */
+  manabase?: ManabaseSummary;
 }
 
 export interface GeneratedDeck {
@@ -418,6 +450,9 @@ export interface GeneratedDeck {
    *  (color identity/legality/rarity/budget/etc.) removed, and the dominant
    *  reason. Undefined when nothing was filtered. */
   liftPicksNote?: string;
+  /** Sources built vs castability-weighted targets per color, computed over the
+   *  final deck (the manabase self-explanation). */
+  manabase?: ManabaseSummary;
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool

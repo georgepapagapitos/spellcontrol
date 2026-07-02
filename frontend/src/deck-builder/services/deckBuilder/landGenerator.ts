@@ -26,6 +26,7 @@ import { BudgetTracker } from './budgetTracker';
 import { pickFromPrefetched } from './cardPicking';
 import { fillWithScryfall } from './scryfallFill';
 import { constrainsToCollection, notInCollection } from './deckFilters';
+import { planBasicColorSplit } from './manabaseMath';
 
 // Basic land names to filter out from EDHREC suggestions — canonical set lives
 // in lib/allocations; re-exported here so existing './landGenerator' importers
@@ -298,37 +299,20 @@ export async function generateLands(
   const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
 
   if (colorsWithBasics.length > 0 && basicsNeeded > 0) {
-    onProgress?.('Adding non-basic lands', 92);
+    onProgress?.('Adding basic lands', 92);
 
-    // Distribute basics proportional to mana pips in the deck
-    const pipCounts = countColorPips(nonLandCards);
-    const totalPips = colorsWithBasics.reduce((sum, c) => sum + (pipCounts[c] || 0), 0);
+    // Split basics to close each color's residual source deficit — weighted pip
+    // demand vs what the picked nonbasics + the deck's rocks/dorks already
+    // produce (see manabaseMath). Falls back to pip proportion, then even split.
+    const landsPerColor = planBasicColorSplit({
+      nonLandCards,
+      pickedLands: lands,
+      identity: new Set(colorIdentity),
+      colors: colorsWithBasics,
+      basicsNeeded,
+    });
 
-    // Calculate proportional counts (fall back to even split if no pips found)
-    const landsPerColor: Record<string, number> = {};
-    if (totalPips > 0) {
-      let assigned = 0;
-      for (let i = 0; i < colorsWithBasics.length; i++) {
-        const color = colorsWithBasics[i];
-        if (i === colorsWithBasics.length - 1) {
-          // Last color gets the remainder to ensure exact total
-          landsPerColor[color] = basicsNeeded - assigned;
-        } else {
-          const proportion = (pipCounts[color] || 0) / totalPips;
-          landsPerColor[color] = Math.round(basicsNeeded * proportion);
-          assigned += landsPerColor[color];
-        }
-      }
-    } else {
-      // No pips found — fall back to even split
-      const perColor = Math.floor(basicsNeeded / colorsWithBasics.length);
-      const remainder = basicsNeeded % colorsWithBasics.length;
-      for (let i = 0; i < colorsWithBasics.length; i++) {
-        landsPerColor[colorsWithBasics[i]] = perColor + (i < remainder ? 1 : 0);
-      }
-    }
-
-    logger.debug('[DeckGen] Basic land distribution by pips:', { pipCounts, landsPerColor });
+    logger.debug('[DeckGen] Basic land distribution by residual deficit:', { landsPerColor });
 
     for (const color of colorsWithBasics) {
       const basicName = basicTypes[color];

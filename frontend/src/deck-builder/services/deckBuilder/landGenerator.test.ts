@@ -117,6 +117,23 @@ describe('generateLands', () => {
     expect(lands.map((c) => c.name)).toEqual(['Plains']);
   });
 
+  it('splits basics by weighted residual demand — early double-pips pull sources, splash keeps a floor', async () => {
+    // W: two {W}{W} two-drops (weighted 6.5) · U: one {4}{U} five-drop (1.0).
+    const nonland = [
+      sc({ name: 'Knight of the White Orchid', mana_cost: '{W}{W}', cmc: 2 }),
+      sc({ name: 'Adanto Vanguard', mana_cost: '{W}{W}', cmc: 2 }),
+      sc({ name: 'Late Blue', mana_cost: '{4}{U}', cmc: 5 }),
+    ];
+    const lands = await generateLands([], ['W', 'U'], 6, new Set(), 6, 99, nonland);
+    const names = lands.map((c) => c.name);
+    // Command Tower auto-adds for 2+ colors, leaving 5 basic slots: W-heavy
+    // early demand takes 3, but the U splash keeps its 2-source floor (the old
+    // raw-pip split would have given U a single Island).
+    expect(names.filter((n) => n === 'Plains')).toHaveLength(3);
+    expect(names.filter((n) => n === 'Island')).toHaveLength(2);
+    expect(names).toContain('Command Tower');
+  });
+
   it('splits basics across owned printings by available count (largest group first)', async () => {
     const lands = await generateLands(
       [],

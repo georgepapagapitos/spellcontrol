@@ -5,6 +5,15 @@ import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
+import { ColorPip } from '@/components/shared/ManaSymbol';
+
+const COLOR_WORDS: Record<string, string> = {
+  W: 'White',
+  U: 'Blue',
+  B: 'Black',
+  R: 'Red',
+  G: 'Green',
+};
 
 /** Headline for how an alternative generator built the deck. */
 function humanizeGenerationMode(mode: GenerationMode, detail?: string): string {
@@ -161,6 +170,7 @@ export function BuildReportPanel({
     generationNote,
     packagePicks,
     liftPicksNote,
+    manabase,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -291,6 +301,28 @@ export function BuildReportPanel({
           committed to other decks — open “Review shared cards” to pull a copy in (you choose what
           the other deck does), or swap in free alternatives.
         </p>
+      )}
+
+      {manabase && manabase.lines.length > 0 && (
+        <div className="build-report-mana">
+          <span className="build-report-gaps-label">Mana sources vs target</span>
+          <ul className="build-report-gaps-list">
+            {manabase.lines.map((l) => (
+              <li
+                key={l.color}
+                className={`build-report-gap build-report-mana-line${l.short ? ' is-short' : ''}`}
+                aria-label={`${COLOR_WORDS[l.color] ?? l.color}: ${l.sources} sources, target ${l.target}${l.short ? ', short' : ''}`}
+              >
+                <ColorPip color={l.color} />
+                <span className="build-report-gap-count">
+                  {l.sources}
+                  <span className="build-report-gap-target"> / {l.target}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {manabase.note && <p className="build-report-mana-note">{manabase.note}</p>}
+        </div>
       )}
 
       {roleGaps && roleGaps.length > 0 && (
