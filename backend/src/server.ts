@@ -855,9 +855,16 @@ async function start() {
     logger.info('\n[server] shutting down...');
     server.closeAllConnections();
     server.close(async () => {
-      cache.close();
-      await closeDb();
-      process.exit(0);
+      // Guard the async close: an unawaited rejection here (e.g. closeDb throws)
+      // would become an unhandled rejection and crash instead of exiting cleanly.
+      try {
+        cache.close();
+        await closeDb();
+        process.exit(0);
+      } catch (err) {
+        logger.error('[server] error during shutdown:', err);
+        process.exit(1);
+      }
     });
   }
 
