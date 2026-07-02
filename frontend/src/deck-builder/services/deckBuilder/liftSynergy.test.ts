@@ -9,7 +9,14 @@ import {
 import type { LiftEntry } from '@/deck-builder/types';
 
 function entry(overrides: Partial<LiftEntry> & { name: string }): LiftEntry {
-  return { lift: 1, coPlayPct: 10, numDecks: 100, potentialDecks: 1000, lowSample: false, ...overrides };
+  return {
+    lift: 1,
+    coPlayPct: 10,
+    numDecks: 100,
+    potentialDecks: 1000,
+    lowSample: false,
+    ...overrides,
+  };
 }
 
 describe('edgeScore', () => {
@@ -72,7 +79,13 @@ describe('aggregateLiftCandidates', () => {
 
   it('the proof: a candidate clustered across 3 seeds outranks a single high-lift low-sample fluke', () => {
     const cluster = entry({ name: 'Clustered Pick', lift: 6, coPlayPct: 15, numDecks: 400 });
-    const fluke = entry({ name: 'Lucky Fluke', lift: 40, coPlayPct: 1, numDecks: 15, lowSample: true });
+    const fluke = entry({
+      name: 'Lucky Fluke',
+      lift: 40,
+      coPlayPct: 1,
+      numDecks: 15,
+      lowSample: true,
+    });
     const pools = new Map<string, LiftEntry[]>([
       ['Seed A', [cluster, fluke]],
       ['Seed B', [{ ...cluster }]],
@@ -109,13 +122,24 @@ describe('selectTopLiftPicks', () => {
 
   it('labels the highest-bombScore candidate clearing the lift floor as the bomb', () => {
     const bomb = candidate({ name: 'Bomb', bestLift: 10, bombScore: 50, connectionCount: 1 });
-    const belowFloor = candidate({ name: 'Too Weak', bestLift: 4, bombScore: 999, connectionCount: 1 });
+    const belowFloor = candidate({
+      name: 'Too Weak',
+      bestLift: 4,
+      bombScore: 999,
+      connectionCount: 1,
+    });
     const picks = selectTopLiftPicks([bomb, belowFloor]);
     expect(picks[0]).toMatchObject({ kind: 'bomb', candidate: { name: 'Bomb' } });
   });
 
   it('ranks cluster picks by clusterScore desc, excluding the bomb by name', () => {
-    const bomb = candidate({ name: 'Bomb', bestLift: 10, bombScore: 50, connectionCount: 3, clusterScore: 999 });
+    const bomb = candidate({
+      name: 'Bomb',
+      bestLift: 10,
+      bombScore: 50,
+      connectionCount: 3,
+      clusterScore: 999,
+    });
     const clusterHigh = candidate({ name: 'Cluster High', connectionCount: 2, clusterScore: 20 });
     const clusterLow = candidate({ name: 'Cluster Low', connectionCount: 2, clusterScore: 5 });
     const picks = selectTopLiftPicks([bomb, clusterLow, clusterHigh]);
@@ -129,7 +153,13 @@ describe('selectTopLiftPicks', () => {
   });
 
   it('caps to max and never duplicates the bomb', () => {
-    const bomb = candidate({ name: 'Bomb', bestLift: 10, bombScore: 50, connectionCount: 4, clusterScore: 40 });
+    const bomb = candidate({
+      name: 'Bomb',
+      bestLift: 10,
+      bombScore: 50,
+      connectionCount: 4,
+      clusterScore: 40,
+    });
     const clusters = ['C1', 'C2', 'C3', 'C4'].map((name, i) =>
       candidate({ name, connectionCount: 2, clusterScore: 10 - i })
     );

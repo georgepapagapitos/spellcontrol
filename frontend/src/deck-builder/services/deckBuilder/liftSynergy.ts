@@ -79,7 +79,9 @@ export function aggregateLiftCandidates(
 
   candidates.sort(
     (a, b) =>
-      b.connectionCount - a.connectionCount || b.bestLift - a.bestLift || a.name.localeCompare(b.name)
+      b.connectionCount - a.connectionCount ||
+      b.bestLift - a.bestLift ||
+      a.name.localeCompare(b.name)
   );
   return candidates;
 }
@@ -113,7 +115,12 @@ export function selectTopLiftPicks(
 
   const picks: LiftPick[] = [];
   if (bomb) {
-    picks.push({ candidate: bomb, kind: 'bomb', liftedBy: liftedByFor(bomb), lowSample: bomb.lowSample });
+    picks.push({
+      candidate: bomb,
+      kind: 'bomb',
+      liftedBy: liftedByFor(bomb),
+      lowSample: bomb.lowSample,
+    });
   }
   for (const c of clusters) {
     if (picks.length >= max) break;

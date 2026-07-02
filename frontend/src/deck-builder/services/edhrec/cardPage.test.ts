@@ -36,13 +36,18 @@ describe('parseCardLiftPool', () => {
       },
       {
         tag: 'highliftcards',
-        cardviews: [{ name: 'Smothering Tithe', lift: 8.2, num_decks: 4000, potential_decks: 10000 }],
+        cardviews: [
+          { name: 'Smothering Tithe', lift: 8.2, num_decks: 4000, potential_decks: 10000 },
+        ],
       },
       {
         tag: 'topcards',
         cardviews: [{ name: 'Sol Ring', lift: 1.5, num_decks: 9000, potential_decks: 10000 }],
       },
-      { tag: 'newcards', cardviews: [{ name: 'New Card', lift: 3, num_decks: 500, potential_decks: 10000 }] },
+      {
+        tag: 'newcards',
+        cardviews: [{ name: 'New Card', lift: 3, num_decks: 500, potential_decks: 10000 }],
+      },
       {
         tag: 'newcommanders',
         cardviews: [{ name: 'New Commander', lift: 3, num_decks: 500, potential_decks: 10000 }],
@@ -92,8 +97,18 @@ describe('parseCardLiftPool', () => {
 
   it('dedups by name keeping the max-lift occurrence', () => {
     const raw = page([
-      { tag: 'highliftcards', cardviews: [{ name: 'Dockside Extortionist', lift: 3, num_decks: 2000, potential_decks: 10000 }] },
-      { tag: 'topcards', cardviews: [{ name: 'Dockside Extortionist', lift: 9, num_decks: 2000, potential_decks: 10000 }] },
+      {
+        tag: 'highliftcards',
+        cardviews: [
+          { name: 'Dockside Extortionist', lift: 3, num_decks: 2000, potential_decks: 10000 },
+        ],
+      },
+      {
+        tag: 'topcards',
+        cardviews: [
+          { name: 'Dockside Extortionist', lift: 9, num_decks: 2000, potential_decks: 10000 },
+        ],
+      },
     ]);
     const pool = parseCardLiftPool(raw);
     expect(pool).toHaveLength(1);
