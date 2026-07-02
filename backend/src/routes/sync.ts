@@ -229,6 +229,10 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   const applied: AppliedRow[] = [];
   const conflicts: Array<{ kind: 'deck'; id: string; serverRev: number; serverData: unknown }> = [];
   const client = await getPool().connect();
+  // A failed ROLLBACK leaves the connection in an aborted-transaction state;
+  // pass it to release() so pg destroys it instead of recycling a poisoned
+  // connection back into the pool (which would corrupt the next request).
+  let rollbackFailed: Error | undefined;
   try {
     await client.query('BEGIN');
 
@@ -443,11 +447,16 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
 
     await client.query('COMMIT');
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    try {
+      await client.query('ROLLBACK');
+    } catch (rbErr) {
+      rollbackFailed = rbErr instanceof Error ? rbErr : new Error(String(rbErr));
+      logger.warn(`[sync] POST.rollback-failed user=${userId}`, rbErr);
+    }
     logger.warn(`[sync] POST.fail user=${userId}`, err);
     throw err;
   } finally {
-    client.release();
+    client.release(rollbackFailed);
   }
 
   const cursor = applied.reduce((mx, a) => Math.max(mx, a.rev), 0);
