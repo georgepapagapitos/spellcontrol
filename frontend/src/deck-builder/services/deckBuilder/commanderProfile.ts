@@ -676,11 +676,19 @@ export function buildCommanderProfile(
     })
     .map((e) => e.a);
 
-  // Suggested themes: strategy-ranked, deduped.
+  // Suggested themes: strategy-ranked, deduped, breadth-first across abilities.
+  // Round-robin (each ability's Nth theme in rank order) instead of draining one
+  // ability's whole list first — otherwise a single ability that emits several
+  // themes (e.g. an ETB → blink/flicker/etb) monopolizes the downstream top-3
+  // preselect and starves every other detected ability's primary theme. This
+  // way the preselect spans the top abilities, so a commander's signature theme
+  // isn't dropped just because it sits on a lower-ranked ability.
   const suggestedThemes: string[] = [];
-  for (const a of rankedAbilities) {
-    for (const t of a.themes) {
-      if (!suggestedThemes.includes(t)) suggestedThemes.push(t);
+  const maxThemes = rankedAbilities.reduce((m, a) => Math.max(m, a.themes.length), 0);
+  for (let i = 0; i < maxThemes; i++) {
+    for (const a of rankedAbilities) {
+      const t = a.themes[i];
+      if (t && !suggestedThemes.includes(t)) suggestedThemes.push(t);
     }
   }
 
