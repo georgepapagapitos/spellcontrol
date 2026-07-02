@@ -175,9 +175,14 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
       continue;
     }
 
+    // A Count/Quantity of exactly 0 marks an unowned row (Deckbox/Moxfield
+    // wishlist or tradelist-only entry) — skip it rather than import 1 copy.
+    const quantity = parseQuantity(vals[fieldMap.quantity]);
+    if (quantity === 0) continue;
+
     rows.push({
       name,
-      quantity: parseQuantity(vals[fieldMap.quantity]),
+      quantity,
       setCode: fieldMap.setCode >= 0 ? vals[fieldMap.setCode] || undefined : undefined,
       setName: fieldMap.setName >= 0 ? vals[fieldMap.setName] || undefined : undefined,
       collectorNumber:
@@ -256,7 +261,9 @@ function splitCsvLine(line: string, delim: string): string[] {
 function parseQuantity(raw: string | undefined): number {
   if (!raw) return 1;
   const n = parseInt(raw);
-  return isFinite(n) && n > 0 ? n : 1;
+  // Allow an explicit 0 through (the caller drops unowned rows); missing or
+  // malformed quantities default to 1.
+  return isFinite(n) && n >= 0 ? n : 1;
 }
 
 function parsePrice(raw: string | undefined): number | undefined {
