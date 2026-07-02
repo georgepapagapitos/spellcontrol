@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 import './BuildReportPanel.css';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
+import { VerdictBadge } from './VerdictBadge';
+import { OwnershipBadge } from './OwnershipBadge';
 
 /** Headline for how an alternative generator built the deck. */
 function humanizeGenerationMode(mode: GenerationMode, detail?: string): string {
@@ -84,6 +86,8 @@ export function BuildReportPanel({
     generationMode,
     generationModeDetail,
     generationNote,
+    packagePicks,
+    liftPicksNote,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -163,6 +167,39 @@ export function BuildReportPanel({
               </li>
             ))}
           </ul>
+        </details>
+      )}
+
+      {packagePicks && packagePicks.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{packagePicks.length}</strong> hidden-synergy pick
+            {packagePicks.length === 1 ? '' : 's'} — not in your EDHREC pool, but strongly paired
+            with cards already in the deck
+          </summary>
+          <ul className="build-report-subs-list">
+            {packagePicks.map((p) => (
+              <li key={p.name} className="build-report-sub">
+                <span className="build-report-sub-map">
+                  <strong>{p.name}</strong>
+                </span>
+                <span className="build-report-sub-reason">
+                  {p.kind === 'bomb'
+                    ? `Pairs hard with ${p.liftedBy[0]}`
+                    : `Lifted by ${p.liftedBy.join(', ')}`}
+                </span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge
+                    tone={p.kind === 'bomb' ? 'info' : 'neutral'}
+                    label={p.kind === 'bomb' ? 'Combo-style pairing' : 'Cluster pick'}
+                  />
+                  {p.lowSample && <VerdictBadge tone="warn" label="Low sample" />}
+                  <OwnershipBadge owned={p.owned} showUnowned />
+                </span>
+              </li>
+            ))}
+          </ul>
+          {liftPicksNote && <p className="build-report-lift-note">{liftPicksNote}</p>}
         </details>
       )}
 

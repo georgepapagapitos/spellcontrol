@@ -80,3 +80,11 @@ export function exceedsCmcCap(card: ScryfallCard, maxCmc: number | null): boolea
   if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) return false;
   return card.cmc > maxCmc;
 }
+
+// Check if a card is banned/not legal in Commander. EDHREC/lift-derived pools
+// aren't pre-scoped to legality (unlike the Scryfall-search fallback, which
+// queries within `f:commander` implicitly via its color-identity search), so
+// candidates sourced from a card page need an explicit gate.
+export function notCommanderLegal(card: ScryfallCard): boolean {
+  return card.legalities.commander !== 'legal';
+}

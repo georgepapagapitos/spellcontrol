@@ -94,6 +94,7 @@ import {
 } from './deckGeneration/state';
 import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
+import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
@@ -2902,6 +2903,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Gap analysis: find top unowned cards that would improve the deck
   const gapAnalysis = await gapAnalysisPhase(state);
 
+  // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
+  // for this commander but strongly co-played with cards already in the
+  // deck. Suggestions only — never added to the deck.
+  const liftPicks = await liftPicksPhase(state);
+
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);
 
@@ -3461,6 +3467,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     stats,
     usedThemes,
     gapAnalysis,
+    packagePicks: liftPicks?.packagePicks,
+    liftPicksNote: liftPicks?.liftPicksNote,
     detectedCombos,
     collectionShortfall:
       context.collectionNames && basicLandFillCount > 0 ? basicLandFillCount : undefined,

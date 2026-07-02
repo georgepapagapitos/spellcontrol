@@ -121,5 +121,13 @@ export function assembleBuildReport(input: {
     report.claimedConflicts = claimedConflicts;
   }
 
+  // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
+  // Unconditional on builtFromCollection: unlike synergyFills these aren't
+  // owned-build provenance, they're a suggestion regardless of build mode.
+  if (generated.packagePicks && generated.packagePicks.length > 0) {
+    report.packagePicks = generated.packagePicks;
+    report.liftPicksNote = generated.liftPicksNote;
+  }
+
   return report;
 }

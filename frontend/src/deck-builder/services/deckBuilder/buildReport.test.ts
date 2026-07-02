@@ -289,6 +289,55 @@ describe('assembleBuildReport', () => {
     });
   });
 
+  describe('packagePicks (hidden-synergy suggestions)', () => {
+    it('passes through packagePicks and liftPicksNote when present', () => {
+      const packagePicks: GeneratedDeck['packagePicks'] = [
+        { name: 'Bomb Card', kind: 'bomb', liftedBy: ['Commander'], lowSample: false, owned: true },
+      ];
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          packagePicks,
+          liftPicksNote: '1 higher-lift candidate hidden: off-color',
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.packagePicks).toEqual(packagePicks);
+      expect(report.liftPicksNote).toBe('1 higher-lift candidate hidden: off-color');
+    });
+
+    it('is unconditional on builtFromCollection', () => {
+      const packagePicks: GeneratedDeck['packagePicks'] = [
+        {
+          name: 'Bomb Card',
+          kind: 'bomb',
+          liftedBy: ['Commander'],
+          lowSample: false,
+          owned: false,
+        },
+      ];
+      const report = assembleBuildReport({
+        generated: makeGenerated({ packagePicks, builtFromCollection: false }),
+        customization: makeCustomization({ collectionMode: false }),
+        collectionNames: new Set(),
+      });
+
+      expect(report.packagePicks).toEqual(packagePicks);
+    });
+
+    it('omits packagePicks and liftPicksNote when absent', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.packagePicks).toBeUndefined();
+      expect(report.liftPicksNote).toBeUndefined();
+    });
+  });
+
   it('omits roleGaps when no targets or no gaps', () => {
     const noTargets = assembleBuildReport({
       generated: makeGenerated(),
