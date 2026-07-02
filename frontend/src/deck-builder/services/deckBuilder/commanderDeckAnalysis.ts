@@ -566,6 +566,7 @@ export async function analyzeCommanderDeck(
     // ponytail: commander + high-synergy seeds only, not the whole deck —
     // widen to full-deck seeding if analysis-time lift proves worth the cost.
     let liftIndex: ReturnType<typeof buildLiftIndex> | undefined;
+    let liftSeedCount = 0;
     try {
       const edhrecByName = new Map(edhrecData.cardlists.allNonLand.map((c) => [c.name, c]));
       const highSynergyNames = params.cards
@@ -585,8 +586,10 @@ export async function analyzeCommanderDeck(
         if (pool.length > 0) seedPools.set(seed, pool);
       }
       if (seedPools.size > 0) liftIndex = buildLiftIndex(seedPools);
+      liftSeedCount = seedPools.size;
     } catch {
       liftIndex = undefined;
+      liftSeedCount = 0;
     }
 
     // Gap analysis dedupes against every card name in the list, commanders
@@ -660,7 +663,10 @@ export async function analyzeCommanderDeck(
         new Set<string>(),
         params.detectedCombos,
         cardSynergyMap,
-        synergyProtectedNames
+        synergyProtectedNames,
+        // E71 Phase 4: lift co-play connectivity — protects package-connected
+        // cards from the cutter and flags trusted no-link cards "off-package".
+        liftIndex ? { index: liftIndex, seedCount: liftSeedCount } : undefined
       );
       // Budget downgrades: cheaper role-equivalents drawn from the same EDHREC
       // recommendation pool. USD-canonical (matches the baked recommendation
