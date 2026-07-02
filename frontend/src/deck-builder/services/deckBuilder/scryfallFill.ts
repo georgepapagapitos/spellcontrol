@@ -15,6 +15,7 @@ import {
   exceedsCmcCap,
 } from './deckFilters';
 import { frontFaceName } from '@/lib/card-text';
+import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 
 // Fill remaining slots with Scryfall search (fallback)
 export async function fillWithScryfall(
@@ -57,25 +58,52 @@ export async function fillWithScryfall(
 
   try {
     const response = await searchCards(fullQuery, colorIdentity, { order: 'edhrec' });
-    const result: ScryfallCard[] = [];
 
+    // Pass 1: cards clearing the static gates, in Scryfall's global edhrec order.
+    // Budget is applied in pass 2 since its cap moves as we deduct.
+    const passing: ScryfallCard[] = [];
     for (const card of response.data) {
-      if (result.length >= count) break;
       if (usedNames.has(card.name)) continue; // Commander format is always singleton
       if (bannedCards.has(card.name)) continue; // Skip banned cards
       if (constrainsToCollection(collectionStrategy) && notInCollection(card.name, collectionNames))
         continue;
-      const ownedExempt = isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget);
-      if (!ownedExempt) {
-        const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
-        if (exceedsMaxPrice(card, effectiveCap, currency)) continue;
-      }
       if (!isOwnedRarityExempt(card.name, collectionNames, ignoreOwnedRarity)) {
         if (exceedsMaxRarity(card, maxRarity)) continue;
       }
       if (exceedsCmcCap(card, maxCmc)) continue;
       if (notOnArena(card, arenaOnly)) continue;
+      passing.push(card);
+    }
 
+    // In owned-only modes the candidates are all cards the user happens to own of
+    // this type — Scryfall's global edhrec_rank says nothing about their fit with
+    // this commander. Re-rank by how well each card's tagger tags match the deck
+    // built so far (usedNames), so slots fill with the most on-theme owned card
+    // rather than just the globally-best legal one. Stable sort → cards with no
+    // shared tags keep their edhrec order. Other modes are left untouched.
+    if (constrainsToCollection(collectionStrategy)) {
+      const fingerprint = buildSynergyFingerprint(usedNames);
+      if (fingerprint.size > 0) {
+        const scored = passing.map((card, i) => ({
+          card,
+          i,
+          s: synergyScore(card.name, fingerprint),
+        }));
+        scored.sort((a, b) => b.s - a.s || a.i - b.i);
+        passing.length = 0;
+        for (const { card } of scored) passing.push(card);
+      }
+    }
+
+    // Pass 2: take up to `count`, applying the dynamic budget/price gate in order.
+    const result: ScryfallCard[] = [];
+    for (const card of passing) {
+      if (result.length >= count) break;
+      const ownedExempt = isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget);
+      if (!ownedExempt) {
+        const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+        if (exceedsMaxPrice(card, effectiveCap, currency)) continue;
+      }
       result.push(card);
       usedNames.add(card.name);
       // Also mark front-face name for DFCs so EDHREC-sourced checks match
