@@ -97,6 +97,13 @@
   font-weight: 400;
 }
 
+/* Left-aligned CTA under the gap chips → Coach "Fix gaps" lane. Look comes
+   from the shared .btn-link; this only positions it within the gaps column. */
+.build-report-gaps-cta {
+  align-self: flex-start;
+  margin-top: 0.1rem;
+}
+
 .build-report-conflict-note {
   margin: 0.15rem 0 0;
   font-size: var(--text-sm);

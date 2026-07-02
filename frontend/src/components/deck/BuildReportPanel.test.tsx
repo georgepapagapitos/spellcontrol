@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import type { BuildReport } from '@/deck-builder/types';
 import { BuildReportPanel } from './BuildReportPanel';
 
@@ -88,6 +88,27 @@ describe('BuildReportPanel', () => {
     expect(
       count?.querySelector('.build-report-gap-target')?.textContent?.replace(/\s+/g, ' ')
     ).toBe(' / 10');
+  });
+
+  it('shows a "see cards to add" CTA that fires onFixGaps, only when the callback is given', () => {
+    const onFixGaps = vi.fn();
+    const report = makeReport({ roleGaps: [{ role: 'removal', have: 8, want: 12 }] });
+
+    // No callback → informational only, no button.
+    const { unmount } = render(<BuildReportPanel report={report} />);
+    expect(screen.queryByRole('button', { name: /cards to add/i })).toBeNull();
+    unmount();
+
+    // With callback → actionable CTA that jumps to the fix-gaps lane.
+    render(<BuildReportPanel report={report} onFixGaps={onFixGaps} />);
+    const cta = screen.getByRole('button', { name: /cards to add/i });
+    fireEvent.click(cta);
+    expect(onFixGaps).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no CTA when there are no role gaps even if onFixGaps is given', () => {
+    render(<BuildReportPanel report={makeReport()} onFixGaps={() => {}} />);
+    expect(screen.queryByRole('button', { name: /cards to add/i })).toBeNull();
   });
 
   it('humanizes an unknown role key (camelCase fallback)', () => {
