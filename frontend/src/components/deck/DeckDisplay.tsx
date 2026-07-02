@@ -3354,7 +3354,10 @@ function DeckAnalysisView({
           {/* Build report — full width, list-heavy. */}
           {buildReport && (
             <Panel title="Build report" wide className={panelCascadeClass(4, cascade.animating)}>
-              <BuildReportPanel report={buildReport} />
+              <BuildReportPanel
+                report={buildReport}
+                onFixGaps={onNavigateToTune ? () => onNavigateToTune('fill-gaps') : undefined}
+              />
             </Panel>
           )}
         </div>

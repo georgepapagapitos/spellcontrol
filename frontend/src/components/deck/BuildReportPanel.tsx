@@ -58,7 +58,15 @@ function humanizeDataSource(source: DeckDataSource): string {
   }
 }
 
-export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Element {
+export function BuildReportPanel({
+  report,
+  onFixGaps,
+}: {
+  report: BuildReport;
+  /** Jump to the Coach "Fix gaps" lane to add cards for the under-target roles.
+   *  Omitted (e.g. in the quick-glance sheet) → the gaps stay informational. */
+  onFixGaps?: () => void;
+}): JSX.Element {
   const {
     targetBracket,
     estimatedBracket,
@@ -190,6 +198,11 @@ export function BuildReportPanel({ report }: { report: BuildReport }): JSX.Eleme
               </li>
             ))}
           </ul>
+          {onFixGaps && (
+            <button type="button" className="btn-link build-report-gaps-cta" onClick={onFixGaps}>
+              See cards to add &rarr;
+            </button>
+          )}
         </div>
       )}
     </div>
