@@ -30,10 +30,14 @@ const CLASSIFY_PRIORITY = [
 ] as const;
 export type TypeGroup = (typeof CLASSIFY_PRIORITY)[number];
 
+function effectiveTypeLine(card: ScryfallCard): string {
+  return card.type_line || card.card_faces?.[0]?.type_line || '';
+}
+
 /** Leading card type ("Creature", "Land", …); default Artifact. Shared with
  *  DeckDisplay so the editor and compare view classify identically. */
 export function classifyType(card: ScryfallCard): TypeGroup {
-  const tl = (card.type_line || '').toLowerCase();
+  const tl = effectiveTypeLine(card).toLowerCase();
   for (const group of CLASSIFY_PRIORITY) {
     if (tl.includes(group.toLowerCase())) return group;
   }
@@ -80,7 +84,7 @@ export function tallyNames(
  * `bucketType()`.
  */
 const isLand = (card: ScryfallCard) =>
-  (card.type_line || '').split('//')[0].toLowerCase().includes('land');
+  effectiveTypeLine(card).split('//')[0].toLowerCase().includes('land');
 
 /**
  * Build a deck's full mana/composition data from its flat card list.

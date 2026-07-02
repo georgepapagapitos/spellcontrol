@@ -2747,7 +2747,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       const addOwnedCard = (card: ScryfallCard) => {
         stampRoleSubtypes(card);
         const role = getCardRole(card.name);
-        const typeLine = (card.type_line || '').toLowerCase();
+        const typeLine = getFrontFaceTypeLine(card).toLowerCase();
         if (typeLine.includes('creature')) categories.creatures.push(card);
         else if (role === 'boardwipe') categories.boardWipes.push(card);
         else if (role === 'removal') categories.singleRemoval.push(card);
@@ -2776,7 +2776,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             price: null,
             inclusion: edhrecCard.inclusion,
             synergy: edhrecCard.synergy ?? 0,
-            typeLine: sc?.type_line ?? edhrecCard.primary_type ?? '',
+            typeLine: sc ? getFrontFaceTypeLine(sc) : (edhrecCard.primary_type ?? ''),
             cmc: sc?.cmc ?? edhrecCard.cmc,
             role,
           });
@@ -3074,7 +3074,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (bannedCards.has(card.name)) return false; // respect banlist
       stampRoleSubtypes(card);
       const role = getCardRole(card.name);
-      const typeLine = (card.type_line || '').toLowerCase();
+      const typeLine = getFrontFaceTypeLine(card).toLowerCase();
       if (typeLine.includes('creature')) categories.creatures.push(card);
       else if (role === 'boardwipe') categories.boardWipes.push(card);
       else if (role === 'removal') categories.singleRemoval.push(card);
@@ -3339,7 +3339,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function fixupAddCard(card: ScryfallCard) {
       stampRoleSubtypes(card);
       const role = getCardRole(card.name);
-      const typeLine = (card.type_line || '').toLowerCase();
+      const typeLine = getFrontFaceTypeLine(card).toLowerCase();
       if (typeLine.includes('creature')) {
         categories.creatures.push(card);
       } else if (role === 'boardwipe') {
@@ -3395,7 +3395,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             fixupRemoveCard(weak.card, weak.category);
             fixupAddCard(replacement);
             if (swapCandidates) {
-              const key = `type:${(weak.card.type_line || 'unknown').split(' ')[0].toLowerCase()}`;
+              const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
               if (!swapCandidates[key]) swapCandidates[key] = [];
               swapCandidates[key].push(weak.card);
             }
@@ -3440,7 +3440,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                 fixupRemoveCard(weak.card, weak.category);
                 fixupAddCard(replacement);
                 if (swapCandidates) {
-                  const key = `type:${(weak.card.type_line || 'unknown').split(' ')[0].toLowerCase()}`;
+                  const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
                   if (!swapCandidates[key]) swapCandidates[key] = [];
                   swapCandidates[key].push(weak.card);
                 }

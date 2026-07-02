@@ -70,13 +70,20 @@ export interface RoleCountResult {
   cardDrawSubtypeCounts: Record<string, number>;
 }
 
+function frontTypeLine(card: {
+  type_line?: string;
+  card_faces?: Array<{ type_line?: string }>;
+}): string {
+  return card.card_faces?.[0]?.type_line || card.type_line || '';
+}
+
 /**
  * Tag each non-land card by functional role + subtype. Mirrors the enricher's
  * rule of not counting lands toward role totals. Shared by the deck-stats
  * `derivedRoles` memo and the manual-deck analysis path so the two never drift.
  */
 export function computeRoleCounts(
-  cards: Array<{ name: string; type_line?: string }>
+  cards: Array<{ name: string; type_line?: string; card_faces?: Array<{ type_line?: string }> }>
 ): RoleCountResult {
   const roleCounts: Record<string, number> = {
     ramp: 0,
@@ -90,7 +97,7 @@ export function computeRoleCounts(
   const cardDrawSubtypeCounts: Record<string, number> = {};
 
   for (const c of cards) {
-    if ((c.type_line || '').toLowerCase().includes('land')) continue;
+    if (frontTypeLine(c).toLowerCase().includes('land')) continue;
     const role = getCardRole(c.name);
     if (!role) continue;
     roleCounts[role] = (roleCounts[role] || 0) + 1;
@@ -431,7 +438,7 @@ export async function enrichRecommendationPrices(recs: RecommendedCard[]): Promi
         if (usd) r.price = usd;
       }
       // Backfill land color-fixing for the budget land-swap floor.
-      if (!r.producedColors && c.type_line?.toLowerCase().includes('land')) {
+      if (!r.producedColors && getFrontFaceTypeLine(c).toLowerCase().includes('land')) {
         const colors = [...new Set((c.produced_mana ?? []).filter((m) => 'WUBRG'.includes(m)))];
         if (colors.length > 0) r.producedColors = colors;
       }
@@ -529,7 +536,7 @@ export async function analyzeCommanderDeck(
       edhrecData
     );
 
-    const nonLand = params.cards.filter((c) => !(c.type_line || '').toLowerCase().includes('land'));
+    const nonLand = params.cards.filter((c) => !frontTypeLine(c).toLowerCase().includes('land'));
     const averageCmc =
       nonLand.length > 0 ? nonLand.reduce((s, c) => s + (c.cmc ?? 0), 0) / nonLand.length : 0;
 
@@ -769,7 +776,7 @@ export async function analyzeCommanderDeck(
         cardCmcMap: Object.fromEntries(
           params.cards.map((c) => [
             c.name,
-            { cmc: c.cmc ?? 0, isLand: (c.type_line || '').toLowerCase().includes('land') },
+            { cmc: c.cmc ?? 0, isLand: frontTypeLine(c).toLowerCase().includes('land') },
           ])
         ),
         roleCounts,

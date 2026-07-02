@@ -142,6 +142,30 @@ describe('buildManaData', () => {
     expect(r.typeBreakdown.Artifact).toBe(0);
   });
 
+  it('uses the first face type line for reversible cards with no top-level type line', () => {
+    const bloodCrypt = card({
+      name: 'Blood Crypt // Blood Crypt',
+      layout: 'reversible_card',
+      type_line: undefined as unknown as string,
+      cmc: undefined as unknown as number,
+      color_identity: ['B', 'R'],
+      produced_mana: ['B', 'R'],
+      card_faces: [
+        { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+        { name: 'Blood Crypt', type_line: 'Land — Swamp Mountain' },
+      ] as ScryfallCard['card_faces'],
+    });
+
+    const r = buildManaData([bloodCrypt], null);
+
+    expect(r.manaCurve).toEqual({});
+    expect(r.averageCmc).toBe(0);
+    expect(r.colorDist.total).toBe(0);
+    expect(r.typeBreakdown.Land).toBe(1);
+    expect(r.typeBreakdown.Artifact).toBe(0);
+    expect(r.cardsByType?.Land?.[0]?.name).toBe('Blood Crypt // Blood Crypt');
+  });
+
   it('treats a spell//land MDFC as a spell in the curve (front-face only)', () => {
     // type_line contains "land" after the // but the front face is a spell.
     const mdfc = card({
