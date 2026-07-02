@@ -129,4 +129,96 @@ describe('BuildReportPanel', () => {
     );
     expect(container.textContent).not.toContain('from your collection');
   });
+
+  describe('hidden-synergy package picks', () => {
+    it('is absent when there are no picks', () => {
+      const { container } = render(<BuildReportPanel report={makeReport()} />);
+      expect(container.textContent).not.toContain('hidden-synergy');
+    });
+
+    it('renders a bomb pick with its reason and chips (combo-style + owned)', () => {
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport({
+            packagePicks: [
+              {
+                name: 'Bomb Card',
+                kind: 'bomb',
+                liftedBy: ['Sol Ring'],
+                lowSample: false,
+                owned: true,
+              },
+            ],
+          })}
+        />
+      );
+      expect(screen.getByText('Bomb Card')).toBeTruthy();
+      expect(screen.getByText('Pairs hard with Sol Ring')).toBeTruthy();
+      expect(screen.getByText('Combo-style pairing')).toBeTruthy();
+      expect(screen.getByText('Owned')).toBeTruthy();
+      expect(container.textContent).not.toContain('Low sample');
+    });
+
+    it('renders a cluster pick with its liftedBy list and unowned/low-sample chips', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            packagePicks: [
+              {
+                name: 'Cluster Card',
+                kind: 'cluster',
+                liftedBy: ['Card A', 'Card B'],
+                lowSample: true,
+                owned: false,
+              },
+            ],
+          })}
+        />
+      );
+      expect(screen.getByText('Lifted by Card A, Card B')).toBeTruthy();
+      expect(screen.getByText('Cluster pick')).toBeTruthy();
+      expect(screen.getByText('Low sample')).toBeTruthy();
+      expect(screen.getByText('Not owned')).toBeTruthy();
+    });
+
+    it('renders the disclosure footnote when present', () => {
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport({
+            packagePicks: [
+              {
+                name: 'Bomb Card',
+                kind: 'bomb',
+                liftedBy: ['Sol Ring'],
+                lowSample: false,
+                owned: true,
+              },
+            ],
+            liftPicksNote: '2 higher-lift candidates hidden: over budget cap',
+          })}
+        />
+      );
+      expect(screen.getByText('2 higher-lift candidates hidden: over budget cap')).toBeTruthy();
+      expect(container.querySelector('.build-report-lift-note')).toBeTruthy();
+    });
+
+    it('omits the footnote when absent', () => {
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport({
+            packagePicks: [
+              {
+                name: 'Bomb Card',
+                kind: 'bomb',
+                liftedBy: ['Sol Ring'],
+                lowSample: false,
+                owned: true,
+              },
+            ],
+          })}
+        />
+      );
+      expect(container.querySelector('.build-report-lift-note')).toBeNull();
+    });
+  });
 });

@@ -9,6 +9,7 @@ import {
   isOwnedRarityExempt,
   notOnArena,
   exceedsCmcCap,
+  notCommanderLegal,
 } from './deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -113,6 +114,17 @@ describe('notOnArena', () => {
   it('filters cards not available on Arena', () => {
     expect(notOnArena(makeCard({ games: ['paper'] }), true)).toBe(true);
     expect(notOnArena(makeCard({ games: ['paper', 'arena'] }), true)).toBe(false);
+  });
+});
+
+describe('notCommanderLegal', () => {
+  it('passes commander-legal cards', () => {
+    expect(notCommanderLegal(makeCard({ legalities: { commander: 'legal' } }))).toBe(false);
+  });
+
+  it('rejects banned/not_legal cards', () => {
+    expect(notCommanderLegal(makeCard({ legalities: { commander: 'banned' } }))).toBe(true);
+    expect(notCommanderLegal(makeCard({ legalities: { commander: 'not_legal' } }))).toBe(true);
   });
 });
 

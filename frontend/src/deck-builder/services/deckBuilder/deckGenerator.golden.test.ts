@@ -139,6 +139,9 @@ vi.mock('@/deck-builder/services/edhrec/client', async (orig) => ({
   fetchCommanderCombos: vi.fn(async () => []),
   fetchSaltIndex: vi.fn(async () => new Map()),
   fetchAverageDeckMultiCopies: vi.fn(async () => null),
+  // Lift-picks phase (E71): no card-page data in this fixture universe, so
+  // every seed lookup comes back empty — same as the real client's soft-fail.
+  fetchCardLiftPool: vi.fn(async () => []),
 }));
 
 vi.mock('@/deck-builder/services/scryfall/client', async (orig) => {

@@ -9,6 +9,7 @@ import type {
   EDHRECTopCommander,
   BudgetOption,
   TargetBracket,
+  LiftEntry,
 } from '@/deck-builder/types';
 import { offlineSearchCards } from '@/lib/offline';
 import { frontFaceName } from '@/lib/card-text';
@@ -1415,4 +1416,162 @@ export async function fetchComboDetails(comboId: string): Promise<ComboDetails> 
 
   comboDetailsCache.set(comboId, details);
   return details;
+}
+
+// --- Card-page lift data ---
+//
+// EDHREC's per-card page (`/pages/cards/<slug>.json`) lists co-played cards
+// under `highliftcards` (distinctive co-plays) and `topcards` (most-played-
+// with), plus assorted meta lists (top/new commanders, new cards) that don't
+// belong in a co-play candidate pool. Each cardview carries a raw `lift` +
+// `inclusion`/`num_decks`/`potential_decks` but no ready-made co-play
+// percentage — derived below. The page's top-level `similar` list is
+// intentionally not consumed here; it's already indexed locally via
+// cardSimilar.ts + public/card-similar.json.
+
+interface RawCardPageView {
+  id?: string;
+  // Optional despite EDHREC always sending it: toLiftEntry defensively guards
+  // a missing/empty name at runtime, so the type shouldn't overpromise.
+  name?: string;
+  sanitized?: string;
+  url?: string;
+  lift?: number;
+  inclusion?: number;
+  num_decks?: number;
+  potential_decks?: number;
+}
+
+interface RawCardPageList {
+  tag: string;
+  header?: string;
+  cardviews: RawCardPageView[];
+}
+
+interface RawCardPageResponse {
+  container?: {
+    json_dict?: {
+      cardlists?: RawCardPageList[];
+      similar?: string[]; // not consumed here — see cardSimilar.ts
+    };
+  };
+}
+
+// Aggregate/other-commander lists — not genuine co-play candidates.
+const LIFT_POOL_SKIP_TAGS = new Set(['topcommanders', 'newcommanders', 'newcards']);
+
+/** Strict floor: entries below this sample size are kept but flagged `lowSample`. */
+export const LIFT_STRICT_FLOOR = 50;
+
+/**
+ * Adaptive low-sample floor: a cardview needs at least this many co-occurring
+ * decks to enter the pool at all, scaled down for a niche seed card whose
+ * overall potential-deck count is small (otherwise niche seeds would yield an
+ * empty pool under the flat strict floor).
+ */
+export function liftDeckFloor(potentialDecks: number): number {
+  return Math.min(50, Math.max(12, Math.round(potentialDecks * 0.02)));
+}
+
+function toLiftEntry(cv: RawCardPageView): LiftEntry | null {
+  const lift = cv.lift ?? 0;
+  if (!cv.name || lift <= 0) return null;
+  const numDecks = cv.num_decks ?? cv.inclusion ?? 0;
+  const potentialDecks = cv.potential_decks ?? 0;
+  if (numDecks < liftDeckFloor(potentialDecks)) return null;
+  return {
+    name: cv.name,
+    lift,
+    coPlayPct: potentialDecks > 0 ? Math.round((numDecks / potentialDecks) * 100) : 0,
+    numDecks,
+    potentialDecks,
+    lowSample: numDecks < LIFT_STRICT_FLOOR,
+  };
+}
+
+/**
+ * Pool of co-play candidates from a card page: every non-meta cardlist,
+ * floor-filtered and deduped by name (keeping the max-lift occurrence),
+ * sorted by lift descending.
+ */
+export function parseCardLiftPool(raw: RawCardPageResponse): LiftEntry[] {
+  const lists = raw.container?.json_dict?.cardlists ?? [];
+  const byName = new Map<string, LiftEntry>();
+  for (const list of lists) {
+    if (LIFT_POOL_SKIP_TAGS.has(list.tag)) continue;
+    for (const cv of list.cardviews ?? []) {
+      const entry = toLiftEntry(cv);
+      if (!entry) continue;
+      const existing = byName.get(entry.name);
+      if (!existing || entry.lift > existing.lift) byName.set(entry.name, entry);
+    }
+  }
+  return [...byName.values()].sort((a, b) => b.lift - a.lift || a.name.localeCompare(b.name));
+}
+
+/**
+ * The two headline card-page relation lists on their own, floor-filtered but
+ * NOT deduped/re-sorted against each other — callers that want "why this
+ * card" evidence get EDHREC's own curated order.
+ */
+export function parseCardRelations(raw: RawCardPageResponse): {
+  highLift: LiftEntry[];
+  topCards: LiftEntry[];
+} {
+  const lists = raw.container?.json_dict?.cardlists ?? [];
+  const build = (tag: string): LiftEntry[] => {
+    const cardviews = lists.find((l) => l.tag === tag)?.cardviews ?? [];
+    const out: LiftEntry[] = [];
+    for (const cv of cardviews) {
+      const entry = toLiftEntry(cv);
+      if (entry) out.push(entry);
+    }
+    return out;
+  };
+  return { highLift: build('highliftcards'), topCards: build('topcards') };
+}
+
+const cardPageCache = new Map<string, { raw: RawCardPageResponse; timestamp: number }>();
+const CARD_PAGE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Shared by fetchCardLiftPool/fetchCardRelations so a card page is fetched
+// (and rate-limited) at most once per TTL window regardless of which caller
+// asks first.
+async function fetchRawCardPage(cardName: string): Promise<RawCardPageResponse | null> {
+  const slug = formatCommanderNameForUrl(cardName);
+
+  const cached = cardPageCache.get(slug);
+  if (cached && Date.now() - cached.timestamp < CARD_PAGE_CACHE_TTL) return cached.raw;
+
+  if (offlineActive()) return null;
+
+  try {
+    const raw = await edhrecFetch<RawCardPageResponse>(`/pages/cards/${slug}.json`);
+    cardPageCache.set(slug, { raw, timestamp: Date.now() });
+    return raw;
+  } catch (error) {
+    logger.warn(`[EDHREC] Failed to fetch card page for "${cardName}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Co-play candidate pool for a single seed card, sourced from its EDHREC
+ * card page. Soft-fails to `[]` on any network/offline issue — this feeds
+ * deck generation, which must continue without EDHREC lift data.
+ */
+export async function fetchCardLiftPool(cardName: string): Promise<LiftEntry[]> {
+  const raw = await fetchRawCardPage(cardName);
+  return raw ? parseCardLiftPool(raw) : [];
+}
+
+/**
+ * The headline `highliftcards`/`topcards` relations for a single seed card —
+ * the "why this card" evidence lists, as opposed to the merged pool above.
+ */
+export async function fetchCardRelations(
+  cardName: string
+): Promise<{ highLift: LiftEntry[]; topCards: LiftEntry[] }> {
+  const raw = await fetchRawCardPage(cardName);
+  return raw ? parseCardRelations(raw) : { highLift: [], topCards: [] };
 }

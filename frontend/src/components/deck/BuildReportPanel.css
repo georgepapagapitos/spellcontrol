@@ -179,6 +179,24 @@
   line-height: 1.4;
 }
 
+/* Chip row on a hidden-synergy pick (kind + low-sample + owned). */
+.build-report-lift-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+/* Disclosure footnote under the hidden-synergy picks — how many higher-lift
+   candidates the hard filters (color/legal/rarity/budget/…) removed. */
+.build-report-lift-note {
+  margin: 0.4rem 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────── */
 /* Phones: tighten the inter-line gap. Report lines wrap (overflow-wrap:
    anywhere) and the gap chips already flex-wrap, so no reflow is needed —
