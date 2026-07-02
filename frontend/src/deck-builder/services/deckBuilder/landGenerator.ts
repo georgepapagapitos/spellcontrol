@@ -24,9 +24,14 @@ import {
 import { isTapland } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from './budgetTracker';
 import { pickFromPrefetched } from './cardPicking';
-import { fillWithScryfall } from './scryfallFill';
+import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { constrainsToCollection, notInCollection } from './deckFilters';
-import { planBasicColorSplit } from './manabaseMath';
+import { planBasicColorSplit, weightedColorDemand, WUBRG } from './manabaseMath';
+import { producedManaColors } from '@/lib/mana-sources';
+
+/** Ceiling for the color-deficit nonbasic boost — a bounded re-rank (below the
+ *  MDFC/channel boosts), never a new eligibility path. */
+export const COLOR_DEMAND_BOOST_MAX = 25;
 
 // Basic land names to filter out from EDHREC suggestions — canonical set lives
 // in lib/allocations; re-exported here so existing './landGenerator' importers
@@ -118,7 +123,11 @@ export async function generateLands(
   ignoreOwnedRarity: boolean = false,
   pacing: Pacing = 'balanced',
   priorityBoosts?: Map<string, number>,
-  basicPrintings?: Map<string, BasicPrintingAvail[]>
+  basicPrintings?: Map<string, BasicPrintingAvail[]>,
+  // Same hard gates every other pick path enforces (E71 controls audit).
+  // Without this, lands bypass the game-changer cap AND never get flagged
+  // isGameChanger — Field of the Dead lands unnoticed in a Bracket-2 deck.
+  gates?: FillHardGates
 ): Promise<ScryfallCard[]> {
   const lands: ScryfallCard[] = [];
   const enforceAvailableCounts = collectionStrategy === 'available';
@@ -188,6 +197,26 @@ export async function generateLands(
       }
     }
 
+    // Color-demand boost: nudge lands that produce the colors this deck's
+    // costs actually lean on (weighted pip demand), so an on-color dual
+    // outranks an off-color utility land at similar inclusion and utility
+    // never starves color sources. Bounded re-rank: EDHREC priority stays
+    // primary; a 5-color fixer earns the full cap, colorless utility earns 0.
+    const demand = weightedColorDemand(nonLandCards);
+    const identitySet = new Set(colorIdentity);
+    const totalDemand = WUBRG.reduce((s, c) => s + (identitySet.has(c) ? demand[c] : 0), 0);
+    if (totalDemand > 0) {
+      for (const [name, card] of landCardMap) {
+        const produced = producedManaColors(card, identitySet);
+        let share = 0;
+        for (const c of WUBRG) {
+          if (identitySet.has(c) && produced.includes(c)) share += demand[c] / totalDemand;
+        }
+        const boost = Math.round(COLOR_DEMAND_BOOST_MAX * Math.min(1, share));
+        if (boost > 0) landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);
+      }
+    }
+
     // Tapland penalties based on deck pacing
     const basePenalty = TAPLAND_PENALTIES[pacing];
     if (basePenalty !== 0) {
@@ -215,20 +244,21 @@ export async function generateLands(
       colorIdentity,
       bannedCards,
       maxCardPrice,
-      Infinity,
-      { value: 0 },
+      gates?.maxGameChangers ?? Infinity,
+      gates?.gameChangerCount ?? { value: 0 },
       maxRarity,
       maxCmc,
       budgetTracker,
       collectionNames,
       landPenalties.size > 0 ? landPenalties : undefined,
       currency,
-      new Set(),
+      gates?.gameChangerNames ?? new Set(),
       arenaOnly,
       collectionStrategy,
       collectionOwnedPercent,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      gates?.isSaltBlocked ? (card) => !gates.isSaltBlocked!(card.name) : undefined
     );
     lands.push(...nonBasics);
     logger.debug(
@@ -260,7 +290,10 @@ export async function generateLands(
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      undefined,
+      undefined,
+      gates
     );
     lands.push(...moreLands);
   }
