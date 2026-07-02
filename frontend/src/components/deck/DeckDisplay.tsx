@@ -365,6 +365,9 @@ export interface DeckDisplayProps {
   winConditionSlot?: React.ReactNode;
   /** Power-tab verdict hero (bracket + gameplan), rendered atop the Power view. */
   powerHeroSlot?: React.ReactNode;
+  /** Table Record panel (real tracked W/L + head-to-head), rendered on the
+   *  Stats tab. Built by the page (owns its own store reads). */
+  tableRecordSlot?: React.ReactNode;
   /**
    * In-context "Swap this card": for an in-deck card at `slotId`, return the
    * role-scoped replacement section rendered in the card-preview panel. `close`
@@ -409,6 +412,12 @@ export interface DeckDisplayProps {
    * Computed by the page from deck.id + gradeBracketSignature.
    */
   scoreRevealKey?: string | null;
+  /** One-tap add on a Build Report suggestion row (synergyFills/packagePicks).
+   *  Omitted → the rows stay read-only prose. */
+  onAddSuggestedCard?: (cardName: string) => void;
+  /** Card names with an add in flight from a Build Report row (exact case,
+   *  mirrors the Coach/NBM `busyNames` convention). */
+  addingSuggestedCardNames?: ReadonlySet<string>;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -951,6 +960,7 @@ export function DeckDisplay({
   engineSlot,
   winConditionSlot,
   powerHeroSlot,
+  tableRecordSlot,
   renderSwapSuggestions,
   renderSimilarCards,
   activeView = 'deck',
@@ -958,6 +968,8 @@ export function DeckDisplay({
   analysisState = 'ready',
   onNavigateToTune,
   scoreRevealKey,
+  onAddSuggestedCard,
+  addingSuggestedCardNames,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -1710,6 +1722,7 @@ export function DeckDisplay({
             engineSlot={engineSlot}
             winConditionSlot={winConditionSlot}
             powerHeroSlot={powerHeroSlot}
+            tableRecordSlot={tableRecordSlot}
             commanderIdentity={commanderIdentity}
             analysisState={analysisState}
             onNavigateToTune={onNavigateToTune}
@@ -1720,6 +1733,8 @@ export function DeckDisplay({
             deckColor={color ?? 'var(--accent)'}
             identity={identity}
             scoreRevealKey={scoreRevealKey}
+            onAddSuggestedCard={onAddSuggestedCard}
+            addingSuggestedCardNames={addingSuggestedCardNames}
           />
         )}
 
@@ -3188,6 +3203,7 @@ function DeckAnalysisView({
   engineSlot,
   winConditionSlot,
   powerHeroSlot,
+  tableRecordSlot,
   commanderIdentity,
   analysisState = 'ready',
   onNavigateToTune,
@@ -3198,6 +3214,8 @@ function DeckAnalysisView({
   deckColor,
   identity,
   scoreRevealKey,
+  onAddSuggestedCard,
+  addingSuggestedCardNames,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3223,6 +3241,7 @@ function DeckAnalysisView({
   engineSlot?: React.ReactNode;
   winConditionSlot?: React.ReactNode;
   powerHeroSlot?: React.ReactNode;
+  tableRecordSlot?: React.ReactNode;
   /** The deck's legal color identity (commander union); drives the identity gate. */
   commanderIdentity?: string[];
   /** UX-310: 'pending' shows skeleton placeholders on Tune/Power while analysis loads. */
@@ -3243,6 +3262,10 @@ function DeckAnalysisView({
   deckColor: string;
   /** Live-computed deck identity for DeckIdentityCard. */
   identity: import('@/deck-builder/services/deckBuilder/deckIdentity').DeckIdentity | null;
+  /** One-tap add on a Build Report suggestion row. Omitted → rows stay read-only. */
+  onAddSuggestedCard?: (cardName: string) => void;
+  /** Card names with an add in flight from a Build Report row. */
+  addingSuggestedCardNames?: ReadonlySet<string>;
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -3254,6 +3277,14 @@ function DeckAnalysisView({
   // Overlapping multi-role counts (a card counts toward every role it fills),
   // always derived from the live card list — complements the primary-role bars.
   const roleDensity = useMemo(() => computeRoleDensity(allCards), [allCards]);
+
+  // Lower-cased in-deck names for the Build Report's "+ Add" gate (never
+  // re-propose a card already in the deck — mirrors DeckEditorPage's
+  // deckCardNames memo used by the Coach feed).
+  const buildReportDeckNames = useMemo(
+    () => new Set(allCards.map((c) => c.name.toLowerCase())),
+    [allCards]
+  );
 
   const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
   const effectiveRampSub = rampSubtypeCounts ?? derivedRoles?.rampSubtypeCounts;
@@ -3351,12 +3382,22 @@ function DeckAnalysisView({
               </Panel>
             )}
           </div>
+          {/* Table record — this deck's real tracked W/L, full width. Always
+              rendered (owns its own empty state for zero tracked games). */}
+          {tableRecordSlot && (
+            <Panel title="Table record" wide>
+              {tableRecordSlot}
+            </Panel>
+          )}
           {/* Build report — full width, list-heavy. */}
           {buildReport && (
             <Panel title="Build report" wide className={panelCascadeClass(4, cascade.animating)}>
               <BuildReportPanel
                 report={buildReport}
                 onFixGaps={onNavigateToTune ? () => onNavigateToTune('fill-gaps') : undefined}
+                onAddCard={onAddSuggestedCard}
+                deckCardNames={buildReportDeckNames}
+                addingCardNames={addingSuggestedCardNames}
               />
             </Panel>
           )}

@@ -129,6 +129,14 @@ interface Props {
   groupPrintings?: boolean;
   setGroupPrintings?: (next: boolean) => void;
 
+  /**
+   * Tradeable-surplus filter — collection-page-only (needs deck/cube
+   * allocation data the deck-editor card search doesn't have). Omit both
+   * props to hide the section entirely, same convention as groupPrintings.
+   */
+  surplusOnly?: boolean;
+  setSurplusOnly?: (next: boolean) => void;
+
   activeCount: number;
 }
 
@@ -232,6 +240,8 @@ function DialogBody({
   setCmcMax,
   groupPrintings,
   setGroupPrintings,
+  surplusOnly,
+  setSurplusOnly,
   onClose,
 }: Props & { onClose: () => void }) {
   // Draft state — seeded once from props on mount; this component is
@@ -259,10 +269,12 @@ function DialogBody({
   const [draftCmcMin, setDraftCmcMin] = useState<number | undefined>(cmcMin);
   const [draftCmcMax, setDraftCmcMax] = useState<number | undefined>(cmcMax);
   const [draftGroup, setDraftGroup] = useState<boolean>(groupPrintings ?? true);
+  const [draftSurplusOnly, setDraftSurplusOnly] = useState<boolean>(surplusOnly ?? false);
 
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
   const showOracleTags = oracleTagExpr !== undefined;
   const showOptions = groupPrintings !== undefined;
+  const showSurplus = setSurplusOnly !== undefined;
   const showFinish = finishExpr !== undefined;
   const showCondition = conditionExpr !== undefined;
   const showPrice = setPriceMin !== undefined || setPriceMax !== undefined;
@@ -286,7 +298,8 @@ function DialogBody({
     draftSet.size > 0 ||
     (showPrice && (draftPriceMin !== undefined || draftPriceMax !== undefined)) ||
     (showCmc && (draftCmcMin !== undefined || draftCmcMax !== undefined)) ||
-    (showOptions && !draftGroup);
+    (showOptions && !draftGroup) ||
+    (showSurplus && draftSurplusOnly);
 
   // Assemble the current draft chip state into a BinderFilter so FilterFieldEditor
   // can read it as a unified value. The patch handler routes each key back to its
@@ -346,6 +359,7 @@ function DialogBody({
       setCmcMax?.(draftCmcMax);
     }
     if (showOptions) setGroupPrintings?.(draftGroup);
+    if (showSurplus) setSurplusOnly?.(draftSurplusOnly);
     onClose();
   };
 
@@ -370,6 +384,7 @@ function DialogBody({
     setDraftCmcMin(undefined);
     setDraftCmcMax(undefined);
     setDraftGroup(true);
+    setDraftSurplusOnly(false);
   };
 
   return (
@@ -527,6 +542,23 @@ function DialogBody({
           <div className="collection-filters-section-label">Set</div>
           <SetFilterPicker setMap={setMap} value={draftSet} onChange={setDraftSet} />
         </section>
+
+        {showSurplus && (
+          <section className="collection-filters-section">
+            <div className="collection-filters-section-label">Surplus</div>
+            <label className="filter-popover-row">
+              <input
+                type="checkbox"
+                checked={draftSurplusOnly}
+                onChange={(e) => setDraftSurplusOnly(e.target.checked)}
+              />
+              <span className="filter-popover-label">Tradeable surplus only</span>
+            </label>
+            <p className="filter-popover-hint">
+              Copies not in any deck or cube, beyond your first kept copy. Basic lands excluded.
+            </p>
+          </section>
+        )}
 
         {showOptions && (
           <section className="collection-filters-section">

@@ -1,0 +1,61 @@
+/*
+ * Co-located styles for TableRecordPanel — this deck's real tracked W/L,
+ * rendered in the Stats tab bento.
+ */
+
+.table-record {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Slightly de-emphasized inside a `.deck-stats-panel` — it's already a
+   sub-section, no need to repeat the section-level empty-state weight. */
+.table-record-empty {
+  padding: var(--space-4) 0;
+}
+
+.table-record-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.table-record-matchups {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.table-record-matchup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(4rem, 8rem) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.table-record-matchup-opponent {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-record-matchup-bar {
+  width: 100%;
+}
+
+.table-record-matchup-score {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
