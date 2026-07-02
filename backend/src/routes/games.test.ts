@@ -2,6 +2,17 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { isUniqueViolation } from './games';
+
+describe('isUniqueViolation (F20 join-code race guard)', () => {
+  it('matches only a Postgres 23505 error', () => {
+    expect(isUniqueViolation({ code: '23505' })).toBe(true);
+    expect(isUniqueViolation({ code: '23503' })).toBe(false);
+    expect(isUniqueViolation(new Error('nope'))).toBe(false);
+    expect(isUniqueViolation(null)).toBe(false);
+    expect(isUniqueViolation(undefined)).toBe(false);
+  });
+});
 
 let app: Express;
 let cleanup: () => Promise<void>;

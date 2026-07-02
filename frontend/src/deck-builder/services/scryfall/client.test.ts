@@ -319,3 +319,47 @@ describe('getCardByName foil-only-default fallback', () => {
     expect(result.id).toBe('foil-exclusive');
   });
 });
+
+describe('scryfallFetch 429 handling (F26)', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('gives up after a capped number of retries on a sustained 429 instead of recursing forever', async () => {
+    vi.useFakeTimers();
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('rate limited', { status: 429 }));
+
+    // Unique id so a prior test's cache can't short-circuit the network call.
+    const pending = getCardById('f26-sustained-429');
+    const assertion = expect(pending).rejects.toThrow(/429/);
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    // 1 initial attempt + MAX_429_RETRIES (4) retries = 5 calls, then it stops.
+    expect(fetchSpy.mock.calls.length).toBe(5);
+  });
+
+  it('retries a transient 429 and succeeds', async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) return new Response('rate limited', { status: 429 });
+      return new Response(JSON.stringify(makeCard({ id: 'f26-recovered', layout: 'normal' })), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    const pending = getCardById('f26-transient-429');
+    await vi.runAllTimersAsync();
+    const card = await pending;
+    expect(card.id).toBe('f26-recovered');
+    expect(calls).toBe(2);
+  });
+});

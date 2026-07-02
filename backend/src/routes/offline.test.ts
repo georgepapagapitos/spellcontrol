@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { Express } from 'express';
+import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { getDb } from '../db';
 import { __resetOracleBulkForTesting, refreshOracleBulk } from '../offline/bulk-cache';
 import { __resetCombosBulkForTesting } from '../offline/combos-export';
 
@@ -163,23 +165,17 @@ describe('POST /api/offline/admin/refresh-oracle', () => {
   });
 
   it('returns version + counts for an admin', async () => {
+    // requireAdmin loads role fresh from the DB, so promote the row directly
+    // (no ADMIN_USERNAMES env needed — that path was replaced in F21).
     const cookie = await registerCookie('offline_admin');
-    const prev = process.env.ADMIN_USERNAMES;
-    process.env.ADMIN_USERNAMES = 'offline_admin';
-    try {
-      const res = await request(app)
-        .post('/api/offline/admin/refresh-oracle')
-        .set('Cookie', cookie);
-      expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({
-        version: expect.any(String),
-        cardCount: expect.any(Number),
-        gzippedBytes: expect.any(Number),
-      });
-    } finally {
-      if (prev === undefined) delete process.env.ADMIN_USERNAMES;
-      else process.env.ADMIN_USERNAMES = prev;
-    }
+    await getDb().execute(sql`UPDATE users SET role = 'admin' WHERE username = 'offline_admin'`);
+    const res = await request(app).post('/api/offline/admin/refresh-oracle').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      version: expect.any(String),
+      cardCount: expect.any(Number),
+      gzippedBytes: expect.any(Number),
+    });
   });
 });
 

@@ -21,6 +21,8 @@ function offlineActive(): boolean {
 
 const BASE_URL = import.meta.env.DEV ? '/scryfall-api' : 'https://api.scryfall.com';
 const MIN_REQUEST_DELAY = 100; // 100ms between requests (Scryfall allows 10/sec)
+const MAX_429_RETRIES = 4; // cap 429 retries so a sustained throttle fails instead of hanging
+const BASE_429_BACKOFF_MS = 1000;
 const COLLECTION_BATCH_SIZE = 75; // Scryfall /cards/collection max per request
 
 // In-memory cache for fetched cards
@@ -123,7 +125,7 @@ class RateLimiter {
 
 const rateLimiter = new RateLimiter();
 
-async function scryfallFetch<T>(endpoint: string): Promise<T> {
+async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
   await rateLimiter.throttle();
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -133,10 +135,17 @@ async function scryfallFetch<T>(endpoint: string): Promise<T> {
   });
 
   if (!response.ok) {
-    if (response.status === 429) {
-      // Rate limited - wait and retry once
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return scryfallFetch<T>(endpoint);
+    if (response.status === 429 && attempt < MAX_429_RETRIES) {
+      // Rate limited — honor Retry-After if present, else exponential backoff.
+      // Capped (MAX_429_RETRIES) so a sustained throttle throws instead of
+      // recursing forever and hanging deck generation.
+      const retryAfter = Number(response.headers.get('Retry-After'));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : BASE_429_BACKOFF_MS * 2 ** attempt;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      return scryfallFetch<T>(endpoint, attempt + 1);
     }
     throw new Error(`Scryfall API error: ${response.status} ${response.statusText}`);
   }
