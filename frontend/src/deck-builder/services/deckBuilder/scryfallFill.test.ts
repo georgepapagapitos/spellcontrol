@@ -101,4 +101,34 @@ describe('fillWithScryfall', () => {
     expect(out.map((c) => c.name)).toEqual(['Owned Free']);
     expect(used.has('Unowned Bomb')).toBe(false);
   });
+
+  it('respects the optional card dependency guard', async () => {
+    searchCards.mockResolvedValue({
+      data: [sc({ name: 'Orphan Payoff' }), sc({ name: 'Plain Draw' })],
+    });
+    const used = new Set<string>();
+
+    const out = await fillWithScryfall(
+      'o:"draw"',
+      [],
+      1,
+      used,
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      'USD',
+      false,
+      '',
+      'full',
+      false,
+      false,
+      (card) => card.name !== 'Orphan Payoff'
+    );
+
+    expect(out.map((c) => c.name)).toEqual(['Plain Draw']);
+    expect(used.has('Orphan Payoff')).toBe(false);
+  });
 });

@@ -143,6 +143,44 @@ describe('pickFromPrefetched', () => {
     expect(used.has('Unowned Bomb')).toBe(false);
   });
 
+  it('respects the optional card dependency guard', () => {
+    const cards = [
+      ec({ name: 'Orphan Payoff', inclusion: 99 }),
+      ec({ name: 'Plain Draw', inclusion: 10 }),
+    ];
+    const map = new Map<string, ScryfallCard>([
+      ['Orphan Payoff', sc({ name: 'Orphan Payoff' })],
+      ['Plain Draw', sc({ name: 'Plain Draw' })],
+    ]);
+
+    const picked = pickFromPrefetched(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'full',
+      100,
+      false,
+      false,
+      (card) => card.name !== 'Orphan Payoff'
+    );
+
+    expect(picked.map((c) => c.name)).toEqual(['Plain Draw']);
+  });
+
   it('treats available-only as a hard collection constraint in curve-aware picks', () => {
     const cards = [
       ec({ name: 'Unowned Bomb', inclusion: 99, primary_type: 'Creature' }),
@@ -177,6 +215,46 @@ describe('pickFromPrefetched', () => {
 
     expect(picked.map((c) => c.name)).toEqual(['Owned Free']);
     expect(used.has('Unowned Bomb')).toBe(false);
+  });
+
+  it('respects the optional dependency guard in curve-aware picks', () => {
+    const cards = [
+      ec({ name: 'Orphan Payoff', inclusion: 99, primary_type: 'Creature' }),
+      ec({ name: 'Plain Creature', inclusion: 10, primary_type: 'Creature' }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name, type_line: 'Creature' })]));
+
+    const picked = pickFromPrefetchedWithCurve(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      { 3: 2 },
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      (card) => card.name !== 'Orphan Payoff'
+    );
+
+    expect(picked.map((c) => c.name)).toEqual(['Plain Creature']);
   });
 });
 

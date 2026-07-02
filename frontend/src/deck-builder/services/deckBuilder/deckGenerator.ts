@@ -72,6 +72,7 @@ import {
   computeRoleBoosts,
 } from './categorize';
 import { fillWithScryfall } from './scryfallFill';
+import { isUnsupportedSynergyPayoff } from './synergyDependency';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { loadCardSimilar } from './cardSimilar';
 import { resolveMultiCopyCards } from './multiCopy';
@@ -1107,6 +1108,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Hoisted so fixup pass can access the Scryfall card map after generation
   let scryfallCardMap: Map<string, ScryfallCard> = new Map();
+  const dependencySupportCards = () => [
+    commander,
+    ...(partnerCommander ? [partnerCommander] : []),
+    ...Object.values(categories).flat(),
+  ];
+  const dependencyCommanderCount = partnerCommander ? 2 : 1;
+  const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
+    !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount);
 
   // ---- Multi-copy card pipeline (self-contained, no impact if nothing found) ----
   if (state.edhrecData) {
@@ -1491,7 +1500,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionOwnedPercent,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      bracketGuard
+      bracketGuard,
+      isCardAllowedBySynergyDependencies
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1526,7 +1536,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         scryfallQuery,
         collectionStrategy,
         ignoreOwnedBudget,
-        ignoreOwnedRarity
+        ignoreOwnedRarity,
+        isCardAllowedBySynergyDependencies
       );
       categories.creatures.push(...moreCreatures);
       logger.debug(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
@@ -1577,7 +1588,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionOwnedPercent,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      bracketGuard
+      bracketGuard,
+      isCardAllowedBySynergyDependencies
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -1635,7 +1647,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionOwnedPercent,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      bracketGuard
+      bracketGuard,
+      isCardAllowedBySynergyDependencies
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -1693,7 +1706,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionOwnedPercent,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      bracketGuard
+      bracketGuard,
+      isCardAllowedBySynergyDependencies
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -1751,7 +1765,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionOwnedPercent,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      bracketGuard
+      bracketGuard,
+      isCardAllowedBySynergyDependencies
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -1810,7 +1825,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionOwnedPercent,
         ignoreOwnedBudget,
         ignoreOwnedRarity,
-        bracketGuard
+        bracketGuard,
+        isCardAllowedBySynergyDependencies
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
@@ -1968,7 +1984,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
 
     onProgress?.('Drawing cards…', 30);
@@ -1988,7 +2005,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
 
     onProgress?.('Sharpening removal…', 40);
@@ -2008,7 +2026,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
 
     onProgress?.('Preparing board wipes…', 50);
@@ -2028,7 +2047,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
 
     // Use typeTargets for remaining slots to get a balanced type distribution
@@ -2055,7 +2075,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
     categories.creatures.push(...scryfallCreatures);
 
@@ -2080,7 +2101,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
     categorizeCards(scryfallArtifacts, categories);
 
@@ -2105,7 +2127,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      isCardAllowedBySynergyDependencies
     );
     categorizeCards(scryfallEnchantments, categories);
 
@@ -2134,7 +2157,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         scryfallQuery,
         collectionStrategy,
         ignoreOwnedBudget,
-        ignoreOwnedRarity
+        ignoreOwnedRarity,
+        isCardAllowedBySynergyDependencies
       );
       categorizeCards(scryfallInstants, categories);
     }
@@ -2161,7 +2185,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         scryfallQuery,
         collectionStrategy,
         ignoreOwnedBudget,
-        ignoreOwnedRarity
+        ignoreOwnedRarity,
+        isCardAllowedBySynergyDependencies
       );
       categorizeCards(scryfallSorceries, categories);
     }
@@ -2421,6 +2446,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         const scryfallCard = fillCardMap.get(edhrecCard.name);
         if (!scryfallCard) continue;
 
+        if (!isCardAllowedBySynergyDependencies(scryfallCard)) continue;
         if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
         if (
           constrainsToCollection(collectionStrategy) &&
@@ -2457,6 +2483,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           const scryfallCard = fillCardMap.get(edhrecCard.name);
           if (!scryfallCard) continue;
 
+          if (!isCardAllowedBySynergyDependencies(scryfallCard)) continue;
           if (!fitsColorIdentity(scryfallCard, colorIdentity)) continue;
           if (
             constrainsToCollection(collectionStrategy) &&
@@ -2560,7 +2587,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           scryfallQuery,
           collectionStrategy,
           ignoreOwnedBudget,
-          ignoreOwnedRarity
+          ignoreOwnedRarity,
+          isCardAllowedBySynergyDependencies
         );
         if (type === 'creature') categories.creatures.push(...cards);
         else if (type === 'instant') categorizeCards(cards, categories);
@@ -2592,7 +2620,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           scryfallQuery,
           collectionStrategy,
           ignoreOwnedBudget,
-          ignoreOwnedRarity
+          ignoreOwnedRarity,
+          isCardAllowedBySynergyDependencies
         );
         categories.synergy.push(...moreCards);
         filled += moreCards.length;
@@ -2675,6 +2704,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           for (const row of chosen) {
             const card = fetched.get(row.usedName);
             if (!card || usedNames.has(card.name)) continue;
+            if (!isCardAllowedBySynergyDependencies(card)) continue;
             addOwnedCard(card);
             substitutionRows.push(row);
           }
@@ -2703,7 +2733,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           scryfallQuery,
           collectionStrategy, // real strategy → HARD-gates to owned cards
           ignoreOwnedBudget,
-          ignoreOwnedRarity
+          ignoreOwnedRarity,
+          isCardAllowedBySynergyDependencies
         );
         for (const c of ownedFill) addOwnedCard(c);
         if (ownedFill.length > 0) {
@@ -2732,7 +2763,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           scryfallQuery,
           'prefer', // drops the hard owned gate — last resort
           ignoreOwnedBudget,
-          ignoreOwnedRarity
+          ignoreOwnedRarity,
+          isCardAllowedBySynergyDependencies
         );
         for (const c of relaxedCards) {
           addOwnedCard(c);
@@ -3332,6 +3364,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallCardMap,
       detectedCombos,
       mustIncludeNames: convergeMustInclude,
+      cardAllowed: isCardAllowedBySynergyDependencies,
     });
     // Convergence can cut a combo piece (target <= 2 breaks incidental combos).
     // Refresh combo completeness against the live deck so the final bracket
