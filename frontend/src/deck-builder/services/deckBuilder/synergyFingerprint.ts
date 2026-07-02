@@ -43,3 +43,20 @@ export function synergyScore(
   for (const tag of tagsOf(cardName)) s += fingerprint.get(tag) ?? 0;
   return s;
 }
+
+/**
+ * The card's own tags that also appear in the deck fingerprint, most-represented
+ * first — the "why this fits" evidence behind a synergy pick. Capped to `limit`.
+ * Empty when the card shares no tags with the deck (i.e. a pure slot-filler).
+ */
+export function topMatchedTags(
+  cardName: string,
+  fingerprint: Map<string, number>,
+  limit = 3,
+  tagsOf: (name: string) => string[] = getCardTags
+): string[] {
+  return tagsOf(cardName)
+    .filter((tag) => fingerprint.has(tag))
+    .sort((a, b) => (fingerprint.get(b) ?? 0) - (fingerprint.get(a) ?? 0))
+    .slice(0, limit);
+}

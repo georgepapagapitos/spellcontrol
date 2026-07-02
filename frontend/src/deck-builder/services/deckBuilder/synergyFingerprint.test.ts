@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
+import { buildSynergyFingerprint, synergyScore, topMatchedTags } from './synergyFingerprint';
 
 // Fake tag map so these exercise the math without loading tagger data.
 const TAGS: Record<string, string[]> = {
@@ -38,5 +38,23 @@ describe('synergyScore', () => {
 
   it('sums the matched tags’ frequencies', () => {
     expect(synergyScore('Arcane Signet', fp, tagsOf)).toBeCloseTo(2 / 3 + 1 / 3);
+  });
+});
+
+describe('topMatchedTags', () => {
+  const fp = buildSynergyFingerprint(['Sol Ring', 'Cultivate', 'Forest'], tagsOf);
+
+  it('returns the shared tags most-represented in the deck first', () => {
+    // ramp (2/3) is more represented than mana-rock (1/3), so it leads.
+    expect(topMatchedTags('Arcane Signet', fp, 3, tagsOf)).toEqual(['ramp', 'mana-rock']);
+  });
+
+  it('drops tags the deck fingerprint doesn’t have', () => {
+    // Counterspell's tags (removal, counterspell) aren't in this ramp deck.
+    expect(topMatchedTags('Counterspell', fp, 3, tagsOf)).toEqual([]);
+  });
+
+  it('caps to the limit', () => {
+    expect(topMatchedTags('Arcane Signet', fp, 1, tagsOf)).toEqual(['ramp']);
   });
 });
