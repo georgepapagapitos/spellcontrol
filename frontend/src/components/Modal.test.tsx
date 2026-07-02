@@ -53,6 +53,16 @@ describe('Modal focus management', () => {
     expect(document.activeElement).toBe(screen.getByRole('dialog'));
   });
 
+  it('applies an optional class to the backdrop layer', () => {
+    const { container } = render(
+      <Modal onClose={() => {}} label="Test" backdropClassName="modal-backdrop--over-sheet">
+        <button type="button">x</button>
+      </Modal>
+    );
+
+    expect(container.querySelector('.modal-backdrop--over-sheet')).not.toBeNull();
+  });
+
   it('wraps Tab from the last focusable to the first, and Shift+Tab from first to last', () => {
     render(
       <Modal onClose={() => {}} label="Test">

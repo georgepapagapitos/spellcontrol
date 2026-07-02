@@ -391,7 +391,12 @@ function DialogBody({
     // The shared Modal supplies the backdrop, entrance/exit motion, focus
     // trap, Escape handling, and body scroll lock — this component only
     // styles the panel (UX-201 retired the bespoke root/backdrop/pop).
-    <Modal onClose={onClose} label="Collection filters" className="collection-filters-dialog">
+    <Modal
+      onClose={onClose}
+      label="Collection filters"
+      className="collection-filters-dialog"
+      backdropClassName="modal-backdrop--over-sheet"
+    >
       <header className="collection-filters-dialog-header">
         <span className="collection-filters-dialog-title">Filters</span>
         <button
