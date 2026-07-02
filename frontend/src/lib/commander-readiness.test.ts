@@ -76,18 +76,24 @@ describe('extractCommanderCandidates', () => {
     ]);
   });
 
-  it('dedupes by name, keeping the most recently imported copy', () => {
-    const older = commander('Krenko, Mob Boss', { copyId: 'old', importId: 'imp_100' });
-    const newer = commander('Krenko, Mob Boss', { copyId: 'new', importId: 'imp_900' });
-    const result = extractCommanderCandidates([older, newer]);
+  it('dedupes by name, keeping the most recently imported copy (by addedAt, not id order)', () => {
+    // Random-UUID ids whose lexical order is the OPPOSITE of import order: the
+    // fix must key recency off addedAt, so the later-added 'new' wins regardless.
+    const older = commander('Krenko, Mob Boss', { copyId: 'old', importId: 'zzz-old' });
+    const newer = commander('Krenko, Mob Boss', { copyId: 'new', importId: 'aaa-new' });
+    const recency = new Map([
+      ['zzz-old', 100],
+      ['aaa-new', 900],
+    ]);
+    const result = extractCommanderCandidates([older, newer], recency);
     expect(result).toHaveLength(1);
     expect(result[0].copyId).toBe('new');
   });
 
-  it('treats a missing importId as the oldest copy', () => {
+  it('treats an importId absent from the recency map as the oldest copy', () => {
     const noImport = commander('Krenko, Mob Boss', { copyId: 'noimp' });
     const withImport = commander('Krenko, Mob Boss', { copyId: 'imp', importId: 'imp_1' });
-    const result = extractCommanderCandidates([noImport, withImport]);
+    const result = extractCommanderCandidates([noImport, withImport], new Map([['imp_1', 1]]));
     expect(result[0].copyId).toBe('imp');
   });
 
@@ -160,10 +166,16 @@ describe('computeReadiness', () => {
 });
 
 describe('sortCommanderCandidates', () => {
-  const atraxa = commander('Atraxa', { importId: 'imp_300' });
-  const krenko = commander('Krenko', { importId: 'imp_100' });
-  const yuriko = commander('Yuriko', { importId: 'imp_200' });
+  const atraxa = commander('Atraxa', { importId: 'imp_c' });
+  const krenko = commander('Krenko', { importId: 'imp_a' });
+  const yuriko = commander('Yuriko', { importId: 'imp_b' });
   const candidates = [krenko, atraxa, yuriko];
+  // addedAt order (newest → oldest): atraxa, yuriko, krenko — independent of id order.
+  const recency = new Map([
+    ['imp_c', 300],
+    ['imp_b', 200],
+    ['imp_a', 100],
+  ]);
 
   function score(percent: number, available = true): ReadinessScore {
     return {
@@ -181,9 +193,14 @@ describe('sortCommanderCandidates', () => {
     expect(result.map((c) => c.name)).toEqual(['Atraxa', 'Krenko', 'Yuriko']);
   });
 
-  it('sorts by most recently added (importId desc), missing importId last', () => {
+  it('sorts by most recently added (addedAt desc), missing recency last', () => {
     const noImport = commander('Zedruu');
-    const result = sortCommanderCandidates([...candidates, noImport], new Map(), 'recentlyAdded');
+    const result = sortCommanderCandidates(
+      [...candidates, noImport],
+      new Map(),
+      'recentlyAdded',
+      recency
+    );
     expect(result.map((c) => c.name)).toEqual(['Atraxa', 'Yuriko', 'Krenko', 'Zedruu']);
   });
 
