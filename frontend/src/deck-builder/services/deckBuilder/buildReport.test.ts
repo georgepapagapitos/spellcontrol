@@ -217,6 +217,35 @@ describe('assembleBuildReport', () => {
     expect(report.roleGaps).toEqual([{ role: 'ramp', have: 7, want: 10 }]);
   });
 
+  it('passes the manabase summary through, omitting it when absent or empty', () => {
+    const manabase = {
+      lines: [{ color: 'W', pips: 12, sources: 15, target: 16, short: false }],
+      totalLands: 37,
+      nonlandSources: 4,
+      note: '1 white source short of target',
+    };
+    const withMana = assembleBuildReport({
+      generated: makeGenerated({ manabase }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(withMana.manabase).toEqual(manabase);
+
+    const without = assembleBuildReport({
+      generated: makeGenerated(),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(without.manabase).toBeUndefined();
+
+    const empty = assembleBuildReport({
+      generated: makeGenerated({ manabase: { lines: [], totalLands: 0, nonlandSources: 0 } }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(empty.manabase).toBeUndefined();
+  });
+
   it('treats a missing roleCount as 0 when measuring gaps', () => {
     const report = assembleBuildReport({
       generated: makeGenerated({

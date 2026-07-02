@@ -97,6 +97,34 @@
   font-weight: 400;
 }
 
+/* Manabase self-explanation: reuses the gap-chip look; a short color tints
+   its chip with the warn palette so the deficit reads at a glance. */
+.build-report-mana {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: 0.15rem;
+}
+
+.build-report-mana-line {
+  align-items: center;
+}
+
+.build-report-mana-line.is-short {
+  border-color: var(--warn-text, #b85c00);
+}
+
+.build-report-mana-line.is-short .build-report-gap-count {
+  color: var(--warn-text, #b85c00);
+}
+
+.build-report-mana-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--warn-text, #b85c00);
+  overflow-wrap: anywhere;
+}
+
 /* Left-aligned CTA under the gap chips → Coach "Fix gaps" lane. Look comes
    from the shared .btn-link; this only positions it within the gaps column. */
 .build-report-gaps-cta {

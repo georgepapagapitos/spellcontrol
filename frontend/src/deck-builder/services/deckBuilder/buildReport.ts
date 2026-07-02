@@ -126,6 +126,11 @@ export function assembleBuildReport(input: {
     report.claimedConflicts = claimedConflicts;
   }
 
+  // Manabase self-explanation: sources built vs castability-weighted targets.
+  if (generated.manabase && generated.manabase.lines.length > 0) {
+    report.manabase = generated.manabase;
+  }
+
   // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
   // Unconditional on builtFromCollection: unlike synergyFills these aren't
   // owned-build provenance, they're a suggestion regardless of build mode.
