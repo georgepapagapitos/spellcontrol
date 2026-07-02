@@ -325,4 +325,38 @@ describe('BuildReportPanel', () => {
       expect(addingBtn.hasAttribute('disabled')).toBe(true);
     });
   });
+
+  describe('coherence flags (generation-end audit)', () => {
+    it('is absent when there are no findings', () => {
+      const { container } = render(<BuildReportPanel report={makeReport()} />);
+      expect(container.textContent).not.toContain('coherence flag');
+    });
+
+    it('renders per-card findings with kind badges and deck-level notes without a card name', () => {
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport({
+            coherenceFindings: [
+              {
+                kind: 'dead-payoff',
+                severity: 'warn',
+                card: 'Academy Manufactor',
+                message: 'Its Artifacts payoff has almost nothing feeding it in this deck.',
+              },
+              {
+                kind: 'lopsided-engine',
+                severity: 'info',
+                message: 'Tokens: 5 producers but no payoff to reward them.',
+              },
+            ],
+          })}
+        />
+      );
+      expect(container.textContent).toContain('2 coherence flags');
+      expect(screen.getByText('Academy Manufactor')).toBeTruthy();
+      expect(screen.getByText('Dead payoff')).toBeTruthy();
+      expect(screen.getByText('Engine note')).toBeTruthy();
+      expect(screen.getByText('Tokens: 5 producers but no payoff to reward them.')).toBeTruthy();
+    });
+  });
 });

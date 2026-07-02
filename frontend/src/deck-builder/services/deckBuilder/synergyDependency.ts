@@ -122,7 +122,7 @@ function supportScore(
   return total;
 }
 
-function unsupportedPayoffAxes(
+export function unsupportedPayoffAxes(
   card: ScryfallCard,
   supportCards: readonly ScryfallCard[],
   commanderCount: number

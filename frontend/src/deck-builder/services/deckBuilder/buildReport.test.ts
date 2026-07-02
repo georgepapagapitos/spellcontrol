@@ -246,6 +246,30 @@ describe('assembleBuildReport', () => {
     expect(empty.manabase).toBeUndefined();
   });
 
+  it('passes coherence findings through, omitting them when absent or empty', () => {
+    const coherenceFindings = [
+      {
+        kind: 'dead-payoff' as const,
+        severity: 'warn' as const,
+        card: 'Academy Manufactor',
+        message: 'Its Artifacts payoff has almost nothing feeding it in this deck.',
+      },
+    ];
+    const withFindings = assembleBuildReport({
+      generated: makeGenerated({ coherenceFindings }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(withFindings.coherenceFindings).toEqual(coherenceFindings);
+
+    const without = assembleBuildReport({
+      generated: makeGenerated({ coherenceFindings: [] }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(without.coherenceFindings).toBeUndefined();
+  });
+
   it('treats a missing roleCount as 0 when measuring gaps', () => {
     const report = assembleBuildReport({
       generated: makeGenerated({

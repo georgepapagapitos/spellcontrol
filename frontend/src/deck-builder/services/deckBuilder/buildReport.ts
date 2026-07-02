@@ -131,6 +131,11 @@ export function assembleBuildReport(input: {
     report.manabase = generated.manabase;
   }
 
+  // Generation-end coherence audit: cards the final deck may not support.
+  if (generated.coherenceFindings && generated.coherenceFindings.length > 0) {
+    report.coherenceFindings = generated.coherenceFindings;
+  }
+
   // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
   // Unconditional on builtFromCollection: unlike synergyFills these aren't
   // owned-build provenance, they're a suggestion regardless of build mode.
