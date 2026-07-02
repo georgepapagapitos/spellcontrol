@@ -27,6 +27,13 @@ describe('parseTextList', () => {
       expect(rows[0].name).toBe('Lightning Bolt');
     });
 
+    it('accepts "Nx" with no space before the name (F17)', () => {
+      // "4xSol Ring" used to import as a card literally named "4xSol Ring".
+      const { rows } = parseTextList('4xSol Ring');
+      expect(rows[0].quantity).toBe(4);
+      expect(rows[0].name).toBe('Sol Ring');
+    });
+
     it('parses set codes with numbers and mixed case', () => {
       const { rows } = parseTextList('1 Forest (2XM) 400');
       expect(rows[0].setCode).toBe('2XM');
