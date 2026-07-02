@@ -102,15 +102,15 @@ describe('games-api', () => {
     fetchSpy.mockResolvedValueOnce(json({ game }));
     const result = await patchGame('ABCD', 4, [{ type: 'start' }]);
     expect(result.game).toEqual(game);
-    expect(result.conflict).toBeUndefined();
   });
 
-  it('patchGame surfaces the server snapshot on 409', async () => {
+  it('patchGame throws with status 409 on a version conflict', async () => {
+    // Must throw (not swallow the snapshot) so dispatchOnline's 409 recovery runs.
     const current = mockState({ version: 7 });
     fetchSpy.mockResolvedValueOnce(json({ current }, 409));
-    const result = await patchGame('ABCD', 4, [{ type: 'start' }]);
-    expect(result.game).toEqual(current);
-    expect(result.conflict).toEqual(current);
+    await expect(patchGame('ABCD', 4, [{ type: 'start' }])).rejects.toMatchObject({
+      status: 409,
+    });
   });
 
   it('patchGame throws on non-409 errors', async () => {
