@@ -38,6 +38,16 @@ describe('computeRoleDensity', () => {
     expect(density).toEqual({ ramp: 1, removal: 0, boardwipe: 0, cardDraw: 1 });
   });
 
+  it('skips lands whose type line only exists on the first face', () => {
+    const density = computeRoleDensity([
+      {
+        name: 'Llanowar Elves',
+        card_faces: [{ type_line: 'Land — Forest' }, { type_line: 'Land — Forest' }],
+      },
+    ]);
+    expect(density).toEqual({ ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 });
+  });
+
   it('ignores cards with no role hits and returns all-zero for an empty deck', () => {
     expect(computeRoleDensity([{ name: 'Vanilla Bear' }])).toEqual({
       ramp: 0,

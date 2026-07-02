@@ -10,6 +10,7 @@ import { frontFaceName } from '@/lib/card-text';
 import { constrainsToCollection, notInCollection } from '../deckFilters';
 import { stampRoleSubtypes } from '../categorize';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 
 // ── Combo Floor ──
 // If the generated deck contains zero complete 2-card combos AND the bracket
@@ -187,7 +188,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
   // Add the missing combo piece to the appropriate category.
   stampRoleSubtypes(best.missingCard);
   const role = getCardRole(best.missingName);
-  const typeLine = (best.missingCard.type_line || '').toLowerCase();
+  const typeLine = getFrontFaceTypeLine(best.missingCard).toLowerCase();
   if (typeLine.includes('creature')) {
     state.categories.creatures.push(best.missingCard);
   } else if (role === 'boardwipe') {

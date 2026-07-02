@@ -6,6 +6,7 @@ import { getCardRole, isExtraTurn } from '@/deck-builder/services/tagger/client'
 import { stampRoleSubtypes } from '../categorize';
 import { constrainsToCollection, notInCollection } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
+import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
   estimateBracket,
   isFastMana,
@@ -196,7 +197,7 @@ export function applyBracketConvergence(
   const addCard = (card: ScryfallCard) => {
     stampRoleSubtypes(card);
     const role = getCardRole(card.name);
-    const typeLine = (card.type_line || '').toLowerCase();
+    const typeLine = getFrontFaceTypeLine(card).toLowerCase();
     if (typeLine.includes('creature')) state.categories.creatures.push(card);
     else if (role === 'boardwipe') state.categories.boardWipes.push(card);
     else if (role === 'removal') state.categories.singleRemoval.push(card);

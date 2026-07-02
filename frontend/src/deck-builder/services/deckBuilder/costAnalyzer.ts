@@ -84,7 +84,7 @@ export function parsePrice(raw?: string | null): number | null {
 
 /** True when a card is a land (front-face type line includes "Land"). */
 function isLandCard(card: ScryfallCard): boolean {
-  const typeLine = card.type_line || (card.card_faces && card.card_faces[0]?.type_line) || '';
+  const typeLine = card.card_faces?.[0]?.type_line || card.type_line || '';
   return typeLine.toLowerCase().includes('land');
 }
 
