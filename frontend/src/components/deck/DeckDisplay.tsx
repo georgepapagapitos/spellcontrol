@@ -409,6 +409,12 @@ export interface DeckDisplayProps {
    * Computed by the page from deck.id + gradeBracketSignature.
    */
   scoreRevealKey?: string | null;
+  /** One-tap add on a Build Report suggestion row (synergyFills/packagePicks).
+   *  Omitted → the rows stay read-only prose. */
+  onAddSuggestedCard?: (cardName: string) => void;
+  /** Card names with an add in flight from a Build Report row (exact case,
+   *  mirrors the Coach/NBM `busyNames` convention). */
+  addingSuggestedCardNames?: ReadonlySet<string>;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -958,6 +964,8 @@ export function DeckDisplay({
   analysisState = 'ready',
   onNavigateToTune,
   scoreRevealKey,
+  onAddSuggestedCard,
+  addingSuggestedCardNames,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -1720,6 +1728,8 @@ export function DeckDisplay({
             deckColor={color ?? 'var(--accent)'}
             identity={identity}
             scoreRevealKey={scoreRevealKey}
+            onAddSuggestedCard={onAddSuggestedCard}
+            addingSuggestedCardNames={addingSuggestedCardNames}
           />
         )}
 
@@ -3198,6 +3208,8 @@ function DeckAnalysisView({
   deckColor,
   identity,
   scoreRevealKey,
+  onAddSuggestedCard,
+  addingSuggestedCardNames,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3243,6 +3255,10 @@ function DeckAnalysisView({
   deckColor: string;
   /** Live-computed deck identity for DeckIdentityCard. */
   identity: import('@/deck-builder/services/deckBuilder/deckIdentity').DeckIdentity | null;
+  /** One-tap add on a Build Report suggestion row. Omitted → rows stay read-only. */
+  onAddSuggestedCard?: (cardName: string) => void;
+  /** Card names with an add in flight from a Build Report row. */
+  addingSuggestedCardNames?: ReadonlySet<string>;
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -3254,6 +3270,14 @@ function DeckAnalysisView({
   // Overlapping multi-role counts (a card counts toward every role it fills),
   // always derived from the live card list — complements the primary-role bars.
   const roleDensity = useMemo(() => computeRoleDensity(allCards), [allCards]);
+
+  // Lower-cased in-deck names for the Build Report's "+ Add" gate (never
+  // re-propose a card already in the deck — mirrors DeckEditorPage's
+  // deckCardNames memo used by the Coach feed).
+  const buildReportDeckNames = useMemo(
+    () => new Set(allCards.map((c) => c.name.toLowerCase())),
+    [allCards]
+  );
 
   const effectiveRoleCounts = roleCounts ?? derivedRoles?.roleCounts;
   const effectiveRampSub = rampSubtypeCounts ?? derivedRoles?.rampSubtypeCounts;
@@ -3357,6 +3381,9 @@ function DeckAnalysisView({
               <BuildReportPanel
                 report={buildReport}
                 onFixGaps={onNavigateToTune ? () => onNavigateToTune('fill-gaps') : undefined}
+                onAddCard={onAddSuggestedCard}
+                deckCardNames={buildReportDeckNames}
+                addingCardNames={addingSuggestedCardNames}
               />
             </Panel>
           )}

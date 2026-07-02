@@ -2181,6 +2181,8 @@ export function DeckEditorPage() {
             roleCounts={deck.roleCounts}
             roleTargets={deck.roleTargets}
             buildReport={deck.buildReport}
+            onAddSuggestedCard={handleAddEngineCard}
+            addingSuggestedCardNames={addingEngineNames}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
