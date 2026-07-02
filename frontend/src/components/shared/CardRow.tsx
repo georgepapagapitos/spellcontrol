@@ -24,6 +24,12 @@ interface CardRowProps {
   onActivate: () => void;
   /** Binders covering this card — collection only; omit in binder views (context implicit). */
   binders?: ComponentProps<typeof BinderBadge>['binders'];
+  /**
+   * Unallocated copies of this card beyond the keep floor — only passed
+   * while the "Tradeable surplus" filter is active. Undefined/0 renders
+   * nothing (no badge clutter outside that filter state).
+   */
+  surplusCount?: number;
   /** Physical binder page chip (binder views only). */
   pageNum?: number;
   /** Set name for the symbol tooltip; defaults to `card.setName`. */
@@ -55,6 +61,7 @@ export function CardRow({
   menu,
   onActivate,
   binders,
+  surplusCount,
   pageNum,
   setName,
   isLastRow = false,
@@ -126,6 +133,14 @@ export function CardRow({
       )}
       <div className="collection-list-right">
         {menu}
+        {!!surplusCount && (
+          <span
+            className="collection-list-surplus"
+            title={`${surplusCount} unallocated ${surplusCount === 1 ? 'copy' : 'copies'} beyond your kept copy`}
+          >
+            {surplusCount} free
+          </span>
+        )}
         <div className="collection-list-qty" aria-hidden={qty <= 1}>
           {qty > 1 ? `×${qty}` : ''}
         </div>

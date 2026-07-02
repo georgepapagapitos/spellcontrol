@@ -24,6 +24,8 @@ interface PrefillState {
   targetBracket: number | 'all';
   landCount: number;
   collectionMode: boolean;
+  /** The deck this regenerate ran from — lands the completed build on the compare diff instead of the editor. */
+  sourceDeckId?: string;
 }
 
 export function DeckNewPage() {
@@ -61,7 +63,11 @@ export function DeckNewPage() {
     progress,
     error,
     progressRef,
-  } = useDeckGeneration({ initialThemes: prefill?.themes, beforeNavigate: waitForTakeoverExit });
+  } = useDeckGeneration({
+    initialThemes: prefill?.themes,
+    sourceDeckId: prefill?.sourceDeckId,
+    beforeNavigate: waitForTakeoverExit,
+  });
 
   const [showImport, setShowImport] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>('commander');

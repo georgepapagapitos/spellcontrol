@@ -1,0 +1,179 @@
+.readiness-spotlight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.readiness-spotlight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.readiness-spotlight-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.readiness-spotlight-eyebrow {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.readiness-spotlight-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.readiness-spotlight-dismiss {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+@media (pointer: coarse) {
+  .readiness-spotlight-dismiss {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.readiness-spotlight-dismiss:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .readiness-spotlight-dismiss:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+}
+
+.readiness-spotlight-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.readiness-spotlight-card {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: left;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.readiness-spotlight-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .readiness-spotlight-card:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+}
+
+.readiness-spotlight-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.readiness-spotlight-card-art {
+  flex: 0 0 auto;
+  width: 2.8rem;
+  height: 3.9rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-raised);
+  display: block;
+}
+
+.readiness-spotlight-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Bias the crop to the top so the card art + title show, not the text box. */
+  object-position: center top;
+  display: block;
+}
+
+.readiness-spotlight-card-art-skeleton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface-raised);
+}
+
+.readiness-spotlight-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.readiness-spotlight-card-headline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.readiness-spotlight-card-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.readiness-spotlight-card-explainer {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .readiness-spotlight-card {
+    flex: 1 1 100%;
+  }
+}

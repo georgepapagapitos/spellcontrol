@@ -123,6 +123,18 @@ vi.mock('@dnd-kit/core', () => ({
   useSensors: vi.fn((...args: unknown[]) => args),
 }));
 
+// Real `useCardThumb` resolves over the network (batched, cache-first) — fine
+// to leave unmocked for every OTHER test here (a guest/no-commander seat
+// never calls it with a name, so it's a same-tick no-op either way). This
+// stub only gives the commander-art tests below a synchronous, offline-safe
+// "normal" thumb to derive an art_crop URL from.
+vi.mock('../../lib/card-thumbs', () => ({
+  useCardThumb: (name: string | undefined) =>
+    name === 'Atraxa, Praetors Voice'
+      ? 'https://cards.scryfall.io/normal/front/a/b/atraxa.jpg'
+      : undefined,
+}));
+
 import { GameBoard } from './GameBoard';
 import { haptics } from '../../lib/haptics';
 
@@ -488,5 +500,31 @@ describe('Rider — OnlineSetup Host/Join: shared Tabs keyboard nav', () => {
     const hostTab = screen.getByRole('tab', { name: 'Host' });
     fireEvent.keyDown(hostTab, { key: 'End' });
     expect(onChange).toHaveBeenCalledWith('join');
+  });
+});
+
+// ── Commander art backdrop ──────────────────────────────────────────────────
+
+describe('Commander art backdrop', () => {
+  it('renders a faint art-crop layer for a seat with a commander, derived from the normal thumb', () => {
+    const player = makeTestPlayer({ commander: 'Atraxa, Praetors Voice' });
+    const game = makeTestState([player]);
+    const { container } = renderGameBoard(game);
+
+    const art = container.querySelector<HTMLImageElement>('.player-panel-art');
+    expect(art).not.toBeNull();
+    // normal -> art_crop is a pure CDN path-segment swap (scryfallArtCrop).
+    expect(art?.src).toBe('https://cards.scryfall.io/art_crop/front/a/b/atraxa.jpg');
+    // Decorative only — never announced, never blocks a screen reader.
+    expect(art?.getAttribute('alt')).toBe('');
+    expect(art?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('renders nothing for a seat with no commander — guest/no-deck seats stay the flat palette', () => {
+    const player = makeTestPlayer({ commander: null });
+    const game = makeTestState([player]);
+    const { container } = renderGameBoard(game);
+
+    expect(container.querySelector('.player-panel-art')).toBeNull();
   });
 });

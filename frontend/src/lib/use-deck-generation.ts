@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from './haptics';
+import { toast } from '../store/toasts';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { buildCommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
 import { generateDeck } from '@/deck-builder/services/deckBuilder/deckGenerator';
@@ -25,6 +26,25 @@ interface Options {
   haptic?: boolean;
   /** Optional page-owned exit animation before the generated deck route takes over. */
   beforeNavigate?: () => void | Promise<void>;
+  /** Deck this build regenerated from — on completion, lands on the compare
+   * diff (source vs new) instead of the new deck's editor. */
+  sourceDeckId?: string;
+}
+
+/**
+ * Where a completed build should land: the source-vs-new compare diff when
+ * this was a regenerate and the source deck is still around, otherwise the
+ * new deck's editor (also the fallback if the source was deleted mid-build).
+ */
+export function resolveGenerationDestination(
+  newDeckId: string,
+  sourceDeckId: string | undefined,
+  existingDeckIds: Set<string>
+): string {
+  if (sourceDeckId && existingDeckIds.has(sourceDeckId)) {
+    return `/decks/compare?a=${sourceDeckId}&b=${newDeckId}`;
+  }
+  return `/decks/${newDeckId}`;
 }
 
 /**
@@ -35,7 +55,12 @@ interface Options {
  * here is the only way the two stay in lockstep.
  * The pages own their own layout/chrome; this owns the generation logic.
  */
-export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigate }: Options = {}) {
+export function useDeckGeneration({
+  initialThemes,
+  haptic = false,
+  beforeNavigate,
+  sourceDeckId,
+}: Options = {}) {
   const navigate = useNavigate();
 
   const commander = useDeckBuilderStore((s) => s.commander);
@@ -223,9 +248,19 @@ export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigat
       );
       if (haptic) haptics.success();
       await beforeNavigate?.();
-      // justGenerated → the editor auto-shows the build report once (incl. the
-      // "committed to other decks" conflict note).
-      navigate(`/decks/${id}`, { state: { justGenerated: true } });
+      // Read the store directly rather than the closed-over `decks` —
+      // generation can run long enough for it to go stale.
+      const existingDeckIds = new Set(useDecksStore.getState().decks.map((d) => d.id));
+      const destination = resolveGenerationDestination(id, sourceDeckId, existingDeckIds);
+      const landedOnCompare = sourceDeckId != null && existingDeckIds.has(sourceDeckId);
+      if (landedOnCompare) {
+        toast.show({ message: 'Comparing your previous build with the new one.', tone: 'info' });
+        navigate(destination);
+      } else {
+        // justGenerated → the editor auto-shows the build report once (incl.
+        // the "committed to other decks" conflict note).
+        navigate(destination, { state: { justGenerated: true } });
+      }
     } catch (e) {
       logger.error('[DeckBuilder] generation failed:', e);
       setError(e instanceof Error ? e.message : "Couldn't build the deck.");
@@ -249,6 +284,7 @@ export function useDeckGeneration({ initialThemes, haptic = false, beforeNavigat
     navigate,
     haptic,
     beforeNavigate,
+    sourceDeckId,
   ]);
 
   return {

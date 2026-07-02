@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StackedBar } from '../shared/MeterBar';
+import { H2HSummary } from './H2HSummary';
 import {
   fetchLeaderboard,
   fetchH2H,
@@ -161,47 +162,5 @@ function H2HDetail({ friendId }: { friendId: string }) {
     return <div className="leaderboard-skeleton" aria-label="Loading" aria-busy="true" />;
   }
 
-  const { summary } = data;
-  return (
-    <div className="h2h-detail">
-      <div className="h2h-summary">
-        <StackedBar
-          segments={[
-            { key: 'w', value: summary.callerWins, color: 'var(--success)' },
-            { key: 'l', value: summary.friendWins, color: 'var(--err-text)' },
-          ]}
-          max={summary.gamesPlayed}
-        />
-        <span className="h2h-summary-label">
-          You {summary.callerWins} – {summary.friendWins} {data.friend.username} over{' '}
-          {summary.gamesPlayed} game{summary.gamesPlayed === 1 ? '' : 's'}
-        </span>
-      </div>
-
-      {summary.deckMatchups.length > 0 && (
-        <table className="play-records-table h2h-matchups">
-          <thead>
-            <tr>
-              <th>Your deck</th>
-              <th>Their deck</th>
-              <th>You</th>
-              <th>Them</th>
-              <th>Played</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summary.deckMatchups.map((m, i) => (
-              <tr key={i}>
-                <td>{m.callerDeckName ?? '—'}</td>
-                <td>{m.friendDeckName ?? '—'}</td>
-                <td>{m.callerWins}</td>
-                <td>{m.friendWins}</td>
-                <td>{m.played}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  return <H2HSummary data={data} />;
 }

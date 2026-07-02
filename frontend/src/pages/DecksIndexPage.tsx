@@ -20,6 +20,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
+import { ReadinessSpotlight } from '../components/deck/ReadinessSpotlight';
 import { ProductSearchDialog } from '../components/ProductSearchDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
@@ -242,6 +243,7 @@ export function DecksIndexPage() {
     navigate('/decks/new', {
       state: {
         prefill: {
+          sourceDeckId: deck.id,
           commander: deck.commander,
           themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
             name: t.name,
@@ -384,6 +386,8 @@ export function DecksIndexPage() {
           )}
         </div>
       )}
+
+      <ReadinessSpotlight />
 
       {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
       {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}
