@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { BookOpen, MoreHorizontal, Undo2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   DesignationKind,
   GameAction,
@@ -42,6 +42,8 @@ import { HOLD_DWELL_MS, HOLD_REPEAT_MS, holdStepFor } from '../../lib/hold-ramp'
 import { useWakeLock } from '../../lib/use-wake-lock';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { capture, clearUndo, peekLabel, popRestore, runSuppressed } from '../../lib/undo-stack';
+import { useCardThumb } from '../../lib/card-thumbs';
+import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { usePlayStore } from '../../store/play';
 import { useRulesReferenceStore } from '../../store/rules-reference';
 import { LifeKeypad } from './LifeKeypad';
@@ -512,6 +514,7 @@ function PlayerPanel({
         data-sideways={isSideways || undefined}
         aria-label={`${player.name}: ${player.life} life`}
       >
+        <CommanderArt name={player.commander} />
         {(game.tapOrientation ?? 'horizontal') === 'vertical' ? (
           <>
             <div className="player-panel-tapzone is-top" {...tapHandlers(1)} aria-label="+1 life" />
@@ -759,6 +762,41 @@ function PlayerPanel({
     </div>
   );
 }
+
+// ── Commander art backdrop ─────────────────────────────────────────────────
+
+/**
+ * Faint commander art crop rendered as the bottom-most layer of a player
+ * panel, under the flat color-identity fill. Isolated into its own memoized
+ * component so its load-triggered state change (the one-time fade-in) never
+ * forces the parent `PlayerPanel` — and its per-frame life-counter state —
+ * to re-render. `React.memo` on a `name`-only prop also means this never
+ * re-renders on a life tap: `name` doesn't change when life does.
+ *
+ * `useCardThumb` already no-ops for an undefined name (guest seat / no
+ * commander), so those seats render nothing here — identical to today. The
+ * offline slim bundle carries only the `normal` image, not `art_crop`
+ * (#843); `scryfallArtCrop` is the established normal→art_crop URL
+ * derivation (a CDN path-segment swap), reused here rather than re-derived.
+ */
+const CommanderArt = memo(function CommanderArt({ name }: { name: string | null | undefined }) {
+  const thumb = useCardThumb(name ?? undefined, 'normal');
+  const art = thumb ? scryfallArtCrop(thumb) : undefined;
+  const [loaded, setLoaded] = useState(false);
+  if (!art) return null;
+  return (
+    <img
+      key={art}
+      className={`player-panel-art${loaded ? ' is-loaded' : ''}`}
+      src={art}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+    />
+  );
+});
 
 // ── Tap & hold ─────────────────────────────────────────────────────────────
 
