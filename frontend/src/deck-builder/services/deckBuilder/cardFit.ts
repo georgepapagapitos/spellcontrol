@@ -179,7 +179,7 @@ export function pickReplacement(
     const sameRole = candidates.find((g) => g.role === role);
     if (sameRole) return sameRole;
   }
-  const cardPrimary = primaryType(card.type_line ?? '');
+  const cardPrimary = primaryType(getFrontFaceTypeLine(card));
   if (cardPrimary) {
     const sameType = candidates.find(
       (g) => primaryType(g.typeLine).toLowerCase() === cardPrimary.toLowerCase()

@@ -17,7 +17,7 @@
 // Pool queries always run against the LIVE Scryfall API (the generator sets the
 // force-live flag): the offline query parser can't evaluate otag:/arttag:/year.
 import { logger } from '@/lib/logger';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { getFrontFaceTypeLine, searchCards } from '@/deck-builder/services/scryfall/client';
 import type {
   Customization,
   DeckDataSource,
@@ -304,7 +304,7 @@ function synthesize(entries: Array<{ card: ScryfallCard; flexHits: number }>): E
   const cardlists = emptyCardlists();
   const n = ranked.length;
   ranked.forEach(({ card, flexHits }, i) => {
-    const type = primaryType(card.type_line);
+    const type = primaryType(getFrontFaceTypeLine(card));
     if (type === 'Land' || type === 'Unknown') return; // lands come from the land generator
     const edhrecCard: EDHRECCard = {
       name: card.name,
