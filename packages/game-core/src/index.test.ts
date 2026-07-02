@@ -199,6 +199,37 @@ describe('applyAction', () => {
     expect(s.winnerSeat).toBe(0);
   });
 
+  it('eliminate throws on unknown seat (F23: no phantom no-op event)', () => {
+    const s = applyAction(lobby(), { type: 'start' });
+    expect(() => applyAction(s, { type: 'eliminate', seat: 99, eliminated: true })).toThrow();
+  });
+
+  it('end ignores an eliminated seat as winner (F3: no forged self-win)', () => {
+    let s = applyAction(lobby(3), { type: 'start' });
+    s = applyAction(s, { type: 'eliminate', seat: 2, eliminated: true });
+    // Eliminated seat 2 tries to declare itself the winner.
+    s = applyAction(s, { type: 'end', winnerSeat: 2 });
+    expect(s.status).toBe('finished');
+    expect(s.winnerSeat).toBeNull();
+    expect(s.events.at(-1)).toMatchObject({ kind: 'end', targetSeat: null });
+  });
+
+  it('end ignores a nonexistent seat as winner', () => {
+    const s = applyAction(applyAction(lobby(), { type: 'start' }), {
+      type: 'end',
+      winnerSeat: 99,
+    });
+    expect(s.winnerSeat).toBeNull();
+  });
+
+  it('end honors a live seat as winner', () => {
+    const s = applyAction(applyAction(lobby(3), { type: 'start' }), {
+      type: 'end',
+      winnerSeat: 1,
+    });
+    expect(s.winnerSeat).toBe(1);
+  });
+
   it('add-player inserts and sorts by seat; remove-player drops', () => {
     let s = lobby(2);
     const extra = {

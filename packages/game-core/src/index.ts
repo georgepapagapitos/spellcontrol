@@ -444,15 +444,24 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
     }
     case 'end': {
       if (prev.status === 'finished') return prev;
+      // A player who is eliminated (or a seat that doesn't exist) can never be
+      // the winner — coerce any such client-supplied winnerSeat to null rather
+      // than trusting it, so a losing participant can't forge a self-win into
+      // the permanent game_results stats.
+      const winnerSeat =
+        action.winnerSeat != null &&
+        prev.players.some((p) => p.seat === action.winnerSeat && !p.eliminated)
+          ? action.winnerSeat
+          : null;
       next = {
         ...next,
         status: 'finished',
-        winnerSeat: action.winnerSeat,
+        winnerSeat,
         endedAt: ts,
         events: pushEvent(next, {
           kind: 'end',
           actorSeat: null,
-          targetSeat: action.winnerSeat,
+          targetSeat: winnerSeat,
           ts,
         }),
       };
@@ -593,6 +602,7 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       break;
     }
     case 'eliminate': {
+      requireSeat(prev.players, action.seat);
       next = {
         ...next,
         players: updatePlayer(next, action.seat, (p) => ({ ...p, eliminated: action.eliminated })),
