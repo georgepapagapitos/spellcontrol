@@ -230,6 +230,65 @@ describe('assembleBuildReport', () => {
     expect(report.roleGaps).toEqual([{ role: 'ramp', have: 0, want: 4 }]);
   });
 
+  describe('synergyFills (off-EDHREC fill provenance)', () => {
+    // Tagger data isn't loaded in tests, so topMatchedTags returns [] — these
+    // assert the CLASSIFICATION (which cards count as fills). The tag matching
+    // itself is covered in synergyFingerprint.test.ts with injected tags.
+    const flagged = (name: string, flag: Partial<ScryfallCard>) => ({ ...makeCard(name), ...flag });
+
+    it('lists non-land cards with no EDHREC inclusion, excluding EDHREC/must-include/substituted', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          builtFromCollection: true,
+          categories: categories({
+            creatures: [makeCard('Fill A'), makeCard('EDHREC B')],
+            ramp: [
+              flagged('Forced C', { isMustInclude: true }),
+              flagged('Synergy D', { isThemeSynergyCard: true }),
+              makeCard('Subbed E'),
+            ],
+            lands: [makeCard('Land F')], // lands never count
+          }),
+          cardInclusionMap: { 'EDHREC B': 42 }, // only B has a signal
+          collectionSubstitutions: [
+            { usedName: 'Subbed E', wantedName: 'Wanted X' },
+          ] as GeneratedDeck['collectionSubstitutions'],
+        }),
+        customization: makeCustomization({ collectionMode: true, collectionStrategy: 'full' }),
+        collectionNames: new Set(),
+      });
+
+      // Only 'Fill A' survives: B has inclusion, C is forced, D is EDHREC-synergy,
+      // E is a substitution, F is a land.
+      expect(report.synergyFills).toEqual([{ name: 'Fill A', matchedTags: [] }]);
+    });
+
+    it('is omitted when not built from collection', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          builtFromCollection: false,
+          categories: categories({ creatures: [makeCard('Fill A')] }),
+          cardInclusionMap: {},
+        }),
+        customization: makeCustomization({ collectionMode: false }),
+        collectionNames: new Set(),
+      });
+      expect(report.synergyFills).toBeUndefined();
+    });
+
+    it('is omitted when the inclusion map is absent (can’t tell fills from EDHREC picks)', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          builtFromCollection: true,
+          categories: categories({ creatures: [makeCard('Fill A')] }),
+        }),
+        customization: makeCustomization({ collectionMode: true }),
+        collectionNames: new Set(),
+      });
+      expect(report.synergyFills).toBeUndefined();
+    });
+  });
+
   it('omits roleGaps when no targets or no gaps', () => {
     const noTargets = assembleBuildReport({
       generated: makeGenerated(),

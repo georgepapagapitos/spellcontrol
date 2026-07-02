@@ -216,9 +216,21 @@ export function CardScanner({ onClose, onConfirm }: Props) {
   // no-ops on browsers without the Wake Lock API.
   useWakeLock(true);
 
+  // Track the hint's dismiss timer so a rapid scan doesn't accumulate stale
+  // timers (F34): clear the previous before scheduling, and on unmount.
+  const hintTimerRef = useRef<number | null>(null);
   const showHint = useCallback((msg: string, ms = 1800) => {
+    if (hintTimerRef.current != null) window.clearTimeout(hintTimerRef.current);
     setHint(msg);
-    window.setTimeout(() => setHint((current) => (current === msg ? null : current)), ms);
+    hintTimerRef.current = window.setTimeout(() => {
+      setHint((current) => (current === msg ? null : current));
+      hintTimerRef.current = null;
+    }, ms);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current != null) window.clearTimeout(hintTimerRef.current);
+    };
   }, []);
 
   const stopCamera = useCallback(() => {
