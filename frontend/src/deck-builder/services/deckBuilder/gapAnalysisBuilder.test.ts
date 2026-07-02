@@ -155,4 +155,31 @@ describe('buildGapAnalysis', () => {
     const noCollection = buildGapAnalysis(data, []);
     expect(noCollection[0].isOwned).toBeUndefined();
   });
+
+  describe('liftIndex (E71 slice 2)', () => {
+    it('an absent liftIndex leaves output identical to inclusion-only ranking', () => {
+      const data = edhrec([card('High', 90), card('Low', 10)]);
+      const withIndex = buildGapAnalysis(data, []);
+      const withoutIndex = buildGapAnalysis(data, [], { liftIndex: undefined });
+      expect(withIndex).toEqual(withoutIndex);
+      expect(withIndex.map((c) => c.name)).toEqual(['High', 'Low']);
+      expect(withIndex.every((c) => c.liftedBy === undefined)).toBe(true);
+    });
+
+    it('breaks an EXACT inclusion tie by clusterScore, and attaches liftedBy', () => {
+      const data = edhrec([card('Low Lift', 50), card('High Lift', 50)]);
+      const liftIndex = new Map([['high lift', { clusterScore: 10, liftedBy: ['Sol Ring'] }]]);
+      const result = buildGapAnalysis(data, [], { liftIndex });
+      expect(result.map((c) => c.name)).toEqual(['High Lift', 'Low Lift']);
+      expect(result.find((c) => c.name === 'High Lift')?.liftedBy).toEqual(['Sol Ring']);
+      expect(result.find((c) => c.name === 'Low Lift')?.liftedBy).toBeUndefined();
+    });
+
+    it('never outranks a strictly higher-inclusion card, even with a huge clusterScore', () => {
+      const data = edhrec([card('Staple', 90), card('Fringe', 5)]);
+      const liftIndex = new Map([['fringe', { clusterScore: 999, liftedBy: ['Cmd'] }]]);
+      const result = buildGapAnalysis(data, [], { liftIndex });
+      expect(result.map((c) => c.name)).toEqual(['Staple', 'Fringe']);
+    });
+  });
 });

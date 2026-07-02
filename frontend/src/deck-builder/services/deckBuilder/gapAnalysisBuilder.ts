@@ -19,6 +19,11 @@ export interface BuildGapAnalysisOptions {
   limit?: number;
   /** Collection names — when provided, each suggestion is marked `isOwned`. */
   collectionNames?: Set<string>;
+  /** EDHREC lift index (see liftSynergy.ts buildLiftIndex), lowercase name ->
+   *  score/seeds. Pure lookup — this function never fetches. Undefined (the
+   *  common case: no seeds fetched for this analysis) leaves ranking/output
+   *  identical to before lift existed. */
+  liftIndex?: Map<string, { clusterScore: number; liftedBy: string[] }>;
 }
 
 /** EDHREC ships TCGplayer/Cardkingdom prices; return the first available as a 2dp string. */
@@ -48,7 +53,7 @@ export function buildGapAnalysis(
   deckCardNames: Set<string> | string[],
   opts: BuildGapAnalysisOptions = {}
 ): GapAnalysisCard[] {
-  const { limit = DEFAULT_GAP_LIMIT, collectionNames } = opts;
+  const { limit = DEFAULT_GAP_LIMIT, collectionNames, liftIndex } = opts;
   if (limit <= 0) return [];
 
   // Expand the deck's names with DFC front-face variants so EDHREC's
@@ -61,7 +66,13 @@ export function buildGapAnalysis(
 
   return edhrecData.cardlists.allNonLand
     .filter((c) => !inDeck.has(c.name) && !isBasicLandName(c.name))
-    .sort((a, b) => (b.inclusion ?? 0) - (a.inclusion ?? 0))
+    .sort((a, b) => {
+      const inclusionDiff = (b.inclusion ?? 0) - (a.inclusion ?? 0);
+      if (inclusionDiff !== 0 || !liftIndex) return inclusionDiff;
+      const la = liftIndex.get(a.name.toLowerCase())?.clusterScore ?? 0;
+      const lb = liftIndex.get(b.name.toLowerCase())?.clusterScore ?? 0;
+      return lb - la;
+    })
     .slice(0, limit)
     .map((c) => {
       const role = getCardRole(c.name) || undefined;
@@ -76,6 +87,7 @@ export function buildGapAnalysis(
         isOwned: collectionNames ? collectionNames.has(c.name) : undefined,
         role,
         roleLabel: role ? ROLE_LABELS[role] : undefined,
+        liftedBy: liftIndex?.get(c.name.toLowerCase())?.liftedBy,
       } satisfies GapAnalysisCard;
     });
 }

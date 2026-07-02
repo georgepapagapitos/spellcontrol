@@ -28,6 +28,7 @@ import type {
   DetectedCombo,
   DeckStats,
   GeneratedDeck,
+  LiftEntry,
 } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
@@ -101,6 +102,19 @@ export interface GenerationState {
   mustIncludeNames: string[];
   mustIncludeSources: Map<string, 'user' | 'deck' | 'combo'>;
   saltIndex: Map<string, number>;
+  /** EDHREC card-page lift pools fetched so far this generation, keyed by
+   *  seed name — shared across every re-rank/tie-break insertion point (see
+   *  deckGeneration/liftPools.ts). Non-empty pools only. */
+  liftSeedPools: Map<string, LiftEntry[]>;
+  /** Seed names already attempted (success or failure) — so a failed fetch
+   *  isn't retried, and the MAX_LIFT_SEEDS cap counts attempts, not hits. */
+  liftSeedsTried: Set<string>;
+  /** Memoization cache for liftPools.ts:getLiftIndex — invalidated whenever
+   *  liftSeedPools.size changes. */
+  liftIndexCache?: {
+    size: number;
+    index: Map<string, { clusterScore: number; liftedBy: string[] }>;
+  };
 
   // --- Mid-life "result" locals (assigned by one phase, read later) ---
   gameChangerNames: Set<string>;
@@ -180,6 +194,8 @@ export function createState(context: GenerationContext): GenerationState {
     mustIncludeNames: [],
     mustIncludeSources: new Map<string, 'user' | 'deck' | 'combo'>(),
     saltIndex: new Map<string, number>(),
+    liftSeedPools: new Map<string, LiftEntry[]>(),
+    liftSeedsTried: new Set<string>(),
 
     gameChangerNames: new Set<string>(),
     combos: [],

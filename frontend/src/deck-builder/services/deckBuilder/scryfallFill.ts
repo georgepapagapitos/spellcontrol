@@ -35,7 +35,12 @@ export async function fillWithScryfall(
   collectionStrategy: CollectionStrategy = 'full',
   ignoreOwnedBudget: boolean = false,
   ignoreOwnedRarity: boolean = false,
-  cardAllowed?: (card: ScryfallCard) => boolean
+  cardAllowed?: (card: ScryfallCard) => boolean,
+  // EDHREC lift clusterScore lookup (E71 slice 2), lowercase name -> score,
+  // 0 for cards with no lift connectivity. Primary re-rank key below — with
+  // no lift data every score is 0, so the sort falls through to today's
+  // fingerprint order unchanged.
+  liftScoreOf?: (name: string) => number
 ): Promise<ScryfallCard[]> {
   if (count <= 0) return [];
 
@@ -89,9 +94,10 @@ export async function fillWithScryfall(
         const scored = passing.map((card, i) => ({
           card,
           i,
+          l: liftScoreOf?.(card.name) ?? 0,
           s: synergyScore(card.name, fingerprint),
         }));
-        scored.sort((a, b) => b.s - a.s || a.i - b.i);
+        scored.sort((a, b) => b.l - a.l || b.s - a.s || a.i - b.i);
         passing.length = 0;
         for (const { card } of scored) passing.push(card);
       }

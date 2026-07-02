@@ -42,7 +42,8 @@ export function pickFromPrefetched(
   collectionOwnedPercent: number = 100,
   ignoreOwnedBudget: boolean = false,
   ignoreOwnedRarity: boolean = false,
-  cardAllowed?: (card: ScryfallCard) => boolean
+  cardAllowed?: (card: ScryfallCard) => boolean,
+  liftTieBreak?: Map<string, number>
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -53,7 +54,8 @@ export function pickFromPrefetched(
     .sort(
       (a, b) =>
         priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
-        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames)
+          priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames) ||
+        liftTie(b.name, liftTieBreak) - liftTie(a.name, liftTieBreak)
     );
 
   // Shared validation for a single candidate
@@ -201,6 +203,14 @@ function priorityWithBoosts(
   );
 }
 
+// EDHREC lift clusterScore (E71 slice 2), keyed lowercase. A SECONDARY sort
+// key only — it breaks an EXACT priorityWithBoosts tie, never outranks a
+// higher-priority card and never grants curve-breaking rights (the curve gate
+// below runs on isHighSynergyCard/inclusion/combo boost, untouched by lift).
+function liftTie(name: string, liftTieBreak: Map<string, number> | undefined): number {
+  return liftTieBreak?.get(name.toLowerCase()) ?? 0;
+}
+
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
 export function pickFromPrefetchedWithCurve(
@@ -230,7 +240,8 @@ export function pickFromPrefetchedWithCurve(
   ignoreOwnedBudget: boolean = false,
   ignoreOwnedRarity: boolean = false,
   bracketGuard?: BracketGuard,
-  cardAllowed?: (card: ScryfallCard) => boolean
+  cardAllowed?: (card: ScryfallCard) => boolean,
+  liftTieBreak?: Map<string, number>
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -241,7 +252,8 @@ export function pickFromPrefetchedWithCurve(
     .sort(
       (a, b) =>
         priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
-        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames)
+          priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames) ||
+        liftTie(b.name, liftTieBreak) - liftTie(a.name, liftTieBreak)
     );
 
   // Separate into high-synergy cards (any type) and regular cards

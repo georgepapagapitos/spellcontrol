@@ -1,6 +1,5 @@
 import { logger } from '@/lib/logger';
-import type { DeckCategory, LiftEntry, LiftPackagePick, ScryfallCard } from '@/deck-builder/types';
-import { fetchCardLiftPool } from '@/deck-builder/services/edhrec/client';
+import type { DeckCategory, LiftPackagePick, ScryfallCard } from '@/deck-builder/types';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { aggregateLiftCandidates, selectTopLiftPicks, type LiftCandidate } from '../liftSynergy';
 import {
@@ -14,8 +13,8 @@ import {
   isOwnedBudgetExempt,
 } from '../deckFilters';
 import type { GenerationState } from './state';
+import { ensureLiftPools, MAX_LIFT_SEEDS } from './liftPools';
 
-const MAX_SEEDS = 10;
 const MAX_CANDIDATES = 24;
 const MAX_PICKS = 4;
 
@@ -46,12 +45,13 @@ function buildDisclosureNote(counts: Record<FilterReason, number>): string | und
 
 /** Seed cards for the lift lookup: commander(s) first, then theme-synergy
  *  cards, then must-includes, then the rest of the deck in category order.
- *  Deduped, capped at MAX_SEEDS (each seed costs one throttled EDHREC fetch). */
+ *  Deduped, capped at MAX_LIFT_SEEDS (each seed costs one throttled EDHREC
+ *  fetch — shared across the whole generation, see deckGeneration/liftPools). */
 function collectSeeds(state: GenerationState, nonLandCards: ScryfallCard[]): string[] {
   const seeds: string[] = [];
   const seen = new Set<string>();
   const add = (name: string | null | undefined) => {
-    if (!name || seen.has(name) || seeds.length >= MAX_SEEDS) return;
+    if (!name || seen.has(name) || seeds.length >= MAX_LIFT_SEEDS) return;
     seen.add(name);
     seeds.push(name);
   };
@@ -110,11 +110,7 @@ export async function liftPicksPhase(state: GenerationState): Promise<LiftPicksR
     const seeds = collectSeeds(state, nonLandCards);
     if (seeds.length === 0) return undefined;
 
-    const seedPools = new Map<string, LiftEntry[]>();
-    for (const seed of seeds) {
-      const pool = await fetchCardLiftPool(seed);
-      if (pool.length > 0) seedPools.set(seed, pool);
-    }
+    const seedPools = await ensureLiftPools(state, seeds);
     if (seedPools.size === 0) return undefined;
 
     const excludeNames = new Set<string>(state.usedNames);

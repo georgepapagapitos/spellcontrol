@@ -4,6 +4,7 @@ import type {
   EDHRECCommanderData,
   DetectedCombo,
   GapAnalysisCard,
+  LiftEntry,
 } from '@/deck-builder/types';
 import type { ComboMatch, ComboMatchResponse } from '@/types/combos';
 import {
@@ -21,7 +22,8 @@ import {
   searchCards,
 } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/allocations';
-import { fetchCommanderData, fetchPartnerCommanderData } from '../edhrec/client';
+import { fetchCommanderData, fetchPartnerCommanderData, fetchCardLiftPool } from '../edhrec/client';
+import { buildLiftIndex } from './liftSynergy';
 import { estimateBracket, type BracketEstimation } from './bracketEstimator';
 import { buildBracketFitPlan, type BracketFitPlan } from './bracketFit';
 import {
@@ -556,10 +558,41 @@ export async function analyzeCommanderDeck(
       colorIdentity: params.colorIdentity,
     });
 
+    // Small opportunistic lift seed set for the gap-analysis ranking below:
+    // commander(s) + up to 4 clearly high-synergy deck cards, capped at 6
+    // fetches total. fetchCardLiftPool never throws and caches per-slug for
+    // 30min, so re-opening Coach is free; any failure just yields undefined,
+    // leaving gap analysis identical to before lift existed.
+    // ponytail: commander + high-synergy seeds only, not the whole deck —
+    // widen to full-deck seeding if analysis-time lift proves worth the cost.
+    let liftIndex: ReturnType<typeof buildLiftIndex> | undefined;
+    try {
+      const edhrecByName = new Map(edhrecData.cardlists.allNonLand.map((c) => [c.name, c]));
+      const highSynergyNames = params.cards
+        .filter((c) => c.isThemeSynergyCard || (edhrecByName.get(c.name)?.synergy ?? 0) > 0.3)
+        .map((c) => c.name)
+        .slice(0, 4);
+      const seeds = [
+        ...new Set(
+          [params.commander.name, params.partnerCommander?.name, ...highSynergyNames].filter(
+            (n): n is string => !!n
+          )
+        ),
+      ].slice(0, 6);
+      const seedPools = new Map<string, LiftEntry[]>();
+      for (const seed of seeds) {
+        const pool = await fetchCardLiftPool(seed);
+        if (pool.length > 0) seedPools.set(seed, pool);
+      }
+      if (seedPools.size > 0) liftIndex = buildLiftIndex(seedPools);
+    } catch {
+      liftIndex = undefined;
+    }
+
     // Gap analysis dedupes against every card name in the list, commanders
     // included. Ownership is intentionally left unset here — the UI marks
     // `isOwned` later against the live collection.
-    const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames);
+    const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames, { liftIndex });
 
     // PlanScore (0-100, four weighted dimensions). The curve dim needs the curve-phase
     // analysis lifted out of the grade pass; if the grade branch didn't run

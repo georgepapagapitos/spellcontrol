@@ -5,6 +5,7 @@ import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority } from '../cardPicking';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
+import { getLiftIndex } from './liftPools';
 
 // Gap analysis: find top unowned cards that would improve the deck.
 // Verbatim extraction from generateDeck: closed-over free vars are rewritten
@@ -22,9 +23,18 @@ export async function gapAnalysisPhase(
       if (c.name.includes(' // ')) allDeckCardNames.add(frontFaceName(c.name));
     }
 
+    // Pools are already fetched by the early generation-time seed pass (see
+    // deckGenerator.ts) — this only reads the memoized index, never fetches.
+    const liftIndex = getLiftIndex(state);
+    const clusterScoreOf = (name: string) => liftIndex.get(name.toLowerCase())?.clusterScore ?? 0;
+
     const gapCandidates = state.edhrecData.cardlists.allNonLand
       .filter((c) => !allDeckCardNames.has(c.name) && !state.bannedCards.has(c.name))
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a))
+      .sort(
+        (a, b) =>
+          calculateCardPriority(b) - calculateCardPriority(a) ||
+          clusterScoreOf(b.name) - clusterScoreOf(a.name)
+      )
       .slice(0, 40);
 
     if (gapCandidates.length > 0) {
@@ -55,6 +65,7 @@ export async function gapAnalysisPhase(
             isOwned: state.context.collectionNames!.has(c.name),
             role,
             roleLabel: role ? ROLE_LABELS[role] : undefined,
+            liftedBy: liftIndex.get(c.name.toLowerCase())?.liftedBy,
           };
         })
         .filter((c) => c.price !== null);
