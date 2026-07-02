@@ -228,16 +228,25 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
       });
     };
 
+    const simRafRef = useRef<number | null>(null);
     const handleSimulate = () => {
       setSimulating(true);
+      if (simRafRef.current != null) window.cancelAnimationFrame(simRafRef.current);
       // Defer one frame so the button's "Simulating…" label paints before the
       // (brief, synchronous) Monte-Carlo run occupies the main thread. 1,000
       // hands of a ~100-card shuffle runs well under one frame even on phones.
-      window.requestAnimationFrame(() => {
+      simRafRef.current = window.requestAnimationFrame(() => {
         setSim(simulateOpeningHands(simLibrary, { iterations: 1000 }));
         setSimulating(false);
+        simRafRef.current = null;
       });
     };
+    // Cancel a pending manual-simulate frame on unmount (F33).
+    useEffect(() => {
+      return () => {
+        if (simRafRef.current != null) window.cancelAnimationFrame(simRafRef.current);
+      };
+    }, []);
 
     // Measure the fan scroller so the hand can spread to fill the space it has
     // (and only tuck into an overlap when genuinely crowded). ResizeObserver

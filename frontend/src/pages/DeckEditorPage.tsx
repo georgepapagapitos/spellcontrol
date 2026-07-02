@@ -81,9 +81,11 @@ import {
   useCollectionByCopyId,
   type DonorOutcome,
   type DonorZone,
+  type StealableCopy,
 } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
+import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
@@ -216,6 +218,16 @@ export function DeckEditorPage() {
   const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(
     null
   );
+  // Pending "pull an owned-but-committed printing in from another deck/cube"
+  // prompt, raised from the edit-printing picker when the chosen printing has no
+  // free copy. Resolved by handleMovePrintingConfirm.
+  const [movePrompt, setMovePrompt] = useState<{
+    editSlotId: string;
+    newCard: ScryfallCard;
+    chosenSetName: string;
+    donor: StealableCopy;
+    swap: { returnCopyId: string; returnCard: ScryfallCard; returnSetName: string } | null;
+  } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [makeCommanderTarget, setMakeCommanderTarget] = useState<{
@@ -1742,6 +1754,54 @@ export function DeckEditorPage() {
     if (!editingSlot || !deck) return;
     const newCard = selection.card;
     const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
+
+    // If the chosen printing is owned but every copy is committed elsewhere, don't
+    // silently leave the slot unbound — offer to pull a copy in from its donor
+    // (Move), or trade this slot's current copy back to the donor (Swap), so the
+    // deck actually gets the physical card. Nothing moves without the explicit
+    // choice; the reallocation itself happens in handleMovePrintingConfirm.
+    const availability = resolveAvailability(newCard);
+    if (availability === 'in-other-deck' || availability === 'in-cube') {
+      const donor = findStealableCopy(
+        newCard.name,
+        collectionCards,
+        decks,
+        deck.id,
+        newCard.id,
+        savedCubes
+      );
+      if (donor) {
+        const editSlot = deck.cards.find((c) => c.slotId === editingSlot.slotId);
+        // Swap needs a reciprocal owned copy this slot can hand back — and a
+        // mainboard deck donor whose slot we can rewrite. A copy bound to a
+        // printing other than the slot's own (a suboptimal binding) has no clean
+        // ScryfallCard to send, so require the slot to hold its own printing.
+        const displaced = editSlot?.allocatedCopyId
+          ? collectionCards.find((c) => c.copyId === editSlot.allocatedCopyId)
+          : undefined;
+        const canSwap =
+          donor.donorKind === 'deck' &&
+          donor.donorZone === 'main' &&
+          !!displaced &&
+          displaced.scryfallId === editSlot!.card.id;
+        setMovePrompt({
+          editSlotId: editingSlot.slotId,
+          newCard,
+          chosenSetName: newCard.set_name ?? newCard.set?.toUpperCase() ?? 'this',
+          donor,
+          swap: canSwap
+            ? {
+                returnCopyId: displaced!.copyId,
+                returnCard: editSlot!.card,
+                returnSetName: editSlot!.card.set_name ?? displaced!.setCode,
+              }
+            : null,
+        });
+        setEditingSlot(null);
+        return;
+      }
+    }
+
     // Bind each rebound slot to a free owned copy of the NEW printing so picking
     // a printing you own actually sources it from your collection — previously
     // the swap always nulled the allocation, so an owned printing read as
@@ -1773,6 +1833,54 @@ export function DeckEditorPage() {
     });
     setEditingSlot(null);
     pushToast({ message: `Updated printing for ${newCard.name}`, tone: 'success' });
+  };
+
+  // Commit the pending move/swap from the edit-printing picker. Both directions
+  // reuse the shared reallocation engine (snapshot both decks + one Undo toast):
+  // the recipient side sets the chosen printing on every same-name slot and binds
+  // the pulled copy to the edited slot; the donor side either leaves a gap (Move)
+  // or takes this slot's displaced copy in return (Swap).
+  const handleMovePrintingConfirm = (mode: 'move' | 'swap'): void => {
+    if (!deck || !movePrompt) return;
+    const { editSlotId, newCard, donor, swap } = movePrompt;
+    setMovePrompt(null);
+    const fromCube = donor.donorKind === 'cube';
+    executeReallocation({
+      donorDeckId: donor.donorDeckId,
+      donorCubeId: fromCube ? donor.donorId : undefined,
+      recipientDeckId: deck.id,
+      // Only the edited slot changes — bring the one pulled copy into it. Other
+      // same-name slots keep their own printing and binding; a move relocates a
+      // single physical copy, not the whole playset.
+      recipientApply: () => updateCardPrinting(deck.id, editSlotId, newCard, donor.copyId),
+      donorApply: () => {
+        if (fromCube) {
+          useCubeStore.getState().releaseCubePick(donor.donorId, donor.copyId);
+        } else if (mode === 'swap' && swap) {
+          // Hand our displaced copy back to the donor's mainboard slot so it stays
+          // whole — its slot now shows (and holds) that printing.
+          updateCardPrinting(
+            donor.donorDeckId,
+            donor.donorSlotId!,
+            swap.returnCard,
+            swap.returnCopyId
+          );
+        } else {
+          applyDonorOutcome(
+            donor.donorDeckId,
+            donor.donorZone,
+            donor.donorSlotId,
+            donor.donorCard!,
+            'leave-gap',
+            null
+          );
+        }
+      },
+      label:
+        mode === 'swap' && swap
+          ? `Swapped ${newCard.name} with ${donor.donorDeckName}`
+          : `Moved ${newCard.name} here from ${donor.donorDeckName}`,
+    });
   };
 
   const displayCards: DeckDisplayCard[] = deck.cards.map((c) => ({
@@ -2410,6 +2518,19 @@ export function DeckEditorPage() {
           resolveAvailability={resolveAvailability}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingSlot(null)}
+        />
+      )}
+
+      {movePrompt && (
+        <MovePrintingPrompt
+          cardName={movePrompt.newCard.name}
+          chosenSetName={movePrompt.chosenSetName}
+          donorName={movePrompt.donor.donorDeckName}
+          donorKind={movePrompt.donor.donorKind}
+          swap={movePrompt.swap ? { returnSetName: movePrompt.swap.returnSetName } : null}
+          onMove={() => handleMovePrintingConfirm('move')}
+          onSwap={() => handleMovePrintingConfirm('swap')}
+          onCancel={() => setMovePrompt(null)}
         />
       )}
 

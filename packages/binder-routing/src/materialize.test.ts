@@ -66,6 +66,19 @@ describe('materializeBinders', () => {
     expect(uncategorized.totalCards).toBe(2);
   });
 
+  it('does not crash on a group-mode binder with empty filterGroups (F11)', () => {
+    const cards = [makeCard(), makeCard()];
+    const binder = makeBinder({ sectionMode: 'group', filterGroups: [] });
+    let result!: ReturnType<typeof materializeBinders>;
+    expect(() => {
+      result = materializeBinders(cards, [binder], defaultOpts);
+    }).not.toThrow();
+    // No groups → no sections; the empty ruleset matches nothing, so the cards
+    // fall through to uncategorized rather than crashing the whole view.
+    expect(result.binders[0]?.sections ?? []).toHaveLength(0);
+    expect(result.uncategorized.totalCards).toBe(2);
+  });
+
   it('routes cards matching a binder rule into that binder', () => {
     const rareCard = makeCard({ rarity: 'rare' });
     const commonCard = makeCard({ rarity: 'common' });

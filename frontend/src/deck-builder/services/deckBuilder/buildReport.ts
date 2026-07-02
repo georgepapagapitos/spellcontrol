@@ -1,4 +1,5 @@
 import type { BuildReport, Customization, DeckCategory, GeneratedDeck } from '@/deck-builder/types';
+import { buildSynergyFingerprint, topMatchedTags } from './synergyFingerprint';
 
 /**
  * Assemble the compact, persisted "build report" recording how a generated
@@ -73,6 +74,30 @@ export function assembleBuildReport(input: {
   // Owned cards substituted in for unowned staples ("Wanted X → used your Y").
   if (generated.collectionSubstitutions && generated.collectionSubstitutions.length > 0) {
     report.collectionSubstitutions = generated.collectionSubstitutions;
+  }
+
+  // Provenance for the deck's off-EDHREC cards — the ones the fallback fill added
+  // because the owned∩EDHREC pool ran short (this is where the "0% inclusion"
+  // cards come from). For each we surface the deck-synergy tags it shares with
+  // the rest of the deck, so the user can see WHY it was picked (or that it was a
+  // pure slot-filler with no shared tags). Collection builds only; needs the
+  // inclusion map to tell EDHREC-sourced cards from fills.
+  if (builtFromCollection && generated.cardInclusionMap) {
+    const inclusionMap = generated.cardInclusionMap;
+    const substituted = new Set((generated.collectionSubstitutions ?? []).map((s) => s.usedName));
+    const nonLand = (Object.keys(generated.categories) as DeckCategory[])
+      .filter((cat) => cat !== 'lands')
+      .flatMap((cat) => generated.categories[cat]);
+    const fingerprint = buildSynergyFingerprint(nonLand.map((c) => c.name));
+    const synergyFills: Array<{ name: string; matchedTags: string[] }> = [];
+    for (const card of nonLand) {
+      if (card.isMustInclude) continue; // a user-forced pick, not a fill
+      if (card.isThemeSynergyCard) continue; // came from EDHREC's synergy lists
+      if (substituted.has(card.name)) continue; // already shown as a substitution
+      if ((inclusionMap[card.name] ?? 0) > 0) continue; // has an EDHREC signal
+      synergyFills.push({ name: card.name, matchedTags: topMatchedTags(card.name, fingerprint) });
+    }
+    if (synergyFills.length > 0) report.synergyFills = synergyFills;
   }
 
   // Per-role "wanted N, got M" gaps where the deck fell short of target.

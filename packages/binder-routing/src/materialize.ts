@@ -55,6 +55,16 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  * Each card joins the FIRST binder whose rules match. Unmatched cards land in the uncategorized bucket.
  * Pinned cards (def.pinnedCopyIds) are claimed before rule routing so they can't appear in other binders.
  */
+/**
+ * A deck-allocated copy is "swallowed" by a binder that opts out of showing
+ * deck-allocated cards (`hideDeckAllocated === false`): it renders nowhere but
+ * keeps its routing so it returns when the deck releases it. Shared so the
+ * three routing sites can't drift from each other (F36).
+ */
+function isSwallowedByBinder(isAllocated: boolean, def: BinderDef): boolean {
+  return isAllocated && def.hideDeckAllocated === false;
+}
+
 export function materializeBinders(
   cards: EnrichedCard[],
   binderDefs: BinderDef[],
@@ -95,7 +105,7 @@ export function materializeBinders(
       // If the pinning binder hides deck-allocated cards and this card is in a
       // deck, swallow it — don't render anywhere, but keep the pin metadata so
       // it returns to its slot when the deck releases it.
-      if (isAllocated && claimingDef.hideDeckAllocated === false) continue;
+      if (isSwallowedByBinder(isAllocated, claimingDef)) continue;
       buckets.get(claimedBy)?.push(card);
       continue;
     }
@@ -105,7 +115,7 @@ export function materializeBinders(
       const def = orderedDefs[i];
       if (def.mode === 'manual') continue;
       if (cardMatchesAnyGroup(card, compiledGroups[i])) {
-        if (isAllocated && def.hideDeckAllocated === false) {
+        if (isSwallowedByBinder(isAllocated, def)) {
           // First matching binder hides deck-allocated cards: card is dropped
           // from the binder system entirely (not routed to a later binder, not
           // sent to uncategorized). It returns when un-allocated.
@@ -140,8 +150,8 @@ export function materializeBinders(
     const kept: EnrichedCard[] = [];
     for (const card of uncategorized) {
       if (card.oracleId !== undefined && wanted.has(card.oracleId)) {
-        // Mirror the main loop's swallow rule for deck-allocated copies.
-        if (allocated.has(card.copyId) && def.hideDeckAllocated === false) continue;
+        // Same swallow rule as the main routing loop, for deck-allocated copies.
+        if (isSwallowedByBinder(allocated.has(card.copyId), def)) continue;
         bucket.push(card);
       } else {
         kept.push(card);
@@ -383,6 +393,12 @@ function buildGroupSections(
   isMatch: (c: EnrichedCard) => boolean,
   ctx?: { setMap?: SetMap; qtyByPrintingKey?: Map<string, number> }
 ): BinderSection[] {
+  // No groups defined → no sections. Guards the buckets[buckets.length-1]
+  // fall-through below, which would be buckets[-1] (undefined) → crash the
+  // whole binder view. Reachable via a malformed stored binder (group mode,
+  // empty filterGroups).
+  if (def.filterGroups.length === 0) return [];
+
   const compiled = compileFilterGroups(def.filterGroups);
   // Assign each card to its first matching group (index), or fall through to the last bucket.
   const buckets: EnrichedCard[][] = def.filterGroups.map(() => []);

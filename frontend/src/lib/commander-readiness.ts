@@ -48,9 +48,20 @@ export interface ReadinessScore {
 
 export type CommanderSortKey = 'readiness' | 'name' | 'recentlyAdded';
 
-/** importId is `imp_<ms>_<rand>` → lexicographically time-ordered; missing sorts oldest. */
-function importIdOf(card: EnrichedCard): string {
-  return card.importId ?? '';
+/**
+ * Import recency lookup: importId → import timestamp (ms). Dedupe and the
+ * "recently added" sort key off this because prod importIds are random UUIDs
+ * (`crypto.randomUUID`, store/collection.ts), NOT time-ordered — an importId
+ * string compare picks an arbitrary copy/order. Build it from the collection's
+ * `importHistory` (`{ id, addedAt }`). A card with no importId, or one absent
+ * from the map, counts as the oldest.
+ */
+export type ImportRecency = Map<string, number>;
+
+function recencyOf(card: EnrichedCard, recency?: ImportRecency): number {
+  const id = card.importId;
+  if (!id) return -Infinity;
+  return recency?.get(id) ?? -Infinity;
 }
 
 /** Short display name: drop the title and any back-face. "Atraxa, Praetors' Voice" → "Atraxa". */
@@ -62,13 +73,19 @@ function shortCommanderName(name: string): string {
  * Extract the user's commander-eligible cards from their collection, one entry
  * per distinct commander name (keeping the most recently imported copy). Uses
  * the shared `isCommanderEligible` so detection can't drift from binder routing.
+ *
+ * Pass `recency` (importId → addedAt) to make "most recent" real; without it,
+ * copies tie and the first-seen one wins.
  */
-export function extractCommanderCandidates(cards: EnrichedCard[]): EnrichedCard[] {
+export function extractCommanderCandidates(
+  cards: EnrichedCard[],
+  recency?: ImportRecency
+): EnrichedCard[] {
   const byName = new Map<string, EnrichedCard>();
   for (const card of cards) {
     if (!isCommanderEligible(card)) continue;
     const existing = byName.get(card.name);
-    if (!existing || importIdOf(card) > importIdOf(existing)) {
+    if (!existing || recencyOf(card, recency) > recencyOf(existing, recency)) {
       byName.set(card.name, card);
     }
   }
@@ -122,20 +139,27 @@ export function computeReadiness(
  *
  * - `readiness`: highest percent first; unscored/unavailable sink to the end.
  * - `name`: A→Z.
- * - `recentlyAdded`: newest import first; cards without an importId sink to the end.
+ * - `recentlyAdded`: newest import first (by `recency`); cards with no recency
+ *   sink to the end.
  *
  * All keys break ties by name so ordering is stable while scores stream in.
  */
 export function sortCommanderCandidates(
   candidates: EnrichedCard[],
   scores: Map<string, ReadinessScore>,
-  key: CommanderSortKey
+  key: CommanderSortKey,
+  recency?: ImportRecency
 ): EnrichedCard[] {
   const out = [...candidates];
   if (key === 'name') {
     out.sort((a, b) => a.name.localeCompare(b.name));
   } else if (key === 'recentlyAdded') {
-    out.sort((a, b) => importIdOf(b).localeCompare(importIdOf(a)) || a.name.localeCompare(b.name));
+    out.sort((a, b) => {
+      const ra = recencyOf(a, recency);
+      const rb = recencyOf(b, recency);
+      if (ra !== rb) return rb - ra;
+      return a.name.localeCompare(b.name);
+    });
   } else {
     out.sort((a, b) => {
       const sa = scores.get(a.name);

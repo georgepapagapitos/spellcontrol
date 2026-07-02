@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface Props {
   playerName: string;
@@ -32,27 +32,28 @@ export function LifeKeypad({ playerName, currentLife, onConfirm, onClose }: Prop
   // 'set' = absolute set-life; 'delta' = apply ± typed amount
   const [mode, setMode] = useState<'set' | 'delta'>('set');
 
+  /** Absolute set — used by the "Set life" button and keyboard Enter. */
+  const confirmSet = useCallback(() => {
+    const raw = buffer === '' ? currentLife : Number(buffer);
+    if (!Number.isFinite(raw)) return;
+    onConfirm(raw);
+  }, [buffer, currentLife, onConfirm]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
+      // confirmSet must be a dep — an empty-dep effect captured buffer==='' at
+      // mount, so Enter dropped the typed total and set life to currentLife.
       else if (e.key === 'Enter') confirmSet();
       else if (e.key === 'Backspace') setBuffer((b) => b.slice(0, -1));
       else if (/^[0-9]$/.test(e.key)) setBuffer((b) => (b + e.key).slice(0, 4));
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [confirmSet, onClose]);
 
   function press(d: string) {
     setBuffer((b) => (b + d).slice(0, 4));
-  }
-
-  /** Absolute set — used by the "Set life" button and keyboard Enter. */
-  function confirmSet() {
-    const raw = buffer === '' ? currentLife : Number(buffer);
-    if (!Number.isFinite(raw)) return;
-    onConfirm(raw);
   }
 
   /** Apply buffer as a delta in the given direction. */

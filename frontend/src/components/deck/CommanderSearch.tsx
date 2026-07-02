@@ -186,9 +186,16 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // detection can't drift from binder routing — this also catches non-creature
   // commanders ("can be your commander" planeswalkers/backgrounds) that a bare
   // legendary-creature type-line check would miss.
+  // importId → addedAt so "most recent copy" is real: prod importIds are random
+  // UUIDs, so recency can't be read off the id itself (audit F6).
+  const importHistory = useCollectionStore((s) => s.importHistory);
+  const importRecency = useMemo(
+    () => new Map(importHistory.map((h) => [h.id, h.addedAt])),
+    [importHistory]
+  );
   const collectionLegends = useMemo(
-    () => extractCommanderCandidates(collectionCards),
-    [collectionCards]
+    () => extractCommanderCandidates(collectionCards, importRecency),
+    [collectionCards, importRecency]
   );
   const ownedNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name)),
