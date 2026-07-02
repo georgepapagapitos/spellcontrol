@@ -110,6 +110,7 @@
 }
 
 .filter-popover-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -124,12 +125,11 @@
   cursor: pointer;
   transition:
     background var(--motion-fast),
-    color var(--motion-fast),
-    transform var(--motion-fast);
+    color var(--motion-fast);
 }
 
 /* Press feedback (STYLE_GUIDE § Motion pattern 6). */
-.filter-popover-btn:active {
+.filter-popover-btn:active > svg {
   transform: scale(0.97);
 }
 
@@ -137,6 +137,7 @@
   width: 1.05rem;
   height: 1.05rem;
   display: block;
+  transition: transform var(--motion-fast);
 }
 
 .filter-popover-btn:focus-visible,
