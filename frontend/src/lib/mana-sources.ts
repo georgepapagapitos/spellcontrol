@@ -36,6 +36,7 @@ export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<str
   const ot = (card.oracle_text ?? '').toLowerCase();
   const pm = (card.produced_mana ?? []).filter((c) => 'WUBRGC'.includes(c));
   const identityColors = COLOR_KEYS.filter((c) => identity.has(c));
+  const typeLine = card.type_line || card.card_faces?.[0]?.type_line || '';
 
   // Contextual fixers that Scryfall prints as the full rainbow because it can't
   // know the table state: commander-identity fixers ("color identity" — Command
@@ -56,7 +57,7 @@ export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<str
 
   // Fallbacks for the rare card cached without produced_mana.
   const out = new Set<string>();
-  const tl = (card.type_line ?? '').toLowerCase();
+  const tl = typeLine.toLowerCase();
   if (tl.includes('plains') || ot.includes('add {w}')) out.add('W');
   if (tl.includes('island') || ot.includes('add {u}')) out.add('U');
   if (tl.includes('swamp') || ot.includes('add {b}')) out.add('B');
@@ -76,7 +77,9 @@ export function producedManaColors(card: ScryfallCard, identity: ReadonlySet<str
  * spell type.
  */
 export function isManaSourceType(card: ScryfallCard): boolean {
-  const frontType = (card.type_line ?? '').split('//')[0].toLowerCase();
+  const frontType = (card.type_line || card.card_faces?.[0]?.type_line || '')
+    .split('//')[0]
+    .toLowerCase();
   return !frontType.includes('instant') && !frontType.includes('sorcery');
 }
 

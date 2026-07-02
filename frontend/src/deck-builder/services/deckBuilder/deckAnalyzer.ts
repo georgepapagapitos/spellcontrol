@@ -361,7 +361,7 @@ function getLandProducedColors(card: ScryfallCard): string[] {
   const colors: Set<string> = new Set();
   const producedMana = card.produced_mana || [];
   const oracleText = (card.oracle_text || '').toLowerCase();
-  const typeLine = (card.type_line || '').toLowerCase();
+  const typeLine = getFrontFaceTypeLine(card).toLowerCase();
 
   for (const mana of producedMana) {
     if (['W', 'U', 'B', 'R', 'G'].includes(mana)) colors.add(mana);
@@ -388,7 +388,7 @@ function getRecommendationColors(cardName: string, edhrecColorIdentity?: string[
   const cached = getCachedCard(cardName);
   if (cached) {
     // Use the full Scryfall logic for lands, or produced_mana for others
-    const typeLine = (cached.type_line || '').toLowerCase();
+    const typeLine = getFrontFaceTypeLine(cached).toLowerCase();
     if (typeLine.includes('land')) return getLandProducedColors(cached);
     const produced = cached.produced_mana || [];
     const colors = produced.filter((c) => ['W', 'U', 'B', 'R', 'G'].includes(c));
@@ -2243,7 +2243,7 @@ export function analyzeDeck(
       card.edhrec_rank != null ? Math.max(0, 100 - Math.floor(card.edhrec_rank / 100)) : 50; // neutral default if no rank
     // Composite: 50% commander-specific inclusion, 25% global rank, 25% synergy-boosted inclusion
     const synergyBoost = Math.max(0, synergy) * 50;
-    const isLand = (card.type_line || '').toLowerCase().includes('land');
+    const isLand = getFrontFaceTypeLine(card).toLowerCase().includes('land');
     const role = isLand ? null : getCardRole(card.name);
     // Role deficit boost (same logic as scoreRecommendation) — skip lands
     let roleBoost = 0;
@@ -2339,7 +2339,7 @@ export function analyzeDeck(
     }
     let subtypeLabel = subtype ? SUBTYPE_LABELS[subtype] || subtype : undefined;
     // Lands with ramp role get their own subcategory
-    if (targetRole === 'ramp' && card.type_line?.includes('Land')) {
+    if (targetRole === 'ramp' && getFrontFaceTypeLine(card).includes('Land')) {
       subtypeLabel = 'Ramp Land';
     }
     return {
