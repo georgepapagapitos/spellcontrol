@@ -15,6 +15,7 @@ function response(overrides: Partial<UploadResponse> = {}): UploadResponse {
     scryfallHits: 0,
     scryfallMisses: 0,
     unresolvedNames: [],
+    fetchErrors: [],
     detectedFormat: 'mtga',
     ...overrides,
   };
@@ -38,13 +39,17 @@ describe('importScannedCards', () => {
       SCANNED_CARDS_LABEL,
       'merge'
     );
-    expect(result).toEqual({ added: 1, requested: 1, unresolved: 0 });
+    expect(result).toEqual({ added: 1, requested: 1, unresolved: 0, fetchErrors: 0 });
   });
 
   it('reports the parsed count and unresolved names independently of the requested count', async () => {
     importTextMock.mockResolvedValue(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      response({ cards: [{ name: 'Forest' } as any], unresolvedNames: ['Blacker Lotus'] })
+      response({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        cards: [{ name: 'Forest' } as any],
+        unresolvedNames: ['Blacker Lotus'],
+        fetchErrors: [{ name: 'Sol Ring', quantity: 1 }],
+      })
     );
 
     const result = await importScannedCards(
@@ -53,7 +58,7 @@ describe('importScannedCards', () => {
       vi.fn(async () => 'id')
     );
 
-    expect(result).toEqual({ added: 1, requested: 3, unresolved: 1 });
+    expect(result).toEqual({ added: 1, requested: 3, unresolved: 1, fetchErrors: 1 });
   });
 
   it('propagates parser failures to the caller', async () => {

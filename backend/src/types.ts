@@ -164,6 +164,8 @@ export interface DeckImportResponse {
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
   unresolvedNames: string[];
+  /** Names skipped because Scryfall couldn't be reached (outage / rate limit) — retryable, not typos. */
+  fetchErrors: string[];
   detectedFormat: string;
   cardCount: number;
 }
@@ -175,6 +177,12 @@ export interface UploadResponse {
   scryfallMisses: number;
   /** Card names that could not be resolved to Scryfall data — surfaced to user. */
   unresolvedNames: string[];
+  /**
+   * Rows withheld from the import because Scryfall couldn't be reached (outage /
+   * rate limit). Full parsed rows so the client can retry them losslessly
+   * (quantity/printing/finish intact) by POSTing them back as `{ rows }`.
+   */
+  fetchErrors: import('./parsers/types').ImportRow[];
   /** Which parser handled the input. */
   detectedFormat: string;
 }
@@ -213,6 +221,8 @@ export interface ProductResolveResponse {
   physicalCards: ProductPhysicalCard[];
   /** Names of cards that couldn't be resolved to Scryfall data. */
   unresolvedNames: string[];
+  /** Physical-card names skipped because Scryfall couldn't be reached — retry by re-resolving the product. */
+  fetchErrors: string[];
   /**
    * True physical card count across every zone MTGJSON lists, counted from the
    * raw decklist so it includes cards that failed to resolve. Surfaced so the

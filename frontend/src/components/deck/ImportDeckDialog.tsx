@@ -242,6 +242,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     (result: DeckImportResponse) => {
       const hasWarnings =
         result.unresolvedNames.length > 0 ||
+        result.fetchErrors.length > 0 ||
         (normalizeFormat(result.detectedFormat) !== null &&
           normalizeFormat(result.detectedFormat) !== selectedFormat);
       const { commander, needsChoice } = resolveAutoCommander(result, selectedFormat);
@@ -329,6 +330,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       let mergedCommander: ScryfallCard | null = null;
       let mergedCompanion: ScryfallCard | null = null;
       const unresolved: string[] = [];
+      const fetchFailed: string[] = [];
       const failed: string[] = [];
       for (let i = 0; i < total; i++) {
         const file = files[i];
@@ -339,6 +341,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           if (!mergedCommander && r.commander) mergedCommander = r.commander;
           if (!mergedCompanion && r.companion) mergedCompanion = r.companion;
           unresolved.push(...r.unresolvedNames);
+          fetchFailed.push(...r.fetchErrors);
         } catch (err) {
           failed.push(`${file.name}: ${err instanceof Error ? err.message : 'failed'}`);
         }
@@ -360,6 +363,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         companion: mergedCompanion,
         cards: mergedCards,
         unresolvedNames: Array.from(new Set(unresolved)),
+        fetchErrors: Array.from(new Set(fetchFailed)),
         detectedFormat: '',
         cardCount: mergedCards.length + (mergedCommander ? 1 : 0) + (mergedCompanion ? 1 : 0),
       });
@@ -411,6 +415,45 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const patchDraft = useCallback((key: string, patch: Partial<DraftDeck>) => {
     setDrafts((ds) => ds.map((d) => (d.key === key ? { ...d, ...patch } : d)));
   }, []);
+
+  /**
+   * Re-runs the import for whatever produced the current review result — the
+   * pasted text, or the staged files. Used when part of the list couldn't be
+   * fetched (card-service outage): the server cache keeps the retry cheap and
+   * the re-import converges once the service answers.
+   */
+  const retryReview = useCallback(() => {
+    if (isLoading) return;
+    if (pasteText.trim()) void handlePasteImport();
+    else void runParse();
+  }, [isLoading, pasteText, handlePasteImport, runParse]);
+
+  /**
+   * Re-parses a single staged file whose draft came back degraded, preserving
+   * the user's edits (name / format / commander pick) on the draft.
+   */
+  const retryDraft = useCallback(
+    async (d: DraftDeck) => {
+      const file = batchFiles.find((f) => f.name === d.fileName);
+      if (!file || isLoading) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const r = await importDeckFile(file);
+        const { commander } = resolveAutoCommander(r, d.format);
+        patchDraft(d.key, {
+          result: r,
+          commander: d.commander ?? commander,
+          candidates: dedupeByName(r.cards.filter(isValidCommander)),
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Retry failed. Give it a moment.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [batchFiles, isLoading, resolveAutoCommander, patchDraft]
+  );
 
   const changeDraftFormat = useCallback((key: string, format: DeckFormat) => {
     setDrafts((ds) =>
@@ -760,6 +803,19 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                           {d.result.unresolvedNames.length} skipped
                         </span>
                       )}
+                      {d.result && d.result.fetchErrors.length > 0 && (
+                        <span className="import-deck-summary-warn">
+                          {d.result.fetchErrors.length} couldn't be fetched{' '}
+                          <button
+                            type="button"
+                            className="btn-link"
+                            onClick={() => void retryDraft(d)}
+                            disabled={isLoading}
+                          >
+                            Retry
+                          </button>
+                        </span>
+                      )}
                       <span className="import-deck-summary-file">{d.fileName}</span>
                     </div>
 
@@ -902,6 +958,34 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                     </li>
                   )}
                 </ul>
+              </div>
+            )}
+
+            {pendingResult.fetchErrors.length > 0 && (
+              <div className="import-deck-warning">
+                <div className="import-deck-warning-title">
+                  {pendingResult.fetchErrors.length} card
+                  {pendingResult.fetchErrors.length === 1 ? '' : 's'} couldn't be fetched — the card
+                  service was unreachable. They aren't in this deck yet:
+                </div>
+                <ul className="import-deck-unresolved-list">
+                  {pendingResult.fetchErrors.slice(0, 12).map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                  {pendingResult.fetchErrors.length > 12 && (
+                    <li className="import-deck-unresolved-more">
+                      …and {pendingResult.fetchErrors.length - 12} more
+                    </li>
+                  )}
+                </ul>
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={retryReview}
+                  disabled={isLoading}
+                >
+                  Retry import
+                </button>
               </div>
             )}
 

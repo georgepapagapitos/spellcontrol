@@ -25,6 +25,7 @@ export function physicalCardsToUploadResponse(
     scryfallHits: cards.length,
     scryfallMisses: 0,
     unresolvedNames: [],
+    fetchErrors: [],
     detectedFormat: 'mtgjson',
   };
 }

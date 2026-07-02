@@ -77,16 +77,27 @@ export function AddCardsSheet({ onClose, initialTab = 'search' }: Props) {
     setScanError(null);
     setScanBusy(true);
     try {
-      const { added, requested, unresolved } = await importScannedCards(text, count, importCards);
+      const { added, requested, unresolved, fetchErrors } = await importScannedCards(
+        text,
+        count,
+        importCards
+      );
       // Keep the success line honest if the parsed-card count differs from
       // the scanned count (e.g. duplicate detection on the parser side).
       if (added !== requested) {
-        setScanSuccess(
-          `Added ${added.toLocaleString()} of ${requested.toLocaleString()} scanned cards`
-        );
+        const parts = [
+          `Added ${added.toLocaleString()} of ${requested.toLocaleString()} scanned cards`,
+        ];
+        if (fetchErrors > 0) {
+          parts.push(`${fetchErrors} couldn't be fetched — retry from “Add from list”`);
+        }
+        setScanSuccess(parts.join(' · '));
       } else {
         const parts = [`Added ${added.toLocaleString()} scanned card${added === 1 ? '' : 's'}`];
         if (unresolved > 0) parts.push(`${unresolved} unresolved`);
+        if (fetchErrors > 0) {
+          parts.push(`${fetchErrors} couldn't be fetched — retry from “Add from list”`);
+        }
         setScanSuccess(parts.join(' · '));
       }
     } catch (err) {

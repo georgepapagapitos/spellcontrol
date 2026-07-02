@@ -53,6 +53,7 @@ const STUB_RESPONSE: UploadResponse = {
   cards: [],
   totalRows: 0,
   unresolvedNames: [],
+  fetchErrors: [],
   detectedFormat: 'csv',
   scryfallHits: 0,
   scryfallMisses: 0,

@@ -8,7 +8,10 @@ export interface DeckSections {
   commander: ScryfallCard | null;
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
+  /** Names Scryfall answered "not found" for — genuine misses. */
   unresolvedNames: string[];
+  /** Names whose lookup never reached Scryfall (outage / rate-limit storm) — retryable. */
+  fetchErrorNames: string[];
 }
 
 /**
@@ -38,15 +41,30 @@ export async function resolveDeckRows(
   resolved.forEach((card, i) => {
     if (!card && expanded[i].collectorNumber) retryIdxs.push(i);
   });
+  let retryErrors: string[] = [];
   if (retryIdxs.length > 0) {
     const retryRows = retryIdxs.map((i) => ({ ...expanded[i], collectorNumber: undefined }));
     const retry = await resolveCards(retryRows, cache);
     retryIdxs.forEach((origIdx, j) => {
       if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
     });
+    retryErrors = retry.fetchErrorNames;
   }
 
-  return sliceResolvedDeckImport(commanderRows, companionRows, deckRows, resolved);
+  // Outage-vs-miss: a still-unresolved name counts as a fetch error (retryable)
+  // when its FINAL resolution attempt never reached Scryfall. Retried rows take
+  // their verdict from the retry pass; everything else from the first pass.
+  const retriedNames = new Set(retryIdxs.map((i) => expanded[i].name).filter(Boolean));
+  const fetchFailedNames = new Set(firstPass.fetchErrorNames.filter((n) => !retriedNames.has(n)));
+  for (const n of retryErrors) fetchFailedNames.add(n);
+
+  return sliceResolvedDeckImport(
+    commanderRows,
+    companionRows,
+    deckRows,
+    resolved,
+    fetchFailedNames
+  );
 }
 
 // MUST mirror expandByQuantity's clamp: the slice boundaries below are derived
@@ -83,7 +101,9 @@ export function sliceResolvedDeckImport(
   commanderRows: ImportRow[],
   companionRows: ImportRow[],
   deckRows: ImportRow[],
-  resolved: Array<ScryfallCard | undefined>
+  resolved: Array<ScryfallCard | undefined>,
+  /** Names whose lookup failed to reach Scryfall — routed to fetchErrorNames instead of unresolvedNames. */
+  fetchFailedNames: ReadonlySet<string> = new Set()
 ): DeckSections {
   const expectedLength = totalQty(commanderRows) + totalQty(companionRows) + totalQty(deckRows);
   if (resolved.length !== expectedLength) {
@@ -105,6 +125,7 @@ export function sliceResolvedDeckImport(
   }
 
   const unresolvedNames: string[] = [];
+  const fetchErrorNames: string[] = [];
   // Walk the rows in the same order resolved[] was produced so the names we
   // report match the cards that failed to resolve.
   let cursor = 0;
@@ -112,7 +133,9 @@ export function sliceResolvedDeckImport(
     for (const r of rows) {
       const qty = rowQty(r);
       for (let i = 0; i < qty; i++) {
-        if (!resolved[cursor + i] && r.name) unresolvedNames.push(r.name);
+        if (!resolved[cursor + i] && r.name) {
+          (fetchFailedNames.has(r.name) ? fetchErrorNames : unresolvedNames).push(r.name);
+        }
       }
       cursor += qty;
     }
@@ -121,5 +144,5 @@ export function sliceResolvedDeckImport(
   walk(companionRows);
   walk(deckRows);
 
-  return { commander, companion, cards, unresolvedNames };
+  return { commander, companion, cards, unresolvedNames, fetchErrorNames };
 }

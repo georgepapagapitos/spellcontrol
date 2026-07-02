@@ -10,6 +10,7 @@ const response = (overrides: Partial<UploadResponse>): UploadResponse => ({
   scryfallHits: 0,
   scryfallMisses: 0,
   unresolvedNames: [],
+  fetchErrors: [],
   detectedFormat: 'manabox',
   ...overrides,
 });
@@ -41,6 +42,17 @@ describe('mergeUploadResponses', () => {
       response({ unresolvedNames: ['Mox Diamond', 'Bayou'] }),
     ]);
     expect(merged.unresolvedNames).toEqual(['Phyrexian Tower', 'Mox Diamond', 'Bayou']);
+  });
+
+  it('concatenates fetchErrors rows across chunks in order', () => {
+    const merged = mergeUploadResponses([
+      response({ fetchErrors: [{ name: 'Sol Ring', quantity: 2 }] }),
+      response({ fetchErrors: [{ name: 'Arcane Signet' }] }),
+    ]);
+    expect(merged.fetchErrors).toEqual([
+      { name: 'Sol Ring', quantity: 2 },
+      { name: 'Arcane Signet' },
+    ]);
   });
 
   it('takes detectedFormat from the first chunk', () => {

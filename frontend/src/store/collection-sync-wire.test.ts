@@ -43,6 +43,7 @@ function uploadResponse(cards: EnrichedCard[]): UploadResponse {
     scryfallHits: cards.length,
     scryfallMisses: 0,
     unresolvedNames: [],
+    fetchErrors: [],
     detectedFormat: 'plain',
   };
 }

@@ -23,6 +23,7 @@ function result(cards: ScryfallCard[], commander: ScryfallCard | null = null): D
     companion: null,
     cards,
     unresolvedNames: [],
+    fetchErrors: [],
     detectedFormat: 'commander',
     cardCount: cards.length,
   };

@@ -215,6 +215,74 @@ describe('resolveCards', () => {
     await vi.runAllTimersAsync();
     const out = await promise;
     expect(out.unresolvedNames).toEqual(['Notacard']);
+    expect(out.fetchErrorNames).toEqual([]);
+  });
+
+  // E72 regression: outage vs genuine miss. A batch that never gets an answer
+  // must land its rows in fetchErrorNames, NOT unresolvedNames — a 5xx/429
+  // storm reporting real cards as typos is exactly the bug this guards.
+  it('reports rows from a failed batch (5xx) in fetchErrorNames, not unresolvedNames', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('boom', { status: 500 }));
+    const rows: ImportRow[] = [{ name: 'Sol Ring', quantity: 1, sourceFormat: 'plain' }];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.resolved[0]).toBeUndefined();
+    expect(out.fetchErrorNames).toEqual(['Sol Ring']);
+    expect(out.unresolvedNames).toEqual([]);
+  });
+
+  it('reports rows in fetchErrorNames after a 429 storm exhausts retries', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('rate limited', { status: 429 }));
+    const rows: ImportRow[] = [{ name: 'Sol Ring', quantity: 1, sourceFormat: 'plain' }];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.fetchErrorNames).toEqual(['Sol Ring']);
+    expect(out.unresolvedNames).toEqual([]);
+  });
+
+  it('reports rows in fetchErrorNames when the network errors out', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockRejectedValue(new TypeError('network down'));
+    const rows: ImportRow[] = [{ name: 'Sol Ring', quantity: 1, sourceFormat: 'plain' }];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.fetchErrorNames).toEqual(['Sol Ring']);
+    expect(out.unresolvedNames).toEqual([]);
+  });
+
+  it('splits outage rows from genuine misses when only one batch fails', async () => {
+    const cache = fakeCache();
+    // 80 distinct names → 2 batches (75 + 5). The first batch echoes back a card
+    // per identifier; the second gets a 500. Batch membership is detected by
+    // content, not call order, so concurrency can't flake the test.
+    vi.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      const body = JSON.parse((init as RequestInit).body as string) as {
+        identifiers: Array<{ name: string }>;
+      };
+      if (body.identifiers.some((ident) => ident.name === 'Card 79')) {
+        return Promise.resolve(new Response('boom', { status: 500 }));
+      }
+      const data = body.identifiers
+        .filter((ident) => ident.name !== 'Card 0') // one genuine miss in the good batch
+        .map((ident, i) => card({ id: `sf-${ident.name}-${i}`, name: ident.name }));
+      return Promise.resolve(jsonResponse({ object: 'list', not_found: [], data }));
+    });
+    const rows: ImportRow[] = Array.from({ length: 80 }, (_, i) => ({
+      name: `Card ${i}`,
+      quantity: 1,
+      sourceFormat: 'plain' as const,
+    }));
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.unresolvedNames).toEqual(['Card 0']);
+    // Batch 2 = the 5 names past the 75-identifier boundary.
+    expect(out.fetchErrorNames).toEqual(['Card 75', 'Card 76', 'Card 77', 'Card 78', 'Card 79']);
   });
 
   it('resolves more identifiers than fit in one batch across concurrent requests', async () => {

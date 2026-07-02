@@ -141,12 +141,24 @@ export interface ListDef {
   updatedAt: number;
 }
 
+/**
+ * A parsed import row the server withheld because Scryfall couldn't be reached.
+ * Only `name`/`quantity` are read for display — the object carries the full
+ * parsed row and is POSTed back verbatim on retry so printing/finish survive.
+ */
+export interface FetchErrorRow {
+  name: string;
+  quantity?: number;
+}
+
 export interface UploadResponse {
   cards: EnrichedCard[];
   totalRows: number;
   scryfallHits: number;
   scryfallMisses: number;
   unresolvedNames: string[];
+  /** Rows withheld because the card service was unreachable — retryable, NOT imported. */
+  fetchErrors: FetchErrorRow[];
   detectedFormat: string;
 }
 
@@ -155,6 +167,8 @@ export interface DeckImportResponse {
   companion: import('@/deck-builder/types').ScryfallCard | null;
   cards: import('@/deck-builder/types').ScryfallCard[];
   unresolvedNames: string[];
+  /** Names skipped because the card service was unreachable — retry re-runs the import. */
+  fetchErrors: string[];
   detectedFormat: string;
   cardCount: number;
 }
@@ -196,6 +210,8 @@ export interface ProductResolveResponse {
   /** Every physical card in the box, finish-accurate — for "add to the collection". */
   physicalCards: ProductPhysicalCard[];
   unresolvedNames: string[];
+  /** Names skipped because the card service was unreachable — retry by re-resolving the product. */
+  fetchErrors: string[];
   /** True physical card count across every zone (playable + extras). */
   physicalCardCount: number;
 }

@@ -80,6 +80,12 @@ interface CollectionState {
   uploadedAt: number | null;
   /** Names of cards that couldn't be resolved by Scryfall on the most recent import. */
   unresolvedNames: string[];
+  /**
+   * Rows the most recent import withheld because the card service was
+   * unreachable — NOT imported, retryable via importRows(). Session-local
+   * (like unresolvedNames): a stale retry list after reload would be wrong.
+   */
+  fetchErrors: import('../types').FetchErrorRow[];
   /** Format detected by the most recent import (manabox / mtga / plain / etc). */
   detectedFormat: string;
   /** Chronological list of imports that built up the current collection. */
@@ -413,6 +419,7 @@ export const useCollectionStore = create<CollectionState>()(
       scryfallMisses: 0,
       uploadedAt: null,
       unresolvedNames: [],
+      fetchErrors: [],
       detectedFormat: '',
       importHistory: [],
       hydrating: true,
@@ -488,6 +495,7 @@ export const useCollectionStore = create<CollectionState>()(
           scryfallHits: response.scryfallHits,
           scryfallMisses: response.scryfallMisses,
           unresolvedNames: response.unresolvedNames,
+          fetchErrors: response.fetchErrors,
           detectedFormat: response.detectedFormat,
           uploadedAt,
           importHistory,
@@ -582,6 +590,7 @@ export const useCollectionStore = create<CollectionState>()(
                 scryfallMisses: 0,
                 uploadedAt: null,
                 unresolvedNames: [],
+                fetchErrors: [],
                 detectedFormat: '',
               }
             : {}),
@@ -871,6 +880,7 @@ export const useCollectionStore = create<CollectionState>()(
           scryfallMisses: 0,
           uploadedAt: null,
           unresolvedNames: [],
+          fetchErrors: [],
           detectedFormat: '',
           importHistory: [],
           error: null,
@@ -929,6 +939,7 @@ export const useCollectionStore = create<CollectionState>()(
           scryfallHits: collection?.scryfallHits ?? 0,
           scryfallMisses: collection?.scryfallMisses ?? 0,
           unresolvedNames: [],
+          fetchErrors: [],
           detectedFormat: '',
           uploadedAt: collection ? uploadedAt : null,
           importHistory: restoredHistory,
@@ -967,6 +978,9 @@ export const useCollectionStore = create<CollectionState>()(
           scryfallHits: snap.scryfallHits,
           scryfallMisses: snap.scryfallMisses,
           unresolvedNames: snap.unresolvedNames,
+          // Snapshots predate/omit the retry bucket — a restored collection has
+          // no pending degraded import to retry.
+          fetchErrors: [],
           detectedFormat: snap.detectedFormat,
           uploadedAt: snap.uploadedAt,
           importHistory: snap.importHistory,
