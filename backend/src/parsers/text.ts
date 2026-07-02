@@ -18,8 +18,8 @@ const SECTION_HEADERS = new Set(['deck', 'sideboard', 'commander', 'maybeboard',
 const MTGA_FULL = /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s+([A-Za-z0-9★-]+)\s*$/;
 // "1 Sol Ring (CMR)"
 const MTGA_NO_COLLECTOR = /^(\d+)\s*x?\s+(.+?)\s+\(([A-Za-z0-9]{2,5})\)\s*$/;
-// "4x Lightning Bolt" or "4 Lightning Bolt"
-const QTY_NAME = /^(\d+)\s*x?\s+(.+)$/;
+// "4x Lightning Bolt", "4 Lightning Bolt", or "4xLightning Bolt" (no space after x)
+const QTY_NAME = /^(\d+)\s*x?\s*(.+)$/;
 
 export function parseTextList(text: string): ParseResult {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);

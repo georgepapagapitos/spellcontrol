@@ -49,6 +49,13 @@ describe('parseCsvAuto', () => {
     expect(out.unparsedLines).toContain(',true');
   });
 
+  it('drops a Quantity:0 (unowned/wishlist) row instead of importing 1 copy (F28)', () => {
+    const csv = 'name,quantity\nSol Ring,0\nArcane Signet,2';
+    const out = parseCsvAuto(csv, 'generic-csv');
+    expect(out.rows.map((r) => r.name)).toEqual(['Arcane Signet']);
+    expect(out.rows[0].quantity).toBe(2);
+  });
+
   it('uses tab when the header contains one', () => {
     const csv = 'name\tfoil\nSol Ring\ttrue';
     expect(parseCsvAuto(csv, 'generic-csv').rows[0].name).toBe('Sol Ring');
