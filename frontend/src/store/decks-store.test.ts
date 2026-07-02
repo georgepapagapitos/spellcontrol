@@ -247,6 +247,14 @@ describe('useDecksStore — card mutations', () => {
     expect(slot.allocatedCopyId).toBeNull();
   });
 
+  it('updateCardPrinting binds the given copy when one is passed', () => {
+    const slotId = store().addCard(id, sfCard('Sol Ring', 'sf-1'), 'copy-1');
+    store().updateCardPrinting(id, slotId, sfCard('Sol Ring', 'sf-2'), 'copy-2');
+    const slot = store().decks[0].cards[0];
+    expect(slot.card.id).toBe('sf-2');
+    expect(slot.allocatedCopyId).toBe('copy-2');
+  });
+
   it('replaceCards swaps the whole main list', () => {
     store().addCard(id, sfCard('Sol Ring'));
     store().replaceCards(id, [deckCard('Plains'), deckCard('Island')]);
