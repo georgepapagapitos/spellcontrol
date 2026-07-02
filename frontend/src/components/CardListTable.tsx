@@ -49,7 +49,7 @@ import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
 import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
-import { useAllocations, type AllocationInfo } from '../lib/allocations';
+import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
@@ -397,6 +397,10 @@ export function CardListTable({
   // many?" — the rolled-up qty pill matches that mental model. Power
   // users who want to see every physical copy individually can toggle.
   const [groupPrintings, setGroupPrintings] = useState(true);
+  // Tradeable-surplus filter: rows whose card name has ≥1 unallocated copy
+  // beyond the keep floor (see computeSurplusByName). Independent of
+  // groupPrintings — works whether rows are per-printing or per-copy.
+  const [surplusOnly, setSurplusOnly] = useState(false);
   const [colorFilter, setColorFilter] = useState<Set<string>>(new Set());
   const [supertypeExpr, setSupertypeExpr] = useState<ChipExpression>({
     chips: [],
@@ -567,6 +571,20 @@ export function CardListTable({
   // CollectionPage only decorates when an existing binder uses tags.
   const cardsForMatch = useCardsWithTags(cards, !isExpressionEmpty(oracleTagExpr));
 
+  // Hoisted ahead of `rows`/`filtered` (below, other collection-store reads
+  // stay near their non-filter usages further down) so the surplus predicate
+  // can run in the same filter pass as the binder/color/condition post-checks.
+  const allCards = useCollectionStore((s) => s.cards);
+  const allocations = useAllocations();
+  // Card names with unallocated copies beyond the keep floor — the
+  // "tradeable surplus" predicate. Computed over the full collection (not
+  // just `cards`/`cardsForMatch`, which can be a binder-scoped subset) so a
+  // spare copy sitting in a different binder still counts.
+  const surplusByName = useMemo(
+    () => computeSurplusByName(allCards, allocations),
+    [allCards, allocations]
+  );
+
   const rows = useMemo<Row[]>(() => {
     if (!groupPrintings) {
       // One row per physical copy.
@@ -693,11 +711,21 @@ export function CardListTable({
         // Post-check 3: condition (collection-only, physical copy field)
         if (compiledCondition && !exactMatchesExpression(r.card.condition, compiledCondition))
           return false;
+        // Post-check 4: tradeable surplus (collection-only, needs allocation data)
+        if (surplusOnly && !surplusByName.has(r.card.name)) return false;
         // Engine check: everything else (type, rarity, oracle, legality, layout,
         // treatment, border, finish, sets, price, cmc, name search)
         return cardMatchesCompiled(r.card, compiledMatchFilter);
       }),
-    [rows, compiledBinder, colorFilter, compiledCondition, compiledMatchFilter]
+    [
+      rows,
+      compiledBinder,
+      colorFilter,
+      compiledCondition,
+      surplusOnly,
+      surplusByName,
+      compiledMatchFilter,
+    ]
   );
 
   const sorted = useMemo(() => {
@@ -1044,13 +1072,11 @@ export function CardListTable({
     ).length;
   }, [editingCard, cards]);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
-  const allCards = useCollectionStore((s) => s.cards);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const lists = useCollectionStore((s) => s.lists);
   const createList = useCollectionStore((s) => s.createList);
   const addListEntries = useCollectionStore((s) => s.addListEntries);
   const [saveToListOpen, setSaveToListOpen] = useState(false);
-  const allocations = useAllocations();
   // Index allocations by printing (scryfallId + foil) once so per-row lookups
   // stay O(1). Without this, allocationsFor scans allCards on every call —
   // and we call it once per row when feeding the preview carousel.
@@ -1207,7 +1233,8 @@ export function CardListTable({
     (setFilter.size > 0 ? 1 : 0) +
     (priceMin !== undefined || priceMax !== undefined ? 1 : 0) +
     (cmcMin !== undefined || cmcMax !== undefined ? 1 : 0) +
-    (groupPrintings ? 0 : 1);
+    (groupPrintings ? 0 : 1) +
+    (surplusOnly ? 1 : 0);
 
   // Empty chip expression reused for clearing chip-based filters.
   // Stable reference (same shape every time) — memoized so the
@@ -1344,6 +1371,7 @@ export function CardListTable({
     setBinderExpr(EMPTY_EXPR);
     setSetFilter(new Set());
     setGroupPrintings(true);
+    setSurplusOnly(false);
     setPriceMin(undefined);
     setPriceMax(undefined);
     setCmcMin(undefined);
@@ -1575,6 +1603,13 @@ export function CardListTable({
         onClear: () => setGroupPrintings(true),
       });
     }
+    if (surplusOnly) {
+      chips.push({
+        id: 'surplus',
+        label: 'Surplus only',
+        onClear: () => setSurplusOnly(false),
+      });
+    }
     return chips;
   }, [
     search,
@@ -1597,6 +1632,7 @@ export function CardListTable({
     priceMax,
     cmcMin,
     cmcMax,
+    surplusOnly,
     groupPrintings,
     EMPTY_EXPR,
   ]);
@@ -1668,6 +1704,8 @@ export function CardListTable({
               setCmcMax={setCmcMax}
               groupPrintings={groupPrintings}
               setGroupPrintings={setGroupPrintings}
+              surplusOnly={surplusOnly}
+              setSurplusOnly={setSurplusOnly}
               activeCount={activeFilterCount}
             />
           }
@@ -2068,7 +2106,9 @@ export function CardListTable({
                         </>
                       )}
                       <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
-                      {(r.qty > 1 || duplicateNames.has(r.card.name)) && (
+                      {(r.qty > 1 ||
+                        duplicateNames.has(r.card.name) ||
+                        (surplusOnly && surplusByName.has(r.card.name))) && (
                         <div className="collection-grid-corner">
                           {r.qty > 1 && (
                             <span className="collection-grid-qty">
@@ -2090,6 +2130,16 @@ export function CardListTable({
                               })}
                             >
                               {r.card.setCode.toUpperCase()}
+                            </span>
+                          )}
+                          {surplusOnly && surplusByName.has(r.card.name) && (
+                            <span
+                              className="collection-grid-surplus"
+                              title={`${surplusByName.get(r.card.name)} unallocated ${
+                                surplusByName.get(r.card.name) === 1 ? 'copy' : 'copies'
+                              } beyond your kept copy`}
+                            >
+                              {surplusByName.get(r.card.name)} free
                             </span>
                           )}
                         </div>
@@ -2158,6 +2208,7 @@ export function CardListTable({
                 qty={r.qty}
                 allocations={allocationsFor(r.card)}
                 binders={r.binders}
+                surplusCount={surplusOnly ? surplusByName.get(r.card.name) : undefined}
                 setName={r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name}
                 isLastRow={item.index === displayRows.length - 1}
                 selectMode={selectMode}
