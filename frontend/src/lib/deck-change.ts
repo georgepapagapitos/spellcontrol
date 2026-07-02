@@ -22,7 +22,15 @@ import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracket
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
-import { buildBudgetSwapFactors, type WhyFactor } from './why-factors';
+import {
+  buildBracketMoveFactors,
+  buildBudgetSwapFactors,
+  buildComboCompletionFactors,
+  buildGapAddFactors,
+  buildOptimizeFactors,
+  buildSynergyPickFactors,
+  type WhyFactor,
+} from './why-factors';
 
 export { parsePrice };
 
@@ -81,7 +89,7 @@ export interface Change {
   reason?: string;
   /** Optional structured breakdown behind `reason` — the engine's grounded,
    *  tone-tagged factors, rendered as the tappable <WhyBreakdown> disclosure.
-   *  Cut/swap suggestions populate it; other lanes leave it undefined. */
+   *  Every lane adapter populates it from its engine's own signals. */
   whyFactors?: WhyFactor[];
   /** Collection lane only — other owned cards that fill the same missing staple,
    *  ranked, for the "N other owned options" expander. Each is a full add Change.
@@ -196,6 +204,11 @@ export function fromSynergySuggestion(s: SynergySuggestion, ownership?: ChangeOw
     lane: 'upgrade',
     name: s.cardName,
     reason: s.reason,
+    whyFactors: buildSynergyPickFactors({
+      axisLabel: s.axisLabel,
+      side: s.side,
+      inclusion: s.inclusion,
+    }),
     ownership,
     inclusion: s.inclusion,
     isThemeSynergy: true,
@@ -222,6 +235,13 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
       : g.roleLabel
         ? `${g.roleLabel} staple`
         : 'EDHREC staple',
+    whyFactors: buildGapAddFactors({
+      roleLabel: g.roleLabel,
+      inclusion: g.inclusion,
+      synergy: g.synergy,
+      liftedBy: g.liftedBy,
+      owned: ownership === 'owned',
+    }),
     ownership,
     deltaPrice: parsePrice(g.price) ?? undefined,
     role: g.role,
@@ -253,6 +273,13 @@ export function fromOptimizeCard(
     lane: 'upgrade',
     name: o.name,
     reason: o.reason,
+    whyFactors: buildOptimizeFactors(kind, {
+      reasonCategory: o.reasonCategory,
+      roleLabel: o.roleLabel,
+      inclusion: o.inclusion,
+      cmc: o.cmc,
+      isGameChanger: o.isGameChanger,
+    }),
     ownership: kind === 'cut' ? undefined : ownership,
     deltaPrice: o.price != null ? (parsePrice(o.price) ?? undefined) : undefined,
     role: o.role,
@@ -363,6 +390,12 @@ export function fromBracketFitMove(move: BracketFitMove, ownership?: ChangeOwner
       name: move.inName,
       inName: move.name, // the card being cut (the page reads this to find the slot)
       reason,
+      whyFactors: buildBracketMoveFactors({
+        type: 'swap',
+        signal: move.signal,
+        roleLabel: move.roleLabel,
+        inclusion: move.inclusion,
+      }),
       ownership,
       role: move.role,
       roleLabel: move.roleLabel,
@@ -385,6 +418,12 @@ export function fromBracketFitMove(move: BracketFitMove, ownership?: ChangeOwner
     lane: 'bracket-fit',
     name: move.name,
     reason: move.reason,
+    whyFactors: buildBracketMoveFactors({
+      type: move.type,
+      signal: move.signal,
+      roleLabel: move.roleLabel,
+      inclusion: move.inclusion,
+    }),
     // Adds carry live ownership; a pure cut is ownership-blind.
     ownership: move.type === 'cut' ? undefined : ownership,
     role: move.role,
@@ -545,6 +584,11 @@ export function fromComboCompletion(
     lane: 'combos',
     name: missingCardName,
     reason,
+    whyFactors: buildComboCompletionFactors({
+      totalPieces: match.combo.cards.length,
+      popularity: match.combo.popularity,
+      owned: ownership === 'owned',
+    }),
     ownership,
   };
 }
