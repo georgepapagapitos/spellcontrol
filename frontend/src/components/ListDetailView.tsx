@@ -16,7 +16,8 @@ import { sortCards, printingKey } from '../lib/sorting';
 import { getColorKey } from '../lib/colors';
 import { cardTagLabel } from '../lib/card-tags';
 import { useCardsWithTags } from '../lib/card-tags';
-import { useEnrichedListEntries } from '../lib/use-enriched-list-entries';
+import type { EnrichedListRow } from '../lib/use-enriched-list-entries';
+import { ownedCountForEntry } from '../lib/lists';
 import { useCollectionStore } from '../store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SearchPill } from './SearchPill';
@@ -31,6 +32,7 @@ import { InlineCardSearch } from './InlineCardSearch';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCardThumb } from '../lib/card-thumbs';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
+import { VerdictBadge } from './deck/VerdictBadge';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -86,6 +88,11 @@ function exprLabel(expr: ChipExpression, transform: (v: string) => string = (v) 
 
 interface Props {
   list: ListDef;
+  /** Resolved rows + loading, lifted to the caller so the header cost stat
+   *  (ListEntriesView) and this table share one `useEnrichedListEntries` call
+   *  instead of double-resolving the same names. */
+  rows: EnrichedListRow[];
+  loading: boolean;
 }
 
 /** Placeholder rows shown while entries resolve to card data — count mirrors
@@ -171,18 +178,17 @@ function ListEntryGridCell({
  * binder, finish, price, group-printings) are simply not wired and the dialog
  * hides those sections. Per-row actions live in an overflow menu.
  */
-export function ListDetailView({ list }: Props) {
+export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
   const removeListEntry = useCollectionStore((s) => s.removeListEntry);
   const moveListEntryToCollection = useCollectionStore((s) => s.moveListEntryToCollection);
   const updateListEntry = useCollectionStore((s) => s.updateListEntry);
   const addListEntry = useCollectionStore((s) => s.addListEntry);
+  const ownedCards = useCollectionStore((s) => s.cards);
 
   // Add a Scryfall result as a list entry — the retarget the collection's
   // InlineCardSearch (which would call addCard) to lists instead.
   const addToList = (card: ScryfallCard, finish?: Finish) =>
     addListEntry(list.id, scryfallToEnrichedCard(card, finish ?? 'nonfoil'), 1);
-
-  const { rows: enrichedRows, loading } = useEnrichedListEntries(list.entries);
 
   // Filter state — the card-attribute subset that's meaningful for unowned
   // cards. Mirrors the collection filter dialog's controlled props.
@@ -416,6 +422,23 @@ export function ListDetailView({ list }: Props) {
     setEditing(null);
   };
 
+  // Cross-references the entry against the collection by the same
+  // oracleId/name match the header cost stat uses, so the two never disagree.
+  const ownedBadge = (entry: ListEntry) => {
+    const ownedQty = ownedCountForEntry(entry, ownedCards);
+    if (ownedQty === 0) return undefined;
+    const fullyCovered = ownedQty >= entry.quantity;
+    return (
+      <VerdictBadge
+        verdict="owned"
+        label={fullyCovered ? undefined : `Owned ×${ownedQty}`}
+        title={
+          entry.quantity > 1 ? `You own ${ownedQty} of the ${entry.quantity} you want` : undefined
+        }
+      />
+    );
+  };
+
   const rowMenu = (entry: ListEntry) => (
     <OverflowMenu
       ariaLabel={`Actions for ${entry.name}`}
@@ -587,6 +610,7 @@ export function ListDetailView({ list }: Props) {
               onActivate={() => setPreviewIndex(i)}
               isLastRow={i === sorted.length - 1}
               menu={rowMenu(r.entry)}
+              ownedBadge={ownedBadge(r.entry)}
             />
           ))}
         </div>
