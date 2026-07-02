@@ -41,6 +41,8 @@ interface CardRowProps {
   /** While a price refresh is in flight and this card has no price yet, the
    *  price slot shows a same-size shimmer instead of a misleading $0. */
   pricePending?: boolean;
+  /** Extra chip after the name badges — e.g. Lists' "Owned" indicator. */
+  ownedBadge?: ReactNode;
 }
 
 /**
@@ -66,6 +68,7 @@ export function CardRow({
   selectMode = false,
   selected = false,
   pricePending = false,
+  ownedBadge,
 }: CardRowProps) {
   const colorKey = getColorKey(card);
   const type = getCardType({ typeLine: card.typeLine } as Parameters<typeof getCardType>[0]);
@@ -107,6 +110,7 @@ export function CardRow({
           {card.foil && <FoilBadge card={card} />}
           <DeckBadge allocations={allocations} />
           <BinderBadge binders={binders ?? []} />
+          {ownedBadge}
         </div>
         <div className="collection-list-meta">
           <TypeIcon type={type} label={typeLabel} className="card-list-type" />
