@@ -17,6 +17,7 @@ import { useDecksStore } from './decks';
 import { useCubeStore } from './cube';
 import {
   saveCollection,
+  SaveCollectionError,
   loadCollection,
   clearCollection,
   type ImportHistoryEntry,
@@ -540,9 +541,13 @@ export const useCollectionStore = create<CollectionState>()(
           );
         } catch (err) {
           logger.warn('[store] Failed to persist collection:', err);
+          // Only claim total loss when the CARDS row itself failed; a failure
+          // limited to imports/lists means the cards are safely stored (F25).
+          const failed = err instanceof SaveCollectionError ? err.kinds : ['cards'];
           set({
-            error:
-              "Cards imported but couldn't be saved locally. They will be lost if you refresh the page.",
+            error: failed.includes('cards')
+              ? "Cards imported but couldn't be saved locally. They will be lost if you refresh the page."
+              : `Cards imported, but some data (${failed.join(', ')}) couldn't be saved locally.`,
           });
         }
         if (replacedSnapshot) {
