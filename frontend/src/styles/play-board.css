@@ -140,6 +140,34 @@
   cursor: default;
 }
 
+/* Commander-art backdrop. A faint art crop layered under the panel's own
+   flat color-identity fill (which stays fully opaque above it) so the seat
+   reads "Atraxa" at a glance. z-index 0 keeps it below the tap zones (1)
+   and content (2), so it's always non-interactive and never occludes life
+   totals or buttons — legibility over prettiness, hence the low opacity.
+   No `src` resolved (guest seat / no commander / offline miss) means this
+   element doesn't render at all (see GameBoard.tsx), so those seats stay
+   pixel-identical to the flat palette. Fades in on load only; the global
+   reduced-motion backstop (responsive-nav.css) collapses that transition
+   to instant. Grayscale/dim automatically inherits the panel's own
+   `is-eliminated` filter since filter applies to the whole box. */
+.player-panel-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-base) ease;
+}
+
+.player-panel-art.is-loaded {
+  opacity: 0.22;
+}
+
 .player-panel-content {
   position: relative;
   z-index: 2;
