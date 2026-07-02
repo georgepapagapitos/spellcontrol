@@ -51,29 +51,6 @@
   background: var(--surface);
 }
 
-.h2h-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3);
-}
-
-.h2h-summary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.h2h-summary-label {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.h2h-matchups {
-  font-size: var(--text-sm);
-}
-
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
 .link-button:focus-visible {
   outline: 2px solid var(--accent);
