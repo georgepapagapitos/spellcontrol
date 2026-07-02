@@ -41,7 +41,8 @@ export function pickFromPrefetched(
   collectionStrategy: CollectionStrategy = 'full',
   collectionOwnedPercent: number = 100,
   ignoreOwnedBudget: boolean = false,
-  ignoreOwnedRarity: boolean = false
+  ignoreOwnedRarity: boolean = false,
+  cardAllowed?: (card: ScryfallCard) => boolean
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -62,6 +63,7 @@ export function pickFromPrefetched(
 
     const scryfallCard = cardMap.get(edhrecCard.name);
     if (!scryfallCard) return false;
+    if (cardAllowed && !cardAllowed(scryfallCard)) return false;
     if (!fitsColorIdentity(scryfallCard, colorIdentity)) return false;
 
     const ownedExempt = isOwnedBudgetExempt(edhrecCard.name, collectionNames, ignoreOwnedBudget);
@@ -227,7 +229,8 @@ export function pickFromPrefetchedWithCurve(
   collectionOwnedPercent: number = 100,
   ignoreOwnedBudget: boolean = false,
   ignoreOwnedRarity: boolean = false,
-  bracketGuard?: BracketGuard
+  bracketGuard?: BracketGuard,
+  cardAllowed?: (card: ScryfallCard) => boolean
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -295,6 +298,7 @@ export function pickFromPrefetchedWithCurve(
 
       const scryfallCard = cardMap.get(edhrecCard.name);
       if (!scryfallCard) continue;
+      if (cardAllowed && !cardAllowed(scryfallCard)) continue;
 
       // Type check for Unknown cards (need to verify they match expected type via Scryfall)
       // Cards already categorized by EDHREC (primary_type !== 'Unknown') skip this check

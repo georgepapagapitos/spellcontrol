@@ -232,6 +232,8 @@ const graveyard: SynergyAxis = {
     if (/creature card in a graveyard/.test(o)) return 'reanimates';
     if (GY_RECUR_KEYWORDS.some((k) => has(card, k))) return 'graveyard recursion';
     if (/cast [^.]*from your graveyard/.test(o)) return 'casts from your graveyard';
+    if (/\bwhenever one or more cards leave your graveyard\b/.test(o))
+      return 'pays off cards leaving your graveyard';
     return null;
   },
 };

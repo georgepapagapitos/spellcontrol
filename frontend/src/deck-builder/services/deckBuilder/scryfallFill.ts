@@ -34,7 +34,8 @@ export async function fillWithScryfall(
   scryfallQuery: string = '',
   collectionStrategy: CollectionStrategy = 'full',
   ignoreOwnedBudget: boolean = false,
-  ignoreOwnedRarity: boolean = false
+  ignoreOwnedRarity: boolean = false,
+  cardAllowed?: (card: ScryfallCard) => boolean
 ): Promise<ScryfallCard[]> {
   if (count <= 0) return [];
 
@@ -65,6 +66,7 @@ export async function fillWithScryfall(
     for (const card of response.data) {
       if (usedNames.has(card.name)) continue; // Commander format is always singleton
       if (bannedCards.has(card.name)) continue; // Skip banned cards
+      if (cardAllowed && !cardAllowed(card)) continue;
       if (constrainsToCollection(collectionStrategy) && notInCollection(card.name, collectionNames))
         continue;
       if (!isOwnedRarityExempt(card.name, collectionNames, ignoreOwnedRarity)) {
