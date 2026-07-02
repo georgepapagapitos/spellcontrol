@@ -50,12 +50,23 @@ describe('LifeKeypad — absolute set mode (default)', () => {
     const onConfirm = vi.fn();
     renderKeypad(40, onConfirm);
 
-    // The keyboard handler captures the initial buffer via closure (stale
-    // closure; the eslint-disable in the component acknowledges this). With
-    // no digits typed the buffer is empty and Enter sends currentLife.
     fireEvent.keyDown(window, { key: 'Enter' });
 
     expect(onConfirm).toHaveBeenCalledWith(40);
+  });
+
+  it('Enter confirms the value typed on the keyboard (no stale-closure drop)', () => {
+    // Regression (audit F7): the keydown effect used to bind once with []
+    // deps, so Enter read the mount-time empty buffer and dropped the typed
+    // total, always sending currentLife instead.
+    const onConfirm = vi.fn();
+    renderKeypad(40, onConfirm);
+
+    fireEvent.keyDown(window, { key: '2' });
+    fireEvent.keyDown(window, { key: '7' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(onConfirm).toHaveBeenCalledWith(27);
   });
 
   it('handles keyboard Escape to close', () => {
