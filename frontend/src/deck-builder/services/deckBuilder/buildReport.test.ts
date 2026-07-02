@@ -287,6 +287,24 @@ describe('assembleBuildReport', () => {
       });
       expect(report.synergyFills).toBeUndefined();
     });
+
+    it('sets liftedBy on a fill with lift connectivity, absent otherwise (E71 slice 2)', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          builtFromCollection: true,
+          categories: categories({ creatures: [makeCard('Fill A'), makeCard('Fill B')] }),
+          cardInclusionMap: {},
+          liftedByMap: { 'fill a': ['Sol Ring', 'Rhystic Study'] },
+        }),
+        customization: makeCustomization({ collectionMode: true, collectionStrategy: 'full' }),
+        collectionNames: new Set(),
+      });
+
+      expect(report.synergyFills).toEqual([
+        { name: 'Fill A', matchedTags: [], liftedBy: ['Sol Ring', 'Rhystic Study'] },
+        { name: 'Fill B', matchedTags: [] },
+      ]);
+    });
   });
 
   describe('packagePicks (hidden-synergy suggestions)', () => {

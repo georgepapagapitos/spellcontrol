@@ -130,6 +130,57 @@ describe('BuildReportPanel', () => {
     expect(container.textContent).not.toContain('from your collection');
   });
 
+  describe('synergyFills (off-EDHREC fill provenance)', () => {
+    it('is absent when there are no fills', () => {
+      const { container } = render(<BuildReportPanel report={makeReport()} />);
+      expect(container.textContent).not.toContain('had no EDHREC data');
+    });
+
+    it('shows the tag-match reason when matchedTags is non-empty and there is no lift', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({ synergyFills: [{ name: 'Fill A', matchedTags: ['ramp'] }] })}
+        />
+      );
+      expect(screen.getByText('Fits your deck’s ramp')).toBeTruthy();
+    });
+
+    it('shows the lift-flavored reason when liftedBy is present and there are no matched tags', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            synergyFills: [{ name: 'Fill A', matchedTags: [], liftedBy: ['Sol Ring'] }],
+          })}
+        />
+      );
+      expect(screen.getByText('Lifted by Sol Ring')).toBeTruthy();
+    });
+
+    it('combines tag match and lift into one terse reason when both are present', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            synergyFills: [
+              { name: 'Fill A', matchedTags: ['ramp'], liftedBy: ['Sol Ring', 'Rhystic Study'] },
+            ],
+          })}
+        />
+      );
+      expect(
+        screen.getByText('Fits your deck’s ramp · Lifted by Sol Ring, Rhystic Study')
+      ).toBeTruthy();
+    });
+
+    it('falls back to the slot-filler line when neither tags nor lift are present', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({ synergyFills: [{ name: 'Fill A', matchedTags: [] }] })}
+        />
+      );
+      expect(screen.getByText('Slot filler — no shared synergy with the deck')).toBeTruthy();
+    });
+  });
+
   describe('hidden-synergy package picks', () => {
     it('is absent when there are no picks', () => {
       const { container } = render(<BuildReportPanel report={makeReport()} />);

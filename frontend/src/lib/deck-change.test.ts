@@ -171,6 +171,18 @@ describe('fromGapCard', () => {
     expect(c.reason).toBe('EDHREC staple');
     expect(c.deltaPrice).toBeUndefined();
   });
+
+  it('prefers a lift-flavored reason over the role label when liftedBy is present', () => {
+    const c = fromGapCard({ ...gap, liftedBy: ['Sol Ring', 'Krenko, Mob Boss'] });
+    expect(c.reason).toBe('Lifted by Sol Ring, Krenko, Mob Boss');
+    // roleLabel keeps driving the badge unchanged — only reason changes.
+    expect(c.roleLabel).toBe('Ramp');
+  });
+
+  it('falls back past liftedBy to the role label when liftedBy is empty', () => {
+    const c = fromGapCard({ ...gap, liftedBy: [] });
+    expect(c.reason).toBe('Ramp staple');
+  });
 });
 
 describe('fromOptimizeCard', () => {

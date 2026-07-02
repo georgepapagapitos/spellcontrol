@@ -307,6 +307,10 @@ export interface GapAnalysisCard {
   isOwned?: boolean;
   role?: string; // Functional role from tagger (e.g. 'ramp', 'removal')
   roleLabel?: string; // Display label (e.g. 'Ramp', 'Card Draw')
+  /** EDHREC lift co-play seed names (top-3, strongest first) this candidate is
+   *  connected to — see services/deckBuilder/liftSynergy.ts buildLiftIndex.
+   *  Undefined when the card has no lift connectivity to the seed set. */
+  liftedBy?: string[];
 }
 
 /**
@@ -383,7 +387,7 @@ export interface BuildReport {
    *  fallback fill, not the EDHREC pool). `matchedTags` are the deck-synergy tags
    *  they share with the rest of the deck — empty means a pure slot-filler.
    *  Owned/collection builds only; explains the "why is this 0%-card here" cards. */
-  synergyFills?: Array<{ name: string; matchedTags: string[] }>;
+  synergyFills?: Array<{ name: string; matchedTags: string[]; liftedBy?: string[] }>;
   /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
   roleGaps?: Array<{ role: string; have: number; want: number }>;
   /** Cards that are owned but all copies are committed to other decks. */
@@ -406,6 +410,10 @@ export interface GeneratedDeck {
   /** "Hidden synergy" suggestions from EDHREC lift data — never added to the
    *  deck, surfaced only in the build report. See LiftPackagePick. */
   packagePicks?: LiftPackagePick[];
+  /** Lowercased card name -> top-3 lift seed names, for every deck card with
+   *  EDHREC lift connectivity to this generation's seed pools. Lets the build
+   *  report explain non-EDHREC fills without re-deriving the lift index. */
+  liftedByMap?: Record<string, string[]>;
   /** Disclosure note: how many higher-lift candidates the hard filters
    *  (color identity/legality/rarity/budget/etc.) removed, and the dominant
    *  reason. Undefined when nothing was filtered. */

@@ -217,7 +217,11 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
     type: 'add',
     lane: 'fill-gaps',
     name: g.name,
-    reason: g.roleLabel ? `${g.roleLabel} staple` : 'EDHREC staple',
+    reason: g.liftedBy?.length
+      ? `Lifted by ${g.liftedBy.join(', ')}`
+      : g.roleLabel
+        ? `${g.roleLabel} staple`
+        : 'EDHREC staple',
     ownership,
     deltaPrice: parsePrice(g.price) ?? undefined,
     role: g.role,

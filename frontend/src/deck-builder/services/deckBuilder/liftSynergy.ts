@@ -94,6 +94,27 @@ function liftedByFor(candidate: LiftCandidate): string[] {
 }
 
 /**
+ * Generation-wide lift index: every candidate connected to ANY seed pool
+ * (no excludes — callers filter by name against usedNames/deck as needed),
+ * keyed by LOWERCASE candidate name so lookups don't care about casing drift
+ * between EDHREC and Scryfall/deck names. Shared by every re-rank/tie-break
+ * insertion point so a seed's pool is fetched once and scored once per
+ * generation (see deckGeneration/liftPools.ts).
+ */
+export function buildLiftIndex(
+  seedPools: ReadonlyMap<string, LiftEntry[]>
+): Map<string, { clusterScore: number; liftedBy: string[] }> {
+  const index = new Map<string, { clusterScore: number; liftedBy: string[] }>();
+  for (const candidate of aggregateLiftCandidates(seedPools)) {
+    index.set(candidate.name.toLowerCase(), {
+      clusterScore: candidate.clusterScore,
+      liftedBy: liftedByFor(candidate),
+    });
+  }
+  return index;
+}
+
+/**
  * Top picks from the aggregated candidates: one "bomb" (highest single-edge
  * strength, if any candidate clears the lift floor) plus the strongest
  * multi-seed "cluster" picks, ranked by summed edge strength.

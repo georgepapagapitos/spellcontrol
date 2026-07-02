@@ -4,6 +4,7 @@ import {
   edgeScore,
   aggregateLiftCandidates,
   selectTopLiftPicks,
+  buildLiftIndex,
   type LiftCandidate,
 } from './liftSynergy';
 import type { LiftEntry } from '@/deck-builder/types';
@@ -190,5 +191,44 @@ describe('selectTopLiftPicks', () => {
     const c = candidate({ name: 'Thin', connectionCount: 2, clusterScore: 5, lowSample: true });
     const [pick] = selectTopLiftPicks([c]);
     expect(pick.lowSample).toBe(true);
+  });
+});
+
+describe('buildLiftIndex', () => {
+  it('keys the index by LOWERCASE candidate name', () => {
+    const pools = new Map<string, LiftEntry[]>([['Seed A', [entry({ name: 'Sol Ring' })]]]);
+    const index = buildLiftIndex(pools);
+    expect(index.has('sol ring')).toBe(true);
+    expect(index.has('Sol Ring')).toBe(false);
+  });
+
+  it('sums edge scores into clusterScore, matching aggregateLiftCandidates', () => {
+    const pools = new Map<string, LiftEntry[]>([
+      ['Seed A', [entry({ name: 'Candidate' })]],
+      ['Seed B', [entry({ name: 'Candidate' })]],
+    ]);
+    const [candidate] = aggregateLiftCandidates(pools);
+    const index = buildLiftIndex(pools);
+    expect(index.get('candidate')?.clusterScore).toBe(candidate.clusterScore);
+  });
+
+  it('sets liftedBy to the top-3 seeds by edgeScore desc', () => {
+    const pools = new Map<string, LiftEntry[]>([
+      ['Weak', [entry({ name: 'Multi', lift: 1, coPlayPct: 5, numDecks: 500 })]],
+      ['Strongest', [entry({ name: 'Multi', lift: 9, coPlayPct: 50, numDecks: 500 })]],
+      ['Mid', [entry({ name: 'Multi', lift: 4, coPlayPct: 20, numDecks: 500 })]],
+      ['FourthPlace', [entry({ name: 'Multi', lift: 3, coPlayPct: 15, numDecks: 500 })]],
+    ]);
+    const index = buildLiftIndex(pools);
+    expect(index.get('multi')?.liftedBy).toEqual(['Strongest', 'Mid', 'FourthPlace']);
+  });
+
+  it('has no excludes — every mentioned candidate is indexed (callers filter by name)', () => {
+    const pools = new Map<string, LiftEntry[]>([['Seed A', [entry({ name: 'Anything' })]]]);
+    expect(buildLiftIndex(pools).size).toBe(1);
+  });
+
+  it('is empty for empty pools', () => {
+    expect(buildLiftIndex(new Map()).size).toBe(0);
   });
 });

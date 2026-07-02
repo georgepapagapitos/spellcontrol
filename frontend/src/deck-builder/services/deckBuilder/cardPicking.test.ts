@@ -336,6 +336,119 @@ describe("owned-first ('prefer' strategy)", () => {
   });
 });
 
+describe('lift tie-break (E71 slice 2)', () => {
+  it('breaks an EXACT priority tie in pickFromPrefetched', () => {
+    const cards = [ec({ name: 'A', inclusion: 10 }), ec({ name: 'B', inclusion: 10 })];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    const liftTieBreak = new Map([['b', 5]]);
+    const picked = pickFromPrefetched(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      liftTieBreak
+    );
+    expect(picked.map((c) => c.name)).toEqual(['B']);
+  });
+
+  it('never outranks a card with strictly higher priority, even with a huge lift score', () => {
+    const cards = [ec({ name: 'Better', inclusion: 90 }), ec({ name: 'Worse', inclusion: 10 })];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    const liftTieBreak = new Map([['worse', 999]]);
+    const picked = pickFromPrefetched(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      liftTieBreak
+    );
+    expect(picked.map((c) => c.name)).toEqual(['Better']);
+  });
+
+  it('applies the same exact-tie break in the curve-aware picker', () => {
+    const cards = [
+      ec({ name: 'A', inclusion: 10, primary_type: 'Creature' }),
+      ec({ name: 'B', inclusion: 10, primary_type: 'Creature' }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name, type_line: 'Creature' })]));
+    const liftTieBreak = new Map([['b', 5]]);
+    const picked = pickFromPrefetchedWithCurve(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      { 3: 2 },
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      undefined,
+      liftTieBreak
+    );
+    expect(picked.map((c) => c.name)).toEqual(['B']);
+  });
+
+  it('an absent lift map leaves pick order unchanged (equivalence with pre-lift behavior)', () => {
+    const cards = [ec({ name: 'A', inclusion: 10 }), ec({ name: 'B', inclusion: 10 })];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    const picked = pickFromPrefetched(cards, map, 1, new Set(), []);
+    expect(picked.map((c) => c.name)).toEqual(['A']); // stable sort keeps input order on a tie
+  });
+});
+
 describe('bracket guardrail in picking', () => {
   it('skips a card that would push a floor signal past the target-bracket ceiling', () => {
     const cards = [

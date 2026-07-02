@@ -115,6 +115,8 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
     mustIncludeNames: [],
     mustIncludeSources: new Map(),
     saltIndex: new Map(),
+    liftSeedPools: new Map(),
+    liftSeedsTried: new Set(),
     gameChangerNames: new Set<string>(['Power Card']),
     combos: [],
     edhrecData: {

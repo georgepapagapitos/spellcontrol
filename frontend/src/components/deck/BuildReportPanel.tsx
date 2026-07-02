@@ -42,6 +42,18 @@ function humanizeTags(tags: string[]): string {
   return tags.map((t) => t.replace(/-/g, ' ')).join(', ');
 }
 
+/** Synergy-fill rationale: tag match, lift connectivity, or both combined —
+ *  matches the packagePicks "Lifted by X, Y" phrasing for consistency. */
+function synergyFillReason(f: { matchedTags: string[]; liftedBy?: string[] }): string {
+  const tagsPart =
+    f.matchedTags.length > 0 ? `Fits your deck’s ${humanizeTags(f.matchedTags)}` : '';
+  const liftPart = f.liftedBy && f.liftedBy.length > 0 ? `Lifted by ${f.liftedBy.join(', ')}` : '';
+  return (
+    [tagsPart, liftPart].filter(Boolean).join(' · ') ||
+    'Slot filler — no shared synergy with the deck'
+  );
+}
+
 /** Plain-English description of which EDHREC pool the generator ended up using. */
 function humanizeDataSource(source: DeckDataSource): string {
   switch (source) {
@@ -159,11 +171,7 @@ export function BuildReportPanel({
                 <span className="build-report-sub-map">
                   <strong>{f.name}</strong>
                 </span>
-                <span className="build-report-sub-reason">
-                  {f.matchedTags.length > 0
-                    ? `Fits your deck’s ${humanizeTags(f.matchedTags)}`
-                    : 'Slot filler — no shared synergy with the deck'}
-                </span>
+                <span className="build-report-sub-reason">{synergyFillReason(f)}</span>
               </li>
             ))}
           </ul>

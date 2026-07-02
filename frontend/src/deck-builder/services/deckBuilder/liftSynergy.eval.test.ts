@@ -166,6 +166,20 @@ function evalSet(qs: EvalQuery[], scorerOf: (q: EvalQuery) => (name: string) => 
   return { ndcg: mean(ndcgs), precision: mean(precisions) };
 }
 
+// Mirrors the scryfallFill owned-fallback re-rank comparator exactly: lift
+// clusterScore primary, tags-only fingerprint synergyScore secondary, name
+// asc as the deterministic tiebreak (see scryfallFill.ts).
+function combinedRank(q: EvalQuery): string[] {
+  const lift = liftScorer(q);
+  const base = baselineScorer(q);
+  return [...q.pool].sort((a, b) => lift(b) - lift(a) || base(b) - base(a) || a.localeCompare(b));
+}
+function evalSetCombined(qs: EvalQuery[], k = 10) {
+  const ndcgs = qs.map((q) => ndcgAtK(combinedRank(q), q.positives, k));
+  const precisions = qs.map((q) => precisionAtK(combinedRank(q), q.positives, k));
+  return { ndcg: mean(ndcgs), precision: mean(precisions) };
+}
+
 // ── tests ────────────────────────────────────────────────────────────────────
 describe('liftSynergy validation (EDHREC high-synergy-list oracle)', () => {
   it('has a usable eval set', () => {
@@ -182,6 +196,28 @@ describe('liftSynergy validation (EDHREC high-synergy-list oracle)', () => {
     );
     expect(lift.ndcg).toBeGreaterThan(baseline.ndcg);
     expect(lift.ndcg).toBeGreaterThanOrEqual(LIFT_NDCG10_FLOOR);
+  });
+
+  it('combined (lift + fingerprint tiebreak) scorer — the actual scryfallFill re-rank — beats baseline', () => {
+    const combinedFull = evalSetCombined(queries);
+    const baselineFull = evalSet(queries, baselineScorer);
+    const liftFull = evalSet(queries, liftScorer);
+    console.log(
+      `[liftSynergy-eval] combined full n=${queries.length} nDCG@10=${combinedFull.ndcg.toFixed(4)} ` +
+        `P@10=${combinedFull.precision.toFixed(4)} | lift-only nDCG@10=${liftFull.ndcg.toFixed(4)} | ` +
+        `baseline nDCG@10=${baselineFull.ndcg.toFixed(4)}`
+    );
+    expect(combinedFull.ndcg).toBeGreaterThan(baselineFull.ndcg);
+    expect(combinedFull.ndcg).toBeGreaterThanOrEqual(LIFT_NDCG10_FLOOR);
+
+    const holdout = queries.filter((_, i) => i % 2 === 1);
+    const combinedHoldout = evalSetCombined(holdout);
+    const baselineHoldout = evalSet(holdout, baselineScorer);
+    console.log(
+      `[liftSynergy-eval] combined holdout(odd) n=${holdout.length} nDCG@10=${combinedHoldout.ndcg.toFixed(4)} | ` +
+        `baseline nDCG@10=${baselineHoldout.ndcg.toFixed(4)}`
+    );
+    expect(combinedHoldout.ndcg).toBeGreaterThan(baselineHoldout.ndcg);
   });
 
   it('holds on the odd-index holdout half', () => {

@@ -85,6 +85,7 @@ import {
 
 import {
   type GenerationContext,
+  type GenerationState,
   createState,
   markUsed as stMarkUsed,
   markBanned as stMarkBanned,
@@ -95,6 +96,7 @@ import {
 import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
+import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
 import { deckScorePhase } from './deckGeneration/phaseDeckScore';
 import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
@@ -260,6 +262,36 @@ export function clearGenerationCache(): void {
 /** Expose the cached EDHREC data from the most recent generation (avoids re-fetching). */
 export function getGenerationCacheEdhrecData(): EDHRECCommanderData | null {
   return generationCache?.edhrecData ?? null;
+}
+
+/**
+ * Early lift-seed set (E71 slice 2), collected BEFORE any card is picked:
+ * commander(s), then EDHREC-pool cards flagged isThemeSynergyCard (these only
+ * exist for a user-SELECTED theme — the theme-intent guard, so a no-theme
+ * build never gets an implicit "lift as theme" switch), then must-includes.
+ * Deduped, capped at MAX_LIFT_SEEDS. Deck cards picked later add further
+ * seeds via phaseLiftPicks' own collectSeeds, sharing the same pool/cap.
+ */
+function collectEarlyLiftSeeds(state: GenerationState): string[] {
+  const seeds: string[] = [];
+  const seen = new Set<string>();
+  const add = (name: string | null | undefined) => {
+    if (!name || seen.has(name) || seeds.length >= MAX_LIFT_SEEDS) return;
+    seen.add(name);
+    seeds.push(name);
+  };
+
+  add(state.context.commander.name);
+  add(state.context.partnerCommander?.name);
+  if (state.edhrecData) {
+    const themeCards = state.edhrecData.cardlists.allNonLand
+      .filter((c) => c.isThemeSynergyCard)
+      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+    for (const c of themeCards) add(c.name);
+  }
+  for (const name of state.mustIncludeNames) add(name);
+
+  return seeds;
 }
 
 /**
@@ -1118,6 +1150,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
     !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount);
 
+  // EDHREC lift pools (E71 slice 2): fetch intent-anchored seeds once, before
+  // any card is picked, so every re-rank/tie-break point below (EDHREC picks,
+  // Scryfall fallback fill, no-EDHREC fallback) shares the same data.
+  // Soft-fails to no data (bails without state.edhrecData, or on a fetch
+  // error) — picking below is then byte-identical to pre-lift output.
+  await ensureLiftPools(state, collectEarlyLiftSeeds(state));
+  const liftIndex = getLiftIndex(state);
+  const liftScoreOf = (name: string) => liftIndex.get(name.toLowerCase())?.clusterScore ?? 0;
+  const liftTieBreak = new Map([...liftIndex].map(([name, entry]) => [name, entry.clusterScore]));
+
   // ---- Multi-copy card pipeline (self-contained, no impact if nothing found) ----
   if (state.edhrecData) {
     const allEdhrecNames = state.edhrecData.cardlists.allNonLand.map((c) => c.name);
@@ -1502,7 +1544,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       bracketGuard,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftTieBreak
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1538,7 +1581,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionStrategy,
         ignoreOwnedBudget,
         ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies
+        isCardAllowedBySynergyDependencies,
+        liftScoreOf
       );
       categories.creatures.push(...moreCreatures);
       logger.debug(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
@@ -1590,7 +1634,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       bracketGuard,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftTieBreak
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -1649,7 +1694,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       bracketGuard,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftTieBreak
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -1708,7 +1754,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       bracketGuard,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftTieBreak
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -1767,7 +1814,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       bracketGuard,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftTieBreak
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -1827,7 +1875,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedBudget,
         ignoreOwnedRarity,
         bracketGuard,
-        isCardAllowedBySynergyDependencies
+        isCardAllowedBySynergyDependencies,
+        liftTieBreak
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
@@ -1986,7 +2035,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
 
     onProgress?.('Drawing cards…', 30);
@@ -2007,7 +2057,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
 
     onProgress?.('Sharpening removal…', 40);
@@ -2028,7 +2079,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
 
     onProgress?.('Preparing board wipes…', 50);
@@ -2049,7 +2101,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
 
     // Use typeTargets for remaining slots to get a balanced type distribution
@@ -2077,7 +2130,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
     categories.creatures.push(...scryfallCreatures);
 
@@ -2103,7 +2157,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
     categorizeCards(scryfallArtifacts, categories);
 
@@ -2129,7 +2184,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies
+      isCardAllowedBySynergyDependencies,
+      liftScoreOf
     );
     categorizeCards(scryfallEnchantments, categories);
 
@@ -2159,7 +2215,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionStrategy,
         ignoreOwnedBudget,
         ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies
+        isCardAllowedBySynergyDependencies,
+        liftScoreOf
       );
       categorizeCards(scryfallInstants, categories);
     }
@@ -2187,7 +2244,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         collectionStrategy,
         ignoreOwnedBudget,
         ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies
+        isCardAllowedBySynergyDependencies,
+        liftScoreOf
       );
       categorizeCards(scryfallSorceries, categories);
     }
@@ -2589,7 +2647,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           collectionStrategy,
           ignoreOwnedBudget,
           ignoreOwnedRarity,
-          isCardAllowedBySynergyDependencies
+          isCardAllowedBySynergyDependencies,
+          liftScoreOf
         );
         if (type === 'creature') categories.creatures.push(...cards);
         else if (type === 'instant') categorizeCards(cards, categories);
@@ -2622,7 +2681,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           collectionStrategy,
           ignoreOwnedBudget,
           ignoreOwnedRarity,
-          isCardAllowedBySynergyDependencies
+          isCardAllowedBySynergyDependencies,
+          liftScoreOf
         );
         categories.synergy.push(...moreCards);
         filled += moreCards.length;
@@ -2735,7 +2795,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           collectionStrategy, // real strategy → HARD-gates to owned cards
           ignoreOwnedBudget,
           ignoreOwnedRarity,
-          isCardAllowedBySynergyDependencies
+          isCardAllowedBySynergyDependencies,
+          liftScoreOf
         );
         for (const c of ownedFill) addOwnedCard(c);
         if (ownedFill.length > 0) {
@@ -2765,7 +2826,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           'prefer', // drops the hard owned gate — last resort
           ignoreOwnedBudget,
           ignoreOwnedRarity,
-          isCardAllowedBySynergyDependencies
+          isCardAllowedBySynergyDependencies,
+          liftScoreOf
         );
         for (const c of relaxedCards) {
           addOwnedCard(c);
@@ -3460,6 +3522,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Keep only substitutions whose owned card survived the audit/fixup passes.
   const survivingSubstitutions = substitutionRows.filter((r) => finalNames.has(r.usedName));
 
+  // Bounded to the final deck (not the whole lift index) so the build report
+  // only explains cards actually in the deck.
+  const finalLiftIndex = getLiftIndex(state);
+  const liftedByMap: Record<string, string[]> = {};
+  for (const name of finalNames) {
+    const entry = finalLiftIndex.get(name.toLowerCase());
+    if (entry) liftedByMap[name.toLowerCase()] = entry.liftedBy;
+  }
+
   return {
     commander,
     partnerCommander,
@@ -3469,6 +3540,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gapAnalysis,
     packagePicks: liftPicks?.packagePicks,
     liftPicksNote: liftPicks?.liftPicksNote,
+    liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:
       context.collectionNames && basicLandFillCount > 0 ? basicLandFillCount : undefined,

@@ -48,6 +48,15 @@ an exclamation. Use the shared `.empty-state` + `.empty-state-tagline` +
 placeholder** (a sideboard slot list, a mini-chart's no-data line) may stay a
 single concise line — the two-part pattern would read visually heavy there.
 
+**Lift/co-play explanations (E71):** evidence phrasing is fixed vocabulary —
+`Lifted by {A}, {B}` for cluster connectivity (up to 3 card names) and
+`Pairs hard with {A}` for a single bomb pairing. Reuse these verbatim on any
+surface explaining a lift-driven suggestion (Build Report hidden-synergy picks
+and synergy fills, Coach fix-gaps rows); don't coin new synonyms ("synergizes
+with", "co-played with"). Combine with other evidence using the mid-dot
+separator: `Fits your deck's {tags} · Lifted by {A}, {B}`. Concrete card names
+are the point — never replace them with a count or "AI" phrasing (rule 3).
+
 **Confirm dialogs:** the title is the question ("Delete \"{name}\"?"); the body
 is a declarative consequence ending in a period ("This cannot be undone."). The
 body never re-asks the question.

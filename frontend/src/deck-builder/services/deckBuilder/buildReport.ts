@@ -89,13 +89,18 @@ export function assembleBuildReport(input: {
       .filter((cat) => cat !== 'lands')
       .flatMap((cat) => generated.categories[cat]);
     const fingerprint = buildSynergyFingerprint(nonLand.map((c) => c.name));
-    const synergyFills: Array<{ name: string; matchedTags: string[] }> = [];
+    const liftedByMap = generated.liftedByMap;
+    const synergyFills: Array<{ name: string; matchedTags: string[]; liftedBy?: string[] }> = [];
     for (const card of nonLand) {
       if (card.isMustInclude) continue; // a user-forced pick, not a fill
       if (card.isThemeSynergyCard) continue; // came from EDHREC's synergy lists
       if (substituted.has(card.name)) continue; // already shown as a substitution
       if ((inclusionMap[card.name] ?? 0) > 0) continue; // has an EDHREC signal
-      synergyFills.push({ name: card.name, matchedTags: topMatchedTags(card.name, fingerprint) });
+      synergyFills.push({
+        name: card.name,
+        matchedTags: topMatchedTags(card.name, fingerprint),
+        liftedBy: liftedByMap?.[card.name.toLowerCase()],
+      });
     }
     if (synergyFills.length > 0) report.synergyFills = synergyFills;
   }
