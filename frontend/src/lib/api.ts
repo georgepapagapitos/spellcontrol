@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type {
   DeckImportResponse,
+  FetchErrorRow,
   ProductCommanderSummary,
   ProductResolveResponse,
   ProductSummary,
@@ -83,7 +84,11 @@ async function postImportChunk(text: string): Promise<UploadResponse> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   });
-  return handleResponse<UploadResponse>(response);
+  const data = await handleResponse<UploadResponse>(response);
+  // Deploy-skew guard: a native app can run against a backend that predates
+  // the fetchErrors field (Fly deploys lag main) — normalize so `.length`
+  // reads never see undefined.
+  return { ...data, fetchErrors: data.fetchErrors ?? [] };
 }
 
 async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
@@ -178,6 +183,36 @@ export async function importFile(
   return importText(await file.text(), onProgress);
 }
 
+/**
+ * Retry a degraded import by POSTing the server's withheld `fetchErrors` rows
+ * back verbatim as `{ rows }` — no re-parse, so quantity/printing/finish
+ * survive. Small payloads (only the failed bucket), so no chunking; the same
+ * transient-failure retry budget as text chunks still applies.
+ */
+export async function importRows(rows: FetchErrorRow[]): Promise<UploadResponse> {
+  let lastErr: unknown;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetchWithTimeout('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      });
+      const data = await handleResponse<UploadResponse>(response);
+      return { ...data, fetchErrors: data.fetchErrors ?? [] };
+    } catch (err) {
+      lastErr = err;
+      if (
+        (!isNetworkError(err) && !isRetryableStatus(err)) ||
+        attempt >= IMPORT_RETRY_DELAYS_MS.length
+      )
+        break;
+      await sleep(IMPORT_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastErr;
+}
+
 interface SetSummary {
   code: string;
   name: string;
@@ -226,7 +261,9 @@ export async function importDeckText(text: string): Promise<DeckImportResponse> 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
   });
-  return handleResponse<DeckImportResponse>(response);
+  const data = await handleResponse<DeckImportResponse>(response);
+  // Deploy-skew guard — see postImportChunk.
+  return { ...data, fetchErrors: data.fetchErrors ?? [] };
 }
 
 /**
@@ -247,7 +284,13 @@ export async function fetchProduct(fileName: string): Promise<ProductResolveResp
   const response = await fetchWithTimeout(`/api/products/${encodeURIComponent(fileName)}`, {
     method: 'GET',
   });
-  return handleResponse<ProductResolveResponse>(response);
+  const data = await handleResponse<ProductResolveResponse>(response);
+  // Deploy-skew guard — see postImportChunk.
+  return {
+    ...data,
+    fetchErrors: data.fetchErrors ?? [],
+    deck: { ...data.deck, fetchErrors: data.deck.fetchErrors ?? [] },
+  };
 }
 
 /**

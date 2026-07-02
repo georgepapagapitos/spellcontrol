@@ -3,8 +3,8 @@ import { Suspense, lazy, useMemo, useRef, useState } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
-import { importFile, importText, type ImportProgressCallback } from '../lib/api';
-import type { UploadResponse } from '../types';
+import { importFile, importRows, importText, type ImportProgressCallback } from '../lib/api';
+import type { FetchErrorRow, UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import { findPriorImports } from '../lib/reimport';
@@ -64,6 +64,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stageNote, setStageNote] = useState<string | null>(null);
   const [showUnresolved, setShowUnresolved] = useState(false);
+  const [showFetchErrors, setShowFetchErrors] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   /** ImportIds from the most recent runImport invocation. Drives the
    *  post-import "where did my cards go?" panel. Cleared whenever the user
@@ -84,6 +85,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const isLoading = useCollectionStore((s) => s.isLoading);
   const error = useCollectionStore((s) => s.error);
   const unresolvedNames = useCollectionStore((s) => s.unresolvedNames);
+  const fetchErrors = useCollectionStore((s) => s.fetchErrors);
   const importHistory = useCollectionStore((s) => s.importHistory);
   const importCards = useCollectionStore((s) => s.importCards);
   const deleteImports = useCollectionStore((s) => s.deleteImports);
@@ -170,6 +172,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setSuccessMsg(null);
     setRecentImportIds(new Set());
     setShowUnresolved(false);
+    setShowFetchErrors(false);
     setImportProgress(null);
     const newImportIds = new Set<string>();
     try {
@@ -180,6 +183,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         const totalFiles = p.files.length;
         let totalCards = 0;
         let totalUnresolved = 0;
+        const allFetchErrors: FetchErrorRow[] = [];
         for (let i = 0; i < p.files.length; i++) {
           const file = p.files[i];
           const result = await importFile(file, (prog) =>
@@ -199,11 +203,21 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           newImportIds.add(id);
           totalCards += result.cards.length;
           totalUnresolved += result.unresolvedNames.length;
+          allFetchErrors.push(...result.fetchErrors);
+        }
+        // importCards stamps each file's own fetchErrors, so after the loop the
+        // store only holds the last file's — restore the whole batch's bucket
+        // so every withheld row stays retryable.
+        if (allFetchErrors.length > 0) {
+          useCollectionStore.setState({ fetchErrors: allFetchErrors });
         }
         const parts: string[] = [
           `Imported ${totalCards.toLocaleString()} cards from ${p.files.length} files`,
         ];
         if (totalUnresolved > 0) parts.push(`${totalUnresolved} unresolved`);
+        if (allFetchErrors.length > 0) {
+          parts.push(`${allFetchErrors.length} couldn't be fetched — retry below`);
+        }
         if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
         setSuccessMsg(parts.join(' · '));
         setStagedFiles([]);
@@ -228,6 +242,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       if (result.unresolvedNames.length > 0) {
         parts.push(`${result.unresolvedNames.length} unresolved`);
       }
+      if (result.fetchErrors.length > 0) {
+        parts.push(`${result.fetchErrors.length} couldn't be fetched — retry below`);
+      }
       if (mode === 'binder' && binderName) {
         parts.push(`binder "${binderName}" created`);
       }
@@ -243,6 +260,25 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       setImportProgress(null);
     }
   }
+
+  /**
+   * Retry the rows the last import withheld because the card service was
+   * unreachable. The rows are POSTed back verbatim ({ rows }), so quantity /
+   * printing / finish survive; anything that fails again lands back in the
+   * store's fetchErrors bucket and the banner stays up.
+   */
+  const handleRetryFetchErrors = () => {
+    if (fetchErrors.length === 0 || isLoading) return;
+    const copies = fetchErrors.reduce((n, r) => n + Math.max(1, r.quantity ?? 1), 0);
+    void runImport(
+      {
+        fn: () => importRows(fetchErrors),
+        label: 'retried-cards',
+        preview: `${copies} card${copies === 1 ? '' : 's'}`,
+      },
+      'merge'
+    );
+  };
 
   const handleClearAll = async () => {
     const ok = await confirm({
@@ -368,6 +404,37 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           summary={routingSummary}
           onDismiss={() => setRecentImportIds(new Set())}
         />
+      )}
+
+      {fetchErrors.length > 0 && (
+        <div className="unresolved-banner fetch-error-banner" role="alert">
+          <div className="unresolved-summary">
+            <span>
+              {fetchErrors.length} card{fetchErrors.length !== 1 ? 's' : ''} couldn't be fetched —
+              the card service was unreachable. They were <strong>not</strong> imported.
+            </span>
+            <span className="fetch-error-actions">
+              <button className="btn-link" onClick={() => setShowFetchErrors((v) => !v)}>
+                {showFetchErrors ? 'Hide list' : 'Show list'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleRetryFetchErrors}
+                disabled={isLoading}
+              >
+                Retry
+              </button>
+            </span>
+          </div>
+          {showFetchErrors && (
+            <ul className="unresolved-list">
+              {fetchErrors.map((r, i) => (
+                <li key={i}>{(r.quantity ?? 1) > 1 ? `${r.quantity}× ${r.name}` : r.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {hasCollection && unresolvedNames.length > 0 && (
@@ -858,6 +925,7 @@ function ImportModeDialog({
  */
 function prettyImportName(name: string, format: string): string {
   if (name === 'scanned-cards') return 'Scanned cards';
+  if (name === 'retried-cards') return 'Retried cards';
   if (name !== 'pasted-list') return name;
   switch ((format || '').toLowerCase()) {
     case 'mtga':

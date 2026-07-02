@@ -103,15 +103,19 @@ export function NavFab() {
     setScannerOpen(false);
     setImporting(true);
     try {
-      const { added, requested } = await importScannedCards(text, count, importCards);
+      const { added, requested, fetchErrors } = await importScannedCards(text, count, importCards);
       // Cards are now committed to the collection — clear the persisted queue
       // so they don't reappear next time the scanner opens. Only on success:
       // a failed import (the catch below) keeps the queue so the user can retry.
       useScanQueueStore.getState().clear();
       const tail = added === requested ? '' : ` of ${requested.toLocaleString()}`;
       toast.show({
-        message: `Added ${added.toLocaleString()}${tail} scanned card${added === 1 ? '' : 's'}`,
-        tone: 'success',
+        message:
+          `Added ${added.toLocaleString()}${tail} scanned card${added === 1 ? '' : 's'}` +
+          (fetchErrors > 0
+            ? ` · ${fetchErrors} couldn't be fetched — retry from the import page`
+            : ''),
+        tone: fetchErrors > 0 ? 'warn' : 'success',
       });
     } catch (err) {
       toast.show({

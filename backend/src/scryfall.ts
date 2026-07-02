@@ -82,8 +82,15 @@ interface CollectionResponse {
 export interface LookupResult {
   /** One ScryfallCard per input row (or undefined if unresolved). Same length and order as input. */
   resolved: Array<ScryfallCard | undefined>;
-  /** Names of rows that could not be resolved at all. */
+  /** Names Scryfall was asked about and answered "not found" — genuine misses. */
   unresolvedNames: string[];
+  /**
+   * Names whose lookup never completed because Scryfall was unreachable
+   * (network error, 5xx, or a 429 storm that exhausted retries). Kept apart
+   * from unresolvedNames so a transient outage doesn't report real cards as
+   * typos — these are retryable, not missing.
+   */
+  fetchErrorNames: string[];
 }
 
 /**
@@ -154,7 +161,7 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
   }
 
   if (identifierByKey.size === 0) {
-    return { resolved, unresolvedNames: [] };
+    return { resolved, unresolvedNames: [], fetchErrorNames: [] };
   }
 
   logger.info(
@@ -171,6 +178,8 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
   }
 
   const gate = createRateGate(REQUEST_DELAY_MS);
+  // Identifier keys whose batch never got a response — the outage bucket.
+  const fetchFailedKeys = new Set<string>();
 
   await mapWithConcurrency(batches, BATCH_CONCURRENCY, async (batch, batchNum) => {
     await gate();
@@ -183,6 +192,7 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
       logger.warn(
         `[scryfall] batch ${batchNum} returned no data, skipping ${batch.length} identifiers`
       );
+      for (const [key] of batch) fetchFailedKeys.add(key);
       return;
     }
 
@@ -207,13 +217,18 @@ export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Pro
     }
   });
 
-  // Step 4: collect names of rows that never resolved.
+  // Step 4: collect names of rows that never resolved, split by cause —
+  // Scryfall said "not found" (genuine miss) vs the batch never got an answer.
   const unresolvedNames: string[] = [];
+  const fetchErrorNames: string[] = [];
   rows.forEach((row, i) => {
-    if (!resolved[i] && row.name) unresolvedNames.push(row.name);
+    if (resolved[i] || !row.name) return;
+    const ident = buildIdentifier(row);
+    const failed = ident !== null && fetchFailedKeys.has(identifierKey(ident));
+    (failed ? fetchErrorNames : unresolvedNames).push(row.name);
   });
 
-  return { resolved, unresolvedNames };
+  return { resolved, unresolvedNames, fetchErrorNames };
 }
 
 /**

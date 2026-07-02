@@ -16,15 +16,17 @@ const row = (name: string, extra: Partial<ImportRow> = {}): ImportRow => ({
   sourceFormat: 'mtgjson',
   ...extra,
 });
+const pass = (
+  resolved: Array<ScryfallCard | undefined>,
+  unresolvedNames: string[] = [],
+  fetchErrorNames: string[] = []
+) => ({ resolved, unresolvedNames, fetchErrorNames });
 
 beforeEach(() => resolveCards.mockReset());
 
 describe('resolveDeckRows', () => {
   it('slices resolved cards into commander + deck sections', async () => {
-    resolveCards.mockResolvedValueOnce({
-      resolved: [card('Zada'), card('Sol Ring'), card('Mountain')],
-      unresolvedNames: [],
-    });
+    resolveCards.mockResolvedValueOnce(pass([card('Zada'), card('Sol Ring'), card('Mountain')]));
     const sections = await resolveDeckRows(
       [row('Zada')],
       [],
@@ -38,9 +40,9 @@ describe('resolveDeckRows', () => {
 
   it('retries collector-number rows that miss, dropping the collector number', async () => {
     // First pass: the collector-number row fails to resolve.
-    resolveCards.mockResolvedValueOnce({ resolved: [undefined], unresolvedNames: ['Plains'] });
+    resolveCards.mockResolvedValueOnce(pass([undefined], ['Plains']));
     // Second pass (without collectorNumber): it resolves.
-    resolveCards.mockResolvedValueOnce({ resolved: [card('Plains')], unresolvedNames: [] });
+    resolveCards.mockResolvedValueOnce(pass([card('Plains')]));
 
     const sections = await resolveDeckRows(
       [],
@@ -53,5 +55,50 @@ describe('resolveDeckRows', () => {
     // The retry row had its collectorNumber stripped.
     const retryRows = resolveCards.mock.calls[1][0] as ImportRow[];
     expect(retryRows[0].collectorNumber).toBeUndefined();
+  });
+
+  // E72 regression: outage vs genuine miss must survive the two-pass slicing.
+  it('routes outage rows to fetchErrorNames and misses to unresolvedNames', async () => {
+    resolveCards.mockResolvedValueOnce(
+      pass([card('Zada'), undefined, undefined], ['Notacard'], ['Sol Ring'])
+    );
+    const sections = await resolveDeckRows(
+      [row('Zada')],
+      [],
+      [row('Sol Ring'), row('Notacard')],
+      fakeCache
+    );
+    expect(sections.fetchErrorNames).toEqual(['Sol Ring']);
+    expect(sections.unresolvedNames).toEqual(['Notacard']);
+  });
+
+  it('takes a retried row’s verdict from the retry pass (fetch error → genuine miss)', async () => {
+    // First pass: the collector-number row’s batch never reached Scryfall.
+    resolveCards.mockResolvedValueOnce(pass([undefined], [], ['Plains']));
+    // Retry (without collectorNumber) DID reach Scryfall — genuinely not found.
+    resolveCards.mockResolvedValueOnce(pass([undefined], ['Plains']));
+
+    const sections = await resolveDeckRows(
+      [],
+      [],
+      [row('Plains', { collectorNumber: '999' })],
+      fakeCache
+    );
+    expect(sections.unresolvedNames).toEqual(['Plains']);
+    expect(sections.fetchErrorNames).toEqual([]);
+  });
+
+  it('keeps a retried row in fetchErrorNames when the retry also fails to fetch', async () => {
+    resolveCards.mockResolvedValueOnce(pass([undefined], ['Plains']));
+    resolveCards.mockResolvedValueOnce(pass([undefined], [], ['Plains']));
+
+    const sections = await resolveDeckRows(
+      [],
+      [],
+      [row('Plains', { collectorNumber: '999' })],
+      fakeCache
+    );
+    expect(sections.fetchErrorNames).toEqual(['Plains']);
+    expect(sections.unresolvedNames).toEqual([]);
   });
 });

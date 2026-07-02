@@ -33,6 +33,14 @@
   padding: 1px 0;
 }
 
+/* Degraded-import banner (cards withheld on a card-service outage): the
+   list toggle and the Retry action sit together on the banner's right edge. */
+.fetch-error-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .btn-link {
   background: none;
   border: none;

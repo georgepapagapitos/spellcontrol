@@ -453,6 +453,21 @@ export function ProductSearchPanel({ onClose }: Props) {
               will be skipped. Check the contents against the physical box.
             </p>
           )}
+
+          {selected.fetchErrors.length > 0 && (
+            <p className="product-detail-warn">
+              {selected.fetchErrors.length} card{selected.fetchErrors.length === 1 ? '' : 's'}{' '}
+              couldn’t be fetched — the card service was unreachable, so this list is incomplete.{' '}
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => void openProduct(selected.product)}
+                disabled={busy || loadingProduct}
+              >
+                Try again
+              </button>
+            </p>
+          )}
         </div>
 
         {/* Pinned action footer. */}

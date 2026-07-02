@@ -35,6 +35,7 @@ import { errorMessage } from './error-utils';
 import { dedupePreservingOrder } from './utils';
 import { getSetMap } from './sets';
 import { parseImport } from './parsers';
+import type { ImportRow, ImportFormat, Finish, Condition } from './parsers/types';
 import { resolveDeckRows } from './deck-import';
 import { ImportTooLargeError, MAX_QTY_PER_ROW, MAX_TOTAL_CARDS } from './import-limits';
 import {
@@ -309,6 +310,7 @@ app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Res
       companion: sections.companion,
       cards: sections.cards,
       unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
+      fetchErrors: dedupePreservingOrder(sections.fetchErrorNames),
       // Precons carry a commander zone → default the import dialog to Commander.
       detectedFormat: commanderRows.length > 0 ? 'commander' : '',
       cardCount:
@@ -332,7 +334,11 @@ app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Res
       })
       .filter((e): e is NonNullable<typeof e> => e !== null);
 
-    res.set('Cache-Control', 'public, max-age=3600');
+    // A degraded resolve (Scryfall unreachable for part of the box) must not be
+    // cached — the retry would just get the same incomplete payload back.
+    const degraded =
+      sections.fetchErrorNames.length > 0 || physicalResolved.fetchErrorNames.length > 0;
+    if (!degraded) res.set('Cache-Control', 'public, max-age=3600');
     res.json({
       product: {
         fileName,
@@ -344,6 +350,7 @@ app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Res
       deck,
       physicalCards,
       unresolvedNames: dedupePreservingOrder(physicalResolved.unresolvedNames),
+      fetchErrors: dedupePreservingOrder(physicalResolved.fetchErrorNames),
       physicalCardCount: countPhysicalCards(deckFile),
     });
   } catch (err) {
@@ -378,9 +385,11 @@ app.get('/api/products/:fileName/summary', productLimiter, async (req: Request, 
 
     const { commanderRows } = productToDeckSections(deckFile);
     let summary: ProductCommanderSummary | null = null;
+    let degraded = false;
     if (commanderRows.length > 0) {
       const resolved = await resolveCards([commanderRows[0]], cache);
       const card = resolved.resolved[0];
+      degraded = resolved.fetchErrorNames.length > 0;
       if (card) {
         summary = {
           name: card.name,
@@ -391,8 +400,12 @@ app.get('/api/products/:fileName/summary', productLimiter, async (req: Request, 
         };
       }
     }
-    setCachedCommanderSummary(fileName, summary);
-    res.set('Cache-Control', 'public, max-age=86400');
+    // Don't cache a null summary that only exists because Scryfall was down —
+    // that would pin "no commander" on the row for a day.
+    if (!degraded) {
+      setCachedCommanderSummary(fileName, summary);
+      res.set('Cache-Control', 'public, max-age=86400');
+    }
     res.json({ commander: summary });
   } catch (err) {
     logger.error('[products] summary failed:', err);
@@ -404,6 +417,9 @@ app.get('/api/products/:fileName/summary', productLimiter, async (req: Request, 
  * Unified import endpoint. Accepts either:
  *   - multipart/form-data with field "file" (CSV/TSV/text)
  *   - application/json with { text: string }
+ *   - application/json with { rows: ImportRow[] } — the lossless retry path: a
+ *     degraded import's `fetchErrors` rows echoed back verbatim, so quantity /
+ *     printing / finish survive the round trip without re-parsing.
  *
  * Auto-detects format (ManaBox, Archidekt, Moxfield, generic CSV, MTGA, plain text)
  * and resolves cards via Scryfall by ID, name+set+collector, or name as available.
@@ -414,15 +430,24 @@ app.post(
   upload.single('file'),
   async (req: Request, res: Response) => {
     try {
-      const text = await readImportText(req);
-      if (!text) {
-        return res
-          .status(400)
-          .json({ error: 'Provide either a file (multipart) or JSON body { text: string }' });
+      let rows: ImportRow[];
+      let detectedFormat: string;
+      const bodyRows = readImportRows(req);
+      if (bodyRows) {
+        rows = bodyRows;
+        detectedFormat = bodyRows[0]?.sourceFormat ?? 'plain';
+      } else {
+        const text = await readImportText(req);
+        if (!text) {
+          return res.status(400).json({
+            error: 'Provide either a file (multipart) or JSON body { text: string }',
+          });
+        }
+        const parseResult = parseImport(text);
+        rows = parseResult.rows;
+        detectedFormat = parseResult.format;
       }
-
-      const parseResult = parseImport(text);
-      if (parseResult.rows.length === 0) {
+      if (rows.length === 0) {
         return res.status(400).json({
           error:
             'No cards found in the input. Try uploading a CSV from a supported tool, or pasting card names one per line.',
@@ -434,14 +459,24 @@ app.post(
       // afterward — during the merge — avoids materializing a second, potentially
       // huge ImportRow[] just to throw it away (a 2000-copy row would otherwise be
       // 2000 duplicate objects before dedup collapsed them again).
-      const { resolved, unresolvedNames } = await resolveCards(parseResult.rows, cache);
+      const { resolved, unresolvedNames, fetchErrorNames } = await resolveCards(rows, cache);
 
+      // Rows whose lookup never reached Scryfall (outage / rate-limit storm) are
+      // WITHHELD from the import — merging them as raw name-only cards would make
+      // a transient failure look like a pile of typos. They go back to the client
+      // in `fetchErrors` for a lossless retry.
+      const fetchFailed = new Set(fetchErrorNames);
+      const fetchErrorRows: ImportRow[] = [];
       let hits = 0;
       let misses = 0;
       let total = 0;
       const cards: EnrichedCard[] = [];
-      parseResult.rows.forEach((row, i) => {
+      rows.forEach((row, i) => {
         const sCard = resolved[i];
+        if (!sCard && row.name && fetchFailed.has(row.name)) {
+          fetchErrorRows.push(row);
+          return;
+        }
         const qty = Math.min(MAX_QTY_PER_ROW, Math.max(1, row.quantity || 1));
         for (let q = 0; q < qty; q++) {
           if (total >= MAX_TOTAL_CARDS) {
@@ -463,7 +498,8 @@ app.post(
         scryfallHits: hits,
         scryfallMisses: misses,
         unresolvedNames: dedupePreservingOrder(unresolvedNames),
-        detectedFormat: parseResult.format,
+        fetchErrors: fetchErrorRows,
+        detectedFormat,
       };
 
       res.json(response);
@@ -528,6 +564,7 @@ app.post(
         companion: sections.companion,
         cards: sections.cards,
         unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
+        fetchErrors: dedupePreservingOrder(sections.fetchErrorNames),
         detectedFormat: parseResult.format,
         cardCount:
           sections.cards.length + (sections.commander ? 1 : 0) + (sections.companion ? 1 : 0),
@@ -705,6 +742,80 @@ async function readImportText(req: Request): Promise<string | null> {
     return req.body.text;
   }
   return null;
+}
+
+const IMPORT_FORMATS = new Set<ImportFormat>([
+  'manabox',
+  'archidekt',
+  'moxfield',
+  'deckbox',
+  'generic-csv',
+  'mtga',
+  'plain',
+  'mtgjson',
+]);
+const FINISHES = new Set<Finish>(['nonfoil', 'foil', 'etched']);
+const CONDITIONS = new Set<Condition>(['nm', 'lp', 'mp', 'hp', 'damaged']);
+
+/**
+ * Rebuilds a client-supplied row (the `{ rows }` retry path) from a whitelist
+ * of ImportRow fields. The body is untrusted — everything is type-checked and
+ * enums are validated, so nothing but known shapes reaches the resolver.
+ * Returns null for entries with no usable identifier.
+ */
+function sanitizeImportRow(raw: unknown): ImportRow | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const name = str(r.name) ?? '';
+  const scryfallId = str(r.scryfallId);
+  if (!name && !scryfallId) return null;
+  const qty = typeof r.quantity === 'number' && isFinite(r.quantity) ? Math.floor(r.quantity) : 1;
+  const row: ImportRow = {
+    name,
+    quantity: Math.min(MAX_QTY_PER_ROW, Math.max(1, qty)),
+    sourceFormat: IMPORT_FORMATS.has(r.sourceFormat as ImportFormat)
+      ? (r.sourceFormat as ImportFormat)
+      : 'plain',
+  };
+  if (scryfallId) row.scryfallId = scryfallId;
+  const setCode = str(r.setCode);
+  if (setCode) row.setCode = setCode;
+  const setName = str(r.setName);
+  if (setName) row.setName = setName;
+  const collectorNumber = str(r.collectorNumber);
+  if (collectorNumber) row.collectorNumber = collectorNumber;
+  if (FINISHES.has(r.finish as Finish)) row.finish = r.finish as Finish;
+  if (CONDITIONS.has(r.condition as Condition)) row.condition = r.condition as Condition;
+  const language = str(r.language);
+  if (language) row.language = language;
+  if (r.altered === true) row.altered = true;
+  if (r.proxy === true) row.proxy = true;
+  if (r.misprint === true) row.misprint = true;
+  if (typeof r.purchasePrice === 'number' && isFinite(r.purchasePrice) && r.purchasePrice >= 0) {
+    row.purchasePrice = r.purchasePrice;
+  }
+  const rarity = str(r.rarity);
+  if (rarity) row.rarity = rarity;
+  const sourceCategory = str(r.sourceCategory);
+  if (sourceCategory) row.sourceCategory = sourceCategory;
+  return row;
+}
+
+/**
+ * Pulls pre-parsed rows from a JSON `{ rows }` body — the degraded-import retry
+ * path. Returns null when the request isn't that shape (falls through to the
+ * text/file path).
+ */
+function readImportRows(req: Request): ImportRow[] | null {
+  const raw: unknown = req.body?.rows;
+  if (!Array.isArray(raw)) return null;
+  if (raw.length > MAX_TOTAL_CARDS) {
+    throw new ImportTooLargeError(
+      `Import has too many rows (limit ${MAX_TOTAL_CARDS.toLocaleString()}).`
+    );
+  }
+  return raw.map(sanitizeImportRow).filter((r): r is ImportRow => r !== null);
 }
 
 /**

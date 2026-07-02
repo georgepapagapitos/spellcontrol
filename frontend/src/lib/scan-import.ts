@@ -17,6 +17,8 @@ export interface ScanImportResult {
   added: number;
   requested: number;
   unresolved: number;
+  /** Scanned names withheld because the card service was unreachable — retryable from the import panel. */
+  fetchErrors: number;
 }
 
 /**
@@ -40,5 +42,6 @@ export async function importScannedCards(
     added: response.cards.length,
     requested,
     unresolved: response.unresolvedNames.length,
+    fetchErrors: response.fetchErrors.length,
   };
 }

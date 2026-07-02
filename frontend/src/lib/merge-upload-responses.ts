@@ -6,6 +6,8 @@ import type { UploadResponse } from '@/types';
  * - cards: concatenated in chunk order.
  * - totalRows / scryfallHits / scryfallMisses: summed.
  * - unresolvedNames: deduplicated, preserving first-seen order.
+ * - fetchErrors: concatenated in chunk order (rows, not names — each chunk's
+ *   withheld rows are disjoint, so no dedup is needed).
  * - detectedFormat: the format from the first chunk (all chunks come from
  *   the same source file so they detect identically).
  */
@@ -19,6 +21,7 @@ export function mergeUploadResponses(responses: UploadResponse[]): UploadRespons
     scryfallHits: 0,
     scryfallMisses: 0,
     unresolvedNames: [],
+    fetchErrors: [],
     detectedFormat: responses[0].detectedFormat,
   };
   const seenUnresolved = new Set<string>();
@@ -27,6 +30,7 @@ export function mergeUploadResponses(responses: UploadResponse[]): UploadRespons
     merged.totalRows += r.totalRows;
     merged.scryfallHits += r.scryfallHits;
     merged.scryfallMisses += r.scryfallMisses;
+    merged.fetchErrors.push(...r.fetchErrors);
     for (const name of r.unresolvedNames) {
       if (seenUnresolved.has(name)) continue;
       seenUnresolved.add(name);
