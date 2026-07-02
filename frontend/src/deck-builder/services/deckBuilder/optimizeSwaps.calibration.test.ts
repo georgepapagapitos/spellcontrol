@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeDeck, computeOptimizeSwaps } from './deckAnalyzer';
+import {
+  analyzeDeck,
+  computeOptimizeSwaps,
+  countBasicFetchers,
+  computeBasicFloor,
+} from './deckAnalyzer';
 import { buildCardInclusionMap, buildCardSynergyMap } from './commanderDeckAnalysis';
 import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 
@@ -180,5 +185,129 @@ describe('computeOptimizeSwaps — off-package lift signal (E71 Phase 4)', () =>
       (r) => `${r.name}:${r.reason}`
     );
     expect(withUndefined).toEqual(baseline);
+  });
+});
+
+describe('countBasicFetchers / computeBasicFloor (E71 Phase 5)', () => {
+  const withOracle = (oracle_text: string): ScryfallCard =>
+    ({
+      name: oracle_text.slice(0, 20),
+      cmc: 3,
+      type_line: 'Sorcery',
+      oracle_text,
+      prices: {},
+      color_identity: ['G'],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+
+  it('detects Cultivate-style and Evolving Wilds-style basic tutoring', () => {
+    const cultivate = withOracle(
+      'Search your library for up to two basic land cards, reveal those cards, and put one onto the battlefield tapped.'
+    );
+    const wilds = withOracle('Search your library for a basic land card.');
+    expect(countBasicFetchers([cultivate, wilds])).toBe(2);
+  });
+
+  it('does not count non-basic land tutors', () => {
+    const woodElves = withOracle('Search your library for a Forest card.'); // any Forest, not basic-only
+    const tutor = withOracle('Search your library for a card.');
+    expect(countBasicFetchers([woodElves, tutor])).toBe(0);
+  });
+
+  it('floor is max(2, two per fetcher)', () => {
+    expect(computeBasicFloor(0)).toBe(2);
+    expect(computeBasicFloor(1)).toBe(2);
+    expect(computeBasicFloor(3)).toBe(6);
+  });
+});
+
+describe('computeOptimizeSwaps — oversupplied-basic cuts (E71 Phase 5)', () => {
+  const gSpell = (name: string): ScryfallCard =>
+    ({
+      name,
+      cmc: 2,
+      type_line: 'Creature',
+      mana_cost: '{G}{G}',
+      prices: {},
+      color_identity: ['G'],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+  const basic = (name: string, color: string): ScryfallCard =>
+    ({
+      name,
+      cmc: 0,
+      type_line: `Basic Land — ${name}`,
+      prices: {},
+      color_identity: [color],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+  const utilityLand = (name: string): ScryfallCard =>
+    ({
+      name,
+      cmc: 0,
+      type_line: 'Land',
+      oracle_text: '{T}: Add {C}.',
+      prices: {},
+      color_identity: [],
+      keywords: [],
+    }) as unknown as ScryfallCard;
+
+  function runLandOptimize(cards: ScryfallCard[]) {
+    const names = cards.map((c) => c.name);
+    const data = edhrec();
+    const inclusionMap = buildCardInclusionMap(data, names);
+    const roleTargets = { ramp: 10, removal: 10, boardwipe: 3, cardDraw: 10 };
+    const roleCounts = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const analysis = analyzeDeck(data, cards, roleCounts, roleTargets, 99, inclusionMap);
+    return computeOptimizeSwaps(
+      analysis,
+      cards,
+      inclusionMap,
+      'Some Commander',
+      undefined,
+      new Set<string>(),
+      new Set<string>()
+    );
+  }
+
+  it('cuts overserved-color basics by pip demand, sparing the demanded color and utility lands', () => {
+    // All pips are G, but 18 of 43 basics are Islands — Islands are the cut,
+    // Forests and the colorless utility land are not.
+    const cards = [
+      ...Array.from({ length: 3 }, (_, i) => gSpell(`G Spell ${i}`)),
+      ...Array.from({ length: 24 }, () => basic('Forest', 'G')),
+      ...Array.from({ length: 18 }, () => basic('Island', 'U')),
+      utilityLand('Command Beacon'),
+    ];
+    const swaps = runLandOptimize(cards);
+    const island = swaps.removals.find((r) => r.name === 'Island');
+    expect(island?.reasonCategory).toBe('oversupplied-basic');
+    expect(island?.reason).toContain('Oversupplied basic');
+    expect(swaps.removals.some((r) => r.name === 'Forest')).toBe(false);
+    expect(swaps.removals.some((r) => r.name === 'Command Beacon')).toBe(false);
+  });
+
+  it('never cuts basics below the basic-fetcher floor', () => {
+    // Only 4 basics (all off-color Islands) + enough fetchers for a floor of 4:
+    // despite the excess lands, no basic is suggested.
+    const fetcher = (i: number): ScryfallCard =>
+      ({
+        name: `Fetcher ${i}`,
+        cmc: 3,
+        type_line: 'Sorcery',
+        mana_cost: '{G}{G}',
+        oracle_text: 'Search your library for a basic land card.',
+        prices: {},
+        color_identity: ['G'],
+        keywords: [],
+      }) as unknown as ScryfallCard;
+    const cards = [
+      ...Array.from({ length: 2 }, (_, i) => fetcher(i)),
+      gSpell('G Spell'),
+      ...Array.from({ length: 4 }, () => basic('Island', 'U')),
+      ...Array.from({ length: 39 }, (_, i) => utilityLand(`Utility ${i}`)),
+    ];
+    const swaps = runLandOptimize(cards);
+    expect(swaps.removals.some((r) => r.reasonCategory === 'oversupplied-basic')).toBe(false);
   });
 });
