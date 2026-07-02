@@ -857,6 +857,32 @@ describe('web write-through (no durable outbox)', () => {
     expect(hasSyncError()).toBe(true);
   });
 
+  it('does not revert a server-committed chunk when the local rev-stamp throws (F19)', async () => {
+    // Server accepts the write (pushSync resolves)…
+    await estore.putMany('binder', [
+      { id: 'b-1', data: { id: 'b-1', name: 'old' }, rev: 3, deletedAt: null },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-1', rev: 5, deletedAt: null }],
+      cursor: 5,
+    });
+    // …but the local rev-stamp IDB write inside applyPushResult throws. That
+    // write is the one carrying a stamped rev (>0); the optimistic write (rev 0)
+    // must still go through.
+    const orig = estore.putMany;
+    const spy = vi.spyOn(estore, 'putMany').mockImplementation(async (kind, rows) => {
+      if (rows.some((r) => (r.rev ?? 0) > 0)) throw new Error('idb stamp failed');
+      return orig(kind, rows);
+    });
+
+    await recordUpsert('binder', 'b-1', { id: 'b-1', name: 'new' });
+    spy.mockRestore();
+
+    // The server committed 'new'; it must NOT be reverted to 'old'.
+    const row = await estore.getById('binder', 'b-1');
+    expect(row?.data).toEqual({ id: 'b-1', name: 'new' });
+  });
+
   it('two rapid same-deck edits do not self-conflict on one device', async () => {
     // The reported bug: editing a deck twice quickly on web fired "Deck changed
     // on another device" and dropped the second edit — with NO other device. The

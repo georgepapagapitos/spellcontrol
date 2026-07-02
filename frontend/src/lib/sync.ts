@@ -812,12 +812,17 @@ async function webPushInner(
   muts: queue.Mutation[],
   priors: Map<string, estore.StoredRow | undefined>
 ): Promise<void> {
-  let pushed = 0; // muts confirmed server-side (and stamped locally) so far
+  // muts the SERVER has committed — advanced right after pushSync resolves, so a
+  // throw in the local rev-stamp (applyPushResult) below never reverts a chunk
+  // the server already accepted (F19: that showed a visible revert of committed
+  // data). A subsequent pull() stamps the canonical rev idempotently.
+  let committed = 0;
   try {
-    for (; pushed < muts.length; pushed += WEB_PUSH_CHUNK) {
-      const slice = muts.slice(pushed, pushed + WEB_PUSH_CHUNK);
+    for (let start = 0; start < muts.length; start += WEB_PUSH_CHUNK) {
+      const slice = muts.slice(start, start + WEB_PUSH_CHUNK);
       const { upserts, deletions } = await buildOutbound(slice);
       const result = await pushSync({ upserts, deletions });
+      committed = start + slice.length;
       const hint = await applyPushResult(result);
       broadcastCursor(hint);
     }
@@ -826,11 +831,11 @@ async function webPushInner(
     markSynced();
   } catch (err) {
     logger.warn('[sync] web write failed; reverting optimistic change:', err);
-    // Revert only the rows that never reached the server — earlier chunks were
-    // already stamped with their canonical rev by applyPushResult.
+    // Revert only the rows that never reached the server — committed chunks keep
+    // their optimistic value (the server has them; pull() reconciles the rev).
     const restoreByKind = new Map<EntityKind, estore.StoredRow[]>();
     const removeByKind = new Map<EntityKind, string[]>();
-    for (const m of muts.slice(pushed)) {
+    for (const m of muts.slice(committed)) {
       const prior = priors.get(`${m.kind}:${m.id}`);
       if (prior) {
         const arr = restoreByKind.get(m.kind) ?? [];
