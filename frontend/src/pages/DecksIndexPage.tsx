@@ -242,6 +242,7 @@ export function DecksIndexPage() {
     navigate('/decks/new', {
       state: {
         prefill: {
+          sourceDeckId: deck.id,
           commander: deck.commander,
           themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
             name: t.name,
