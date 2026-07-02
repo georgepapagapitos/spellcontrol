@@ -31,6 +31,7 @@ import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
+import { TableRecordPanel } from '../components/deck/TableRecordPanel';
 import { CoachFeed } from '../components/deck/CoachFeed';
 import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSizePrompt';
 import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
@@ -2181,6 +2182,8 @@ export function DeckEditorPage() {
             roleCounts={deck.roleCounts}
             roleTargets={deck.roleTargets}
             buildReport={deck.buildReport}
+            onAddSuggestedCard={handleAddEngineCard}
+            addingSuggestedCardNames={addingEngineNames}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -2244,6 +2247,7 @@ export function DeckEditorPage() {
                 />
               ) : undefined
             }
+            tableRecordSlot={<TableRecordPanel deckId={deck.id} />}
             combosSlot={
               formatConfig?.hasCommander ? (
                 <DeckCombosPanel
