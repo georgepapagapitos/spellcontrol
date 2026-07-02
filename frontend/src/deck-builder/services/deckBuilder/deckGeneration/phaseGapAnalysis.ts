@@ -1,18 +1,30 @@
 import { logger } from '@/lib/logger';
-import type { GapAnalysisCard } from '@/deck-builder/types';
-import { getCardsByNames, getCardPrice } from '@/deck-builder/services/scryfall/client';
+import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
+import {
+  getCardsByNames,
+  getCardPrice,
+  upgradeCardPrintings,
+} from '@/deck-builder/services/scryfall/client';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority } from '../cardPicking';
+import { exceedsMaxRarity, isOwnedRarityExempt, notOnArena, exceedsCmcCap } from '../deckFilters';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
 import { getLiftIndex } from './liftPools';
 
+export interface GapAnalysisOptions {
+  /** The generation's EFFECTIVE Scryfall filter (user query + alt-mode
+   *  constraint) — enforced strictly so suggestions match the pool's filter. */
+  effectiveScryfallQuery?: string;
+}
+
 // Gap analysis: find top unowned cards that would improve the deck.
-// Verbatim extraction from generateDeck: closed-over free vars are rewritten
-// to `state.X` (context -> state.context, categories/bannedCards ->
-// state.X, preferredSet/currency -> state.cfg.X). No behavior change.
+// Suggestions honor the same rarity/Arena/CMC caps and Scryfall filter as
+// generation itself (E71 controls audit) — salt is already covered upstream
+// because candidates come from the salt-trimmed cardlists.
 export async function gapAnalysisPhase(
-  state: GenerationState
+  state: GenerationState,
+  opts: GapAnalysisOptions = {}
 ): Promise<GapAnalysisCard[] | undefined> {
   let gapAnalysis: GapAnalysisCard[] | undefined;
   if (state.context.collectionNames && state.edhrecData) {
@@ -44,6 +56,33 @@ export async function gapAnalysisPhase(
         state.cfg.preferredSet
       );
 
+      // Enforce the user's Scryfall filter / alt-mode constraint on
+      // suggestions (candidates come from the unfiltered EDHREC list, not the
+      // query-scoped cardMap): the strict upgrade deletes non-matching cards,
+      // which the price-null filter below then drops.
+      const effectiveQuery = opts.effectiveScryfallQuery?.trim() ?? '';
+      if (effectiveQuery && gapCardMap.size > 0) {
+        await upgradeCardPrintings(gapCardMap, effectiveQuery, true);
+      }
+
+      // A suggestion the user can't actually run isn't a suggestion: apply
+      // the same rarity (owned-exempt aware) / Arena / CMC gates as picking.
+      const violatesConstraints = (scryfall: ScryfallCard | undefined): boolean => {
+        if (!scryfall) return false; // unresolvable — price-null filter drops it below
+        if (
+          !isOwnedRarityExempt(
+            scryfall.name,
+            state.context.collectionNames,
+            state.cfg.ignoreOwnedRarity
+          ) &&
+          exceedsMaxRarity(scryfall, state.cfg.maxRarity)
+        )
+          return true;
+        if (notOnArena(scryfall, state.cfg.arenaOnly)) return true;
+        if (exceedsCmcCap(scryfall, state.cfg.maxCmc)) return true;
+        return false;
+      };
+
       const ROLE_LABELS: Record<string, string> = {
         ramp: 'Ramp',
         removal: 'Removal',
@@ -51,6 +90,7 @@ export async function gapAnalysisPhase(
         cardDraw: 'Card Advantage',
       };
       gapAnalysis = gapCandidates
+        .filter((c) => !violatesConstraints(gapCardMap.get(c.name)))
         .map((c) => {
           const scryfall = gapCardMap.get(c.name);
           const role = getCardRole(c.name) || undefined;

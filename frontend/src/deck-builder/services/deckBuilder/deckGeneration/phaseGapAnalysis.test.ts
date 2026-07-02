@@ -2,11 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { EDHRECCard, LiftEntry, ScryfallCard } from '@/deck-builder/types';
 
 const getCardsByNamesMock = vi.fn<() => Promise<Map<string, ScryfallCard>>>();
+const upgradeCardPrintingsMock =
+  vi.fn<(map: Map<string, ScryfallCard>, query: string, strict: boolean) => Promise<void>>();
 vi.mock('@/deck-builder/services/scryfall/client', async (orig) => ({
   ...(await orig<typeof import('@/deck-builder/services/scryfall/client')>()),
   getCardsByNames: (...args: unknown[]) =>
     getCardsByNamesMock(...(args as Parameters<typeof getCardsByNamesMock>)),
   getCardPrice: () => '1.00',
+  upgradeCardPrintings: (...args: Parameters<typeof upgradeCardPrintingsMock>) =>
+    upgradeCardPrintingsMock(...args),
 }));
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: () => null,
@@ -26,7 +30,7 @@ function edhrecCard(name: string, overrides: Partial<EDHRECCard> = {}): EDHRECCa
   };
 }
 
-function scryfallCard(name: string): ScryfallCard {
+function scryfallCard(name: string, overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
     id: name,
     oracle_id: name,
@@ -40,6 +44,7 @@ function scryfallCard(name: string): ScryfallCard {
     set_name: 'Test',
     prices: {},
     legalities: { commander: 'legal' },
+    ...overrides,
   } as ScryfallCard;
 }
 
@@ -132,7 +137,11 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
   } as GenerationState;
 }
 
-beforeEach(() => getCardsByNamesMock.mockReset());
+beforeEach(() => {
+  getCardsByNamesMock.mockReset();
+  upgradeCardPrintingsMock.mockReset();
+  upgradeCardPrintingsMock.mockResolvedValue(undefined);
+});
 
 describe('gapAnalysisPhase', () => {
   it('returns undefined without a collection or without EDHREC data', async () => {
@@ -215,5 +224,97 @@ describe('gapAnalysisPhase', () => {
 
     const result = await gapAnalysisPhase(state);
     expect(result?.map((c) => c.name)).toEqual(['Staple', 'Fringe']);
+  });
+});
+
+describe('gapAnalysisPhase constraint gates (E71 controls audit)', () => {
+  // Suggestions must honor the same rarity/Arena/CMC caps and Scryfall filter
+  // as generation itself — a Tiny Leaders Arena-only common-capped build must
+  // not be told to consider a 6-mana paper-only mythic.
+  function stateWithCandidates(): GenerationState {
+    return makeState({
+      edhrecData: {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Violator', { inclusion: 90 }),
+            edhrecCard('Fine', { inclusion: 50 }),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'],
+    });
+  }
+
+  it('drops suggestions over the rarity cap unless owned-exempt', async () => {
+    const state = stateWithCandidates();
+    state.cfg.maxRarity = 'uncommon';
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Violator', scryfallCard('Violator', { rarity: 'mythic' })],
+        ['Fine', scryfallCard('Fine')],
+      ])
+    );
+
+    expect((await gapAnalysisPhase(state))?.map((c) => c.name)).toEqual(['Fine']);
+
+    // Owned + ignoreOwnedRarity => the mythic is exempt and may surface.
+    state.cfg.ignoreOwnedRarity = true;
+    state.context.collectionNames = new Set(['Violator']);
+    expect((await gapAnalysisPhase(state))?.map((c) => c.name)).toEqual(['Violator', 'Fine']);
+  });
+
+  it('drops non-Arena suggestions in Arena-only mode', async () => {
+    const state = stateWithCandidates();
+    state.cfg.arenaOnly = true;
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Violator', scryfallCard('Violator', { games: ['paper'] })],
+        ['Fine', scryfallCard('Fine', { games: ['paper', 'arena'] })],
+      ])
+    );
+
+    expect((await gapAnalysisPhase(state))?.map((c) => c.name)).toEqual(['Fine']);
+  });
+
+  it('drops suggestions over the mana-value cap', async () => {
+    const state = stateWithCandidates();
+    state.cfg.maxCmc = 3;
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Violator', scryfallCard('Violator', { cmc: 6 })],
+        ['Fine', scryfallCard('Fine')],
+      ])
+    );
+
+    expect((await gapAnalysisPhase(state))?.map((c) => c.name)).toEqual(['Fine']);
+  });
+
+  it('enforces the effective Scryfall filter via the strict printing upgrade', async () => {
+    const state = stateWithCandidates();
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Violator', scryfallCard('Violator')],
+        ['Fine', scryfallCard('Fine')],
+      ])
+    );
+    upgradeCardPrintingsMock.mockImplementation(async (map) => {
+      map.delete('Violator'); // no printing matches the query
+    });
+
+    const result = await gapAnalysisPhase(state, { effectiveScryfallQuery: 'is:full-art' });
+    expect(upgradeCardPrintingsMock).toHaveBeenCalledWith(expect.any(Map), 'is:full-art', true);
+    expect(result?.map((c) => c.name)).toEqual(['Fine']);
+  });
+
+  it('skips the printing upgrade when no filter is set', async () => {
+    const state = stateWithCandidates();
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Violator', scryfallCard('Violator')],
+        ['Fine', scryfallCard('Fine')],
+      ])
+    );
+
+    await gapAnalysisPhase(state);
+    expect(upgradeCardPrintingsMock).not.toHaveBeenCalled();
   });
 });

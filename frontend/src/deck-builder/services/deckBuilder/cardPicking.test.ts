@@ -491,3 +491,94 @@ describe('bracket guardrail in picking', () => {
     expect(picked.map((c) => c.name)).toEqual(['Plain Bear']);
   });
 });
+
+describe('pickFromPrefetched game-changer cap (E71 controls audit)', () => {
+  const pickWithCap = (cap: number, gameChangerCount: { value: number }) => {
+    const cards = [
+      ec({ name: 'GC One', inclusion: 90 }),
+      ec({ name: 'GC Two', inclusion: 80 }),
+      ec({ name: 'Plain', inclusion: 70 }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    return pickFromPrefetched(
+      cards,
+      map,
+      3,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      cap,
+      gameChangerCount,
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(['GC One', 'GC Two'])
+    );
+  };
+
+  it('caps game changers at maxGameChangers with a shared running count', () => {
+    const gameChangerCount = { value: 0 };
+    const picked = pickWithCap(1, gameChangerCount);
+    expect(picked.map((c) => c.name)).toEqual(['GC One', 'Plain']);
+    expect(picked[0].isGameChanger).toBe(true);
+    expect(gameChangerCount.value).toBe(1);
+  });
+
+  it('a pre-existing count from earlier phases blocks all further game changers', () => {
+    const picked = pickWithCap(1, { value: 1 });
+    expect(picked.map((c) => c.name)).toEqual(['Plain']);
+  });
+});
+
+describe("pickFromPrefetched 'partial' owned-percentage quota (E71 controls audit)", () => {
+  const cards = [
+    ec({ name: 'Owned Hi', inclusion: 90 }),
+    ec({ name: 'Owned Lo', inclusion: 80 }),
+    ec({ name: 'Un Hi', inclusion: 70 }),
+    ec({ name: 'Un Lo', inclusion: 60 }),
+  ];
+  const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+  const owned = new Set(['Owned Hi', 'Owned Lo']);
+
+  const pickPartial = (count: number, ownedPercent: number, candidates = cards) =>
+    pickFromPrefetched(
+      candidates,
+      map,
+      count,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      owned,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'partial',
+      ownedPercent
+    );
+
+  it('splits picks by the owned quota, not pure priority', () => {
+    // 50% of 2 = 1 owned + 1 unowned: "Un Hi" gets the second slot even
+    // though "Owned Lo" outranks it on priority — that's the quota working.
+    const picked = pickPartial(2, 50);
+    expect(picked.map((c) => c.name)).toEqual(['Owned Hi', 'Un Hi']);
+  });
+
+  it('relaxes the quota when the owned pool falls short', () => {
+    // 100% of 3 = 3 owned wanted but only 1 owned candidate exists — the
+    // shortfall fill tops up from the unowned pool instead of underfilling.
+    const oneOwned = cards.filter((c) => c.name !== 'Owned Lo');
+    const picked = pickPartial(3, 100, oneOwned);
+    expect(picked.map((c) => c.name)).toEqual(['Owned Hi', 'Un Hi', 'Un Lo']);
+  });
+});

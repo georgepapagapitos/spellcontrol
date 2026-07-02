@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import type { DeckCategory, LiftPackagePick, ScryfallCard } from '@/deck-builder/types';
-import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import { getCardsByNames, upgradeCardPrintings } from '@/deck-builder/services/scryfall/client';
 import { aggregateLiftCandidates, selectTopLiftPicks, type LiftCandidate } from '../liftSynergy';
 import {
   fitsColorIdentity,
@@ -30,6 +30,8 @@ const FILTER_REASON_LABELS = {
   arena: 'not on Arena',
   cmc: 'over mana-value cap',
   budget: 'over budget cap',
+  salt: 'over salt tolerance',
+  filter: 'outside your card filters',
 } as const;
 
 type FilterReason = keyof typeof FILTER_REASON_LABELS;
@@ -68,9 +70,16 @@ function collectSeeds(state: GenerationState, nonLandCards: ScryfallCard[]): str
 /** Hard-filters a lift candidate against every active generation constraint —
  *  the same gates the EDHREC-pool picking / Scryfall-fallback paths enforce
  *  (deckFilters.ts), so a "hidden synergy" suggestion can never bypass color
- *  identity, legality, rarity, Arena-only, CMC cap, or the per-card budget
- *  cap. Returns the reason it was rejected, or undefined if it survives. */
-function rejectionReason(card: ScryfallCard, state: GenerationState): FilterReason | undefined {
+ *  identity, legality, rarity, Arena-only, CMC cap, the per-card budget cap,
+ *  or the salt tolerance. (The user's Scryfall filter / alt-mode constraint
+ *  is enforced separately via a strict printing upgrade in liftPicksPhase —
+ *  it needs the whole batch, not one card.) Returns the reason it was
+ *  rejected, or undefined if it survives. */
+function rejectionReason(
+  card: ScryfallCard,
+  state: GenerationState,
+  isSaltBlocked?: (name: string) => boolean
+): FilterReason | undefined {
   if (!fitsColorIdentity(card, state.context.colorIdentity)) return 'offColor';
   if (notCommanderLegal(card)) return 'legal';
   if (
@@ -85,7 +94,18 @@ function rejectionReason(card: ScryfallCard, state: GenerationState): FilterReas
     exceedsMaxPrice(card, state.cfg.maxCardPrice, state.cfg.currency)
   )
     return 'budget';
+  if (isSaltBlocked?.(card.name)) return 'salt';
   return undefined;
+}
+
+export interface LiftPicksOptions {
+  /** The generation's EFFECTIVE Scryfall filter — the user's query plus any
+   *  alt-mode constraint deckGenerator appended (historical year, permanents-
+   *  only, otag/arttag). Enforced strictly on candidates so a package pick
+   *  can never fall outside the pool's own filter. */
+  effectiveScryfallQuery?: string;
+  /** Salt hard gate built in deckGenerator (undefined = no cap active). */
+  isSaltBlocked?: (name: string) => boolean;
 }
 
 /**
@@ -99,7 +119,10 @@ function rejectionReason(card: ScryfallCard, state: GenerationState): FilterReas
  * Soft-fails to no picks (network issues, no EDHREC data, nothing survives
  * the filters) — generation always continues.
  */
-export async function liftPicksPhase(state: GenerationState): Promise<LiftPicksResult | undefined> {
+export async function liftPicksPhase(
+  state: GenerationState,
+  opts: LiftPicksOptions = {}
+): Promise<LiftPicksResult | undefined> {
   if (!state.edhrecData) return undefined;
 
   try {
@@ -133,12 +156,26 @@ export async function liftPicksPhase(state: GenerationState): Promise<LiftPicksR
       arena: 0,
       cmc: 0,
       budget: 0,
+      salt: 0,
+      filter: 0,
     };
+
+    // Lift candidates come from EDHREC card pages, not the query-scoped pool,
+    // so the user's Scryfall filter / alt-mode constraint has to be enforced
+    // here explicitly. Same strict printing upgrade the EDHREC pool gets in
+    // deckGenerator: cards with no printing matching the query are deleted.
+    const effectiveQuery = opts.effectiveScryfallQuery?.trim() ?? '';
+    if (effectiveQuery && cardMap.size > 0) {
+      const before = cardMap.size;
+      await upgradeCardPrintings(cardMap, effectiveQuery, true);
+      filterCounts.filter += before - cardMap.size;
+    }
+
     const survivors: LiftCandidate[] = [];
     for (const candidate of topCandidates) {
       const card = cardMap.get(candidate.name);
       if (!card) continue; // unresolvable — drop silently, not a constraint rejection
-      const reason = rejectionReason(card, state);
+      const reason = rejectionReason(card, state, opts.isSaltBlocked);
       if (reason) {
         filterCounts[reason]++;
         continue;
