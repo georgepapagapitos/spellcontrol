@@ -79,6 +79,50 @@ describe('syncOfflineData', () => {
     expect(progressEvents.at(-1)).toBe('done');
   });
 
+  it('persists the oracle version after the cards phase so a combos failure does not re-download cards (F15)', async () => {
+    let oracleFetches = 0;
+    let combosCalls = 0;
+    const manifest = {
+      oracleVersion: 'v1',
+      oracleCardCount: 1,
+      oracleByteSize: 10,
+      oracleUpdatedAt: 1,
+      combosVersion: 'c1',
+      combosCount: 1,
+      combosByteSize: 10,
+      combosUpdatedAt: 1,
+    };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/api/offline/manifest')) return jsonResponse(manifest);
+      if (url.endsWith('/api/offline/oracle-cards')) {
+        oracleFetches += 1;
+        return gzippedEmptyArray();
+      }
+      if (url.endsWith('/api/offline/combos')) {
+        combosCalls += 1;
+        // Fail the combos phase on the first sync, succeed on the resume.
+        if (combosCalls === 1) return new Response('boom', { status: 500 });
+        return gzippedEmptyArray();
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const first = syncOfflineData({});
+    const firstAssertion = expect(first).rejects.toThrow();
+    await vi.runAllTimersAsync();
+    await firstAssertion;
+    expect(oracleFetches).toBe(1);
+
+    // Resume: cards are already stored and the oracle version was persisted, so
+    // oracle-cards must NOT be re-fetched; only combos retries.
+    const second = syncOfflineData({});
+    await vi.runAllTimersAsync();
+    await second;
+    expect(oracleFetches).toBe(1);
+    expect(combosCalls).toBe(2);
+  });
+
   it('gives up on a non-retryable status', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 500 }));
     // No timers fire on this path (500 is not retryable), so attach the

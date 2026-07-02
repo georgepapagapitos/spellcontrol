@@ -61,12 +61,29 @@ export interface StoredCollection {
  * + queue enqueue + debounced push). The legacy callers pass the whole
  * StoredCollection blob; we decompose it into the per-kind helpers here.
  */
+/** Thrown by {@link saveCollection} when one or more entity kinds failed to
+ *  persist; `kinds` names exactly which (so the caller can report accurately
+ *  instead of claiming the whole import was lost). */
+export class SaveCollectionError extends Error {
+  constructor(readonly kinds: string[]) {
+    super(`Failed to persist locally: ${kinds.join(', ')}`);
+    this.name = 'SaveCollectionError';
+  }
+}
+
 export async function saveCollection(data: StoredCollection): Promise<void> {
-  await Promise.all([
+  // allSettled (not Promise.all): a single kind's failure must not mask that
+  // the others persisted — otherwise the caller wrongly reports total loss.
+  const results = await Promise.allSettled([
     sync.persistCardsState(data.cards),
     sync.persistImportsState(data.importHistory),
     sync.persistListsState(data.lists),
   ]);
+  const kinds = ['cards', 'imports', 'lists'];
+  const failed = results
+    .map((r, i) => (r.status === 'rejected' ? kinds[i] : null))
+    .filter((k): k is string => k !== null);
+  if (failed.length > 0) throw new SaveCollectionError(failed);
 }
 
 /**

@@ -179,6 +179,17 @@ export async function syncOfflineData(opts: {
         detail: `${done} / ${total} cards`,
       });
     });
+
+    // Persist the oracle version now, keeping combos at their old (local)
+    // values, so a failure in the combos phase below doesn't discard the
+    // just-stored cards and force a full re-download on the next resume (F15).
+    await writeManifest({
+      ...server,
+      combosVersion: local?.combosVersion ?? '',
+      combosCount: local?.combosCount ?? 0,
+      combosByteSize: local?.combosByteSize ?? 0,
+      combosUpdatedAt: local?.combosUpdatedAt ?? 0,
+    });
   }
 
   if (!combosUpToDate) {
