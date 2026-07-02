@@ -169,6 +169,36 @@ describe('buildCommanderProfile', () => {
     expect(profile.abilities[0].archetypeHint).toBe(Archetype.REANIMATOR);
   });
 
+  it('surfaces each ability’s primary theme in the top few, not one ability’s whole list', () => {
+    // General breadth-first guarantee: a commander with a multi-theme dominant
+    // ability (here an ETB → blink/flicker/etb) plus a distinct lower-ranked
+    // ability must still float that other ability's PRIMARY theme into the top-3
+    // preselect window — depth-first flattening buried it below the ETB's
+    // secondary themes. Queen Marchesa is just a convenient fixture (ETB +
+    // token maker + monarch); the property is not monarch-specific.
+    const profile = buildCommanderProfile(
+      makeCard({
+        name: 'Queen Marchesa',
+        type_line: 'Legendary Creature — Human Noble',
+        oracle_text:
+          'Deathtouch, haste\nWhen Queen Marchesa enters the battlefield, you become the monarch.\nAt the beginning of your upkeep, if an opponent is the monarch, create a 1/1 red and white Assassin creature token with deathtouch and haste.',
+      })
+    );
+
+    const kw = profile.abilities.map((a) => a.keyword);
+    expect(kw).toContain('etb');
+    expect(kw).toContain('monarch');
+
+    // 'monarch' is the primary theme of a lower-ranked ability; it must land in
+    // the top-3 the customizer preselects, not get crowded out by blink/flicker.
+    expect(profile.suggestedThemes.slice(0, 3)).toContain('monarch');
+    // And no near-duplicate cluster: the ETB's own secondary themes shouldn't
+    // all precede monarch (that was the depth-first failure).
+    expect(profile.suggestedThemes.indexOf('monarch')).toBeLessThan(
+      profile.suggestedThemes.indexOf('flicker')
+    );
+  });
+
   it('returns a graceful summary for a vanilla commander', () => {
     const profile = buildCommanderProfile(makeCard({ name: 'Plain Bear', oracle_text: '' }));
     expect(profile.abilities).toHaveLength(0);
