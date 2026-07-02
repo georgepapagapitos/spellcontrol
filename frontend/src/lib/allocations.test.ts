@@ -10,6 +10,7 @@ import {
   planCardAdd,
   listContestedCards,
   makeDeckAllocationInfo,
+  computeSurplusByName,
   type AllocationInfo,
 } from './allocations';
 import type { SavedCube, CubePickSlot } from '../store/cube';
@@ -927,5 +928,71 @@ describe('classifyPrintingAvailability', () => {
     };
     const map = buildAllocationMap([], [cube]);
     expect(classifyPrintingAvailability('sf-target', collection, map, 'current')).toBe('in-cube');
+  });
+});
+
+describe('computeSurplusByName', () => {
+  it('flags a card with unallocated copies beyond the first kept copy', () => {
+    const cards = [
+      card({ copyId: 'a', name: 'Sol Ring' }),
+      card({ copyId: 'b', name: 'Sol Ring' }),
+      card({ copyId: 'c', name: 'Sol Ring' }),
+    ];
+    const surplus = computeSurplusByName(cards, new Map());
+    // 3 unallocated - 1 kept = 2 tradeable.
+    expect(surplus.get('Sol Ring')).toBe(2);
+  });
+
+  it('does not flag a card with exactly one unallocated copy', () => {
+    const cards = [card({ copyId: 'a', name: 'Sol Ring' })];
+    const surplus = computeSurplusByName(cards, new Map());
+    expect(surplus.has('Sol Ring')).toBe(false);
+  });
+
+  it('does not flag a fully allocated card', () => {
+    const d = deck({
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'a' }],
+    });
+    const cards = [card({ copyId: 'a', name: 'Sol Ring' })];
+    const allocations = buildAllocationMap([d]);
+    const surplus = computeSurplusByName(cards, allocations);
+    expect(surplus.has('Sol Ring')).toBe(false);
+  });
+
+  it('subtracts only the allocated copies, leaving the rest as surplus', () => {
+    const d = deck({
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'a' }],
+    });
+    const cards = [
+      card({ copyId: 'a', name: 'Sol Ring' }),
+      card({ copyId: 'b', name: 'Sol Ring' }),
+      card({ copyId: 'c', name: 'Sol Ring' }),
+    ];
+    const allocations = buildAllocationMap([d]);
+    // 1 allocated, 2 unallocated - 1 kept = 1 tradeable.
+    const surplus = computeSurplusByName(cards, allocations);
+    expect(surplus.get('Sol Ring')).toBe(1);
+  });
+
+  it('excludes basic lands even with many unallocated copies', () => {
+    const cards = [
+      card({ copyId: 'a', name: 'Forest', scryfallId: 'sf-forest-1' }),
+      card({ copyId: 'b', name: 'Forest', scryfallId: 'sf-forest-1' }),
+      card({ copyId: 'c', name: 'Forest', scryfallId: 'sf-forest-1' }),
+      card({ copyId: 'd', name: 'Snow-Covered Forest', scryfallId: 'sf-forest-2' }),
+      card({ copyId: 'e', name: 'Snow-Covered Forest', scryfallId: 'sf-forest-2' }),
+    ];
+    const surplus = computeSurplusByName(cards, new Map());
+    expect(surplus.size).toBe(0);
+  });
+
+  it('combines copies of a card across multiple printings by name', () => {
+    const cards = [
+      card({ copyId: 'a', name: 'Sol Ring', scryfallId: 'sf-1', setCode: 'CMR' }),
+      card({ copyId: 'b', name: 'Sol Ring', scryfallId: 'sf-2', setCode: 'C21' }),
+      card({ copyId: 'c', name: 'Sol Ring', scryfallId: 'sf-3', setCode: 'LTC' }),
+    ];
+    const surplus = computeSurplusByName(cards, new Map());
+    expect(surplus.get('Sol Ring')).toBe(2);
   });
 });
