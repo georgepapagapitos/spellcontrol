@@ -362,10 +362,10 @@ export interface ManabaseSummary {
  * One generation-end coherence-audit finding (see coherenceAudit.ts): a card
  * the final deck may not support — a payoff whose engine never materialized
  * ('dead-payoff'), a card with no remaining tie to the deck at all
- * ('unjustified-slot'), a land the manabase can't back up ('land-sanity') —
- * or a deck-level note: a lopsided engine, a missing/thin win path
- * ('win-condition'), or a threat class the deck's colors could answer but
- * don't ('answer-coverage').
+ * ('unjustified-slot'), a land the manabase can't back up ('land-sanity'), a
+ * card opposing the deck's own plan ('nonbo') — or a deck-level note: a
+ * lopsided engine, a missing/thin win path ('win-condition'), or a threat
+ * class the deck's colors could answer but don't ('answer-coverage').
  */
 export interface CoherenceFinding {
   kind:
@@ -374,7 +374,8 @@ export interface CoherenceFinding {
     | 'lopsided-engine'
     | 'land-sanity'
     | 'win-condition'
-    | 'answer-coverage';
+    | 'answer-coverage'
+    | 'nonbo';
   severity: 'warn' | 'info';
   /** Card the finding is about; absent for deck-level findings. */
   card?: string;

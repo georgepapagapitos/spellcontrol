@@ -417,6 +417,26 @@ describe('BuildReportPanel', () => {
       expect(screen.getByText(/opposing enchantment/)).toBeTruthy();
     });
 
+    it('labels nonbo findings with a Nonbo badge', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            coherenceFindings: [
+              {
+                kind: 'nonbo',
+                severity: 'warn',
+                card: 'Rest in Peace',
+                message:
+                  "It shuts off the deck's own Graveyard / recursion engine — a hard nonbo with the plan.",
+              },
+            ],
+          })}
+        />
+      );
+      expect(screen.getByText('Rest in Peace')).toBeTruthy();
+      expect(screen.getByText('Nonbo')).toBeTruthy();
+    });
+
     it('renders auto-applied repairs — alone and alongside remaining flags', () => {
       const repair = {
         cut: 'Vanilla Beast',
