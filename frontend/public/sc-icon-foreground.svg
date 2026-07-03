@@ -4,6 +4,6 @@
     <rect x="136" y="84" width="240" height="344" rx="26" fill="#42539e"/>
     <path d="M162 84 a26 26 0 0 0 -26 26 v 292 a26 26 0 0 0 26 26 h 26 V 84 Z" fill="#333f78"/>
     <rect x="136" y="264" width="240" height="46" rx="6" fill="#d9a441"/>
-    <rect x="348" y="259" width="56" height="56" rx="10" transform="rotate(45 376 287)" fill="#f0c368"/>
+    <rect x="228" y="259" width="56" height="56" rx="10" transform="rotate(45 256 287)" fill="#f0c368"/>
   </g>
 </svg>

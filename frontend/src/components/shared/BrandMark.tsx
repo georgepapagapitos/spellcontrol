@@ -35,14 +35,14 @@ export function BrandMark({ size = 28, className, 'aria-hidden': ariaHidden }: P
       <path d="M162 84 a26 26 0 0 0 -26 26 v 292 a26 26 0 0 0 26 26 h 26 V 84 Z" fill="#333f78" />
       {/* strap */}
       <rect x="136" y="264" width="240" height="46" rx="6" fill="#d9a441" />
-      {/* diamond clasp, latched over the fore-edge */}
+      {/* diamond clasp — a centered seal on the strap */}
       <rect
-        x="348"
+        x="228"
         y="259"
         width="56"
         height="56"
         rx="10"
-        transform="rotate(45 376 287)"
+        transform="rotate(45 256 287)"
         fill="#f0c368"
       />
     </svg>
