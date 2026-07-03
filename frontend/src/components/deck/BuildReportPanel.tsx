@@ -346,7 +346,9 @@ export function BuildReportPanel({
                           ? 'No deck link'
                           : f.kind === 'land-sanity'
                             ? 'Land sanity'
-                            : 'Engine note'
+                            : f.kind === 'win-condition'
+                              ? 'Win path'
+                              : 'Engine note'
                     }
                   />
                 </span>

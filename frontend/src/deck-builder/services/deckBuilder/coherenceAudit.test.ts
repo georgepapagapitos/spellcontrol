@@ -360,3 +360,76 @@ describe('auditDeckCoherence — land sanity', () => {
     ).toHaveLength(0);
   });
 });
+
+// ── Win-condition check (E77) ──
+
+const winCombo: DetectedCombo = {
+  comboId: 'wc1',
+  cards: ['Piece A', 'Piece B'],
+  results: ['Win the game'],
+  isComplete: true,
+  missingCards: [],
+  deckCount: 100,
+  bracket: null,
+  cardCount: 2,
+};
+
+const altWinCard = card({
+  name: 'Grand Finale',
+  type_line: 'Enchantment',
+  oracle_text: 'At the beginning of your upkeep, if you control ten permanents, you win the game.',
+});
+
+describe('auditDeckCoherence — win-condition (E77)', () => {
+  it('warns first when the deck has no way to win', () => {
+    const findings = audit([vanilla], {
+      cardInclusionMap: { 'Vanilla Beast': 10 },
+      format: 'commander',
+    });
+    const wc = findings.filter((f) => f.kind === 'win-condition');
+    expect(wc).toHaveLength(1);
+    expect(wc[0].severity).toBe('warn');
+    expect(wc[0].card).toBeUndefined(); // deck-level
+    expect(findings[0].kind).toBe('win-condition'); // the headline flag leads
+  });
+
+  it('info-flags a single win path, naming it', () => {
+    const findings = audit([vanilla], {
+      cardInclusionMap: { 'Vanilla Beast': 10 },
+      detectedCombos: [winCombo],
+      format: 'commander',
+    });
+    const wc = findings.filter((f) => f.kind === 'win-condition');
+    expect(wc).toHaveLength(1);
+    expect(wc[0].severity).toBe('info');
+    expect(wc[0].message).toContain('Infinite combo');
+  });
+
+  it('stays silent with two win paths', () => {
+    const findings = audit([vanilla, altWinCard], {
+      cardInclusionMap: { 'Vanilla Beast': 10, 'Grand Finale': 8 },
+      detectedCombos: [winCombo],
+      format: 'commander',
+    });
+    expect(findings.filter((f) => f.kind === 'win-condition')).toHaveLength(0);
+  });
+
+  it('ignores incomplete combos — a plan to have a plan is not a win path', () => {
+    const findings = audit([vanilla], {
+      cardInclusionMap: { 'Vanilla Beast': 10 },
+      detectedCombos: [{ ...winCombo, isComplete: false, missingCards: ['Piece B'] }],
+      format: 'commander',
+    });
+    const wc = findings.filter((f) => f.kind === 'win-condition');
+    expect(wc).toHaveLength(1);
+    expect(wc[0].severity).toBe('warn');
+  });
+
+  it('does not run without a format (back-compat with existing callers)', () => {
+    expect(
+      audit([vanilla], { cardInclusionMap: { 'Vanilla Beast': 10 } }).filter(
+        (f) => f.kind === 'win-condition'
+      )
+    ).toHaveLength(0);
+  });
+});

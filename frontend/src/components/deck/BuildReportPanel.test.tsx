@@ -379,6 +379,25 @@ describe('BuildReportPanel', () => {
       expect(screen.getByText('Land sanity')).toBeTruthy();
     });
 
+    it('labels win-condition findings with a Win path badge (deck-level, no card name)', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            coherenceFindings: [
+              {
+                kind: 'win-condition',
+                severity: 'warn',
+                message:
+                  'No clear way to win — no finisher, complete combo, or committed strategy detected in the 99.',
+              },
+            ],
+          })}
+        />
+      );
+      expect(screen.getByText('Win path')).toBeTruthy();
+      expect(screen.getByText(/No clear way to win/)).toBeTruthy();
+    });
+
     it('renders auto-applied repairs — alone and alongside remaining flags', () => {
       const repair = {
         cut: 'Vanilla Beast',

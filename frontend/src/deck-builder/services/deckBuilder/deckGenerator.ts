@@ -3672,6 +3672,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleOf: getCardRole,
     lands: categories.lands,
     manabase,
+    format: 'commander', // the deck builder only generates Commander-family decks
   });
 
   return {

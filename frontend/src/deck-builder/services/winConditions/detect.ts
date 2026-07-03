@@ -61,6 +61,16 @@ function isAltWin(oracle: string, name: string): boolean {
   return YOU_WIN_RE.test(oracle) || EACH_OPP_LOSES_RE.test(oracle);
 }
 
+/**
+ * Single-card win condition (alt-win text). The only category where ONE card
+ * creates a detector path by itself — every strategic plan (burn, drain, mill,
+ * go-wide…) needs committed counts. Used by the generation wincon repair to
+ * pick a finisher it can add with a single swap.
+ */
+export function isAltWinCard(card: CardLike): boolean {
+  return isAltWin(parseCard(card).oracle, card.name);
+}
+
 // ── Burn detection (direct damage to players) ────────────────────────────────
 
 // `(?:\d+|x)` is load-bearing: most commander burn FINISHERS deal `X` damage
