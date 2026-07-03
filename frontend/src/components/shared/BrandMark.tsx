@@ -1,11 +1,10 @@
 /**
- * BrandMark — the SpellControl grid+spark mark (design D).
+ * BrandMark — the SpellControl card + S monogram.
  *
- * Inline SVG so it renders crisply at any size with no asset load, theming
- * just works, and it can be embedded in accessible contexts with aria-hidden.
- *
- * The spark gradient is fixed amber→coral (the brand palette); the grid cells
- * stroke is a warm taupe that works on both light and dark backgrounds.
+ * A tilted Magic-proportioned card whose "art" is the brand S, drawn as two
+ * arcs in the fixed amber→coral gradient. Inline SVG so it renders crisply at
+ * any size with no asset load, and the card face/edge follow the active theme
+ * (surface-raised / border-strong) so the glyph works on light and dark alike.
  *
  * Usage:
  *   <BrandMark size={28} aria-hidden />          // in a header (label on parent)
@@ -37,27 +36,27 @@ export function BrandMark({ size = 28, className, 'aria-hidden': ariaHidden }: P
           <stop offset="1" stopColor="#fb7185" />
         </linearGradient>
       </defs>
-      {/* 3×3 grid with the centre cell open (occupied by the spark) */}
-      <g fill="none" stroke="var(--brand-mark-grid)" strokeWidth="13">
-        <rect x="120" y="120" width="78" height="78" rx="17" />
-        <rect x="217" y="120" width="78" height="78" rx="17" />
-        <rect x="314" y="120" width="78" height="78" rx="17" />
-        <rect x="120" y="217" width="78" height="78" rx="17" />
-        {/* centre cell deliberately omitted — the spark fills that space */}
-        <rect x="314" y="217" width="78" height="78" rx="17" />
-        <rect x="120" y="314" width="78" height="78" rx="17" />
-        <rect x="217" y="314" width="78" height="78" rx="17" />
-        <rect x="314" y="314" width="78" height="78" rx="17" />
+      <g transform="rotate(-8 256 256)">
+        {/* Magic-proportioned card (63:88), themed face + edge */}
+        <rect
+          x="131"
+          y="82"
+          width="250"
+          height="348"
+          rx="22"
+          fill="var(--surface-raised)"
+          stroke="var(--border-strong)"
+          strokeWidth="12"
+        />
+        {/* The S monogram — two arcs, round terminals */}
+        <path
+          d="M 298 202 A 42 42 0 1 0 256 256 A 42 42 0 1 1 214 310"
+          fill="none"
+          stroke={`url(#${id})`}
+          strokeWidth="38"
+          strokeLinecap="round"
+        />
       </g>
-      {/* Four-point spark / asterisk — the animated moment in the grid */}
-      <path
-        d="M256 168
-           C264 226 286 248 344 256
-           C286 264 264 286 256 344
-           C248 286 226 264 168 256
-           C226 248 248 226 256 168 Z"
-        fill={`url(#${id})`}
-      />
     </svg>
   );
 }
