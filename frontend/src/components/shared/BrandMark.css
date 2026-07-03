@@ -1,0 +1,288 @@
+/* BrandMark motion — see STYLE_GUIDE.md "Brand mark motion".
+   Three loops (idle/busy/boot), each scoped under its own `.brand-mark-*`
+   modifier class so a plain <BrandMark /> (no `motion` prop) never pays for
+   any of this. Every infinite loop below has an explicit
+   `prefers-reduced-motion: reduce` kill — the global 0.001ms backstop turns
+   an infinite loop into a strobe (see STYLE_GUIDE.md "Reduced motion"). */
+
+/* ---- idle: the aura ---- */
+
+.brand-mark-idle .brand-mark-aura,
+.brand-mark-idle .brand-mark-aura-core {
+  transform-box: view-box;
+  transform-origin: 256px 256px;
+}
+
+.brand-mark-idle .brand-mark-clasp-glow {
+  transform-box: view-box;
+  transform-origin: 256px 287px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-mark-idle .brand-mark-aura {
+    animation: brand-mark-aura 4.4s ease-in-out infinite;
+  }
+
+  .brand-mark-idle .brand-mark-aura-core {
+    animation: brand-mark-aura-core 4.4s ease-in-out infinite;
+  }
+
+  .brand-mark-idle .brand-mark-clasp-glow {
+    animation: brand-mark-clasp-glow 4.4s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-mark-aura {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 0.72;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes brand-mark-aura-core {
+  0%,
+  100% {
+    opacity: 0.22;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes brand-mark-clasp-glow {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark-idle .brand-mark-aura,
+  .brand-mark-idle .brand-mark-aura-core,
+  .brand-mark-idle .brand-mark-clasp-glow {
+    animation: none;
+    display: none;
+  }
+}
+
+/* ---- busy: the seal charges ---- */
+
+.brand-mark-busy .brand-mark-seal-glow,
+.brand-mark-busy .brand-mark-seal-ring {
+  transform-box: view-box;
+  transform-origin: 256px 287px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-mark-busy .brand-mark-seal-glow {
+    animation: brand-mark-seal-glow 4.5s ease-in-out infinite;
+  }
+
+  .brand-mark-busy .brand-mark-seal-highlight {
+    animation: brand-mark-seal-highlight 4.5s ease-in-out infinite;
+  }
+
+  .brand-mark-busy .brand-mark-seal-ring {
+    animation: brand-mark-seal-ring 4.5s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-mark-seal-glow {
+  0%,
+  5% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+
+  11% {
+    opacity: 0.55;
+    transform: scale(1.1);
+  }
+
+  22% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+
+  33% {
+    opacity: 0.5;
+    transform: scale(1.08);
+  }
+
+  44% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+
+  55% {
+    opacity: 0.45;
+    transform: scale(1.05);
+  }
+
+  66% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+
+  74% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+
+  84%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+}
+
+@keyframes brand-mark-seal-highlight {
+  0%,
+  5% {
+    opacity: 0;
+  }
+
+  11% {
+    opacity: 0.35;
+  }
+
+  22% {
+    opacity: 0;
+  }
+
+  33% {
+    opacity: 0.4;
+  }
+
+  44% {
+    opacity: 0;
+  }
+
+  55% {
+    opacity: 0.45;
+  }
+
+  66% {
+    opacity: 0;
+  }
+
+  74% {
+    opacity: 1;
+  }
+
+  86%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes brand-mark-seal-ring {
+  0%,
+  71% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  72% {
+    opacity: 0.7;
+    transform: scale(0.5);
+  }
+
+  94%,
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark-busy .brand-mark-seal-glow,
+  .brand-mark-busy .brand-mark-seal-highlight,
+  .brand-mark-busy .brand-mark-seal-ring {
+    animation: none;
+    display: none;
+  }
+}
+
+/* ---- boot: gem orbit ---- */
+
+/* The gem's orbital motion is SMIL (<animateMotion> in BrandMark.tsx), not a
+   CSS keyframe: CSS offset-path on SVG children mis-anchors the path's
+   coordinate space in Chrome (the gem never lands on the clasp), while
+   animateMotion resolves the same path in viewBox units by definition. The
+   ghost copies lag the main gem via phase-shifted SMIL begin offsets. Only
+   the click-ring flourish below is CSS-animated. */
+
+.brand-mark-boot .brand-mark-orbit-ring {
+  transform-box: view-box;
+  transform-origin: 256px 287px;
+}
+
+.brand-mark-boot .brand-mark-gem--main {
+  opacity: 1;
+}
+
+.brand-mark-boot .brand-mark-gem--trail1 {
+  opacity: 0.35;
+}
+
+.brand-mark-boot .brand-mark-gem--trail2 {
+  opacity: 0.15;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* the orbit's designed easing — a bespoke bezier kept as-is per the
+     approved prototype rather than mapped onto a shared token */
+  .brand-mark-boot .brand-mark-orbit-ring {
+    animation: brand-mark-orbit-ring 5s cubic-bezier(0.45, 0.05, 0.4, 1) infinite;
+  }
+}
+
+@keyframes brand-mark-orbit-ring {
+  0%,
+  85% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  90% {
+    opacity: 0.8;
+    transform: scale(0.6);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark-boot .brand-mark-boot-socket,
+  .brand-mark-boot .brand-mark-gem,
+  .brand-mark-boot .brand-mark-orbit-ring {
+    animation: none;
+    display: none;
+  }
+}
+
+/* Boot loading screen centering (App.tsx cold-boot placeholder). */
+.brand-boot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

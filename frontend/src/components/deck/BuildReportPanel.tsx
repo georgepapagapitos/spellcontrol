@@ -1,7 +1,8 @@
-import { useState, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 import './BuildReportPanel.css';
 import { Check, Loader2, Plus } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
+import type { ComboMatch } from '@/types/combos';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
@@ -88,6 +89,8 @@ export function BuildReportPanel({
   onAddCard,
   deckCardNames,
   addingCardNames,
+  oneAwayCombos,
+  ownedOracleIds,
 }: {
   report: BuildReport;
   /** Jump to the Coach "Fix gaps" lane to add cards for the under-target roles.
@@ -103,6 +106,14 @@ export function BuildReportPanel({
   /** Card names with an add in flight (exact case, mirrors the Coach/NBM
    *  `busyNames` convention) — shows the row's spinner state. */
   addingCardNames?: ReadonlySet<string>;
+  /** Spellbook combos one card away from the generated deck (E78-P4). Computed
+   *  live by the host from the same useDeckCombos result the Coach uses —
+   *  never persisted, since it's point-in-time collection data. Omitted /
+   *  empty (offline first-run, still loading, no matches) → section absent. */
+  oneAwayCombos?: ComboMatch[];
+  /** Oracle ids the user owns — flags one-away combos whose missing piece is
+   *  already in the collection (those rank first: they're free to finish). */
+  ownedOracleIds?: ReadonlySet<string>;
 }): JSX.Element {
   const [justAdded, setJustAdded] = useState<Set<string>>(new Set());
 
@@ -176,6 +187,26 @@ export function BuildReportPanel({
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
+
+  // One-away Spellbook combos, owned-missing-piece first (they're the payoff:
+  // "add X — you already own it"), then by global popularity. Rows whose
+  // missing card can't be named are dropped rather than rendered blank.
+  const oneAwayRows = useMemo(() => {
+    const rows = (oneAwayCombos ?? []).flatMap((match) => {
+      const missingId = match.missingOracleIds[0];
+      const missingName = missingId
+        ? match.combo.cards.find((c) => c.oracleId === missingId)?.cardName
+        : undefined;
+      if (!missingId || !missingName) return [];
+      return [{ match, missingName, owned: ownedOracleIds?.has(missingId) ?? false }];
+    });
+    rows.sort(
+      (a, b) =>
+        Number(b.owned) - Number(a.owned) || b.match.combo.popularity - a.match.combo.popularity
+    );
+    return rows;
+  }, [oneAwayCombos, ownedOracleIds]);
+  const oneAwayOwnedCount = oneAwayRows.filter((r) => r.owned).length;
 
   return (
     <div className="build-report">
@@ -287,6 +318,42 @@ export function BuildReportPanel({
             ))}
           </ul>
           {liftPicksNote && <p className="build-report-lift-note">{liftPicksNote}</p>}
+        </details>
+      )}
+
+      {oneAwayRows.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{oneAwayRows.length}</strong> combo{oneAwayRows.length === 1 ? ' is' : 's are'}{' '}
+            one card away
+            {oneAwayOwnedCount > 0 && (
+              <>
+                {' '}
+                — you own <strong>{oneAwayOwnedCount}</strong> missing piece
+                {oneAwayOwnedCount === 1 ? '' : 's'}
+              </>
+            )}
+          </summary>
+          <ul className="build-report-subs-list">
+            {oneAwayRows.map(({ match, missingName, owned }) => (
+              <li key={match.combo.id} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{match.combo.cards.map((c) => c.cardName).join(' + ')}</strong>
+                  </span>
+                  {renderAddButton(missingName)}
+                </div>
+                <span className="build-report-sub-reason">
+                  Missing: <strong>{missingName}</strong>
+                  {match.combo.produces.length > 0 &&
+                    ` · ${match.combo.produces.slice(0, 3).join(', ')}`}
+                </span>
+                <span className="build-report-lift-chips">
+                  <OwnershipBadge owned={owned} showUnowned />
+                </span>
+              </li>
+            ))}
+          </ul>
         </details>
       )}
 

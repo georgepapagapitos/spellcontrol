@@ -122,7 +122,7 @@ export function WelcomePage() {
       <main className="welcome-card">
         <header className="welcome-hero">
           <div className="welcome-brand-mark" aria-hidden="true">
-            <BrandMark size={56} />
+            <BrandMark size={56} motion="idle" />
           </div>
           <p className="welcome-brand">SpellControl</p>
           <h1 className="welcome-headline">Plan your Magic: The Gathering collection</h1>

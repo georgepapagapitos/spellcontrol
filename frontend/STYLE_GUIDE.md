@@ -788,6 +788,52 @@ animation: none }` gate. No continuous or looping animation.
   `lib/playstyle-radar.ts` + the co-located component; `radarLayout` is the
   single geometry source.
 
+## Brand mark motion
+
+The rule: **orbit once at boot, pulse when busy, breathe when idle.** Three
+loops, one component (`components/shared/BrandMark.tsx`), one stylesheet
+(`components/shared/BrandMark.css`). Leaving the `motion` prop unset renders
+the plain static mark — unchanged, no animation cost — so every existing call
+site that doesn't opt in is unaffected.
+
+- **`motion="boot"`** — the clasp gem detaches and sweeps one orbit around the
+  book (with two fading ghost trails) before clicking back into its socket
+  with a small ring pulse. Reserved for the app's cold-boot placeholder
+  (`App.tsx`, the route shown while auth status is still unknown) — the one
+  moment there's genuinely nothing else on screen yet.
+- **`motion="busy"`** — the book stays still; the clasp glows, pulses three
+  times, then flares with an expanding ring, and loops. This is the loading
+  tell for a surface that's waiting on data with no other designed loading
+  state: `SharedView`'s share-link loading branch and `CollectionPage`'s
+  fresh-device "pulling your collection from the server" branch. Don't add it
+  to a surface that already has its own designed loading experience (e.g.
+  `BinderPage`, the deck-generation takeover) — those stay as they are.
+- **`motion="idle"`** — two soft glow circles breathe behind the book, plus a
+  faint sympathetic glow on the clasp. This is the hero treatment for
+  first-impression / auth moments: `WelcomePage`, `AuthPage`,
+  `ChooseUsernamePage`. It reads as "alive, waiting for you" rather than
+  "loading."
+- **Chrome stays static.** The header wordmark and the shared-view top bar
+  never animate — motion is reserved for the three moments above, not
+  decoration on every mark in the app.
+- **Reduced motion:** every loop has an explicit
+  `@media (prefers-reduced-motion: reduce)` block that turns the extra
+  glow/ring/trail/gem elements off, so the mark falls back to reading as the
+  plain static grimoire (see STYLE_GUIDE.md "Reduced motion" for why the
+  global backstop alone isn't enough for an `infinite` animation).
+- **Keyframes** live only in `BrandMark.css`, prefixed `brand-mark-*`
+  (`brand-mark-aura`, `brand-mark-seal-glow`, `brand-mark-orbit-ring`, …) —
+  never named `*-shimmer` (that family is reserved for `skeleton-shimmer`).
+  One deliberate exception: the boot gem's orbital travel is SMIL
+  (`<animateMotion>` in `BrandMark.tsx`), because CSS `offset-path`
+  mis-anchors its coordinate space on SVG children in Chrome; don't "clean it
+  up" back into a CSS keyframe without re-verifying the gem rests on the
+  clasp.
+- **Anti-pattern:** don't hand-roll a new brand-adjacent loading loop
+  elsewhere in the app, and don't add `motion` to a surface that already has
+  its own designed loading experience — three loops covering four call sites
+  is the whole system; a fifth bespoke one is drift, not a feature.
+
 ## Card row information hierarchy
 
 Collection/binder rows represent a **specific printing**, not just a card name —

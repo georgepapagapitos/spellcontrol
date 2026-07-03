@@ -4,6 +4,7 @@ import { useSheetExit } from '@/lib/use-sheet-exit';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { BuildReportPanel } from './BuildReportPanel';
 import type { BuildReport } from '@/deck-builder/types';
+import type { ComboMatch } from '@/types/combos';
 import { markBuildReportSeen } from '@/lib/build-report-seen';
 import './BuildReportSheet.css';
 
@@ -16,6 +17,10 @@ interface Props {
   onClose: () => void;
   /** Open the Shared-copies review (shown only when the deck has owned-but-elsewhere cards). */
   onReviewConflicts?: () => void;
+  /** Live Spellbook one-away combos for the generated deck (E78-P4). */
+  oneAwayCombos?: ComboMatch[];
+  /** Owned oracle ids — ranks owned-missing-piece combos first. */
+  ownedOracleIds?: ReadonlySet<string>;
 }
 
 /**
@@ -36,6 +41,8 @@ export function BuildReportSheet({
   report,
   onClose,
   onReviewConflicts,
+  oneAwayCombos,
+  ownedOracleIds,
 }: Props) {
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, [
     'sheet-fall',
@@ -96,7 +103,11 @@ export function BuildReportSheet({
           </p>
         </div>
         <div className="build-report-sheet-body">
-          <BuildReportPanel report={report} />
+          <BuildReportPanel
+            report={report}
+            oneAwayCombos={oneAwayCombos}
+            ownedOracleIds={ownedOracleIds}
+          />
         </div>
         <div className="build-report-sheet-footer">
           {onReviewConflicts && (report.claimedConflicts ?? 0) > 0 && (
