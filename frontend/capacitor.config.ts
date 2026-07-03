@@ -26,12 +26,12 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true,
     },
     SplashScreen: {
-      // Brand indigo background matches the icon background and the
+      // Brand night-ink background matches the icon background and the
       // theme-color meta in index.html. Auto-hide quickly: the React boot is
       // fast enough that a longer splash just feels sluggish.
       launchShowDuration: 600,
       launchAutoHide: true,
-      backgroundColor: '#191527',
+      backgroundColor: '#111830',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       splashFullScreen: true,
