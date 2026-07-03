@@ -398,6 +398,25 @@ describe('BuildReportPanel', () => {
       expect(screen.getByText(/No clear way to win/)).toBeTruthy();
     });
 
+    it('labels answer-coverage findings with an Answer gap badge (deck-level, no card name)', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            coherenceFindings: [
+              {
+                kind: 'answer-coverage',
+                severity: 'warn',
+                message:
+                  'Nothing here can remove an opposing enchantment — a hole this color identity could fill.',
+              },
+            ],
+          })}
+        />
+      );
+      expect(screen.getByText('Answer gap')).toBeTruthy();
+      expect(screen.getByText(/opposing enchantment/)).toBeTruthy();
+    });
+
     it('renders auto-applied repairs — alone and alongside remaining flags', () => {
       const repair = {
         cut: 'Vanilla Beast',

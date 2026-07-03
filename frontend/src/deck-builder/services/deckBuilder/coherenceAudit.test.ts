@@ -433,3 +433,55 @@ describe('auditDeckCoherence — win-condition (E77)', () => {
     ).toHaveLength(0);
   });
 });
+
+// ── Answer coverage (E79) ──
+
+const swords = card({
+  name: 'Swords to Plowshares',
+  type_line: 'Instant',
+  oracle_text: 'Exile target creature. Its controller gains life equal to its power.',
+});
+const bojukaBog = card({
+  name: 'Bojuka Bog',
+  type_line: 'Land',
+  oracle_text: "When this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+});
+
+describe('auditDeckCoherence — answer coverage (E79)', () => {
+  const coverage = (findings: ReturnType<typeof audit>) =>
+    findings.filter((f) => f.kind === 'answer-coverage');
+
+  it('does not run without a colorIdentity (back-compat with existing callers)', () => {
+    const findings = audit([swords], { cardInclusionMap: { 'Swords to Plowshares': 60 } });
+    expect(coverage(findings)).toHaveLength(0);
+  });
+
+  it('stays silent when nothing classifies — blank oracle text is never a hole (golden guard)', () => {
+    const findings = audit([vanilla], {
+      cardInclusionMap: { 'Vanilla Beast': 10 },
+      colorIdentity: ['W', 'G'],
+    });
+    expect(coverage(findings)).toHaveLength(0);
+  });
+
+  it('warns on a color-fillable hole as a deck-level finding', () => {
+    const findings = audit([swords], {
+      cardInclusionMap: { 'Swords to Plowshares': 60 },
+      colorIdentity: ['W', 'G'],
+    });
+    const enchantmentHole = coverage(findings).find((f) => f.message.includes('enchantment'));
+    expect(enchantmentHole?.severity).toBe('warn');
+    expect(enchantmentHole?.card).toBeUndefined(); // deck-level → repair never acts on it
+  });
+
+  it('scans lands too — Bojuka Bog clears the graveyard note', () => {
+    const base = {
+      cardInclusionMap: { 'Swords to Plowshares': 60 },
+      colorIdentity: ['W', 'B'],
+    };
+    const without = audit([swords], base);
+    expect(coverage(without).some((f) => f.message.includes('graveyard'))).toBe(true);
+    const withBog = audit([swords], { ...base, lands: [bojukaBog] });
+    expect(coverage(withBog).some((f) => f.message.includes('graveyard'))).toBe(false);
+  });
+});
