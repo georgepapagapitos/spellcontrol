@@ -21,6 +21,7 @@ import { BASIC_LAND_NAMES } from '@/lib/allocations';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { unsupportedPayoffAxes } from './synergyDependency';
 import { answerCoverageFindings } from './answerCoverage';
+import { nonboFindings } from './nonbo';
 import { BASIC_TYPE_COLORS, fetchedBasicRequirement, WUBRG, type ManaColor } from './manabaseMath';
 import type { CoherenceFinding } from '@/deck-builder/types';
 
@@ -327,6 +328,10 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
       ...answerCoverageFindings([...allCards, ...(input.lands ?? [])], input.colorIdentity)
     );
   }
+
+  // Nonbo audit (E80): cards that OPPOSE an axis the deck is invested in
+  // (Rest in Peace in a graveyard deck, Torpor Orb beside an ETB engine).
+  findings.push(...nonboFindings(nonLandCards, invested));
 
   // Deck-level engine notes last, after the per-card flags they contextualize.
   for (const w of deckSynergy.warnings) {

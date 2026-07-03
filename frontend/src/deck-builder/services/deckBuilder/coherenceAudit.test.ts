@@ -485,3 +485,34 @@ describe('auditDeckCoherence — answer coverage (E79)', () => {
     expect(coverage(withBog).some((f) => f.message.includes('graveyard'))).toBe(false);
   });
 });
+
+// ── Nonbo audit (E80) ──
+
+describe('auditDeckCoherence — nonbo (E80)', () => {
+  it('flags a hard nonbo against an axis the deck is genuinely invested in', () => {
+    // 4 producers + 1 payoff = INVEST_THRESHOLD with both halves → lifegain invested.
+    const engine = [
+      lifegainPayoff,
+      ...Array.from({ length: 4 }, (_, i) => lifegainProducer(`Chant ${i}`)),
+    ];
+    const torment = card({
+      name: 'Everlasting Torment',
+      oracle_text: "Players can't gain life.\nAll damage is dealt as though its source had wither.",
+    });
+    const incl = Object.fromEntries(engine.concat(torment).map((c) => [c.name, 10]));
+    const findings = audit([...engine, torment], { cardInclusionMap: incl });
+    const nonbo = findings.filter((f) => f.kind === 'nonbo');
+    expect(nonbo).toHaveLength(1);
+    expect(nonbo[0]).toMatchObject({ severity: 'warn', card: 'Everlasting Torment' });
+    expect(nonbo[0].message).toContain('Lifegain');
+  });
+
+  it('stays silent when the deck is not invested in the opposed axis', () => {
+    const torment = card({
+      name: 'Everlasting Torment',
+      oracle_text: "Players can't gain life.",
+    });
+    const findings = audit([torment], { cardInclusionMap: { 'Everlasting Torment': 10 } });
+    expect(findings.filter((f) => f.kind === 'nonbo')).toHaveLength(0);
+  });
+});

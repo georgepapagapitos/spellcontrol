@@ -350,7 +350,9 @@ export function BuildReportPanel({
                               ? 'Win path'
                               : f.kind === 'answer-coverage'
                                 ? 'Answer gap'
-                                : 'Engine note'
+                                : f.kind === 'nonbo'
+                                  ? 'Nonbo'
+                                  : 'Engine note'
                     }
                   />
                 </span>
