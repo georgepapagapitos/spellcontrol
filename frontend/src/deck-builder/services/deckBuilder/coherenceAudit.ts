@@ -18,6 +18,7 @@ import { AXES } from '@/deck-builder/services/synergy/axes';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { producedManaColors } from '@/lib/mana-sources';
 import { BASIC_LAND_NAMES } from '@/lib/allocations';
+import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { unsupportedPayoffAxes } from './synergyDependency';
 import { BASIC_TYPE_COLORS, fetchedBasicRequirement, WUBRG, type ManaColor } from './manabaseMath';
 import type { CoherenceFinding } from '@/deck-builder/types';
@@ -40,6 +41,9 @@ export interface CoherenceAuditInput {
   lands?: ScryfallCard[];
   /** The already-computed manabase summary (for the short-color check). */
   manabase?: ManabaseSummary;
+  /** Format string for the win-condition check ('commander' gates voltron);
+   *  providing it enables the check (E77). */
+  format?: string;
 }
 
 const COLOR_WORDS: Record<ManaColor, string> = {
@@ -235,6 +239,35 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
   for (const combo of detectedCombos ?? []) {
     if (!combo.isComplete) continue;
     for (const n of combo.cards) comboNames.add(n.toLowerCase());
+  }
+
+  // Win-path check first — "can this deck actually win" is the deck-level flag
+  // everything else contextualizes. Complete combos only: an incomplete combo
+  // is a plan to have a plan, not a win path.
+  if (input.format) {
+    const winCon = detectWinConditions({
+      cards: allCards,
+      commander: commanders[0] ?? null,
+      combosInDeck: (detectedCombos ?? [])
+        .filter((c) => c.isComplete)
+        .map((c) => ({ results: c.results, cards: c.cards })),
+      deckSynergy,
+      format: input.format,
+    });
+    if (winCon.noClearWinCondition) {
+      findings.push({
+        kind: 'win-condition',
+        severity: 'warn',
+        message:
+          'No clear way to win — no finisher, complete combo, or committed strategy detected in the 99.',
+      });
+    } else if (winCon.secondary.length === 0 && winCon.primary) {
+      findings.push({
+        kind: 'win-condition',
+        severity: 'info',
+        message: `Single win path — ${winCon.primary.label}. A backup finisher would make the deck more resilient.`,
+      });
+    }
   }
 
   for (const card of nonLandCards) {

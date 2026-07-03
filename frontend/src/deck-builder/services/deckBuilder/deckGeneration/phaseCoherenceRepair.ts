@@ -28,6 +28,7 @@ import type { BracketGuard } from '../bracketGuard';
 import { auditDeckCoherence } from '../coherenceAudit';
 import { unsupportedPayoffAxes } from '../synergyDependency';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
+import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
 
@@ -139,6 +140,7 @@ export async function applyCoherenceRepair(
     roleOf: getCardRole,
     lands: state.categories.lands,
     manabase: buildManabaseSummary(state.categories.lands, current, new Set(colorIdentity)),
+    format: 'commander', // the deck builder only generates Commander-family decks
   });
   if (findings.length === 0) return { repairs };
 
@@ -261,6 +263,27 @@ export async function applyCoherenceRepair(
   };
 
   let swaps = 0;
+
+  // ── Win-condition floor (E77) — first claim on the budget ──
+  // "Deck cannot win" outranks every per-card flag. One swap suffices by
+  // construction: the detector counts ANY alt-win card as a path, so adding a
+  // single finisher clears `noClearWinCondition` — no re-detect loop needed.
+  const noWinPath = findings.find((f) => f.kind === 'win-condition' && f.severity === 'warn');
+  if (noWinPath) {
+    const finisher = findCandidate((card) => isAltWinCard(card));
+    const cut = finisher ? weakestCut(new Set([finisher.name])) : null;
+    if (finisher && cut) {
+      removeCard(cut.card, cut.category);
+      commitAdd(finisher);
+      repairs.push({
+        cut: cut.card.name,
+        added: finisher.name,
+        reason: `${noWinPath.message} Added a finisher.`,
+      });
+      swaps++;
+    }
+  }
+
   // Warn findings first — info land findings (colorless utility) use leftover budget.
   const actionable = findings
     .filter((f) => f.card && f.kind !== 'lopsided-engine')

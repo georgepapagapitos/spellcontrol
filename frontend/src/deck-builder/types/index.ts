@@ -363,10 +363,11 @@ export interface ManabaseSummary {
  * the final deck may not support — a payoff whose engine never materialized
  * ('dead-payoff'), a card with no remaining tie to the deck at all
  * ('unjustified-slot'), a land the manabase can't back up ('land-sanity') —
- * or a deck-level lopsided-engine note.
+ * or a deck-level note: a lopsided engine, or a missing/thin win path
+ * ('win-condition').
  */
 export interface CoherenceFinding {
-  kind: 'dead-payoff' | 'unjustified-slot' | 'lopsided-engine' | 'land-sanity';
+  kind: 'dead-payoff' | 'unjustified-slot' | 'lopsided-engine' | 'land-sanity' | 'win-condition';
   severity: 'warn' | 'info';
   /** Card the finding is about; absent for deck-level findings. */
   card?: string;

@@ -355,4 +355,59 @@ describe('applyCoherenceRepair', () => {
     expect(repairs).toHaveLength(0);
     expect(JSON.stringify(state.categories)).toBe(before);
   });
+
+  // ── Win-condition floor (E77) ──
+  // makeState's deck (vanilla artifacts, no combos, <15 creatures) has no win
+  // path by construction, so the wincon floor is live in every test above —
+  // its pools just never offer a finisher. These give it one.
+
+  const finisher = () =>
+    scryfallCard('Grand Finale', {
+      type_line: 'Enchantment',
+      oracle_text:
+        'At the beginning of your upkeep, if you control ten permanents, you win the game.',
+    });
+
+  it('adds a finisher when the deck cannot win, cutting the weakest card', async () => {
+    const state = makeState();
+    state.edhrecData!.cardlists.allNonLand.push(edhrecCard('Grand Finale', 15));
+    const map = defaultScryfallMap(state);
+    map.set('Grand Finale', finisher());
+    const sizeBefore = deckNames(state).length;
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { scryfallCardMap: map }));
+
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0].added).toBe('Grand Finale');
+    expect(repairs[0].reason).toContain('No clear way to win');
+    expect(deckNames(state)).toContain('Grand Finale');
+    expect(deckNames(state)).toHaveLength(sizeBefore); // 1-for-1
+  });
+
+  it('wincon fix takes first claim on the shared swap budget', async () => {
+    const state = makeState();
+    for (let i = 0; i < 4; i++) addToDeck(state, scryfallCard(`Junk ${i}`));
+    state.edhrecData!.cardlists.allNonLand.push(
+      edhrecCard('Grand Finale', 15),
+      edhrecCard('Filler C', 60),
+      edhrecCard('Filler D', 50)
+    );
+    const map = defaultScryfallMap(state);
+    map.set('Grand Finale', finisher());
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { scryfallCardMap: map }));
+
+    expect(repairs).toHaveLength(MAX_COHERENCE_SWAPS);
+    expect(repairs[0].added).toBe('Grand Finale'); // wincon first
+    // remaining budget went to unjustified-slot swaps
+    expect(repairs.slice(1).every((r) => r.cut.startsWith('Junk'))).toBe(true);
+  });
+
+  it('leaves the deck alone when no gated finisher exists (report-only)', async () => {
+    const state = makeState(); // pool has no alt-win card
+    const before = JSON.stringify(state.categories);
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+    expect(repairs).toHaveLength(0);
+    expect(JSON.stringify(state.categories)).toBe(before);
+  });
 });
