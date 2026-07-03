@@ -11,6 +11,7 @@ import type {
   TargetBracket,
   BudgetOption,
   GapAnalysisCard,
+  CoherenceRepair,
 } from '@/deck-builder/types';
 import {
   getCardByName,
@@ -106,6 +107,7 @@ import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
+import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
@@ -3486,6 +3488,59 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // ── Coherence Repair (E78 phase 3) ──
+  // Run the coherence audit while the deck can still be mutated and repair a
+  // bounded number of findings, so convergence/scoring/the final audit all see
+  // the repaired list and the report shows only what repair couldn't fix.
+  let coherenceRepairs: CoherenceRepair[] = [];
+  {
+    const repairMustInclude = new Set([
+      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+    ]);
+    const repairLiftIndex = getLiftIndex(state);
+    const repairResult = await applyCoherenceRepair(state, {
+      scryfallCardMap,
+      detectedCombos,
+      mustIncludeNames: repairMustInclude,
+      cardAllowed: isCardAllowedBySynergyDependencies,
+      liftedByOf: (n) => repairLiftIndex.get(n)?.liftedBy,
+      isSaltBlocked,
+      bracketGuard,
+      gameChangerCount,
+      maxGameChangers,
+      budgetTracker,
+      maxCardPrice,
+      maxRarity,
+      maxCmc,
+      arenaOnly,
+      currency,
+      ignoreOwnedBudget,
+      ignoreOwnedRarity,
+      getBasicLand: async (name) =>
+        getCachedCard(name) ?? (await getCardByName(name, true).catch(() => null)),
+    });
+    coherenceRepairs = repairResult.repairs;
+    // A repair add can complete a tracked combo — refresh completeness against
+    // the live deck (mirrors the combo-audit / convergence refresh idiom).
+    if (coherenceRepairs.length > 0 && detectedCombos) {
+      const liveNames = new Set<string>();
+      for (const c of Object.values(categories).flat()) {
+        liveNames.add(c.name);
+        if (c.name.includes(' // ')) liveNames.add(frontFaceName(c.name));
+      }
+      if (commander) liveNames.add(commander.name);
+      if (partnerCommander) liveNames.add(partnerCommander.name);
+      detectedCombos = detectedCombos
+        .map((dc) => {
+          const missing = dc.cards.filter((n) => !liveNames.has(n));
+          return { ...dc, isComplete: missing.length === 0, missingCards: missing };
+        })
+        .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
+      if (detectedCombos.length === 0) detectedCombos = undefined;
+    }
+  }
+
   // ── Bracket Convergence ──
   // Close the loop on the target bracket: the pick-time guard caps hard-floor
   // signals, but the estimator's soft score (fast mana/tutors/low curve) can
@@ -3615,6 +3670,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     liftedByMap,
     detectedCombos,
     roleOf: getCardRole,
+    lands: categories.lands,
+    manabase,
   });
 
   return {
@@ -3628,6 +3685,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     liftPicksNote: liftPicks?.liftPicksNote,
     manabase,
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
+    coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
     liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:

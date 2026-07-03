@@ -172,6 +172,7 @@ export function BuildReportPanel({
     liftPicksNote,
     manabase,
     coherenceFindings,
+    coherenceRepairs,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -289,14 +290,43 @@ export function BuildReportPanel({
         </details>
       )}
 
-      {coherenceFindings && coherenceFindings.length > 0 && (
+      {((coherenceFindings && coherenceFindings.length > 0) ||
+        (coherenceRepairs && coherenceRepairs.length > 0)) && (
         <details className="build-report-subs">
           <summary>
-            <strong>{coherenceFindings.length}</strong> coherence flag
-            {coherenceFindings.length === 1 ? '' : 's'} — cards this exact build may not support
+            {coherenceFindings && coherenceFindings.length > 0 && (
+              <>
+                <strong>{coherenceFindings.length}</strong> coherence flag
+                {coherenceFindings.length === 1 ? '' : 's'} — cards this exact build may not support
+              </>
+            )}
+            {coherenceFindings &&
+              coherenceFindings.length > 0 &&
+              coherenceRepairs &&
+              coherenceRepairs.length > 0 &&
+              ' · '}
+            {coherenceRepairs && coherenceRepairs.length > 0 && (
+              <>
+                <strong>{coherenceRepairs.length}</strong> coherence swap
+                {coherenceRepairs.length === 1 ? '' : 's'} auto-applied during generation
+              </>
+            )}
           </summary>
           <ul className="build-report-subs-list">
-            {coherenceFindings.map((f, i) => (
+            {(coherenceRepairs ?? []).map((r) => (
+              <li key={`${r.cut}-${r.added}`} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{r.cut}</strong> &rarr; <strong>{r.added}</strong>
+                  </span>
+                </div>
+                <span className="build-report-sub-reason">{r.reason}</span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge tone="success" label="Auto-fixed" />
+                </span>
+              </li>
+            ))}
+            {(coherenceFindings ?? []).map((f, i) => (
               <li key={f.card ?? `deck-note-${i}`} className="build-report-sub">
                 {f.card && (
                   <div className="build-report-sub-head">
@@ -314,7 +344,9 @@ export function BuildReportPanel({
                         ? 'Dead payoff'
                         : f.kind === 'unjustified-slot'
                           ? 'No deck link'
-                          : 'Engine note'
+                          : f.kind === 'land-sanity'
+                            ? 'Land sanity'
+                            : 'Engine note'
                     }
                   />
                 </span>
