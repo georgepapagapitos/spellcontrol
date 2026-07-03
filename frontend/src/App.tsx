@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { BrandMark } from '@/components/shared/BrandMark';
 import { useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
@@ -193,7 +194,19 @@ export default function App() {
     return (
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
-        <Route path="*" element={<div className="auth-page" aria-busy="true" />} />
+        <Route
+          path="*"
+          element={
+            <div
+              className="auth-page brand-boot"
+              aria-busy="true"
+              role="status"
+              aria-label="Loading SpellControl"
+            >
+              <BrandMark size={96} motion="boot" aria-hidden />
+            </div>
+          }
+        />
       </Routes>
     );
   }
