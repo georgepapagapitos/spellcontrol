@@ -10,6 +10,7 @@ import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useAllocations } from '../lib/allocations';
 import { useSetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
+import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
 import { StatsBar } from '../components/StatsBar';
 import { CardListTable } from '../components/CardListTable';
@@ -116,7 +117,7 @@ export function CollectionPage() {
     <>
       {loadingCollection ? (
         <div className="page-loader page-loader--message" role="status" aria-live="polite">
-          <span className="spinner" aria-hidden="true" />
+          <BrandMark size={64} motion="busy" aria-hidden />
           <span className="page-loader-message">Loading your collection…</span>
         </div>
       ) : (

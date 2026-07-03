@@ -1,25 +1,45 @@
+import './BrandMark.css';
+import { joinClasses } from '@/lib/join-classes';
+
 /**
- * BrandMark — the SpellControl grid+spark mark (design D).
+ * BrandMark — the SpellControl clasped grimoire.
  *
- * Inline SVG so it renders crisply at any size with no asset load, theming
- * just works, and it can be embedded in accessible contexts with aria-hidden.
+ * A closed spellbook strapped shut with a brass clasp: the spell-book, under
+ * control. Inline SVG so it renders crisply at any size with no asset load.
+ * The palette is fixed (arcane blue cover, brass strap, no gradients on the
+ * static mark) — the mark reads on light and dark surfaces alike, and flat
+ * colors keep it stampable and animatable.
  *
- * The spark gradient is fixed amber→coral (the brand palette); the grid cells
- * stroke is a warm taupe that works on both light and dark backgrounds.
+ * `motion` opts a rendered instance into one of the three brand loops (see
+ * STYLE_GUIDE.md "Brand mark motion"): `idle` breathes an aura behind the
+ * book on hero/landing moments, `busy` pulses the clasp as a loading tell,
+ * `boot` sends the clasp gem on one orbit while the app cold-boots. Leaving
+ * `motion` unset renders exactly the static mark (unchanged from before this
+ * prop existed) — no extra DOM, no animation cost.
  *
  * Usage:
- *   <BrandMark size={28} aria-hidden />          // in a header (label on parent)
- *   <BrandMark size={48} className="auth-mark" /> // hero moment
+ *   <BrandMark size={28} aria-hidden />                          // header (label on parent)
+ *   <BrandMark size={48} className="auth-mark" motion="idle" />  // hero moment
+ *   <BrandMark size={64} motion="busy" aria-hidden />             // loading surface
+ *   <BrandMark size={96} motion="boot" aria-hidden />             // cold-boot screen
  */
+
+type BrandMotion = 'boot' | 'busy' | 'idle';
+
+/* boot mode: one full sweep around the book, starting and ending at the
+   clasp (256,287) — with a hold at the clasp on both ends of the cycle via
+   the animateMotion keyPoints/keyTimes. */
+const ORBIT_PATH =
+  'M256 287 C380 300 470 240 440 160 C410 80 320 50 256 55 C150 60 70 110 75 200 C80 290 170 330 240 300 C250 295 254 290 256 287';
 
 interface Props {
   size?: number;
   className?: string;
+  motion?: BrandMotion;
   'aria-hidden'?: boolean | 'true' | 'false';
 }
 
-export function BrandMark({ size = 28, className, 'aria-hidden': ariaHidden }: Props) {
-  const id = 'bm-spark';
+export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHidden }: Props) {
   return (
     <svg
       width={size}
@@ -27,37 +47,191 @@ export function BrandMark({ size = 28, className, 'aria-hidden': ariaHidden }: P
       viewBox="0 0 512 512"
       aria-hidden={ariaHidden}
       focusable="false"
-      className={className}
+      className={joinClasses('brand-mark', motion && `brand-mark-${motion}`, className)}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <linearGradient id={id} x1="0.2" y1="0" x2="0.8" y2="1">
-          <stop offset="0" stopColor="#fcd34d" />
-          <stop offset="0.55" stopColor="#fb923c" />
-          <stop offset="1" stopColor="#fb7185" />
-        </linearGradient>
-      </defs>
-      {/* 3×3 grid with the centre cell open (occupied by the spark) */}
-      <g fill="none" stroke="var(--brand-mark-grid)" strokeWidth="13">
-        <rect x="120" y="120" width="78" height="78" rx="17" />
-        <rect x="217" y="120" width="78" height="78" rx="17" />
-        <rect x="314" y="120" width="78" height="78" rx="17" />
-        <rect x="120" y="217" width="78" height="78" rx="17" />
-        {/* centre cell deliberately omitted — the spark fills that space */}
-        <rect x="314" y="217" width="78" height="78" rx="17" />
-        <rect x="120" y="314" width="78" height="78" rx="17" />
-        <rect x="217" y="314" width="78" height="78" rx="17" />
-        <rect x="314" y="314" width="78" height="78" rx="17" />
-      </g>
-      {/* Four-point spark / asterisk — the animated moment in the grid */}
-      <path
-        d="M256 168
-           C264 226 286 248 344 256
-           C286 264 264 286 256 344
-           C248 286 226 264 168 256
-           C226 248 248 226 256 168 Z"
-        fill={`url(#${id})`}
+      {(motion === 'idle' || motion === 'busy') && (
+        <defs>
+          <radialGradient id="bm-glow-gradient">
+            <stop offset="0%" stopColor="#f0c368" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#f0c368" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+      )}
+
+      {motion === 'idle' && (
+        <>
+          <circle
+            className="brand-mark-aura"
+            cx="256"
+            cy="256"
+            r="225"
+            fill="url(#bm-glow-gradient)"
+          />
+          <circle
+            className="brand-mark-aura-core"
+            cx="256"
+            cy="256"
+            r="150"
+            fill="url(#bm-glow-gradient)"
+          />
+        </>
+      )}
+
+      {/* cover */}
+      <rect x="136" y="84" width="240" height="344" rx="26" fill="#42539e" />
+      {/* spine band */}
+      <path d="M162 84 a26 26 0 0 0 -26 26 v 292 a26 26 0 0 0 26 26 h 26 V 84 Z" fill="#333f78" />
+      {/* strap */}
+      <rect x="136" y="264" width="240" height="46" rx="6" fill="#d9a441" />
+
+      {motion === 'idle' && (
+        <circle
+          className="brand-mark-clasp-glow"
+          cx="256"
+          cy="287"
+          r="80"
+          fill="url(#bm-glow-gradient)"
+        />
+      )}
+      {motion === 'busy' && (
+        <circle
+          className="brand-mark-seal-glow"
+          cx="256"
+          cy="287"
+          r="86"
+          fill="url(#bm-glow-gradient)"
+        />
+      )}
+
+      {/* diamond clasp — a centered seal on the strap */}
+      <rect
+        x="228"
+        y="259"
+        width="56"
+        height="56"
+        rx="10"
+        transform="rotate(45 256 287)"
+        fill="#f0c368"
       />
+
+      {motion === 'busy' && (
+        <>
+          <rect
+            className="brand-mark-seal-highlight"
+            x="228"
+            y="259"
+            width="56"
+            height="56"
+            rx="10"
+            transform="rotate(45 256 287)"
+            fill="#fdeab7"
+          />
+          <circle
+            className="brand-mark-seal-ring"
+            cx="256"
+            cy="287"
+            r="70"
+            fill="none"
+            stroke="#f0c368"
+            strokeWidth="6"
+          />
+        </>
+      )}
+
+      {motion === 'boot' && (
+        <>
+          {/* empty socket left behind while the gem is out orbiting */}
+          <rect
+            className="brand-mark-boot-socket"
+            x="234"
+            y="265"
+            width="44"
+            height="44"
+            rx="8"
+            transform="rotate(45 256 287)"
+            fill="#b8871f"
+          />
+          {/* The orbit is SMIL, not CSS offset-path — Chrome mis-anchors
+              offset-path coordinates on SVG children, while animateMotion
+              resolves the path in viewBox units. Each gem is a <g> carried
+              along the path; the rect inside is drawn centered on the local
+              origin so the anchor point is the diamond's visual center. The
+              ghosts lag the main gem via negative begin offsets of
+              (0.09s|0.18s) short of a full 5s cycle. */}
+          <g className="brand-mark-gem brand-mark-gem--trail2">
+            <rect
+              x="-21"
+              y="-21"
+              width="42"
+              height="42"
+              rx="8"
+              transform="rotate(45)"
+              fill="#f0c368"
+            />
+            <animateMotion
+              dur="5s"
+              repeatCount="indefinite"
+              begin="-4.82s"
+              calcMode="spline"
+              keyPoints="0;0;1;1"
+              keyTimes="0;0.1;0.88;1"
+              keySplines="0 0 1 1;0.45 0.05 0.4 1;0 0 1 1"
+              path={ORBIT_PATH}
+            />
+          </g>
+          <g className="brand-mark-gem brand-mark-gem--trail1">
+            <rect
+              x="-23"
+              y="-23"
+              width="46"
+              height="46"
+              rx="9"
+              transform="rotate(45)"
+              fill="#f0c368"
+            />
+            <animateMotion
+              dur="5s"
+              repeatCount="indefinite"
+              begin="-4.91s"
+              calcMode="spline"
+              keyPoints="0;0;1;1"
+              keyTimes="0;0.1;0.88;1"
+              keySplines="0 0 1 1;0.45 0.05 0.4 1;0 0 1 1"
+              path={ORBIT_PATH}
+            />
+          </g>
+          <g className="brand-mark-gem brand-mark-gem--main">
+            <rect
+              x="-26"
+              y="-26"
+              width="52"
+              height="52"
+              rx="10"
+              transform="rotate(45)"
+              fill="#f0c368"
+            />
+            <animateMotion
+              dur="5s"
+              repeatCount="indefinite"
+              calcMode="spline"
+              keyPoints="0;0;1;1"
+              keyTimes="0;0.1;0.88;1"
+              keySplines="0 0 1 1;0.45 0.05 0.4 1;0 0 1 1"
+              path={ORBIT_PATH}
+            />
+          </g>
+          <circle
+            className="brand-mark-orbit-ring"
+            cx="256"
+            cy="287"
+            r="60"
+            fill="none"
+            stroke="#f0c368"
+            strokeWidth="6"
+          />
+        </>
+      )}
     </svg>
   );
 }

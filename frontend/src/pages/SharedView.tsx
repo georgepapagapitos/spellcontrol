@@ -9,6 +9,7 @@ import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { SharedListView } from '../components/shared/SharedListView';
 import { SharedCubeView } from '../components/shared/SharedCubeView';
 import { SharedShell } from '../components/shared/SharedShell';
+import { BrandMark } from '../components/shared/BrandMark';
 import { CopyDeckButton } from '../components/shared/CopyDeckButton';
 import { CopyCubeButton } from '../components/shared/CopyCubeButton';
 
@@ -80,7 +81,7 @@ function SharedViewInner({ token }: { token: string }) {
     return (
       <SharedShell>
         <main className="shared-view shared-view--loading" aria-busy="true">
-          <span className="spinner" aria-hidden="true" />
+          <BrandMark size={64} motion="busy" aria-hidden />
           <p>Loading…</p>
         </main>
       </SharedShell>
