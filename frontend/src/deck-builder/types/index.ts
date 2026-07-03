@@ -383,6 +383,9 @@ export interface CoherenceFinding {
   /** For land-sanity findings the repair pass can execute: the WUBRG color
    *  whose basic land should replace the flagged land. Absent = report-only. */
   basicFixColor?: string;
+  /** For zero-coverage answer-coverage warns the repair pass can execute: the
+   *  threat class missing an answer. Absent = report-only. */
+  answerClass?: 'creature' | 'artifact' | 'enchantment' | 'planeswalker';
 }
 
 /** One swap the bounded coherence-repair pass applied (T37 ethos: nothing

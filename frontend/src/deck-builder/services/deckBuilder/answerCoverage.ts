@@ -1,5 +1,5 @@
 /**
- * Answer-coverage matrix (E79, detection only).
+ * Answer-coverage matrix (E79).
  *
  * The role quota says "8 removal" but never asks removal *of what* — a deck
  * can hit its number with eight fight spells and still lose to the first
@@ -163,7 +163,9 @@ const FRAGILE_MODES: ReadonlySet<AnswerMode> = new Set(['damage-or-fight', 'boun
 
 /**
  * Coverage findings over the final deck. Deck-level (no `card` field), so the
- * repair pass never acts on them — detection only by construction.
+ * repair pass's per-card loop never acts on them; zero-coverage warns carry
+ * `answerClass` and are filled by the repair pass's own coverage pass — every
+ * other finding here is report-only.
  */
 export function answerCoverageFindings(
   cards: ScryfallCard[],
@@ -189,6 +191,7 @@ export function answerCoverageFindings(
       findings.push({
         kind: 'answer-coverage',
         severity: 'warn',
+        answerClass: cls,
         message: `Nothing here can remove an opposing ${cls} — a hole this color identity could fill.`,
       });
     } else if (

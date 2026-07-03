@@ -18,6 +18,7 @@ vi.mock('../categorize', () => ({
 import { applyCoherenceRepair, MAX_COHERENCE_SWAPS } from './phaseCoherenceRepair';
 import type { CoherenceRepairContext } from './phaseCoherenceRepair';
 import type { GenerationState } from './state';
+import { auditDeckCoherence } from '../coherenceAudit';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -409,5 +410,132 @@ describe('applyCoherenceRepair', () => {
     const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
     expect(repairs).toHaveLength(0);
     expect(JSON.stringify(state.categories)).toBe(before);
+  });
+
+  // ── Answer-coverage holes (E79) ──
+  // Real oracle texts on purpose: classifyAnswer works on positive evidence
+  // only, so a textless map entry must never satisfy the predicate.
+
+  const deckAnswer = () =>
+    scryfallCard('Utter Answer', {
+      type_line: 'Instant',
+      oracle_text: 'Destroy target artifact, creature, or planeswalker.',
+    });
+  const gripAnswer = () =>
+    scryfallCard('Grip', {
+      type_line: 'Instant',
+      oracle_text: 'Destroy target artifact or enchantment.',
+    });
+
+  function reAudit(state: GenerationState, colorIdentity: string[]) {
+    const nonLandCards = (Object.entries(state.categories) as [string, ScryfallCard[]][])
+      .filter(([cat]) => cat !== 'lands')
+      .flatMap(([, cards]) => cards);
+    const inclusionMap: Record<string, number> = {};
+    for (const c of state.edhrecData?.cardlists.allNonLand ?? [])
+      inclusionMap[c.name] = c.inclusion ?? 0;
+    return auditDeckCoherence({
+      nonLandCards,
+      commanders: [state.context.commander],
+      cardInclusionMap: inclusionMap,
+      lands: state.categories.lands,
+      colorIdentity,
+    });
+  }
+
+  it('fills a zero-coverage answer hole with a card that actually answers the class', async () => {
+    const state = makeState();
+    state.context.colorIdentity = ['W', 'G'];
+    // Covers creature/artifact/planeswalker — enchantment is the fillable hole.
+    addToDeck(state, deckAnswer());
+    state.edhrecData!.cardlists.allNonLand.push(
+      edhrecCard('Utter Answer', 40),
+      edhrecCard('Grip', 20)
+    );
+    const map = defaultScryfallMap(state);
+    map.set('Utter Answer', deckAnswer());
+    map.set('Grip', gripAnswer());
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { scryfallCardMap: map }));
+
+    // Safe Filler A/B rank higher but are textless — the predicate skips them.
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0].added).toBe('Grip');
+    expect(repairs[0].reason).toContain('enchantment');
+    expect(DECK_SPELLS).toContain(repairs[0].cut); // weakest unprotected made room
+    expect(deckNames(state)).toContain('Utter Answer'); // the existing answer survives
+    const after = reAudit(state, ['W', 'G']);
+    expect(after.some((f) => f.kind === 'answer-coverage' && f.severity === 'warn')).toBe(false);
+  });
+
+  it('leaves the hole reported when no pool candidate positively classifies', async () => {
+    const state = makeState();
+    state.context.colorIdentity = ['W', 'G'];
+    addToDeck(state, deckAnswer());
+    state.edhrecData!.cardlists.allNonLand.push(edhrecCard('Utter Answer', 40));
+    const map = defaultScryfallMap(state); // every pool entry is textless
+    map.set('Utter Answer', deckAnswer());
+    const before = JSON.stringify(state.categories);
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { scryfallCardMap: map }));
+
+    expect(repairs).toHaveLength(0);
+    expect(JSON.stringify(state.categories)).toBe(before);
+    const after = reAudit(state, ['W', 'G']);
+    expect(
+      after.some(
+        (f) =>
+          f.kind === 'answer-coverage' && f.severity === 'warn' && f.answerClass === 'enchantment'
+      )
+    ).toBe(true); // survives to the final report
+  });
+
+  it('leaves info coverage findings (thin/fragile) report-only', async () => {
+    const state = makeState();
+    state.context.colorIdentity = ['W', 'G'];
+    // One any-permanent answer covers every class thinly → info findings only.
+    addToDeck(
+      state,
+      scryfallCard('Omni Answer', {
+        type_line: 'Sorcery',
+        oracle_text: 'Destroy target permanent.',
+      })
+    );
+    state.edhrecData!.cardlists.allNonLand.push(
+      edhrecCard('Omni Answer', 40),
+      edhrecCard('Grip', 20)
+    );
+    const map = defaultScryfallMap(state);
+    map.set('Grip', gripAnswer());
+    const before = JSON.stringify(state.categories);
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { scryfallCardMap: map }));
+
+    expect(repairs).toHaveLength(0);
+    expect(JSON.stringify(state.categories)).toBe(before);
+  });
+
+  it('per-card warns outrank coverage holes for the shared budget', async () => {
+    const state = makeState();
+    state.context.colorIdentity = ['W', 'G'];
+    addToDeck(state, deckAnswer());
+    for (let i = 0; i < 3; i++) addToDeck(state, scryfallCard(`Junk ${i}`));
+    state.edhrecData!.cardlists.allNonLand.push(
+      edhrecCard('Utter Answer', 40),
+      edhrecCard('Grip', 20),
+      edhrecCard('Filler C', 60),
+      edhrecCard('Filler D', 50)
+    );
+    const map = defaultScryfallMap(state);
+    map.set('Utter Answer', deckAnswer());
+    map.set('Grip', gripAnswer());
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state, { scryfallCardMap: map }));
+
+    expect(repairs).toHaveLength(MAX_COHERENCE_SWAPS);
+    // The dead cards in the deck claimed the whole budget; the missing
+    // insurance slot waits for the final report.
+    expect(repairs.every((r) => r.cut.startsWith('Junk'))).toBe(true);
+    expect(deckNames(state)).not.toContain('Grip');
   });
 });

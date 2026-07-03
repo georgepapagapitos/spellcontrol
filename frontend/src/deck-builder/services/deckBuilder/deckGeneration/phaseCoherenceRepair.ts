@@ -29,6 +29,7 @@ import { auditDeckCoherence } from '../coherenceAudit';
 import { unsupportedPayoffAxes } from '../synergyDependency';
 import { analyzeDeckSynergy, isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
+import { classifyAnswer } from '../answerCoverage';
 import { classifyCard } from '@/deck-builder/services/synergy/classify';
 import { buildManabaseSummary } from '../manabaseMath';
 
@@ -49,6 +50,10 @@ import { buildManabaseSummary } from '../manabaseMath';
 //    justified by the audit's own ladder).
 //  - land-sanity findings carrying a basicFixColor (dead fetches, colorless
 //    utility lands while a color is short) → swap the land for that basic.
+//  - answer-coverage warns carrying an answerClass (a threat class the colors
+//    could answer but nothing does) → add a card that actually answers it,
+//    cutting the weakest unprotected card. Last claim on the budget — a dead
+//    card in the deck beats a missing insurance slot.
 //
 // Every replacement honors the full pick-time gate set (the #967 FillHardGates
 // lesson): salt, game-changer cap, bracket ceiling, color identity, rarity,
@@ -141,6 +146,7 @@ export async function applyCoherenceRepair(
     lands: state.categories.lands,
     manabase: buildManabaseSummary(state.categories.lands, current, new Set(colorIdentity)),
     format: 'commander', // the deck builder only generates Commander-family decks
+    colorIdentity, // enables the answer-coverage check (E79)
   });
   if (findings.length === 0) return { repairs };
 
@@ -347,6 +353,36 @@ export async function applyCoherenceRepair(
     removeCard(loc.card, loc.category);
     commitAdd(replacement);
     repairs.push({ cut: loc.card.name, added: replacement.name, reason: f.message });
+    swaps++;
+  }
+
+  // ── Answer-coverage holes (E79) — last claim on the budget ──
+  // Deck-level warns (no `card`), so the loop above skips them by construction;
+  // they get their own pass, like the wincon floor. One swap clears the warn by
+  // detector construction (coverage goes 0 → 1; it may degrade to a thin/fragile
+  // info, which stays report-only — same no-re-detect-loop call as E77). The
+  // added card must POSITIVELY classify as an answer to the missing class —
+  // empty oracle text never satisfies the predicate.
+  const coverageHoles = findings.filter(
+    (f) => f.kind === 'answer-coverage' && f.severity === 'warn' && f.answerClass
+  );
+  for (const f of coverageHoles) {
+    if (swaps >= MAX_COHERENCE_SWAPS) break;
+    const answer = findCandidate((card) => {
+      const profile = classifyAnswer(card);
+      return !!profile?.answers.some(
+        (a) => a.threat === f.answerClass || a.threat === 'any-permanent'
+      );
+    });
+    const cut = answer ? weakestCut(new Set([answer.name])) : null;
+    if (!answer || !cut) continue;
+    removeCard(cut.card, cut.category);
+    commitAdd(answer);
+    repairs.push({
+      cut: cut.card.name,
+      added: answer.name,
+      reason: `${f.message} Added an answer.`,
+    });
     swaps++;
   }
 
