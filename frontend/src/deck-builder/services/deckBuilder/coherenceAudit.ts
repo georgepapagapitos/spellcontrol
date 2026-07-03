@@ -20,6 +20,7 @@ import { producedManaColors } from '@/lib/mana-sources';
 import { BASIC_LAND_NAMES } from '@/lib/allocations';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { unsupportedPayoffAxes } from './synergyDependency';
+import { answerCoverageFindings } from './answerCoverage';
 import { BASIC_TYPE_COLORS, fetchedBasicRequirement, WUBRG, type ManaColor } from './manabaseMath';
 import type { CoherenceFinding } from '@/deck-builder/types';
 
@@ -44,6 +45,9 @@ export interface CoherenceAuditInput {
   /** Format string for the win-condition check ('commander' gates voltron);
    *  providing it enables the check (E77). */
   format?: string;
+  /** Deck color identity (e.g. ['W','G']) — providing it enables the
+   *  answer-coverage check (E79); only holes these colors could fill flag. */
+  colorIdentity?: string[];
 }
 
 const COLOR_WORDS: Record<ManaColor, string> = {
@@ -315,6 +319,14 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
 
   // Land-sanity flags after the spell flags, before the deck-level notes.
   findings.push(...landSanityFindings(input));
+
+  // Answer-coverage matrix (E79): can the deck answer each threat class its
+  // colors could? Lands ride along for Bojuka Bog-style graveyard hate.
+  if (input.colorIdentity) {
+    findings.push(
+      ...answerCoverageFindings([...allCards, ...(input.lands ?? [])], input.colorIdentity)
+    );
+  }
 
   // Deck-level engine notes last, after the per-card flags they contextualize.
   for (const w of deckSynergy.warnings) {

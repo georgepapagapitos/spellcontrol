@@ -348,7 +348,9 @@ export function BuildReportPanel({
                             ? 'Land sanity'
                             : f.kind === 'win-condition'
                               ? 'Win path'
-                              : 'Engine note'
+                              : f.kind === 'answer-coverage'
+                                ? 'Answer gap'
+                                : 'Engine note'
                     }
                   />
                 </span>

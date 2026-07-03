@@ -3673,6 +3673,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     lands: categories.lands,
     manabase,
     format: 'commander', // the deck builder only generates Commander-family decks
+    colorIdentity, // enables the answer-coverage matrix (E79)
   });
 
   return {
