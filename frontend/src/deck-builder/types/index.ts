@@ -362,14 +362,26 @@ export interface ManabaseSummary {
  * One generation-end coherence-audit finding (see coherenceAudit.ts): a card
  * the final deck may not support — a payoff whose engine never materialized
  * ('dead-payoff'), a card with no remaining tie to the deck at all
- * ('unjustified-slot') — or a deck-level lopsided-engine note.
+ * ('unjustified-slot'), a land the manabase can't back up ('land-sanity') —
+ * or a deck-level lopsided-engine note.
  */
 export interface CoherenceFinding {
-  kind: 'dead-payoff' | 'unjustified-slot' | 'lopsided-engine';
+  kind: 'dead-payoff' | 'unjustified-slot' | 'lopsided-engine' | 'land-sanity';
   severity: 'warn' | 'info';
   /** Card the finding is about; absent for deck-level findings. */
   card?: string;
   message: string;
+  /** For land-sanity findings the repair pass can execute: the WUBRG color
+   *  whose basic land should replace the flagged land. Absent = report-only. */
+  basicFixColor?: string;
+}
+
+/** One swap the bounded coherence-repair pass applied (T37 ethos: nothing
+ *  moves silently — every auto-fix is disclosed in the build report). */
+export interface CoherenceRepair {
+  cut: string;
+  added: string;
+  reason: string;
 }
 
 /** Describes which data source was ultimately used for deck generation */
@@ -447,6 +459,9 @@ export interface BuildReport {
   /** Generation-end coherence-audit findings (dead payoffs, unjustified slots,
    *  lopsided engines). Undefined when the audit found nothing. */
   coherenceFindings?: CoherenceFinding[];
+  /** Swaps the bounded coherence-repair pass applied before the final audit.
+   *  Undefined when nothing needed (or could be) repaired. */
+  coherenceRepairs?: CoherenceRepair[];
 }
 
 export interface GeneratedDeck {
@@ -473,6 +488,8 @@ export interface GeneratedDeck {
   /** Generation-end coherence-audit findings over the final deck (see
    *  coherenceAudit.ts). Undefined when the audit found nothing. */
   coherenceFindings?: CoherenceFinding[];
+  /** Swaps the bounded coherence-repair pass applied before the final audit. */
+  coherenceRepairs?: CoherenceRepair[];
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool

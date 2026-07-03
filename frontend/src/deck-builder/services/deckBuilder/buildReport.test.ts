@@ -270,6 +270,29 @@ describe('assembleBuildReport', () => {
     expect(without.coherenceFindings).toBeUndefined();
   });
 
+  it('passes coherence repairs through, omitting them when absent or empty', () => {
+    const coherenceRepairs = [
+      {
+        cut: 'Vanilla Beast',
+        added: 'Sol Ring',
+        reason: 'No EDHREC signal, engine link, role, or combo ties it to this deck.',
+      },
+    ];
+    const withRepairs = assembleBuildReport({
+      generated: makeGenerated({ coherenceRepairs }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(withRepairs.coherenceRepairs).toEqual(coherenceRepairs);
+
+    const without = assembleBuildReport({
+      generated: makeGenerated({ coherenceRepairs: [] }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(without.coherenceRepairs).toBeUndefined();
+  });
+
   it('treats a missing roleCount as 0 when measuring gaps', () => {
     const report = assembleBuildReport({
       generated: makeGenerated({

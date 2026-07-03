@@ -358,5 +358,59 @@ describe('BuildReportPanel', () => {
       expect(screen.getByText('Engine note')).toBeTruthy();
       expect(screen.getByText('Tokens: 5 producers but no payoff to reward them.')).toBeTruthy();
     });
+
+    it('labels land-sanity findings with a Land sanity badge', () => {
+      render(
+        <BuildReportPanel
+          report={makeReport({
+            coherenceFindings: [
+              {
+                kind: 'land-sanity',
+                severity: 'warn',
+                card: 'Flooded Strand',
+                message:
+                  'It fetches a Plains or Island, but the deck has no land of either basic type for it to find.',
+              },
+            ],
+          })}
+        />
+      );
+      expect(screen.getByText('Flooded Strand')).toBeTruthy();
+      expect(screen.getByText('Land sanity')).toBeTruthy();
+    });
+
+    it('renders auto-applied repairs — alone and alongside remaining flags', () => {
+      const repair = {
+        cut: 'Vanilla Beast',
+        added: 'Sol Ring',
+        reason: 'No EDHREC signal, engine link, role, or combo ties it to this deck.',
+      };
+      const { container } = render(
+        <BuildReportPanel report={makeReport({ coherenceRepairs: [repair] })} />
+      );
+      expect(container.textContent).toContain('1 coherence swap auto-applied during generation');
+      expect(container.textContent).not.toContain('coherence flag');
+      expect(screen.getByText('Auto-fixed')).toBeTruthy();
+      expect(screen.getByText('Vanilla Beast')).toBeTruthy();
+      expect(screen.getByText('Sol Ring')).toBeTruthy();
+
+      const both = render(
+        <BuildReportPanel
+          report={makeReport({
+            coherenceRepairs: [repair],
+            coherenceFindings: [
+              {
+                kind: 'unjustified-slot',
+                severity: 'warn',
+                card: 'Leftover Card',
+                message: 'No EDHREC signal, engine link, role, or combo ties it to this deck.',
+              },
+            ],
+          })}
+        />
+      );
+      expect(both.container.textContent).toContain('1 coherence flag');
+      expect(both.container.textContent).toContain('1 coherence swap auto-applied');
+    });
   });
 });

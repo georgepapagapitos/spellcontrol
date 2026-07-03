@@ -136,6 +136,11 @@ export function assembleBuildReport(input: {
     report.coherenceFindings = generated.coherenceFindings;
   }
 
+  // Coherence repairs: swaps the bounded repair pass applied (nothing moves silently).
+  if (generated.coherenceRepairs && generated.coherenceRepairs.length > 0) {
+    report.coherenceRepairs = generated.coherenceRepairs;
+  }
+
   // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
   // Unconditional on builtFromCollection: unlike synergyFills these aren't
   // owned-build provenance, they're a suggestion regardless of build mode.

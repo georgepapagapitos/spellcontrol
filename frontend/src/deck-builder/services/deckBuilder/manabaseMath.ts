@@ -91,13 +91,32 @@ export function rawColorPips(cards: ScryfallCard[]): Record<ManaColor, number> {
   return pips;
 }
 
-const BASIC_TYPE_COLORS: ReadonlyArray<[RegExp, ManaColor]> = [
+/** Basic land type word per color — also matches type lines ("Snow Land — Island"). */
+export const BASIC_TYPE_COLORS: ReadonlyArray<[RegExp, ManaColor]> = [
   [/\bplains\b/, 'W'],
   [/\bisland\b/, 'U'],
   [/\bswamp\b/, 'B'],
   [/\bmountain\b/, 'R'],
   [/\bforest\b/, 'G'],
 ];
+
+/**
+ * What a fetch-type card's search clause asks for: any basic land ("basic land
+ * card" — Evolving Wilds, Prismatic Vista) or specific basic types (Flooded
+ * Strand: "Plains or Island card"). Null for non-fetch text. The single fetch
+ * parser — the coherence audit and fetchableBasicColors both read it.
+ */
+export function fetchedBasicRequirement(
+  card: ScryfallCard
+): { anyBasic: boolean; colors: ManaColor[] } | null {
+  const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
+  const m = ot.match(/search your library for [^.]*?card/);
+  if (!m) return null;
+  const clause = m[0];
+  if (/\bbasic land\b/.test(clause)) return { anyBasic: true, colors: [...WUBRG] };
+  const colors = BASIC_TYPE_COLORS.filter(([re]) => re.test(clause)).map(([, c]) => c);
+  return colors.length > 0 ? { anyBasic: false, colors } : null;
+}
 
 /**
  * Colors a fetch-type LAND effectively provides (Karsten counts a fetch as a
@@ -111,15 +130,9 @@ export function fetchableBasicColors(
   card: ScryfallCard,
   identity: ReadonlySet<string>
 ): ManaColor[] {
-  const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
-  const m = ot.match(/search your library for [^.]*?card/);
-  if (!m) return [];
-  const clause = m[0];
-  if (/\bbasic land\b/.test(clause)) {
-    return WUBRG.filter((c) => identity.has(c));
-  }
-  const out = BASIC_TYPE_COLORS.filter(([re]) => re.test(clause)).map(([, c]) => c);
-  return out.filter((c) => identity.has(c));
+  const req = fetchedBasicRequirement(card);
+  if (!req) return [];
+  return req.colors.filter((c) => identity.has(c));
 }
 
 /** Per-color source counts a card list produces, clamped to the deck identity.
