@@ -2,6 +2,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { BuildReport } from '@/deck-builder/types';
+import type { ComboMatch } from '@/types/combos';
 import { BuildReportPanel } from './BuildReportPanel';
 
 function makeReport(overrides: Partial<BuildReport> = {}): BuildReport {
@@ -469,6 +470,110 @@ describe('BuildReportPanel', () => {
       );
       expect(both.container.textContent).toContain('1 coherence flag');
       expect(both.container.textContent).toContain('1 coherence swap auto-applied');
+    });
+  });
+
+  describe('one-away Spellbook combos (E78-P4)', () => {
+    const makeMatch = (
+      id: string,
+      cards: Array<{ oracleId: string; cardName: string }>,
+      missingOracleId: string,
+      popularity: number,
+      produces: string[] = ['Infinite mana']
+    ): ComboMatch => ({
+      combo: {
+        id,
+        identity: 'wu',
+        produces,
+        prerequisites: null,
+        description: null,
+        manaNeeded: null,
+        popularity,
+        cardCount: cards.length,
+        bracket: null,
+        cards: cards.map((c) => ({ ...c, quantity: 1 })),
+      },
+      presentOracleIds: cards.filter((c) => c.oracleId !== missingOracleId).map((c) => c.oracleId),
+      missingOracleIds: [missingOracleId],
+    });
+
+    it('is absent when the prop is omitted or empty (offline / loading / no matches)', () => {
+      const { container, unmount } = render(<BuildReportPanel report={makeReport()} />);
+      expect(container.textContent).not.toContain('one card away');
+      unmount();
+      const empty = render(<BuildReportPanel report={makeReport()} oneAwayCombos={[]} />);
+      expect(empty.container.textContent).not.toContain('one card away');
+    });
+
+    it('renders owned-missing combos first with the missing card named and an ownership badge', () => {
+      const unownedButPopular = makeMatch(
+        'c1',
+        [
+          { oracleId: 'a', cardName: 'Present A' },
+          { oracleId: 'b', cardName: 'Unowned Missing' },
+        ],
+        'b',
+        9999
+      );
+      const ownedMissing = makeMatch(
+        'c2',
+        [
+          { oracleId: 'a', cardName: 'Present A' },
+          { oracleId: 'x', cardName: 'Owned Missing' },
+        ],
+        'x',
+        5
+      );
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport()}
+          oneAwayCombos={[unownedButPopular, ownedMissing]}
+          ownedOracleIds={new Set(['x'])}
+        />
+      );
+      expect(container.textContent).toContain(
+        '2 combos are one card away — you own 1 missing piece'
+      );
+      const rows = container.querySelectorAll('details .build-report-sub');
+      // Owned-missing combo ranks first despite far lower popularity.
+      expect(rows[0].textContent).toContain('Owned Missing');
+      expect(rows[0].querySelector('.ownership-badge.is-owned')).toBeTruthy();
+      expect(rows[1].textContent).toContain('Unowned Missing');
+      expect(rows[1].querySelector('.ownership-badge.is-unowned')).toBeTruthy();
+      // The payoff line names the missing piece and the combo's result.
+      expect(rows[0].textContent).toContain('Missing: Owned Missing');
+      expect(rows[0].textContent).toContain('Infinite mana');
+    });
+
+    it('offers an Add button for the missing piece when onAddCard is given', () => {
+      const onAddCard = vi.fn();
+      const match = makeMatch(
+        'c1',
+        [
+          { oracleId: 'a', cardName: 'Present A' },
+          { oracleId: 'x', cardName: 'Owned Missing' },
+        ],
+        'x',
+        10
+      );
+      render(
+        <BuildReportPanel
+          report={makeReport()}
+          oneAwayCombos={[match]}
+          ownedOracleIds={new Set(['x'])}
+          onAddCard={onAddCard}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Add Owned Missing' }));
+      expect(onAddCard).toHaveBeenCalledWith('Owned Missing');
+    });
+
+    it('drops a match whose missing card cannot be named instead of rendering a blank row', () => {
+      const broken = makeMatch('c1', [{ oracleId: 'a', cardName: 'Present A' }], 'ghost', 10);
+      const { container } = render(
+        <BuildReportPanel report={makeReport()} oneAwayCombos={[broken]} />
+      );
+      expect(container.textContent).not.toContain('one card away');
     });
   });
 });

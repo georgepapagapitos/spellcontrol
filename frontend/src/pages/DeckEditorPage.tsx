@@ -2184,6 +2184,8 @@ export function DeckEditorPage() {
             buildReport={deck.buildReport}
             onAddSuggestedCard={handleAddEngineCard}
             addingSuggestedCardNames={addingEngineNames}
+            oneAwayCombos={comboData.data?.oneAway}
+            ownedOracleIds={ownedOracleIdSet}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -2689,6 +2691,8 @@ export function DeckEditorPage() {
             deck.commander?.card_faces?.[0]?.image_uris?.art_crop
           }
           report={deck.buildReport}
+          oneAwayCombos={comboData.data?.oneAway}
+          ownedOracleIds={ownedOracleIdSet}
           onClose={() => setShowBuildReport(false)}
           onReviewConflicts={() => {
             setShowBuildReport(false);

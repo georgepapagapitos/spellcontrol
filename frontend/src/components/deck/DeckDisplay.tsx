@@ -70,6 +70,7 @@ import { BracketVerdictStrip } from './BracketVerdictStrip';
 import type { LaneId } from '@/lib/deck-change';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
+import type { ComboMatch } from '@/types/combos';
 import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
 import { DeckColorPanel } from './DeckColorPanel';
@@ -418,6 +419,10 @@ export interface DeckDisplayProps {
   /** Card names with an add in flight from a Build Report row (exact case,
    *  mirrors the Coach/NBM `busyNames` convention). */
   addingSuggestedCardNames?: ReadonlySet<string>;
+  /** Live Spellbook one-away combos for the Build Report section (E78-P4). */
+  oneAwayCombos?: ComboMatch[];
+  /** Owned oracle ids — ranks owned-missing-piece combos first. */
+  ownedOracleIds?: ReadonlySet<string>;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -970,6 +975,8 @@ export function DeckDisplay({
   scoreRevealKey,
   onAddSuggestedCard,
   addingSuggestedCardNames,
+  oneAwayCombos,
+  ownedOracleIds,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -1735,6 +1742,8 @@ export function DeckDisplay({
             scoreRevealKey={scoreRevealKey}
             onAddSuggestedCard={onAddSuggestedCard}
             addingSuggestedCardNames={addingSuggestedCardNames}
+            oneAwayCombos={oneAwayCombos}
+            ownedOracleIds={ownedOracleIds}
           />
         )}
 
@@ -3216,6 +3225,8 @@ function DeckAnalysisView({
   scoreRevealKey,
   onAddSuggestedCard,
   addingSuggestedCardNames,
+  oneAwayCombos,
+  ownedOracleIds,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3266,6 +3277,10 @@ function DeckAnalysisView({
   onAddSuggestedCard?: (cardName: string) => void;
   /** Card names with an add in flight from a Build Report row. */
   addingSuggestedCardNames?: ReadonlySet<string>;
+  /** Live Spellbook one-away combos for the Build Report section (E78-P4). */
+  oneAwayCombos?: ComboMatch[];
+  /** Owned oracle ids — ranks owned-missing-piece combos first. */
+  ownedOracleIds?: ReadonlySet<string>;
 }) {
   // Generated decks pass roleCounts in; manual decks don't — derive them on
   // the fly from the tagger so the Roles panel works for either flow.
@@ -3398,6 +3413,8 @@ function DeckAnalysisView({
                 onAddCard={onAddSuggestedCard}
                 deckCardNames={buildReportDeckNames}
                 addingCardNames={addingSuggestedCardNames}
+                oneAwayCombos={oneAwayCombos}
+                ownedOracleIds={ownedOracleIds}
               />
             </Panel>
           )}
