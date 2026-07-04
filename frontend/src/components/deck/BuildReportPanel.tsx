@@ -183,12 +183,14 @@ export function BuildReportPanel({
     generationModeDetail,
     generationNote,
     landCountNote,
+    budgetNote,
     roleCapOverflowNote,
     packagePicks,
     liftPicksNote,
     manabase,
     coherenceFindings,
     coherenceRepairs,
+    budgetRepairs,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -232,6 +234,8 @@ export function BuildReportPanel({
       )}
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
+
+      {budgetNote && <p className="build-report-line build-report-source">{budgetNote}</p>}
 
       {roleCapOverflowNote && (
         <p className="build-report-line build-report-source">{roleCapOverflowNote}</p>
@@ -433,6 +437,30 @@ export function BuildReportPanel({
                                   : 'Engine note'
                     }
                   />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {budgetRepairs && budgetRepairs.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{budgetRepairs.length}</strong> budget swap
+            {budgetRepairs.length === 1 ? '' : 's'} auto-applied to fit your budget
+          </summary>
+          <ul className="build-report-subs-list">
+            {budgetRepairs.map((r) => (
+              <li key={`${r.cut}-${r.added}`} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{r.cut}</strong> &rarr; <strong>{r.added}</strong>
+                  </span>
+                </div>
+                <span className="build-report-sub-reason">{r.reason}</span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge tone="success" label="Auto-fixed" />
                 </span>
               </li>
             ))}

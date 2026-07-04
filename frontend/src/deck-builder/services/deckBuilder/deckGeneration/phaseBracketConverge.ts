@@ -4,8 +4,14 @@ import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
 import { getCardRole, isExtraTurn, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
-import { constrainsToCollection, notInCollection } from '../deckFilters';
+import {
+  constrainsToCollection,
+  notInCollection,
+  exceedsMaxPrice,
+  isOwnedBudgetExempt,
+} from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
+import type { BudgetTracker } from '../budgetTracker';
 import {
   estimateBracket,
   isFastMana,
@@ -64,6 +70,14 @@ export interface BracketConvergeContext {
   cardAllowed?: (card: ScryfallCard) => boolean;
   /** Live role targets, for cut-side role-floor protection (UP push). */
   roleTargets?: Record<RoleKey, number> | null;
+  /** Same budget gate every other generation-tail pass enforces (E79) — so
+   *  neither direction of convergence can itself blow the deck budget.
+   *  All default to "no budget constraint" so existing callers/tests are
+   *  unaffected. */
+  budgetTracker?: BudgetTracker | null;
+  maxCardPrice?: number | null;
+  currency?: 'USD' | 'EUR';
+  ignoreOwnedBudget?: boolean;
 }
 
 export interface BracketConvergeResult {
@@ -102,7 +116,14 @@ export function applyBracketConvergence(
     return { applied: 0, finalBracket: null };
   }
 
-  const { scryfallCardMap, mustIncludeNames } = ctx;
+  const {
+    scryfallCardMap,
+    mustIncludeNames,
+    budgetTracker = null,
+    maxCardPrice = null,
+    currency = 'USD',
+    ignoreOwnedBudget = false,
+  } = ctx;
   const { commander, partnerCommander } = state.context;
   const ownedOnly = constrainsToCollection(state.cfg.collectionStrategy);
   const collectionNames = state.context.collectionNames;
@@ -202,6 +223,20 @@ export function applyBracketConvergence(
     state.usedNames.add(card.name);
     if (card.name.includes(' // ')) state.usedNames.add(frontFaceName(card.name));
     if (role) state.currentRoleCounts[role] = (state.currentRoleCounts[role] ?? 0) + 1;
+    // Every add here is a real deck addition (both the DOWN filler and the UP
+    // incoming power card) — deduct so budget convergence (which runs right
+    // after this phase) sees the live spend, not a stale pre-swap total (E79).
+    if (!isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget)) {
+      budgetTracker?.deductCard(card);
+    }
+  };
+
+  // Same budget gate every other generation-tail pass enforces — a filler or
+  // UP-push add must not itself blow the deck budget (E79).
+  const withinBudget = (name: string, card: ScryfallCard): boolean => {
+    if (isOwnedBudgetExempt(name, collectionNames, ignoreOwnedBudget)) return true;
+    const cap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+    return !exceedsMaxPrice(card, cap, currency);
   };
 
   // Best soft-neutral filler from the pool (prefer same role as the cut card to
@@ -217,7 +252,8 @@ export function applyBracketConvergence(
       scryfallCardMap.has(c.name) &&
       !isPowerSignal(c.name, state.gameChangerNames) &&
       (!ctx.cardAllowed || ctx.cardAllowed(scryfallCardMap.get(c.name)!)) &&
-      (!ownedOnly || !notInCollection(c.name, collectionNames));
+      (!ownedOnly || !notInCollection(c.name, collectionNames)) &&
+      withinBudget(c.name, scryfallCardMap.get(c.name)!);
 
     const ranked = pool
       .filter(eligible)
@@ -365,6 +401,7 @@ export function applyBracketConvergence(
       const incoming = scryfallCardMap.get(inName);
       if (!incoming) continue; // no Scryfall data fetched → can't materialize the card
       if (ownedOnly && notInCollection(inName, collectionNames)) continue;
+      if (!withinBudget(inName, incoming)) continue; // pushing UP can't itself blow the budget
       const cut = pickCut();
       if (!cut) break; // nothing safe to cut — can't add without overshooting 100
 
