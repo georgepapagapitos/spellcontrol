@@ -545,6 +545,40 @@ describe('BuildReportPanel', () => {
       expect(rows[0].textContent).toContain('Infinite mana');
     });
 
+    it('ranks by payoff quality (E83) ahead of raw popularity within the same ownership bucket', () => {
+      const popularButLowPayoff = makeMatch(
+        'c1',
+        [
+          { oracleId: 'a', cardName: 'Present A' },
+          { oracleId: 'b', cardName: 'Value Missing' },
+        ],
+        'b',
+        9999,
+        ['Gain infinite life']
+      );
+      const unpopularButWins = makeMatch(
+        'c2',
+        [
+          { oracleId: 'a', cardName: 'Present A' },
+          { oracleId: 'y', cardName: 'Win Missing' },
+        ],
+        'y',
+        5,
+        ['Win the game']
+      );
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport()}
+          oneAwayCombos={[popularButLowPayoff, unpopularButWins]}
+        />
+      );
+      const rows = container.querySelectorAll('details .build-report-sub');
+      // Neither is owned, so payoff tier decides — the outright win ranks
+      // first despite far lower popularity.
+      expect(rows[0].textContent).toContain('Win Missing');
+      expect(rows[1].textContent).toContain('Value Missing');
+    });
+
     it('offers an Add button for the missing piece when onAddCard is given', () => {
       const onAddCard = vi.fn();
       const match = makeMatch(
