@@ -452,6 +452,11 @@ export interface BuildReport {
    *  rather than shipping the deck short (a thin type pool left no
    *  under-cap alternative). Undefined when the cap was never breached. */
   roleCapOverflowNote?: string;
+  /** Disclosure when the price-sanity tie-break (E80) actually flipped a same-role
+   *  pick's winner toward the cheaper option at least once. Undefined when the
+   *  tie-break never decided an outcome (off via budgetOption='expensive', or no
+   *  qualifying pair ever arose). */
+  priceSanityNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -562,6 +567,7 @@ export interface GeneratedDeck {
   landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
+  priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
 }
 
 export interface DeckStats {
@@ -725,11 +731,14 @@ export interface Customization {
   comboCount: number; // 0 = none, 1 = normal, 2 = a few extra, 3 = many combo pieces prioritized
   hyperFocus: boolean; // When true, boost unique theme cards and penalize generic multi-theme cards
   balancedRoles: boolean; // When true, boost cards that fill underrepresented functional roles (ramp, removal, etc.)
-  // E80 prototype: opt-in price-sanity tie-break among comparable same-role
-  // candidates (see cardPicking.ts's priceSanityTieBreak). undefined/false =
-  // today's behavior, unchanged. Not surfaced in any UI yet — flag exists so
-  // the live-eval harness can A/B it; see LIVE_GEN_PRICE_SANITY in
-  // deckGenerator.live.test.ts.
+  // E80: price-sanity tie-break among comparable same-role candidates (see
+  // cardPicking.ts's priceSanityTieBreak). This is a SMART DEFAULT, not a
+  // plain boolean — the effective value (deckGenerator.ts's
+  // `resolvePriceSanity`) is `priceSanity ?? (budgetOption !== 'expensive')`:
+  // undefined defers to budgetOption (ON by default, OFF when the user
+  // explicitly asked for premium/expensive picks), while an explicit
+  // true/false always wins. No UI toggle yet — the live-eval harness can
+  // still force either value via LIVE_GEN_PRICE_SANITY (deckGenerator.live.test.ts).
   priceSanity?: boolean;
   ignoreOwnedBudget: boolean; // When true, owned cards don't count against budget limits
   ignoreOwnedRarity: boolean; // When true, owned cards skip max-rarity restriction

@@ -22,6 +22,8 @@ import {
   buildLandCountNote,
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
+  buildPriceSanityNote,
+  resolvePriceSanity,
   isOverRoleCap,
   bumpRoleCapCount,
   roleCapOverage,
@@ -311,5 +313,41 @@ describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-o
     const note = buildRoleCapOverflowNote({ ramp: 1 });
     expect(note).toContain('Overbuilt roles');
     expect(note).not.toMatch(/\btotal (role )?overshoot\b/i);
+  });
+});
+
+describe('resolvePriceSanity (E80 — ships as the default, not opt-in)', () => {
+  it('defaults ON when priceSanity is unset and budgetOption is not "expensive"', () => {
+    expect(resolvePriceSanity({ priceSanity: undefined, budgetOption: 'any' })).toBe(true);
+    expect(resolvePriceSanity({ priceSanity: undefined, budgetOption: 'budget' })).toBe(true);
+  });
+
+  it('defaults OFF when priceSanity is unset and the user asked for the expensive pool', () => {
+    expect(resolvePriceSanity({ priceSanity: undefined, budgetOption: 'expensive' })).toBe(false);
+  });
+
+  it('an explicit true/false always wins over the budgetOption inference', () => {
+    expect(resolvePriceSanity({ priceSanity: false, budgetOption: 'any' })).toBe(false);
+    expect(resolvePriceSanity({ priceSanity: true, budgetOption: 'expensive' })).toBe(true);
+  });
+});
+
+describe('buildPriceSanityNote (E80)', () => {
+  it('returns undefined when the tie-break never decided an outcome', () => {
+    expect(buildPriceSanityNote(0)).toBeUndefined();
+  });
+
+  it('names the count with plural phrasing', () => {
+    const note = buildPriceSanityNote(3);
+    expect(note).toBe(
+      'Preferred 3 cheaper near-equivalents over premium picks — set budget preference to "expensive" to disable.'
+    );
+  });
+
+  it('uses singular phrasing for exactly one decided pick', () => {
+    const note = buildPriceSanityNote(1);
+    expect(note).toBe(
+      'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
+    );
   });
 });

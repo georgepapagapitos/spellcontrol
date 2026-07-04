@@ -82,10 +82,17 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
-    // E80 A/B knob: LIVE_GEN_PRICE_SANITY=1 forces the flag on for every run
-    // in this file so the orchestrator can run the same 15-run panel twice
-    // (baseline vs sanity, same code, one env var) without new RUNS entries.
-    priceSanity: process.env.LIVE_GEN_PRICE_SANITY === '1',
+    // E80 A/B knob, two-way: LIVE_GEN_PRICE_SANITY=1 forces the flag ON,
+    // =0 forces it OFF, unset leaves it undefined (the product default —
+    // resolvePriceSanity's budgetOption inference — applies). Lets the
+    // orchestrator run the same panel three ways (product default / forced
+    // on / forced off) without new RUNS entries.
+    priceSanity:
+      process.env.LIVE_GEN_PRICE_SANITY === '1'
+        ? true
+        : process.env.LIVE_GEN_PRICE_SANITY === '0'
+          ? false
+          : undefined,
     ...overrides,
   };
 }

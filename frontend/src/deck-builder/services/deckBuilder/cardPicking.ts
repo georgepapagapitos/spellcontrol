@@ -335,13 +335,23 @@ export function pickFromPrefetchedWithCurve(
   cardAllowed?: (card: ScryfallCard) => boolean,
   liftTieBreak?: Map<string, number>,
   roleCapConfig?: RoleCapConfig,
-  /** E80 opt-in price-sanity tie-break (see priceSanityTieBreak). Default off. */
+  /** E80 price-sanity tie-break (see priceSanityTieBreak). Callers resolve the
+   *  smart default (deckGenerator.ts's resolvePriceSanity) before passing this. */
   priceSanity: boolean = false,
   /** Raw combo-assembly boost (pre role/package blend) — used ONLY to keep
    *  price-sanity from ever reordering a live combo pick. Separate from the
    *  blended `comboPriorityBoost` above, which also carries role-deficit
    *  boosts that would otherwise make this guard fire on almost every card. */
-  comboOnlyBoost?: Map<string, number>
+  comboOnlyBoost?: Map<string, number>,
+  /** Shared across the whole generation: records an unordered name-pair key
+   *  the first time price-sanity actually FLIPS the outcome away from what
+   *  raw priority alone would have picked (a genuine tie, or an outright
+   *  disagreement) — never incremented when price-sanity's verdict merely
+   *  agrees with priority's. `.size` after generation is the build report's
+   *  "N cheaper near-equivalents preferred" count. A Set (not a running
+   *  counter) so repeat comparator calls on the same pair during sort() can
+   *  never double-count it. */
+  priceSanityDecided?: Set<string>
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -367,21 +377,30 @@ export function pickFromPrefetchedWithCurve(
   // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)
   const allCandidates = edhrecCards
     .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
-    .sort(
-      (a, b) =>
-        priceSanityTieBreak(
-          a,
-          b,
-          cardMap,
-          roleCapConfig?.cardRoleMap,
-          comboOnlyBoost,
-          currency,
-          priceSanity
-        ) ||
+    .sort((a, b) => {
+      const sanity = priceSanityTieBreak(
+        a,
+        b,
+        cardMap,
+        roleCapConfig?.cardRoleMap,
+        comboOnlyBoost,
+        currency,
+        priceSanity
+      );
+      const priorityDiff =
         priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
-          priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames) ||
-        liftTie(b.name, liftTieBreak) - liftTie(a.name, liftTieBreak)
-    );
+        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames);
+      if (sanity !== 0) {
+        // Only "decided" when it disagrees with (or breaks an exact tie in)
+        // the raw priority order — an agreeing verdict would have picked the
+        // same winner anyway, so it's not the tie-break doing any work.
+        if (priceSanityDecided && Math.sign(priorityDiff) !== Math.sign(sanity)) {
+          priceSanityDecided.add([a.name, b.name].sort().join('|'));
+        }
+        return sanity;
+      }
+      return priorityDiff || liftTie(b.name, liftTieBreak) - liftTie(a.name, liftTieBreak);
+    });
 
   // Separate into high-synergy cards (any type) and regular cards
   const highSynergyCards = allCandidates.filter((c) => isHighSynergyCard(c));

@@ -45,6 +45,7 @@ export function assembleBuildReport(input: {
   if (generated.landCountNote) report.landCountNote = generated.landCountNote;
   if (generated.budgetNote) report.budgetNote = generated.budgetNote;
   if (generated.roleCapOverflowNote) report.roleCapOverflowNote = generated.roleCapOverflowNote;
+  if (generated.priceSanityNote) report.priceSanityNote = generated.priceSanityNote;
 
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {

@@ -185,6 +185,7 @@ export function BuildReportPanel({
     landCountNote,
     budgetNote,
     roleCapOverflowNote,
+    priceSanityNote,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -239,6 +240,10 @@ export function BuildReportPanel({
 
       {roleCapOverflowNote && (
         <p className="build-report-line build-report-source">{roleCapOverflowNote}</p>
+      )}
+
+      {priceSanityNote && (
+        <p className="build-report-line build-report-source">{priceSanityNote}</p>
       )}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
