@@ -605,6 +605,25 @@ function getFlexGradeLetter(count: number): string {
   return 'F';
 }
 
+// Absolute avg-CMC curve-shape thresholds — mirrors lib/deck-analysis.ts's
+// verdict bucketing so "top-heavy"/"skews low" language means the same
+// thing everywhere in the app, and — crucially — can never contradict the
+// avgCmc number printed right next to it. The shape word here used to come
+// from an EDHREC-relative comparison (this deck's low/high-CMC count vs the
+// commander's typical curve), which let a deck with a genuinely high
+// absolute avgCmc (Kozilek, 4.4+) get labeled "curve skews low" whenever the
+// reference commander's own curve happened to run even heavier, and a deck
+// sitting at a normal average (Isshin, 3.3) get labeled "top-heavy" the same
+// way (E78 item 2). Returns null when avgCmc doesn't clearly support either
+// word — callers fall back to a neutral descriptor in that case.
+const TOP_HEAVY_AVG_CMC = 3.8;
+const LOW_CURVE_AVG_CMC = 2.5;
+export function curveShapeFromAvgCmc(avgCmc: number): 'top-heavy' | 'bottom-heavy' | null {
+  if (avgCmc >= TOP_HEAVY_AVG_CMC) return 'top-heavy';
+  if (avgCmc > 0 && avgCmc < LOW_CURVE_AVG_CMC) return 'bottom-heavy';
+  return null;
+}
+
 export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
   if (phases.length === 0) return { letter: 'F', message: 'No non-land cards to evaluate.' };
 
@@ -618,10 +637,12 @@ export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
 
   const letter = letterFromScore(weightedScore);
 
-  // Detect direction for message flavor
-  const earlyDelta = phases.find((p) => p.phase === 'early')?.delta ?? 0;
-  const lateDelta = phases.find((p) => p.phase === 'late')?.delta ?? 0;
-  const shape = lateDelta > 3 ? 'top-heavy' : earlyDelta > 3 ? 'bottom-heavy' : 'uneven';
+  // Deck-wide avg CMC, weighted across phases — single source with
+  // getDeckSummaryData's own avgCmc so the shape word never contradicts it.
+  const totalCards = phases.reduce((s, p) => s + p.current, 0);
+  const avgCmc =
+    totalCards > 0 ? phases.reduce((s, p) => s + p.avgCmc * p.current, 0) / totalCards : 0;
+  const shape = curveShapeFromAvgCmc(avgCmc) ?? 'uneven';
 
   const messages: Record<string, string> = {
     A: 'Excellent curve — plays on time consistently.',
@@ -986,13 +1007,10 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
     .filter((rd) => isRoleExcess(rd.current, rd.target))
     .sort((a, b_) => b_.current - b_.target - (a.current - a.target));
 
-  const earlyDelta = analysis.curveAnalysis
-    .filter((s) => s.cmc <= 2)
-    .reduce((sum, s) => sum + s.delta, 0);
-  const lateDelta = analysis.curveAnalysis
-    .filter((s) => s.cmc >= 5)
-    .reduce((sum, s) => sum + s.delta, 0);
-  const curveShape = lateDelta > 3 ? 'top-heavy' : earlyDelta > 3 ? 'bottom-heavy' : null;
+  // Absolute avg-CMC based (see curveShapeFromAvgCmc) — reuses the avgCmc
+  // already computed above so the "top-heavy"/"skews low" word can never
+  // contradict the number shown right next to it (E78 item 2).
+  const curveShape = curveShapeFromAvgCmc(avgCmc);
 
   const { currentLands, adjustedSuggestion, verdict } = analysis.manaBase;
   const landDelta = currentLands - adjustedSuggestion;
@@ -1017,9 +1035,12 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
   if (deckExcess && deckExcess > 0) {
     headline = `${deckExcess} cards over target — the weakest fits are listed below.`;
   } else {
-    // Identify strong roles (met or exceeded target)
+    // Identify strong roles (met target without crowding it out) — excludes
+    // anything already called out as overbuilt below, so the same role never
+    // reads as both a strength and a flaw in one headline (E78 item 3: "All
+    // roles well-covered, but 4 roles overbuilt" naming the same 4 roles twice).
     const strongRoles = analysis.roleDeficits
-      .filter((rd) => rd.current >= rd.target)
+      .filter((rd) => rd.current >= rd.target && !isRoleExcess(rd.current, rd.target))
       .map((rd) => rd.label.toLowerCase());
     // Identify weak roles (deficit > 0), sorted by worst first
     const weakRoles = deficits.map((rd) => rd.label.toLowerCase());

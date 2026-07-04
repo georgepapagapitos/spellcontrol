@@ -89,6 +89,26 @@ describe('calculateStats', () => {
     expect(stats.typeDistribution['Land']).toBe(1);
   });
 
+  // E78 item 7: typeDistribution buckets creature-first, so an "Enchantment
+  // Creature" (Sanctum Weaver, Heliod) reads only as Creature — a real
+  // enchantress-deck report ("Sythis") undercounted its 22 true enchantment
+  // permanents as 10 this way. enchantmentPermanentCount is the non-exclusive
+  // total for surfaces that need the real number.
+  it('surfaces the true enchantment-permanent count separately from the primary-type bucket', () => {
+    const stats = calculateStats(
+      categories({
+        creatures: [
+          makeCard({ name: 'Sanctum Weaver', type_line: 'Enchantment Creature — Dryad' }),
+          makeCard({ name: 'Vanilla Bear', type_line: 'Creature' }),
+        ],
+        synergy: [makeCard({ name: 'Sphere of Safety', type_line: 'Enchantment' })],
+      })
+    );
+    expect(stats.typeDistribution['Creature']).toBe(2); // Enchantment Creature buckets here
+    expect(stats.typeDistribution['Enchantment']).toBe(1);
+    expect(stats.enchantmentPermanentCount).toBe(2); // Sanctum Weaver + Sphere of Safety
+  });
+
   it('counts a spell-front MDFC once, under its actual category — not double-booked into Land', () => {
     // Fell the Profane-shaped: "Instant // Land", filed under singleRemoval by
     // the generator. isMdfcLand is stamped true on every MDFC in the spell

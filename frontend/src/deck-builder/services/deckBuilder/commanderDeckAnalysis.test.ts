@@ -291,6 +291,28 @@ describe('computeGradeAndBracket', () => {
     expect(deckGrade?.trims?.some((t) => t.label.toLowerCase() === 'ramp')).toBe(true);
     expect(deckGrade?.headline.toLowerCase()).toContain('ramp');
   });
+
+  // E78 item 3: a role over target+tolerance was praised as "well-covered"/
+  // "Strong" AND flagged "overbuilt" in the same headline — strongRoles was a
+  // superset of the overbuilt set instead of excluding it. Reproduces the
+  // live Kozilek shape: every one of the 4 roles is simultaneously >= target
+  // and past isRoleExcess's threshold.
+  it('never calls an overbuilt role "well-covered" or "Strong" in the same headline', () => {
+    const cards = [card('Sol Ring', 1), card('Cultivate', 3)];
+    const { deckGrade } = computeGradeAndBracket({
+      allCardNames: cards.map((c) => c.name),
+      averageCmc: 4,
+      gameChangerNames: new Set<string>(),
+      allCards: cards,
+      roleCounts: { ramp: 20, removal: 16, boardwipe: 5, cardDraw: 8 },
+      roleTargets: { ramp: 14, removal: 12, boardwipe: 3, cardDraw: 6 },
+      edhrecData: edhrec(),
+      deckSize: 99,
+    });
+    expect(deckGrade?.headline).not.toMatch(/well-covered/i);
+    expect(deckGrade?.headline).not.toMatch(/^Strong/);
+    expect(deckGrade?.headline.toLowerCase()).toContain('overbuilt');
+  });
 });
 
 describe('buildStrategyEngineInput', () => {
@@ -356,5 +378,36 @@ describe('computeRoleCounts (iter-3 cluster 6 — single source for shipped role
     ]);
 
     expect(roleCounts.removal).toBe(1); // only the non-land removal-tagged card counts
+  });
+
+  // E78 item 8: a transforming card's back face (e.g. Elesh Norn // The
+  // Argent Etchings' Saga chapter III "Destroy all other permanents...")
+  // shouldn't credit its front face (a damage-punisher static with zero
+  // wipe text) as a board wipe — the report-side recount checks the front
+  // face only, unlike validateCardRole's default of joining every face
+  // (which stays face-joining because it also drives live generation
+  // picking, where a back-face-only signal is intentional).
+  it('validates a DFC role against its front face only, not the joined text', () => {
+    vi.spyOn(taggerClient, 'validateCardRole').mockImplementation(
+      (card: { oracle_text?: string }) =>
+        card.oracle_text?.includes('Destroy all') ? 'boardwipe' : null
+    );
+
+    const { roleCounts } = computeRoleCounts([
+      {
+        name: 'Elesh Norn // The Argent Etchings',
+        type_line: 'Legendary Creature — Phyrexian Praetor // Enchantment — Saga',
+        card_faces: [
+          { type_line: 'Legendary Creature — Phyrexian Praetor', oracle_text: 'Vigilance' },
+          {
+            type_line: 'Enchantment — Saga',
+            oracle_text:
+              'III — Destroy all other permanents except for artifacts, lands, and Phyrexians.',
+          },
+        ],
+      },
+    ]);
+
+    expect(roleCounts.boardwipe).toBe(0);
   });
 });

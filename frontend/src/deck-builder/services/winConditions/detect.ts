@@ -106,15 +106,29 @@ function drainsDamage(oracle: string): boolean {
 // scored candidate win by default even with 5 isComplete combos in the deck.
 const COMBO_WIN_RE =
   /\bwin the game\b|\bwin an? game\b|\bloses? the game\b|\binfinite (?:extra )?turns?\b/i;
-const COMBO_DAMAGE_RE = /\binfinite damage\b|\bunlimited damage\b/i;
+// "Near-infinite" is Commander Spellbook's own phrasing for a loop bounded
+// only by a resource on the battlefield (mana rocks, life total) — same real
+// win-con as "infinite" for report purposes. "Combat damage" and "lifeloss"
+// are the two other damage-equivalent produces[] labels this previously
+// missed (a mana-dragon Aggravated Assault package, an aristocrats lifeloss
+// engine) — the regex required the literal word "damage" right after
+// "infinite", so those fell to 'other' and the combo went unreported even
+// though it was already counted in bracketEstimation.softScore (E78 items 1).
+const COMBO_DAMAGE_RE =
+  /\b(?:near-)?infinite (?:combat )?damage\b|\bunlimited damage\b|\binfinite lifeloss\b/i;
 const COMBO_MILL_RE = /\binfinite mill\b|\bexile (?:your |their )?librar/i;
+// Infinite card draw is a genuine plan (assemble any answer, or deck the
+// table via inevitability) — unlike a bare infinite-mana loop below, which
+// still needs a second piece to spend the mana on, so it stays excluded.
+const COMBO_DRAW_RE = /\binfinite (?:card )?draw\b|\binfinite draw triggers\b|\bstorm count\b/i;
 const COMBO_MANA_RE = /\binfinite mana\b/i;
 
-function comboBucket(results: string[]): 'win' | 'damage' | 'mill' | 'mana' | 'other' {
+function comboBucket(results: string[]): 'win' | 'damage' | 'mill' | 'draw' | 'mana' | 'other' {
   const joined = results.join(' ');
   if (COMBO_WIN_RE.test(joined)) return 'win';
   if (COMBO_DAMAGE_RE.test(joined)) return 'damage';
   if (COMBO_MILL_RE.test(joined)) return 'mill';
+  if (COMBO_DRAW_RE.test(joined)) return 'draw';
   if (COMBO_MANA_RE.test(joined)) return 'mana';
   return 'other';
 }
@@ -201,7 +215,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   // ── 1. Infinite combos ────────────────────────────────────────────────────
   const comboWin = combosInDeck.filter((c) => {
     const b = comboBucket(c.results);
-    return b === 'win' || b === 'damage' || b === 'mill';
+    return b === 'win' || b === 'damage' || b === 'mill' || b === 'draw';
   });
   if (comboWin.length > 0) {
     const allCards = Array.from(new Set(comboWin.flatMap((c) => c.cards)));
@@ -211,16 +225,23 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
         ? 'win'
         : buckets.filter((b) => b === 'damage').length > 0
           ? 'damage'
-          : 'mill';
+          : buckets.filter((b) => b === 'mill').length > 0
+            ? 'mill'
+            : 'draw';
     const suffixes: Record<string, string> = {
       win: 'auto-win lines',
       damage: 'infinite damage loops',
       mill: 'infinite mill loops',
+      draw: 'infinite card-draw engines',
     };
+    // Name the marquee pair — the tightest (fewest-card) complete combo reads
+    // as the cleanest line to show the user, e.g. "Sensei's Divining Top +
+    // Mystic Forge" rather than a bare count.
+    const marquee = [...comboWin].sort((a, b) => a.cards.length - b.cards.length)[0].cards;
     candidates.push({
       category: 'infinite-combo',
       label: 'Infinite combo',
-      summary: `${comboWin.length} complete ${suffixes[dominant] ?? 'combo'} in the deck`,
+      summary: `${comboWin.length} complete ${suffixes[dominant] ?? 'combo'} in the deck (e.g. ${marquee.slice(0, 2).join(' + ')})`,
       evidence: allCards.slice(0, 8),
       score: 5 + comboWin.length * 3,
     });
