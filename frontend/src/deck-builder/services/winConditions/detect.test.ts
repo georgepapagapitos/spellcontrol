@@ -71,6 +71,34 @@ describe('infinite combo', () => {
     expect(result.primary?.category).toBe('infinite-combo');
   });
 
+  it('counts a "loses the game" combo as a win path (E77/C2)', () => {
+    // Atraxa: Teferi + Chain Veil-style lines report "opponent loses the
+    // game", not literal "win the game" — regression for the fix that lets
+    // this phrasing qualify instead of falling into 'other' and being
+    // invisible to win-path ranking.
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [
+          {
+            results: ['Each opponent loses the game'],
+            cards: ['Teferi, Temporal Archmage', 'The Chain Veil'],
+          },
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('infinite-combo');
+    expect(result.noClearWinCondition).toBe(false);
+  });
+
+  it('counts an "infinite turns" combo as a win path (E77/C2)', () => {
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [{ results: ['Infinite turns'], cards: ['Time Warp', 'Some Untapper'] }],
+      })
+    );
+    expect(result.primary?.category).toBe('infinite-combo');
+  });
+
   it('ignores infinite-mana-only combos for win-con ranking but does not crash', () => {
     const result = detectWinConditions(
       input({
@@ -503,18 +531,57 @@ describe('strategic-commitment gate', () => {
     expect(result.primary?.category).not.toBe('go-wide');
   });
 
-  it('calls it go-wide once the deck is committed (≥4 cards)', () => {
+  it('calls it go-wide once the deck is committed (≥6 cards — its own, higher bar)', () => {
+    // Go-wide's qualifying floor sits above the shared STRATEGIC_MIN_CARDS:
+    // token/anthem effects are common incidental value in non-tokens shells
+    // (E77 fix — a titan-ramp deck with a couple of unrelated token makers
+    // must not get labeled "Go-wide tokens").
     const result = detectWinConditions(
       input({
         cards: [
           card('A', 'create a 1/1 creature token.', 'Creature'),
           card('B', 'create a 1/1 creature token.', 'Creature'),
           card('C', 'create a 1/1 creature token.', 'Creature'),
-          card('D', 'creatures you control get +1/+1.', 'Enchantment'),
+          card('D', 'create a 1/1 creature token.', 'Creature'),
+          card('E', 'create a 1/1 creature token.', 'Creature'),
+          card('F', 'creatures you control get +1/+1.', 'Enchantment'),
         ],
       })
     );
     expect(result.primary?.category).toBe('go-wide');
+  });
+
+  it('does not call go-wide on 6+ incidental sac-fodder token makers with no payoff (Kozilek titan-ramp)', () => {
+    // Eldrazi Spawn/Scion-style bare 0/1 tokens clear the raw-count floor but
+    // are sac fodder for ramp, not a go-wide plan — no anthem/payoff present.
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('A', 'create a 0/1 colorless eldrazi spawn creature token.', 'Creature'),
+          card('B', 'create a 0/1 colorless eldrazi spawn creature token.', 'Creature'),
+          card('C', 'create a 0/1 colorless eldrazi spawn creature token.', 'Creature'),
+          card('D', 'create a 1/1 colorless eldrazi scion creature token.', 'Creature'),
+          card('E', 'create a 1/1 colorless eldrazi scion creature token.', 'Creature'),
+          card('F', 'create a 1/1 colorless eldrazi scion creature token.', 'Creature'),
+        ],
+      })
+    );
+    expect(result.primary?.category).not.toBe('go-wide');
+  });
+
+  it('does not call go-wide on 5 incidental token cards — below its own bar', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('A', 'create a 1/1 creature token.', 'Creature'),
+          card('B', 'create a 1/1 creature token.', 'Creature'),
+          card('C', 'create a 1/1 creature token.', 'Creature'),
+          card('D', 'create a 1/1 creature token.', 'Creature'),
+          card('E', 'creatures you control get +1/+1.', 'Enchantment'),
+        ],
+      })
+    );
+    expect(result.primary?.category).not.toBe('go-wide');
   });
 });
 

@@ -14,11 +14,20 @@
  *
  * This module keeps the shape of that insight without the full hypergeometric
  * table: demand per cost = pips + 0.5 per pip beyond the first, scaled by an
- * earliness multiplier (1 + 0.1 × (5 − mv), clamped ≥ 1). Targets distribute the
- * deck's total color-production capacity across colors by that weighted demand,
- * with a 2-source floor for any splash the deck actually casts. The shortfall
- * verdict reuses colorShortfall's pacing-aware thresholds so the build report
- * and the editor's color-balance panel never disagree about "short".
+ * earliness multiplier (1 + 0.1 × (5 − mv), clamped ≥ 1). The basic-land split
+ * distributes the deck's total color-production capacity across colors by that
+ * weighted demand, with a 2-source floor for any splash the deck actually
+ * casts (plus a 1-basic-per-demanded-color floor so a Basic-supertype search
+ * effect always has a real target, even when nonbasic duals already cover the
+ * color on paper).
+ *
+ * The build report's per-color `target`/`short` is a separate, simpler bar:
+ * `short` reuses colorShortfall's pacing-aware ratio × raw pips (the same
+ * coverage bar the editor's color-balance panel judges by), and `target` is
+ * that same bar made concrete as a sources count, feasibility-capped so
+ * per-color targets can't sum past the deck's actual mana-source count.
+ * `short` is exactly `sources < target` — one baseline, so the boolean and the
+ * note can never disagree.
  *
  * Hybrid pips count toward every color they can be paid with (same convention
  * as countColorPips and the analysis panel) — slightly generous to hybrid, but
@@ -26,7 +35,7 @@
  */
 import type { ManabaseSummary, ManabaseColorLine, ScryfallCard } from '@/deck-builder/types';
 import { producedManaColors, isManaSourceType } from '@/lib/mana-sources';
-import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
+import { shortfallThresholdsForCurve } from './colorShortfall';
 
 export const WUBRG = ['W', 'U', 'B', 'R', 'G'] as const;
 export type ManaColor = (typeof WUBRG)[number];
@@ -236,10 +245,43 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
         eligible.map((c) => pips[c]),
         basicsNeeded
       );
+  const floored = enforceFloor(
+    eligible.map((c) => pips[c] > 0),
+    allocated
+  );
   eligible.forEach((c, i) => {
-    out[c] = allocated[i];
+    out[c] = floored[i];
   });
   return out;
+}
+
+/**
+ * Every flagged index gets at least 1, redistributed from whichever index
+ * currently holds the most — the total never changes, just who holds it.
+ * Two uses: (1) every color with real pip demand gets >= 1 basic, even when
+ * nonbasic duals/rocks already "solve" it on paper (a Basic-supertype search
+ * effect like Sword of the Animist whiffs on a shockland that happens to
+ * produce the same color); (2) a demanded color's shortfall target never
+ * rounds down to 0 under the feasibility cap, which would silently un-flag a
+ * color with literally zero sources.
+ */
+function enforceFloor(flagged: boolean[], allocated: number[]): number[] {
+  const FLOOR = 1;
+  const result = [...allocated];
+  for (let i = 0; i < result.length; i++) {
+    if (!flagged[i]) continue;
+    while (result[i] < FLOOR) {
+      let donor = -1;
+      for (let j = 0; j < result.length; j++) {
+        if (j === i || result[j] <= FLOOR) continue;
+        if (donor === -1 || result[j] > result[donor]) donor = j;
+      }
+      if (donor === -1) break; // nothing left to redistribute
+      result[donor] -= 1;
+      result[i] += 1;
+    }
+  }
+  return result;
 }
 
 /**
@@ -251,15 +293,11 @@ export function buildManabaseSummary(
   nonLandCards: ScryfallCard[],
   identity: ReadonlySet<string>
 ): ManabaseSummary {
-  const demand = weightedColorDemand(nonLandCards);
   const pips = rawColorPips(nonLandCards);
   const landSources = colorSourceCounts(lands, identity);
   const spellSources = colorSourceCounts(nonLandCards, identity);
 
   const demanded = WUBRG.filter((c) => pips[c] > 0);
-  const totalDemand = demanded.reduce((s, c) => s + demand[c], 0);
-  let capacity = 0;
-  for (const c of WUBRG) capacity += landSources[c] + spellSources[c];
 
   const curve: Record<number, number> = {};
   for (const card of nonLandCards) {
@@ -268,28 +306,63 @@ export function buildManabaseSummary(
   }
   const thresholds = shortfallThresholdsForCurve(curve);
 
-  const lines: ManabaseColorLine[] = demanded.map((c) => {
+  // Per-color target = the same coverage bar `isColorShort` judges against
+  // (ratio × pips, forgiven under the splash-forgiveness floor), made concrete
+  // as a sources count so `short` and the note both read the *same* number —
+  // they used to disagree because `short` came from this bar while the note's
+  // deficit came from an unrelated, separately-computed capacity-share target.
+  const rawTargets = demanded.map((c) => {
     const sources = landSources[c] + spellSources[c];
-    const target =
-      totalDemand > 0
-        ? Math.max(Math.round((demand[c] / totalDemand) * capacity), SPLASH_FLOOR)
-        : 0;
-    return {
-      color: c,
-      pips: pips[c],
-      sources,
-      target,
-      short: isColorShort(pips[c], sources, thresholds),
-    };
+    const gated = sources === 0 || pips[c] >= thresholds.minDemand;
+    // pips[c] >= 1 here (demanded filter), so ceil(pips*ratio) is always >= 1.
+    return gated ? Math.ceil(pips[c] * thresholds.ratio) : sources;
   });
 
-  // Headline: the worst under-target color, qualified with "early costs" when
-  // most of its pips sit at mana value ≤ 2 (the Karsten-critical band).
+  // A 5-color deck's raw per-color bars are computed independently, so they
+  // can still sum past the deck's actual mana-source count. Scale down
+  // proportionally to what's achievable — never up, so this can only relax a
+  // flag, never invent one — reusing the same largest-remainder apportionment
+  // as the basic-land split. Count *actual* producers (colored or colorless),
+  // not just permanents of a mana-source-eligible type — a vanilla creature is
+  // "not an instant/sorcery" but produces nothing.
+  const producesMana = (c: ScryfallCard): boolean => {
+    if (!isManaSourceType(c)) return false;
+    if (producedManaColors(c, identity).length > 0) return true;
+    const typeLine = (c.type_line || c.card_faces?.[0]?.type_line || '').toLowerCase();
+    return typeLine.includes('land') && fetchableBasicColors(c, identity).length > 0;
+  };
+  const totalPermanents =
+    lands.filter(producesMana).length + nonLandCards.filter(producesMana).length;
+  const sumTargets = rawTargets.reduce((a, b) => a + b, 0);
+  const capped =
+    sumTargets > totalPermanents && totalPermanents > 0
+      ? apportion(rawTargets, totalPermanents)
+      : rawTargets;
+  // Largest-remainder rounding can crush a color's capped share to 0 — which
+  // would silently un-flag a color with literally zero sources. Every
+  // demanded color keeps a floor of 1 (same redistribution as the basic
+  // split's floor; a no-op when nothing needed capping in the first place).
+  const targets = enforceFloor(
+    demanded.map(() => true),
+    capped
+  );
+
+  const lines: ManabaseColorLine[] = demanded.map((c, i) => {
+    const sources = landSources[c] + spellSources[c];
+    const target = targets[i];
+    return { color: c, pips: pips[c], sources, target, short: sources < target };
+  });
+
+  // Headline: every short color, worst-deficit first — not just the worst
+  // one. A single short color keeps the "early costs" qualifier (mana value
+  // ≤ 2 band); several are just listed, since a shared qualifier would be
+  // misleading across colors with different curves.
+  const shortLines = lines
+    .filter((l) => l.short)
+    .sort((a, b) => b.target - b.sources - (a.target - a.sources));
   let note: string | undefined;
-  const worst = lines
-    .filter((l) => l.sources < l.target)
-    .sort((a, b) => b.target - b.sources - (a.target - a.sources))[0];
-  if (worst) {
+  if (shortLines.length === 1) {
+    const worst = shortLines[0];
     const worstColor = worst.color as ManaColor; // lines are built from WUBRG above
     const deficit = worst.target - worst.sources;
     const earlyPips = nonLandCards.reduce((s, card) => {
@@ -300,8 +373,36 @@ export function buildManabaseSummary(
     note = `${deficit} ${COLOR_NAMES[worstColor]} source${deficit === 1 ? '' : 's'} short${
       early ? ' for costs at mana value ≤ 2' : ' of target'
     }`;
+  } else if (shortLines.length > 1) {
+    note =
+      shortLines
+        .map((l) => {
+          const deficit = l.target - l.sources;
+          return `${deficit} ${COLOR_NAMES[l.color as ManaColor]} source${deficit === 1 ? '' : 's'}`;
+        })
+        .join(', ') + ' short of target';
   }
 
-  const nonlandSources = WUBRG.reduce((s, c) => s + spellSources[c], 0);
+  // Colorless mana doesn't gate on a WUBRG identity check, so it's counted
+  // independent of `colorSourceCounts` (which only ever tallies WUBRG).
+  const nonlandColorless = nonLandCards.filter(
+    (c) => isManaSourceType(c) && producedManaColors(c, identity).includes('C')
+  ).length;
+  const nonlandSources = WUBRG.reduce((s, c) => s + spellSources[c], 0) + nonlandColorless;
+
+  // A colorless commander has zero WUBRG pips, so `lines` is legitimately
+  // empty — but the deck still has a real manabase worth a one-line summary
+  // instead of a silent blank.
+  if (lines.length === 0 && !WUBRG.some((c) => identity.has(c))) {
+    const landColorless = lands.filter(
+      (c) => isManaSourceType(c) && producedManaColors(c, identity).includes('C')
+    ).length;
+    const total = landColorless + nonlandColorless;
+    note = total > 0 ? `${total} colorless mana source${total === 1 ? '' : 's'}` : undefined;
+    // ponytail: target = total (no colorless curve-based demand heuristic
+    // exists yet; upgrade if colorless shortfall detection is ever wanted).
+    lines.push({ color: 'C', pips: 0, sources: total, target: total, short: false });
+  }
+
   return { lines, totalLands: lands.length, nonlandSources, note };
 }

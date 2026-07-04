@@ -10,6 +10,13 @@ vi.mock('@/deck-builder/services/edhrec/client', async (importOriginal) => ({
   fetchPartnerCommanderData: vi.fn(),
 }));
 
+// Fetchlands carry the upstream `tutor` tag ("search your library") — getCardRole
+// folds that into `cardDraw`, so mock it to reproduce the mistag deterministically.
+vi.mock('@/deck-builder/services/tagger/client', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  getCardRole: vi.fn((name: string) => (name === 'Polluted Delta' ? 'cardDraw' : null)),
+}));
+
 import {
   fetchCommanderData,
   fetchPartnerCommanderData,
@@ -79,6 +86,18 @@ describe('enrichDeckCards', () => {
     expect(result.categories.creatures.map((c) => c.name)).toEqual(['Grizzly Bears']);
     expect(result.categories.utility.map((c) => c.name)).toEqual(['Teferi']);
     expect(result.categories.synergy.map((c) => c.name)).toEqual(['Opt']);
+  });
+
+  it('does not stamp a spell role onto a fetchland (mistagged upstream tutor)', async () => {
+    const result = await enrichDeckCards(
+      [card('Polluted Delta', 'Land'), card('Bear', 'Creature — Bear')],
+      99
+    );
+    const fetchland = result.categories.lands.find((c) => c.name === 'Polluted Delta');
+    expect(fetchland).toBeDefined();
+    expect(fetchland!.deckRole).toBeUndefined();
+    expect(fetchland!.cardDrawSubtype).toBeUndefined();
+    expect(result.roleCounts.cardDraw).toBe(0);
   });
 
   it('returns role targets scaled to the deck size', async () => {

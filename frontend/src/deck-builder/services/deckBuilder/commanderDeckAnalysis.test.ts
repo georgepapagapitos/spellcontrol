@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   buildInclusionIndex,
   lookupInclusion,
@@ -6,7 +6,9 @@ import {
   comboMatchesToDetected,
   computeGradeAndBracket,
   buildStrategyEngineInput,
+  computeRoleCounts,
 } from './commanderDeckAnalysis';
+import * as taggerClient from '@/deck-builder/services/tagger/client';
 import type { DeckSynergy } from '../synergy/deckSynergy';
 import type { EDHRECCommanderData, ScryfallCard } from '@/deck-builder/types';
 import type { ComboMatchResponse } from '@/types/combos';
@@ -269,6 +271,26 @@ describe('computeGradeAndBracket', () => {
     expect(typeof deckGrade?.letter).toBe('string');
     expect(typeof deckGrade?.headline).toBe('string');
   });
+
+  it('forwards over-target roles as deckGrade.trims instead of discarding them (C1)', () => {
+    const cards = [card('Sol Ring', 1), card('Cultivate', 3)];
+    // ramp: 25 vs a 10 target — well past the analyzer's own current>target+2
+    // excess threshold. Previously computeGradeAndBracket only kept
+    // {letter, headline} from getDeckSummaryData, discarding this.
+    const { deckGrade } = computeGradeAndBracket({
+      allCardNames: cards.map((c) => c.name),
+      averageCmc: 2,
+      gameChangerNames: new Set<string>(),
+      allCards: cards,
+      roleCounts: { ramp: 25, removal: 8, boardwipe: 3, cardDraw: 10 },
+      roleTargets: { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 },
+      edhrecData: edhrec(),
+      deckSize: 99,
+    });
+    expect(deckGrade?.trims).toBeDefined();
+    expect(deckGrade?.trims?.some((t) => t.label.toLowerCase() === 'ramp')).toBe(true);
+    expect(deckGrade?.headline.toLowerCase()).toContain('ramp');
+  });
 });
 
 describe('buildStrategyEngineInput', () => {
@@ -303,5 +325,28 @@ describe('buildStrategyEngineInput', () => {
   it('returns a null primaryLabel when nothing is invested', () => {
     const synergy: DeckSynergy = { axes: [], invested: [], warnings: [], headline: '' };
     expect(buildStrategyEngineInput(synergy, 50).primaryLabel).toBeNull();
+  });
+});
+
+describe('computeRoleCounts (iter-3 cluster 6 — single source for shipped roleCounts)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('excludes a land from role counts even when the tagger has it role-tagged', () => {
+    // Reproduces the Ur-Dragon case: a land carries a role tag (e.g. a
+    // removal-tagged utility land), but the shared recount must still skip it
+    // by type line — the same "roles never count lands" rule the ad-hoc
+    // `currentRoleCounts` incremental tally forgot at three call sites.
+    vi.spyOn(taggerClient, 'getCardRole').mockImplementation((name: string) =>
+      name === 'Tainted Land' ? 'removal' : name === 'Real Removal Spell' ? 'removal' : null
+    );
+
+    const { roleCounts } = computeRoleCounts([
+      { name: 'Tainted Land', type_line: 'Land' },
+      { name: 'Real Removal Spell', type_line: 'Instant' },
+    ]);
+
+    expect(roleCounts.removal).toBe(1); // only the non-land removal-tagged card counts
   });
 });

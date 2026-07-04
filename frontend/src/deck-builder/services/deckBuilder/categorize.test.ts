@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { matchesExpectedType, categorizeCards, computeRoleBoosts } from './categorize';
+import {
+  matchesExpectedType,
+  categorizeCards,
+  routeCardByType,
+  computeRoleBoosts,
+} from './categorize';
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
@@ -63,6 +68,32 @@ describe('categorizeCards', () => {
     expect(categories.synergy.map((c) => c.name)).toEqual(['A', 'B']);
     expect(categories.creatures).toHaveLength(0);
   });
+
+  it('routes a land to lands regardless of fallback (would otherwise land in synergy)', () => {
+    // Eldrazi Temple-style bug: a land with no tagger role (or a high synergy
+    // score) must still count toward the manabase, not the synergy bucket.
+    const categories = emptyCategories();
+    categorizeCards([sc({ name: 'Eldrazi Temple', type_line: 'Land' })], categories, 'synergy');
+    expect(categories.lands.map((c) => c.name)).toEqual(['Eldrazi Temple']);
+    expect(categories.synergy).toHaveLength(0);
+  });
+});
+
+describe('routeCardByType', () => {
+  it('routes lands to lands ahead of role/synergy fallback', () => {
+    const categories = emptyCategories();
+    routeCardByType(sc({ name: 'Eldrazi Temple', type_line: 'Land' }), categories);
+    expect(categories.lands.map((c) => c.name)).toEqual(['Eldrazi Temple']);
+    expect(categories.synergy).toHaveLength(0);
+  });
+
+  it('routes creatures to creatures and falls back non-creature spells to synergy', () => {
+    const categories = emptyCategories();
+    routeCardByType(sc({ name: 'Bear', type_line: 'Creature — Bear' }), categories);
+    routeCardByType(sc({ name: 'Opt', type_line: 'Instant' }), categories);
+    expect(categories.creatures.map((c) => c.name)).toEqual(['Bear']);
+    expect(categories.synergy.map((c) => c.name)).toEqual(['Opt']);
+  });
 });
 
 describe('computeRoleBoosts', () => {
@@ -93,7 +124,7 @@ describe('computeRoleBoosts', () => {
     expect(boosts.get('SolRing')!).toBeGreaterThan(boosts.get('Gilded')!);
   });
 
-  it('penalizes roles at/over target only when strictRoles is on', () => {
+  it('does not penalize a role right at target in non-strict mode (within tolerance)', () => {
     const roleMap = new Map<string, RoleKey>([['X', 'ramp']]);
     const atTarget = { ramp: 10, removal: 0, boardwipe: 0, cardDraw: 0 };
     const lenient = computeRoleBoosts(
@@ -106,7 +137,29 @@ describe('computeRoleBoosts', () => {
       undefined,
       false
     );
-    expect(lenient.has('X')).toBe(false); // no boost, no penalty
+    expect(lenient.has('X')).toBe(false); // within tolerance — no boost, no penalty
+  });
+
+  it('softly penalizes a role well over target even in non-strict (default) mode', () => {
+    const roleMap = new Map<string, RoleKey>([['X', 'ramp']]);
+    // ramp target is 10; tolerance = max(2, round(10*0.2)) = 2, so current must be >= 12 to penalize
+    const wellOver = { ramp: 15, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const lenient = computeRoleBoosts(
+      roleMap,
+      targets,
+      wellOver,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      false
+    );
+    expect(lenient.get('X')!).toBeLessThan(0);
+  });
+
+  it('penalizes roles at/over target more strongly when strictRoles is on', () => {
+    const roleMap = new Map<string, RoleKey>([['X', 'ramp']]);
+    const atTarget = { ramp: 10, removal: 0, boardwipe: 0, cardDraw: 0 };
     const strict = computeRoleBoosts(
       roleMap,
       targets,

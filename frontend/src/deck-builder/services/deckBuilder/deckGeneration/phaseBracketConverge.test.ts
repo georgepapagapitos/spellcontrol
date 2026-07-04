@@ -11,12 +11,18 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
 }));
 
-// stampRoleSubtypes is a no-op in tests.
-vi.mock('../categorize', () => ({
-  stampRoleSubtypes: () => {},
-}));
+// stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real
+// land-then-role-then-synergy routing.
+vi.mock('../categorize', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../categorize')>();
+  return {
+    ...actual,
+    stampRoleSubtypes: () => {},
+  };
+});
 
 import { applyBracketConvergence } from './phaseBracketConverge';
+import { getCardRole } from '@/deck-builder/services/tagger/client';
 import type { GenerationState } from './state';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -351,5 +357,52 @@ describe('applyBracketConvergence', () => {
     expect(result.applied).toBe(0);
     expect(state.usedNames.has('Pool GC')).toBe(false); // no needless power-up
     expect(state.usedNames.has('Power Card')).toBe(true); // and no needless cut
+  });
+
+  it('picks the low-priority cut, not a high-priority/below-floor-role card (iter-3 cluster 3 — Yuriko-shaped repro)', () => {
+    // Mirrors the Silent-Blade Oni (niche, low raw inclusion, high
+    // commander-specific priority, ramp role under target) vs. Expropriate
+    // (raw-popular, no tracked role) case: the OLD pickCut() ranked by raw
+    // EDHREC inclusion ascending and would cut the niche high-priority card
+    // first. pickCut() must now rank by calculateCardPriority and protect a
+    // below-floor role from being the cut.
+    const state = underTargetState();
+    state.categories.synergy = [
+      scryfallCard('Niche Payoff'), // low raw inclusion, high calculateCardPriority, ramp role below its floor
+      scryfallCard('Generic Filler'), // higher raw inclusion, low calculateCardPriority, no tracked role
+    ];
+    state.usedNames = new Set(['Niche Payoff', 'Generic Filler']);
+    state.currentRoleCounts = { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 };
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      name === 'Niche Payoff' ? 'ramp' : null
+    );
+
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Pool GC', 95),
+          { ...edhrecCard('Niche Payoff', 2), synergy: 1, isThemeSynergyCard: true },
+          edhrecCard('Generic Filler', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const map = new Map<string, ScryfallCard>();
+    map.set('Pool GC', scryfallCard('Pool GC'));
+    map.set('Niche Payoff', scryfallCard('Niche Payoff'));
+    map.set('Generic Filler', scryfallCard('Generic Filler'));
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+      roleTargets: { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 },
+    });
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(state.usedNames.has('Pool GC')).toBe(true); // the GC got added
+    expect(state.usedNames.has('Niche Payoff')).toBe(true); // protected: high priority + below-floor role
+    expect(state.usedNames.has('Generic Filler')).toBe(false); // cut: low priority, no floor to breach
+
+    vi.mocked(getCardRole).mockReturnValue(null); // restore the file-level default for later tests
   });
 });

@@ -106,6 +106,11 @@ export interface LiftPicksOptions {
   effectiveScryfallQuery?: string;
   /** Salt hard gate built in deckGenerator (undefined = no cap active). */
   isSaltBlocked?: (name: string) => boolean;
+  /** Extra names to exclude beyond the current `state.usedNames` — e.g. cards
+   *  the late swap phases (combo audit, fixup, coherence repair, bracket
+   *  convergence) cut this same generation. Without this, a card cut for
+   *  being weak can immediately resurface as a "hidden synergy" suggestion. */
+  extraExcludeNames?: Set<string>;
 }
 
 /**
@@ -138,6 +143,7 @@ export async function liftPicksPhase(
 
     const excludeNames = new Set<string>(state.usedNames);
     for (const name of state.bannedCards) excludeNames.add(name);
+    for (const name of opts.extraExcludeNames ?? []) excludeNames.add(name);
 
     const candidates = aggregateLiftCandidates(seedPools, { excludeNames });
     if (candidates.length === 0) return undefined;

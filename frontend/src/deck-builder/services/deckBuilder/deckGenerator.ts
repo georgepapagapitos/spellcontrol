@@ -42,8 +42,17 @@ import {
   getCardSubtype,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { computeGradeAndBracket } from './commanderDeckAnalysis';
-import { getDynamicRoleTargets, estimatePacingFromStats } from './roleTargets';
+import { computeGradeAndBracket, computeRoleCounts } from './commanderDeckAnalysis';
+import {
+  getDynamicRoleTargets,
+  estimatePacingFromStats,
+  inferArchetype,
+  inferArchetypeFromEdhrecThemes,
+  computeEdhrecRoleTargets,
+} from './roleTargets';
+import { buildCommanderProfile } from './commanderProfile';
+import { ARCHETYPE_LABEL } from './strategyVocabulary';
+import { Archetype } from '@/deck-builder/types';
 import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
@@ -57,7 +66,7 @@ import {
   notOnArena,
   exceedsCmcCap,
 } from './deckFilters';
-import { calculateTargetCounts } from './targetCounts';
+import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
@@ -71,6 +80,7 @@ import {
   stampRoleSubtypes,
   collectSwapCandidates,
   computeRoleBoosts,
+  routeCardByType,
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
@@ -304,6 +314,51 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
 }
 
 /**
+ * Compose `landCountNote` — always from FINAL deck state (the delivered land
+ * count + the deck's own final average CMC), never from auto-tune-time values,
+ * which go stale the moment coherence-repair/bracket-convergence swap the deck
+ * afterward. `isLowConfidence` softens the archetype reference when the label
+ * came only from the oracle-text keyword-vote heuristic, not a real EDHREC
+ * theme or user pick — naming a wrong archetype ("for a Voltron deck") is worse
+ * than naming none ("for this deck's profile").
+ */
+export function buildLandCountNote(params: {
+  finalLandCount: number;
+  archetype: Archetype;
+  isLowConfidence: boolean;
+  edhrecRampCount: number;
+  finalAvgCmc: number;
+}): string {
+  const label = ARCHETYPE_LABEL[params.archetype];
+  const archetypeText = params.isLowConfidence
+    ? "for this deck's profile"
+    : `for ${/^[AEIOU]/i.test(label) ? 'an' : 'a'} ${label} deck`;
+  return `Auto-tuned to ${params.finalLandCount} lands ${archetypeText} (${params.edhrecRampCount} typical ramp sources, avg CMC ${params.finalAvgCmc.toFixed(1)}) — set land count explicitly under Customize to override.`;
+}
+
+/**
+ * Compose the honest over-budget disclosure from the FINAL deck total (summed
+ * after every mutating phase). Returns undefined when the deck landed at or
+ * under budget — callers keep whatever earlier skip-only note (if any) they
+ * already had in that case.
+ */
+export function buildOverBudgetNote(params: {
+  finalTotal: number;
+  deckBudget: number;
+  currency: 'USD' | 'EUR';
+  comboBudgetSkipCount: number;
+}): string | undefined {
+  if (params.finalTotal <= params.deckBudget) return undefined;
+  const sym = params.currency === 'EUR' ? '€' : '$';
+  const over = params.finalTotal - params.deckBudget;
+  const skippedClause =
+    params.comboBudgetSkipCount > 0
+      ? ' Some combo upgrades were skipped to stay as close as possible.'
+      : '';
+  return `Deck totals ${sym}${params.finalTotal.toFixed(2)} — ${sym}${over.toFixed(2)} over your ${sym}${params.deckBudget} budget.${skippedClause}`;
+}
+
+/**
  * Public entry point. For the default EDHREC mode this is a passthrough. For the
  * alternative generators it forces all card fetches to the live API for the
  * duration of the build (the offline query parser can't evaluate otag:/art:/year<=).
@@ -529,11 +584,30 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Balanced roles tracking — declared at outer scope so return statement can access them
   let roleTargets: Record<RoleKey, number> | null = null;
   let roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
-  let detectedArchetype: import('@/deck-builder/types').Archetype | undefined;
+  let detectedArchetype: Archetype | undefined;
   // resolvedPacing is set after edhrecData is available; detectedPacing mirrors it for the return value
   let resolvedPacing: Pacing = 'balanced';
   let detectedPacing: Pacing = 'balanced';
   let swapCandidates: Record<string, ScryfallCard[]> | undefined;
+  // Land count: resolved once (flat default or archetype-aware auto-tune) so
+  // the actual generation math and the post-generation grader agree on the
+  // same target — see computeGradeAndBracket call below.
+  let resolvedLandCount = customization.landCount;
+  let landCountNote: string | undefined;
+  // Whether the auto-tune actually changed the land count (decided early,
+  // needs EDHREC pool data before any card is picked) — the note *text* is
+  // composed later from final state (see landCountNote assembly near the
+  // return) so it never disagrees with what actually shipped.
+  let landCountAutoTuned = false;
+  let edhrecRampCountForNote: number | undefined;
+  // True when detectedArchetype came only from the oracle-text keyword-vote
+  // heuristic (commanderProfile.primaryArchetype) — neither the user's own
+  // theme picks nor EDHREC's own ranked commander-page themes resolved to a
+  // real archetype. Softens landCountNote's copy in that low-confidence case.
+  let archetypeIsLowConfidence = false;
+  // Combo-completion budget disclosure: how many combo-audit/combo-floor
+  // candidates were skipped for exceeding the budget cap (see budgetNote below).
+  let comboBudgetSkipCount = 0;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
@@ -1067,6 +1141,46 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
   detectedPacing = resolvedPacing;
 
+  // Commander profile (mechanically detected archetype/tribes/abilities from
+  // oracle text) — the fallback for theme-inference, and the input to the
+  // archetype-aware land count below. Computed once, unconditionally (not
+  // gated behind balancedRoles): a tribal/spellslinger/enchantress commander
+  // should get its real archetype and land count regardless of that toggle.
+  const commanderProfile = buildCommanderProfile(commander, partnerCommander);
+  // Prefer EDHREC's own ranked commander-page themes (the community's stated
+  // consensus) over the oracle-text keyword-vote heuristic, which tie-breaks
+  // on a static precedence list and mislabels commanders like Atraxa
+  // ("voltron" instead of proliferate/superfriends) or Sythis ("spellslinger"
+  // instead of enchantress). Only when EDHREC has nothing to say does the
+  // keyword vote decide — and that fallback path is the low-confidence case
+  // landCountNote's copy softens below.
+  const edhrecThemeArchetype = inferArchetypeFromEdhrecThemes(state.edhrecData?.themes);
+  const archetypeFallback = edhrecThemeArchetype ?? commanderProfile.primaryArchetype;
+  archetypeIsLowConfidence =
+    edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
+  detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
+
+  // Archetype-aware land count: only when the user hasn't customized land
+  // inputs (still at the store defaults) — an explicit user choice is never
+  // second-guessed. Uses the EDHREC-typical ramp count for this commander
+  // (a pre-generation proxy for dork/rock density) + the EDHREC average CMC.
+  if (isDefaultLandCount(customization) && state.edhrecData) {
+    const edhrecRampCount = computeEdhrecRoleTargets(state.edhrecData).ramp;
+    const manaCurve = state.edhrecData.stats?.manaCurve ?? {};
+    const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
+    const avgCmc =
+      curveTotal > 0
+        ? Object.entries(manaCurve).reduce((s, [cmc, count]) => s + Number(cmc) * count, 0) /
+          curveTotal
+        : 0;
+    const autoLandCount = computeAutoLandCount(detectedArchetype, edhrecRampCount, avgCmc);
+    if (autoLandCount !== resolvedLandCount) {
+      resolvedLandCount = autoLandCount;
+      landCountAutoTuned = true;
+      edhrecRampCountForNote = edhrecRampCount;
+    }
+  }
+
   // Calculate target counts with type and curve targets
   const {
     composition: targets,
@@ -1076,7 +1190,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     customization,
     state.edhrecData?.stats,
     !!partnerCommander,
-    resolvedPacing
+    resolvedPacing,
+    resolvedLandCount
   );
 
   // Compress curve targets for Tiny Leaders (CMC cap at 3)
@@ -1457,10 +1572,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         state.edhrecData?.stats,
         state.edhrecData,
         customization.advancedTargets?.edhrecBlendWeight ?? null,
-        customization.advancedTargets?.edhrecInclusionThreshold ?? null
+        customization.advancedTargets?.edhrecInclusionThreshold ?? null,
+        archetypeFallback // same EDHREC-theme-first fallback used above, not the raw keyword vote
       );
       roleTargets = dynamic.targets;
-      detectedArchetype = dynamic.archetype;
+      detectedArchetype = dynamic.archetype; // same value already set above; kept for shape parity
       roleTargetBreakdown = dynamic.breakdown;
       // When auto-detect is on, prefer the richer archetype-aware pacing from getDynamicRoleTargets
       if (customization.tempoAutoDetect) {
@@ -2591,7 +2707,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (cardType && typeNeed[cardType] > 0) typeNeed[cardType]--;
         }
 
-        categories.synergy.push(scryfallCard);
+        routeCardByType(scryfallCard, categories);
         usedNames.add(edhrecCard.name);
         if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
         filled++;
@@ -2619,7 +2735,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
           if (exceedsCmcCap(scryfallCard, maxCmc)) continue;
 
-          categories.synergy.push(scryfallCard);
+          routeCardByType(scryfallCard, categories);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
           filled++;
@@ -2750,7 +2866,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           liftScoreOf,
           fillGates
         );
-        categories.synergy.push(...moreCards);
+        categorizeCards(moreCards, categories);
         filled += moreCards.length;
       }
 
@@ -2778,13 +2894,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       const addOwnedCard = (card: ScryfallCard) => {
         stampRoleSubtypes(card);
         const role = getCardRole(card.name);
-        const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-        if (typeLine.includes('creature')) categories.creatures.push(card);
-        else if (role === 'boardwipe') categories.boardWipes.push(card);
-        else if (role === 'removal') categories.singleRemoval.push(card);
-        else if (role === 'ramp') categories.ramp.push(card);
-        else if (role === 'cardDraw') categories.cardDraw.push(card);
-        else categories.synergy.push(card);
+        routeCardByType(card, categories);
         usedNames.add(card.name);
         if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
       };
@@ -3023,9 +3133,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
   }
 
-  // Calculate stats
-  const stats = await finalStatsPhase(state, saltIndex);
-
   // Get the theme names that were actually used
   const usedThemes =
     selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs.map((t) => t.name) : undefined;
@@ -3033,13 +3140,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Gap analysis: find top unowned cards that would improve the deck
   const gapAnalysis = await gapAnalysisPhase(state, { effectiveScryfallQuery: scryfallQuery });
 
-  // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
-  // for this commander but strongly co-played with cards already in the
-  // deck. Suggestions only — never added to the deck.
-  const liftPicks = await liftPicksPhase(state, {
-    effectiveScryfallQuery: scryfallQuery,
-    isSaltBlocked,
-  });
+  // Snapshot pre-swap deck membership: the combo audit / fixup / coherence
+  // repair / bracket convergence passes below can still cut cards, and a card
+  // they cut shouldn't immediately resurface as a "hidden synergy" package
+  // pick (e.g. Yuriko-bracket4 re-suggesting the Kaito Shizuki this very pass
+  // just cut). Diffed against the post-swap usedNames right before lift picks
+  // run, further down — after every mutating phase, not before them.
+  const preSwapUsedNames = new Set(usedNames);
 
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);
@@ -3100,19 +3207,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       usedNames.delete(card.name);
     }
 
+    // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce — owned
+    // copies are exempt, everything else checks the live effective cap.
+    function auditPassesBudget(card: ScryfallCard): boolean {
+      if (isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) return true;
+      const cap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+      return !exceedsMaxPrice(card, cap, currency);
+    }
+
     function auditAdd(card: ScryfallCard): boolean {
       if (usedNames.has(card.name)) return false; // guard against duplicates
       if (bannedCards.has(card.name)) return false; // respect banlist
       stampRoleSubtypes(card);
-      const role = getCardRole(card.name);
-      const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-      if (typeLine.includes('creature')) categories.creatures.push(card);
-      else if (role === 'boardwipe') categories.boardWipes.push(card);
-      else if (role === 'removal') categories.singleRemoval.push(card);
-      else if (role === 'ramp') categories.ramp.push(card);
-      else if (role === 'cardDraw') categories.cardDraw.push(card);
-      else categories.synergy.push(card);
+      routeCardByType(card, categories);
       usedNames.add(card.name);
+      if (!isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) {
+        budgetTracker?.deductCard(card);
+      }
       return true;
     }
 
@@ -3152,6 +3263,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       for (const [name, combosCompleted] of topEnablers) {
         if (auditSwaps >= MAX_AUDIT_SWAPS) break;
         const card = scryfallCardMap.get(name)!;
+        if (!auditPassesBudget(card)) {
+          comboBudgetSkipCount++;
+          continue; // next-best enabler under budget
+        }
         const weak = auditWeakest();
         if (!weak) break;
         auditRemove(weak.card, weak.category);
@@ -3205,7 +3320,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             )
         )
         .map((n) => scryfallCardMap.get(n))
-        .filter((c): c is ScryfallCard => !!c);
+        .filter((c): c is ScryfallCard => !!c)
+        .filter((c) => {
+          if (auditPassesBudget(c)) return true;
+          comboBudgetSkipCount++;
+          return false;
+        });
 
       // If all "missing" pieces are actually already in the deck now, mark complete and move on
       if (trulyMissing.length === 0) {
@@ -3257,7 +3377,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             }
           }
           if (!found) continue;
-          const replacement = state.edhrecData.cardlists.allNonLand
+          const replacementCandidates = state.edhrecData.cardlists.allNonLand
             .filter(
               (c) =>
                 !usedNames.has(c.name) &&
@@ -3268,7 +3388,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                   notInCollection(c.name, context.collectionNames)
                 )
             )
-            .sort((a, b) => b.inclusion - a.inclusion)[0];
+            .sort((a, b) => b.inclusion - a.inclusion);
+          // Fall through past budget-exceeding candidates to the next-best one.
+          let replacement: (typeof replacementCandidates)[0] | undefined;
+          for (const cand of replacementCandidates) {
+            if (auditPassesBudget(scryfallCardMap.get(cand.name)!)) {
+              replacement = cand;
+              break;
+            }
+            comboBudgetSkipCount++;
+          }
           if (!replacement) continue;
           auditRemove(found.card, found.category);
           auditAdd(scryfallCardMap.get(replacement.name)!);
@@ -3320,8 +3449,26 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallCardMap,
       mustIncludeNames: mustIncludeSet,
       targetBracket,
+      budgetTracker,
+      maxCardPrice,
+      currency,
+      ignoreOwnedBudget,
     });
     detectedCombos = floorResult.detectedCombos;
+    comboBudgetSkipCount += floorResult.budgetSkipped;
+  }
+
+  // Disclose combo-completion candidates that were available but skipped for
+  // exceeding the budget — the audit/combo-floor above now honor the same
+  // budget gate cardPicking/scryfallFill/coherenceRepair enforce, instead of
+  // silently blowing the cap (see BudgetTracker). Overwritten near the return
+  // with the honest final-total/over-budget message when the shipped deck
+  // actually landed over budget (mutating passes run after this point).
+  let budgetNote: string | undefined;
+  if (budgetTracker && comboBudgetSkipCount > 0) {
+    const sym = currency === 'EUR' ? '€' : '$';
+    // ponytail: count tallies per-candidate loop skips, not user-meaningful upgrades — keep the note qualitative
+    budgetNote = `Some combo upgrades were skipped to honor your ${sym}${deckBudget} budget`;
   }
 
   // ── Post-Generation Fixup Pass (light touch) ──
@@ -3370,20 +3517,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function fixupAddCard(card: ScryfallCard) {
       stampRoleSubtypes(card);
       const role = getCardRole(card.name);
-      const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-      if (typeLine.includes('creature')) {
-        categories.creatures.push(card);
-      } else if (role === 'boardwipe') {
-        categories.boardWipes.push(card);
-      } else if (role === 'removal') {
-        categories.singleRemoval.push(card);
-      } else if (role === 'ramp') {
-        categories.ramp.push(card);
-      } else if (role === 'cardDraw') {
-        categories.cardDraw.push(card);
-      } else {
-        categories.synergy.push(card);
-      }
+      routeCardByType(card, categories);
       usedNames.add(card.name);
       if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
     }
@@ -3557,6 +3691,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       detectedCombos,
       mustIncludeNames: convergeMustInclude,
       cardAllowed: isCardAllowedBySynergyDependencies,
+      roleTargets,
     });
     // Convergence can cut a combo piece (target <= 2 breaks incidental combos).
     // Refresh combo completeness against the live deck so the final bracket
@@ -3580,6 +3715,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
+  // for this commander but strongly co-played with cards already in the
+  // deck. Suggestions only — never added to the deck. Runs here, AFTER every
+  // mutating phase (combo audit, fixup, coherence repair, bracket
+  // convergence), so its exclusion set reflects the deck that actually
+  // shipped — not a pre-swap snapshot that can suggest a card the deck no
+  // longer runs, or re-suggest a card those very phases just cut.
+  const liftPicks = await liftPicksPhase(state, {
+    effectiveScryfallQuery: scryfallQuery,
+    isSaltBlocked,
+    extraExcludeNames: new Set([...preSwapUsedNames].filter((name) => !usedNames.has(name))),
+  });
+
   // Build deck score from EDHREC inclusion percentages
   const { deckScore, cardInclusionMap } = deckScorePhase(state, swapCandidates, gapAnalysis);
 
@@ -3590,7 +3738,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     curveTargets,
     typeTargets,
     swapCandidates,
-    gapAnalysis
+    gapAnalysis,
+    detectedCombos
   );
 
   // ── Grade + bracket ──
@@ -3599,38 +3748,81 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     .map((c) => c.name);
   if (commander) allDeckCardNames.push(commander.name);
   if (partnerCommander) allDeckCardNames.push(partnerCommander.name);
-  // Recompute the non-land average CMC from the FINAL deck: `stats` was taken
-  // before the combo-floor / fixup / bracket-convergence swap passes, so its
-  // averageCmc is stale (convergence in particular systematically removes
-  // 0-cmc fast mana). The bracket estimate must score the deck as it ships, so
-  // the report matches what convergence verified. Uses the SAME non-land basis
-  // the convergence pass scored on (every category except `lands`) so the two
-  // estimates agree exactly.
+  // Final stats, computed HERE (after the combo-floor / fixup / coherence-
+  // repair / bracket-convergence swap passes) rather than at deck-assembly
+  // time — a stats snapshot taken before those passes goes stale the moment
+  // any of them mutate the deck (convergence in particular systematically
+  // removes 0-cmc fast mana), producing a persisted `stats.averageCmc` that
+  // disagrees with the bracket estimate's own independently-fresh recompute,
+  // plus a manaCurve/typeDistribution that can miss a swap's add or cut
+  // entirely. This is the single source now — nothing downstream recomputes
+  // it again.
   const nonLandCards = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
     .filter(([cat]) => cat !== 'lands')
     .flatMap(([, cards]) => cards);
-  const finalAverageCmc =
-    nonLandCards.length > 0
-      ? nonLandCards.reduce((sum, c) => sum + (c.cmc ?? 0), 0) / nonLandCards.length
-      : stats.averageCmc;
+  // Single source for the SHIPPED role counts: recount from the final card set
+  // via the same shared computeRoleCounts() the manual-deck/edit path uses,
+  // rather than trusting the ad-hoc `currentRoleCounts` incremental tally
+  // (which several backfill/fixup call sites bump even for lands routed into
+  // categories.lands, drifting from the per-card role fields it's supposed to
+  // mirror). `currentRoleCounts` itself stays untouched — it's still the live
+  // counter driving in-flight picking/fixup decisions during generation.
+  const finalRoleCounts = computeRoleCounts(nonLandCards).roleCounts;
+  const stats = await finalStatsPhase(state, saltIndex);
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
     allCardNames: allDeckCardNames,
     detectedCombos,
-    averageCmc: finalAverageCmc,
+    averageCmc: stats.averageCmc,
     deckScore,
-    bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
+    bracketRoleCounts: roleTargets ? finalRoleCounts : undefined,
     gameChangerNames: state.gameChangerNames,
     allCards: Object.values(categories).flat(),
-    roleCounts: currentRoleCounts,
+    roleCounts: finalRoleCounts,
     roleTargets,
     edhrecData: state.edhrecData,
     deckSize: format,
     cardInclusionMap,
     colorIdentity: context.colorIdentity,
+    // Grade against the SAME land-count target the generator actually built
+    // to (flat default or archetype-aware auto-tune) — otherwise the grader
+    // computes its own independent "ideal" and contradicts its own generator.
+    overrideLandTarget: resolvedLandCount,
+    overridePacing: resolvedPacing,
   });
   logger.debug(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
+
+  // landCountNote, composed HERE (not at auto-tune decision time) from the
+  // same final `categories`/`stats` everything else above now single-sources:
+  // the decision to note at all was made early (before any card was picked),
+  // but coherence-repair/bracket-convergence can still change the delivered
+  // land count and curve afterward — composing the string this late is the
+  // only way its numbers can't go stale relative to what actually shipped.
+  if (landCountAutoTuned) {
+    landCountNote = buildLandCountNote({
+      finalLandCount: categories.lands.length,
+      archetype: detectedArchetype ?? Archetype.GOODSTUFF,
+      isLowConfidence: archetypeIsLowConfidence,
+      edhrecRampCount: edhrecRampCountForNote ?? 0,
+      finalAvgCmc: stats.averageCmc,
+    });
+  }
+
+  // Budget honesty: recompute the real final total over the FINAL deck (post
+  // combo-floor/fixup/coherence-repair/bracket-convergence swaps) — the early
+  // budgetTracker log above runs before those mutating passes and only ever
+  // disclosed a skip count, never a total, so it can't say whether the deck
+  // actually landed over budget. Overwrite budgetNote with the honest number
+  // when it did, folding in the skip disclosure as a secondary clause.
+  if (deckBudget !== null) {
+    const finalTotal = [...nonLandCards, ...categories.lands].reduce((sum, c) => {
+      const p = getCardPrice(c, currency);
+      return sum + (p ? parseFloat(p) || 0 : 0);
+    }, 0);
+    budgetNote =
+      buildOverBudgetNote({ finalTotal, deckBudget, currency, comboBudgetSkipCount }) ?? budgetNote;
+  }
 
   // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
   // fixup passes above (they can evict cards added to categories.synergy), so
@@ -3703,7 +3895,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     generationMode: mode,
     generationModeDetail: altPool?.detail,
     generationRelaxedNote: altPool?.relaxedNote,
-    roleCounts: roleTargets ? { ...currentRoleCounts } : undefined,
+    landCountNote,
+    budgetNote,
+    roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
     ...(roleTargets

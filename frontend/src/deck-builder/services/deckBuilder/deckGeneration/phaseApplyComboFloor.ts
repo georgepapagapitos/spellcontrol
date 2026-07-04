@@ -7,10 +7,14 @@ import type {
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
-import { constrainsToCollection, notInCollection } from '../deckFilters';
-import { stampRoleSubtypes } from '../categorize';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import {
+  constrainsToCollection,
+  notInCollection,
+  exceedsMaxPrice,
+  isOwnedBudgetExempt,
+} from '../deckFilters';
+import { stampRoleSubtypes, routeCardByType } from '../categorize';
+import type { BudgetTracker } from '../budgetTracker';
 
 // ── Combo Floor ──
 // If the generated deck contains zero complete 2-card combos AND the bracket
@@ -41,6 +45,12 @@ export interface ComboFloorContext {
   mustIncludeNames: Set<string>;
   /** Current target bracket (undefined / 'all' = unrestricted). */
   targetBracket: TargetBracket | undefined;
+  /** Same budget gate cardPicking/scryfallFill/coherenceRepair enforce.
+   *  All default to "no budget constraint" so existing callers/tests are unaffected. */
+  budgetTracker?: BudgetTracker | null;
+  maxCardPrice?: number | null;
+  currency?: 'USD' | 'EUR';
+  ignoreOwnedBudget?: boolean;
 }
 
 export interface ComboFloorResult {
@@ -48,6 +58,8 @@ export interface ComboFloorResult {
   detectedCombos: DetectedCombo[] | undefined;
   /** True if a combo was seeded. */
   seeded: boolean;
+  /** Count of otherwise-eligible combo pieces skipped for exceeding budget. */
+  budgetSkipped: number;
 }
 
 /**
@@ -63,28 +75,37 @@ export function bracketAllowsCombos(target: TargetBracket | undefined): boolean 
 }
 
 export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext): ComboFloorResult {
-  const { detectedCombos, scryfallCardMap, mustIncludeNames, targetBracket } = ctx;
+  const {
+    detectedCombos,
+    scryfallCardMap,
+    mustIncludeNames,
+    targetBracket,
+    budgetTracker = null,
+    maxCardPrice = null,
+    currency = 'USD',
+    ignoreOwnedBudget = false,
+  } = ctx;
 
   // Don't fire when the user has explicitly requested combos (the Combo
   // Integrity Audit already runs in that path).
   if (state.cfg.comboCountSetting > 0) {
-    return { detectedCombos, seeded: false };
+    return { detectedCombos, seeded: false, budgetSkipped: 0 };
   }
 
   // Respect bracket guardrail — brackets 1 & 2 are combo-free.
   if (!bracketAllowsCombos(targetBracket)) {
-    return { detectedCombos, seeded: false };
+    return { detectedCombos, seeded: false, budgetSkipped: 0 };
   }
 
   // Check whether the deck already has at least one complete 2-card combo.
   const hasComplete2Card = detectedCombos?.some((dc) => dc.isComplete && dc.cardCount <= 2);
   if (hasComplete2Card) {
-    return { detectedCombos, seeded: false };
+    return { detectedCombos, seeded: false, budgetSkipped: 0 };
   }
 
   // No combos to search from — bail early.
   if (state.combos.length === 0) {
-    return { detectedCombos, seeded: false };
+    return { detectedCombos, seeded: false, budgetSkipped: 0 };
   }
 
   // Build the current deck name set (commanders + category cards).
@@ -112,6 +133,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     missingCard: ScryfallCard;
   }
   let best: Candidate | null = null;
+  let budgetSkipped = 0;
 
   // Sort combos descending by deckCount so we pick the most popular first.
   const sorted = [...state.combos]
@@ -130,13 +152,23 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     const missingCard = scryfallCardMap.get(missingName);
     if (!missingCard) continue;
 
+    // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce —
+    // owned copies are exempt, everything else checks the live effective cap.
+    if (!isOwnedBudgetExempt(missingName, state.context.collectionNames, ignoreOwnedBudget)) {
+      const cap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+      if (exceedsMaxPrice(missingCard, cap, currency)) {
+        budgetSkipped++;
+        continue; // next-best combo under budget
+      }
+    }
+
     best = { combo, missingName, missingCard };
     break; // highest deckCount wins; first match is best
   }
 
   if (!best) {
     logger.debug('[DeckGen] Combo floor: no eligible 2-card combo found to seed');
-    return { detectedCombos, seeded: false };
+    return { detectedCombos, seeded: false, budgetSkipped };
   }
 
   // Names that must never be evicted to make room for the seed: the pieces of
@@ -176,7 +208,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
   const evict = findWeakest();
   if (!evict) {
     logger.debug('[DeckGen] Combo floor: no evictable card found');
-    return { detectedCombos, seeded: false };
+    return { detectedCombos, seeded: false, budgetSkipped };
   }
 
   // Perform the swap.
@@ -187,24 +219,13 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
 
   // Add the missing combo piece to the appropriate category.
   stampRoleSubtypes(best.missingCard);
-  const role = getCardRole(best.missingName);
-  const typeLine = getFrontFaceTypeLine(best.missingCard).toLowerCase();
-  if (typeLine.includes('creature')) {
-    state.categories.creatures.push(best.missingCard);
-  } else if (role === 'boardwipe') {
-    state.categories.boardWipes.push(best.missingCard);
-  } else if (role === 'removal') {
-    state.categories.singleRemoval.push(best.missingCard);
-  } else if (role === 'ramp') {
-    state.categories.ramp.push(best.missingCard);
-  } else if (role === 'cardDraw') {
-    state.categories.cardDraw.push(best.missingCard);
-  } else {
-    state.categories.synergy.push(best.missingCard);
-  }
+  routeCardByType(best.missingCard, state.categories);
   state.usedNames.add(best.missingName);
   if (best.missingCard.name.includes(' // ')) {
     state.usedNames.add(frontFaceName(best.missingCard.name));
+  }
+  if (!isOwnedBudgetExempt(best.missingName, state.context.collectionNames, ignoreOwnedBudget)) {
+    budgetTracker?.deductCard(best.missingCard);
   }
 
   logger.debug(
@@ -256,5 +277,6 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
   return {
     detectedCombos: updated.length > 0 ? updated : undefined,
     seeded: true,
+    budgetSkipped,
   };
 }

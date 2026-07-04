@@ -231,6 +231,25 @@ describe('planBasicColorSplit', () => {
     ).toEqual({ W: 5 });
   });
 
+  it('floors every demanded color at >= 1 basic even when nonbasics fully cover it on paper', () => {
+    // Yuriko/Isshin-style bug: W is fully covered by 10 nonbasic W lands (its
+    // computed deficit is 0), but it still has real pip demand — a Basic
+    // supertype search effect (Sword of the Animist, most fetches) needs an
+    // actual basic of that color, not just color-equivalent mana.
+    const wSources = Array.from({ length: 10 }, (_, i) =>
+      card({ name: `W Land ${i}`, type_line: 'Land', produced_mana: ['W'] })
+    );
+    const split = planBasicColorSplit({
+      nonLandCards: [knightOfWhiteOrchid, counterspell],
+      pickedLands: wSources,
+      identity: WU,
+      colors: ['W', 'U'],
+      basicsNeeded: 5,
+    });
+    expect(split.W).toBeGreaterThanOrEqual(1);
+    expect(split.W + split.U).toBe(5);
+  });
+
   it('allocates exactly basicsNeeded even when nothing is short (pip fallback)', () => {
     // Sources already exceed every desire → deficits all zero → raw pip proportion.
     const manyDuals = Array.from({ length: 30 }, (_, i) =>
@@ -254,13 +273,15 @@ describe('buildManabaseSummary', () => {
     const summary = buildManabaseSummary(lands, nonland, WU);
     expect(summary.lines.map((l) => l.color)).toEqual(['W', 'U']);
     expect(summary.totalLands).toBe(5);
-    // Arcane Signet produces W and U → 2 colored nonland source entries.
-    expect(summary.nonlandSources).toBe(2);
+    // Arcane Signet produces W and U (2 colored entries) + Sol Ring produces
+    // colorless (1) → 3 nonland source entries.
+    expect(summary.nonlandSources).toBe(3);
     const w = summary.lines[0];
     // W sources: Fountain + 2×Plains + Tower + Signet = 5.
     expect(w.sources).toBe(5);
     expect(w.pips).toBe(3); // Wall {W} + Verdict {W}{W}
-    expect(w.target).toBeGreaterThanOrEqual(2);
+    expect(w.target).toBeGreaterThanOrEqual(1);
+    expect(w.short).toBe(w.sources < w.target);
   });
 
   it('flags a starved color and phrases the note against early costs', () => {
@@ -284,5 +305,69 @@ describe('buildManabaseSummary', () => {
     const nonland = [wallOfOmens, preordain];
     const summary = buildManabaseSummary(lands, nonland, WU);
     expect(summary.note).toBeUndefined();
+  });
+
+  it('never disagrees: short is exactly sources < target, and the note names every short color', () => {
+    // Isshin-style: W and R equally starved, both should be flagged AND named.
+    // A handful of off-color filler lands give the deck a realistic total
+    // mana-source count (a real 99-card deck never runs on a single land).
+    const wr = new Set(['W', 'R']);
+    const wCard = card({ name: 'Double W', mana_cost: '{W}{W}', cmc: 2 });
+    const rCard = card({ name: 'Double R', mana_cost: '{R}{R}', cmc: 2 });
+    const filler = Array.from({ length: 8 }, (_, i) =>
+      card({ name: `Island ${i}`, type_line: 'Basic Land — Island', produced_mana: ['U'] })
+    );
+    const summary = buildManabaseSummary(filler, [wCard, rCard], wr);
+
+    // Every line satisfies the single invariant, by construction.
+    for (const l of summary.lines) expect(l.short).toBe(l.sources < l.target);
+
+    const shortColors = summary.lines.filter((l) => l.short).map((l) => l.color);
+    expect(shortColors.sort()).toEqual(['R', 'W']);
+    expect(summary.note).toMatch(/red/);
+    expect(summary.note).toMatch(/white/);
+  });
+
+  it("caps per-color targets so they can never sum past the deck's actual mana sources", () => {
+    // 5-color deck, heavy pips in every color, but a small, mono-color-only
+    // manabase — the old capacity-share math let per-color targets sum to
+    // multiples of the real source count (Ur-Dragon: 153 target vs 95 total).
+    const wubrg = new Set(['W', 'U', 'B', 'R', 'G']);
+    const heavy = (c: string) =>
+      card({ name: `Heavy ${c}`, mana_cost: `{${c}}{${c}}{${c}}{${c}}{${c}}{${c}}{${c}}`, cmc: 7 });
+    const nonland = (['W', 'U', 'B', 'R', 'G'] as const).map(heavy);
+    // 10 lands total, 2 per color, no multicolor overlap — a tight manabase.
+    const lands = (['W', 'U', 'B', 'R', 'G'] as const).flatMap((c) => [
+      card({ name: `${c} Land A`, type_line: 'Land', produced_mana: [c] }),
+      card({ name: `${c} Land B`, type_line: 'Land', produced_mana: [c] }),
+    ]);
+    const summary = buildManabaseSummary(lands, nonland, wubrg);
+    const totalPermanents = lands.length; // no nonland mana sources in this deck
+    const sumTargets = summary.lines.reduce((s, l) => s + l.target, 0);
+    expect(sumTargets).toBeLessThanOrEqual(totalPermanents);
+    // The invariant still holds after capping.
+    for (const l of summary.lines) expect(l.short).toBe(l.sources < l.target);
+  });
+
+  it('gives a colorless commander a real, non-blank manabase summary', () => {
+    const colorless = new Set<string>();
+    const solRingCard = solRing; // produces 'C'
+    const wastes = card({ name: 'Wastes', type_line: 'Basic Land — Wastes', produced_mana: ['C'] });
+    const eldraziObelisk = card({
+      name: 'Eldrazi Temple',
+      type_line: 'Land',
+      produced_mana: ['C'],
+    });
+    const summary = buildManabaseSummary(
+      [wastes, wastes, eldraziObelisk],
+      [solRingCard],
+      colorless
+    );
+    // No WUBRG pips at all, but the manabase panel still needs a real,
+    // renderable line (not a blank section) — a single {C} entry.
+    expect(summary.lines).toEqual([{ color: 'C', pips: 0, sources: 4, target: 4, short: false }]);
+    // …and nonlandSources/the note both reflect the real colorless base.
+    expect(summary.nonlandSources).toBe(1);
+    expect(summary.note).toMatch(/colorless/);
   });
 });

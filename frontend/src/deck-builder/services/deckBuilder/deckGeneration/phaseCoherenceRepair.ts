@@ -9,8 +9,7 @@ import type {
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
-import { stampRoleSubtypes } from '../categorize';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
   notInCollection,
@@ -190,13 +189,7 @@ export async function applyCoherenceRepair(
   const addCard = (card: ScryfallCard) => {
     stampRoleSubtypes(card);
     const role = getCardRole(card.name);
-    const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-    if (typeLine.includes('creature')) state.categories.creatures.push(card);
-    else if (role === 'boardwipe') state.categories.boardWipes.push(card);
-    else if (role === 'removal') state.categories.singleRemoval.push(card);
-    else if (role === 'ramp') state.categories.ramp.push(card);
-    else if (role === 'cardDraw') state.categories.cardDraw.push(card);
-    else state.categories.synergy.push(card);
+    routeCardByType(card, state.categories);
     state.usedNames.add(card.name);
     if (card.name.includes(' // ')) state.usedNames.add(frontFaceName(card.name));
     if (role) state.currentRoleCounts[role] = (state.currentRoleCounts[role] ?? 0) + 1;

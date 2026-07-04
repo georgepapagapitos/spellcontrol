@@ -114,6 +114,27 @@ describe('auditDeckCoherence', () => {
     ).toHaveLength(1);
   });
 
+  it('suppresses a dead-payoff flag for a card completing a live combo (C4)', () => {
+    // Alone, a payoff with no producers feeding it is flagged dead — the
+    // baseline this test's combo case must override.
+    expect(audit([lifegainPayoff]).filter((f) => f.kind === 'dead-payoff')).toHaveLength(1);
+
+    const combo: DetectedCombo = {
+      comboId: 'c2',
+      cards: ["Ajani's Pridemate", 'Other Piece'],
+      results: ['Infinite value'],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 100,
+      bracket: null,
+      cardCount: 2,
+    };
+    // Krenko/Thornbite Staff case: detectedCombos shows the card completing a
+    // live infinite loop — the audit must not simultaneously call it dead.
+    const findings = audit([lifegainPayoff], { detectedCombos: [combo] });
+    expect(findings.filter((f) => f.card === "Ajani's Pridemate")).toHaveLength(0);
+  });
+
   it('skips must-include cards — a forced pick is never flagged', () => {
     expect(audit([{ ...vanilla, isMustInclude: true }])).toHaveLength(0);
   });

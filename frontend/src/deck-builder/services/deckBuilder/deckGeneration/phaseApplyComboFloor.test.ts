@@ -7,12 +7,18 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isExtraTurn: () => false,
 }));
 
-// Stub categorize — stampRoleSubtypes is a no-op in tests
-vi.mock('../categorize', () => ({
-  stampRoleSubtypes: () => {},
-}));
+// Stub categorize — stampRoleSubtypes is a no-op in tests; routeCardByType
+// keeps its real land-then-role-then-synergy routing.
+vi.mock('../categorize', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../categorize')>();
+  return {
+    ...actual,
+    stampRoleSubtypes: () => {},
+  };
+});
 
 import { applyComboFloor, bracketAllowsCombos } from './phaseApplyComboFloor';
+import { BudgetTracker } from '../budgetTracker';
 import type { GenerationState } from './state';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -333,5 +339,93 @@ describe('applyComboFloor', () => {
     });
 
     expect(result.seeded).toBe(false);
+  });
+
+  // ── budget gate (Cluster D) ──────────────────────────────────────────────
+  it('does not exceed the budget: no-budget run stays unchanged', () => {
+    const missingCard = scryfallCard('Gravecrawler', { prices: { usd: '9999.00' } });
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'], 900)],
+    });
+    state.usedNames.add('Phyrexian Altar');
+    state.categories.creatures.push(scryfallCard('Phyrexian Altar'));
+
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Gravecrawler', missingCard]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+      // no budgetTracker / maxCardPrice passed — same as every test above
+    });
+
+    expect(result.seeded).toBe(true);
+    expect(result.budgetSkipped).toBe(0);
+  });
+
+  it('skips a combo piece that would exceed the budget cap and seeds the cheaper alternative instead', () => {
+    const expensivePiece = scryfallCard('Phyrexian Altar', { prices: { usd: '50.00' } });
+    const cheapPiece = scryfallCard('Niche Card', { prices: { usd: '1.00' } });
+    // Higher deckCount (more popular) but unaffordable — must be skipped in favor
+    // of the lower-deckCount but affordable combo.
+    const expensiveCombo = edhrec2CardCombo('expensive', ['Gravecrawler', 'Phyrexian Altar'], 900);
+    const cheapCombo = edhrec2CardCombo('cheap', ['Gravecrawler', 'Niche Card'], 50);
+    const state = makeState({ combos: [expensiveCombo, cheapCombo] });
+    state.usedNames.add('Gravecrawler');
+    state.categories.creatures.push(scryfallCard('Gravecrawler'));
+
+    // avg = 100/100 = 1, avg*8 = 8, 15% of 100 = 15 -> effective cap = 8
+    const budgetTracker = new BudgetTracker(100, 100);
+
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([
+        ['Phyrexian Altar', expensivePiece],
+        ['Niche Card', cheapPiece],
+      ]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+      budgetTracker,
+      maxCardPrice: null,
+      currency: 'USD',
+      ignoreOwnedBudget: false,
+    });
+
+    expect(result.seeded).toBe(true);
+    expect(result.budgetSkipped).toBe(1);
+    expect(state.usedNames.has('Niche Card')).toBe(true);
+    expect(state.usedNames.has('Phyrexian Altar')).toBe(false);
+  });
+
+  it('owned cards are exempt from the budget cap even when over price', () => {
+    const ownedExpensive = scryfallCard('Phyrexian Altar', { prices: { usd: '50.00' } });
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'], 900)],
+      context: {
+        commander: scryfallCard('Ur-Dragon'),
+        partnerCommander: null,
+        colorIdentity: ['W', 'U', 'B', 'R', 'G'],
+        customization: {} as GenerationState['context']['customization'],
+        collectionNames: new Set(['Phyrexian Altar']),
+      },
+    });
+    state.usedNames.add('Gravecrawler');
+    state.categories.creatures.push(scryfallCard('Gravecrawler'));
+
+    const budgetTracker = new BudgetTracker(1, 1); // effective cap far below $50
+
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Phyrexian Altar', ownedExpensive]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+      budgetTracker,
+      maxCardPrice: null,
+      currency: 'USD',
+      ignoreOwnedBudget: true,
+    });
+
+    expect(result.seeded).toBe(true);
+    expect(result.budgetSkipped).toBe(0);
+    expect(state.usedNames.has('Phyrexian Altar')).toBe(true);
   });
 });

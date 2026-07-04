@@ -98,7 +98,14 @@ function drainsDamage(oracle: string): boolean {
 
 // ── Combo bucket helpers ──────────────────────────────────────────────────────
 
-const COMBO_WIN_RE = /\bwin the game\b|\bwin an? game\b/i;
+// "Loses the game" and "infinite turns" are real Commander Spellbook produces[]
+// labels that don't match "win the game" verbatim but are just as much an
+// auto-win line (an opponent losing IS you winning; infinite turns locks the
+// game) — without these, complete combos carrying that phrasing fell into
+// 'other' and never counted as a win path, letting a weaker independently-
+// scored candidate win by default even with 5 isComplete combos in the deck.
+const COMBO_WIN_RE =
+  /\bwin the game\b|\bwin an? game\b|\bloses? the game\b|\binfinite (?:extra )?turns?\b/i;
 const COMBO_DAMAGE_RE = /\binfinite damage\b|\bunlimited damage\b/i;
 const COMBO_MILL_RE = /\binfinite mill\b|\bexile (?:your |their )?librar/i;
 const COMBO_MANA_RE = /\binfinite mana\b/i;
@@ -146,6 +153,13 @@ function commanderPower(cmd: CardLike): number {
  * unfocused goodstuff pile.
  */
 const STRATEGIC_MIN_CARDS = 4;
+
+/** Go-wide gets its own, higher bar: token/anthem effects are common
+ *  INCIDENTAL value in big-mana/ramp shells (ETB or landfall value creatures
+ *  that happen to make a token) in a way burn/mill/aristocrats rarely are, so
+ *  the shared 4-card floor let a titan-annihilator deck with zero go-wide
+ *  plan get labeled "Go-wide tokens" off a couple of unrelated token makers. */
+const GO_WIDE_MIN_CARDS = 6;
 
 /** Invested-axis score bonus — a flagged engine should clearly outrank an
  *  incidental, one-sided pile of the same card type. */
@@ -286,7 +300,11 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   }
   const goWideInvested = investedSet.has('tokens');
   const goWideCount = tokenCards.length + anthemCards.length;
-  if (strategicQualifies(goWideCount, goWideInvested)) {
+  // Raw-count path additionally requires a real payoff (anthem/Overrun-class):
+  // without one, a titan-ramp deck whose only "token" cards are incidental
+  // sac-fodder makers (Eldrazi Spawn/Scion) clears the floor on producer count
+  // alone and gets mislabeled go-wide with no plan to actually go wide.
+  if (goWideInvested || (goWideCount >= GO_WIDE_MIN_CARDS && anthemCards.length >= 1)) {
     const allEvidence = Array.from(new Set([...tokenCards, ...anthemCards]));
     candidates.push({
       category: 'go-wide',

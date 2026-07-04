@@ -10,10 +10,17 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
 }));
 
-// stampRoleSubtypes is a no-op in tests.
-vi.mock('../categorize', () => ({
-  stampRoleSubtypes: () => {},
-}));
+// stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real
+// land-then-role-then-synergy routing (no tagger dependency, safe to import
+// for real — getCardRole is mocked to null above, matching prod behavior
+// when a candidate has no tagger role).
+vi.mock('../categorize', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../categorize')>();
+  return {
+    ...actual,
+    stampRoleSubtypes: () => {},
+  };
+});
 
 import { applyCoherenceRepair, MAX_COHERENCE_SWAPS } from './phaseCoherenceRepair';
 import type { CoherenceRepairContext } from './phaseCoherenceRepair';
@@ -339,6 +346,31 @@ describe('applyCoherenceRepair', () => {
     expect(state.categories.lands).toHaveLength(1);
     expect(state.categories.lands[0].name).toBe(repairs[0].added);
     expect(state.usedNames.has('Flooded Strand')).toBe(false);
+  });
+
+  it('never proposes a cut for a card that was not actually in the pre-repair deck (C3)', async () => {
+    // Combine a land-sanity finding (dead fetch) with a spell finding
+    // (unjustified slot) so both repair branches fire in one pass, then
+    // assert every `repairs[].cut` name traces back to a card that was
+    // genuinely in the deck before repair ran — never a name pulled from a
+    // pool/candidate list that was never actually part of the 99.
+    const state = makeState();
+    addToDeck(state, scryfallCard('Junk Card')); // not in pool → unjustified-slot
+    state.categories.lands = [
+      scryfallCard('Flooded Strand', {
+        type_line: 'Land',
+        oracle_text:
+          '{T}, Pay 1 life, Sacrifice Flooded Strand: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.',
+      }),
+    ];
+    const preRepairNames = new Set(deckNames(state));
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+
+    expect(repairs.length).toBeGreaterThan(0);
+    for (const r of repairs) {
+      expect(preRepairNames.has(r.cut)).toBe(true);
+    }
   });
 
   it('reports typal land findings without repairing them', async () => {

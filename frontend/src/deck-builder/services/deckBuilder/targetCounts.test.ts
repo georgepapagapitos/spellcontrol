@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calculateTargetCounts } from './targetCounts';
+import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
+import { Archetype } from '@/deck-builder/types';
 import type { Customization, EDHRECCommanderStats } from '@/deck-builder/types';
 
 // Static (no-localStorage) Customization factory — mirrors the store default
@@ -152,5 +153,70 @@ describe('calculateTargetCounts — EDHREC stats path', () => {
     expect(composition.lands).toBe(36);
     expect(Object.keys(typeTargets).length).toBeGreaterThan(0);
     expect(Object.keys(curveTargets).length).toBeGreaterThan(0);
+  });
+});
+
+describe('calculateTargetCounts — landCountOverride', () => {
+  it('honors the override over customization.landCount', () => {
+    const { composition } = calculateTargetCounts(
+      makeCustomization({ landCount: 37 }),
+      undefined,
+      false,
+      undefined,
+      33
+    );
+    expect(composition.lands).toBe(33);
+  });
+
+  it('falls back to customization.landCount when no override is given', () => {
+    const { composition } = calculateTargetCounts(makeCustomization({ landCount: 37 }));
+    expect(composition.lands).toBe(37);
+  });
+});
+
+describe('isDefaultLandCount', () => {
+  it('is true at the untouched store defaults', () => {
+    expect(isDefaultLandCount(makeCustomization({ landCount: 37, nonBasicLandCount: 15 }))).toBe(
+      true
+    );
+  });
+
+  it('is false once the user has changed land count', () => {
+    expect(isDefaultLandCount(makeCustomization({ landCount: 34, nonBasicLandCount: 15 }))).toBe(
+      false
+    );
+  });
+
+  it('is false once the user has changed nonbasic land count', () => {
+    expect(isDefaultLandCount(makeCustomization({ landCount: 37, nonBasicLandCount: 18 }))).toBe(
+      false
+    );
+  });
+});
+
+describe('computeAutoLandCount', () => {
+  it('stays at 37 for a plain goodstuff deck with average ramp/curve', () => {
+    expect(computeAutoLandCount(Archetype.GOODSTUFF, 5, 3.2)).toBe(37);
+  });
+
+  it('scales down for an elf-ball/tribal deck dense with ramp (Lathril-shaped)', () => {
+    // Tribal archetype delta (-1) + strong ramp density (>=10 => -2) = -3 => 34
+    const auto = computeAutoLandCount(Archetype.TRIBAL, 20, 2.4);
+    expect(auto).toBeLessThan(37);
+    expect(auto).toBeGreaterThanOrEqual(32);
+  });
+
+  it('nudges up for a high-curve control/ramp deck', () => {
+    const auto = computeAutoLandCount(Archetype.CONTROL, 3, 4.0);
+    expect(auto).toBeGreaterThan(37);
+    expect(auto).toBeLessThanOrEqual(40);
+  });
+
+  it('never goes below the 32-land floor even with extreme inputs', () => {
+    expect(computeAutoLandCount(Archetype.TRIBAL, 999, 0.5)).toBeGreaterThanOrEqual(32);
+  });
+
+  it('never exceeds the 40-land ceiling even with extreme inputs', () => {
+    expect(computeAutoLandCount(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
   });
 });

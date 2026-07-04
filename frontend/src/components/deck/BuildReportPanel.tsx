@@ -7,6 +7,7 @@ import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
+import { InfoTip } from '../InfoTip';
 
 const COLOR_WORDS: Record<string, string> = {
   W: 'White',
@@ -14,6 +15,7 @@ const COLOR_WORDS: Record<string, string> = {
   B: 'Black',
   R: 'Red',
   G: 'Green',
+  C: 'Colorless',
 };
 
 /** Headline for how an alternative generator built the deck. */
@@ -175,10 +177,12 @@ export function BuildReportPanel({
     collectionSubstitutions,
     synergyFills,
     roleGaps,
+    roleExcesses,
     claimedConflicts,
     generationMode,
     generationModeDetail,
     generationNote,
+    landCountNote,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -225,6 +229,8 @@ export function BuildReportPanel({
       {(!generationMode || generationMode === 'edhrec') && (
         <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
       )}
+
+      {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
         <p className="build-report-line">
@@ -446,7 +452,13 @@ export function BuildReportPanel({
 
       {manabase && manabase.lines.length > 0 && (
         <div className="build-report-mana">
-          <span className="build-report-gaps-label">Mana sources vs target</span>
+          <span className="build-report-gaps-label">
+            Mana sources vs target
+            <InfoTip
+              label="mana sources"
+              text="Each count is every source of that color in the final deck — lands plus mana rocks and dorks — not lands alone."
+            />
+          </span>
           <ul className="build-report-gaps-list">
             {manabase.lines.map((l) => (
               <li
@@ -488,6 +500,26 @@ export function BuildReportPanel({
               See cards to add &rarr;
             </button>
           )}
+        </div>
+      )}
+
+      {roleExcesses && roleExcesses.length > 0 && (
+        <div className="build-report-gaps">
+          <span className="build-report-gaps-label">Overbuilt roles</span>
+          <ul className="build-report-gaps-list">
+            {roleExcesses.map((g) => (
+              <li key={g.role} className="build-report-gap">
+                <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
+                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                  {g.have}
+                  <span className="build-report-gap-target">
+                    {' / '}
+                    {g.want}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

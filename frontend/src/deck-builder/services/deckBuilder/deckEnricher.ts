@@ -119,9 +119,10 @@ export async function enrichDeckCards(
     // Stamp game changer flag
     if (gcSet?.has(card.name)) card.isGameChanger = true;
 
-    // Stamp role + subtypes
+    // Stamp role + subtypes — lands never get a spell role (e.g. fetchlands carry
+    // the upstream `tutor` tag for "search your library", which isn't card draw)
     const role = getCardRole(card.name);
-    if (role) {
+    if (role && !typeLine.includes('land')) {
       card.deckRole = role;
       card.multiRole = hasMultipleRoles(card.name);
       switch (role) {
@@ -138,8 +139,7 @@ export async function enrichDeckCards(
           card.cardDrawSubtype = getCardDrawSubtype(card.name) ?? undefined;
           break;
       }
-      // Don't count lands toward role totals — they occupy land slots, not spell slots
-      if (!typeLine.includes('land')) roleCounts[role]++;
+      roleCounts[role]++;
       if (card.rampSubtype)
         rampSubtypeCounts[card.rampSubtype] = (rampSubtypeCounts[card.rampSubtype] || 0) + 1;
       if (card.removalSubtype)
