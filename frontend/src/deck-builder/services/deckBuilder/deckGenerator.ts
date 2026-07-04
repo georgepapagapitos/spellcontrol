@@ -413,13 +413,19 @@ const ROLE_DISPLAY: Record<RoleKey, string> = {
 };
 
 /**
- * Disclosure for the role-cap escape hatch (E77 iter-4 round 2) — every
- * gated path (pick loop, Scryfall fallback, shortage backfill, owned
- * substitutes) increments the same shared counter when it admits an
- * over-cap card rather than shipping the deck short. Mirrors the
- * `buildDisclosureNote` idiom in phaseLiftPicks.ts: one terse note naming
- * the total and the dominant role, not per-card spam. Undefined when the
- * cap was never actually breached.
+ * Disclosure for the role-cap escape hatch (E77 iter-4) — every gated path
+ * (pick loop, Scryfall fallback, shortage backfill, owned substitutes)
+ * increments the same shared counter when it admits an over-cap card rather
+ * than shipping the deck short. Mirrors the `buildDisclosureNote` idiom in
+ * phaseLiftPicks.ts: one terse note naming the total and the dominant role,
+ * not per-card spam. Undefined when the hatch never actually fired.
+ *
+ * Deliberately narrow (round 3 fix): this counts ONLY escape-hatch
+ * admissions, not the deck's total role overshoot — exempt picks
+ * (must-includes, combo floor) and in-tolerance amounts can push a role's
+ * final count well past this number, and `roleExcesses` (Overbuilt roles)
+ * is the full accounting for that. Wording must never read as "the total is
+ * N" when Overbuilt roles can show a larger one for the same role.
  */
 export function buildRoleCapOverflowNote(
   counts: Partial<Record<RoleKey, number>>
@@ -428,7 +434,7 @@ export function buildRoleCapOverflowNote(
   const total = entries.reduce((s, [, n]) => s + n, 0);
   if (total === 0) return undefined;
   const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
-  return `${total} card${total === 1 ? '' : 's'} kept over its role target to finish the deck — the pool was thin on non-${ROLE_DISPLAY[dominantRole[0]]} options.`;
+  return `${total} card${total === 1 ? '' : 's'} pushed past its role cap to finish the deck (${ROLE_DISPLAY[dominantRole[0]]} pool was thin) — see Overbuilt roles below for the full total.`;
 }
 
 /**

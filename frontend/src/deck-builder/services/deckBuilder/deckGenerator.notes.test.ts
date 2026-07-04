@@ -207,7 +207,7 @@ describe('isOverRoleCap / bumpRoleCapCount / roleCapOverage (E77 iter-4 round 2)
   });
 });
 
-describe('buildRoleCapOverflowNote (E77 iter-4 round 2 disclosure)', () => {
+describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-only wording)', () => {
   it('returns undefined when the cap was never breached', () => {
     expect(buildRoleCapOverflowNote({})).toBeUndefined();
     expect(buildRoleCapOverflowNote({ ramp: 0 })).toBeUndefined();
@@ -223,5 +223,23 @@ describe('buildRoleCapOverflowNote (E77 iter-4 round 2 disclosure)', () => {
     const note = buildRoleCapOverflowNote({ removal: 1 });
     expect(note).toContain('1 card');
     expect(note).not.toContain('1 cards');
+  });
+
+  // Round 3: 3 independent critics flagged the round-2 copy ("N cards kept
+  // over its role target") as reading like the deck's TOTAL role overshoot,
+  // contradicting a larger roleExcesses total on the same report (the rest
+  // comes from exempt picks — must-includes/combo floor — plus in-tolerance
+  // amounts, not the hatch). The copy must scope itself to escape-hatch
+  // admissions only and point at Overbuilt roles for the full accounting.
+  it('scopes the claim to escape-hatch admissions, not the total role overshoot', () => {
+    const note = buildRoleCapOverflowNote({ ramp: 1 });
+    expect(note).not.toMatch(/kept over its role target/i);
+    expect(note).toContain('pushed past its role cap');
+  });
+
+  it('points at Overbuilt roles for the full accounting instead of implying this IS the total', () => {
+    const note = buildRoleCapOverflowNote({ ramp: 1 });
+    expect(note).toContain('Overbuilt roles');
+    expect(note).not.toMatch(/\btotal (role )?overshoot\b/i);
   });
 });
