@@ -319,6 +319,113 @@ describe('applyBudgetConvergence', () => {
     vi.mocked(getCardRole).mockReturnValue(null);
   });
 
+  // ── Round 3 fixes (E79) ──────────────────────────────────────────────────
+
+  // Root-cause repro for the live-eval bug (atraxa-budget75: 0 swaps even
+  // though 22 of the deck's 30 priciest cards were entirely unprotected).
+  // Atraxa's ramp/removal roles were both already over their cap-with-
+  // tolerance (a generator-allowed escape-hatch overshoot) — the role-cap
+  // gate was wrongly applied to same-role candidates too, blocking every
+  // same-role swap for those roles.
+  it('exempts a same-role swap from the role-cap gate even when that role is already over cap', () => {
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      name === 'Pricey Card' || name === 'Cheap Alt A' ? 'removal' : null
+    );
+    const state = makeState();
+    // Removal already over cap (10 >= 7+tolerance(2)=9) BEFORE any cut —
+    // mirrors Atraxa's live roleCounts.removal=10 vs roleTargets.removal=7.
+    state.currentRoleCounts = { ramp: 0, removal: 10, boardwipe: 0, cardDraw: 0 };
+    const result = applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, roleTargets: { ramp: 0, removal: 7, boardwipe: 0, cardDraw: 0 } })
+    );
+    // Pricey Card (removal, $30) → Cheap Alt A (removal, $2): same role, so
+    // it must NOT be blocked just because removal is already over cap.
+    expect(state.usedNames.has('Pricey Card')).toBe(false);
+    expect(state.usedNames.has('Cheap Alt A')).toBe(true);
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    vi.mocked(getCardRole).mockReturnValue(null);
+  });
+
+  it('shortlists candidates within the priority band, then picks the cheapest of that shortlist', () => {
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      ['Pricey Card', 'High Prio', 'Mid Prio', 'Low Prio'].includes(name) ? 'removal' : null
+    );
+    const state = makeState();
+    const map = new Map<string, ScryfallCard>();
+    map.set('High Prio', scryfallCard('High Prio', '25')); // priority 90, saves only $5
+    map.set('Mid Prio', scryfallCard('Mid Prio', '5')); // priority 75 (>= 90*0.8=72, in band), saves $25
+    map.set('Low Prio', scryfallCard('Low Prio', '1')); // priority 50 (< 72, out of band), saves $29
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('High Prio', 90),
+          edhrecCard('Mid Prio', 75),
+          edhrecCard('Low Prio', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+
+    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+
+    // Not the highest-priority (barely cheaper) and not the outright
+    // cheapest (too far outside the quality band) — the cheapest WITHIN the
+    // priority band of the best candidate.
+    expect(state.usedNames.has('Mid Prio')).toBe(true);
+    expect(state.usedNames.has('High Prio')).toBe(false);
+    expect(state.usedNames.has('Low Prio')).toBe(false);
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    vi.mocked(getCardRole).mockReturnValue(null);
+  });
+
+  it('declines a swap when the best candidate does not clear the minimum-savings threshold', () => {
+    const state = makeState();
+    const map = new Map<string, ScryfallCard>();
+    // Saves $0.10 on a $30 cut — below MIN_SAVINGS (max($0.50, 1% of $40) = $0.50).
+    map.set('Barely Cheaper', scryfallCard('Barely Cheaper', '29.90'));
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Barely Cheaper', 80)] },
+    } as unknown as GenerationState['edhrecData'];
+
+    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(state.usedNames.has('Barely Cheaper')).toBe(false);
+    expect(result.applied).toBe(0);
+    expect(result.residualReason).toBeDefined();
+  });
+
+  // Explicit E79 round-3 ask: a role-bearing card must never be replaced by a
+  // different-role/null-role candidate while ANY same-role gate-passing
+  // cheaper candidate exists — even one with much bigger raw savings/priority
+  // (the coordinator's Fyndhorn Elves→Reclamation Sage / Chain Reaction→
+  // Goblin War Party role-degrading trades were exactly this crossing).
+  it('never replaces a role-bearing card with a different-role candidate when a same-role cheaper candidate exists', () => {
+    vi.mocked(getCardRole).mockImplementation((name: string) => {
+      if (name === 'Pricey Card') return 'ramp';
+      if (name === 'Same Role Cheap') return 'ramp';
+      if (name === 'Cross Role Cheaper') return 'removal';
+      return null;
+    });
+    const state = makeState();
+    const map = new Map<string, ScryfallCard>();
+    map.set('Same Role Cheap', scryfallCard('Same Role Cheap', '10')); // ramp, saves $20
+    // Deliberately a "better" pick by raw priority AND price — must still lose to the same-role option.
+    map.set('Cross Role Cheaper', scryfallCard('Cross Role Cheaper', '1')); // removal, saves $29
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [edhrecCard('Same Role Cheap', 50), edhrecCard('Cross Role Cheaper', 99)],
+      },
+    } as unknown as GenerationState['edhrecData'];
+
+    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+
+    expect(state.usedNames.has('Same Role Cheap')).toBe(true);
+    expect(state.usedNames.has('Cross Role Cheaper')).toBe(false);
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    vi.mocked(getCardRole).mockReturnValue(null);
+  });
+
   // Root-cause repro for the live-eval bug (krenko-budget50: 0 swaps on a $71
   // mono-red deck with a $50 budget, next to a false "no cheaper alternatives"
   // note). Once a deck is over budget, BudgetTracker.remainingBudget is

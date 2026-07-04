@@ -3,6 +3,7 @@ import type {
   CoherenceRepair,
   DeckCategory,
   DetectedCombo,
+  EDHRECCard,
   MaxRarity,
   ScryfallCard,
 } from '@/deck-builder/types';
@@ -76,9 +77,46 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 // Lands are never swapped here (no land-fixing-floor logic in this pass) — a
 // residual dominated by land cost surfaces the same honest "no cheaper
 // equivalent" disclosure as a must-include/combo-piece residual.
+//
+// ── Round 3 fixes (E79) ──
+// 1. Role-cap timing bug: the role-cap gate (#1008) was applied to EVERY
+//    candidate, including same-role ones — but a same-role swap (cut one
+//    ramp card, add another ramp card) is net-ZERO on that role's count, so
+//    it can never be what pushes a role over cap; only a role-CROSSING
+//    replacement can. Gating same-role candidates on the CURRENT (pre-cut)
+//    count wrongly rejected every same-role swap whenever that role was
+//    already at/over cap — which is common, since the generator's own
+//    role-cap escape hatch (`roleCapOverflowNote`) deliberately allows a
+//    THIN role to finish over its target. A live eval reproduced this
+//    exactly on Atraxa (ramp 15 vs target 12, removal 10 vs target 7 — both
+//    already over-cap): 0 swaps applied even though 22 of the deck's 30
+//    priciest cards were entirely unprotected, because every one of them
+//    needed a same-role replacement and every same-role candidate was
+//    wrongly blocked. Fixed: the role-cap gate now only applies when the
+//    candidate's role DIFFERS from the cut card's role.
+// 2. Savings-first, quality-bounded selection: previously "prefer same
+//    role → same type → highest calculateCardPriority" picked the highest-
+//    priority cheaper card, which is often barely cheaper (a live eval
+//    showed $0.06–$0.36 "savings"). Now, within whichever tier wins (role >
+//    type > any), candidates are shortlisted to those within
+//    PRIORITY_BAND of that tier's best `calculateCardPriority`, and the
+//    CHEAPEST of the shortlist is picked — real savings without settling for
+//    a meaningfully worse card.
+// 3. Minimum savings threshold: a swap below MIN_SAVINGS is churn, not a
+//    real budget improvement (the round-3 eval's Big Score → Mind Stone
+//    saved $0.06 while side-grading a spell for a rock) — it's declined
+//    outright rather than applied. Same-role tier's threshold check never
+//    falls through to type/any — the round-3 eval's Fyndhorn Elves (ramp) →
+//    Reclamation Sage (removal creature) crossing happened only because the
+//    role-cap bug above wrongly emptied the same-role tier first; with that
+//    fixed, declining a too-small same-role swap outright (rather than
+//    reaching for a role-degrading fallback) keeps the deck's role balance
+//    the higher-priority invariant.
 
 export const MAX_BUDGET_SWAPS = 20;
 const MAX_BUDGET_ROUNDS = 5;
+/** Round-3 tuning constants — see the header comment above for rationale. */
+const PRIORITY_BAND = 0.8;
 
 export interface BudgetConvergeContext {
   /** name → ScryfallCard map built during generation (for swap-in lookups). */
@@ -167,6 +205,12 @@ export function applyBudgetConvergence(
     };
   }
 
+  // A swap below this saves pennies, not budget — churn that side-grades a
+  // card's function for nothing (E79 round 3: Big Score → Mind Stone saved
+  // $0.06). Scales with the ask so a $500 budget doesn't get nickel-and-dimed
+  // by $0.50 swaps either.
+  const MIN_SAVINGS = Math.max(0.5, ctx.deckBudget * 0.01);
+
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
   const commanderNames = commanders.map((c) => c.name);
@@ -230,6 +274,9 @@ export function applyBudgetConvergence(
     }
   };
 
+  // Only meaningful for a role-CROSSING replacement (its role differs from
+  // the card being cut) — see the callsite in gateOk for why a same-role
+  // candidate is exempt.
   const isRoleCapBlocked = (name: string): boolean => {
     if (!ctx.roleTargets) return false;
     const role = getCardRole(name);
@@ -256,10 +303,30 @@ export function applyBudgetConvergence(
     }
   };
 
+  // Among gate-passing candidates in a tier, shortlist those within
+  // PRIORITY_BAND of the tier's best `calculateCardPriority`, then pick the
+  // CHEAPEST of that shortlist. Real savings without settling for a
+  // meaningfully worse card just to save an extra dime.
+  const pickBestSavings = (pairs: { ec: EDHRECCard; sc: ScryfallCard }[]): ScryfallCard => {
+    const bestPriority = Math.max(...pairs.map((p) => calculateCardPriority(p.ec)));
+    const shortlist = pairs.filter(
+      (p) => calculateCardPriority(p.ec) >= bestPriority * PRIORITY_BAND
+    );
+    shortlist.sort(
+      (a, b) =>
+        (parsePrice(getCardPrice(a.sc, ctx.currency)) ?? Infinity) -
+        (parsePrice(getCardPrice(b.sc, ctx.currency)) ?? Infinity)
+    );
+    return shortlist[0].sc;
+  };
+
   // Best pool candidate strictly cheaper than `cutPrice`, clearing every
-  // pick-time hard gate, preferring same role → same primary type → highest
-  // calculateCardPriority (mirrors findCandidate in phaseCoherenceRepair.ts,
-  // plus the strict-cheaper + role-cap checks this pass needs).
+  // pick-time hard gate, preferring same role → same primary type → any
+  // (mirrors findCandidate in phaseCoherenceRepair.ts, plus the
+  // strict-cheaper, role-cap, savings-band, and min-savings checks this pass
+  // needs). Tier 1 (same role) never falls through to tier 2/3, even when its
+  // own pick misses the savings bar — crossing roles for a smaller gain
+  // elsewhere is exactly the degrading trade this pass must not make.
   const findReplacement = (cutCard: ScryfallCard, cutPrice: number): ScryfallCard | null => {
     const cutRole = getCardRole(cutCard.name);
     const cutType = primaryTypeOf(cutCard);
@@ -294,22 +361,40 @@ export function applyBudgetConvergence(
       }
       if (exceedsCmcCap(card, ctx.maxCmc)) return false;
       if (notOnArena(card, ctx.arenaOnly)) return false;
-      if (isRoleCapBlocked(card.name)) return false;
+      // Role cap only guards a role-CROSSING replacement — a same-role swap
+      // can't push anything over cap that wasn't already there (see
+      // isRoleCapBlocked's doc comment and the header comment above).
+      if (getCardRole(card.name) !== cutRole && isRoleCapBlocked(card.name)) return false;
       return true;
     };
 
-    const eligible = ranked
-      .map((c) => ctx.scryfallCardMap.get(c.name))
-      .filter((c): c is ScryfallCard => !!c && gateOk(c));
-    if (eligible.length === 0) return null;
+    const eligiblePairs = ranked
+      .map((ec) => {
+        const sc = ctx.scryfallCardMap.get(ec.name);
+        return sc && gateOk(sc) ? { ec, sc } : null;
+      })
+      .filter((p): p is { ec: EDHRECCard; sc: ScryfallCard } => p != null);
+    if (eligiblePairs.length === 0) return null;
+
+    const meetsMinSavings = (sc: ScryfallCard): boolean => {
+      const replPrice = parsePrice(getCardPrice(sc, ctx.currency)) ?? 0;
+      return cutPrice - replPrice >= MIN_SAVINGS;
+    };
 
     if (cutRole) {
-      const sameRole = eligible.find((c) => getCardRole(c.name) === cutRole);
-      if (sameRole) return sameRole;
+      const sameRole = eligiblePairs.filter((p) => getCardRole(p.sc.name) === cutRole);
+      if (sameRole.length > 0) {
+        const pick = pickBestSavings(sameRole);
+        return meetsMinSavings(pick) ? pick : null;
+      }
     }
-    const sameType = eligible.find((c) => primaryTypeOf(c) === cutType);
-    if (sameType) return sameType;
-    return eligible[0];
+    const sameType = eligiblePairs.filter((p) => primaryTypeOf(p.sc) === cutType);
+    if (sameType.length > 0) {
+      const pick = pickBestSavings(sameType);
+      if (meetsMinSavings(pick)) return pick;
+    }
+    const anyPick = pickBestSavings(eligiblePairs);
+    return meetsMinSavings(anyPick) ? anyPick : null;
   };
 
   const reasonFor = (cut: ScryfallCard, added: ScryfallCard, savings: number): string => {
