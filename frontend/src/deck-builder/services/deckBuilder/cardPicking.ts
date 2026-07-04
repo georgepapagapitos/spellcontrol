@@ -2,7 +2,7 @@
 // pickers (flat + curve-aware). Extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
@@ -235,6 +235,74 @@ function liftTie(name: string, liftTieBreak: Map<string, number> | undefined): n
   return liftTieBreak?.get(name.toLowerCase()) ?? 0;
 }
 
+// E80 diagnosis (board): with no budget set, `computeRoleBoosts`'s "early
+// ramp" bonus (categorize.ts) multiplies the role-deficit boost up to 2x for
+// CMC<=1 candidates vs 1.5x for CMC<=2 — a legitimate curve-fill heuristic,
+// but completely price-blind. That multiplier gap (150 vs 112.5 boost points
+// in the Yuriko live dump) swamps an 8-13 point inclusion gap, so a $1,119
+// 0-cmc Mox Diamond (12.5% inclusion) outranks $1-2 same-role rocks with
+// genuinely higher inclusion (Fellwar Stone 14.9%, Thought Vessel 20.8%) by a
+// wide priority-score margin. That's not a near-tie, so this can't live as a
+// simple last-place tie-break — it has to re-order comparable pairs before
+// the boosted-priority comparison runs.
+//
+// Bounded by construction (opt-in via `enabled`, default off = today's sort
+// order untouched):
+//  - only compares cards sharing a role (never reorders across roles/slots,
+//    never touches a card with no role at all)
+//  - "comparable" = within PRICE_SANITY_INCLUSION_BAND points of RAW EDHREC
+//    inclusion (not the boosted score) — catches genuine substitutes (Mox
+//    Diamond 12.5 vs Fellwar Stone 14.9, a 2.4pt gap) while leaving a
+//    genuinely-better pick alone when there's no comparable cheap option
+//    (Kozilek dump: Grim Monolith 22% combo pick vs Mind Stone 86%, a 64pt
+//    gap — never treated as comparable)
+//  - only fires on a >PRICE_SANITY_RATIO price ratio ("dramatically
+//    cheaper"), so ordinary premium-vs-budget spreads never trigger it
+//  - inert whenever either side's price is missing or non-positive
+//  - never reorders a pair where either card is carrying a live combo boost
+//    — combo assembly is a deliberate "worth the price" signal this must
+//    never fight
+//  - a pure comparator tie-break: it can only change which of two
+//    already-eligible same-role candidates is *tried first* — every hard
+//    gate (curve room, price cap, rarity, cmc cap, bracket ceiling, role cap)
+//    still runs on each card exactly as before, so it can never make an
+//    ineligible card eligible.
+export const PRICE_SANITY_INCLUSION_BAND = 15; // percentage points
+export const PRICE_SANITY_RATIO = 20; // "dramatically cheaper" multiple
+
+function priceSanityTieBreak(
+  a: EDHRECCard,
+  b: EDHRECCard,
+  cardMap: Map<string, ScryfallCard>,
+  cardRoleMap: Map<string, RoleKey> | undefined,
+  comboBoost: Map<string, number> | undefined,
+  currency: 'USD' | 'EUR',
+  enabled: boolean
+): number {
+  if (!enabled || !cardRoleMap) return 0;
+
+  const roleA = cardRoleMap.get(a.name);
+  const roleB = cardRoleMap.get(b.name);
+  if (!roleA || !roleB || roleA !== roleB) return 0;
+
+  // Never fight a real combo-assembly signal.
+  if ((comboBoost?.get(a.name) ?? 0) > 0 || (comboBoost?.get(b.name) ?? 0) > 0) return 0;
+
+  if (Math.abs(a.inclusion - b.inclusion) > PRICE_SANITY_INCLUSION_BAND) return 0;
+
+  const cardA = cardMap.get(a.name);
+  const cardB = cardMap.get(b.name);
+  if (!cardA || !cardB) return 0;
+  const priceA = parseFloat(getCardPrice(cardA, currency) ?? '');
+  const priceB = parseFloat(getCardPrice(cardB, currency) ?? '');
+  if (!isFinite(priceA) || !isFinite(priceB) || priceA <= 0 || priceB <= 0) return 0;
+
+  const ratio = priceA > priceB ? priceA / priceB : priceB / priceA;
+  if (ratio < PRICE_SANITY_RATIO) return 0;
+
+  return priceA < priceB ? -1 : 1;
+}
+
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
 export function pickFromPrefetchedWithCurve(
@@ -266,7 +334,14 @@ export function pickFromPrefetchedWithCurve(
   bracketGuard?: BracketGuard,
   cardAllowed?: (card: ScryfallCard) => boolean,
   liftTieBreak?: Map<string, number>,
-  roleCapConfig?: RoleCapConfig
+  roleCapConfig?: RoleCapConfig,
+  /** E80 opt-in price-sanity tie-break (see priceSanityTieBreak). Default off. */
+  priceSanity: boolean = false,
+  /** Raw combo-assembly boost (pre role/package blend) — used ONLY to keep
+   *  price-sanity from ever reordering a live combo pick. Separate from the
+   *  blended `comboPriorityBoost` above, which also carries role-deficit
+   *  boosts that would otherwise make this guard fire on almost every card. */
+  comboOnlyBoost?: Map<string, number>
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -294,6 +369,15 @@ export function pickFromPrefetchedWithCurve(
     .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
     .sort(
       (a, b) =>
+        priceSanityTieBreak(
+          a,
+          b,
+          cardMap,
+          roleCapConfig?.cardRoleMap,
+          comboOnlyBoost,
+          currency,
+          priceSanity
+        ) ||
         priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
           priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames) ||
         liftTie(b.name, liftTieBreak) - liftTie(a.name, liftTieBreak)

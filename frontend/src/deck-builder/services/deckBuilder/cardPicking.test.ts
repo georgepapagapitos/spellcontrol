@@ -675,3 +675,167 @@ describe('role-cap gate (E77 iter-4)', () => {
     expect(picked.map((c) => c.name).sort()).toEqual(['Ramp1', 'Ramp2', 'Ramp3', 'Ramp4', 'Ramp5']);
   });
 });
+
+describe('price-sanity tie-break (E80 prototype, opt-in)', () => {
+  // Mox-Diamond-shaped fixture: ExpensiveRock outranks CheapRock on raw
+  // inclusion alone (mirrors how the real generator's earlyRampMultiplier
+  // boost lets a cmc-0 rock outrank a same-role cmc-2 rock with genuinely
+  // higher inclusion) — both 'ramp', inclusion within the 15pt band, price
+  // ratio 500x (well past the 20x threshold).
+  const expensiveRock = ec({ name: 'ExpensiveRock', inclusion: 20, primary_type: 'Artifact' });
+  const cheapRock = ec({ name: 'CheapRock', inclusion: 12, primary_type: 'Artifact' });
+  const roleMap = new Map<string, RoleKey>([
+    ['ExpensiveRock', 'ramp'],
+    ['CheapRock', 'ramp'],
+  ]);
+
+  function pickPair(
+    cards: EDHRECCard[],
+    cardMap: Map<string, ScryfallCard>,
+    priceSanity: boolean,
+    cardRoleMap: Map<string, RoleKey> = roleMap,
+    comboOnlyBoost?: Map<string, number>
+  ) {
+    return pickFromPrefetchedWithCurve(
+      cards,
+      cardMap,
+      1, // only room for one — forces a real either/or choice
+      new Set(),
+      [],
+      { 0: 100, 1: 100, 2: 100 }, // generous curve room, never gates this test
+      {},
+      new Set(),
+      'Artifact',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        cardRoleMap,
+        roleTargets: { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 },
+        currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+      },
+      priceSanity,
+      comboOnlyBoost
+    );
+  }
+
+  it('flag off: today’s inclusion-driven order wins (expensive rock picked)', () => {
+    const cardMap = new Map<string, ScryfallCard>([
+      [
+        'ExpensiveRock',
+        sc({ name: 'ExpensiveRock', cmc: 0, type_line: 'Artifact', prices: { usd: '1119.00' } }),
+      ],
+      [
+        'CheapRock',
+        sc({ name: 'CheapRock', cmc: 2, type_line: 'Artifact', prices: { usd: '2.00' } }),
+      ],
+    ]);
+    const picked = pickPair([expensiveRock, cheapRock], cardMap, false);
+    expect(picked.map((c) => c.name)).toEqual(['ExpensiveRock']);
+  });
+
+  it('flag on: flips to the dramatically cheaper, comparably-included rock', () => {
+    const cardMap = new Map<string, ScryfallCard>([
+      [
+        'ExpensiveRock',
+        sc({ name: 'ExpensiveRock', cmc: 0, type_line: 'Artifact', prices: { usd: '1119.00' } }),
+      ],
+      [
+        'CheapRock',
+        sc({ name: 'CheapRock', cmc: 2, type_line: 'Artifact', prices: { usd: '2.00' } }),
+      ],
+    ]);
+    const picked = pickPair([expensiveRock, cheapRock], cardMap, true);
+    expect(picked.map((c) => c.name)).toEqual(['CheapRock']);
+  });
+
+  it('missing price data: inert even with the flag on', () => {
+    const cardMap = new Map<string, ScryfallCard>([
+      ['ExpensiveRock', sc({ name: 'ExpensiveRock', cmc: 0, type_line: 'Artifact', prices: {} })], // no usd price
+      [
+        'CheapRock',
+        sc({ name: 'CheapRock', cmc: 2, type_line: 'Artifact', prices: { usd: '2.00' } }),
+      ],
+    ]);
+    const picked = pickPair([expensiveRock, cheapRock], cardMap, true);
+    // Can't compute a ratio without both prices — falls back to raw priority.
+    expect(picked.map((c) => c.name)).toEqual(['ExpensiveRock']);
+  });
+
+  it('inclusion gap beyond the band: a genuinely-better pick is not displaced', () => {
+    const bigGapExpensive = ec({
+      name: 'BigGapExpensive',
+      inclusion: 30,
+      primary_type: 'Artifact',
+    });
+    const bigGapCheap = ec({ name: 'BigGapCheap', inclusion: 5, primary_type: 'Artifact' }); // 25pt gap > 15pt band
+    const cardMap = new Map<string, ScryfallCard>([
+      [
+        'BigGapExpensive',
+        sc({ name: 'BigGapExpensive', cmc: 0, type_line: 'Artifact', prices: { usd: '1000.00' } }),
+      ],
+      [
+        'BigGapCheap',
+        sc({ name: 'BigGapCheap', cmc: 2, type_line: 'Artifact', prices: { usd: '2.00' } }),
+      ],
+    ]);
+    const cardRoleMap = new Map<string, RoleKey>([
+      ['BigGapExpensive', 'ramp'],
+      ['BigGapCheap', 'ramp'],
+    ]);
+    const picked = pickPair([bigGapExpensive, bigGapCheap], cardMap, true, cardRoleMap);
+    expect(picked.map((c) => c.name)).toEqual(['BigGapExpensive']);
+  });
+
+  it('never reorders a candidate carrying a live combo boost', () => {
+    const cardMap = new Map<string, ScryfallCard>([
+      [
+        'ExpensiveRock',
+        sc({ name: 'ExpensiveRock', cmc: 0, type_line: 'Artifact', prices: { usd: '1119.00' } }),
+      ],
+      [
+        'CheapRock',
+        sc({ name: 'CheapRock', cmc: 2, type_line: 'Artifact', prices: { usd: '2.00' } }),
+      ],
+    ]);
+    const comboOnlyBoost = new Map([['ExpensiveRock', 50]]); // a real detected combo piece
+    const picked = pickPair([expensiveRock, cheapRock], cardMap, true, roleMap, comboOnlyBoost);
+    expect(picked.map((c) => c.name)).toEqual(['ExpensiveRock']);
+  });
+
+  it('different roles are never compared, even at an extreme price ratio', () => {
+    const cardMap = new Map<string, ScryfallCard>([
+      [
+        'ExpensiveRock',
+        sc({ name: 'ExpensiveRock', cmc: 0, type_line: 'Artifact', prices: { usd: '1119.00' } }),
+      ],
+      [
+        'CheapRemoval',
+        sc({ name: 'CheapRemoval', cmc: 2, type_line: 'Instant', prices: { usd: '1.00' } }),
+      ],
+    ]);
+    const mixedRoleMap = new Map<string, RoleKey>([
+      ['ExpensiveRock', 'ramp'],
+      ['CheapRemoval', 'removal'],
+    ]);
+    const cheapRemoval = ec({ name: 'CheapRemoval', inclusion: 15, primary_type: 'Instant' });
+    const picked = pickPair([expensiveRock, cheapRemoval], cardMap, true, mixedRoleMap);
+    expect(picked.map((c) => c.name)).toEqual(['ExpensiveRock']);
+  });
+});

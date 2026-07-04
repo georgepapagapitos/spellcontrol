@@ -1852,7 +1852,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      !!customization.priceSanity,
+      getComboBoosts()
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1946,7 +1948,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      !!customization.priceSanity,
+      getComboBoosts()
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -2009,7 +2013,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      !!customization.priceSanity,
+      getComboBoosts()
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -2072,7 +2078,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      !!customization.priceSanity,
+      getComboBoosts()
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -2135,7 +2143,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      !!customization.priceSanity,
+      getComboBoosts()
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -2199,7 +2209,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         liftTieBreak,
         roleTargets
           ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-          : undefined
+          : undefined,
+        !!customization.priceSanity,
+        getComboBoosts()
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);

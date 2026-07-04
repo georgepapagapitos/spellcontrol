@@ -82,6 +82,10 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
+    // E80 A/B knob: LIVE_GEN_PRICE_SANITY=1 forces the flag on for every run
+    // in this file so the orchestrator can run the same 15-run panel twice
+    // (baseline vs sanity, same code, one env var) without new RUNS entries.
+    priceSanity: process.env.LIVE_GEN_PRICE_SANITY === '1',
     ...overrides,
   };
 }

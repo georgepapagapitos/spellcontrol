@@ -725,6 +725,12 @@ export interface Customization {
   comboCount: number; // 0 = none, 1 = normal, 2 = a few extra, 3 = many combo pieces prioritized
   hyperFocus: boolean; // When true, boost unique theme cards and penalize generic multi-theme cards
   balancedRoles: boolean; // When true, boost cards that fill underrepresented functional roles (ramp, removal, etc.)
+  // E80 prototype: opt-in price-sanity tie-break among comparable same-role
+  // candidates (see cardPicking.ts's priceSanityTieBreak). undefined/false =
+  // today's behavior, unchanged. Not surfaced in any UI yet — flag exists so
+  // the live-eval harness can A/B it; see LIVE_GEN_PRICE_SANITY in
+  // deckGenerator.live.test.ts.
+  priceSanity?: boolean;
   ignoreOwnedBudget: boolean; // When true, owned cards don't count against budget limits
   ignoreOwnedRarity: boolean; // When true, owned cards skip max-rarity restriction
   currency: 'USD' | 'EUR'; // Price currency for budget filtering and display
