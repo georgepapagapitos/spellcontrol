@@ -3,8 +3,11 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import type { ChangeOwnership } from '../lib/deck-change';
+import type { Condition } from '../types';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
+import { SelectMenu } from './SelectMenu';
+import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from './PrintingPicker';
 
 type Finish = 'nonfoil' | 'foil' | 'etched';
 
@@ -29,10 +32,22 @@ const AVAILABILITY_BADGE: Record<
   'in-cube': { label: 'In a cube', className: 'is-in-cube' },
 };
 
+/** Per-copy inventory details (condition/language). A missing key means "not set". */
+export interface CardDetails {
+  condition?: Condition;
+  language?: string;
+}
+
 export interface PrintingSelection {
   card: ScryfallCard;
   finish: Finish;
   quantity?: number;
+  /**
+   * Present only when the dialog ran with the `details` prop. Missing keys
+   * mean the user cleared (or never set) that field — appliers should
+   * overwrite, not merge.
+   */
+  details?: CardDetails;
 }
 
 interface Props {
@@ -54,6 +69,12 @@ interface Props {
    * binder callers, where every printing is being edited as owned inventory.
    */
   resolveAvailability?: (printing: ScryfallCard) => ChangeOwnership;
+  /**
+   * Current per-copy details. Presence enables the condition/language
+   * editors (collection/binder inventory edits); omit for deck-slot and
+   * list-entry callers where those fields don't apply.
+   */
+  details?: CardDetails;
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
@@ -96,6 +117,7 @@ export function CardEditDialog({
   quantity,
   singleCopy,
   resolveAvailability,
+  details,
   onConfirm,
   onCancel,
 }: Props) {
@@ -110,6 +132,9 @@ export function CardEditDialog({
   const [selectedId, setSelectedId] = useState(currentScryfallId);
   const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFinish);
   const [qty, setQty] = useState(quantity ?? 1);
+  // '' = "not set" (mirrors CONDITION_OPTIONS / LANGUAGE_OPTIONS sentinels).
+  const [condition, setCondition] = useState<string>(details?.condition ?? '');
+  const [language, setLanguage] = useState<string>(details?.language ?? '');
   const [search, setSearch] = useState('');
   const [ownedOnly, setOwnedOnly] = useState(false);
 
@@ -218,7 +243,9 @@ export function CardEditDialog({
   const isDirty =
     selectedId !== currentScryfallId ||
     selectedFinish !== currentFinish ||
-    (quantity !== undefined && qty !== quantity);
+    (quantity !== undefined && qty !== quantity) ||
+    (details !== undefined &&
+      (condition !== (details.condition ?? '') || language !== (details.language ?? '')));
 
   const handleConfirm = () => {
     if (!selectedCard) return;
@@ -226,17 +253,25 @@ export function CardEditDialog({
       card: selectedCard,
       finish: selectedFinish,
       ...(quantity !== undefined ? { quantity: qty } : {}),
+      ...(details !== undefined
+        ? {
+            details: {
+              ...(condition ? { condition: condition as Condition } : {}),
+              ...(language ? { language } : {}),
+            },
+          }
+        : {}),
     });
   };
 
   return (
     <Modal
       onClose={onCancel}
-      label={`Edit printing for ${cardName}`}
+      label={`${details !== undefined ? 'Edit card' : 'Edit printing'} — ${cardName}`}
       className="modal card-edit-dialog"
     >
       <div className="modal-header">
-        <h2>Edit printing</h2>
+        <h2>{details !== undefined ? 'Edit card' : 'Edit printing'}</h2>
         <button type="button" className="modal-close" aria-label="Close" onClick={onCancel}>
           ×
         </button>
@@ -292,6 +327,25 @@ export function CardEditDialog({
                       {f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched'}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {details !== undefined && (
+                <div className="card-edit-details">
+                  <SelectMenu
+                    label="Condition"
+                    value={condition}
+                    options={CONDITION_OPTIONS}
+                    onChange={setCondition}
+                    className="card-edit-details-select"
+                  />
+                  <SelectMenu
+                    label="Language"
+                    value={language}
+                    options={LANGUAGE_OPTIONS}
+                    onChange={setLanguage}
+                    className="card-edit-details-select"
+                  />
                 </div>
               )}
 

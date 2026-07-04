@@ -89,6 +89,32 @@ describe('buildEditedCards', () => {
     expect(next[0].copyId).toBe('a');
   });
 
+  it('applies condition/language to every touched copy, including fresh adds', () => {
+    const editing = enriched({ copyId: 'copy-a', condition: 'nm' });
+    const next = buildEditedCards(
+      editing,
+      selection({ quantity: 2, details: { condition: 'lp', language: 'ja' } }),
+      [editing]
+    );
+
+    expect(next).toHaveLength(2);
+    expect(next.every((c) => c.condition === 'lp' && c.language === 'ja')).toBe(true);
+  });
+
+  it('clears condition/language when details is present with missing keys', () => {
+    const editing = enriched({ copyId: 'copy-a', condition: 'hp', language: 'de' });
+    const next = buildEditedCards(editing, selection({ details: {} }), [editing]);
+    expect(next[0].condition).toBeUndefined();
+    expect(next[0].language).toBeUndefined();
+  });
+
+  it('leaves condition/language untouched when details is absent (printing-only edit)', () => {
+    const editing = enriched({ copyId: 'copy-a', condition: 'mp', language: 'fr' });
+    const next = buildEditedCards(editing, selection({}), [editing]);
+    expect(next[0].condition).toBe('mp');
+    expect(next[0].language).toBe('fr');
+  });
+
   it('single-copy mode re-points only the given copy, splitting a printing stack', () => {
     // Two copies of the same printing; edit just one to a different printing.
     const a = enriched({ copyId: 'a', scryfallId: 'old' });

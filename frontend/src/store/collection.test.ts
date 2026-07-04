@@ -287,7 +287,7 @@ describe('updateCard / replaceAllCards / addCard', () => {
   });
 
   it('addCard appends a fresh copy from a Scryfall card and returns its copyId', async () => {
-    const copyId = await useCollectionStore.getState().addCard(
+    const [copyId] = await useCollectionStore.getState().addCard(
       {
         id: 'sfX',
         name: 'Test',
@@ -302,6 +302,27 @@ describe('updateCard / replaceAllCards / addCard', () => {
     const card = useCollectionStore.getState().cards.find((c) => c.copyId === copyId);
     expect(card?.scryfallId).toBe('sfX');
     expect(saveCollection).toHaveBeenCalled();
+  });
+
+  it('addCard quantity creates N copies stamped with condition/language', async () => {
+    const ids = await useCollectionStore.getState().addCard(
+      {
+        id: 'sfY',
+        name: 'Playset',
+        set: 'tst',
+        set_name: 'Test Set',
+        collector_number: '2',
+        rarity: 'common',
+        oracle_id: 'o2',
+      } as never,
+      'nonfoil',
+      { quantity: 4, condition: 'lp', language: 'ja' }
+    );
+    expect(ids).toHaveLength(4);
+    expect(new Set(ids).size).toBe(4);
+    const rows = useCollectionStore.getState().cards.filter((c) => ids.includes(c.copyId));
+    expect(rows).toHaveLength(4);
+    expect(rows.every((c) => c.condition === 'lp' && c.language === 'ja')).toBe(true);
   });
 });
 
