@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import {
   clearPackageBoostCache,
+  computeLiftPickBoosts,
   computePackageBoosts,
+  LIFT_PICK_BOOST_MAX,
+  LIFT_PICK_BOOST_SCALE,
   PACKAGE_BOOST_MAX,
   tallyAxisInvestment,
 } from './packageBoost';
@@ -120,5 +123,33 @@ describe('computePackageBoosts', () => {
     // producers 2 vs payoffs 2 → nothing to complete.
     expect(computePackageBoosts(['Blood Artist', 'Viscera Seer'], cardMap, balanced).size).toBe(0);
     expect(computePackageBoosts(['Not A Card'], cardMap, balanced).size).toBe(0);
+  });
+});
+
+describe('computeLiftPickBoosts', () => {
+  it('leaves output unchanged when the lift index is empty (no-signal ⇒ byte-identical)', () => {
+    const liftScoreOfNothing = () => 0;
+    const boosts = computeLiftPickBoosts(
+      ['Blood Artist', 'Zulaport Cutthroat', 'Divination'],
+      liftScoreOfNothing
+    );
+    expect(boosts.size).toBe(0);
+  });
+
+  it('boosts a lift-scored candidate, capped at LIFT_PICK_BOOST_MAX', () => {
+    const clusterScores: Record<string, number> = {
+      'blood artist': 500, // 500 * 0.0075 = 3.75, under the cap
+      'zulaport cutthroat': 100000, // far over the cap → saturates
+    };
+    const liftScoreOf = (name: string) => clusterScores[name.toLowerCase()] ?? 0;
+
+    const boosts = computeLiftPickBoosts(
+      ['Blood Artist', 'Zulaport Cutthroat', 'Divination'],
+      liftScoreOf
+    );
+
+    expect(boosts.get('Blood Artist')).toBeCloseTo(500 * LIFT_PICK_BOOST_SCALE);
+    expect(boosts.get('Zulaport Cutthroat')).toBe(LIFT_PICK_BOOST_MAX);
+    expect(boosts.has('Divination')).toBe(false); // zero lift connectivity → no entry at all
   });
 });

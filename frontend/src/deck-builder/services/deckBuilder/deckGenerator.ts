@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { formatMoney } from '@/lib/format-money';
 import type {
   ScryfallCard,
   GeneratedDeck,
@@ -13,6 +14,8 @@ import type {
   GapAnalysisCard,
   CoherenceRepair,
   Customization,
+  DetectedCombo,
+  ComboUpsideNote,
 } from '@/deck-builder/types';
 import {
   getCardByName,
@@ -44,7 +47,11 @@ import {
   getCardSubtype,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { computeGradeAndBracket, computeRoleCounts } from './commanderDeckAnalysis';
+import {
+  computeGradeAndBracket,
+  computeRoleCounts,
+  buildInclusionIndex,
+} from './commanderDeckAnalysis';
 import {
   getDynamicRoleTargets,
   estimatePacingFromStats,
@@ -77,6 +84,7 @@ import {
   mergeWithAllNonLand,
   calculateCardPriority,
   isHighSynergyCard,
+  PRICE_SANITY_RATIO,
 } from './cardPicking';
 import {
   categorizeCards,
@@ -88,7 +96,7 @@ import {
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
-import { computePackageBoosts, tallyAxisInvestment } from './packageBoost';
+import { computePackageBoosts, computeLiftPickBoosts, tallyAxisInvestment } from './packageBoost';
 import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
@@ -488,6 +496,158 @@ export function resolvePriceSanity(
 export function buildPriceSanityNote(decidedCount: number): string | undefined {
   if (decidedCount <= 0) return undefined;
   return `Preferred ${decidedCount} cheaper near-equivalent${decidedCount === 1 ? '' : 's'} over premium picks — set budget preference to "expensive" to disable.`;
+}
+
+/**
+ * Combo-upside price disclosure: priceSanityTieBreak (cardPicking.ts)
+ * deliberately never fights a live combo-assembly boost — an expensive combo
+ * piece SHOULD beat a cheap same-role staple when it's genuinely 2-of-3
+ * toward an engine. Correct, but silent: the user pays the premium without
+ * being told why.
+ *
+ * This is deliberately a POST-HOC search, not a comparator-collector: an
+ * earlier version tried to record evidence from inside the sort comparator
+ * (priceSanityTieBreak), but a live Kozilek run proved that structurally
+ * dead — Array.sort() only makes O(n log n) comparisons, and a deep-pool
+ * combo piece (Grim Monolith, 22% inclusion) is never directly compared
+ * against the pool's actual cheap staple (Mind Stone, 86% inclusion); their
+ * relative order is inferred transitively through other comparisons instead.
+ * The evidence map stayed empty all generation despite 4 incomplete combos
+ * and a picked expensive piece. So instead of trying to catch the moment
+ * price-sanity stands down, this scans the FINAL deck directly: for every
+ * shipped card carrying a live combo boost whose combo(s) are all still
+ * incomplete, it searches the whole EDHREC candidate pool (the same
+ * batch-fetched map picking actually drew from) for a same-role,
+ * higher-or-equal-inclusion, dramatically-cheaper card that never made the
+ * deck — deterministic, independent of sort/comparator internals.
+ */
+export function buildComboUpsideNotes(
+  finalDeckCards: readonly ScryfallCard[],
+  staticComboBoosts: ReadonlyMap<string, number>,
+  detectedCombos: DetectedCombo[] | undefined,
+  edhrecData: EDHRECCommanderData | null | undefined,
+  poolCardMap: ReadonlyMap<string, ScryfallCard>,
+  currency: 'USD' | 'EUR'
+): ComboUpsideNote[] | undefined {
+  if (!detectedCombos || detectedCombos.length === 0 || !edhrecData || poolCardMap.size === 0) {
+    return undefined;
+  }
+
+  const inclusionIndex = buildInclusionIndex(edhrecData);
+  const finalNames = new Set(finalDeckCards.map((c) => c.name));
+  const notes: ComboUpsideNote[] = [];
+
+  for (const card of finalDeckCards) {
+    if ((staticComboBoosts.get(card.name) ?? 0) <= 0) continue;
+
+    // Nearest-to-complete incomplete combo this card belongs to (fewest
+    // missing pieces first) — the most informative one to name. A card
+    // whose every combo went on to complete already paid for itself.
+    const incomplete = detectedCombos
+      .filter((dc) => !dc.isComplete && dc.cards.includes(card.name))
+      .sort(
+        (a, b) => a.missingCards.length - b.missingCards.length || a.cards.length - b.cards.length
+      );
+    const dc = incomplete[0];
+    if (!dc) continue;
+
+    const price = parseFloat(getCardPrice(card, currency) ?? '');
+    if (!isFinite(price) || price <= 0) continue;
+
+    const role = validateCardRole(card);
+    if (!role) continue; // same role-gate the picker's price-sanity tie-break uses
+
+    const cardInclusion = inclusionIndex.get(card.name) ?? 0;
+
+    // Cheapest same-role, higher-or-equal-inclusion, dramatically-cheaper
+    // alternative that never made the final deck.
+    let cheapest: { name: string; price: number } | undefined;
+    for (const [altName, altCard] of poolCardMap) {
+      if (altName === card.name || finalNames.has(altName)) continue;
+      if ((inclusionIndex.get(altName) ?? 0) < cardInclusion) continue;
+      if (validateCardRole(altCard) !== role) continue;
+      const altPrice = parseFloat(getCardPrice(altCard, currency) ?? '');
+      if (!isFinite(altPrice) || altPrice <= 0) continue;
+      if (price / altPrice < PRICE_SANITY_RATIO) continue;
+      if (!cheapest || altPrice < cheapest.price) cheapest = { name: altName, price: altPrice };
+    }
+    if (!cheapest) continue;
+
+    notes.push({
+      name: card.name,
+      price: formatMoney(price, { currency, wholeDollars: true }),
+      produces: dc.results.join(', ') || 'a combo',
+      missingCards: dc.missingCards,
+      ownedPieces: dc.cards.length - dc.missingCards.length,
+      totalPieces: dc.cards.length,
+      comparedName: cheapest.name,
+      comparedPrice: formatMoney(cheapest.price, { currency, wholeDollars: true }),
+    });
+  }
+  return notes.length > 0 ? notes : undefined;
+}
+
+// ── Smart Trim resistance constants (priority-aware, role-aware, combo-aware) ──
+// Module-scope (not per-call locals) so computeTrimResistance below is a pure,
+// unit-testable function independent of generateDeckInner's closure.
+export const MUST_INCLUDE_BOOST = 10000;
+export const LAND_PROTECTION_BOOST = 5000; // below must-include but above everything else
+export const COMBO_TRIM_BOOST = 200;
+export const ROLE_DEFICIT_TRIM_BOOST = 50;
+export const ROLE_SURPLUS_TRIM_PENALTY = -30;
+// Staple mana rocks (Sol Ring/Arcane Signet) are appended to the TAIL of
+// categories.ramp after scored categorization (phaseStapleManaRocks.ts), so
+// position-based resistance alone would make them the first ramp cut once
+// ramp is in surplus — comfortably above the worst-case position penalty +
+// ROLE_SURPLUS_TRIM_PENALTY, well below MUST_INCLUDE_BOOST so a user lock
+// still outranks it.
+export const STAPLE_PROTECTION_BOOST = 100;
+
+/**
+ * Per-card trim resistance for the Smart Trim pass: higher survives, lower
+ * gets cut first. Position in its category is the base signal (cards are
+ * already priority-ordered, so a higher index = lower priority = lower
+ * resistance); must-includes, staple rocks, lands (up to the land target),
+ * combo pieces, and role-deficit cards all add protection, while role
+ * surplus (>= target+3) subtracts it.
+ */
+export function computeTrimResistance(
+  card: ScryfallCard,
+  positionIndex: number,
+  categoryLength: number,
+  category: DeckCategory,
+  comboCardNames: ReadonlySet<string>,
+  roleTargets: Record<RoleKey, number> | null,
+  currentRoleCounts: Record<RoleKey, number>
+): number {
+  let resistance = categoryLength - positionIndex;
+
+  if (card.isMustInclude) {
+    resistance += MUST_INCLUDE_BOOST;
+  }
+  if (card.isStapleRock) {
+    resistance += STAPLE_PROTECTION_BOOST;
+  }
+  if (category === 'lands' && !card.isMustInclude) {
+    resistance += LAND_PROTECTION_BOOST;
+  }
+  if (comboCardNames.has(card.name)) {
+    resistance += COMBO_TRIM_BOOST;
+  }
+  if (roleTargets) {
+    const role = validateCardRole(card);
+    if (role) {
+      const target = roleTargets[role] ?? 0;
+      const current = currentRoleCounts[role] ?? 0;
+      if (current <= target) {
+        resistance += ROLE_DEFICIT_TRIM_BOOST;
+      } else if (current >= target + 3) {
+        resistance += ROLE_SURPLUS_TRIM_PENALTY;
+      }
+    }
+  }
+
+  return resistance;
 }
 
 /**
@@ -1818,6 +1978,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // that complete a live engine's scarcer side — the positive counterpart to
     // the synergy-dependency gate. Investment is re-tallied per type pass so a
     // sac outlet picked in creatures raises the pull toward payoffs in spells.
+    //
+    // Also folds in the lift-pick boost (cap +30, see packageBoost.ts): the
+    // validated EDHREC lift clusterScore, previously inert (exact-tie-only
+    // tie-break — see liftTieBreak in cardPicking.ts). No-signal decks (empty
+    // liftIndex, e.g. every golden fixture) get liftScoreOf(name) === 0 for
+    // every candidate, so this is a no-op there.
     const withPackageBoosts = (
       boosts: Map<string, number>,
       pool: EDHRECCard[]
@@ -1835,6 +2001,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         investment
       );
       for (const [name, b] of pkg) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      const lift = computeLiftPickBoosts(
+        pool.map((c) => c.name),
+        liftScoreOf
+      );
+      for (const [name, b] of lift) boosts.set(name, (boosts.get(name) ?? 0) + b);
       return boosts;
     };
 
@@ -2708,11 +2879,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const countAllCards = () => stCountAllCards(state);
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
-  const MUST_INCLUDE_BOOST = 10000;
-  const COMBO_TRIM_BOOST = 200;
-  const ROLE_DEFICIT_TRIM_BOOST = 50;
-  const ROLE_SURPLUS_TRIM_PENALTY = -30;
-
+  // Resistance formula lives in computeTrimResistance above (module-scope,
+  // unit-tested independently of this orchestration).
   let currentCount = countAllCards();
   if (currentCount > targetDeckSize) {
     const trimCandidates: { card: ScryfallCard; category: DeckCategory; trimResistance: number }[] =
@@ -2721,46 +2889,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Protect lands: calculate how many non-must-include lands we can afford to trim
     const currentLandCount = categories.lands.length;
     const landTrimBudget = Math.max(0, currentLandCount - targets.lands);
-    const LAND_PROTECTION_BOOST = 5000; // below must-include but above everything else
 
     for (const cat of Object.keys(categories) as DeckCategory[]) {
       const cards = categories[cat];
       for (let i = 0; i < cards.length; i++) {
         const card = cards[i];
-        // Position-based priority: cards are in priority order (index 0 = highest)
-        // So higher index = lower priority = lower trim resistance
-        let resistance = cards.length - i;
-
-        // Untouchable: must-include cards (check the card's flag, not just the customization arrays,
-        // so applied include lists and optimize deck cards are also protected)
-        if (card.isMustInclude) {
-          resistance += MUST_INCLUDE_BOOST;
-        }
-
-        // Protect lands from being trimmed below the user's land target
-        if (cat === 'lands' && !card.isMustInclude) {
-          resistance += LAND_PROTECTION_BOOST;
-        }
-
-        // Soft-protected: combo pieces
-        if (comboCardNames.has(card.name)) {
-          resistance += COMBO_TRIM_BOOST;
-        }
-
-        // Role-aware: protect deficit roles, expose surplus roles
-        if (roleTargets) {
-          const role = validateCardRole(card);
-          if (role) {
-            const target = roleTargets[role] ?? 0;
-            const current = currentRoleCounts[role] ?? 0;
-            if (current <= target) {
-              resistance += ROLE_DEFICIT_TRIM_BOOST;
-            } else if (current >= target + 3) {
-              resistance += ROLE_SURPLUS_TRIM_PENALTY;
-            }
-          }
-        }
-
+        const resistance = computeTrimResistance(
+          card,
+          i,
+          cards.length,
+          cat,
+          comboCardNames,
+          roleTargets,
+          currentRoleCounts
+        );
         trimCandidates.push({ card, category: cat, trimResistance: resistance });
       }
     }
@@ -4272,6 +4414,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // actually decided an outcome (off, or no qualifying pair arose).
   const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
 
+  // Combo-upside price disclosure — post-hoc scan of the FINAL deck against
+  // the FINAL detectedCombos (post trim/audit/repair, mutated in place above)
+  // and the batch-fetched EDHREC pool, so a card carrying a live combo boost
+  // only gets disclosed while its combo is still genuinely incomplete AND a
+  // cheaper same-role alternative genuinely existed.
+  const comboUpsideNotes = buildComboUpsideNotes(
+    nonLandCards,
+    staticComboBoosts,
+    detectedCombos,
+    state.edhrecData,
+    scryfallCardMap,
+    currency
+  );
+
   // Coherence audit over the FINAL deck (detection only): the pick-time
   // dependency gate can't see support that a later swap pass trimmed away, and
   // some fill paths never route through it — so re-check every shipped card
@@ -4321,6 +4477,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    comboUpsideNotes,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,

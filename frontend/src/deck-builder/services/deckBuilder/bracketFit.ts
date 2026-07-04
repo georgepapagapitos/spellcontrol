@@ -145,6 +145,20 @@ export interface BracketFitInput {
   targetPool: EDHRECCommanderData | null;
   /** EDHREC inclusion per in-deck card (name → %). Picks lowest-inclusion GC to cut first. */
   cardInclusionMap: Record<string, number>;
+  /**
+   * Force-included staple mana rocks (Sol Ring/Arcane Signet — see
+   * phaseStapleManaRocks.ts's isStapleRock). They're absent from a
+   * lower-bracket EDHREC pool (staple-injected, not picked from it), so they
+   * read `cardInclusionMap[name] ?? 0` — the same "lowest inclusion first"
+   * combo-piece sort below would then cut a real staple to break a combo
+   * before touching its actual niche partner (e.g. Hullbreaker Horror +
+   * Sol Ring: Sol Ring always loses on inclusion alone). This set makes the
+   * combo-piece victim sort prefer a non-staple piece first; a staple is
+   * only ever the cut when every other piece of that combo is ALSO a
+   * staple. Absent/undefined → identical behavior to before (no staple ever
+   * outranked on this axis).
+   */
+  stapleNames?: Set<string>;
   /** One-away combos — highest-priority adds when powering up. */
   oneAwayCombos: ComboMatch[];
   /** Gap-analysis cards (top EDHREC adds not in deck) — soft upshift adds. */
@@ -444,10 +458,23 @@ function computeDownshiftPlanWithTarget(
   }
   const comboQueue: { piece: string; combo: DetectedCombo }[] = [];
   for (const { combo } of comboTargets) {
-    const pieces = comboCardNames(combo).filter((p) => deckNames.has(p));
-    if (pieces.length === 0) continue;
-    // Prefer a piece unique to this combo (freq 1), then lowest inclusion.
+    const allPieces = comboCardNames(combo);
+    const pieces = allPieces.filter((p) => deckNames.has(p));
+    // Only fully-assembled combos floor the bracket — a combo that already
+    // lost a piece (e.g. cut in a previous converge round; the caller's
+    // detectedCombos are computed once and go stale across rounds) is broken,
+    // and cutting its survivors achieves nothing. This once cost a bracket-2
+    // deck its Sol Ring: round 1 cut Hullbreaker Horror, round 2 re-targeted
+    // the now-broken combo and cut its only remaining piece.
+    if (pieces.length < allPieces.length) continue;
+    // Staple pieces sort LAST (higher precedence than uniqueness/inclusion
+    // below) — a staple is only ever the victim once every other piece of
+    // this combo is also a staple. Then prefer a piece unique to this combo
+    // (freq 1), then lowest inclusion.
     const sorted = [...pieces].sort((a, b) => {
+      const stapleA = input.stapleNames?.has(a) ? 1 : 0;
+      const stapleB = input.stapleNames?.has(b) ? 1 : 0;
+      if (stapleA !== stapleB) return stapleA - stapleB; // non-staple first
       const ua = comboPieceFreq.get(a) ?? 1;
       const ub = comboPieceFreq.get(b) ?? 1;
       if (ua !== ub) return ua - ub; // unique pieces first
