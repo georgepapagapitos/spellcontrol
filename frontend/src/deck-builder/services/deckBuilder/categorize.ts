@@ -66,15 +66,50 @@ const ROLE_TO_CATEGORY: Record<RoleKey, DeckCategory> = {
 
 // Categorize cards by functional role using Scryfall tagger data.
 // Cards without a tagger role go to the given fallback category (typically 'synergy').
+// Lands always route to 'lands' regardless of role/synergy score — a land can carry
+// a tagger role (e.g. a utility land tagged 'ramp') but must still count toward the
+// manabase, not a spell bucket.
 export function categorizeCards(
   cards: ScryfallCard[],
   categories: Record<DeckCategory, ScryfallCard[]>,
   fallback: DeckCategory = 'synergy'
 ): void {
   for (const card of cards) {
+    if (getFrontFaceTypeLine(card).toLowerCase().includes('land')) {
+      categories.lands.push(card);
+      continue;
+    }
     const role = getCardRole(card.name);
     categories[role ? ROLE_TO_CATEGORY[role] : fallback].push(card);
   }
+}
+
+/**
+ * Route a single card into its target category by type first (land, then
+ * creature), then tagger role, falling back to 'synergy'. Extracted because
+ * this exact type-then-role chain is duplicated ad hoc — and missing the land
+ * branch — in the `addCard`/`auditAdd`/`fixupAddCard` helpers inside
+ * deckGenerator.ts, phaseBracketConverge.ts, and phaseCoherenceRepair.ts
+ * (each pushes straight to `categories.synergy` in its final `else`, which
+ * mis-bucketed a land like Eldrazi Temple into synergy and undercounted
+ * `manabase.totalLands`). Those call sites should switch to this helper
+ * instead of re-inlining the chain.
+ */
+export function routeCardByType(
+  card: ScryfallCard,
+  categories: Record<DeckCategory, ScryfallCard[]>
+): void {
+  const typeLine = getFrontFaceTypeLine(card).toLowerCase();
+  if (typeLine.includes('land')) {
+    categories.lands.push(card);
+    return;
+  }
+  if (typeLine.includes('creature')) {
+    categories.creatures.push(card);
+    return;
+  }
+  const role = getCardRole(card.name);
+  categories[role && ROLE_TO_CATEGORY[role] ? ROLE_TO_CATEGORY[role] : 'synergy'].push(card);
 }
 
 // Stamp all role subtypes on a card based on its deckRole

@@ -84,6 +84,43 @@ const relic = card({
   oracle_text:
     '{T}: Target player exiles a card from their graveyard.\n{1}, Exile Relic of Progenitus: Exile all cards from all graveyards. Draw a card.',
 });
+const cruxOfFate = card({
+  name: 'Crux of Fate',
+  type_line: 'Sorcery',
+  oracle_text: 'Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures.',
+});
+const sivitri = card({
+  name: 'Sivitri, Dragon Master',
+  type_line: 'Legendary Planeswalker — Sivitri',
+  oracle_text:
+    "+1: Until your next turn, creatures can't attack you or planeswalkers you control unless their controller pays 2 life for each of those creatures.\n" +
+    '−3: Search your library for a Dragon card, reveal it, put it into your hand, then shuffle.\n' +
+    '−7: Destroy all non-Dragon creatures.',
+});
+const livingDeath = card({
+  name: 'Living Death',
+  type_line: 'Sorcery',
+  oracle_text:
+    'Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield.',
+});
+const damn = card({
+  name: 'Damn',
+  type_line: 'Sorcery',
+  oracle_text:
+    'Destroy target creature. A creature destroyed this way can\'t be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change "target" in its text to "each.")',
+});
+
+const dragon = (name: string) => card({ name, type_line: 'Creature — Dragon' });
+const dragonTribalBoard = [
+  ...Array.from({ length: 22 }, (_, i) => dragon(`Dragon ${i}`)),
+  ...Array.from({ length: 6 }, (_, i) => card({ name: `Support ${i}`, type_line: 'Creature — Human' })),
+];
+const nonTribalBoard = Array.from({ length: 20 }, (_, i) =>
+  card({ name: `Beater ${i}`, type_line: 'Creature — Human' })
+);
+const aggroBoard = Array.from({ length: 20 }, (_, i) =>
+  card({ name: `Aggro ${i}`, type_line: 'Creature — Human' })
+);
 
 const invested = (...axes: string[]) => new Set(axes);
 
@@ -172,5 +209,42 @@ describe('nonboFindings — positive-evidence gates', () => {
 
   it('a wipe in a deck not invested in what it sweeps is just a wipe', () => {
     expect(nonboFindings([wrath], invested('graveyard', 'spellslinger'))).toHaveLength(0);
+  });
+});
+
+describe('nonboFindings — tribal-dodge, reanimator, and Overload exceptions', () => {
+  it('does not flag a modal non-tribe wipe in a deck that IS that tribe', () => {
+    expect(
+      nonboFindings([...dragonTribalBoard, cruxOfFate], invested('tokens'))
+    ).toHaveLength(0);
+    expect(nonboFindings([...dragonTribalBoard, sivitri], invested('tokens'))).toHaveLength(0);
+  });
+
+  it('still flags the same modal wipe in a deck that is not that tribe', () => {
+    const findings = nonboFindings([...nonTribalBoard, cruxOfFate], invested('tokens'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ card: 'Crux of Fate', severity: 'info' });
+  });
+
+  it('does not flag a reanimation wipe (Living Death) in a graveyard-recursion deck', () => {
+    expect(
+      nonboFindings([livingDeath], invested('graveyard', 'tokens'))
+    ).toHaveLength(0);
+  });
+
+  it('still flags the same reanimation wipe when the deck has no graveyard investment', () => {
+    const findings = nonboFindings([livingDeath], invested('tokens'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ card: 'Living Death', severity: 'info' });
+  });
+
+  it("catches Damn's Overload-granted board wipe like Farewell/Blasphemous Act", () => {
+    const findings = nonboFindings([...aggroBoard, damn], invested('tokens'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ card: 'Damn', severity: 'info' });
+  });
+
+  it('leaves Damn silent outside its overload mode when no board is invested in tokens', () => {
+    expect(nonboFindings([damn], invested('graveyard'))).toHaveLength(0);
   });
 });

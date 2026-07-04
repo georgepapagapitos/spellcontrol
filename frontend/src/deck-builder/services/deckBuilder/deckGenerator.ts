@@ -547,6 +547,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // same target — see computeGradeAndBracket call below.
   let resolvedLandCount = customization.landCount;
   let landCountNote: string | undefined;
+  // Combo-completion budget disclosure: how many combo-audit/combo-floor
+  // candidates were skipped for exceeding the budget cap (see budgetNote below).
+  let comboBudgetSkipCount = 0;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
@@ -3143,6 +3146,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       usedNames.delete(card.name);
     }
 
+    // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce — owned
+    // copies are exempt, everything else checks the live effective cap.
+    function auditPassesBudget(card: ScryfallCard): boolean {
+      if (isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) return true;
+      const cap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
+      return !exceedsMaxPrice(card, cap, currency);
+    }
+
     function auditAdd(card: ScryfallCard): boolean {
       if (usedNames.has(card.name)) return false; // guard against duplicates
       if (bannedCards.has(card.name)) return false; // respect banlist
@@ -3156,6 +3167,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       else if (role === 'cardDraw') categories.cardDraw.push(card);
       else categories.synergy.push(card);
       usedNames.add(card.name);
+      if (!isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) {
+        budgetTracker?.deductCard(card);
+      }
       return true;
     }
 
@@ -3195,6 +3209,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       for (const [name, combosCompleted] of topEnablers) {
         if (auditSwaps >= MAX_AUDIT_SWAPS) break;
         const card = scryfallCardMap.get(name)!;
+        if (!auditPassesBudget(card)) {
+          comboBudgetSkipCount++;
+          continue; // next-best enabler under budget
+        }
         const weak = auditWeakest();
         if (!weak) break;
         auditRemove(weak.card, weak.category);
@@ -3248,7 +3266,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             )
         )
         .map((n) => scryfallCardMap.get(n))
-        .filter((c): c is ScryfallCard => !!c);
+        .filter((c): c is ScryfallCard => !!c)
+        .filter((c) => {
+          if (auditPassesBudget(c)) return true;
+          comboBudgetSkipCount++;
+          return false;
+        });
 
       // If all "missing" pieces are actually already in the deck now, mark complete and move on
       if (trulyMissing.length === 0) {
@@ -3300,7 +3323,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             }
           }
           if (!found) continue;
-          const replacement = state.edhrecData.cardlists.allNonLand
+          const replacementCandidates = state.edhrecData.cardlists.allNonLand
             .filter(
               (c) =>
                 !usedNames.has(c.name) &&
@@ -3311,7 +3334,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                   notInCollection(c.name, context.collectionNames)
                 )
             )
-            .sort((a, b) => b.inclusion - a.inclusion)[0];
+            .sort((a, b) => b.inclusion - a.inclusion);
+          // Fall through past budget-exceeding candidates to the next-best one.
+          let replacement: (typeof replacementCandidates)[0] | undefined;
+          for (const cand of replacementCandidates) {
+            if (auditPassesBudget(scryfallCardMap.get(cand.name)!)) {
+              replacement = cand;
+              break;
+            }
+            comboBudgetSkipCount++;
+          }
           if (!replacement) continue;
           auditRemove(found.card, found.category);
           auditAdd(scryfallCardMap.get(replacement.name)!);
@@ -3363,8 +3395,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       scryfallCardMap,
       mustIncludeNames: mustIncludeSet,
       targetBracket,
+      budgetTracker,
+      maxCardPrice,
+      currency,
+      ignoreOwnedBudget,
     });
     detectedCombos = floorResult.detectedCombos;
+    comboBudgetSkipCount += floorResult.budgetSkipped;
+  }
+
+  // Disclose combo-completion candidates that were available but skipped for
+  // exceeding the budget — the audit/combo-floor above now honor the same
+  // budget gate cardPicking/scryfallFill/coherenceRepair enforce, instead of
+  // silently blowing the cap (see BudgetTracker).
+  let budgetNote: string | undefined;
+  if (budgetTracker && comboBudgetSkipCount > 0) {
+    const sym = currency === 'EUR' ? '€' : '$';
+    budgetNote = `${comboBudgetSkipCount} combo upgrade${comboBudgetSkipCount === 1 ? '' : 's'} skipped to honor your ${sym}${deckBudget} budget`;
   }
 
   // ── Post-Generation Fixup Pass (light touch) ──
@@ -3752,6 +3799,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     generationModeDetail: altPool?.detail,
     generationRelaxedNote: altPool?.relaxedNote,
     landCountNote,
+    budgetNote,
     roleCounts: roleTargets ? { ...currentRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,

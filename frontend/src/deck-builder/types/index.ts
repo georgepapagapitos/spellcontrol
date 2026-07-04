@@ -443,6 +443,10 @@ export interface BuildReport {
    *  default (e.g. tribal/dork-dense decks running fewer). Undefined when the
    *  user set land count explicitly, or no adjustment applied. */
   landCountNote?: string;
+  /** Disclosure when a combo-completion candidate (Combo Integrity Audit /
+   *  combo floor) was skipped because it would exceed the deck budget.
+   *  Undefined when no budget is set or nothing was skipped. */
+  budgetNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -542,6 +546,7 @@ export interface GeneratedDeck {
   generationModeDetail?: string; // Mode-specific descriptor (art motif slug, or "year<=YYYY")
   generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool
   landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
+  budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
 }
 
 export interface DeckStats {

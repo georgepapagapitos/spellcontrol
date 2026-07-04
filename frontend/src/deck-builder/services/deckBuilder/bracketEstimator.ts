@@ -116,6 +116,12 @@ const MLD_FALSE_POSITIVES = new Set([
   'Ajani Vengeant', // -2 destroys a *single* land — spot, not mass
   'Dovin Baan', // -7 locks untap of permanents — not land-specific
   'Damping Sphere', // taxes spells / slows fast mana — a tax, not land denial
+  // -9 forces "sacrifice all but one permanent of each type" — lands are only
+  // incidental collateral in a whole-board wipe, not a dedicated land-denial effect
+  'Liliana, Dreadhorde General',
+  // -6 forces a *single* target player to sac half their permanents (their own
+  // choice of pile) — same "not actually land-specific" overreach as above
+  'Liliana of the Veil',
 ]);
 
 /**

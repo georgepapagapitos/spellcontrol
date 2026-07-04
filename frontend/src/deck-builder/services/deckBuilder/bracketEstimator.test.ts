@@ -320,6 +320,39 @@ describe('estimateBracket — hard floors', () => {
     expect(r.bracket).toBe(2);
   });
 
+  it('Liliana, Dreadhorde General does not floor B4 (upstream otag mistag, not land denial)', () => {
+    // Her -9 forces "sac all but one permanent of each type" — a whole-board wipe
+    // that only incidentally touches lands, not dedicated land destruction. The
+    // upstream mass-land-denial otag swept her in anyway (Meren eval).
+    mockIsMLD.mockImplementation((n: string) => n === 'Liliana, Dreadhorde General');
+    const r = estimateBracket(
+      ['Liliana, Dreadhorde General', 'Forest'],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.massLandDenialCount).toBe(0);
+    expect(r.bracket).toBe(2);
+  });
+
+  it('Liliana of the Veil does not floor B4 (same non-land-specific sacrifice overreach)', () => {
+    // -6 lets the *target player* choose which pile (of their own permanents) to
+    // sacrifice — not a dedicated land-denial effect either.
+    mockIsMLD.mockImplementation((n: string) => n === 'Liliana of the Veil');
+    const r = estimateBracket(
+      ['Liliana of the Veil', 'Forest'],
+      undefined,
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.massLandDenialCount).toBe(0);
+    expect(r.bracket).toBe(2);
+  });
+
   it('counterspells count toward interaction density even when not tagged removal', () => {
     // getCardRole never emits a counterspell role, so pure counterspells were
     // invisible to the interaction soft signal (audit P2 #6). They now contribute.

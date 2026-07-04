@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchesExpectedType, categorizeCards, computeRoleBoosts } from './categorize';
+import { matchesExpectedType, categorizeCards, routeCardByType, computeRoleBoosts } from './categorize';
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
@@ -62,6 +62,32 @@ describe('categorizeCards', () => {
     categorizeCards([sc({ name: 'A' }), sc({ name: 'B' })], categories, 'synergy');
     expect(categories.synergy.map((c) => c.name)).toEqual(['A', 'B']);
     expect(categories.creatures).toHaveLength(0);
+  });
+
+  it('routes a land to lands regardless of fallback (would otherwise land in synergy)', () => {
+    // Eldrazi Temple-style bug: a land with no tagger role (or a high synergy
+    // score) must still count toward the manabase, not the synergy bucket.
+    const categories = emptyCategories();
+    categorizeCards([sc({ name: 'Eldrazi Temple', type_line: 'Land' })], categories, 'synergy');
+    expect(categories.lands.map((c) => c.name)).toEqual(['Eldrazi Temple']);
+    expect(categories.synergy).toHaveLength(0);
+  });
+});
+
+describe('routeCardByType', () => {
+  it('routes lands to lands ahead of role/synergy fallback', () => {
+    const categories = emptyCategories();
+    routeCardByType(sc({ name: 'Eldrazi Temple', type_line: 'Land' }), categories);
+    expect(categories.lands.map((c) => c.name)).toEqual(['Eldrazi Temple']);
+    expect(categories.synergy).toHaveLength(0);
+  });
+
+  it('routes creatures to creatures and falls back non-creature spells to synergy', () => {
+    const categories = emptyCategories();
+    routeCardByType(sc({ name: 'Bear', type_line: 'Creature — Bear' }), categories);
+    routeCardByType(sc({ name: 'Opt', type_line: 'Instant' }), categories);
+    expect(categories.creatures.map((c) => c.name)).toEqual(['Bear']);
+    expect(categories.synergy.map((c) => c.name)).toEqual(['Opt']);
   });
 });
 
