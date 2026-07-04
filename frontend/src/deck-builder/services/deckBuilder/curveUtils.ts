@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import type { EDHRECCommanderStats } from '@/deck-builder/types';
 import type { Pacing } from '@/deck-builder/types';
+import { Archetype } from '@/deck-builder/types';
 import { PACING_CURVE_MULTIPLIERS } from './roleTargets';
 
 /**
@@ -203,6 +204,66 @@ export function calculateTypeTargets(
   );
 
   return targets;
+}
+
+// Archetype identity floors on top of `calculateTypeTargets`'s purely
+// EDHREC-driven output: a spellslinger commander whose EDHREC page still
+// skews creature-heavy (small sample size, or a build-around with few
+// tracked decks) should still get a real spell-density floor, same idea for
+// enchantress/artifacts. Expressed as a MINIMUM share of non-land slots
+// across the listed types combined — a floor, not a fixed distribution, so
+// it only ever pulls slots in, never removes them when EDHREC already clears
+// the bar on its own.
+const ARCHETYPE_TYPE_FLOORS: Partial<Record<Archetype, { types: string[]; minPercent: number }>> = {
+  // Identity requires a critical mass of cheap spells to chain/copy/discount.
+  [Archetype.SPELLSLINGER]: { types: ['instant', 'sorcery'], minPercent: 0.3 },
+  [Archetype.STORM]: { types: ['instant', 'sorcery'], minPercent: 0.32 },
+  // Enchantress/constellation draw engines key off enchantment COUNT.
+  [Archetype.ENCHANTRESS]: { types: ['enchantment'], minPercent: 0.15 },
+  // Affinity/artifact-synergy payoffs need enough artifacts to trigger off.
+  [Archetype.ARTIFACTS]: { types: ['artifact'], minPercent: 0.15 },
+  // Tribal payoffs (anthems/lords) need enough bodies to buff.
+  [Archetype.TRIBAL]: { types: ['creature'], minPercent: 0.45 },
+};
+
+/**
+ * Apply a bounded archetype identity floor to EDHREC-derived type targets, in
+ * place. Never removes slots from a type that's already at/above the floor;
+ * bounded to move at most 15% of non-land slots in one nudge so a thin
+ * EDHREC sample can't blow out the curve/type balance the rest of the
+ * pipeline expects. Donor is `creature` (usually the largest bucket) unless
+ * creature IS one of the floored types, in which case `artifact` donates —
+ * either way at least 2 cards are left in the donor bucket.
+ */
+export function applyArchetypeTypeFloor(
+  typeTargets: Record<string, number>,
+  archetype: Archetype,
+  nonLandTotal: number
+): void {
+  const floor = ARCHETYPE_TYPE_FLOORS[archetype];
+  if (!floor || nonLandTotal <= 0) return;
+
+  const wantCount = Math.round(nonLandTotal * floor.minPercent);
+  const haveCount = floor.types.reduce((s, t) => s + (typeTargets[t] ?? 0), 0);
+  const deficit = wantCount - haveCount;
+  if (deficit <= 0) return;
+
+  const bounded = Math.min(deficit, Math.round(nonLandTotal * 0.15));
+  const donor = floor.types.includes('creature') ? 'artifact' : 'creature';
+  const available = typeTargets[donor] ?? 0;
+  const taken = Math.min(bounded, Math.max(0, available - 2));
+  if (taken <= 0) return;
+
+  typeTargets[donor] = available - taken;
+  let remainder = taken % floor.types.length;
+  const perType = Math.floor(taken / floor.types.length);
+  for (const t of floor.types) {
+    typeTargets[t] = (typeTargets[t] ?? 0) + perType + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder--;
+  }
+  logger.debug(
+    `[CurveUtils] Archetype type floor (${archetype}): moved ${taken} slots from ${donor} to ${floor.types.join('/')}`
+  );
 }
 
 /**

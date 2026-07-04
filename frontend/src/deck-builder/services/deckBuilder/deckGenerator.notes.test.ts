@@ -5,9 +5,45 @@
 // These are plain pure functions precisely so that reconciliation is testable
 // without standing up the full generateDeck orchestration (covered instead by
 // deckGenerator.golden.test.ts / .live.test.ts, which this file doesn't touch).
-import { describe, it, expect } from 'vitest';
-import { buildLandCountNote, buildOverBudgetNote } from './deckGenerator';
+import { describe, it, expect, vi } from 'vitest';
 import { Archetype } from '@/deck-builder/types';
+import type { ScryfallCard } from '@/deck-builder/types';
+import type { RoleKey } from '@/deck-builder/services/tagger/client';
+
+// isOverRoleCap/bumpRoleCapCount/roleCapOverage (E77 iter-4 round 2) call
+// validateCardRole directly — stub it to a simple name->role map so these
+// pure-logic tests don't depend on real tagger data or oracle text.
+const ROLES: Record<string, RoleKey> = {};
+vi.mock('@/deck-builder/services/tagger/client', () => ({
+  validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
+}));
+
+import {
+  buildLandCountNote,
+  buildOverBudgetNote,
+  buildRoleCapOverflowNote,
+  isOverRoleCap,
+  bumpRoleCapCount,
+  roleCapOverage,
+} from './deckGenerator';
+
+function sc(name: string): ScryfallCard {
+  return {
+    id: 'id',
+    oracle_id: 'oracle',
+    name,
+    cmc: 2,
+    type_line: 'Creature',
+    oracle_text: '',
+    color_identity: [],
+    keywords: [],
+    rarity: 'rare',
+    set: 'tst',
+    set_name: 'Test',
+    prices: {},
+    legalities: { commander: 'legal' },
+  };
+}
 
 describe('buildLandCountNote', () => {
   it('names the archetype when confidence is high', () => {
@@ -113,5 +149,97 @@ describe('buildOverBudgetNote', () => {
     });
     expect(note).toContain('€60.00');
     expect(note).toContain('€50');
+  });
+});
+
+describe('isOverRoleCap / bumpRoleCapCount / roleCapOverage (E77 iter-4 round 2)', () => {
+  const roleTargets: Record<RoleKey, number> = { ramp: 1, removal: 0, boardwipe: 0, cardDraw: 0 };
+  // target=1 -> tolerance = max(2, round(1*0.2)) = 2 -> cap = 3.
+
+  it('is never over cap when balanced roles is off (roleTargets null)', () => {
+    ROLES.Ramp1 = 'ramp';
+    expect(isOverRoleCap(sc('Ramp1'), null, { ramp: 99 } as Record<RoleKey, number>)).toBe(false);
+  });
+
+  it('is never over cap for a role-null card, no matter the counts', () => {
+    delete ROLES['Untagged'];
+    expect(
+      isOverRoleCap(sc('Untagged'), roleTargets, { ramp: 99 } as Record<RoleKey, number>)
+    ).toBe(false);
+  });
+
+  it('flags over cap once current >= target + tolerance, not before', () => {
+    ROLES.Ramp1 = 'ramp';
+    expect(isOverRoleCap(sc('Ramp1'), roleTargets, { ramp: 2 } as Record<RoleKey, number>)).toBe(
+      false
+    ); // 2 < cap(3)
+    expect(isOverRoleCap(sc('Ramp1'), roleTargets, { ramp: 3 } as Record<RoleKey, number>)).toBe(
+      true
+    ); // 3 >= cap(3)
+  });
+
+  it('bumpRoleCapCount increments the live count, and the overflow counter only when marked overflow', () => {
+    ROLES.Ramp1 = 'ramp';
+    const currentRoleCounts: Record<RoleKey, number> = {
+      ramp: 0,
+      removal: 0,
+      boardwipe: 0,
+      cardDraw: 0,
+    };
+    const overflowCounts: Partial<Record<RoleKey, number>> = {};
+    bumpRoleCapCount(sc('Ramp1'), roleTargets, currentRoleCounts, overflowCounts, false);
+    expect(currentRoleCounts.ramp).toBe(1);
+    expect(overflowCounts.ramp).toBeUndefined();
+
+    bumpRoleCapCount(sc('Ramp1'), roleTargets, currentRoleCounts, overflowCounts, true);
+    expect(currentRoleCounts.ramp).toBe(2);
+    expect(overflowCounts.ramp).toBe(1);
+  });
+
+  it('roleCapOverage reports how far over (or under) target the role currently sits', () => {
+    ROLES.Ramp1 = 'ramp';
+    expect(roleCapOverage(sc('Ramp1'), roleTargets, { ramp: 4 } as Record<RoleKey, number>)).toBe(
+      3
+    ); // 4 - 1
+    expect(roleCapOverage(sc('Ramp1'), roleTargets, { ramp: 0 } as Record<RoleKey, number>)).toBe(
+      -1
+    ); // 0 - 1
+  });
+});
+
+describe('buildRoleCapOverflowNote (E77 iter-4 round 3 — narrow escape-hatch-only wording)', () => {
+  it('returns undefined when the cap was never breached', () => {
+    expect(buildRoleCapOverflowNote({})).toBeUndefined();
+    expect(buildRoleCapOverflowNote({ ramp: 0 })).toBeUndefined();
+  });
+
+  it('names the total and the dominant role, not per-card spam', () => {
+    const note = buildRoleCapOverflowNote({ ramp: 3, cardDraw: 1 });
+    expect(note).toContain('4 cards');
+    expect(note).toContain('ramp');
+  });
+
+  it('uses singular phrasing for exactly one card', () => {
+    const note = buildRoleCapOverflowNote({ removal: 1 });
+    expect(note).toContain('1 card');
+    expect(note).not.toContain('1 cards');
+  });
+
+  // Round 3: 3 independent critics flagged the round-2 copy ("N cards kept
+  // over its role target") as reading like the deck's TOTAL role overshoot,
+  // contradicting a larger roleExcesses total on the same report (the rest
+  // comes from exempt picks — must-includes/combo floor — plus in-tolerance
+  // amounts, not the hatch). The copy must scope itself to escape-hatch
+  // admissions only and point at Overbuilt roles for the full accounting.
+  it('scopes the claim to escape-hatch admissions, not the total role overshoot', () => {
+    const note = buildRoleCapOverflowNote({ ramp: 1 });
+    expect(note).not.toMatch(/kept over its role target/i);
+    expect(note).toContain('pushed past its role cap');
+  });
+
+  it('points at Overbuilt roles for the full accounting instead of implying this IS the total', () => {
+    const note = buildRoleCapOverflowNote({ ramp: 1 });
+    expect(note).toContain('Overbuilt roles');
+    expect(note).not.toMatch(/\btotal (role )?overshoot\b/i);
   });
 });

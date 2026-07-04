@@ -44,6 +44,7 @@ export function assembleBuildReport(input: {
   // set land count explicitly, or the default 37 was already the right call).
   if (generated.landCountNote) report.landCountNote = generated.landCountNote;
   if (generated.budgetNote) report.budgetNote = generated.budgetNote;
+  if (generated.roleCapOverflowNote) report.roleCapOverflowNote = generated.roleCapOverflowNote;
 
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {

@@ -117,6 +117,7 @@ export enum Archetype {
   MIDRANGE = 'midrange',
   VOLTRON = 'voltron',
   SPELLSLINGER = 'spellslinger',
+  TEMPO = 'tempo',
   TOKENS = 'tokens',
   ARISTOCRATS = 'aristocrats',
   REANIMATOR = 'reanimator',
@@ -447,6 +448,10 @@ export interface BuildReport {
    *  combo floor) was skipped because it would exceed the deck budget.
    *  Undefined when no budget is set or nothing was skipped. */
   budgetNote?: string;
+  /** Disclosure when the role-cap escape hatch admitted an over-cap card
+   *  rather than shipping the deck short (a thin type pool left no
+   *  under-cap alternative). Undefined when the cap was never breached. */
+  roleCapOverflowNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -550,6 +555,7 @@ export interface GeneratedDeck {
   generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool
   landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
+  roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
 }
 
 export interface DeckStats {

@@ -61,6 +61,14 @@ export interface CommanderAbility {
   /** EDHREC theme names (lowercased) this ability suggests leaning into. */
   themes: string[];
   archetypeHint?: Archetype;
+  /**
+   * Per-instance override for the archetype vote weight (see
+   * `pickPrimaryArchetype`). Only set for the structurally-detected voltron
+   * ability below, whose confidence scales with how much evasion/protection
+   * evidence the commander actually has — everything from the oracle-text
+   * DETECTORS list keeps using the static per-keyword weight table instead.
+   */
+  archWeight?: number;
 }
 
 export interface CommanderProfile {
@@ -652,6 +660,15 @@ export function buildCommanderProfile(
       ],
       themes: ['voltron', 'equipment', 'auras'],
       archetypeHint: Archetype.VOLTRON,
+      // Scale confidence with the evidence: a commander stacking 3-4 evasion/
+      // protection keywords (flying + vigilance + deathtouch + lifelink, e.g.
+      // Atraxa) is a much stronger voltron signal than the 2-keyword floor
+      // that triggers this branch at all, and shouldn't lose the archetype
+      // vote to a couple of incidental weight-2 oracle-text detectors
+      // (e.g. extra-combat) just because they total the same as voltron's old
+      // flat weight of 2. Capped so it can't run away on a keyword-heavy but
+      // otherwise unfocused commander.
+      archWeight: Math.min(4, 2 + Math.max(0, voltronHits.length - 2)),
     });
   }
 
@@ -669,8 +686,8 @@ export function buildCommanderProfile(
       const px = x.a.archetypeHint === primaryArchetype ? 0 : 1;
       const py = y.a.archetypeHint === primaryArchetype ? 0 : 1;
       if (px !== py) return px - py;
-      const wx = ARCH_WEIGHT_BY_KEYWORD.get(x.a.keyword) ?? 2;
-      const wy = ARCH_WEIGHT_BY_KEYWORD.get(y.a.keyword) ?? 2;
+      const wx = x.a.archWeight ?? ARCH_WEIGHT_BY_KEYWORD.get(x.a.keyword) ?? 2;
+      const wy = y.a.archWeight ?? ARCH_WEIGHT_BY_KEYWORD.get(y.a.keyword) ?? 2;
       if (wx !== wy) return wy - wx;
       return x.i - y.i;
     })
@@ -733,7 +750,7 @@ function pickPrimaryArchetype(abilities: CommanderAbility[]): Archetype {
   const weights = new Map<Archetype, number>();
   for (const a of abilities) {
     if (!a.archetypeHint) continue;
-    const w = ARCH_WEIGHT_BY_KEYWORD.get(a.keyword) ?? 2;
+    const w = a.archWeight ?? ARCH_WEIGHT_BY_KEYWORD.get(a.keyword) ?? 2;
     weights.set(a.archetypeHint, (weights.get(a.archetypeHint) ?? 0) + w);
   }
   let best: Archetype | null = null;

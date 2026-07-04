@@ -17,8 +17,13 @@ const TAGS: Record<string, string[]> = {
   OnTag: ['ramp'],
   OffTag: ['flying'],
 };
+// Role map for the role-cap gate tests below — a simple name->role lookup
+// standing in for validateCardRole's real oracle-text corroboration (that
+// mechanism has its own dedicated tests in tagger/client.test.ts).
+const ROLES: Record<string, 'ramp' | 'removal' | 'boardwipe' | 'cardDraw'> = {};
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardTags: (name: string) => TAGS[name] ?? [],
+  validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
 }));
 
 import { fillWithScryfall } from './scryfallFill';
@@ -42,7 +47,10 @@ function sc(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   };
 }
 
-beforeEach(() => searchCards.mockReset());
+beforeEach(() => {
+  searchCards.mockReset();
+  for (const key of Object.keys(ROLES)) delete ROLES[key];
+});
 
 describe('fillWithScryfall', () => {
   it('short-circuits without searching when count <= 0', async () => {
@@ -304,5 +312,61 @@ describe('fillWithScryfall hard gates (E71 controls audit)', () => {
     searchCards.mockResolvedValue({ data: [sc({ name: 'A' }), sc({ name: 'B' })] });
     const out = await fill(undefined);
     expect(out.map((c) => c.name)).toEqual(['A', 'B']);
+  });
+});
+
+describe('fillWithScryfall role-cap gate (E77 iter-4)', () => {
+  // target=1 -> tolerance = max(2, round(1*0.2)) = 2 -> cap = 3.
+  const roleTargets = { ramp: 1, removal: 0, boardwipe: 0, cardDraw: 0 };
+
+  const fillWithRoleCap = (count: number, currentRoleCounts: Record<string, number>) =>
+    fillWithScryfall(
+      't:creature',
+      [],
+      count,
+      new Set(),
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      'USD',
+      false,
+      '',
+      'full',
+      false,
+      false,
+      undefined,
+      undefined,
+      { roleCap: { roleTargets, currentRoleCounts } }
+    );
+
+  it('skips a surplus-role candidate for a role-null one, and live-updates the shared count', async () => {
+    ROLES['Ramp Extra'] = 'ramp';
+    searchCards.mockResolvedValue({
+      data: [sc({ name: 'Ramp Extra' }), sc({ name: 'Payoff' })],
+    });
+    const currentRoleCounts = { ramp: 3 }; // already at cap (target 1 + tolerance 2)
+    const out = await fillWithRoleCap(1, currentRoleCounts);
+    expect(out.map((c) => c.name)).toEqual(['Payoff']);
+    expect(currentRoleCounts.ramp).toBe(3); // untouched — the capped card never got accepted
+  });
+
+  it('accepts a role card under the cap and increments the shared running count', async () => {
+    ROLES['Ramp One'] = 'ramp';
+    searchCards.mockResolvedValue({ data: [sc({ name: 'Ramp One' })] });
+    const currentRoleCounts = { ramp: 0 };
+    const out = await fillWithRoleCap(1, currentRoleCounts);
+    expect(out.map((c) => c.name)).toEqual(['Ramp One']);
+    expect(currentRoleCounts.ramp).toBe(1);
+  });
+
+  it('escape hatch: admits an over-cap candidate rather than shipping the fill short', async () => {
+    ROLES['Ramp Extra'] = 'ramp';
+    searchCards.mockResolvedValue({ data: [sc({ name: 'Ramp Extra' })] }); // no role-null alternative
+    const currentRoleCounts = { ramp: 3 };
+    const out = await fillWithRoleCap(1, currentRoleCounts);
+    expect(out.map((c) => c.name)).toEqual(['Ramp Extra']);
   });
 });

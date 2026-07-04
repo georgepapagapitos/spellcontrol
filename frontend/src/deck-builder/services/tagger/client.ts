@@ -238,6 +238,93 @@ export function getCardDrawSubtype(cardName: string): CardDrawSubtype | null {
   return 'card-advantage';
 }
 
+// Positive-evidence patterns per role (E77 iter-4 sanity layer). A role claim
+// from `getCardRole` must be corroborated by the card's own oracle text when
+// text is available — follows the `fetchedBasicRequirement` precedent
+// (manabaseMath.ts): don't trust a crowd-sourced tag (or a corrupt/mismatched
+// Scryfall record) blindly. Generic textual evidence, not card-name patches —
+// this is what catches an extra-turns sorcery mistagged 'ramp' (Expropriate,
+// which has no mana-production/land-fetch/cost-reduction text) and a record
+// whose cached oracle text doesn't match its claimed role for any reason.
+const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
+  // Land-aura mana boosters phrase this as "adds an additional {G}" (not
+  // "add {G}") and variable-mana rocks as "Add X/three/two mana..." or "add
+  // an amount of {C}..." — consolidated into one lenient add-then-mana(or
+  // brace) pattern (Wild Growth, Utopia Sprawl, Sanctum Weaver, Lion's Eye
+  // Diamond, Mana Echoes, Klauth, Sarkhan all previously broke the rigid
+  // "add {"/"add one mana" adjacency). Treasure-makers are ramp by deferred
+  // mana (Smothering Tithe, Dockside Extortionist, Pitiless Plunderer, Revel
+  // in Riches). Cost reduction can be a colored-symbol cost, not just a
+  // digit (Morophon: "cost {W}{U}{B}{R}{G} less"). Land-onto-battlefield via
+  // exile (not search) is its own idiom (Oblivion Sower).
+  ramp: /adds?\s+(an additional\s+|an amount of\s+)?(\{|[\w\s]{0,15}?mana\b)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? [^.]*?less( to cast)?|play an additional land|creates? [^.]*?treasures?\b|lands? cards?[^.]*?onto the battlefield/i,
+  // Lenient destroy/exile-target gap ("exile two target permanents", "exile
+  // up to one target permanent") alongside direct "destroy target creature".
+  // Damage-based removal (burn/reach — Lightning Bolt, Massive Raid,
+  // Endbringer) and sacrifice-edicts with any forcing subject (not just
+  // "target player" — Vraska's Fall, Fleshbag Marauder, Grave Pact) round out
+  // the common removal shapes the raw tag already covers. Threaten effects
+  // ("gain control of target creature") and Pacifism/Song-of-the-Dryads-style
+  // auras ("loses all abilities") are real, distinct removal templating, not
+  // destroy/exile at all.
+  removal:
+    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights? target creature|target creature gets? [+-]?\d+\/-\d+|(target player|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities/i,
+  // Exile-based wipes (Farewell) and return-all bounce wipes (Devastation
+  // Tide) alongside the destroy-based ones. "destroy each"/"exile
+  // each"/"return each" (permanent, not just creature — Selective
+  // Obliteration, Spectral Deluge) and a lenient "return all" gap ("return
+  // all ATTACKING creatures" — Aetherize) cover more wipe verbs. A one-sided
+  // "-N/-N to an opponent's board" (Massacre Wurm, Silumgar) and a counter-
+  // based wipe (Contagion Engine's "-1/-1 counter on each creature") are
+  // distinct real wipe shapes, not just "all"/"each" phrasing. "For each
+  // opponent, destroy..." (Ruinous Ultimatum) is a per-opponent one-sided
+  // wipe idiom. Overload spells replace "target" with "each" via a rules
+  // instruction in the reminder text, not literally in the effect line
+  // (Damn, Vandalblast, Cyclonic Rift) — corroborated by the co-occurrence
+  // of "overload" with a destroy/exile/return-target clause, regardless of
+  // which comes first in the text.
+  boardwipe:
+    /destroy all|destroy each|exile all|exile each (creature|permanent)|all creatures (get|take|deal)|each creature (gets|takes)|creatures[^.]*?get -\d+\/-\d+|damage to each creature|return all [^.]*?(creatures|permanents)|return each (creature|permanent)|each player sacrifices (a|all)|(\+1\/\+1|-1\/-1) counters? on each creature|for each opponent[^.]*?destroy|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target\b)/i,
+  // Tutors (search-library-into-ANY-destination, or a card that redirects an
+  // OPPONENT's search — Opposition Agent) are folded into cardDraw by
+  // getCardRole — the taxonomy call already made, not this gate's job to
+  // re-litigate. Real tutors put the found card into hand, onto the
+  // battlefield, into the graveyard, or on top of the library (Vampiric
+  // Tutor, Demonic Tutor, Entomb, Natural Order, Protean Hulk, ...) — accept
+  // any destination rather than requiring "into hand" specifically. Library-
+  // top manipulation ("the top N cards of your library", "the top of your
+  // library") and graveyard-to-hand recursion are the other two common
+  // card-advantage shapes the raw tag covers.
+  cardDraw:
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|return[^.]*?graveyard[^.]*?hand/i,
+};
+
+/**
+ * Positive-evidence-gated role classification. Returns the same role
+ * `getCardRole` would (by name) IFF the card's own oracle text corroborates
+ * it — otherwise drops the role. Guards against upstream tagger mistags and
+ * corrupt/mismatched Scryfall records (a cached card whose oracle_text
+ * doesn't match its type, inflating a role count with an effect it doesn't
+ * have). Falls back to trusting the tag when no oracle text is available to
+ * check against (can't validate what we can't read), so a face with no text
+ * doesn't lose a real role for lack of data.
+ */
+export function validateCardRole(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): RoleKey | null {
+  const role = getCardRole(card.name);
+  if (!role) return null;
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return role;
+  return ROLE_EVIDENCE[role].test(text) ? role : null;
+}
+
 /** Get the subtype of a card for its primary role (if any). */
 export function getCardSubtype(cardName: string): string | null {
   const role = getCardRole(cardName);

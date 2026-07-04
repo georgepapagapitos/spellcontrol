@@ -9,6 +9,7 @@ import {
 } from './cardPicking';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
+import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
 function ec(overrides: Partial<EDHRECCard> = {}): EDHRECCard {
   return {
@@ -580,5 +581,97 @@ describe("pickFromPrefetched 'partial' owned-percentage quota (E71 controls audi
     const oneOwned = cards.filter((c) => c.name !== 'Owned Lo');
     const picked = pickPartial(3, 100, oneOwned);
     expect(picked.map((c) => c.name)).toEqual(['Owned Hi', 'Un Hi', 'Un Lo']);
+  });
+});
+
+describe('role-cap gate (E77 iter-4)', () => {
+  // target=1 -> tolerance = max(2, round(1*0.2)) = 2 -> cap = target + tolerance = 3.
+  const roleTargets: Record<RoleKey, number> = { ramp: 1, removal: 0, boardwipe: 0, cardDraw: 0 };
+
+  function pickWithRoleCap(cards: EDHRECCard[], count: number, cardRoleMap: Map<string, RoleKey>) {
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name, type_line: 'Creature' })]));
+    const currentRoleCounts: Record<RoleKey, number> = {
+      ramp: 0,
+      removal: 0,
+      boardwipe: 0,
+      cardDraw: 0,
+    };
+    return pickFromPrefetchedWithCurve(
+      cards,
+      map,
+      count,
+      new Set(),
+      [],
+      { 3: 100 }, // generous curve room so the curve gate never interferes
+      {},
+      new Set(),
+      'Creature',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      { cardRoleMap, roleTargets, currentRoleCounts }
+    );
+  }
+
+  it('caps a surplus role once at target+tolerance, freeing the slot for a role-null payoff', () => {
+    const cards = [
+      ec({ name: 'Ramp1', inclusion: 90, primary_type: 'Creature' }),
+      ec({ name: 'Ramp2', inclusion: 85, primary_type: 'Creature' }),
+      ec({ name: 'Ramp3', inclusion: 80, primary_type: 'Creature' }),
+      ec({ name: 'Ramp4', inclusion: 75, primary_type: 'Creature' }), // would be picked #4 on pure priority
+      ec({ name: 'Payoff', inclusion: 50, primary_type: 'Creature' }), // role-null, lowest priority
+    ];
+    const cardRoleMap = new Map<string, RoleKey>([
+      ['Ramp1', 'ramp'],
+      ['Ramp2', 'ramp'],
+      ['Ramp3', 'ramp'],
+      ['Ramp4', 'ramp'],
+    ]);
+    const picked = pickWithRoleCap(cards, 4, cardRoleMap);
+    // Ramp4 hits the cap (3rd ramp already at count=3) — Payoff takes its slot
+    // instead of shipping a 4th surplus ramp card.
+    expect(picked.map((c) => c.name)).toEqual(['Ramp1', 'Ramp2', 'Ramp3', 'Payoff']);
+  });
+
+  it('never caps a role-null card even when every candidate outranks it', () => {
+    const cards = [
+      ec({ name: 'Ramp1', inclusion: 90, primary_type: 'Creature' }),
+      ec({ name: 'Filler', inclusion: 10, primary_type: 'Creature' }),
+    ];
+    const cardRoleMap = new Map<string, RoleKey>([['Ramp1', 'ramp']]);
+    const picked = pickWithRoleCap(cards, 2, cardRoleMap);
+    expect(picked.map((c) => c.name)).toEqual(['Ramp1', 'Filler']); // both picked, no role-null gating
+  });
+
+  it('escape hatch: admits over-cap candidates rather than shipping the pass short', () => {
+    const cards = [
+      ec({ name: 'Ramp1', inclusion: 90, primary_type: 'Creature' }),
+      ec({ name: 'Ramp2', inclusion: 85, primary_type: 'Creature' }),
+      ec({ name: 'Ramp3', inclusion: 80, primary_type: 'Creature' }),
+      ec({ name: 'Ramp4', inclusion: 75, primary_type: 'Creature' }),
+      ec({ name: 'Ramp5', inclusion: 70, primary_type: 'Creature' }),
+    ];
+    const cardRoleMap = new Map<string, RoleKey>(cards.map((c) => [c.name, 'ramp']));
+    // No role-null candidate exists to fill the freed slots — the pass MUST
+    // fall back to admitting the capped candidates rather than shipping only 3/5.
+    const picked = pickWithRoleCap(cards, 5, cardRoleMap);
+    expect(picked).toHaveLength(5);
+    expect(picked.map((c) => c.name).sort()).toEqual(['Ramp1', 'Ramp2', 'Ramp3', 'Ramp4', 'Ramp5']);
   });
 });

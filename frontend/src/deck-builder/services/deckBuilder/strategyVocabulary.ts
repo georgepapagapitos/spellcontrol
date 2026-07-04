@@ -40,6 +40,14 @@ export const THEME_TO_ARCHETYPE: Record<string, Archetype> = {
   spellslinger: Archetype.SPELLSLINGER,
   cantrips: Archetype.SPELLSLINGER,
 
+  // Tempo — unblockable/evasive damage-and-disruption decks (ninjutsu is the
+  // clearest EDHREC signal: it's ALWAYS a tempo shell built around cheap
+  // evasive attackers, unlike "aggro"/"voltron" which get claimed by
+  // heavier go-wide or single-threat strategies).
+  ninjutsu: Archetype.TEMPO,
+  ninjas: Archetype.TEMPO,
+  unblockable: Archetype.TEMPO,
+
   // Tokens
   tokens: Archetype.TOKENS,
   'go wide': Archetype.TOKENS,
@@ -139,6 +147,7 @@ export const ARCHETYPE_LABEL: Record<Archetype, string> = {
   [Archetype.MIDRANGE]: 'Midrange',
   [Archetype.VOLTRON]: 'Voltron',
   [Archetype.SPELLSLINGER]: 'Spellslinger',
+  [Archetype.TEMPO]: 'Tempo',
   [Archetype.TOKENS]: 'Tokens',
   [Archetype.ARISTOCRATS]: 'Aristocrats',
   [Archetype.REANIMATOR]: 'Reanimator',

@@ -79,6 +79,11 @@ describe('inferArchetypeFromEdhrecThemes', () => {
     const themes = [edhrecTheme('Superfriends', 900), edhrecTheme('Chaos', 100)];
     expect(inferArchetypeFromEdhrecThemes(themes)).toBeUndefined();
   });
+
+  it('classifies a Yuriko-class (ninjutsu) commander as tempo, not goodstuff/aristocrats/aggro', () => {
+    const themes = [edhrecTheme('Ninjutsu', 800), edhrecTheme('Unblockable', 400)];
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.TEMPO);
+  });
 });
 
 describe('getDynamicRoleTargets archetype threading', () => {
@@ -111,5 +116,15 @@ describe('getDynamicRoleTargets archetype threading', () => {
       Archetype.TRIBAL
     );
     expect(result.archetype).toBe(Archetype.SPELLSLINGER);
+  });
+
+  it('applies the tempo multipliers (less ramp/boardwipe, more removal/cardDraw than baseline)', () => {
+    const goodstuff = getDynamicRoleTargets(99, [theme('some-unmapped-theme')]);
+    const tempo = getDynamicRoleTargets(99, [theme('ninjutsu')]);
+    expect(tempo.archetype).toBe(Archetype.TEMPO);
+    expect(tempo.targets.ramp).toBeLessThan(goodstuff.targets.ramp);
+    expect(tempo.targets.boardwipe).toBeLessThan(goodstuff.targets.boardwipe);
+    expect(tempo.targets.removal).toBeGreaterThan(goodstuff.targets.removal);
+    expect(tempo.targets.cardDraw).toBeGreaterThan(goodstuff.targets.cardDraw);
   });
 });

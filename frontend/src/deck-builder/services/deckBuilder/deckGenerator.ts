@@ -39,6 +39,7 @@ import {
   loadTaggerData,
   hasTaggerData,
   getCardRole,
+  validateCardRole,
   getCardSubtype,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -67,6 +68,7 @@ import {
   exceedsCmcCap,
 } from './deckFilters';
 import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
+import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
@@ -81,6 +83,7 @@ import {
   collectSwapCandidates,
   computeRoleBoosts,
   routeCardByType,
+  roleCapTolerance,
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
@@ -356,6 +359,82 @@ export function buildOverBudgetNote(params: {
       ? ' Some combo upgrades were skipped to stay as close as possible.'
       : '';
   return `Deck totals ${sym}${params.finalTotal.toFixed(2)} — ${sym}${over.toFixed(2)} over your ${sym}${params.deckBudget} budget.${skippedClause}`;
+}
+
+// ─── Role-cap gate for backfill paths outside cardPicking.ts/scryfallFill.ts ──
+// (E77 iter-4 round 2). Both callers below already hold a full ScryfallCard
+// (no pre-built cardRoleMap needed, unlike the EDHREC-pool picker), so a
+// direct validateCardRole check is the smaller diff than threading through
+// RoleCapConfig/RoleCapGate. Same cap shape (target + roleCapTolerance) as
+// every other gated path — one constant, three surfaces.
+export function isOverRoleCap(
+  card: ScryfallCard,
+  roleTargets: Record<RoleKey, number> | null,
+  currentRoleCounts: Record<RoleKey, number>
+): boolean {
+  if (!roleTargets) return false;
+  const role = validateCardRole(card);
+  if (!role) return false;
+  const target = roleTargets[role] ?? 0;
+  if (target <= 0) return false;
+  return (currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
+}
+
+export function bumpRoleCapCount(
+  card: ScryfallCard,
+  roleTargets: Record<RoleKey, number> | null,
+  currentRoleCounts: Record<RoleKey, number>,
+  overflowCounts: Partial<Record<RoleKey, number>>,
+  isOverflow: boolean
+): void {
+  if (!roleTargets) return;
+  const role = validateCardRole(card);
+  if (!role) return;
+  currentRoleCounts[role] = (currentRoleCounts[role] ?? 0) + 1;
+  if (isOverflow) overflowCounts[role] = (overflowCounts[role] ?? 0) + 1;
+}
+
+export function roleCapOverage(
+  card: ScryfallCard,
+  roleTargets: Record<RoleKey, number> | null,
+  currentRoleCounts: Record<RoleKey, number>
+): number {
+  if (!roleTargets) return 0;
+  const role = validateCardRole(card);
+  if (!role) return 0;
+  return (currentRoleCounts[role] ?? 0) - (roleTargets[role] ?? 0);
+}
+
+const ROLE_DISPLAY: Record<RoleKey, string> = {
+  ramp: 'ramp',
+  removal: 'removal',
+  boardwipe: 'board wipe',
+  cardDraw: 'card draw',
+};
+
+/**
+ * Disclosure for the role-cap escape hatch (E77 iter-4) — every gated path
+ * (pick loop, Scryfall fallback, shortage backfill, owned substitutes)
+ * increments the same shared counter when it admits an over-cap card rather
+ * than shipping the deck short. Mirrors the `buildDisclosureNote` idiom in
+ * phaseLiftPicks.ts: one terse note naming the total and the dominant role,
+ * not per-card spam. Undefined when the hatch never actually fired.
+ *
+ * Deliberately narrow (round 3 fix): this counts ONLY escape-hatch
+ * admissions, not the deck's total role overshoot — exempt picks
+ * (must-includes, combo floor) and in-tolerance amounts can push a role's
+ * final count well past this number, and `roleExcesses` (Overbuilt roles)
+ * is the full accounting for that. Wording must never read as "the total is
+ * N" when Overbuilt roles can show a larger one for the same role.
+ */
+export function buildRoleCapOverflowNote(
+  counts: Partial<Record<RoleKey, number>>
+): string | undefined {
+  const entries = (Object.entries(counts) as [RoleKey, number][]).filter(([, n]) => n > 0);
+  const total = entries.reduce((s, [, n]) => s + n, 0);
+  if (total === 0) return undefined;
+  const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
+  return `${total} card${total === 1 ? '' : 's'} pushed past its role cap to finish the deck (${ROLE_DISPLAY[dominantRole[0]]} pool was thin) — see Overbuilt roles below for the full total.`;
 }
 
 /**
@@ -1194,6 +1273,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     resolvedLandCount
   );
 
+  // Archetype identity floor on top of EDHREC's purely stats-driven type
+  // targets (e.g. a spellslinger commander needs a real instant/sorcery
+  // density even if its EDHREC page sample skews creature-heavy). Skipped
+  // when the user set explicit type percentages — an explicit choice is
+  // never second-guessed.
+  if (!customization.advancedTargets?.typePercentages) {
+    const nonLandTotalForFloor = Object.values(typeTargets).reduce((s, v) => s + v, 0);
+    applyArchetypeTypeFloor(
+      typeTargets,
+      detectedArchetype ?? Archetype.GOODSTUFF,
+      nonLandTotalForFloor
+    );
+  }
+
   // Compress curve targets for Tiny Leaders (CMC cap at 3)
   if (maxCmc !== null) {
     const totalNonLand = Object.values(curveTargets).reduce((s, v) => s + v, 0);
@@ -1311,6 +1404,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gameChangerCount,
     maxGameChangers,
   };
+  // Aggregate, generation-wide count of role-cap escape-hatch admissions —
+  // every gated path (pick loop, Scryfall fallback, shortage backfill, owned
+  // substitutes) increments this so ONE build-report note can disclose it
+  // (see roleCapOverflowNote below), instead of firing invisibly.
+  const roleCapOverflowCounts: Partial<Record<RoleKey, number>> = {};
+  // Role-cap-augmented gates for the shortage-backfill call sites the brief
+  // wants role-aware (E77 iter-4) — evaluated lazily (not baked into the
+  // shared `fillGates` object) since `roleTargets` isn't resolved until
+  // later, and NOT applied to the no-EDHREC-data / direct-role-bucket fills,
+  // which fill a role bucket to its OWN target by construction.
+  const fillGatesWithRoleCap = (): FillHardGates =>
+    roleTargets
+      ? {
+          ...fillGates,
+          roleCap: { roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts },
+        }
+      : fillGates;
 
   // ---- Multi-copy card pipeline (self-contained, no impact if nothing found) ----
   if (state.edhrecData) {
@@ -1603,7 +1713,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (cardRoleMap.has(edhrecCard.name)) continue;
           const scryfallCard = cardMap.get(edhrecCard.name);
           if (!scryfallCard) continue;
-          const role = getCardRole(scryfallCard.name);
+          const role = validateCardRole(scryfallCard);
           if (role) {
             cardRoleMap.set(edhrecCard.name, role);
             cardCmcMap.set(edhrecCard.name, scryfallCard.cmc);
@@ -1621,7 +1731,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
       // Seed counts from pre-filled cards (must-includes + multi-copy) and stamp roles
       for (const card of Object.values(categories).flat()) {
-        const role = getCardRole(card.name);
+        const role = validateCardRole(card);
         if (role) {
           currentRoleCounts[role]++;
           card.deckRole = role;
@@ -1713,7 +1823,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets
+        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        : undefined
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1751,7 +1864,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity,
         isCardAllowedBySynergyDependencies,
         liftScoreOf,
-        fillGates
+        fillGatesWithRoleCap()
       );
       categories.creatures.push(...moreCreatures);
       logger.debug(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
@@ -1804,7 +1917,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets
+        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        : undefined
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -1864,7 +1980,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets
+        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        : undefined
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -1924,7 +2043,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets
+        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        : undefined
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -1984,7 +2106,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets
+        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        : undefined
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -2045,7 +2170,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity,
         bracketGuard,
         isCardAllowedBySynergyDependencies,
-        liftTieBreak
+        liftTieBreak,
+        roleTargets
+          ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+          : undefined
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
@@ -2542,7 +2670,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
         // Role-aware: protect deficit roles, expose surplus roles
         if (roleTargets) {
-          const role = getCardRole(card.name);
+          const role = validateCardRole(card);
           if (role) {
             const target = roleTargets[role] ?? 0;
             const current = currentRoleCounts[role] ?? 0;
@@ -2589,7 +2717,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Update role counts for trimmed role cards
     if (roleTargets) {
       for (const { card } of toRemove) {
-        const role = getCardRole(card.name);
+        const role = validateCardRole(card);
         if (role && currentRoleCounts[role] > 0) {
           currentRoleCounts[role]--;
         }
@@ -2678,6 +2806,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       }
       const totalTypeNeed = Object.values(typeNeed).reduce((s, v) => s + v, 0);
 
+      // Role-cap gate for this backfill (E77 iter-4 round 2): this loop had no
+      // role awareness at all — it could pad an already-surplus role forever
+      // since it never even read currentRoleCounts. Same cap+escape-hatch
+      // shape as the primary pick loop / Scryfall fallback (isOverRoleCap /
+      // bumpRoleCapCount above), using validateCardRole directly (this loop
+      // already has the full ScryfallCard in hand, no pre-built cardRoleMap
+      // needed).
+      const capSkippedNames = new Set<string>();
+      const capSkipped: {
+        edhrecCard: (typeof remainingEdhrecCards)[number];
+        scryfallCard: ScryfallCard;
+      }[] = [];
+
       let filled = 0;
       for (const edhrecCard of remainingEdhrecCards) {
         if (filled >= shortage) break;
@@ -2698,8 +2839,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         }
         if (exceedsCmcCap(scryfallCard, maxCmc)) continue;
 
-        // If advanced type overrides are active, prioritize cards that fill type deficits
-        if (customization.advancedTargets?.typePercentages && totalTypeNeed > 0) {
+        // Prioritize cards that fill type deficits — bind type targets here too
+        // (previously only did this when the user set explicit type
+        // percentages, so a default-settings deck could silently pad this
+        // shortage fill with whatever's popular regardless of type, skewing
+        // spell density; e.g. Talrand ramp/instant balance). The second,
+        // type-blind pass right below is still the disclosed escape hatch
+        // when deficits can't be filled from what's left.
+        if (totalTypeNeed > 0) {
           const cardType = getSimpleCardType(getFrontFaceTypeLine(scryfallCard).toLowerCase());
           // Skip cards of types the user set to 0 (or already at target)
           if (cardType && typeNeed[cardType] <= 0) continue;
@@ -2707,9 +2854,24 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (cardType && typeNeed[cardType] > 0) typeNeed[cardType]--;
         }
 
+        if (isOverRoleCap(scryfallCard, roleTargets, currentRoleCounts)) {
+          if (!capSkippedNames.has(edhrecCard.name)) {
+            capSkippedNames.add(edhrecCard.name);
+            capSkipped.push({ edhrecCard, scryfallCard });
+          }
+          continue;
+        }
+
         routeCardByType(scryfallCard, categories);
         usedNames.add(edhrecCard.name);
         if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
+        bumpRoleCapCount(
+          scryfallCard,
+          roleTargets,
+          currentRoleCounts,
+          roleCapOverflowCounts,
+          false
+        );
         filled++;
       }
 
@@ -2735,9 +2897,50 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
           if (exceedsCmcCap(scryfallCard, maxCmc)) continue;
 
+          if (isOverRoleCap(scryfallCard, roleTargets, currentRoleCounts)) {
+            if (!capSkippedNames.has(edhrecCard.name)) {
+              capSkippedNames.add(edhrecCard.name);
+              capSkipped.push({ edhrecCard, scryfallCard });
+            }
+            continue;
+          }
+
           routeCardByType(scryfallCard, categories);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
+          bumpRoleCapCount(
+            scryfallCard,
+            roleTargets,
+            currentRoleCounts,
+            roleCapOverflowCounts,
+            false
+          );
+          filled++;
+        }
+      }
+
+      // Escape hatch: never ship short over a soft role target — admit the
+      // least-over-target cap-skipped candidates (every other gate above
+      // already applied when they were first considered).
+      if (filled < shortage && capSkipped.length > 0) {
+        capSkipped.sort(
+          (a, b) =>
+            roleCapOverage(a.scryfallCard, roleTargets, currentRoleCounts) -
+            roleCapOverage(b.scryfallCard, roleTargets, currentRoleCounts)
+        );
+        for (const { edhrecCard, scryfallCard } of capSkipped) {
+          if (filled >= shortage) break;
+          if (usedNames.has(edhrecCard.name)) continue;
+          routeCardByType(scryfallCard, categories);
+          usedNames.add(edhrecCard.name);
+          if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
+          bumpRoleCapCount(
+            scryfallCard,
+            roleTargets,
+            currentRoleCounts,
+            roleCapOverflowCounts,
+            true
+          );
           filled++;
         }
       }
@@ -2829,7 +3032,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates
+          fillGatesWithRoleCap()
         );
         if (type === 'creature') categories.creatures.push(...cards);
         else if (type === 'instant') categorizeCards(cards, categories);
@@ -2864,7 +3067,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates
+          fillGatesWithRoleCap()
         );
         categorizeCards(moreCards, categories);
         filled += moreCards.length;
@@ -2891,12 +3094,29 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // already skips used names), so no guard here — and fillWithScryfall pre-adds
       // its results to usedNames, so a guard here would wrongly drop every Tier 2/3
       // card and leave the deck padded with basics instead.
-      const addOwnedCard = (card: ScryfallCard) => {
+      //
+      // Role-cap gate (E77 iter-4 round 2): this helper used to add every card
+      // unconditionally — a role-capped card could keep landing here and the
+      // deck would fall through to BASIC-LAND padding instead (worse than an
+      // over-cap spell). Returns false and stashes the card for the shared
+      // escape hatch below rather than silently over-filling the role.
+      const ownedCapSkipped: ScryfallCard[] = [];
+      const addOwnedCard = (card: ScryfallCard, allowCapOverflow = false): boolean => {
+        if (!allowCapOverflow && isOverRoleCap(card, roleTargets, currentRoleCounts)) {
+          ownedCapSkipped.push(card);
+          return false;
+        }
         stampRoleSubtypes(card);
-        const role = getCardRole(card.name);
         routeCardByType(card, categories);
         usedNames.add(card.name);
-        if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
+        bumpRoleCapCount(
+          card,
+          roleTargets,
+          currentRoleCounts,
+          roleCapOverflowCounts,
+          allowCapOverflow
+        );
+        return true;
       };
 
       // ── Tier 1: closest owned substitutes for the most-wanted unowned staples ──
@@ -2942,8 +3162,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             const card = fetched.get(row.usedName);
             if (!card || usedNames.has(card.name)) continue;
             if (!isCardAllowedBySynergyDependencies(card)) continue;
-            addOwnedCard(card);
-            substitutionRows.push(row);
+            // ponytail: a role-capped substitute defers to the escape hatch
+            // below rather than recording provenance here — it still gets
+            // added to the deck, just without a "Wanted X → used your Y" row.
+            if (addOwnedCard(card)) substitutionRows.push(row);
           }
           logger.debug(
             `[DeckGen] Substituted ${substitutionRows.length} owned card(s) for staples`
@@ -3008,13 +3230,35 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           fillGates
         );
         for (const c of relaxedCards) {
-          addOwnedCard(c);
-          if (notInCollection(c.name, context.collectionNames)) relaxedNames.add(c.name);
+          if (addOwnedCard(c) && notInCollection(c.name, context.collectionNames)) {
+            relaxedNames.add(c.name);
+          }
         }
         if (relaxedCards.length > 0) {
           logger.debug(
             `[DeckGen] Collection exhausted — relaxed to ${relaxedCards.length} cards from outside it`
           );
+        }
+      }
+
+      // Escape hatch: never let a role cap alone push the deck to BASIC-LAND
+      // padding when a real (if over-cap) spell was already fetched — admit
+      // the least-over-target cap-skipped candidates from any of the 3 tiers
+      // above, still gated by everything each tier already checked before
+      // deferring them here.
+      currentCount = countAllCards();
+      if (currentCount < targetDeckSize && ownedCapSkipped.length > 0) {
+        ownedCapSkipped.sort(
+          (a, b) =>
+            roleCapOverage(a, roleTargets, currentRoleCounts) -
+            roleCapOverage(b, roleTargets, currentRoleCounts)
+        );
+        for (const card of ownedCapSkipped) {
+          if (countAllCards() >= targetDeckSize) break;
+          if (usedNames.has(card.name)) continue;
+          if (addOwnedCard(card, true) && notInCollection(card.name, context.collectionNames)) {
+            relaxedNames.add(card.name);
+          }
         }
       }
     }
@@ -3851,6 +4095,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // sources built vs castability-weighted targets per color.
   const manabase = buildManabaseSummary(categories.lands, nonLandCards, new Set(colorIdentity));
 
+  // Role-cap escape-hatch disclosure (E77 iter-4 round 2) — aggregated across
+  // every gated path over the whole generation; undefined when the cap was
+  // never actually breached.
+  const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts);
+
   // Coherence audit over the FINAL deck (detection only): the pick-time
   // dependency gate can't see support that a later swap pass trimmed away, and
   // some fill paths never route through it — so re-check every shipped card
@@ -3897,6 +4146,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     generationRelaxedNote: altPool?.relaxedNote,
     landCountNote,
     budgetNote,
+    roleCapOverflowNote,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,

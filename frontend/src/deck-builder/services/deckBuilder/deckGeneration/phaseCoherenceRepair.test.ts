@@ -8,6 +8,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isMassLandDenial: vi.fn(() => false),
   isExtraTurn: vi.fn(() => false),
   getCardRole: vi.fn(() => null),
+  // routeCardByType (real module, imported below) now consults the
+  // validated form when bucketing a newly-added card — mirror the
+  // getCardRole default so behavior is unchanged for this test file.
+  validateCardRole: vi.fn(() => null),
 }));
 
 // stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real

@@ -118,6 +118,46 @@ describe('buildCommanderProfile', () => {
     expect(profile.primaryArchetype).toBe(Archetype.VOLTRON);
   });
 
+  it('scales voltron confidence with keyword-hit count so it resists a couple of incidental aggro signals (Atraxa-shaped regression guard)', () => {
+    // 4 stacked evasion/protection keywords (Atraxa-shaped: flying, deathtouch,
+    // trample, double strike) PLUS an oracle-text clause that fires BOTH
+    // 'attack-trigger' (weight 1) and 'extra-combat' (weight 2, default) —
+    // total incidental aggro weight = 3. Under the old flat voltron weight of
+    // 2, aggro would win outright (3 > 2); the hit-count-scaled weight (4)
+    // keeps voltron on top.
+    const profile = buildCommanderProfile(
+      makeCard({
+        name: 'Stacked Praetor',
+        type_line: 'Legendary Creature — Angel',
+        oracle_text:
+          'Whenever Stacked Praetor attacks, it gets an additional combat phase after this one.',
+        power: '4',
+        toughness: '4',
+        keywords: ['Flying', 'Deathtouch', 'Trample', 'Double strike'],
+      })
+    );
+    const kw = profile.abilities.map((a) => a.keyword);
+    expect(kw).toContain('attack-trigger');
+    expect(kw).toContain('extra-combat');
+    expect(kw).toContain('voltron');
+    expect(profile.primaryArchetype).toBe(Archetype.VOLTRON);
+  });
+
+  it('keeps the 2-keyword-hit voltron weight at the historical baseline of 2', () => {
+    const profile = buildCommanderProfile(
+      makeCard({
+        name: 'Sword Lord',
+        type_line: 'Legendary Creature',
+        oracle_text: '',
+        power: '4',
+        toughness: '4',
+        keywords: ['Trample', 'Double strike'],
+      })
+    );
+    const voltronAbility = profile.abilities.find((a) => a.keyword === 'voltron');
+    expect(voltronAbility?.archWeight).toBe(2);
+  });
+
   it('reads oracle text from every card face (DFC commander)', () => {
     const kw = keywords(
       makeCard({

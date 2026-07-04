@@ -183,6 +183,7 @@ export function BuildReportPanel({
     generationModeDetail,
     generationNote,
     landCountNote,
+    roleCapOverflowNote,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -231,6 +232,10 @@ export function BuildReportPanel({
       )}
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
+
+      {roleCapOverflowNote && (
+        <p className="build-report-line build-report-source">{roleCapOverflowNote}</p>
+      )}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
         <p className="build-report-line">

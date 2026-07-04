@@ -31,7 +31,7 @@ import type { GenerationContext } from './deckGeneration/state';
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { assembleBuildReport } from './buildReport';
 import { getCardByName, getCardPrice } from '@/deck-builder/services/scryfall/client';
-import { getCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
+import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/client';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
@@ -186,7 +186,7 @@ function projectCard(card: ScryfallCard, deck: GeneratedDeck) {
     price_usd: getCardPrice(card, 'USD'),
     oracle_text_snippet: oracleTextOf(card).slice(0, 140),
     edhrec_inclusion: deck.cardInclusionMap?.[card.name] ?? null,
-    role: getCardRole(card.name),
+    role: validateCardRole(card),
     tags: getCardTags(card.name),
   };
 }
