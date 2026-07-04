@@ -89,18 +89,47 @@ describe('calculateStats', () => {
     expect(stats.typeDistribution['Land']).toBe(1);
   });
 
-  it('counts an MDFC land toward both its front-face type and Land', () => {
+  it('counts a spell-front MDFC once, under its actual category — not double-booked into Land', () => {
+    // Fell the Profane-shaped: "Instant // Land", filed under singleRemoval by
+    // the generator. isMdfcLand is stamped true on every MDFC in the spell
+    // pool regardless of where it lands — category membership must win.
     const mdfc = makeCard({
-      type_line: 'Creature // Land',
+      type_line: 'Instant // Land',
       card_faces: [
-        { name: 'Front', type_line: 'Creature' },
+        { name: 'Front', type_line: 'Instant' },
         { name: 'Back', type_line: 'Land' },
       ],
       isMdfcLand: true,
+      cmc: 2,
       colors: ['G'],
     });
-    const stats = calculateStats(categories({ creatures: [mdfc] }));
-    expect(stats.typeDistribution['Creature']).toBe(1);
+    const stats = calculateStats(categories({ singleRemoval: [mdfc] }));
+    expect(stats.typeDistribution['Instant']).toBe(1);
+    expect(stats.typeDistribution['Land']).toBeUndefined();
+  });
+
+  it('counts a land-picked MDFC once as Land, not leaked into the nonland curve', () => {
+    // Jwari Disruption-shaped: front face is "Sorcery" (not literally "Land"),
+    // but the generator placed it in categories.lands as a manabase pick.
+    const mdfc = makeCard({
+      type_line: 'Sorcery // Land',
+      card_faces: [
+        { name: 'Front', type_line: 'Sorcery' },
+        { name: 'Back', type_line: 'Land' },
+      ],
+      isMdfcLand: true,
+      cmc: 2,
+      colors: ['G'],
+    });
+    const stats = calculateStats(
+      categories({ creatures: [makeCard({ cmc: 3 })], lands: [mdfc] })
+    );
     expect(stats.typeDistribution['Land']).toBe(1);
+    expect(stats.typeDistribution['Sorcery']).toBeUndefined();
+    // Curve total must equal the nonland card count (1 creature) — the MDFC's
+    // front-face CMC must not leak in as a phantom curve entry.
+    const curveTotal = Object.values(stats.manaCurve).reduce((s, n) => s + n, 0);
+    expect(curveTotal).toBe(1);
+    expect(stats.manaCurve[2]).toBeUndefined();
   });
 });

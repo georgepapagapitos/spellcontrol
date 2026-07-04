@@ -461,6 +461,23 @@ describe('assembleBuildReport', () => {
     expect(report.roleExcesses).toBeUndefined();
   });
 
+  it('flags a small-target role well over target as roleExcesses (boardwipe 6 vs 2, iter-3 cluster 8)', () => {
+    // Previously silently dropped: >1.5x AND >4-over required current>=7 for a
+    // target-2 role, so a 6-vs-2 overage (4 over, 3x target) never registered
+    // here even though deckGrade.trims (deckAnalyzer.ts) flagged it — the two
+    // surfaces disagreed. Both now share isRoleExcess().
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        roleTargets: { boardwipe: 2 },
+        roleCounts: { boardwipe: 6 },
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.roleExcesses).toEqual([{ role: 'boardwipe', have: 6, want: 2 }]);
+  });
+
   it('omits roleGaps when no targets or no gaps', () => {
     const noTargets = assembleBuildReport({
       generated: makeGenerated(),

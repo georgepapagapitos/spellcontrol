@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
-import { getCardRole, isExtraTurn } from '@/deck-builder/services/tagger/client';
+import { getCardRole, isExtraTurn, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import { constrainsToCollection, notInCollection } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
@@ -62,6 +62,8 @@ export interface BracketConvergeContext {
   mustIncludeNames: Set<string>;
   /** Optional generation-wide card eligibility guard for filler swaps. */
   cardAllowed?: (card: ScryfallCard) => boolean;
+  /** Live role targets, for cut-side role-floor protection (UP push). */
+  roleTargets?: Record<RoleKey, number> | null;
 }
 
 export interface BracketConvergeResult {
@@ -229,11 +231,34 @@ export function applyBracketConvergence(
     return scryfallCardMap.get(ranked[0].name) ?? null;
   };
 
-  // Weakest cuttable in-deck card to make room when powering UP: lowest EDHREC
-  // inclusion, never a protected, power-signal, or land card (cutting a power
-  // card would fight the very bracket we're trying to raise).
+  // Priority lookup mirroring bracketFit.ts's buildPriorityLookup: prefer the
+  // pool's real calculateCardPriority formula, fall back to raw inclusion.
+  const priorityByName = new Map<string, EDHRECCard>();
+  for (const c of pool) priorityByName.set(c.name, c);
+  const priorityFor = (name: string): number => {
+    const pooled = priorityByName.get(name);
+    return pooled ? calculateCardPriority(pooled) : (inclusionMap[name] ?? 0);
+  };
+
+  // A card is "floor-safe" to cut only if its role (if tracked) is currently
+  // above its target — cutting it can't push that role below target.
+  const isFloorSafe = (name: string): boolean => {
+    const roleTargets = ctx.roleTargets;
+    if (!roleTargets) return true;
+    const role = getCardRole(name);
+    if (!role) return true;
+    const target = roleTargets[role];
+    if (target == null) return true;
+    return (state.currentRoleCounts[role] ?? 0) > target;
+  };
+
+  // Weakest cuttable in-deck card to make room when powering UP: lowest
+  // calculateCardPriority, role-floor-safe candidates preferred over
+  // floor-violating ones (same tiering as bracketFit.ts's upshift cut pool),
+  // never a protected, power-signal, or land card (cutting a power card would
+  // fight the very bracket we're trying to raise).
   const pickCut = (): { card: ScryfallCard; category: DeckCategory } | null => {
-    let best: { card: ScryfallCard; category: DeckCategory; incl: number } | null = null;
+    const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const [cat, cards] of Object.entries(state.categories) as [
       DeckCategory,
       ScryfallCard[],
@@ -242,11 +267,19 @@ export function applyBracketConvergence(
       for (const card of cards) {
         if (isProtected(card.name)) continue;
         if (isPowerSignal(card.name, state.gameChangerNames)) continue;
-        const incl = inclusionMap[card.name] ?? 0;
-        if (!best || incl < best.incl) best = { card, category: cat, incl };
+        candidates.push({ card, category: cat });
       }
     }
-    return best ? { card: best.card, category: best.category } : null;
+    if (candidates.length === 0) return null;
+
+    const byPriorityAsc = (
+      a: { card: ScryfallCard },
+      b: { card: ScryfallCard }
+    ): number => priorityFor(a.card.name) - priorityFor(b.card.name);
+    const safe = candidates.filter((c) => isFloorSafe(c.card.name)).sort(byPriorityAsc);
+    const atFloor = candidates.filter((c) => !isFloorSafe(c.card.name)).sort(byPriorityAsc);
+    const pick = safe[0] ?? atFloor[0];
+    return pick ? { card: pick.card, category: pick.category } : null;
   };
 
   let applied = 0;

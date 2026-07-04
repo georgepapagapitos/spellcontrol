@@ -262,6 +262,15 @@ export function computeRoleBoosts(
       }
     } else {
       if (target <= 0) continue;
+      if (current >= target) {
+        // Soft over-target penalty on the default (non-strict) path too — otherwise a role
+        // that hits target keeps absorbing cards on pure priority with no cap (iter-3 cluster 1).
+        const tolerance = Math.max(2, Math.round(target * 0.2));
+        if (current - target >= tolerance) {
+          boosts.set(name, (boosts.get(name) ?? 0) - 20 - (current - target - tolerance) * 10);
+        }
+        continue;
+      }
     }
 
     const deficit = Math.max(0, target - current);

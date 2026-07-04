@@ -954,6 +954,21 @@ export interface DeckSummaryData {
   notes: SummaryItem[];
 }
 
+/**
+ * Single source of truth for "is this role over target enough to flag" —
+ * shared by `deckGrade.trims` (below) and `buildReport.ts`'s `roleExcesses`,
+ * which previously used two different, disagreeing thresholds (iter-3
+ * cluster 8: a small-target role like boardwipe at 6-vs-2, 4 over/3x target,
+ * registered in one surface but not the other). Requires both a meaningful
+ * absolute overage AND a meaningful relative one, so it scales down for
+ * small-target roles without over-firing on large-target roles that are only
+ * a couple cards over.
+ */
+export function isRoleExcess(current: number, target: number): boolean {
+  if (target <= 0) return false;
+  return current - target >= 2 && current >= target * 1.3;
+}
+
 export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number): DeckSummaryData {
   const grades = [analysis.rolesGrade, analysis.manaGrade, analysis.curveGrade];
   const avgScore = grades.reduce((s, g) => s + (GRADE_SCORES[g.letter] ?? 0), 0) / grades.length;
@@ -968,7 +983,7 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
     .filter((rd) => rd.deficit > 0)
     .sort((a, b_) => b_.deficit - a.deficit);
   const excesses = analysis.roleDeficits
-    .filter((rd) => rd.current > rd.target + 2)
+    .filter((rd) => isRoleExcess(rd.current, rd.target))
     .sort((a, b_) => b_.current - b_.target - (a.current - a.target));
 
   const earlyDelta = analysis.curveAnalysis

@@ -551,6 +551,24 @@ describe('strategic-commitment gate', () => {
     expect(result.primary?.category).toBe('go-wide');
   });
 
+  it('does not call go-wide on 6+ incidental sac-fodder token makers with no payoff (Kozilek titan-ramp)', () => {
+    // Eldrazi Spawn/Scion-style bare 0/1 tokens clear the raw-count floor but
+    // are sac fodder for ramp, not a go-wide plan — no anthem/payoff present.
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('A', 'create a 0/1 colorless eldrazi spawn creature token.', 'Creature'),
+          card('B', 'create a 0/1 colorless eldrazi spawn creature token.', 'Creature'),
+          card('C', 'create a 0/1 colorless eldrazi spawn creature token.', 'Creature'),
+          card('D', 'create a 1/1 colorless eldrazi scion creature token.', 'Creature'),
+          card('E', 'create a 1/1 colorless eldrazi scion creature token.', 'Creature'),
+          card('F', 'create a 1/1 colorless eldrazi scion creature token.', 'Creature'),
+        ],
+      })
+    );
+    expect(result.primary?.category).not.toBe('go-wide');
+  });
+
   it('does not call go-wide on 5 incidental token cards — below its own bar', () => {
     const result = detectWinConditions(
       input({

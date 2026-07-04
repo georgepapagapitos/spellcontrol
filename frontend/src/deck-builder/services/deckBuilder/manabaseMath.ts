@@ -398,6 +398,9 @@ export function buildManabaseSummary(
     ).length;
     const total = landColorless + nonlandColorless;
     note = total > 0 ? `${total} colorless mana source${total === 1 ? '' : 's'}` : undefined;
+    // ponytail: target = total (no colorless curve-based demand heuristic
+    // exists yet; upgrade if colorless shortfall detection is ever wanted).
+    lines.push({ color: 'C', pips: 0, sources: total, target: total, short: false });
   }
 
   return { lines, totalLands: lands.length, nonlandSources, note };

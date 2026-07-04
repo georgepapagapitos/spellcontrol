@@ -1,5 +1,6 @@
 import type { BuildReport, Customization, DeckCategory, GeneratedDeck } from '@/deck-builder/types';
 import { buildSynergyFingerprint, topMatchedTags } from './synergyFingerprint';
+import { isRoleExcess } from './deckAnalyzer';
 
 /**
  * Assemble the compact, persisted "build report" recording how a generated
@@ -123,7 +124,7 @@ export function assembleBuildReport(input: {
       const have = roleCounts[role] ?? 0;
       if (have < want) {
         roleGaps.push({ role, have, want });
-      } else if (want > 0 && have > want * 1.5 && have - want > 4) {
+      } else if (isRoleExcess(have, want)) {
         roleExcesses.push({ role, have, want });
       }
     }

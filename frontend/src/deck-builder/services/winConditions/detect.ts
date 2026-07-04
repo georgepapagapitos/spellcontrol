@@ -300,7 +300,11 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   }
   const goWideInvested = investedSet.has('tokens');
   const goWideCount = tokenCards.length + anthemCards.length;
-  if (goWideInvested || goWideCount >= GO_WIDE_MIN_CARDS) {
+  // Raw-count path additionally requires a real payoff (anthem/Overrun-class):
+  // without one, a titan-ramp deck whose only "token" cards are incidental
+  // sac-fodder makers (Eldrazi Spawn/Scion) clears the floor on producer count
+  // alone and gets mislabeled go-wide with no plan to actually go wide.
+  if (goWideInvested || (goWideCount >= GO_WIDE_MIN_CARDS && anthemCards.length >= 1)) {
     const allEvidence = Array.from(new Set([...tokenCards, ...anthemCards]));
     candidates.push({
       category: 'go-wide',

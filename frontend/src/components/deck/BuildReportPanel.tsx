@@ -7,6 +7,7 @@ import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
+import { InfoTip } from '../InfoTip';
 
 const COLOR_WORDS: Record<string, string> = {
   W: 'White',
@@ -14,6 +15,7 @@ const COLOR_WORDS: Record<string, string> = {
   B: 'Black',
   R: 'Red',
   G: 'Green',
+  C: 'Colorless',
 };
 
 /** Headline for how an alternative generator built the deck. */
@@ -450,7 +452,13 @@ export function BuildReportPanel({
 
       {manabase && manabase.lines.length > 0 && (
         <div className="build-report-mana">
-          <span className="build-report-gaps-label">Mana sources vs target</span>
+          <span className="build-report-gaps-label">
+            Mana sources vs target
+            <InfoTip
+              label="mana sources"
+              text="Each count is every source of that color in the final deck — lands plus mana rocks and dorks — not lands alone."
+            />
+          </span>
           <ul className="build-report-gaps-list">
             {manabase.lines.map((l) => (
               <li

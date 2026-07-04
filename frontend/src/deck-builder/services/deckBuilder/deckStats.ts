@@ -7,9 +7,13 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 // Calculate deck statistics
 export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>): DeckStats {
   const allCards = Object.values(categories).flat();
-  const nonLandCards = allCards.filter(
-    (card) => !getFrontFaceTypeLine(card).toLowerCase().includes('land')
-  );
+  // Land-ness is decided by actual category membership (categories.lands),
+  // not a re-derived type check — an MDFC can be filed under a spell role
+  // (front face "Instant") or under lands (picked as manabase) depending on
+  // where the generator put it; that placement is the single source of truth
+  // so it's never double-counted or curve-leaked either direction.
+  const landSet = new Set(categories.lands);
+  const nonLandCards = allCards.filter((card) => !landSet.has(card));
 
   // Mana curve
   const manaCurve: Record<number, number> = {};
@@ -35,12 +39,16 @@ export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>)
     }
   });
 
-  // Type distribution (use front face for MDFCs like "Instant // Land")
+  // Type distribution — a card in categories.lands (including a land-picked
+  // MDFC) counts once as Land; everything else buckets by front-face type.
   const typeDistribution: Record<string, number> = { Planeswalker: 0 };
   allCards.forEach((card) => {
+    if (landSet.has(card)) {
+      typeDistribution['Land'] = (typeDistribution['Land'] || 0) + 1;
+      return;
+    }
     const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-    if (typeLine.includes('land')) typeDistribution['Land'] = (typeDistribution['Land'] || 0) + 1;
-    else if (typeLine.includes('creature'))
+    if (typeLine.includes('creature'))
       typeDistribution['Creature'] = (typeDistribution['Creature'] || 0) + 1;
     else if (typeLine.includes('instant'))
       typeDistribution['Instant'] = (typeDistribution['Instant'] || 0) + 1;
@@ -54,8 +62,6 @@ export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>)
       typeDistribution['Planeswalker'] = (typeDistribution['Planeswalker'] || 0) + 1;
     else if (typeLine.includes('battle'))
       typeDistribution['Battle'] = (typeDistribution['Battle'] || 0) + 1;
-    // MDFC lands also count toward Land type (they can be played as lands)
-    if (card.isMdfcLand) typeDistribution['Land'] = (typeDistribution['Land'] || 0) + 1;
   });
 
   return {

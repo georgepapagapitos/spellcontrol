@@ -42,7 +42,7 @@ import {
   getCardSubtype,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { computeGradeAndBracket } from './commanderDeckAnalysis';
+import { computeGradeAndBracket, computeRoleCounts } from './commanderDeckAnalysis';
 import {
   getDynamicRoleTargets,
   estimatePacingFromStats,
@@ -3396,7 +3396,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let budgetNote: string | undefined;
   if (budgetTracker && comboBudgetSkipCount > 0) {
     const sym = currency === 'EUR' ? '€' : '$';
-    budgetNote = `${comboBudgetSkipCount} combo upgrade${comboBudgetSkipCount === 1 ? '' : 's'} skipped to honor your ${sym}${deckBudget} budget`;
+    // ponytail: count tallies per-candidate loop skips, not user-meaningful upgrades — keep the note qualitative
+    budgetNote = `Some combo upgrades were skipped to honor your ${sym}${deckBudget} budget`;
   }
 
   // ── Post-Generation Fixup Pass (light touch) ──
@@ -3619,6 +3620,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       detectedCombos,
       mustIncludeNames: convergeMustInclude,
       cardAllowed: isCardAllowedBySynergyDependencies,
+      roleTargets,
     });
     // Convergence can cut a combo piece (target <= 2 breaks incidental combos).
     // Refresh combo completeness against the live deck so the final bracket
@@ -3667,7 +3669,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     curveTargets,
     typeTargets,
     swapCandidates,
-    gapAnalysis
+    gapAnalysis,
+    detectedCombos
   );
 
   // ── Grade + bracket ──
@@ -3688,16 +3691,24 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const nonLandCards = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
     .filter(([cat]) => cat !== 'lands')
     .flatMap(([, cards]) => cards);
+  // Single source for the SHIPPED role counts: recount from the final card set
+  // via the same shared computeRoleCounts() the manual-deck/edit path uses,
+  // rather than trusting the ad-hoc `currentRoleCounts` incremental tally
+  // (which several backfill/fixup call sites bump even for lands routed into
+  // categories.lands, drifting from the per-card role fields it's supposed to
+  // mirror). `currentRoleCounts` itself stays untouched — it's still the live
+  // counter driving in-flight picking/fixup decisions during generation.
+  const finalRoleCounts = computeRoleCounts(nonLandCards).roleCounts;
   const stats = await finalStatsPhase(state, saltIndex);
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
     allCardNames: allDeckCardNames,
     detectedCombos,
     averageCmc: stats.averageCmc,
     deckScore,
-    bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
+    bracketRoleCounts: roleTargets ? finalRoleCounts : undefined,
     gameChangerNames: state.gameChangerNames,
     allCards: Object.values(categories).flat(),
-    roleCounts: currentRoleCounts,
+    roleCounts: finalRoleCounts,
     roleTargets,
     edhrecData: state.edhrecData,
     deckSize: format,
@@ -3786,7 +3797,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     generationRelaxedNote: altPool?.relaxedNote,
     landCountNote,
     budgetNote,
-    roleCounts: roleTargets ? { ...currentRoleCounts } : undefined,
+    roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
     ...(roleTargets

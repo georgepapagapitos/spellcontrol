@@ -1,5 +1,10 @@
 import { logger } from '@/lib/logger';
-import type { EDHRECCard, ScryfallCard, GapAnalysisCard } from '@/deck-builder/types';
+import type {
+  EDHRECCard,
+  ScryfallCard,
+  GapAnalysisCard,
+  DetectedCombo,
+} from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import {
   getFrontFaceTypeLine,
@@ -10,6 +15,35 @@ import { scoreRecommendation, type ScoringContext } from '../deckAnalyzer';
 import { BASIC_LAND_NAMES, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from '../landGenerator';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
+
+// Display floor for in-deck cards absent from this commander's EDHREC snapshot
+// (owned-collection backfill, off-snapshot printing, etc.) — a role-tagged
+// card has a known real function, so it reads as more relevant than a hard 0;
+// an untagged card still gets a small non-zero floor rather than reading as
+// "irrelevant". ponytail: flat two-tier floor, not a full scoring model —
+// upgrade if a finer role-weighted floor is ever needed.
+const RELEVANCY_NO_DATA_FLOOR_TAGGED = 30;
+const RELEVANCY_NO_DATA_FLOOR_BASE = 15;
+
+// Per-combo-membership display boost for cards the FINAL, authoritative
+// Spellbook-matched `detectedCombos` list flags as a combo piece (complete or
+// near-miss) — independent of whether the card happened to land in the small
+// pre-pick EDHREC combo slice that feeds `staticComboBoosts`. Without this,
+// two datasets never cross-wire: a card only in `detectedCombos` (e.g. a
+// gap-analysis-surfaced missing piece) scores flat while its sibling pieces
+// that made the pre-pick slice get boosted for the same underlying signal.
+const COMBO_PIECE_DISPLAY_BOOST = 60;
+
+function buildComboPieceBoosts(detectedCombos: DetectedCombo[] | undefined): Map<string, number> {
+  const boosts = new Map<string, number>();
+  if (!detectedCombos) return boosts;
+  for (const dc of detectedCombos) {
+    for (const name of dc.cards) {
+      boosts.set(name, (boosts.get(name) ?? 0) + COMBO_PIECE_DISPLAY_BOOST);
+    }
+  }
+  return boosts;
+}
 
 // Build per-card relevancy scores (composite: synergy + inclusion + role
 // deficit + curve fit + type balance). Verbatim extraction from generateDeck:
@@ -22,9 +56,11 @@ export function cardRelevancyPhase(
   curveTargets: Record<number, number>,
   typeTargets: Record<string, number>,
   swapCandidates: Record<string, ScryfallCard[]> | undefined,
-  gapAnalysis: GapAnalysisCard[] | undefined
+  gapAnalysis: GapAnalysisCard[] | undefined,
+  detectedCombos: DetectedCombo[] | undefined
 ): Record<string, number> | undefined {
   let cardRelevancyMap: Record<string, number> | undefined;
+  const comboPieceBoosts = buildComboPieceBoosts(detectedCombos);
   if (state.edhrecData) {
     // Index full EDHREC card objects for synergy/theme lookup
     const edhrecCardIndex = new Map<string, EDHRECCard>();
@@ -95,7 +131,8 @@ export function cardRelevancyPhase(
           edhrecCardIndex.get(card.name) ??
           (card.name.includes(' // ') ? edhrecCardIndex.get(frontFaceName(card.name)) : undefined);
         if (!ec) {
-          relMap[card.name] = 0;
+          const role = (card.deckRole as RoleKey) || null;
+          relMap[card.name] = role ? RELEVANCY_NO_DATA_FLOOR_TAGGED : RELEVANCY_NO_DATA_FLOOR_BASE;
           continue;
         }
         const role = (card.deckRole as RoleKey) || null;
@@ -109,6 +146,7 @@ export function cardRelevancyPhase(
         // Apply the same boosts used during card selection so the displayed
         // relevancy score reflects why the generator actually picked this card
         score += state.staticComboBoosts.get(card.name) ?? 0;
+        score += comboPieceBoosts.get(card.name) ?? 0;
         if (isChannelLand(card)) score += CHANNEL_LAND_BOOST;
         else if (card.isMdfcLand || isMdfcLand(card)) score += MDFC_LAND_BOOST;
         relMap[card.name] = Math.round(score);
@@ -134,6 +172,7 @@ export function cardRelevancyPhase(
             null;
           let score = scoreRecommendation(ec, role, sub, scoringCtx);
           score += state.staticComboBoosts.get(card.name) ?? 0;
+          score += comboPieceBoosts.get(card.name) ?? 0;
           if (isChannelLand(card)) score += CHANNEL_LAND_BOOST;
           else if (card.isMdfcLand || isMdfcLand(card)) score += MDFC_LAND_BOOST;
           relMap[card.name] = Math.round(score);
@@ -167,7 +206,9 @@ export function cardRelevancyPhase(
           cmc: g.cmc,
         };
         const role = (g.role as RoleKey) || null;
-        relMap[g.name] = Math.round(scoreRecommendation(pseudoEc, role, null, scoringCtx));
+        let score = scoreRecommendation(pseudoEc, role, null, scoringCtx);
+        score += comboPieceBoosts.get(g.name) ?? 0;
+        relMap[g.name] = Math.round(score);
       }
     }
     cardRelevancyMap = relMap;

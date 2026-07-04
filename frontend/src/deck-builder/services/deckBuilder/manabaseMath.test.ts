@@ -363,9 +363,12 @@ describe('buildManabaseSummary', () => {
       [solRingCard],
       colorless
     );
-    // No WUBRG pips at all → lines is legitimately empty…
-    expect(summary.lines).toEqual([]);
-    // …but nonlandSources and the note both reflect the real colorless base.
+    // No WUBRG pips at all, but the manabase panel still needs a real,
+    // renderable line (not a blank section) — a single {C} entry.
+    expect(summary.lines).toEqual([
+      { color: 'C', pips: 0, sources: 4, target: 4, short: false },
+    ]);
+    // …and nonlandSources/the note both reflect the real colorless base.
     expect(summary.nonlandSources).toBe(1);
     expect(summary.note).toMatch(/colorless/);
   });
