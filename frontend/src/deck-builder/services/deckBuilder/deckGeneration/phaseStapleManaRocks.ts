@@ -47,7 +47,12 @@ export async function stapleManaRocksPhase(
       )
         continue;
       try {
-        const card = await getCardByName(staple.name, true);
+        // One retry: a transient fetch failure here silently costs the deck a
+        // staple (observed live: Sol Ring absent from one panel deck), and
+        // nothing downstream re-adds it.
+        const card = await getCardByName(staple.name, true).catch(() =>
+          getCardByName(staple.name, true)
+        );
         const ownedExempt = isOwnedBudgetExempt(
           staple.name,
           state.context.collectionNames,
@@ -69,6 +74,11 @@ export async function stapleManaRocksPhase(
         )
           continue;
         if (notOnArena(card, state.cfg.arenaOnly)) continue;
+        // Force-included AFTER scored categorization, so it lands at the TAIL
+        // of categories.ramp — Smart Trim's position-based resistance treats
+        // tail = first cut. Flag it so trim can protect it without conflating
+        // it with a user-locked must-include (see isStapleRock's doc).
+        card.isStapleRock = true;
         markUsed(state, card.name);
         categorizeCards([card], state.categories);
         if (!ownedExempt) budgetTracker?.deductCard(card);
@@ -82,8 +92,9 @@ export async function stapleManaRocksPhase(
           stampRoleSubtypes(card);
         }
         logger.debug(`[DeckGen] Auto-included staple: ${staple.name}`);
-      } catch {
-        // Ignore if not found
+      } catch (err) {
+        // A missing staple is a real deck-quality loss — leave a trace.
+        logger.warn(`[DeckGen] Staple ${staple.name} could not be fetched, skipping`, err);
       }
     }
   }

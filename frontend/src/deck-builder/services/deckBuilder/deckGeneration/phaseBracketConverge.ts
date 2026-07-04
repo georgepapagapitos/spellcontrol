@@ -334,6 +334,17 @@ export function applyBracketConvergence(
         roleCounts: state.currentRoleCounts,
         targetPool: state.edhrecData,
         cardInclusionMap: inclusionMap,
+        // Force-included staples (Sol Ring/Arcane Signet) read inclusion 0
+        // against a lower-bracket pool that never listed them — without this,
+        // the combo-piece victim sort would cut the staple to break a combo
+        // instead of its actual niche partner (E-bracket-combo-staple-victim).
+        stapleNames: (() => {
+          const names = new Set<string>();
+          for (const cards of Object.values(state.categories)) {
+            for (const card of cards) if (card.isStapleRock) names.add(card.name);
+          }
+          return names;
+        })(),
         oneAwayCombos: [],
         gapAnalysis: [],
         commanderNames,

@@ -163,6 +163,7 @@ interface InputOverrides {
   cardCmcMap?: Record<string, { cmc: number; isLand: boolean }>;
   commanderNames?: string[];
   deckFull?: boolean;
+  stapleNames?: Set<string>;
 }
 
 function makeInput(o: InputOverrides): BracketFitInput {
@@ -192,6 +193,7 @@ function makeInput(o: InputOverrides): BracketFitInput {
     cardCmcMap: o.cardCmcMap,
     commanderNames: o.commanderNames,
     deckFull: o.deckFull,
+    stapleNames: o.stapleNames,
   };
 }
 
@@ -402,6 +404,57 @@ describe('downshift — combos', () => {
     const comboCuts = plan.moves.filter((m) => m.signal === 'combo').map((m) => m.name);
     // Should never cut "Shared" (freq 2) when a unique piece exists.
     expect(comboCuts).not.toContain('Shared');
+  });
+
+  // Live regression (atraxa-bracket2, deterministic): the lift boost pulls
+  // Hullbreaker Horror into the deck, completing Hullbreaker + Sol Ring
+  // (infinite mana). Sol Ring is staple-injected — absent from the bracket-2
+  // pool, so it reads inclusion 0 and always lost the old "lowest inclusion
+  // first" sort, getting cut instead of its actual niche partner.
+  it('staple protection: cuts the niche partner, never the staple, when the staple reads inclusion 0', () => {
+    const combos = [combo('hullbreaker', 4, ['Hullbreaker Horror', 'Sol Ring'])];
+    const input = makeInput({
+      allCardNames: ['Hullbreaker Horror', 'Sol Ring', 'Forest'],
+      detectedCombos: combos,
+      // Sol Ring has no entry (absent from this bracket's pool) → reads 0.
+      cardInclusionMap: { 'Hullbreaker Horror': 90 },
+      stapleNames: new Set(['Sol Ring']),
+    });
+    const plan = computeDownshiftPlan(input, 2);
+    const comboCut = plan.moves.find((m) => m.signal === 'combo');
+    expect(comboCut).toBeDefined();
+    expect(comboCut!.name).toBe('Hullbreaker Horror');
+  });
+
+  it('stapleNames undefined ⇒ unchanged behavior (lowest inclusion still wins)', () => {
+    const combos = [combo('hullbreaker', 4, ['Hullbreaker Horror', 'Sol Ring'])];
+    const input = makeInput({
+      allCardNames: ['Hullbreaker Horror', 'Sol Ring', 'Forest'],
+      detectedCombos: combos,
+      cardInclusionMap: { 'Hullbreaker Horror': 90 }, // Sol Ring still reads 0
+      // stapleNames omitted entirely — callers that never pass it (e.g. the
+      // Coach edit-time bracketFit UI) must see identical behavior to before.
+    });
+    const plan = computeDownshiftPlan(input, 2);
+    const comboCut = plan.moves.find((m) => m.signal === 'combo');
+    expect(comboCut).toBeDefined();
+    expect(comboCut!.name).toBe('Sol Ring'); // old behavior: lowest inclusion cut first
+  });
+
+  // Live regression, round 2 of the same atraxa-bracket2 converge: the phase's
+  // detectedCombos are computed once and go stale across rounds — after round 1
+  // cut Hullbreaker, the re-planned round saw the broken combo with Sol Ring as
+  // its only in-deck piece and cut it pointlessly.
+  it('already-broken combo (piece no longer in deck) is never targeted', () => {
+    const combos = [combo('hullbreaker', 4, ['Hullbreaker Horror', 'Sol Ring'])];
+    const input = makeInput({
+      // Hullbreaker was cut in a prior round — no longer in the deck.
+      allCardNames: ['Sol Ring', 'Forest'],
+      detectedCombos: combos,
+      cardInclusionMap: {},
+    });
+    const plan = computeDownshiftPlan(input, 2);
+    expect(plan.moves.filter((m) => m.signal === 'combo')).toEqual([]);
   });
 });
 

@@ -89,6 +89,12 @@ export interface ScryfallCard {
   isThemeSynergyCard?: boolean; // true if from EDHREC highsynergycards/topcards/gamechangers
   isMustInclude?: boolean;
   mustIncludeSource?: 'user' | 'deck' | 'combo'; // Where the must-include came from
+  /** Force-included staple mana rock (Sol Ring / Arcane Signet, see
+   *  phaseStapleManaRocks.ts) — provenance ONLY, protects it from Smart Trim's
+   *  role-surplus penalty. Distinct from isMustInclude (a USER lock), which
+   *  several surfaces (nonbo.ts, coherenceAudit.ts, buildReport.ts) read as
+   *  "don't second-guess this pick" — conflating the two would corrupt those. */
+  isStapleRock?: boolean;
   deckRole?: string; // Functional role detected by tagger/oracle text (e.g., 'ramp', 'removal')
   multiRole?: boolean; // True if card matches multiple role categories
   rampSubtype?: 'mana-producer' | 'mana-rock' | 'cost-reducer' | 'ramp';
@@ -297,6 +303,30 @@ export interface DetectedCombo {
   cardCount: number;
 }
 
+/**
+ * Combo-upside price disclosure (combo-boost price-sanity exemption made
+ * visible): an expensive card the price-sanity tie-break let win over a
+ * cheaper same-role staple because it carries a live combo-assembly boost —
+ * disclosed only while the combo it belongs to hasn't actually completed,
+ * and only when a genuinely cheaper same-role alternative was passed over
+ * (see deckGenerator.ts's buildComboUpsideNotes).
+ */
+export interface ComboUpsideNote {
+  name: string;
+  /** Pre-formatted display price (e.g. "$472"), currency-aware. */
+  price: string;
+  /** The combo's produces text (DetectedCombo.results), joined for display. */
+  produces: string;
+  /** Still-missing piece(s) of the nearest-to-complete combo this card belongs to. */
+  missingCards: string[];
+  ownedPieces: number;
+  totalPieces: number;
+  /** Cheapest same-role, higher-or-equal-inclusion alternative that was passed over. */
+  comparedName: string;
+  /** Pre-formatted display price for comparedName. */
+  comparedPrice: string;
+}
+
 export interface GapAnalysisCard {
   name: string;
   price: string | null;
@@ -457,6 +487,10 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Expensive combo pieces the price-sanity tie-break let win over a cheaper
+   *  same-role staple for a live-but-still-incomplete combo. Undefined when
+   *  none arose, or every combo those cards belonged to went on to complete. */
+  comboUpsideNotes?: ComboUpsideNote[];
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -568,6 +602,7 @@ export interface GeneratedDeck {
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
+  comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
 }
 
 export interface DeckStats {

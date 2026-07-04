@@ -112,3 +112,52 @@ export function computePackageBoosts(
   }
   return boosts;
 }
+
+/**
+ * Lift pick boost (E71 follow-up): the EDHREC lift clusterScore is validated
+ * (nDCG 0.825/0.841 — see project_edhrec_lift_signal memory) but was only
+ * ever wired as an EXACT-tie tie-break (cardPicking.ts's liftTie), which a
+ * continuous float priority score never hits — so it never actually moved a
+ * pick. Folded into the same bounded re-rank as package completion: a small,
+ * capped, additive boost so a role-null payoff with real lift connectivity
+ * (no ramp/removal/boardwipe/cardDraw tag, so it gets zero role boost) can
+ * still win a marginal slot race against role-boosted filler.
+ *
+ * Ceiling matches PACKAGE_BOOST_MAX for the same reason: comfortably below
+ * theme-synergy (+100) and role-deficit boosts, so EDHREC priority stays
+ * primary — this only breaks close races, never overrides them.
+ */
+export const LIFT_PICK_BOOST_MAX = 30;
+/**
+ * Scales a candidate's clusterScore (liftSynergy.ts) into boost points.
+ * Derived from the committed 24-commander lift eval fixture
+ * (__fixtures__/edhrec-lift.fixture.json): reconstructing each commander's
+ * candidate pool from its lift-pool "context" seeds and scoring with
+ * aggregateLiftCandidates/edgeScore, the per-commander TOP candidate's
+ * clusterScore has median ~2150 (p25 ~934, p75 ~8350) across all 24
+ * commanders, while the full candidate pool (9.5k candidates total) sits far
+ * lower (median ~106, p90 ~693, p99 ~5631). At 0.0075, a median "best
+ * candidate for this commander" lands ~16 boost (mid of the 10-25 target
+ * band); weak/incidental candidates (most of the pool) stay near 0; only the
+ * strongest ~35-40% of per-commander top picks (clusterScore > 4000, e.g.
+ * Krenko's Sling-Gang Lieutenant at ~20242) saturate the 30 cap.
+ */
+export const LIFT_PICK_BOOST_SCALE = 0.0075;
+
+/**
+ * Pure, testable re-rank step: caller supplies the candidate pool and a
+ * `liftScoreOf` lookup (deckGenerator.ts's `liftIndex`-backed closure).
+ * Returns only positive entries — callers merge into the shared boost map,
+ * same as computePackageBoosts.
+ */
+export function computeLiftPickBoosts(
+  candidateNames: readonly string[],
+  liftScoreOf: (name: string) => number
+): Map<string, number> {
+  const boosts = new Map<string, number>();
+  for (const name of candidateNames) {
+    const l = liftScoreOf(name);
+    if (l > 0) boosts.set(name, Math.min(LIFT_PICK_BOOST_MAX, l * LIFT_PICK_BOOST_SCALE));
+  }
+  return boosts;
+}

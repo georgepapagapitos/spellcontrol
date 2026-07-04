@@ -5,9 +5,14 @@
 // These are plain pure functions precisely so that reconciliation is testable
 // without standing up the full generateDeck orchestration (covered instead by
 // deckGenerator.golden.test.ts / .live.test.ts, which this file doesn't touch).
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Archetype } from '@/deck-builder/types';
-import type { ScryfallCard } from '@/deck-builder/types';
+import type {
+  DetectedCombo,
+  EDHRECCard,
+  EDHRECCommanderData,
+  ScryfallCard,
+} from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 
 // isOverRoleCap/bumpRoleCapCount/roleCapOverage (E77 iter-4 round 2) call
@@ -23,10 +28,13 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  buildComboUpsideNotes,
   resolvePriceSanity,
   isOverRoleCap,
   bumpRoleCapCount,
   roleCapOverage,
+  computeTrimResistance,
+  STAPLE_PROTECTION_BOOST,
 } from './deckGenerator';
 
 function sc(name: string): ScryfallCard {
@@ -349,5 +357,269 @@ describe('buildPriceSanityNote (E80)', () => {
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
     );
+  });
+});
+
+describe('computeTrimResistance — staple-rock protection', () => {
+  const roleTargets: Record<RoleKey, number> = { ramp: 10, removal: 0, boardwipe: 0, cardDraw: 0 };
+  // 14 >= target(10) + 3 → role-surplus penalty applies to every ramp card here.
+  const surplusRoleCounts: Record<RoleKey, number> = {
+    ramp: 14,
+    removal: 0,
+    boardwipe: 0,
+    cardDraw: 0,
+  };
+  const noComboCards = new Set<string>();
+
+  it('gives a staple rock at the tail position more resistance than an unflagged card at the same position', () => {
+    ROLES.Filler = 'ramp';
+    ROLES.ArcaneSignet = 'ramp';
+    const filler = sc('Filler');
+    const staple = { ...sc('ArcaneSignet'), isStapleRock: true };
+
+    const rFiller = computeTrimResistance(
+      filler,
+      20,
+      21,
+      'ramp',
+      noComboCards,
+      roleTargets,
+      surplusRoleCounts
+    );
+    const rStaple = computeTrimResistance(
+      staple,
+      20,
+      21,
+      'ramp',
+      noComboCards,
+      roleTargets,
+      surplusRoleCounts
+    );
+    expect(rStaple - rFiller).toBe(STAPLE_PROTECTION_BOOST);
+  });
+
+  it('lets the staple rock survive a trim where, unflagged, it would have been first cut — cut COUNT unchanged', () => {
+    ROLES.A = ROLES.B = ROLES.C = ROLES.D = ROLES.ArcaneSignet = 'ramp';
+    const cards = [
+      sc('A'),
+      sc('B'),
+      sc('C'),
+      sc('D'),
+      { ...sc('ArcaneSignet'), isStapleRock: true },
+    ];
+
+    const ranked = cards
+      .map((card, i) => ({
+        card,
+        r: computeTrimResistance(
+          card,
+          i,
+          cards.length,
+          'ramp',
+          noComboCards,
+          roleTargets,
+          surplusRoleCounts
+        ),
+      }))
+      .sort((a, b) => a.r - b.r);
+
+    const excess = 1;
+    const toRemove = ranked.slice(0, excess);
+    expect(toRemove.length).toBe(excess); // Smart Trim still cuts exactly `excess`
+    expect(toRemove.map((x) => x.card.name)).not.toContain('ArcaneSignet');
+    expect(toRemove[0].card.name).toBe('D'); // now-lowest position takes the cut instead
+  });
+});
+
+describe('buildComboUpsideNotes (combo-upside price disclosure — post-hoc scan)', () => {
+  // Post-hoc replacement for a comparator-collector version that proved
+  // structurally dead: a live Kozilek run showed Array.sort()'s O(n log n)
+  // comparisons never actually compare a deep-pool combo piece against the
+  // pool's real cheap staple, so the collector stayed empty all generation.
+  // This scans the FINAL deck + EDHREC pool directly instead of relying on
+  // which pairs a sort happened to compare.
+  function priced(name: string, usd: string): ScryfallCard {
+    return { ...sc(name), prices: { usd } };
+  }
+
+  function edhrecCard(name: string, inclusion: number): EDHRECCard {
+    return {
+      name,
+      sanitized: name.toLowerCase(),
+      primary_type: 'Artifact',
+      inclusion,
+      num_decks: 100,
+    };
+  }
+
+  function edhrecData(nonLand: EDHRECCard[]): EDHRECCommanderData {
+    return {
+      themes: [],
+      stats: {
+        avgPrice: 0,
+        numDecks: 0,
+        deckSize: 99,
+        manaCurve: {},
+        typeDistribution: {
+          creature: 0,
+          instant: 0,
+          sorcery: 0,
+          artifact: 0,
+          enchantment: 0,
+          land: 0,
+          planeswalker: 0,
+          battle: 0,
+        },
+        landDistribution: { basic: 0, nonbasic: 0, total: 0 },
+      },
+      cardlists: {
+        creatures: [],
+        instants: [],
+        sorceries: [],
+        artifacts: nonLand,
+        enchantments: [],
+        planeswalkers: [],
+        lands: [],
+        allNonLand: nonLand,
+      },
+      similarCommanders: [],
+    };
+  }
+
+  function combo(overrides: Partial<DetectedCombo> = {}): DetectedCombo {
+    return {
+      comboId: 'combo-1',
+      cards: ['Grim Monolith', 'Rings of Brighthearth'],
+      results: ['Infinite colorless mana'],
+      isComplete: false,
+      missingCards: ['Rings of Brighthearth'],
+      deckCount: 500,
+      bracket: 3,
+      cardCount: 2,
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    ROLES['Grim Monolith'] = 'ramp';
+    ROLES['Mind Stone'] = 'ramp';
+  });
+
+  it('fires on the Grim-shape case: expensive combo-boosted card vs a cheaper higher-inclusion same-role staple', () => {
+    const grim = priced('Grim Monolith', '472.00');
+    const mindStone = priced('Mind Stone', '2.00');
+    const pool = edhrecData([edhrecCard('Grim Monolith', 22), edhrecCard('Mind Stone', 86)]);
+    const poolCardMap = new Map([
+      ['Grim Monolith', grim],
+      ['Mind Stone', mindStone],
+    ]);
+
+    const notes = buildComboUpsideNotes(
+      [grim],
+      new Map([['Grim Monolith', 150]]),
+      [combo()],
+      pool,
+      poolCardMap,
+      'USD'
+    );
+
+    expect(notes).toEqual([
+      {
+        name: 'Grim Monolith',
+        price: '$472',
+        produces: 'Infinite colorless mana',
+        missingCards: ['Rings of Brighthearth'],
+        ownedPieces: 1,
+        totalPieces: 2,
+        comparedName: 'Mind Stone',
+        comparedPrice: '$2',
+      },
+    ]);
+  });
+
+  it('is silent when the combo went on to complete', () => {
+    const grim = priced('Grim Monolith', '472.00');
+    const mindStone = priced('Mind Stone', '2.00');
+    const pool = edhrecData([edhrecCard('Grim Monolith', 22), edhrecCard('Mind Stone', 86)]);
+    const poolCardMap = new Map([
+      ['Grim Monolith', grim],
+      ['Mind Stone', mindStone],
+    ]);
+    const completed = combo({ isComplete: true, missingCards: [] });
+
+    const notes = buildComboUpsideNotes(
+      [grim],
+      new Map([['Grim Monolith', 150]]),
+      [completed],
+      pool,
+      poolCardMap,
+      'USD'
+    );
+    expect(notes).toBeUndefined();
+  });
+
+  it('is silent on flat prices (goldens shape: every card priced $1)', () => {
+    const grim = priced('Grim Monolith', '1.00');
+    const mindStone = priced('Mind Stone', '1.00');
+    const pool = edhrecData([edhrecCard('Grim Monolith', 22), edhrecCard('Mind Stone', 86)]);
+    const poolCardMap = new Map([
+      ['Grim Monolith', grim],
+      ['Mind Stone', mindStone],
+    ]);
+
+    const notes = buildComboUpsideNotes(
+      [grim],
+      new Map([['Grim Monolith', 150]]),
+      [combo()],
+      pool,
+      poolCardMap,
+      'USD'
+    );
+    expect(notes).toBeUndefined();
+  });
+
+  it('is silent when no cheaper higher-inclusion same-role alternative exists', () => {
+    const grim = priced('Grim Monolith', '472.00');
+    // Only alternative is a DIFFERENT role — never a valid substitute.
+    ROLES['Swords to Plowshares'] = 'removal';
+    const removal = priced('Swords to Plowshares', '1.00');
+    const pool = edhrecData([
+      edhrecCard('Grim Monolith', 22),
+      edhrecCard('Swords to Plowshares', 90),
+    ]);
+    const poolCardMap = new Map([
+      ['Grim Monolith', grim],
+      ['Swords to Plowshares', removal],
+    ]);
+
+    const notes = buildComboUpsideNotes(
+      [grim],
+      new Map([['Grim Monolith', 150]]),
+      [combo()],
+      pool,
+      poolCardMap,
+      'USD'
+    );
+    expect(notes).toBeUndefined();
+  });
+
+  it('does not disclose a card with no live combo boost, even if cheap alternatives exist', () => {
+    const grim = priced('Grim Monolith', '472.00');
+    const mindStone = priced('Mind Stone', '2.00');
+    const pool = edhrecData([edhrecCard('Grim Monolith', 22), edhrecCard('Mind Stone', 86)]);
+    const poolCardMap = new Map([
+      ['Grim Monolith', grim],
+      ['Mind Stone', mindStone],
+    ]);
+
+    const notes = buildComboUpsideNotes(
+      [grim],
+      new Map(), // no static combo boost recorded for this card
+      [combo()],
+      pool,
+      poolCardMap,
+      'USD'
+    );
+    expect(notes).toBeUndefined();
   });
 });

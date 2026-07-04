@@ -186,6 +186,7 @@ export function BuildReportPanel({
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    comboUpsideNotes,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -244,6 +245,28 @@ export function BuildReportPanel({
 
       {priceSanityNote && (
         <p className="build-report-line build-report-source">{priceSanityNote}</p>
+      )}
+
+      {comboUpsideNotes && comboUpsideNotes.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{comboUpsideNotes.length}</strong> expensive combo piece
+            {comboUpsideNotes.length === 1 ? '' : 's'} kept for upside — why
+          </summary>
+          <ul className="build-report-subs-list">
+            {comboUpsideNotes.map((n) => (
+              <li key={n.name} className="build-report-sub">
+                <span className="build-report-sub-map">
+                  <strong>{n.name}</strong> ({n.price})
+                </span>
+                <span className="build-report-sub-reason">
+                  Kept for combo upside over {n.comparedName} ({n.comparedPrice}) — {n.ownedPieces}
+                  -of-{n.totalPieces} toward {n.produces} (needs {n.missingCards.join(', ')})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (

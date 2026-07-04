@@ -46,6 +46,8 @@ export function assembleBuildReport(input: {
   if (generated.budgetNote) report.budgetNote = generated.budgetNote;
   if (generated.roleCapOverflowNote) report.roleCapOverflowNote = generated.roleCapOverflowNote;
   if (generated.priceSanityNote) report.priceSanityNote = generated.priceSanityNote;
+  if (generated.comboUpsideNotes && generated.comboUpsideNotes.length > 0)
+    report.comboUpsideNotes = generated.comboUpsideNotes;
 
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {
