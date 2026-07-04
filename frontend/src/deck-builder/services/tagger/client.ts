@@ -238,6 +238,50 @@ export function getCardDrawSubtype(cardName: string): CardDrawSubtype | null {
   return 'card-advantage';
 }
 
+// Positive-evidence patterns per role (E77 iter-4 sanity layer). A role claim
+// from `getCardRole` must be corroborated by the card's own oracle text when
+// text is available — follows the `fetchedBasicRequirement` precedent
+// (manabaseMath.ts): don't trust a crowd-sourced tag (or a corrupt/mismatched
+// Scryfall record) blindly. Generic textual evidence, not card-name patches —
+// this is what catches an extra-turns sorcery mistagged 'ramp' (Expropriate,
+// which has no mana-production/land-fetch/cost-reduction text) and a record
+// whose cached oracle text doesn't match its claimed role for any reason.
+const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
+  ramp: /add (\{|one mana|an amount of mana|mana of any)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? \{?\d+\}? less|play an additional land/i,
+  removal:
+    /(destroy|exile) target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker)|fights? target creature|target creature gets? -\d+\/-\d+|target player sacrifices/i,
+  boardwipe:
+    /destroy all|all creatures (get|take|deal)|each creature (gets|takes)|damage to each creature|return all creatures|each player sacrifices (a|all)/i,
+  cardDraw:
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?card and put (it|that card) into (your|their) hand|each player draws|whenever [^.]*?draws? a card/i,
+};
+
+/**
+ * Positive-evidence-gated role classification. Returns the same role
+ * `getCardRole` would (by name) IFF the card's own oracle text corroborates
+ * it — otherwise drops the role. Guards against upstream tagger mistags and
+ * corrupt/mismatched Scryfall records (a cached card whose oracle_text
+ * doesn't match its type, inflating a role count with an effect it doesn't
+ * have). Falls back to trusting the tag when no oracle text is available to
+ * check against (can't validate what we can't read), so a face with no text
+ * doesn't lose a real role for lack of data.
+ */
+export function validateCardRole(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): RoleKey | null {
+  const role = getCardRole(card.name);
+  if (!role) return null;
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return role;
+  return ROLE_EVIDENCE[role].test(text) ? role : null;
+}
+
 /** Get the subtype of a card for its primary role (if any). */
 export function getCardSubtype(cardName: string): string | null {
   const role = getCardRole(cardName);

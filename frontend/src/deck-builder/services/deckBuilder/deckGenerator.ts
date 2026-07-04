@@ -39,6 +39,7 @@ import {
   loadTaggerData,
   hasTaggerData,
   getCardRole,
+  validateCardRole,
   getCardSubtype,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -67,6 +68,7 @@ import {
   exceedsCmcCap,
 } from './deckFilters';
 import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
+import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
@@ -1194,6 +1196,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     resolvedLandCount
   );
 
+  // Archetype identity floor on top of EDHREC's purely stats-driven type
+  // targets (e.g. a spellslinger commander needs a real instant/sorcery
+  // density even if its EDHREC page sample skews creature-heavy). Skipped
+  // when the user set explicit type percentages — an explicit choice is
+  // never second-guessed.
+  if (!customization.advancedTargets?.typePercentages) {
+    const nonLandTotalForFloor = Object.values(typeTargets).reduce((s, v) => s + v, 0);
+    applyArchetypeTypeFloor(
+      typeTargets,
+      detectedArchetype ?? Archetype.GOODSTUFF,
+      nonLandTotalForFloor
+    );
+  }
+
   // Compress curve targets for Tiny Leaders (CMC cap at 3)
   if (maxCmc !== null) {
     const totalNonLand = Object.values(curveTargets).reduce((s, v) => s + v, 0);
@@ -1311,6 +1327,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gameChangerCount,
     maxGameChangers,
   };
+  // Role-cap-augmented gates for the shortage-backfill call sites the brief
+  // wants role-aware (E77 iter-4) — evaluated lazily (not baked into the
+  // shared `fillGates` object) since `roleTargets` isn't resolved until
+  // later, and NOT applied to the no-EDHREC-data / direct-role-bucket fills,
+  // which fill a role bucket to its OWN target by construction.
+  const fillGatesWithRoleCap = (): FillHardGates =>
+    roleTargets ? { ...fillGates, roleCap: { roleTargets, currentRoleCounts } } : fillGates;
 
   // ---- Multi-copy card pipeline (self-contained, no impact if nothing found) ----
   if (state.edhrecData) {
@@ -1603,7 +1626,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (cardRoleMap.has(edhrecCard.name)) continue;
           const scryfallCard = cardMap.get(edhrecCard.name);
           if (!scryfallCard) continue;
-          const role = getCardRole(scryfallCard.name);
+          const role = validateCardRole(scryfallCard);
           if (role) {
             cardRoleMap.set(edhrecCard.name, role);
             cardCmcMap.set(edhrecCard.name, scryfallCard.cmc);
@@ -1621,7 +1644,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
       // Seed counts from pre-filled cards (must-includes + multi-copy) and stamp roles
       for (const card of Object.values(categories).flat()) {
-        const role = getCardRole(card.name);
+        const role = validateCardRole(card);
         if (role) {
           currentRoleCounts[role]++;
           card.deckRole = role;
@@ -1713,7 +1736,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets ? { cardRoleMap, roleTargets, currentRoleCounts } : undefined
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1751,7 +1775,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity,
         isCardAllowedBySynergyDependencies,
         liftScoreOf,
-        fillGates
+        fillGatesWithRoleCap()
       );
       categories.creatures.push(...moreCreatures);
       logger.debug(`[DeckGen] FALLBACK: Got ${moreCreatures.length} creatures from Scryfall`);
@@ -1804,7 +1828,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets ? { cardRoleMap, roleTargets, currentRoleCounts } : undefined
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -1864,7 +1889,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets ? { cardRoleMap, roleTargets, currentRoleCounts } : undefined
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -1924,7 +1950,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets ? { cardRoleMap, roleTargets, currentRoleCounts } : undefined
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -1984,7 +2011,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       bracketGuard,
       isCardAllowedBySynergyDependencies,
-      liftTieBreak
+      liftTieBreak,
+      roleTargets ? { cardRoleMap, roleTargets, currentRoleCounts } : undefined
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -2045,7 +2073,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ignoreOwnedRarity,
         bracketGuard,
         isCardAllowedBySynergyDependencies,
-        liftTieBreak
+        liftTieBreak,
+        roleTargets ? { cardRoleMap, roleTargets, currentRoleCounts } : undefined
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
@@ -2542,7 +2571,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
         // Role-aware: protect deficit roles, expose surplus roles
         if (roleTargets) {
-          const role = getCardRole(card.name);
+          const role = validateCardRole(card);
           if (role) {
             const target = roleTargets[role] ?? 0;
             const current = currentRoleCounts[role] ?? 0;
@@ -2589,7 +2618,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Update role counts for trimmed role cards
     if (roleTargets) {
       for (const { card } of toRemove) {
-        const role = getCardRole(card.name);
+        const role = validateCardRole(card);
         if (role && currentRoleCounts[role] > 0) {
           currentRoleCounts[role]--;
         }
@@ -2698,8 +2727,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         }
         if (exceedsCmcCap(scryfallCard, maxCmc)) continue;
 
-        // If advanced type overrides are active, prioritize cards that fill type deficits
-        if (customization.advancedTargets?.typePercentages && totalTypeNeed > 0) {
+        // Prioritize cards that fill type deficits — bind type targets here too
+        // (previously only did this when the user set explicit type
+        // percentages, so a default-settings deck could silently pad this
+        // shortage fill with whatever's popular regardless of type, skewing
+        // spell density; e.g. Talrand ramp/instant balance). The second,
+        // type-blind pass right below is still the disclosed escape hatch
+        // when deficits can't be filled from what's left.
+        if (totalTypeNeed > 0) {
           const cardType = getSimpleCardType(getFrontFaceTypeLine(scryfallCard).toLowerCase());
           // Skip cards of types the user set to 0 (or already at target)
           if (cardType && typeNeed[cardType] <= 0) continue;
@@ -2829,7 +2864,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates
+          fillGatesWithRoleCap()
         );
         if (type === 'creature') categories.creatures.push(...cards);
         else if (type === 'instant') categorizeCards(cards, categories);
@@ -2864,7 +2899,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ignoreOwnedRarity,
           isCardAllowedBySynergyDependencies,
           liftScoreOf,
-          fillGates
+          fillGatesWithRoleCap()
         );
         categorizeCards(moreCards, categories);
         filled += moreCards.length;
@@ -2893,7 +2928,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // card and leave the deck padded with basics instead.
       const addOwnedCard = (card: ScryfallCard) => {
         stampRoleSubtypes(card);
-        const role = getCardRole(card.name);
+        const role = validateCardRole(card);
         routeCardByType(card, categories);
         usedNames.add(card.name);
         if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;

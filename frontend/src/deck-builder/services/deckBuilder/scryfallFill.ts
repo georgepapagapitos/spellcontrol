@@ -17,6 +17,21 @@ import {
 import { frontFaceName } from '@/lib/card-text';
 import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 import type { BracketGuard } from './bracketGuard';
+import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import { roleCapTolerance } from './categorize';
+
+/**
+ * Same hard role-cap gate as the primary pick loop (cardPicking.ts's
+ * RoleCapConfig), for the Scryfall-search fallback fill. No pre-built
+ * cardRoleMap here — these are live Scryfall search results, not an EDHREC
+ * pool with pre-known names — so role is derived per-candidate via
+ * `validateCardRole`. `currentRoleCounts` is shared/mutated live like the
+ * rest of FillHardGates' running counts.
+ */
+export interface RoleCapGate {
+  roleTargets: Record<RoleKey, number>;
+  currentRoleCounts: Record<RoleKey, number>;
+}
 
 // Hard gates the EDHREC-pool picker (cardPicking.ts) enforces but a raw
 // Scryfall search can't express in its query string. Threaded here so the
@@ -30,6 +45,9 @@ export interface FillHardGates {
   gameChangerNames?: Set<string>;
   gameChangerCount?: { value: number };
   maxGameChangers?: number;
+  /** Set per-call (not on the shared base gates object) where the brief
+   *  actually wants role-awareness — see deckGenerator.ts call sites. */
+  roleCap?: RoleCapGate;
 }
 
 // Fill remaining slots with Scryfall search (fallback)
@@ -122,16 +140,19 @@ export async function fillWithScryfall(
 
     // Pass 2: take up to `count`, applying the dynamic budget/price gate in order.
     const result: ScryfallCard[] = [];
-    for (const card of passing) {
-      if (result.length >= count) break;
+    // Candidates skipped ONLY for being over their role's cap — replayed as an
+    // escape hatch (least-over-target first) if the fill would otherwise ship
+    // short, same shape as the primary pick loop's role-cap gate.
+    const capSkipped: ScryfallCard[] = [];
+    const tryAcceptCard = (card: ScryfallCard, allowCapOverflow: boolean): boolean => {
       const ownedExempt = isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget);
       if (!ownedExempt) {
         const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
-        if (exceedsMaxPrice(card, effectiveCap, currency)) continue;
+        if (exceedsMaxPrice(card, effectiveCap, currency)) return false;
       }
       // Running-count gates (checked at accept time, like cardPicking's tryPick,
       // so counts shared with the picking phases stay accurate).
-      if (gates?.bracketGuard?.exceedsCeiling(card.name)) continue;
+      if (gates?.bracketGuard?.exceedsCeiling(card.name)) return false;
       const isGC = gates?.gameChangerNames?.has(card.name) ?? false;
       if (
         isGC &&
@@ -139,7 +160,20 @@ export async function fillWithScryfall(
         gates.maxGameChangers !== undefined &&
         gates.gameChangerCount.value >= gates.maxGameChangers
       )
-        continue;
+        return false;
+      if (!allowCapOverflow && gates?.roleCap) {
+        const role = validateCardRole(card);
+        if (role) {
+          const target = gates.roleCap.roleTargets[role] ?? 0;
+          if (
+            target > 0 &&
+            (gates.roleCap.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target)
+          ) {
+            capSkipped.push(card);
+            return false;
+          }
+        }
+      }
       if (isGC && gates?.gameChangerCount) {
         card.isGameChanger = true;
         gates.gameChangerCount.value++;
@@ -150,6 +184,36 @@ export async function fillWithScryfall(
       // Also mark front-face name for DFCs so EDHREC-sourced checks match
       if (card.name.includes(' // ')) usedNames.add(frontFaceName(card.name));
       if (!ownedExempt) budgetTracker?.deductCard(card);
+      if (gates?.roleCap) {
+        const role = validateCardRole(card);
+        if (role)
+          gates.roleCap.currentRoleCounts[role] = (gates.roleCap.currentRoleCounts[role] ?? 0) + 1;
+      }
+      return true;
+    };
+
+    for (const card of passing) {
+      if (result.length >= count) break;
+      tryAcceptCard(card, false);
+    }
+
+    if (gates?.roleCap && result.length < count && capSkipped.length > 0) {
+      const roleCap = gates.roleCap;
+      capSkipped.sort((a, b) => {
+        const roleA = validateCardRole(a);
+        const roleB = validateCardRole(b);
+        const overA = roleA
+          ? (roleCap.currentRoleCounts[roleA] ?? 0) - (roleCap.roleTargets[roleA] ?? 0)
+          : 0;
+        const overB = roleB
+          ? (roleCap.currentRoleCounts[roleB] ?? 0) - (roleCap.roleTargets[roleB] ?? 0)
+          : 0;
+        return overA - overB;
+      });
+      for (const card of capSkipped) {
+        if (result.length >= count) break;
+        tryAcceptCard(card, true);
+      }
     }
 
     return result;

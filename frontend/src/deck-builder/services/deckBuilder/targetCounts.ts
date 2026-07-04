@@ -38,6 +38,7 @@ const LAND_COUNT_ARCHETYPE_DELTA: Partial<Record<Archetype, number>> = {
   [Archetype.AGGRO]: -1,
   [Archetype.VOLTRON]: -1,
   [Archetype.STORM]: -1,
+  [Archetype.TEMPO]: -1,
   [Archetype.CONTROL]: 1,
   [Archetype.LANDFALL]: 1,
   [Archetype.REANIMATOR]: 1,

@@ -6,7 +6,8 @@ import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
-import { matchesExpectedType } from './categorize';
+import { matchesExpectedType, roleCapTolerance } from './categorize';
+import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
   exceedsMaxPrice,
@@ -18,6 +19,25 @@ import {
   notOnArena,
   exceedsCmcCap,
 } from './deckFilters';
+
+/**
+ * Hard role-cap gate for the primary pick loop (E77 iter-4). Distinct from
+ * the soft `computeRoleBoosts` over-target penalty (still priority noise a
+ * high-synergy/combo score can drown out) — this is an actual skip once a
+ * role is at target+tolerance, so filler can't crowd out payoffs no matter
+ * how it scores. `currentRoleCounts` is a snapshot the caller owns; this
+ * module clones it and updates the clone live as THIS call picks cards, so
+ * the gate sees this pass's own picks (fixing the "computed once per type
+ * pass" staleness) without mutating the caller's shared counters — the
+ * caller's own post-pass bookkeeping remains the source of truth across
+ * passes.
+ */
+export interface RoleCapConfig {
+  /** name -> validated role (see tagger/client.ts's validateCardRole). */
+  cardRoleMap: Map<string, RoleKey>;
+  roleTargets: Record<RoleKey, number>;
+  currentRoleCounts: Record<RoleKey, number>;
+}
 
 // Pick cards from a pre-fetched card map (no API calls)
 export function pickFromPrefetched(
@@ -241,10 +261,29 @@ export function pickFromPrefetchedWithCurve(
   ignoreOwnedRarity: boolean = false,
   bracketGuard?: BracketGuard,
   cardAllowed?: (card: ScryfallCard) => boolean,
-  liftTieBreak?: Map<string, number>
+  liftTieBreak?: Map<string, number>,
+  roleCapConfig?: RoleCapConfig
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
+
+  // Live-updating clone of the role-cap snapshot (see RoleCapConfig doc) —
+  // undefined when balanced roles isn't active, matching the existing
+  // `roleTargets ? ... : ...` pattern everywhere else in the generator.
+  const liveRoleCounts = roleCapConfig ? { ...roleCapConfig.currentRoleCounts } : undefined;
+  // Candidates skipped ONLY for being over their role's cap — replayed as an
+  // escape hatch if the pass would otherwise ship short (never drop deck size
+  // to satisfy a soft target).
+  const capSkipped: EDHRECCard[] = [];
+  let allowCapOverflow = false;
+  const roleCapBlocks = (edhrecCard: EDHRECCard): boolean => {
+    if (!roleCapConfig || !liveRoleCounts || allowCapOverflow) return false;
+    const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
+    if (!role) return false;
+    const target = roleCapConfig.roleTargets[role] ?? 0;
+    if (target <= 0) return false;
+    return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
+  };
 
   // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)
   const allCandidates = edhrecCards
@@ -306,6 +345,14 @@ export function pickFromPrefetchedWithCurve(
         const isOwned = collectionNames!.has(edhrecCard.name);
         if (isOwned && ownedPicked >= ownedTarget) continue;
         if (!isOwned && unownedPicked >= unownedTarget) continue;
+      }
+
+      // Hard role cap: skip (never a must-include/combo/land — those never
+      // reach this pool-based picker) once the role is at target+tolerance.
+      // Stashed for the escape-hatch replay below rather than lost outright.
+      if (roleCapBlocks(edhrecCard)) {
+        capSkipped.push(edhrecCard);
+        continue;
       }
 
       const scryfallCard = cardMap.get(edhrecCard.name);
@@ -376,6 +423,10 @@ export function pickFromPrefetchedWithCurve(
       if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
       currentCurveCounts[cmc] = (currentCurveCounts[cmc] ?? 0) + 1;
       if (!ownedExempt) budgetTracker?.deductCard(scryfallCard);
+      if (liveRoleCounts && roleCapConfig) {
+        const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
+        if (role) liveRoleCounts[role] = (liveRoleCounts[role] ?? 0) + 1;
+      }
 
       // Track ownership for quota enforcement
       if (isPartialMode) {
@@ -405,6 +456,28 @@ export function pickFromPrefetchedWithCurve(
     processCards(highSynergyCards, true);
     if (result.length < count) processCards(regularTypedCards, false);
     if (result.length < count) processCards(regularUnknownCards, true);
+  }
+
+  // Phase 5: role-cap escape hatch. Never ship a type pass short to respect a
+  // soft role target — admit the least-over-target cap-skipped candidates
+  // first (every other gate above still applied when they were first
+  // considered). The resulting surplus is still visible downstream via
+  // roleTargets/roleCounts (buildReport.ts's roleExcesses reads the final
+  // counts, not how the pick loop got there).
+  if (roleCapConfig && liveRoleCounts && result.length < count && capSkipped.length > 0) {
+    capSkipped.sort((a, b) => {
+      const roleA = roleCapConfig.cardRoleMap.get(a.name);
+      const roleB = roleCapConfig.cardRoleMap.get(b.name);
+      const overA = roleA
+        ? (liveRoleCounts[roleA] ?? 0) - (roleCapConfig.roleTargets[roleA] ?? 0)
+        : 0;
+      const overB = roleB
+        ? (liveRoleCounts[roleB] ?? 0) - (roleCapConfig.roleTargets[roleB] ?? 0)
+        : 0;
+      return overA - overB;
+    });
+    allowCapOverflow = true;
+    processCards(capSkipped, true);
   }
 
   return result;

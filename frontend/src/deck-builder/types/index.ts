@@ -117,6 +117,7 @@ export enum Archetype {
   MIDRANGE = 'midrange',
   VOLTRON = 'voltron',
   SPELLSLINGER = 'spellslinger',
+  TEMPO = 'tempo',
   TOKENS = 'tokens',
   ARISTOCRATS = 'aristocrats',
   REANIMATOR = 'reanimator',

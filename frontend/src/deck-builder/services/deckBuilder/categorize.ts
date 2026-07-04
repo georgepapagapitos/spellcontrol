@@ -10,7 +10,7 @@ import type {
 } from '@/deck-builder/types';
 import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import {
-  getCardRole,
+  validateCardRole,
   hasMultipleRoles,
   getRampSubtype,
   getRemovalSubtype,
@@ -79,7 +79,7 @@ export function categorizeCards(
       categories.lands.push(card);
       continue;
     }
-    const role = getCardRole(card.name);
+    const role = validateCardRole(card);
     categories[role ? ROLE_TO_CATEGORY[role] : fallback].push(card);
   }
 }
@@ -108,7 +108,7 @@ export function routeCardByType(
     categories.creatures.push(card);
     return;
   }
-  const role = getCardRole(card.name);
+  const role = validateCardRole(card);
   categories[role && ROLE_TO_CATEGORY[role] ? ROLE_TO_CATEGORY[role] : 'synergy'].push(card);
 }
 
@@ -180,7 +180,7 @@ export function collectSwapCandidates(
       if (!scryfallCard) continue;
 
       // Determine bucket: role-based if tagged, otherwise type-based
-      const role = getCardRole(scryfallCard.name);
+      const role = validateCardRole(scryfallCard);
       const bucket = role ?? getPrimaryTypeKey(scryfallCard);
       if (!bucket) continue;
       if ((result[bucket]?.length ?? 0) >= limitPerBucket) continue;
@@ -221,6 +221,17 @@ const ROLE_SUBTYPES: Record<string, string[]> = {
   boardwipe: ['bounce-wipe', 'boardwipe'],
   cardDraw: ['tutor', 'wheel', 'cantrip', 'card-draw', 'card-advantage'],
 };
+
+/**
+ * Tolerance band above a role target before it's treated as "over cap" — the
+ * shared shape (max 2 cards, else 20% of target) used both by the soft
+ * over-target boost penalty below and the hard pick-loop cap gate
+ * (cardPicking.ts's role-cap gate). One constant, so a role that's "at cap"
+ * means the same thing to both surfaces.
+ */
+export function roleCapTolerance(target: number): number {
+  return Math.max(2, Math.round(target * 0.2));
+}
 
 export function computeRoleBoosts(
   cardRoleMap: Map<string, RoleKey>,
@@ -265,7 +276,7 @@ export function computeRoleBoosts(
       if (current >= target) {
         // Soft over-target penalty on the default (non-strict) path too — otherwise a role
         // that hits target keeps absorbing cards on pure priority with no cap (iter-3 cluster 1).
-        const tolerance = Math.max(2, Math.round(target * 0.2));
+        const tolerance = roleCapTolerance(target);
         if (current - target >= tolerance) {
           boosts.set(name, (boosts.get(name) ?? 0) - 20 - (current - target - tolerance) * 10);
         }

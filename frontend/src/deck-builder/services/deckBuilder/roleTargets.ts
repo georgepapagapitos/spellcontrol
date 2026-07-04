@@ -58,6 +58,13 @@ const ARCHETYPE_ROLE_MULTIPLIERS: Record<Archetype, Record<RoleKey, number>> = {
   [Archetype.MIDRANGE]: { ramp: 1.0, removal: 1.0, boardwipe: 1.0, cardDraw: 1.0 },
   [Archetype.VOLTRON]: { ramp: 1.1, removal: 1.0, boardwipe: 0.33, cardDraw: 0.9 },
   [Archetype.SPELLSLINGER]: { ramp: 0.8, removal: 1.0, boardwipe: 1.0, cardDraw: 1.3 },
+  // Tempo (unblockable/ninjutsu-style evasive-damage decks, e.g. Yuriko): a
+  // lean low curve needs less ramp; cheap interaction to protect the clock
+  // (bounce/counterspells) bumps removal above baseline; a boardwipe actively
+  // hurts a deck that's racing on its OWN board of small evasive attackers;
+  // card draw is the engine (ninjutsu returns/rebuys unblocked attackers,
+  // each swing is a card-advantage trigger), so it leans the highest.
+  [Archetype.TEMPO]: { ramp: 0.85, removal: 1.1, boardwipe: 0.4, cardDraw: 1.15 },
   [Archetype.TOKENS]: { ramp: 1.0, removal: 0.88, boardwipe: 0.67, cardDraw: 1.0 },
   [Archetype.ARISTOCRATS]: { ramp: 1.0, removal: 0.88, boardwipe: 0.67, cardDraw: 1.1 },
   [Archetype.REANIMATOR]: { ramp: 0.9, removal: 0.88, boardwipe: 1.0, cardDraw: 1.2 },
