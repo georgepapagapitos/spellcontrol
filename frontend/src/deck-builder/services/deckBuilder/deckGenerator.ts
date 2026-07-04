@@ -12,6 +12,7 @@ import type {
   BudgetOption,
   GapAnalysisCard,
   CoherenceRepair,
+  Customization,
 } from '@/deck-builder/types';
 import {
   getCardByName,
@@ -459,6 +460,34 @@ export function buildRoleCapOverflowNote(
   if (total === 0) return undefined;
   const [dominantRole] = entries.sort((a, b) => b[1] - a[1]);
   return `${total} card${total === 1 ? '' : 's'} pushed past its role cap to finish the deck (${ROLE_DISPLAY[dominantRole[0]]} pool was thin) — see Overbuilt roles below for the full total.`;
+}
+
+/**
+ * E80 product ruling: price-sanity (cardPicking.ts's priceSanityTieBreak)
+ * ships as the DEFAULT, not an opt-in. `customization.priceSanity` is the
+ * escape hatch, not the primary switch — undefined defers to budgetOption:
+ * ON normally, OFF when the user explicitly asked for the 'expensive' pool
+ * (they already told the generator they want premium picks; the tie-break
+ * would just fight that choice). An explicit true/false always wins over
+ * the budgetOption inference.
+ */
+export function resolvePriceSanity(
+  customization: Pick<Customization, 'priceSanity' | 'budgetOption'>
+): boolean {
+  return customization.priceSanity ?? customization.budgetOption !== 'expensive';
+}
+
+/**
+ * Disclosure for the price-sanity tie-break (E80) — mirrors the
+ * buildRoleCapOverflowNote idiom: one terse note naming the total, not
+ * per-card spam. Undefined when the tie-break never actually decided an
+ * outcome (off via budgetOption='expensive'/explicit false, or no
+ * qualifying same-role/comparable-inclusion/dramatic-price-gap pair ever
+ * arose in this generation).
+ */
+export function buildPriceSanityNote(decidedCount: number): string | undefined {
+  if (decidedCount <= 0) return undefined;
+  return `Preferred ${decidedCount} cheaper near-equivalent${decidedCount === 1 ? '' : 's'} over premium picks — set budget preference to "expensive" to disable.`;
 }
 
 /**
@@ -1433,6 +1462,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // substitutes) increments this so ONE build-report note can disclose it
   // (see roleCapOverflowNote below), instead of firing invisibly.
   const roleCapOverflowCounts: Partial<Record<RoleKey, number>> = {};
+  // E80: unordered name-pairs the price-sanity tie-break actually decided
+  // (see pickFromPrefetchedWithCurve's priceSanityDecided doc) — aggregated
+  // across every type pass so ONE build-report note can disclose it.
+  const priceSanityDecided = new Set<string>();
   // Role-cap-augmented gates for the shortage-backfill call sites the brief
   // wants role-aware (E77 iter-4) — evaluated lazily (not baked into the
   // shared `fillGates` object) since `roleTargets` isn't resolved until
@@ -1778,6 +1811,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // When the user has explicitly set curve/role targets, enforce them strictly
     const strictCurve = !!customization.advancedTargets?.curvePercentages;
     const strictRoles = !!customization.advancedTargets?.roleTargets;
+    // E80 product ruling: price-sanity ships as the DEFAULT (see resolvePriceSanity).
+    const priceSanity = resolvePriceSanity(customization);
 
     // Package-completion boost (bounded re-rank, cap +30): favors candidates
     // that complete a live engine's scarcer side — the positive counterpart to
@@ -1852,7 +1887,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      priceSanity,
+      getComboBoosts(),
+      priceSanityDecided
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -1946,7 +1984,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      priceSanity,
+      getComboBoosts(),
+      priceSanityDecided
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -2009,7 +2050,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      priceSanity,
+      getComboBoosts(),
+      priceSanityDecided
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -2072,7 +2116,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      priceSanity,
+      getComboBoosts(),
+      priceSanityDecided
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -2135,7 +2182,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       liftTieBreak,
       roleTargets
         ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-        : undefined
+        : undefined,
+      priceSanity,
+      getComboBoosts(),
+      priceSanityDecided
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -2199,7 +2249,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         liftTieBreak,
         roleTargets
           ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
-          : undefined
+          : undefined,
+        priceSanity,
+        getComboBoosts(),
+        priceSanityDecided
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
@@ -4215,6 +4268,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // never actually breached.
   const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts);
 
+  // Price-sanity disclosure (E80) — undefined when the tie-break never
+  // actually decided an outcome (off, or no qualifying pair arose).
+  const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
+
   // Coherence audit over the FINAL deck (detection only): the pick-time
   // dependency gate can't see support that a later swap pass trimmed away, and
   // some fill paths never route through it — so re-check every shipped card
@@ -4263,6 +4320,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     landCountNote,
     budgetNote,
     roleCapOverflowNote,
+    priceSanityNote,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
