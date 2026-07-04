@@ -32,6 +32,7 @@ import type {
   ChipExpression,
   EnrichedCard,
   MaterializedBinder,
+  ScryfallQueryRule,
   SortField,
   SortDir,
 } from '../types';
@@ -456,6 +457,7 @@ export function CardListTable({
   const [setFilter, setSetFilter] = useState<Set<string>>(new Set());
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
+  const [scryfallQuery, setScryfallQuery] = useState<ScryfallQueryRule | undefined>(undefined);
   const [legalityExpr, setLegalityExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [layoutExpr, setLayoutExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
   const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>({ chips: [], joiners: [] });
@@ -657,6 +659,7 @@ export function CardListTable({
     if (!isExpressionEmpty(rarityExpr)) f.rarities = rarityExpr;
     if (!isExpressionEmpty(oracleExpr)) f.oracleChips = oracleExpr;
     if (!isExpressionEmpty(oracleTagExpr)) f.oracleTagChips = oracleTagExpr;
+    if (scryfallQuery) f.scryfallQuery = scryfallQuery;
     if (!isExpressionEmpty(legalityExpr)) f.legalities = legalityExpr;
     if (!isExpressionEmpty(layoutExpr)) f.layouts = layoutExpr;
     if (!isExpressionEmpty(treatmentExpr)) f.treatments = treatmentExpr;
@@ -677,6 +680,7 @@ export function CardListTable({
     rarityExpr,
     oracleExpr,
     oracleTagExpr,
+    scryfallQuery,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1223,6 +1227,7 @@ export function CardListTable({
     (!isExpressionEmpty(rarityExpr) ? 1 : 0) +
     (!isExpressionEmpty(oracleExpr) ? 1 : 0) +
     (!isExpressionEmpty(oracleTagExpr) ? 1 : 0) +
+    (scryfallQuery ? 1 : 0) +
     (!isExpressionEmpty(legalityExpr) ? 1 : 0) +
     (!isExpressionEmpty(layoutExpr) ? 1 : 0) +
     (!isExpressionEmpty(treatmentExpr) ? 1 : 0) +
@@ -1254,6 +1259,7 @@ export function CardListTable({
     rarityExpr,
     oracleExpr,
     oracleTagExpr,
+    scryfallQuery,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1278,6 +1284,7 @@ export function CardListTable({
       rarityExpr,
       oracleExpr,
       oracleTagExpr,
+      scryfallQuery,
       legalityExpr,
       layoutExpr,
       treatmentExpr,
@@ -1303,6 +1310,7 @@ export function CardListTable({
     rarityExpr,
     oracleExpr,
     oracleTagExpr,
+    scryfallQuery,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1362,6 +1370,7 @@ export function CardListTable({
     setRarityExpr(EMPTY_EXPR);
     setOracleExpr(EMPTY_EXPR);
     setOracleTagExpr(EMPTY_EXPR);
+    setScryfallQuery(undefined);
     setLegalityExpr(EMPTY_EXPR);
     setLayoutExpr(EMPTY_EXPR);
     setTreatmentExpr(EMPTY_EXPR);
@@ -1477,6 +1486,13 @@ export function CardListTable({
         id: 'oracleTag',
         label: `Tags: ${labels}`,
         onClear: () => setOracleTagExpr(EMPTY_EXPR),
+      });
+    }
+    if (scryfallQuery) {
+      chips.push({
+        id: 'scryfallQuery',
+        label: `Scryfall: ${scryfallQuery.query}`,
+        onClear: () => setScryfallQuery(undefined),
       });
     }
     if (!isExpressionEmpty(legalityExpr)) {
@@ -1620,6 +1636,7 @@ export function CardListTable({
     subtypeExpr,
     oracleExpr,
     oracleTagExpr,
+    scryfallQuery,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -1675,6 +1692,8 @@ export function CardListTable({
               setOracleExpr={setOracleExpr}
               oracleTagExpr={oracleTagExpr}
               setOracleTagExpr={setOracleTagExpr}
+              scryfallQuery={scryfallQuery}
+              setScryfallQuery={setScryfallQuery}
               legalityExpr={legalityExpr}
               setLegalityExpr={setLegalityExpr}
               layoutExpr={layoutExpr}
