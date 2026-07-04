@@ -145,6 +145,16 @@ const RUNS: RunSpec[] = [
   ...BASE_COMMANDERS.map((commanderName) => ({ commanderName, variant: 'base' })),
   { commanderName: 'Krenko, Mob Boss', variant: 'budget50', overrides: { deckBudget: 50 } },
   {
+    commanderName: 'Meren of Clan Nel Toth',
+    variant: 'budget100',
+    overrides: { deckBudget: 100 },
+  },
+  {
+    commanderName: "Atraxa, Praetors' Voice",
+    variant: 'budget75',
+    overrides: { deckBudget: 75 },
+  },
+  {
     commanderName: "Atraxa, Praetors' Voice",
     variant: 'bracket2',
     overrides: { targetBracket: 2 },

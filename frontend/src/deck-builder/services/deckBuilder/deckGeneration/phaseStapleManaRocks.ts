@@ -12,13 +12,24 @@ import {
 } from '../deckFilters';
 import { categorizeCards, stampRoleSubtypes } from '../categorize';
 import { type GenerationState, markUsed } from './state';
+import type { BudgetTracker } from '../budgetTracker';
 
 // Auto-include staple mana rocks (Sol Ring / Arcane Signet) — Commander only.
 // Verbatim extraction from generateDeck: closed-over free vars rewritten to
 // state.X (cfg fields, context, usedNames/bannedCards/categories/
 // currentCurveCounts/currentRoleCounts); the markUsed closure call becomes
 // the free function markUsed(state, name). Mutates state; no return value.
-export async function stapleManaRocksPhase(state: GenerationState): Promise<void> {
+//
+// `budgetTracker` is threaded in (rather than living on state) because these
+// staples are added AFTER the tracker is built from must-includes — like every
+// other budget-gated pick, they gate on the LIVE effective cap (not just the
+// static max) and must deduct their own cost, or a budget deck can silently
+// overspend by exactly Sol Ring + Arcane Signet before any convergence pass
+// ever sees the spend (E79).
+export async function stapleManaRocksPhase(
+  state: GenerationState,
+  budgetTracker: BudgetTracker | null
+): Promise<void> {
   // Sol Ring goes in every Commander deck. Arcane Signet goes in every 2+ color deck.
   // These are so universally played that a deck with Charcoal Diamond but no Arcane Signet is wrong.
   const stapleRocks: { name: string; minColors: number }[] = [
@@ -37,16 +48,17 @@ export async function stapleManaRocksPhase(state: GenerationState): Promise<void
         continue;
       try {
         const card = await getCardByName(staple.name, true);
-        // Respect budget, rarity, arena-only constraints
-        if (
-          !isOwnedBudgetExempt(
-            staple.name,
-            state.context.collectionNames,
-            state.cfg.ignoreOwnedBudget
-          ) &&
-          exceedsMaxPrice(card, state.cfg.maxCardPrice, state.cfg.currency)
-        )
-          continue;
+        const ownedExempt = isOwnedBudgetExempt(
+          staple.name,
+          state.context.collectionNames,
+          state.cfg.ignoreOwnedBudget
+        );
+        // Respect budget, rarity, arena-only constraints — the dynamic
+        // per-card cap (not just the static max), matching every other
+        // budget-gated pick path.
+        const cap =
+          budgetTracker?.getEffectiveCap(state.cfg.maxCardPrice) ?? state.cfg.maxCardPrice;
+        if (!ownedExempt && exceedsMaxPrice(card, cap, state.cfg.currency)) continue;
         if (
           !isOwnedRarityExempt(
             staple.name,
@@ -59,6 +71,7 @@ export async function stapleManaRocksPhase(state: GenerationState): Promise<void
         if (notOnArena(card, state.cfg.arenaOnly)) continue;
         markUsed(state, card.name);
         categorizeCards([card], state.categories);
+        if (!ownedExempt) budgetTracker?.deductCard(card);
         const cmc = Math.min(Math.floor(card.cmc), 7);
         state.currentCurveCounts[cmc] = (state.currentCurveCounts[cmc] ?? 0) + 1;
         // Stamp role if available (use tagger directly since cardRoleMap is EDHREC-path only)

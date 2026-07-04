@@ -150,6 +150,76 @@ describe('buildOverBudgetNote', () => {
     expect(note).toContain('€60.00');
     expect(note).toContain('€50');
   });
+
+  // E79: phaseBudgetConverge.ts now actively swaps expensive cards for
+  // cheaper ones instead of only disclosing the overage — these variants
+  // cover the "landed under budget" and "still over, here's why" outcomes.
+  describe('convergence variants (E79)', () => {
+    it('names the substitution count when convergence brought the deck under budget', () => {
+      const note = buildOverBudgetNote({
+        finalTotal: 48.75,
+        deckBudget: 50,
+        currency: 'USD',
+        comboBudgetSkipCount: 0,
+        convergedSwapCount: 6,
+      });
+      expect(note).toBe('Deck totals $48.75 — landed under your $50 budget after 6 substitutions.');
+    });
+
+    it('uses singular phrasing for exactly one substitution', () => {
+      const note = buildOverBudgetNote({
+        finalTotal: 49,
+        deckBudget: 50,
+        currency: 'USD',
+        comboBudgetSkipCount: 0,
+        convergedSwapCount: 1,
+      });
+      expect(note).toContain('1 substitution.');
+      expect(note).not.toContain('1 substitutions');
+    });
+
+    it('states total, overage, substitution count, and why it is still stuck', () => {
+      const note = buildOverBudgetNote({
+        finalTotal: 53.1,
+        deckBudget: 50,
+        currency: 'USD',
+        comboBudgetSkipCount: 0,
+        convergedSwapCount: 9,
+        residualReason: 'the rest is must-includes and combo pieces with no cheaper equivalent',
+      });
+      expect(note).toBe(
+        'Deck totals $53.10 — $3.10 over your $50 budget after 9 substitutions; ' +
+          'the rest is must-includes and combo pieces with no cheaper equivalent.'
+      );
+    });
+
+    it('the $70.24 fixture is now the residual-with-no-convergence-run case (offline/no pool)', () => {
+      // Same numbers as the original pinned fixture above, but now explicitly
+      // representing "convergence never ran" (0 swaps, no residual reason) —
+      // the plain over-budget sentence, unchanged from before E79.
+      const note = buildOverBudgetNote({
+        finalTotal: 70.24,
+        deckBudget: 50,
+        currency: 'USD',
+        comboBudgetSkipCount: 0,
+        convergedSwapCount: 0,
+      });
+      expect(note).toBe('Deck totals $70.24 — $20.24 over your $50 budget.');
+    });
+
+    it('falls back to the combo-skip clause when convergence never ran and combo candidates were skipped', () => {
+      const note = buildOverBudgetNote({
+        finalTotal: 60,
+        deckBudget: 50,
+        currency: 'USD',
+        comboBudgetSkipCount: 2,
+        convergedSwapCount: 0,
+      });
+      expect(note).toBe(
+        'Deck totals $60.00 — $10.00 over your $50 budget. Some combo upgrades were skipped to stay as close as possible.'
+      );
+    });
+  });
 });
 
 describe('isOverRoleCap / bumpRoleCapCount / roleCapOverage (E77 iter-4 round 2)', () => {

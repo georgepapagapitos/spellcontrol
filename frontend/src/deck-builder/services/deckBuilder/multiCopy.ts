@@ -2,15 +2,21 @@
 // Self-contained; extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
-import { fetchMultiCopyCardNames, getCardByName } from '@/deck-builder/services/scryfall/client';
+import {
+  fetchMultiCopyCardNames,
+  getCardByName,
+  getCardPrice,
+} from '@/deck-builder/services/scryfall/client';
 import { fetchAverageDeckMultiCopies } from '@/deck-builder/services/edhrec/client';
 import {
   constrainsToCollection,
   exceedsMaxPrice,
   exceedsMaxRarity,
+  isOwnedBudgetExempt,
   isOwnedRarityExempt,
   notInCollection,
 } from './deckFilters';
+import type { BudgetTracker } from './budgetTracker';
 
 // ============================================================
 // Multi-copy card support ("A deck can have any number of...")
@@ -43,7 +49,9 @@ export async function resolveMultiCopyCards(
   collectionNames?: Set<string>,
   collectionAvailableCounts?: Map<string, number>,
   collectionStrategy: CollectionStrategy = 'full',
-  ignoreOwnedRarity: boolean = false
+  ignoreOwnedRarity: boolean = false,
+  budgetTracker: BudgetTracker | null = null,
+  ignoreOwnedBudget: boolean = false
 ): Promise<MultiCopyResult[]> {
   // Step 1: Fetch the set of all multi-copy cards from Scryfall (cached after first call)
   const multiCopyCards = await fetchMultiCopyCardNames();
@@ -122,6 +130,19 @@ export async function resolveMultiCopyCards(
       if (exceedsMaxPrice(card, maxCardPrice, currency)) {
         logger.debug(`[DeckGen] "${cardName}" exceeds max card price, skipping multi-copy`);
         continue;
+      }
+      // A per-copy price check alone can't catch the TOTAL blowing the
+      // remaining budget (e.g. 20x a $2 card is $40, real money even though
+      // each copy individually clears maxCardPrice) — check price × quantity
+      // against what's actually left (E79).
+      if (budgetTracker && !isOwnedBudgetExempt(cardName, collectionNames, ignoreOwnedBudget)) {
+        const unitPrice = parseFloat(getCardPrice(card, currency) ?? '');
+        if (!isNaN(unitPrice) && unitPrice * copiesToAdd > budgetTracker.remainingBudget) {
+          logger.debug(
+            `[DeckGen] "${cardName}" total (${copiesToAdd}x $${unitPrice}) exceeds remaining budget, skipping multi-copy`
+          );
+          continue;
+        }
       }
       if (!isOwnedRarityExempt(cardName, collectionNames, ignoreOwnedRarity)) {
         if (exceedsMaxRarity(card, maxRarity)) {

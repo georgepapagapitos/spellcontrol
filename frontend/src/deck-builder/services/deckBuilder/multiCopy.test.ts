@@ -30,6 +30,8 @@ vi.mock('@/deck-builder/services/edhrec/client', () => ({
 }));
 
 import { resolveMultiCopyCards } from './multiCopy';
+import { BudgetTracker } from './budgetTracker';
+import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 
 describe('resolveMultiCopyCards', () => {
   it('caps available-only multi-copy additions to free collection copies', async () => {
@@ -69,5 +71,61 @@ describe('resolveMultiCopyCards', () => {
     );
 
     expect(result).toEqual([]);
+  });
+
+  // E79: a per-copy price check alone waves through a card that individually
+  // clears maxCardPrice but whose full multi-copy quantity (12 copies here,
+  // per the mocked EDHREC average deck) blows the remaining budget.
+  it('gates the TOTAL cost of all copies against remaining budget, not per-copy price', async () => {
+    vi.mocked(getCardPrice).mockReturnValue('2.00'); // $2/copy * 12 copies = $24
+    const tracker = new BudgetTracker(10, 5, 'USD'); // only $10 left
+
+    const result = await resolveMultiCopyCards(
+      ['Persistent Petitioners'],
+      'Bruvac the Grandiloquent',
+      undefined,
+      new Set(),
+      100,
+      new Set(),
+      null,
+      null,
+      'USD',
+      undefined,
+      undefined,
+      'full',
+      false,
+      tracker,
+      false
+    );
+
+    expect(result).toEqual([]);
+    vi.mocked(getCardPrice).mockReturnValue(null);
+  });
+
+  it('still adds the copies when their total fits the remaining budget', async () => {
+    vi.mocked(getCardPrice).mockReturnValue('0.50'); // $0.50/copy * 12 copies = $6
+    const tracker = new BudgetTracker(100, 5, 'USD');
+
+    const result = await resolveMultiCopyCards(
+      ['Persistent Petitioners'],
+      'Bruvac the Grandiloquent',
+      undefined,
+      new Set(),
+      100,
+      new Set(),
+      null,
+      null,
+      'USD',
+      undefined,
+      undefined,
+      'full',
+      false,
+      tracker,
+      false
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].copies).toHaveLength(12);
+    vi.mocked(getCardPrice).mockReturnValue(null);
   });
 });

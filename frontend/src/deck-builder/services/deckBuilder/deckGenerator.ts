@@ -121,6 +121,7 @@ import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
+import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
@@ -340,25 +341,48 @@ export function buildLandCountNote(params: {
 }
 
 /**
- * Compose the honest over-budget disclosure from the FINAL deck total (summed
- * after every mutating phase). Returns undefined when the deck landed at or
- * under budget — callers keep whatever earlier skip-only note (if any) they
- * already had in that case.
+ * Compose the honest budget disclosure from the FINAL deck total (summed
+ * after every mutating phase, including budget convergence — see
+ * phaseBudgetConverge.ts). Three outcomes:
+ *  - Under budget, no convergence needed: undefined (nothing to say).
+ *  - Convergence brought an over-budget deck in: names the substitution count.
+ *  - Still over budget after convergence gave up: names the total, the
+ *    overage, the substitution count, and WHY it's stuck (residualReason) —
+ *    falling back to the older "combo upgrades skipped" clause when
+ *    convergence never ran (e.g. offline, no EDHREC pool).
  */
 export function buildOverBudgetNote(params: {
   finalTotal: number;
   deckBudget: number;
   currency: 'USD' | 'EUR';
   comboBudgetSkipCount: number;
+  /** Substitutions phaseBudgetConverge applied (0 when it never ran/found nothing). */
+  convergedSwapCount?: number;
+  /** Honest reason convergence stopped short of budget — set only when still over. */
+  residualReason?: string;
 }): string | undefined {
-  if (params.finalTotal <= params.deckBudget) return undefined;
   const sym = params.currency === 'EUR' ? '€' : '$';
+  const swaps = params.convergedSwapCount ?? 0;
+  const swapWord = swaps === 1 ? 'substitution' : 'substitutions';
+
+  if (params.finalTotal <= params.deckBudget) {
+    if (swaps > 0) {
+      return `Deck totals ${sym}${params.finalTotal.toFixed(2)} — landed under your ${sym}${params.deckBudget} budget after ${swaps} ${swapWord}.`;
+    }
+    return undefined;
+  }
+
   const over = params.finalTotal - params.deckBudget;
-  const skippedClause =
-    params.comboBudgetSkipCount > 0
-      ? ' Some combo upgrades were skipped to stay as close as possible.'
-      : '';
-  return `Deck totals ${sym}${params.finalTotal.toFixed(2)} — ${sym}${over.toFixed(2)} over your ${sym}${params.deckBudget} budget.${skippedClause}`;
+  const substitutionClause = swaps > 0 ? ` after ${swaps} ${swapWord}` : '';
+  // Semicolon-join the "why stuck" reason onto the same sentence (it explains
+  // the number just stated); the older combo-skip disclosure reads better as
+  // its own sentence, and only ever applies when convergence never ran.
+  const tail = params.residualReason
+    ? `; ${params.residualReason}.`
+    : params.comboBudgetSkipCount > 0
+      ? '. Some combo upgrades were skipped to stay as close as possible.'
+      : '.';
+  return `Deck totals ${sym}${params.finalTotal.toFixed(2)} — ${sym}${over.toFixed(2)} over your ${sym}${params.deckBudget} budget${substitutionClause}${tail}`;
 }
 
 // ─── Role-cap gate for backfill paths outside cardPicking.ts/scryfallFill.ts ──
@@ -1440,7 +1464,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       context.collectionNames,
       context.collectionAvailableCounts,
       collectionStrategy,
-      ignoreOwnedRarity
+      ignoreOwnedRarity,
+      budgetTracker,
+      ignoreOwnedBudget
     );
 
     for (const { card, copies } of multiCopyResults) {
@@ -2618,7 +2644,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
 
   // ── Auto-include staple mana rocks (like Command Tower for lands) ──
-  await stapleManaRocksPhase(state);
+  await stapleManaRocksPhase(state, budgetTracker);
 
   // Calculate the target deck size (commander(s) are separate)
   // With partner, we need one fewer card since both commanders count toward the total
@@ -3936,12 +3962,94 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       mustIncludeNames: convergeMustInclude,
       cardAllowed: isCardAllowedBySynergyDependencies,
       roleTargets,
+      budgetTracker,
+      maxCardPrice,
+      currency,
+      ignoreOwnedBudget,
     });
     // Convergence can cut a combo piece (target <= 2 breaks incidental combos).
     // Refresh combo completeness against the live deck so the final bracket
     // estimate + report don't keep a now-broken combo's floor (mirrors the
     // combo-audit refresh above).
     if (converge.applied > 0 && detectedCombos) {
+      const liveNames = new Set<string>();
+      for (const c of Object.values(categories).flat()) {
+        liveNames.add(c.name);
+        if (c.name.includes(' // ')) liveNames.add(frontFaceName(c.name));
+      }
+      if (commander) liveNames.add(commander.name);
+      if (partnerCommander) liveNames.add(partnerCommander.name);
+      detectedCombos = detectedCombos
+        .map((dc) => {
+          const missing = dc.cards.filter((n) => !liveNames.has(n));
+          return { ...dc, isComplete: missing.length === 0, missingCards: missing };
+        })
+        .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
+      if (detectedCombos.length === 0) detectedCombos = undefined;
+    }
+  }
+
+  // ── Budget Convergence (E79) ──
+  // BudgetTracker's per-pick cap is a soft greedy heuristic — nothing before
+  // this point ever re-checks the ACCUMULATED total against `deckBudget`. If
+  // the deck (after every prior mutating phase, including bracket convergence
+  // above) is still over budget, swap expensive cards for cheaper same-role/
+  // same-function alternatives until it lands at or under, or no legal swap
+  // remains. Runs after bracket convergence (which can itself add a pricey
+  // Game Changer) so this pass sees whatever that left behind.
+  let budgetRepairs: CoherenceRepair[] = [];
+  let budgetConvergedSwaps = 0;
+  let budgetResidualReason: string | undefined;
+  if (deckBudget !== null) {
+    const budgetMustInclude = new Set([
+      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+    ]);
+    const budgetLiftIndex = getLiftIndex(state);
+    const budgetResult = await applyBudgetConvergence(state, {
+      scryfallCardMap,
+      detectedCombos,
+      mustIncludeNames: budgetMustInclude,
+      cardAllowed: isCardAllowedBySynergyDependencies,
+      liftedByOf: (n) => budgetLiftIndex.get(n)?.liftedBy,
+      isSaltBlocked,
+      bracketGuard,
+      gameChangerCount,
+      maxGameChangers,
+      budgetTracker,
+      maxRarity,
+      maxCmc,
+      arenaOnly,
+      currency,
+      ignoreOwnedBudget,
+      ignoreOwnedRarity,
+      roleTargets,
+      deckBudget,
+      // E79 round 4: the standard pool's leftover tail skews expensive (it's
+      // what generation already picked FROM), so merge in the commander's
+      // real EDHREC budget-deck pool for cheaper same-role alternatives.
+      // Soft-fails to null on any error — never breaks generation.
+      fetchBudgetPool: async () => {
+        try {
+          const budgetPoolData = await fetchCommanderData(commander.name, 'budget', targetBracket);
+          const unresolvedNames = budgetPoolData.cardlists.allNonLand
+            .map((c) => c.name)
+            .filter((n) => !scryfallCardMap.has(n));
+          const resolved =
+            unresolvedNames.length > 0
+              ? await getCardsByNames(unresolvedNames, undefined, preferredSet)
+              : new Map<string, ScryfallCard>();
+          return { pool: budgetPoolData.cardlists.allNonLand, scryfallMap: resolved };
+        } catch {
+          return null;
+        }
+      },
+    });
+    budgetRepairs = budgetResult.repairs;
+    budgetConvergedSwaps = budgetResult.applied;
+    budgetResidualReason = budgetResult.residualReason;
+    // Mirrors the combo-refresh idiom above: a swap can break a tracked combo.
+    if (budgetRepairs.length > 0 && detectedCombos) {
       const liveNames = new Set<string>();
       for (const c of Object.values(categories).flat()) {
         liveNames.add(c.name);
@@ -4065,7 +4173,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       return sum + (p ? parseFloat(p) || 0 : 0);
     }, 0);
     budgetNote =
-      buildOverBudgetNote({ finalTotal, deckBudget, currency, comboBudgetSkipCount }) ?? budgetNote;
+      buildOverBudgetNote({
+        finalTotal,
+        deckBudget,
+        currency,
+        comboBudgetSkipCount,
+        convergedSwapCount: budgetConvergedSwaps,
+        residualReason: budgetResidualReason,
+      }) ?? budgetNote;
   }
 
   // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
@@ -4129,6 +4244,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     manabase,
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
+    budgetRepairs: budgetRepairs.length > 0 ? budgetRepairs : undefined,
     liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:

@@ -493,6 +493,10 @@ export interface BuildReport {
   /** Swaps the bounded coherence-repair pass applied before the final audit.
    *  Undefined when nothing needed (or could be) repaired. */
   coherenceRepairs?: CoherenceRepair[];
+  /** Swaps the budget-convergence pass applied to bring an over-budget deck
+   *  in line (or as close as protections allow) — see phaseBudgetConverge.ts
+   *  (E79). Undefined when no budget was set, or nothing needed swapping. */
+  budgetRepairs?: CoherenceRepair[];
 }
 
 export interface GeneratedDeck {
@@ -521,6 +525,8 @@ export interface GeneratedDeck {
   coherenceFindings?: CoherenceFinding[];
   /** Swaps the bounded coherence-repair pass applied before the final audit. */
   coherenceRepairs?: CoherenceRepair[];
+  /** Swaps the budget-convergence pass applied (E79). */
+  budgetRepairs?: CoherenceRepair[];
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool

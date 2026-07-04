@@ -27,6 +27,7 @@ vi.mock('../categorize', async (importOriginal) => {
 
 import { applyBracketConvergence } from './phaseBracketConverge';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { BudgetTracker } from '../budgetTracker';
 import type { GenerationState } from './state';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -408,5 +409,86 @@ describe('applyBracketConvergence', () => {
     expect(state.usedNames.has('Generic Filler')).toBe(false); // cut: low priority, no floor to breach
 
     vi.mocked(getCardRole).mockReturnValue(null); // restore the file-level default for later tests
+  });
+
+  // ── budget gate (E79) ───────────────────────────────────────────────────────
+
+  it('skips a filler that exceeds the budget cap, picking a cheaper legal one instead', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2; // 1 GC floors at 3 → overshoots target 2
+    const map = fillerScryfallMap();
+    map.set('Safe Filler A', scryfallCard('Safe Filler A', { prices: { usd: '999' } })); // too expensive
+    map.set('Safe Filler B', scryfallCard('Safe Filler B', { prices: { usd: '2' } })); // fits
+    // 'Safe Filler C' keeps its default no-price override — also blocked (no
+    // price data + an active cap = treated as exceeding, same as exceedsMaxPrice).
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+      maxCardPrice: 10,
+    });
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(state.usedNames.has('Safe Filler A')).toBe(false);
+    expect(state.usedNames.has('Safe Filler B')).toBe(true);
+  });
+
+  it('no-ops (does not blow the budget) when every filler in the pool exceeds the cap', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    const map = fillerScryfallMap();
+    for (const name of ['Safe Filler A', 'Safe Filler B', 'Safe Filler C']) {
+      map.set(name, scryfallCard(name, { prices: { usd: '999' } }));
+    }
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+      maxCardPrice: 10,
+    });
+
+    expect(result.applied).toBe(0);
+    expect(state.usedNames.has('Power Card')).toBe(true); // left alone — no legal replacement
+  });
+
+  it('does not power UP with a Game Changer that would exceed the budget cap', () => {
+    const state = underTargetState();
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Pool GC', 95), ...FILLER_POOL] },
+    } as unknown as GenerationState['edhrecData'];
+    const map = fillerScryfallMap();
+    map.set('Pool GC', scryfallCard('Pool GC', { prices: { usd: '999' } }));
+    const before = deckSize(state);
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+      maxCardPrice: 10,
+    });
+
+    expect(result.applied).toBe(0);
+    expect(state.usedNames.has('Pool GC')).toBe(false);
+    expect(deckSize(state)).toBe(before);
+  });
+
+  it('deducts a filler swap from the budget tracker', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    const map = fillerScryfallMap();
+    map.set('Safe Filler A', scryfallCard('Safe Filler A', { prices: { usd: '3' } }));
+    const tracker = new BudgetTracker(1000, 5, 'USD');
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+      budgetTracker: tracker,
+    });
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(tracker.remainingBudget).toBeLessThan(1000);
   });
 });

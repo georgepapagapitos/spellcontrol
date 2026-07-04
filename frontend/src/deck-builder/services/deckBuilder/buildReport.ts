@@ -157,6 +157,11 @@ export function assembleBuildReport(input: {
     report.coherenceRepairs = generated.coherenceRepairs;
   }
 
+  // Budget-convergence swaps (E79): same "nothing moves silently" ethos.
+  if (generated.budgetRepairs && generated.budgetRepairs.length > 0) {
+    report.budgetRepairs = generated.budgetRepairs;
+  }
+
   // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
   // Unconditional on builtFromCollection: unlike synergyFills these aren't
   // owned-build provenance, they're a suggestion regardless of build mode.
