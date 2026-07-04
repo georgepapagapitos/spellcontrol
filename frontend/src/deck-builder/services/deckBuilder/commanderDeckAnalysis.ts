@@ -35,6 +35,7 @@ import {
   type DeckAnalysis,
   type OptimizeSwaps,
   type RecommendedCard,
+  type SummaryItem,
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
@@ -60,6 +61,9 @@ import type { WinConditionAnalysis } from '../winConditions/types';
 export interface DeckGrade {
   letter: string;
   headline: string;
+  /** Roles running significantly over target (e.g. ramp at 25 vs a 13 target)
+   *  — already computed by getDeckSummaryData but previously discarded here. */
+  trims?: SummaryItem[];
 }
 
 // ── Role counting (shared with DeckDisplay's derivedRoles) ──────────────────
@@ -332,7 +336,11 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
         input.overrideLandTarget
       );
       const summary = getDeckSummaryData(analysis);
-      deckGrade = { letter: summary.gradeLetter, headline: summary.headline };
+      deckGrade = {
+        letter: summary.gradeLetter,
+        headline: summary.headline,
+        trims: summary.trims.length > 0 ? summary.trims : undefined,
+      };
       curvePhases = analysis.curvePhases;
       richAnalysis = analysis;
     } catch {

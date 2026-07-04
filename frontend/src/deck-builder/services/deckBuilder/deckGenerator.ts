@@ -79,6 +79,7 @@ import {
   stampRoleSubtypes,
   collectSwapCandidates,
   computeRoleBoosts,
+  routeCardByType,
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
@@ -2637,7 +2638,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           if (cardType && typeNeed[cardType] > 0) typeNeed[cardType]--;
         }
 
-        categories.synergy.push(scryfallCard);
+        routeCardByType(scryfallCard, categories);
         usedNames.add(edhrecCard.name);
         if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
         filled++;
@@ -2665,7 +2666,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
           if (exceedsCmcCap(scryfallCard, maxCmc)) continue;
 
-          categories.synergy.push(scryfallCard);
+          routeCardByType(scryfallCard, categories);
           usedNames.add(edhrecCard.name);
           if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
           filled++;
@@ -2796,7 +2797,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           liftScoreOf,
           fillGates
         );
-        categories.synergy.push(...moreCards);
+        categorizeCards(moreCards, categories);
         filled += moreCards.length;
       }
 
@@ -2824,13 +2825,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       const addOwnedCard = (card: ScryfallCard) => {
         stampRoleSubtypes(card);
         const role = getCardRole(card.name);
-        const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-        if (typeLine.includes('creature')) categories.creatures.push(card);
-        else if (role === 'boardwipe') categories.boardWipes.push(card);
-        else if (role === 'removal') categories.singleRemoval.push(card);
-        else if (role === 'ramp') categories.ramp.push(card);
-        else if (role === 'cardDraw') categories.cardDraw.push(card);
-        else categories.synergy.push(card);
+        routeCardByType(card, categories);
         usedNames.add(card.name);
         if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
       };
@@ -3069,9 +3064,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
   }
 
-  // Calculate stats
-  const stats = await finalStatsPhase(state, saltIndex);
-
   // Get the theme names that were actually used
   const usedThemes =
     selectedThemesWithSlugs.length > 0 ? selectedThemesWithSlugs.map((t) => t.name) : undefined;
@@ -3079,13 +3071,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Gap analysis: find top unowned cards that would improve the deck
   const gapAnalysis = await gapAnalysisPhase(state, { effectiveScryfallQuery: scryfallQuery });
 
-  // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
-  // for this commander but strongly co-played with cards already in the
-  // deck. Suggestions only — never added to the deck.
-  const liftPicks = await liftPicksPhase(state, {
-    effectiveScryfallQuery: scryfallQuery,
-    isSaltBlocked,
-  });
+  // Snapshot pre-swap deck membership: the combo audit / fixup / coherence
+  // repair / bracket convergence passes below can still cut cards, and a card
+  // they cut shouldn't immediately resurface as a "hidden synergy" package
+  // pick (e.g. Yuriko-bracket4 re-suggesting the Kaito Shizuki this very pass
+  // just cut). Diffed against the post-swap usedNames right before lift picks
+  // run, further down — after every mutating phase, not before them.
+  const preSwapUsedNames = new Set(usedNames);
 
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);
@@ -3158,14 +3150,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (usedNames.has(card.name)) return false; // guard against duplicates
       if (bannedCards.has(card.name)) return false; // respect banlist
       stampRoleSubtypes(card);
-      const role = getCardRole(card.name);
-      const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-      if (typeLine.includes('creature')) categories.creatures.push(card);
-      else if (role === 'boardwipe') categories.boardWipes.push(card);
-      else if (role === 'removal') categories.singleRemoval.push(card);
-      else if (role === 'ramp') categories.ramp.push(card);
-      else if (role === 'cardDraw') categories.cardDraw.push(card);
-      else categories.synergy.push(card);
+      routeCardByType(card, categories);
       usedNames.add(card.name);
       if (!isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) {
         budgetTracker?.deductCard(card);
@@ -3460,20 +3445,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function fixupAddCard(card: ScryfallCard) {
       stampRoleSubtypes(card);
       const role = getCardRole(card.name);
-      const typeLine = getFrontFaceTypeLine(card).toLowerCase();
-      if (typeLine.includes('creature')) {
-        categories.creatures.push(card);
-      } else if (role === 'boardwipe') {
-        categories.boardWipes.push(card);
-      } else if (role === 'removal') {
-        categories.singleRemoval.push(card);
-      } else if (role === 'ramp') {
-        categories.ramp.push(card);
-      } else if (role === 'cardDraw') {
-        categories.cardDraw.push(card);
-      } else {
-        categories.synergy.push(card);
-      }
+      routeCardByType(card, categories);
       usedNames.add(card.name);
       if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
     }
@@ -3670,6 +3642,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
+  // for this commander but strongly co-played with cards already in the
+  // deck. Suggestions only — never added to the deck. Runs here, AFTER every
+  // mutating phase (combo audit, fixup, coherence repair, bracket
+  // convergence), so its exclusion set reflects the deck that actually
+  // shipped — not a pre-swap snapshot that can suggest a card the deck no
+  // longer runs, or re-suggest a card those very phases just cut.
+  const liftPicks = await liftPicksPhase(state, {
+    effectiveScryfallQuery: scryfallQuery,
+    isSaltBlocked,
+    extraExcludeNames: new Set(
+      [...preSwapUsedNames].filter((name) => !usedNames.has(name))
+    ),
+  });
+
   // Build deck score from EDHREC inclusion percentages
   const { deckScore, cardInclusionMap } = deckScorePhase(state, swapCandidates, gapAnalysis);
 
@@ -3689,24 +3676,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     .map((c) => c.name);
   if (commander) allDeckCardNames.push(commander.name);
   if (partnerCommander) allDeckCardNames.push(partnerCommander.name);
-  // Recompute the non-land average CMC from the FINAL deck: `stats` was taken
-  // before the combo-floor / fixup / bracket-convergence swap passes, so its
-  // averageCmc is stale (convergence in particular systematically removes
-  // 0-cmc fast mana). The bracket estimate must score the deck as it ships, so
-  // the report matches what convergence verified. Uses the SAME non-land basis
-  // the convergence pass scored on (every category except `lands`) so the two
-  // estimates agree exactly.
+  // Final stats, computed HERE (after the combo-floor / fixup / coherence-
+  // repair / bracket-convergence swap passes) rather than at deck-assembly
+  // time — a stats snapshot taken before those passes goes stale the moment
+  // any of them mutate the deck (convergence in particular systematically
+  // removes 0-cmc fast mana), producing a persisted `stats.averageCmc` that
+  // disagrees with the bracket estimate's own independently-fresh recompute,
+  // plus a manaCurve/typeDistribution that can miss a swap's add or cut
+  // entirely. This is the single source now — nothing downstream recomputes
+  // it again.
   const nonLandCards = (Object.entries(categories) as [DeckCategory, ScryfallCard[]][])
     .filter(([cat]) => cat !== 'lands')
     .flatMap(([, cards]) => cards);
-  const finalAverageCmc =
-    nonLandCards.length > 0
-      ? nonLandCards.reduce((sum, c) => sum + (c.cmc ?? 0), 0) / nonLandCards.length
-      : stats.averageCmc;
+  const stats = await finalStatsPhase(state, saltIndex);
   const { bracketEstimation, deckGrade } = computeGradeAndBracket({
     allCardNames: allDeckCardNames,
     detectedCombos,
-    averageCmc: finalAverageCmc,
+    averageCmc: stats.averageCmc,
     deckScore,
     bracketRoleCounts: roleTargets ? currentRoleCounts : undefined,
     gameChangerNames: state.gameChangerNames,

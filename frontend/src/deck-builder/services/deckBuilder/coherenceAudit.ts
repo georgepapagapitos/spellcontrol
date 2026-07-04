@@ -279,7 +279,13 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
     if (card.isMustInclude) continue; // the user forced it — their call, not a flag
     if (BASIC_LAND_NAMES.has(card.name)) continue; // basics are mana, never an unjustified slot
 
-    const deadAxes = unsupportedPayoffAxes(card, allCards, commanders.length);
+    const lower = card.name.toLowerCase();
+    // A card completing a live combo is never a "dead payoff" — the combo IS
+    // its feed, even if this per-card synergy scan can't see it (e.g.
+    // Thornbite Staff flagged dead while detectedCombos shows it finishing an
+    // infinite loop with cards already in the 99).
+    const isComboPiece = comboNames.has(lower) || comboNames.has(lower.split(' // ')[0]);
+    const deadAxes = isComboPiece ? [] : unsupportedPayoffAxes(card, allCards, commanders.length);
     if (deadAxes.length > 0) {
       const labels = deadAxes.map((a) => AXIS_LABELS.get(a) ?? a);
       findings.push({
@@ -291,7 +297,6 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
       continue; // the more specific finding — don't double-flag the slot below
     }
 
-    const lower = card.name.toLowerCase();
     const cs = classifyCard(card);
     const justified =
       card.isThemeSynergyCard ||

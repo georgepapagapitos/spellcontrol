@@ -432,6 +432,35 @@ describe('assembleBuildReport', () => {
     });
   });
 
+  it('flags a role significantly over target as roleExcesses (C1)', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        // ramp: 25 vs 13 target — >1.5x AND >4 over → excess.
+        // removal: 9 vs 8 target — over but under the bar → not flagged.
+        roleTargets: { ramp: 13, removal: 8, draw: 5 },
+        roleCounts: { ramp: 25, removal: 9, draw: 5 },
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.roleExcesses).toEqual([{ role: 'ramp', have: 25, want: 13 }]);
+    expect(report.roleGaps).toBeUndefined();
+  });
+
+  it('omits roleExcesses when nothing clears the overshoot bar', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        roleTargets: { ramp: 13 },
+        roleCounts: { ramp: 16 }, // over, but <1.5x and <4 over
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.roleExcesses).toBeUndefined();
+  });
+
   it('omits roleGaps when no targets or no gaps', () => {
     const noTargets = assembleBuildReport({
       generated: makeGenerated(),

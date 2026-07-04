@@ -13,9 +13,7 @@ import {
   exceedsMaxPrice,
   isOwnedBudgetExempt,
 } from '../deckFilters';
-import { stampRoleSubtypes } from '../categorize';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
-import { getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import type { BudgetTracker } from '../budgetTracker';
 
 // ── Combo Floor ──
@@ -221,21 +219,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
 
   // Add the missing combo piece to the appropriate category.
   stampRoleSubtypes(best.missingCard);
-  const role = getCardRole(best.missingName);
-  const typeLine = getFrontFaceTypeLine(best.missingCard).toLowerCase();
-  if (typeLine.includes('creature')) {
-    state.categories.creatures.push(best.missingCard);
-  } else if (role === 'boardwipe') {
-    state.categories.boardWipes.push(best.missingCard);
-  } else if (role === 'removal') {
-    state.categories.singleRemoval.push(best.missingCard);
-  } else if (role === 'ramp') {
-    state.categories.ramp.push(best.missingCard);
-  } else if (role === 'cardDraw') {
-    state.categories.cardDraw.push(best.missingCard);
-  } else {
-    state.categories.synergy.push(best.missingCard);
-  }
+  routeCardByType(best.missingCard, state.categories);
   state.usedNames.add(best.missingName);
   if (best.missingCard.name.includes(' // ')) {
     state.usedNames.add(frontFaceName(best.missingCard.name));

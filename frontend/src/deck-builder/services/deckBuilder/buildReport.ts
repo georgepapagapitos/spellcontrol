@@ -110,19 +110,28 @@ export function assembleBuildReport(input: {
     if (synergyFills.length > 0) report.synergyFills = synergyFills;
   }
 
-  // Per-role "wanted N, got M" gaps where the deck fell short of target.
+  // Per-role "wanted N, got M" gaps where the deck fell short of target — and
+  // the symmetric case, a role significantly crowding out the rest of the deck
+  // (>1.5x target and >4 cards over; e.g. a ramp bucket at 24 vs an 11 target
+  // eating the spell-density budget). Report only — nothing here auto-cuts.
   const roleTargets = generated.roleTargets;
   if (roleTargets) {
     const roleCounts = generated.roleCounts ?? {};
     const roleGaps: Array<{ role: string; have: number; want: number }> = [];
+    const roleExcesses: Array<{ role: string; have: number; want: number }> = [];
     for (const [role, want] of Object.entries(roleTargets)) {
       const have = roleCounts[role] ?? 0;
       if (have < want) {
         roleGaps.push({ role, have, want });
+      } else if (want > 0 && have > want * 1.5 && have - want > 4) {
+        roleExcesses.push({ role, have, want });
       }
     }
     if (roleGaps.length > 0) {
       report.roleGaps = roleGaps;
+    }
+    if (roleExcesses.length > 0) {
+      report.roleExcesses = roleExcesses;
     }
   }
 

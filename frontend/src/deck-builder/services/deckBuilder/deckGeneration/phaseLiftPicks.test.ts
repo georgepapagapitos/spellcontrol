@@ -205,6 +205,32 @@ describe('liftPicksPhase', () => {
     expect(result?.packagePicks.map((p) => p.name)).toEqual(['Fresh Card']);
   });
 
+  it('excludes names passed via extraExcludeNames (C5 — a card the late swap phases just cut)', async () => {
+    // Yuriko-bracket4 case: bracket convergence cuts Kaito this same pass, so
+    // it must not immediately resurface as a "hidden synergy" package pick
+    // even though it's no longer in usedNames by the time lift picks run.
+    const state = makeState();
+    fetchCardLiftPoolMock.mockImplementation(async (seed) =>
+      seed === 'Cmd'
+        ? [
+            entry({ name: 'Kaito Shizuki', lift: 50, coPlayPct: 90, numDecks: 500 }),
+            entry({ name: 'Fresh Card', lift: 6, coPlayPct: 20, numDecks: 200 }),
+          ]
+        : []
+    );
+    getCardsByNamesMock.mockResolvedValue(
+      new Map([
+        ['Kaito Shizuki', card('Kaito Shizuki')],
+        ['Fresh Card', card('Fresh Card')],
+      ])
+    );
+
+    const result = await liftPicksPhase(state, {
+      extraExcludeNames: new Set(['Kaito Shizuki']),
+    });
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Fresh Card']);
+  });
+
   it('soft-fails to undefined (no throw) when a lift-pool fetch rejects', async () => {
     const state = makeState();
     fetchCardLiftPoolMock.mockRejectedValue(new Error('network down'));

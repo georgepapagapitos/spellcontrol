@@ -1008,6 +1008,10 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       .map((rd) => rd.label.toLowerCase());
     // Identify weak roles (deficit > 0), sorted by worst first
     const weakRoles = deficits.map((rd) => rd.label.toLowerCase());
+    // Identify overbuilt roles (current > target + 2) — the symmetric case to
+    // weakRoles above; a role crowding out the rest of the deck deserves the
+    // same headline visibility as one falling short.
+    const excessRoles = excesses.map((rd) => rd.label.toLowerCase());
 
     // Mana base descriptor
     const manaNote =
@@ -1046,6 +1050,11 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
       issues.push(`needs more ${weakRoles[0]} and ${weakRoles[1]}`);
     } else if (weakRoles.length > 2) {
       issues.push(`${weakRoles.length} roles under target`);
+    }
+    if (excessRoles.length === 1) {
+      issues.push(`overbuilt on ${excessRoles[0]}`);
+    } else if (excessRoles.length > 1) {
+      issues.push(`${excessRoles.length} roles overbuilt`);
     }
     if (manaNote) issues.push(manaNote);
     if (curveNote) issues.push(curveNote);

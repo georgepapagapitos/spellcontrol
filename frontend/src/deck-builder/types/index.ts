@@ -468,6 +468,9 @@ export interface BuildReport {
   synergyFills?: Array<{ name: string; matchedTags: string[]; liftedBy?: string[] }>;
   /** Per-role "wanted N, got M" gaps where the deck fell short of target. */
   roleGaps?: Array<{ role: string; have: number; want: number }>;
+  /** Roles significantly over target (>1.5x and >4 cards over), crowding out
+   *  the rest of the deck (e.g. a bloated ramp bucket). Report-only. */
+  roleExcesses?: Array<{ role: string; have: number; want: number }>;
   /** Cards that are owned but all copies are committed to other decks. */
   claimedConflicts?: number;
   /** "Hidden synergy" suggestions from EDHREC lift data — never added to the
@@ -541,7 +544,7 @@ export interface GeneratedDeck {
   detectedPacing?: Pacing; // Pacing estimated from EDHREC stats at generation time
   bracketEstimation?: import('@/deck-builder/services/deckBuilder/bracketEstimator').BracketEstimation;
   gameChangerNames?: string[]; // Cached for bracket re-estimation on swap (avoids async)
-  deckGrade?: { letter: string; headline: string }; // Overall grade computed at end of generation
+  deckGrade?: import('@/deck-builder/services/deckBuilder/commanderDeckAnalysis').DeckGrade; // Overall grade computed at end of generation
   generationMode?: GenerationMode; // Which generator built this deck (default 'edhrec')
   generationModeDetail?: string; // Mode-specific descriptor (art motif slug, or "year<=YYYY")
   generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool

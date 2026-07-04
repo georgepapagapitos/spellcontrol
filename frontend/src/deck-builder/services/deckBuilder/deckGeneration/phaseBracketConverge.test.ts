@@ -11,10 +11,15 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
 }));
 
-// stampRoleSubtypes is a no-op in tests.
-vi.mock('../categorize', () => ({
-  stampRoleSubtypes: () => {},
-}));
+// stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real
+// land-then-role-then-synergy routing.
+vi.mock('../categorize', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../categorize')>();
+  return {
+    ...actual,
+    stampRoleSubtypes: () => {},
+  };
+});
 
 import { applyBracketConvergence } from './phaseBracketConverge';
 import type { GenerationState } from './state';

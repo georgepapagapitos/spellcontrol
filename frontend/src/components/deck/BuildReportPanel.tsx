@@ -175,6 +175,7 @@ export function BuildReportPanel({
     collectionSubstitutions,
     synergyFills,
     roleGaps,
+    roleExcesses,
     claimedConflicts,
     generationMode,
     generationModeDetail,
@@ -491,6 +492,26 @@ export function BuildReportPanel({
               See cards to add &rarr;
             </button>
           )}
+        </div>
+      )}
+
+      {roleExcesses && roleExcesses.length > 0 && (
+        <div className="build-report-gaps">
+          <span className="build-report-gaps-label">Overbuilt roles</span>
+          <ul className="build-report-gaps-list">
+            {roleExcesses.map((g) => (
+              <li key={g.role} className="build-report-gap">
+                <span className="build-report-gap-label">{humanizeRole(g.role)}</span>
+                <span className="build-report-gap-count" aria-label={`${g.have} of ${g.want}`}>
+                  {g.have}
+                  <span className="build-report-gap-target">
+                    {' / '}
+                    {g.want}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

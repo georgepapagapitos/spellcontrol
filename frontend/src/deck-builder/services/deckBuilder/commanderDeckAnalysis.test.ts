@@ -269,6 +269,26 @@ describe('computeGradeAndBracket', () => {
     expect(typeof deckGrade?.letter).toBe('string');
     expect(typeof deckGrade?.headline).toBe('string');
   });
+
+  it('forwards over-target roles as deckGrade.trims instead of discarding them (C1)', () => {
+    const cards = [card('Sol Ring', 1), card('Cultivate', 3)];
+    // ramp: 25 vs a 10 target — well past the analyzer's own current>target+2
+    // excess threshold. Previously computeGradeAndBracket only kept
+    // {letter, headline} from getDeckSummaryData, discarding this.
+    const { deckGrade } = computeGradeAndBracket({
+      allCardNames: cards.map((c) => c.name),
+      averageCmc: 2,
+      gameChangerNames: new Set<string>(),
+      allCards: cards,
+      roleCounts: { ramp: 25, removal: 8, boardwipe: 3, cardDraw: 10 },
+      roleTargets: { ramp: 10, removal: 8, boardwipe: 3, cardDraw: 10 },
+      edhrecData: edhrec(),
+      deckSize: 99,
+    });
+    expect(deckGrade?.trims).toBeDefined();
+    expect(deckGrade?.trims?.some((t) => t.label.toLowerCase() === 'ramp')).toBe(true);
+    expect(deckGrade?.headline.toLowerCase()).toContain('ramp');
+  });
 });
 
 describe('buildStrategyEngineInput', () => {
