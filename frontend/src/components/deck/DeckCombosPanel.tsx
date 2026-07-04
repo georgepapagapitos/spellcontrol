@@ -31,6 +31,7 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { useDeckCombos } from '../../lib/use-deck-combos';
+import { comboPayoffScore } from '../../lib/combo-payoff';
 import {
   comboNameKey,
   useEdhrecComboOverlay,
@@ -211,8 +212,11 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     [tab, data?.inDeck, filteredOneAway]
   );
   // Float combos EDHREC lists for this commander to the top (by EDHREC rank),
-  // keeping the rest in their existing global-popularity order below. This is
-  // the "de-emphasize obscure combos for this commander" re-rank.
+  // keeping the rest in their existing order below. For the one-away tab,
+  // "existing order" is payoff quality (E83 — a wincon beats a value combo
+  // regardless of raw play-count) with popularity as the final tie-break;
+  // the in-deck tab keeps plain popularity since every row there already
+  // fires, so ranking by payoff wouldn't change what's actionable.
   const matches = useMemo(() => {
     return [...unsortedMatches].sort((a, b) => {
       const as = statFor(a);
@@ -220,9 +224,13 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
       if (as && bs) return as.rank - bs.rank;
       if (as) return -1;
       if (bs) return 1;
+      if (tab === 'oneAway') {
+        const payoffDiff = comboPayoffScore(b.combo.produces) - comboPayoffScore(a.combo.produces);
+        if (payoffDiff !== 0) return payoffDiff;
+      }
       return b.combo.popularity - a.combo.popularity;
     });
-  }, [unsortedMatches, statFor]);
+  }, [unsortedMatches, statFor, tab]);
 
   // Did this deck contribute *any* oracle ids at all? If a deck was imported
   // before EnrichedCard.oracleId existed and the backfill hasn't reached it

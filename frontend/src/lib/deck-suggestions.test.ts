@@ -150,17 +150,30 @@ describe('buildSuggestionRows', () => {
     expect(combos.map((c) => c.name)).toEqual(["Thassa's Oracle"]);
   });
 
-  it('builds combo rows sorted by popularity with produces text', () => {
+  it('within the same payoff tier, builds combo rows sorted by popularity with produces text', () => {
     const { combos } = buildSuggestionRows(
       [],
       [
-        combo('c1', 'Demonic Consultation', 100, ['Win the game']),
-        combo('c2', 'Tainted Pact', 400, ['Win', 'the game']),
+        combo('c1', 'Demonic Consultation', 100, ['Infinite mana']),
+        combo('c2', 'Tainted Pact', 400, ['Infinite mana', 'Infinite draw']),
       ],
       opts()
     );
     expect(combos.map((c) => c.name)).toEqual(['Tainted Pact', 'Demonic Consultation']);
-    expect(combos[0].produces).toBe('Win + the game');
+    expect(combos[0].produces).toBe('Infinite mana + Infinite draw');
+  });
+
+  it('ranks by payoff quality (E83) ahead of raw popularity', () => {
+    const { combos } = buildSuggestionRows(
+      [],
+      [
+        combo('c1', 'Value Card', 9999, ['Gain infinite life']),
+        combo('c2', 'Win Card', 5, ['Win the game']),
+      ],
+      opts()
+    );
+    // The outright win ranks first despite far lower popularity.
+    expect(combos.map((c) => c.name)).toEqual(['Win Card', 'Value Card']);
   });
 
   it('does not duplicate a card across staples and combos, and ignores multi-missing combos', () => {

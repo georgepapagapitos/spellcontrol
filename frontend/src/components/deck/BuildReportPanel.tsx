@@ -4,6 +4,7 @@ import { Check, Loader2, Plus } from 'lucide-react';
 import type { BuildReport, DeckDataSource, GenerationMode } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import { ROLE_TITLES, type RoleKey } from '@/lib/role-badges';
+import { comboPayoffScore } from '@/lib/combo-payoff';
 import { VerdictBadge } from './VerdictBadge';
 import { OwnershipBadge } from './OwnershipBadge';
 import { ColorPip } from '@/components/shared/ManaSymbol';
@@ -198,8 +199,10 @@ export function BuildReportPanel({
   const isPartial = collectionStrategy === 'partial';
 
   // One-away Spellbook combos, owned-missing-piece first (they're the payoff:
-  // "add X — you already own it"), then by global popularity. Rows whose
-  // missing card can't be named are dropped rather than rendered blank.
+  // "add X — you already own it"), then by payoff quality (E83 — a wincon
+  // beats a value combo regardless of raw popularity), then by global
+  // popularity as the final tie-break. Rows whose missing card can't be named
+  // are dropped rather than rendered blank.
   const oneAwayRows = useMemo(() => {
     const rows = (oneAwayCombos ?? []).flatMap((match) => {
       const missingId = match.missingOracleIds[0];
@@ -211,7 +214,9 @@ export function BuildReportPanel({
     });
     rows.sort(
       (a, b) =>
-        Number(b.owned) - Number(a.owned) || b.match.combo.popularity - a.match.combo.popularity
+        Number(b.owned) - Number(a.owned) ||
+        comboPayoffScore(b.match.combo.produces) - comboPayoffScore(a.match.combo.produces) ||
+        b.match.combo.popularity - a.match.combo.popularity
     );
     return rows;
   }, [oneAwayCombos, ownedOracleIds]);

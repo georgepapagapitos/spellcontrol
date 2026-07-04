@@ -2,6 +2,7 @@ import type { GapAnalysisCard } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import type { ChangeOwnership } from './deck-change';
 import { normalizeForSearch } from './normalize-search';
+import { comboPayoffScore } from './combo-payoff';
 
 /**
  * Physical availability of a suggested card — the same state every Tune
@@ -139,12 +140,18 @@ export function buildSuggestionRows(
       : (b.inclusion ?? 0) - (a.inclusion ?? 0)
   );
 
-  // One-away combos: each names exactly one missing card. Sort by popularity,
-  // skip any card already shown as a staple or already in the deck.
+  // One-away combos: each names exactly one missing card. Sort by payoff
+  // quality (E83 — a wincon beats a value combo regardless of raw
+  // popularity), then by popularity as the tie-break. Skip any card already
+  // shown as a staple or already in the deck.
   const combos: SuggestionRow[] = [];
   const sorted = [...(oneAway ?? [])]
     .filter((m) => m.missingOracleIds.length === 1)
-    .sort((a, b) => b.combo.popularity - a.combo.popularity);
+    .sort(
+      (a, b) =>
+        comboPayoffScore(b.combo.produces) - comboPayoffScore(a.combo.produces) ||
+        b.combo.popularity - a.combo.popularity
+    );
   for (const m of sorted) {
     const card = m.combo.cards.find((c) => c.oracleId === m.missingOracleIds[0]);
     if (!card) continue;
