@@ -272,10 +272,8 @@ export function applyBracketConvergence(
     }
     if (candidates.length === 0) return null;
 
-    const byPriorityAsc = (
-      a: { card: ScryfallCard },
-      b: { card: ScryfallCard }
-    ): number => priorityFor(a.card.name) - priorityFor(b.card.name);
+    const byPriorityAsc = (a: { card: ScryfallCard }, b: { card: ScryfallCard }): number =>
+      priorityFor(a.card.name) - priorityFor(b.card.name);
     const safe = candidates.filter((c) => isFloorSafe(c.card.name)).sort(byPriorityAsc);
     const atFloor = candidates.filter((c) => !isFloorSafe(c.card.name)).sort(byPriorityAsc);
     const pick = safe[0] ?? atFloor[0];

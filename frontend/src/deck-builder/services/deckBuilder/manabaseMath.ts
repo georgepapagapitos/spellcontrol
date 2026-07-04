@@ -331,7 +331,8 @@ export function buildManabaseSummary(
     const typeLine = (c.type_line || c.card_faces?.[0]?.type_line || '').toLowerCase();
     return typeLine.includes('land') && fetchableBasicColors(c, identity).length > 0;
   };
-  const totalPermanents = lands.filter(producesMana).length + nonLandCards.filter(producesMana).length;
+  const totalPermanents =
+    lands.filter(producesMana).length + nonLandCards.filter(producesMana).length;
   const sumTargets = rawTargets.reduce((a, b) => a + b, 0);
   const capped =
     sumTargets > totalPermanents && totalPermanents > 0

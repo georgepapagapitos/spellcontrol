@@ -113,7 +113,9 @@ const damn = card({
 const dragon = (name: string) => card({ name, type_line: 'Creature — Dragon' });
 const dragonTribalBoard = [
   ...Array.from({ length: 22 }, (_, i) => dragon(`Dragon ${i}`)),
-  ...Array.from({ length: 6 }, (_, i) => card({ name: `Support ${i}`, type_line: 'Creature — Human' })),
+  ...Array.from({ length: 6 }, (_, i) =>
+    card({ name: `Support ${i}`, type_line: 'Creature — Human' })
+  ),
 ];
 const nonTribalBoard = Array.from({ length: 20 }, (_, i) =>
   card({ name: `Beater ${i}`, type_line: 'Creature — Human' })
@@ -214,9 +216,7 @@ describe('nonboFindings — positive-evidence gates', () => {
 
 describe('nonboFindings — tribal-dodge, reanimator, and Overload exceptions', () => {
   it('does not flag a modal non-tribe wipe in a deck that IS that tribe', () => {
-    expect(
-      nonboFindings([...dragonTribalBoard, cruxOfFate], invested('tokens'))
-    ).toHaveLength(0);
+    expect(nonboFindings([...dragonTribalBoard, cruxOfFate], invested('tokens'))).toHaveLength(0);
     expect(nonboFindings([...dragonTribalBoard, sivitri], invested('tokens'))).toHaveLength(0);
   });
 
@@ -227,9 +227,7 @@ describe('nonboFindings — tribal-dodge, reanimator, and Overload exceptions', 
   });
 
   it('does not flag a reanimation wipe (Living Death) in a graveyard-recursion deck', () => {
-    expect(
-      nonboFindings([livingDeath], invested('graveyard', 'tokens'))
-    ).toHaveLength(0);
+    expect(nonboFindings([livingDeath], invested('graveyard', 'tokens'))).toHaveLength(0);
   });
 
   it('still flags the same reanimation wipe when the deck has no graveyard investment', () => {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { matchesExpectedType, categorizeCards, routeCardByType, computeRoleBoosts } from './categorize';
+import {
+  matchesExpectedType,
+  categorizeCards,
+  routeCardByType,
+  computeRoleBoosts,
+} from './categorize';
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 

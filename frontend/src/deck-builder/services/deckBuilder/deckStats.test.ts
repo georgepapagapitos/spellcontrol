@@ -121,9 +121,7 @@ describe('calculateStats', () => {
       cmc: 2,
       colors: ['G'],
     });
-    const stats = calculateStats(
-      categories({ creatures: [makeCard({ cmc: 3 })], lands: [mdfc] })
-    );
+    const stats = calculateStats(categories({ creatures: [makeCard({ cmc: 3 })], lands: [mdfc] }));
     expect(stats.typeDistribution['Land']).toBe(1);
     expect(stats.typeDistribution['Sorcery']).toBeUndefined();
     // Curve total must equal the nonland card count (1 creature) — the MDFC's

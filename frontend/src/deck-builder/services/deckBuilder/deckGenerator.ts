@@ -329,9 +329,10 @@ export function buildLandCountNote(params: {
   edhrecRampCount: number;
   finalAvgCmc: number;
 }): string {
+  const label = ARCHETYPE_LABEL[params.archetype];
   const archetypeText = params.isLowConfidence
     ? "for this deck's profile"
-    : `for a ${ARCHETYPE_LABEL[params.archetype]} deck`;
+    : `for ${/^[AEIOU]/i.test(label) ? 'an' : 'a'} ${label} deck`;
   return `Auto-tuned to ${params.finalLandCount} lands ${archetypeText} (${params.edhrecRampCount} typical ramp sources, avg CMC ${params.finalAvgCmc.toFixed(1)}) — set land count explicitly under Customize to override.`;
 }
 

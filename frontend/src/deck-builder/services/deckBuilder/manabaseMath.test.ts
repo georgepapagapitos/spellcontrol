@@ -328,7 +328,7 @@ describe('buildManabaseSummary', () => {
     expect(summary.note).toMatch(/white/);
   });
 
-  it('caps per-color targets so they can never sum past the deck\'s actual mana sources', () => {
+  it("caps per-color targets so they can never sum past the deck's actual mana sources", () => {
     // 5-color deck, heavy pips in every color, but a small, mono-color-only
     // manabase — the old capacity-share math let per-color targets sum to
     // multiples of the real source count (Ur-Dragon: 153 target vs 95 total).
@@ -365,9 +365,7 @@ describe('buildManabaseSummary', () => {
     );
     // No WUBRG pips at all, but the manabase panel still needs a real,
     // renderable line (not a blank section) — a single {C} entry.
-    expect(summary.lines).toEqual([
-      { color: 'C', pips: 0, sources: 4, target: 4, short: false },
-    ]);
+    expect(summary.lines).toEqual([{ color: 'C', pips: 0, sources: 4, target: 4, short: false }]);
     // …and nonlandSources/the note both reflect the real colorless base.
     expect(summary.nonlandSources).toBe(1);
     expect(summary.note).toMatch(/colorless/);

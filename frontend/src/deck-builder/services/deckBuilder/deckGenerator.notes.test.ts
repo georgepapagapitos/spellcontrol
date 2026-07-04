@@ -18,7 +18,7 @@ describe('buildLandCountNote', () => {
       edhrecRampCount: 10,
       finalAvgCmc: 3.2,
     });
-    expect(note).toContain('for a Enchantress deck');
+    expect(note).toContain('for an Enchantress deck');
   });
 
   it('softens the copy instead of naming a low-confidence archetype guess', () => {
