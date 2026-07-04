@@ -36,7 +36,7 @@
     "multer": "^2.2.0",
     "onnxruntime-node": "^1.26.0",
     "pg": "^8.22.0",
-    "sharp": "^0.35.2",
+    "sharp": "^0.35.3",
     "stream-json": "^3.4.0"
   },
   "devDependencies": {
@@ -46,7 +46,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/multer": "^2.0.0",
+    "@types/multer": "^2.2.0",
     "@types/node": "^25.6.2",
     "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.0",
@@ -56,7 +56,7 @@
     "globals": "^17.7.0",
     "prettier": "^3.8.3",
     "supertest": "^7.2.2",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
     "vitest": "^4.1.5"

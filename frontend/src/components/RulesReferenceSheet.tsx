@@ -127,7 +127,7 @@ function RulesReferenceBody({ onClose }: { onClose: () => void }) {
             setExpanded(null);
           }}
           ariaLabel="Rules reference sections"
-          variant="underline"
+          variant="fitted"
           className="rules-ref-tabs"
         />
 

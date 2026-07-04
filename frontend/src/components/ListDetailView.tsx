@@ -7,6 +7,7 @@ import type {
   Finish,
   ListDef,
   ListEntry,
+  ScryfallQueryRule,
   SortDir,
   SortField,
 } from '../types';
@@ -200,6 +201,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleExpr, setOracleExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [oracleTagExpr, setOracleTagExpr] = useState<ChipExpression>(EMPTY_EXPR);
+  const [scryfallQuery, setScryfallQuery] = useState<ScryfallQueryRule | undefined>(undefined);
   const [legalityExpr, setLegalityExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [layoutExpr, setLayoutExpr] = useState<ChipExpression>(EMPTY_EXPR);
   const [treatmentExpr, setTreatmentExpr] = useState<ChipExpression>(EMPTY_EXPR);
@@ -236,6 +238,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
     if (!isExpressionEmpty(rarityExpr)) f.rarities = rarityExpr;
     if (!isExpressionEmpty(oracleExpr)) f.oracleChips = oracleExpr;
     if (!isExpressionEmpty(oracleTagExpr)) f.oracleTagChips = oracleTagExpr;
+    if (scryfallQuery) f.scryfallQuery = scryfallQuery;
     if (!isExpressionEmpty(legalityExpr)) f.legalities = legalityExpr;
     if (!isExpressionEmpty(layoutExpr)) f.layouts = layoutExpr;
     if (!isExpressionEmpty(treatmentExpr)) f.treatments = treatmentExpr;
@@ -253,6 +256,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
     rarityExpr,
     oracleExpr,
     oracleTagExpr,
+    scryfallQuery,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -340,6 +344,13 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
     exprChip('subtype', 'Subtype', subtypeExpr, () => setSubtypeExpr(EMPTY_EXPR));
     exprChip('oracle', 'Text', oracleExpr, () => setOracleExpr(EMPTY_EXPR));
     exprChip('oracleTag', 'Tags', oracleTagExpr, () => setOracleTagExpr(EMPTY_EXPR), cardTagLabel);
+    if (scryfallQuery) {
+      chips.push({
+        id: 'scryfallQuery',
+        label: `Scryfall: ${scryfallQuery.query}`,
+        onClear: () => setScryfallQuery(undefined),
+      });
+    }
     exprChip('legality', 'Legal in', legalityExpr, () => setLegalityExpr(EMPTY_EXPR));
     exprChip('layout', 'Layout', layoutExpr, () => setLayoutExpr(EMPTY_EXPR));
     exprChip('treatment', 'Treatment', treatmentExpr, () => setTreatmentExpr(EMPTY_EXPR));
@@ -376,6 +387,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
     subtypeExpr,
     oracleExpr,
     oracleTagExpr,
+    scryfallQuery,
     legalityExpr,
     layoutExpr,
     treatmentExpr,
@@ -394,6 +406,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
     setRarityExpr(EMPTY_EXPR);
     setOracleExpr(EMPTY_EXPR);
     setOracleTagExpr(EMPTY_EXPR);
+    setScryfallQuery(undefined);
     setLegalityExpr(EMPTY_EXPR);
     setLayoutExpr(EMPTY_EXPR);
     setTreatmentExpr(EMPTY_EXPR);
@@ -500,6 +513,8 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
               setOracleExpr={setOracleExpr}
               oracleTagExpr={oracleTagExpr}
               setOracleTagExpr={setOracleTagExpr}
+              scryfallQuery={scryfallQuery}
+              setScryfallQuery={setScryfallQuery}
               legalityExpr={legalityExpr}
               setLegalityExpr={setLegalityExpr}
               layoutExpr={layoutExpr}

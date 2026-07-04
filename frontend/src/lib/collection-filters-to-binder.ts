@@ -1,4 +1,4 @@
-import type { BinderFilter, BinderFilterGroup, ChipExpression } from '../types';
+import type { BinderFilter, BinderFilterGroup, ChipExpression, ScryfallQueryRule } from '../types';
 import { isExpressionEmpty } from './rules';
 
 /**
@@ -13,6 +13,7 @@ export interface CollectionFilterInput {
   rarityExpr: ChipExpression;
   oracleExpr: ChipExpression;
   oracleTagExpr: ChipExpression;
+  scryfallQuery: ScryfallQueryRule | undefined;
   legalityExpr: ChipExpression;
   layoutExpr: ChipExpression;
   treatmentExpr: ChipExpression;
@@ -42,6 +43,7 @@ export function hasStructuredFilter(input: CollectionFilterInput): boolean {
     !isExpressionEmpty(input.rarityExpr) ||
     !isExpressionEmpty(input.oracleExpr) ||
     !isExpressionEmpty(input.oracleTagExpr) ||
+    input.scryfallQuery !== undefined ||
     !isExpressionEmpty(input.legalityExpr) ||
     !isExpressionEmpty(input.layoutExpr) ||
     !isExpressionEmpty(input.treatmentExpr) ||
@@ -106,6 +108,16 @@ export function collectionFiltersToFilterGroup(input: CollectionFilterInput): {
   // Oracle tags (Scryfall otags)
   if (!isExpressionEmpty(input.oracleTagExpr)) {
     filter.oracleTagChips = cloneExpr(input.oracleTagExpr);
+  }
+
+  // Scryfall query — already snapshot-resolved to oracle ids, so it maps
+  // faithfully to binder rules.
+  if (input.scryfallQuery) {
+    filter.scryfallQuery = {
+      query: input.scryfallQuery.query,
+      oracleIds: [...input.scryfallQuery.oracleIds],
+      resolvedAt: input.scryfallQuery.resolvedAt,
+    };
   }
 
   // Legalities
@@ -249,6 +261,10 @@ export function deriveBinderName(input: CollectionFilterInput): string {
   if (input.setFilter.size > 0 && parts.length < 3) {
     const codes = [...input.setFilter].slice(0, 2);
     parts.push(codes.join(', '));
+  }
+
+  if (input.scryfallQuery && parts.length < 3) {
+    parts.push(input.scryfallQuery.query);
   }
 
   if (parts.length === 0) return 'Filtered binder';
