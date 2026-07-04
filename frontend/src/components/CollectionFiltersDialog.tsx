@@ -1,7 +1,7 @@
 import { ListFilter, X } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ChipExpression, Condition, MaterializedBinder } from '../types';
+import type { ChipExpression, Condition, MaterializedBinder, ScryfallQueryRule } from '../types';
 import type { SetMap } from '../lib/api';
 import { Modal } from './Modal';
 import { SetFilterPicker } from './SetFilterPicker';
@@ -52,6 +52,13 @@ interface Props {
    */
   oracleTagExpr?: ChipExpression;
   setOracleTagExpr?: (next: ChipExpression) => void;
+
+  /**
+   * Free-text Scryfall query snapshot-resolved to oracle ids. Omitted by
+   * surfaces that should not hit the live Scryfall search API from filters.
+   */
+  scryfallQuery?: ScryfallQueryRule;
+  setScryfallQuery?: (next: ScryfallQueryRule | undefined) => void;
 
   legalityExpr: ChipExpression;
   setLegalityExpr: (next: ChipExpression) => void;
@@ -207,6 +214,8 @@ function DialogBody({
   setOracleExpr,
   oracleTagExpr,
   setOracleTagExpr,
+  scryfallQuery,
+  setScryfallQuery,
   legalityExpr,
   setLegalityExpr,
   layoutExpr,
@@ -253,6 +262,9 @@ function DialogBody({
   const [draftRarity, setDraftRarity] = useState<ChipExpression>(rarityExpr);
   const [draftOracle, setDraftOracle] = useState<ChipExpression>(oracleExpr);
   const [draftOracleTag, setDraftOracleTag] = useState<ChipExpression>(oracleTagExpr ?? EMPTY_EXPR);
+  const [draftScryfallQuery, setDraftScryfallQuery] = useState<ScryfallQueryRule | undefined>(
+    scryfallQuery
+  );
   const [draftLegality, setDraftLegality] = useState<ChipExpression>(legalityExpr);
   const [draftLayout, setDraftLayout] = useState<ChipExpression>(layoutExpr);
   const [draftTreatment, setDraftTreatment] = useState<ChipExpression>(treatmentExpr);
@@ -273,6 +285,7 @@ function DialogBody({
 
   const showBinder = binderExpr !== undefined && !hideBinderFilter;
   const showOracleTags = oracleTagExpr !== undefined;
+  const showScryfallQuery = setScryfallQuery !== undefined;
   const showOptions = groupPrintings !== undefined;
   const showSurplus = setSurplusOnly !== undefined;
   const showFinish = finishExpr !== undefined;
@@ -288,6 +301,7 @@ function DialogBody({
     draftRarity.chips.length > 0 ||
     draftOracle.chips.length > 0 ||
     (showOracleTags && draftOracleTag.chips.length > 0) ||
+    (showScryfallQuery && draftScryfallQuery !== undefined) ||
     draftLegality.chips.length > 0 ||
     draftLayout.chips.length > 0 ||
     draftTreatment.chips.length > 0 ||
@@ -308,6 +322,7 @@ function DialogBody({
   const draftAsFilter: import('../types').BinderFilter = {
     oracleChips: draftOracle,
     ...(showOracleTags ? { oracleTagChips: draftOracleTag } : {}),
+    ...(showScryfallQuery ? { scryfallQuery: draftScryfallQuery } : {}),
     legalities: draftLegality,
     layouts: draftLayout,
     treatments: draftTreatment,
@@ -318,6 +333,7 @@ function DialogBody({
   const handleFilterPatch = (p: Partial<import('../types').BinderFilter>) => {
     if (p.oracleChips !== undefined) setDraftOracle(p.oracleChips);
     if (p.oracleTagChips !== undefined) setDraftOracleTag(p.oracleTagChips);
+    if ('scryfallQuery' in p) setDraftScryfallQuery(p.scryfallQuery);
     if (p.legalities !== undefined) setDraftLegality(p.legalities);
     if (p.layouts !== undefined) setDraftLayout(p.layouts);
     if (p.treatments !== undefined) setDraftTreatment(p.treatments);
@@ -342,6 +358,7 @@ function DialogBody({
     setRarityExpr(draftRarity);
     setOracleExpr(draftOracle);
     if (showOracleTags) setOracleTagExpr?.(draftOracleTag);
+    if (showScryfallQuery) setScryfallQuery?.(draftScryfallQuery);
     setLegalityExpr(draftLegality);
     setLayoutExpr(draftLayout);
     setTreatmentExpr(draftTreatment);
@@ -371,6 +388,7 @@ function DialogBody({
     setDraftRarity(EMPTY_EXPR);
     setDraftOracle(EMPTY_EXPR);
     setDraftOracleTag(EMPTY_EXPR);
+    setDraftScryfallQuery(undefined);
     setDraftLegality(EMPTY_EXPR);
     setDraftLayout(EMPTY_EXPR);
     setDraftTreatment(EMPTY_EXPR);
@@ -478,6 +496,7 @@ function DialogBody({
           value={draftAsFilter}
           onPatch={handleFilterPatch}
           showOracleTags={showOracleTags}
+          showScryfallQuery={showScryfallQuery}
           showFinish={showFinish}
           showOracleText={showOracleText}
           showLegality={showLegality}

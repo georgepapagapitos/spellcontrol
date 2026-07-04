@@ -90,7 +90,7 @@ function isFilterEmpty(f: BinderFilter): boolean {
 //   Type line, Color identity, Rarity, CMC (mana value), Price
 // BELOW the fold (collapsed behind "More rules" expander):
 //   Name contains, Mana cost, Commander, Sets, Finishes, Layout, Treatment,
-//   Border, EDHREC popularity, Legalities, Oracle text
+//   Border, EDHREC popularity, Legalities, Oracle text, Scryfall query
 //
 // Auto-open rule: if any collapsed field carries a value, the expander must
 // start open so the user can see their active rules when editing.
@@ -109,6 +109,7 @@ function hasCollapsedFieldValue(f: BinderFilter): boolean {
   if (f.legalities && f.legalities.chips.length > 0) return true;
   if (f.oracleChips && f.oracleChips.chips.length > 0) return true;
   if (f.oracleTagChips && f.oracleTagChips.chips.length > 0) return true;
+  if (f.scryfallQuery) return true;
   if (f.typeTokenChips && f.typeTokenChips.chips.length > 0) return true;
   if (f.supertypeChips && f.supertypeChips.chips.length > 0) return true;
   if (f.subtypeChips && f.subtypeChips.chips.length > 0) return true;

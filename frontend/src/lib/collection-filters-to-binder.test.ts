@@ -29,6 +29,7 @@ function makeInput(overrides: Partial<CollectionFilterInput> = {}): CollectionFi
     rarityExpr: EMPTY_EXPR,
     oracleExpr: EMPTY_EXPR,
     oracleTagExpr: EMPTY_EXPR,
+    scryfallQuery: undefined,
     legalityExpr: EMPTY_EXPR,
     layoutExpr: EMPTY_EXPR,
     treatmentExpr: EMPTY_EXPR,
@@ -74,6 +75,14 @@ describe('hasStructuredFilter', () => {
   it('true when an oracle tag is set', () => {
     expect(hasStructuredFilter(makeInput({ oracleTagExpr: chip('mana-rock') }))).toBe(true);
   });
+
+  it('true when a Scryfall query is set', () => {
+    expect(
+      hasStructuredFilter(
+        makeInput({ scryfallQuery: { query: 'otag:pillow-fort', oracleIds: ['o1'] } })
+      )
+    ).toBe(true);
+  });
 });
 
 describe('collectionFiltersToFilterGroup', () => {
@@ -114,6 +123,14 @@ describe('collectionFiltersToFilterGroup', () => {
     // clone guard — mutating the result must not touch the input
     group.filter.oracleTagChips!.chips.push({ value: 'ramp', negate: false });
     expect(oracleTagExpr.chips).toHaveLength(2);
+  });
+
+  it('maps scryfallQuery → scryfallQuery (cloned)', () => {
+    const scryfallQuery = { query: 'otag:pillow-fort', oracleIds: ['o1'], resolvedAt: 123 };
+    const { group } = collectionFiltersToFilterGroup(makeInput({ scryfallQuery }));
+    expect(group.filter.scryfallQuery).toEqual(scryfallQuery);
+    group.filter.scryfallQuery!.oracleIds.push('o2');
+    expect(scryfallQuery.oracleIds).toEqual(['o1']);
   });
 
   it('maps setFilter → setCodes (uppercased)', () => {
