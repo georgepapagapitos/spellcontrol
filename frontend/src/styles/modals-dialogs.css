@@ -649,6 +649,22 @@
   border-top: 0.5px solid var(--border);
 }
 
+/* Condition + language selects (inventory details mode). Full-width pills so
+   the two rows read as a form column under the finish buttons. */
+.card-edit-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding-top: var(--space-2);
+  border-top: 0.5px solid var(--border);
+}
+
+.card-edit-details-select .toolbar-pill {
+  width: 100%;
+  justify-content: space-between;
+}
+
 .card-edit-single-note {
   margin: 0;
   width: 100%;

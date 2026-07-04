@@ -1,11 +1,10 @@
-import { Check, ChevronDown, ChevronRight, Layers, Plus } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Layers, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { fetchPrintings } from '../lib/api';
 import { useSearchCards } from '../lib/use-search-cards';
-import { formatMoney } from '../lib/format-money';
 import { availableFinishes } from '../lib/scanner-feedback';
 import { ManaCost } from './ManaCost';
 import { CardPreview } from './CardPreview';
+import { PrintingPicker, type AddExtras } from './PrintingPicker';
 import { useCollectionStore } from '../store/collection';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -21,25 +20,14 @@ interface Props {
    * (`store.addCard`). Pass to retarget the same results UI elsewhere — e.g.
    * the list view adds a list entry instead. Receives the chosen printing and
    * finish (finish omitted on a plain quick-add → the result's default).
+   * Retargeted adds hide the collection-only extras (quantity/condition/
+   * language pickers and the remove-last-added undo).
    */
   onAdd?: (card: ScryfallCard, finish?: Finish) => Promise<void> | void;
 }
 
 const RESULT_LIMIT = 60;
 const PAGE_SIZE = 10;
-const PRINTING_PAGE_SIZE = 8;
-const FINISH_LABEL: Record<Finish, string> = {
-  nonfoil: 'Non-foil',
-  foil: 'Foil',
-  etched: 'Etched',
-};
-
-function priceForFinish(card: ScryfallCard, finish: Finish): number {
-  const p = card.prices;
-  if (!p) return 0;
-  const raw = finish === 'foil' ? p.usd_foil : finish === 'etched' ? p.usd_etched : p.usd;
-  return raw ? Number(raw) || 0 : 0;
-}
 
 function cardThumb(card: ScryfallCard): string | undefined {
   return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
@@ -52,17 +40,23 @@ function cardThumb(card: ScryfallCard): string | undefined {
  * the trailing card/row. Quick-add uses the printing Scryfall returns
  * (nonfoil), same as the top-level Add card button; the per-row
  * "Printings" disclosure lazily loads every printing so a specific set +
- * finish can be chosen inline. All network goes through the shared
- * rate-limited, cached client.
+ * finish (plus quantity/condition/language) can be chosen inline. A "−"
+ * next to the added count removes the last copy added this session, so a
+ * mis-tap never needs a trip back to the collection table. All network
+ * goes through the shared rate-limited, cached client.
  */
 export function InlineCardSearch({ query, onClose, onAdd }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
+  const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const collection = useCollectionStore((s) => s.cards);
 
   const [openPrintingsId, setOpenPrintingsId] = useState<string | null>(null);
   // How many copies the user added this session, keyed by scryfall id, so
   // the row can confirm the action without re-deriving from the collection.
   const [addedCounts, setAddedCounts] = useState<Record<string, number>>({});
+  // The collection copyIds behind those counts (collection mode only) —
+  // what makes the "−" undo possible. Empty in retargeted (onAdd) mode.
+  const [addedCopyIds, setAddedCopyIds] = useState<Record<string, string[]>>({});
   // Progressive reveal instead of an inner scrollbar — the page scrolls.
   const [visible, setVisible] = useState(PAGE_SIZE);
   // Index into `results` of the card whose full-size preview is open (null =
@@ -101,19 +95,45 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
   // window; each card defaults to the nonfoil printing (same as quick-add).
   const previewCards = useMemo(() => results.map((c) => scryfallToEnrichedCard(c)), [results]);
 
-  const confirm = (id: string) =>
-    setAddedCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
-
-  const quickAdd = async (card: ScryfallCard) => {
-    if (onAdd) await onAdd(card);
-    else await addCard(card);
-    confirm(card.id);
+  const confirm = (id: string, copyIds: string[] = [], count = Math.max(1, copyIds.length)) => {
+    setAddedCounts((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + count }));
+    if (copyIds.length > 0) {
+      setAddedCopyIds((prev) => ({ ...prev, [id]: [...(prev[id] ?? []), ...copyIds] }));
+    }
   };
 
-  const addPrinting = async (card: ScryfallCard, finish: Finish) => {
-    if (onAdd) await onAdd(card, finish);
-    else await addCard(card, finish);
-    confirm(card.id);
+  const quickAdd = async (card: ScryfallCard) => {
+    if (onAdd) {
+      await onAdd(card);
+      confirm(card.id);
+    } else {
+      confirm(card.id, await addCard(card));
+    }
+  };
+
+  const addPrinting = async (
+    card: ScryfallCard,
+    printing: ScryfallCard,
+    finish: Finish,
+    extras: AddExtras
+  ) => {
+    if (onAdd) {
+      await onAdd(printing, finish);
+      confirm(card.id);
+    } else {
+      confirm(card.id, await addCard(printing, finish, extras));
+    }
+  };
+
+  // Remove the most recently added copy of this result (collection mode).
+  // replaceAllCards re-runs allocation/binder remapping, same as the edit flow.
+  const undoAdd = async (id: string) => {
+    const ids = addedCopyIds[id];
+    const last = ids?.[ids.length - 1];
+    if (!last) return;
+    setAddedCopyIds((prev) => ({ ...prev, [id]: ids.slice(0, -1) }));
+    setAddedCounts((prev) => ({ ...prev, [id]: Math.max(0, (prev[id] ?? 1) - 1) }));
+    await replaceAllCards(useCollectionStore.getState().cards.filter((c) => c.copyId !== last));
   };
 
   return (
@@ -140,6 +160,7 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
           {results.slice(0, visible).map((c, idx) => {
             const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
             const added = addedCounts[c.id] ?? 0;
+            const canUndo = (addedCopyIds[c.id]?.length ?? 0) > 0;
             const printingsOpen = openPrintingsId === c.id;
             const finishes = availableFinishes(c.finishes);
             return (
@@ -183,6 +204,16 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
                   )}
                   <span className="inline-card-search-meta">
                     {added > 0 && <span className="inline-card-search-added">added ×{added}</span>}
+                    {canUndo && (
+                      <button
+                        type="button"
+                        className="inline-card-search-undo"
+                        aria-label={`Remove last added copy of ${c.name}`}
+                        onClick={() => void undoAdd(c.id)}
+                      >
+                        <Minus width={12} height={12} strokeWidth={2.5} aria-hidden />
+                      </button>
+                    )}
                     {owned > 0 && (
                       <span className="inline-card-search-owned">in collection ×{owned}</span>
                     )}
@@ -207,7 +238,10 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
                   <PrintingPicker
                     cardName={c.name}
                     fallback={c}
-                    onAdd={(printing, finish) => void addPrinting(printing, finish)}
+                    showExtras={!onAdd}
+                    onAdd={(printing, finish, extras) =>
+                      void addPrinting(c, printing, finish, extras)
+                    }
                   />
                 )}
               </li>
@@ -272,139 +306,15 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
                 <PrintingPicker
                   cardName={card.name}
                   fallback={card}
-                  onAdd={(printing, finish) => void addPrinting(printing, finish)}
+                  showExtras={!onAdd}
+                  onAdd={(printing, finish, extras) =>
+                    void addPrinting(card, printing, finish, extras)
+                  }
                 />
               </div>
             );
           }}
         />
-      )}
-    </div>
-  );
-}
-
-function PrintingPicker({
-  cardName,
-  fallback,
-  onAdd,
-}: {
-  cardName: string;
-  fallback: ScryfallCard;
-  onAdd: (printing: ScryfallCard, finish: Finish) => void;
-}) {
-  const [printings, setPrintings] = useState<ScryfallCard[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string>(fallback.id);
-  const [finish, setFinish] = useState<Finish>('nonfoil');
-  const [pVisible, setPVisible] = useState(PRINTING_PAGE_SIZE);
-
-  // cardName is fixed for this picker's lifetime (a different row mounts a
-  // fresh picker), so the initial loading/error state is correct and we
-  // never need to reset synchronously inside the effect.
-  useEffect(() => {
-    let cancelled = false;
-    fetchPrintings(cardName)
-      .then((ps) => {
-        if (cancelled) return;
-        const list = ps.length > 0 ? ps : [fallback];
-        setPrintings(list);
-        setSelectedId(list.some((p) => p.id === fallback.id) ? fallback.id : list[0].id);
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Couldn't load printings");
-        setPrintings([fallback]);
-        setSelectedId(fallback.id);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [cardName, fallback]);
-
-  const selected = printings?.find((p) => p.id === selectedId) ?? null;
-  const finishes = useMemo<Finish[]>(
-    () => (selected ? availableFinishes(selected.finishes) : ['nonfoil']),
-    [selected]
-  );
-  // The user's explicit pick may not exist on a newly selected printing —
-  // fall back to its first finish without an effect (no flicker, no
-  // set-state-in-effect).
-  const effectiveFinish: Finish = finishes.includes(finish) ? finish : finishes[0];
-
-  return (
-    <div className="inline-card-search-printings">
-      {loading && <p className="inline-card-search-status">Loading printings…</p>}
-      {error && <p className="inline-card-search-status inline-card-search-error">{error}</p>}
-      {printings && (
-        <>
-          <ul className="inline-card-search-printing-list" role="listbox" aria-label="Printings">
-            {printings.slice(0, pVisible).map((p) => {
-              const isSel = p.id === selectedId;
-              return (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={isSel}
-                    className={`inline-card-search-printing${isSel ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedId(p.id)}
-                  >
-                    <span className="inline-card-search-printing-set">
-                      {p.set.toUpperCase()} #{p.collector_number}
-                    </span>
-                    <span className="inline-card-search-printing-set-name">{p.set_name}</span>
-                    <span className="inline-card-search-printing-price">
-                      {formatMoney(priceForFinish(p, 'nonfoil') || priceForFinish(p, 'foil'), {
-                        zeroAsDash: true,
-                      })}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {printings.length > pVisible && (
-            <button
-              type="button"
-              className="inline-card-search-more inline-card-search-more--printings"
-              onClick={() => setPVisible((v) => v + PRINTING_PAGE_SIZE)}
-            >
-              Show {Math.min(PRINTING_PAGE_SIZE, printings.length - pVisible)} more printings
-            </button>
-          )}
-          {selected && (
-            <div className="inline-card-search-finish-bar">
-              <div className="inline-card-search-finishes" role="group" aria-label="Finish">
-                {finishes.map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    className={`inline-card-search-finish${
-                      effectiveFinish === f ? ' is-active' : ''
-                    }`}
-                    aria-pressed={effectiveFinish === f}
-                    onClick={() => setFinish(f)}
-                  >
-                    {FINISH_LABEL[f]}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="inline-card-search-add-printing"
-                onClick={() => onAdd(selected, effectiveFinish)}
-              >
-                Add {selected.set.toUpperCase()} #{selected.collector_number} ·{' '}
-                {FINISH_LABEL[effectiveFinish]} ·{' '}
-                {formatMoney(priceForFinish(selected, effectiveFinish), { zeroAsDash: true })}
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );

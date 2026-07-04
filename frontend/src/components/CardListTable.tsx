@@ -2284,6 +2284,7 @@ export function CardListTable({
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingSingle ? undefined : editingQty}
           singleCopy={editingSingle}
+          details={{ condition: editingCard.condition, language: editingCard.language }}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />

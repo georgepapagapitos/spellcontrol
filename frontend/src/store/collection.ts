@@ -7,6 +7,7 @@ import type {
   BinderDef,
   BinderInput,
   BinderReviewSnapshot,
+  Condition,
   EnrichedCard,
   Finish,
   ListDef,
@@ -169,11 +170,16 @@ interface CollectionState {
    */
   replaceAllCards: (cards: EnrichedCard[]) => Promise<void>;
   /**
-   * Adds a single card to the collection from a Scryfall card object.
-   * Creates an EnrichedCard with a fresh copyId and persists. Returns the
-   * new copyId so callers can pin it to a binder in the same action.
+   * Adds one or more copies of a card to the collection from a Scryfall card
+   * object. Each copy gets a fresh copyId; optional per-copy details
+   * (condition/language) are stamped on all of them. Persists once. Returns
+   * the new copyIds so callers can pin them to a binder in the same action.
    */
-  addCard: (card: ScryfallCard, finish?: Finish) => Promise<string>;
+  addCard: (
+    card: ScryfallCard,
+    finish?: Finish,
+    extras?: { quantity?: number; condition?: Condition; language?: string }
+  ) => Promise<string[]>;
   clearCards: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   setError: (err: string | null) => void;
@@ -647,17 +653,22 @@ export const useCollectionStore = create<CollectionState>()(
         }
       },
 
-      addCard: async (card, finish) => {
-        const enriched = { ...scryfallToEnrichedCard(card, finish), updatedAt: Date.now() };
-        const s = get();
-        const updated = [...s.cards, enriched];
-        set({ cards: updated });
+      addCard: async (card, finish, extras) => {
+        const qty = Math.max(1, Math.floor(extras?.quantity ?? 1));
+        const now = Date.now();
+        const rows = Array.from({ length: qty }, () => {
+          const enriched = { ...scryfallToEnrichedCard(card, finish), updatedAt: now };
+          if (extras?.condition) enriched.condition = extras.condition;
+          if (extras?.language) enriched.language = extras.language;
+          return enriched;
+        });
+        set({ cards: [...get().cards, ...rows] });
         try {
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
           logger.warn('[store] Failed to persist after addCard:', err);
         }
-        return enriched.copyId;
+        return rows.map((r) => r.copyId);
       },
 
       refreshPrices: async (scryfallIds, opts) => {
