@@ -196,18 +196,18 @@ function totalOf(state: GenerationState): number {
 }
 
 describe('applyBudgetConvergence', () => {
-  it('no-ops when the deck is already at or under budget', () => {
+  it('no-ops when the deck is already at or under budget', async () => {
     const state = makeState();
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 1000 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 1000 }));
     expect(result.applied).toBe(0);
     expect(result.residualReason).toBeUndefined();
     expect(state.usedNames.has('Pricey Card')).toBe(true);
   });
 
-  it('converges an over-budget deck by swapping the priciest card for a cheaper alternative', () => {
+  it('converges an over-budget deck by swapping the priciest card for a cheaper alternative', async () => {
     // deck total = 30 + 15 + 2 = 47, budget 40
     const state = makeState();
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
 
     expect(result.applied).toBeGreaterThanOrEqual(1);
     expect(result.finalTotal).toBeLessThanOrEqual(40);
@@ -217,9 +217,9 @@ describe('applyBudgetConvergence', () => {
     expect(totalOf(state)).toBeCloseTo(result.finalTotal, 1);
   });
 
-  it('never cuts a must-include card', () => {
+  it('never cuts a must-include card', async () => {
     const state = makeState();
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, mustIncludeNames: new Set(['pricey card']) })
     );
@@ -228,7 +228,7 @@ describe('applyBudgetConvergence', () => {
     expect(result.finalTotal).toBeGreaterThan(0);
   });
 
-  it('never cuts the commander, even if a same-named card somehow sits in categories', () => {
+  it('never cuts the commander, even if a same-named card somehow sits in categories', async () => {
     // Not how generation normally shapes the deck (the commander lives outside
     // `categories`), but isProtected() checks commanderNames by name alone
     // regardless of where the card sits — verify that guard directly.
@@ -238,22 +238,31 @@ describe('applyBudgetConvergence', () => {
       scryfallCard('Cheap Card', '2'),
     ];
     state.usedNames = new Set(['Test Commander', 'Cheap Card']);
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 5 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 5 }));
     expect(state.usedNames.has('Test Commander')).toBe(true);
     expect(result.residualReason).toBeDefined();
   });
 
-  it('never cuts a tracked combo piece', () => {
+  // state.comboCardNames (round 4: a SOFT protection — a weaker "combo-
+  // flavored candidate" signal than an actually-complete combo, see
+  // completeComboNames) isn't touched here because stage 1 alone already
+  // converges via Mid Card; softness only shows up once stage 1 can't reach
+  // budget without it (see the round-4 tests below).
+  it('never cuts a tracked combo piece when unprotected candidates suffice', async () => {
     const state = makeState();
     state.comboCardNames = new Set(['Pricey Card']);
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.finalTotal).toBeGreaterThan(0);
   });
 
-  it('never cuts a lift-protected card (>=2 seeds)', () => {
+  // Round 4: lift-protection is now SOFT (yields in stage 2 if needed) — this
+  // fixture's stage 1 alone converges via Mid Card, so Pricey Card is never
+  // even offered up. See the round-4 "soft protections yield" test below for
+  // the case where they must.
+  it('never cuts a lift-protected card (>=2 seeds) when unprotected candidates suffice', async () => {
     const state = makeState();
-    applyBudgetConvergence(
+    await applyBudgetConvergence(
       state,
       baseCtx({
         deckBudget: 40,
@@ -263,52 +272,58 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Pricey Card')).toBe(true);
   });
 
-  it('never cuts a game changer', () => {
+  it('never cuts a game changer when unprotected candidates suffice (soft — no explicit targetBracket)', async () => {
     // A GC-protected Pricey Card still lets the pass converge via Mid Card
     // (30 protected + 15 - 13 savings + 2 = 34 <= 40) — the point is Pricey
     // Card itself is never touched, not that the deck gets stuck.
     const state = makeState();
     state.gameChangerNames = new Set(['Pricey Card']);
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.finalTotal).toBeLessThanOrEqual(40);
   });
 
-  it('never cuts an alt-win-condition card', () => {
+  // Round 4: the alt-win FLOOR is hard — with exactly one alt-win card in the
+  // deck, it's the last remaining win condition and can never be cut, no
+  // matter how far over budget (unlike load-bearing/lift/GC, which yield).
+  it('never cuts the last remaining alt-win-condition card (hard floor)', async () => {
     vi.mocked(isAltWinCard).mockImplementation((c) => (c as ScryfallCard).name === 'Pricey Card');
     const state = makeState();
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.finalTotal).toBeLessThanOrEqual(40);
     vi.mocked(isAltWinCard).mockReturnValue(false);
   });
 
-  it('never cuts a load-bearing engine card', () => {
+  it('never cuts a load-bearing engine card when unprotected candidates suffice', async () => {
     vi.mocked(isLoadBearing).mockImplementation((c) => (c as ScryfallCard).name === 'Pricey Card');
     const state = makeState();
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.finalTotal).toBeLessThanOrEqual(40);
     vi.mocked(isLoadBearing).mockReturnValue(false);
   });
 
-  it('only swaps in a strictly cheaper replacement (never a lateral or pricier one)', () => {
+  it('only swaps in a strictly cheaper replacement (never a lateral or pricier one)', async () => {
     const state = makeState();
     const map = poolScryfallMap();
     map.set('Cheap Alt A', scryfallCard('Cheap Alt A', '35')); // pricier than Pricey Card's $30
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
     expect(state.usedNames.has('Cheap Alt A')).toBe(false);
     // Still converges via a cheaper pool candidate.
     expect(result.finalTotal).toBeLessThanOrEqual(40);
   });
 
-  it('respects the role cap: a role-null replacement never pushes a role over its cap', () => {
+  it('respects the role cap: a role-null replacement never pushes a role over its cap', async () => {
     vi.mocked(getCardRole).mockImplementation((name: string) =>
       name === 'Cheap Alt A' ? 'ramp' : null
     );
     const state = makeState();
     state.currentRoleCounts = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, roleTargets: { ramp: 2, removal: 0, boardwipe: 0, cardDraw: 0 } })
     );
@@ -327,7 +342,7 @@ describe('applyBudgetConvergence', () => {
   // tolerance (a generator-allowed escape-hatch overshoot) — the role-cap
   // gate was wrongly applied to same-role candidates too, blocking every
   // same-role swap for those roles.
-  it('exempts a same-role swap from the role-cap gate even when that role is already over cap', () => {
+  it('exempts a same-role swap from the role-cap gate even when that role is already over cap', async () => {
     vi.mocked(getCardRole).mockImplementation((name: string) =>
       name === 'Pricey Card' || name === 'Cheap Alt A' ? 'removal' : null
     );
@@ -335,7 +350,7 @@ describe('applyBudgetConvergence', () => {
     // Removal already over cap (10 >= 7+tolerance(2)=9) BEFORE any cut —
     // mirrors Atraxa's live roleCounts.removal=10 vs roleTargets.removal=7.
     state.currentRoleCounts = { ramp: 0, removal: 10, boardwipe: 0, cardDraw: 0 };
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, roleTargets: { ramp: 0, removal: 7, boardwipe: 0, cardDraw: 0 } })
     );
@@ -347,7 +362,7 @@ describe('applyBudgetConvergence', () => {
     vi.mocked(getCardRole).mockReturnValue(null);
   });
 
-  it('shortlists candidates within the priority band, then picks the cheapest of that shortlist', () => {
+  it('shortlists candidates within the priority band, then picks the cheapest of that shortlist', async () => {
     vi.mocked(getCardRole).mockImplementation((name: string) =>
       ['Pricey Card', 'High Prio', 'Mid Prio', 'Low Prio'].includes(name) ? 'removal' : null
     );
@@ -366,7 +381,10 @@ describe('applyBudgetConvergence', () => {
       },
     } as unknown as GenerationState['edhrecData'];
 
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
 
     // Not the highest-priority (barely cheaper) and not the outright
     // cheapest (too far outside the quality band) — the cheapest WITHIN the
@@ -378,7 +396,7 @@ describe('applyBudgetConvergence', () => {
     vi.mocked(getCardRole).mockReturnValue(null);
   });
 
-  it('declines a swap when the best candidate does not clear the minimum-savings threshold', () => {
+  it('declines a swap when the best candidate does not clear the minimum-savings threshold', async () => {
     const state = makeState();
     const map = new Map<string, ScryfallCard>();
     // Saves $0.10 on a $30 cut — below MIN_SAVINGS (max($0.50, 1% of $40) = $0.50).
@@ -387,7 +405,10 @@ describe('applyBudgetConvergence', () => {
       cardlists: { allNonLand: [edhrecCard('Barely Cheaper', 80)] },
     } as unknown as GenerationState['edhrecData'];
 
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
 
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(state.usedNames.has('Barely Cheaper')).toBe(false);
@@ -400,7 +421,7 @@ describe('applyBudgetConvergence', () => {
   // cheaper candidate exists — even one with much bigger raw savings/priority
   // (the coordinator's Fyndhorn Elves→Reclamation Sage / Chain Reaction→
   // Goblin War Party role-degrading trades were exactly this crossing).
-  it('never replaces a role-bearing card with a different-role candidate when a same-role cheaper candidate exists', () => {
+  it('never replaces a role-bearing card with a different-role candidate when a same-role cheaper candidate exists', async () => {
     vi.mocked(getCardRole).mockImplementation((name: string) => {
       if (name === 'Pricey Card') return 'ramp';
       if (name === 'Same Role Cheap') return 'ramp';
@@ -418,7 +439,10 @@ describe('applyBudgetConvergence', () => {
       },
     } as unknown as GenerationState['edhrecData'];
 
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
 
     expect(state.usedNames.has('Same Role Cheap')).toBe(true);
     expect(state.usedNames.has('Cross Role Cheaper')).toBe(false);
@@ -432,12 +456,12 @@ describe('applyBudgetConvergence', () => {
   // negative — getEffectiveCap floors its dynamic cap at Math.max(0, ...),
   // i.e. exactly $0, so gating on it flunks every candidate unconditionally.
   // This phase must NOT read the tracker for gating.
-  it('converges even when the BudgetTracker is exhausted/negative (krenko-shaped repro)', () => {
+  it('converges even when the BudgetTracker is exhausted/negative (krenko-shaped repro)', async () => {
     const state = makeState();
     const tracker = new BudgetTracker(-50, 5, 'USD'); // already deep in the red
     expect(tracker.getEffectiveCap(null)).toBe(0); // confirms the trap is live
 
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, budgetTracker: tracker })
     );
@@ -447,7 +471,7 @@ describe('applyBudgetConvergence', () => {
     expect(state.usedNames.has('Pricey Card')).toBe(false);
   });
 
-  it('does not gate a replacement on the static maxCardPrice either — only strictly-cheaper matters', () => {
+  it('does not gate a replacement on the static maxCardPrice either — only strictly-cheaper matters', async () => {
     // maxCardPrice is no longer part of BudgetConvergeContext at all (the
     // whole per-card cap concept is out of scope for a convergence swap —
     // see the phase's header comment); this just pins that a pricier-than-cap
@@ -455,16 +479,19 @@ describe('applyBudgetConvergence', () => {
     const state = makeState();
     const map = poolScryfallMap();
     map.set('Cheap Alt A', scryfallCard('Cheap Alt A', '25')); // still < $30 cut price
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
     expect(result.applied).toBeGreaterThanOrEqual(1);
   });
 
-  it('credits the tracker back for the cut card, not just deducting the replacement', () => {
+  it('credits the tracker back for the cut card, not just deducting the replacement', async () => {
     const state = makeState();
     const tracker = new BudgetTracker(1000, 5, 'USD');
     const cardsBefore = tracker.cardsRemaining;
 
-    applyBudgetConvergence(state, baseCtx({ deckBudget: 40, budgetTracker: tracker }));
+    await applyBudgetConvergence(state, baseCtx({ deckBudget: 40, budgetTracker: tracker }));
 
     // Pricey Card ($30) cut, Cheap Alt A ($2) added: -2 (deduct on add) + 30
     // (credit on cut) = net +28 — the tracker must not just drift ever-more
@@ -474,25 +501,28 @@ describe('applyBudgetConvergence', () => {
     expect(tracker.cardsRemaining).toBe(cardsBefore);
   });
 
-  it('reports a finalTotal matching an independent recomputation over the final deck (parity with deckGenerator.ts)', () => {
+  it('reports a finalTotal matching an independent recomputation over the final deck (parity with deckGenerator.ts)', async () => {
     const state = makeState();
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
     expect(result.finalTotal).toBe(totalOf(state));
   });
 
-  it('gates candidates on color identity', () => {
+  it('gates candidates on color identity', async () => {
     const state = makeState();
     const map = poolScryfallMap();
     for (const [name, card] of map) map.set(name, { ...card, color_identity: ['B'] });
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, scryfallCardMap: map })
+    );
     // colorIdentity is [] (colorless commander) — no off-color candidate can be added.
     expect(result.applied).toBe(0);
     expect(result.residualReason).toBeDefined();
   });
 
-  it('gates candidates via the synergy-dependency guard (cardAllowed)', () => {
+  it('gates candidates via the synergy-dependency guard (cardAllowed)', async () => {
     const state = makeState();
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, cardAllowed: () => false })
     );
@@ -500,9 +530,9 @@ describe('applyBudgetConvergence', () => {
     expect(result.residualReason).toBeDefined();
   });
 
-  it('gates candidates via salt-blocked names', () => {
+  it('gates candidates via salt-blocked names', async () => {
     const state = makeState();
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, isSaltBlocked: () => true })
     );
@@ -510,7 +540,7 @@ describe('applyBudgetConvergence', () => {
     expect(result.residualReason).toBeDefined();
   });
 
-  it('protects every card in a complete combo passed via detectedCombos (not just state.comboCardNames)', () => {
+  it('protects every card in a complete combo passed via detectedCombos (not just state.comboCardNames)', async () => {
     const state = makeState();
     const combo: DetectedCombo = {
       comboId: 'k',
@@ -523,7 +553,7 @@ describe('applyBudgetConvergence', () => {
       bracketTag: null,
       cardCount: 2,
     };
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 40, detectedCombos: [combo] })
     );
@@ -535,22 +565,22 @@ describe('applyBudgetConvergence', () => {
     expect(result.residualReason).toBeDefined();
   });
 
-  it('stops after a bounded number of swaps / rounds rather than looping forever', () => {
+  it('stops after a bounded number of swaps / rounds rather than looping forever', async () => {
     // Build a deck of many distinct priced cards with no cheaper alternative
     // available anywhere (pool is empty) — convergence must give up cleanly.
     const state = makeState();
     state.edhrecData = {
       cardlists: { allNonLand: [] },
     } as unknown as GenerationState['edhrecData'];
-    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 1 }));
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 1 }));
     expect(result.applied).toBe(0);
     expect(result.residualReason).toBe('no cheaper alternatives could be sourced offline');
   });
 
-  it('names must-includes/combo pieces as the residual reason when everything left is protected', () => {
+  it('names must-includes/combo pieces as the residual reason when everything left is protected', async () => {
     const state = makeState();
     state.mustIncludeNames = ['Pricey Card', 'Mid Card', 'Cheap Card'];
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({
         deckBudget: 1,
@@ -563,9 +593,9 @@ describe('applyBudgetConvergence', () => {
     );
   });
 
-  it('names a generic reason when unprotected cards remain but no legal alternative exists', () => {
+  it('names a generic reason when unprotected cards remain but no legal alternative exists', async () => {
     const state = makeState();
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 1, cardAllowed: () => false })
     );
@@ -575,15 +605,130 @@ describe('applyBudgetConvergence', () => {
     );
   });
 
-  it('does not word the residual reason as if partial progress happened, even at 0 swaps', () => {
+  it('does not word the residual reason as if partial progress happened, even at 0 swaps', async () => {
     // The exact bug from the live eval: "the rest is..." implies something
     // already converged. With 0 swaps the wording must not say "the rest".
     const state = makeState();
-    const result = applyBudgetConvergence(
+    const result = await applyBudgetConvergence(
       state,
       baseCtx({ deckBudget: 1, cardAllowed: () => false })
     );
     expect(result.applied).toBe(0);
     expect(result.residualReason).not.toMatch(/\bthe rest\b/i);
+  });
+
+  // ── Round 4 fixes (E79) ──────────────────────────────────────────────────
+  // A live eval on Atraxa (dense superfriends/counters synergy) still hit 0
+  // swaps after round 3 — the flat isProtected union effectively protected
+  // the whole deck. These tests pin the tiered hard/soft split and the
+  // budget-pool candidate-source merge that fixed it.
+
+  it('converges even when every nonland card is load-bearing (soft protections yield in stage 2)', async () => {
+    vi.mocked(isLoadBearing).mockReturnValue(true);
+    const state = makeState();
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    expect(result.finalTotal).toBeLessThanOrEqual(40);
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(result.residualReason).toBeUndefined();
+    vi.mocked(isLoadBearing).mockReturnValue(false);
+  });
+
+  it('hard protections survive even while stage 2 cuts a soft-protected card right next to them', async () => {
+    vi.mocked(isAltWinCard).mockImplementation((c) => (c as ScryfallCard).name === 'Pricey Card');
+    vi.mocked(isLoadBearing).mockImplementation((c) => (c as ScryfallCard).name === 'Mid Card');
+    const state = makeState();
+    // Pricey Card ($30): the ONLY alt-win card → hard (last-wincon floor).
+    // Mid Card ($15): load-bearing → soft, yields once needed.
+    // Cheap Card ($2): unprotected throughout.
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
+    expect(state.usedNames.has('Pricey Card')).toBe(true); // hard floor: never touched
+    expect(state.usedNames.has('Mid Card')).toBe(false); // soft: yielded once stage 1 wasn't enough
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    vi.mocked(isAltWinCard).mockReturnValue(false);
+    vi.mocked(isLoadBearing).mockReturnValue(false);
+  });
+
+  it('discloses which soft protection yielded in the swap reason string', async () => {
+    vi.mocked(isLoadBearing).mockImplementation((c) => (c as ScryfallCard).name === 'Pricey Card');
+    const state = makeState();
+    // Tight enough that Mid + Cheap alone can't reach it, forcing stage 2 to
+    // cut the (soft) load-bearing Pricey Card too.
+    const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
+    const pricey = result.repairs.find((r) => r.cut === 'Pricey Card');
+    expect(pricey?.reason).toBe(
+      'Saves $27.00 — similar card type; swapped a synergy engine piece to fit your budget'
+    );
+    vi.mocked(isLoadBearing).mockReturnValue(false);
+  });
+
+  it('never falls back to same-type/any for a role-bearing cut card when the same-role tier is empty', async () => {
+    vi.mocked(getCardRole).mockImplementation((name: string) =>
+      name === 'Pricey Card' ? 'ramp' : null
+    );
+    const state = makeState();
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 40,
+        // Force Pricey Card to be the only cuttable candidate.
+        mustIncludeNames: new Set(['mid card', 'cheap card']),
+      })
+    );
+    // Pricey Card is ramp-tagged, but the pool has zero ramp candidates
+    // (Cheap Alt A/B/C are role-null) — must decline outright, never cross
+    // into the same-type ('Artifact') fallback.
+    expect(state.usedNames.has('Pricey Card')).toBe(true);
+    expect(result.applied).toBe(0);
+    vi.mocked(getCardRole).mockReturnValue(null);
+  });
+
+  it('merges ctx.fetchBudgetPool candidates into the replacement pool', async () => {
+    const state = makeState();
+    const budgetCard = scryfallCard('Budget Alt', '1'); // cheaper than anything in the standard pool
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 40,
+        fetchBudgetPool: async () => ({
+          pool: [edhrecCard('Budget Alt', 95)], // highest priority — wins the shortlist
+          scryfallMap: new Map([['Budget Alt', budgetCard]]),
+        }),
+      })
+    );
+    expect(state.usedNames.has('Budget Alt')).toBe(true);
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+  });
+
+  it('soft-fails to the standard pool when ctx.fetchBudgetPool throws', async () => {
+    const state = makeState();
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({
+        deckBudget: 40,
+        fetchBudgetPool: async () => {
+          throw new Error('network down');
+        },
+      })
+    );
+    // The fetch failure never breaks generation — still converges via the
+    // standard pool.
+    expect(result.finalTotal).toBeLessThanOrEqual(40);
+    expect(state.usedNames.has('Cheap Alt A')).toBe(true);
+  });
+
+  it('soft-fails to the standard pool when ctx.fetchBudgetPool resolves null', async () => {
+    const state = makeState();
+    const result = await applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 40, fetchBudgetPool: async () => null })
+    );
+    expect(result.finalTotal).toBeLessThanOrEqual(40);
+  });
+
+  it('never calls fetchBudgetPool when the deck is already under budget (no wasted network call)', async () => {
+    const state = makeState();
+    const spy = vi.fn(async () => null);
+    await applyBudgetConvergence(state, baseCtx({ deckBudget: 1000, fetchBudgetPool: spy }));
+    expect(spy).not.toHaveBeenCalled();
   });
 });

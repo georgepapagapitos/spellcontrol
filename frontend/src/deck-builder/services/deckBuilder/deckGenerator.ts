@@ -4006,7 +4006,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
     ]);
     const budgetLiftIndex = getLiftIndex(state);
-    const budgetResult = applyBudgetConvergence(state, {
+    const budgetResult = await applyBudgetConvergence(state, {
       scryfallCardMap,
       detectedCombos,
       mustIncludeNames: budgetMustInclude,
@@ -4025,6 +4025,25 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       ignoreOwnedRarity,
       roleTargets,
       deckBudget,
+      // E79 round 4: the standard pool's leftover tail skews expensive (it's
+      // what generation already picked FROM), so merge in the commander's
+      // real EDHREC budget-deck pool for cheaper same-role alternatives.
+      // Soft-fails to null on any error — never breaks generation.
+      fetchBudgetPool: async () => {
+        try {
+          const budgetPoolData = await fetchCommanderData(commander.name, 'budget', targetBracket);
+          const unresolvedNames = budgetPoolData.cardlists.allNonLand
+            .map((c) => c.name)
+            .filter((n) => !scryfallCardMap.has(n));
+          const resolved =
+            unresolvedNames.length > 0
+              ? await getCardsByNames(unresolvedNames, undefined, preferredSet)
+              : new Map<string, ScryfallCard>();
+          return { pool: budgetPoolData.cardlists.allNonLand, scryfallMap: resolved };
+        } catch {
+          return null;
+        }
+      },
     });
     budgetRepairs = budgetResult.repairs;
     budgetConvergedSwaps = budgetResult.applied;

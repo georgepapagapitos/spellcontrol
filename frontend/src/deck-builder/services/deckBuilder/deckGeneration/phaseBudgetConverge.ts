@@ -112,6 +112,47 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 //    fixed, declining a too-small same-role swap outright (rather than
 //    reaching for a role-degrading fallback) keeps the deck's role balance
 //    the higher-priority invariant.
+//
+// ── Round 4 fixes (E79) ──
+// A live eval on Atraxa (a dense superfriends/counters synergy deck) still
+// produced 0 swaps and an "every remaining card is protected" note after
+// round 3 — but a dump-based reconstruction of `isProtected` found 22 of the
+// 30 priciest cards unprotected. The dump couldn't reproduce the LIVE
+// `analyzeDeckSynergy`/lift index, so the live isLoadBearing/lift-protected
+// sets were far broader than the reconstruction: for a deck this synergy-
+// dense, a flat "never cut" union over load-bearing + lift + GC effectively
+// protected the whole deck — a protection that protects everything protects
+// nothing the user asked for (a budget deck the user explicitly wants
+// trimmed). Two structural changes:
+//
+// 1. TIERED PROTECTIONS — hard vs soft. HARD (never cut, no matter what):
+//    commander(s), must-includes, complete-combo pieces, and the alt-win
+//    FLOOR (never cut the last remaining win condition — extra ones beyond
+//    the first are soft). SOFT (cut only once every fully-unprotected
+//    candidate is exhausted — a distinct second stage, priciest-soft-first,
+//    each such swap discloses which protection it yielded in the reason
+//    string): isLoadBearing, lift-protected (≥2 seeds), extra alt-win cards,
+//    game changers (but ONLY when the user didn't set an explicit
+//    targetBracket — with one set, GCs stay hard so a budget ask can't
+//    silently change the bracket ask), and comboCardNames (the generation-
+//    time combo-boost candidate set — a weaker "combo-flavored" signal than
+//    an actually-complete combo, which stays hard via completeComboNames).
+// 2. BUDGET-POOL CANDIDATE SOURCE: the standard EDHREC page (`pool`) is what
+//    generation itself picked from, so by convergence time its cheapest,
+//    most-popular cards are usually already IN the deck — the leftover tail
+//    skews toward similarly-priced-or-pricier staples, so same-role tiers
+//    can run dry even when real budget alternatives exist (Krenko stuck at
+//    $68 with "no cheaper legal alternative"). `ctx.fetchBudgetPool` (soft-
+//    fails to null — network/offline never breaks generation) lets the
+//    caller merge the commander's EDHREC "budget" pool + resolved
+//    ScryfallCards in, sourced the same way generation resolves its own pool
+//    (mirrors phaseCoherenceRepair's `getBasicLand` DI pattern so this phase
+//    stays pure/testable and agnostic to EDHREC/Scryfall mechanics). Same
+//    full gate set applies regardless of a candidate's source. One nuance:
+//    even with more candidates available, a role-BEARING cut card still only
+//    ever considers same-role candidates (never same-type/any) — the
+//    same-type fallback is for role-NULL cut cards only, so more candidates
+//    existing can't reintroduce a function-degrading cross-role trade.
 
 export const MAX_BUDGET_SWAPS = 20;
 const MAX_BUDGET_ROUNDS = 5;
@@ -148,6 +189,19 @@ export interface BudgetConvergeContext {
   /** The user's total-deck budget — always a number when this phase runs
    *  (the caller only invokes it when `cfg.deckBudget !== null`). */
   deckBudget: number;
+  /** Fetches the commander's EDHREC "budget" pool + resolves it to
+   *  ScryfallCards the same way generation resolves its own pool — injected
+   *  so this phase stays pure/testable and agnostic to EDHREC/Scryfall
+   *  mechanics (mirrors phaseCoherenceRepair's `getBasicLand` DI). MUST
+   *  soft-fail to `null` on any error/offline — never throw; a failure here
+   *  just means the merge is skipped and convergence proceeds with the
+   *  standard pool only. Omitted entirely (undefined) → merge never
+   *  attempted (e.g. tests that don't care, or a null-deckBudget path where
+   *  this phase never runs at all). */
+  fetchBudgetPool?: () => Promise<{
+    pool: EDHRECCard[];
+    scryfallMap: Map<string, ScryfallCard>;
+  } | null>;
 }
 
 export interface BudgetConvergeResult {
@@ -171,10 +225,10 @@ const ROLE_LABEL: Record<RoleKey, string> = {
   cardDraw: 'card draw',
 };
 
-export function applyBudgetConvergence(
+export async function applyBudgetConvergence(
   state: GenerationState,
   ctx: BudgetConvergeContext
-): BudgetConvergeResult {
+): Promise<BudgetConvergeResult> {
   const repairs: CoherenceRepair[] = [];
 
   const nonLands = (): ScryfallCard[] =>
@@ -194,8 +248,8 @@ export function applyBudgetConvergence(
   let total = totalNow();
   if (total <= ctx.deckBudget) return { applied: 0, finalTotal: total, repairs };
 
-  const pool = state.edhrecData?.cardlists.allNonLand;
-  if (!pool || pool.length === 0) {
+  const standardPool = state.edhrecData?.cardlists.allNonLand;
+  if (!standardPool || standardPool.length === 0) {
     logger.debug('[DeckGen] Budget converge: no EDHREC pool — skipped (offline)');
     return {
       applied: 0,
@@ -203,6 +257,39 @@ export function applyBudgetConvergence(
       repairs,
       residualReason: 'no cheaper alternatives could be sourced offline',
     };
+  }
+
+  // Merge in the commander's EDHREC "budget" pool (round 4) — the standard
+  // pool's leftover tail skews expensive (generation already picked its
+  // cheapest/best entries), so same-role tiers can run dry even when real
+  // budget alternatives exist. Soft-fails to the standard pool alone on any
+  // error (see the ctx.fetchBudgetPool doc comment) — this network call must
+  // never be able to break generation.
+  let pool = standardPool;
+  let scryfallCardMap = ctx.scryfallCardMap;
+  if (ctx.fetchBudgetPool) {
+    try {
+      const budgetResult = await ctx.fetchBudgetPool();
+      if (budgetResult && budgetResult.pool.length > 0) {
+        const existingNames = new Set(pool.map((c) => c.name));
+        const newCards = budgetResult.pool.filter((c) => !existingNames.has(c.name));
+        if (newCards.length > 0) {
+          pool = [...pool, ...newCards];
+          scryfallCardMap = new Map(ctx.scryfallCardMap);
+          for (const [name, card] of budgetResult.scryfallMap) {
+            if (!scryfallCardMap.has(name)) scryfallCardMap.set(name, card);
+          }
+          logger.debug(
+            `[DeckGen] Budget converge: merged ${newCards.length} budget-pool candidate(s)`
+          );
+        }
+      }
+    } catch (error) {
+      logger.debug(
+        '[DeckGen] Budget converge: budget-pool fetch failed, using standard pool',
+        error
+      );
+    }
   }
 
   // A swap below this saves pennies, not budget — churn that side-grades a
@@ -229,17 +316,37 @@ export function applyBudgetConvergence(
   // as the deck's synergy backbone).
   const deckSynergy = analyzeDeckSynergy([...commanders, ...nonLands()]);
 
-  const isProtected = (card: ScryfallCard): boolean =>
+  // True only for the LAST alt-win card left in the deck — extra ones beyond
+  // the first are a soft protection (see softProtectionLabel). Recomputed
+  // live each call (cheap at deck scale) so it always reflects the current
+  // count, including mid-round after an earlier swap.
+  const isLastAltWinCard = (card: ScryfallCard): boolean =>
+    isAltWinCard(card) && nonLands().filter((c) => isAltWinCard(c)).length <= 1;
+
+  // HARD protections — never cut, no matter how far over budget the deck is.
+  const isHardProtected = (card: ScryfallCard): boolean =>
     commanderNames.includes(card.name) ||
     !!card.isMustInclude ||
     ctx.mustIncludeNames.has(card.name.toLowerCase()) ||
-    state.comboCardNames.has(card.name) ||
     completeComboNames.has(card.name) ||
     completeComboNames.has(frontFaceName(card.name)) ||
-    (ctx.liftedByOf(card.name.toLowerCase())?.length ?? 0) >= 2 ||
-    state.gameChangerNames.has(card.name) ||
-    isAltWinCard(card) ||
-    isLoadBearing(card, deckSynergy);
+    isLastAltWinCard(card);
+
+  // SOFT protections — cut only once every fully-unprotected candidate is
+  // exhausted (stage 2, below). Returns the human label to disclose in the
+  // swap's reason string, or null when no soft protection applies. Checked
+  // ONLY for cards that already cleared isHardProtected, so an alt-win card
+  // reaching here is guaranteed not to be the last one.
+  const softProtectionLabel = (card: ScryfallCard): string | null => {
+    if (isLoadBearing(card, deckSynergy)) return 'a synergy engine piece';
+    if ((ctx.liftedByOf(card.name.toLowerCase())?.length ?? 0) >= 2)
+      return 'a strongly-linked synergy pick';
+    if (isAltWinCard(card)) return 'an extra win condition';
+    if (state.cfg.targetBracket === undefined && state.gameChangerNames.has(card.name))
+      return 'a game changer';
+    if (state.comboCardNames.has(card.name)) return 'a combo-flavored pick';
+    return null;
+  };
 
   const findInDeck = (name: string): { card: ScryfallCard; category: DeckCategory } | null => {
     for (const [cat, cards] of Object.entries(state.categories) as [
@@ -337,7 +444,7 @@ export function applyBudgetConvergence(
           c.name !== cutCard.name &&
           !state.usedNames.has(c.name) &&
           !state.bannedCards.has(c.name) &&
-          ctx.scryfallCardMap.has(c.name) &&
+          scryfallCardMap.has(c.name) &&
           !state.comboCardNames.has(c.name) &&
           !completeComboNames.has(c.name) &&
           !ctx.isSaltBlocked?.(c.name) &&
@@ -370,7 +477,7 @@ export function applyBudgetConvergence(
 
     const eligiblePairs = ranked
       .map((ec) => {
-        const sc = ctx.scryfallCardMap.get(ec.name);
+        const sc = scryfallCardMap.get(ec.name);
         return sc && gateOk(sc) ? { ec, sc } : null;
       })
       .filter((p): p is { ec: EDHRECCard; sc: ScryfallCard } => p != null);
@@ -381,12 +488,16 @@ export function applyBudgetConvergence(
       return cutPrice - replPrice >= MIN_SAVINGS;
     };
 
+    // A role-BEARING cut card is same-role-only, full stop — no same-type/any
+    // fallback, even if the same-role tier is entirely empty (round 4: more
+    // candidates from the merged budget pool must not reopen the door to a
+    // function-degrading cross-role trade). Only a role-NULL cut card (no
+    // tracked role to preserve) considers same-type, then any, as fallbacks.
     if (cutRole) {
       const sameRole = eligiblePairs.filter((p) => getCardRole(p.sc.name) === cutRole);
-      if (sameRole.length > 0) {
-        const pick = pickBestSavings(sameRole);
-        return meetsMinSavings(pick) ? pick : null;
-      }
+      if (sameRole.length === 0) return null;
+      const pick = pickBestSavings(sameRole);
+      return meetsMinSavings(pick) ? pick : null;
     }
     const sameType = eligiblePairs.filter((p) => primaryTypeOf(p.sc) === cutType);
     if (sameType.length > 0) {
@@ -397,7 +508,15 @@ export function applyBudgetConvergence(
     return meetsMinSavings(anyPick) ? anyPick : null;
   };
 
-  const reasonFor = (cut: ScryfallCard, added: ScryfallCard, savings: number): string => {
+  // `softLabel` is non-null only for a stage-2 (soft-protected) cut — appends
+  // a disclosure clause naming which protection yielded, e.g. "Saves $6.10 —
+  // same ramp role; swapped a synergy engine piece to fit your budget".
+  const reasonFor = (
+    cut: ScryfallCard,
+    added: ScryfallCard,
+    savings: number,
+    softLabel: string | null
+  ): string => {
     const sym = ctx.currency === 'EUR' ? '€' : '$';
     const cutRole = getCardRole(cut.name);
     const addedRole = getCardRole(added.name);
@@ -407,50 +526,73 @@ export function applyBudgetConvergence(
         : primaryTypeOf(cut) === primaryTypeOf(added)
           ? 'similar card type'
           : 'cheaper alternative';
-    return `Saves ${sym}${savings.toFixed(2)} — ${bucket}`;
+    const base = `Saves ${sym}${savings.toFixed(2)} — ${bucket}`;
+    return softLabel ? `${base}; swapped ${softLabel} to fit your budget` : base;
   };
 
   let applied = 0;
 
-  for (let round = 0; round < MAX_BUDGET_ROUNDS && total > ctx.deckBudget; round++) {
-    // Priciest-first each round: the biggest single swap makes the fastest
-    // progress toward budget, and a fresh sort picks up any composition change
-    // (a previous round's swap, role/GC counters shifting what's now legal).
-    const cuttable = nonLands()
-      .filter((c) => !isProtected(c))
-      .map((c) => ({ card: c, price: parsePrice(getCardPrice(c, ctx.currency)) }))
-      .filter((c): c is { card: ScryfallCard; price: number } => c.price != null && c.price > 0)
-      .sort((a, b) => b.price - a.price);
+  // Runs bounded rounds of priciest-cuttable-first swaps against whichever
+  // `isCuttable` predicate the stage below passes in, sharing `applied`/
+  // `total`/MAX bounds across stages. `total > ctx.deckBudget` already stops
+  // a stage the moment the deck converges, so calling this twice (stage 1
+  // fully-unprotected, stage 2 soft-eligible too) is just "try the cheaper,
+  // safer pool first."
+  const runRounds = (isCuttable: (card: ScryfallCard) => boolean): void => {
+    for (let round = 0; round < MAX_BUDGET_ROUNDS && total > ctx.deckBudget; round++) {
+      // Priciest-first each round: the biggest single swap makes the fastest
+      // progress toward budget, and a fresh sort picks up any composition
+      // change (a previous round's swap, role/GC counters shifting what's
+      // now legal, or a soft protection's live re-evaluation).
+      const cuttable = nonLands()
+        .filter(isCuttable)
+        .map((c) => ({ card: c, price: parsePrice(getCardPrice(c, ctx.currency)) }))
+        .filter((c): c is { card: ScryfallCard; price: number } => c.price != null && c.price > 0)
+        .sort((a, b) => b.price - a.price);
 
-    let progressed = false;
-    for (const { card, price } of cuttable) {
-      if (total <= ctx.deckBudget || applied >= MAX_BUDGET_SWAPS) break;
-      // The card may already have been swapped out earlier this round via a
-      // different candidate's replacement path — re-verify it's still seated.
-      if (!findInDeck(card.name)) continue;
+      let progressed = false;
+      for (const { card, price } of cuttable) {
+        if (total <= ctx.deckBudget || applied >= MAX_BUDGET_SWAPS) break;
+        // The card may already have been swapped out earlier this round via a
+        // different candidate's replacement path — re-verify it's still seated.
+        if (!findInDeck(card.name)) continue;
 
-      const replacement = findReplacement(card, price);
-      if (!replacement) continue;
+        const replacement = findReplacement(card, price);
+        if (!replacement) continue;
 
-      const replPrice = parsePrice(getCardPrice(replacement, ctx.currency)) ?? 0;
-      const savings = price - replPrice;
-      const loc = findInDeck(card.name)!;
-      removeCard(loc.card, loc.category);
-      commitAdd(replacement);
-      total -= savings;
-      applied++;
-      progressed = true;
-      repairs.push({
-        cut: card.name,
-        added: replacement.name,
-        reason: reasonFor(card, replacement, savings),
-      });
-      logger.debug(
-        `[DeckGen] Budget converge: cut ${card.name} ($${price.toFixed(2)}) → added ${replacement.name} ($${replPrice.toFixed(2)})`
-      );
+        const replPrice = parsePrice(getCardPrice(replacement, ctx.currency)) ?? 0;
+        const savings = price - replPrice;
+        const loc = findInDeck(card.name)!;
+        // softProtectionLabel is re-checked at cut time (not just via the
+        // isCuttable filter above) so the reason string always names the
+        // REAL protection this specific card yielded, whether this is a
+        // stage-1 (always null) or stage-2 cut.
+        const softLabel = softProtectionLabel(card);
+        removeCard(loc.card, loc.category);
+        commitAdd(replacement);
+        total -= savings;
+        applied++;
+        progressed = true;
+        repairs.push({
+          cut: card.name,
+          added: replacement.name,
+          reason: reasonFor(card, replacement, savings, softLabel),
+        });
+        logger.debug(
+          `[DeckGen] Budget converge: cut ${card.name} ($${price.toFixed(2)}) → added ${replacement.name} ($${replPrice.toFixed(2)})${softLabel ? ` [soft: ${softLabel}]` : ''}`
+        );
+      }
+
+      if (!progressed) break; // every remaining offender is protected/unreplaceable
     }
+  };
 
-    if (!progressed) break; // every remaining offender is protected/unreplaceable
+  // Stage 1: fully-unprotected candidates only (neither hard nor soft).
+  runRounds((c) => !isHardProtected(c) && softProtectionLabel(c) === null);
+  // Stage 2: only reached if stage 1 didn't converge — soft protections now
+  // yield too (still never hard-protected ones).
+  if (total > ctx.deckBudget) {
+    runRounds((c) => !isHardProtected(c));
   }
 
   // Recompute fresh rather than trusting the incrementally-decremented `total`
@@ -471,12 +613,15 @@ export function applyBudgetConvergence(
 
   // Still over — say why, worded so it's equally honest whether 0 or N swaps
   // ran (never implies a partial job or an exhaustive search that didn't
-  // happen). If every remaining priced card is protected, that's the reason;
-  // otherwise some unprotected cards simply had no legal cheaper alternative
-  // (a thin pool, or every candidate blocked by a hard gate) — including the
-  // 0-swap case, since findReplacement really did search every cuttable card.
+  // happen). By this point BOTH stages have run, so "protected" here means
+  // HARD only (soft protections already got their chance in stage 2) — if
+  // every remaining priced card is hard-protected, that's the reason;
+  // otherwise some cards (soft or never-protected) simply had no legal
+  // cheaper alternative (a thin pool, or every candidate blocked by a hard
+  // gate) — including the 0-swap case, since findReplacement really did
+  // search every cuttable card in both stages.
   const remainingUnprotectedPriced = nonLands().filter((c) => {
-    if (isProtected(c)) return false;
+    if (isHardProtected(c)) return false;
     const p = parsePrice(getCardPrice(c, ctx.currency));
     return p != null && p > 0;
   });

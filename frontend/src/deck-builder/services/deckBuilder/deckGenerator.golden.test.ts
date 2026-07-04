@@ -177,6 +177,7 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -260,6 +261,19 @@ describe('generateDeck — golden master', () => {
   it('produces a stable deck for the base (no-theme) mono-G context', async () => {
     const deck = await generateDeck(baseContext());
     expect(project(deck)).toMatchSnapshot();
+  });
+
+  // E79 round 4: phaseBudgetConverge only runs (and only fetches the EDHREC
+  // "budget" pool via ctx.fetchBudgetPool) when `deckBudget !== null`. The
+  // golden fixture never sets a budget, so no extra network call should ever
+  // fire — pins that the round-4 merge is fully inert on this path.
+  it('never fetches an EDHREC budget pool when deckBudget is null', async () => {
+    vi.mocked(fetchCommanderData).mockClear();
+    await generateDeck(baseContext());
+    const budgetCalls = vi
+      .mocked(fetchCommanderData)
+      .mock.calls.filter(([, budgetOption]) => budgetOption === 'budget');
+    expect(budgetCalls).toHaveLength(0);
   });
 
   it('is deterministic across repeated runs (the decomposition guarantee)', async () => {
