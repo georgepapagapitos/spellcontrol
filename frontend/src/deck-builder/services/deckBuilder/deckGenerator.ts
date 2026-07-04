@@ -4017,7 +4017,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       gameChangerCount,
       maxGameChangers,
       budgetTracker,
-      maxCardPrice,
       maxRarity,
       maxCmc,
       arenaOnly,

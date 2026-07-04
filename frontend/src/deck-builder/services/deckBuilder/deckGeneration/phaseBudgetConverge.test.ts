@@ -32,6 +32,7 @@ import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { BudgetTracker } from '../budgetTracker';
+import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import type { GenerationState } from './state';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -169,7 +170,6 @@ function baseCtx(overrides: Partial<Parameters<typeof applyBudgetConvergence>[1]
     gameChangerCount: { value: 0 },
     maxGameChangers: Infinity,
     budgetTracker: null,
-    maxCardPrice: null,
     maxRarity: null,
     maxCmc: null,
     arenaOnly: false,
@@ -183,9 +183,13 @@ function baseCtx(overrides: Partial<Parameters<typeof applyBudgetConvergence>[1]
 }
 
 function totalOf(state: GenerationState): number {
+  // Same math as deckGenerator.ts:~4062-4066's finalTotal recompute (sum
+  // getCardPrice over nonlands + lands, commander excluded since it never
+  // lives in `categories`) — using the real getCardPrice, not a hand-rolled
+  // `.prices.usd` read, so this is a genuine parity check, not a tautology.
   let sum = 0;
   for (const card of Object.values(state.categories).flat()) {
-    const p = card.prices?.usd;
+    const p = getCardPrice(card, 'USD');
     if (p) sum += parseFloat(p) || 0;
   }
   return sum;
@@ -315,15 +319,58 @@ describe('applyBudgetConvergence', () => {
     vi.mocked(getCardRole).mockReturnValue(null);
   });
 
-  it('gates candidates through the effective budget cap (BudgetTracker), not just maxCardPrice', () => {
+  // Root-cause repro for the live-eval bug (krenko-budget50: 0 swaps on a $71
+  // mono-red deck with a $50 budget, next to a false "no cheaper alternatives"
+  // note). Once a deck is over budget, BudgetTracker.remainingBudget is
+  // negative — getEffectiveCap floors its dynamic cap at Math.max(0, ...),
+  // i.e. exactly $0, so gating on it flunks every candidate unconditionally.
+  // This phase must NOT read the tracker for gating.
+  it('converges even when the BudgetTracker is exhausted/negative (krenko-shaped repro)', () => {
     const state = makeState();
-    const tracker = new BudgetTracker(1, 20, 'USD'); // effectively no room for any candidate
+    const tracker = new BudgetTracker(-50, 5, 'USD'); // already deep in the red
+    expect(tracker.getEffectiveCap(null)).toBe(0); // confirms the trap is live
+
     const result = applyBudgetConvergence(
       state,
-      baseCtx({ deckBudget: 40, budgetTracker: tracker, maxCardPrice: 100 })
+      baseCtx({ deckBudget: 40, budgetTracker: tracker })
     );
-    // Every pool candidate's effective cap is near-zero — no legal swap.
-    expect(result.residualReason).toBeDefined();
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(result.finalTotal).toBeLessThanOrEqual(40);
+    expect(state.usedNames.has('Pricey Card')).toBe(false);
+  });
+
+  it('does not gate a replacement on the static maxCardPrice either — only strictly-cheaper matters', () => {
+    // maxCardPrice is no longer part of BudgetConvergeContext at all (the
+    // whole per-card cap concept is out of scope for a convergence swap —
+    // see the phase's header comment); this just pins that a pricier-than-cap
+    // but still cheaper-than-cut candidate is not rejected on some other path.
+    const state = makeState();
+    const map = poolScryfallMap();
+    map.set('Cheap Alt A', scryfallCard('Cheap Alt A', '25')); // still < $30 cut price
+    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40, scryfallCardMap: map }));
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+  });
+
+  it('credits the tracker back for the cut card, not just deducting the replacement', () => {
+    const state = makeState();
+    const tracker = new BudgetTracker(1000, 5, 'USD');
+    const cardsBefore = tracker.cardsRemaining;
+
+    applyBudgetConvergence(state, baseCtx({ deckBudget: 40, budgetTracker: tracker }));
+
+    // Pricey Card ($30) cut, Cheap Alt A ($2) added: -2 (deduct on add) + 30
+    // (credit on cut) = net +28 — the tracker must not just drift ever-more
+    // negative across swaps.
+    expect(tracker.remainingBudget).toBeCloseTo(1028, 2);
+    // A swap is a lateral 1-for-1 — cardsRemaining nets to zero change.
+    expect(tracker.cardsRemaining).toBe(cardsBefore);
+  });
+
+  it('reports a finalTotal matching an independent recomputation over the final deck (parity with deckGenerator.ts)', () => {
+    const state = makeState();
+    const result = applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+    expect(result.finalTotal).toBe(totalOf(state));
   });
 
   it('gates candidates on color identity', () => {
@@ -405,7 +452,7 @@ describe('applyBudgetConvergence', () => {
     );
     expect(result.applied).toBe(0);
     expect(result.residualReason).toBe(
-      'the rest is must-includes and combo pieces with no cheaper equivalent'
+      'every remaining card is a must-include, combo piece, or otherwise protected, with no cheaper equivalent'
     );
   });
 
@@ -417,7 +464,19 @@ describe('applyBudgetConvergence', () => {
     );
     expect(result.applied).toBe(0);
     expect(result.residualReason).toBe(
-      'no cheaper legal alternatives were available for the remaining cards'
+      'no cheaper legal alternative could be found for the remaining cards'
     );
+  });
+
+  it('does not word the residual reason as if partial progress happened, even at 0 swaps', () => {
+    // The exact bug from the live eval: "the rest is..." implies something
+    // already converged. With 0 swaps the wording must not say "the rest".
+    const state = makeState();
+    const result = applyBudgetConvergence(
+      state,
+      baseCtx({ deckBudget: 1, cardAllowed: () => false })
+    );
+    expect(result.applied).toBe(0);
+    expect(result.residualReason).not.toMatch(/\bthe rest\b/i);
   });
 });

@@ -13,7 +13,6 @@ import { roleCapTolerance, stampRoleSubtypes, routeCardByType } from '../categor
 import {
   constrainsToCollection,
   notInCollection,
-  exceedsMaxPrice,
   exceedsMaxRarity,
   exceedsCmcCap,
   notOnArena,
@@ -42,14 +41,26 @@ import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 //
 // Every replacement clears the SAME full pick-time gate set as the other
 // generation-tail repair passes (phaseCoherenceRepair.ts's `findCandidate`):
-// salt, color identity, game-changer cap, bracket ceiling, budget (the dynamic
-// effective cap, not just the static max), rarity, CMC, Arena, the
-// synergy-dependency guard, collection mode, and the #1008 role cap (a
+// salt, color identity, game-changer cap, bracket ceiling, rarity, CMC, Arena,
+// the synergy-dependency guard, collection mode, and the #1008 role cap (a
 // same-role swap is net-neutral on role counts by construction; a role-null
 // replacement still can't push a DIFFERENT role over its cap). Candidates are
 // sourced from the same query-scoped EDHREC pool the other two repair phases
 // use (`state.edhrecData.cardlists.allNonLand`), so — like them — no separate
 // scryfallQuery re-check is needed; the pool was already built against it.
+//
+// Deliberately NOT gated: BudgetTracker.getEffectiveCap / remainingBudget.
+// That heuristic exists to PACE spend across remaining picks during
+// generation — it's meaningless once the deck is already over budget: a deck
+// that's over $50 has `remainingBudget < 0`, and `getEffectiveCap` floors its
+// dynamic cap at `Math.max(0, ...)`, i.e. exactly $0 whenever remainingBudget
+// is negative. Gating replacements on that cap meant EVERY candidate flunked
+// the moment the deck went over — a live eval reproduced this exactly: 0
+// swaps applied to a $71 mono-red deck with a $50 budget, next to an honest
+// "no cheaper legal alternatives" note that was actually false. The real
+// budget improvement for a convergence swap is simply "strictly cheaper than
+// the card it replaces" (enforced below) — every such swap monotonically
+// lowers the total, which is the only ceiling this pass needs.
 //
 // ponytail: costAnalyzer.ts's `buildCostPlan`/`autoCheckToTarget` already solve
 // "rank cheaper alternatives" for the Coach's UI-facing Trim Cost lane, but they
@@ -84,8 +95,9 @@ export interface BudgetConvergeContext {
   bracketGuard?: BracketGuard;
   gameChangerCount: { value: number };
   maxGameChangers: number;
+  /** Only used for bookkeeping (deduct on add / credit back on cut) — never
+   *  for gating a replacement (see the header comment on why). */
   budgetTracker: BudgetTracker | null;
-  maxCardPrice: number | null;
   maxRarity: MaxRarity;
   maxCmc: number | null;
   arenaOnly: boolean;
@@ -203,6 +215,19 @@ export function applyBudgetConvergence(
     if (card.name.includes(' // ')) state.usedNames.delete(frontFaceName(card.name));
     const role = getCardRole(card.name);
     if (role && state.currentRoleCounts[role] > 0) state.currentRoleCounts[role]--;
+    // Every cut here is immediately followed by a commitAdd (a lateral 1-for-1
+    // swap, never a net removal) — credit the tracker back so it doesn't drift
+    // ever-more-negative across many swaps: commitAdd's deductCard already
+    // subtracts the replacement's price and decrements cardsRemaining, so this
+    // is the other half of that same slot, not a new one.
+    if (
+      ctx.budgetTracker &&
+      !isOwnedBudgetExempt(card.name, collectionNames, ctx.ignoreOwnedBudget)
+    ) {
+      const cutPrice = parsePrice(getCardPrice(card, ctx.currency));
+      if (cutPrice != null) ctx.budgetTracker.remainingBudget += cutPrice;
+      ctx.budgetTracker.cardsRemaining += 1;
+    }
   };
 
   const isRoleCapBlocked = (name: string): boolean => {
@@ -261,10 +286,9 @@ export function applyBudgetConvergence(
       const isGC = state.gameChangerNames.has(card.name);
       if (isGC && ctx.gameChangerCount.value >= ctx.maxGameChangers) return false;
       if (ctx.bracketGuard?.exceedsCeiling(card.name)) return false;
-      if (!isOwnedBudgetExempt(card.name, collectionNames, ctx.ignoreOwnedBudget)) {
-        const cap = ctx.budgetTracker?.getEffectiveCap(ctx.maxCardPrice) ?? ctx.maxCardPrice;
-        if (exceedsMaxPrice(card, cap, ctx.currency)) return false;
-      }
+      // No maxCardPrice/getEffectiveCap gate here — "strictly cheaper than
+      // cutPrice" (checked above) IS the budget ceiling for a convergence
+      // swap; see the header comment for why the dynamic cap can't be used.
       if (!isOwnedRarityExempt(card.name, collectionNames, ctx.ignoreOwnedRarity)) {
         if (exceedsMaxRarity(card, ctx.maxRarity)) return false;
       }
@@ -344,18 +368,28 @@ export function applyBudgetConvergence(
     if (!progressed) break; // every remaining offender is protected/unreplaceable
   }
 
+  // Recompute fresh rather than trusting the incrementally-decremented `total`
+  // — a long chain of `total -= savings` can drift a cent off a full re-sum
+  // by float rounding, and this number is what a unit test (and, in spirit,
+  // deckGenerator.ts's own independent final-total recompute) pins against.
+  const finalTotal = totalNow();
+
   if (applied > 0) {
-    logger.debug(`[DeckGen] Budget converge: ${applied} swap(s), total now $${total.toFixed(2)}`);
+    logger.debug(
+      `[DeckGen] Budget converge: ${applied} swap(s), total now $${finalTotal.toFixed(2)}`
+    );
   }
 
-  if (total <= ctx.deckBudget) {
-    return { applied, finalTotal: total, repairs };
+  if (finalTotal <= ctx.deckBudget) {
+    return { applied, finalTotal, repairs };
   }
 
-  // Still over — say why. If every remaining priced card is protected, the
-  // residual is must-includes/combo pieces/wincons with no cheaper equivalent;
+  // Still over — say why, worded so it's equally honest whether 0 or N swaps
+  // ran (never implies a partial job or an exhaustive search that didn't
+  // happen). If every remaining priced card is protected, that's the reason;
   // otherwise some unprotected cards simply had no legal cheaper alternative
-  // (a thin pool, or every candidate blocked by a hard gate).
+  // (a thin pool, or every candidate blocked by a hard gate) — including the
+  // 0-swap case, since findReplacement really did search every cuttable card.
   const remainingUnprotectedPriced = nonLands().filter((c) => {
     if (isProtected(c)) return false;
     const p = parsePrice(getCardPrice(c, ctx.currency));
@@ -363,8 +397,8 @@ export function applyBudgetConvergence(
   });
   const residualReason =
     remainingUnprotectedPriced.length === 0
-      ? 'the rest is must-includes and combo pieces with no cheaper equivalent'
-      : 'no cheaper legal alternatives were available for the remaining cards';
+      ? 'every remaining card is a must-include, combo piece, or otherwise protected, with no cheaper equivalent'
+      : 'no cheaper legal alternative could be found for the remaining cards';
 
-  return { applied, finalTotal: total, repairs, residualReason };
+  return { applied, finalTotal, repairs, residualReason };
 }
