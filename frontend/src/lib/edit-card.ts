@@ -70,6 +70,14 @@ export function buildEditedCards(
     updatedAt: Date.now(),
   };
 
+  // Per-copy details, only when the dialog ran in details mode. Assigning the
+  // (possibly undefined) values overwrites on spread, so clearing a condition
+  // in the dialog actually clears it on the copies.
+  if (selection.details) {
+    cardFields.condition = selection.details.condition;
+    cardFields.language = selection.details.language;
+  }
+
   // Single-copy split (ungrouped view): re-point just this one physical copy,
   // leaving any siblings on the old printing.
   if (copyId !== undefined) {

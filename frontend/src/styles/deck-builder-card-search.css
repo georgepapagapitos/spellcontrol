@@ -257,6 +257,23 @@
   color: var(--text-muted);
 }
 
+/* Collection add-cards variant: the li wraps a row + an expandable printing
+   picker, so the row classes move to an inner div and the grid gains a column
+   for the "Printing & finish" toggle. */
+.card-search-item {
+  display: block;
+}
+
+.card-search-row.add-card-row {
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto auto;
+}
+
+.card-search-row.add-card-row .card-search-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .card-search-hint {
   font-size: var(--text-xs);
   color: var(--text-muted);
