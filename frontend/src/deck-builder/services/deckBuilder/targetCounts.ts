@@ -2,6 +2,7 @@
 // per-type and per-CMC slot targets, applying any advanced user overrides.
 // Pure — extracted verbatim from deckGenerator.ts for isolation/testing.
 import { logger } from '@/lib/logger';
+import { Archetype } from '@/deck-builder/types';
 import type {
   Customization,
   DeckComposition,
@@ -15,6 +16,54 @@ export interface TargetCountsResult {
   composition: DeckComposition;
   typeTargets: Record<string, number>;
   curveTargets: Record<number, number>;
+}
+
+// ─── Auto Land-Count Adjustment ─────────────────────────────────────
+// The flat 37-land default is a "goodstuff" number — it's wrong for
+// elf-ball/tribal-dork decks (too many lands on top of 15-20 mana dorks) and
+// for genuinely high-curve ramp decks (could use 1-2 more). Only applied when
+// the user hasn't touched the land inputs (see isDefaultLandCount); an
+// explicit user choice is never second-guessed.
+
+/** True when landCount/nonBasicLandCount are both still at the store defaults
+ *  — the only signal available that the user hasn't customized lands (no
+ *  dirty flag is threaded through generation context). */
+export function isDefaultLandCount(customization: Customization): boolean {
+  return customization.landCount === 37 && customization.nonBasicLandCount === 15;
+}
+
+// Archetypes that lean go-wide/low-curve/dork-heavy and can safely run fewer lands.
+const LAND_COUNT_ARCHETYPE_DELTA: Partial<Record<Archetype, number>> = {
+  [Archetype.TRIBAL]: -1,
+  [Archetype.AGGRO]: -1,
+  [Archetype.VOLTRON]: -1,
+  [Archetype.STORM]: -1,
+  [Archetype.CONTROL]: 1,
+  [Archetype.LANDFALL]: 1,
+  [Archetype.REANIMATOR]: 1,
+};
+
+/**
+ * Archetype + ramp-density + curve aware nudge off the 37-land baseline,
+ * bounded to +/-5 and clamped to a 32-40 sane band so it can never run away.
+ * `rampDensity` is the EDHREC-typical ramp/dork count for this commander
+ * (see `computeEdhrecRoleTargets(...).ramp`) — a pre-generation proxy for
+ * how much of the manabase the deck's own dorks/rocks will cover.
+ */
+export function computeAutoLandCount(
+  archetype: Archetype,
+  rampDensity: number,
+  avgCmc: number
+): number {
+  let delta = LAND_COUNT_ARCHETYPE_DELTA[archetype] ?? 0;
+  if (rampDensity >= 10) delta -= 2;
+  else if (rampDensity >= 7) delta -= 1;
+
+  if (avgCmc > 0 && avgCmc < 2.6) delta -= 1;
+  else if (avgCmc >= 3.6) delta += 1;
+
+  delta = Math.max(-5, Math.min(5, delta));
+  return Math.max(32, Math.min(40, 37 + delta));
 }
 
 // Apply user's advanced target overrides (curve percentages, type percentages)
@@ -67,7 +116,10 @@ export function calculateTargetCounts(
   customization: Customization,
   edhrecStats?: EDHRECCommanderStats,
   hasPartner?: boolean,
-  pacing?: Pacing
+  pacing?: Pacing,
+  /** Archetype-aware auto land count (see computeAutoLandCount); only passed
+   *  when the user hasn't customized land count. Overrides customization.landCount. */
+  landCountOverride?: number
 ): TargetCountsResult {
   const format = customization.deckFormat;
 
@@ -76,7 +128,10 @@ export function calculateTargetCounts(
   const deckCards = format === 99 ? 100 - commanderCount : format - commanderCount;
 
   // Respect the user's land count — clamp only to sane absolute bounds
-  const landCount = Math.min(Math.max(1, customization.landCount), deckCards - 1);
+  const landCount = Math.min(
+    Math.max(1, landCountOverride ?? customization.landCount),
+    deckCards - 1
+  );
   const nonLandCards = deckCards - landCount;
 
   // If we have EDHREC stats, use percentage-based targets

@@ -35,6 +35,7 @@ import { getCardRole, isMassLandDenial, isExtraTurn } from '@/deck-builder/servi
 import { frontFaceName } from '@/lib/card-text';
 import { getEdhrecCardPrice } from '@/deck-builder/lib/edhrecUtils';
 import { ROLE_LABELS } from './deckAnalyzer';
+import { calculateCardPriority } from './cardPicking';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -132,6 +133,14 @@ export interface BracketFitInput {
   cardCmcMap?: Record<string, { cmc: number; isLand: boolean }>;
   /** Role counts (as passed to estimateBracket). */
   roleCounts: Record<string, number> | undefined;
+  /**
+   * Role count targets (e.g. from getDynamicRoleTargets). Optional — when
+   * present, upshift cut-picking deprioritizes a card whose role is already at
+   * or below its target (protects role floors like removal/ramp during a
+   * push-up), falling back to it only when no floor-safe alternative exists.
+   * Absent → no floor protection (unchanged behavior).
+   */
+  roleTargets?: Record<string, number>;
   /** Target-bracket EDHREC pool for replacements & adds. null = offline degraded. */
   targetPool: EDHRECCommanderData | null;
   /** EDHREC inclusion per in-deck card (name → %). Picks lowest-inclusion GC to cut first. */
@@ -570,19 +579,48 @@ function oneAwayMissingNames(match: ComboMatch): string[] {
 }
 
 /**
+ * Priority lookup for a card name — the same `calculateCardPriority` formula
+ * `cardPicking.ts` uses for normal selection (theme synergy + synergy score +
+ * inclusion), not raw EDHREC inclusion. Looks the name up in the target-bracket
+ * pool (which lists every card played with this commander, in-deck or not, so
+ * commander-specific tech scores on its actual synergy/theme fit); falls back
+ * to raw inclusion when the pool is unavailable or doesn't carry the card
+ * (offline / non-pool card), preserving prior behavior in that case.
+ */
+function buildPriorityLookup(
+  targetPool: EDHRECCommanderData | null,
+  cardInclusionMap: Record<string, number>
+): (name: string) => number {
+  const byName = new Map<string, EDHRECCard>();
+  for (const c of targetPool?.cardlists?.allNonLand ?? []) byName.set(c.name, c);
+  return (name: string) => {
+    const pooled = byName.get(name);
+    return pooled ? calculateCardPriority(pooled) : (cardInclusionMap[name] ?? 0);
+  };
+}
+
+/**
  * Rank the deck's own cards as upshift cut candidates — the slots to free when a
- * full deck needs room for a power-up add. Lowest EDHREC inclusion first (the
- * least-played, most expendable cards). Never proposes a land, a Game Changer
- * (keep the power you have), a combo piece (cutting it would lower power — the
- * opposite of the goal), or a commander. The user still confirms every swap, and
- * the row shows the cut card's art, so a borderline suggestion is visible, not
- * silent.
+ * full deck needs room for a power-up add. Lowest priority first (via
+ * {@link buildPriorityLookup} — synergy/theme-fit aware, not raw popularity, so
+ * commander-specific tech with low generic inclusion isn't mistaken for
+ * expendable filler). Never proposes a land, a Game Changer (keep the power you
+ * have), a combo piece (cutting it would lower power — the opposite of the
+ * goal), or a commander. When {@link BracketFitInput.roleTargets} is supplied,
+ * candidates whose role is already at or below its target are deprioritized
+ * (sorted after every role-safe candidate) rather than excluded — a floor-
+ * violating cut still happens if no safe alternative exists, it just goes
+ * last. The user still confirms every swap, and the row shows the cut card's
+ * art, so a borderline suggestion is visible, not silent.
  */
 function pickUpshiftCutCandidates(input: BracketFitInput): string[] {
   const commanders = new Set(input.commanderNames ?? []);
   const comboPieces = new Set<string>();
   for (const c of input.detectedCombos) for (const piece of c.cards) comboPieces.add(piece);
   const cmcMap = input.cardCmcMap ?? {};
+  const priorityFor = buildPriorityLookup(input.targetPool, input.cardInclusionMap);
+  const roleTargets = input.roleTargets;
+  const roleCounts = input.roleCounts;
 
   const candidates = input.allCardNames.filter((name) => {
     if (commanders.has(name)) return false;
@@ -591,8 +629,22 @@ function pickUpshiftCutCandidates(input: BracketFitInput): string[] {
     if (cmcMap[name]?.isLand) return false;
     return true;
   });
-  candidates.sort((a, b) => (input.cardInclusionMap[a] ?? 0) - (input.cardInclusionMap[b] ?? 0));
-  return candidates;
+
+  // Role-floor safe candidates first (or all of them when no target data is
+  // available), each tier ranked lowest-priority-first.
+  const byPriorityAsc = (a: string, b: string) => priorityFor(a) - priorityFor(b);
+  const isFloorSafe = (name: string): boolean => {
+    if (!roleTargets) return true;
+    const role = getCardRole(name);
+    if (!role) return true; // no tracked role → cutting it can't breach a floor
+    const target = roleTargets[role];
+    if (target == null) return true;
+    return (roleCounts?.[role] ?? 0) > target;
+  };
+
+  const safe = candidates.filter(isFloorSafe).sort(byPriorityAsc);
+  const atFloor = candidates.filter((n) => !isFloorSafe(n)).sort(byPriorityAsc);
+  return [...safe, ...atFloor];
 }
 
 /** Most popular one-away combos to suggest completing (the rest are noise). */
@@ -693,12 +745,14 @@ function computeUpshiftPlanWithTarget(
     const pool = input.targetPool.cardlists.allNonLand;
 
     // 2. Missing Game Changers at the target level (B3 → up to 3; B4+ → more).
+    // Ranked by calculateCardPriority (synergy/theme fit), not raw inclusion —
+    // among several missing GCs, prefer the one that actually fits this build.
     const gcLimit = target >= 4 ? 6 : 3;
     const missingGCs = pool
       .filter(
         (c) => (c.isGameChanger || input.gameChangerNames.has(c.name)) && !deckNames.has(c.name)
       )
-      .sort((a, b) => (b.inclusion ?? 0) - (a.inclusion ?? 0))
+      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a))
       .slice(0, gcLimit);
     for (const c of missingGCs) {
       addCard(

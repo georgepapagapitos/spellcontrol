@@ -43,7 +43,15 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { computeGradeAndBracket } from './commanderDeckAnalysis';
-import { getDynamicRoleTargets, estimatePacingFromStats } from './roleTargets';
+import {
+  getDynamicRoleTargets,
+  estimatePacingFromStats,
+  inferArchetype,
+  computeEdhrecRoleTargets,
+} from './roleTargets';
+import { buildCommanderProfile } from './commanderProfile';
+import { ARCHETYPE_LABEL } from './strategyVocabulary';
+import { Archetype } from '@/deck-builder/types';
 import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
@@ -57,7 +65,7 @@ import {
   notOnArena,
   exceedsCmcCap,
 } from './deckFilters';
-import { calculateTargetCounts } from './targetCounts';
+import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
 import { BudgetTracker } from './budgetTracker';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
@@ -529,11 +537,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Balanced roles tracking — declared at outer scope so return statement can access them
   let roleTargets: Record<RoleKey, number> | null = null;
   let roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
-  let detectedArchetype: import('@/deck-builder/types').Archetype | undefined;
+  let detectedArchetype: Archetype | undefined;
   // resolvedPacing is set after edhrecData is available; detectedPacing mirrors it for the return value
   let resolvedPacing: Pacing = 'balanced';
   let detectedPacing: Pacing = 'balanced';
   let swapCandidates: Record<string, ScryfallCard[]> | undefined;
+  // Land count: resolved once (flat default or archetype-aware auto-tune) so
+  // the actual generation math and the post-generation grader agree on the
+  // same target — see computeGradeAndBracket call below.
+  let resolvedLandCount = customization.landCount;
+  let landCountNote: string | undefined;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
@@ -1067,6 +1080,34 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
   detectedPacing = resolvedPacing;
 
+  // Commander profile (mechanically detected archetype/tribes/abilities from
+  // oracle text) — the fallback for theme-inference, and the input to the
+  // archetype-aware land count below. Computed once, unconditionally (not
+  // gated behind balancedRoles): a tribal/spellslinger/enchantress commander
+  // should get its real archetype and land count regardless of that toggle.
+  const commanderProfile = buildCommanderProfile(commander, partnerCommander);
+  detectedArchetype = inferArchetype(context.selectedThemes, commanderProfile.primaryArchetype);
+
+  // Archetype-aware land count: only when the user hasn't customized land
+  // inputs (still at the store defaults) — an explicit user choice is never
+  // second-guessed. Uses the EDHREC-typical ramp count for this commander
+  // (a pre-generation proxy for dork/rock density) + the EDHREC average CMC.
+  if (isDefaultLandCount(customization) && state.edhrecData) {
+    const edhrecRampCount = computeEdhrecRoleTargets(state.edhrecData).ramp;
+    const manaCurve = state.edhrecData.stats?.manaCurve ?? {};
+    const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
+    const avgCmc =
+      curveTotal > 0
+        ? Object.entries(manaCurve).reduce((s, [cmc, count]) => s + Number(cmc) * count, 0) /
+          curveTotal
+        : 0;
+    const autoLandCount = computeAutoLandCount(detectedArchetype, edhrecRampCount, avgCmc);
+    if (autoLandCount !== resolvedLandCount) {
+      resolvedLandCount = autoLandCount;
+      landCountNote = `Auto-tuned to ${autoLandCount} lands for a ${ARCHETYPE_LABEL[detectedArchetype]} deck (${edhrecRampCount} typical ramp sources, avg CMC ${avgCmc.toFixed(1)}) — set land count explicitly under Customize to override.`;
+    }
+  }
+
   // Calculate target counts with type and curve targets
   const {
     composition: targets,
@@ -1076,7 +1117,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     customization,
     state.edhrecData?.stats,
     !!partnerCommander,
-    resolvedPacing
+    resolvedPacing,
+    resolvedLandCount
   );
 
   // Compress curve targets for Tiny Leaders (CMC cap at 3)
@@ -1457,10 +1499,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         state.edhrecData?.stats,
         state.edhrecData,
         customization.advancedTargets?.edhrecBlendWeight ?? null,
-        customization.advancedTargets?.edhrecInclusionThreshold ?? null
+        customization.advancedTargets?.edhrecInclusionThreshold ?? null,
+        commanderProfile.primaryArchetype
       );
       roleTargets = dynamic.targets;
-      detectedArchetype = dynamic.archetype;
+      detectedArchetype = dynamic.archetype; // same value already set above; kept for shape parity
       roleTargetBreakdown = dynamic.breakdown;
       // When auto-detect is on, prefer the richer archetype-aware pacing from getDynamicRoleTargets
       if (customization.tempoAutoDetect) {
@@ -3627,6 +3670,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     deckSize: format,
     cardInclusionMap,
     colorIdentity: context.colorIdentity,
+    // Grade against the SAME land-count target the generator actually built
+    // to (flat default or archetype-aware auto-tune) — otherwise the grader
+    // computes its own independent "ideal" and contradicts its own generator.
+    overrideLandTarget: resolvedLandCount,
+    overridePacing: resolvedPacing,
   });
   logger.debug(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
@@ -3703,6 +3751,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     generationMode: mode,
     generationModeDetail: altPool?.detail,
     generationRelaxedNote: altPool?.relaxedNote,
+    landCountNote,
     roleCounts: roleTargets ? { ...currentRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,

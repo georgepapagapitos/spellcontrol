@@ -337,9 +337,12 @@ export interface ManabaseColorLine {
   pips: number;
   /** Sources in the final deck (lands + rocks/dorks) producing this color. */
   sources: number;
-  /** Desired source count from the weighted-demand share of total capacity. */
+  /** Sources needed to clear the shortfall bar (ratio × pips, feasibility-capped
+   *  across colors so per-color targets can't outrun the deck's actual mana
+   *  sources). `short` is exactly `sources < target` — one baseline. */
   target: number;
-  /** Pacing-aware shortfall verdict (same thresholds as the editor panel). */
+  /** `sources < target` (same pacing-aware coverage bar as the editor panel's
+   *  `isColorShort`) — the boolean and the note always agree by construction. */
   short: boolean;
 }
 
@@ -436,6 +439,10 @@ export interface BuildReport {
   generationModeDetail?: string;
   /** Optional note about how the mode resolved (e.g. historical eased its year). */
   generationNote?: string;
+  /** Disclosure when the archetype-aware auto land count adjusted the 37-land
+   *  default (e.g. tribal/dork-dense decks running fewer). Undefined when the
+   *  user set land count explicitly, or no adjustment applied. */
+  landCountNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -534,6 +541,7 @@ export interface GeneratedDeck {
   generationMode?: GenerationMode; // Which generator built this deck (default 'edhrec')
   generationModeDetail?: string; // Mode-specific descriptor (art motif slug, or "year<=YYYY")
   generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool
+  landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
 }
 
 export interface DeckStats {

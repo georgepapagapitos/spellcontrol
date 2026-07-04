@@ -72,11 +72,7 @@ function uniqueLower(names: string[]): string[] {
  * archetype when there are no selected themes or they don't imply one.
  */
 function pickArchetype(profile: CommanderProfile, selectedThemes: ThemeResult[]): Archetype {
-  if (selectedThemes.length > 0) {
-    const fromThemes = inferArchetype(selectedThemes);
-    if (fromThemes !== Archetype.GOODSTUFF) return fromThemes;
-  }
-  return profile.primaryArchetype;
+  return inferArchetype(selectedThemes, profile.primaryArchetype);
 }
 
 export function deriveDeckIdentity(input: {

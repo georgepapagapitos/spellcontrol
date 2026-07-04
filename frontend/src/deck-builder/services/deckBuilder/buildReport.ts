@@ -39,6 +39,10 @@ export function assembleBuildReport(input: {
     if (generated.generationRelaxedNote) report.generationNote = generated.generationRelaxedNote;
   }
 
+  // Archetype-aware land count auto-tune disclosure (undefined when the user
+  // set land count explicitly, or the default 37 was already the right call).
+  if (generated.landCountNote) report.landCountNote = generated.landCountNote;
+
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {
     report.collectionStrategy = collectionStrategy;

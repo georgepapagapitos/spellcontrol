@@ -131,18 +131,27 @@ export function estimatePacingFromStats(manaCurve: Record<number, number>): Paci
 
 // ─── Archetype Inference ────────────────────────────────────────────
 
-export function inferArchetype(selectedThemes?: ThemeResult[]): Archetype {
-  if (!selectedThemes?.length) return Archetype.GOODSTUFF;
+/**
+ * Infer the archetype from the user's selected EDHREC themes. `fallback` is
+ * used whenever theme-inference has nothing to say (no themes, none
+ * selected, or the theme maps to the generic GOODSTUFF bucket) — pass the
+ * commander's own `commanderProfile.primaryArchetype` (mechanically detected
+ * from oracle text: tribal/spellslinger/enchantress/etc.) so a deck with no
+ * theme picks still gets a real archetype instead of silently defaulting to
+ * goodstuff. Defaults to GOODSTUFF when no fallback is given, preserving the
+ * historical no-fallback behavior for callers that don't have a profile.
+ */
+export function inferArchetype(
+  selectedThemes?: ThemeResult[],
+  fallback: Archetype = Archetype.GOODSTUFF
+): Archetype {
+  const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
+  if (!selected.length) return fallback;
 
-  const selected = selectedThemes.filter((t) => t.isSelected);
-  if (!selected.length) return Archetype.GOODSTUFF;
-
-  // Use existing archetype field if populated
-  if (selected[0].archetype) return selected[0].archetype;
-
-  // Look up primary theme name
+  // Use existing archetype field if populated, else look up primary theme name
   const lower = selected[0].name.toLowerCase().trim();
-  return THEME_TO_ARCHETYPE[lower] ?? Archetype.GOODSTUFF;
+  const inferred = selected[0].archetype ?? THEME_TO_ARCHETYPE[lower] ?? Archetype.GOODSTUFF;
+  return inferred === Archetype.GOODSTUFF ? fallback : inferred;
 }
 
 // ─── Base Targets (format-only, backward compat) ────────────────────
@@ -170,7 +179,10 @@ export function getDynamicRoleTargets(
   edhrecStats?: EDHRECCommanderStats,
   edhrecData?: EDHRECCommanderData | null,
   overrideBlendWeight?: number | null,
-  overrideThreshold?: number | null
+  overrideThreshold?: number | null,
+  /** Commander's mechanically-detected archetype (`commanderProfile.primaryArchetype`),
+   *  used as the fallback when theme-inference lands on GOODSTUFF. */
+  primaryArchetype?: Archetype
 ): {
   targets: Record<RoleKey, number>;
   archetype: Archetype;
@@ -179,7 +191,7 @@ export function getDynamicRoleTargets(
 } {
   const base = getBaseRoleTargets(format);
 
-  const archetype = inferArchetype(selectedThemes);
+  const archetype = inferArchetype(selectedThemes, primaryArchetype);
   const archetypeMults = ARCHETYPE_ROLE_MULTIPLIERS[archetype];
 
   const pacing: Pacing = edhrecStats?.manaCurve

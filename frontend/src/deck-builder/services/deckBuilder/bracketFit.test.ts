@@ -155,6 +155,7 @@ interface InputOverrides {
   detectedCombos?: DetectedCombo[];
   averageCmc?: number;
   roleCounts?: Record<string, number>;
+  roleTargets?: Record<string, number>;
   targetPool?: EDHRECCommanderData | null;
   cardInclusionMap?: Record<string, number>;
   oneAwayCombos?: ComboMatch[];
@@ -183,6 +184,7 @@ function makeInput(o: InputOverrides): BracketFitInput {
     detectedCombos,
     averageCmc,
     roleCounts,
+    roleTargets: o.roleTargets,
     targetPool: o.targetPool ?? null,
     cardInclusionMap: o.cardInclusionMap ?? {},
     oneAwayCombos: o.oneAwayCombos ?? [],
@@ -763,6 +765,52 @@ describe('upshift — B4 target', () => {
     const plan = computeUpshiftPlan(input, 4);
     expect(plan.moves.filter((m) => m.signal === 'upshift-gc')).toHaveLength(2);
     expect(plan.moves.filter((m) => m.signal === 'upshift-fill').length).toBeGreaterThan(0);
+  });
+});
+
+describe('upshift — adds rank by calculateCardPriority, not raw inclusion', () => {
+  it('a high-synergy, lower-inclusion GC beats a high-inclusion, no-synergy GC', () => {
+    const pool = makePool([
+      // Low raw inclusion but high synergy → calculateCardPriority scores it
+      // (0.6*100 + 40 = 100) above the popular-but-generic pick below (90).
+      poolCard({ name: 'Niche Tech', inclusion: 40, synergy: 0.6, isGameChanger: true }),
+      poolCard({ name: 'Popular Staple', inclusion: 90, synergy: 0, isGameChanger: true }),
+    ]);
+    const input = makeInput({
+      allCardNames: ['Forest'],
+      targetPool: pool,
+    });
+    const plan = computeUpshiftPlan(input, 3);
+    const gcAdds = plan.moves.filter((m) => m.signal === 'upshift-gc');
+    expect(gcAdds.map((m) => m.name)).toEqual(['Niche Tech', 'Popular Staple']);
+  });
+});
+
+describe('upshift — cut ranking protects role floors', () => {
+  it('prefers cutting a role-safe card over one that would breach a role floor, even at higher priority', () => {
+    ROLES.set('Removal X', 'removal');
+    ROLES.set('Ramp Y', 'ramp');
+    const input = makeInput({
+      allCardNames: ['Cmdr', 'Removal X', 'Ramp Y', 'Forest'],
+      commanderNames: ['Cmdr'],
+      targetPool: makePool([poolCard({ name: 'GC X', inclusion: 95, isGameChanger: true })]),
+      deckFull: true,
+      // Removal X has by far the lowest inclusion/priority (the "obvious" cut),
+      // but removal is already exactly at its target — cutting it breaches the
+      // floor. Ramp Y is comfortably above its target, so it's the safe pick.
+      roleCounts: { removal: 2, ramp: 5 },
+      roleTargets: { removal: 2, ramp: 2 },
+      cardInclusionMap: { 'Removal X': 5, 'Ramp Y': 50 },
+      cardCmcMap: {
+        Forest: { cmc: 0, isLand: true },
+        Cmdr: { cmc: 4, isLand: false },
+        'Removal X': { cmc: 2, isLand: false },
+        'Ramp Y': { cmc: 3, isLand: false },
+      },
+    });
+    const plan = computeUpshiftPlan(input, 4);
+    const swap = plan.moves.find((m) => m.type === 'swap');
+    expect(swap?.name).toBe('Ramp Y');
   });
 });
 

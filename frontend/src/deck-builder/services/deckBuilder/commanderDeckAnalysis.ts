@@ -5,6 +5,7 @@ import type {
   DetectedCombo,
   GapAnalysisCard,
   LiftEntry,
+  Pacing,
 } from '@/deck-builder/types';
 import type { ComboMatch, ComboMatchResponse } from '@/types/combos';
 import {
@@ -36,6 +37,7 @@ import {
   type RecommendedCard,
 } from './deckAnalyzer';
 import { getDynamicRoleTargets } from './roleTargets';
+import { buildCommanderProfile } from './commanderProfile';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
@@ -271,6 +273,12 @@ export interface GradeBracketInput {
   deckSize: number;
   cardInclusionMap?: Record<string, number>;
   colorIdentity?: string[];
+  /** The land count the deck was actually built to (flat default or
+   *  archetype-aware auto-tune) — pass so the grader's own land-count ideal
+   *  agrees with the generator's, instead of computing an independent one. */
+  overrideLandTarget?: number;
+  /** Resolved pacing (user override > auto-detect), same reasoning as above. */
+  overridePacing?: Pacing;
 }
 
 export interface GradeBracketResult {
@@ -319,7 +327,9 @@ export function computeGradeAndBracket(input: GradeBracketInput): GradeBracketRe
         input.roleTargets,
         input.deckSize,
         input.cardInclusionMap,
-        input.colorIdentity
+        input.colorIdentity,
+        input.overridePacing,
+        input.overrideLandTarget
       );
       const summary = getDeckSummaryData(analysis);
       deckGrade = { letter: summary.gradeLetter, headline: summary.headline };
@@ -529,11 +539,18 @@ export async function analyzeCommanderDeck(
     }
 
     const { roleCounts } = computeRoleCounts(params.cards);
+    // Manual/imported decks have no selected themes, so without a fallback
+    // this always lands on GOODSTUFF — thread the commander's own mechanically
+    // detected archetype (tribal/spellslinger/etc.) the same way generation does.
+    const commanderProfile = buildCommanderProfile(params.commander, params.partnerCommander);
     const { targets: roleTargets } = getDynamicRoleTargets(
       params.deckSize,
       undefined,
       edhrecData.stats,
-      edhrecData
+      edhrecData,
+      undefined,
+      undefined,
+      commanderProfile.primaryArchetype
     );
 
     const nonLand = params.cards.filter((c) => !frontTypeLine(c).toLowerCase().includes('land'));
@@ -780,6 +797,7 @@ export async function analyzeCommanderDeck(
           ])
         ),
         roleCounts,
+        roleTargets,
         targetPool,
         cardInclusionMap,
         oneAwayCombos: params.oneAwayCombos ?? [],

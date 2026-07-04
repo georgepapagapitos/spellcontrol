@@ -179,6 +179,7 @@ export function BuildReportPanel({
     generationMode,
     generationModeDetail,
     generationNote,
+    landCountNote,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -225,6 +226,8 @@ export function BuildReportPanel({
       {(!generationMode || generationMode === 'edhrec') && (
         <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
       )}
+
+      {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
         <p className="build-report-line">
