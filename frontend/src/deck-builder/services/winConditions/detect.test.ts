@@ -110,6 +110,56 @@ describe('infinite combo', () => {
     // An infinite-mana-only combo is not a win-con by itself
     expect(result.primary?.category).not.toBe('infinite-combo');
   });
+
+  // E78 item 1 regression: real produces[] shapes from live decks that the
+  // narrower regexes previously dropped into 'other' and silently ignored.
+  it("counts an infinite card-draw combo (Kozilek: Sensei's Top + Mystic Forge)", () => {
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [
+          {
+            results: ['Infinite card draw', 'Near-infinite storm count', 'Infinite draw triggers'],
+            cards: ["Sensei's Divining Top", 'Foundry Inspector', 'Mystic Forge'],
+          },
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('infinite-combo');
+    expect(result.primary?.summary).toContain("Sensei's Divining Top");
+  });
+
+  it('counts an infinite combat-damage combo (Ur-Dragon: Aggravated Assault)', () => {
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [
+          {
+            results: ['Infinite combat damage', 'Infinite combat phases', 'Infinite green mana'],
+            cards: ['Savage Ventmaw', 'Aggravated Assault'],
+          },
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('infinite-combo');
+  });
+
+  it('counts an infinite-lifeloss combo (Meren: Mikaeus + Warren Soultrader)', () => {
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [
+          {
+            results: [
+              'Infinite ETB',
+              'Infinite LTB',
+              'Infinite lifeloss',
+              'Infinite lifegain triggers',
+            ],
+            cards: ['Mikaeus, the Unhallowed', 'Warren Soultrader', 'Bastion of Remembrance'],
+          },
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('infinite-combo');
+  });
 });
 
 // ── Alt-win ────────────────────────────────────────────────────────────────

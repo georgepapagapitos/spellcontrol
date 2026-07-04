@@ -308,6 +308,12 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
  * have). Falls back to trusting the tag when no oracle text is available to
  * check against (can't validate what we can't read), so a face with no text
  * doesn't lose a real role for lack of data.
+ *
+ * NOTE: shared with live generation (categorize.ts, scryfallFill.ts,
+ * cardPicking.ts, deckGenerator.ts) — this is not report-only, so evidence
+ * text stays "join every face" here. A DFC-aware tightening (e.g. front-face
+ * primacy for a transforming card's back-face-only payoff) belongs in a
+ * report-only wrapper instead; see `reportRoleOf` in commanderDeckAnalysis.ts.
  */
 export function validateCardRole(card: {
   name: string;

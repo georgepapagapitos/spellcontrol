@@ -223,18 +223,28 @@ function totalPriceUsd(deck: GeneratedDeck): number {
   return Math.round(total * 100) / 100;
 }
 
+// E78 item 6: this dump previously labeled these two sub-fields "inclusion"/
+// "relevancy" — easy to misread as one normalized scale when scanning raw
+// JSON. They're deliberately different scales with no production UI
+// consumer (neither cardInclusionMap nor cardRelevancyMap is rendered
+// anywhere in the app today — verified by exhaustive grep): EDHREC inclusion
+// is a bounded 0-100 percentage; the relevancy score is an unbounded
+// composite (synergy + role-deficit + curve/type fit + combo boosts, often
+// several hundred) used only for internal re-ranking. Renamed so a future
+// critic reading this dump can't mistake one for a normalized version of
+// the other.
 function buildCardRelevancy(
   deck: GeneratedDeck
-): Record<string, { inclusion?: number; relevancy?: number }> {
+): Record<string, { edhrecInclusionPct?: number; synergyScoreRaw?: number }> {
   const names = new Set([
     ...Object.keys(deck.cardInclusionMap ?? {}),
     ...Object.keys(deck.cardRelevancyMap ?? {}),
   ]);
-  const out: Record<string, { inclusion?: number; relevancy?: number }> = {};
+  const out: Record<string, { edhrecInclusionPct?: number; synergyScoreRaw?: number }> = {};
   for (const name of names) {
     out[name] = {
-      inclusion: deck.cardInclusionMap?.[name],
-      relevancy: deck.cardRelevancyMap?.[name],
+      edhrecInclusionPct: deck.cardInclusionMap?.[name],
+      synergyScoreRaw: deck.cardRelevancyMap?.[name],
     };
   }
   return out;

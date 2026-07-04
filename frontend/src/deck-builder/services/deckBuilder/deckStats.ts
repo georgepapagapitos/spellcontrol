@@ -26,7 +26,12 @@ export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>)
   const totalCmc = nonLandCards.reduce((sum, card) => sum + card.cmc, 0);
   const averageCmc = nonLandCards.length > 0 ? totalCmc / nonLandCards.length : 0;
 
-  // Color distribution
+  // Color distribution — CARD count by Scryfall `colors` (color identity),
+  // one tally per card per color it's in. Deliberately NOT a mana-pip count
+  // (a card costing {R}{R} still adds exactly 1 to R here) — that's a
+  // different, already-correct metric (`manabase.lines[].pips`). E78 item 4:
+  // a critic hand-tallying mana symbols found a higher number than this
+  // field and read it as a bug; the two fields answer different questions.
   const colorDistribution: Record<string, number> = {};
   allCards.forEach((card) => {
     const colors = card.colors || [];
@@ -40,14 +45,18 @@ export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>)
   });
 
   // Type distribution — a card in categories.lands (including a land-picked
-  // MDFC) counts once as Land; everything else buckets by front-face type.
+  // MDFC) counts once as Land; everything else buckets by front-face type,
+  // checked creature-first (so "Enchantment Creature" reads as Creature here
+  // — see enchantmentPermanentCount below for the non-exclusive total).
   const typeDistribution: Record<string, number> = { Planeswalker: 0 };
+  let enchantmentPermanentCount = 0;
   allCards.forEach((card) => {
     if (landSet.has(card)) {
       typeDistribution['Land'] = (typeDistribution['Land'] || 0) + 1;
       return;
     }
     const typeLine = getFrontFaceTypeLine(card).toLowerCase();
+    if (typeLine.includes('enchantment')) enchantmentPermanentCount++;
     if (typeLine.includes('creature'))
       typeDistribution['Creature'] = (typeDistribution['Creature'] || 0) + 1;
     else if (typeLine.includes('instant'))
@@ -70,5 +79,6 @@ export function calculateStats(categories: Record<DeckCategory, ScryfallCard[]>)
     manaCurve,
     colorDistribution,
     typeDistribution,
+    enchantmentPermanentCount,
   };
 }

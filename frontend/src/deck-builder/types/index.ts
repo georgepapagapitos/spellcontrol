@@ -575,7 +575,15 @@ export interface DeckStats {
   averageCmc: number;
   manaCurve: Record<number, number>; // CMC -> count
   colorDistribution: Record<string, number>; // Color -> count
+  // Primary-type bucket (one bucket per card, checked creature-first) — an
+  // "Enchantment Creature" (Sanctum Weaver, Heliod) counts once under
+  // Creature here. See `enchantmentPermanentCount` for the true overlapping
+  // total when a card's enchantment-ness matters on its own (E78 item 7).
   typeDistribution: Record<string, number>; // Type -> count
+  // True count of every card with "Enchantment" anywhere in its type line,
+  // including enchantment creatures/gods that `typeDistribution` buckets
+  // under Creature — for enchantress-style "how many enchantments" reporting.
+  enchantmentPermanentCount?: number;
   averageSalt?: number; // Mean EDHREC salt score across non-land cards with known salt
   saltiestCards?: Array<{ name: string; salt: number }>; // Top-N by salt, descending
 }

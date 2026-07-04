@@ -83,19 +83,39 @@ function frontTypeLine(card: {
   return card.card_faces?.[0]?.type_line || card.type_line || '';
 }
 
+type RoleCard = {
+  name: string;
+  type_line?: string;
+  oracle_text?: string;
+  card_faces?: Array<{ type_line?: string; oracle_text?: string }>;
+};
+
+/**
+ * Report-only role check: a DFC is validated against its FRONT face text
+ * only (mirrors `getFrontFaceTypeLine`'s existing front-face-primacy
+ * convention), not `validateCardRole`'s default of joining every face.
+ * `validateCardRole` itself must keep joining faces because it ALSO drives
+ * live generation picking (categorize.ts/scryfallFill.ts/cardPicking.ts/
+ * deckGenerator.ts) where a back-face-only signal is intentional (e.g. an
+ * MDFC land whose ramp text sits on whichever face has it). This recount is
+ * report-only, so it can afford to be stricter: a transforming card's back
+ * face is a deferred bonus mode reached via an activated-ability flip plus
+ * more turns, not what the card is built around — without this, a Saga
+ * chapter's "Destroy all other permanents" credited a front-face creature
+ * with zero wipe text of its own as a board wipe (Elesh Norn // The Argent
+ * Etchings, E78 item 8).
+ */
+function reportRoleOf(card: RoleCard): ReturnType<typeof validateCardRole> {
+  if (!card.card_faces || card.card_faces.length < 2) return validateCardRole(card);
+  return validateCardRole({ name: card.name, oracle_text: card.card_faces[0]?.oracle_text ?? '' });
+}
+
 /**
  * Tag each non-land card by functional role + subtype. Mirrors the enricher's
  * rule of not counting lands toward role totals. Shared by the deck-stats
  * `derivedRoles` memo and the manual-deck analysis path so the two never drift.
  */
-export function computeRoleCounts(
-  cards: Array<{
-    name: string;
-    type_line?: string;
-    oracle_text?: string;
-    card_faces?: Array<{ type_line?: string; oracle_text?: string }>;
-  }>
-): RoleCountResult {
+export function computeRoleCounts(cards: RoleCard[]): RoleCountResult {
   const roleCounts: Record<string, number> = {
     ramp: 0,
     removal: 0,
@@ -109,7 +129,7 @@ export function computeRoleCounts(
 
   for (const c of cards) {
     if (frontTypeLine(c).toLowerCase().includes('land')) continue;
-    const role = validateCardRole(c);
+    const role = reportRoleOf(c);
     if (!role) continue;
     roleCounts[role] = (roleCounts[role] || 0) + 1;
     switch (role) {
