@@ -47,6 +47,7 @@ import {
   getDynamicRoleTargets,
   estimatePacingFromStats,
   inferArchetype,
+  inferArchetypeFromEdhrecThemes,
   computeEdhrecRoleTargets,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
@@ -313,6 +314,50 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
 }
 
 /**
+ * Compose `landCountNote` — always from FINAL deck state (the delivered land
+ * count + the deck's own final average CMC), never from auto-tune-time values,
+ * which go stale the moment coherence-repair/bracket-convergence swap the deck
+ * afterward. `isLowConfidence` softens the archetype reference when the label
+ * came only from the oracle-text keyword-vote heuristic, not a real EDHREC
+ * theme or user pick — naming a wrong archetype ("for a Voltron deck") is worse
+ * than naming none ("for this deck's profile").
+ */
+export function buildLandCountNote(params: {
+  finalLandCount: number;
+  archetype: Archetype;
+  isLowConfidence: boolean;
+  edhrecRampCount: number;
+  finalAvgCmc: number;
+}): string {
+  const archetypeText = params.isLowConfidence
+    ? "for this deck's profile"
+    : `for a ${ARCHETYPE_LABEL[params.archetype]} deck`;
+  return `Auto-tuned to ${params.finalLandCount} lands ${archetypeText} (${params.edhrecRampCount} typical ramp sources, avg CMC ${params.finalAvgCmc.toFixed(1)}) — set land count explicitly under Customize to override.`;
+}
+
+/**
+ * Compose the honest over-budget disclosure from the FINAL deck total (summed
+ * after every mutating phase). Returns undefined when the deck landed at or
+ * under budget — callers keep whatever earlier skip-only note (if any) they
+ * already had in that case.
+ */
+export function buildOverBudgetNote(params: {
+  finalTotal: number;
+  deckBudget: number;
+  currency: 'USD' | 'EUR';
+  comboBudgetSkipCount: number;
+}): string | undefined {
+  if (params.finalTotal <= params.deckBudget) return undefined;
+  const sym = params.currency === 'EUR' ? '€' : '$';
+  const over = params.finalTotal - params.deckBudget;
+  const skippedClause =
+    params.comboBudgetSkipCount > 0
+      ? ' Some combo upgrades were skipped to stay as close as possible.'
+      : '';
+  return `Deck totals ${sym}${params.finalTotal.toFixed(2)} — ${sym}${over.toFixed(2)} over your ${sym}${params.deckBudget} budget.${skippedClause}`;
+}
+
+/**
  * Public entry point. For the default EDHREC mode this is a passthrough. For the
  * alternative generators it forces all card fetches to the live API for the
  * duration of the build (the offline query parser can't evaluate otag:/art:/year<=).
@@ -548,6 +593,17 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // same target — see computeGradeAndBracket call below.
   let resolvedLandCount = customization.landCount;
   let landCountNote: string | undefined;
+  // Whether the auto-tune actually changed the land count (decided early,
+  // needs EDHREC pool data before any card is picked) — the note *text* is
+  // composed later from final state (see landCountNote assembly near the
+  // return) so it never disagrees with what actually shipped.
+  let landCountAutoTuned = false;
+  let edhrecRampCountForNote: number | undefined;
+  // True when detectedArchetype came only from the oracle-text keyword-vote
+  // heuristic (commanderProfile.primaryArchetype) — neither the user's own
+  // theme picks nor EDHREC's own ranked commander-page themes resolved to a
+  // real archetype. Softens landCountNote's copy in that low-confidence case.
+  let archetypeIsLowConfidence = false;
   // Combo-completion budget disclosure: how many combo-audit/combo-floor
   // candidates were skipped for exceeding the budget cap (see budgetNote below).
   let comboBudgetSkipCount = 0;
@@ -1090,7 +1146,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // gated behind balancedRoles): a tribal/spellslinger/enchantress commander
   // should get its real archetype and land count regardless of that toggle.
   const commanderProfile = buildCommanderProfile(commander, partnerCommander);
-  detectedArchetype = inferArchetype(context.selectedThemes, commanderProfile.primaryArchetype);
+  // Prefer EDHREC's own ranked commander-page themes (the community's stated
+  // consensus) over the oracle-text keyword-vote heuristic, which tie-breaks
+  // on a static precedence list and mislabels commanders like Atraxa
+  // ("voltron" instead of proliferate/superfriends) or Sythis ("spellslinger"
+  // instead of enchantress). Only when EDHREC has nothing to say does the
+  // keyword vote decide — and that fallback path is the low-confidence case
+  // landCountNote's copy softens below.
+  const edhrecThemeArchetype = inferArchetypeFromEdhrecThemes(state.edhrecData?.themes);
+  const archetypeFallback = edhrecThemeArchetype ?? commanderProfile.primaryArchetype;
+  archetypeIsLowConfidence =
+    edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
+  detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
 
   // Archetype-aware land count: only when the user hasn't customized land
   // inputs (still at the store defaults) — an explicit user choice is never
@@ -1108,7 +1175,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const autoLandCount = computeAutoLandCount(detectedArchetype, edhrecRampCount, avgCmc);
     if (autoLandCount !== resolvedLandCount) {
       resolvedLandCount = autoLandCount;
-      landCountNote = `Auto-tuned to ${autoLandCount} lands for a ${ARCHETYPE_LABEL[detectedArchetype]} deck (${edhrecRampCount} typical ramp sources, avg CMC ${avgCmc.toFixed(1)}) — set land count explicitly under Customize to override.`;
+      landCountAutoTuned = true;
+      edhrecRampCountForNote = edhrecRampCount;
     }
   }
 
@@ -1504,7 +1572,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         state.edhrecData,
         customization.advancedTargets?.edhrecBlendWeight ?? null,
         customization.advancedTargets?.edhrecInclusionThreshold ?? null,
-        commanderProfile.primaryArchetype
+        archetypeFallback // same EDHREC-theme-first fallback used above, not the raw keyword vote
       );
       roleTargets = dynamic.targets;
       detectedArchetype = dynamic.archetype; // same value already set above; kept for shape parity
@@ -3392,7 +3460,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Disclose combo-completion candidates that were available but skipped for
   // exceeding the budget — the audit/combo-floor above now honor the same
   // budget gate cardPicking/scryfallFill/coherenceRepair enforce, instead of
-  // silently blowing the cap (see BudgetTracker).
+  // silently blowing the cap (see BudgetTracker). Overwritten near the return
+  // with the honest final-total/over-budget message when the shipped deck
+  // actually landed over budget (mutating passes run after this point).
   let budgetNote: string | undefined;
   if (budgetTracker && comboBudgetSkipCount > 0) {
     const sym = currency === 'EUR' ? '€' : '$';
@@ -3654,9 +3724,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const liftPicks = await liftPicksPhase(state, {
     effectiveScryfallQuery: scryfallQuery,
     isSaltBlocked,
-    extraExcludeNames: new Set(
-      [...preSwapUsedNames].filter((name) => !usedNames.has(name))
-    ),
+    extraExcludeNames: new Set([...preSwapUsedNames].filter((name) => !usedNames.has(name))),
   });
 
   // Build deck score from EDHREC inclusion percentages
@@ -3723,6 +3791,37 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   logger.debug(
     `[DeckGen] Bracket estimation: ${bracketEstimation.bracket} (${bracketEstimation.label}), soft score: ${bracketEstimation.softScore}`
   );
+
+  // landCountNote, composed HERE (not at auto-tune decision time) from the
+  // same final `categories`/`stats` everything else above now single-sources:
+  // the decision to note at all was made early (before any card was picked),
+  // but coherence-repair/bracket-convergence can still change the delivered
+  // land count and curve afterward — composing the string this late is the
+  // only way its numbers can't go stale relative to what actually shipped.
+  if (landCountAutoTuned) {
+    landCountNote = buildLandCountNote({
+      finalLandCount: categories.lands.length,
+      archetype: detectedArchetype ?? Archetype.GOODSTUFF,
+      isLowConfidence: archetypeIsLowConfidence,
+      edhrecRampCount: edhrecRampCountForNote ?? 0,
+      finalAvgCmc: stats.averageCmc,
+    });
+  }
+
+  // Budget honesty: recompute the real final total over the FINAL deck (post
+  // combo-floor/fixup/coherence-repair/bracket-convergence swaps) — the early
+  // budgetTracker log above runs before those mutating passes and only ever
+  // disclosed a skip count, never a total, so it can't say whether the deck
+  // actually landed over budget. Overwrite budgetNote with the honest number
+  // when it did, folding in the skip disclosure as a secondary clause.
+  if (deckBudget !== null) {
+    const finalTotal = [...nonLandCards, ...categories.lands].reduce((sum, c) => {
+      const p = getCardPrice(c, currency);
+      return sum + (p ? parseFloat(p) || 0 : 0);
+    }, 0);
+    budgetNote =
+      buildOverBudgetNote({ finalTotal, deckBudget, currency, comboBudgetSkipCount }) ?? budgetNote;
+  }
 
   // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
   // fixup passes above (they can evict cards added to categories.synergy), so

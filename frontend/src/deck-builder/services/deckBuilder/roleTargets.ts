@@ -5,6 +5,7 @@ import {
   type ThemeResult,
   type EDHRECCommanderStats,
   type EDHRECCommanderData,
+  type EDHRECTheme,
   type RoleTargetBreakdown,
 } from '@/deck-builder/types';
 import type { Pacing } from './pacingDetector';
@@ -130,6 +131,25 @@ export function estimatePacingFromStats(manaCurve: Record<number, number>): Paci
 }
 
 // ─── Archetype Inference ────────────────────────────────────────────
+
+/**
+ * Infer archetype from EDHREC's own ranked commander-page themes (the
+ * community's stated consensus for this commander, e.g. "Enchantress" for
+ * Sythis or "Ninjutsu"/tempo-flavored themes for Yuriko) — a stronger signal
+ * than the mechanically-detected `commanderProfile.primaryArchetype` keyword
+ * vote, which tie-breaks on a static precedence list and can land on the
+ * wrong archetype (voltron/spellslinger/aristocrats false positives). Walks
+ * `themes` in their already-popularity-sorted order and returns the first
+ * that maps to a real (non-GOODSTUFF) archetype; undefined when nothing maps,
+ * so callers fall back further (to the keyword-vote heuristic).
+ */
+export function inferArchetypeFromEdhrecThemes(themes?: EDHRECTheme[]): Archetype | undefined {
+  for (const theme of themes ?? []) {
+    const mapped = THEME_TO_ARCHETYPE[theme.name.toLowerCase().trim()];
+    if (mapped && mapped !== Archetype.GOODSTUFF) return mapped;
+  }
+  return undefined;
+}
 
 /**
  * Infer the archetype from the user's selected EDHREC themes. `fallback` is

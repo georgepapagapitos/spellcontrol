@@ -1,10 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { inferArchetype, getDynamicRoleTargets } from './roleTargets';
+import {
+  inferArchetype,
+  inferArchetypeFromEdhrecThemes,
+  getDynamicRoleTargets,
+} from './roleTargets';
 import { Archetype } from '@/deck-builder/types';
-import type { ThemeResult } from '@/deck-builder/types';
+import type { ThemeResult, EDHRECTheme } from '@/deck-builder/types';
 
 function theme(name: string, isSelected = true): ThemeResult {
   return { name, source: 'edhrec', isSelected };
+}
+
+function edhrecTheme(name: string, count: number): EDHRECTheme {
+  return {
+    name,
+    slug: name.toLowerCase().replace(/\s+/g, '-'),
+    count,
+    url: '',
+    popularityPercent: 0,
+  };
 }
 
 describe('inferArchetype', () => {
@@ -40,6 +54,30 @@ describe('inferArchetype', () => {
       archetype: Archetype.GOODSTUFF,
     };
     expect(inferArchetype([explicit], Archetype.TRIBAL)).toBe(Archetype.TRIBAL);
+  });
+});
+
+describe('inferArchetypeFromEdhrecThemes', () => {
+  it('returns undefined with no themes', () => {
+    expect(inferArchetypeFromEdhrecThemes(undefined)).toBeUndefined();
+    expect(inferArchetypeFromEdhrecThemes([])).toBeUndefined();
+  });
+
+  it('picks the top-ranked (already count-sorted) theme that maps to a real archetype', () => {
+    // Sythis-shaped fixture: EDHREC's own top theme is Enchantress, not the
+    // keyword-vote-derived "spellslinger" mislabel.
+    const themes = [edhrecTheme('Enchantress', 900), edhrecTheme('Lifegain', 300)];
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.ENCHANTRESS);
+  });
+
+  it('skips a top theme that maps to GOODSTUFF and uses the next real one', () => {
+    const themes = [edhrecTheme('Superfriends', 900), edhrecTheme('Voltron', 200)];
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.VOLTRON);
+  });
+
+  it('returns undefined when nothing maps to a real archetype', () => {
+    const themes = [edhrecTheme('Superfriends', 900), edhrecTheme('Chaos', 100)];
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBeUndefined();
   });
 });
 
