@@ -37,6 +37,10 @@ export interface RoleCapConfig {
   cardRoleMap: Map<string, RoleKey>;
   roleTargets: Record<RoleKey, number>;
   currentRoleCounts: Record<RoleKey, number>;
+  /** Shared across every gated path in the generation — incremented whenever
+   *  the escape hatch admits an over-cap card, so the build report can
+   *  disclose it in one aggregate note (never silent). */
+  overflowCounts?: Partial<Record<RoleKey, number>>;
 }
 
 // Pick cards from a pre-fetched card map (no API calls)
@@ -425,7 +429,15 @@ export function pickFromPrefetchedWithCurve(
       if (!ownedExempt) budgetTracker?.deductCard(scryfallCard);
       if (liveRoleCounts && roleCapConfig) {
         const role = roleCapConfig.cardRoleMap.get(edhrecCard.name);
-        if (role) liveRoleCounts[role] = (liveRoleCounts[role] ?? 0) + 1;
+        if (role) {
+          liveRoleCounts[role] = (liveRoleCounts[role] ?? 0) + 1;
+          // Every card reaching this point during the Phase-5 replay was
+          // skipped for cap in phases 1-4 — allowCapOverflow being true here
+          // means this acceptance IS an overflow admission.
+          if (allowCapOverflow && roleCapConfig.overflowCounts) {
+            roleCapConfig.overflowCounts[role] = (roleCapConfig.overflowCounts[role] ?? 0) + 1;
+          }
+        }
       }
 
       // Track ownership for quota enforcement

@@ -338,8 +338,16 @@ describe('computeRoleCounts (iter-3 cluster 6 — single source for shipped role
     // removal-tagged utility land), but the shared recount must still skip it
     // by type line — the same "roles never count lands" rule the ad-hoc
     // `currentRoleCounts` incremental tally forgot at three call sites.
-    vi.spyOn(taggerClient, 'getCardRole').mockImplementation((name: string) =>
-      name === 'Tainted Land' ? 'removal' : name === 'Real Removal Spell' ? 'removal' : null
+    // computeRoleCounts consumes validateCardRole (E77 iter-4 round 2) — spy on
+    // that, not the raw getCardRole it wraps: validateCardRole calls getCardRole
+    // via a same-module internal reference, which a spy on the export binding
+    // doesn't intercept.
+    vi.spyOn(taggerClient, 'validateCardRole').mockImplementation((card: { name: string }) =>
+      card.name === 'Tainted Land'
+        ? 'removal'
+        : card.name === 'Real Removal Spell'
+          ? 'removal'
+          : null
     );
 
     const { roleCounts } = computeRoleCounts([

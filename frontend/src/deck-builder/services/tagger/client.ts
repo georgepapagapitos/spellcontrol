@@ -247,13 +247,28 @@ export function getCardDrawSubtype(cardName: string): CardDrawSubtype | null {
 // which has no mana-production/land-fetch/cost-reduction text) and a record
 // whose cached oracle text doesn't match its claimed role for any reason.
 const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
-  ramp: /add (\{|one mana|an amount of mana|mana of any)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? \{?\d+\}? less|play an additional land/i,
+  // Land-aura mana boosters phrase this as "adds an additional {G}" (not
+  // "add {G}") and variable-mana rocks as "Add X mana of any one color" — the
+  // "s"/"an additional"/"X" infixes previously broke the plain "add {"
+  // adjacency (Wild Growth, Utopia Sprawl, Sanctum Weaver). Treasure-makers
+  // are ramp by deferred mana, not a mana ability on the card itself
+  // (Smothering Tithe, Dockside Extortionist, Pitiless Plunderer, Revel in
+  // Riches).
+  ramp: /adds?\s+(an additional\s+)?(x\s+)?(\{|one mana|an amount of mana|mana of any)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? \{?\d+\}? less|play an additional land|creates? [^.]*?treasures?\b/i,
   removal:
     /(destroy|exile) target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker)|fights? target creature|target creature gets? -\d+\/-\d+|target player sacrifices/i,
+  // Exile-based wipes (Farewell) and return-all bounce wipes (Devastation
+  // Tide) alongside the destroy-based ones.
   boardwipe:
-    /destroy all|all creatures (get|take|deal)|each creature (gets|takes)|damage to each creature|return all creatures|each player sacrifices (a|all)/i,
+    /destroy all|exile all|exile each creature|all creatures (get|take|deal)|each creature (gets|takes)|damage to each creature|return all (creatures|permanents)|each player sacrifices (a|all)/i,
+  // Tutors (search-library-into-ANY-destination) are folded into cardDraw by
+  // getCardRole — the taxonomy call already made, not this gate's job to
+  // re-litigate. Real tutors put the found card into hand, onto the
+  // battlefield, into the graveyard, or on top of the library (Vampiric
+  // Tutor, Demonic Tutor, Entomb, Natural Order, Protean Hulk, ...) — accept
+  // any destination rather than requiring "into hand" specifically.
   cardDraw:
-    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?card and put (it|that card) into (your|their) hand|each player draws|whenever [^.]*?draws? a card/i,
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|each player draws|whenever [^.]*?draws? a card/i,
 };
 
 /**

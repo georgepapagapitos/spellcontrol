@@ -31,6 +31,10 @@ import { roleCapTolerance } from './categorize';
 export interface RoleCapGate {
   roleTargets: Record<RoleKey, number>;
   currentRoleCounts: Record<RoleKey, number>;
+  /** Shared across every gated path in the generation — incremented whenever
+   *  the escape hatch admits an over-cap card, so the build report can
+   *  disclose it in one aggregate note (never silent). */
+  overflowCounts?: Partial<Record<RoleKey, number>>;
 }
 
 // Hard gates the EDHREC-pool picker (cardPicking.ts) enforces but a raw
@@ -186,8 +190,12 @@ export async function fillWithScryfall(
       if (!ownedExempt) budgetTracker?.deductCard(card);
       if (gates?.roleCap) {
         const role = validateCardRole(card);
-        if (role)
+        if (role) {
           gates.roleCap.currentRoleCounts[role] = (gates.roleCap.currentRoleCounts[role] ?? 0) + 1;
+          if (allowCapOverflow && gates.roleCap.overflowCounts) {
+            gates.roleCap.overflowCounts[role] = (gates.roleCap.overflowCounts[role] ?? 0) + 1;
+          }
+        }
       }
       return true;
     };

@@ -10,7 +10,7 @@ import type {
 import type { ComboMatch, ComboMatchResponse } from '@/types/combos';
 import {
   loadTaggerData,
-  getCardRole,
+  validateCardRole,
   getRampSubtype,
   getRemovalSubtype,
   getBoardwipeSubtype,
@@ -89,7 +89,12 @@ function frontTypeLine(card: {
  * `derivedRoles` memo and the manual-deck analysis path so the two never drift.
  */
 export function computeRoleCounts(
-  cards: Array<{ name: string; type_line?: string; card_faces?: Array<{ type_line?: string }> }>
+  cards: Array<{
+    name: string;
+    type_line?: string;
+    oracle_text?: string;
+    card_faces?: Array<{ type_line?: string; oracle_text?: string }>;
+  }>
 ): RoleCountResult {
   const roleCounts: Record<string, number> = {
     ramp: 0,
@@ -104,7 +109,7 @@ export function computeRoleCounts(
 
   for (const c of cards) {
     if (frontTypeLine(c).toLowerCase().includes('land')) continue;
-    const role = getCardRole(c.name);
+    const role = validateCardRole(c);
     if (!role) continue;
     roleCounts[role] = (roleCounts[role] || 0) + 1;
     switch (role) {
