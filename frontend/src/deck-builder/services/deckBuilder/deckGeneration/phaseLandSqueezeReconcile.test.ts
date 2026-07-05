@@ -126,6 +126,8 @@ function makeCtx(
     roleTargets: null,
     currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
     squeezeDelta: 0,
+    wildcardCandidates: [],
+    wildcardCount: 0,
     ...overrides,
   };
 }
@@ -136,7 +138,7 @@ beforeEach(() => {
 });
 
 describe('applyLandSqueezeReconcile', () => {
-  it('is an exact no-op when squeezeDelta is 0 — state.categories untouched', () => {
+  it('is an exact no-op when squeezeDelta and wildcardCount are both 0 — state.categories untouched', () => {
     const state = makeState();
     state.categories.creatures.push(scryfallCard('Filler_1'), scryfallCard('Filler_2'));
     const before = JSON.stringify(state.categories);
@@ -144,6 +146,7 @@ describe('applyLandSqueezeReconcile', () => {
     const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 0 }));
 
     expect(result.cut).toEqual([]);
+    expect(result.wildcardsKept).toEqual([]);
     expect(JSON.stringify(state.categories)).toBe(before);
   });
 
@@ -266,5 +269,93 @@ describe('applyLandSqueezeReconcile', () => {
     applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1, currentRoleCounts }));
 
     expect(currentRoleCounts.ramp).toBe(2);
+  });
+
+  // ── E82 attempt 6: superset-pick wildcards ──
+
+  function setupWildcardComparisonState(): GenerationState {
+    const state = makeState();
+    state.categories.creatures.push(scryfallCard('Incumbent_Low'), scryfallCard('Incumbent_High'));
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Incumbent_Low', 20),
+          edhrecCard('Incumbent_High', 60),
+          edhrecCard('Weak_Wildcard', 1),
+          edhrecCard('Strong_Wildcard', 95),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    return state;
+  }
+
+  it('is byte-identical to the no-wildcard baseline when every wildcard candidate scores below every incumbent', () => {
+    const weakWildcard = scryfallCard('Weak_Wildcard');
+
+    const before = applyLandSqueezeReconcile(
+      setupWildcardComparisonState(),
+      makeCtx({ squeezeDelta: 1, wildcardCandidates: [], wildcardCount: 0 })
+    );
+    const after = applyLandSqueezeReconcile(
+      setupWildcardComparisonState(),
+      makeCtx({ squeezeDelta: 1, wildcardCandidates: [weakWildcard], wildcardCount: 1 })
+    );
+
+    // Every wildcard added is the exact one cut back out — the deck's real
+    // cards (and cut order) are unaffected.
+    expect(after.cut).toEqual(before.cut);
+    expect(after.wildcardsKept).toEqual([]);
+  });
+
+  it('displaces the deck-wide-weakest incumbent when a wildcard scores higher', () => {
+    const state = setupWildcardComparisonState();
+    const strongWildcard = scryfallCard('Strong_Wildcard');
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual(['Strong_Wildcard']);
+    expect(result.cut).toEqual(['Incumbent_Low']);
+    expect(state.categories.creatures.map((c) => c.name)).not.toContain('Incumbent_Low');
+    expect(state.categories.creatures.map((c) => c.name)).toContain('Incumbent_High');
+    // Routed via routeCardByType (no role mapped in this fixture) — lands
+    // straight into 'synergy', the type-router's default bucket.
+    expect(state.categories.synergy.map((c) => c.name)).toContain('Strong_Wildcard');
+  });
+
+  it('protects a must-include and a protection piece even when the combined cut count grows via wildcards', () => {
+    const state = makeState();
+    const mustInclude = scryfallCard('Must Have', { isMustInclude: true });
+    const protectionPiece = scryfallCard('Heroic Intervention');
+    const filler1 = scryfallCard('Filler_1');
+    const filler2 = scryfallCard('Filler_2');
+    state.categories.synergy.push(mustInclude, protectionPiece, filler1, filler2);
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Heroic Intervention');
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Must Have', 1),
+          edhrecCard('Heroic Intervention', 1),
+          edhrecCard('Filler_1', 30),
+          edhrecCard('Filler_2', 40),
+          edhrecCard('Weak_Wildcard', 10),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const weakWildcard = scryfallCard('Weak_Wildcard');
+
+    // squeezeDelta(1) + actualAdd(1) = 2 — a bigger combined cut than
+    // squeezeDelta alone, exactly the "cut count grows via wildcards" case.
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 1, wildcardCandidates: [weakWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.cut).not.toContain('Must Have');
+    expect(result.cut).not.toContain('Heroic Intervention');
+    expect(result.cut).toEqual(['Filler_1']);
+    expect(result.wildcardsKept).toEqual([]);
   });
 });

@@ -383,22 +383,36 @@ describe('buildPriceSanityNote (E80)', () => {
   });
 });
 
-describe('buildLandSqueezeTrimNote (E88)', () => {
-  it('returns undefined when nothing was cut', () => {
-    expect(buildLandSqueezeTrimNote([], 40, 37)).toBeUndefined();
+describe('buildLandSqueezeTrimNote (E88 + E82 attempt 6)', () => {
+  it('returns undefined when nothing was cut and no wildcard was kept', () => {
+    expect(buildLandSqueezeTrimNote([], [], 40, 37)).toBeUndefined();
   });
 
   it('names the count, delta, and cut cards with plural phrasing', () => {
-    const note = buildLandSqueezeTrimNote(['Card A', 'Card B'], 40, 37);
+    const note = buildLandSqueezeTrimNote(['Card A', 'Card B'], [], 40, 37);
     expect(note).toBe(
       'Auto-tuned land count to 40 (3 more than the 37-land default) left 2 fewer spell slots than usual — reconciled by cutting the lowest-value picks: Card A, Card B.'
     );
   });
 
   it('uses singular phrasing for exactly one cut card', () => {
-    const note = buildLandSqueezeTrimNote(['Card A'], 38, 37);
+    const note = buildLandSqueezeTrimNote(['Card A'], [], 38, 37);
     expect(note).toBe(
       'Auto-tuned land count to 38 (1 more than the 37-land default) left 1 fewer spell slot than usual — reconciled by cutting the lowest-value pick: Card A.'
+    );
+  });
+
+  it('appends a combined wildcard sentence when both a cut and a keep happened', () => {
+    const note = buildLandSqueezeTrimNote(['Card A'], ['Card B'], 38, 37);
+    expect(note).toBe(
+      "Auto-tuned land count to 38 (1 more than the 37-land default) left 1 fewer spell slot than usual — reconciled by cutting the lowest-value pick: Card A. Additionally, 1 stronger leftover card (Card B) displaced an equal number of the deck's weakest picks."
+    );
+  });
+
+  it('stands alone (no "Additionally") when only a wildcard was kept', () => {
+    const note = buildLandSqueezeTrimNote([], ['Card B', 'Card C'], 34, 37);
+    expect(note).toBe(
+      "2 stronger leftover cards (Card B, Card C) displaced an equal number of the deck's weakest picks."
     );
   });
 });
