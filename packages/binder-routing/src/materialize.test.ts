@@ -381,7 +381,14 @@ describe('materializeBinders', () => {
       expect(binders[1].totalCards).toBe(1);
     });
 
-    it('excludedCopyIds still apply in manual mode', () => {
+    it('a pin wins over an exclusion on the same binder (pins are the stronger signal)', () => {
+      // Previously this contradictory state (pinned AND excluded on the same
+      // binder) silently vanished the card into limbo — visible in NO binder
+      // and not in uncategorized either, because the post-hoc exclusion filter
+      // applied to every bucket entry regardless of how it got claimed. Pins
+      // bypass rule routing and are documented (next-match.ts) as the
+      // strongest, explicit signal, so a pin now wins outright — matching
+      // nextBinderMatch's own pin-before-exclusion precedence.
       const card = makeCard({ name: 'Excluded Pin' });
       const binder = makeBinder({
         mode: 'manual',
@@ -389,7 +396,7 @@ describe('materializeBinders', () => {
         excludedCopyIds: [card.copyId],
       });
       const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
-      expect(binders[0].totalCards).toBe(0);
+      expect(binders[0].totalCards).toBe(1);
       expect(uncategorized.totalCards).toBe(0);
     });
 
@@ -411,6 +418,69 @@ describe('materializeBinders', () => {
       expect(binder.mode).toBeUndefined();
       const { binders } = materializeBinders([card], [binder], defaultOpts);
       expect(binders[0].totalCards).toBe(1);
+    });
+  });
+
+  describe('exclusion fall-through (E88)', () => {
+    it('a copy excluded from the first matching binder falls through to the next matching binder', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const first = makeBinder({
+        id: 'first',
+        position: 0,
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+        excludedCopyIds: [card.copyId],
+      });
+      const second = makeBinder({
+        id: 'second',
+        position: 1,
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      });
+      const { binders, uncategorized } = materializeBinders([card], [first, second], defaultOpts);
+      const byId = Object.fromEntries(binders.map((b) => [b.def.id, b.totalCards]));
+      expect(byId.first).toBe(0);
+      expect(byId.second).toBe(1);
+      expect(uncategorized.totalCards).toBe(0);
+    });
+
+    it('a copy excluded from the only matching binder lands in uncategorized, not limbo', () => {
+      const card = makeCard({ rarity: 'rare' });
+      const binder = makeBinder({
+        filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+        excludedCopyIds: [card.copyId],
+      });
+      const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+      expect(binders[0].totalCards).toBe(0);
+      expect(uncategorized.totalCards).toBe(1);
+      expect(uncategorized.sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual([
+        card.copyId,
+      ]);
+    });
+
+    it('keepPrintingsTogether does not promote a sibling copy the binder excludes', () => {
+      const pricey = makeCard({
+        copyId: 'pricey',
+        name: 'Atraxa',
+        oracleId: 'atx',
+        scryfallId: 'atx-set1',
+        purchasePrice: 3,
+      });
+      const bulk = makeCard({
+        copyId: 'bulk',
+        name: 'Atraxa',
+        oracleId: 'atx',
+        scryfallId: 'atx-set2',
+        purchasePrice: 0.1,
+      });
+      const binder = makeBinder({
+        filter: { priceMin: 0.5 },
+        keepPrintingsTogether: true,
+        excludedCopyIds: ['bulk'],
+      });
+      const { binders, uncategorized } = materializeBinders([pricey, bulk], [binder], defaultOpts);
+      expect(binders[0].sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual(['pricey']);
+      // The excluded sibling stays out of this binder. It has nowhere else to
+      // match, so it lands in uncategorized rather than being force-promoted.
+      expect(uncategorized.sections.flatMap((s) => s.cards.map((c) => c.copyId))).toEqual(['bulk']);
     });
   });
 

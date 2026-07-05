@@ -76,6 +76,10 @@ export function materializeBinders(
   const orderedDefs = [...binderDefs].sort((a, b) => a.position - b.position);
   // Compile each binder's groups once. Outer index = binder, inner = OR-branches.
   const compiledGroups = orderedDefs.map((d) => compileFilterGroups(d.filterGroups));
+  // Per-binder exclusion sets, same indexing as compiledGroups. A binder that
+  // excludes a copyId must never claim it — the card falls through to the
+  // next matching binder (or uncategorized) instead of vanishing into limbo.
+  const excludedSets = orderedDefs.map((d) => new Set(d.excludedCopyIds ?? []));
   const defsById = new Map(orderedDefs.map((d) => [d.id, d]));
   const allocated = opts.allocatedCopyIds ?? EMPTY_SET;
 
@@ -88,8 +92,6 @@ export function materializeBinders(
       }
     }
   }
-
-  const cardsByCopyId = new Map<string, EnrichedCard>(cards.map((c) => [c.copyId, c]));
 
   const buckets = new Map<string, EnrichedCard[]>();
   orderedDefs.forEach((d) => buckets.set(d.id, []));
@@ -114,18 +116,18 @@ export function materializeBinders(
     for (let i = 0; i < orderedDefs.length; i++) {
       const def = orderedDefs[i];
       if (def.mode === 'manual') continue;
-      if (cardMatchesAnyGroup(card, compiledGroups[i])) {
-        if (isSwallowedByBinder(isAllocated, def)) {
-          // First matching binder hides deck-allocated cards: card is dropped
-          // from the binder system entirely (not routed to a later binder, not
-          // sent to uncategorized). It returns when un-allocated.
-          swallowed = true;
-        } else {
-          buckets.get(def.id)!.push(card);
-          matched = true;
-        }
-        break;
+      if (!cardMatchesAnyGroup(card, compiledGroups[i])) continue;
+      if (excludedSets[i].has(card.copyId)) continue; // excluded here: fall through
+      if (isSwallowedByBinder(isAllocated, def)) {
+        // First matching binder hides deck-allocated cards: card is dropped
+        // from the binder system entirely (not routed to a later binder, not
+        // sent to uncategorized). It returns when un-allocated.
+        swallowed = true;
+      } else {
+        buckets.get(def.id)!.push(card);
+        matched = true;
       }
+      break;
     }
     if (!matched && !swallowed) uncategorized.push(card);
   }
@@ -142,6 +144,7 @@ export function materializeBinders(
     if (!def.keepPrintingsTogether || def.mode === 'manual') continue;
     const bucket = buckets.get(def.id)!;
     const pinned = new Set(def.pinnedCopyIds ?? []);
+    const excluded = excludedSets[i];
     const wanted = new Set<string>();
     for (const c of bucket) {
       if (c.oracleId && !pinned.has(c.copyId)) wanted.add(c.oracleId);
@@ -149,7 +152,9 @@ export function materializeBinders(
     if (wanted.size === 0) continue;
     const kept: EnrichedCard[] = [];
     for (const card of uncategorized) {
-      if (card.oracleId !== undefined && wanted.has(card.oracleId)) {
+      // A copy this binder excludes must never be pulled back in by promotion,
+      // even if a sibling printing matched — exclusion is explicit intent.
+      if (card.oracleId !== undefined && wanted.has(card.oracleId) && !excluded.has(card.copyId)) {
         // Same swallow rule as the main routing loop, for deck-allocated copies.
         if (isSwallowedByBinder(allocated.has(card.copyId), def)) continue;
         bucket.push(card);
@@ -162,7 +167,7 @@ export function materializeBinders(
   }
 
   const materialized: MaterializedBinder[] = orderedDefs.map((def) => {
-    const rawCards = buildBinderCards(def, buckets.get(def.id)!, cardsByCopyId);
+    const rawCards = buildBinderCards(def, buckets.get(def.id)!);
     const effectivePocketSize = (def.pocketSize ??
       opts.globalPocketSize ??
       DEFAULT_POCKET_SIZE) as PocketSize;
@@ -232,22 +237,16 @@ export function materializeBinders(
 }
 
 /**
- * Applies per-binder exclusions and manual ordering to the raw bucket of cards.
- * Returns the card list that should be passed to section-building.
+ * Applies manual ordering to the raw bucket of cards (exclusions are already
+ * enforced upstream — an excluded copy never enters `bucket`). Returns the
+ * card list that should be passed to section-building.
  */
-function buildBinderCards(
-  def: BinderDef,
-  bucket: EnrichedCard[],
-  _cardsByCopyId: Map<string, EnrichedCard>
-): EnrichedCard[] {
-  const excluded = new Set(def.excludedCopyIds ?? []);
-  const cards = bucket.filter((c) => !excluded.has(c.copyId));
-
-  if (!def.manualOrder?.length) return cards;
+function buildBinderCards(def: BinderDef, bucket: EnrichedCard[]): EnrichedCard[] {
+  if (!def.manualOrder?.length) return bucket;
 
   // Manual order: cards appear in the specified order; any cards not in the
   // list (new rule matches or pins added after the order was set) are appended.
-  const byId = new Map(cards.map((c) => [c.copyId, c]));
+  const byId = new Map(bucket.map((c) => [c.copyId, c]));
   const seen = new Set<string>();
   const ordered: EnrichedCard[] = [];
   for (const id of def.manualOrder) {
@@ -257,7 +256,7 @@ function buildBinderCards(
       seen.add(id);
     }
   }
-  for (const card of cards) {
+  for (const card of bucket) {
     if (!seen.has(card.copyId)) ordered.push(card);
   }
   return ordered;

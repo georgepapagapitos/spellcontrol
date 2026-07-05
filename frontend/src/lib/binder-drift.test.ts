@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { captureBinderSnapshot, computeDrift, formatDriftReason, hasDrift } from './binder-drift';
+import {
+  acknowledgeInSnapshot,
+  captureBinderSnapshot,
+  computeDrift,
+  formatDriftReason,
+  hasDrift,
+} from './binder-drift';
 import { materializeBinders } from './materialize';
 import { printingFinishKey } from './collection-mutations';
 import type {
@@ -418,5 +424,74 @@ describe('drift ignores the in-binder search filter', () => {
     // The fix: drift over the unfiltered materialization sees no change.
     const unfiltered = materializeWithSearch([bolt, ring], reviewed, '');
     expect(hasDrift(computeDrift(unfiltered, [bolt, ring], []))).toBe(false);
+  });
+});
+
+describe('acknowledgeInSnapshot (E88)', () => {
+  it('"added": adds the key and a price/edhrec snapshot, leaving other keys untouched', () => {
+    const bolt = makeCard({ scryfallId: 'a', name: 'Lightning Bolt' });
+    const baseline = captureBinderSnapshot(materializeOne([bolt], makeBinder({ filter: {} })));
+    const ring = makeCard({
+      scryfallId: 'b',
+      name: 'Sol Ring',
+      purchasePrice: 2.5,
+      edhrecRank: 10,
+    });
+    const ringKey = printingFinishKey(ring);
+
+    const next = acknowledgeInSnapshot(baseline, ringKey, 'added', ring);
+
+    expect(next.keys).toContain(printingFinishKey(bolt)); // untouched
+    expect(next.keys).toContain(ringKey);
+    expect(next.cardSnapshots[ringKey]).toEqual({ price: 2.5, edhrecRank: 10 });
+    // Original snapshot is not mutated.
+    expect(baseline.keys).not.toContain(ringKey);
+  });
+
+  it('"added" is idempotent — acknowledging twice does not duplicate the key', () => {
+    const ring = makeCard({ scryfallId: 'b', name: 'Sol Ring' });
+    const key = printingFinishKey(ring);
+    const empty = { at: Date.now(), keys: [], cardSnapshots: {} };
+
+    const once = acknowledgeInSnapshot(empty, key, 'added', ring);
+    const twice = acknowledgeInSnapshot(once, key, 'added', ring);
+
+    expect(twice.keys.filter((k) => k === key)).toHaveLength(1);
+  });
+
+  it('"removed": drops the key and its cardSnapshot entry', () => {
+    const bolt = makeCard({ scryfallId: 'a', name: 'Lightning Bolt' });
+    const ring = makeCard({ scryfallId: 'b', name: 'Sol Ring' });
+    const baseline = captureBinderSnapshot(
+      materializeOne([bolt, ring], makeBinder({ filter: {} }))
+    );
+    const ringKey = printingFinishKey(ring);
+    expect(baseline.keys).toContain(ringKey);
+
+    const next = acknowledgeInSnapshot(baseline, ringKey, 'removed');
+
+    expect(next.keys).not.toContain(ringKey);
+    expect(next.cardSnapshots[ringKey]).toBeUndefined();
+    expect(next.keys).toContain(printingFinishKey(bolt)); // untouched
+  });
+
+  it('"removed" works with no live card representative (card fully gone from collection)', () => {
+    const ring = makeCard({ scryfallId: 'b', name: 'Sol Ring' });
+    const ringKey = printingFinishKey(ring);
+    const baseline = {
+      at: Date.now(),
+      keys: [ringKey],
+      cardSnapshots: { [ringKey]: { price: 1 } },
+    };
+
+    const next = acknowledgeInSnapshot(baseline, ringKey, 'removed');
+
+    expect(next.keys).toEqual([]);
+  });
+
+  it('"removed" no-ops when the key is not in the baseline', () => {
+    const empty = { at: Date.now(), keys: [], cardSnapshots: {} };
+    const next = acknowledgeInSnapshot(empty, 'nonexistent-key', 'removed');
+    expect(next).toBe(empty);
   });
 });

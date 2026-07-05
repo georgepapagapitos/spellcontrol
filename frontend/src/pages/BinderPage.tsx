@@ -19,6 +19,7 @@ const BinderCardEditor = lazy(() =>
 );
 import { useCollectionStore } from '../store/collection';
 import { materializeBinders } from '../lib/materialize';
+import { findRedundantPins } from '../lib/binder-pin-dissolve';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
@@ -48,6 +49,7 @@ export function BinderPage() {
   const setSearch = useCollectionStore((s) => s.setSearch);
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const deleteBinder = useCollectionStore((s) => s.deleteBinder);
+  const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
   const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Sync the URL param into the existing activeTab store field so child
@@ -137,6 +139,25 @@ export function BinderPage() {
     }).binders;
   }, [materialized, debouncedSearch, effectiveCards, binders, allocatedCopyIds, setMap]);
 
+  // Computed before the early returns below (Rules of Hooks: the dissolve
+  // effect that depends on it must run unconditionally on every render).
+  // Mirrors the `active`/`activeId` derivation used after the early returns.
+  const active = materialized.find((b) => b.def.id === routeId) ?? materialized[0];
+  const activeId = active?.def.id ?? null;
+
+  // Pin auto-dissolve: a "Keep here" pin that no longer does any work (the
+  // card would route here via rules/other pins anyway) is silently dropped.
+  // Runs off the raw `cards` (not `effectiveCards`, which collapses printings
+  // under group-printings mode) since pins are per physical copyId. Guarded
+  // so it only fires — and only mutates — when a redundant pin actually
+  // exists; the mutation changes `binders`, which naturally converges next
+  // render because the dissolved pin is gone from pinnedCopyIds by then.
+  useEffect(() => {
+    if (!activeId) return;
+    const redundant = findRedundantPins(activeId, cards, binders);
+    for (const copyId of redundant) removeCardFromBinder(activeId, copyId, false);
+  }, [activeId, cards, binders, removeCardFromBinder]);
+
   if (hydrating) {
     return (
       <div className="page-loader" role="status" aria-live="polite">
@@ -157,9 +178,6 @@ export function BinderPage() {
   if (routeId && !binders.some((b) => b.id === routeId)) {
     return <Navigate to="/collection/binders" replace />;
   }
-
-  const active = materialized.find((b) => b.def.id === routeId) ?? materialized[0];
-  const activeId = active?.def.id ?? null;
 
   // Rendered next to "Collapse all" inside each view's summary line so the
   // mode toggle sits adjacent to the content it switches between.
