@@ -230,6 +230,31 @@ describe('applyRoleSurplusRebalance', () => {
     expect(remainingRamp).toHaveLength(7);
   });
 
+  // E87: an earlier-run coherence repair marks its cut card's name into
+  // state.bannedCards (deckGenerator.ts's auditRemove / phaseCoherenceRepair's
+  // removeCard) so its coherenceRepairs disclosure stays truthful. This pins
+  // the other half of that contract — the payoff-conversion candidate pool
+  // this phase draws from must actually honor the veto, not just the
+  // must-include/combo/staple protections already covered above.
+  it('never re-adds a name already banned by an earlier coherence-repair cut, even as the top EDHREC candidate', () => {
+    const state = makeState();
+    addRampCards(state, 8); // same over-cap setup as the test above
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
+    } as unknown as GenerationState['edhrecData'];
+    // Simulate: an earlier coherence-repair pass cut "Payoff A" this same run
+    // (e.g. evicted as an incomplete-combo orphan) and vetoed it.
+    state.bannedCards.add('Payoff A');
+    const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    // "Payoff A" was the only candidate in the pool — banned, there's nothing
+    // legal to convert into, so the surplus goes unconverted rather than
+    // resurrecting the vetoed card.
+    expect(result.conversions).toEqual([]);
+    expect(state.usedNames.has('Payoff A')).toBe(false);
+  });
+
   it('never evicts a must-include or combo piece', () => {
     const state = makeState();
     const cards = addRampCards(state, 8);
