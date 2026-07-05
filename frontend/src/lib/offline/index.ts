@@ -94,9 +94,13 @@ export async function offlineSearchCards(
     skipColorFilter = false,
   } = opts;
 
-  // Glue on the same color/format clauses the live searchCards() function adds.
-  const colorClause =
-    !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
+  // Glue on the same color/format clauses the live searchCards() function
+  // adds — including the colorless-identity fix: empty colorIdentity means a
+  // COLORLESS commander, not "unrestricted" (see client.ts's liveSearchCards
+  // for the full incident writeup).
+  const colorClause = !skipColorFilter
+    ? `id<=${colorIdentity.length > 0 ? colorIdentity.join('') : 'c'}`
+    : '';
   const formatClause = skipFormatFilter ? '' : 'f:commander';
   const fullQuery = `${colorClause} (${rawQuery}) ${formatClause}`.trim();
 

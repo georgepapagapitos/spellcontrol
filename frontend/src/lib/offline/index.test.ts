@@ -127,6 +127,23 @@ describe('offlineSearchCards', () => {
     expect(resp.data.map((c) => c.name).sort()).toEqual(['Counterspell']);
   });
 
+  // Defect A (iter-6 Slice B follow-up, CRITICAL): colorIdentity: [] means a
+  // COLORLESS commander, not "no restriction". The old
+  // `colorIdentity.length > 0 ? 'id<=...' : ''` fell through to an empty
+  // filter for [] — a colorless-identity search returned cards of ANY color
+  // (live repro: Kozilek, the Great Distortion, colorIdentity [], seated
+  // Omniscience — a {U}{U}{U} enchantment — via this exact gap, since
+  // scryfallFill.ts's fillWithScryfall has no client-side color-identity
+  // check and relies entirely on this query-string filter).
+  it('restricts to colorless cards for an empty (colorless-commander) colorIdentity', async () => {
+    await replaceOracleCards([
+      slim('o-omni', 'Omniscience', { colorIdentity: ['U'], typeLine: 'Enchantment' }),
+      slim('o-colorless', 'Colorless Enchantment', { colorIdentity: [], typeLine: 'Enchantment' }),
+    ]);
+    const resp = await offlineSearchCards('t:enchantment', { colorIdentity: [] });
+    expect(resp.data.map((c) => c.name)).toEqual(['Colorless Enchantment']);
+  });
+
   it('paginates and reports has_more correctly', async () => {
     // 200 cards so pagination kicks in (PAGE_SIZE=175)
     const cards = Array.from({ length: 200 }, (_, i) =>
