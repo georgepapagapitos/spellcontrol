@@ -22,6 +22,7 @@ import {
   getCardsByNames,
   getFrontFaceTypeLine,
   searchCards,
+  commanderSearchIdentity,
 } from '@/deck-builder/services/scryfall/client';
 import { isBasicLandName } from '@/lib/allocations';
 import { fetchCommanderData, fetchPartnerCommanderData, fetchCardLiftPool } from '../edhrec/client';
@@ -529,7 +530,7 @@ async function sourceOracleCandidates(
     const query = axisSearchQuery(need.axis, need.side);
     if (!query) continue;
     try {
-      const resp = await searchCards(query, colorIdentity);
+      const resp = await searchCards(query, commanderSearchIdentity(colorIdentity));
       results.push({ need, cards: resp.data.slice(0, ORACLE_HITS_PER_NEED) });
     } catch (err) {
       logger.warn(`[CommanderDeckAnalysis] Oracle search failed for ${need.axis}:`, err);

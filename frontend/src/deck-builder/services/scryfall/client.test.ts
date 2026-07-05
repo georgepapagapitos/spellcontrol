@@ -25,6 +25,7 @@ import {
   getOwnedPrinting,
   getCardByNameResilient,
   searchCards,
+  commanderSearchIdentity,
 } from './client';
 
 function makeCard(overrides: Partial<ScryfallCard>): ScryfallCard {
@@ -124,15 +125,16 @@ describe('getCardById', () => {
   });
 });
 
-// Defect A (iter-6 Slice B follow-up, CRITICAL): colorIdentity: [] means a
-// COLORLESS commander, not "no restriction" — the old
-// `colorIdentity.length > 0 ? 'id<=...' : ''` fell through to no color
-// filter at all for an empty identity, so a live search for a colorless
-// commander (Kozilek, the Great Distortion) could return ANY color of card
-// (live repro: seated Omniscience, a {U}{U}{U} enchantment, via this exact
-// query-string gap — scryfallFill.ts has no client-side fitsColorIdentity
-// check and relies entirely on this server-side filter).
-describe('searchCards color-identity query (defect A)', () => {
+// Color-identity filter semantics. Two callers, two meanings for []:
+//  - Generic surfaces (collection add, lists, scanner, binder-rule preview)
+//    pass [] to mean "unrestricted". An implicit []→id<=c fallback (defect A's
+//    first fix) made all of them colorless-only, 404-ing every non-colorless
+//    search in prod ("bolas's citadel" from the collection add panel).
+//  - Deck generation means "colorless commander" (Kozilek) — that intent is
+//    expressed explicitly via commanderSearchIdentity, which keeps the original
+//    defect-A fix (Omniscience seated in a colorless deck through the
+//    unfiltered gap; scryfallFill has no client-side identity check).
+describe('searchCards color-identity query', () => {
   beforeEach(() => {
     gate.offline = false;
   });
@@ -140,7 +142,7 @@ describe('searchCards color-identity query (defect A)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('filters to colorless cards (id<=c) for an empty colorIdentity, not an unfiltered search', async () => {
+  it('applies no color filter for an empty colorIdentity (generic search is unrestricted)', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue({ ok: true, json: async () => ({ data: [], has_more: false }) });
@@ -149,8 +151,23 @@ describe('searchCards color-identity query (defect A)', () => {
     await searchCards('t:enchantment', []);
 
     const url = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
-    expect(url).toContain('id<=c');
-    expect(url).not.toContain('id<= '); // never the bare/empty filter regression
+    expect(url).not.toContain('id<=');
+  });
+
+  it('filters to colorless via commanderSearchIdentity for a colorless commander', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ data: [], has_more: false }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await searchCards('t:enchantment', commanderSearchIdentity([]));
+
+    const url = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
+    expect(url).toContain('id<=C');
+  });
+
+  it('passes a colored commander identity through unchanged', () => {
+    expect(commanderSearchIdentity(['U', 'B'])).toEqual(['U', 'B']);
   });
 
   it('still filters normally for a nonempty colorIdentity', async () => {
