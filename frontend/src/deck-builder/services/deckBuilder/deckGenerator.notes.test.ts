@@ -66,8 +66,9 @@ function sc(name: string): ScryfallCard {
 }
 
 describe('buildLandCountNote', () => {
-  it('names the archetype when confidence is high', () => {
+  it('names the archetype when confidence is high, with no delivered clause when counts agree', () => {
     const note = buildLandCountNote({
+      resolvedLandCount: 37,
       finalLandCount: 37,
       archetype: Archetype.ENCHANTRESS,
       isLowConfidence: false,
@@ -75,10 +76,12 @@ describe('buildLandCountNote', () => {
       finalAvgCmc: 3.2,
     });
     expect(note).toContain('for an Enchantress deck');
+    expect(note).not.toContain('delivered');
   });
 
   it('softens the copy instead of naming a low-confidence archetype guess', () => {
     const note = buildLandCountNote({
+      resolvedLandCount: 37,
       finalLandCount: 37,
       archetype: Archetype.VOLTRON, // e.g. Atraxa's mislabeled keyword-vote guess
       isLowConfidence: true,
@@ -89,32 +92,42 @@ describe('buildLandCountNote', () => {
     expect(note).not.toContain('Voltron');
   });
 
-  it('reconciles to FINAL state, not the values known at the auto-tune decision point', () => {
-    // Simulate: at auto-tune time the target was 36 lands / avg CMC 3.0, but a
-    // later coherence-repair/bracket-convergence pass shipped 35 lands and
-    // shifted the curve to avg CMC 3.4 — the note must reflect the shipped
-    // numbers, not the stale decision-time ones.
-    const staleDecisionTimeNote = buildLandCountNote({
-      finalLandCount: 36,
+  it('headlines the RESOLVED tune target and discloses the delivered count when they differ', () => {
+    // Kozilek shape: the tune resolved 36, but colorless-pool backfill delivered
+    // 40 — printing "Auto-tuned to 40" misstates what the tune did (real
+    // differ-gate trust misread). The headline must be the resolved count, the
+    // delivered count disclosed alongside it.
+    const note = buildLandCountNote({
+      resolvedLandCount: 36,
+      finalLandCount: 40,
+      archetype: Archetype.GOODSTUFF,
+      isLowConfidence: false,
+      edhrecRampCount: 8,
+      finalAvgCmc: 3.4,
+    });
+    expect(note).toContain('Auto-tuned to 36 lands');
+    expect(note).toContain('delivered 40 after post-tune deck adjustments');
+  });
+
+  it('still reconciles curve stats to FINAL state, not auto-tune-time values', () => {
+    // avg CMC must reflect the shipped deck even when composed late — only the
+    // "Auto-tuned to N" headline is pinned to the tune's own resolved output.
+    const note = buildLandCountNote({
+      resolvedLandCount: 36,
+      finalLandCount: 35, // a later phase delivered one fewer land
       archetype: Archetype.MIDRANGE,
       isLowConfidence: false,
       edhrecRampCount: 8,
-      finalAvgCmc: 3.0,
+      finalAvgCmc: 3.4, // final curve, not the 3.0 known at decision time
     });
-    const finalNote = buildLandCountNote({
-      finalLandCount: 35, // mutated after the decision point
-      archetype: Archetype.MIDRANGE,
-      isLowConfidence: false,
-      edhrecRampCount: 8,
-      finalAvgCmc: 3.4, // mutated after the decision point
-    });
-    expect(finalNote).toContain('Auto-tuned to 35 lands');
-    expect(finalNote).toContain('avg CMC 3.4');
-    expect(finalNote).not.toBe(staleDecisionTimeNote);
+    expect(note).toContain('Auto-tuned to 36 lands');
+    expect(note).toContain('avg CMC 3.4');
+    expect(note).toContain('delivered 35 after post-tune deck adjustments');
   });
 
   it('formats CMC to one decimal place', () => {
     const note = buildLandCountNote({
+      resolvedLandCount: 36,
       finalLandCount: 36,
       archetype: Archetype.GOODSTUFF,
       isLowConfidence: false,

@@ -364,15 +364,23 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
 }
 
 /**
- * Compose `landCountNote` — always from FINAL deck state (the delivered land
- * count + the deck's own final average CMC), never from auto-tune-time values,
- * which go stale the moment coherence-repair/bracket-convergence swap the deck
- * afterward. `isLowConfidence` softens the archetype reference when the label
- * came only from the oracle-text keyword-vote heuristic, not a real EDHREC
- * theme or user pick — naming a wrong archetype ("for a Voltron deck") is worse
- * than naming none ("for this deck's profile").
+ * Compose `landCountNote` — still composed late, from FINAL deck state (the
+ * deck's own final average CMC, and the delivered land count when it moved),
+ * never from auto-tune-time curve values, which go stale the moment
+ * coherence-repair/bracket-convergence swap the deck afterward. But the
+ * "Auto-tuned to N" headline number is the tune's RESOLVED target, not the
+ * delivered count: downstream phases (colorless-pool backfill, coherence
+ * repair) can legitimately deliver more/fewer lands than the tune resolved,
+ * and printing the delivered count as if the tune chose it misstates what the
+ * auto-tune did (a Kozilek tune of 36 delivering 40 read as "Auto-tuned to
+ * 40"). When the two differ, both are disclosed. `isLowConfidence` softens the
+ * archetype reference when the label came only from the oracle-text
+ * keyword-vote heuristic, not a real EDHREC theme or user pick — naming a
+ * wrong archetype ("for a Voltron deck") is worse than naming none ("for this
+ * deck's profile").
  */
 export function buildLandCountNote(params: {
+  resolvedLandCount: number;
   finalLandCount: number;
   archetype: Archetype;
   isLowConfidence: boolean;
@@ -383,7 +391,11 @@ export function buildLandCountNote(params: {
   const archetypeText = params.isLowConfidence
     ? "for this deck's profile"
     : `for ${/^[AEIOU]/i.test(label) ? 'an' : 'a'} ${label} deck`;
-  return `Auto-tuned to ${params.finalLandCount} lands ${archetypeText} (${params.edhrecRampCount} typical ramp sources, avg CMC ${params.finalAvgCmc.toFixed(1)}) — set land count explicitly under Customize to override.`;
+  const deliveredClause =
+    params.finalLandCount !== params.resolvedLandCount
+      ? `; delivered ${params.finalLandCount} after post-tune deck adjustments`
+      : '';
+  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} typical ramp sources, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause} — set land count explicitly under Customize to override.`;
 }
 
 /**
@@ -4637,6 +4649,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // only way its numbers can't go stale relative to what actually shipped.
   if (landCountAutoTuned) {
     landCountNote = buildLandCountNote({
+      resolvedLandCount,
       finalLandCount: categories.lands.length,
       archetype: detectedArchetype ?? Archetype.GOODSTUFF,
       isLowConfidence: archetypeIsLowConfidence,
