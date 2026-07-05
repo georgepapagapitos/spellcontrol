@@ -38,6 +38,11 @@ import {
 } from '../components/BulkSelectBar';
 import { useSelection } from '../lib/use-selection';
 import { useDebouncedValue } from '../lib/use-debounced-value';
+import { useCollectionStore } from '../store/collection';
+import { useAllocations } from '../lib/allocations';
+import { useSetMap } from '../lib/api';
+import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
+import { buildBinderPlacement, buildPullList, isPullableKind } from '../lib/pull-list';
 import { getCardPrice } from '../deck-builder/services/scryfall/client';
 import type { Deck, DeckSource } from '../store/decks';
 import type { DeckFormat, ScryfallCard } from '../deck-builder/types';
@@ -153,6 +158,43 @@ export function DecksIndexPage() {
   const deleteAllDecks = useDecksStore((s) => s.deleteAllDecks);
   const sel = useSelection();
   const navigate = useNavigate();
+
+  const rawCollectionCards = useCollectionStore((s) => s.cards);
+  const binderDefs = useCollectionStore((s) => s.binders);
+  const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
+  const allocations = useAllocations();
+  const setMap = useSetMap();
+
+  // Pull-readiness per deck for the card badge ("58 of 100 pullable") — the
+  // same derivation as the deck editor's Pull list sheet. The expensive step,
+  // materializing every binder, runs once for the whole page via
+  // buildBinderPlacement; each deck then only pays slot resolution. Null (no
+  // badges at all) until the user has configured binders.
+  const pullCounts = useMemo(() => {
+    if (binderDefs.length === 0) return null;
+    const placement = buildBinderPlacement(collectionCards, binderDefs, setMap);
+    const counts = new Map<string, { pullable: number; total: number }>();
+    for (const deck of decks) {
+      let pullable = 0;
+      let total = 0;
+      const groups = buildPullList(
+        deck,
+        collectionCards,
+        binderDefs,
+        allocations,
+        setMap,
+        placement
+      );
+      for (const g of groups) {
+        for (const r of g.rows) {
+          total += r.qty;
+          if (isPullableKind(g.kind)) pullable += r.qty;
+        }
+      }
+      if (total > 0) counts.set(deck.id, { pullable, total });
+    }
+    return counts;
+  }, [decks, collectionCards, binderDefs, allocations, setMap]);
 
   const { sortField, sortDir, toggleSort } = useStoredSort<DeckSortField>(
     'decks-index-sort',
@@ -532,6 +574,7 @@ export function DecksIndexPage() {
                   })
                 : [];
               const flaggedCount = countFlaggedCards(issues);
+              const pull = pullCounts?.get(deck.id);
               const selected = sel.selected.has(deck.id);
               return (
                 <li
@@ -583,6 +626,15 @@ export function DecksIndexPage() {
                             } flagged`}
                           >
                             <CircleAlert width={18} height={18} strokeWidth={1.6} aria-hidden />
+                          </span>
+                        )}
+                        {pull && (
+                          <span
+                            className="decks-index-card-pull"
+                            title={`${pull.pullable} of ${pull.total} cards have a free copy to pull from your binders`}
+                            aria-label={`${pull.pullable} of ${pull.total} cards pullable from your binders`}
+                          >
+                            {pull.pullable} of {pull.total} pullable
                           </span>
                         )}
                       </div>

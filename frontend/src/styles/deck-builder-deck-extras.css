@@ -38,6 +38,24 @@
   }
 }
 
+/* ── Pull-readiness badge ─────────────────────────────────────────── */
+/* Quiet informational peer of the issues badge in the card name row:
+   "58 of 100 pullable", derived from the same engine as the deck editor's
+   Pull list sheet. Secondary text weight — it informs, it never warns. */
+.decks-index-card-pull {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Compact rows keep only name + pips + format (see decks-index.css) —
+   the readiness count is one of the things a dense skim doesn't need. */
+.decks-index-list.is-compact .decks-index-card-pull {
+  display: none;
+}
+
 /* ── Legality banner ──────────────────────────────────────────────── */
 .deck-legality-banner {
   display: flex;

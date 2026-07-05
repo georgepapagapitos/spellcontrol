@@ -40,10 +40,46 @@ export function isPullableKind(kind: PullGroupKind): boolean {
   return kind === 'binder' || kind === 'uncategorized';
 }
 
-interface Placement {
+export interface BinderPlacement {
   binderId: string | null;
   order: number;
   page?: number;
+}
+
+/**
+ * Physical placement of every collection copy: where the binder rules file it,
+ * in the exact order (and page) the binder view renders. This is the expensive
+ * part of a pull list (it materializes every binder), and it depends only on
+ * the collection + binder defs — compute it once and pass it to `buildPullList`
+ * when deriving pull lists for many decks (e.g. the Decks Index badges).
+ */
+export function buildBinderPlacement(
+  collection: EnrichedCard[],
+  binderDefs: BinderDef[],
+  setMap?: SetMap
+): Map<string, BinderPlacement> {
+  const placement = new Map<string, BinderPlacement>();
+  let order = 0;
+  const { binders: materialized, uncategorized } = materializeBinders(collection, binderDefs, {
+    search: '',
+    setMap,
+  });
+  for (const b of materialized) {
+    for (const section of b.sections) {
+      for (const page of section.pages) {
+        for (const slot of page.slots) {
+          if (slot)
+            placement.set(slot.copyId, { binderId: b.def.id, order: order++, page: page.pageNum });
+        }
+      }
+    }
+  }
+  for (const section of uncategorized.sections) {
+    for (const c of section.cards) {
+      if (!placement.has(c.copyId)) placement.set(c.copyId, { binderId: null, order: order++ });
+    }
+  }
+  return placement;
 }
 
 /**
@@ -68,7 +104,8 @@ export function buildPullList(
   collection: EnrichedCard[],
   binderDefs: BinderDef[],
   allocations: Map<string, AllocationInfo>,
-  setMap?: SetMap
+  setMap?: SetMap,
+  placement?: Map<string, BinderPlacement>
 ): PullListGroup[] {
   const slots: { card: ScryfallCard; allocatedCopyId: string | null }[] = [];
   if (deck.commander) {
@@ -126,29 +163,7 @@ export function buildPullList(
     }
   }
 
-  // Physical placement: where the binder rules file each copy, in the exact
-  // order (and page) the binder view renders.
-  const placement = new Map<string, Placement>();
-  let order = 0;
-  const { binders: materialized, uncategorized } = materializeBinders(collection, binderDefs, {
-    search: '',
-    setMap,
-  });
-  for (const b of materialized) {
-    for (const section of b.sections) {
-      for (const page of section.pages) {
-        for (const slot of page.slots) {
-          if (slot)
-            placement.set(slot.copyId, { binderId: b.def.id, order: order++, page: page.pageNum });
-        }
-      }
-    }
-  }
-  for (const section of uncategorized.sections) {
-    for (const c of section.cards) {
-      if (!placement.has(c.copyId)) placement.set(c.copyId, { binderId: null, order: order++ });
-    }
-  }
+  const placed = placement ?? buildBinderPlacement(collection, binderDefs, setMap);
 
   // Group pulled copies by binder, rolling up identical printings into one row.
   interface RowAcc extends PullListRow {
@@ -156,7 +171,7 @@ export function buildPullList(
   }
   const rowsByGroup = new Map<string, Map<string, RowAcc>>();
   for (const copy of pulledCopies) {
-    const p = placement.get(copy.copyId) ?? { binderId: null, order: Number.MAX_SAFE_INTEGER };
+    const p = placed.get(copy.copyId) ?? { binderId: null, order: Number.MAX_SAFE_INTEGER };
     const groupKey = p.binderId ? `binder:${p.binderId}` : 'uncategorized';
     let rows = rowsByGroup.get(groupKey);
     if (!rows) {
