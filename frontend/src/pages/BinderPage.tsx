@@ -145,7 +145,7 @@ export function BinderPage() {
   const active = materialized.find((b) => b.def.id === routeId) ?? materialized[0];
   const activeId = active?.def.id ?? null;
 
-  // Pin auto-dissolve: a "Keep here" pin that no longer does any work (the
+  // Pin auto-dissolve: a "Keep it here" pin that no longer does any work (the
   // card would route here via rules/other pins anyway) is silently dropped.
   // Runs off the raw `cards` (not `effectiveCards`, which collapses printings
   // under group-printings mode) since pins are per physical copyId. Guarded

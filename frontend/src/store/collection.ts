@@ -199,7 +199,7 @@ interface CollectionState {
   // Binder card customization actions
   /** Add a card to a binder's pinned list. No-op if already pinned. Returns true if added. */
   pinCardToBinder: (binderId: string, copyId: string) => boolean;
-  /** Review-queue "Keep here": pins a card to a binder like `pinCardToBinder`,
+  /** Review-queue "Keep it here": pins a card to a binder like `pinCardToBinder`,
    *  but never auto-flips the binder into manual mode — this is a targeted
    *  "deny this one removal", not an editing action on the whole binder. */
   keepCardInBinder: (binderId: string, copyId: string) => void;
@@ -208,7 +208,7 @@ interface CollectionState {
   removeCardFromBinder: (binderId: string, copyId: string, isRuleMatched: boolean) => void;
   /** Restore a previously excluded card (remove from excludedCopyIds). */
   restoreExcludedCard: (binderId: string, copyId: string) => void;
-  /** Review-queue "Got it": acknowledges a single drifted card into the
+  /** Review-queue "Added it" / "Moved it": acknowledges a single drifted card into the
    *  binder's review baseline without recapturing the whole binder. No-op if
    *  the binder has no baseline yet. See lib/binder-drift.ts:acknowledgeInSnapshot. */
   acknowledgeBinderCard: (
@@ -1073,7 +1073,7 @@ export const useCollectionStore = create<CollectionState>()(
             const existing = b.pinnedCopyIds ?? [];
             if (existing.includes(copyId)) return b;
             // Same durable-key mechanics as pinCardToBinder, but deliberately
-            // skips its manual-mode auto-flip: "Keep here" is denying one
+            // skips its manual-mode auto-flip: "Keep it here" is denying one
             // removal, not a signal that the binder's rules no longer fit.
             const { keys, ids } = addRef(b.pinnedKeys, existing, copyId, cards);
             return { ...b, pinnedCopyIds: ids, pinnedKeys: keys, updatedAt: Date.now() };

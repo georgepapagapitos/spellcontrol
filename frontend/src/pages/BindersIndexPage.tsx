@@ -18,6 +18,7 @@ import { toast } from '../store/toasts';
 import { useAllocations } from '../lib/allocations';
 import { materializeBinders } from '../lib/materialize';
 import { diffMembershipByDefs } from '../lib/binder-moves';
+import { computeDrift } from '../lib/binder-drift';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
@@ -63,6 +64,7 @@ const SORT_DEFAULT_DIR: Record<BinderSortField, SortDir> = {
 export function BindersIndexPage() {
   const rawCards = useCollectionStore((s) => s.cards);
   const binders = useCollectionStore((s) => s.binders);
+  const importHistory = useCollectionStore((s) => s.importHistory);
   // Decorate with Scryfall oracle tags (no-op unless a binder uses a tag rule).
   const cards = useCardsWithTags(rawCards, bindersUseTags(binders));
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
@@ -108,6 +110,19 @@ export function BindersIndexPage() {
       setMap,
     }).binders;
   }, [cards, binders, allocatedCopyIds, setMap]);
+
+  // Pending review work per binder ("N to review" chip) — same drift the
+  // binder page's banner computes, so the chip and the queue always agree.
+  // Never-reviewed binders show nothing: their baseline auto-stamps on first
+  // view, so there's no real queue to advertise yet.
+  const reviewCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const b of materialized) {
+      const drift = computeDrift(b, cards, importHistory);
+      if (!drift.neverReviewed) counts.set(b.def.id, drift.added.length + drift.removed.length);
+    }
+    return counts;
+  }, [materialized, cards, importHistory]);
 
   const { sortField, sortDir, toggleSort } = useStoredSort<BinderSortField>(
     'binders-index-sort',
@@ -447,6 +462,16 @@ export function BindersIndexPage() {
                         )}
                         {b.def.mode === 'manual' && (
                           <span className="binders-index-card-tag">Manual</span>
+                        )}
+                        {(reviewCounts.get(b.def.id) ?? 0) > 0 && (
+                          <span
+                            className="binders-index-card-tag binders-index-card-tag--review"
+                            aria-label={`${reviewCounts.get(b.def.id)} ${
+                              reviewCounts.get(b.def.id) === 1 ? 'change' : 'changes'
+                            } to review`}
+                          >
+                            {reviewCounts.get(b.def.id)} to review
+                          </span>
                         )}
                         {/* Split into two spans so compact mode (which hides the
                         cards count via CSS) can still show the page count
