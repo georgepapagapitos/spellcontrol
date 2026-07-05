@@ -52,6 +52,42 @@ describe('buildCommanderProfile', () => {
     expect(profile.summary.toLowerCase()).toContain('habby');
   });
 
+  it('detects the attack-trigger doubler idiom with no when/whenever token (Isshin)', () => {
+    const kw = keywords(
+      makeCard({
+        name: 'Isshin, Two Heavens as One',
+        type_line: 'Legendary Creature — Human Samurai',
+        oracle_text:
+          'If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.',
+      })
+    );
+    expect(kw).toContain('attack-trigger');
+  });
+
+  it('detects the you-control variant of the doubler idiom (Wulfgar of Icewind Dale)', () => {
+    const kw = keywords(
+      makeCard({
+        name: 'Wulfgar of Icewind Dale',
+        type_line: 'Legendary Creature — Human Barbarian',
+        oracle_text:
+          'Melee\nIf a creature you control attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.',
+      })
+    );
+    expect(kw).toContain('attack-trigger');
+  });
+
+  it("does NOT match 'causes' and 'attacks' as separate unrelated clauses (exact-phrase guard)", () => {
+    const kw = keywords(
+      makeCard({
+        name: 'Fake Commander',
+        type_line: 'Legendary Creature — Human Wizard',
+        oracle_text:
+          'This creature causes each opponent to lose 1 life during your upkeep. Creatures your opponents control can block only if defending player attacks next turn.',
+      })
+    );
+    expect(kw).not.toContain('attack-trigger');
+  });
+
   it('strips reminder text and neutralizes the card name', () => {
     const text = getCombinedOracleText(
       makeCard({
