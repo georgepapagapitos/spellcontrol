@@ -66,6 +66,17 @@ Llanowar Elves"); a complete sentence takes one ("Prices refreshed.", "Link
 copied to clipboard."). Pick fragment for action confirmations, sentence for
 state announcements.
 
+**Physical-reconciliation actions (binder review queue, #1019):** when a row
+asks the user to reconcile app state with the physical world, the button
+grammar encodes who does the work. **Confirmations are past tense** — the user
+reports a physical act already done: "Added it", "Moved it", "Moved all".
+**Vetoes are imperative** — the user commands the app to change its state:
+"Keep it here", "Don't add". Never "Got it"/"OK"/"Dismiss" for a confirmation —
+those read as dismissing a notification, when the click actually asserts "the
+cardboard is where you say it is." Repeated identical action buttons in a list
+carry an aria-label qualified by the row's subject ("Moved it — Sol Ring") so
+screen-reader users can tell them apart.
+
 **Punctuation:** complete sentences end with a period; a trailing `…` means
 either "in progress" (loading) **or** an action/control that opens further
 input — a picker, dialog, or share sheet (the "Save As…" convention, e.g.
