@@ -1504,7 +1504,17 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // keyword vote decide — and that fallback path is the low-confidence case
   // landCountNote's copy softens below.
   const edhrecThemeArchetype = inferArchetypeFromEdhrecThemes(state.edhrecData?.themes);
-  const archetypeFallback = edhrecThemeArchetype ?? commanderProfile.primaryArchetype;
+  // EDHREC theme data existing but not dominant (a genuinely split-strategy
+  // commander, e.g. Atraxa) is different from EDHREC having no data at all
+  // (fetch failed / offline / Scryfall-only generation). In the first case,
+  // don't let the coarse structural-keyword vote assert a specific — and
+  // possibly wrong — strategy (it pegs Atraxa as VOLTRON); default to the
+  // neutral GOODSTUFF instead. The keyword vote remains the only signal, and
+  // stays unchanged, when there's no EDHREC theme data to consult at all.
+  const hasEdhrecThemeData = (state.edhrecData?.themes?.length ?? 0) > 0;
+  const archetypeFallback =
+    edhrecThemeArchetype ??
+    (hasEdhrecThemeData ? Archetype.GOODSTUFF : commanderProfile.primaryArchetype);
   archetypeIsLowConfidence =
     edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
   detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
