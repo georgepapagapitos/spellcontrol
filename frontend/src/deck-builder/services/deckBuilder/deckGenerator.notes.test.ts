@@ -41,6 +41,7 @@ import {
   roleCapOverage,
   computeTrimResistance,
   hasReusableTapAbility,
+  hasExilePayoffIdentity,
   STAPLE_PROTECTION_BOOST,
   PROTECTION_PIECE_BOOST,
   ROLE_SURPLUS_TRIM_PENALTY,
@@ -743,5 +744,43 @@ describe('hasReusableTapAbility', () => {
 
   it('returns false for a text-less card', () => {
     expect(hasReusableTapAbility(sc('No-Text Card'))).toBe(false);
+  });
+});
+
+describe('hasExilePayoffIdentity', () => {
+  // iter-8 Slice B — the exile-matters commander-gate signal for commanders
+  // whose own text never matches isExileProducer (Urianger Augurelt's Draw/
+  // Play Arcanum split never produces the "exile the top ... library" shape,
+  // but his top-line ability is a genuine cast-from-exile payoff identity).
+  it("matches a cast-from-exile payoff (Prosper, Tome-Bound's Pact Boon)", () => {
+    expect(
+      hasExilePayoffIdentity({
+        ...sc('Prosper, Tome-Bound'),
+        oracle_text: 'Pact Boon — Whenever you play a card from exile, create a Treasure token.',
+      })
+    ).toBe(true);
+  });
+
+  it("matches a cast-from-exile payoff (Urianger Augurelt's top-line text)", () => {
+    expect(
+      hasExilePayoffIdentity({
+        ...sc('Urianger Augurelt'),
+        oracle_text:
+          'Whenever you play a land from exile or cast a spell from exile, you gain 2 life.\nDraw Arcanum — {T}: Look at the top card of your library. You may exile it face down.\nPlay Arcanum — {T}: Until end of turn, you may play cards exiled with Urianger Augurelt. Spells you cast this way cost {2} less to cast.',
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT match a plain vanilla card', () => {
+    expect(
+      hasExilePayoffIdentity({
+        ...sc('Isamaru, Hound of Konda'),
+        oracle_text: '',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card', () => {
+    expect(hasExilePayoffIdentity(sc('No-Text Card'))).toBe(false);
   });
 });

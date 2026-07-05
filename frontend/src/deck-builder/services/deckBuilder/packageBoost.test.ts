@@ -5,10 +5,14 @@ import {
   computeLiftPickBoosts,
   computePackageBoosts,
   computeUntapVisibilityBoosts,
+  computeBlinkVisibilityBoosts,
+  computeExileVisibilityBoosts,
   LIFT_PICK_BOOST_MAX,
   LIFT_PICK_BOOST_SCALE,
   PACKAGE_BOOST_MAX,
   UNTAP_VISIBILITY_BOOST_MAX,
+  BLINK_VISIBILITY_BOOST_MAX,
+  EXILE_VISIBILITY_BOOST_MAX,
   tallyAxisInvestment,
 } from './packageBoost';
 
@@ -192,6 +196,104 @@ describe('computeUntapVisibilityBoosts', () => {
     const boosts = computeUntapVisibilityBoosts(
       ['Nonexistent Card'],
       untapCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+});
+
+describe('computeBlinkVisibilityBoosts', () => {
+  // isProducer is injected (mirrors computeUntapVisibilityBoosts's) — a
+  // simple name-set stub is enough here, the real classifier's regex is
+  // covered in tagger/client.test.ts.
+  const blinkProducerNames = new Set(['Ephemerate', 'Restoration Angel']);
+  const isProducer = (c: ScryfallCard) => blinkProducerNames.has(c.name);
+  const ephemerate = card(
+    'Ephemerate',
+    "Exile target creature you control, then return it to the battlefield under its owner's control."
+  );
+  const restorationAngel = card(
+    'Restoration Angel',
+    'Flash\nFlying\nWhen this creature enters, you may exile target non-Angel creature you control, then return that card to the battlefield under your control.'
+  );
+  const blinkCardMap = new Map([ephemerate, restorationAngel, divination].map((c) => [c.name, c]));
+
+  it('stays an empty map when the commander does not want blink (near-inert requirement)', () => {
+    const boosts = computeBlinkVisibilityBoosts(
+      ['Ephemerate', 'Restoration Angel', 'Divination'],
+      blinkCardMap,
+      false,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+
+  it('boosts only producer candidates, exactly at the cap, when the commander wants blink', () => {
+    const boosts = computeBlinkVisibilityBoosts(
+      ['Ephemerate', 'Restoration Angel', 'Divination'],
+      blinkCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.get('Ephemerate')).toBe(BLINK_VISIBILITY_BOOST_MAX);
+    expect(boosts.get('Restoration Angel')).toBe(BLINK_VISIBILITY_BOOST_MAX);
+    expect(boosts.has('Divination')).toBe(false); // non-producer → absent, not zero-valued
+  });
+
+  it('does not throw on a candidate name missing from cardMap', () => {
+    const boosts = computeBlinkVisibilityBoosts(
+      ['Nonexistent Card'],
+      blinkCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+});
+
+describe('computeExileVisibilityBoosts', () => {
+  // isProducer is injected (mirrors computeUntapVisibilityBoosts's) — a
+  // simple name-set stub is enough here, the real classifier's regex is
+  // covered in tagger/client.test.ts.
+  const exileProducerNames = new Set(['Prosper, Tome-Bound', "Jeska's Will"]);
+  const isProducer = (c: ScryfallCard) => exileProducerNames.has(c.name);
+  const prosper = card(
+    'Prosper, Tome-Bound',
+    'Mystic Arcanum — At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.'
+  );
+  const jeskasWill = card(
+    "Jeska's Will",
+    'Exile the top three cards of your library. You may play them this turn.'
+  );
+  const exileCardMap = new Map([prosper, jeskasWill, divination].map((c) => [c.name, c]));
+
+  it('stays an empty map when the commander does not want exile-matters (near-inert requirement)', () => {
+    const boosts = computeExileVisibilityBoosts(
+      ['Prosper, Tome-Bound', "Jeska's Will", 'Divination'],
+      exileCardMap,
+      false,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+
+  it('boosts only producer candidates, exactly at the cap, when the commander wants exile-matters', () => {
+    const boosts = computeExileVisibilityBoosts(
+      ['Prosper, Tome-Bound', "Jeska's Will", 'Divination'],
+      exileCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.get('Prosper, Tome-Bound')).toBe(EXILE_VISIBILITY_BOOST_MAX);
+    expect(boosts.get("Jeska's Will")).toBe(EXILE_VISIBILITY_BOOST_MAX);
+    expect(boosts.has('Divination')).toBe(false); // non-producer → absent, not zero-valued
+  });
+
+  it('does not throw on a candidate name missing from cardMap', () => {
+    const boosts = computeExileVisibilityBoosts(
+      ['Nonexistent Card'],
+      exileCardMap,
       true,
       isProducer
     );

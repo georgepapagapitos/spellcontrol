@@ -47,6 +47,8 @@ import {
   getCardSubtype,
   isProtectionPiece,
   isUntapProducer,
+  isBlinkProducer,
+  isExileProducer,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
@@ -108,6 +110,8 @@ import {
   computePackageBoosts,
   computeLiftPickBoosts,
   computeUntapVisibilityBoosts,
+  computeBlinkVisibilityBoosts,
+  computeExileVisibilityBoosts,
   tallyAxisInvestment,
 } from './packageBoost';
 import { buildManabaseSummary } from './manabaseMath';
@@ -655,6 +659,21 @@ const REUSABLE_TAP_ABILITY = /\{T\}:(?!\s*Add\b)/i;
 export function hasReusableTapAbility(card: ScryfallCard): boolean {
   const text = card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
   return REUSABLE_TAP_ABILITY.test(text);
+}
+
+// iter-8 Slice B — a commander-side "wants exile-matters" signal distinct
+// from isExileProducer. Urianger Augurelt's own text is real-verified as a
+// non-match for isExileProducer (his "exile" clause is never immediately
+// followed by "the top ... cards of your library" — that phrase belongs to
+// the prior clause describing what was looked at), but his top-line ability
+// ("Whenever you play a land from exile or cast a spell from exile, you gain
+// 2 life") is a genuine cast-from-exile payoff identity — module-scope so
+// it's a pure, unit-testable function, same placement reasoning as
+// hasReusableTapAbility above.
+const EXILE_PAYOFF = /\bwhenever you (?:play|cast)\b[\s\S]{0,20}?\bfrom exile\b/i;
+export function hasExilePayoffIdentity(card: ScryfallCard): boolean {
+  const text = card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
+  return EXILE_PAYOFF.test(text);
 }
 
 /**
@@ -2072,6 +2091,26 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       (!!partnerCommander &&
         (isUntapProducer(partnerCommander) || hasReusableTapAbility(partnerCommander)));
 
+    // iter-8 Slice B: blink/flicker theme visibility. Single-clause gate —
+    // both named blink commanders (Brago, Aminatou) are themselves blink
+    // producers, no second helper needed (unlike untap's Urianger case).
+    // Accepted miss, documented not fixed: Yarok, the Desecrated (an
+    // ETB-doubler, not itself a producer) doesn't trip this — see
+    // isBlinkProducer's doc comment in tagger/client.ts.
+    const commanderWantsBlink =
+      isBlinkProducer(commander) || (!!partnerCommander && isBlinkProducer(partnerCommander));
+
+    // iter-8 Slice B: exile-matters (impulse draw) theme visibility.
+    // Two-clause gate — producer OR payoff-identity — because the payoff
+    // signal (hasExilePayoffIdentity above) is what catches Urianger
+    // Augurelt, whose own text never matches isExileProducer. Prosper,
+    // Tome-Bound is caught by both clauses independently.
+    const commanderWantsExile =
+      isExileProducer(commander) ||
+      hasExilePayoffIdentity(commander) ||
+      (!!partnerCommander &&
+        (isExileProducer(partnerCommander) || hasExilePayoffIdentity(partnerCommander)));
+
     // Package-completion boost (bounded re-rank, cap +30): favors candidates
     // that complete a live engine's scarcer side — the positive counterpart to
     // the synergy-dependency gate. Investment is re-tallied per type pass so a
@@ -2086,6 +2125,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Also folds in the untap-visibility boost (cap +15, see packageBoost.ts):
     // gated on commanderWantsUntap above, so it's an empty map for every deck
     // whose commander doesn't care.
+    //
+    // Also folds in the blink and exile-matters visibility boosts (iter-8
+    // Slice B, cap +15 each, see packageBoost.ts): same shape, each gated on
+    // its own commanderWantsX above — empty maps for every deck whose
+    // commander doesn't care about that theme.
     const withPackageBoosts = (
       boosts: Map<string, number>,
       pool: EDHRECCard[]
@@ -2115,6 +2159,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         isUntapProducer
       );
       for (const [name, b] of untap) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      const blink = computeBlinkVisibilityBoosts(
+        pool.map((c) => c.name),
+        cardMap,
+        commanderWantsBlink,
+        isBlinkProducer
+      );
+      for (const [name, b] of blink) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      const exile = computeExileVisibilityBoosts(
+        pool.map((c) => c.name),
+        cardMap,
+        commanderWantsExile,
+        isExileProducer
+      );
+      for (const [name, b] of exile) boosts.set(name, (boosts.get(name) ?? 0) + b);
       return boosts;
     };
 
