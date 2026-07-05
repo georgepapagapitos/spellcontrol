@@ -347,6 +347,13 @@ export async function generateLands(
 
     logger.debug('[DeckGen] Basic land distribution by residual deficit:', { landsPerColor });
 
+    // Colors whose basic fetch failed even after a retry — reallocated below
+    // to an already-fetched basic instead of silently shrinking the land
+    // count (the old behavior: `continue` with no fallback, see Fix 1 in
+    // iter-6 Slice B).
+    const failedBasics: { basicName: string; countForColor: number }[] = [];
+    let fallbackBasic: { basicName: string; basicCard: ScryfallCard } | undefined;
+
     for (const color of colorsWithBasics) {
       const basicName = basicTypes[color];
       const countForColor = Math.min(landsPerColor[color], availableCount(basicName));
@@ -357,15 +364,34 @@ export async function generateLands(
         try {
           basicCard = await getCardByName(basicName, true);
         } catch {
-          continue; // Skip if can't fetch
+          try {
+            basicCard = await getCardByName(basicName, true); // retry once
+          } catch {
+            failedBasics.push({ basicName, countForColor });
+            continue;
+          }
         }
       }
 
+      fallbackBasic ??= { basicName, basicCard };
       // Split copies across the user's owned printings (largest group first)
       // so the deck pulls real stacks of their basics — 12 of one Forest
       // printing + 8 of another — instead of N copies of one default printing.
       const plan = planBasicPrintings(countForColor, basicPrintings?.get(basicName) ?? []);
       for (const p of plan) lands.push(stampBasic(basicCard, p));
+    }
+
+    // Reallocate any color that failed both attempts to the first basic that
+    // did fetch successfully, so a transient fetch blip drops the deck's
+    // requested land count instead of the specific color's count.
+    if (failedBasics.length > 0 && fallbackBasic) {
+      for (const { countForColor } of failedBasics) {
+        const plan = planBasicPrintings(
+          countForColor,
+          basicPrintings?.get(fallbackBasic.basicName) ?? []
+        );
+        for (const p of plan) lands.push(stampBasic(fallbackBasic.basicCard, p));
+      }
     }
   } else if (colorsWithBasics.length === 0 && basicsNeeded > 0) {
     // Colorless deck — use Wastes as the basic land

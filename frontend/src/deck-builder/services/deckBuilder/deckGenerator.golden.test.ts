@@ -175,9 +175,18 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   isTapland: vi.fn(() => false),
 }));
 
+// Wraps the real generateLands so a single test can force it to underdeliver
+// (simulating landGenerator.ts's basic-fetch-failure edge case) without
+// touching every other test's land count.
+vi.mock('./landGenerator', async (orig) => {
+  const actual = await orig<typeof import('./landGenerator')>();
+  return { ...actual, generateLands: vi.fn(actual.generateLands) };
+});
+
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { searchCards } from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
+import { generateLands } from './landGenerator';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -322,6 +331,28 @@ describe('generateDeck — invariants', () => {
     const deck = await generateDeck(baseContext());
     const total = Object.values(deck.categories).flat().length;
     expect(total).toBe(99);
+  });
+});
+
+describe('generateDeck — land top-up ordering (Fix 1, iter-6 Slice B)', () => {
+  it('tops up a land shortfall BEFORE the nonland fill, so lands still hit target instead of getting backfilled with spells', async () => {
+    // Simulate generateLands() silently underdelivering (e.g. a basic-fetch
+    // throw dropping a color's whole allocation) — 17 lands instead of the
+    // requested 37. Gated on total count and running AFTER the nonland fill,
+    // the old code would let the nonland fill close the total-count gap with
+    // spells, permanently shorting the land count. Reordered + re-gated on
+    // the land-specific deficit, the top-up runs first and restores it.
+    vi.mocked(generateLands).mockImplementationOnce(async () =>
+      Array.from({ length: 17 }, () => ({ ...FOREST }))
+    );
+    try {
+      const deck = await generateDeck(baseContext());
+      expect(deck.categories.lands.length).toBe(37); // land target still met
+      const total = Object.values(deck.categories).flat().length;
+      expect(total).toBe(99); // total deck size still met
+    } finally {
+      clearGenerationCache();
+    }
   });
 });
 

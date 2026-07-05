@@ -56,7 +56,11 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
 }));
 
 import { countColorPips, generateLands } from './landGenerator';
-import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import {
+  getCardsByNames,
+  getCachedCard,
+  getCardByName,
+} from '@/deck-builder/services/scryfall/client';
 
 describe('countColorPips', () => {
   it('counts colored mana symbols, ignoring generic', () => {
@@ -312,5 +316,34 @@ describe('generateLands', () => {
     expect(lands.map((c) => c.id)).toEqual(['sf-A', 'sf-A', 'sf-A', 'sf-B', 'sf-B']);
     // set/collector_number track the stamped printing so the deck view groups them.
     expect(lands.map((c) => c.set)).toEqual(['A', 'A', 'A', 'B', 'B']);
+  });
+
+  it('reallocates a color whose basic fetch fails twice to an already-fetched basic, still hitting count exactly', async () => {
+    // Island is never cached and always throws — simulates the fetch failure
+    // that used to silently drop that color's whole allocation (Fix 1
+    // hardening, iter-6 Slice B).
+    vi.mocked(getCachedCard).mockImplementation((name: string) =>
+      name === 'Island' ? undefined : card(name)
+    );
+    vi.mocked(getCardByName).mockImplementation(async (name: string) => {
+      if (name === 'Island') throw new Error('scryfall down');
+      return card(name);
+    });
+
+    try {
+      // Command Tower auto-adds (2+ colors, format 99), leaving 3 basic
+      // slots split W=2/U=1 with no pip demand (even split, W first).
+      const lands = await generateLands([], ['W', 'U'], 4, new Set(), 4, 99, []);
+
+      expect(lands).toHaveLength(4); // full count delivered despite Island failing both attempts
+      expect(lands.filter((c) => c.name === 'Island')).toHaveLength(0);
+      expect(lands.filter((c) => c.name === 'Command Tower')).toHaveLength(1);
+      // U's would-be Island count (1) reallocates onto Plains, the first
+      // basic that fetched successfully: 2 (own) + 1 (reallocated) = 3.
+      expect(lands.filter((c) => c.name === 'Plains')).toHaveLength(3);
+    } finally {
+      vi.mocked(getCachedCard).mockImplementation((name: string) => card(name));
+      vi.mocked(getCardByName).mockImplementation(async (name: string) => card(name));
+    }
   });
 });

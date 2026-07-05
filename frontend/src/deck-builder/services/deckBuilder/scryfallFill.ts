@@ -18,7 +18,7 @@ import { frontFaceName } from '@/lib/card-text';
 import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 import type { BracketGuard } from './bracketGuard';
 import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
-import { roleCapTolerance } from './categorize';
+import { roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
 
 /**
  * Same hard role-cap gate as the primary pick loop (cardPicking.ts's
@@ -218,9 +218,11 @@ export async function fillWithScryfall(
           : 0;
         return overA - overB;
       });
+      let admitted = 0;
       for (const card of capSkipped) {
         if (result.length >= count) break;
-        tryAcceptCard(card, true);
+        if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
+        if (tryAcceptCard(card, true)) admitted++;
       }
     }
 
