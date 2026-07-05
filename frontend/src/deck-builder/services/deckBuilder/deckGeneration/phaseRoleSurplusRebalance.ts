@@ -12,7 +12,7 @@ import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts } from '../commanderDeckAnalysis';
 import { computeLiftPickBoosts } from '../packageBoost';
-import { calculateCardPriority } from '../cardPicking';
+import { calculateCardPriority, PRICE_SANITY_RATIO } from '../cardPicking';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from '../nonbo';
 import { getLiftIndex } from './liftPools';
@@ -75,6 +75,18 @@ import {
 // set on a copy THIS generation's stapleManaRocksPhase itself adds; the
 // common case is the staple already came in via normal EDHREC-pool picking
 // (high inclusion), landing here flagless and, before this fix, evictable.
+//
+// Live-eval fixes (round 3): incoming candidates now clear a price-sanity
+// gate (PRICE_SANITY_RATIO, reused from cardPicking.ts's #1011 tie-break) so
+// a wildly-pricier candidate can't seat itself absent a combo reason; the
+// pass runs role-exit conversions to exhaustion BEFORE any same-role
+// "quality upgrade" swap, and caps those at MAX_SAME_ROLE_UPGRADES, so churn
+// that doesn't reduce an overage can't crowd out the conversions that do —
+// and its disclosure says "upgrade", never "fixed the cap"; and an
+// incumbent absent from THIS generation's (possibly bracket-restricted) pool
+// falls back to its role's average inclusion instead of 0, so a
+// pool-omitted premium staple isn't guaranteed to look like the worst card
+// in its role.
 
 // Total conversions this pass may apply per deck. Precedent: MAX_AUDIT_SWAPS
 // = 4 (deckGenerator.ts's Combo Integrity Audit), MAX_COHERENCE_SWAPS = 3
@@ -82,6 +94,16 @@ import {
 // per-floor-deck conversions at 4-6, so 6 sits at the top of that observed
 // range rather than leaving the bound open-ended.
 export const MAX_SURPLUS_CONVERSIONS = 6;
+
+// Same-role "quality upgrade" swaps (net-zero on the over-cap count — see
+// destinationRoleOk) are a fallback, not the pass's job: they never reduce an
+// overage, so letting them eat the whole 6-swap budget crowds out the real
+// role-exit conversions the pass exists to make (meren-budget100: 5 of 6
+// swaps were same-role cardDraw churn while removal, the deck's LARGEST
+// disclosed overage, got zero attempts). A third of the total budget is
+// generous enough to still polish a role once every genuine role-exit is
+// exhausted, without being able to dominate it.
+const MAX_SAME_ROLE_UPGRADES = 2;
 
 // A replacement must beat the evicted card's own calculateCardPriority score
 // (lift boost included) by at least this much to be worth the churn —
@@ -138,6 +160,12 @@ export interface RoleSurplusRebalanceResult {
   conversions: CoherenceRepair[];
 }
 
+// A price increase over this (in the swap's own currency) is disclosed in
+// the reason text — "nothing moves silently" ethos already used by the
+// budget-repair notes elsewhere in the build report. Not a gate (see
+// PRICE_SANITY_RATIO for the hard reject) — just the transparency floor.
+const DISCLOSE_PRICE_DELTA = 1;
+
 function buildConversionReason(params: {
   role: RoleKey;
   have: number;
@@ -146,17 +174,37 @@ function buildConversionReason(params: {
   cutName: string;
   addedName: string;
   liftedBy?: string[];
+  /** False for a same-role quality upgrade — a net-zero swap that does NOT
+   *  reduce this role's over-cap count, so the wording must never claim it
+   *  fixes the overage (defect 6b: dishonest disclosure). */
+  isRoleExit: boolean;
+  cutPrice: number;
+  addedPrice: number;
+  currency: 'USD' | 'EUR';
 }): string {
   const roleLabel = ROLE_LABEL[params.role];
-  const capClause = `${roleLabel} was running ${params.have} vs a ${params.target} target — over cap`;
   const nonboClause = params.nonbo
     ? `; ${params.cutName} also worked against the deck's own plan (flagged as a nonbo)`
     : '';
+  const sym = params.currency === 'EUR' ? '€' : '$';
+  const priceClause =
+    params.addedPrice - params.cutPrice > DISCLOSE_PRICE_DELTA
+      ? ` (+${sym}${(params.addedPrice - params.cutPrice).toFixed(2)})`
+      : '';
   const addedClause =
     params.liftedBy && params.liftedBy.length > 0
-      ? `Converted to ${params.addedName}, lifted by ${params.liftedBy.slice(0, 3).join(', ')}.`
-      : `Converted to ${params.addedName} for a stronger payoff.`;
-  return `${capClause}${nonboClause}. ${addedClause}`;
+      ? `${params.isRoleExit ? 'Converted' : 'Upgraded'} to ${params.addedName}${priceClause}, lifted by ${params.liftedBy.slice(0, 3).join(', ')}.`
+      : `${params.isRoleExit ? 'Converted' : 'Upgraded'} to ${params.addedName}${priceClause} for a stronger payoff.`;
+
+  if (params.isRoleExit) {
+    const capClause = `${roleLabel} was running ${params.have} vs a ${params.target} target — over cap`;
+    return `${capClause}${nonboClause}. ${addedClause}`;
+  }
+  // Same-role swap: context for WHY this role's slots are under scrutiny at
+  // all, without claiming this specific swap resolves the overage (it can't
+  // — evicting and re-adding the same role nets to zero count change).
+  const contextClause = `${roleLabel} is over cap (${params.have} vs ${params.target} target); this swap upgrades a slot within the role, it doesn't reduce the count`;
+  return `${contextClause}${nonboClause}. ${addedClause}`;
 }
 
 /**
@@ -175,6 +223,26 @@ export function applyRoleSurplusRebalance(
   const pool = state.edhrecData?.cardlists.allNonLand;
   if (!roleTargets || !pool || pool.length === 0) return { conversions };
   const poolByName = new Map(pool.map((c) => [c.name, c]));
+
+  // Neutral fallback for an incumbent with NO pool entry (E81 `?? 0` class of
+  // bug): a card absent from THIS generation's pool isn't necessarily weak —
+  // a bracket-restricted EDHREC pool systematically omits the highest-power
+  // cards (premium removal, bombs), which is exactly what a hard-coded 0
+  // default punishes hardest, guaranteeing it looks like the single worst
+  // card in its role (atraxa-bracket2: Path to Exile and Atraxa, Grand
+  // Unifier both evicted for exactly this reason while a genuinely weak,
+  // pool-listed low-inclusion card survived). Falls back to that role's own
+  // average pool inclusion — neutral, neither best nor worst by default.
+  const roleAverageInclusion = new Map<RoleKey, number>();
+  for (const role of REACTIVE_ROLES) {
+    const entries = pool.filter((c) => getCardRole(c.name) === role);
+    if (entries.length > 0) {
+      roleAverageInclusion.set(
+        role,
+        entries.reduce((sum, c) => sum + c.inclusion, 0) / entries.length
+      );
+    }
+  }
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
@@ -296,9 +364,13 @@ export function applyRoleSurplusRebalance(
   // the Eldrazi got cut). Folding in liftScoreOf also protects a card whose
   // regex tagger role reads reactive but is actually a live payoff (Krenko's
   // Warstorm Surge, tagged 'removal', lift-connected to the goblin cluster).
-  const survivalScoreOf = (name: string, liftBoosts: Map<string, number>): number => {
+  const survivalScoreOf = (
+    name: string,
+    role: RoleKey,
+    liftBoosts: Map<string, number>
+  ): number => {
     const ec = poolByName.get(name);
-    const priority = ec ? calculateCardPriority(ec) : 0;
+    const priority = ec ? calculateCardPriority(ec) : (roleAverageInclusion.get(role) ?? 0);
     return priority + (liftBoosts.get(name) ?? 0);
   };
 
@@ -310,7 +382,12 @@ export function applyRoleSurplusRebalance(
   const findReplacement = (
     evictedScore: number,
     evictedPrice: number,
-    evictedRole: RoleKey
+    evictedRole: RoleKey,
+    /** false = role-exit only (defect 6a): a candidate sharing the evicted
+     *  card's own role is rejected here, forcing a genuine reduction in the
+     *  over-cap role's count rather than a same-role churn that leaves the
+     *  overage exactly as bad as before. */
+    allowSameRole: boolean
   ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
@@ -346,6 +423,16 @@ export function applyRoleSurplusRebalance(
       if (exceedsCmcCap(card, ctx.maxCmc)) continue;
       if (notOnArena(card, ctx.arenaOnly)) continue;
       if (!destinationRoleOk(card, evictedRole)) continue;
+      if (!allowSameRole && getCardRole(ec.name) === evictedRole) continue; // defect 6a: role-exit phase only
+      // Price sanity (E80/#1011 precedent — cardPicking.ts's PRICE_SANITY_RATIO
+      // = 20, reused verbatim): a candidate dramatically pricier than the card
+      // it's replacing is never worth it absent a live combo reason (Kozilek
+      // seated a $3000 Mishra's Workshop over a $0.77 card, nearly doubling
+      // the deck total with zero price disclosure). Floor the evicted price
+      // at $1 so a near-free eviction can't block every candidate outright.
+      if (!state.comboCardNames.has(ec.name) && !completeComboNames.has(ec.name)) {
+        if (priceOf(card) > Math.max(1, evictedPrice) * PRICE_SANITY_RATIO) continue;
+      }
       // Total-deck budget headroom (see runningTotal doc above) — independent
       // of, and in addition to, the per-card maxCardPrice/effectiveCap gate.
       if (
@@ -361,15 +448,21 @@ export function applyRoleSurplusRebalance(
     return null;
   };
 
-  let conversionsApplied = 0;
-
-  outer: while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
+  // One attempt at a single swap. Tries every currently-evictable candidate
+  // worst-first (survival score ascending, nonbo-flagged first) so a single
+  // stubborn card with no clearing replacement can't stall the whole pass
+  // while other genuinely-worse surplus cards still have a legal conversion
+  // available (this silently zeroed out Talrand/meren-budget100/
+  // the-ur-dragon/atraxa-bracket2 and cut Isshin off after 1 of ~4 expected
+  // conversions). `allowSameRole` gates whether a same-role candidate (net-
+  // zero on the over-cap count) is eligible at all — see the two-phase
+  // caller below (defect 6a).
+  const tryOneConversion = (
+    allowSameRole: boolean
+  ): { didConvert: boolean; wasSameRole: boolean } => {
     const overCapRoles = REACTIVE_ROLES.filter(isOverCap);
-    if (overCapRoles.length === 0) break;
+    if (overCapRoles.length === 0) return { didConvert: false, wasSameRole: false };
 
-    // Global worst-first across every currently over-cap role: ascending
-    // survival score (priority + lift — see survivalScoreOf doc), nonbo-
-    // flagged first regardless of score.
     const evictable: {
       card: ScryfallCard;
       category: DeckCategory;
@@ -386,21 +479,16 @@ export function applyRoleSurplusRebalance(
         evictable.push({ card, category: cat, role, nonbo: nonboNames.has(card.name) });
       }
     }
-    if (evictable.length === 0) break; // nothing left to evict — floor-safe by construction
+    if (evictable.length === 0) return { didConvert: false, wasSameRole: false };
 
     const liftBoosts = computeLiftPickBoosts(
       evictable.map((e) => e.card.name),
       ctx.liftScoreOf
     );
     const scored = evictable
-      .map((e) => ({ ...e, survival: survivalScoreOf(e.card.name, liftBoosts) }))
+      .map((e) => ({ ...e, survival: survivalScoreOf(e.card.name, e.role, liftBoosts) }))
       .sort((a, b) => Number(b.nonbo) - Number(a.nonbo) || a.survival - b.survival);
 
-    // Try candidates worst-first; a single stubborn card (no clearing
-    // replacement) must not stall the whole pass while other genuinely-worse
-    // surplus cards still have a legal conversion available (this silently
-    // zeroed out Talrand/meren-budget100/the-ur-dragon/atraxa-bracket2 and
-    // cut Isshin off after 1 of ~4 expected conversions).
     for (const candidate of scored) {
       const roleTarget = roleTargets[candidate.role] ?? 0;
       const beforeCount = liveRoleCounts[candidate.role] ?? 0;
@@ -411,9 +499,15 @@ export function applyRoleSurplusRebalance(
       if (beforeCount - 1 < roleTarget) continue;
 
       const evictedPrice = priceOf(candidate.card);
-      const replacement = findReplacement(candidate.survival, evictedPrice, candidate.role);
+      const replacement = findReplacement(
+        candidate.survival,
+        evictedPrice,
+        candidate.role,
+        allowSameRole
+      );
       if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
 
+      const wasSameRole = getCardRole(replacement.name) === candidate.role;
       removeCard(candidate.card, candidate.category, candidate.role);
       addCard(replacement);
       runningTotal += priceOf(replacement) - evictedPrice;
@@ -431,14 +525,45 @@ export function applyRoleSurplusRebalance(
           cutName: candidate.card.name,
           addedName: replacement.name,
           liftedBy,
+          isRoleExit: !wasSameRole,
+          cutPrice: evictedPrice,
+          addedPrice: priceOf(replacement),
+          currency: ctx.currency,
         }),
       });
-      continue outer; // re-derive surplus/evictable state fresh next round
+      return { didConvert: true, wasSameRole };
     }
 
     // Every currently-evictable candidate in this round was rejected —
-    // truly nothing left to convert.
-    break;
+    // truly nothing left to convert this way.
+    return { didConvert: false, wasSameRole: false };
+  };
+
+  let conversionsApplied = 0;
+  let sameRoleUpgrades = 0;
+
+  // Phase 1 (defect 6a): true role-exit conversions ONLY — a candidate whose
+  // role differs from the evicted card's (or has none) actually REDUCES the
+  // over-cap role's count. Runs to exhaustion across every over-cap role
+  // before phase 2 ever starts, so the bounded 6-swap budget is spent on
+  // real fixes first.
+  while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
+    if (!tryOneConversion(false).didConvert) break;
+  }
+
+  // Phase 2: same-role quality upgrades — net-zero on the role's count (see
+  // destinationRoleOk doc), so these never reduce an overage. Only attempted
+  // once phase 1 is exhausted, and capped well below the total budget so
+  // churn can't crowd out the pass's actual job (meren-budget100: 5 of 6
+  // swaps were same-role churn on cardDraw while removal, the deck's
+  // largest disclosed overage, got zero attempts).
+  while (
+    conversionsApplied < MAX_SURPLUS_CONVERSIONS &&
+    sameRoleUpgrades < MAX_SAME_ROLE_UPGRADES
+  ) {
+    const result = tryOneConversion(true);
+    if (!result.didConvert) break;
+    if (result.wasSameRole) sameRoleUpgrades++;
   }
 
   return { conversions };

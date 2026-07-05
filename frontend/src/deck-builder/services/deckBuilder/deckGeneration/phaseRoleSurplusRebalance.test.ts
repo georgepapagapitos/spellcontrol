@@ -371,9 +371,16 @@ describe('applyRoleSurplusRebalance', () => {
 
   it('allows a same-role replacement even though that role is over its own cap (net-zero swap)', () => {
     const state = makeState();
-    addRampCards(state, 8); // ramp target 5, cap 7 -> 1 over
+    const cards = addRampCards(state, 8); // ramp target 5, cap 7 -> 1 over
     state.edhrecData = {
-      cardlists: { allNonLand: [edhrecCard('Ramp Payoff', 90)] },
+      cardlists: {
+        // Incumbents get their OWN low pool entries — with no entry at all,
+        // their survival score would fall back to the role's average pool
+        // inclusion (defect 7 fix), which in a fixture with only ONE 'ramp'
+        // pool entry would equal the candidate's own score and never clear
+        // the improvement margin against it.
+        allNonLand: [...cards.map((c) => edhrecCard(c.name, 5)), edhrecCard('Ramp Payoff', 90)],
+      },
     } as unknown as GenerationState['edhrecData'];
     ROLE_OF.set('Ramp Payoff', 'ramp'); // same role as every evictable candidate
     const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
@@ -669,5 +676,216 @@ describe('applyRoleSurplusRebalance', () => {
     expect(result.conversions.length).toBeGreaterThan(0);
     expect(result.conversions.every((c) => c.cut !== 'Removal Worst')).toBe(true);
     expect(state.usedNames.has('Removal Worst')).toBe(true); // untouched — never found a legal swap
+  });
+
+  // ── Defect 5 regressions (round-2 live-eval gate) ──────────────────────────
+  describe('price sanity on incoming candidates', () => {
+    it('rejects a wildly-pricier candidate and disclose the price of the one it accepts instead', () => {
+      const state = makeState();
+      const cheapEviction = scryfallCard('Ornithopter of Paradise', { prices: { usd: '0.77' } });
+      ROLE_OF.set(cheapEviction.name, 'ramp');
+      state.usedNames.add(cheapEviction.name);
+      state.categories.synergy.push(cheapEviction);
+      // Fillers with a decent score so Ornithopter (inclusion 0) stays the
+      // clear worst and is tried first.
+      const fillers = Array.from({ length: 7 }, (_, i) => scryfallCard(`Filler_${i + 1}`));
+      for (const c of fillers) {
+        ROLE_OF.set(c.name, 'ramp');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...fillers);
+
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Ornithopter of Paradise', 0),
+            ...fillers.map((c) => edhrecCard(c.name, 20)),
+            edhrecCard('Mishras Workshop', 90), // clears margin on priority, but 20x+ pricier
+            edhrecCard('Near Equivalent', 50), // clears margin, modestly pricier
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const ctx = makeCtx(state, {
+        roleTargets: { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 },
+        scryfallCardMap: new Map([
+          ['Mishras Workshop', scryfallCard('Mishras Workshop', { prices: { usd: '3000.97' } })],
+          ['Near Equivalent', scryfallCard('Near Equivalent', { prices: { usd: '5.00' } })],
+        ]),
+      });
+      const result = applyRoleSurplusRebalance(state, ctx);
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Ornithopter of Paradise');
+      expect(result.conversions[0].added).toBe('Near Equivalent');
+      expect(state.usedNames.has('Mishras Workshop')).toBe(false);
+      // A large price delta must appear in the disclosure text.
+      expect(result.conversions[0].reason).toMatch(/\+\$4\.23/);
+    });
+
+    it('exempts a combo piece from the price-sanity ceiling', () => {
+      const state = makeState();
+      const cheap = scryfallCard('Cheap Ramp', { prices: { usd: '1.00' } });
+      ROLE_OF.set(cheap.name, 'ramp');
+      state.usedNames.add(cheap.name);
+      state.categories.synergy.push(cheap);
+      const fillers = Array.from({ length: 7 }, (_, i) => scryfallCard(`Filler_${i + 1}`));
+      for (const c of fillers) {
+        ROLE_OF.set(c.name, 'ramp');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...fillers);
+
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Cheap Ramp', 5),
+            ...fillers.map((c) => edhrecCard(c.name, 20)),
+            edhrecCard('Combo Piece', 90),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const ctx = makeCtx(state, {
+        roleTargets: { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 },
+        scryfallCardMap: new Map([
+          ['Combo Piece', scryfallCard('Combo Piece', { prices: { usd: '3000.00' } })],
+        ]),
+      });
+      state.comboCardNames.add('Combo Piece'); // live combo-assembly signal
+      const result = applyRoleSurplusRebalance(state, ctx);
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Combo Piece');
+    });
+  });
+
+  // ── Defect 6 regressions (round-2 live-eval gate) ──────────────────────────
+  describe('role-exit priority over same-role churn', () => {
+    it('picks a true role-exit conversion over a higher-priority same-role candidate', () => {
+      const state = makeState();
+      const removalWorst = scryfallCard('Removal Worst');
+      ROLE_OF.set(removalWorst.name, 'removal');
+      state.usedNames.add(removalWorst.name);
+      state.categories.synergy.push(removalWorst);
+      const pad = Array.from({ length: 4 }, (_, i) => scryfallCard(`Removal_${i + 1}`));
+      for (const c of pad) {
+        ROLE_OF.set(c.name, 'removal');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...pad); // removal: 5 total, target 2 -> cap 4, 1 over
+
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            // Incumbents get their own LOW pool entries — otherwise, with no
+            // entry at all, they'd fall back to the role average (defect 7
+            // fix), which with only 'Removal Payoff' in the pool as a
+            // 'removal'-tagged entry would equal ITS score and never clear
+            // the improvement margin against it.
+            edhrecCard('Removal Worst', 5),
+            ...pad.map((c) => edhrecCard(c.name, 5)),
+            edhrecCard('Removal Payoff', 90), // higher priority, but SAME role — must lose to the role-exit
+            edhrecCard('Payoff', 50), // lower priority, but role-null -> a genuine role-exit
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Removal Payoff', 'removal');
+      const roleTargets = { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Payoff');
+      expect(result.conversions[0].reason).toMatch(/over cap/);
+      expect(result.conversions[0].reason).not.toMatch(/doesn't reduce the count/);
+    });
+
+    it('labels a same-role swap as an upgrade, never as fixing the overage', () => {
+      const state = makeState();
+      const cards = addRampCards(state, 8); // no cross-role candidate exists at all
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [...cards.map((c) => edhrecCard(c.name, 5)), edhrecCard('Ramp Payoff', 90)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Ramp Payoff', 'ramp');
+      const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Ramp Payoff');
+      expect(result.conversions[0].reason).toMatch(/Upgraded to Ramp Payoff/);
+      expect(result.conversions[0].reason).toMatch(/doesn't reduce the count/);
+    });
+
+    it('caps same-role upgrades at MAX_SAME_ROLE_UPGRADES even with plenty of surplus left', () => {
+      const state = makeState();
+      const cards = addRampCards(state, 20); // target 3 -> cap 5; 15 over, no cross-role candidate exists
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            ...cards.map((c) => edhrecCard(c.name, 5)),
+            ...Array.from({ length: 10 }, (_, i) => edhrecCard(`Ramp Payoff_${i + 1}`, 90 - i)),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      for (let i = 1; i <= 10; i++) ROLE_OF.set(`Ramp Payoff_${i}`, 'ramp');
+      const roleTargets = { ramp: 3, removal: 0, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      // Every candidate is same-role — the pass must NOT spend its whole
+      // 6-swap budget on churn that never reduces the ramp overage.
+      expect(result.conversions.length).toBeLessThanOrEqual(2);
+      expect(result.conversions.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ── Defect 7 regression (round-2 live-eval gate) ───────────────────────────
+  describe('eviction ordering with pool-absent incumbents', () => {
+    it('never evicts a pool-absent premium card ahead of a genuinely weak, pool-listed one (atraxa-bracket2 repro)', () => {
+      const state = makeState();
+      // "Path to Exile": absent from THIS generation's (bracket-restricted)
+      // pool entirely — before the fix this defaulted to survival 0,
+      // guaranteeing it looked like the worst card in its role.
+      const premium = scryfallCard('Path to Exile');
+      ROLE_OF.set(premium.name, 'removal');
+      state.usedNames.add(premium.name);
+      state.categories.synergy.push(premium);
+
+      const weak = scryfallCard('Whisper of the Dross');
+      ROLE_OF.set(weak.name, 'removal');
+      state.usedNames.add(weak.name);
+      state.categories.synergy.push(weak);
+
+      // Establishes a role average (35) comfortably above the weak card's
+      // real inclusion (5) but with no bearing on the premium card at all
+      // (which has no entry and falls back to this average).
+      const decent = [
+        scryfallCard('Decent Removal 1'),
+        scryfallCard('Decent Removal 2'),
+        scryfallCard('Decent Removal 3'),
+      ];
+      for (const c of decent) {
+        ROLE_OF.set(c.name, 'removal');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...decent);
+
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Whisper of the Dross', 5),
+            edhrecCard('Decent Removal 1', 40),
+            edhrecCard('Decent Removal 2', 45),
+            edhrecCard('Decent Removal 3', 50),
+            edhrecCard('Payoff', 25), // clears the margin over Whisper (5) only
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Whisper of the Dross');
+      expect(state.usedNames.has('Path to Exile')).toBe(true);
+    });
   });
 });
