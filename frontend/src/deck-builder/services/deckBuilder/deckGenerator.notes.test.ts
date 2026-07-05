@@ -34,6 +34,7 @@ import {
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
   buildLandSqueezeTrimNote,
+  reconcileLandSqueezeDisclosure,
   buildComboUpsideNotes,
   resolvePriceSanity,
   isOverRoleCap,
@@ -414,6 +415,64 @@ describe('buildLandSqueezeTrimNote (E88 + E82 attempt 6)', () => {
     expect(note).toBe(
       "2 stronger leftover cards (Card B, Card C) displaced an equal number of the deck's weakest picks."
     );
+  });
+});
+
+describe('reconcileLandSqueezeDisclosure (E82 fix-round)', () => {
+  // The property this exists to guarantee: every name reconcile hands to
+  // buildLandSqueezeTrimNote must be on the correct side of the FINAL deck —
+  // never a stale name from the reconcile phase's own intermediate
+  // bookkeeping (a differ audit caught both directions: a "kept" wildcard
+  // that a downstream phase later cut back out, and a "cut" incumbent that
+  // came right back via a downstream repair).
+  it('drops a wildcard from wildcardsKept when a downstream phase cut it back out', () => {
+    const finalNames = new Set(['Incumbent A']);
+    const result = reconcileLandSqueezeDisclosure(
+      ['Incumbent A'], // reconcile thought it cut this, but a repair re-added it
+      ['Wildcard B'], // reconcile thought it kept this, but a later phase cut it
+      finalNames
+    );
+    expect(result.cut).toEqual([]);
+    expect(result.wildcardsKept).toEqual([]);
+  });
+
+  it('mixed case: self-cancelled wildcard + genuinely kept wildcard + genuine incumbent cut all resolve correctly', () => {
+    // Reconcile's own bookkeeping (as phaseLandSqueezeReconcile.ts would
+    // report it): two incumbents cut, two wildcards kept.
+    const reconcileCut = ['Incumbent A', 'Incumbent B'];
+    const reconcileWildcardsKept = ['Wildcard C', 'Wildcard D'];
+    // The FINAL deck, after every downstream phase has run: Incumbent A
+    // never came back (genuine cut) — but Incumbent B was re-added by an
+    // unrelated repair. Wildcard C survived to the end (genuine keep) — but
+    // Wildcard D got swapped back out by a later role-cap conversion (a
+    // "self-cancelled" wildcard from the final deck's point of view).
+    const finalNonLandNames = new Set(['Incumbent B', 'Wildcard C', 'Some Other Card']);
+
+    const result = reconcileLandSqueezeDisclosure(
+      reconcileCut,
+      reconcileWildcardsKept,
+      finalNonLandNames
+    );
+
+    expect(result.cut).toEqual(['Incumbent A']);
+    expect(result.wildcardsKept).toEqual(['Wildcard C']);
+
+    // The property under test: every disclosed name is on the correct side
+    // of the actual final deck — a cut name is never in the final deck, a
+    // kept-wildcard name is always in the final deck.
+    for (const name of result.cut) {
+      expect(finalNonLandNames.has(name)).toBe(false);
+    }
+    for (const name of result.wildcardsKept) {
+      expect(finalNonLandNames.has(name)).toBe(true);
+    }
+  });
+
+  it('is a no-op when everything reconcile reported still matches the final deck', () => {
+    const finalNonLandNames = new Set(['Wildcard C', 'Other Card']);
+    const result = reconcileLandSqueezeDisclosure(['Incumbent A'], ['Wildcard C'], finalNonLandNames);
+    expect(result.cut).toEqual(['Incumbent A']);
+    expect(result.wildcardsKept).toEqual(['Wildcard C']);
   });
 });
 

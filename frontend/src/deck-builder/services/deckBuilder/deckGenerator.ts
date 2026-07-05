@@ -548,17 +548,48 @@ export function buildPriceSanityNote(decidedCount: number): string | undefined {
 }
 
 /**
+ * E82 fix-round: phaseLandSqueezeReconcile.ts's `cut`/`wildcardsKept` are
+ * correct as of the moment that phase runs, but combo audit / coherence
+ * repair / budget convergence / bracket convergence all run AFTER it and can
+ * still cut a wildcard it just kept, or (far rarer) re-add a name it just
+ * cut — those phases have their own disclosure (coherenceRepairs,
+ * surplusConversions, …) for whatever THEY change, so this note must not
+ * keep naming a card that no longer reflects the truth. Reconciles the
+ * phase's own lists to the actual FINAL deck: a "kept" wildcard is only
+ * disclosed if it's still in the deck; a "cut" incumbent is only disclosed
+ * if it never came back. Guarantees every name buildLandSqueezeTrimNote
+ * receives is on the correct side of `finalNonLandNames` — the property a
+ * differ audit (E82 attempt 6 fix-round) caught missing: a misattributed
+ * "kept" wildcard that was actually an unchanged holdover, and a "cut"
+ * incumbent that was never in the deck at all (both symptoms of composing
+ * straight from the phase's own intermediate lists instead of the final
+ * state).
+ */
+export function reconcileLandSqueezeDisclosure(
+  cut: readonly string[],
+  wildcardsKept: readonly string[],
+  finalNonLandNames: ReadonlySet<string>
+): { cut: string[]; wildcardsKept: string[] } {
+  return {
+    cut: cut.filter((name) => !finalNonLandNames.has(name)),
+    wildcardsKept: wildcardsKept.filter((name) => finalNonLandNames.has(name)),
+  };
+}
+
+/**
  * E88 + E82 attempt 6 disclosure: names the cards phaseLandSqueezeReconcile.ts
  * cut to bring the deck back to size after auto-tuning land count up past the
  * 37-land baseline, plus (independently) any leftover cards its wildcard scan
  * added that outscored an incumbent. Composed POST-HOC from the phase's own
  * `cut`/`wildcardsKept` lists (never from inside a sort comparator — see
  * buildComboUpsideNotes's doc for why comparator-side collection is
- * structurally unreliable). The two aren't 1:1 pairable (one combined
- * sort/cut over both sets, not N independent swaps — see
- * phaseLandSqueezeReconcile.ts's header), so wildcards get their own sentence
- * rather than a misleading per-card pairing. Undefined when neither the
- * squeeze cut nor the wildcard scan did anything (the common case).
+ * structurally unreliable) — callers MUST run them through
+ * `reconcileLandSqueezeDisclosure` first so both lists already agree with the
+ * final deck. The two aren't 1:1 pairable (one combined sort/cut over both
+ * sets, not N independent swaps — see phaseLandSqueezeReconcile.ts's
+ * header), so wildcards get their own sentence rather than a misleading
+ * per-card pairing. Undefined when neither the squeeze cut nor the wildcard
+ * scan did anything (the common case).
  */
 export function buildLandSqueezeTrimNote(
   cutNames: readonly string[],
@@ -4830,10 +4861,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Land-squeeze reconciliation disclosure (E88 + E82 attempt 6) — undefined
   // when the auto-tune never raised land count past baseline AND the
-  // wildcard scan never found a leftover card worth adding (the common case).
+  // wildcard scan never found a leftover card worth adding (the common
+  // case). Reconciled to the final deck first (see
+  // reconcileLandSqueezeDisclosure's doc) — everything downstream of the
+  // reconcile phase has already run by this point, so `nonLandCards` is the
+  // true final set.
+  const { cut: finalLandSqueezeCut, wildcardsKept: finalWildcardsKept } =
+    reconcileLandSqueezeDisclosure(
+      landSqueezeResult.cut,
+      landSqueezeResult.wildcardsKept,
+      new Set(nonLandCards.map((c) => c.name))
+    );
   const landSqueezeTrimNote = buildLandSqueezeTrimNote(
-    landSqueezeResult.cut,
-    landSqueezeResult.wildcardsKept,
+    finalLandSqueezeCut,
+    finalWildcardsKept,
     categories.lands.length,
     DEFAULT_LAND_COUNT
   );
