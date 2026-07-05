@@ -194,6 +194,7 @@ export function BuildReportPanel({
     coherenceFindings,
     coherenceRepairs,
     budgetRepairs,
+    surplusConversions,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -246,6 +247,30 @@ export function BuildReportPanel({
 
       {roleCapOverflowNote && (
         <p className="build-report-line build-report-source">{roleCapOverflowNote}</p>
+      )}
+
+      {surplusConversions && surplusConversions.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{surplusConversions.length}</strong> role-surplus card
+            {surplusConversions.length === 1 ? '' : 's'} converted into a stronger payoff
+          </summary>
+          <ul className="build-report-subs-list">
+            {surplusConversions.map((r) => (
+              <li key={`${r.cut}-${r.added}`} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{r.cut}</strong> &rarr; <strong>{r.added}</strong>
+                  </span>
+                </div>
+                <span className="build-report-sub-reason">{r.reason}</span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge tone="success" label="Auto-fixed" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {priceSanityNote && (

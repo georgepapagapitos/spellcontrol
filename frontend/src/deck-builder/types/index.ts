@@ -536,6 +536,11 @@ export interface BuildReport {
    *  in line (or as close as protections allow) — see phaseBudgetConverge.ts
    *  (E79). Undefined when no budget was set, or nothing needed swapping. */
   budgetRepairs?: CoherenceRepair[];
+  /** Swaps the role-surplus rebalance pass applied — a reactive role
+   *  (ramp/removal/boardwipe/cardDraw) running over its cap converted into a
+   *  payoff pick — see phaseRoleSurplusRebalance.ts (E87). Undefined when no
+   *  role ran over cap, or nothing cleared the improvement margin. */
+  surplusConversions?: CoherenceRepair[];
 }
 
 export interface GeneratedDeck {
@@ -566,6 +571,8 @@ export interface GeneratedDeck {
   coherenceRepairs?: CoherenceRepair[];
   /** Swaps the budget-convergence pass applied (E79). */
   budgetRepairs?: CoherenceRepair[];
+  /** Swaps the role-surplus rebalance pass applied (E87). */
+  surplusConversions?: CoherenceRepair[];
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool

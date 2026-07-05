@@ -165,6 +165,11 @@ export function assembleBuildReport(input: {
     report.budgetRepairs = generated.budgetRepairs;
   }
 
+  // Role-surplus → payoff conversions (E87): same "nothing moves silently" ethos.
+  if (generated.surplusConversions && generated.surplusConversions.length > 0) {
+    report.surplusConversions = generated.surplusConversions;
+  }
+
   // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
   // Unconditional on builtFromCollection: unlike synergyFills these aren't
   // owned-build provenance, they're a suggestion regardless of build mode.
