@@ -17,3 +17,4 @@ export * from './sections.js';
 export * from './sorting.js';
 export * from './rules.js';
 export * from './materialize.js';
+export * from './next-match.js';
