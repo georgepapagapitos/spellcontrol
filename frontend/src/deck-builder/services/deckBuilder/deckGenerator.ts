@@ -3896,6 +3896,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function auditRemove(card: ScryfallCard, category: DeckCategory) {
       categories[category] = categories[category].filter((c) => c !== card);
       usedNames.delete(card.name);
+      // E87: this cut is about to be disclosed in coherenceRepairs — veto the
+      // name so no downstream add phase (bracket/budget convergence, role-
+      // surplus rebalance, lift picks) can silently re-pick it and leave the
+      // disclosure describing an intermediate state the shipped deck contradicts.
+      markBanned(card.name);
     }
 
     // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce — owned

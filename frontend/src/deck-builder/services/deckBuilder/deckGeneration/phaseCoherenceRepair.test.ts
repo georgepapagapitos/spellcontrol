@@ -240,6 +240,23 @@ describe('applyCoherenceRepair', () => {
     expect(state.usedNames.has('Junk Card')).toBe(false);
   });
 
+  // E87: a card this pass cuts is about to be disclosed via coherenceRepairs
+  // as "cut: Junk Card" — a later mutating phase (bracket/budget convergence,
+  // role-surplus rebalance) re-adding it would leave that disclosure stale
+  // against the shipped deck. removeCard() must veto the name so nothing
+  // downstream can re-pick it (every downstream add site already gates on
+  // state.bannedCards — see phaseRoleSurplusRebalance's own veto test).
+  it('bans the cut card name so no downstream phase can re-add it', async () => {
+    const state = makeState();
+    addToDeck(state, scryfallCard('Junk Card'));
+
+    const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0].cut).toBe('Junk Card');
+    expect(state.bannedCards.has('Junk Card')).toBe(true);
+  });
+
   it(`caps repairs at MAX_COHERENCE_SWAPS (${MAX_COHERENCE_SWAPS})`, async () => {
     const state = makeState();
     for (let i = 0; i < 5; i++) addToDeck(state, scryfallCard(`Junk ${i}`));
