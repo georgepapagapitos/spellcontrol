@@ -7,6 +7,7 @@ import type {
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts } from '../commanderDeckAnalysis';
@@ -15,6 +16,7 @@ import { calculateCardPriority } from '../cardPicking';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from '../nonbo';
 import { getLiftIndex } from './liftPools';
+import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import {
@@ -57,6 +59,22 @@ import {
 // never `state.currentRoleCounts` — the combo audit above drifts that
 // incremental tally stale by never updating it, so trusting it here would
 // both miss real surplus and imagine surplus that isn't there.
+//
+// Live-eval fixes (post-ship gate, first pass): eviction "worst first" is
+// scored by the SAME priority+lift signal `findReplacement` uses for
+// incoming candidates — NOT deckGenerator.ts's position-based
+// computeTrimResistance, which looked plausible in isolation but produced
+// the wrong order on real decks once curve-fit/early-ramp-CMC bonuses had
+// scrambled a category array's pick-order-as-quality-proxy assumption (a
+// 6%-inclusion 0-cmc rock got picked EARLY for curve reasons and out-survived
+// a 90%-inclusion payoff picked later in the same type pass). A card with
+// real EDHREC-lift connectivity to the deck also survives even when its
+// regex tagger role reads as reactive (a token payoff mistagged 'removal'
+// from its printed text isn't actually filler). And staples are protected by
+// NAME (STAPLE_ROCK_NAMES), not `card.isStapleRock` — that flag is only ever
+// set on a copy THIS generation's stapleManaRocksPhase itself adds; the
+// common case is the staple already came in via normal EDHREC-pool picking
+// (high inclusion), landing here flagless and, before this fix, evictable.
 
 // Total conversions this pass may apply per deck. Precedent: MAX_AUDIT_SWAPS
 // = 4 (deckGenerator.ts's Combo Integrity Audit), MAX_COHERENCE_SWAPS = 3
@@ -97,18 +115,6 @@ export interface RoleSurplusRebalanceContext {
   cardAllowed?: (card: ScryfallCard) => boolean;
   /** EDHREC lift clusterScore lookup (deckGenerator.ts's liftScoreOf). */
   liftScoreOf: (name: string) => number;
-  /** deckGenerator.ts's computeTrimResistance (module-scope there, alongside
-   *  the Smart Trim pass it was built for) — injected rather than imported to
-   *  avoid a circular import (deckGenerator.ts is this phase's own caller). */
-  computeTrimResistance: (
-    card: ScryfallCard,
-    positionIndex: number,
-    categoryLength: number,
-    category: DeckCategory,
-    comboCardNames: ReadonlySet<string>,
-    roleTargets: Record<RoleKey, number> | null,
-    currentRoleCounts: Record<RoleKey, number>
-  ) => number;
   // Hard gates, shared refs with every other picking/repair phase (counts accumulate).
   isSaltBlocked?: (name: string) => boolean;
   bracketGuard?: BracketGuard;
@@ -122,6 +128,10 @@ export interface RoleSurplusRebalanceContext {
   currency: 'USD' | 'EUR';
   ignoreOwnedBudget: boolean;
   ignoreOwnedRarity: boolean;
+  /** Total-deck budget ask (customization.deckBudget), independent of the
+   *  per-card maxCardPrice cap — a swap's net price delta must not push the
+   *  deck's real total over this. Null when no total-deck budget is set. */
+  deckBudget: number | null;
 }
 
 export interface RoleSurplusRebalanceResult {
@@ -164,6 +174,7 @@ export function applyRoleSurplusRebalance(
   const roleTargets = ctx.roleTargets;
   const pool = state.edhrecData?.cardlists.allNonLand;
   if (!roleTargets || !pool || pool.length === 0) return { conversions };
+  const poolByName = new Map(pool.map((c) => [c.name, c]));
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
@@ -201,7 +212,8 @@ export function applyRoleSurplusRebalance(
     state.comboCardNames.has(card.name) ||
     completeComboNames.has(card.name) ||
     completeComboNames.has(frontFaceName(card.name)) ||
-    !!card.isStapleRock;
+    !!card.isStapleRock ||
+    STAPLE_ROCK_NAMES.has(card.name);
 
   // Nonbo-flagged cards evict first (E80 tie-in — the Isshin motivating case:
   // self-damaging wipes in a go-wide token shell). Recomputed here from the
@@ -215,6 +227,21 @@ export function applyRoleSurplusRebalance(
       .map((f) => f.card)
       .filter((c): c is string => !!c)
   );
+
+  // Real (not per-card-capped) deck total, tracked live across swaps so a
+  // conversion's net price delta can be checked against the ACTUAL remaining
+  // headroom to the total-deck budget ask — a per-card cap alone (BudgetTracker
+  // .getEffectiveCap) can't see that THIS swap also removes a cheaper card,
+  // so it let a $1.75 upgrade through even though the deck had only $1.38 of
+  // headroom left (krenko-budget50 breach).
+  const priceOf = (card: ScryfallCard): number => {
+    const p = getCardPrice(card, ctx.currency);
+    return p ? parseFloat(p) || 0 : 0;
+  };
+  let runningTotal =
+    ctx.deckBudget != null
+      ? [...nonLands(), ...state.categories.lands].reduce((sum, c) => sum + priceOf(c), 0)
+      : 0;
 
   const removeCard = (card: ScryfallCard, category: DeckCategory, role: RoleKey) => {
     state.categories[category] = state.categories[category].filter((c) => c !== card);
@@ -241,13 +268,38 @@ export function applyRoleSurplusRebalance(
   };
 
   // A candidate's OWN role (if any) must not be pushed over ITS cap — this is
-  // what keeps the pass an actual ramp/removal/wipe/draw -> payoff CONVERSION
-  // instead of a same-role reshuffle or a surplus relocation onto a sibling
-  // reactive role.
-  const destinationRoleOk = (card: ScryfallCard): boolean => {
+  // what keeps the pass from relocating the surplus onto a sibling reactive
+  // role. A candidate sharing the EVICTED card's own role is always fine
+  // regardless of that role's current count: the swap removes one and adds
+  // one back into the SAME role, netting to zero change — checking it
+  // against the (not-yet-decremented) pre-swap count would reject a same-role
+  // quality upgrade every single time a role is over cap, which is exactly
+  // the case this pass runs in. On a thin/narrow pool (e.g. mono-color) a
+  // same-role upgrade can be the only kind of legal replacement available at
+  // all — wrongly blocking it here silently zeroed out entire decks.
+  const destinationRoleOk = (card: ScryfallCard, evictedRole: RoleKey): boolean => {
     const role = getCardRole(card.name);
-    if (!role) return true;
+    if (!role || role === evictedRole) return true;
     return (liveRoleCounts[role] ?? 0) < capOf(role);
+  };
+
+  // Priority+lift "survival score" — the SAME signal used to rank incoming
+  // candidates, applied symmetrically to outgoing ones. Deliberately NOT
+  // deckGenerator.ts's computeTrimResistance: that function's base term is
+  // "position within its category array", a proxy for "picked early = good"
+  // that holds for the ORIGINAL type-pass pick order but breaks by the time
+  // this pass runs — curve-fit and the early-ramp CMC bonus can plant a
+  // 0-cost, low-inclusion rock near the front of `categories.ramp` (small
+  // index = high resistance) while a much better card lands later in the
+  // same pass (large index = low resistance), inverting eviction order on
+  // real decks (Kozilek: Mox Diamond/Manakin survived, Thran Dynamo/Rise of
+  // the Eldrazi got cut). Folding in liftScoreOf also protects a card whose
+  // regex tagger role reads reactive but is actually a live payoff (Krenko's
+  // Warstorm Surge, tagged 'removal', lift-connected to the goblin cluster).
+  const survivalScoreOf = (name: string, liftBoosts: Map<string, number>): number => {
+    const ec = poolByName.get(name);
+    const priority = ec ? calculateCardPriority(ec) : 0;
+    return priority + (liftBoosts.get(name) ?? 0);
   };
 
   // Best pool candidate clearing every hard gate the pick-time path enforces
@@ -255,7 +307,11 @@ export function applyRoleSurplusRebalance(
   // (phaseBudgetConverge.ts), ranked by calculateCardPriority blended with
   // the validated EDHREC lift clusterScore boost (packageBoost.ts's
   // computeLiftPickBoosts — reused untouched, not re-derived).
-  const findReplacement = (evictedPriority: number): ScryfallCard | null => {
+  const findReplacement = (
+    evictedScore: number,
+    evictedPrice: number,
+    evictedRole: RoleKey
+  ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
         !state.usedNames.has(c.name) &&
@@ -273,7 +329,7 @@ export function applyRoleSurplusRebalance(
       .sort((a, b) => b.score - a.score);
 
     for (const { ec, score } of ranked) {
-      if (score < evictedPriority + MIN_IMPROVEMENT_MARGIN) break; // sorted desc — nothing further clears the bar
+      if (score < evictedScore + MIN_IMPROVEMENT_MARGIN) break; // sorted desc — nothing further clears the bar
       const card = ctx.scryfallCardMap.get(ec.name)!;
       if (ctx.cardAllowed && !ctx.cardAllowed(card)) continue;
       if (!fitsColorIdentity(card, colorIdentity)) continue;
@@ -289,7 +345,17 @@ export function applyRoleSurplusRebalance(
       }
       if (exceedsCmcCap(card, ctx.maxCmc)) continue;
       if (notOnArena(card, ctx.arenaOnly)) continue;
-      if (!destinationRoleOk(card)) continue;
+      if (!destinationRoleOk(card, evictedRole)) continue;
+      // Total-deck budget headroom (see runningTotal doc above) — independent
+      // of, and in addition to, the per-card maxCardPrice/effectiveCap gate.
+      if (
+        ctx.deckBudget != null &&
+        !isOwnedBudgetExempt(ec.name, collectionNames, ctx.ignoreOwnedBudget)
+      ) {
+        const delta = priceOf(card) - evictedPrice;
+        const alreadyOverAsk = runningTotal > ctx.deckBudget;
+        if (alreadyOverAsk ? delta >= 0 : runningTotal + delta > ctx.deckBudget) continue;
+      }
       return card;
     }
     return null;
@@ -297,80 +363,82 @@ export function applyRoleSurplusRebalance(
 
   let conversionsApplied = 0;
 
-  while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
+  outer: while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
     const overCapRoles = REACTIVE_ROLES.filter(isOverCap);
     if (overCapRoles.length === 0) break;
 
     // Global worst-first across every currently over-cap role: ascending
-    // trim resistance (protects must-includes/combo pieces/staples by
-    // construction — see computeTrimResistance), nonbo-flagged first.
+    // survival score (priority + lift — see survivalScoreOf doc), nonbo-
+    // flagged first regardless of score.
     const evictable: {
       card: ScryfallCard;
       category: DeckCategory;
       role: RoleKey;
-      resistance: number;
       nonbo: boolean;
     }[] = [];
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       const cards = state.categories[cat];
-      for (let i = 0; i < cards.length; i++) {
-        const card = cards[i];
+      for (const card of cards) {
         const role = getCardRole(card.name);
         if (!role || !overCapRoles.includes(role)) continue;
         if (isProtected(card)) continue;
-        evictable.push({
-          card,
-          category: cat,
-          role,
-          resistance: ctx.computeTrimResistance(
-            card,
-            i,
-            cards.length,
-            cat,
-            state.comboCardNames,
-            roleTargets,
-            liveRoleCounts
-          ),
-          nonbo: nonboNames.has(card.name),
-        });
+        evictable.push({ card, category: cat, role, nonbo: nonboNames.has(card.name) });
       }
     }
     if (evictable.length === 0) break; // nothing left to evict — floor-safe by construction
 
-    evictable.sort((a, b) => Number(b.nonbo) - Number(a.nonbo) || a.resistance - b.resistance);
-    const worst = evictable[0];
-    const roleTarget = roleTargets[worst.role] ?? 0;
-    const beforeCount = liveRoleCounts[worst.role] ?? 0;
-    // Never evict below the role's own target — should be unreachable (the
-    // while/isOverCap guard only evicts from counts strictly over cap, and
-    // cap >= target by construction), asserted defensively rather than
-    // trusted silently.
-    if (beforeCount - 1 < roleTarget) break;
+    const liftBoosts = computeLiftPickBoosts(
+      evictable.map((e) => e.card.name),
+      ctx.liftScoreOf
+    );
+    const scored = evictable
+      .map((e) => ({ ...e, survival: survivalScoreOf(e.card.name, liftBoosts) }))
+      .sort((a, b) => Number(b.nonbo) - Number(a.nonbo) || a.survival - b.survival);
 
-    const evictedEc = pool.find((c) => c.name === worst.card.name);
-    const evictedPriority = evictedEc ? calculateCardPriority(evictedEc) : 0;
-    const replacement = findReplacement(evictedPriority);
-    if (!replacement) break; // no candidate clears the margin — stop, don't force a weaker swap
+    // Try candidates worst-first; a single stubborn card (no clearing
+    // replacement) must not stall the whole pass while other genuinely-worse
+    // surplus cards still have a legal conversion available (this silently
+    // zeroed out Talrand/meren-budget100/the-ur-dragon/atraxa-bracket2 and
+    // cut Isshin off after 1 of ~4 expected conversions).
+    for (const candidate of scored) {
+      const roleTarget = roleTargets[candidate.role] ?? 0;
+      const beforeCount = liveRoleCounts[candidate.role] ?? 0;
+      // Never evict below the role's own target — should be unreachable (the
+      // outer isOverCap guard only evicts from counts strictly over cap, and
+      // cap >= target by construction), asserted defensively rather than
+      // trusted silently.
+      if (beforeCount - 1 < roleTarget) continue;
 
-    removeCard(worst.card, worst.category, worst.role);
-    addCard(replacement);
-    conversionsApplied++;
+      const evictedPrice = priceOf(candidate.card);
+      const replacement = findReplacement(candidate.survival, evictedPrice, candidate.role);
+      if (!replacement) continue; // this candidate has no legal upgrade — try the next-worst one
 
-    const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
-    conversions.push({
-      cut: worst.card.name,
-      added: replacement.name,
-      reason: buildConversionReason({
-        role: worst.role,
-        have: beforeCount,
-        target: roleTarget,
-        nonbo: worst.nonbo,
-        cutName: worst.card.name,
-        addedName: replacement.name,
-        liftedBy,
-      }),
-    });
+      removeCard(candidate.card, candidate.category, candidate.role);
+      addCard(replacement);
+      runningTotal += priceOf(replacement) - evictedPrice;
+      conversionsApplied++;
+
+      const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
+      conversions.push({
+        cut: candidate.card.name,
+        added: replacement.name,
+        reason: buildConversionReason({
+          role: candidate.role,
+          have: beforeCount,
+          target: roleTarget,
+          nonbo: candidate.nonbo,
+          cutName: candidate.card.name,
+          addedName: replacement.name,
+          liftedBy,
+        }),
+      });
+      continue outer; // re-derive surplus/evictable state fresh next round
+    }
+
+    // Every currently-evictable candidate in this round was rejected —
+    // truly nothing left to convert.
+    break;
   }
 
   return { conversions };

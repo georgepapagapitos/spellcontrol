@@ -144,10 +144,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
   } as GenerationState;
 }
 
-// Deterministic, test-controlled trim resistance: lower name-suffix number =
-// lower resistance = evicted first, unless explicitly overridden per-card.
-// Isolated from the real computeTrimResistance (deckGenerator.ts) so these
-// tests exercise THIS phase's ordering/gating logic, not that function.
 function makeCtx(
   state: GenerationState,
   overrides: Partial<RoleSurplusRebalanceContext> = {}
@@ -160,7 +156,6 @@ function makeCtx(
     detectedCombos: undefined,
     mustIncludeNames: new Set<string>(),
     liftScoreOf: () => 0,
-    computeTrimResistance: (_card, positionIndex) => -positionIndex,
     gameChangerCount: { value: 0 },
     maxGameChangers: Infinity,
     budgetTracker: null,
@@ -171,6 +166,7 @@ function makeCtx(
     currency: 'USD',
     ignoreOwnedBudget: false,
     ignoreOwnedRarity: false,
+    deckBudget: null,
     ...overrides,
   };
 }
@@ -229,41 +225,81 @@ describe('applyRoleSurplusRebalance', () => {
     expect(remainingRamp).toHaveLength(7);
   });
 
-  it('never evicts a must-include, combo piece, or staple rock', () => {
+  it('never evicts a must-include or combo piece', () => {
     const state = makeState();
     const cards = addRampCards(state, 8);
     cards[0].isMustInclude = true;
     state.comboCardNames.add(cards[1].name);
-    cards[2].isStapleRock = true;
-    // Give the protected cards the LOWEST resistance so an unprotected
-    // ordering would pick them first if protection weren't enforced.
     state.edhrecData = {
       cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
     } as unknown as GenerationState['edhrecData'];
     const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
-    const ctx = makeCtx(state, {
-      roleTargets,
-      computeTrimResistance: (card) =>
-        card.isMustInclude || card.isStapleRock || state.comboCardNames.has(card.name) ? -100 : 0,
-    });
-    const result = applyRoleSurplusRebalance(state, ctx);
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
 
     expect(result.conversions).toHaveLength(1);
     const cutName = result.conversions[0].cut;
-    expect([cards[0].name, cards[1].name, cards[2].name]).not.toContain(cutName);
+    expect([cards[0].name, cards[1].name]).not.toContain(cutName);
     expect(state.usedNames.has(cards[0].name)).toBe(true);
     expect(state.usedNames.has(cards[1].name)).toBe(true);
+  });
+
+  it('never evicts a staple rock flagged isStapleRock', () => {
+    const state = makeState();
+    const cards = addRampCards(state, 8);
+    cards[2].isStapleRock = true;
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].cut).not.toBe(cards[2].name);
     expect(state.usedNames.has(cards[2].name)).toBe(true);
   });
 
-  it('evicts a nonbo-flagged card before a lower-resistance non-flagged one', () => {
+  // Defect 1 regression (live-eval gate): Sythis lost Sol Ring + Arcane Signet
+  // to conversions because `card.isStapleRock` is only ever set on a copy
+  // stapleManaRocksPhase itself adds — a staple already in the deck via
+  // normal EDHREC-pool picking (the common case, 28/30 decks) arrives here
+  // flagless, so the old flag-only check didn't protect it.
+  it('never evicts a staple picked from the EDHREC pool (no isStapleRock flag)', () => {
+    const state = makeState();
+    const solRing = scryfallCard('Sol Ring'); // no isStapleRock, no EDHREC pool entry -> priority 0
+    ROLE_OF.set(solRing.name, 'ramp');
+    state.usedNames.add(solRing.name);
+    state.categories.synergy.push(solRing);
+    // Fillers WITH a positive pool entry — Sol Ring would rank as the worst
+    // (lowest survival score) if name-based staple protection weren't applied.
+    const fillers = addRampCards(state, 7, 'Filler');
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          ...fillers.map((c, i) => edhrecCard(c.name, 10 + i)),
+          edhrecCard('Payoff A', 95),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    expect(result.conversions.length).toBeGreaterThan(0);
+    expect(result.conversions.some((c) => c.cut === 'Sol Ring')).toBe(false);
+    expect(state.usedNames.has('Sol Ring')).toBe(true);
+  });
+
+  it('evicts a nonbo-flagged card before a higher-survival non-flagged one', () => {
     const state = makeState();
     const cards = addRampCards(state, 8);
-    // cards[7] ("Ramp_8") would normally be evicted first (lowest resistance
-    // via -positionIndex), but cards[0] is nonbo-flagged and must go first.
+    // cards[0] has BETTER inclusion than its untagged siblings (survival 20
+    // vs their 0) but is nonbo-flagged — it must still evict first. Kept
+    // modest (not the deck's best) so the replacement can still clear the
+    // margin against it.
     NONBO_FLAGGED.add(cards[0].name);
     state.edhrecData = {
-      cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
+      cardlists: {
+        allNonLand: [edhrecCard(cards[0].name, 20), edhrecCard('Payoff A', 50)],
+      },
     } as unknown as GenerationState['edhrecData'];
     const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
     const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
@@ -273,7 +309,7 @@ describe('applyRoleSurplusRebalance', () => {
     expect(result.conversions[0].reason).toMatch(/nonbo/);
   });
 
-  it('rejects a salt-blocked / off-color / rarity-capped candidate and falls through to a legal one', () => {
+  it('rejects a salt-blocked candidate and falls through to a legal one', () => {
     const state = makeState();
     addRampCards(state, 8);
     state.edhrecData = {
@@ -308,7 +344,7 @@ describe('applyRoleSurplusRebalance', () => {
     expect(result.conversions).toEqual([]);
   });
 
-  it('never pushes a same-role or any other role over ITS OWN cap (destination cap re-check)', () => {
+  it('never pushes a DIFFERENT role over ITS OWN cap (cross-role destination check)', () => {
     const state = makeState();
     addRampCards(state, 8); // ramp target 5, cap 7 -> 1 over
     const removalCards = Array.from({ length: 4 }, (_, i) => scryfallCard(`Removal_${i + 1}`));
@@ -328,8 +364,25 @@ describe('applyRoleSurplusRebalance', () => {
 
     expect(result.conversions).toHaveLength(1);
     // Removal Candidate would win on raw priority (95 > 80) but is blocked —
-    // removal is already at its own cap (4).
+    // it's a DIFFERENT role than the evicted ramp card, and removal is
+    // already at its own cap (4).
     expect(result.conversions[0].added).toBe('Generic Payoff');
+  });
+
+  it('allows a same-role replacement even though that role is over its own cap (net-zero swap)', () => {
+    const state = makeState();
+    addRampCards(state, 8); // ramp target 5, cap 7 -> 1 over
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Ramp Payoff', 90)] },
+    } as unknown as GenerationState['edhrecData'];
+    ROLE_OF.set('Ramp Payoff', 'ramp'); // same role as every evictable candidate
+    const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    // A same-role swap removes one ramp card and adds one back — the count
+    // never increases, so it must not be blocked by ramp's own cap.
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].added).toBe('Ramp Payoff');
   });
 
   it('allows a deficit-role candidate to win the vacated slot (no artificial non-reactive-only filter)', () => {
@@ -380,5 +433,241 @@ describe('applyRoleSurplusRebalance', () => {
     const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
     expect(result.conversions).toHaveLength(1);
     expect(result.conversions[0].added).toBe('Payoff A');
+  });
+
+  // ── Defect 2 regressions (live-eval gate) ──────────────────────────────────
+  describe('eviction ordering on realistic inclusion spreads', () => {
+    it('evicts the lowest-inclusion ramp card, never a high-inclusion one (Kozilek repro)', () => {
+      const state = makeState();
+      const names = [
+        'Thran Dynamo',
+        'Rise of the Eldrazi',
+        'Mox Diamond',
+        'Manakin',
+        'Hedron Crawler',
+      ];
+      const cards = names.map((n) => scryfallCard(n));
+      for (const c of cards) {
+        ROLE_OF.set(c.name, 'ramp');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...cards);
+      // Pad to real surplus (target 5, cap 7 -> need 8) with fillers scored
+      // ABOVE Mox Diamond's 6% so Mox Diamond stays the unambiguous worst —
+      // an unscored filler would default to survival 0, below Mox Diamond,
+      // and mask the very ordering bug this test exists to catch.
+      const fillers = addRampCards(state, 3, 'Filler');
+
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Thran Dynamo', 90.2),
+            edhrecCard('Rise of the Eldrazi', 49),
+            edhrecCard('Mox Diamond', 6),
+            edhrecCard('Manakin', 12.1),
+            edhrecCard('Hedron Crawler', 23.4),
+            ...fillers.map((c, i) => edhrecCard(c.name, 15 + i)),
+            edhrecCard('Payoff A', 40), // clears the margin over Mox Diamond (6) only
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Mox Diamond');
+      expect(state.usedNames.has('Thran Dynamo')).toBe(true);
+      expect(state.usedNames.has('Rise of the Eldrazi')).toBe(true);
+    });
+
+    it('protects a lift-connected card even when its regex role reads reactive (Warstorm Surge repro)', () => {
+      const state = makeState();
+      const payoff = scryfallCard('Warstorm Surge'); // regex-tagged 'removal' but a live token payoff
+      const filler = scryfallCard('Weak Removal Filler');
+      ROLE_OF.set(payoff.name, 'removal');
+      ROLE_OF.set(filler.name, 'removal');
+      state.usedNames.add(payoff.name);
+      state.usedNames.add(filler.name);
+      state.categories.synergy.push(payoff, filler);
+      // 3 more removal fillers to build surplus (target 2, cap 4 -> need 5).
+      const extra = Array.from({ length: 3 }, (_, i) => scryfallCard(`Removal_${i + 1}`));
+      for (const c of extra) {
+        ROLE_OF.set(c.name, 'removal');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...extra);
+
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Payoff A', 40)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 };
+      // Neither `payoff` nor `filler` has an EDHREC pool entry (priority 0) —
+      // only the lift signal distinguishes them.
+      const ctx = makeCtx(state, {
+        roleTargets,
+        liftScoreOf: (name) => (name === 'Warstorm Surge' ? 5000 : 0),
+      });
+      const result = applyRoleSurplusRebalance(state, ctx);
+
+      expect(result.conversions.length).toBeGreaterThan(0);
+      expect(result.conversions.some((c) => c.cut === 'Warstorm Surge')).toBe(false);
+    });
+  });
+
+  // ── Defect 3 regressions (live-eval gate) ──────────────────────────────────
+  describe('total-deck budget headroom', () => {
+    it('rejects a swap whose price delta would push the deck over the budget ask', () => {
+      const state = makeState();
+      const cheap = scryfallCard('Lightning Bolt', { prices: { usd: '0.83' } });
+      ROLE_OF.set(cheap.name, 'removal');
+      state.usedNames.add(cheap.name);
+      state.categories.synergy.push(cheap);
+      const extra = Array.from({ length: 4 }, (_, i) =>
+        scryfallCard(`Removal_${i + 1}`, { prices: { usd: '1.00' } })
+      );
+      for (const c of extra) {
+        ROLE_OF.set(c.name, 'removal');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...extra);
+      // Deck total = 0.83 + 4*1.00 = 4.83; ask is exactly 4.83 (zero headroom).
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Brightstone Ritual', 90)], // priced ABOVE the cut -> breaches
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const ctx = makeCtx(state, {
+        roleTargets: { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 },
+        deckBudget: 4.83,
+        scryfallCardMap: new Map([
+          ['Brightstone Ritual', scryfallCard('Brightstone Ritual', { prices: { usd: '2.58' } })],
+        ]),
+      });
+      const result = applyRoleSurplusRebalance(state, ctx);
+
+      expect(result.conversions).toEqual([]);
+      expect(state.usedNames.has('Lightning Bolt')).toBe(true);
+    });
+
+    it('accepts a swap that fits the remaining budget headroom', () => {
+      const state = makeState();
+      const cheap = scryfallCard('Lightning Bolt', { prices: { usd: '0.83' } });
+      ROLE_OF.set(cheap.name, 'removal');
+      state.usedNames.add(cheap.name);
+      state.categories.synergy.push(cheap);
+      const extra = Array.from({ length: 4 }, (_, i) =>
+        scryfallCard(`Removal_${i + 1}`, { prices: { usd: '1.00' } })
+      );
+      for (const c of extra) {
+        ROLE_OF.set(c.name, 'removal');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...extra);
+      // Deck total = 4.83; ask 10 -> plenty of headroom for a $2.58 candidate.
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Brightstone Ritual', 90)] },
+      } as unknown as GenerationState['edhrecData'];
+      const ctx = makeCtx(state, {
+        roleTargets: { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 },
+        deckBudget: 10,
+        scryfallCardMap: new Map([
+          ['Brightstone Ritual', scryfallCard('Brightstone Ritual', { prices: { usd: '2.58' } })],
+        ]),
+      });
+      const result = applyRoleSurplusRebalance(state, ctx);
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Brightstone Ritual');
+    });
+
+    it('requires a strictly cheaper card once the deck is already over the ask', () => {
+      const state = makeState();
+      const pricey = scryfallCard('Pricey Removal', { prices: { usd: '5.00' } });
+      ROLE_OF.set(pricey.name, 'removal');
+      state.usedNames.add(pricey.name);
+      state.categories.synergy.push(pricey);
+      const extra = Array.from({ length: 4 }, (_, i) =>
+        scryfallCard(`Removal_${i + 1}`, { prices: { usd: '1.00' } })
+      );
+      for (const c of extra) {
+        ROLE_OF.set(c.name, 'removal');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...extra);
+      // Deck total = 5 + 4 = 9, already over the $5 ask.
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Same Price Payoff', 90), edhrecCard('Cheaper Payoff', 85)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const ctx = makeCtx(state, {
+        roleTargets: { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 },
+        deckBudget: 5,
+        scryfallCardMap: new Map([
+          ['Same Price Payoff', scryfallCard('Same Price Payoff', { prices: { usd: '5.00' } })],
+          ['Cheaper Payoff', scryfallCard('Cheaper Payoff', { prices: { usd: '4.00' } })],
+        ]),
+      });
+      const result = applyRoleSurplusRebalance(state, ctx);
+
+      expect(result.conversions).toHaveLength(1);
+      // Same-price-as-cut (delta 0) is rejected while already over ask;
+      // strictly cheaper (delta -1) is accepted.
+      expect(result.conversions[0].added).toBe('Cheaper Payoff');
+    });
+  });
+
+  // ── Defect 4 regression (live-eval gate) ───────────────────────────────────
+  // A same-role replacement is a net-zero swap for that role's count (see the
+  // 'net-zero swap' test above) — this reproduces the FULL under-firing bug:
+  // when the global-worst surplus card's only real candidate is cross-role
+  // and blocked, the pass must move on to the next-worst surplus card
+  // instead of giving up entirely (this silently zeroed out Talrand/
+  // meren-budget100/the-ur-dragon/atraxa-bracket2 and cut Isshin off after 1
+  // of ~4 expected conversions).
+  it('does not stall the whole pass when the global-worst card has no legal replacement', () => {
+    const state = makeState();
+    // Global worst (lowest survival, tried first): a removal card with no
+    // pool entry at all (priority 0).
+    const removalWorst = scryfallCard('Removal Worst');
+    ROLE_OF.set(removalWorst.name, 'removal');
+    state.usedNames.add(removalWorst.name);
+    state.categories.synergy.push(removalWorst);
+    const removalPad = Array.from({ length: 4 }, (_, i) => scryfallCard(`Removal_${i + 1}`));
+    for (const c of removalPad) {
+      ROLE_OF.set(c.name, 'removal');
+      state.usedNames.add(c.name);
+      c.prices = { usd: '1.00' };
+    }
+    state.categories.synergy.push(...removalPad); // removal: 5 total, target 2 -> cap 4, 1 over
+
+    // Ramp is ALSO over cap, and its incumbents have a slightly better
+    // (but still weak) survival score than Removal Worst, so they're tried
+    // SECOND, not first.
+    const rampCards = addRampCards(state, 8); // target 5 -> cap 7, 1 over
+
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          // Clears the margin for both the removal and ramp incumbents on
+          // raw priority, but its role is 'ramp' — which is ALSO over cap,
+          // so it can only ever legally replace a RAMP incumbent (net-zero),
+          // never the removal one (a real role-count increase).
+          edhrecCard('Ramp Payoff', 30),
+          ...rampCards.map((c, i) => edhrecCard(c.name, 5 + i)), // slightly > 0, so tried 2nd
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    ROLE_OF.set('Ramp Payoff', 'ramp');
+
+    const roleTargets = { ramp: 5, removal: 2, boardwipe: 0, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+    // Removal Worst (tried first) has no legal replacement — Ramp Payoff is
+    // cross-role and removal is already at cap. The pass must move on and
+    // still convert the ramp surplus instead of giving up entirely.
+    expect(result.conversions.length).toBeGreaterThan(0);
+    expect(result.conversions.every((c) => c.cut !== 'Removal Worst')).toBe(true);
+    expect(state.usedNames.has('Removal Worst')).toBe(true); // untouched — never found a legal swap
   });
 });

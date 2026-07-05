@@ -4285,7 +4285,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ]),
     cardAllowed: isCardAllowedBySynergyDependencies,
     liftScoreOf,
-    computeTrimResistance,
     isSaltBlocked,
     bracketGuard,
     gameChangerCount,
@@ -4298,6 +4297,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     currency,
     ignoreOwnedBudget,
     ignoreOwnedRarity,
+    deckBudget,
   });
   const surplusConversions = surplusResult.conversions;
 
