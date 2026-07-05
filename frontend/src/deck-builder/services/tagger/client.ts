@@ -429,6 +429,82 @@ export function isUntapProducer(card: {
   return UNTAP_PRODUCER.test(text);
 }
 
+// Blink/flicker producers (iter-8 Slice B) — same shape as isUntapProducer: a
+// pure oracle-text predicate, producer-only (see packageBoost.ts's
+// computeBlinkVisibilityBoosts doc for why an ETB-payoff side isn't viable —
+// it's satisfied by roughly half of all EDH creatures, same precision-~0
+// failure class as untap's rejected payoff signal).
+//
+// The discriminator that actually matters is the PRONOUN, not a "you
+// control/own" clause: true blink always returns the just-exiled thing via
+// an anaphoric pronoun ("it"/"that card"/"those cards"/"them"), never a
+// fresh noun phrase. This is what separates a true blink effect (Flickerwisp:
+// "exile another target permanent. Return that card to the battlefield
+// under its owner's control") from an O-Ring-style soft-removal card (Fiend
+// Hunter: "return THE EXILED CARD to the battlefield" — a noun phrase, and
+// conditioned on itself dying) or a graveyard-reanimation card (Nethroi,
+// Apex of Death: "return any number of target creature cards ... from your
+// graveyard to the battlefield" — no exile at all in the return step). Cast
+// Out and Banisher Priest don't even reach the pronoun check: neither
+// contains "return" at all (they use "until this leaves the battlefield"
+// duration wording).
+//
+// Verified against real Scryfall oracle text: Ephemerate, Momentary Blink,
+// Conjurer's Closet, Thassa Deep-Dwelling, Teleportation Circle, Charming
+// Prince, Restoration Angel, Felidar Guardian, Ghostly Flicker, Displacer
+// Kitten, Brago King Eternal, Aminatou the Fateshifter, Flickerwisp, Eerie
+// Interlude, Cloudshift all match; Fiend Hunter, Cast Out, Banisher Priest,
+// Nethroi Apex of Death, Yarok the Desecrated (no "exile" at all) all reject.
+const BLINK_PRODUCER =
+  /\bexile\b[\s\S]{0,80}?\breturn (?:it|that card|those cards|them) to the battlefield\b/i;
+
+export function isBlinkProducer(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  return BLINK_PRODUCER.test(text);
+}
+
+// Exile-matters (impulse draw) producers (iter-8 Slice B) — same shape again:
+// a pure oracle-text predicate, producer-only. Bounded to the "exile the top
+// [N] card(s) of your library ... you may play/cast" impulse shape (Prosper's
+// Mystic Arcanum, Light Up the Stage, Jeska's Will, Valakut Exploration,
+// Laelia the Blade Reforged all verified matching). Discard-based impulse
+// (Anje's Ravager + Madness) and foretell/suspend/adventure (Alrund's
+// Epiphany) are out of scope for v1 — no "top ... library" phrase, same
+// "accepted miss, low stakes for an additive boost" framing as untap's
+// Ahn-Crop Champion note.
+//
+// Urianger Augurelt's own Draw/Play Arcanum text is a verified non-match by
+// construction: his "exile" clause ("You may exile it face down") is never
+// immediately followed by "the top ... cards of your library" (that phrase
+// belongs to the PRIOR clause, describing what was looked at) — see
+// hasExilePayoffIdentity in deckGenerator.ts for how he's still caught via
+// the commander gate instead.
+const EXILE_PRODUCER =
+  /\bexile the top (?:\w+ )?cards? of your library\b[\s\S]{0,60}?\byou may (?:play|cast)\b/i;
+
+export function isExileProducer(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  return EXILE_PRODUCER.test(text);
+}
+
 /**
  * Positive-evidence-gated role classification. Returns the same role
  * `getCardRole` would (by name) IFF the card's own oracle text corroborates

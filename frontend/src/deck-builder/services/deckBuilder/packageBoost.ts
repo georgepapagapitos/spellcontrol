@@ -192,3 +192,53 @@ export function computeUntapVisibilityBoosts(
   }
   return boosts;
 }
+
+/**
+ * Blink/flicker theme visibility boost (iter-8 Slice B) — same shape as
+ * computeUntapVisibilityBoosts: a flat, capped boost for blink-producer
+ * candidates (isBlinkProducer, tagger/client.ts), gated entirely on whether
+ * the deck's commander (or partner) is itself a blink producer. `isProducer`
+ * is injected for the same reason as untap's — this module doesn't import
+ * tagger/client.ts directly.
+ */
+export const BLINK_VISIBILITY_BOOST_MAX = 15;
+
+export function computeBlinkVisibilityBoosts(
+  candidateNames: readonly string[],
+  cardMap: ReadonlyMap<string, ScryfallCard>,
+  commanderWantsBlink: boolean,
+  isProducer: (card: ScryfallCard) => boolean
+): Map<string, number> {
+  const boosts = new Map<string, number>();
+  if (!commanderWantsBlink) return boosts;
+  for (const name of candidateNames) {
+    const card = cardMap.get(name);
+    if (card && isProducer(card)) boosts.set(name, BLINK_VISIBILITY_BOOST_MAX);
+  }
+  return boosts;
+}
+
+/**
+ * Exile-matters (impulse draw) theme visibility boost (iter-8 Slice B) — same
+ * shape as computeUntapVisibilityBoosts. Gated on commanderWantsExile, which
+ * (unlike blink) is true for either an exile-producer commander OR a
+ * cast-from-exile payoff-identity commander (see hasExilePayoffIdentity in
+ * deckGenerator.ts) — this is what catches Urianger Augurelt, whose own text
+ * never matches isExileProducer.
+ */
+export const EXILE_VISIBILITY_BOOST_MAX = 15;
+
+export function computeExileVisibilityBoosts(
+  candidateNames: readonly string[],
+  cardMap: ReadonlyMap<string, ScryfallCard>,
+  commanderWantsExile: boolean,
+  isProducer: (card: ScryfallCard) => boolean
+): Map<string, number> {
+  const boosts = new Map<string, number>();
+  if (!commanderWantsExile) return boosts;
+  for (const name of candidateNames) {
+    const card = cardMap.get(name);
+    if (card && isProducer(card)) boosts.set(name, EXILE_VISIBILITY_BOOST_MAX);
+  }
+  return boosts;
+}

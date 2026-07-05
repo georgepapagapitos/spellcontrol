@@ -184,6 +184,10 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // inert-by-construction stub (this fixture universe's oracle_text: ''
   // already reads false, but don't rely on that by luck).
   isUntapProducer: vi.fn(() => false),
+  // iter-8 Slice B: isBlinkProducer/isExileProducer are the same shape —
+  // same explicit inert-by-construction stubs.
+  isBlinkProducer: vi.fn(() => false),
+  isExileProducer: vi.fn(() => false),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver

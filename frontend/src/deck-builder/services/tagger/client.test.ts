@@ -6,6 +6,8 @@ import {
   validateCardRole,
   isProtectionPiece,
   isUntapProducer,
+  isBlinkProducer,
+  isExileProducer,
 } from './client';
 
 // Minimal tagger dataset: a cost-reducer (which the generic classifier folds
@@ -885,5 +887,310 @@ describe('isUntapProducer', () => {
 
   it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
     expect(isUntapProducer({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// isBlinkProducer (iter-8 Slice B) — every oracle_text below verified live
+// against the Scryfall API before being written in.
+describe('isBlinkProducer', () => {
+  it('anaphoric "it" (Ephemerate)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Ephemerate',
+        oracle_text:
+          "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "it" (Momentary Blink)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Momentary Blink',
+        oracle_text:
+          "Exile target creature you control, then return it to the battlefield under its owner's control.\nFlashback {3}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" (Conjurer\'s Closet)', () => {
+    expect(
+      isBlinkProducer({
+        name: "Conjurer's Closet",
+        oracle_text:
+          'At the beginning of your end step, you may exile target creature you control, then return that card to the battlefield under your control.',
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" (Thassa, Deep-Dwelling)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Thassa, Deep-Dwelling',
+        oracle_text:
+          "Indestructible\nAs long as your devotion to blue is less than five, Thassa isn't a creature.\nAt the beginning of your end step, exile up to one other target creature you control, then return that card to the battlefield under your control.\n{3}{U}: Tap another target creature.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" (Teleportation Circle)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Teleportation Circle',
+        oracle_text:
+          "At the beginning of your end step, exile up to one target artifact or creature you control, then return that card to the battlefield under its owner's control.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "it" on an ETB modal choice (Charming Prince)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Charming Prince',
+        oracle_text:
+          'When this creature enters, choose one —\n• Scry 2.\n• You gain 3 life.\n• Exile another target creature you own. Return it to the battlefield under your control at the beginning of the next end step.',
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" (Restoration Angel)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Restoration Angel',
+        oracle_text:
+          'Flash\nFlying\nWhen this creature enters, you may exile target non-Angel creature you control, then return that card to the battlefield under your control.',
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" (Felidar Guardian)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Felidar Guardian',
+        oracle_text:
+          "When this creature enters, you may exile another target permanent you control, then return that card to the battlefield under its owner's control.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "those cards" (Ghostly Flicker)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Ghostly Flicker',
+        oracle_text:
+          'Exile two target artifacts, creatures, and/or lands you control, then return those cards to the battlefield under your control.',
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" on a triggered ability (Displacer Kitten)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Displacer Kitten',
+        oracle_text:
+          "Avoidance — Whenever you cast a noncreature spell, exile up to one target nonland permanent you control, then return that card to the battlefield under its owner's control.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "those cards" on combat damage (Brago, King Eternal)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Brago, King Eternal',
+        oracle_text:
+          "Flying\nWhenever Brago deals combat damage to a player, exile any number of target nonland permanents you control, then return those cards to the battlefield under their owner's control.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "it" on a loyalty ability (Aminatou, the Fateshifter)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Aminatou, the Fateshifter',
+        oracle_text:
+          '+1: Draw a card, then put a card from your hand on top of your library.\n−1: Exile another target permanent you own, then return it to the battlefield under your control.\n−6: Choose left or right. Each player gains control of all nonland permanents other than Aminatou controlled by the next player in the chosen direction.',
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" with no possessive qualifier (Flickerwisp)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Flickerwisp',
+        oracle_text:
+          "Flying\nWhen this creature enters, exile another target permanent. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "those cards" (Eerie Interlude)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Eerie Interlude',
+        oracle_text:
+          "Exile any number of target creatures you control. Return those cards to the battlefield under their owner's control at the beginning of the next end step.",
+      })
+    ).toBe(true);
+  });
+
+  it('anaphoric "that card" (Cloudshift)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Cloudshift',
+        oracle_text:
+          'Exile target creature you control, then return that card to the battlefield under your control.',
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT match the O-Ring shape whose return object is a noun phrase, not a pronoun (Fiend Hunter)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Fiend Hunter',
+        oracle_text:
+          "When this creature enters, you may exile another target creature.\nWhen this creature leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match graveyard reanimation, object is a noun phrase (Nethroi, Apex of Death)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Nethroi, Apex of Death',
+        oracle_text:
+          'Mutate {4}{G/W}{B}{B} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nDeathtouch, lifelink\nWhenever this creature mutates, return any number of target creature cards with total power 10 or less from your graveyard to the battlefield.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match "until leaves the battlefield" soft removal with no return text (Cast Out)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Cast Out',
+        oracle_text:
+          'Flash\nWhen this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.\nCycling {W} ({W}, Discard this card: Draw a card.)',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match "until leaves the battlefield" soft removal with no return text (Banisher Priest)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Banisher Priest',
+        oracle_text:
+          'When this creature enters, exile target creature an opponent controls until this creature leaves the battlefield.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match an ETB-doubler with no "exile" text at all (Yarok, the Desecrated)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Yarok, the Desecrated',
+        oracle_text:
+          'Deathtouch, lifelink\nIf a permanent entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match a plain ETB lifegain trigger with no exile/return shape (Soul Warden)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Soul Warden',
+        oracle_text: 'Whenever another creature enters, you gain 1 life.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match unrelated exile removal (Path to Exile)', () => {
+    expect(
+      isBlinkProducer({
+        name: 'Path to Exile',
+        oracle_text:
+          'Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
+    expect(isBlinkProducer({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// isExileProducer (iter-8 Slice B) — every oracle_text below verified live
+// against the Scryfall API before being written in.
+describe('isExileProducer', () => {
+  it('single card, "until end of your next turn" window (Prosper, Tome-Bound)', () => {
+    expect(
+      isExileProducer({
+        name: 'Prosper, Tome-Bound',
+        oracle_text:
+          'Deathtouch\nMystic Arcanum — At the beginning of your end step, exile the top card of your library. Until the end of your next turn, you may play that card.\nPact Boon — Whenever you play a card from exile, create a Treasure token.',
+      })
+    ).toBe(true);
+  });
+
+  it('plural count word (Light Up the Stage)', () => {
+    expect(
+      isExileProducer({
+        name: 'Light Up the Stage',
+        oracle_text:
+          'Spectacle {R} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)\nExile the top two cards of your library. Until the end of your next turn, you may play those cards.',
+      })
+    ).toBe(true);
+  });
+
+  it('plural count word, "this turn" window (Jeska\'s Will)', () => {
+    expect(
+      isExileProducer({
+        name: "Jeska's Will",
+        oracle_text:
+          "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
+      })
+    ).toBe(true);
+  });
+
+  it('landfall trigger, "remains exiled" window (Valakut Exploration)', () => {
+    expect(
+      isExileProducer({
+        name: 'Valakut Exploration',
+        oracle_text:
+          "Landfall — Whenever a land you control enters, exile the top card of your library. You may play that card for as long as it remains exiled.\nAt the beginning of your end step, if there are cards exiled with this enchantment, put them into their owner's graveyard, then this enchantment deals that much damage to each opponent.",
+      })
+    ).toBe(true);
+  });
+
+  it('attack trigger (Laelia, the Blade Reforged)', () => {
+    expect(
+      isExileProducer({
+        name: 'Laelia, the Blade Reforged',
+        oracle_text:
+          'Haste\nWhenever Laelia attacks, exile the top card of your library. You may play that card this turn.\nWhenever one or more cards are put into exile from your library and/or your graveyard, put a +1/+1 counter on Laelia.',
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT match Urianger Augurelt\'s Draw Arcanum ("exile" is not followed by "the top ... library")', () => {
+    expect(
+      isExileProducer({
+        name: 'Urianger Augurelt',
+        oracle_text:
+          'Draw Arcanum — {T}: Look at the top card of your library. You may exile it face down.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match Urianger Augurelt\'s Play Arcanum (no "top ... library" phrase at all)', () => {
+    expect(
+      isExileProducer({
+        name: 'Urianger Augurelt',
+        oracle_text:
+          'Play Arcanum — {T}: Until end of turn, you may play cards exiled with Urianger Augurelt. Spells you cast this way cost {2} less to cast.',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
+    expect(isExileProducer({ name: 'No-Text Card' })).toBe(false);
   });
 });
