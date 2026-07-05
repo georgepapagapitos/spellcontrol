@@ -131,6 +131,7 @@ import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
 import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
+import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
 import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
@@ -4262,6 +4263,44 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // ── Role-Surplus → Payoff Conversion (E87) ──
+  // Post-fill role caps still overshoot (Combo Integrity Audit's uncapped
+  // auditAdd/auditRemove never updates currentRoleCounts; coherence-repair/
+  // bracket-convergence/the role-cap escape hatch all admit over-cap fillers
+  // without a later pass pulling them back). This bounded pass converts the
+  // worst of that surplus into an actual payoff pick. Runs after every
+  // mutating phase above (its fresh recount sees what actually shipped) and
+  // before lift picks (so a converted-out card is excluded from resurfacing
+  // as a "hidden synergy" suggestion via preSwapUsedNames below). Never
+  // touches a must-include/combo-piece/staple, so — unlike budget/bracket
+  // convergence — it can't break a tracked combo and needs no completeness
+  // refresh after it runs.
+  const surplusResult = applyRoleSurplusRebalance(state, {
+    scryfallCardMap,
+    roleTargets,
+    detectedCombos,
+    mustIncludeNames: new Set([
+      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+    ]),
+    cardAllowed: isCardAllowedBySynergyDependencies,
+    liftScoreOf,
+    isSaltBlocked,
+    bracketGuard,
+    gameChangerCount,
+    maxGameChangers,
+    budgetTracker,
+    maxCardPrice,
+    maxRarity,
+    maxCmc,
+    arenaOnly,
+    currency,
+    ignoreOwnedBudget,
+    ignoreOwnedRarity,
+    deckBudget,
+  });
+  const surplusConversions = surplusResult.conversions;
+
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the
   // deck. Suggestions only — never added to the deck. Runs here, AFTER every
@@ -4458,6 +4497,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
     budgetRepairs: budgetRepairs.length > 0 ? budgetRepairs : undefined,
+    surplusConversions: surplusConversions.length > 0 ? surplusConversions : undefined,
     liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:

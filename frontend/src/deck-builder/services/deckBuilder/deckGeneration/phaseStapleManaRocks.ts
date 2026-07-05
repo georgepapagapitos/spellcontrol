@@ -26,16 +26,26 @@ import type { BudgetTracker } from '../budgetTracker';
 // static max) and must deduct their own cost, or a budget deck can silently
 // overspend by exactly Sol Ring + Arcane Signet before any convergence pass
 // ever sees the spend (E79).
+// Sol Ring goes in every Commander deck. Arcane Signet goes in every 2+ color deck.
+// These are so universally played that a deck with Charcoal Diamond but no Arcane Signet is wrong.
+const STAPLE_ROCKS: { name: string; minColors: number }[] = [
+  { name: 'Sol Ring', minColors: 0 },
+  { name: 'Arcane Signet', minColors: 1 },
+];
+
+// Name-based staple identity, for callers that need to recognize a staple
+// EVEN WHEN it wasn't added by this phase (i.e. `card.isStapleRock` is unset
+// on it) — e.g. it was picked naturally from the EDHREC pool, which is in
+// fact the common case (this phase only adds one when `usedNames` doesn't
+// already have it). `isStapleRock` reflects "was force-included here", not
+// "is a staple" — protection/exemption logic elsewhere must key off the name.
+export const STAPLE_ROCK_NAMES: ReadonlySet<string> = new Set(STAPLE_ROCKS.map((s) => s.name));
+
 export async function stapleManaRocksPhase(
   state: GenerationState,
   budgetTracker: BudgetTracker | null
 ): Promise<void> {
-  // Sol Ring goes in every Commander deck. Arcane Signet goes in every 2+ color deck.
-  // These are so universally played that a deck with Charcoal Diamond but no Arcane Signet is wrong.
-  const stapleRocks: { name: string; minColors: number }[] = [
-    { name: 'Sol Ring', minColors: 0 },
-    { name: 'Arcane Signet', minColors: 1 },
-  ];
+  const stapleRocks = STAPLE_ROCKS;
   if (state.cfg.format === 99) {
     for (const staple of stapleRocks) {
       if (state.context.colorIdentity.length < staple.minColors) continue;
