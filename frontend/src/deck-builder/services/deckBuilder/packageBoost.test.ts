@@ -4,9 +4,11 @@ import {
   clearPackageBoostCache,
   computeLiftPickBoosts,
   computePackageBoosts,
+  computeUntapVisibilityBoosts,
   LIFT_PICK_BOOST_MAX,
   LIFT_PICK_BOOST_SCALE,
   PACKAGE_BOOST_MAX,
+  UNTAP_VISIBILITY_BOOST_MAX,
   tallyAxisInvestment,
 } from './packageBoost';
 
@@ -151,5 +153,48 @@ describe('computeLiftPickBoosts', () => {
     expect(boosts.get('Blood Artist')).toBeCloseTo(500 * LIFT_PICK_BOOST_SCALE);
     expect(boosts.get('Zulaport Cutthroat')).toBe(LIFT_PICK_BOOST_MAX);
     expect(boosts.has('Divination')).toBe(false); // zero lift connectivity → no entry at all
+  });
+});
+
+describe('computeUntapVisibilityBoosts', () => {
+  // isProducer is injected (mirrors computeLiftPickBoosts's liftScoreOf) — a
+  // simple name-set stub is enough here, the real classifier's regex is
+  // covered in tagger/client.test.ts.
+  const untapProducerNames = new Set(['Aphetto Alchemist', 'Vizier of Tumbling Sands']);
+  const isProducer = (c: ScryfallCard) => untapProducerNames.has(c.name);
+  const aphetto = card('Aphetto Alchemist', '{T}: Untap target artifact or creature.');
+  const vizier = card('Vizier of Tumbling Sands', '{T}: Untap another target permanent.');
+  const untapCardMap = new Map([aphetto, vizier, divination].map((c) => [c.name, c]));
+
+  it('stays an empty map when the commander does not want untap (near-inert requirement)', () => {
+    const boosts = computeUntapVisibilityBoosts(
+      ['Aphetto Alchemist', 'Vizier of Tumbling Sands', 'Divination'],
+      untapCardMap,
+      false,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+
+  it('boosts only producer candidates, exactly at the cap, when the commander wants untap', () => {
+    const boosts = computeUntapVisibilityBoosts(
+      ['Aphetto Alchemist', 'Vizier of Tumbling Sands', 'Divination'],
+      untapCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.get('Aphetto Alchemist')).toBe(UNTAP_VISIBILITY_BOOST_MAX);
+    expect(boosts.get('Vizier of Tumbling Sands')).toBe(UNTAP_VISIBILITY_BOOST_MAX);
+    expect(boosts.has('Divination')).toBe(false); // non-producer → absent, not zero-valued
+  });
+
+  it('does not throw on a candidate name missing from cardMap', () => {
+    const boosts = computeUntapVisibilityBoosts(
+      ['Nonexistent Card'],
+      untapCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
   });
 });

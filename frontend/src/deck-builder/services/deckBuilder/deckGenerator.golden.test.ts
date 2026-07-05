@@ -179,6 +179,11 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // cards all have oracle_text: '', which already reads false, but stubbing
   // it explicitly keeps goldens inert by construction rather than by luck).
   isProtectionPiece: vi.fn(() => false),
+  // E89 (iter-7 Slice E): isUntapProducer is the same shape — a pure
+  // oracle-text regex, not tag-routed — so it needs the same explicit
+  // inert-by-construction stub (this fixture universe's oracle_text: ''
+  // already reads false, but don't rely on that by luck).
+  isUntapProducer: vi.fn(() => false),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver

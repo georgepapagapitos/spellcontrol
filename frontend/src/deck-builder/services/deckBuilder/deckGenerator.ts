@@ -46,6 +46,7 @@ import {
   validateCardRole,
   getCardSubtype,
   isProtectionPiece,
+  isUntapProducer,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
@@ -98,7 +99,12 @@ import {
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
-import { computePackageBoosts, computeLiftPickBoosts, tallyAxisInvestment } from './packageBoost';
+import {
+  computePackageBoosts,
+  computeLiftPickBoosts,
+  computeUntapVisibilityBoosts,
+  tallyAxisInvestment,
+} from './packageBoost';
 import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
@@ -611,6 +617,20 @@ export const STAPLE_PROTECTION_BOOST = 100;
 // order (the motivating loss: Heroic Intervention/Fierce Guardianship-class
 // cards silently evicted by a land-count squeeze — see board E82).
 export const PROTECTION_PIECE_BOOST = 100;
+
+// E89 (iter-7 Slice E) — a commander-side "wants untap" signal distinct from
+// isUntapProducer. Urianger Augurelt's real oracle text (verified against
+// Scryfall) has no untap wording at all — his Draw/Play Arcanum abilities
+// are both plain "{T}: ..." activated abilities, so what he "wants" is extra
+// activations of his OWN ability, not producing untaps for others. Excludes
+// bare mana abilities ("{T}: Add ...") so a mana-dork commander alone
+// doesn't trip this — module-scope so it's a pure, unit-testable function
+// independent of generateDeck's closure (see computeTrimResistance above).
+const REUSABLE_TAP_ABILITY = /\{T\}:(?!\s*Add\b)/i;
+export function hasReusableTapAbility(card: ScryfallCard): boolean {
+  const text = card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
+  return REUSABLE_TAP_ABILITY.test(text);
+}
 
 /**
  * Per-card trim resistance for the Smart Trim pass: higher survives, lower
@@ -1986,6 +2006,20 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // E80 product ruling: price-sanity ships as the DEFAULT (see resolvePriceSanity).
     const priceSanity = resolvePriceSanity(customization);
 
+    // E89 (iter-7 Slice E): untap-theme visibility. commanderWantsUntap is
+    // near-inert for most decks — true only when the commander (or partner)
+    // either untaps things itself (isUntapProducer, e.g. Tezzeret, Cruel
+    // Captain's loyalty ability) or has its own reusable {T} ability worth
+    // extra activations (hasReusableTapAbility above — Urianger Augurelt's
+    // Draw/Play Arcanum has no untap text at all, so the "wants untap"
+    // signal for him is that his own ability is worth reusing, not that he
+    // produces untaps).
+    const commanderWantsUntap =
+      isUntapProducer(commander) ||
+      hasReusableTapAbility(commander) ||
+      (!!partnerCommander &&
+        (isUntapProducer(partnerCommander) || hasReusableTapAbility(partnerCommander)));
+
     // Package-completion boost (bounded re-rank, cap +30): favors candidates
     // that complete a live engine's scarcer side — the positive counterpart to
     // the synergy-dependency gate. Investment is re-tallied per type pass so a
@@ -1996,6 +2030,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // tie-break — see liftTieBreak in cardPicking.ts). No-signal decks (empty
     // liftIndex, e.g. every golden fixture) get liftScoreOf(name) === 0 for
     // every candidate, so this is a no-op there.
+    //
+    // Also folds in the untap-visibility boost (cap +15, see packageBoost.ts):
+    // gated on commanderWantsUntap above, so it's an empty map for every deck
+    // whose commander doesn't care.
     const withPackageBoosts = (
       boosts: Map<string, number>,
       pool: EDHRECCard[]
@@ -2018,6 +2056,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         liftScoreOf
       );
       for (const [name, b] of lift) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      const untap = computeUntapVisibilityBoosts(
+        pool.map((c) => c.name),
+        cardMap,
+        commanderWantsUntap,
+        isUntapProducer
+      );
+      for (const [name, b] of untap) boosts.set(name, (boosts.get(name) ?? 0) + b);
       return boosts;
     };
 

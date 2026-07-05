@@ -39,6 +39,7 @@ import {
   bumpRoleCapCount,
   roleCapOverage,
   computeTrimResistance,
+  hasReusableTapAbility,
   STAPLE_PROTECTION_BOOST,
   PROTECTION_PIECE_BOOST,
   ROLE_SURPLUS_TRIM_PENALTY,
@@ -676,5 +677,50 @@ describe('buildComboUpsideNotes (combo-upside price disclosure — post-hoc scan
       'USD'
     );
     expect(notes).toBeUndefined();
+  });
+});
+
+describe('hasReusableTapAbility', () => {
+  // E89 (iter-7 Slice E) — the commander-side "wants untap" signal for
+  // commanders whose own text never untaps anything (Urianger Augurelt has
+  // no untap wording at all; his repeatable {T} abilities are the payoff).
+  it('matches a non-mana {T} activated ability (Urianger Augurelt-shaped)', () => {
+    expect(
+      hasReusableTapAbility({
+        ...sc('Urianger Augurelt'),
+        oracle_text:
+          'Whenever you play a land from exile or cast a spell from exile, you gain 2 life.\nDraw Arcanum — {T}: Look at the top card of your library. You may exile it face down.\nPlay Arcanum — {T}: Until end of turn, you may play cards exiled with Urianger Augurelt. Spells you cast this way cost {2} less to cast.',
+      })
+    ).toBe(true);
+  });
+
+  it('matches any non-mana {T} ability, not just Urianger (Krenko, Mob Boss)', () => {
+    expect(
+      hasReusableTapAbility({
+        ...sc('Krenko, Mob Boss'),
+        oracle_text:
+          '{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.',
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT match a bare mana ability (Sol Ring)', () => {
+    expect(hasReusableTapAbility({ ...sc('Sol Ring'), oracle_text: '{T}: Add {C}{C}.' })).toBe(
+      false
+    );
+  });
+
+  it("does NOT match a commander with no {T} ability at all (Atraxa, Praetors' Voice)", () => {
+    expect(
+      hasReusableTapAbility({
+        ...sc("Atraxa, Praetors' Voice"),
+        oracle_text:
+          'Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate.',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card', () => {
+    expect(hasReusableTapAbility(sc('No-Text Card'))).toBe(false);
   });
 });

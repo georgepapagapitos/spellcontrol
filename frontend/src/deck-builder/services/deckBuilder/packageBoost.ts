@@ -161,3 +161,34 @@ export function computeLiftPickBoosts(
   }
   return boosts;
 }
+
+/**
+ * Untap-theme visibility boost (E89, iter-7 Slice E): a flat, capped boost
+ * for untap-producer candidates (isUntapProducer, tagger/client.ts),
+ * gated entirely on whether the deck's commander (or partner) wants untap
+ * support — near-inert (empty map) for every other deck. `isProducer` is
+ * injected, mirroring computeLiftPickBoosts's `liftScoreOf` param, so this
+ * module doesn't import tagger/client.ts directly.
+ *
+ * Ceiling is half of PACKAGE_BOOST_MAX / LIFT_PICK_BOOST_MAX (30) — same
+ * "narrower/single-signal boost gets half the two-signal cap" precedent as
+ * phaseRoleSurplusRebalance.ts's MIN_IMPROVEMENT_MARGIN. This is a boolean
+ * signal (no continuous score to scale, unlike lift's clusterScore), so a
+ * flat award at half-cap, not a scaled one.
+ */
+export const UNTAP_VISIBILITY_BOOST_MAX = 15;
+
+export function computeUntapVisibilityBoosts(
+  candidateNames: readonly string[],
+  cardMap: ReadonlyMap<string, ScryfallCard>,
+  commanderWantsUntap: boolean,
+  isProducer: (card: ScryfallCard) => boolean
+): Map<string, number> {
+  const boosts = new Map<string, number>();
+  if (!commanderWantsUntap) return boosts;
+  for (const name of candidateNames) {
+    const card = cardMap.get(name);
+    if (card && isProducer(card)) boosts.set(name, UNTAP_VISIBILITY_BOOST_MAX);
+  }
+  return boosts;
+}

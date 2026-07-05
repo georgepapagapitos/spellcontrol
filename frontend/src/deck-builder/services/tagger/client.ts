@@ -367,6 +367,68 @@ export function isProtectionPiece(card: {
   return PROTECTION_EVIDENCE.test(text);
 }
 
+// Untap producers (E89, iter-7 Slice E) — cards whose own oracle text untaps
+// OTHER permanents, or repeats your untap step. Same shape as
+// isProtectionPiece: a pure oracle-text predicate, no tagger tag to fall
+// back to (a text-less card returns false). Deliberately producer-only — see
+// packageBoost.ts's computeUntapVisibilityBoosts doc for why a payoff side
+// isn't viable (the only structurally-true "untap payoff," a bare {T}-only
+// activated ability, matches nearly every mana rock/dork in the format).
+//
+// Three verified shapes (against real Scryfall oracle text):
+//  1. "untap [up to N/another] target X" — Aphetto Alchemist ("Untap target
+//     artifact or creature."), Vizier of Tumbling Sands ("Untap another
+//     target permanent."), Fatestitcher ("tap or untap another target
+//     permanent"), Kelpie Guide, Kiora's Follower, and Tezzeret, Cruel
+//     Captain's loyalty ability ("0: Untap target artifact or creature...")
+//     — loyalty text is plain oracle_text for a single-faced card, no
+//     special-casing needed.
+//  2. "untap all [nonland] X you control" — Dramatic Reversal ("Untap all
+//     nonland permanents you control."), Drumbellower, Seedborn Muse,
+//     Unwinding Clock (each "Untap all <permanents|creatures|artifacts> you
+//     control during each other player's untap step" — matched on the
+//     "untap all ... you control" prefix, the untap-step clause isn't
+//     required).
+//  3. A bare "untap them" callback — Valley Floodcaller ("... get +1/+1
+//     until end of turn. Untap them.").
+//
+// False-positive guards, all verified against real cards: the tap-down
+// idiom ("doesn't untap during its controller's ... untap step" — Frost
+// Titan, Icefall Regent) puts "untap" before "during", never before
+// "target"/"all"/"them", so it can't satisfy any branch by construction. The
+// self-only "you may choose not to untap this ~ during your untap step"
+// idiom (Amber Prison) is the same shape. Winter Orb's "players can't untap
+// more than one land" fails likewise (no "target"/"all ... you control"
+// object). An exert creature's own boilerplate ("An exerted creature won't
+// untap during your next untap step" — Ahn-Crop Crasher) is the tap-down
+// idiom again. (Known accepted miss, not in scope for v1: a rarer exert
+// payoff that untaps OTHER creatures, e.g. Ahn-Crop Champion's "untap all
+// OTHER creatures you control" — the extra "other" breaks branch 2's fixed
+// word sequence. Low-stakes since this is a visibility boost, not a gate.)
+const UNTAP_PRODUCER =
+  /\buntap (?:up to (?:one|two|three|four|x|\d+) |another )?target (?:artifact|creature|land|permanent)|\buntap all (?:nonland )?(?:permanents|creatures|artifacts|lands) you control|\buntap them\b/i;
+
+/**
+ * Positive-evidence untap-producer classifier (E89, iter-7 Slice E). Pure
+ * oracle-text check, independent of `RoleKey`/`getCardRole` — see
+ * UNTAP_PRODUCER above. No tag to fall back to, so a text-less card simply
+ * returns false (mirrors isProtectionPiece's fallback direction, not
+ * validateCardRole's).
+ */
+export function isUntapProducer(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  return UNTAP_PRODUCER.test(text);
+}
+
 /**
  * Positive-evidence-gated role classification. Returns the same role
  * `getCardRole` would (by name) IFF the card's own oracle text corroborates
