@@ -1039,8 +1039,15 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
     // anything already called out as overbuilt below, so the same role never
     // reads as both a strength and a flaw in one headline (E78 item 3: "All
     // roles well-covered, but 4 roles overbuilt" naming the same 4 roles twice).
-    const strongRoles = analysis.roleDeficits
-      .filter((rd) => rd.current >= rd.target && !isRoleExcess(rd.current, rd.target))
+    const coveredRoles = analysis.roleDeficits.filter(
+      (rd) => rd.current >= rd.target && !isRoleExcess(rd.current, rd.target)
+    );
+    // A met target of 0-1 is coverage, not strength — TEMPO's board-wipe
+    // target of 1 made a deck running exactly 1 wipe read "Strong board
+    // wipes". Tiny-target roles still count toward "All roles well-covered"
+    // below, but are never named as a strength.
+    const strongRoles = coveredRoles
+      .filter((rd) => rd.target >= 2)
       .map((rd) => rd.label.toLowerCase());
     // Identify weak roles (deficit > 0), sorted by worst first
     const weakRoles = deficits.map((rd) => rd.label.toLowerCase());
@@ -1070,10 +1077,10 @@ export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number):
     // Build the headline from parts
     const parts: string[] = [];
 
-    if (strongRoles.length > 0 && strongRoles.length <= 3) {
-      parts.push(`Strong ${strongRoles.join(' and ')}`);
-    } else if (strongRoles.length === totalRoles) {
+    if (coveredRoles.length === totalRoles) {
       parts.push('All roles well-covered');
+    } else if (strongRoles.length > 0 && strongRoles.length <= 3) {
+      parts.push(`Strong ${strongRoles.join(' and ')}`);
     } else if (strongRoles.length > 3) {
       parts.push(`${strongRoles.length} of ${totalRoles} roles solid`);
     }

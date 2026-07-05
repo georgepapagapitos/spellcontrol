@@ -313,6 +313,40 @@ describe('computeGradeAndBracket', () => {
     expect(deckGrade?.headline).not.toMatch(/^Strong/);
     expect(deckGrade?.headline.toLowerCase()).toContain('overbuilt');
   });
+
+  // Iter-7 Slice D: a met target of 0-1 is coverage, not strength. Yuriko
+  // bracket-4 (TEMPO — board-wipe multiplier 0.4 → target 1) ran exactly 1
+  // wipe and was headlined "Strong board wipes".
+  it('never names a tiny-target role (target < 2) as a strength', () => {
+    const cards = [card('Sol Ring', 1), card('Cultivate', 3)];
+    const { deckGrade } = computeGradeAndBracket({
+      allCardNames: cards.map((c) => c.name),
+      averageCmc: 3,
+      gameChangerNames: new Set<string>(),
+      allCards: cards,
+      roleCounts: { ramp: 10, removal: 4, boardwipe: 1, cardDraw: 10 },
+      roleTargets: { ramp: 10, removal: 8, boardwipe: 1, cardDraw: 10 },
+      edhrecData: edhrec(),
+      deckSize: 99,
+    });
+    expect(deckGrade?.headline.toLowerCase()).not.toContain('board wipe');
+    expect(deckGrade?.headline).toMatch(/^Strong ramp and card advantage/);
+  });
+
+  it('still calls all roles well-covered when a met tiny-target role is among them', () => {
+    const cards = [card('Sol Ring', 1), card('Cultivate', 3)];
+    const { deckGrade } = computeGradeAndBracket({
+      allCardNames: cards.map((c) => c.name),
+      averageCmc: 3,
+      gameChangerNames: new Set<string>(),
+      allCards: cards,
+      roleCounts: { ramp: 10, removal: 8, boardwipe: 1, cardDraw: 10 },
+      roleTargets: { ramp: 10, removal: 8, boardwipe: 1, cardDraw: 10 },
+      edhrecData: edhrec(),
+      deckSize: 99,
+    });
+    expect(deckGrade?.headline).toMatch(/All roles well-covered/);
+  });
 });
 
 describe('buildStrategyEngineInput', () => {
