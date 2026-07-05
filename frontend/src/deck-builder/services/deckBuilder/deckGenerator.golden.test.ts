@@ -184,8 +184,8 @@ vi.mock('./landGenerator', async (orig) => {
 });
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
-import { fetchCommanderData } from '@/deck-builder/services/edhrec/client';
+import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
 
 // ---- Customization factory (static, no localStorage) ----------------------
@@ -351,6 +351,161 @@ describe('generateDeck — land top-up ordering (Fix 1, iter-6 Slice B)', () => 
       const total = Object.values(deck.categories).flat().length;
       expect(total).toBe(99); // total deck size still met
     } finally {
+      clearGenerationCache();
+    }
+  });
+});
+
+describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/A2, iter-6 Slice B follow-up)', () => {
+  // A card the batch combo-card fetch resolves (so scryfallCardMap.has() is
+  // true) but that's off the mono-G fixture's color identity — mirroring how
+  // EDHREC's per-commander combo payload includes every combo's cards
+  // regardless of legality, purely to detect near-misses.
+  const OFF_COLOR: ScryfallCard = {
+    ...mkSC('Off-Color Bomb', 'Enchantment', 5),
+    colors: ['U'],
+    color_identity: ['U'],
+  };
+
+  it('never adds a color-identity-illegal combo enabler, and discloses every combo-audit swap that DOES fire', async () => {
+    // Two near-miss combos share the same off-color missing piece — each has
+    // exactly 1 missing card (Creature_1 / Creature_2, both near-certain to
+    // already be in the generated deck as top-inclusion creatures), so the
+    // shared missing card qualifies as a "multi-combo enabler" (completes
+    // 2+ combos) — the Phase-1 path that the Kozilek/Omniscience defect hit.
+    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+      {
+        comboId: 'test-combo-a',
+        cards: [
+          { name: 'Creature_1', id: 'c1' },
+          { name: 'Off-Color Bomb', id: 'ocb' },
+        ],
+        results: ['Test combo A result'],
+        deckCount: 500,
+        rank: 1,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+      {
+        comboId: 'test-combo-b',
+        cards: [
+          { name: 'Creature_2', id: 'c2' },
+          { name: 'Off-Color Bomb', id: 'ocb' },
+        ],
+        results: ['Test combo B result'],
+        deckCount: 400,
+        rank: 2,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      if (names.includes('Off-Color Bomb')) m.set('Off-Color Bomb', OFF_COLOR);
+      return m;
+    });
+    try {
+      // comboCount: 3 (max) drops the priority-boost's avgInclusion floor to
+      // 0 (see comboInclusionFloor) — needed because that floor is checked
+      // before state.edhrecData is populated on a fresh (uncached) run, so
+      // at comboCount: 1/2 every combo scores avgInclusion=0 and never makes
+      // it into the batch card-name fetch, regardless of this test's fixture.
+      // detectCombosPhase (what the audit itself runs on) reads state.combos
+      // directly and isn't affected by this floor either way.
+      const ctx = baseContext();
+      ctx.customization = customization({ comboCount: 3 });
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      // The illegal enabler never entered the deck...
+      expect(names).not.toContain('Off-Color Bomb');
+      // ...and nothing was evicted-then-stranded to make room for it: deck
+      // size is exactly on target, same invariant every golden test checks.
+      expect(names.length).toBe(99);
+      // Every off-color candidate is entirely absent from disclosure too —
+      // an audit that fires (real swaps for OTHER combos, if any) would
+      // show up here, but never a swap that added the illegal card.
+      const addedNames = (deck.coherenceRepairs ?? []).map((r) => r.added);
+      expect(addedNames).not.toContain('Off-Color Bomb');
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
+      clearGenerationCache();
+    }
+  });
+
+  it('discloses a legal combo-audit swap via coherenceRepairs instead of leaving it logger.debug-only', async () => {
+    // Same shape as above, but the enabler is IN the mono-G fixture's
+    // identity — this swap should actually fire and must be disclosed
+    // (T37 ethos), unlike before this fix where combo-audit swaps were
+    // silent (the Thran Dynamo -> Ornithopter of Paradise defect).
+    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+      {
+        comboId: 'test-combo-c',
+        cards: [
+          { name: 'Creature_1', id: 'c1' },
+          { name: 'On-Color Enabler', id: 'oce' },
+        ],
+        results: ['Test combo C result'],
+        deckCount: 500,
+        rank: 1,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+      {
+        comboId: 'test-combo-d',
+        cards: [
+          { name: 'Creature_2', id: 'c2' },
+          { name: 'On-Color Enabler', id: 'oce' },
+        ],
+        results: ['Test combo D result'],
+        deckCount: 400,
+        rank: 2,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    const ON_COLOR: ScryfallCard = mkSC('On-Color Enabler', 'Enchantment', 5); // color_identity ['G']
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      if (names.includes('On-Color Enabler')) m.set('On-Color Enabler', ON_COLOR);
+      return m;
+    });
+    try {
+      const ctx = baseContext();
+      // tinyLeaders caps normal picking at cmc<=3 (state.ts: maxCmc = 3) —
+      // the enabler's cmc:5 is rejected there (exceedsCmcCap, unconditional,
+      // no high-synergy bypass), so it can ONLY enter via the Combo
+      // Integrity Audit, which doesn't gate on cmc. Without this, the
+      // enabler's huge combo-priority boost gets it auto-picked during
+      // normal Enchantment picking and the audit never needs to fire.
+      ctx.customization = customization({ comboCount: 3, tinyLeaders: true });
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).toContain('On-Color Enabler'); // the legal enabler DID get added
+      const repair = (deck.coherenceRepairs ?? []).find((r) => r.added === 'On-Color Enabler');
+      expect(repair).toBeDefined();
+      expect(repair!.reason).toMatch(/completes 2 near-miss combos/);
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
       clearGenerationCache();
     }
   });

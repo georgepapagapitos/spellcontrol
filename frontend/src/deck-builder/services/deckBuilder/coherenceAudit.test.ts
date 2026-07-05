@@ -171,6 +171,12 @@ const floodedStrand = card({
   oracle_text:
     '{T}, Pay 1 life, Sacrifice Flooded Strand: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.',
 });
+const islandFetch = card({
+  name: 'Myriad Landscape', // stand-in for a single-type Island fetch
+  type_line: 'Land',
+  oracle_text:
+    '{T}, Sacrifice this land: Search your library for an Island card, put it onto the battlefield tapped, then shuffle.',
+});
 const evolvingWilds = card({
   name: 'Evolving Wilds',
   type_line: 'Land',
@@ -235,6 +241,19 @@ describe('auditDeckCoherence — land sanity', () => {
     expect(dead[0].message).toContain('Plains or Island');
     // repairable: prefers the short color among the fetch's named types
     expect(dead[0].basicFixColor).toBe('W');
+  });
+
+  // Defect B (iter-6 Slice B follow-up): a single-type Island fetch used to
+  // read "It fetches a Island" — wrong article.
+  it('uses "an Island" not "a Island" for a single-type Island fetch with nothing to find', () => {
+    const findings = audit([vanilla], {
+      cardInclusionMap: { 'Vanilla Beast': 10 },
+      lands: [islandFetch],
+    });
+    const dead = findings.filter((f) => f.kind === 'land-sanity');
+    expect(dead).toHaveLength(1);
+    expect(dead[0].message).toContain('an Island');
+    expect(dead[0].message).not.toContain('a Island');
   });
 
   it.each([
@@ -363,6 +382,26 @@ describe('auditDeckCoherence — land sanity', () => {
         },
       }).filter((f) => f.kind === 'land-sanity')
     ).toHaveLength(0);
+  });
+
+  // Defect B (iter-6 Slice B follow-up): the fix color's basic name can start
+  // with a vowel sound (Island) — "a Island" reads wrong.
+  it('uses "an Island" not "a Island" when blue is the short color', () => {
+    const shortBlueManabase: ManabaseSummary = {
+      lines: [{ color: 'U', pips: 24, sources: 4, target: 12, short: true }],
+      totalLands: 34,
+      nonlandSources: 2,
+    };
+    const utilities = [colorlessUtility('Tower A'), colorlessUtility('Tower B')];
+    const flagged = audit([vanilla], {
+      cardInclusionMap: { 'Vanilla Beast': 10 },
+      lands: [...utilities, island],
+      manabase: shortBlueManabase,
+    });
+    const util = flagged.filter((f) => f.kind === 'land-sanity' && f.basicFixColor === 'U');
+    expect(util.length).toBeGreaterThan(0);
+    expect(util[0].message).toContain('an Island');
+    expect(util[0].message).not.toContain('a Island');
   });
 
   it('never flags a must-include land', () => {

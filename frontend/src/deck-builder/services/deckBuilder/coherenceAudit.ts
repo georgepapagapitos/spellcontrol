@@ -65,6 +65,9 @@ const BASIC_NAMES: Record<ManaColor, string> = {
   R: 'Mountain',
   G: 'Forest',
 };
+// "a Island" reads wrong — only Island starts with a vowel sound today, but a
+// regex is as short as hardcoding one name and stays correct if that changes.
+const articleFor = (name: string): string => (/^[aeiou]/i.test(name) ? 'an' : 'a');
 const TYPAL_SHARE_FLOOR = 0.15;
 const MIN_COLORLESS_UTILITY = 2;
 const FULL_IDENTITY: ReadonlySet<string> = new Set(WUBRG);
@@ -144,7 +147,7 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
           kind: 'land-sanity',
           severity: 'warn',
           card: land.name,
-          message: `It fetches a ${wanted}, but the deck has no land of ${req.colors.length === 1 ? 'that basic type' : 'either basic type'} for it to find.`,
+          message: `It fetches ${articleFor(wanted)} ${wanted}, but the deck has no land of ${req.colors.length === 1 ? 'that basic type' : 'either basic type'} for it to find.`,
           basicFixColor: bestBasicFixColor(manabase, req.colors),
         });
       }
@@ -223,7 +226,7 @@ function landSanityFindings(input: CoherenceAuditInput): CoherenceFinding[] {
           kind: 'land-sanity',
           severity: 'info',
           card: land.name,
-          message: `Colorless-only land while ${COLOR_WORDS[shortColor]} sources run short — a ${BASIC_NAMES[shortColor]} would serve the manabase better.`,
+          message: `Colorless-only land while ${COLOR_WORDS[shortColor]} sources run short — ${articleFor(BASIC_NAMES[shortColor])} ${BASIC_NAMES[shortColor]} would serve the manabase better.`,
           basicFixColor: shortColor,
         });
       }

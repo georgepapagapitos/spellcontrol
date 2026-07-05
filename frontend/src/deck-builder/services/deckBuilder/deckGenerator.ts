@@ -3644,6 +3644,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);
 
+  // Swaps the Combo Integrity Audit below applies — merged into
+  // coherenceRepairs further down (T37 ethos: nothing moves silently, every
+  // auto-fix is disclosed). Was previously logger.debug-only.
+  const comboAuditRepairs: CoherenceRepair[] = [];
+
   // ── Combo Integrity Audit ──
   // After deck assembly: if a combo piece slipped in but its combo is incomplete,
   // either complete the combo (swap in missing pieces) or evict the low-value orphan.
@@ -3711,6 +3716,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function auditAdd(card: ScryfallCard): boolean {
       if (usedNames.has(card.name)) return false; // guard against duplicates
       if (bannedCards.has(card.name)) return false; // respect banlist
+      // Defense-in-depth: every call site below pre-filters candidates for
+      // color identity before evicting a card to make room (a candidate
+      // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
+      // to resolve near-miss detection — see the batch fetch above — so this
+      // is the only gate standing between an off-identity combo card and the
+      // decklist). Sites must still pre-filter so a rejected add doesn't
+      // strand the just-evicted card with nothing added back.
+      if (!fitsColorIdentity(card, colorIdentity)) return false;
       stampRoleSubtypes(card);
       routeCardByType(card, categories);
       usedNames.add(card.name);
@@ -3742,6 +3755,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           notInCollection(name, context.collectionNames)
         )
           continue;
+        // The batch fetch above resolves every combo's cards regardless of
+        // color identity (needed to detect near-misses at all) — this is
+        // the only gate keeping an off-identity combo card out of the deck.
+        if (!fitsColorIdentity(scryfallCardMap.get(name)!, colorIdentity)) continue;
         enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
         const ids = enablerCombos.get(name) ?? [];
         ids.push(dc.comboId);
@@ -3765,6 +3782,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         auditRemove(weak.card, weak.category);
         if (auditAdd(card)) {
           auditSwaps++;
+          comboAuditRepairs.push({
+            cut: weak.card.name,
+            added: card.name,
+            reason: `${weak.card.name} (${auditInclusion.get(weak.card.name) ?? 0}% inclusion) wasn't earning its slot — swapped for ${card.name}, which completes ${combosCompleted} near-miss combo${combosCompleted === 1 ? '' : 's'}.`,
+          });
           // Mark all combos this card completes
           for (const dc of detectedCombos) {
             if (dc.isComplete) continue;
@@ -3814,6 +3836,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         )
         .map((n) => scryfallCardMap.get(n))
         .filter((c): c is ScryfallCard => !!c)
+        // The batch fetch above resolves every combo's cards regardless of
+        // color identity (needed to detect near-misses at all) — this is
+        // the only gate keeping an off-identity combo card out of the deck.
+        .filter((c) => fitsColorIdentity(c, colorIdentity))
         .filter((c) => {
           if (auditPassesBudget(c)) return true;
           comboBudgetSkipCount++;
@@ -3849,6 +3875,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             break;
           }
           auditSwaps++;
+          comboAuditRepairs.push({
+            cut: weak.card.name,
+            added: missing.name,
+            reason: `Completes the ${dc.cards.join(' + ')} combo${dc.results[0] ? ` (${dc.results[0]})` : ''} — swapped in ${missing.name}.`,
+          });
         }
         if (ok) {
           logger.debug(
@@ -3876,6 +3907,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                 !usedNames.has(c.name) &&
                 !bannedCards.has(c.name) &&
                 scryfallCardMap.has(c.name) &&
+                fitsColorIdentity(scryfallCardMap.get(c.name)!, colorIdentity) &&
                 !(
                   constrainsToCollection(collectionStrategy) &&
                   notInCollection(c.name, context.collectionNames)
@@ -3893,11 +3925,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
           if (!replacement) continue;
           auditRemove(found.card, found.category);
-          auditAdd(scryfallCardMap.get(replacement.name)!);
-          auditSwaps++;
-          logger.debug(
-            `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
-          );
+          // Gate on the result — an EDHREC-pool candidate should always be
+          // legal/unbanned/undupe by construction, but auditAdd is the sole
+          // backstop; an unchecked call here previously left the orphan
+          // evicted with nothing added back if it ever returned false.
+          if (auditAdd(scryfallCardMap.get(replacement.name)!)) {
+            auditSwaps++;
+            comboAuditRepairs.push({
+              cut: orphanName,
+              added: replacement.name,
+              reason: `${orphanName} was an orphaned piece of an incomplete combo (still missing ${trulyMissing.length} card${trulyMissing.length === 1 ? '' : 's'}) — swapped for ${replacement.name}.`,
+            });
+            logger.debug(
+              `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
+            );
+          }
         }
       }
     }
@@ -4147,7 +4189,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       getBasicLand: async (name) =>
         getCachedCard(name) ?? (await getCardByName(name, true).catch(() => null)),
     });
-    coherenceRepairs = repairResult.repairs;
+    coherenceRepairs = [...comboAuditRepairs, ...repairResult.repairs];
     // A repair add can complete a tracked combo — refresh completeness against
     // the live deck (mirrors the combo-audit / convergence refresh idiom).
     if (coherenceRepairs.length > 0 && detectedCombos) {
