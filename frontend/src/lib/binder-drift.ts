@@ -306,3 +306,39 @@ export function hasDrift(result: DriftResult): boolean {
 export function hasSnapshot(def: BinderDef): boolean {
   return def.lastReviewedSnapshot !== undefined;
 }
+
+/**
+ * Surgically updates ONE card's presence in a review-baseline snapshot,
+ * without recapturing the whole binder (that's what `captureBinderSnapshot` /
+ * "Mark reviewed" is for). Backs the review queue's per-row "Got it" action.
+ *
+ * - `direction: 'added'` — the card now matches the binder but wasn't in the
+ *   baseline. Acknowledging means "yes, I added this" — add its key plus a
+ *   snapshot of its current price/edhrecRank (mirrors `captureBinderSnapshot`'s
+ *   per-key dedup: `keys` holds one entry per printingFinishKey, not per
+ *   copy) so it stops showing as drift.
+ * - `direction: 'removed'` — the card no longer matches but was in the
+ *   baseline. Acknowledging means "yes, I removed this" — drop its key so
+ *   its absence stops showing as drift. `card` is optional here: a removed
+ *   card can be fully gone from the collection (reason `collection`), so
+ *   there may be no live representative to read price/edhrec from.
+ */
+export function acknowledgeInSnapshot(
+  snapshot: BinderReviewSnapshot,
+  key: string,
+  direction: 'added' | 'removed',
+  card?: EnrichedCard
+): BinderReviewSnapshot {
+  if (direction === 'removed') {
+    if (!snapshot.keys.includes(key)) return snapshot;
+    const cardSnapshots = { ...snapshot.cardSnapshots };
+    delete cardSnapshots[key];
+    return { ...snapshot, keys: snapshot.keys.filter((k) => k !== key), cardSnapshots };
+  }
+  const cardSnapshots = { ...snapshot.cardSnapshots };
+  const snap: { price: number; edhrecRank?: number } = { price: card?.purchasePrice ?? 0 };
+  if (card?.edhrecRank !== undefined) snap.edhrecRank = card.edhrecRank;
+  cardSnapshots[key] = snap;
+  const keys = snapshot.keys.includes(key) ? snapshot.keys : [...snapshot.keys, key];
+  return { ...snapshot, keys, cardSnapshots };
+}

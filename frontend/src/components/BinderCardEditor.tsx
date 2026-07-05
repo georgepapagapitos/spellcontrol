@@ -17,11 +17,12 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { nextBinderMatch } from '@spellcontrol/binder-routing';
 import { useCollectionStore } from '../store/collection';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { CardPickerSheet } from './CardPickerSheet';
 import { Tabs } from './Tabs';
-import type { EnrichedCard, MaterializedBinder } from '../types';
+import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 
 interface Props {
   binder: MaterializedBinder;
@@ -39,6 +40,7 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
   const restoreExcludedCard = useCollectionStore((s) => s.restoreExcludedCard);
   const setBinderManualOrder = useCollectionStore((s) => s.setBinderManualOrder);
   const seedManualOrder = useCollectionStore((s) => s.seedManualOrder);
+  const binderDefs = useCollectionStore((s) => s.binders);
 
   useLockBodyScroll();
 
@@ -183,6 +185,9 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
               activeCards={activeCards}
               excludedCards={excludedCards}
               pinnedSet={pinnedSet}
+              binderId={binder.def.id}
+              binderMode={binder.def.mode}
+              binderDefs={binderDefs}
               onRemove={handleRemove}
               onRestore={handleRestore}
             />
@@ -235,11 +240,23 @@ interface CardsTabProps {
   activeCards: EnrichedCard[];
   excludedCards: EnrichedCard[];
   pinnedSet: Set<string>;
+  binderId: string;
+  binderMode: BinderDef['mode'];
+  binderDefs: BinderDef[];
   onRemove: (copyId: string) => void;
   onRestore: (copyId: string) => void;
 }
 
-function CardsTab({ activeCards, excludedCards, pinnedSet, onRemove, onRestore }: CardsTabProps) {
+function CardsTab({
+  activeCards,
+  excludedCards,
+  pinnedSet,
+  binderId,
+  binderMode,
+  binderDefs,
+  onRemove,
+  onRestore,
+}: CardsTabProps) {
   if (activeCards.length === 0 && excludedCards.length === 0) {
     return (
       <p className="binder-card-editor-empty">
@@ -254,6 +271,13 @@ function CardsTab({ activeCards, excludedCards, pinnedSet, onRemove, onRestore }
         <ul className="binder-card-editor-list">
           {activeCards.map((card) => {
             const isPinned = pinnedSet.has(card.copyId);
+            // A rule-matched card is already exactly where its rules say —
+            // nothing to explain. A pin overrides rules, so only a pin is
+            // worth telling the user "here's where it'd go without you."
+            const showPinExplain = isPinned && binderMode !== 'manual';
+            const nextMatch = showPinExplain
+              ? nextBinderMatch(card, binderDefs, { excludeBinderId: binderId })
+              : null;
             return (
               <li key={card.copyId} className="binder-card-editor-row">
                 <span
@@ -274,11 +298,24 @@ function CardsTab({ activeCards, excludedCards, pinnedSet, onRemove, onRestore }
                 <button
                   type="button"
                   className="binder-card-editor-remove"
-                  aria-label={`Remove ${card.name}`}
+                  aria-label={isPinned ? `Unpin ${card.name}` : `Remove ${card.name}`}
                   onClick={() => onRemove(card.copyId)}
                 >
                   ×
                 </button>
+                {showPinExplain && (
+                  <p className="binder-card-editor-pin-explain">
+                    Pinned to this binder — would otherwise file to{' '}
+                    {nextMatch ? nextMatch.name : 'Uncategorized'}.{' '}
+                    <button
+                      type="button"
+                      className="btn-link"
+                      onClick={() => onRemove(card.copyId)}
+                    >
+                      Unpin
+                    </button>
+                  </p>
+                )}
               </li>
             );
           })}

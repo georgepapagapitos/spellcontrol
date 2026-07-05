@@ -5,11 +5,19 @@ import {
   computeDrift,
   formatDriftReason,
   hasDrift,
-  type DriftCard,
 } from '../lib/binder-drift';
+import {
+  buildReviewQueue,
+  destinationKey,
+  formatDestination,
+  formatExcludeDestination,
+  type RemovedGroup,
+  type ReviewQueueRow,
+} from '../lib/binder-review-queue';
 import type { MaterializedBinder } from '../types';
 import { InfoTip } from './InfoTip';
 import { formatRelativeTime } from '../lib/format-time';
+import { toast } from '../store/toasts';
 
 const DRIFT_TIP = (
   <>
@@ -19,15 +27,18 @@ const DRIFT_TIP = (
     </p>
     <ul className="info-tip-list">
       <li>
-        <strong>Added:</strong> cards that now match this binder's rules but weren't here before.
+        <strong>Newly matching:</strong> cards that now match this binder's rules but weren't here
+        before. <strong>Got it</strong> accepts it into the baseline; <strong>Don't add</strong>{' '}
+        excludes it (it re-files to wherever it would land next).
       </li>
       <li>
-        <strong>Removed:</strong> cards that no longer match (price changed, moved to another
-        binder, etc.).
+        <strong>No longer matching:</strong> cards that fell out (price changed, moved to another
+        binder, etc.), grouped by where they now live. <strong>Got it</strong> accepts the removal;{' '}
+        <strong>Keep here</strong> pins the card back.
       </li>
       <li>
-        <strong>Mark reviewed</strong> means "I've seen these changes and updated my physical
-        binder." It saves a new baseline — drift is then measured from this point forward.
+        <strong>Mark reviewed</strong> means "I've seen everything and updated my physical binder."
+        It saves a new baseline in one shot — drift is then measured from this point forward.
       </li>
     </ul>
   </>
@@ -38,8 +49,9 @@ interface Props {
 }
 
 /**
- * Shows what's changed in a binder since its review baseline was captured.
- * Hidden entirely when membership matches the baseline (no drift to surface).
+ * Shows what's changed in a binder since its review baseline was captured,
+ * as an actionable queue — mirrors physically re-filing cards. Hidden
+ * entirely when membership matches the baseline (no drift to surface).
  *
  * Baseline capture is automatic — the first time a binder is viewed without
  * a snapshot AND it has cards, we silently stamp the current membership as
@@ -48,19 +60,27 @@ interface Props {
  * "Mark reviewed" is noise. Legacy binders predating snapshots get the same
  * one-time silent capture on first view.
  *
- * After that, the only way the snapshot updates is the explicit "Mark
- * reviewed" button — clicking it means "I've physically reviewed the binder
- * and want future drift measured from this point."
+ * After that, "Mark reviewed" re-stamps the whole binder; the per-row
+ * actions (Got it / Keep here / Don't add) surgically resolve one card at a
+ * time without touching the rest of the baseline.
  */
 export function BinderDriftBanner({ binder }: Props) {
   const allCards = useCollectionStore((s) => s.cards);
   const importHistory = useCollectionStore((s) => s.importHistory);
+  const binderDefs = useCollectionStore((s) => s.binders);
   const markBinderReviewed = useCollectionStore((s) => s.markBinderReviewed);
+  const acknowledgeBinderCard = useCollectionStore((s) => s.acknowledgeBinderCard);
+  const keepCardInBinder = useCollectionStore((s) => s.keepCardInBinder);
+  const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
   const [expanded, setExpanded] = useState(false);
 
   const drift = useMemo(
     () => computeDrift(binder, allCards, importHistory),
     [binder, allCards, importHistory]
+  );
+  const queue = useMemo(
+    () => buildReviewQueue(drift, binder, allCards, binderDefs),
+    [drift, binder, allCards, binderDefs]
   );
 
   // Auto-baseline on first view. Effect deps include `binder.def.id` so
@@ -82,6 +102,45 @@ export function BinderDriftBanner({ binder }: Props) {
   if (drift.neverReviewed) return null;
 
   if (!hasDrift(drift)) return null;
+
+  const binderId = binder.def.id;
+
+  const handleAcknowledgeRemoved = (row: ReviewQueueRow) => {
+    acknowledgeBinderCard(binderId, row.key, 'removed');
+  };
+
+  const handleAcknowledgeAllRemoved = (rows: ReviewQueueRow[]) => {
+    for (const row of rows) acknowledgeBinderCard(binderId, row.key, 'removed');
+  };
+
+  const handleKeepHere = (row: ReviewQueueRow) => {
+    for (const copyId of row.copyIds) keepCardInBinder(binderId, copyId);
+    toast.show({
+      message:
+        row.copyIds.length > 1
+          ? `Pinned ${row.copyIds.length} copies of ${row.name} — stay here`
+          : `Pinned — ${row.name} stays here`,
+      tone: 'success',
+    });
+  };
+
+  const handleAcknowledgeAdded = (row: ReviewQueueRow) => {
+    acknowledgeBinderCard(binderId, row.key, 'added', row.representative);
+  };
+
+  const handleAcknowledgeAllAdded = () => {
+    for (const row of queue.addedRows) {
+      acknowledgeBinderCard(binderId, row.key, 'added', row.representative);
+    }
+  };
+
+  const handleDontAdd = (row: ReviewQueueRow) => {
+    const message = row.representative
+      ? formatExcludeDestination(row.representative, binderId, binderDefs)
+      : 'Excluded';
+    for (const copyId of row.copyIds) removeCardFromBinder(binderId, copyId, true);
+    toast.show({ message, tone: 'info' });
+  };
 
   return (
     <div className={`binder-drift ${expanded ? '' : 'collapsed'}`}>
@@ -112,41 +171,114 @@ export function BinderDriftBanner({ binder }: Props) {
       </div>
       {expanded && (
         <div className="binder-drift-details">
-          {drift.added.length > 0 && (
-            <DriftList title="Newly matching" tone="added" cards={drift.added} />
+          {queue.addedRows.length > 0 && (
+            <div className="binder-drift-queue-group">
+              <div className="binder-drift-queue-group-header">
+                <span className="binder-drift-list-title binder-drift-list-title--added">
+                  Newly matching ({queue.addedRows.length})
+                </span>
+                {queue.addedRows.length > 1 && (
+                  <button type="button" className="btn-link" onClick={handleAcknowledgeAllAdded}>
+                    Got it — all
+                  </button>
+                )}
+              </div>
+              <ul className="binder-drift-queue-list">
+                {queue.addedRows.map((row) => (
+                  <QueueRow
+                    key={row.key}
+                    row={row}
+                    primaryLabel="Don't add"
+                    onPrimary={() => handleDontAdd(row)}
+                    onAcknowledge={() => handleAcknowledgeAdded(row)}
+                  />
+                ))}
+              </ul>
+            </div>
           )}
-          {drift.removed.length > 0 && (
-            <DriftList title="No longer matching" tone="removed" cards={drift.removed} />
-          )}
+          {queue.removedGroups.map((group) => (
+            <RemovedGroupBlock
+              key={destinationKey(group.destination)}
+              group={group}
+              onAcknowledgeOne={handleAcknowledgeRemoved}
+              onAcknowledgeAll={handleAcknowledgeAllRemoved}
+              onKeepHere={handleKeepHere}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function DriftList({
-  title,
-  tone,
-  cards,
+function RemovedGroupBlock({
+  group,
+  onAcknowledgeOne,
+  onAcknowledgeAll,
+  onKeepHere,
 }: {
-  title: string;
-  tone: 'added' | 'removed';
-  cards: DriftCard[];
+  group: RemovedGroup;
+  onAcknowledgeOne: (row: ReviewQueueRow) => void;
+  onAcknowledgeAll: (rows: ReviewQueueRow[]) => void;
+  onKeepHere: (row: ReviewQueueRow) => void;
 }) {
   return (
-    <div className={`binder-drift-list binder-drift-list--${tone}`}>
-      <div className="binder-drift-list-title">
-        {title} ({cards.length})
+    <div className="binder-drift-queue-group">
+      <div className="binder-drift-queue-group-header">
+        <span className="binder-drift-list-title binder-drift-list-title--removed">
+          {formatDestination(group.destination)} ({group.rows.length})
+        </span>
+        {group.rows.length > 1 && (
+          <button type="button" className="btn-link" onClick={() => onAcknowledgeAll(group.rows)}>
+            Got it — all
+          </button>
+        )}
       </div>
-      <ul>
-        {cards.map((c) => (
-          <li key={c.key}>
-            <span className="binder-drift-card-name">{c.name}</span>
-            <span className="binder-drift-card-reason"> — {formatDriftReason(c.reason)}</span>
-          </li>
+      <ul className="binder-drift-queue-list">
+        {group.rows.map((row) => (
+          <QueueRow
+            key={row.key}
+            row={row}
+            primaryLabel="Keep here"
+            onPrimary={() => onKeepHere(row)}
+            onAcknowledge={() => onAcknowledgeOne(row)}
+          />
         ))}
       </ul>
     </div>
+  );
+}
+
+function QueueRow({
+  row,
+  primaryLabel,
+  onPrimary,
+  onAcknowledge,
+}: {
+  row: ReviewQueueRow;
+  primaryLabel: string;
+  onPrimary: () => void;
+  onAcknowledge: () => void;
+}) {
+  const qty = row.copyIds.length;
+  return (
+    <li className="binder-drift-queue-row">
+      <span className="binder-drift-card-name">{row.name}</span>
+      {qty > 1 && (
+        <span className="binder-drift-queue-qty" aria-label={`${qty} copies`}>
+          ×{qty}
+        </span>
+      )}
+      <span className="binder-drift-card-reason"> — {formatDriftReason(row.reason)}</span>
+      <span className="binder-drift-queue-actions">
+        <button type="button" className="btn-link" onClick={onAcknowledge}>
+          Got it
+        </button>
+        <button type="button" className="btn-link" onClick={onPrimary}>
+          {primaryLabel}
+        </button>
+      </span>
+    </li>
   );
 }
 

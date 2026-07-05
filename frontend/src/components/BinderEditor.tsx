@@ -7,7 +7,7 @@ import { useFileDrop } from '../lib/use-file-drop';
 import { NEW_BINDER_DEFAULT_SORTS } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import { areAllGroupsEmpty } from '../lib/rules';
-import { countBinderMatches } from '../lib/binder-counts';
+import { countBinderMatches, countEffectiveLanding } from '../lib/binder-counts';
 import { useCardsWithTags, groupsUseTags, cardTagLabel } from '../lib/card-tags';
 import { cleanFilter } from '../lib/clean-filter';
 import { STARTER_TEMPLATES, type StarterTemplate } from '../lib/binder-templates';
@@ -364,6 +364,21 @@ export function BinderEditor() {
     if (fixedCapacity === null) return 0;
     return countBinderMatches(taggedCards, groups, keepPrintingsTogether).total;
   }, [taggedCards, groups, fixedCapacity, keepPrintingsTogether]);
+
+  // Where the waterfall actually seats this binder's cards, not just how many
+  // match its own rules — substitutes the draft into the real binder list (in
+  // position order) so a binder placed behind a broader one shows the truth:
+  // it may match plenty of cards and still land none of them. Skipped for
+  // manual-mode binders, which don't route by rules at all.
+  const effectiveLanding = useMemo(() => {
+    if (routingMode === 'manual') return null;
+    return countEffectiveLanding(taggedCards, binders, {
+      id: existing?.id ?? null,
+      groups,
+      keepPrintingsTogether,
+      mode: routingMode,
+    });
+  }, [taggedCards, binders, groups, keepPrintingsTogether, routingMode, existing?.id]);
 
   if (!isOpen) return null;
 
@@ -874,6 +889,37 @@ export function BinderEditor() {
                       isNewBinder={isNew}
                     />
                   </div>
+
+                  {effectiveLanding && (
+                    <p className="muted" style={{ marginTop: '0.5rem' }}>
+                      {effectiveLanding.matches.toLocaleString()}{' '}
+                      {effectiveLanding.matches === 1 ? 'card matches' : 'cards match'} ·{' '}
+                      {effectiveLanding.lands.toLocaleString()} will land here
+                      {effectiveLanding.caughtAbove > 0 && (
+                        <>
+                          {' '}
+                          · {effectiveLanding.caughtAbove.toLocaleString()} caught by binders above
+                          this one
+                        </>
+                      )}
+                      {effectiveLanding.pulledIn > 0 && (
+                        <>
+                          {' '}
+                          · +{effectiveLanding.pulledIn.toLocaleString()} pulled in by keep
+                          printings together
+                        </>
+                      )}
+                    </p>
+                  )}
+
+                  {effectiveLanding &&
+                    effectiveLanding.matches > 0 &&
+                    effectiveLanding.lands === 0 && (
+                      <div className="warn-banner" style={{ marginTop: '0.5rem' }}>
+                        Every matching card is caught by a binder above this one — this binder will
+                        be empty. Move it up, or tighten the rules of the binders above.
+                      </div>
+                    )}
 
                   <div className="sr-only" role="status" aria-live="polite">
                     {liveMsg}

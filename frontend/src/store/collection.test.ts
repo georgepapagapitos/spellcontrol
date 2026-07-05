@@ -972,6 +972,67 @@ describe('binder card customization', () => {
     useCollectionStore.getState().seedManualOrder('nope', ['c1']);
     expect(useCollectionStore.getState().binders[0]).toEqual(before);
   });
+
+  it('keepCardInBinder pins a card WITHOUT flipping a rules binder to manual (E88)', () => {
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', rarity: 'uncommon' })],
+      binders: [
+        makeBinder({
+          mode: 'rules',
+          filterGroups: [
+            { filter: { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } } },
+          ],
+        }),
+      ],
+    });
+    useCollectionStore.getState().keepCardInBinder('b1', 'c1');
+    const b = useCollectionStore.getState().binders[0];
+    expect(b.pinnedCopyIds).toEqual(['c1']);
+    expect(b.mode).toBe('rules'); // no auto-flip, unlike pinCardToBinder
+  });
+
+  it('keepCardInBinder is idempotent and no-ops on an unknown binder', () => {
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
+      binders: [makeBinder()],
+    });
+    useCollectionStore.getState().keepCardInBinder('b1', 'c1');
+    useCollectionStore.getState().keepCardInBinder('b1', 'c1');
+    expect(useCollectionStore.getState().binders[0].pinnedCopyIds).toEqual(['c1']);
+
+    const before = useCollectionStore.getState().binders[0];
+    useCollectionStore.getState().keepCardInBinder('nope', 'c1');
+    expect(useCollectionStore.getState().binders[0]).toEqual(before);
+  });
+
+  it('acknowledgeBinderCard applies a surgical add/remove to the review baseline', () => {
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
+      binders: [
+        makeBinder({
+          lastReviewedSnapshot: { at: 1, keys: ['sf1:nonfoil'], cardSnapshots: {} },
+        }),
+      ],
+    });
+    useCollectionStore.getState().acknowledgeBinderCard('b1', 'sf1:nonfoil', 'removed');
+    expect(useCollectionStore.getState().binders[0].lastReviewedSnapshot?.keys).toEqual([]);
+
+    const card = enriched({ copyId: 'c2', scryfallId: 'sf2', purchasePrice: 4.5 });
+    useCollectionStore.getState().acknowledgeBinderCard('b1', 'sf2:nonfoil', 'added', card);
+    const b = useCollectionStore.getState().binders[0];
+    expect(b.lastReviewedSnapshot?.keys).toEqual(['sf2:nonfoil']);
+    expect(b.lastReviewedSnapshot?.cardSnapshots['sf2:nonfoil']).toEqual({ price: 4.5 });
+  });
+
+  it('acknowledgeBinderCard no-ops on a binder with no baseline yet', () => {
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
+      binders: [makeBinder()],
+    });
+    const before = useCollectionStore.getState().binders[0];
+    useCollectionStore.getState().acknowledgeBinderCard('b1', 'sf1:nonfoil', 'removed');
+    expect(useCollectionStore.getState().binders[0]).toEqual(before);
+  });
 });
 
 describe('binder CRUD', () => {
@@ -989,6 +1050,69 @@ describe('binder CRUD', () => {
     const b = useCollectionStore.getState().binders[0];
     expect(b.id).toBe('b1');
     expect(b.name).toBe('New');
+  });
+
+  it("updateBinder clears the review baseline when a rules-mode binder's filterGroups change (E88)", () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({
+          id: 'b1',
+          mode: 'rules',
+          filterGroups: [{ filter: { rarities: { chips: [], joiners: [] } } }],
+          lastReviewedSnapshot: { at: 1, keys: ['sf1:nonfoil'], cardSnapshots: {} },
+        }),
+      ],
+    });
+    useCollectionStore.getState().updateBinder('b1', {
+      filterGroups: [
+        { filter: { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } } },
+      ],
+    });
+    expect(useCollectionStore.getState().binders[0].lastReviewedSnapshot).toBeUndefined();
+  });
+
+  it('updateBinder keeps the review baseline when filterGroups are unchanged or absent from the input', () => {
+    const groups = [
+      { filter: { rarities: { chips: [], joiners: [] } } },
+    ] as BinderInput['filterGroups'];
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({
+          id: 'b1',
+          mode: 'rules',
+          filterGroups: groups,
+          lastReviewedSnapshot: { at: 1, keys: ['sf1:nonfoil'], cardSnapshots: {} },
+        }),
+      ],
+    });
+    // Same content, new array reference — a deep-equal edit shouldn't re-baseline.
+    useCollectionStore
+      .getState()
+      .updateBinder('b1', { filterGroups: JSON.parse(JSON.stringify(groups)) });
+    expect(useCollectionStore.getState().binders[0].lastReviewedSnapshot).toBeDefined();
+
+    // No filterGroups in the input at all (e.g. a sort-only edit) — untouched.
+    useCollectionStore.getState().updateBinder('b1', { name: 'Renamed' } as Partial<BinderInput>);
+    expect(useCollectionStore.getState().binders[0].lastReviewedSnapshot).toBeDefined();
+  });
+
+  it('updateBinder does not re-baseline a manual-mode binder on filterGroups changes', () => {
+    useCollectionStore.setState({
+      binders: [
+        makeBinder({
+          id: 'b1',
+          mode: 'manual',
+          filterGroups: [{ filter: {} }],
+          lastReviewedSnapshot: { at: 1, keys: ['sf1:nonfoil'], cardSnapshots: {} },
+        }),
+      ],
+    });
+    useCollectionStore.getState().updateBinder('b1', {
+      filterGroups: [
+        { filter: { rarities: { chips: [{ value: 'mythic', negate: false }], joiners: [] } } },
+      ],
+    });
+    expect(useCollectionStore.getState().binders[0].lastReviewedSnapshot).toBeDefined();
   });
 
   it('deleteBinder renumbers positions and re-points the active tab', () => {

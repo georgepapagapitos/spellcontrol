@@ -339,27 +339,16 @@
   padding-top: 0.6rem;
 }
 
-.binder-drift-list ul {
-  list-style: none;
-  margin: var(--space-1) 0 0;
-  padding: 0;
-}
-
-.binder-drift-list li {
-  padding: 2px 0;
-  color: var(--text-secondary);
-}
-
 .binder-drift-list-title {
   font-weight: 600;
   color: var(--accent-hover);
 }
 
-.binder-drift-list--added .binder-drift-list-title::before {
+.binder-drift-list-title--added::before {
   content: '+ ';
 }
 
-.binder-drift-list--removed .binder-drift-list-title::before {
+.binder-drift-list-title--removed::before {
   content: '− ';
   color: var(--err-text);
 }
@@ -370,6 +359,53 @@
 
 .binder-drift-card-reason {
   color: var(--text-muted);
+}
+
+/* Review queue (E88) — one group per destination (added cards; per-binder /
+   uncategorized / not-owned for removed cards), each a "pile" the user works
+   through like physically re-filing a binder. */
+.binder-drift-queue-group + .binder-drift-queue-group {
+  border-top: 0.5px dashed var(--accent);
+  padding-top: var(--space-2);
+}
+
+.binder-drift-queue-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.binder-drift-queue-list {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+
+.binder-drift-queue-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 3px 0;
+  color: var(--text-secondary);
+}
+
+.binder-drift-queue-qty {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-hover);
+  background: var(--accent-light);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+
+.binder-drift-queue-actions {
+  display: inline-flex;
+  gap: 0.2rem;
+  margin-left: auto;
 }
 
 .binder-toolbar {
