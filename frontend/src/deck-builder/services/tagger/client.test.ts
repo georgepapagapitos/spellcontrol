@@ -5,6 +5,7 @@ import {
   cubeRole,
   validateCardRole,
   isProtectionPiece,
+  isUntapProducer,
 } from './client';
 
 // Minimal tagger dataset: a cost-reducer (which the generic classifier folds
@@ -686,5 +687,203 @@ describe('isProtectionPiece', () => {
 
   it('returns false for a text-less card (opposite fallback direction from validateCardRole — no tag to trust)', () => {
     expect(isProtectionPiece({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// isUntapProducer (E89, iter-7 Slice E) — every oracle_text below verified
+// live against the Scryfall API before being written in.
+describe('isUntapProducer', () => {
+  it('single-target untap (Aphetto Alchemist)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Aphetto Alchemist',
+        oracle_text:
+          '{T}: Untap target artifact or creature.\nMorph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)',
+      })
+    ).toBe(true);
+  });
+
+  it('"untap another target" (Vizier of Tumbling Sands)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Vizier of Tumbling Sands',
+        oracle_text:
+          '{T}: Untap another target permanent.\nCycling {1}{U} ({1}{U}, Discard this card: Draw a card.)\nWhen you cycle this card, untap target permanent.',
+      })
+    ).toBe(true);
+  });
+
+  it('untap buried inside a tap-or-untap ability (Fatestitcher)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Fatestitcher',
+        oracle_text: '{T}: You may tap or untap another target permanent.\nUnearth {U}',
+      })
+    ).toBe(true);
+  });
+
+  it('"untap another target permanent you control" (Kelpie Guide)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Kelpie Guide',
+        oracle_text:
+          '{T}: Untap another target permanent you control.\n{T}: Tap target permanent. Activate only if you control eight or more lands.',
+      })
+    ).toBe(true);
+  });
+
+  it("Kiora's Follower", () => {
+    expect(
+      isUntapProducer({
+        name: "Kiora's Follower",
+        oracle_text: '{T}: Untap another target permanent.',
+      })
+    ).toBe(true);
+  });
+
+  it('mass untap, nonland-qualified (Dramatic Reversal)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Dramatic Reversal',
+        oracle_text: 'Untap all nonland permanents you control.',
+      })
+    ).toBe(true);
+  });
+
+  it('mass untap on an extra-untap-step trigger (Drumbellower)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Drumbellower',
+        oracle_text:
+          "Flying\nUntap all creatures you control during each other player's untap step.",
+      })
+    ).toBe(true);
+  });
+
+  it('mass untap on an extra-untap-step trigger (Seedborn Muse)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Seedborn Muse',
+        oracle_text: "Untap all permanents you control during each other player's untap step.",
+      })
+    ).toBe(true);
+  });
+
+  it('mass untap on an extra-untap-step trigger (Unwinding Clock)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Unwinding Clock',
+        oracle_text: "Untap all artifacts you control during each other player's untap step.",
+      })
+    ).toBe(true);
+  });
+
+  it('bare "Untap them" callback (Valley Floodcaller)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Valley Floodcaller',
+        oracle_text:
+          'Flash\nYou may cast noncreature spells as though they had flash.\nWhenever you cast a noncreature spell, Birds, Frogs, Otters, and Rats you control get +1/+1 until end of turn. Untap them.',
+      })
+    ).toBe(true);
+  });
+
+  it('planeswalker loyalty ability flows through plain oracle_text (Tezzeret, Cruel Captain)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Tezzeret, Cruel Captain',
+        oracle_text:
+          "Whenever an artifact you control enters, put a loyalty counter on Tezzeret.\n0: Untap target artifact or creature. If it's an artifact creature, put a +1/+1 counter on it.\n−3: Search your library for an artifact card with mana value 1 or less, reveal it, put it into your hand, then shuffle.",
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT match the tap-down idiom (Frost Titan)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Frost Titan',
+        oracle_text:
+          "Whenever this creature becomes the target of a spell or ability an opponent controls, counter that spell or ability unless its controller pays {2}.\nWhenever this creature enters or attacks, tap target permanent. It doesn't untap during its controller's next untap step.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match the tap-down idiom (Icefall Regent)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Icefall Regent',
+        oracle_text:
+          "Flying\nWhen this creature enters, tap target creature an opponent controls. That creature doesn't untap during its controller's untap step for as long as you control this creature.\nSpells your opponents cast that target this creature cost {2} more to cast.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match the self-only "choose not to untap" idiom (Amber Prison)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Amber Prison',
+        oracle_text:
+          "You may choose not to untap this artifact during your untap step.\n{4}, {T}: Tap target artifact, creature, or land. That permanent doesn't untap during its controller's untap step for as long as this artifact remains tapped.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match an opponent-restriction untap lock (Winter Orb)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Winter Orb',
+        oracle_text:
+          "As long as this artifact is untapped, players can't untap more than one land during their untap steps.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match exert self-untap plumbing (Ahn-Crop Crasher)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Ahn-Crop Crasher',
+        oracle_text:
+          "Haste (This creature can attack and {T} as soon as it comes under your control.)\nYou may exert this creature as it attacks. When you do, target creature can't block this turn. (An exerted creature won't untap during your next untap step.)",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match a plain vigilance creature with no untap text (Serra Angel)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Serra Angel',
+        oracle_text: "Flying\nVigilance (Attacking doesn't cause this creature to tap.)",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match a plain mana dork/rock (Sol Ring)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Sol Ring',
+        oracle_text: '{T}: Add {C}{C}.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match unrelated staples (Path to Exile, Rhystic Study)', () => {
+    expect(
+      isUntapProducer({
+        name: 'Path to Exile',
+        oracle_text:
+          'Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.',
+      })
+    ).toBe(false);
+    expect(
+      isUntapProducer({
+        name: 'Rhystic Study',
+        oracle_text:
+          'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
+    expect(isUntapProducer({ name: 'No-Text Card' })).toBe(false);
   });
 });
