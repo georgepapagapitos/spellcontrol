@@ -46,14 +46,14 @@ describe('inferArchetype', () => {
     );
   });
 
-  it('falls back even when the theme explicitly carries an archetype of GOODSTUFF', () => {
+  it('sticks with GOODSTUFF when the theme explicitly carries that archetype (does not discard an explicit pick)', () => {
     const explicit: ThemeResult = {
       name: 'whatever',
       source: 'edhrec',
       isSelected: true,
       archetype: Archetype.GOODSTUFF,
     };
-    expect(inferArchetype([explicit], Archetype.TRIBAL)).toBe(Archetype.TRIBAL);
+    expect(inferArchetype([explicit], Archetype.TRIBAL)).toBe(Archetype.GOODSTUFF);
   });
 });
 
@@ -70,9 +70,13 @@ describe('inferArchetypeFromEdhrecThemes', () => {
     expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.ENCHANTRESS);
   });
 
-  it('skips a top theme that maps to GOODSTUFF and uses the next real one', () => {
+  it('does not let a minority real-archetype tag beat a dominant GOODSTUFF-mapped one', () => {
+    // Superfriends dominates this page (900/1100 = 82%); Voltron is only a
+    // minor secondary tag (200/1100 = 18%). No single dominant strategy here
+    // (structurally the same shape as the Atraxa split-strategy case below),
+    // so this should no longer confidently declare VOLTRON.
     const themes = [edhrecTheme('Superfriends', 900), edhrecTheme('Voltron', 200)];
-    expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.VOLTRON);
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBeUndefined();
   });
 
   it('returns undefined when nothing maps to a real archetype', () => {
@@ -83,6 +87,26 @@ describe('inferArchetypeFromEdhrecThemes', () => {
   it('classifies a Yuriko-class (ninjutsu) commander as tempo, not goodstuff/aristocrats/aggro', () => {
     const themes = [edhrecTheme('Ninjutsu', 800), edhrecTheme('Unblockable', 400)];
     expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.TEMPO);
+  });
+
+  it('rejects a top real-archetype theme that is not a clear plurality (Atraxa-shaped: split strategies)', () => {
+    const themes = [
+      edhrecTheme('Infect', 400),
+      edhrecTheme('Superfriends', 350),
+      edhrecTheme('Counters', 300),
+      edhrecTheme('Voltron', 150),
+    ]; // Infect share = 400/1200 ≈ 33%, below DOMINANT_THEME_SHARE
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBeUndefined();
+  });
+
+  it('accepts a top real-archetype theme that clears the dominance bar (same shape, higher leading count)', () => {
+    const themes = [
+      edhrecTheme('Infect', 600),
+      edhrecTheme('Superfriends', 200),
+      edhrecTheme('Counters', 250),
+      edhrecTheme('Voltron', 150),
+    ]; // Infect share = 600/1200 = 50%, clearly above DOMINANT_THEME_SHARE
+    expect(inferArchetypeFromEdhrecThemes(themes)).toBe(Archetype.AGGRO);
   });
 });
 

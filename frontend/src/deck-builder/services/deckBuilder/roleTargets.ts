@@ -139,6 +139,24 @@ export function estimatePacingFromStats(manaCurve: Record<number, number>): Paci
 
 // ─── Archetype Inference ────────────────────────────────────────────
 
+// Share of the page's archetype-mapped taglink weight a real-archetype theme
+// must hold before it's trusted as the commander's singular strategy signal,
+// rather than one popular sub-build among several comparable ones (e.g.
+// Atraxa: counters/superfriends/proliferate/infect are all present at
+// meaningful weight — no plurality). Denominator is the sum of only the
+// taglinks that have a THEME_TO_ARCHETYPE entry, not every taglink EDHREC
+// returns — pages carry a lot of flavor/type tags with no archetype mapping
+// at all (Historic, Legends, Samurai, Phyrexians, Sagas, Eldrazi, Big Mana...)
+// that would otherwise dilute every real theme's share without representing
+// a competing *strategy*. Calibrated against live EDHREC data for all 10
+// panel commanders (see build spec + calibration table): Atraxa's Infect
+// tops out at 35.7% of mapped-taglink weight; Meren — the tightest legitimate
+// single-strategy commander in the panel — clears 40.1%. 0.38 sits at the
+// midpoint, giving ~2pts of headroom on both sides; every other panel
+// commander (Krenko/Lathril/Sythis/Talrand/Ur-Dragon/Yuriko/Kozilek) clears
+// by 4+ points, several by 20-40+.
+const DOMINANT_THEME_SHARE = 0.38;
+
 /**
  * Infer archetype from EDHREC's own ranked commander-page themes (the
  * community's stated consensus for this commander, e.g. "Enchantress" for
@@ -146,14 +164,28 @@ export function estimatePacingFromStats(manaCurve: Record<number, number>): Paci
  * than the mechanically-detected `commanderProfile.primaryArchetype` keyword
  * vote, which tie-breaks on a static precedence list and can land on the
  * wrong archetype (voltron/spellslinger/aristocrats false positives). Walks
- * `themes` in their already-popularity-sorted order and returns the first
- * that maps to a real (non-GOODSTUFF) archetype; undefined when nothing maps,
- * so callers fall back further (to the keyword-vote heuristic).
+ * `themes` in their already-popularity-sorted order looking for the first
+ * that maps to a real (non-GOODSTUFF) archetype, but only trusts it if it's
+ * a clear plurality of the page's mapped-theme weight (DOMINANT_THEME_SHARE) —
+ * a commander whose page is genuinely split across several comparable
+ * strategies shouldn't have its first count-sorted real-archetype tag treated
+ * as "the" strategy. Returns undefined when nothing maps, or the leading
+ * candidate isn't dominant, so callers fall back further.
  */
 export function inferArchetypeFromEdhrecThemes(themes?: EDHRECTheme[]): Archetype | undefined {
-  for (const theme of themes ?? []) {
+  const list = themes ?? [];
+  const total = list.reduce(
+    (s, t) => s + (THEME_TO_ARCHETYPE[t.name.toLowerCase().trim()] ? t.count : 0),
+    0
+  );
+  for (const theme of list) {
     const mapped = THEME_TO_ARCHETYPE[theme.name.toLowerCase().trim()];
-    if (mapped && mapped !== Archetype.GOODSTUFF) return mapped;
+    if (!mapped || mapped === Archetype.GOODSTUFF) continue;
+    // List is count-sorted descending, so if the first real candidate isn't
+    // dominant, no later theme can have a higher share either — bail out
+    // rather than keep scanning.
+    if (total > 0 && theme.count / total < DOMINANT_THEME_SHARE) return undefined;
+    return mapped;
   }
   return undefined;
 }
@@ -175,10 +207,14 @@ export function inferArchetype(
   const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
   if (!selected.length) return fallback;
 
-  // Use existing archetype field if populated, else look up primary theme name
+  // Use existing archetype field if populated, else look up primary theme name.
+  // Only fall back to `fallback` when the lookup finds nothing at all
+  // (`matched` undefined) — an explicit pick that genuinely resolves to
+  // GOODSTUFF (e.g. a selected "Superfriends" theme) should stick, not be
+  // silently discarded as if nothing were selected.
   const lower = selected[0].name.toLowerCase().trim();
-  const inferred = selected[0].archetype ?? THEME_TO_ARCHETYPE[lower] ?? Archetype.GOODSTUFF;
-  return inferred === Archetype.GOODSTUFF ? fallback : inferred;
+  const matched = selected[0].archetype ?? THEME_TO_ARCHETYPE[lower];
+  return matched ?? fallback;
 }
 
 // ─── Base Targets (format-only, backward compat) ────────────────────
