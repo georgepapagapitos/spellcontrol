@@ -184,17 +184,14 @@ async function liveSearchCards(
 ): Promise<ScryfallSearchResponse> {
   const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
 
-  // Empty colorIdentity means a COLORLESS commander, not "unrestricted" — the
-  // old `colorIdentity.length > 0 ? ... : ''` fell through to no filter at
-  // all for a colorless identity, so a live Scryfall search could return any
-  // card of any color (Kozilek, the Great Distortion: Omniscience — a {U}{U}{U}
-  // enchantment — entered a colorless deck through this exact gap, since
-  // scryfallFill.ts has no client-side fitsColorIdentity check and relies
-  // entirely on this query-string filter). `id<=c` is Scryfall's colorless
-  // idiom — same operator, just doesn't degrade to "anything goes".
-  const colorFilter = !skipColorFilter
-    ? `id<=${colorIdentity.length > 0 ? colorIdentity.join('') : 'c'}`
-    : '';
+  // Empty colorIdentity means "unrestricted" here — generic surfaces
+  // (collection add, lists, scanner, binder-rule preview) pass [] with no
+  // commander in sight, and an implicit `id<=c` fallback turned every one of
+  // them colorless-only (prod regression: searching "bolas's citadel" while
+  // adding to the collection 404'd). Callers that DO mean "colorless
+  // commander" say so explicitly via commanderSearchIdentity().
+  const colorFilter =
+    !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
   const formatFilter = skipFormatFilter ? '' : 'f:commander';
   // Wrap query in parentheses so color filter applies to entire query (including OR clauses)
   const fullQuery = `${colorFilter} (${query}) ${formatFilter}`;
@@ -236,6 +233,19 @@ export async function searchCards(
   options: CardSearchOptions = {}
 ): Promise<ScryfallSearchResponse> {
   return getCardRepository().searchCards(query, colorIdentity, options);
+}
+
+/**
+ * A commander's color identity as a search filter. A colorless commander
+ * (Kozilek, the Great Distortion) has `color_identity: []`, which searchCards
+ * treats as "no color filter" — that gap once let Omniscience ({U}{U}{U}) into
+ * a colorless deck via scryfallFill, which has no client-side identity check.
+ * Deck-generation call sites route their commander identity through this so
+ * colorless becomes an explicit `id<=C` (the offline parser handles it too:
+ * 'C' parses to the empty WUBRG set, matching only colorless cards).
+ */
+export function commanderSearchIdentity(colorIdentity: string[]): string[] {
+  return colorIdentity.length > 0 ? colorIdentity : ['C'];
 }
 
 /**
