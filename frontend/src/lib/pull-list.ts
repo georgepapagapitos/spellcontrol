@@ -80,7 +80,7 @@ export function buildPullList(
       allocatedCopyId: deck.partnerCommanderAllocatedCopyId,
     });
   }
-  for (const s of [...deck.cards, ...deck.sideboard]) {
+  for (const s of [...deck.cards, ...(deck.sideboard ?? [])]) {
     slots.push({ card: s.card, allocatedCopyId: s.allocatedCopyId });
   }
   if (slots.length === 0) return [];
