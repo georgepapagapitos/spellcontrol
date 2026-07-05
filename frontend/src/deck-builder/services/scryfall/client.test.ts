@@ -24,6 +24,7 @@ import {
   getCardByName,
   getOwnedPrinting,
   getCardByNameResilient,
+  searchCards,
 } from './client';
 
 function makeCard(overrides: Partial<ScryfallCard>): ScryfallCard {
@@ -120,6 +121,48 @@ describe('getCardById', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => artCard }));
 
     await expect(getCardById('art-1')).rejects.toThrow(/non-playable/);
+  });
+});
+
+// Defect A (iter-6 Slice B follow-up, CRITICAL): colorIdentity: [] means a
+// COLORLESS commander, not "no restriction" — the old
+// `colorIdentity.length > 0 ? 'id<=...' : ''` fell through to no color
+// filter at all for an empty identity, so a live search for a colorless
+// commander (Kozilek, the Great Distortion) could return ANY color of card
+// (live repro: seated Omniscience, a {U}{U}{U} enchantment, via this exact
+// query-string gap — scryfallFill.ts has no client-side fitsColorIdentity
+// check and relies entirely on this server-side filter).
+describe('searchCards color-identity query (defect A)', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('filters to colorless cards (id<=c) for an empty colorIdentity, not an unfiltered search', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ data: [], has_more: false }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await searchCards('t:enchantment', []);
+
+    const url = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
+    expect(url).toContain('id<=c');
+    expect(url).not.toContain('id<= '); // never the bare/empty filter regression
+  });
+
+  it('still filters normally for a nonempty colorIdentity', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => ({ data: [], has_more: false }) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await searchCards('t:enchantment', ['U', 'B']);
+
+    const url = decodeURIComponent(String(fetchMock.mock.calls[0][0]));
+    expect(url).toContain('id<=UB');
   });
 });
 

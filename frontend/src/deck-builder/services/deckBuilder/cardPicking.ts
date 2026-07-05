@@ -6,7 +6,7 @@ import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scry
 import { hasCurveRoom } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
-import { matchesExpectedType, roleCapTolerance } from './categorize';
+import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
@@ -429,9 +429,15 @@ export function pickFromPrefetchedWithCurve(
   let unownedPicked = 0;
   let enforceQuotas = true; // Relaxed in fill pass
 
-  const processCards = (candidates: EDHRECCard[], requireTypeCheckForUnknown: boolean): void => {
+  const processCards = (
+    candidates: EDHRECCard[],
+    requireTypeCheckForUnknown: boolean,
+    maxAdmits: number = Infinity
+  ): void => {
+    let admitted = 0;
     for (const edhrecCard of candidates) {
       if (result.length >= count) break;
+      if (admitted >= maxAdmits) break;
       if (usedNames.has(edhrecCard.name)) continue;
 
       const isGC = gameChangerNames.has(edhrecCard.name);
@@ -526,6 +532,7 @@ export function pickFromPrefetchedWithCurve(
       bracketGuard?.record(edhrecCard.name);
       if (edhrecCard.isThemeSynergyCard) scryfallCard.isThemeSynergyCard = true;
       result.push(scryfallCard);
+      admitted++;
       usedNames.add(edhrecCard.name);
       if (scryfallCard.name !== edhrecCard.name) usedNames.add(scryfallCard.name);
       currentCurveCounts[cmc] = (currentCurveCounts[cmc] ?? 0) + 1;
@@ -592,7 +599,7 @@ export function pickFromPrefetchedWithCurve(
       return overA - overB;
     });
     allowCapOverflow = true;
-    processCards(capSkipped, true);
+    processCards(capSkipped, true, ROLE_CAP_HATCH_MAX_PER_PASS);
   }
 
   return result;

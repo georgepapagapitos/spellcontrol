@@ -307,6 +307,22 @@ describe('buildManabaseSummary', () => {
     expect(summary.note).toBeUndefined();
   });
 
+  // Defect B (iter-6 Slice B follow-up): an identity-illegal card slipping
+  // into nonLandCards upstream (the Combo Integrity Audit bug, see
+  // deckGenerator.ts's auditAdd fitsColorIdentity gate) used to surface as a
+  // "2 blue sources short" note on a colorless/WU-only deck and get
+  // "repaired" by swapping a land for an off-identity Island. The manabase
+  // math must never treat an off-identity pip as demanded, regardless of
+  // where it came from — a cheap guard at the true source.
+  it('never demands a color outside the given identity, even if a nonland card has pips for it', () => {
+    const lands = [plains, plains, island, commandTower];
+    // Grave Titan is {4}{B}{B} — black, outside the WU identity below.
+    const nonland = [wallOfOmens, graveTitan];
+    const summary = buildManabaseSummary(lands, nonland, WU);
+    expect(summary.lines.map((l) => l.color)).toEqual(['W']); // no 'B' line at all
+    expect(summary.note ?? '').not.toMatch(/black/);
+  });
+
   it('never disagrees: short is exactly sources < target, and the note names every short color', () => {
     // Isshin-style: W and R equally starved, both should be flagged AND named.
     // A handful of off-color filler lands give the deck a realistic total

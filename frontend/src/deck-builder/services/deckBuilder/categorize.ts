@@ -233,6 +233,20 @@ export function roleCapTolerance(target: number): number {
   return Math.max(2, Math.round(target * 0.2));
 }
 
+/**
+ * Ceiling on how many over-cap candidates the role-cap escape hatch (see
+ * roleCapTolerance above) admits in a single pass, at each of its 4 call
+ * sites (cardPicking.ts, scryfallFill.ts, deckGenerator.ts x2). The hatch
+ * exists so a pass never ships short over a soft target, but uncapped it
+ * could stuff a role arbitrarily far over target (observed: 50 admissions
+ * across a 15-deck baseline panel, max 11 in one deck). Median observed
+ * admissions per affected deck was ~3 — this ceiling trims the outlier tail
+ * without changing the typical deck. A pass that hits the ceiling finishes
+ * short; the role-cap-gated downstream fills close the remaining gap from
+ * under-target roles instead of over-stuffing this one further.
+ */
+export const ROLE_CAP_HATCH_MAX_PER_PASS = 3;
+
 export function computeRoleBoosts(
   cardRoleMap: Map<string, RoleKey>,
   roleTargets: Record<RoleKey, number>,

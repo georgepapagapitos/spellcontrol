@@ -297,7 +297,13 @@ export function buildManabaseSummary(
   const landSources = colorSourceCounts(lands, identity);
   const spellSources = colorSourceCounts(nonLandCards, identity);
 
-  const demanded = WUBRG.filter((c) => pips[c] > 0);
+  // Cheap guard: a color can only be "demanded" if it's within the commander's
+  // identity. Every legal nonland card's pips already fall within identity —
+  // this only matters if an identity-illegal card ever slips into nonLandCards
+  // upstream (see the Combo Integrity Audit's fitsColorIdentity gate) — but
+  // the manabase repair must never chase a pip count that shouldn't exist,
+  // recommending an off-identity basic land.
+  const demanded = WUBRG.filter((c) => pips[c] > 0 && identity.has(c));
 
   const curve: Record<number, number> = {};
   for (const card of nonLandCards) {

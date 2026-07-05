@@ -369,4 +369,15 @@ describe('fillWithScryfall role-cap gate (E77 iter-4)', () => {
     const out = await fillWithRoleCap(1, currentRoleCounts);
     expect(out.map((c) => c.name)).toEqual(['Ramp Extra']);
   });
+
+  it('escape-hatch ceiling: admits at most 3 over-cap candidates, then finishes short (iter-6 Slice B)', async () => {
+    const names = ['Extra1', 'Extra2', 'Extra3', 'Extra4'];
+    for (const n of names) ROLES[n] = 'ramp';
+    searchCards.mockResolvedValue({ data: names.map((name) => sc({ name })) });
+    const currentRoleCounts = { ramp: 3 }; // already at cap — every candidate is over-cap
+    const out = await fillWithRoleCap(4, currentRoleCounts);
+    // Uncapped, the hatch would admit all 4 to hit count=4 — the ceiling caps
+    // it at 3 (in search order), leaving the fill 3/4 instead.
+    expect(out.map((c) => c.name)).toEqual(['Extra1', 'Extra2', 'Extra3']);
+  });
 });

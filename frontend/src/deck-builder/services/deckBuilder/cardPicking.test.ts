@@ -674,6 +674,34 @@ describe('role-cap gate (E77 iter-4)', () => {
     expect(picked).toHaveLength(5);
     expect(picked.map((c) => c.name).sort()).toEqual(['Ramp1', 'Ramp2', 'Ramp3', 'Ramp4', 'Ramp5']);
   });
+
+  it('escape-hatch ceiling: admits at most ROLE_CAP_HATCH_MAX_PER_PASS over-cap candidates, then finishes short (iter-6 Slice B)', () => {
+    const cards = [
+      ec({ name: 'Ramp1', inclusion: 95, primary_type: 'Creature' }),
+      ec({ name: 'Ramp2', inclusion: 90, primary_type: 'Creature' }),
+      ec({ name: 'Ramp3', inclusion: 85, primary_type: 'Creature' }),
+      ec({ name: 'Ramp4', inclusion: 80, primary_type: 'Creature' }),
+      ec({ name: 'Ramp5', inclusion: 75, primary_type: 'Creature' }),
+      ec({ name: 'Ramp6', inclusion: 70, primary_type: 'Creature' }),
+      ec({ name: 'Ramp7', inclusion: 65, primary_type: 'Creature' }),
+    ];
+    const cardRoleMap = new Map<string, RoleKey>(cards.map((c) => [c.name, 'ramp']));
+    // 3 admitted under cap (target=1, tolerance=2 -> cap=3); Ramp4-7 are all
+    // over-cap and skipped. Uncapped, the hatch would admit all 4 to hit
+    // count=7 — the ceiling caps it at 3 (Ramp4-6, in skip order), so the
+    // pass ships 6/7 instead, leaving Ramp7's slot for a role-cap-gated
+    // downstream fill to give to an under-target role.
+    const picked = pickWithRoleCap(cards, 7, cardRoleMap);
+    expect(picked).toHaveLength(6);
+    expect(picked.map((c) => c.name).sort()).toEqual([
+      'Ramp1',
+      'Ramp2',
+      'Ramp3',
+      'Ramp4',
+      'Ramp5',
+      'Ramp6',
+    ]);
+  });
 });
 
 // This layer's `priceSanity` param is a plain boolean (defaults false here) —

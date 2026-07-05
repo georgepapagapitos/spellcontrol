@@ -316,6 +316,35 @@ describe('applyComboFloor', () => {
     expect(result.seeded).toBe(false);
   });
 
+  // Defect A1 sibling fix (iter-6 Slice B follow-up): same shape as the Combo
+  // Integrity Audit's fitsColorIdentity gap — a combo's missing piece must
+  // never be added just because it's the sole missing card, if it's outside
+  // the commander's color identity.
+  it('never seeds a color-identity-illegal combo piece, even as the sole missing card', () => {
+    const offColor = scryfallCard('Off-Color Bomb', { color_identity: ['U'] });
+    const state = makeState({
+      context: {
+        commander: scryfallCard('Mono-G Commander'),
+        partnerCommander: null,
+        colorIdentity: ['G'], // mono-green — 'U' is illegal
+        customization: {} as GenerationState['context']['customization'],
+      },
+      combos: [edhrec2CardCombo('c1', ['Off-Color Bomb', 'Phyrexian Altar'])],
+    });
+    state.usedNames.add('Phyrexian Altar');
+    state.categories.creatures.push(scryfallCard('Phyrexian Altar'));
+
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Off-Color Bomb', offColor]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+    });
+
+    expect(result.seeded).toBe(false);
+    expect(state.usedNames.has('Off-Color Bomb')).toBe(false);
+  });
+
   it('does nothing when there are no evictable cards', () => {
     const missingCard = scryfallCard('Gravecrawler');
     const state = makeState({

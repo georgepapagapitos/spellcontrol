@@ -12,6 +12,7 @@ import {
   notInCollection,
   exceedsMaxPrice,
   isOwnedBudgetExempt,
+  fitsColorIdentity,
 } from '../deckFilters';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import type { BudgetTracker } from '../budgetTracker';
@@ -151,6 +152,11 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
 
     const missingCard = scryfallCardMap.get(missingName);
     if (!missingCard) continue;
+    // state.combos (fetched per-commander from EDHREC) should already be
+    // identity-legal, but this is by-name resolution from the same
+    // all-combos batch fetch the audit uses — never trust that without
+    // checking (see the Combo Integrity Audit's identical gate).
+    if (!fitsColorIdentity(missingCard, state.context.colorIdentity)) continue;
 
     // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce —
     // owned copies are exempt, everything else checks the live effective cap.

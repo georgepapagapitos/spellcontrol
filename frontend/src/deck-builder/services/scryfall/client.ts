@@ -184,8 +184,17 @@ async function liveSearchCards(
 ): Promise<ScryfallSearchResponse> {
   const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
 
-  const colorFilter =
-    !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
+  // Empty colorIdentity means a COLORLESS commander, not "unrestricted" — the
+  // old `colorIdentity.length > 0 ? ... : ''` fell through to no filter at
+  // all for a colorless identity, so a live Scryfall search could return any
+  // card of any color (Kozilek, the Great Distortion: Omniscience — a {U}{U}{U}
+  // enchantment — entered a colorless deck through this exact gap, since
+  // scryfallFill.ts has no client-side fitsColorIdentity check and relies
+  // entirely on this query-string filter). `id<=c` is Scryfall's colorless
+  // idiom — same operator, just doesn't degrade to "anything goes".
+  const colorFilter = !skipColorFilter
+    ? `id<=${colorIdentity.length > 0 ? colorIdentity.join('') : 'c'}`
+    : '';
   const formatFilter = skipFormatFilter ? '' : 'f:commander';
   // Wrap query in parentheses so color filter applies to entire query (including OR clauses)
   const fullQuery = `${colorFilter} (${query}) ${formatFilter}`;

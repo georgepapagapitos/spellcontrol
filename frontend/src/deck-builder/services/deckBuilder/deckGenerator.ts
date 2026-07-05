@@ -93,6 +93,7 @@ import {
   computeRoleBoosts,
   routeCardByType,
   roleCapTolerance,
+  ROLE_CAP_HATCH_MAX_PER_PASS,
 } from './categorize';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { isUnsupportedSynergyPayoff } from './synergyDependency';
@@ -2959,6 +2960,106 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // owned-only deck (the smart relaxation below). Surfaced in the build report.
   const substitutionRows: SubstituteRow[] = [];
 
+  // Add `amount` basic lands (Wastes for a colorless identity), split across
+  // colors by weighted mana-pip demand of the deck's non-land cards so far.
+  // Shared by the land-specific top-up right below and the total-count
+  // last-resort fallback further down — same fill, two different reasons to
+  // reach for it.
+  const addBasicLands = async (amount: number): Promise<void> => {
+    if (amount <= 0) return;
+    const basicTypes: Record<string, string> = {
+      W: 'Plains',
+      U: 'Island',
+      B: 'Swamp',
+      R: 'Mountain',
+      G: 'Forest',
+    };
+    const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
+
+    if (colorsWithBasics.length > 0) {
+      const allNonLands = [
+        ...categories.creatures,
+        ...categories.ramp,
+        ...categories.cardDraw,
+        ...categories.singleRemoval,
+        ...categories.boardWipes,
+        ...categories.utility,
+        ...categories.synergy,
+      ];
+      const pipCounts = countColorPips(allNonLands);
+      const totalPips = colorsWithBasics.reduce((sum, c) => sum + (pipCounts[c] || 0), 0);
+
+      const landsPerColor: Record<string, number> = {};
+      if (totalPips > 0) {
+        let assigned = 0;
+        for (let i = 0; i < colorsWithBasics.length; i++) {
+          const color = colorsWithBasics[i];
+          if (i === colorsWithBasics.length - 1) {
+            landsPerColor[color] = amount - assigned;
+          } else {
+            landsPerColor[color] = Math.round((amount * (pipCounts[color] || 0)) / totalPips);
+            assigned += landsPerColor[color];
+          }
+        }
+      } else {
+        const perColor = Math.floor(amount / colorsWithBasics.length);
+        const remainder = amount % colorsWithBasics.length;
+        for (let i = 0; i < colorsWithBasics.length; i++) {
+          landsPerColor[colorsWithBasics[i]] = perColor + (i < remainder ? 1 : 0);
+        }
+      }
+
+      for (const color of colorsWithBasics) {
+        const basicName = basicTypes[color];
+        const countForColor = landsPerColor[color];
+
+        let basicCard = getCachedCard(basicName);
+        if (!basicCard) {
+          try {
+            basicCard = await getCardByName(basicName, true);
+          } catch {
+            continue;
+          }
+        }
+
+        // Top-up copies share card.id so the deck view aggregates them into
+        // one row; allocation still claims any free owned copy by name.
+        for (let j = 0; j < countForColor; j++) {
+          categories.lands.push({ ...basicCard });
+        }
+      }
+    } else {
+      // Colorless deck — use Wastes as the basic land
+      let wastesCard = getCachedCard('Wastes');
+      if (!wastesCard) {
+        try {
+          wastesCard = await getCardByName('Wastes', true);
+        } catch {
+          // Skip if can't fetch
+        }
+      }
+      if (wastesCard) {
+        for (let j = 0; j < amount; j++) {
+          categories.lands.push({ ...wastesCard });
+        }
+      }
+    }
+  };
+
+  // Land top-up (Fix 1, iter-6 Slice B): gated on the land-specific deficit
+  // (categories.lands.length vs targets.lands), not total card count — and
+  // run BEFORE the generic nonland shortage fill below. generateLands() can
+  // silently under-deliver (a basic-land fetch throws and that color's
+  // allocation is dropped — landGenerator.ts's retry+reallocate hardening
+  // makes this rare but not impossible); the old last-resort top-up was
+  // gated on total count and ran AFTER the nonland fill, so a land shortfall
+  // shipped as a full-size deck with a spell squatting in a land slot.
+  const landDeficit = targets.lands - categories.lands.length;
+  if (landDeficit > 0) {
+    logger.debug(`[DeckGen] Land top-up: ${landDeficit} land(s) short of target, adding basics`);
+    await addBasicLands(landDeficit);
+  }
+
   // If we have too few cards, fill shortage — budget is best-effort here,
   // deck size and structure are non-negotiable
   currentCount = countAllCards();
@@ -3150,8 +3251,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             roleCapOverage(a.scryfallCard, roleTargets, currentRoleCounts) -
             roleCapOverage(b.scryfallCard, roleTargets, currentRoleCounts)
         );
+        let admitted = 0;
         for (const { edhrecCard, scryfallCard } of capSkipped) {
           if (filled >= shortage) break;
+          if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
           if (usedNames.has(edhrecCard.name)) continue;
           routeCardByType(scryfallCard, categories);
           usedNames.add(edhrecCard.name);
@@ -3164,6 +3267,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             true
           );
           filled++;
+          admitted++;
         }
       }
 
@@ -3475,11 +3579,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             roleCapOverage(a, roleTargets, currentRoleCounts) -
             roleCapOverage(b, roleTargets, currentRoleCounts)
         );
+        let admitted = 0;
         for (const card of ownedCapSkipped) {
           if (countAllCards() >= targetDeckSize) break;
+          if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
           if (usedNames.has(card.name)) continue;
-          if (addOwnedCard(card, true) && notInCollection(card.name, context.collectionNames)) {
-            relaxedNames.add(card.name);
+          if (addOwnedCard(card, true)) {
+            if (notInCollection(card.name, context.collectionNames)) relaxedNames.add(card.name);
+            admitted++;
           }
         }
       }
@@ -3491,87 +3598,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       const remainingShortage = targetDeckSize - currentCount;
       basicLandFillCount = remainingShortage;
       logger.debug(`[DeckGen] Still need ${remainingShortage} more cards, adding basic lands`);
-
-      const basicTypes: Record<string, string> = {
-        W: 'Plains',
-        U: 'Island',
-        B: 'Swamp',
-        R: 'Mountain',
-        G: 'Forest',
-      };
-      const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
-
-      if (colorsWithBasics.length > 0) {
-        // Distribute proportional to mana pips
-        const allNonLands = [
-          ...categories.creatures,
-          ...categories.ramp,
-          ...categories.cardDraw,
-          ...categories.singleRemoval,
-          ...categories.boardWipes,
-          ...categories.utility,
-          ...categories.synergy,
-        ];
-        const pipCounts = countColorPips(allNonLands);
-        const totalPips = colorsWithBasics.reduce((sum, c) => sum + (pipCounts[c] || 0), 0);
-
-        const landsPerColor: Record<string, number> = {};
-        if (totalPips > 0) {
-          let assigned = 0;
-          for (let i = 0; i < colorsWithBasics.length; i++) {
-            const color = colorsWithBasics[i];
-            if (i === colorsWithBasics.length - 1) {
-              landsPerColor[color] = remainingShortage - assigned;
-            } else {
-              landsPerColor[color] = Math.round(
-                (remainingShortage * (pipCounts[color] || 0)) / totalPips
-              );
-              assigned += landsPerColor[color];
-            }
-          }
-        } else {
-          const perColor = Math.floor(remainingShortage / colorsWithBasics.length);
-          const remainder = remainingShortage % colorsWithBasics.length;
-          for (let i = 0; i < colorsWithBasics.length; i++) {
-            landsPerColor[colorsWithBasics[i]] = perColor + (i < remainder ? 1 : 0);
-          }
-        }
-
-        for (const color of colorsWithBasics) {
-          const basicName = basicTypes[color];
-          const countForColor = landsPerColor[color];
-
-          let basicCard = getCachedCard(basicName);
-          if (!basicCard) {
-            try {
-              basicCard = await getCardByName(basicName, true);
-            } catch {
-              continue;
-            }
-          }
-
-          // Top-up copies share card.id so the deck view aggregates them into
-          // one row; allocation still claims any free owned copy by name.
-          for (let j = 0; j < countForColor; j++) {
-            categories.lands.push({ ...basicCard });
-          }
-        }
-      } else {
-        // Colorless deck — use Wastes as the basic land
-        let wastesCard = getCachedCard('Wastes');
-        if (!wastesCard) {
-          try {
-            wastesCard = await getCardByName('Wastes', true);
-          } catch {
-            // Skip if can't fetch
-          }
-        }
-        if (wastesCard) {
-          for (let j = 0; j < remainingShortage; j++) {
-            categories.lands.push({ ...wastesCard });
-          }
-        }
-      }
+      await addBasicLands(remainingShortage);
     }
   }
 
@@ -3616,6 +3643,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Detect combos present in the generated deck
   let detectedCombos = detectCombosPhase(state);
+
+  // Swaps the Combo Integrity Audit below applies — merged into
+  // coherenceRepairs further down (T37 ethos: nothing moves silently, every
+  // auto-fix is disclosed). Was previously logger.debug-only.
+  const comboAuditRepairs: CoherenceRepair[] = [];
 
   // ── Combo Integrity Audit ──
   // After deck assembly: if a combo piece slipped in but its combo is incomplete,
@@ -3684,6 +3716,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function auditAdd(card: ScryfallCard): boolean {
       if (usedNames.has(card.name)) return false; // guard against duplicates
       if (bannedCards.has(card.name)) return false; // respect banlist
+      // Defense-in-depth: every call site below pre-filters candidates for
+      // color identity before evicting a card to make room (a candidate
+      // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
+      // to resolve near-miss detection — see the batch fetch above — so this
+      // is the only gate standing between an off-identity combo card and the
+      // decklist). Sites must still pre-filter so a rejected add doesn't
+      // strand the just-evicted card with nothing added back.
+      if (!fitsColorIdentity(card, colorIdentity)) return false;
       stampRoleSubtypes(card);
       routeCardByType(card, categories);
       usedNames.add(card.name);
@@ -3715,6 +3755,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           notInCollection(name, context.collectionNames)
         )
           continue;
+        // The batch fetch above resolves every combo's cards regardless of
+        // color identity (needed to detect near-misses at all) — this is
+        // the only gate keeping an off-identity combo card out of the deck.
+        if (!fitsColorIdentity(scryfallCardMap.get(name)!, colorIdentity)) continue;
         enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
         const ids = enablerCombos.get(name) ?? [];
         ids.push(dc.comboId);
@@ -3738,6 +3782,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         auditRemove(weak.card, weak.category);
         if (auditAdd(card)) {
           auditSwaps++;
+          comboAuditRepairs.push({
+            cut: weak.card.name,
+            added: card.name,
+            reason: `${weak.card.name} (${auditInclusion.get(weak.card.name) ?? 0}% inclusion) wasn't earning its slot — swapped for ${card.name}, which completes ${combosCompleted} near-miss combo${combosCompleted === 1 ? '' : 's'}.`,
+          });
           // Mark all combos this card completes
           for (const dc of detectedCombos) {
             if (dc.isComplete) continue;
@@ -3787,6 +3836,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         )
         .map((n) => scryfallCardMap.get(n))
         .filter((c): c is ScryfallCard => !!c)
+        // The batch fetch above resolves every combo's cards regardless of
+        // color identity (needed to detect near-misses at all) — this is
+        // the only gate keeping an off-identity combo card out of the deck.
+        .filter((c) => fitsColorIdentity(c, colorIdentity))
         .filter((c) => {
           if (auditPassesBudget(c)) return true;
           comboBudgetSkipCount++;
@@ -3822,6 +3875,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             break;
           }
           auditSwaps++;
+          comboAuditRepairs.push({
+            cut: weak.card.name,
+            added: missing.name,
+            reason: `Completes the ${dc.cards.join(' + ')} combo${dc.results[0] ? ` (${dc.results[0]})` : ''} — swapped in ${missing.name}.`,
+          });
         }
         if (ok) {
           logger.debug(
@@ -3849,6 +3907,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                 !usedNames.has(c.name) &&
                 !bannedCards.has(c.name) &&
                 scryfallCardMap.has(c.name) &&
+                fitsColorIdentity(scryfallCardMap.get(c.name)!, colorIdentity) &&
                 !(
                   constrainsToCollection(collectionStrategy) &&
                   notInCollection(c.name, context.collectionNames)
@@ -3866,11 +3925,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           }
           if (!replacement) continue;
           auditRemove(found.card, found.category);
-          auditAdd(scryfallCardMap.get(replacement.name)!);
-          auditSwaps++;
-          logger.debug(
-            `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
-          );
+          // Gate on the result — an EDHREC-pool candidate should always be
+          // legal/unbanned/undupe by construction, but auditAdd is the sole
+          // backstop; an unchecked call here previously left the orphan
+          // evicted with nothing added back if it ever returned false.
+          if (auditAdd(scryfallCardMap.get(replacement.name)!)) {
+            auditSwaps++;
+            comboAuditRepairs.push({
+              cut: orphanName,
+              added: replacement.name,
+              reason: `${orphanName} was an orphaned piece of an incomplete combo (still missing ${trulyMissing.length} card${trulyMissing.length === 1 ? '' : 's'}) — swapped for ${replacement.name}.`,
+            });
+            logger.debug(
+              `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
+            );
+          }
         }
       }
     }
@@ -4120,7 +4189,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       getBasicLand: async (name) =>
         getCachedCard(name) ?? (await getCardByName(name, true).catch(() => null)),
     });
-    coherenceRepairs = repairResult.repairs;
+    coherenceRepairs = [...comboAuditRepairs, ...repairResult.repairs];
     // A repair add can complete a tracked combo — refresh completeness against
     // the live deck (mirrors the combo-audit / convergence refresh idiom).
     if (coherenceRepairs.length > 0 && detectedCombos) {
