@@ -14,8 +14,10 @@ import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { Link } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
+import { toast } from '../store/toasts';
 import { useAllocations } from '../lib/allocations';
 import { materializeBinders } from '../lib/materialize';
+import { diffMembershipByDefs } from '../lib/binder-moves';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
@@ -26,6 +28,7 @@ import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
+import { InfoTip } from '../components/InfoTip';
 import {
   SelectToggle,
   BulkSelectBar,
@@ -175,6 +178,27 @@ export function BindersIndexPage() {
   const selectedDefs = useMemo(
     () => materialized.filter((b) => sel.selected.has(b.def.id)),
     [materialized, sel.selected]
+  );
+
+  // Reordering re-routes the whole waterfall below the moved binder, so a
+  // single up/down click can silently shuffle cards between binders. Diff
+  // membership before/after (same collection, old vs new binder-def order)
+  // and toast the impact so that isn't invisible.
+  const handleMove = useCallback(
+    (id: string, direction: 'up' | 'down') => {
+      const oldDefs = binders;
+      moveBinder(id, direction);
+      const newDefs = useCollectionStore.getState().binders;
+      const changed = diffMembershipByDefs(cards, oldDefs, newDefs, { allocatedCopyIds });
+      toast.show({
+        message:
+          changed > 0
+            ? `Reorder moved ${changed.toLocaleString()} card${changed === 1 ? '' : 's'} between binders`
+            : "Reorder didn't move any cards",
+        tone: 'info',
+      });
+    },
+    [binders, moveBinder, cards, allocatedCopyIds]
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -367,6 +391,35 @@ export function BindersIndexPage() {
               </button>
             </BulkSelectBar>
           )}
+          {sortField === 'position' && sortDir === 'asc' && (
+            <p className="muted" style={{ marginBottom: '0.5rem' }}>
+              Cards file into the first binder whose rules match, top to bottom.{' '}
+              <InfoTip
+                label="binder priority order"
+                text={
+                  <>
+                    <p className="info-tip-lead">
+                      This order is a <strong>priority list</strong>, not just a display order.
+                    </p>
+                    <ul className="info-tip-list">
+                      <li>
+                        A card lands in exactly one binder: the first one, top to bottom, whose
+                        rules match it.
+                      </li>
+                      <li>
+                        A binder further down only ever sees the cards every binder above it passed
+                        on.
+                      </li>
+                      <li>
+                        Reorder from a row's ⋮ menu (Move up / Move down) — you'll get a toast
+                        showing how many cards moved.
+                      </li>
+                    </ul>
+                  </>
+                }
+              />
+            </p>
+          )}
           <ul className={`binders-index-list is-${view}`}>
             {sorted.map((b, idx) => {
               const selected = sel.selected.has(b.def.id);
@@ -384,6 +437,14 @@ export function BindersIndexPage() {
                     <div className="binders-index-card-body">
                       <div className="binders-index-card-name">{b.def.name}</div>
                       <div className="binders-index-card-meta">
+                        {sortField === 'position' && sortDir === 'asc' && (
+                          <span
+                            className="binders-index-card-tag"
+                            aria-label={`Priority ${b.def.position + 1}`}
+                          >
+                            #{b.def.position + 1}
+                          </span>
+                        )}
                         {b.def.mode === 'manual' && (
                           <span className="binders-index-card-tag">Manual</span>
                         )}
@@ -422,13 +483,13 @@ export function BindersIndexPage() {
                               label: 'Move up',
                               icon: ArrowUp,
                               disabled: idx === 0,
-                              onClick: () => moveBinder(b.def.id, 'up'),
+                              onClick: () => handleMove(b.def.id, 'up'),
                             },
                             {
                               label: 'Move down',
                               icon: ArrowDown,
                               disabled: idx === sorted.length - 1,
-                              onClick: () => moveBinder(b.def.id, 'down'),
+                              onClick: () => handleMove(b.def.id, 'down'),
                             },
                           ]
                         : []),

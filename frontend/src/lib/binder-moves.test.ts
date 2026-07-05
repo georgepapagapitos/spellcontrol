@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeBinderMoves, formatBinderMoveMessage } from './binder-moves';
+import { computeBinderMoves, diffMembershipByDefs, formatBinderMoveMessage } from './binder-moves';
 import type { BinderDef, BinderFilter, EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -139,6 +139,54 @@ describe('computeBinderMoves', () => {
       [binder]
     );
     expect(moves.map((m) => m.card.name)).toEqual(['Ace', 'Zed']);
+  });
+});
+
+describe('diffMembershipByDefs', () => {
+  it('counts cards whose binder changes when reordering swaps priority', () => {
+    // Budget (<=25) before High (>=50); a $10 card sits in Budget either way,
+    // but reordering to put High first doesn't change a $10 card's home.
+    const budget = makeBinder('Budget', { priceMax: 25 }, 0);
+    const high = makeBinder('High', { priceMin: 50 }, 1);
+    const cheap = makeCard({ copyId: 'c1', purchasePrice: 10 });
+    const dual = makeCard({ copyId: 'c2', purchasePrice: 10 }); // also matches only Budget
+
+    const oldDefs = [budget, high];
+    const newDefs = [
+      { ...high, position: 0 },
+      { ...budget, position: 1 },
+    ];
+
+    expect(diffMembershipByDefs([cheap, dual], oldDefs, newDefs)).toBe(0);
+  });
+
+  it('counts a card that moves to a different binder after reordering', () => {
+    // A $60 card matches both a broad binder (price>=0) and High (price>=50).
+    // Swapping which one comes first changes where it lands.
+    const broad = makeBinder('Broad', { priceMin: 0 }, 0);
+    const high = makeBinder('High', { priceMin: 50 }, 1);
+    const card = makeCard({ copyId: 'c1', purchasePrice: 60 });
+
+    const oldDefs = [broad, high];
+    const newDefs = [
+      { ...high, position: 0 },
+      { ...broad, position: 1 },
+    ];
+
+    expect(diffMembershipByDefs([card], oldDefs, newDefs)).toBe(1);
+  });
+
+  it('returns 0 when the defs are unchanged', () => {
+    const binder = makeBinder('High', { priceMin: 50 });
+    const card = makeCard({ purchasePrice: 60 });
+    expect(diffMembershipByDefs([card], [binder], [binder])).toBe(0);
+  });
+
+  it('counts Uncategorized as its own bucket', () => {
+    // Removing the only binder sends the card to Uncategorized — a real change.
+    const binder = makeBinder('High', { priceMin: 50 });
+    const card = makeCard({ purchasePrice: 60 });
+    expect(diffMembershipByDefs([card], [binder], [])).toBe(1);
   });
 });
 
