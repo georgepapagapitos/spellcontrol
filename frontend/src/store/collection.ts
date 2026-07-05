@@ -31,6 +31,7 @@ import { apiUrl } from '../lib/api-base';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
+import { acknowledgeInSnapshot } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
@@ -198,11 +199,24 @@ interface CollectionState {
   // Binder card customization actions
   /** Add a card to a binder's pinned list. No-op if already pinned. Returns true if added. */
   pinCardToBinder: (binderId: string, copyId: string) => boolean;
+  /** Review-queue "Keep here": pins a card to a binder like `pinCardToBinder`,
+   *  but never auto-flips the binder into manual mode — this is a targeted
+   *  "deny this one removal", not an editing action on the whole binder. */
+  keepCardInBinder: (binderId: string, copyId: string) => void;
   /** Remove a card from a binder. If the card is pinned, removes from pinnedCopyIds.
    *  If rule-matched, adds to excludedCopyIds so it stays hidden even if rules still match. */
   removeCardFromBinder: (binderId: string, copyId: string, isRuleMatched: boolean) => void;
   /** Restore a previously excluded card (remove from excludedCopyIds). */
   restoreExcludedCard: (binderId: string, copyId: string) => void;
+  /** Review-queue "Got it": acknowledges a single drifted card into the
+   *  binder's review baseline without recapturing the whole binder. No-op if
+   *  the binder has no baseline yet. See lib/binder-drift.ts:acknowledgeInSnapshot. */
+  acknowledgeBinderCard: (
+    binderId: string,
+    key: string,
+    direction: 'added' | 'removed',
+    card?: EnrichedCard
+  ) => void;
   /** Switch a binder between rules and manual mode. */
   setBinderMode: (binderId: string, mode: 'rules' | 'manual') => void;
   /** Set the explicit card order. Pass undefined to revert to auto-sort. */
@@ -1051,6 +1065,22 @@ export const useCollectionStore = create<CollectionState>()(
         return added;
       },
 
+      keepCardInBinder: (binderId, copyId) => {
+        const cards = get().cards;
+        set((s) => ({
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId) return b;
+            const existing = b.pinnedCopyIds ?? [];
+            if (existing.includes(copyId)) return b;
+            // Same durable-key mechanics as pinCardToBinder, but deliberately
+            // skips its manual-mode auto-flip: "Keep here" is denying one
+            // removal, not a signal that the binder's rules no longer fit.
+            const { keys, ids } = addRef(b.pinnedKeys, existing, copyId, cards);
+            return { ...b, pinnedCopyIds: ids, pinnedKeys: keys, updatedAt: Date.now() };
+          }),
+        }));
+      },
+
       removeCardFromBinder: (binderId, copyId, isRuleMatched) => {
         const cards = get().cards;
         set((s) => ({
@@ -1095,6 +1125,24 @@ export const useCollectionStore = create<CollectionState>()(
               ...b,
               excludedCopyIds: ids,
               excludedKeys: keys,
+              updatedAt: Date.now(),
+            };
+          }),
+        }));
+      },
+
+      acknowledgeBinderCard: (binderId, key, direction, card) => {
+        set((s) => ({
+          binders: s.binders.map((b) => {
+            if (b.id !== binderId || !b.lastReviewedSnapshot) return b;
+            return {
+              ...b,
+              lastReviewedSnapshot: acknowledgeInSnapshot(
+                b.lastReviewedSnapshot,
+                key,
+                direction,
+                card
+              ),
               updatedAt: Date.now(),
             };
           }),
@@ -1331,9 +1379,24 @@ export const useCollectionStore = create<CollectionState>()(
 
       updateBinder: (id, input) => {
         set((s) => ({
-          binders: s.binders.map((b) =>
-            b.id === id ? { ...b, ...input, id: b.id, updatedAt: Date.now() } : b
-          ),
+          binders: s.binders.map((b) => {
+            if (b.id !== id) return b;
+            const next: BinderDef = { ...b, ...input, id: b.id, updatedAt: Date.now() };
+            // Rule edits are intent, not drift: if a rules-mode binder's
+            // filterGroups changed, the new membership IS the new baseline —
+            // clear the snapshot so BinderDriftBanner's auto-baseline effect
+            // re-stamps current membership on next view, instead of diffing
+            // against rules that no longer apply.
+            const isRulesMode = (input.mode ?? b.mode) !== 'manual';
+            if (
+              isRulesMode &&
+              input.filterGroups !== undefined &&
+              JSON.stringify(input.filterGroups) !== JSON.stringify(b.filterGroups)
+            ) {
+              next.lastReviewedSnapshot = undefined;
+            }
+            return next;
+          }),
         }));
       },
 
