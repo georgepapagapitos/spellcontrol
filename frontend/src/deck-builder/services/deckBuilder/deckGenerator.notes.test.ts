@@ -33,6 +33,7 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  buildLandSqueezeTrimNote,
   buildComboUpsideNotes,
   resolvePriceSanity,
   isOverRoleCap,
@@ -364,6 +365,26 @@ describe('buildPriceSanityNote (E80)', () => {
     const note = buildPriceSanityNote(1);
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
+    );
+  });
+});
+
+describe('buildLandSqueezeTrimNote (E88)', () => {
+  it('returns undefined when nothing was cut', () => {
+    expect(buildLandSqueezeTrimNote([], 40, 37)).toBeUndefined();
+  });
+
+  it('names the count, delta, and cut cards with plural phrasing', () => {
+    const note = buildLandSqueezeTrimNote(['Card A', 'Card B'], 40, 37);
+    expect(note).toBe(
+      'Auto-tuned land count to 40 (3 more than the 37-land default) left 2 fewer spell slots than usual — reconciled by cutting the lowest-value picks: Card A, Card B.'
+    );
+  });
+
+  it('uses singular phrasing for exactly one cut card', () => {
+    const note = buildLandSqueezeTrimNote(['Card A'], 38, 37);
+    expect(note).toBe(
+      'Auto-tuned land count to 38 (1 more than the 37-land default) left 1 fewer spell slot than usual — reconciled by cutting the lowest-value pick: Card A.'
     );
   });
 });

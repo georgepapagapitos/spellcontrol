@@ -12,6 +12,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getRemovalSubtype: vi.fn(() => null),
   getBoardwipeSubtype: vi.fn(() => null),
   getCardDrawSubtype: vi.fn(() => null),
+  // #1022 gap fix: isProtected() now also checks isProtectionPiece — default
+  // false, overridden per-test via mockReturnValueOnce where protection
+  // behavior itself is under test (mirrors phaseCoherenceRepair.test.ts).
+  isProtectionPiece: vi.fn(() => false),
 }));
 
 vi.mock('../categorize', async (importOriginal) => {
@@ -42,6 +46,7 @@ import {
   type RoleSurplusRebalanceContext,
 } from './phaseRoleSurplusRebalance';
 import type { GenerationState } from './state';
+import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -241,6 +246,29 @@ describe('applyRoleSurplusRebalance', () => {
     expect([cards[0].name, cards[1].name]).not.toContain(cutName);
     expect(state.usedNames.has(cards[0].name)).toBe(true);
     expect(state.usedNames.has(cards[1].name)).toBe(true);
+  });
+
+  // #1022 gap fix: this pass's isProtected() didn't check isProtectionPiece
+  // until now — a roleless protection/free-interaction piece (Heroic
+  // Intervention/Fierce Guardianship-class) tagged with a reactive role could
+  // still be evicted here even though every sibling pass already protects it.
+  it('never evicts a card flagged isProtectionPiece', () => {
+    const state = makeState();
+    const cards = addRampCards(state, 8);
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === cards[3].name);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
+    } as unknown as GenerationState['edhrecData'];
+    const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+    try {
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).not.toBe(cards[3].name);
+      expect(state.usedNames.has(cards[3].name)).toBe(true);
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
   });
 
   it('never evicts a staple rock flagged isStapleRock', () => {

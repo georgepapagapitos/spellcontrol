@@ -77,7 +77,12 @@ import {
   notOnArena,
   exceedsCmcCap,
 } from './deckFilters';
-import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
+import {
+  calculateTargetCounts,
+  computeAutoLandCount,
+  isDefaultLandCount,
+  DEFAULT_LAND_COUNT,
+} from './targetCounts';
 import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
@@ -140,12 +145,31 @@ import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
+import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
+import {
+  MUST_INCLUDE_BOOST,
+  LAND_PROTECTION_BOOST,
+  COMBO_TRIM_BOOST,
+  ROLE_DEFICIT_TRIM_BOOST,
+  ROLE_SURPLUS_TRIM_PENALTY,
+  STAPLE_PROTECTION_BOOST,
+  PROTECTION_PIECE_BOOST,
+} from './deckGeneration/trimResistanceConstants';
 import { frontFaceName } from '@/lib/card-text';
 
 // Re-exported so existing consumers keep importing from here (stable public API).
 export { calculateStats } from './deckStats';
 export { stampRoleSubtypes } from './categorize';
 export { CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
+export {
+  MUST_INCLUDE_BOOST,
+  LAND_PROTECTION_BOOST,
+  COMBO_TRIM_BOOST,
+  ROLE_DEFICIT_TRIM_BOOST,
+  ROLE_SURPLUS_TRIM_PENALTY,
+  STAPLE_PROTECTION_BOOST,
+  PROTECTION_PIECE_BOOST,
+};
 export type { GenerationContext };
 
 /**
@@ -508,6 +532,24 @@ export function buildPriceSanityNote(decidedCount: number): string | undefined {
 }
 
 /**
+ * E88 disclosure: names the cards phaseLandSqueezeReconcile.ts cut to bring
+ * the deck back to size after auto-tuning land count up past the 37-land
+ * baseline. Composed POST-HOC from the phase's own `cut` list (never from
+ * inside a sort comparator — see buildComboUpsideNotes's doc for why
+ * comparator-side collection is structurally unreliable). Undefined when the
+ * pass never actually cut anything (the common case — see targetCounts.ts).
+ */
+export function buildLandSqueezeTrimNote(
+  cutNames: readonly string[],
+  finalLandCount: number,
+  defaultLandCount: number
+): string | undefined {
+  if (cutNames.length === 0) return undefined;
+  const extra = finalLandCount - defaultLandCount;
+  return `Auto-tuned land count to ${finalLandCount} (${extra} more than the ${defaultLandCount}-land default) left ${cutNames.length} fewer spell slot${cutNames.length === 1 ? '' : 's'} than usual — reconciled by cutting the lowest-value pick${cutNames.length === 1 ? '' : 's'}: ${cutNames.join(', ')}.`;
+}
+
+/**
  * Combo-upside price disclosure: priceSanityTieBreak (cardPicking.ts)
  * deliberately never fights a live combo-assembly boost — an expensive combo
  * piece SHOULD beat a cheap same-role staple when it's genuinely 2-of-3
@@ -597,26 +639,9 @@ export function buildComboUpsideNotes(
 }
 
 // ── Smart Trim resistance constants (priority-aware, role-aware, combo-aware) ──
-// Module-scope (not per-call locals) so computeTrimResistance below is a pure,
-// unit-testable function independent of generateDeckInner's closure.
-export const MUST_INCLUDE_BOOST = 10000;
-export const LAND_PROTECTION_BOOST = 5000; // below must-include but above everything else
-export const COMBO_TRIM_BOOST = 200;
-export const ROLE_DEFICIT_TRIM_BOOST = 50;
-export const ROLE_SURPLUS_TRIM_PENALTY = -30;
-// Staple mana rocks (Sol Ring/Arcane Signet) are appended to the TAIL of
-// categories.ramp after scored categorization (phaseStapleManaRocks.ts), so
-// position-based resistance alone would make them the first ramp cut once
-// ramp is in surplus — comfortably above the worst-case position penalty +
-// ROLE_SURPLUS_TRIM_PENALTY, well below MUST_INCLUDE_BOOST so a user lock
-// still outranks it.
-export const STAPLE_PROTECTION_BOOST = 100;
-// Protection/free-interaction pieces (E87-new Slice A) — same tier as staple
-// rocks: categorically important, not user-locked, not combo-tied, so Smart
-// Trim shouldn't be the first thing to reach for them regardless of pick
-// order (the motivating loss: Heroic Intervention/Fierce Guardianship-class
-// cards silently evicted by a land-count squeeze — see board E82).
-export const PROTECTION_PIECE_BOOST = 100;
+// Live in deckGeneration/trimResistanceConstants.ts (E88, imported up top) so
+// phaseLandSqueezeReconcile.ts can reuse them without a circular import back
+// into this file.
 
 // E89 (iter-7 Slice E) — a commander-side "wants untap" signal distinct from
 // isUntapProducer. Urianger Augurelt's real oracle text (verified against
@@ -1505,6 +1530,22 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // E88: when the auto-tune RAISES land count above the 37-land baseline, size
+  // the type passes as if lands were still at baseline — so they pick their
+  // full, un-squeezed complement (including the marginal roleless-premium
+  // cards that would otherwise never be tried) — and let
+  // phaseLandSqueezeReconcile (just before Smart Trim, below) reconcile the
+  // resulting surplus down to the real land count, globally, disclosed, and
+  // with the SAME protection tiers (must-include/staple/protection-piece/
+  // combo/role) Smart Trim already carries. Only the "shrink nonland budget"
+  // direction needs this — when the auto-tune LOWERS land count, the deck is
+  // genuinely short and the existing generic shortage-fill path already
+  // handles it gracefully by ADDING marginal picks, which has no casualty
+  // problem.
+  const typeTargetLandCount = landCountAutoTuned
+    ? Math.min(resolvedLandCount, DEFAULT_LAND_COUNT)
+    : resolvedLandCount;
+
   // Calculate target counts with type and curve targets
   const {
     composition: targets,
@@ -1515,7 +1556,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     state.edhrecData?.stats,
     !!partnerCommander,
     resolvedPacing,
-    resolvedLandCount
+    resolvedLandCount,
+    typeTargetLandCount
   );
 
   // Archetype identity floor on top of EDHREC's purely stats-driven type
@@ -2934,6 +2976,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Helper to count all cards
   const countAllCards = () => stCountAllCards(state);
+
+  // ── Land-Squeeze Reconciliation (E88) ──
+  // See phaseLandSqueezeReconcile.ts's header for the full mechanism. Runs
+  // immediately before Smart Trim so the deck it hands off is already at (or
+  // very near) targetDeckSize in the common case, making Smart Trim's own
+  // `currentCount > targetDeckSize` check a no-op right after — zero changes
+  // to Smart Trim itself. No-op when the auto-tune never raised land count
+  // past baseline (squeezeDelta <= 0), which covers every existing scenario.
+  const landSqueezeDelta = Math.max(0, resolvedLandCount - typeTargetLandCount);
+  const landSqueezeResult = applyLandSqueezeReconcile(state, {
+    liftScoreOf,
+    roleTargets,
+    currentRoleCounts,
+    squeezeDelta: landSqueezeDelta,
+  });
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
   // Resistance formula lives in computeTrimResistance above (module-scope,
@@ -4578,6 +4635,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // actually decided an outcome (off, or no qualifying pair arose).
   const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
 
+  // Land-squeeze reconciliation disclosure (E88) — undefined when the auto-tune
+  // never raised land count past baseline (the common case).
+  const landSqueezeTrimNote = buildLandSqueezeTrimNote(
+    landSqueezeResult.cut,
+    categories.lands.length,
+    DEFAULT_LAND_COUNT
+  );
+
   // Combo-upside price disclosure — post-hoc scan of the FINAL deck against
   // the FINAL detectedCombos (post trim/audit/repair, mutated in place above)
   // and the batch-fetched EDHREC pool, so a card carrying a live combo boost
@@ -4642,6 +4707,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    landSqueezeTrimNote,
     comboUpsideNotes,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
