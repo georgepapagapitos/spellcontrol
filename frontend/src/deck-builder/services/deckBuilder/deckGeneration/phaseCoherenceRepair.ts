@@ -6,7 +6,7 @@ import type {
   MaxRarity,
   ScryfallCard,
 } from '@/deck-builder/types';
-import type { GenerationState } from './state';
+import { type GenerationState, markBanned } from './state';
 import { frontFaceName } from '@/lib/card-text';
 import { getCardRole, isProtectionPiece } from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
@@ -185,6 +185,11 @@ export async function applyCoherenceRepair(
     if (card.name.includes(' // ')) state.usedNames.delete(frontFaceName(card.name));
     const role = getCardRole(card.name);
     if (role && state.currentRoleCounts[role] > 0) state.currentRoleCounts[role]--;
+    // E87: veto the name so a later mutating phase (bracket/budget convergence,
+    // role-surplus rebalance, lift picks) can't re-pick a card this repair just
+    // cut for a reason that still holds, leaving coherenceRepairs' disclosure
+    // stale against the shipped deck.
+    markBanned(state, card.name);
   };
 
   const addCard = (card: ScryfallCard) => {
