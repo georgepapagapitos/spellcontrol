@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildPullList, isPullableKind } from './pull-list';
+import { buildBinderPlacement, buildPullList, isPullableKind } from './pull-list';
 import type { AllocationInfo } from './allocations';
 import type { Deck, DeckCard } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -266,6 +266,26 @@ describe('buildPullList', () => {
 
   it('returns no groups for an empty deck', () => {
     expect(buildPullList(makeDeck(), [], [makeBinder()], noAlloc)).toEqual([]);
+  });
+
+  it('produces identical groups from a precomputed placement (shared across decks)', () => {
+    const rare = makeCopy({ copyId: 'r', name: 'Rare Card', rarity: 'rare', scryfallId: 'sf-r' });
+    const common = makeCopy({ copyId: 'c', name: 'Common Card', scryfallId: 'sf-c' });
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+    });
+    const deck = makeDeck({
+      cards: [
+        slot(makeScry({ name: 'Rare Card', id: 'sf-r' }), 'r'),
+        slot(makeScry({ name: 'Common Card', id: 'sf-c' }), 'c'),
+      ],
+    });
+    const placement = buildBinderPlacement([rare, common], [rares]);
+    const shared = buildPullList(deck, [rare, common], [rares], noAlloc, undefined, placement);
+    const inline = buildPullList(deck, [rare, common], [rares], noAlloc);
+    expect(shared).toEqual(inline);
   });
 });
 
