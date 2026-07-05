@@ -461,6 +461,46 @@ describe('assembleBuildReport', () => {
     expect(report.roleExcesses).toBeUndefined();
   });
 
+  it('strips the "see Overbuilt roles" cross-reference when roleExcesses is empty', () => {
+    // yuriko-the-tiger-s-shadow (E87 round 3): cardDraw 22 vs 18 — over the
+    // rebalance pass's own cap but under isRoleExcess's 1.5x/>4-over bar, so
+    // roleExcesses never renders. The note must not point at a section that
+    // isn't there.
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        roleCapOverflowNote:
+          '2 cards pushed past its role cap to finish the deck (card draw pool was thin) — see Overbuilt roles below for the full total.',
+        roleTargets: { cardDraw: 18 },
+        roleCounts: { cardDraw: 22 }, // over, but <1.5x and <4 over → no roleExcesses
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.roleExcesses).toBeUndefined();
+    expect(report.roleCapOverflowNote).toBe(
+      '2 cards pushed past its role cap to finish the deck (card draw pool was thin).'
+    );
+  });
+
+  it('keeps the "see Overbuilt roles" cross-reference when roleExcesses is non-empty', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        roleCapOverflowNote:
+          '2 cards pushed past its role cap to finish the deck (ramp pool was thin) — see Overbuilt roles below for the full total.',
+        roleTargets: { ramp: 13 },
+        roleCounts: { ramp: 25 }, // clears isRoleExcess -> roleExcesses renders
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+
+    expect(report.roleExcesses).toEqual([{ role: 'ramp', have: 25, want: 13 }]);
+    expect(report.roleCapOverflowNote).toBe(
+      '2 cards pushed past its role cap to finish the deck (ramp pool was thin) — see Overbuilt roles below for the full total.'
+    );
+  });
+
   it('flags a small-target role well over target as roleExcesses (boardwipe 6 vs 2, iter-3 cluster 8)', () => {
     // Previously silently dropped: >1.5x AND >4-over required current>=7 for a
     // target-2 role, so a 6-vs-2 overage (4 over, 3x target) never registered

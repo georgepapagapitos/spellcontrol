@@ -120,10 +120,10 @@ export function assembleBuildReport(input: {
   // (>1.5x target and >4 cards over; e.g. a ramp bucket at 24 vs an 11 target
   // eating the spell-density budget). Report only — nothing here auto-cuts.
   const roleTargets = generated.roleTargets;
+  const roleExcesses: Array<{ role: string; have: number; want: number }> = [];
   if (roleTargets) {
     const roleCounts = generated.roleCounts ?? {};
     const roleGaps: Array<{ role: string; have: number; want: number }> = [];
-    const roleExcesses: Array<{ role: string; have: number; want: number }> = [];
     for (const [role, want] of Object.entries(roleTargets)) {
       const have = roleCounts[role] ?? 0;
       if (have < want) {
@@ -138,6 +138,20 @@ export function assembleBuildReport(input: {
     if (roleExcesses.length > 0) {
       report.roleExcesses = roleExcesses;
     }
+  }
+
+  // buildRoleCapOverflowNote (deckGenerator.ts) always appends a "see
+  // Overbuilt roles below" cross-reference — true only when roleExcesses
+  // (Overbuilt roles) actually rendered. A role-surplus rebalance pass (E87)
+  // can shrink every surplus below isRoleExcess's 1.3x threshold while still
+  // tripping this pass's own (lower) over-cap bar, leaving roleExcesses empty
+  // and the note pointing at a section that no longer exists. Strip the
+  // dangling clause rather than change the threshold (out of scope).
+  if (report.roleCapOverflowNote && roleExcesses.length === 0) {
+    report.roleCapOverflowNote = report.roleCapOverflowNote.replace(
+      / — see Overbuilt roles below for the full total\.$/,
+      '.'
+    );
   }
 
   // Coaching: cards that are owned but all copies are committed to other decks.
