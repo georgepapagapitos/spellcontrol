@@ -194,10 +194,21 @@ vi.mock('./landGenerator', async (orig) => {
   return { ...actual, generateLands: vi.fn(actual.generateLands) };
 });
 
+// Wraps the real computeAutoLandCount (E88) so a single test can force the
+// auto-tune to raise land count above the 37-land baseline (exercising the
+// land-squeeze reconciliation pass) without touching every other test's
+// land count — every other test's real archetype/ramp/CMC inputs still flow
+// through the actual implementation via mockImplementation(actual...).
+vi.mock('./targetCounts', async (orig) => {
+  const actual = await orig<typeof import('./targetCounts')>();
+  return { ...actual, computeAutoLandCount: vi.fn(actual.computeAutoLandCount) };
+});
+
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
+import { computeAutoLandCount } from './targetCounts';
 import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
@@ -662,5 +673,52 @@ describe('generateDeck — collection relaxation (T43 PR-3)', () => {
       mocked.mockResolvedValue({ data: [] } as unknown as Awaited<ReturnType<typeof searchCards>>);
       clearGenerationCache();
     }
+  });
+});
+
+describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', () => {
+  it('reconciles a forced auto-tune land-count raise: correct deck size, note populated, a protected piece survives while low-inclusion filler is cut', async () => {
+    // Force the auto-tune to raise land count to 39 (past the 37-land
+    // baseline) regardless of this fixture's real archetype/CMC — the
+    // mechanism under test is the RECONCILIATION, not archetype detection.
+    // nonBasicLandCount must be the store default (15) for isDefaultLandCount
+    // to gate the auto-tune branch on at all (this file's customization()
+    // factory otherwise sets 25).
+    vi.mocked(computeAutoLandCount).mockImplementationOnce(() => 39);
+    // The single worst-scoring nonland pick (Creature_31, the tail of the
+    // creature type pass) is seeded as a protection piece — it should survive
+    // the squeeze even though it would otherwise be the first cut.
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Creature_31');
+
+    const ctx = baseContext();
+    ctx.customization = customization({ nonBasicLandCount: 15 });
+    try {
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+
+      // Deck still lands exactly on the 99-card target — the whole point of
+      // reconciliation. (This fixture's absolute final land count also
+      // reflects pre-existing, E88-unrelated land-generation rounding that
+      // varies per scenario across this whole file — see the other golden
+      // cases' snapshots — so this test doesn't assert an exact land number,
+      // only the guarantees E88 itself makes.)
+      expect(names.length).toBe(99);
+      expect(deck.landSqueezeTrimNote).toBeDefined();
+      expect(deck.landSqueezeTrimNote).toMatch(/^Auto-tuned land count to \d+/);
+      // The protected piece survived...
+      expect(names).toContain('Creature_31');
+      // ...while the next-worst, unprotected filler was cut instead.
+      expect(names).not.toContain('Creature_30');
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+      clearGenerationCache();
+    }
+  });
+
+  it('is inert on the plain golden fixture (nonBasicLandCount default 25 never satisfies isDefaultLandCount)', async () => {
+    const deck = await generateDeck(baseContext());
+    expect(deck.landSqueezeTrimNote).toBeUndefined();
   });
 });

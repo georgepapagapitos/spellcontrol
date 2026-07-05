@@ -6,7 +6,11 @@ import type {
   ScryfallCard,
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
-import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import {
+  getCardRole,
+  isProtectionPiece,
+  type RoleKey,
+} from '@/deck-builder/services/tagger/client';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
@@ -281,7 +285,13 @@ export function applyRoleSurplusRebalance(
     completeComboNames.has(card.name) ||
     completeComboNames.has(frontFaceName(card.name)) ||
     !!card.isStapleRock ||
-    STAPLE_ROCK_NAMES.has(card.name);
+    STAPLE_ROCK_NAMES.has(card.name) ||
+    // #1022 gap fix: a roleless protection/free-interaction piece (Heroic
+    // Intervention/Fierce Guardianship-class) shouldn't be evictable here just
+    // because it happens to also carry a reactive-role tag — every sibling
+    // pass (Smart Trim, phaseBracketConverge, phaseBudgetConverge,
+    // phaseCoherenceRepair) already checks this; this pass hadn't yet.
+    isProtectionPiece(card);
 
   // Nonbo-flagged cards evict first (E80 tie-in — the Isshin motivating case:
   // self-damaging wipes in a go-wide token shell). Recomputed here from the

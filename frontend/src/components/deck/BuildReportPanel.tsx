@@ -184,6 +184,7 @@ export function BuildReportPanel({
     generationModeDetail,
     generationNote,
     landCountNote,
+    landSqueezeTrimNote,
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
@@ -244,6 +245,10 @@ export function BuildReportPanel({
       )}
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
+
+      {landSqueezeTrimNote && (
+        <p className="build-report-line build-report-source">{landSqueezeTrimNote}</p>
+      )}
 
       {budgetNote && <p className="build-report-line build-report-source">{budgetNote}</p>}
 

@@ -487,6 +487,11 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Disclosure when phaseLandSqueezeReconcile.ts (E88) cut cards to bring the
+   *  deck back to size after the auto-tune raised land count past the
+   *  37-land baseline. Undefined when the auto-tune never raised land count
+   *  past baseline (the common case). */
+  landSqueezeTrimNote?: string;
   /** Expensive combo pieces the price-sanity tie-break let win over a cheaper
    *  same-role staple for a live-but-still-incomplete combo. Undefined when
    *  none arose, or every combo those cards belonged to went on to complete. */
@@ -619,6 +624,7 @@ export interface GeneratedDeck {
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
+  landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
 }
 

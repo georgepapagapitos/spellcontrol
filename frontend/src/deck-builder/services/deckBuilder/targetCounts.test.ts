@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { calculateTargetCounts, computeAutoLandCount, isDefaultLandCount } from './targetCounts';
+import {
+  calculateTargetCounts,
+  computeAutoLandCount,
+  isDefaultLandCount,
+  DEFAULT_LAND_COUNT,
+} from './targetCounts';
 import { Archetype } from '@/deck-builder/types';
 import type { Customization, EDHRECCommanderStats } from '@/deck-builder/types';
 
@@ -171,6 +176,62 @@ describe('calculateTargetCounts — landCountOverride', () => {
   it('falls back to customization.landCount when no override is given', () => {
     const { composition } = calculateTargetCounts(makeCustomization({ landCount: 37 }));
     expect(composition.lands).toBe(37);
+  });
+});
+
+describe('calculateTargetCounts — typeTargetLandCount (E88)', () => {
+  it('is byte-identical to omitting it when equal to the resolved land count', () => {
+    const omitted = calculateTargetCounts(
+      makeCustomization({ landCount: 37 }),
+      undefined,
+      false,
+      undefined,
+      40
+    );
+    const explicit = calculateTargetCounts(
+      makeCustomization({ landCount: 37 }),
+      undefined,
+      false,
+      undefined,
+      40,
+      40
+    );
+    expect(explicit).toEqual(omitted);
+  });
+
+  it('sizes typeTargets/curveTargets off the SMALLER typeTargetLandCount while composition.lands reports the real (larger) count', () => {
+    const { composition, typeTargets } = calculateTargetCounts(
+      makeCustomization({ landCount: 40 }),
+      undefined,
+      false,
+      undefined,
+      40,
+      DEFAULT_LAND_COUNT // 37 — as if lands were still at baseline
+    );
+    // Actual land generation target is unaffected...
+    expect(composition.lands).toBe(40);
+    // ...but the nonland type-pass budget is sized off 99 - 37 = 62, not 99 - 40 = 59.
+    expect(sum(typeTargets)).toBe(nonLand(DEFAULT_LAND_COUNT));
+    expect(sum(typeTargets)).not.toBe(nonLand(40));
+  });
+
+  it('is a no-op (identical to the explicit-user-choice path) when typeTargetLandCount equals landCountOverride', () => {
+    const withParam = calculateTargetCounts(
+      makeCustomization({ landCount: 37 }),
+      undefined,
+      false,
+      undefined,
+      35,
+      35
+    );
+    const withoutParam = calculateTargetCounts(
+      makeCustomization({ landCount: 37 }),
+      undefined,
+      false,
+      undefined,
+      35
+    );
+    expect(withParam).toEqual(withoutParam);
   });
 });
 

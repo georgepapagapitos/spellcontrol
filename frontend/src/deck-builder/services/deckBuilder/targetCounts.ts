@@ -25,11 +25,16 @@ export interface TargetCountsResult {
 // the user hasn't touched the land inputs (see isDefaultLandCount); an
 // explicit user choice is never second-guessed.
 
+// The flat "goodstuff" land-count baseline — single source of truth (was
+// duplicated as a bare 37 literal in isDefaultLandCount and, before E88, in
+// deckGenerator.ts's landCountNote copy).
+export const DEFAULT_LAND_COUNT = 37;
+
 /** True when landCount/nonBasicLandCount are both still at the store defaults
  *  — the only signal available that the user hasn't customized lands (no
  *  dirty flag is threaded through generation context). */
 export function isDefaultLandCount(customization: Customization): boolean {
-  return customization.landCount === 37 && customization.nonBasicLandCount === 15;
+  return customization.landCount === DEFAULT_LAND_COUNT && customization.nonBasicLandCount === 15;
 }
 
 // Archetypes that lean go-wide/low-curve/dork-heavy and can safely run fewer lands.
@@ -120,7 +125,17 @@ export function calculateTargetCounts(
   pacing?: Pacing,
   /** Archetype-aware auto land count (see computeAutoLandCount); only passed
    *  when the user hasn't customized land count. Overrides customization.landCount. */
-  landCountOverride?: number
+  landCountOverride?: number,
+  /** E88: land count used ONLY to size typeTargets/curveTargets (nonLandCards).
+   *  Defaults to landCountOverride ?? customization.landCount (today's
+   *  behavior) when omitted — every existing call site is unaffected. Only
+   *  deckGenerator.ts's auto-tune branch passes a different (smaller) value,
+   *  so the actual land-generation count (composition.lands, still `landCount`
+   *  below) can raise independently of how many nonland slots the type passes
+   *  are sized for — letting them pick their full, un-squeezed complement and
+   *  leaving the resulting surplus for Smart Trim / phaseLandSqueezeReconcile
+   *  to reconcile down, instead of silently never trying the marginal picks. */
+  typeTargetLandCount?: number
 ): TargetCountsResult {
   const format = customization.deckFormat;
 
@@ -133,7 +148,11 @@ export function calculateTargetCounts(
     Math.max(1, landCountOverride ?? customization.landCount),
     deckCards - 1
   );
-  const nonLandCards = deckCards - landCount;
+  const nonLandBudgetLandCount = Math.min(
+    Math.max(1, typeTargetLandCount ?? landCount),
+    deckCards - 1
+  );
+  const nonLandCards = deckCards - nonLandBudgetLandCount;
 
   // If we have EDHREC stats, use percentage-based targets
   if (edhrecStats && edhrecStats.numDecks > 0) {
