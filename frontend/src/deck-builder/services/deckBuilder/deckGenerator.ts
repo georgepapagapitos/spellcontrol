@@ -3896,6 +3896,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function auditRemove(card: ScryfallCard, category: DeckCategory) {
       categories[category] = categories[category].filter((c) => c !== card);
       usedNames.delete(card.name);
+      // E87: this cut is about to be disclosed in coherenceRepairs — veto the
+      // name so no downstream add phase (bracket/budget convergence, role-
+      // surplus rebalance, lift picks) can silently re-pick it and leave the
+      // disclosure describing an intermediate state the shipped deck contradicts.
+      markBanned(card.name);
     }
 
     // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce — owned
@@ -4085,8 +4090,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         // Can't complete — evict the orphaned low-value pieces, replace with best EDHREC candidates
         for (const orphanName of orphans) {
           if (auditSwaps >= MAX_AUDIT_SWAPS) break;
+          // Never evict lands here — the replacement pool below is
+          // allNonLand-only, so an orphaned combo piece that happens to be a
+          // land (e.g. Riptide Laboratory) would get silently swapped for a
+          // spell, shrinking the land count out from under the resolved
+          // target. Lands have their own top-up/target and stay untouched by
+          // this audit, same as auditWeakest/findWeakestCard just above.
           let found: { card: ScryfallCard; category: DeckCategory } | null = null;
           for (const cat of Object.keys(categories) as DeckCategory[]) {
+            if (cat === 'lands') continue;
             const card = categories[cat].find((c) => c.name === orphanName);
             if (card) {
               found = { card, category: cat };
