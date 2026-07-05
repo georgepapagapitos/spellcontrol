@@ -12,6 +12,10 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // validated form when bucketing a newly-added card — mirror the
   // getCardRole default so behavior is unchanged for this test file.
   validateCardRole: vi.fn(() => null),
+  // E87-new Slice A: isProtected now also checks isProtectionPiece — default
+  // false, overridden per-test via mockReturnValueOnce where protection
+  // behavior itself is under test.
+  isProtectionPiece: vi.fn(() => false),
 }));
 
 // stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real
@@ -30,6 +34,7 @@ import { applyCoherenceRepair, MAX_COHERENCE_SWAPS } from './phaseCoherenceRepai
 import type { CoherenceRepairContext } from './phaseCoherenceRepair';
 import type { GenerationState } from './state';
 import { auditDeckCoherence } from '../coherenceAudit';
+import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -283,6 +288,19 @@ describe('applyCoherenceRepair', () => {
     const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
     expect(repairs).toHaveLength(0);
     expect(deckNames(state)).toContain('Junk Card');
+  });
+
+  it('never cuts a protection-class card (E87-new Slice A)', async () => {
+    const state = makeState();
+    addToDeck(state, scryfallCard('Junk Card'));
+    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    try {
+      const { repairs } = await applyCoherenceRepair(state, makeCtx(state));
+      expect(repairs).toHaveLength(0);
+      expect(deckNames(state)).toContain('Junk Card');
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
   });
 
   it('feeds an under-fed invested engine instead of cutting its payoffs', async () => {

@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { loadTaggerData, getCardRole, cubeRole, validateCardRole } from './client';
+import {
+  loadTaggerData,
+  getCardRole,
+  cubeRole,
+  validateCardRole,
+  isProtectionPiece,
+} from './client';
 
 // Minimal tagger dataset: a cost-reducer (which the generic classifier folds
 // into "ramp"), a genuine ramp spell, and a removal spell. Also includes
@@ -549,5 +555,136 @@ describe('validateCardRole — round-4 strip-sweep pattern fixes', () => {
           'When this creature enters, you may return target card from your graveyard to your hand.',
       })
     ).toBe('cardDraw');
+  });
+});
+
+// isProtectionPiece (E87-new Slice A): a parallel, roleless class flag — not
+// gated on any tagger tag (see the sparse/mixed-signal `protection` otag,
+// no otag fetch list exists in this repo either), pure oracle-text evidence.
+describe('isProtectionPiece', () => {
+  it('mass/anthem grant to your stuff (Heroic Intervention)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Heroic Intervention',
+        oracle_text:
+          "Permanents you control gain hexproof and indestructible until end of turn. (They can't be the targets of spells or abilities your opponents control. They can't be destroyed.)",
+      })
+    ).toBe(true);
+  });
+
+  it('equipment granting hexproof to its bearer (Swiftfoot Boots)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Swiftfoot Boots',
+        oracle_text: 'Equipped creature has hexproof and haste.\nEquip {1}',
+      })
+    ).toBe(true);
+  });
+
+  it('equipment granting shroud to its bearer (Lightning Greaves)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Lightning Greaves',
+        oracle_text:
+          "Equipped creature has haste.\nEquipped creature has shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+      })
+    ).toBe(true);
+  });
+
+  it('single-target protection grant (Mother of Runes)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Mother of Runes',
+        oracle_text:
+          '{T}: Target creature you control gains protection from the color of your choice until end of turn.',
+      })
+    ).toBe(true);
+  });
+
+  it('free alt-cost counterspell (Fierce Guardianship, sentence-crossing template)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Fierce Guardianship',
+        oracle_text:
+          "You may cast this spell without paying its mana cost if it targets a permanent or player you control and it isn't your turn.\nCounter target spell unless its controller pays {5}.",
+      })
+    ).toBe(true);
+  });
+
+  it('unconditional redirect (Deflecting Swat — "rather than pay", not "without paying")', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Deflecting Swat',
+        oracle_text:
+          "If it's not your turn, you may exile a card from your hand rather than pay this spell's mana cost.\nChoose new targets for target spell or ability.",
+      })
+    ).toBe(true);
+  });
+
+  it("granting-subject can't-be-countered (Prowling Serpopard)", () => {
+    expect(
+      isProtectionPiece({
+        name: 'Prowling Serpopard',
+        oracle_text:
+          "Creature spells you control can't be countered. Spells your opponents cast that target a Cat you control cost {2} more to cast.",
+      })
+    ).toBe(true);
+  });
+
+  it("granting-subject can't-be-countered (Vexing Shusher)", () => {
+    expect(
+      isProtectionPiece({
+        name: 'Vexing Shusher',
+        oracle_text:
+          "Target spell can't be countered.\n{2}{R}: Vexing Shusher deals 2 damage to any target.",
+      })
+    ).toBe(true);
+  });
+
+  it("phasing/fog protection (Teferi's Protection)", () => {
+    expect(
+      isProtectionPiece({
+        name: "Teferi's Protection",
+        oracle_text:
+          "Until your next turn, you and permanents you own have hexproof and phasing, and you can't lose the game and your opponents can't win the game.",
+      })
+    ).toBe(true);
+  });
+
+  it("does NOT match a bare self can't-be-countered clause (Supreme Verdict — false-positive guard)", () => {
+    // The exact failure mode this class must avoid: Supreme Verdict's own
+    // "this spell can't be countered" self-protection is NOT a grant to the
+    // player's board and must not read as a protection piece (it would
+    // otherwise silently gain +100 trim resistance in the live eval panel).
+    expect(
+      isProtectionPiece({
+        name: 'Supreme Verdict',
+        oracle_text: "This spell can't be countered.\nDestroy all creatures.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match a bare static "Protection from X" keyword line (Progenitus)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Progenitus',
+        oracle_text:
+          "Protection from everything.\nIf Progenitus would be put into a graveyard from anywhere, reveal Progenitus and shuffle it into its owner's library instead.",
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match a plain removal spell (Path to Exile)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Path to Exile',
+        oracle_text:
+          'Exile target creature. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle.',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card (opposite fallback direction from validateCardRole — no tag to trust)', () => {
+    expect(isProtectionPiece({ name: 'No-Text Card' })).toBe(false);
   });
 });

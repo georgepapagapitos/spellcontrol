@@ -2,7 +2,12 @@ import { logger } from '@/lib/logger';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
-import { getCardRole, isExtraTurn, type RoleKey } from '@/deck-builder/services/tagger/client';
+import {
+  getCardRole,
+  isExtraTurn,
+  isProtectionPiece,
+  type RoleKey,
+} from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
@@ -133,10 +138,11 @@ export function applyBracketConvergence(
   if (commander) commanderNames.push(commander.name);
   if (partnerCommander) commanderNames.push(partnerCommander.name);
 
-  const isProtected = (name: string): boolean =>
-    mustIncludeNames.has(name.toLowerCase()) ||
-    state.comboCardNames.has(name) ||
-    commanderNames.includes(name);
+  const isProtected = (card: ScryfallCard): boolean =>
+    mustIncludeNames.has(card.name.toLowerCase()) ||
+    state.comboCardNames.has(card.name) ||
+    commanderNames.includes(card.name) ||
+    isProtectionPiece(card);
 
   const inclusionMap: Record<string, number> = {};
   for (const c of pool) inclusionMap[c.name] = c.inclusion ?? 0;
@@ -301,7 +307,7 @@ export function applyBracketConvergence(
     ][]) {
       if (cat === 'lands') continue;
       for (const card of cards) {
-        if (isProtected(card.name)) continue;
+        if (isProtected(card)) continue;
         if (isPowerSignal(card.name, state.gameChangerNames)) continue;
         candidates.push({ card, category: cat });
       }
@@ -356,9 +362,9 @@ export function applyBracketConvergence(
     let progressed = false;
     for (const move of plan.moves) {
       if (est.bracket <= target) break;
-      if (isProtected(move.name)) continue;
       const loc = findInDeck(move.name);
       if (!loc) continue; // a land or already gone
+      if (isProtected(loc.card)) continue;
       const filler = pickFiller(getCardRole(move.name));
       if (!filler) continue; // can't keep 100 cards safely — leave the offender
 

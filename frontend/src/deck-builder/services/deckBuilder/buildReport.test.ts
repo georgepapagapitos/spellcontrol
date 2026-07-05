@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { assembleBuildReport } from './buildReport';
-import type {
-  Customization,
-  DeckCategory,
-  GeneratedDeck,
-  ScryfallCard,
+import {
+  Archetype,
+  type Customization,
+  type DeckCategory,
+  type GeneratedDeck,
+  type ScryfallCard,
 } from '@/deck-builder/types';
 
 function makeCard(name: string): ScryfallCard {
@@ -535,5 +536,96 @@ describe('assembleBuildReport', () => {
       collectionNames: new Set(),
     });
     expect(noGaps.roleGaps).toBeUndefined();
+  });
+
+  describe('protectionCount (E87-new Slice A)', () => {
+    const heroicIntervention = (name: string, extra: Partial<ScryfallCard> = {}) => ({
+      ...makeCard(name),
+      oracle_text:
+        "Permanents you control gain hexproof and indestructible until end of turn. (They can't be the targets of spells or abilities your opponents control. They can't be destroyed.)",
+      ...extra,
+    });
+
+    it('counts real protection-class cards in the mainboard', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          categories: categories({
+            creatures: [makeCard('Vanilla A'), makeCard('Vanilla B')],
+            synergy: [heroicIntervention('Heroic Intervention')],
+          }),
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.protectionCount).toBe(1);
+    });
+
+    it('is 0, not undefined, when the deck has none — always rendered', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          categories: categories({ creatures: [makeCard('Vanilla A')] }),
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.protectionCount).toBe(0);
+    });
+
+    it('excludes lands even when a protection-flavored land sits in a non-land category (DFC precedent, #1012)', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          categories: categories({
+            synergy: [heroicIntervention('Land Piece', { type_line: 'Land' })],
+          }),
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.protectionCount).toBe(0);
+    });
+
+    it('discloses a Voltron zero-protection gap', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          categories: categories({ creatures: [makeCard('Vanilla A')] }),
+          detectedArchetype: Archetype.VOLTRON,
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.protectionCount).toBe(0);
+      expect(report.protectionZeroNote).toBeDefined();
+    });
+
+    it('does not disclose the zero-protection note for a non-Voltron archetype', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          categories: categories({ creatures: [makeCard('Vanilla A')] }),
+          detectedArchetype: Archetype.GOODSTUFF,
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.protectionZeroNote).toBeUndefined();
+    });
+
+    it('does not disclose the zero-protection note when Voltron already has protection', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          categories: categories({ synergy: [heroicIntervention('Heroic Intervention')] }),
+          detectedArchetype: Archetype.VOLTRON,
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+
+      expect(report.protectionCount).toBe(1);
+      expect(report.protectionZeroNote).toBeUndefined();
+    });
   });
 });

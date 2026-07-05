@@ -15,6 +15,7 @@ import {
   getRemovalSubtype,
   getBoardwipeSubtype,
   getCardDrawSubtype,
+  isProtectionPiece,
 } from '@/deck-builder/services/tagger/client';
 import {
   getGameChangerNames,
@@ -163,6 +164,19 @@ export function computeRoleCounts(cards: RoleCard[]): RoleCountResult {
     boardwipeSubtypeCounts,
     cardDrawSubtypeCounts,
   };
+}
+
+/**
+ * Count of protection/free-interaction pieces (E87-new Slice A) — a parallel
+ * class flag, not one of the 4 tracked roles (see isProtectionPiece), so it's
+ * never part of roleCounts. Excludes lands via the front-face type line (the
+ * #1012 DFC precedent — a land materialized in a non-land category still
+ * reads as a land here).
+ */
+export function countProtectionPieces(cards: RoleCard[]): number {
+  return cards.filter(
+    (c) => !frontTypeLine(c).toLowerCase().includes('land') && isProtectionPiece(c)
+  ).length;
 }
 
 // ── EDHREC inclusion lookup (shared with the generator) ─────────────────────

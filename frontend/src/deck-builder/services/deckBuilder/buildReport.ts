@@ -1,6 +1,19 @@
-import type { BuildReport, Customization, DeckCategory, GeneratedDeck } from '@/deck-builder/types';
+import {
+  Archetype,
+  type BuildReport,
+  type Customization,
+  type DeckCategory,
+  type GeneratedDeck,
+} from '@/deck-builder/types';
 import { buildSynergyFingerprint, topMatchedTags } from './synergyFingerprint';
 import { isRoleExcess } from './deckAnalyzer';
+import { countProtectionPieces } from './commanderDeckAnalysis';
+
+// Archetypes where a deck built with ZERO protection/free-interaction pieces
+// is a real gap worth flagging — Voltron (one big threat that needs Lightning
+// Greaves/Swiftfoot Boots/Heroic Intervention-class insurance) for v1. Not
+// broadened beyond this without panel evidence (E87-new Slice A).
+const PROTECTION_MOTIVATED_ARCHETYPES: Archetype[] = [Archetype.VOLTRON];
 
 /**
  * Assemble the compact, persisted "build report" recording how a generated
@@ -152,6 +165,23 @@ export function assembleBuildReport(input: {
       / — see Overbuilt roles below for the full total\.$/,
       '.'
     );
+  }
+
+  // Protection/free-interaction piece count (E87-new Slice A) — always
+  // rendered, including 0: the motivating gap is decks (esp. Voltron) that
+  // silently generate none of these. Never role-tracked (parallel class, not
+  // a RoleKey), so computed independently of roleTargets/roleCounts.
+  const nonLandCards = (Object.keys(generated.categories) as DeckCategory[])
+    .filter((cat) => cat !== 'lands')
+    .flatMap((cat) => generated.categories[cat]);
+  report.protectionCount = countProtectionPieces(nonLandCards);
+  if (
+    report.protectionCount === 0 &&
+    generated.detectedArchetype != null &&
+    PROTECTION_MOTIVATED_ARCHETYPES.includes(generated.detectedArchetype)
+  ) {
+    report.protectionZeroNote =
+      'No protection or free-interaction pieces (e.g. Heroic Intervention, Swiftfoot Boots, Fierce Guardianship) — a Voltron deck usually wants insurance for its one big threat.';
   }
 
   // Coaching: cards that are owned but all copies are committed to other decks.

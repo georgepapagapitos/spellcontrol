@@ -195,6 +195,8 @@ export function BuildReportPanel({
     coherenceRepairs,
     budgetRepairs,
     surplusConversions,
+    protectionCount,
+    protectionZeroNote,
   } = report;
 
   const isPartial = collectionStrategy === 'partial';
@@ -247,6 +249,15 @@ export function BuildReportPanel({
 
       {roleCapOverflowNote && (
         <p className="build-report-line build-report-source">{roleCapOverflowNote}</p>
+      )}
+
+      <p className="build-report-line build-report-source">
+        Protection/interaction: <strong>{protectionCount ?? 0}</strong>{' '}
+        {(protectionCount ?? 0) === 1 ? 'piece' : 'pieces'}
+      </p>
+
+      {protectionZeroNote && (
+        <p className="build-report-line build-report-source">{protectionZeroNote}</p>
       )}
 
       {surplusConversions && surplusConversions.length > 0 && (

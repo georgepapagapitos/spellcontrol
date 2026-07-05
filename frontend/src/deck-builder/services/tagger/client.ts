@@ -299,6 +299,74 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
     /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|return[^.]*?graveyard[^.]*?hand/i,
 };
 
+// Positive-evidence classifier for the protection/free-interaction class
+// (iter-7 Slice A, E87-new). Unlike ROLE_EVIDENCE, there is no tagger tag to
+// gate on first — refresh-tagger.mjs has no otag fetch list to add to, and
+// the shipped `protection` otag is sparse (29 cards) and mixed-signal (mostly
+// "mentions the protection keyword," not "protects your stuff"). Pure
+// oracle-text classification, a PARALLEL flag rather than a 5th RoleKey — no
+// pick-time target/cap/floor, called directly wherever a "never evict this"
+// signal is needed (see computeTrimResistance, phaseCoherenceRepair,
+// phaseBudgetConverge, phaseBracketConverge, the Combo Integrity Audit).
+//
+// Branches (each an independent OR-alternative):
+//  1. Mass/anthem grant to YOUR stuff — "permanents/creatures you control
+//     have/gain hexproof/shroud/indestructible" (Heroic Intervention, Avacyn
+//     Angel of Hope, Sigarda Font of Blessings).
+//  2. Equipment granting the keyword to its bearer (Lightning Greaves,
+//     Swiftfoot Boots).
+//  3. Single-target protection grant, one-shot or activated (Mother of
+//     Runes, Faith's Shield, Tamiyo's Safekeeping).
+//  4. Free alternative-cost counter/redirect template — "without paying its
+//     mana cost ... counter target spell / choose new targets" (Fierce
+//     Guardianship). `[\s\S]*?` (not `[^.]` like the other branches)
+//     deliberately crosses the sentence boundary between the alt-cost clause
+//     and the effect clause — real cards in this template put them in
+//     separate sentences.
+//  5. Unconditional spell/ability redirect (Deflecting Swat — its actual
+//     alt-cost phrasing is "rather than pay," not "without paying," so this
+//     branch (not #4) is what catches it).
+//  6. A granting subject's spells can't be countered — "spells you control"
+//     or "target spell," NOT a bare self-clause. This is the amended form:
+//     a plain `can'?t be countered` would also match a boardwipe's own
+//     self-protection line (Supreme Verdict, Carnage Tyrant, Loxodon
+//     Smiter's "This spell can't be countered") and silently grant them
+//     trim immunity they were never meant to have. Requiring a "you
+//     control"/"target" subject excludes that self-clause while still
+//     catching Prowling Serpopard ("Creature spells you control can't be
+//     countered") and Vexing Shusher ("Target spell can't be countered").
+//  7. Teferi's-Protection-style phasing / "can't lose the game" fog.
+//
+// False-positive guard: Progenitus's bare "Protection from everything" static
+// keyword line matches none of the above — every branch requires a grant verb
+// (have/gain(s)) or an explicit target/subject qualifier adjacent to the
+// keyword, not a standalone "Protection from X" line.
+const PROTECTION_EVIDENCE =
+  /(permanents?|creatures?) you control[^.]*?(have|gains?)[^.]*?(hexproof|shroud|indestructible)|equipped (creature|permanent)[^.]*?(has|have)[^.]*?(hexproof|shroud|indestructible)|target (creature|permanent)[^.]*?gains? (hexproof|shroud|indestructible|protection from)|without paying (its|this spell.?s) mana cost[\s\S]*?(counter target spell|choose new targets)|choose new targets for target spell or ability|(spells? you control|target spell)[^.]*?can'?t be countered|phas(?:e|ing)[^.]*?(?:along with you|out|in)|can'?t lose the game/i;
+
+/**
+ * Positive-evidence protection/free-interaction classifier (E87-new Slice A).
+ * Pure oracle-text check, independent of `RoleKey`/`getCardRole` — see
+ * PROTECTION_EVIDENCE above for the branch-by-branch rationale. Unlike
+ * `validateCardRole`, there is no tag to fall back to, so a text-less card
+ * simply returns false (can't confirm a class we can't read evidence for —
+ * the opposite fallback direction from validateCardRole, which trusts the
+ * tag when text is unavailable; this classifier has no tag to trust).
+ */
+export function isProtectionPiece(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  return PROTECTION_EVIDENCE.test(text);
+}
+
 /**
  * Positive-evidence-gated role classification. Returns the same role
  * `getCardRole` would (by name) IFF the card's own oracle text corroborates

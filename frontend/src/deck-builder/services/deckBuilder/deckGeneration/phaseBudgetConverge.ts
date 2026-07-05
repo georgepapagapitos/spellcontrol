@@ -9,7 +9,11 @@ import type {
 } from '@/deck-builder/types';
 import type { GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
-import { getCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
+import {
+  getCardRole,
+  isProtectionPiece,
+  type RoleKey,
+} from '@/deck-builder/services/tagger/client';
 import { roleCapTolerance, stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
@@ -345,6 +349,7 @@ export async function applyBudgetConvergence(
     if (state.cfg.targetBracket === undefined && state.gameChangerNames.has(card.name))
       return 'a game changer';
     if (state.comboCardNames.has(card.name)) return 'a combo-flavored pick';
+    if (isProtectionPiece(card)) return 'a protection/free-interaction piece';
     return null;
   };
 

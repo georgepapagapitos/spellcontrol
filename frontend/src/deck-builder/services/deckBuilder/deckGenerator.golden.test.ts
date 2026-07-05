@@ -173,6 +173,12 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   getCardRole: vi.fn(() => null),
   getCardSubtype: vi.fn(() => null),
   isTapland: vi.fn(() => false),
+  // E87-new Slice A: isProtectionPiece is a pure oracle-text regex, NOT
+  // routed through getCardRole — mocking getCardRole above has zero effect
+  // on it, so it needs its own inert-by-default mock (this fixture universe's
+  // cards all have oracle_text: '', which already reads false, but stubbing
+  // it explicitly keeps goldens inert by construction rather than by luck).
+  isProtectionPiece: vi.fn(() => false),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver
@@ -187,6 +193,7 @@ import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
+import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -506,6 +513,73 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
       expect(repair!.reason).toMatch(/completes 2 near-miss combos/);
     } finally {
       mockedFetch.mockImplementation(realFetch);
+      clearGenerationCache();
+    }
+  });
+
+  it('never evicts anything via auditWeakest when every candidate reads as a protection piece (E87-new Slice A)', async () => {
+    // Same shape as the "discloses a legal combo-audit swap" case above, but
+    // with isProtectionPiece forced true for every card — auditWeakest's skip
+    // condition means it can never find an evictable candidate, so the
+    // near-miss combo can't complete even though its enabler is legal and
+    // resolvable. Proves the wiring (auditWeakest → isProtectionPiece) without
+    // needing to know which specific card the real fill would pick as weakest.
+    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+      {
+        comboId: 'test-combo-e',
+        cards: [
+          { name: 'Creature_1', id: 'c1' },
+          { name: 'On-Color Enabler 2', id: 'oce2' },
+        ],
+        results: ['Test combo E result'],
+        deckCount: 500,
+        rank: 1,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+      {
+        comboId: 'test-combo-f',
+        cards: [
+          { name: 'Creature_2', id: 'c2' },
+          { name: 'On-Color Enabler 2', id: 'oce2' },
+        ],
+        results: ['Test combo F result'],
+        deckCount: 400,
+        rank: 2,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    const ON_COLOR2: ScryfallCard = mkSC('On-Color Enabler 2', 'Enchantment', 5); // color_identity ['G']
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      if (names.includes('On-Color Enabler 2')) m.set('On-Color Enabler 2', ON_COLOR2);
+      return m;
+    });
+    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    try {
+      const ctx = baseContext();
+      // tinyLeaders caps cmc<=3 so the enabler (cmc:5) can ONLY enter via the
+      // audit, matching the "discloses a legal combo-audit swap" test above.
+      ctx.customization = customization({ comboCount: 3, tinyLeaders: true });
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).not.toContain('On-Color Enabler 2');
+      const repair = (deck.coherenceRepairs ?? []).find((r) => r.added === 'On-Color Enabler 2');
+      expect(repair).toBeUndefined();
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
       clearGenerationCache();
     }
   });
