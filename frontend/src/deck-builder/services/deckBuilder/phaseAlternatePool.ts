@@ -17,7 +17,11 @@
 // Pool queries always run against the LIVE Scryfall API (the generator sets the
 // force-live flag): the offline query parser can't evaluate otag:/arttag:/year.
 import { logger } from '@/lib/logger';
-import { getFrontFaceTypeLine, searchCards } from '@/deck-builder/services/scryfall/client';
+import {
+  getFrontFaceTypeLine,
+  searchCards,
+  commanderSearchIdentity,
+} from '@/deck-builder/services/scryfall/client';
 import type {
   Customization,
   DeckDataSource,
@@ -280,7 +284,10 @@ async function fetchPool(
   const pages = Math.ceil(take / SCRYFALL_PAGE_SIZE);
   for (let page = 1; page <= pages; page++) {
     try {
-      const res = await searchCards(query, colorIdentity, { order: 'edhrec', page });
+      const res = await searchCards(query, commanderSearchIdentity(colorIdentity), {
+        order: 'edhrec',
+        page,
+      });
       out.push(...res.data);
       if (!res.has_more || out.length >= take) break;
     } catch (err) {

@@ -2,7 +2,7 @@
 // target. Extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
-import { searchCards } from '@/deck-builder/services/scryfall/client';
+import { searchCards, commanderSearchIdentity } from '@/deck-builder/services/scryfall/client';
 import { BudgetTracker } from './budgetTracker';
 import {
   exceedsMaxPrice,
@@ -101,7 +101,9 @@ export async function fillWithScryfall(
   }
 
   try {
-    const response = await searchCards(fullQuery, colorIdentity, { order: 'edhrec' });
+    const response = await searchCards(fullQuery, commanderSearchIdentity(colorIdentity), {
+      order: 'edhrec',
+    });
 
     // Pass 1: cards clearing the static gates, in Scryfall's global edhrec order.
     // Budget is applied in pass 2 since its cap moves as we deduct.
