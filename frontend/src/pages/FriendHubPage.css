@@ -77,6 +77,96 @@
   margin: 0 0 var(--space-2);
 }
 
+/* ── Trade radar ─────────────────────────────────────────────────── */
+
+.friend-hub-radar-skeleton {
+  height: 9.5rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--surface) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .friend-hub-radar-skeleton {
+    animation: none;
+  }
+}
+
+.friend-hub-radar-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.friend-hub-radar-lede {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* Horizontal thumbnail strip — scrolls itself; the page never scrolls
+   sideways. */
+.friend-hub-radar-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.friend-hub-radar-card {
+  flex: 0 0 auto;
+  width: 6rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Real card proportions + the app's card-scan corner treatment (matches
+   .list-entries-grid-cell). */
+.friend-hub-radar-thumb {
+  width: 100%;
+  aspect-ratio: 488 / 680;
+  object-fit: cover;
+  border-radius: 4.5% / 3.2%;
+  background: var(--surface-raised);
+  display: block;
+}
+
+.friend-hub-radar-thumb.is-placeholder {
+  border: 0.5px solid var(--border);
+}
+
+.friend-hub-radar-name {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-hub-radar-qty {
+  color: var(--text-secondary);
+}
+
+.friend-hub-radar-sub {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .friend-hub-list {
   list-style: none;
   padding: 0;

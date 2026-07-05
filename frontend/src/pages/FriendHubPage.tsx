@@ -1,10 +1,14 @@
 import './FriendHubPage.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
 import { useAuth } from '../store/auth';
+import { useCollectionStore } from '../store/collection';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
+import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
+import { buildTradeRadar, type TradeRadarMatch } from '../lib/trade-radar';
+import { useCardThumb } from '../lib/card-thumbs';
 import { H2HSummary } from '../components/play/H2HSummary';
 import type { ShareKind } from '../lib/shared-types';
 
@@ -37,6 +41,47 @@ export function FriendHubPage() {
   const [error, setError] = useState<string | null>(null);
   const [h2h, setH2h] = useState<H2HResponse | null>(null);
   const [h2hLoading, setH2hLoading] = useState(true);
+
+  // Trade radar: cross-reference the viewer's own want lists against this
+  // friend's collection — the same oracle-level fetch the cube collab pool
+  // uses, so it rides the existing sharing model (no new privacy surface).
+  const lists = useCollectionStore((s) => s.lists);
+  const wantsAnything = lists.some((l) => l.entries.length > 0);
+  const [radarAttempt, setRadarAttempt] = useState(0);
+  // Keyed result: a stale key (friend switch / retry) reads as loading again,
+  // so the effect never needs a synchronous reset-setState.
+  const [radarResult, setRadarResult] = useState<{
+    key: string;
+    cards: FriendCard[] | null;
+    error: boolean;
+  } | null>(null);
+  const radarKey = `${friendId ?? ''}:${radarAttempt}`;
+
+  useEffect(() => {
+    // Nothing on any list → nothing to radar; skip the fetch entirely.
+    if (status !== 'authed' || !friendId || !wantsAnything) return;
+    let cancelled = false;
+    const key = `${friendId}:${radarAttempt}`;
+    fetchFriendCollection(friendId)
+      .then((res) => {
+        if (!cancelled) setRadarResult({ key, cards: res.cards, error: false });
+      })
+      .catch(() => {
+        if (!cancelled) setRadarResult({ key, cards: null, error: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [friendId, status, wantsAnything, radarAttempt]);
+
+  const radarCurrent = radarResult && radarResult.key === radarKey ? radarResult : null;
+  const radarError = radarCurrent?.error ?? false;
+  const friendCards = radarCurrent?.cards ?? null;
+
+  const radar: TradeRadarMatch[] | null = useMemo(
+    () => (friendCards ? buildTradeRadar(lists, friendCards) : null),
+    [lists, friendCards]
+  );
 
   useEffect(() => {
     if (status !== 'authed' || !friendId) return;
@@ -96,6 +141,7 @@ export function FriendHubPage() {
   const loading = shares === null;
   const sharesList = shares ?? [];
   const heading = ownerUsername ? `@${ownerUsername}` : 'Shared with friends';
+  const who = ownerUsername ? `@${ownerUsername}` : 'this friend';
 
   return (
     <div className="friend-hub">
@@ -119,6 +165,47 @@ export function FriendHubPage() {
             </div>
           </section>
         )
+      )}
+
+      {wantsAnything && (
+        <section className="friend-hub-section" aria-label="Trade radar">
+          <h2 className="friend-hub-section-head">Trade radar</h2>
+          {radarError ? (
+            <p className="friend-hub-radar-note" role="alert">
+              Couldn’t check {who}’s collection against your want lists.{' '}
+              <button
+                type="button"
+                className="btn-link friend-hub-radar-retry"
+                onClick={() => setRadarAttempt((n) => n + 1)}
+              >
+                Try again
+              </button>
+            </p>
+          ) : radar === null ? (
+            <div
+              className="friend-hub-radar-skeleton"
+              aria-label="Checking your want lists"
+              aria-busy="true"
+            />
+          ) : radar.length === 0 ? (
+            <p className="friend-hub-radar-note" role="status">
+              Nothing on your want lists is in {who}’s collection.
+            </p>
+          ) : (
+            <>
+              <p className="friend-hub-radar-lede">
+                {radar.length === 1
+                  ? `1 card on your want list — ${who} has it`
+                  : `${radar.length} cards on your want list — ${who} has these`}
+              </p>
+              <ul className="friend-hub-radar-strip" aria-label="Want-list cards this friend owns">
+                {radar.map((m) => (
+                  <RadarCardTile key={m.name} match={m} />
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
       )}
 
       {error && (
@@ -152,6 +239,42 @@ export function FriendHubPage() {
         })
       )}
     </div>
+  );
+}
+
+/** One want-list card the friend owns: thumbnail (CDN via useCardThumb, never
+ *  the throttled Scryfall API), name, and which list wants it + target price. */
+function RadarCardTile({ match }: { match: TradeRadarMatch }) {
+  const thumb = useCardThumb(match.name, 'small');
+  const subParts = [
+    match.listNames.length > 1
+      ? `${match.listNames[0]} +${match.listNames.length - 1}`
+      : match.listNames[0],
+  ];
+  if (match.targetPrice !== undefined) subParts.push(`$${match.targetPrice.toFixed(2)} target`);
+  const sub = subParts.join(' · ');
+  return (
+    <li className="friend-hub-radar-card">
+      {thumb ? (
+        <img
+          className="friend-hub-radar-thumb"
+          src={thumb}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          draggable={false}
+        />
+      ) : (
+        <span className="friend-hub-radar-thumb is-placeholder" aria-hidden />
+      )}
+      <span className="friend-hub-radar-name" title={match.name}>
+        {match.name}
+        {match.quantity > 1 && <span className="friend-hub-radar-qty"> ×{match.quantity}</span>}
+      </span>
+      <span className="friend-hub-radar-sub" title={sub}>
+        {sub}
+      </span>
+    </li>
   );
 }
 
