@@ -28,13 +28,13 @@ const DRIFT_TIP = (
     <ul className="info-tip-list">
       <li>
         <strong>Newly matching:</strong> cards that now match this binder's rules but weren't here
-        before. <strong>Got it</strong> accepts it into the baseline; <strong>Don't add</strong>{' '}
-        excludes it (it re-files to wherever it would land next).
+        before. <strong>Added it</strong> means you've physically slotted the card in;{' '}
+        <strong>Don't add</strong> excludes it (it re-files to wherever it would land next).
       </li>
       <li>
         <strong>No longer matching:</strong> cards that fell out (price changed, moved to another
-        binder, etc.), grouped by where they now live. <strong>Got it</strong> accepts the removal;{' '}
-        <strong>Keep here</strong> pins the card back.
+        binder, etc.), grouped by where they now live. <strong>Moved it</strong> means you've
+        physically re-filed the card; <strong>Keep it here</strong> pins it back into this binder.
       </li>
       <li>
         <strong>Mark reviewed</strong> means "I've seen everything and updated my physical binder."
@@ -61,7 +61,7 @@ interface Props {
  * one-time silent capture on first view.
  *
  * After that, "Mark reviewed" re-stamps the whole binder; the per-row
- * actions (Got it / Keep here / Don't add) surgically resolve one card at a
+ * actions (Added it / Moved it / Keep it here / Don't add) surgically resolve one card at a
  * time without touching the rest of the baseline.
  */
 export function BinderDriftBanner({ binder }: Props) {
@@ -179,7 +179,7 @@ export function BinderDriftBanner({ binder }: Props) {
                 </span>
                 {queue.addedRows.length > 1 && (
                   <button type="button" className="btn-link" onClick={handleAcknowledgeAllAdded}>
-                    Got it — all
+                    Added all
                   </button>
                 )}
               </div>
@@ -188,6 +188,7 @@ export function BinderDriftBanner({ binder }: Props) {
                   <QueueRow
                     key={row.key}
                     row={row}
+                    acknowledgeLabel="Added it"
                     primaryLabel="Don't add"
                     onPrimary={() => handleDontAdd(row)}
                     onAcknowledge={() => handleAcknowledgeAdded(row)}
@@ -230,7 +231,7 @@ function RemovedGroupBlock({
         </span>
         {group.rows.length > 1 && (
           <button type="button" className="btn-link" onClick={() => onAcknowledgeAll(group.rows)}>
-            Got it — all
+            Moved all
           </button>
         )}
       </div>
@@ -239,7 +240,8 @@ function RemovedGroupBlock({
           <QueueRow
             key={row.key}
             row={row}
-            primaryLabel="Keep here"
+            acknowledgeLabel="Moved it"
+            primaryLabel="Keep it here"
             onPrimary={() => onKeepHere(row)}
             onAcknowledge={() => onAcknowledgeOne(row)}
           />
@@ -251,11 +253,13 @@ function RemovedGroupBlock({
 
 function QueueRow({
   row,
+  acknowledgeLabel,
   primaryLabel,
   onPrimary,
   onAcknowledge,
 }: {
   row: ReviewQueueRow;
+  acknowledgeLabel: string;
   primaryLabel: string;
   onPrimary: () => void;
   onAcknowledge: () => void;
@@ -271,10 +275,20 @@ function QueueRow({
       )}
       <span className="binder-drift-card-reason"> — {formatDriftReason(row.reason)}</span>
       <span className="binder-drift-queue-actions">
-        <button type="button" className="btn-link" onClick={onAcknowledge}>
-          Got it
+        <button
+          type="button"
+          className="btn-link"
+          aria-label={`${acknowledgeLabel} — ${row.name}`}
+          onClick={onAcknowledge}
+        >
+          {acknowledgeLabel}
         </button>
-        <button type="button" className="btn-link" onClick={onPrimary}>
+        <button
+          type="button"
+          className="btn-link"
+          aria-label={`${primaryLabel} — ${row.name}`}
+          onClick={onPrimary}
+        >
           {primaryLabel}
         </button>
       </span>

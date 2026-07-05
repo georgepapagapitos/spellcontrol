@@ -10,7 +10,7 @@ export interface ReviewQueueRow {
   reason: DriftCard['reason'];
   /** Every physical copyId this row's actions apply to (roll-up ×N). */
   copyIds: string[];
-  /** A live representative card, when one exists — needed for "Got it"
+  /** A live representative card, when one exists — needed for "Added it"
    *  (added) to snapshot current price/edhrec, and for "Don't add" to
    *  compute where the card would file next. Undefined for a removed row
    *  whose card left the collection entirely. */
@@ -50,7 +50,7 @@ export function destinationKey(d: RemovedDestination): string {
 /**
  * Builds the review queue's row/group structure from a drift result. Pure —
  * no store reads, no mutation. The per-row `copyIds` roll up every owned copy
- * sharing that printing+finish so a bulk "Keep here" / "Don't add" click
+ * sharing that printing+finish so a bulk "Keep it here" / "Don't add" click
  * applies to all of them, not just the one representative in `DriftCard`.
  *
  * - Removed rows are grouped by where the card currently lands (computed via
@@ -103,7 +103,7 @@ export function buildReviewQueue(
       group = { destination, rows: [] };
       groupsByKey.set(gk, group);
     }
-    // Every currently-owned copy of this printing — "Keep here" re-pins all
+    // Every currently-owned copy of this printing — "Keep it here" re-pins all
     // of them, not just the one representative copy the drift diff kept.
     group.rows.push(toRow(dc, allByKey.get(dc.key) ?? []));
   }

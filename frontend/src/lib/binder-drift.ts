@@ -310,7 +310,8 @@ export function hasSnapshot(def: BinderDef): boolean {
 /**
  * Surgically updates ONE card's presence in a review-baseline snapshot,
  * without recapturing the whole binder (that's what `captureBinderSnapshot` /
- * "Mark reviewed" is for). Backs the review queue's per-row "Got it" action.
+ * "Mark reviewed" is for). Backs the review queue's per-row "Added it" /
+ * "Moved it" confirmations.
  *
  * - `direction: 'added'` — the card now matches the binder but wasn't in the
  *   baseline. Acknowledging means "yes, I added this" — add its key plus a

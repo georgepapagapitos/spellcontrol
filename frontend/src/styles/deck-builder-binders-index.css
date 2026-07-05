@@ -214,6 +214,13 @@
   letter-spacing: 0.02em;
 }
 
+/* Pending review-queue work ("N to review") — informational accent so it
+   reads as an inbox count, not a warning. */
+.binders-index-card-tag--review {
+  background: var(--accent-light);
+  color: var(--info);
+}
+
 .binders-index-list.is-compact .binders-index-card {
   /* Clamp every li to the column width so long binder names ellipsis
      instead of pushing the row past the right edge. `overflow: hidden`
