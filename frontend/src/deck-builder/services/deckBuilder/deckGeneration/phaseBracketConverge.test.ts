@@ -13,6 +13,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // validated form when bucketing a newly-added card — mirror the
   // getCardRole default so behavior is unchanged for this test file.
   validateCardRole: vi.fn(() => null),
+  // E87-new Slice A: isProtected now also checks isProtectionPiece — default
+  // false, overridden per-test where protection behavior is under test.
+  isProtectionPiece: vi.fn(() => false),
 }));
 
 // stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real
@@ -26,7 +29,7 @@ vi.mock('../categorize', async (importOriginal) => {
 });
 
 import { applyBracketConvergence } from './phaseBracketConverge';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { getCardRole, isProtectionPiece } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from '../budgetTracker';
 import type { GenerationState } from './state';
 
@@ -256,6 +259,24 @@ describe('applyBracketConvergence', () => {
     expect(result.finalBracket).toBeGreaterThan(2);
   });
 
+  it('never cuts a protection-class card, leaving an honest residual above target (E87-new Slice A)', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Power Card');
+    try {
+      const result = applyBracketConvergence(state, {
+        scryfallCardMap: fillerScryfallMap(),
+        detectedCombos: undefined,
+        mustIncludeNames: new Set(),
+      });
+      expect(result.applied).toBe(0);
+      expect(state.categories.synergy.some((c) => c.name === 'Power Card')).toBe(true);
+      expect(result.finalBracket).toBeGreaterThan(2);
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
+  });
+
   it('never cuts the commander even when it is the power source', () => {
     const state = makeState();
     state.cfg.targetBracket = 2;
@@ -325,6 +346,30 @@ describe('applyBracketConvergence', () => {
     expect(state.usedNames.has('Pool GC')).toBe(true);
     // ...and the deck stayed exactly its size (1-for-1 swap, 100-card legality).
     expect(deckSize(state)).toBe(before);
+  });
+
+  it('never treats a protection-class card as a pickCut candidate (E87-new Slice A, UP direction)', () => {
+    const state = underTargetState();
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Pool GC', 95), ...FILLER_POOL] },
+    } as unknown as GenerationState['edhrecData'];
+    const map = fillerScryfallMap();
+    map.set('Pool GC', scryfallCard('Pool GC'));
+    // Every in-deck candidate now reads as a protection piece — pickCut can
+    // never find a card to make room with, so the UP swap can't complete
+    // even though a Game Changer is sitting right there in the pool.
+    vi.mocked(isProtectionPiece).mockReturnValue(true);
+    try {
+      const result = applyBracketConvergence(state, {
+        scryfallCardMap: map,
+        detectedCombos: undefined,
+        mustIncludeNames: new Set(),
+      });
+      expect(result.applied).toBe(0);
+      expect(state.usedNames.has('Pool GC')).toBe(false);
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
   });
 
   it('no-ops UP when the target pool has no Game Changer to add', () => {

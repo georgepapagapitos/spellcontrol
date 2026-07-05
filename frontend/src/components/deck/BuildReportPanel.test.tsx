@@ -131,6 +131,48 @@ describe('BuildReportPanel', () => {
     expect(container.textContent).not.toContain('from your collection');
   });
 
+  describe('protectionCount (E87-new Slice A)', () => {
+    it('renders the count when nonzero', () => {
+      const { container } = render(
+        <BuildReportPanel report={makeReport({ protectionCount: 2 })} />
+      );
+      expect(container.textContent).toContain('Protection/interaction:');
+      expect(container.textContent).toContain('2');
+      expect(container.textContent).toContain('pieces');
+    });
+
+    it('renders 0, not nothing, when the report field is absent — always disclosed', () => {
+      const { container } = render(<BuildReportPanel report={makeReport()} />);
+      expect(container.textContent).toContain('Protection/interaction:');
+      expect(container.textContent).toContain('0');
+    });
+
+    it('uses singular phrasing for exactly one', () => {
+      const { container } = render(
+        <BuildReportPanel report={makeReport({ protectionCount: 1 })} />
+      );
+      expect(container.textContent).toContain('1');
+      expect(container.textContent).toContain('piece');
+      expect(container.textContent).not.toContain('pieces');
+    });
+
+    it('renders the Voltron zero-protection disclosure note when present', () => {
+      const note =
+        'No protection or free-interaction pieces — a Voltron deck usually wants insurance.';
+      const { container } = render(
+        <BuildReportPanel report={makeReport({ protectionCount: 0, protectionZeroNote: note })} />
+      );
+      expect(container.textContent).toContain(note);
+    });
+
+    it('omits the disclosure note when absent (non-Voltron or nonzero count)', () => {
+      const { container } = render(
+        <BuildReportPanel report={makeReport({ protectionCount: 3 })} />
+      );
+      expect(container.textContent).not.toContain('insurance');
+    });
+  });
+
   describe('synergyFills (off-EDHREC fill provenance)', () => {
     it('is absent when there are no fills', () => {
       const { container } = render(<BuildReportPanel report={makeReport()} />);

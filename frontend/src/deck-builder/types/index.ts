@@ -541,6 +541,16 @@ export interface BuildReport {
    *  payoff pick — see phaseRoleSurplusRebalance.ts (E87). Undefined when no
    *  role ran over cap, or nothing cleared the improvement margin. */
   surplusConversions?: CoherenceRepair[];
+  /** Count of protection/free-interaction pieces (E87-new Slice A) — a
+   *  parallel class, not one of the 4 tracked roles. Always set by
+   *  assembleBuildReport (including 0 — the motivating gap is decks
+   *  silently generating ZERO of these); optional only so decks saved
+   *  before this shipped, or hand-built fixtures, don't need it. */
+  protectionCount?: number;
+  /** Disclosure note when protectionCount is 0 on an archetype where that's
+   *  a real gap (Voltron for v1 — see PROTECTION_MOTIVATED_ARCHETYPES).
+   *  Undefined otherwise. */
+  protectionZeroNote?: string;
 }
 
 export interface GeneratedDeck {

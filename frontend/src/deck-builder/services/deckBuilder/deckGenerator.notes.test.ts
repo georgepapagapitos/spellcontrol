@@ -19,8 +19,13 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 // validateCardRole directly — stub it to a simple name->role map so these
 // pure-logic tests don't depend on real tagger data or oracle text.
 const ROLES: Record<string, RoleKey> = {};
+// computeTrimResistance (E87-new Slice A) also calls isProtectionPiece
+// directly — stub it the same way (name-set membership, not real oracle
+// text; the classifier's own regex is covered in tagger/client.test.ts).
+const PROTECTED_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
+  isProtectionPiece: (card: { name: string }) => PROTECTED_NAMES.has(card.name),
 }));
 
 import {
@@ -35,6 +40,8 @@ import {
   roleCapOverage,
   computeTrimResistance,
   STAPLE_PROTECTION_BOOST,
+  PROTECTION_PIECE_BOOST,
+  ROLE_SURPLUS_TRIM_PENALTY,
 } from './deckGenerator';
 
 function sc(name: string): ScryfallCard {
@@ -428,6 +435,54 @@ describe('computeTrimResistance — staple-rock protection', () => {
     expect(toRemove.length).toBe(excess); // Smart Trim still cuts exactly `excess`
     expect(toRemove.map((x) => x.card.name)).not.toContain('ArcaneSignet');
     expect(toRemove[0].card.name).toBe('D'); // now-lowest position takes the cut instead
+  });
+
+  it('gives a protection-class card at the tail position more resistance than a same-position filler (E87-new Slice A)', () => {
+    ROLES.Filler2 = 'ramp';
+    ROLES.HeroicIntervention = 'ramp'; // role identity is irrelevant here — only the boost is under test
+    PROTECTED_NAMES.add('HeroicIntervention');
+    try {
+      const filler = sc('Filler2');
+      const protection = sc('HeroicIntervention');
+
+      const rFiller = computeTrimResistance(
+        filler,
+        20,
+        21,
+        'ramp',
+        noComboCards,
+        roleTargets,
+        surplusRoleCounts
+      );
+      const rProtection = computeTrimResistance(
+        protection,
+        20,
+        21,
+        'ramp',
+        noComboCards,
+        roleTargets,
+        surplusRoleCounts
+      );
+      expect(rProtection - rFiller).toBe(PROTECTION_PIECE_BOOST);
+    } finally {
+      PROTECTED_NAMES.delete('HeroicIntervention');
+    }
+  });
+
+  it('leaves a non-protection card unaffected by PROTECTION_PIECE_BOOST', () => {
+    ROLES.PlainCard = 'ramp';
+    const plain = sc('PlainCard');
+    const r = computeTrimResistance(
+      plain,
+      20,
+      21,
+      'ramp',
+      noComboCards,
+      roleTargets,
+      surplusRoleCounts
+    );
+    // Base resistance only: position (21-20=1) + role-surplus penalty, no protection boost.
+    expect(r).toBe(21 - 20 + ROLE_SURPLUS_TRIM_PENALTY);
   });
 });
 

@@ -45,6 +45,7 @@ import {
   getCardRole,
   validateCardRole,
   getCardSubtype,
+  isProtectionPiece,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
@@ -604,6 +605,12 @@ export const ROLE_SURPLUS_TRIM_PENALTY = -30;
 // ROLE_SURPLUS_TRIM_PENALTY, well below MUST_INCLUDE_BOOST so a user lock
 // still outranks it.
 export const STAPLE_PROTECTION_BOOST = 100;
+// Protection/free-interaction pieces (E87-new Slice A) — same tier as staple
+// rocks: categorically important, not user-locked, not combo-tied, so Smart
+// Trim shouldn't be the first thing to reach for them regardless of pick
+// order (the motivating loss: Heroic Intervention/Fierce Guardianship-class
+// cards silently evicted by a land-count squeeze — see board E82).
+export const PROTECTION_PIECE_BOOST = 100;
 
 /**
  * Per-card trim resistance for the Smart Trim pass: higher survives, lower
@@ -629,6 +636,9 @@ export function computeTrimResistance(
   }
   if (card.isStapleRock) {
     resistance += STAPLE_PROTECTION_BOOST;
+  }
+  if (isProtectionPiece(card)) {
+    resistance += PROTECTION_PIECE_BOOST;
   }
   if (category === 'lands' && !card.isMustInclude) {
     resistance += LAND_PROTECTION_BOOST;
@@ -3692,6 +3702,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         for (const card of categories[cat]) {
           if (auditMustInclude.has(card.name.toLowerCase())) continue;
           if (completeComboCards.has(card.name)) continue;
+          if (isProtectionPiece(card)) continue;
           if (skipNames?.has(card.name)) continue;
           const incl = auditInclusion.get(card.name) ?? 0;
           if (!best || incl < best.incl) best = { card, category: cat, incl };

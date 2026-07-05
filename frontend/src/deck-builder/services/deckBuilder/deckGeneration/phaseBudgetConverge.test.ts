@@ -6,6 +6,9 @@ import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/typ
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn(() => null),
   validateCardRole: vi.fn(() => null),
+  // E87-new Slice A: softProtectionLabel also checks isProtectionPiece —
+  // default false, overridden per-test where protection behavior is under test.
+  isProtectionPiece: vi.fn(() => false),
 }));
 
 vi.mock('../categorize', async (importOriginal) => {
@@ -28,7 +31,7 @@ vi.mock('@/deck-builder/services/winConditions/detect', () => ({
 }));
 
 import { applyBudgetConvergence } from './phaseBudgetConverge';
-import { getCardRole } from '@/deck-builder/services/tagger/client';
+import { getCardRole, isProtectionPiece } from '@/deck-builder/services/tagger/client';
 import { isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { BudgetTracker } from '../budgetTracker';
@@ -281,6 +284,37 @@ describe('applyBudgetConvergence', () => {
     const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
     expect(state.usedNames.has('Pricey Card')).toBe(true);
     expect(result.finalTotal).toBeLessThanOrEqual(40);
+  });
+
+  // E87-new Slice A: isProtectionPiece is a soft protection, same tier as
+  // load-bearing/lift/game-changer — yields in stage 2, never touched while
+  // unprotected candidates suffice.
+  it('never cuts a protection-class card when unprotected candidates suffice (soft)', async () => {
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Pricey Card');
+    try {
+      const state = makeState();
+      const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+      expect(state.usedNames.has('Pricey Card')).toBe(true);
+      expect(result.finalTotal).toBeLessThanOrEqual(40);
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
+  });
+
+  it('discloses a protection-class card in the swap reason once stage 2 must cut it', async () => {
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Pricey Card');
+    try {
+      const state = makeState();
+      // Tight enough that Mid + Cheap alone can't reach it, forcing stage 2
+      // to cut the (soft) protection-class Pricey Card too.
+      const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
+      const pricey = result.repairs.find((r) => r.cut === 'Pricey Card');
+      expect(pricey?.reason).toBe(
+        'Saves $27.00 — similar card type; swapped a protection/free-interaction piece to fit your budget'
+      );
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
   });
 
   // Round 4: the alt-win FLOOR is hard — with exactly one alt-win card in the
