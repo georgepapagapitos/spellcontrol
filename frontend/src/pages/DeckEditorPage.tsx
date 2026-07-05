@@ -1,4 +1,4 @@
-import { Coins, Copy, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
+import { Coins, Copy, ListChecks, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../lib/haptics';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
@@ -29,6 +29,7 @@ import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
+import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
 import { TableRecordPanel } from '../components/deck/TableRecordPanel';
@@ -457,6 +458,9 @@ export function DeckEditorPage() {
   }, [deck]);
   const deckTokens = useDeckTokens(deckScryCards);
   const [tokensOpen, setTokensOpen] = useState(false);
+  const [pullListOpen, setPullListOpen] = useState(false);
+  const hasPullSlots =
+    !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
 
   // Flat card list for EnginePanel's tappable axis drill-through — mainboard only
@@ -2073,6 +2077,17 @@ export function DeckEditorPage() {
               <span className="deck-editor-action-badge">{deckTokens.length}</span>
             </button>
           )}
+          {hasPullSlots && (
+            <button
+              type="button"
+              className="btn deck-editor-action-btn"
+              onClick={() => setPullListOpen(true)}
+              title="Where every card lives — pull this deck from your binders"
+            >
+              <ListChecks width={14} height={14} strokeWidth={2} aria-hidden />
+              Pull list
+            </button>
+          )}
           <button type="button" className="btn deck-editor-action-btn" onClick={handleDuplicate}>
             <Copy width={14} height={14} strokeWidth={2} aria-hidden />
             Duplicate
@@ -2085,6 +2100,7 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+            onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
             onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
             onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
             undoLabel={undoEditLabel}
@@ -2111,6 +2127,7 @@ export function DeckEditorPage() {
             onExport={() => setExportOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
+            onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
             onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
             onRedo={canRedoEdit ? () => redoEdit(deck.id) : undefined}
             undoLabel={undoEditLabel}
@@ -2515,6 +2532,15 @@ export function DeckEditorPage() {
         />
       )}
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
+      {pullListOpen && (
+        <PullListSheet
+          deck={deck}
+          collection={collectionCards}
+          binderDefs={binderDefs}
+          allocations={printingAllocationMap}
+          onClose={() => setPullListOpen(false)}
+        />
+      )}
 
       {editingSlot && (
         <CardEditDialog
@@ -2754,6 +2780,7 @@ function DeckEditorOverflowMenu({
   onExport,
   onPlaytest,
   onTokens,
+  onPullList,
   onUndo,
   onRedo,
   undoLabel,
@@ -2765,6 +2792,8 @@ function DeckEditorOverflowMenu({
   onPlaytest?: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
+  /** Present only when the deck has cards to pull. */
+  onPullList?: () => void;
   /** Present only when there's an edit to undo; carries the action label. */
   onUndo?: () => void;
   /** Present only when there's an edit to redo; carries the action label. */
@@ -2859,6 +2888,19 @@ function DeckEditorOverflowMenu({
                 }}
               >
                 Tokens to prep
+              </button>
+            )}
+            {onPullList && (
+              <button
+                type="button"
+                role="menuitem"
+                className="deck-editor-overflow-item"
+                onClick={() => {
+                  setOpen(false);
+                  onPullList();
+                }}
+              >
+                Pull list
               </button>
             )}
             <button
