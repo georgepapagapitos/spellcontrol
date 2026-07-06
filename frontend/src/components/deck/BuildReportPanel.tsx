@@ -202,6 +202,7 @@ export function BuildReportPanel({
     coherenceRepairs,
     budgetRepairs,
     surplusConversions,
+    flagshipSeatings,
     protectionCount,
     protectionZeroNote,
   } = report;
@@ -295,6 +296,27 @@ export function BuildReportPanel({
                 <span className="build-report-lift-chips">
                   <VerdictBadge tone="success" label="Auto-fixed" />
                 </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {flagshipSeatings && flagshipSeatings.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{flagshipSeatings.length}</strong> flagship theme card
+            {flagshipSeatings.length === 1 ? '' : 's'} reserved a seat
+          </summary>
+          <ul className="build-report-subs-list">
+            {flagshipSeatings.map((r) => (
+              <li key={`${r.cut}-${r.added}`} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{r.cut}</strong> &rarr; <strong>{r.added}</strong>
+                  </span>
+                </div>
+                <span className="build-report-sub-reason">{r.reason}</span>
               </li>
             ))}
           </ul>
