@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateTargetCounts,
   computeAutoLandCount,
+  computeLandCountSizingAnchor,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -281,5 +282,36 @@ describe('computeAutoLandCount (Karsten formula)', () => {
 
   it('never exceeds the 40-land ceiling even with extreme inputs', () => {
     expect(computeAutoLandCount(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
+  });
+});
+
+// E94: the legacy archetype-delta heuristic, recovered verbatim under a new
+// name for its ORIGINAL job — sizing typeTargetLandCount's pass proportions
+// — never the delivered land count (Karsten owns that now). Expectations are
+// the same ones computeAutoLandCount had before Karsten replaced it.
+describe('computeLandCountSizingAnchor (recovered legacy heuristic, sizing-only)', () => {
+  it('stays at 37 for a plain goodstuff deck with average ramp/curve', () => {
+    expect(computeLandCountSizingAnchor(Archetype.GOODSTUFF, 5, 3.2)).toBe(37);
+  });
+
+  it('scales down for an elf-ball/tribal deck dense with ramp (Lathril-shaped)', () => {
+    // Tribal archetype delta (-1) + strong ramp density (>=10 => -2) = -3 => 34
+    const anchor = computeLandCountSizingAnchor(Archetype.TRIBAL, 20, 2.4);
+    expect(anchor).toBeLessThan(37);
+    expect(anchor).toBeGreaterThanOrEqual(32);
+  });
+
+  it('nudges up for a high-curve control/ramp deck', () => {
+    const anchor = computeLandCountSizingAnchor(Archetype.CONTROL, 3, 4.0);
+    expect(anchor).toBeGreaterThan(37);
+    expect(anchor).toBeLessThanOrEqual(40);
+  });
+
+  it('never goes below the 32-land floor even with extreme inputs', () => {
+    expect(computeLandCountSizingAnchor(Archetype.TRIBAL, 999, 0.5)).toBeGreaterThanOrEqual(32);
+  });
+
+  it('never exceeds the 40-land ceiling even with extreme inputs', () => {
+    expect(computeLandCountSizingAnchor(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
   });
 });

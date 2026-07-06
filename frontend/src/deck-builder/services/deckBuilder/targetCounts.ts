@@ -72,6 +72,53 @@ export function computeAutoLandCount(
   );
 }
 
+// Archetypes that lean go-wide/low-curve/dork-heavy and can safely run fewer
+// lands — the pre-Karsten archetype-delta heuristic, recovered verbatim (was
+// deleted whole by 30ab5e9a) for its ORIGINAL job: sizing typeTargetLandCount
+// (nonLandCards), never the delivered land count.
+const LAND_COUNT_ARCHETYPE_DELTA: Partial<Record<Archetype, number>> = {
+  [Archetype.TRIBAL]: -1,
+  [Archetype.AGGRO]: -1,
+  [Archetype.VOLTRON]: -1,
+  [Archetype.STORM]: -1,
+  [Archetype.TEMPO]: -1,
+  [Archetype.CONTROL]: 1,
+  [Archetype.LANDFALL]: 1,
+  [Archetype.REANIMATOR]: 1,
+};
+
+/**
+ * SIZING-ONLY anchor for the type/curve passes — NOT a land-count decision.
+ * Karsten (computeAutoLandCount above) now owns the delivered land count; but
+ * lifting resolvedLandCount INSIDE the 32-40 band still flows straight into
+ * typeTargetLandCount (`min(resolvedLandCount, anchor)`), silently shrinking
+ * every type/curve pass's nonLandCards budget with zero disclosure or
+ * protection — the >37 case is safe (phaseLandSqueezeReconcile discloses and
+ * protects it), but a <=37 shrink bypassed that reconcile entirely (killed
+ * Rhystic Study/Ugin/Skullclamp-class picks in the differ gate). This
+ * function is the legacy archetype-delta heuristic, byte-identical to the
+ * body computeAutoLandCount had before Karsten replaced it — its only job
+ * now is anchoring pass sizing to that legacy-validated shape, so the entire
+ * Karsten-vs-legacy delta (in EITHER direction) routes through the existing,
+ * disclosed, protected squeeze reconcile instead of an invisible pass-sizing
+ * shrink.
+ */
+export function computeLandCountSizingAnchor(
+  archetype: Archetype,
+  rampDensity: number,
+  avgCmc: number
+): number {
+  let delta = LAND_COUNT_ARCHETYPE_DELTA[archetype] ?? 0;
+  if (rampDensity >= 10) delta -= 2;
+  else if (rampDensity >= 7) delta -= 1;
+
+  if (avgCmc > 0 && avgCmc < 2.6) delta -= 1;
+  else if (avgCmc >= 3.6) delta += 1;
+
+  delta = Math.max(-5, Math.min(5, delta));
+  return Math.max(32, Math.min(40, 37 + delta));
+}
+
 // Apply user's advanced target overrides (curve percentages, type percentages)
 function applyAdvancedOverrides(
   customization: Customization,

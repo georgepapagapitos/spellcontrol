@@ -201,21 +201,26 @@ vi.mock('./landGenerator', async (orig) => {
   return { ...actual, generateLands: vi.fn(actual.generateLands) };
 });
 
-// Wraps the real computeAutoLandCount (E88) so a single test can force the
-// auto-tune to raise land count above the 37-land baseline (exercising the
-// land-squeeze reconciliation pass) without touching every other test's
-// land count — every other test's real archetype/ramp/CMC inputs still flow
-// through the actual implementation via mockImplementation(actual...).
+// Wraps the real computeAutoLandCount (E88) and computeLandCountSizingAnchor
+// (E94) so a single test can force either one — the auto-tune raising land
+// count above baseline, or the sizing anchor diverging from the resolved
+// count — without touching every other test's land count; every other
+// test's real archetype/ramp/CMC inputs still flow through the actual
+// implementation via mockImplementation(actual...).
 vi.mock('./targetCounts', async (orig) => {
   const actual = await orig<typeof import('./targetCounts')>();
-  return { ...actual, computeAutoLandCount: vi.fn(actual.computeAutoLandCount) };
+  return {
+    ...actual,
+    computeAutoLandCount: vi.fn(actual.computeAutoLandCount),
+    computeLandCountSizingAnchor: vi.fn(actual.computeLandCountSizingAnchor),
+  };
 });
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
-import { computeAutoLandCount } from './targetCounts';
+import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
@@ -807,6 +812,41 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       expect(deck.landCountNote).toBeDefined();
       expect(deck.landCountNote).toMatch(/^Auto-tuned to 37 lands/);
     } finally {
+      clearGenerationCache();
+    }
+  });
+
+  it('E94: a Karsten resolve BELOW the legacy sizing anchor (both inside the 32-40 band) still routes the delta through the disclosed/protected squeeze reconcile, not a silent pass-size shrink', async () => {
+    // The regression the differ gate caught: Karsten resolving to 35 while
+    // the legacy per-archetype/ramp/curve anchor would have sized passes for
+    // 33 lands used to size every type/curve pass off whichever land count
+    // was smaller with NO reconcile at all when both sides were <= 37 (the
+    // pre-fix code passed DEFAULT_LAND_COUNT as a fixed anchor, so
+    // typeTargetLandCount = min(resolvedLandCount, 37) = resolvedLandCount
+    // itself whenever resolved <= 37 — the anchor could never diverge from
+    // the resolved count in that band, silently sizing however Karsten said
+    // with zero squeeze/disclosure/protection). Pinning both functions here
+    // forces that exact divergence and asserts the reconcile actually ran.
+    vi.mocked(computeAutoLandCount).mockImplementationOnce(() => 35);
+    vi.mocked(computeLandCountSizingAnchor).mockImplementationOnce(() => 33);
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Creature_31');
+
+    const ctx = baseContext();
+    ctx.customization = customization({ nonBasicLandCount: 15 });
+    try {
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+
+      expect(names.length).toBe(99);
+      // typeTargetLandCount = min(35, 33) = 33 => landSqueezeDelta = 35 - 33
+      // = 2 lowest-value nonland cards reconciled away — disclosed, and the
+      // seeded protection piece survives it exactly like the >37 case does.
+      expect(deck.landSqueezeTrimNote).toBeDefined();
+      expect(names).toContain('Creature_31');
+    } finally {
+      vi.mocked(isProtectionPiece).mockReturnValue(false);
       clearGenerationCache();
     }
   });

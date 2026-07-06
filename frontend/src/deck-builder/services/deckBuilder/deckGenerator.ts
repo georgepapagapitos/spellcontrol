@@ -85,6 +85,7 @@ import {
 import {
   calculateTargetCounts,
   computeAutoLandCount,
+  computeLandCountSizingAnchor,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -1889,6 +1890,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // deck genuinely tuned to 37 still deserves disclosure, and the
   // superset-pick wildcard scan (see wildcardCount below) is meant to run
   // for it too.
+  // SIZING-ONLY anchor for the type/curve passes below — see
+  // computeLandCountSizingAnchor's doc. Default (not auto-tuned) is the flat
+  // baseline, matching typeTargetLandCount's own pre-existing default.
+  let landCountSizingAnchor = DEFAULT_LAND_COUNT;
+
   if (isDefaultLandCount(customization) && state.edhrecData) {
     const plannedRampCount = dynamicRoleTargets.targets.ramp;
     const manaCurve = state.edhrecData.stats?.manaCurve ?? {};
@@ -1899,24 +1905,32 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           curveTotal
         : 0;
     resolvedLandCount = computeAutoLandCount(detectedArchetype, plannedRampCount, avgCmc);
+    landCountSizingAnchor = computeLandCountSizingAnchor(
+      detectedArchetype,
+      plannedRampCount,
+      avgCmc
+    );
     landCountAutoTuned = true;
     edhrecRampCountForNote = plannedRampCount;
   }
 
-  // E88: when the auto-tune RAISES land count above the 37-land baseline, size
-  // the type passes as if lands were still at baseline — so they pick their
-  // full, un-squeezed complement (including the marginal roleless-premium
-  // cards that would otherwise never be tried) — and let
-  // phaseLandSqueezeReconcile (just before Smart Trim, below) reconcile the
-  // resulting surplus down to the real land count, globally, disclosed, and
-  // with the SAME protection tiers (must-include/staple/protection-piece/
-  // combo/role) Smart Trim already carries. Only the "shrink nonland budget"
-  // direction needs this — when the auto-tune LOWERS land count, the deck is
-  // genuinely short and the existing generic shortage-fill path already
-  // handles it gracefully by ADDING marginal picks, which has no casualty
-  // problem.
+  // E88 + E94: when the auto-tune RAISES land count above the sizing anchor
+  // (legacy-validated per archetype/ramp/curve — see
+  // computeLandCountSizingAnchor), size the type passes as if lands were
+  // still at that anchor — so they pick their full, un-squeezed complement
+  // (including the marginal roleless-premium cards that would otherwise
+  // never be tried) — and let phaseLandSqueezeReconcile (just before Smart
+  // Trim, below) reconcile the resulting surplus down to the real land
+  // count, globally, disclosed, and with the SAME protection tiers
+  // (must-include/staple/protection-piece/combo/role) Smart Trim already
+  // carries. This routes the ENTIRE Karsten-vs-legacy-anchor delta (not just
+  // the >37 case) through that disclosed/protected reconcile — Karsten can
+  // land anywhere in its own 32-40 band relative to a legacy anchor that
+  // independently varies 32-40, and either direction of "resolved lower than
+  // anchor" is a genuine shortage the existing shortage-fill path already
+  // handles gracefully by ADDING marginal picks (no casualty problem there).
   const typeTargetLandCount = landCountAutoTuned
-    ? Math.min(resolvedLandCount, DEFAULT_LAND_COUNT)
+    ? Math.min(resolvedLandCount, landCountSizingAnchor)
     : resolvedLandCount;
 
   // Calculate target counts with type and curve targets
