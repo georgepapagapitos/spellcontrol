@@ -357,7 +357,13 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={editingSingle ? undefined : editingQty}
           singleCopy={editingSingle}
-          details={{ condition: editingCard.condition, language: editingCard.language }}
+          details={{
+            condition: editingCard.condition,
+            language: editingCard.language,
+            altered: editingCard.altered,
+            proxy: editingCard.proxy,
+            misprint: editingCard.misprint,
+          }}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
