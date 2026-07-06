@@ -746,6 +746,14 @@ export function CardPreview({
                   {current.condition.toUpperCase()}
                 </span>
               )}
+              {(['altered', 'proxy', 'misprint'] as const)
+                .filter((flag) => current[flag])
+                .map((flag) => (
+                  <span key={flag} className="card-preview-condition" aria-label={flag}>
+                    {' · '}
+                    {flag.toUpperCase()}
+                  </span>
+                ))}
             </div>
             {(() => {
               // Price freshness on demand — the always-on collection "Prices as

@@ -115,6 +115,32 @@ describe('buildEditedCards', () => {
     expect(next[0].language).toBe('fr');
   });
 
+  it('applies altered/proxy/misprint flags to every touched copy', () => {
+    const editing = enriched({ copyId: 'copy-a' });
+    const next = buildEditedCards(
+      editing,
+      selection({ quantity: 2, details: { altered: true, misprint: true } }),
+      [editing]
+    );
+    expect(next).toHaveLength(2);
+    expect(next.every((c) => c.altered === true && c.misprint === true)).toBe(true);
+    expect(next.every((c) => c.proxy === undefined)).toBe(true);
+  });
+
+  it('clears flags when details is present with the flag keys missing', () => {
+    const editing = enriched({ copyId: 'copy-a', altered: true, proxy: true, misprint: true });
+    const next = buildEditedCards(editing, selection({ details: {} }), [editing]);
+    expect(next[0].altered).toBeUndefined();
+    expect(next[0].proxy).toBeUndefined();
+    expect(next[0].misprint).toBeUndefined();
+  });
+
+  it('leaves flags untouched when details is absent (printing-only edit)', () => {
+    const editing = enriched({ copyId: 'copy-a', proxy: true });
+    const next = buildEditedCards(editing, selection({}), [editing]);
+    expect(next[0].proxy).toBe(true);
+  });
+
   it('single-copy mode re-points only the given copy, splitting a printing stack', () => {
     // Two copies of the same printing; edit just one to a different printing.
     const a = enriched({ copyId: 'a', scryfallId: 'old' });
