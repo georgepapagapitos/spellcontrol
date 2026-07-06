@@ -817,7 +817,15 @@ A bar's length must be **honest** — proportional to its value on a scale share
 with its siblings (the EnginePanel once painted every axis full-width; that's
 the failure mode this rule exists for). Accessibility: bars default to
 `aria-hidden` with the numbers as adjacent visible text; live operations opt
-into `role="progressbar"` (see `ProgressBar`). Vertical charts (curve hero,
+into `role="progressbar"` (see `ProgressBar`).
+
+**Small-integer counts (a 0–3-ish scale) use discrete pips, not a bar.** A
+proportional track reads as a percentage, so "Fits 1 engine" as a third-full
+bar is false precision (E95). Render N round dots (`999px`, `var(--border)`
+track / semantic fill color), `aria-hidden`, with the true count as adjacent
+visible text — same a11y story as bars. Pips are fixed-size, so they don't
+(and must not) route through `MeterBar`; reference:
+`BetweenYourDecks.tsx` `.between-decks-fit-pip`. Vertical charts (curve hero,
 test-hand histogram) are charts, not meters, and stay bespoke. Radar/polar
 charts also stay bespoke — see **"Radar / polar charts"** below.
 

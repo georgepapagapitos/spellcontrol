@@ -74,6 +74,8 @@ export function assembleBuildReport(input: {
     report.bracketPoolFallbackNote = generated.bracketPoolFallbackNote;
   if (generated.comboUpsideNotes && generated.comboUpsideNotes.length > 0)
     report.comboUpsideNotes = generated.comboUpsideNotes;
+  if (generated.comboCompletionNotes && generated.comboCompletionNotes.length > 0)
+    report.comboCompletionNotes = generated.comboCompletionNotes;
 
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {

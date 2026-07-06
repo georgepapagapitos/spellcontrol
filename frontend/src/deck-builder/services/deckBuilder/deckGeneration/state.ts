@@ -139,6 +139,12 @@ export interface GenerationState {
   detectedPacing: Pacing;
   swapCandidates: Record<string, ScryfallCard[]> | undefined;
   detectedCombos: DetectedCombo[] | undefined;
+  /** Emergent combo-completion disclosure: combo completeness snapshot taken
+   *  right after must-includes are seeded (before the main picking loop) —
+   *  isolates combos the user's must-includes already completed from combos
+   *  the algorithm's own subsequent picks go on to complete. Undefined until
+   *  that snapshot runs; never reassigned after. */
+  baselineDetectedCombos?: DetectedCombo[];
   gapAnalysis: GapAnalysisCard[] | undefined;
   deckScore: number | undefined;
   cardInclusionMap: Record<string, number> | undefined;
