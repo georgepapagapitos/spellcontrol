@@ -2,6 +2,8 @@ import { Shuffle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   searchCommanders,
+  searchPdhCommanders,
+  getRandomPdhCommander,
   getCardByName,
   getOwnedPrinting,
 } from '@/deck-builder/services/scryfall/client';
@@ -12,12 +14,13 @@ import {
   fetchCommanderData,
   fetchPlaystyleCommanders,
 } from '@/deck-builder/services/edhrec/client';
-import type { ScryfallCard, EDHRECTopCommander } from '@/deck-builder/types';
+import type { ScryfallCard, EDHRECTopCommander, DeckFormat } from '@/deck-builder/types';
 import { useCollectionStore } from '../../store/collection';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import {
   computeReadiness,
   extractCommanderCandidates,
+  isPdhCommanderCandidate,
   type ReadinessScore,
 } from '../../lib/commander-readiness';
 import {
@@ -38,6 +41,13 @@ import { InfoTip } from '../InfoTip';
 interface Props {
   value: ScryfallCard | null;
   onSelect: (card: ScryfallCard | null) => void;
+  /**
+   * Deck format this picker serves. 'paupercommander' swaps every data source
+   * — live `t:creature r:uncommon` search, owned uncommon creatures, Scryfall
+   * random — and hides the EDHREC-backed surfaces (top chips, readiness %,
+   * playstyle browse): EDHREC has no data for PDH commanders.
+   */
+  format?: DeckFormat;
 }
 
 const WUBRG_ORDER = 'WUBRGC';
@@ -169,7 +179,8 @@ function pickRandom<T>(arr: T[]): T | null {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function CommanderSearch({ value, onSelect }: Props) {
+export function CommanderSearch({ value, onSelect, format = 'commander' }: Props) {
+  const pdh = format === 'paupercommander';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ScryfallCard[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -194,8 +205,11 @@ export function CommanderSearch({ value, onSelect }: Props) {
     [importHistory]
   );
   const collectionLegends = useMemo(
-    () => extractCommanderCandidates(collectionCards, importRecency),
-    [collectionCards, importRecency]
+    () =>
+      pdh
+        ? extractCommanderCandidates(collectionCards, importRecency, isPdhCommanderCandidate)
+        : extractCommanderCandidates(collectionCards, importRecency),
+    [pdh, collectionCards, importRecency]
   );
   const ownedNames = useMemo(
     () => new Set(collectionLegends.map((c) => c.name)),
@@ -216,6 +230,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
   const readinessDone = useRef<Set<string>>(new Set());
   const ensureReadiness = useCallback(
     async (name: string): Promise<void> => {
+      // Readiness scores a commander's EDHREC staples against the collection —
+      // meaningless for PDH (no EDHREC data), so the % surface stays hidden.
+      if (pdh) return;
       const key = name.toLowerCase();
       if (readinessDone.current.has(key) || readinessInflight.current.has(key)) return;
       readinessInflight.current.add(key);
@@ -232,7 +249,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
         readinessInflight.current.delete(key);
       }
     },
-    [ownedCardNames]
+    [pdh, ownedCardNames]
   );
 
   // Resolve readiness for the selected commander (covers prefilled selections);
@@ -280,6 +297,10 @@ export function CommanderSearch({ value, onSelect }: Props) {
   const [showAllTopCommanders, setShowAllTopCommanders] = useState(false);
 
   useEffect(() => {
+    // PDH: EDHREC's top-commander list is legendary-only — nothing to fetch.
+    // No state reset needed: callers key this component by format, so a
+    // format switch remounts with fresh (empty, not-loading) state.
+    if (pdh) return;
     let cancelled = false;
     async function run() {
       if (!cancelled) setTopLoading(true);
@@ -296,7 +317,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [colorFilter]);
+  }, [colorFilter, pdh]);
 
   // Local search results (owned mode). Kept in state so the dropdown can read
   // it without recomputing on every render. Declared before the search effect
@@ -363,7 +384,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
       setSearchLoading(true);
       setError(null);
       try {
-        const cards = await searchCommanders(q);
+        const cards = pdh ? await searchPdhCommanders(q) : await searchCommanders(q);
         if (!cancelled) setResults(cards.slice(0, 12));
       } catch (e) {
         if (!cancelled) {
@@ -379,7 +400,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
       cancelled = true;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [query, ownedOnly, collectionLegends]);
+  }, [query, ownedOnly, collectionLegends, pdh]);
 
   // Filter top commanders: hide split-card "//" entries; in owned mode,
   // surface only those the user actually has so the chip row reads as
@@ -388,6 +409,26 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // it past the early return would mismatch the hooks count when the user
   // picks a commander.
   const visibleTop = useMemo(() => {
+    // PDH: there is no EDHREC top list; owned mode browses the collection's
+    // uncommon creatures instead (all of them — the pool IS the suggestion).
+    if (pdh) {
+      if (!ownedOnly) return [];
+      return collectionLegends
+        .filter((c) => {
+          if (colorFilter.size === 0) return true;
+          const ci = c.colorIdentity && c.colorIdentity.length > 0 ? c.colorIdentity : ['C'];
+          if (ci.length !== colorFilter.size) return false;
+          return ci.every((color) => colorFilter.has(color));
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c, i) => ({
+          rank: i + 1,
+          name: c.name,
+          sanitized: c.scryfallId ?? c.name,
+          colorIdentity: c.colorIdentity ?? [],
+          numDecks: 0,
+        }));
+    }
     const base = topCommanders.filter((c) => !c.name.includes('//'));
     if (!ownedOnly) return base;
 
@@ -416,7 +457,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
     }));
 
     return [...owned, ...filler];
-  }, [topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
+  }, [pdh, topCommanders, ownedOnly, ownedNames, collectionLegends, colorFilter]);
   const topResultKey = `${ownedOnly}|${[...colorFilter].sort().join('')}|${visibleTop
     .map((c) => c.name)
     .join('|')}`;
@@ -454,6 +495,10 @@ export function CommanderSearch({ value, onSelect }: Props) {
       return 'name';
     }
   });
+  // PDH has no playstyle browse (EDHREC-backed) — even a persisted 'playstyle'
+  // preference resolves to name search there. The stored preference survives
+  // for the next Commander-format visit.
+  const activeSearchMode: SearchMode = pdh ? 'name' : searchMode;
   const changeMode = (mode: SearchMode) => {
     setSearchMode(mode);
     try {
@@ -495,7 +540,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
   // Aspirational browse: fetch EDHREC's top commanders for the chosen playstyle.
   // Owned mode skips the network entirely (uses the local index above).
   useEffect(() => {
-    if (searchMode !== 'playstyle' || !playstyle || ownedOnly) return;
+    if (activeSearchMode !== 'playstyle' || !playstyle || ownedOnly) return;
     let cancelled = false;
     const slug = playstyle.edhrecSlug;
     void (async () => {
@@ -513,13 +558,13 @@ export function CommanderSearch({ value, onSelect }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [searchMode, playstyle, ownedOnly]);
+  }, [activeSearchMode, playstyle, ownedOnly]);
 
   // Commanders shown for the chosen playstyle, narrowed by the color pips.
   // Within-identity match: a color filter shows commanders castable in those
   // colors (a mono-black commander still shows under a B/G filter).
   const playstyleResults = useMemo(() => {
-    if (searchMode !== 'playstyle' || !playstyle) return [];
+    if (activeSearchMode !== 'playstyle' || !playstyle) return [];
     const matchesColor = (ci: string[]): boolean => {
       if (colorFilter.size === 0) return true;
       const ident = ci.length > 0 ? ci : ['C'];
@@ -542,12 +587,12 @@ export function CommanderSearch({ value, onSelect }: Props) {
         colors: c.colorIdentity.length > 0 ? c.colorIdentity : ['C'],
         key: c.sanitized || c.name,
       }));
-  }, [searchMode, playstyle, ownedOnly, ownedByPlaystyle, playstyleCommanders, colorFilter]);
+  }, [activeSearchMode, playstyle, ownedOnly, ownedByPlaystyle, playstyleCommanders, colorFilter]);
 
   // Eager-load readiness for the visible playstyle commanders (bounded set),
   // mirroring the recommended-pills behavior so the % shows without hovering.
   useEffect(() => {
-    if (searchMode !== 'playstyle' || playstyleResults.length === 0) return;
+    if (activeSearchMode !== 'playstyle' || playstyleResults.length === 0) return;
     let cancelled = false;
     void (async () => {
       for (const c of playstyleResults.slice(0, 12)) {
@@ -558,7 +603,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [searchMode, playstyleResults, ensureReadiness]);
+  }, [activeSearchMode, playstyleResults, ensureReadiness]);
 
   const nameResults = ownedOnly ? localResults : results;
   const nameResultKey = `${ownedOnly}|${query.trim()}|${nameResults
@@ -650,10 +695,25 @@ export function CommanderSearch({ value, onSelect }: Props) {
             : pool;
         const pick = pickRandom(fallback.length > 0 ? fallback : collectionLegends);
         if (!pick) {
-          setError('No legendary creatures in your collection match that filter.');
+          setError(
+            pdh
+              ? 'No uncommon creatures in your collection match that filter.'
+              : 'No legendary creatures in your collection match that filter.'
+          );
           return;
         }
         await selectOwnedCard(pick);
+        return;
+      }
+      // Online PDH — Scryfall's random endpoint over the derived commander
+      // pool (there is no EDHREC list to draw from).
+      if (pdh) {
+        const exactColors =
+          colorFilter.size > 0
+            ? [...colorFilter].sort((a, b) => WUBRG_ORDER.indexOf(a) - WUBRG_ORDER.indexOf(b))
+            : [];
+        const pick = await getRandomPdhCommander(exactColors);
+        selectCard(pick);
         return;
       }
       // Online — pick from the EDHREC commander list, narrowed by color.
@@ -759,11 +819,13 @@ export function CommanderSearch({ value, onSelect }: Props) {
               ))}
             </div>
           )}
-          <div className="commander-pick-readiness">
-            <CommanderReadiness
-              score={selectedReadiness === 'loading' ? undefined : selectedReadiness}
-            />
-          </div>
+          {!pdh && (
+            <div className="commander-pick-readiness">
+              <CommanderReadiness
+                score={selectedReadiness === 'loading' ? undefined : selectedReadiness}
+              />
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -808,7 +870,7 @@ export function CommanderSearch({ value, onSelect }: Props) {
                 name={card.name}
                 imageUrl={card.imageSmall}
                 colors={card.colorIdentity ?? card.colors ?? []}
-                typeLine={card.typeLine ?? 'Legendary Creature'}
+                typeLine={card.typeLine ?? (pdh ? 'Creature' : 'Legendary Creature')}
                 readiness={readiness.get(card.name.toLowerCase())}
                 onSelect={() => void selectOwnedCard(card)}
                 onPeek={() => void ensureReadiness(card.name)}
@@ -831,19 +893,21 @@ export function CommanderSearch({ value, onSelect }: Props) {
 
   return (
     <div className="commander-search">
-      <Tabs
-        ariaLabel="Commander search mode"
-        variant="underline"
-        className="commander-search-modes"
-        value={searchMode}
-        onChange={changeMode}
-        tabs={[
-          { id: 'name', label: 'By name', controls: 'commander-search-panel' },
-          { id: 'playstyle', label: 'By playstyle', controls: 'commander-search-panel' },
-        ]}
-      />
+      {!pdh && (
+        <Tabs
+          ariaLabel="Commander search mode"
+          variant="underline"
+          className="commander-search-modes"
+          value={activeSearchMode}
+          onChange={changeMode}
+          tabs={[
+            { id: 'name', label: 'By name', controls: 'commander-search-panel' },
+            { id: 'playstyle', label: 'By playstyle', controls: 'commander-search-panel' },
+          ]}
+        />
+      )}
 
-      {searchMode === 'name' && (
+      {activeSearchMode === 'name' && (
         <SearchPill
           inputType="text"
           placeholder={ownedOnly ? 'Search your commanders…' : 'Search for a commander…'}
@@ -882,16 +946,20 @@ export function CommanderSearch({ value, onSelect }: Props) {
             {collectionLegends.length > 0 && (
               <span className="commander-owned-count">
                 {' '}
-                ({collectionLegends.length.toLocaleString()} legend
-                {collectionLegends.length === 1 ? '' : 's'})
+                ({collectionLegends.length.toLocaleString()}{' '}
+                {pdh
+                  ? `uncommon creature${collectionLegends.length === 1 ? '' : 's'}`
+                  : `legend${collectionLegends.length === 1 ? '' : 's'}`}
+                )
               </span>
             )}
           </span>
         </label>
       )}
 
-      {/* Readiness legend — explains the % chip and that it loads on hover. */}
-      {collectionCards.length > 0 && (
+      {/* Readiness legend — explains the % chip and that it loads on hover.
+          Hidden for PDH: readiness is EDHREC-staple-based and never loads there. */}
+      {!pdh && collectionCards.length > 0 && (
         <p className="commander-readiness-hint">
           The <strong>%</strong> beside a commander is how many of its staple cards you already own
           — hover a commander to load it.
@@ -904,10 +972,9 @@ export function CommanderSearch({ value, onSelect }: Props) {
       <div
         className="commander-search-panel"
         id="commander-search-panel"
-        role="tabpanel"
-        aria-labelledby={`sc-tab-${searchMode}`}
+        {...(!pdh && { role: 'tabpanel', 'aria-labelledby': `sc-tab-${activeSearchMode}` })}
       >
-        {searchMode === 'playstyle' ? (
+        {activeSearchMode === 'playstyle' ? (
           <div className="commander-playstyle-browse">
             {playstyle ? (
               <>
@@ -981,19 +1048,33 @@ export function CommanderSearch({ value, onSelect }: Props) {
         ) : (
           <div className="commander-suggestions">
             <p className="commander-suggestions-label">
-              {getColorFilterLabel(colorFilter)} commanders on EDHREC
-              {ownedOnly ? ' (yours)' : ''}:
+              {pdh ? (
+                ownedOnly ? (
+                  'Uncommon creatures you own:'
+                ) : (
+                  'Any creature printed at uncommon can lead a Pauper Commander deck. Search by name, browse the ones you own, or go random.'
+                )
+              ) : (
+                <>
+                  {getColorFilterLabel(colorFilter)} commanders on EDHREC
+                  {ownedOnly ? ' (yours)' : ''}:
+                </>
+              )}
             </p>
             <ColorPips colorFilter={colorFilter} setColorFilter={setColorFilter} />
 
             {topLoading && visibleTop.length === 0 ? (
               <p className="commander-suggestions-empty">Loading…</p>
             ) : visibleTop.length === 0 ? (
-              <p className="commander-suggestions-empty">
-                {ownedOnly
-                  ? 'You don’t own any of EDHREC’s top commanders for that filter.'
-                  : 'No commanders found.'}
-              </p>
+              pdh && !ownedOnly ? null : (
+                <p className="commander-suggestions-empty">
+                  {pdh
+                    ? 'No uncommon creatures in your collection match that filter.'
+                    : ownedOnly
+                      ? 'You don’t own any of EDHREC’s top commanders for that filter.'
+                      : 'No commanders found.'}
+                </p>
+              )
             ) : (
               <>
                 <ul className="commander-result-grid" aria-busy={topLoading}>

@@ -10,6 +10,7 @@ import {
   notOnArena,
   exceedsCmcCap,
   notCommanderLegal,
+  notPauperCommanderLegal,
 } from './deckFilters';
 import type { ScryfallCard } from '@/deck-builder/types';
 
@@ -125,6 +126,33 @@ describe('notCommanderLegal', () => {
   it('rejects banned/not_legal cards', () => {
     expect(notCommanderLegal(makeCard({ legalities: { commander: 'banned' } }))).toBe(true);
     expect(notCommanderLegal(makeCard({ legalities: { commander: 'not_legal' } }))).toBe(true);
+  });
+});
+
+describe('notPauperCommanderLegal', () => {
+  it('passes cards Scryfall stamps paupercommander-legal (incl. downshifts)', () => {
+    expect(
+      notPauperCommanderLegal(
+        makeCard({ legalities: { commander: 'legal', paupercommander: 'legal' } })
+      )
+    ).toBe(false);
+  });
+
+  it('rejects banned and never-common cards', () => {
+    expect(
+      notPauperCommanderLegal(
+        makeCard({ legalities: { commander: 'legal', paupercommander: 'banned' } })
+      )
+    ).toBe(true);
+    expect(
+      notPauperCommanderLegal(
+        makeCard({ legalities: { commander: 'legal', paupercommander: 'not_legal' } })
+      )
+    ).toBe(true);
+  });
+
+  it('rejects cards with no paupercommander key at all', () => {
+    expect(notPauperCommanderLegal(makeCard({ legalities: { commander: 'legal' } }))).toBe(true);
   });
 });
 

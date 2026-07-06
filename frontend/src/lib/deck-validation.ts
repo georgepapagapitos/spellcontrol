@@ -1,6 +1,12 @@
 import type { ScryfallCard, DeckFormatConfig } from '@/deck-builder/types';
 import type { DeckCard } from '@/store/decks';
 import { BASIC_LAND_NAMES } from './allocations';
+import { isPdhCommanderEligible } from './commanders';
+
+/** Synthetic slot ids for commander-zone issues — the commanders live outside
+ *  the mainboard/sideboard slot lists, so they get stable keys of their own. */
+export const COMMANDER_SLOT_ID = 'commander';
+export const PARTNER_COMMANDER_SLOT_ID = 'partner-commander';
 
 type LegalityIssueKind = 'not-legal' | 'over-copy-limit' | 'color-identity';
 
@@ -138,6 +144,28 @@ export function validateDeck(
         issue: 'not-legal',
         detail: `Not legal in ${config.label}`,
       });
+    }
+  }
+
+  // Commander-zone legality (PDH). The commander is validated with the
+  // DERIVED predicate, never isCardLegal: PDH commanders are uncommons, which
+  // read `not_legal` under Scryfall's paupercommander key — the oracle-level
+  // "printed at common" stamp only describes the 99.
+  if (config.format === 'paupercommander') {
+    const commanderZone = [
+      { card: options.commander, slotId: COMMANDER_SLOT_ID },
+      { card: options.partnerCommander, slotId: PARTNER_COMMANDER_SLOT_ID },
+    ];
+    for (const { card, slotId } of commanderZone) {
+      if (card && !isPdhCommanderEligible(card)) {
+        issues.push({
+          slotId,
+          cardName: card.name,
+          issue: 'not-legal',
+          detail:
+            'Not a legal Pauper Commander — the commander must be a creature printed at uncommon',
+        });
+      }
     }
   }
 

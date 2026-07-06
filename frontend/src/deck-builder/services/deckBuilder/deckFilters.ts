@@ -88,3 +88,11 @@ export function exceedsCmcCap(card: ScryfallCard, maxCmc: number | null): boolea
 export function notCommanderLegal(card: ScryfallCard): boolean {
   return card.legalities.commander !== 'legal';
 }
+
+// PDH 99s gate. Scryfall stamps `paupercommander` at ORACLE level ("ever
+// printed at common"), so downshifted cards (Chainer's Edict, Command Tower)
+// correctly pass and the ~26 PDH bans correctly fail. Do NOT gate on
+// rarity — rarity is per-printing and would wrongly exclude downshifts.
+export function notPauperCommanderLegal(card: ScryfallCard): boolean {
+  return card.legalities.paupercommander !== 'legal';
+}

@@ -79,17 +79,28 @@ function shortCommanderName(name: string): string {
  */
 export function extractCommanderCandidates(
   cards: EnrichedCard[],
-  recency?: ImportRecency
+  recency?: ImportRecency,
+  eligible: (card: EnrichedCard) => boolean = isCommanderEligible
 ): EnrichedCard[] {
   const byName = new Map<string, EnrichedCard>();
   for (const card of cards) {
-    if (!isCommanderEligible(card)) continue;
+    if (!eligible(card)) continue;
     const existing = byName.get(card.name);
     if (!existing || recencyOf(card, recency) > recencyOf(existing, recency)) {
       byName.set(card.name, card);
     }
   }
   return [...byName.values()];
+}
+
+/**
+ * PDH commander eligibility over an owned copy: an uncommon creature.
+ * `rarity` is the copy's own printing — a rare-only-owned copy of a card that
+ * has an uncommon printing elsewhere won't surface; acceptable ceiling
+ * (mirrors lib/commanders.ts:isPdhCommanderEligible).
+ */
+export function isPdhCommanderCandidate(card: EnrichedCard): boolean {
+  return card.rarity === 'uncommon' && (card.typeLine ?? '').includes('Creature');
 }
 
 /**

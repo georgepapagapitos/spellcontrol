@@ -287,6 +287,7 @@ export function DecksIndexPage() {
       state: {
         prefill: {
           sourceDeckId: deck.id,
+          format: deck.format,
           commander: deck.commander,
           themes: (deck.generationContext?.selectedThemes ?? []).map((t) => ({
             name: t.name,

@@ -375,3 +375,74 @@ describe('countFlaggedCards', () => {
     expect(countFlaggedCards([])).toBe(0);
   });
 });
+
+describe('validateDeck — Pauper Commander', () => {
+  const pdhConfig = DECK_FORMAT_CONFIGS.paupercommander;
+  const pdhCommander = card({
+    name: 'Fynn, the Fangbearer',
+    type_line: 'Legendary Creature — Human Warrior',
+    rarity: 'uncommon',
+    color_identity: ['G'],
+    // Real Scryfall data: uncommon commanders read not_legal under the key.
+    legalities: { commander: 'legal', paupercommander: 'not_legal' },
+  });
+
+  it('gates the 99 on the paupercommander key (downshifts pass, uncommons fail)', () => {
+    const downshift = card({
+      name: 'Command Tower',
+      type_line: 'Land',
+      rarity: 'rare',
+      legalities: { commander: 'legal', paupercommander: 'legal' },
+    });
+    const uncommonSpell = card({
+      name: 'Rhystic Study',
+      type_line: 'Enchantment',
+      rarity: 'uncommon',
+      legalities: { commander: 'legal', paupercommander: 'not_legal' },
+    });
+    const issues = validateDeck([slot(downshift, 'a'), slot(uncommonSpell, 'b')], [], pdhConfig, {
+      commander: pdhCommander,
+    });
+    expect(issues.filter((i) => i.issue === 'not-legal').map((i) => i.slotId)).toEqual(['b']);
+  });
+
+  it('does NOT flag a derived-eligible commander despite its not_legal stamp', () => {
+    const issues = validateDeck([], [], pdhConfig, { commander: pdhCommander });
+    expect(issues).toEqual([]);
+  });
+
+  it('flags an ineligible commander on the synthetic commander slot', () => {
+    const rareLegend = card({
+      name: 'Atraxa, Praetors’ Voice',
+      type_line: 'Legendary Creature — Phyrexian Angel Horror',
+      rarity: 'mythic',
+      legalities: { commander: 'legal', paupercommander: 'not_legal' },
+    });
+    const issues = validateDeck([], [], pdhConfig, { commander: rareLegend });
+    expect(issues).toHaveLength(1);
+    expect(issues[0].slotId).toBe('commander');
+    expect(issues[0].issue).toBe('not-legal');
+  });
+
+  it('validates a partner commander on its own synthetic slot', () => {
+    const rarePartner = card({
+      name: 'Rare Partner',
+      type_line: 'Legendary Creature — Human',
+      rarity: 'rare',
+      legalities: { commander: 'legal', paupercommander: 'not_legal' },
+    });
+    const issues = validateDeck([], [], pdhConfig, {
+      commander: pdhCommander,
+      partnerCommander: rarePartner,
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0].slotId).toBe('partner-commander');
+  });
+
+  it('leaves other commander formats untouched (no derived commander check)', () => {
+    const issues = validateDeck([], [], DECK_FORMAT_CONFIGS.commander, {
+      commander: pdhCommander,
+    });
+    expect(issues).toEqual([]);
+  });
+});

@@ -9,6 +9,7 @@ import {
   isOwnedRarityExempt,
   exceedsMaxRarity,
   notOnArena,
+  notPauperCommanderLegal,
 } from '../deckFilters';
 import { categorizeCards, stampRoleSubtypes } from '../categorize';
 import { type GenerationState, markUsed } from './state';
@@ -63,6 +64,9 @@ export async function stapleManaRocksPhase(
         const card = await getCardByName(staple.name, true).catch(() =>
           getCardByName(staple.name, true)
         );
+        // PDH: Sol Ring has no common printing (not_legal); Arcane Signet's
+        // CLB common downshift keeps it legal — the gate decides, not a list.
+        if (state.cfg.mtgFormat === 'paupercommander' && notPauperCommanderLegal(card)) continue;
         const ownedExempt = isOwnedBudgetExempt(
           staple.name,
           state.context.collectionNames,

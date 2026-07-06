@@ -94,7 +94,7 @@ import { isBuildReportSeen } from '../lib/build-report-seen';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
-import { isValidCommander } from '../lib/commanders';
+import { isValidCommander, isPdhCommanderEligible } from '../lib/commanders';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
@@ -2174,7 +2174,13 @@ export function DeckEditorPage() {
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
-            canMakeCommander={formatConfig?.hasCommander ? isValidCommander : undefined}
+            canMakeCommander={
+              formatConfig?.hasCommander
+                ? deck.format === 'paupercommander'
+                  ? isPdhCommanderEligible
+                  : isValidCommander
+                : undefined
+            }
             onMakePartner={
               formatConfig?.hasCommander && deck.commander ? handleMakePartnerClick : undefined
             }

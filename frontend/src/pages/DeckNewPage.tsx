@@ -26,6 +26,8 @@ interface PrefillState {
   collectionMode: boolean;
   /** The deck this regenerate ran from — lands the completed build on the compare diff instead of the editor. */
   sourceDeckId?: string;
+  /** Format of the source deck — a PDH regenerate must stay PDH. */
+  format?: DeckFormat;
 }
 
 export function DeckNewPage() {
@@ -70,8 +72,22 @@ export function DeckNewPage() {
   });
 
   const [showImport, setShowImport] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<DeckFormat>('commander');
+  const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(prefill?.format ?? 'commander');
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
+  const isPdh = selectedFormat === 'paupercommander';
+
+  // Keep the store's build-format in lockstep with the pill so generation and
+  // the saved deck both know the format. Only PDH generates as its own format
+  // today — every other commander-family pill builds the standard 100.
+  const applyFormat = useCallback(
+    (fmt: DeckFormat) => {
+      setSelectedFormat(fmt);
+      updateCustomizationStore({
+        mtgFormat: fmt === 'paupercommander' ? 'paupercommander' : 'commander',
+      });
+    },
+    [updateCustomizationStore]
+  );
 
   // Reset the deck-builder store on mount so opening "New deck" after
   // creating a deck always starts at a blank commander search — the
@@ -79,6 +95,11 @@ export function DeckNewPage() {
   // commander, themes, and EDHREC data.
   useEffect(() => {
     resetDeckBuilder();
+    // reset() keeps customization, so a stale mtgFormat from a previous visit
+    // must be stamped back to match the pill (prefill format for regenerates).
+    updateCustomizationStore({
+      mtgFormat: prefill?.format === 'paupercommander' ? 'paupercommander' : 'commander',
+    });
     if (prefill) {
       setCommander(prefill.commander);
       updateCustomizationStore({
@@ -152,7 +173,9 @@ export function DeckNewPage() {
         ? `Builds a full 100 from cards printed through ${customization.historicalYear}.`
         : genMode === 'oracle-role'
           ? 'Builds a full 100 chosen by card function, not crowd data.'
-          : 'Generate uses EDHREC data to draft a full 100.';
+          : isPdh
+            ? 'Builds a full 100 from Pauper Commander–legal cards, chosen by card function (EDHREC has no PDH data).'
+            : 'Generate uses EDHREC data to draft a full 100.';
 
   // Commander art for the takeover panel.
   const commanderArtUrl =
@@ -187,8 +210,9 @@ export function DeckNewPage() {
         <p className="deck-builder-subtitle">
           {formatConfig.hasCommander ? (
             <>
-              Pick a commander, then generate a deck from EDHREC data, start blank and add cards by
-              hand, or{' '}
+              {isPdh
+                ? 'Pick an uncommon creature to lead, then generate a deck of commons, start blank and add cards by hand, or '
+                : 'Pick a commander, then generate a deck from EDHREC data, start blank and add cards by hand, or '}
             </>
           ) : (
             <>Create a {formatConfig.label} deck and add cards manually, or </>
@@ -216,7 +240,7 @@ export function DeckNewPage() {
                 role="radio"
                 aria-checked={active}
                 className={`format-pill${active ? ' active' : ''}`}
-                onClick={() => setSelectedFormat(fmt)}
+                onClick={() => applyFormat(fmt)}
               >
                 {cfg.label}
               </button>
@@ -226,7 +250,8 @@ export function DeckNewPage() {
         <p className="format-pill-hint">{formatConfig.description}</p>
       </section>
 
-      {formatConfig.hasCommander && (
+      {/* Guided/Brew walk the EDHREC-driven Commander flow — no PDH data there. */}
+      {formatConfig.hasCommander && !isPdh && (
         <section className="deck-builder-section guided-cta">
           <div className="guided-cta-text">
             <strong>Not sure where to start?</strong>
@@ -241,7 +266,7 @@ export function DeckNewPage() {
         </section>
       )}
 
-      {formatConfig.hasCommander && (
+      {formatConfig.hasCommander && !isPdh && (
         <section className="deck-builder-section guided-cta">
           <div className="guided-cta-text">
             <strong>Prefer to pick every card?</strong>
@@ -259,7 +284,12 @@ export function DeckNewPage() {
       {formatConfig.hasCommander && (
         <section className="deck-builder-section">
           <h2 className="deck-builder-section-title">Commander</h2>
-          <CommanderSearch value={commander} onSelect={selectCommander} />
+          <CommanderSearch
+            key={selectedFormat}
+            value={commander}
+            onSelect={selectCommander}
+            format={selectedFormat}
+          />
         </section>
       )}
 
@@ -273,6 +303,7 @@ export function DeckNewPage() {
           update={updateCustomization}
           colorIdentity={colorIdentity}
           commanderName={commander.name}
+          pdh={isPdh}
         />
       )}
 
@@ -283,7 +314,8 @@ export function DeckNewPage() {
         <DeckCustomizer customization={customization} update={updateCustomization} />
       )}
 
-      {formatConfig.hasCommander && commander && (
+      {/* Partner picker searches legendary partner mechanics — not a PDH surface. */}
+      {formatConfig.hasCommander && !isPdh && commander && (
         <PartnerCommanderSelector
           key={commander.id}
           commander={commander}
@@ -295,13 +327,16 @@ export function DeckNewPage() {
 
       {/* Themes only steer the EDHREC generator — the Scryfall-driven modes
           define their own pool, so the theme picker is irrelevant there. */}
-      {formatConfig.hasCommander && commander && customization.generationMode === 'edhrec' && (
-        <ThemePicker
-          commanderName={commander.name}
-          selectedSlugs={selectedThemeSlugs}
-          onToggle={toggleTheme}
-        />
-      )}
+      {formatConfig.hasCommander &&
+        !isPdh &&
+        commander &&
+        customization.generationMode === 'edhrec' && (
+          <ThemePicker
+            commanderName={commander.name}
+            selectedSlugs={selectedThemeSlugs}
+            onToggle={toggleTheme}
+          />
+        )}
 
       {formatConfig.hasCommander ? (
         commander && (

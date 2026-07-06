@@ -22,9 +22,16 @@ vi.mock('@/deck-builder/services/scryfall/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/deck-builder/services/scryfall/client')>();
   return {
     ...actual,
-    getCardByName: vi.fn(async (name: string) =>
-      name === 'Sol Ring' ? card('Sol Ring', '40.00') : card('Arcane Signet', '5.00')
-    ),
+    getCardByName: vi.fn(async (name: string) => {
+      const c = name === 'Sol Ring' ? card('Sol Ring', '40.00') : card('Arcane Signet', '5.00');
+      // Real-world PDH facts: Sol Ring has no common printing (not_legal);
+      // Arcane Signet is a CLB common downshift (legal).
+      c.legalities = {
+        commander: 'legal',
+        paupercommander: c.name === 'Arcane Signet' ? 'legal' : 'not_legal',
+      };
+      return c;
+    }),
   };
 });
 
@@ -163,5 +170,12 @@ describe('stapleManaRocksPhase', () => {
     const tracker = new BudgetTracker(1000, 5, 'USD');
     await stapleManaRocksPhase(state, tracker);
     expect(tracker.remainingBudget).toBe(1000);
+  });
+
+  it('PDH: skips Sol Ring (never common) but keeps Arcane Signet (downshift)', async () => {
+    const state = makeState();
+    state.cfg.mtgFormat = 'paupercommander';
+    await stapleManaRocksPhase(state, null);
+    expect(allCards(state).map((c) => c.name)).toEqual(['Arcane Signet']);
   });
 });

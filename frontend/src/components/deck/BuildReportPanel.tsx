@@ -81,6 +81,8 @@ function humanizeDataSource(source: DeckDataSource): string {
       return 'used base EDHREC pool (bracket list unavailable)';
     case 'scryfall':
       return 'used Scryfall search (no EDHREC data available)';
+    case 'paupercommander':
+      return 'used the Pauper Commander card pool, chosen by function (EDHREC has no PDH data)';
     default:
       return source;
   }
