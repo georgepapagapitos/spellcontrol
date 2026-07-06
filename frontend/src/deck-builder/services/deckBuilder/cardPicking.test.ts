@@ -9,7 +9,7 @@ import {
 } from './cardPicking';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
-import type { RoleKey } from '@/deck-builder/services/tagger/client';
+import { isOneSidedWipe, type RoleKey } from '@/deck-builder/services/tagger/client';
 
 function ec(overrides: Partial<EDHRECCard> = {}): EDHRECCard {
   return {
@@ -1009,5 +1009,152 @@ describe('price-sanity tie-break (E80)', () => {
       );
       expect(decided.size).toBe(0);
     });
+  });
+});
+
+// E109: board-centric wipe-asymmetry preference. Real oracle text (Ruinous
+// Ultimatum one-sided vs Farewell symmetric — see tagger/client.test.ts for
+// the full ground-truth table verified against Scryfall) so this exercises
+// the real isOneSidedWipe classifier, not a stub.
+describe('wipe-asymmetry tie-break (E109)', () => {
+  const oneSided = ec({ name: 'Ruinous Ultimatum', inclusion: 5, primary_type: 'Sorcery' });
+  const symmetric = ec({ name: 'Farewell', inclusion: 40, primary_type: 'Sorcery' }); // outranks on raw priority
+  const wipeRoleMap = new Map<string, RoleKey>([
+    ['Ruinous Ultimatum', 'boardwipe'],
+    ['Farewell', 'boardwipe'],
+  ]);
+  const wipeCardMap = new Map<string, ScryfallCard>([
+    [
+      'Ruinous Ultimatum',
+      sc({
+        name: 'Ruinous Ultimatum',
+        type_line: 'Sorcery',
+        oracle_text: 'Destroy all nonland permanents your opponents control.',
+      }),
+    ],
+    [
+      'Farewell',
+      sc({
+        name: 'Farewell',
+        type_line: 'Sorcery',
+        oracle_text:
+          'Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards.',
+      }),
+    ],
+  ]);
+
+  function pickWipe(preferAsymmetric: boolean, decided?: Set<string>) {
+    return pickFromPrefetchedWithCurve(
+      [oneSided, symmetric],
+      wipeCardMap,
+      1, // only room for one — forces a real either/or choice
+      new Set(),
+      [],
+      { 3: 100, 4: 100, 5: 100 },
+      {},
+      new Set(),
+      'Sorcery',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        cardRoleMap: wipeRoleMap,
+        roleTargets: { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 },
+        currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+        isOneSidedWipe: preferAsymmetric ? isOneSidedWipe : undefined,
+        wipeAsymmetryDecided: decided,
+      }
+    );
+  }
+
+  it('disabled (not board-centric): the higher-inclusion symmetric staple wins as today', () => {
+    const picked = pickWipe(false);
+    expect(picked.map((c) => c.name)).toEqual(['Farewell']);
+  });
+
+  it('enabled (board-centric): the one-sided wipe wins despite a 35pt inclusion deficit', () => {
+    const picked = pickWipe(true);
+    expect(picked.map((c) => c.name)).toEqual(['Ruinous Ultimatum']);
+  });
+
+  it('two symmetric wipes: falls through to ordinary priority (no one-sided candidate to prefer)', () => {
+    const otherSymmetric = ec({ name: 'Toxic Deluge', inclusion: 10, primary_type: 'Sorcery' });
+    const cardMap = new Map(wipeCardMap);
+    cardMap.set(
+      'Toxic Deluge',
+      sc({
+        name: 'Toxic Deluge',
+        type_line: 'Sorcery',
+        oracle_text:
+          'As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.',
+      })
+    );
+    const roleMap = new Map(wipeRoleMap);
+    roleMap.set('Toxic Deluge', 'boardwipe');
+    const picked = pickFromPrefetchedWithCurve(
+      [symmetric, otherSymmetric],
+      cardMap,
+      1,
+      new Set(),
+      [],
+      { 3: 100, 4: 100, 5: 100 },
+      {},
+      new Set(),
+      'Sorcery',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        cardRoleMap: roleMap,
+        roleTargets: { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 },
+        currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+        isOneSidedWipe,
+      }
+    );
+    expect(picked.map((c) => c.name)).toEqual(['Farewell']); // higher raw priority, tie-break didn't fire
+  });
+
+  it('records the pair when the tie-break actually decides the winner', () => {
+    const decided = new Set<string>();
+    pickWipe(true, decided);
+    expect(decided.size).toBe(1);
+  });
+
+  it('stays empty when disabled', () => {
+    const decided = new Set<string>();
+    pickWipe(false, decided);
+    expect(decided.size).toBe(0);
   });
 });

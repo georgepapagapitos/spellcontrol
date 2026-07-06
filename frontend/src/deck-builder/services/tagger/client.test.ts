@@ -10,6 +10,7 @@ import {
   isBlinkProducer,
   isExileProducer,
   isExtraCombatPiece,
+  isOneSidedWipe,
 } from './client';
 
 // Minimal tagger dataset: a cost-reducer (which the generic classifier folds
@@ -1379,6 +1380,87 @@ describe('isExtraCombatPiece', () => {
 
   it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
     expect(isExtraCombatPiece({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// isOneSidedWipe (E109): one-sided vs symmetric board wipes. Every oracle
+// text below is live-verified against Scryfall (api.scryfall.com, with a
+// User-Agent header — see the module doc for the full false-positive-guard
+// rationale). Ground truth:
+//  - Plague Wind, In Garruk's Wake, Ruinous Ultimatum: ONE-SIDED (spare the
+//    caster's own board).
+//  - Farewell, Blasphemous Act, Wrath of God, Damnation, Toxic Deluge, Crux
+//    of Fate, Vanquish the Horde, Austere Command, Extinction Event, Single
+//    Combat: SYMMETRIC. Single Combat in particular corrects an assumption
+//    in this slice's own build spec, which grouped it with the one-sided
+//    cards from memory — its real printed text ("Each player chooses a
+//    creature or planeswalker they control, then sacrifices the rest.")
+//    hits every player equally, including the caster.
+describe('isOneSidedWipe', () => {
+  it.each([
+    ['Plague Wind', "Destroy all creatures you don't control. They can't be regenerated."],
+    [
+      "In Garruk's Wake",
+      "Destroy all creatures you don't control and all planeswalkers you don't control.",
+    ],
+    ['Ruinous Ultimatum', 'Destroy all nonland permanents your opponents control.'],
+  ])('one-sided: %s', (name, oracle_text) => {
+    expect(isOneSidedWipe({ name, oracle_text })).toBe(true);
+  });
+
+  it.each([
+    [
+      'Farewell',
+      'Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards.',
+    ],
+    [
+      'Blasphemous Act',
+      'This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature.',
+    ],
+    ['Wrath of God', "Destroy all creatures. They can't be regenerated."],
+    ['Damnation', "Destroy all creatures. They can't be regenerated."],
+    [
+      'Toxic Deluge',
+      'As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.',
+    ],
+    [
+      'Crux of Fate',
+      'Choose one —\n• Destroy all Dragon creatures.\n• Destroy all non-Dragon creatures.',
+    ],
+    [
+      'Vanquish the Horde',
+      'This spell costs {1} less to cast for each creature on the battlefield.\nDestroy all creatures.',
+    ],
+    [
+      'Austere Command',
+      'Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater.',
+    ],
+    [
+      'Extinction Event',
+      'Choose odd or even. Exile each creature with mana value of the chosen quality. (Zero is even.)',
+    ],
+    [
+      'Single Combat',
+      "Each player chooses a creature or planeswalker they control, then sacrifices the rest. Players can't cast creature or planeswalker spells until the end of your next turn.",
+    ],
+  ])('symmetric: %s', (name, oracle_text) => {
+    expect(isOneSidedWipe({ name, oracle_text })).toBe(false);
+  });
+
+  it('handles a DFC via card_faces', () => {
+    expect(
+      isOneSidedWipe({
+        name: 'Some // Split',
+        card_faces: [
+          { oracle_text: 'Draw a card.' },
+          { oracle_text: "Destroy all creatures you don't control." },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
+    expect(isOneSidedWipe({ name: 'No-Text Card' })).toBe(false);
   });
 });
 

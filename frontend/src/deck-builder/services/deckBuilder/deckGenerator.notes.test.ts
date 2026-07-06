@@ -26,10 +26,17 @@ const PROTECTED_NAMES = new Set<string>();
 // computeTrimResistance (iter-10 Slice A) also calls isFreeInteraction —
 // same stub shape.
 const FREE_INTERACTION_NAMES = new Set<string>();
+// countFinalWipeAsymmetry (E109 fix round) calls getCardRole (name->role,
+// same shape as validateCardRole above but keyed straight off the name) and
+// isOneSidedWipe — stub both the same way (name-keyed, not real oracle
+// text; isOneSidedWipe's own regex is covered in tagger/client.test.ts).
+const ONE_SIDED_WIPE_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
+  getCardRole: (name: string) => ROLES[name] ?? null,
   isProtectionPiece: (card: { name: string }) => PROTECTED_NAMES.has(card.name),
   isFreeInteraction: (card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name),
+  isOneSidedWipe: (card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name),
 }));
 
 import {
@@ -37,6 +44,8 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  buildWipeAsymmetryNote,
+  countFinalWipeAsymmetry,
   buildComboAuditBracketBlockNote,
   buildLandSqueezeTrimNote,
   reconcileLandSqueezeDisclosure,
@@ -431,6 +440,76 @@ describe('buildPriceSanityNote (E80)', () => {
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
     );
+  });
+});
+
+describe('buildWipeAsymmetryNote (E109)', () => {
+  it('returns undefined when the plan was not board-centric (neither half fired)', () => {
+    expect(buildWipeAsymmetryNote(false, 0, 0)).toBeUndefined();
+  });
+
+  it('names only the target shave when no one-sided wipe survived to the final deck', () => {
+    expect(buildWipeAsymmetryNote(true, 0, 2)).toBe(
+      'Own board matters for this plan — trimmed the board wipe target by one.'
+    );
+  });
+
+  it('names only the surviving one-sided count (singular) when the target was not shaved', () => {
+    expect(buildWipeAsymmetryNote(false, 1, 2)).toBe(
+      "Own board matters for this plan — 1 of the deck's 2 wipes spares your own board."
+    );
+  });
+
+  it('names both, with plural wording, when the target was shaved and multiple wipes survive one-sided', () => {
+    expect(buildWipeAsymmetryNote(true, 2, 3)).toBe(
+      "Own board matters for this plan — trimmed the board wipe target by one and 2 of the deck's 3 wipes spare your own board."
+    );
+  });
+
+  it('uses singular "wipe" when the deck ran exactly one wipe total', () => {
+    expect(buildWipeAsymmetryNote(false, 1, 1)).toBe(
+      "Own board matters for this plan — 1 of the deck's 1 wipe spares your own board."
+    );
+  });
+});
+
+describe('countFinalWipeAsymmetry (E109 fix round)', () => {
+  beforeEach(() => {
+    Object.keys(ROLES).forEach((k) => delete ROLES[k]);
+    ONE_SIDED_WIPE_NAMES.clear();
+  });
+
+  it('counts a one-sided wipe when the preference was active', () => {
+    ROLES['Ruinous Ultimatum'] = 'boardwipe';
+    ONE_SIDED_WIPE_NAMES.add('Ruinous Ultimatum');
+    const result = countFinalWipeAsymmetry([sc('Ruinous Ultimatum')], true);
+    expect(result).toEqual({ oneSidedCount: 1, totalCount: 1 });
+  });
+
+  // Lathril-shaped regression (E109 fix round): the pick-time tie-break was
+  // active for this generation, but the ONLY boardwipe-role card that
+  // survived to the final deck is symmetric (Golgari Charm) — a later pass
+  // cut whatever one-sided wipe the comparator preferred. The note must not
+  // claim a one-sided wipe that isn't actually in the deck.
+  it('lathril-shaped: preference active, but the only surviving wipe is symmetric — zero one-sided, no credit', () => {
+    ROLES['Golgari Charm'] = 'boardwipe';
+    // Golgari Charm not added to ONE_SIDED_WIPE_NAMES — it's symmetric.
+    const result = countFinalWipeAsymmetry([sc('Golgari Charm')], true);
+    expect(result).toEqual({ oneSidedCount: 0, totalCount: 1 });
+    expect(buildWipeAsymmetryNote(false, result.oneSidedCount, result.totalCount)).toBeUndefined();
+  });
+
+  it('never credits a one-sided wipe when the preference was not active, even if one is in the deck', () => {
+    ROLES['Ruinous Ultimatum'] = 'boardwipe';
+    ONE_SIDED_WIPE_NAMES.add('Ruinous Ultimatum');
+    const result = countFinalWipeAsymmetry([sc('Ruinous Ultimatum')], false);
+    expect(result).toEqual({ oneSidedCount: 0, totalCount: 1 });
+  });
+
+  it('ignores non-boardwipe-role cards', () => {
+    ROLES['Sol Ring'] = 'ramp';
+    const result = countFinalWipeAsymmetry([sc('Sol Ring')], true);
+    expect(result).toEqual({ oneSidedCount: 0, totalCount: 0 });
   });
 });
 

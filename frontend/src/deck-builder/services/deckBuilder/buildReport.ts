@@ -69,6 +69,7 @@ export function assembleBuildReport(input: {
   if (generated.budgetNote) report.budgetNote = generated.budgetNote;
   if (generated.roleCapOverflowNote) report.roleCapOverflowNote = generated.roleCapOverflowNote;
   if (generated.priceSanityNote) report.priceSanityNote = generated.priceSanityNote;
+  if (generated.wipeAsymmetryNote) report.wipeAsymmetryNote = generated.wipeAsymmetryNote;
   if (generated.qualifiedPayoffGateNote)
     report.qualifiedPayoffGateNote = generated.qualifiedPayoffGateNote;
   if (generated.comboAuditBracketBlockNote)

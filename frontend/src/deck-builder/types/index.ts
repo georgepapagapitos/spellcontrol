@@ -493,6 +493,12 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Disclosure when the deck's plan was board-centric (E109 — go-wide
+   *  archetype, or a creature-heavy type target) and the wipe-asymmetry
+   *  treatment actually did something: trimmed the board wipe target,
+   *  preferred one-sided wipes at pick time, or both. Undefined when the
+   *  plan wasn't board-centric. */
+  wipeAsymmetryNote?: string;
   /** Disclosure when the E111 qualified-payoff pick-time gate's escape hatch
    *  seated a color/type-qualified ETB/death payoff the deck can't feed
    *  anyway (nothing else cleared every other gate to fill the slot).
@@ -668,6 +674,7 @@ export interface GeneratedDeck {
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
+  wipeAsymmetryNote?: string; // e.g. board-centric plan trimmed the wipe target and/or preferred one-sided wipes (E109)
   qualifiedPayoffGateNote?: string; // e.g. N qualified ETB/death payoffs seated anyway — nothing else cleared every gate (E111)
   comboAuditBracketBlockNote?: string; // e.g. N combo-audit swaps skipped to stay within the target bracket (E104)
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)

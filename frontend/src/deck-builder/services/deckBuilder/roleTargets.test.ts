@@ -3,6 +3,7 @@ import {
   inferArchetype,
   inferArchetypeFromEdhrecThemes,
   getDynamicRoleTargets,
+  isBoardCentricPlan,
 } from './roleTargets';
 import { Archetype } from '@/deck-builder/types';
 import type { ThemeResult, EDHRECTheme } from '@/deck-builder/types';
@@ -150,5 +151,74 @@ describe('getDynamicRoleTargets archetype threading', () => {
     expect(tempo.targets.boardwipe).toBeLessThan(goodstuff.targets.boardwipe);
     expect(tempo.targets.removal).toBeGreaterThan(goodstuff.targets.removal);
     expect(tempo.targets.cardDraw).toBeGreaterThan(goodstuff.targets.cardDraw);
+  });
+});
+
+// isBoardCentricPlan (E109): gates both the wipe-target shave and the
+// wipe-selection preference in deckGenerator.ts. Three independent signals —
+// go-wide archetype membership, a creature-dense type target the archetype
+// vote missed (a split-strategy commander defaults to GOODSTUFF), or an
+// attack-trigger commander (E109 fix round: Isshin's own archetype vote
+// lands GOODSTUFF — its top EDHREC theme holds only 31.6% — and its PLANNED
+// creature density undercounts what it actually delivers, so neither of the
+// first two signals sees it).
+describe('isBoardCentricPlan', () => {
+  it.each([Archetype.TOKENS, Archetype.TRIBAL, Archetype.ARISTOCRATS, Archetype.AGGRO])(
+    'trips on the %s archetype regardless of creature density',
+    (archetype) => {
+      expect(isBoardCentricPlan(archetype, { creature: 5, instant: 20, sorcery: 20 })).toBe(true);
+    }
+  );
+
+  it.each([Archetype.SPELLSLINGER, Archetype.CONTROL, Archetype.STORM])(
+    'does not trip on %s alone at low creature density (Talrand/Kozilek-shaped)',
+    (archetype) => {
+      // ~24% creature share — well under the 0.45 threshold.
+      expect(isBoardCentricPlan(archetype, { creature: 15, instant: 25, sorcery: 22 })).toBe(false);
+    }
+  );
+
+  it('trips on GOODSTUFF when the type-target creature share is dense enough (Atraxa-shaped split-strategy default)', () => {
+    // 30/62 ≈ 48% creature share — above the 0.45 threshold.
+    expect(
+      isBoardCentricPlan(Archetype.GOODSTUFF, { creature: 30, instant: 16, sorcery: 16 })
+    ).toBe(true);
+  });
+
+  it('does not trip on GOODSTUFF at an ordinary/baseline creature share', () => {
+    // 25/62 ≈ 40% — the generic rawTypeWeights baseline, below the 0.45 bar.
+    expect(
+      isBoardCentricPlan(Archetype.GOODSTUFF, { creature: 25, instant: 19, sorcery: 18 })
+    ).toBe(false);
+  });
+
+  it('is inert on an empty type-target map (no nonland total to divide by)', () => {
+    expect(isBoardCentricPlan(Archetype.GOODSTUFF, {})).toBe(false);
+  });
+
+  it('trips on an attack-trigger commander (Isshin-shaped) even at GOODSTUFF archetype and low creature density', () => {
+    // 0.44 planned density — under the 0.45 bar, and GOODSTUFF isn't in the
+    // go-wide set — neither of the other two signals would trip here.
+    expect(
+      isBoardCentricPlan(
+        Archetype.GOODSTUFF,
+        { creature: 27, instant: 17, sorcery: 17 },
+        true // attackTriggerCommander
+      )
+    ).toBe(true);
+  });
+
+  it('does not let the attack-trigger clause trip when the commander is not one (default false)', () => {
+    expect(
+      isBoardCentricPlan(Archetype.GOODSTUFF, { creature: 27, instant: 17, sorcery: 17 })
+    ).toBe(false);
+  });
+
+  it('does not lower the density bar for kozilek/yuriko-shaped decks just under 0.45 (no attack-trigger signal)', () => {
+    // 0.436 and 0.443 delivered densities from live-panel evidence — both
+    // correctly stay under the bar and neither is an attack-trigger commander.
+    expect(
+      isBoardCentricPlan(Archetype.GOODSTUFF, { creature: 27, instant: 17.5, sorcery: 17.5 }, false)
+    ).toBe(false);
   });
 });

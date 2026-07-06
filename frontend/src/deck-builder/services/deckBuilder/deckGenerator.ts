@@ -54,6 +54,7 @@ import {
   isBlinkProducer,
   isExileProducer,
   isExtraCombatPiece,
+  isOneSidedWipe,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
@@ -66,6 +67,7 @@ import {
   estimatePacingFromStats,
   inferArchetype,
   inferArchetypeFromEdhrecThemes,
+  isBoardCentricPlan,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
@@ -686,6 +688,61 @@ export function buildPriceSanityNote(decidedCount: number): string | undefined {
 }
 
 /**
+ * Disclosure for the E109 board-centric wipe-asymmetry treatment — mirrors
+ * the buildPriceSanityNote idiom (one terse note, not per-card spam).
+ * Undefined when the deck's plan wasn't board-centric (isBoardCentricPlan),
+ * so neither half of the treatment ever fired.
+ *
+ * `oneSidedWipeCount`/`totalWipeCount` MUST be counted over the FINAL
+ * shipped deck (see the caller — nonLandCards, after every trim/repair/
+ * convergence pass), never from the pick-time tie-break's `decided` set:
+ * that set only records which pairs the SORT happened to compare during a
+ * type pass, not which of those cards actually survived to the deck (a
+ * later pass can cut one). Composing from the final deck is what makes this
+ * note honest by construction — it can only ever claim credit for a wipe
+ * that's actually still there.
+ */
+export function buildWipeAsymmetryNote(
+  targetShaved: boolean,
+  oneSidedWipeCount: number,
+  totalWipeCount: number
+): string | undefined {
+  if (!targetShaved && oneSidedWipeCount <= 0) return undefined;
+  const clauses: string[] = [];
+  if (targetShaved) clauses.push('trimmed the board wipe target by one');
+  if (oneSidedWipeCount > 0) {
+    const verb = oneSidedWipeCount === 1 ? 'spares' : 'spare';
+    const noun = totalWipeCount === 1 ? 'wipe' : 'wipes';
+    clauses.push(
+      `${oneSidedWipeCount} of the deck's ${totalWipeCount} ${noun} ${verb} your own board`
+    );
+  }
+  return `Own board matters for this plan — ${clauses.join(' and ')}.`;
+}
+
+/**
+ * Counts one-sided vs total boardwipe-role cards over the FINAL shipped
+ * deck (see buildWipeAsymmetryNote's doc for why this must be post-hoc, not
+ * derived from the pick-time tie-break's `decided` set — a card the
+ * comparator preferred can still get cut by a later trim/repair/convergence
+ * pass; `decided` says nothing about survival). `preferAsymmetricWipes`
+ * gates the one-sided count to 0 when the preference was never active for
+ * this generation — a one-sided wipe that made the deck through ordinary
+ * EDHREC inclusion (not because of this treatment) shouldn't be credited as
+ * "preferred".
+ */
+export function countFinalWipeAsymmetry(
+  finalNonLandCards: ScryfallCard[],
+  preferAsymmetricWipes: boolean
+): { oneSidedCount: number; totalCount: number } {
+  const wipes = finalNonLandCards.filter((c) => getCardRole(c.name) === 'boardwipe');
+  return {
+    oneSidedCount: preferAsymmetricWipes ? wipes.filter((c) => isOneSidedWipe(c)).length : 0,
+    totalCount: wipes.length,
+  };
+}
+
+/**
  * Disclosure for the E111 qualified-payoff pick-time gate's escape hatch —
  * mirrors the buildRoleCapOverflowNote idiom. A qualified ETB/death payoff
  * (Ayara, First of Locthwain-style: "another black creature") the deck can't
@@ -1246,6 +1303,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // return) so it never disagrees with what actually shipped.
   let landCountAutoTuned = false;
   let edhrecRampCountForNote: number | undefined;
+  // E109: whether the board-centric wipe-target shave actually fired (see
+  // the balancedRoles branch below) — the note text is composed later from
+  // final state, same "decide early, compose late" split as landCountNote.
+  let wipeAsymmetryTargetShaved = false;
+  // E109: whether the wipe-asymmetry selection preference was active for
+  // this generation (isBoardCentricPlan). Declared here (not as a
+  // block-scoped const at its assignment site) because the final-deck note
+  // composition needs it, and that runs after the EDHREC-data branch that
+  // assigns it has already closed.
+  let preferAsymmetricWipes = false;
   // True when detectedArchetype came only from the oracle-text keyword-vote
   // heuristic (commanderProfile.primaryArchetype) — neither the user's own
   // theme picks nor EDHREC's own ranked commander-page themes resolved to a
@@ -2250,6 +2317,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // (see pickFromPrefetchedWithCurve's priceSanityDecided doc) — aggregated
   // across every type pass so ONE build-report note can disclose it.
   const priceSanityDecided = new Set<string>();
+  // E109: unordered name-pairs the wipe-asymmetry tie-break actually decided
+  // (see cardPicking.ts's wipeAsymmetryTieBreak doc) — aggregated across
+  // every type pass so ONE build-report note can disclose it.
+  const wipeAsymmetryDecided = new Set<string>();
   // Role-cap-augmented gates for the shortage-backfill call sites the brief
   // wants role-aware (E77 iter-4) — evaluated lazily (not baked into the
   // shared `fillGates` object) since `roleTargets` isn't resolved until
@@ -2555,6 +2626,31 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         resolvedPacing = dynamic.pacing;
         detectedPacing = dynamic.pacing;
       }
+
+      // E109: one more point off the board wipe target for a board-centric
+      // plan (see isBoardCentricPlan) — ARCHETYPE_ROLE_MULTIPLIERS already
+      // shaves TOKENS/TRIBAL/ARISTOCRATS/AGGRO, but panel evidence (Isshin:
+      // 4 wipes, including Farewell and Blasphemous Act, against its own
+      // token board) shows that alone isn't enough, and a GOODSTUFF-
+      // mislabeled creature-heavy deck (a split-strategy commander like
+      // Atraxa, whose archetype vote defaults to GOODSTUFF when no theme
+      // dominates) gets no reduction at all today. Floored at 1 — never
+      // zero out wipe coverage, a board-centric deck still needs a reset
+      // button — and only fires when there's a point to give up. Mutates
+      // BOTH roleTargets and roleTargetBreakdown together so the pick-time
+      // cap and the report's disclosed target can never drift apart.
+      if (
+        isBoardCentricPlan(detectedArchetype, typeTargets, commanderWantsExtraCombat) &&
+        roleTargets.boardwipe > 1
+      ) {
+        const shavedTarget = roleTargets.boardwipe - 1;
+        roleTargets = { ...roleTargets, boardwipe: shavedTarget };
+        roleTargetBreakdown = {
+          ...roleTargetBreakdown,
+          boardwipe: { ...roleTargetBreakdown.boardwipe, blended: shavedTarget },
+        };
+        wipeAsymmetryTargetShaved = true;
+      }
     }
     const cardRoleMap = new Map<string, RoleKey>();
     const cardCmcMap = new Map<string, number>();
@@ -2610,6 +2706,23 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       logger.debug(`[DeckGen] Balanced Roles: pre-filled counts:`, { ...currentRoleCounts });
     }
     // ---- End balanced roles setup ----
+
+    // E109: board-centric wipe-selection preference — gated on roleTargets
+    // existing at all (cardRoleMap, which the tie-break needs to spot
+    // boardwipe-role candidates, is only populated then). A no-op for every
+    // deck whose plan isn't board-centric (isBoardCentricPlan) or that never
+    // resolved role targets at all — see wipeAsymmetryTieBreak. Assigns the
+    // outer-scope flag (declared near wipeAsymmetryTargetShaved) rather than
+    // shadowing it with a block-scoped const — the final-deck note
+    // composition at the end of generateDeck() needs this same value, and
+    // that composition runs well after this EDHREC-data branch closes.
+    preferAsymmetricWipes =
+      !!roleTargets &&
+      isBoardCentricPlan(
+        detectedArchetype ?? Archetype.GOODSTUFF,
+        typeTargets,
+        commanderWantsExtraCombat
+      );
 
     // When the user has explicitly set curve/role targets, enforce them strictly
     const strictCurve = !!customization.advancedTargets?.curvePercentages;
@@ -2739,7 +2852,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isCardAllowedBySynergyDependencies,
       liftTieBreak,
       roleTargets
-        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        ? {
+            cardRoleMap,
+            roleTargets,
+            currentRoleCounts,
+            overflowCounts: roleCapOverflowCounts,
+            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
+            wipeAsymmetryDecided,
+          }
         : undefined,
       priceSanity,
       getComboBoosts(),
@@ -2837,7 +2957,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isCardAllowedBySynergyDependencies,
       liftTieBreak,
       roleTargets
-        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        ? {
+            cardRoleMap,
+            roleTargets,
+            currentRoleCounts,
+            overflowCounts: roleCapOverflowCounts,
+            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
+            wipeAsymmetryDecided,
+          }
         : undefined,
       priceSanity,
       getComboBoosts(),
@@ -2904,7 +3031,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isCardAllowedBySynergyDependencies,
       liftTieBreak,
       roleTargets
-        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        ? {
+            cardRoleMap,
+            roleTargets,
+            currentRoleCounts,
+            overflowCounts: roleCapOverflowCounts,
+            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
+            wipeAsymmetryDecided,
+          }
         : undefined,
       priceSanity,
       getComboBoosts(),
@@ -2971,7 +3105,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isCardAllowedBySynergyDependencies,
       liftTieBreak,
       roleTargets
-        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        ? {
+            cardRoleMap,
+            roleTargets,
+            currentRoleCounts,
+            overflowCounts: roleCapOverflowCounts,
+            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
+            wipeAsymmetryDecided,
+          }
         : undefined,
       priceSanity,
       getComboBoosts(),
@@ -3038,7 +3179,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isCardAllowedBySynergyDependencies,
       liftTieBreak,
       roleTargets
-        ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+        ? {
+            cardRoleMap,
+            roleTargets,
+            currentRoleCounts,
+            overflowCounts: roleCapOverflowCounts,
+            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
+            wipeAsymmetryDecided,
+          }
         : undefined,
       priceSanity,
       getComboBoosts(),
@@ -3106,7 +3254,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         isCardAllowedBySynergyDependencies,
         liftTieBreak,
         roleTargets
-          ? { cardRoleMap, roleTargets, currentRoleCounts, overflowCounts: roleCapOverflowCounts }
+          ? {
+              cardRoleMap,
+              roleTargets,
+              currentRoleCounts,
+              overflowCounts: roleCapOverflowCounts,
+              isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
+              wipeAsymmetryDecided,
+            }
           : undefined,
         priceSanity,
         getComboBoosts(),
@@ -5486,6 +5641,25 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // actually decided an outcome (off, or no qualifying pair arose).
   const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
 
+  // Board-centric wipe-asymmetry disclosure (E109) — composed from the FINAL
+  // deck (nonLandCards, above), NOT from wipeAsymmetryDecided. The tie-break's
+  // `decided` set only records pairs the SORT happened to compare during a
+  // type pass — it says nothing about whether either card actually survived
+  // to the shipped deck (a later trim/repair/convergence pass can cut it).
+  // Live-panel evidence: lathril's report claimed "preferred 1 one-sided
+  // wipe" while its only surviving boardwipe-role card was the symmetric
+  // Golgari Charm — a stale-disclosure bug (notes must be derivable from the
+  // shipped deck, never from a pick-time side signal). countFinalWipeAsymmetry
+  // returns 0 for the one-sided count whenever `preferAsymmetricWipes` was
+  // false, so the note only ever claims credit for cards the preference
+  // could plausibly have kept.
+  const { oneSidedCount: finalOneSidedWipeCount, totalCount: finalWipeCount } =
+    countFinalWipeAsymmetry(nonLandCards, preferAsymmetricWipes);
+  const wipeAsymmetryNote = buildWipeAsymmetryNote(
+    wipeAsymmetryTargetShaved,
+    finalOneSidedWipeCount,
+    finalWipeCount
+  );
   // Qualified-payoff gate escape-hatch disclosure (E111) — undefined in the
   // common case (the hatch only fires when nothing else could fill the slot).
   const qualifiedPayoffGateNote = buildQualifiedPayoffGateNote(qualifiedGateOverflowCount.value);
@@ -5579,6 +5753,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    wipeAsymmetryNote,
     qualifiedPayoffGateNote,
     comboAuditBracketBlockNote,
     landSqueezeTrimNote,
