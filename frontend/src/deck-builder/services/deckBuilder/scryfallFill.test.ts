@@ -381,3 +381,81 @@ describe('fillWithScryfall role-cap gate (E77 iter-4)', () => {
     expect(out.map((c) => c.name)).toEqual(['Extra1', 'Extra2', 'Extra3']);
   });
 });
+
+describe('fillWithScryfall qualified-payoff gate (E111)', () => {
+  // Real oracle text (verified against Scryfall) — never quote from memory.
+  const ayara = sc({
+    name: 'Ayara, First of Locthwain',
+    type_line: 'Legendary Creature — Elf Noble',
+    colors: ['B'],
+    oracle_text:
+      'Whenever Ayara or another black creature you control enters, each opponent loses 1 life and you gain 1 life.\n{T}, Sacrifice another black creature: Draw a card.',
+  });
+  const securitron = sc({
+    name: 'Securitron',
+    type_line: 'Artifact Creature — Robot',
+    colors: [],
+  });
+  const recklessFireweaver = sc({
+    name: 'Reckless Fireweaver',
+    type_line: 'Creature — Goblin Shaman',
+    colors: ['R'],
+    oracle_text:
+      'Whenever an artifact you control enters, this creature deals 1 damage to each opponent.',
+  });
+
+  const fillWithDeck = (
+    count: number,
+    deckCards: ScryfallCard[],
+    qualifiedGateOverflowCount?: { value: number }
+  ) =>
+    fillWithScryfall(
+      't:creature',
+      [],
+      count,
+      new Set(),
+      new Set(),
+      null,
+      null,
+      null,
+      null,
+      undefined,
+      'USD',
+      false,
+      '',
+      'full',
+      false,
+      false,
+      undefined,
+      undefined,
+      { deckCardsSoFar: () => deckCards, qualifiedGateOverflowCount }
+    );
+
+  it('skips a qualified-mismatched candidate when a real alternative clears the query too', async () => {
+    searchCards.mockResolvedValue({ data: [ayara, sc({ name: 'Plain Beater' })] });
+    // Deck is all-colorless plus an unqualified drain (Reckless Fireweaver) —
+    // Ayara's black qualifier is dead text here and a better card is right there.
+    const out = await fillWithDeck(1, [securitron, recklessFireweaver]);
+    expect(out.map((c) => c.name)).toEqual(['Plain Beater']);
+  });
+
+  it('escape hatch: seats the mismatched candidate rather than shipping the fill short, and discloses it', async () => {
+    searchCards.mockResolvedValue({ data: [ayara] }); // no alternative at all
+    const overflowCount = { value: 0 };
+    const out = await fillWithDeck(1, [securitron, recklessFireweaver], overflowCount);
+    expect(out.map((c) => c.name)).toEqual(['Ayara, First of Locthwain']);
+    expect(overflowCount.value).toBe(1);
+  });
+
+  it('does not veto when no unqualified equivalent is anywhere in scope', async () => {
+    searchCards.mockResolvedValue({ data: [ayara] });
+    const out = await fillWithDeck(1, [securitron]); // no drain equivalent present
+    expect(out.map((c) => c.name)).toEqual(['Ayara, First of Locthwain']);
+  });
+
+  it('is a no-op when deckCardsSoFar is not threaded (existing callers unaffected)', async () => {
+    searchCards.mockResolvedValue({ data: [ayara] });
+    const out = await fillWithScryfall('t:creature', [], 1, new Set());
+    expect(out.map((c) => c.name)).toEqual(['Ayara, First of Locthwain']);
+  });
+});

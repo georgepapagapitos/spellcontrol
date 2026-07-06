@@ -26,6 +26,7 @@ import {
   fitsColorIdentity,
 } from '../deckFilters';
 import { calculateCardPriority } from '../cardPicking';
+import { qualifiedPayoffMismatch } from '../nonbo';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 import { auditDeckCoherence } from '../coherenceAudit';
@@ -126,6 +127,16 @@ export async function applyCoherenceRepair(
     (Object.entries(state.categories) as [DeckCategory, ScryfallCard[]][])
       .filter(([cat]) => cat !== 'lands')
       .flatMap(([, cards]) => cards);
+
+  // E111: qualified-payoff pick-time gate needs full ScryfallCard objects for
+  // the "unqualified equivalent" pool check — computed once, not per
+  // candidate, since it only depends on the pool contents, not on which
+  // candidate is being evaluated.
+  const poolCardObjs: ScryfallCard[] = [];
+  for (const c of pool) {
+    const sc = ctx.scryfallCardMap.get(c.name);
+    if (sc) poolCardObjs.push(sc);
+  }
 
   // EDHREC inclusion for the audit's justification ladder — same source the
   // post-convergence deckScorePhase reads, available here without running it.
@@ -239,6 +250,11 @@ export async function applyCoherenceRepair(
       }
       if (exceedsCmcCap(card, ctx.maxCmc)) continue;
       if (notOnArena(card, ctx.arenaOnly)) continue;
+      // E111: skip a qualified ETB/death payoff the deck can't feed while an
+      // unqualified equivalent is already available — repair swaps are
+      // optional (a `null` here just means "don't swap this finding"), so no
+      // escape hatch is needed: the loop simply keeps looking.
+      if (qualifiedPayoffMismatch(card, nonLands(), poolCardObjs)) continue;
       return card;
     }
     return null;

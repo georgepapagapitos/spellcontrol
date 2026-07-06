@@ -376,3 +376,71 @@ export function qualifiedTriggerFindings(nonLandCards: ScryfallCard[]): Coherenc
 
   return findings;
 }
+
+// ── Qualified-payoff pick-time gate (E111) ──────────────────────────────────
+//
+// E106 above only disclosed the mismatch after the fact. This is the
+// pick-time veto for the marginal-fill/repair paths that seat cards outside
+// the main EDHREC-pool pass (scryfallFill's live Scryfall search, the
+// coherence-repair swap-in) — the paths that can reach a card like Ayara,
+// First of Locthwain that never shows up in the commander's own EDHREC pool
+// at all (it isn't a top-50 EDHREC creature for Mr. House, President and
+// CEO — verified against the live EDHREC dump). Reuses
+// triggerQualifier/matchesQualifier/producesMatchingToken verbatim; adds one
+// narrow "drain shape" pattern to recognize an unqualified card already doing
+// the same job. Mirkwood Bats, Reckless Fireweaver, Nadier's Nightblade, and
+// Impact Tremors are all this shape: a creature/token/artifact
+// ETB-or-death-or-sac trigger that drains the opponent, with no color/type
+// gate on who triggers it — real oracle text, verified against Scryfall.
+const DRAIN_PAYOFF_TRIGGER =
+  /\bwhenever\b[^.]*\b(?:enters?|dies|leaves the battlefield|is created|sacrifice[sd]?)\b[^.]*(?:loses? \d+ life|deals? \d+ damage to (?:each opponent|that player|target opponent))/;
+
+// Pick-time floor, stricter than the audit's report-only QUALIFIED_PAYOFF_SHARE_FLOOR
+// (0.25) above — this only fires the veto (rejects/deprioritizes a pick), so
+// it can afford to be more conservative about false positives. Calibrated
+// against real Mr. House data: the user's actual black-aristocrats 99 runs
+// 9/27 black creatures (share 0.33) and must clear this easily; a die-roll/
+// colorless-token-engine build's matching share sits near zero and must not.
+export const QUALIFIED_PICK_SHARE_FLOOR = 0.15;
+
+function isUnqualifiedDrainEquivalent(card: ScryfallCard, exclude: ScryfallCard): boolean {
+  if (card === exclude || card.name === exclude.name) return false;
+  const oracle = oracleOf(card);
+  if (!oracle) return false;
+  return DRAIN_PAYOFF_TRIGGER.test(oracle) && !triggerQualifier(oracle);
+}
+
+/**
+ * True when `candidate` is a qualified ETB/death payoff the deck can't feed
+ * (thin matching-creature share AND no matching token producer) AND an
+ * unqualified same-shape equivalent is already available in the deck or the
+ * pool being drawn from — so a marginal-fill/repair path seating `candidate`
+ * instead would be strictly worse than seating the equivalent.
+ *
+ * Callers own the escape hatch: this only says "there's a better option
+ * available," never "ship the deck short instead" — when nothing else clears
+ * every other gate, seating a dead-text qualified payoff still beats an
+ * incomplete deck.
+ */
+export function qualifiedPayoffMismatch(
+  candidate: ScryfallCard,
+  deckCards: ScryfallCard[],
+  poolCards: ScryfallCard[]
+): boolean {
+  const oracle = oracleOf(candidate);
+  if (!oracle) return false;
+  const qualifier = triggerQualifier(oracle);
+  if (!qualifier) return false;
+
+  const deckCreatures = deckCards.filter((c) => isCreature(c));
+  const matching = deckCreatures.filter((c) => matchesQualifier(c, qualifier));
+  const share = deckCreatures.length > 0 ? matching.length / deckCreatures.length : 0;
+  if (share >= QUALIFIED_PICK_SHARE_FLOOR) return false;
+
+  if (deckCards.some((c) => producesMatchingToken(c, qualifier))) return false;
+
+  return (
+    deckCards.some((c) => isUnqualifiedDrainEquivalent(c, candidate)) ||
+    poolCards.some((c) => isUnqualifiedDrainEquivalent(c, candidate))
+  );
+}
