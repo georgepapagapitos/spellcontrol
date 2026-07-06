@@ -53,6 +53,16 @@ export function assembleBuildReport(input: {
     if (generated.generationRelaxedNote) report.generationNote = generated.generationRelaxedNote;
   }
 
+  // Staples <-> Brew dial disclosure — undefined at the 0.5 Balanced default.
+  const brewLevel = customization.brewLevel ?? 0.5;
+  if (brewLevel > 0.5) {
+    report.brewDialNote =
+      'Brew dial leaned toward deep cuts — theme-synergy and hidden-synergy fit were weighted over raw EDHREC play-rate.';
+  } else if (brewLevel < 0.5) {
+    report.brewDialNote =
+      'Brew dial leaned toward staples — raw EDHREC play-rate was weighted over theme-synergy fit.';
+  }
+
   // Archetype-aware land count auto-tune disclosure (undefined when the user
   // set land count explicitly, or the default 37 was already the right call).
   if (generated.landCountNote) report.landCountNote = generated.landCountNote;

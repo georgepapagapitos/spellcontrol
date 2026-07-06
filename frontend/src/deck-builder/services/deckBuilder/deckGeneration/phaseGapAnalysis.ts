@@ -45,7 +45,8 @@ export async function gapAnalysisPhase(
       .filter((c) => !allDeckCardNames.has(c.name) && !state.bannedCards.has(c.name))
       .sort(
         (a, b) =>
-          calculateCardPriority(b) - calculateCardPriority(a) ||
+          calculateCardPriority(b, state.cfg.brewLevel) -
+            calculateCardPriority(a, state.cfg.brewLevel) ||
           clusterScoreOf(b.name) - clusterScoreOf(a.name)
       )
       .slice(0, 40);
@@ -95,6 +96,17 @@ export async function gapAnalysisPhase(
         .map((c) => {
           const scryfall = gapCardMap.get(c.name);
           const role = getCardRole(c.name) || undefined;
+          const liftedBy = liftIndex.get(c.name.toLowerCase())?.liftedBy;
+          // Staples <-> Brew dial disclosure: only flag a suggestion as
+          // brew-favored when it's leaned-Brew, genuinely non-staple (<50%
+          // inclusion), AND backed by real synergy or lift evidence — never
+          // for a merely-obscure card with neither (see why-factors.ts's
+          // GapAddSignals.brewFavored doc for the "no reward for obscurity"
+          // invariant this mirrors).
+          const brewFavored =
+            state.cfg.brewLevel > 0.5 &&
+            c.inclusion < 50 &&
+            ((c.synergy ?? 0) > 0 || !!liftedBy?.length);
           return {
             name: c.name,
             price: scryfall ? getCardPrice(scryfall, state.cfg.currency) : null,
@@ -106,7 +118,8 @@ export async function gapAnalysisPhase(
             isOwned: state.context.collectionNames!.has(c.name),
             role,
             roleLabel: role ? ROLE_LABELS[role] : undefined,
-            liftedBy: liftIndex.get(c.name.toLowerCase())?.liftedBy,
+            liftedBy,
+            brewFavored,
           };
         })
         .filter((c) => c.price !== null);

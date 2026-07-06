@@ -217,7 +217,11 @@ export async function applyCoherenceRepair(
           !ctx.isSaltBlocked?.(c.name) &&
           (!ownedOnly || !notInCollection(c.name, collectionNames))
       )
-      .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+      .sort(
+        (a, b) =>
+          calculateCardPriority(b, state.cfg.brewLevel) -
+          calculateCardPriority(a, state.cfg.brewLevel)
+      );
     for (const c of ranked) {
       const card = ctx.scryfallCardMap.get(c.name)!;
       if (pred && !pred(card)) continue;

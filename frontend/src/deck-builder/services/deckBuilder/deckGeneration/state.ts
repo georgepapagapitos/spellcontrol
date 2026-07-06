@@ -82,6 +82,9 @@ export interface GenerationConfig {
   collectionOwnedPercent: number;
   comboCountSetting: number;
   selectedThemesWithSlugs: ThemeResult[];
+  /** Staples <-> Brew dial (0..1, 0.5 default/no-op) — see cardPicking.ts's
+   *  calculateCardPriority for the multiplier math it drives. */
+  brewLevel: number;
 }
 
 export interface GenerationState {
@@ -170,6 +173,7 @@ export function createState(context: GenerationContext): GenerationState {
     comboCountSetting: customization.comboCount ?? 0,
     selectedThemesWithSlugs:
       context.selectedThemes?.filter((t) => t.isSelected && t.source === 'edhrec' && t.slug) || [],
+    brewLevel: customization.brewLevel ?? 0.5,
   };
 
   return {

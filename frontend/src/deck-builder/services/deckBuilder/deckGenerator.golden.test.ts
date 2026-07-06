@@ -264,6 +264,7 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
+    brewLevel: 0.5,
     ...overrides,
   };
 }

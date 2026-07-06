@@ -2055,32 +2055,56 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       0,
       originalCreatureTarget - (preFilledTypeCounts.creature ?? 0)
     );
-    const creaturePool = mergeWithAllNonLand(cardlists.creatures, cardlists.allNonLand);
+    const creaturePool = mergeWithAllNonLand(
+      cardlists.creatures,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const instantTarget = Math.max(
       0,
       (typeTargets.instant ?? 0) - (preFilledTypeCounts.instant ?? 0)
     );
-    const instantPool = mergeWithAllNonLand(cardlists.instants, cardlists.allNonLand);
+    const instantPool = mergeWithAllNonLand(
+      cardlists.instants,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const sorceryTarget = Math.max(
       0,
       (typeTargets.sorcery ?? 0) - (preFilledTypeCounts.sorcery ?? 0)
     );
-    const sorceryPool = mergeWithAllNonLand(cardlists.sorceries, cardlists.allNonLand);
+    const sorceryPool = mergeWithAllNonLand(
+      cardlists.sorceries,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const artifactTarget = Math.max(
       0,
       (typeTargets.artifact ?? 0) - (preFilledTypeCounts.artifact ?? 0)
     );
-    const artifactPool = mergeWithAllNonLand(cardlists.artifacts, cardlists.allNonLand);
+    const artifactPool = mergeWithAllNonLand(
+      cardlists.artifacts,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const enchantmentTarget = Math.max(
       0,
       (typeTargets.enchantment ?? 0) - (preFilledTypeCounts.enchantment ?? 0)
     );
-    const enchantmentPool = mergeWithAllNonLand(cardlists.enchantments, cardlists.allNonLand);
+    const enchantmentPool = mergeWithAllNonLand(
+      cardlists.enchantments,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const planeswalkerTarget = Math.max(
       0,
       (typeTargets.planeswalker ?? 0) - (preFilledTypeCounts.planeswalker ?? 0)
     );
-    const planeswalkerPool = mergeWithAllNonLand(cardlists.planeswalkers, cardlists.allNonLand);
+    const planeswalkerPool = mergeWithAllNonLand(
+      cardlists.planeswalkers,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
 
     // Collect ALL unique card names from all pools for a single batch fetch
     onProgress?.('Searching your library…', 18);
@@ -2376,7 +2400,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       for (const [name, b] of pkg) boosts.set(name, (boosts.get(name) ?? 0) + b);
       const lift = computeLiftPickBoosts(
         pool.map((c) => c.name),
-        liftScoreOf
+        liftScoreOf,
+        2 * state.cfg.brewLevel
       );
       for (const [name, b] of lift) boosts.set(name, (boosts.get(name) ?? 0) + b);
       const untap = computeUntapVisibilityBoosts(
@@ -2455,7 +2480,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -2552,7 +2578,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -2618,7 +2645,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -2684,7 +2712,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -2750,7 +2779,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -2817,7 +2847,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           : undefined,
         priceSanity,
         getComboBoosts(),
-        priceSanityDecided
+        priceSanityDecided,
+        state.cfg.brewLevel
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);

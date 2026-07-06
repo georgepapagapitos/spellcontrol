@@ -67,7 +67,9 @@ export function pickFromPrefetched(
   ignoreOwnedBudget: boolean = false,
   ignoreOwnedRarity: boolean = false,
   cardAllowed?: (card: ScryfallCard) => boolean,
-  liftTieBreak?: Map<string, number>
+  liftTieBreak?: Map<string, number>,
+  /** Staples <-> Brew dial (see calculateCardPriority); 0.5 = today's formula. */
+  brewLevel: number = 0.5
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -77,8 +79,8 @@ export function pickFromPrefetched(
     .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
     .sort(
       (a, b) =>
-        priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
-          priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames) ||
+        priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames, brewLevel) -
+          priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames, brewLevel) ||
         liftTie(b.name, liftTieBreak) - liftTie(a.name, liftTieBreak)
     );
 
@@ -177,17 +179,38 @@ export function isHighSynergyCard(card: EDHRECCard): boolean {
   return false;
 }
 
+// Staples <-> Brew dial: reweights calculateCardPriority's inclusion vs
+// synergy terms. 0 = Staples, 0.5 = Balanced (default), 1 = Brew. Both
+// multipliers are linear and centered at exactly 1.0 for brewLevel=0.5, so
+// every existing caller that omits the param (the repair/analysis phases —
+// see cardPicking.ts's own callers) keeps today's exact scores untouched.
+// Linear scaling preserves within-tier order (it can never invert two
+// same-tier cards' ranking), and the +100 theme-synergy floor and >0.3
+// synergy threshold are untouched by the dial — so at full Brew a "dead"
+// zero-synergy/low-inclusion card can never leapfrog a theme-synergy staple
+// (100 + ... always beats a damped-but-still-inclusion-only score), and at
+// full Staples a card never gets rewarded merely for being obscure (linear
+// scaling can't flip an obscure card above a more-included same-tier peer).
+function inclusionMultiplier(brewLevel: number): number {
+  return 1.5 - brewLevel; // Staples(0)=1.5 · Balanced(0.5)=1.0 · Brew(1)=0.5
+}
+function synergyMultiplier(brewLevel: number): number {
+  return 0.4 + brewLevel * 1.2; // Staples(0)=0.4 · Balanced(0.5)=1.0 · Brew(1)=1.6
+}
+
 // Calculate a priority score for EDHREC cards
 // High synergy cards (from theme) should be prioritized over generic high-inclusion cards
-export function calculateCardPriority(card: EDHRECCard): number {
+export function calculateCardPriority(card: EDHRECCard, brewLevel: number = 0.5): number {
   const synergy = card.synergy ?? 0;
   const inclusion = card.inclusion;
+  const inclusionMul = inclusionMultiplier(brewLevel);
+  const synergyMul = synergyMultiplier(brewLevel);
 
   // Cards from theme synergy lists (highsynergycards, topcards, etc.) get top priority
   if (card.isThemeSynergyCard) {
     // Theme synergy cards get a big boost: 100 + synergy bonus + inclusion
     // This ensures they're prioritized over regular high-inclusion cards
-    return 100 + synergy * 50 + inclusion;
+    return 100 + synergy * 50 * synergyMul + inclusion * inclusionMul;
   }
 
   // New cards get a small relevancy boost to compensate for having fewer total decks,
@@ -196,11 +219,11 @@ export function calculateCardPriority(card: EDHRECCard): number {
 
   // If synergy score is high (> 0.3), boost the card
   if (synergy > 0.3) {
-    return synergy * 100 + inclusion + newCardBoost;
+    return synergy * 100 * synergyMul + inclusion * inclusionMul + newCardBoost;
   }
 
   // For low/no synergy cards, just use inclusion
-  return inclusion + newCardBoost;
+  return inclusion * inclusionMul + newCardBoost;
 }
 
 // Owned-first ('prefer' strategy): a bounded boost so owned cards win ties and
@@ -218,10 +241,11 @@ function priorityWithBoosts(
   card: EDHRECCard,
   comboPriorityBoost: Map<string, number> | undefined,
   preferOwned: boolean,
-  collectionNames: Set<string> | undefined
+  collectionNames: Set<string> | undefined,
+  brewLevel: number = 0.5
 ): number {
   return (
-    calculateCardPriority(card) +
+    calculateCardPriority(card, brewLevel) +
     (comboPriorityBoost?.get(card.name) ?? 0) +
     (preferOwned && collectionNames?.has(card.name) ? OWNED_PRIORITY_BOOST : 0)
   );
@@ -351,7 +375,9 @@ export function pickFromPrefetchedWithCurve(
    *  "N cheaper near-equivalents preferred" count. A Set (not a running
    *  counter) so repeat comparator calls on the same pair during sort() can
    *  never double-count it. */
-  priceSanityDecided?: Set<string>
+  priceSanityDecided?: Set<string>,
+  /** Staples <-> Brew dial (see calculateCardPriority); 0.5 = today's formula. */
+  brewLevel: number = 0.5
 ): ScryfallCard[] {
   const result: ScryfallCard[] = [];
   const preferOwned = collectionStrategy === 'prefer';
@@ -388,8 +414,8 @@ export function pickFromPrefetchedWithCurve(
         priceSanity
       );
       const priorityDiff =
-        priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames) -
-        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames);
+        priorityWithBoosts(b, comboPriorityBoost, preferOwned, collectionNames, brewLevel) -
+        priorityWithBoosts(a, comboPriorityBoost, preferOwned, collectionNames, brewLevel);
       if (sanity !== 0) {
         // Only "decided" when it disagrees with (or breaks an exact tie in)
         // the raw priority order — an agreeing verdict would have picked the
@@ -610,7 +636,9 @@ export function pickFromPrefetchedWithCurve(
 // IMPORTANT: Sort by priority so high-synergy cards come first, not last!
 export function mergeWithAllNonLand(
   typeSpecificCards: EDHRECCard[],
-  allNonLand: EDHRECCard[]
+  allNonLand: EDHRECCard[],
+  /** Staples <-> Brew dial (see calculateCardPriority); 0.5 = today's formula. */
+  brewLevel: number = 0.5
 ): EDHRECCard[] {
   const seenNames = new Set(typeSpecificCards.map((c) => c.name));
   const additionalCards = allNonLand.filter(
@@ -618,5 +646,7 @@ export function mergeWithAllNonLand(
   );
   // Merge and sort by priority - high synergy cards should come FIRST
   const merged = [...typeSpecificCards, ...additionalCards];
-  return merged.sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
+  return merged.sort(
+    (a, b) => calculateCardPriority(b, brewLevel) - calculateCardPriority(a, brewLevel)
+  );
 }
