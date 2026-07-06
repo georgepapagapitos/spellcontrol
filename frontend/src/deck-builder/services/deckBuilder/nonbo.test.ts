@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { nonboFindings } from './nonbo';
+import { nonboFindings, qualifiedTriggerFindings } from './nonbo';
 
 function card(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -244,5 +244,126 @@ describe('nonboFindings — tribal-dodge, reanimator, and Overload exceptions', 
 
   it('leaves Damn silent outside its overload mode when no board is invested in tokens', () => {
     expect(nonboFindings([damn], invested('graveyard'))).toHaveLength(0);
+  });
+});
+
+describe('qualifiedTriggerFindings — color/type-qualified ETB & death triggers (E106)', () => {
+  // Real oracle text (verified against Scryfall) — never quote from memory.
+  const ayara = card({
+    name: 'Ayara, First of Locthwain',
+    type_line: 'Legendary Creature — Elf Noble',
+    colors: ['B'],
+    oracle_text:
+      'Whenever Ayara or another black creature you control enters, each opponent loses 1 life and you gain 1 life.\n{T}, Sacrifice another black creature: Draw a card.',
+  });
+  const securitron = (i: number) =>
+    card({
+      name: `Securitron ${i}`,
+      type_line: 'Artifact Creature — Robot',
+      colors: [],
+    });
+  const blackBeater = (i: number) =>
+    card({ name: `Black Beater ${i}`, type_line: 'Creature — Zombie', colors: ['B'] });
+  const mrHouseTokenMaker = card({
+    name: 'Mr. House, President and CEO',
+    type_line: 'Legendary Artifact Creature — Human',
+    oracle_text:
+      'Whenever you roll a 4 or higher, create a 3/3 colorless Robot artifact creature token. If you rolled 6 or higher, instead create that token and a Treasure token.',
+  });
+  const blackTokenMaker = card({
+    name: 'Bad Moon Rising',
+    type_line: 'Sorcery',
+    oracle_text: 'Create two 2/2 black Zombie creature tokens.',
+  });
+
+  // Real oracle text for the creature-TYPE-qualified branch ("another Elf").
+  const miara = card({
+    name: 'Miara, Thorn of the Glade',
+    type_line: 'Legendary Creature — Elf Druid',
+    oracle_text:
+      'Whenever Miara or another Elf you control dies, you may pay {1} and 1 life. If you do, draw a card.',
+  });
+  const elf = (i: number) =>
+    card({ name: `Elf Warrior ${i}`, type_line: 'Creature — Elf Warrior' });
+  const human = (i: number) => card({ name: `Human ${i}`, type_line: 'Creature — Human' });
+
+  const zulaportCutthroat = card({
+    name: 'Zulaport Cutthroat',
+    type_line: 'Creature — Human Cleric',
+    oracle_text:
+      'Whenever Zulaport Cutthroat or another creature you control dies, each opponent loses 1 life and you gain 1 life.',
+  });
+
+  it('flags Ayara seated in an all-colorless-token, thin-black-creature deck', () => {
+    const deck = [ayara, ...Array.from({ length: 18 }, (_, i) => securitron(i)), mrHouseTokenMaker];
+    const findings = qualifiedTriggerFindings(deck);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      kind: 'qualified-payoff',
+      severity: 'info',
+      card: 'Ayara, First of Locthwain',
+    });
+    expect(findings[0].message).toContain('black');
+  });
+
+  it('does not flag Ayara in a deck with real black-creature/token support', () => {
+    // Enough black creatures to clear the share floor on their own.
+    const withCreatures = [ayara, ...Array.from({ length: 6 }, (_, i) => blackBeater(i))];
+    expect(qualifiedTriggerFindings(withCreatures)).toHaveLength(0);
+
+    // Few black creatures, but a matching black token engine covers it.
+    const withTokenEngine = [
+      ayara,
+      ...Array.from({ length: 18 }, (_, i) => securitron(i)),
+      blackTokenMaker,
+    ];
+    expect(qualifiedTriggerFindings(withTokenEngine)).toHaveLength(0);
+  });
+
+  it('does not flag an Elf-qualified payoff in an actual Elf tribal deck (Lathril)', () => {
+    const elfDeck = [miara, ...Array.from({ length: 15 }, (_, i) => elf(i))];
+    expect(qualifiedTriggerFindings(elfDeck)).toHaveLength(0);
+  });
+
+  it('still flags the same Elf-qualified payoff outside an Elf deck', () => {
+    const nonElfDeck = [miara, ...Array.from({ length: 15 }, (_, i) => human(i))];
+    const findings = qualifiedTriggerFindings(nonElfDeck);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ card: 'Miara, Thorn of the Glade' });
+  });
+
+  it('leaves an unqualified "another creature" death payoff untouched (Zulaport Cutthroat)', () => {
+    // Thin creature count either way — an unqualified trigger feeds off
+    // anything, so it must never be flagged regardless of composition.
+    expect(
+      qualifiedTriggerFindings([
+        zulaportCutthroat,
+        ...Array.from({ length: 18 }, (_, i) => securitron(i)),
+      ])
+    ).toHaveLength(0);
+  });
+
+  it('recognizes the type-qualified ETB branch too (Marwyn, the Nurturer — real oracle text)', () => {
+    const marwyn = card({
+      name: 'Marwyn, the Nurturer',
+      type_line: 'Legendary Creature — Elf Druid',
+      oracle_text: 'Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.',
+    });
+    expect(
+      qualifiedTriggerFindings([marwyn, ...Array.from({ length: 15 }, (_, i) => human(i))])
+    ).toHaveLength(1);
+    expect(
+      qualifiedTriggerFindings([marwyn, ...Array.from({ length: 15 }, (_, i) => elf(i))])
+    ).toHaveLength(0);
+  });
+
+  it('says nothing for a must-include or a blank oracle', () => {
+    expect(
+      qualifiedTriggerFindings([
+        { ...ayara, isMustInclude: true },
+        ...Array.from({ length: 18 }, (_, i) => securitron(i)),
+      ])
+    ).toHaveLength(0);
+    expect(qualifiedTriggerFindings([card({ name: 'Blank' })])).toHaveLength(0);
   });
 });
