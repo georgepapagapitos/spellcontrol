@@ -724,6 +724,28 @@ export function buildLandSqueezeTrimNote(
 }
 
 /**
+ * Emergent combo-completion disclosure: names combos that were NOT complete
+ * at generation start but ARE complete in the final deck — i.e. the
+ * algorithm's own picks (curve/role/synergy fill, combo floor, coherence
+ * repair, …) completed a latent combo with cards already locked in
+ * (commander, must-includes), with zero prior disclosure. Composed
+ * POST-HOC by the caller diffing state.baselineDetectedCombos against the
+ * truly-final detectedCombos — this function only turns that diff into
+ * prose. One row per combo (live decks can complete a dozen+ at once — see
+ * comboUpsideNotes for the same one-row-per-item precedent) rather than a
+ * single run-on sentence. Undefined when nothing newly completed (the
+ * common case).
+ */
+export function buildComboCompletionNote(newlyComplete: DetectedCombo[]): string[] | undefined {
+  if (newlyComplete.length === 0) return undefined;
+  return newlyComplete.map((combo) => {
+    const cards = combo.cards.join(' + ');
+    const results = combo.results.length > 0 ? combo.results.join(', ') : 'a combo finish';
+    return `${cards} — produces ${results}`;
+  });
+}
+
+/**
  * Combo-upside price disclosure: priceSanityTieBreak (cardPicking.ts)
  * deliberately never fights a live combo-assembly boost — an expensive combo
  * piece SHOULD beat a cheap same-role staple when it's genuinely 2-of-3
@@ -1296,6 +1318,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       logger.debug(`[DeckGen] ${gameChangerCount.value} must-include card(s) are game changers`);
     }
   }
+
+  // Emergent combo-completion disclosure baseline: snapshot combo
+  // completeness right here, after must-includes are seeded but before the
+  // main picking loop runs. Diffed later (near refreshComboCompleteness)
+  // against the truly-final detectedCombos so the report can single out
+  // combos the algorithm's OWN picks completed, not ones the user's
+  // must-includes already brought.
+  state.baselineDetectedCombos = detectCombosPhase(state);
 
   // Alternative generators: synthesize the candidate pool from Scryfall instead
   // of EDHREC. Populates state.edhrecData so the entire pipeline below runs
@@ -4983,6 +5013,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // identical — whenever nothing actually changed completeness.
   detectedCombos = refreshComboCompleteness(detectedCombos, state);
 
+  // Emergent combo-completion disclosure: diff the truly-final detectedCombos
+  // just refreshed above against the generation-start baseline captured
+  // right after must-includes were seeded (state.baselineDetectedCombos) —
+  // whatever completed in between is credit to the algorithm's own picks,
+  // not the user's must-includes. Composed here (not earlier) so it
+  // reconciles to the final deck by construction: nothing after this point
+  // changes combo membership.
+  const baselineCompleteIds = new Set(
+    (state.baselineDetectedCombos ?? []).filter((dc) => dc.isComplete).map((dc) => dc.comboId)
+  );
+  const newlyCompletedCombos = (detectedCombos ?? []).filter(
+    (dc) => dc.isComplete && !baselineCompleteIds.has(dc.comboId)
+  );
+  const comboCompletionNotes = buildComboCompletionNote(newlyCompletedCombos);
+
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the
   // deck. Suggestions only — never added to the deck. Runs here, AFTER every
@@ -5223,6 +5268,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     priceSanityNote,
     landSqueezeTrimNote,
     comboUpsideNotes,
+    comboCompletionNotes,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
