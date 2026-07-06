@@ -1324,10 +1324,36 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (targetBracket && isPoolTooThin(themeMergeResult.data)) {
         // E93: a bracket-narrowed theme page can resolve to a statistically
         // thin (or entirely empty) pool while still parsing as valid JSON.
-        // Ladder down to a broader page — bracket-only, then theme-only, then
-        // the plain commander page — rather than silently generate off noise.
+        // Ladder down to a broader page rather than silently generate off
+        // noise — but theme outranks bracket-only: the user explicitly
+        // picked this theme, so it's the deck's identity, while the target
+        // bracket's power semantics (permissions/ceilings below) survive
+        // untouched regardless of which page supplied the pool. Dropping the
+        // theme first (bracket-only) would silently swap "the theme deck the
+        // user asked for" for "a goodstuff deck at the right power level" —
+        // the exact failure this fix exists to prevent. So: theme+bracket →
+        // theme (no bracket) → bracket-only → plain commander page.
+        let noBracketThemeOverlapCounts: Map<string, number> | undefined;
         const outcome = await fetchPoolWithFallback([
           { source: 'theme+bracket', fetch: () => Promise.resolve(themeMergeResult.data) },
+          {
+            source: 'theme',
+            fetch: async () => {
+              const noBracket = await fetchMergedThemeData(
+                selectedThemesWithSlugs,
+                commander.name,
+                partnerCommander?.name,
+                budgetOption,
+                undefined
+              );
+              if (!noBracket) throw new Error('theme-only EDHREC fetch failed');
+              // Stash the counts but don't commit to state yet — this rung
+              // may still turn out thin and the ladder moves on, in which
+              // case these counts would describe a page that isn't the pool.
+              noBracketThemeOverlapCounts = noBracket.themeOverlapCounts;
+              return noBracket.data;
+            },
+          },
           {
             source: 'base+bracket',
             fetch: () =>
@@ -1341,21 +1367,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                 : fetchCommanderData(commander.name, budgetOption, targetBracket),
           },
           {
-            source: 'theme',
-            fetch: async () => {
-              const noBracket = await fetchMergedThemeData(
-                selectedThemesWithSlugs,
-                commander.name,
-                partnerCommander?.name,
-                budgetOption,
-                undefined
-              );
-              if (!noBracket) throw new Error('theme-only EDHREC fetch failed');
-              state.themeOverlapCounts = noBracket.themeOverlapCounts;
-              return noBracket.data;
-            },
-          },
-          {
             source: 'base',
             fetch: () =>
               partnerCommander
@@ -1367,6 +1378,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           mergedCardlists = outcome.data.cardlists;
           representativeStats = outcome.data.stats;
           dataSource = outcome.source;
+          // Only commit the theme-only overlap counts if the ladder actually
+          // settled on that rung — otherwise leave the theme+bracket counts
+          // already assigned above (or whatever an earlier rung set).
+          if (outcome.source === 'theme' && noBracketThemeOverlapCounts) {
+            state.themeOverlapCounts = noBracketThemeOverlapCounts;
+          }
           if (outcome.fellBackFrom) {
             logger.warn(
               `[DeckGen] E93: theme+bracket pool too thin, laddered down to "${outcome.source}"`

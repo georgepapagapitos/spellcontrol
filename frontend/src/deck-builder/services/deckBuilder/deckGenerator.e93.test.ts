@@ -84,14 +84,23 @@ describe('fetchPoolWithFallback', () => {
     expect(candidates[1].fetch).not.toHaveBeenCalled();
   });
 
-  it('ladders theme+bracket -> base+bracket -> theme -> base, stopping at the first healthy rung', async () => {
+  it('ladders theme+bracket -> theme -> base+bracket -> base, stopping at the first healthy rung', async () => {
+    // Theme outranks bracket-only: the user picked this theme, so it's the
+    // deck's identity, while bracket permissions survive independent of
+    // which page supplies the pool (see the ladder comment in deckGenerator.ts).
+    // Dropping to bracket-only before trying the theme without a bracket
+    // would silently swap "the theme deck the user asked for" for a
+    // goodstuff deck at the right power level — the failure this fix exists
+    // to prevent (e.g. a popular commander + niche theme + high bracket,
+    // where the bracket-only page is healthy but ignores the theme).
     const candidates = rungs(
-      ['theme+bracket', 'base+bracket', 'theme', 'base'],
-      [THEME_BRACKET_EMPTY, BRACKET_ONLY_NOISY, HEALTHY_THEME, HEALTHY_THEME]
+      ['theme+bracket', 'theme', 'base+bracket', 'base'],
+      [THEME_BRACKET_EMPTY, HEALTHY_THEME, BRACKET_ONLY_NOISY, HEALTHY_THEME]
     );
     const outcome = await fetchPoolWithFallback(candidates);
     expect(outcome?.source).toBe('theme');
     expect(outcome?.fellBackFrom).toBe('theme+bracket');
+    expect(candidates[2].fetch).not.toHaveBeenCalled(); // never reached 'base+bracket'
     expect(candidates[3].fetch).not.toHaveBeenCalled(); // never reached 'base'
   });
 
