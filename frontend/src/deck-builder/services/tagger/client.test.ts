@@ -9,6 +9,7 @@ import {
   isUntapProducer,
   isBlinkProducer,
   isExileProducer,
+  isExtraCombatPiece,
 } from './client';
 
 // Minimal tagger dataset: a cost-reducer (which the generic classifier folds
@@ -1214,6 +1215,170 @@ describe('isExileProducer', () => {
 
   it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
     expect(isExileProducer({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// isExtraCombatPiece (E102, iter-11 Slice C): "additional combat phase"
+// producers. All oracle text below is live-verified against Scryfall.
+describe('isExtraCombatPiece', () => {
+  it('sorcery-speed repeatable combat (Aggravated Assault)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Aggravated Assault',
+        oracle_text:
+          '{3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase. Activate only as a sorcery.',
+      })
+    ).toBe(true);
+  });
+
+  it('exert trigger (Combat Celebrant)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Combat Celebrant',
+        oracle_text:
+          "If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after this phase, there is an additional combat phase. (An exerted creature won't untap during your next untap step.)",
+      })
+    ).toBe(true);
+  });
+
+  it('landfall trigger (Moraug, Fury of Akoum)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Moraug, Fury of Akoum',
+        oracle_text:
+          "Each creature you control gets +1/+0 for each time it has attacked this turn.\nLandfall — Whenever a land you control enters, if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control.",
+      })
+    ).toBe(true);
+  });
+
+  it('combat-damage trigger (Port Razer)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Port Razer',
+        oracle_text:
+          "Whenever this creature deals combat damage to a player, untap each creature you control. After this phase, there is an additional combat phase.\nThis creature can't attack a player it has already attacked this turn.",
+      })
+    ).toBe(true);
+  });
+
+  it('dethrone-adjacent attack trigger (Scourge of the Throne)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Scourge of the Throne',
+        oracle_text:
+          "Flying\nDethrone (Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on it.)\nWhenever this creature attacks for the first time each turn, if it's attacking the player with the most life or tied for most life, untap all attacking creatures. After this phase, there is an additional combat phase.",
+      })
+    ).toBe(true);
+  });
+
+  it('rebound sorcery (World at War)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'World at War',
+        oracle_text:
+          "After the second main phase this turn, there's an additional combat phase followed by an additional main phase. At the beginning of that combat, untap all creatures that attacked this turn.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+      })
+    ).toBe(true);
+  });
+
+  it('legal-commander attack trigger (Aurelia, the Warleader)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Aurelia, the Warleader',
+        oracle_text:
+          'Flying, vigilance, haste\nWhenever Aurelia attacks for the first time each turn, untap all creatures you control. After this phase, there is an additional combat phase.',
+      })
+    ).toBe(true);
+  });
+
+  it('legal-commander attack trigger (Karlach, Fury of Avernus)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Karlach, Fury of Avernus',
+        oracle_text:
+          "Whenever you attack, if it's the first combat phase of the turn, untap all attacking creatures. They gain first strike until end of turn. After this phase, there is an additional combat phase.\nChoose a Background (You can have a Background as a second commander.)",
+      })
+    ).toBe(true);
+  });
+
+  it('split-card back half (Response // Resurgence)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Response // Resurgence',
+        card_faces: [
+          {
+            oracle_text: 'Response deals 5 damage to target attacking or blocking creature.',
+          },
+          {
+            oracle_text:
+              'Creatures you control gain first strike and vigilance until end of turn. After this main phase, there is an additional combat phase followed by an additional main phase.',
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  it('flashback sorcery (Seize the Day)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Seize the Day',
+        oracle_text:
+          'Untap target creature. After this main phase, there is an additional combat phase followed by an additional main phase.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+      })
+    ).toBe(true);
+  });
+
+  it('retrace sorcery (Waves of Aggression)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Waves of Aggression',
+        oracle_text:
+          'Untap all creatures that attacked this turn. After this main phase, there is an additional combat phase followed by an additional main phase.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)',
+      })
+    ).toBe(true);
+  });
+
+  it('sacrifice-and-reattach aura (Breath of Fury)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Breath of Fury',
+        oracle_text:
+          'Enchant creature you control\nWhen enchanted creature deals combat damage to a player, sacrifice it and attach this Aura to a creature you control. If you do, untap all creatures you control and after this phase, there is an additional combat phase.',
+      })
+    ).toBe(true);
+  });
+
+  it('curated inclusion: Helm of the Host (own text never says "additional combat phase")', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Helm of the Host',
+        oracle_text:
+          "At the beginning of combat on your turn, create a token that's a copy of equipped creature, except the token isn't legendary. That token gains haste.\nEquip {5}",
+      })
+    ).toBe(true);
+  });
+
+  it('does NOT match a bare untap effect with no combat-phase clause (Vitalize)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Vitalize',
+        oracle_text: 'Untap all creatures you control.',
+      })
+    ).toBe(false);
+  });
+
+  it('does NOT match the attack-trigger DOUBLER idiom, no "combat phase" text (Windcrag Siege)', () => {
+    expect(
+      isExtraCombatPiece({
+        name: 'Windcrag Siege',
+        oracle_text:
+          'As this enchantment enters, choose Mardu or Jeskai.\n• Mardu — If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.\n• Jeskai — At the beginning of your upkeep, create a 1/1 red Goblin creature token. It gains lifelink and haste until end of turn.',
+      })
+    ).toBe(false);
+  });
+
+  it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
+    expect(isExtraCombatPiece({ name: 'No-Text Card' })).toBe(false);
   });
 });
 
