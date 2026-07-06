@@ -153,7 +153,10 @@ import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
-import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
+import {
+  applyBracketConvergence,
+  reconvergeUntilStable,
+} from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
@@ -5185,6 +5188,42 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // cut piece, no matter which upstream phase caused it. No-op — byte-
   // identical — whenever nothing actually changed completeness.
   detectedCombos = refreshComboCompleteness(detectedCombos, state);
+
+  // ── Post-refresh convergence re-entry (E105) ──
+  // Bracket convergence ran ABOVE, before this refresh — so an emergent combo
+  // completion from an ordinary pick/fill/swap/rebalance (anything other than
+  // the combo-audit's own adds, already fenced against the ceiling by E101)
+  // was invisible to it. Re-enter the same convergence phase now that the
+  // combo floor is finally accurate; it reuses applyBracketConvergence
+  // wholesale (which itself no-ops with 0 applied when no bracket ceiling was
+  // asked, or the estimate is already in-band, so this is a structural no-op
+  // for every ungated generation). Bounded because a cut here can itself
+  // complete or break a different combo, which needs one more refresh to stay
+  // honest — cap the ping-pong rather than let it loop forever. Nothing after
+  // this point mutates deck contents (liftPicksPhase below only suggests), so
+  // this is the true last word on combo membership feeding the disclosure
+  // below and the final bracket estimate/grade.
+  const postRefreshMustInclude = new Set([
+    ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+    ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+  ]);
+  reconvergeUntilStable(
+    () =>
+      applyBracketConvergence(state, {
+        scryfallCardMap,
+        detectedCombos,
+        mustIncludeNames: postRefreshMustInclude,
+        cardAllowed: isCardAllowedBySynergyDependencies,
+        roleTargets,
+        budgetTracker,
+        maxCardPrice,
+        currency,
+        ignoreOwnedBudget,
+      }),
+    () => {
+      detectedCombos = refreshComboCompleteness(detectedCombos, state);
+    }
+  );
 
   // Emergent combo-completion disclosure: diff the truly-final detectedCombos
   // just refreshed above against the generation-start baseline captured

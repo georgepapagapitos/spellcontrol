@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { ScryfallCard, EDHRECCard } from '@/deck-builder/types';
+import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/types';
 
 // Tagger reads bundled JSON keyed by card name. Mock so signals are
 // deterministic — every signal we want comes from the explicit gameChangerNames
@@ -31,7 +31,7 @@ vi.mock('../categorize', async (importOriginal) => {
   };
 });
 
-import { applyBracketConvergence } from './phaseBracketConverge';
+import { applyBracketConvergence, reconvergeUntilStable } from './phaseBracketConverge';
 import {
   getCardRole,
   isProtectionPiece,
@@ -584,5 +584,107 @@ describe('applyBracketConvergence', () => {
 
     expect(result.applied).toBeGreaterThanOrEqual(1);
     expect(tracker.remainingBudget).toBeLessThan(1000);
+  });
+});
+
+// E105: deckGenerator.ts's final unconditional refreshComboCompleteness runs
+// AFTER the one-shot applyBracketConvergence call above — so a combo any
+// ordinary pick/fill/swap/rebalance completed emergently, after convergence's
+// last look, was invisible to it. reconvergeUntilStable is the bounded
+// re-entry loop deckGenerator.ts wires in right after that final refresh.
+describe('reconvergeUntilStable', () => {
+  it('does not refresh or loop again when the first round already applies nothing', () => {
+    const run = vi.fn(() => ({ applied: 0, finalBracket: 2 }));
+    const refresh = vi.fn();
+
+    const total = reconvergeUntilStable(run, refresh);
+
+    expect(total).toBe(0);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('refreshes between rounds and stops the moment a round applies zero swaps', () => {
+    const rounds = [
+      { applied: 2, finalBracket: 3 },
+      { applied: 0, finalBracket: 2 },
+    ];
+    let i = 0;
+    const run = vi.fn(() => rounds[i++]);
+    const refresh = vi.fn();
+
+    const total = reconvergeUntilStable(run, refresh);
+
+    expect(total).toBe(2);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(refresh).toHaveBeenCalledTimes(1); // only after the applied round, never after a 0
+  });
+
+  it('bounds iterations on a pathological always-over state instead of looping forever', () => {
+    const run = vi.fn(() => ({ applied: 1, finalBracket: 5 }));
+    const refresh = vi.fn();
+
+    const total = reconvergeUntilStable(run, refresh, 3);
+
+    expect(total).toBe(3);
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(refresh).toHaveBeenCalledTimes(3);
+  });
+
+  it('cuts a combo that only became complete after the (simulated) final refresh', () => {
+    // Mirrors deckGenerator.ts's real wiring: applyBracketConvergence ran
+    // once already and missed this combo because it wasn't complete then;
+    // an ordinary later pick completed it, and the final
+    // refreshComboCompleteness marked it isComplete: true. The re-entry call
+    // below is what now must see and cut it.
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    state.gameChangerNames = new Set(); // the combo is the only over-target signal
+    state.categories.synergy = [
+      scryfallCard('Combo A'),
+      scryfallCard('Combo B'),
+      scryfallCard('Spell A'),
+      scryfallCard('Spell B'),
+    ];
+    state.usedNames = new Set(['Combo A', 'Combo B', 'Spell A', 'Spell B']);
+    let detectedCombos: DetectedCombo[] | undefined = [
+      {
+        comboId: 'k',
+        cards: ['Combo A', 'Combo B'],
+        results: ['Win the game'],
+        isComplete: true,
+        missingCards: [],
+        deckCount: 200,
+        bracket: 3,
+        bracketTag: null,
+        cardCount: 2,
+      },
+    ];
+    // Stand-in for refreshComboCompleteness: recomputes isComplete against
+    // whatever the deck holds right now (same idiom deckGenerator.ts uses).
+    const refresh = vi.fn(() => {
+      detectedCombos = detectedCombos!.map((c) => ({
+        ...c,
+        isComplete: c.cards.every((n) => state.usedNames.has(n)),
+      }));
+    });
+
+    const total = reconvergeUntilStable(
+      () =>
+        applyBracketConvergence(state, {
+          scryfallCardMap: fillerScryfallMap(),
+          detectedCombos,
+          mustIncludeNames: new Set(),
+        }),
+      refresh
+    );
+
+    expect(total).toBeGreaterThanOrEqual(1);
+    // Broke the combo without gutting both pieces (same as the single-pass test above).
+    const remaining = ['Combo A', 'Combo B'].filter((n) => state.usedNames.has(n));
+    expect(remaining).toHaveLength(1);
+    // The combo the re-entry cut must now read as incomplete — this is what
+    // keeps comboCompletionNotes from advertising a line the deck no longer runs.
+    expect(detectedCombos!.find((c) => c.comboId === 'k')!.isComplete).toBe(false);
   });
 });

@@ -443,3 +443,28 @@ export function applyBracketConvergence(
 
   return { applied, finalBracket: est.bracket };
 }
+
+/**
+ * Re-run `run` (an `applyBracketConvergence` call) until it stops applying
+ * swaps, calling `refresh` between rounds (E105). Convergence only sees the
+ * combo/estimate state as of the moment it's called — a mutating phase that
+ * runs afterward (including convergence's own cut breaking one combo while
+ * leaving another emergently complete) can leave the deck over target again
+ * with convergence none the wiser. Bounded because each round can itself
+ * change combo completeness, which needs one more refresh to stay honest —
+ * capped so a pathological always-over state can't loop forever.
+ */
+export function reconvergeUntilStable(
+  run: () => BracketConvergeResult,
+  refresh: () => void,
+  maxIterations = MAX_CONVERGE_ROUNDS
+): number {
+  let totalApplied = 0;
+  for (let i = 0; i < maxIterations; i++) {
+    const result = run();
+    if (result.applied === 0) break;
+    totalApplied += result.applied;
+    refresh();
+  }
+  return totalApplied;
+}
