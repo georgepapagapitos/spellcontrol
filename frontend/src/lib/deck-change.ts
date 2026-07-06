@@ -241,6 +241,7 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
       synergy: g.synergy,
       liftedBy: g.liftedBy,
       owned: ownership === 'owned',
+      brewFavored: g.brewFavored,
     }),
     ownership,
     deltaPrice: parsePrice(g.price) ?? undefined,

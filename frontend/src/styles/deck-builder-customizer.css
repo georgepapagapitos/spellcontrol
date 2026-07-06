@@ -455,6 +455,12 @@
   text-align: right;
 }
 
+.deck-customizer-slider-desc {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .deck-customizer-slider-anchor-value {
   color: var(--text-secondary);
   font-weight: 600;

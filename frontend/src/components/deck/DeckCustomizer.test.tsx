@@ -62,6 +62,7 @@ function baseCustomization(overrides: Partial<Customization> = {}): Customizatio
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
+    brewLevel: 0.5,
     ...overrides,
   };
 }
@@ -149,5 +150,43 @@ describe('DeckCustomizer — collection controls', () => {
     );
     expect(screen.getByText(/~60% owned/)).toBeTruthy();
     expect(screen.getByText(/outside your collection/)).toBeTruthy();
+  });
+});
+
+describe('DeckCustomizer — Staples <-> Brew dial', () => {
+  function openCardPriority() {
+    fireEvent.click(screen.getByText('Card priority'));
+  }
+
+  it('shows Balanced with its description at the 0.5 default', () => {
+    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
+    openCardPriority();
+    expect(screen.getByLabelText(/Staples to Brew dial/)).toBeTruthy();
+    expect(screen.getAllByText('Balanced').length).toBeGreaterThan(0);
+    expect(screen.getByText(/even mix of proven staples/)).toBeTruthy();
+  });
+
+  it('shows the Staples label and description at 0', () => {
+    render(<DeckCustomizer customization={baseCustomization({ brewLevel: 0 })} update={vi.fn()} />);
+    openCardPriority();
+    expect(screen.getAllByText('Staples').length).toBeGreaterThan(0);
+    expect(screen.getByText(/EDHREC's most-played picks/)).toBeTruthy();
+  });
+
+  it('shows the Brew label and description at 1', () => {
+    render(<DeckCustomizer customization={baseCustomization({ brewLevel: 1 })} update={vi.fn()} />);
+    openCardPriority();
+    expect(screen.getAllByText('Brew').length).toBeGreaterThan(0);
+    expect(screen.getByText(/theme's mechanics/)).toBeTruthy();
+  });
+
+  it('patches brewLevel when the slider changes', () => {
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    openCardPriority();
+    fireEvent.change(screen.getByLabelText(/Staples to Brew dial/), {
+      target: { value: '0.75' },
+    });
+    expect(update).toHaveBeenCalledWith({ brewLevel: 0.75 });
   });
 });

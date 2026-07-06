@@ -101,6 +101,7 @@ const defaultCustomization: Customization = {
   artThemeTag: '',
   historicalYear: 2005,
   permanentsOnly: false,
+  brewLevel: 0.5,
 };
 
 export const useDeckBuilderStore = create<AppState>((set, get) => ({

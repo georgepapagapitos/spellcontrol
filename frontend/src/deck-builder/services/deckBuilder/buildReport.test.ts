@@ -628,4 +628,41 @@ describe('assembleBuildReport', () => {
       expect(report.protectionZeroNote).toBeUndefined();
     });
   });
+
+  describe('brewDialNote (Staples <-> Brew dial)', () => {
+    it('discloses nothing at the 0.5 Balanced default, or when unset', () => {
+      expect(
+        assembleBuildReport({
+          generated: makeGenerated(),
+          customization: makeCustomization({ brewLevel: 0.5 }),
+          collectionNames: new Set(),
+        }).brewDialNote
+      ).toBeUndefined();
+      expect(
+        assembleBuildReport({
+          generated: makeGenerated(),
+          customization: makeCustomization(),
+          collectionNames: new Set(),
+        }).brewDialNote
+      ).toBeUndefined();
+    });
+
+    it('discloses a Brew-leaning note above 0.5', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization({ brewLevel: 1 }),
+        collectionNames: new Set(),
+      });
+      expect(report.brewDialNote).toMatch(/deep cuts/i);
+    });
+
+    it('discloses a Staples-leaning note below 0.5', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization({ brewLevel: 0 }),
+        collectionNames: new Set(),
+      });
+      expect(report.brewDialNote).toMatch(/staples/i);
+    });
+  });
 });

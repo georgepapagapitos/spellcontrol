@@ -342,6 +342,10 @@ export interface GapAnalysisCard {
    *  connected to — see services/deckBuilder/liftSynergy.ts buildLiftIndex.
    *  Undefined when the card has no lift connectivity to the seed set. */
   liftedBy?: string[];
+  /** Staples <-> Brew dial: true when this suggestion is a genuine non-staple
+   *  backed by synergy or lift evidence AND the dial was leaned toward Brew
+   *  when generated — see phaseGapAnalysis.ts. */
+  brewFavored?: boolean;
 }
 
 /**
@@ -496,6 +500,10 @@ export interface BuildReport {
    *  same-role staple for a live-but-still-incomplete combo. Undefined when
    *  none arose, or every combo those cards belonged to went on to complete. */
   comboUpsideNotes?: ComboUpsideNote[];
+  /** Disclosure when the Staples <-> Brew dial was off its 0.5 Balanced default —
+   *  names which direction the user leaned so the report never leaves a
+   *  reweighted pick pool unexplained. Undefined at the default. */
+  brewDialNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -820,6 +828,12 @@ export interface Customization {
   artThemeTag: string; // arttag: slug for 'art-theme' mode (e.g. 'dragon'); '' until chosen
   historicalYear: number; // print-year ceiling for 'historical' mode (cards printed on/before this year)
   permanentsOnly: boolean; // 'oracle-role' toggle: restrict the nonland pool to permanents (dodges counterspells)
+  // Staples <-> Brew dial: 0 = Staples (amplify EDHREC inclusion, damp synergy),
+  // 0.5 = Balanced (default — a mathematical no-op, every multiplier below
+  // evaluates to 1x so generation is byte-identical to the pre-dial formula),
+  // 1 = Brew (damp inclusion, amplify synergy/theme-fit/hidden-synergy lift).
+  // See cardPicking.ts's calculateCardPriority for the multiplier math.
+  brewLevel: number;
 }
 
 // Store state
