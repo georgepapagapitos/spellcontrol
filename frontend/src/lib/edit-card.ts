@@ -76,6 +76,9 @@ export function buildEditedCards(
   if (selection.details) {
     cardFields.condition = selection.details.condition;
     cardFields.language = selection.details.language;
+    cardFields.altered = selection.details.altered;
+    cardFields.proxy = selection.details.proxy;
+    cardFields.misprint = selection.details.misprint;
   }
 
   // Single-copy split (ungrouped view): re-point just this one physical copy,
