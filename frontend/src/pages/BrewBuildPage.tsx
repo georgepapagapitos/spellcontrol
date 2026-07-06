@@ -192,7 +192,7 @@ export function BrewBuildPage(): JSX.Element {
     <div className="deck-builder-page brew-page">
       <BackLink to="/decks/new" label="New deck" />
       <header className="deck-builder-header">
-        <h1>Brew it together</h1>
+        <h1>Brew mode</h1>
         <p className="deck-builder-subtitle">
           Build the 99 slot by slot — the app proposes, you decide. Ramp, card draw, removal, board
           wipes, your theme, finishers, then a manabase you review before it's saved.
