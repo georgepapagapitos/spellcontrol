@@ -475,7 +475,11 @@ describe('reconcileLandSqueezeDisclosure (E82 fix-round)', () => {
 
   it('is a no-op when everything reconcile reported still matches the final deck', () => {
     const finalNonLandNames = new Set(['Wildcard C', 'Other Card']);
-    const result = reconcileLandSqueezeDisclosure(['Incumbent A'], ['Wildcard C'], finalNonLandNames);
+    const result = reconcileLandSqueezeDisclosure(
+      ['Incumbent A'],
+      ['Wildcard C'],
+      finalNonLandNames
+    );
     expect(result.cut).toEqual(['Incumbent A']);
     expect(result.wildcardsKept).toEqual(['Wildcard C']);
   });
