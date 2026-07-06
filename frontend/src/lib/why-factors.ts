@@ -141,6 +141,11 @@ export interface GapAddSignals {
   /** Lift co-play seed names (strongest first) this card is connected to. */
   liftedBy?: string[];
   owned: boolean;
+  /** True when the Staples <-> Brew dial is leaned toward Brew AND this card
+   *  has real evidence of fit (synergy or lift) despite being a fringe/
+   *  non-staple pick — i.e. exactly the case the dial was built to surface.
+   *  Never set for a merely-obscure card with no synergy/lift backing. */
+  brewFavored?: boolean;
 }
 
 /**
@@ -174,6 +179,12 @@ export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
     });
   }
   if (s.owned) out.push({ text: 'Already in your collection — no purchase', tone: 'pro' });
+  if (s.brewFavored) {
+    out.push({
+      text: 'You dialed toward Brew — deep cuts like this get weighted over play-rate',
+      tone: 'neutral',
+    });
+  }
   return out;
 }
 
@@ -403,6 +414,36 @@ export function buildComboCompletionFactors(s: ComboCompletionSignals): WhyFacto
     });
   }
   if (s.owned) out.push({ text: 'You own the missing piece — free to assemble', tone: 'pro' });
+  return out;
+}
+
+export interface CrossDeckMoveSignals {
+  /** Display labels of the sibling deck's established engines this card reinforces. */
+  targetAxisLabels: string[];
+  toDeckName: string;
+  fromDeckName: string;
+}
+
+/**
+ * Why moving this card between decks is the right call (the "Between your
+ * decks" feed). The donor side is why-factors' one unconditional line: by
+ * construction (see `cross-deck-moves.ts`) a suggestion only exists when the
+ * card reinforces none of the donor's own established engines, so that's
+ * always true and always worth saying — it's the whole reason the card reads
+ * as "generic value" there instead of load-bearing.
+ */
+export function buildCrossDeckMoveFactors(s: CrossDeckMoveSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  if (s.targetAxisLabels.length > 0) {
+    out.push({
+      text: `Feeds ${s.toDeckName}'s ${s.targetAxisLabels.join(' & ')} engine — an established payoff there`,
+      tone: 'pro',
+    });
+  }
+  out.push({
+    text: `Doesn't touch any of ${s.fromDeckName}'s own engines — a generic value pick there`,
+    tone: 'pro',
+  });
   return out;
 }
 

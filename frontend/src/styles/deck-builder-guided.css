@@ -274,6 +274,12 @@
   vertical-align: middle;
 }
 
+/* No-signal state (0/missing EDHREC inclusion) — same quiet chip, just
+   italicized so "Off-meta" reads as an intentional note, not an alarm. */
+.deck-row-inclusion.is-offmeta {
+  font-style: italic;
+}
+
 /* Phones: the name span holds qty/role/name + up to three trailing chips
    (allocation, synergy, inclusion). Let the chips wrap under the name rather
    than forcing the row wider than the viewport. */

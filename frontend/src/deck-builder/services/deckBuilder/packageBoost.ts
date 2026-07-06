@@ -152,12 +152,21 @@ export const LIFT_PICK_BOOST_SCALE = 0.0075;
  */
 export function computeLiftPickBoosts(
   candidateNames: readonly string[],
-  liftScoreOf: (name: string) => number
+  liftScoreOf: (name: string) => number,
+  /** Staples <-> Brew dial scale (deckGenerator.ts: `2 * brewLevel`) — 1 at the
+   *  Balanced default (today's exact boost, unchanged), 0 at full Staples
+   *  (hidden-synergy lift stops influencing a pure-staples build), 2 at full
+   *  Brew (doubles the lift-pick boost/cap, per the E89 Staples<->Brew spec's
+   *  "scale the lift multiplier/cap up"). A pure scalar on the already-capped
+   *  boost, so it stays monotonic and never changes which candidates have a
+   *  lift connection — only how much it weighs. */
+  scaleMul: number = 1
 ): Map<string, number> {
   const boosts = new Map<string, number>();
   for (const name of candidateNames) {
     const l = liftScoreOf(name);
-    if (l > 0) boosts.set(name, Math.min(LIFT_PICK_BOOST_MAX, l * LIFT_PICK_BOOST_SCALE));
+    if (l > 0)
+      boosts.set(name, Math.min(LIFT_PICK_BOOST_MAX, l * LIFT_PICK_BOOST_SCALE) * scaleMul);
   }
   return boosts;
 }

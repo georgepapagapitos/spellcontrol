@@ -11,6 +11,7 @@ import { InfoTip } from '../InfoTip';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
+import { classifyInclusion } from '@/lib/inclusion-label';
 import {
   fromGapCard,
   fromOptimizeCard,
@@ -540,10 +541,7 @@ export function CoachFeed({
 
   const entryFor = (change: Change): CarouselEntry => ({
     name: change.name,
-    label:
-      typeof change.inclusion === 'number'
-        ? `In ${Math.round(change.inclusion)}% of decks`
-        : 'Suggested',
+    label: classifyInclusion(change.inclusion).label,
   });
   const previewEntries = useMemo<CarouselEntry[]>(
     () =>

@@ -54,6 +54,7 @@ function makeCustomization(overrides: Partial<Customization> = {}): Customizatio
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
+    brewLevel: 0.5,
     ...overrides,
   };
 }

@@ -158,6 +158,15 @@ describe('computeLiftPickBoosts', () => {
     expect(boosts.get('Zulaport Cutthroat')).toBe(LIFT_PICK_BOOST_MAX);
     expect(boosts.has('Divination')).toBe(false); // zero lift connectivity → no entry at all
   });
+
+  it('scaleMul (Staples <-> Brew dial) scales the already-capped boost, default 1 = unchanged', () => {
+    const liftScoreOf = (name: string) => (name === 'Blood Artist' ? 500 : 0);
+    const base = computeLiftPickBoosts(['Blood Artist'], liftScoreOf);
+    expect(computeLiftPickBoosts(['Blood Artist'], liftScoreOf, 1)).toEqual(base); // default no-op
+    expect(computeLiftPickBoosts(['Blood Artist'], liftScoreOf, 0).get('Blood Artist')).toBe(0);
+    const doubled = computeLiftPickBoosts(['Blood Artist'], liftScoreOf, 2).get('Blood Artist');
+    expect(doubled).toBeCloseTo((base.get('Blood Artist') ?? 0) * 2);
+  });
 });
 
 describe('computeUntapVisibilityBoosts', () => {

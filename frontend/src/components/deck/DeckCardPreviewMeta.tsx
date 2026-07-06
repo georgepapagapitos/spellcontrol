@@ -4,6 +4,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import type { AllocationStatus } from '../../lib/allocations';
 import { getRoleBadge, rolesForCard, multiRoleTitle } from '../../lib/role-badges';
+import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
 import './DeckCardPreviewMeta.css';
 
 interface Props {
@@ -17,7 +18,10 @@ interface Props {
   /** "Why this card fits your commander" reason strings (from the synergy
    *  engine). Usually ≤ 3. */
   synergies?: string[];
-  /** EDHREC inclusion rate for this commander (0–100). */
+  /** EDHREC inclusion rate for this commander (0–100). `undefined` means the
+   *  deck has no EDHREC data at all (or this is a basic land) — see
+   *  `resolveInclusionPct` in DeckDisplay, the sole caller. A present number
+   *  (including 0) renders via `classifyInclusion` — never a bare "0%". */
   inclusionPct?: number;
   /** Legality issue for this card's slot (color identity / not legal / copies). */
   legality?: LegalityIssue;
@@ -67,7 +71,6 @@ export function DeckCardPreviewMeta({
   const roleText =
     roleBadge && rolesForCard(card).length > 1 ? multiRoleTitle(card) : roleBadge?.title;
   const ownership = ownershipNote(status);
-  const hasInclusion = typeof inclusionPct === 'number';
   const reasons = synergies?.filter(Boolean) ?? [];
 
   // At-a-glance segments, joined by separators on one wrapping line.
@@ -87,12 +90,18 @@ export function DeckCardPreviewMeta({
   if (roleText) {
     segments.push(<span key="role">{roleText}</span>);
   }
-  if (hasInclusion) {
-    const pct = Math.round(inclusionPct);
+  if (typeof inclusionPct === 'number') {
+    const info = classifyInclusion(inclusionPct);
     segments.push(
-      <span key="inc" title={`In ${pct}% of EDHREC decks with this commander`}>
-        {pct}% of decks
-      </span>
+      info.kind === 'pct' ? (
+        <span key="inc" title={`In ${info.pct}% of EDHREC decks with this commander`}>
+          {info.pct}% of decks
+        </span>
+      ) : (
+        <span key="inc" className="deck-card-preview-meta-offmeta" title={OFFMETA_TOOLTIP}>
+          Off-meta
+        </span>
+      )
     );
   }
 

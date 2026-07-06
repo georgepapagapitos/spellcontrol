@@ -16,6 +16,7 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
 import { useCardThumb } from '@/lib/card-thumbs';
 import { formatMoney } from '@/lib/format-money';
 import { ManaCost } from '../ManaCost';
+import { classifyInclusion } from '@/lib/inclusion-label';
 
 /** Card art, or a placeholder while it resolves (thin EDHREC/synergy rows arrive
  *  name-only and resolve their CDN art lazily — never a bare img against the
@@ -29,27 +30,21 @@ function Thumb({ url }: { url: string | undefined }): JSX.Element {
 }
 
 /**
- * Inclusion-% → a hue, so a glance reads "how-staple is this". Red is reserved
- * for genuine fringe picks (<10%) — mid percentages are common, healthy
- * inclusions and must NOT collide with red = remove (the Cut verdict tone):
+ * Inclusion-% → a hue, so a glance reads "how-staple is this". A real
+ * percentage is never rendered below 1% (see `classifyInclusion` — 0/missing
+ * render as the calm "Off-meta" chip instead), so this ramp never needs to
+ * speak for "no signal": every value it colors is a genuine, if low, signal —
+ * a "deep cut", not an error. Red is reserved exclusively for the Cut verdict
+ * tone, so the ramp never touches it:
  *
- *   <10%    → red (0–12)            fringe pick
- *   10–50%  → amber→yellow (35–60)  ordinary inclusion, reads neutral/caution
+ *   1–50%   → amber→yellow (35–60)  from a spicy low-end pick to ordinary
  *   ≥50%    → yellow→green (60–120) staple ramp (unchanged from the old scale)
  *
- * The 12→35 jump at 10% is deliberate: "fringe" is a discrete signal, not the
- * bottom of a smooth gradient. Pure + exported for unit tests.
+ * Pure + exported for unit tests.
  */
 export function inclusionColor(pct: number): string {
   const p = Math.max(0, Math.min(100, pct));
-  let hue: number;
-  if (p < 10) {
-    hue = (p / 10) * 12;
-  } else if (p < 50) {
-    hue = 35 + ((p - 10) / 40) * 25;
-  } else {
-    hue = (p / 100) * 120;
-  }
+  const hue = p < 50 ? 35 + ((p - 1) / 49) * 25 : (p / 100) * 120;
   return `hsl(${Math.round(hue)} 60% 45%)`;
 }
 
@@ -135,19 +130,24 @@ export function DeckCardRow({
     </button>
   );
 
-  // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick. The
-  // percentage itself is tinted by how staple the card is (red only below ~10% —
-  // see inclusionColor), so the "how-staple" signal lives in the number instead
-  // of a separate unlabeled bar.
+  // Inclusion read-out, or "Off-meta" for a genuinely off-meta synergy pick — 0,
+  // undefined, and a missing signal all read identically (classifyInclusion).
+  // A real percentage is tinted by how staple the card is (see inclusionColor),
+  // so the "how-staple" signal lives in the number instead of a separate
+  // unlabeled bar.
   //
   // Combos-lane rows never have an inclusion %, so suppress the "Off-meta"
   // label for them — a proven combo completion is not off-meta by definition.
+  const inclusionInfo = classifyInclusion(inclusion);
   const inclusionNode =
-    typeof inclusion === 'number' ? (
+    inclusionInfo.kind === 'pct' ? (
       <span className="deck-card-row-incl">
         In{' '}
-        <span className="deck-card-row-incl-pct" style={{ color: inclusionColor(inclusion) }}>
-          {Math.round(inclusion)}%
+        <span
+          className="deck-card-row-incl-pct"
+          style={{ color: inclusionColor(inclusionInfo.pct) }}
+        >
+          {inclusionInfo.pct}%
         </span>{' '}
         of {commanderName ? `${commanderName} ` : ''}decks
       </span>

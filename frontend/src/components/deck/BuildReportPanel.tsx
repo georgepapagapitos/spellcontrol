@@ -184,7 +184,9 @@ export function BuildReportPanel({
     generationModeDetail,
     generationNote,
     landCountNote,
+    brewDialNote,
     landSqueezeTrimNote,
+    bracketPoolFallbackNote,
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
@@ -244,7 +246,13 @@ export function BuildReportPanel({
         <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
       )}
 
+      {bracketPoolFallbackNote && (
+        <p className="build-report-line build-report-source">{bracketPoolFallbackNote}</p>
+      )}
+
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
+
+      {brewDialNote && <p className="build-report-line build-report-source">{brewDialNote}</p>}
 
       {landSqueezeTrimNote && (
         <p className="build-report-line build-report-source">{landSqueezeTrimNote}</p>
