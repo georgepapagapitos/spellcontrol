@@ -688,6 +688,31 @@ export function buildPriceSanityNote(decidedCount: number): string | undefined {
 }
 
 /**
+ * E110 disclosure — DISCLOSURE-ONLY (stance 2026-07-06). Bracket and budget are
+ * ORTHOGONAL knobs: a Bracket 1/2 ("Exhibition"/"Core", the casual end) ask
+ * constrains power/rules, NOT price. With no explicit budget the generator still
+ * optimizes card quality, which can ship an expensive deck (atraxa-b2 shipped
+ * $582 labeled "Core"). This note names that so a casual-bracket user isn't
+ * blindsided by the sticker price — it changes NOTHING about composition or the
+ * total, it only explains the number. Undefined unless all three hold: a
+ * casual-bracket ask (<= 2), no budget set, and the total clears the threshold.
+ */
+export const BRACKET_PRICE_DISCLOSURE_THRESHOLD = 400;
+export function buildBracketPriceDisclosureNote(params: {
+  targetBracket: TargetBracket | undefined;
+  deckBudget: number | null;
+  finalTotal: number;
+  currency: 'USD' | 'EUR';
+}): string | undefined {
+  const { targetBracket, deckBudget, finalTotal, currency } = params;
+  if (deckBudget !== null) return undefined; // budget set → price is already an explicit knob
+  if (typeof targetBracket !== 'number' || targetBracket > 2) return undefined;
+  if (finalTotal <= BRACKET_PRICE_DISCLOSURE_THRESHOLD) return undefined;
+  const sym = currency === 'EUR' ? '€' : '$';
+  return `Bracket ${targetBracket} constrains power, not price — this build optimizes card quality (${sym}${finalTotal.toFixed(2)}). Set a budget to cap cost.`;
+}
+
+/**
  * Disclosure for the E109 board-centric wipe-asymmetry treatment — mirrors
  * the buildPriceSanityNote idiom (one terse note, not per-card spam).
  * Undefined when the deck's plan wasn't board-centric (isBoardCentricPlan),
@@ -5589,11 +5614,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // disclosed a skip count, never a total, so it can't say whether the deck
   // actually landed over budget. Overwrite budgetNote with the honest number
   // when it did, folding in the skip disclosure as a secondary clause.
+  const finalTotal = [...nonLandCards, ...categories.lands].reduce((sum, c) => {
+    const p = getCardPrice(c, currency);
+    return sum + (p ? parseFloat(p) || 0 : 0);
+  }, 0);
   if (deckBudget !== null) {
-    const finalTotal = [...nonLandCards, ...categories.lands].reduce((sum, c) => {
-      const p = getCardPrice(c, currency);
-      return sum + (p ? parseFloat(p) || 0 : 0);
-    }, 0);
     budgetNote =
       buildOverBudgetNote({
         finalTotal,
@@ -5604,6 +5629,17 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         residualReason: budgetResidualReason,
       }) ?? budgetNote;
   }
+
+  // E110 disclosure: a casual-bracket ask with no budget can still ship an
+  // expensive deck (bracket caps power, not price). Note-only — the total is
+  // already final above; this just explains it. Undefined off the casual end,
+  // when a budget is set, or below the threshold.
+  const bracketPriceDisclosureNote = buildBracketPriceDisclosureNote({
+    targetBracket,
+    deckBudget,
+    finalTotal,
+    currency,
+  });
 
   // Surfaced relaxation count = relaxed cards that SURVIVED the combo audit /
   // fixup passes above (they can evict cards added to categories.synergy), so
@@ -5753,6 +5789,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    bracketPriceDisclosureNote,
     wipeAsymmetryNote,
     qualifiedPayoffGateNote,
     comboAuditBracketBlockNote,

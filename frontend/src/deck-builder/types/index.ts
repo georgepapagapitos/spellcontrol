@@ -493,6 +493,11 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Disclosure (E110) when a casual-bracket ask (bracket <= 2) with no budget
+   *  set still produced a high-total deck — bracket caps power, not price.
+   *  Note-only; the total is unchanged. Undefined off the casual end, when a
+   *  budget is set, or below the disclosure threshold. */
+  bracketPriceDisclosureNote?: string;
   /** Disclosure when the deck's plan was board-centric (E109 — go-wide
    *  archetype, or a creature-heavy type target) and the wipe-asymmetry
    *  treatment actually did something: trimmed the board wipe target,
@@ -674,6 +679,7 @@ export interface GeneratedDeck {
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
+  bracketPriceDisclosureNote?: string; // e.g. casual-bracket ask + no budget still shipped a high total — bracket caps power, not price (E110)
   wipeAsymmetryNote?: string; // e.g. board-centric plan trimmed the wipe target and/or preferred one-sided wipes (E109)
   qualifiedPayoffGateNote?: string; // e.g. N qualified ETB/death payoffs seated anyway — nothing else cleared every gate (E111)
   comboAuditBracketBlockNote?: string; // e.g. N combo-audit swaps skipped to stay within the target bracket (E104)
