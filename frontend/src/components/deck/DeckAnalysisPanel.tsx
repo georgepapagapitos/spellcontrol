@@ -32,6 +32,7 @@ import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { buildCardImageIndex, buildCardIndex } from '../../lib/deck-card-index';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { classifyInclusion } from '../../lib/inclusion-label';
 import type { EnrichedCard } from '../../types';
 import { CardPreview } from '../CardPreview';
 import { Tabs } from '../Tabs';
@@ -512,9 +513,7 @@ function SuggestionsSection({
         }
         if (!card) continue;
         resolved.push(card);
-        const inclusion =
-          entry.card.inclusion > 0 ? `${entry.card.inclusion.toFixed(0)}% of decks` : 'Suggestion';
-        labels.push(inclusion);
+        labels.push(classifyInclusion(entry.card.inclusion).label);
       }
       if (resolved.length === 0) return;
       const idx = Math.max(
@@ -751,7 +750,7 @@ function SuggestionRow({
           {ownershipBadge}
         </div>
         <p className="deck-analysis-suggest-meta">
-          {card.inclusion > 0 && <>In {card.inclusion.toFixed(0)}% of decks</>}
+          {classifyInclusion(card.inclusion).label}
           {card.synergy != null && card.synergy > 0 && (
             <> · synergy +{(card.synergy * 100).toFixed(0)}%</>
           )}

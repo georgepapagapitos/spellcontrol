@@ -54,9 +54,33 @@ import { Legend } from '../Legend';
 import {
   buildAllocationMap,
   classifyAllocation,
+  BASIC_LAND_NAMES,
   type AllocationInfo,
   type AllocationStatus,
 } from '../../lib/allocations';
+import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
+
+/**
+ * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
+ * normalizing "no signal" so downstream renders can trust `classifyInclusion`
+ * without re-deriving basic-land/no-data exclusions:
+ *
+ * - No map at all (deck never ran EDHREC analysis — manual/imported decks, or
+ *   an old deck predating this field) → `undefined`, so the chip renders
+ *   nothing. We genuinely never checked, so "Off-meta" would overclaim.
+ * - A basic land → `undefined` too; the generator excludes basics from the
+ *   map by design (they're never scored as a "card" by EDHREC), so absence
+ *   there isn't a signal either.
+ * - Otherwise, a card missing from a present map is real "no signal" and
+ *   normalizes to `0` so it renders "Off-meta" instead of going blank.
+ */
+function resolveInclusionPct(
+  cardInclusionMap: Record<string, number> | undefined,
+  name: string
+): number | undefined {
+  if (!cardInclusionMap || BASIC_LAND_NAMES.has(name)) return undefined;
+  return cardInclusionMap[name] ?? 0;
+}
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { useRarityCorrections } from '../../lib/use-rarity-corrections';
@@ -1788,7 +1812,7 @@ export function DeckDisplay({
                   isPartner={r.isPartner}
                   isCommander={!r.isPartner && commander?.name === r.name}
                   synergies={synergyByName?.get(r.name)}
-                  inclusionPct={cardInclusionMap?.[r.name]}
+                  inclusionPct={resolveInclusionPct(cardInclusionMap, r.name)}
                   legality={r.slotIds[0] ? legalityBySlot.get(r.slotIds[0]) : undefined}
                   status={r.status}
                 />
@@ -2687,7 +2711,7 @@ function CategorySection({
             onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
             onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
             synergyReasons={synergyByName?.get(entry.item.card.name)}
-            inclusionPct={cardInclusionMap?.[entry.item.card.name]}
+            inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item.card.name)}
             entering={entry.entering}
             leaving={entry.leaving}
             leavingStyle={entry.leaving ? entry.style : undefined}
@@ -2930,15 +2954,27 @@ function DeckCardRow({
                 </span>
               </span>
             )}
-            {typeof inclusionPct === 'number' && (
-              <span
-                className="deck-row-inclusion"
-                title={`${Math.round(inclusionPct)}% of EDHREC decks with this commander run this card`}
-                aria-label={`EDHREC inclusion ${Math.round(inclusionPct)} percent`}
-              >
-                {Math.round(inclusionPct)}%
-              </span>
-            )}
+            {/* `inclusionPct` is already resolved by `resolveInclusionPct` — nothing
+                when the deck has no EDHREC data at all (or this is a basic land),
+                otherwise a real number where 0/missing render "Off-meta" rather
+                than going silently blank. */}
+            {typeof inclusionPct === 'number' &&
+              (() => {
+                const info = classifyInclusion(inclusionPct);
+                return info.kind === 'pct' ? (
+                  <span
+                    className="deck-row-inclusion"
+                    title={`${info.pct}% of EDHREC decks with this commander run this card`}
+                    aria-label={`EDHREC inclusion ${info.pct} percent`}
+                  >
+                    {info.pct}%
+                  </span>
+                ) : (
+                  <span className="deck-row-inclusion is-offmeta" title={OFFMETA_TOOLTIP}>
+                    Off-meta
+                  </span>
+                );
+              })()}
           </span>
         </span>
         {showPrefs.mana &&

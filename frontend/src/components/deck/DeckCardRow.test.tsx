@@ -174,15 +174,17 @@ describe('inclusionColor', () => {
     return Number(m![1]);
   };
 
-  it('reserves red for fringe picks below 10%', () => {
-    expect(hueOf(inclusionColor(0))).toBe(0);
-    expect(hueOf(inclusionColor(5))).toBeLessThan(15);
-    expect(hueOf(inclusionColor(8))).toBeLessThan(15); // 8% IS red
-    expect(hueOf(inclusionColor(9.9))).toBeLessThan(15);
+  it('never renders red — even a 1% "deep cut" reads as amber, not an alarm', () => {
+    // classifyInclusion never lets a real signal below 1% reach inclusionColor
+    // (0/no-signal renders "Off-meta" instead), so the low end only needs to
+    // read as a spicy pick, not an error.
+    expect(hueOf(inclusionColor(1))).toBeGreaterThanOrEqual(35);
+    expect(hueOf(inclusionColor(5))).toBeGreaterThanOrEqual(35);
+    expect(hueOf(inclusionColor(9))).toBeGreaterThanOrEqual(35);
   });
 
-  it('reads amber/neutral (not red) for low-mid percentages', () => {
-    expect(hueOf(inclusionColor(10))).toBe(35); // amber starts at 10%
+  it('reads amber/neutral for low-mid percentages', () => {
+    expect(hueOf(inclusionColor(10))).toBeGreaterThanOrEqual(35);
     expect(hueOf(inclusionColor(35))).toBeGreaterThanOrEqual(35); // 35% is NOT red
     expect(hueOf(inclusionColor(35))).toBeLessThan(60); // …and not yet green
     expect(hueOf(inclusionColor(49))).toBeLessThan(60);

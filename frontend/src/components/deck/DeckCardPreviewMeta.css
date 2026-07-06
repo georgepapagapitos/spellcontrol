@@ -68,6 +68,13 @@
   overflow-wrap: anywhere;
 }
 
+/* No-signal inclusion segment ("Off-meta") — calm, not alarming: same muted
+   opacity as the section label, italic to read as a note rather than data. */
+.deck-card-preview-meta-offmeta {
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+}
+
 .deck-card-preview-meta-synergy {
   display: flex;
   flex-direction: column;
