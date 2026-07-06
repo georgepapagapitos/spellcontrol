@@ -44,6 +44,7 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  buildBracketPriceDisclosureNote,
   buildWipeAsymmetryNote,
   countFinalWipeAsymmetry,
   buildComboAuditBracketBlockNote,
@@ -440,6 +441,45 @@ describe('buildPriceSanityNote (E80)', () => {
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
     );
+  });
+});
+
+describe('buildBracketPriceDisclosureNote (E110 — disclosure-only)', () => {
+  const base = {
+    targetBracket: 2 as const,
+    deckBudget: null,
+    finalTotal: 582,
+    currency: 'USD' as const,
+  };
+
+  it('fires for a casual-bracket ask, no budget, high total', () => {
+    expect(buildBracketPriceDisclosureNote(base)).toBe(
+      'Bracket 2 constrains power, not price — this build optimizes card quality ($582.00). Set a budget to cap cost.'
+    );
+  });
+
+  it('also fires at bracket 1', () => {
+    expect(buildBracketPriceDisclosureNote({ ...base, targetBracket: 1 })).toContain('Bracket 1');
+  });
+
+  it('is silent once a budget is set (price is already an explicit knob)', () => {
+    expect(buildBracketPriceDisclosureNote({ ...base, deckBudget: 500 })).toBeUndefined();
+  });
+
+  it('is silent above the casual end (bracket 3+)', () => {
+    expect(buildBracketPriceDisclosureNote({ ...base, targetBracket: 3 })).toBeUndefined();
+  });
+
+  it('is silent when no bracket was targeted', () => {
+    expect(buildBracketPriceDisclosureNote({ ...base, targetBracket: undefined })).toBeUndefined();
+  });
+
+  it('is silent below the threshold', () => {
+    expect(buildBracketPriceDisclosureNote({ ...base, finalTotal: 120 })).toBeUndefined();
+  });
+
+  it('uses the EUR symbol', () => {
+    expect(buildBracketPriceDisclosureNote({ ...base, currency: 'EUR' })).toContain('€582.00');
   });
 });
 
