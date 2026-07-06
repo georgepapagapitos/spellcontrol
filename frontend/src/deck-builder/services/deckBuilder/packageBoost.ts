@@ -251,3 +251,30 @@ export function computeExileVisibilityBoosts(
   }
   return boosts;
 }
+
+/**
+ * Extra-combat theme visibility boost (E102, iter-11 Slice C) — same shape
+ * as computeUntapVisibilityBoosts/computeBlinkVisibilityBoosts: a flat,
+ * capped boost for extra-combat-producer candidates (isExtraCombatPiece,
+ * tagger/client.ts), gated on commanderWantsExtraCombat — true when the
+ * commander (or partner) either produces extra combats itself (Aurelia,
+ * Karlach) or is an attack-trigger commander that wants the extra swings
+ * even though its own text never grants one (Isshin, Wulfgar — see
+ * deckGenerator.ts's commanderWantsExtraCombat).
+ */
+export const EXTRA_COMBAT_VISIBILITY_BOOST_MAX = 15;
+
+export function computeExtraCombatVisibilityBoosts(
+  candidateNames: readonly string[],
+  cardMap: ReadonlyMap<string, ScryfallCard>,
+  commanderWantsExtraCombat: boolean,
+  isProducer: (card: ScryfallCard) => boolean
+): Map<string, number> {
+  const boosts = new Map<string, number>();
+  if (!commanderWantsExtraCombat) return boosts;
+  for (const name of candidateNames) {
+    const card = cardMap.get(name);
+    if (card && isProducer(card)) boosts.set(name, EXTRA_COMBAT_VISIBILITY_BOOST_MAX);
+  }
+  return boosts;
+}

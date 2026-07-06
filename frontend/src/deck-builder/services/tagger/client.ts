@@ -606,6 +606,51 @@ export function isExileProducer(card: {
   return EXILE_PRODUCER.test(text);
 }
 
+// Extra-combat producers (E102, iter-11 Slice C) — same shape again: a pure
+// oracle-text predicate, producer-only. Bounded to the "additional combat
+// phase" idiom every real extra-combat card shares verbatim — verified
+// against real Scryfall oracle text for: Aggravated Assault ("After this
+// main phase, there is an additional combat phase followed by an additional
+// main phase."), Combat Celebrant ("after this phase, there is an additional
+// combat phase"), Moraug, Fury of Akoum ("there's an additional combat phase
+// after this phase"), Port Razer, Scourge of the Throne, World at War,
+// Aurelia, the Warleader, Karlach, Fury of Avernus, Response // Resurgence
+// (Resurgence half), Seize the Day, Waves of Aggression, and Breath of Fury —
+// all twelve match. Verified NON-matches: Vitalize ("Untap all creatures you
+// control.", no combat-phase clause at all) and Windcrag Siege (the Mardu
+// mode is the "attacking causes ... triggers an additional time" DOUBLER
+// idiom — commanderProfile.ts's attack-trigger detector, not this one — its
+// text never says "combat phase").
+const EXTRA_COMBAT_PRODUCER = /\badditional combat phases?\b/i;
+
+// Curated inclusion: Helm of the Host is EDHREC's #1 "Extra Combats" card
+// (844/29k Isshin decks) but its own oracle text never says "additional
+// combat phase" — it duplicates the attacker instead of adding a combat step
+// ("At the beginning of combat on your turn, create a token that's a copy of
+// equipped creature, except the token isn't legendary. That token gains
+// haste." — verified against Scryfall). No other real card shares this
+// "beginning of combat" + "copy of equipped creature" shape, so a generic
+// regex branch here would just be a one-card rule wearing a regex costume;
+// a name-set is the honest, minimal version of the same rule. Same idiom as
+// STAPLE_ROCK_NAMES (phaseStapleManaRocks.ts) — a curated allowlist beside a
+// regex, not a replacement for one.
+const EXTRA_COMBAT_CURATED_NAMES: ReadonlySet<string> = new Set(['Helm of the Host']);
+
+export function isExtraCombatPiece(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  if (EXTRA_COMBAT_CURATED_NAMES.has(card.name)) return true;
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  return EXTRA_COMBAT_PRODUCER.test(text);
+}
+
 /**
  * Positive-evidence-gated role classification. Returns the same role
  * `getCardRole` would (by name) IFF the card's own oracle text corroborates

@@ -191,6 +191,9 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // same explicit inert-by-construction stubs.
   isBlinkProducer: vi.fn(() => false),
   isExileProducer: vi.fn(() => false),
+  // E102 (iter-11 Slice C): isExtraCombatPiece is the same shape — same
+  // explicit inert-by-construction stub.
+  isExtraCombatPiece: vi.fn(() => false),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver
