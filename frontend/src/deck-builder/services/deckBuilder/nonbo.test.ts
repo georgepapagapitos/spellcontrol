@@ -275,6 +275,22 @@ describe('qualifiedTriggerFindings — color/type-qualified ETB & death triggers
     type_line: 'Sorcery',
     oracle_text: 'Create two 2/2 black Zombie creature tokens.',
   });
+  // Real oracle text — a real die-roll deck staple with ONE marginal (1-in-6)
+  // matching mode beside an otherwise-colorless token engine (E106 regression:
+  // this alone must not grant Ayara full credit).
+  const nightShift = card({
+    name: 'Night Shift of the Living Dead',
+    type_line: 'Enchantment',
+    colors: ['B'],
+    oracle_text:
+      'After you roll a die, you may pay 1 life. If you do, increase or decrease the result by 1. Do this only once each turn.\nWhenever you roll a 6, create a 2/2 black Zombie Employee creature token.',
+  });
+  const colorlessTokenProducer = (i: number) =>
+    card({
+      name: `Colorless Producer ${i}`,
+      type_line: 'Artifact',
+      oracle_text: 'Create a 1/1 colorless Servo artifact creature token.',
+    });
 
   // Real oracle text for the creature-TYPE-qualified branch ("another Elf").
   const miara = card({
@@ -318,6 +334,23 @@ describe('qualifiedTriggerFindings — color/type-qualified ETB & death triggers
       blackTokenMaker,
     ];
     expect(qualifiedTriggerFindings(withTokenEngine)).toHaveLength(0);
+  });
+
+  it('still flags Ayara when only ONE marginal (1-in-6) producer matches inside a mostly-colorless token engine (real Mr. House/Night Shift case)', () => {
+    const deck = [
+      ayara,
+      ...Array.from({ length: 24 }, (_, i) => (i < 4 ? blackBeater(i) : securitron(i))),
+      nightShift,
+      ...Array.from({ length: 5 }, (_, i) => colorlessTokenProducer(i)),
+    ];
+    const findings = qualifiedTriggerFindings(deck);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      kind: 'qualified-payoff',
+      severity: 'info',
+      card: 'Ayara, First of Locthwain',
+    });
+    expect(findings[0].message).toContain('almost nothing makes a matching token');
   });
 
   it('does not flag an Elf-qualified payoff in an actual Elf tribal deck (Lathril)', () => {

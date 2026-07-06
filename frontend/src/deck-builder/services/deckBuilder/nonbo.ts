@@ -296,6 +296,13 @@ function matchesQualifier(card: ScryfallCard, qualifier: string): boolean {
   return cardCreatureTypes(card).includes(qualifier);
 }
 
+/** Any "create … token" clause, regardless of color/type. */
+function producesAnyToken(card: ScryfallCard): boolean {
+  return oracleOf(card)
+    .split(/[.;]+/)
+    .some((clause) => /\bcreates?\b/.test(clause) && /\btoken/.test(clause));
+}
+
 /** A "create … token" clause that also names the qualifying color/type word. */
 function producesMatchingToken(card: ScryfallCard, qualifier: string): boolean {
   for (const clause of oracleOf(card).split(/[.;]+/)) {
@@ -307,9 +314,17 @@ function producesMatchingToken(card: ScryfallCard, qualifier: string): boolean {
 
 // A payoff scoped to a color/type only needs to clear ONE side to keep full
 // credit: a real share of matching creatures already in the 99 (mono-black
-// aristocrats, Elf tribal), OR a token engine that actually makes matching
-// tokens. Both thin = the payoff is close to dead text.
+// aristocrats, Elf tribal), OR a token engine that substantially makes
+// matching tokens. Both thin = the payoff is close to dead text.
 const QUALIFIED_PAYOFF_SHARE_FLOOR = 0.25;
+// A token engine "covers" a qualifier when it has at least 2 matching
+// producers (real, deliberate support regardless of engine size) or when
+// matching producers are a real share of the whole token engine — NOT when
+// a single marginal producer (e.g. a 1-in-6 die-roll mode) sits inside an
+// otherwise non-matching engine (Night Shift of the Living Dead's black
+// Zombie mode beside a 100%-colorless Securitron engine must not grant full
+// credit on its own).
+const MIN_MATCHING_PRODUCERS_ALWAYS_COVERS = 2;
 
 /**
  * Findings for color/creature-type-qualified ETB/death triggers whose
@@ -326,23 +341,36 @@ export function qualifiedTriggerFindings(nonLandCards: ScryfallCard[]): Coherenc
     const qualifier = triggerQualifier(oracle);
     if (!qualifier) continue;
 
-    const others = nonLandCards.filter((c) => c !== card && isCreature(c));
+    const otherCards = nonLandCards.filter((c) => c !== card);
+    const others = otherCards.filter((c) => isCreature(c));
     const matching = others.filter((c) => matchesQualifier(c, qualifier));
     const share = others.length > 0 ? matching.length / others.length : 0;
     if (share >= QUALIFIED_PAYOFF_SHARE_FLOOR) continue;
-    if (nonLandCards.some((c) => producesMatchingToken(c, qualifier))) continue;
+
+    const tokenProducers = otherCards.filter((c) => producesAnyToken(c));
+    const matchingProducers = tokenProducers.filter((c) => producesMatchingToken(c, qualifier));
+    const producerShare =
+      tokenProducers.length > 0 ? matchingProducers.length / tokenProducers.length : 0;
+    const tokenEngineCovers =
+      matchingProducers.length >= MIN_MATCHING_PRODUCERS_ALWAYS_COVERS ||
+      producerShare >= QUALIFIED_PAYOFF_SHARE_FLOOR;
+    if (tokenEngineCovers) continue;
 
     const label = COLOR_WORDS.has(qualifier)
       ? qualifier
       : qualifier[0].toUpperCase() + qualifier.slice(1);
+    const tokenPhrase =
+      matchingProducers.length === 0
+        ? 'nothing makes a matching token'
+        : 'almost nothing makes a matching token';
     findings.push({
       kind: 'qualified-payoff',
       severity: 'info',
       card: card.name,
       message:
         matching.length === 0
-          ? `Its ${label} trigger has no other matching creature in the deck, and nothing makes a matching token — it'll rarely fire.`
-          : `Its ${label} trigger only matches ${matching.length} other creature${matching.length === 1 ? '' : 's'} in the deck, and nothing makes a matching token — it'll fire rarely.`,
+          ? `Its ${label} trigger has no other matching creature in the deck, and ${tokenPhrase} — it'll rarely fire.`
+          : `Its ${label} trigger only matches ${matching.length} other creature${matching.length === 1 ? '' : 's'} in the deck, and ${tokenPhrase} — it'll fire rarely.`,
     });
   }
 
