@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { ScryfallCard, EDHRECCard } from '@/deck-builder/types';
+import type { ScryfallCard, EDHRECCard, DetectedCombo } from '@/deck-builder/types';
 
 // Tagger reads bundled JSON keyed by card name. Mock so signals are
 // deterministic — every signal we want comes from the explicit gameChangerNames
@@ -31,7 +31,7 @@ vi.mock('../categorize', async (importOriginal) => {
   };
 });
 
-import { applyBracketConvergence } from './phaseBracketConverge';
+import { applyBracketConvergence, reconvergeUntilStable } from './phaseBracketConverge';
 import {
   getCardRole,
   isProtectionPiece,
@@ -166,6 +166,24 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
 
 function deckSize(state: GenerationState): number {
   return Object.values(state.categories).flat().length;
+}
+
+// A deck with no Game Changer, a pool that offers one, and a target above its
+// Core floor: the GC should be swapped in for the weakest card. Module-scope
+// (not describe-local) so both the `applyBracketConvergence` UP tests and the
+// comboCardNames-deadlock UP test below can share it.
+function underTargetState(): GenerationState {
+  const state = makeState();
+  state.cfg.targetBracket = 3; // no GC in deck → Core (2), under target 3
+  state.gameChangerNames = new Set(['Pool GC']); // the GC lives in the pool, not the deck
+  state.categories.synergy = [
+    scryfallCard('Spell A'),
+    scryfallCard('Spell B'),
+    scryfallCard('Spell C'),
+    scryfallCard('Spell D'),
+  ];
+  state.usedNames = new Set(['Spell A', 'Spell B', 'Spell C', 'Spell D']);
+  return state;
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────
@@ -333,22 +351,8 @@ describe('applyBracketConvergence', () => {
   });
 
   // ── powering UP (under-target) ──────────────────────────────────────────────
-
-  // A deck with no Game Changer, a pool that offers one, and a target above its
-  // Core floor: the GC should be swapped in for the weakest card.
-  function underTargetState(): GenerationState {
-    const state = makeState();
-    state.cfg.targetBracket = 3; // no GC in deck → Core (2), under target 3
-    state.gameChangerNames = new Set(['Pool GC']); // the GC lives in the pool, not the deck
-    state.categories.synergy = [
-      scryfallCard('Spell A'),
-      scryfallCard('Spell B'),
-      scryfallCard('Spell C'),
-      scryfallCard('Spell D'),
-    ];
-    state.usedNames = new Set(['Spell A', 'Spell B', 'Spell C', 'Spell D']);
-    return state;
-  }
+  // underTargetState() is module-scope (see above) so it's shared with the
+  // comboCardNames-deadlock describe block below.
 
   it('powers an under-target deck UP by swapping in a Game Changer', () => {
     const state = underTargetState();
@@ -584,5 +588,258 @@ describe('applyBracketConvergence', () => {
 
     expect(result.applied).toBeGreaterThanOrEqual(1);
     expect(tracker.remainingBudget).toBeLessThan(1000);
+  });
+});
+
+// E105 iter-2: `state.comboCardNames` marks EVERY piece of EVERY detected
+// combo (deckGenerator.ts folds in every dc.isComplete combo's cards before
+// convergence ever runs), and the original `isProtected` included that
+// clause unconditionally — so a combo-driven floor could never be cut: being
+// a combo piece WAS the protection, deadlocking DOWN convergence with
+// applied=0 no matter how far over target the deck was. Live gate caught
+// this on atraxa-b2 (targetBracket 2, estimatedBracket 4, 7 combos all still
+// shipping). These tests populate `state.comboCardNames` the way real
+// generation does, unlike the plain combo test above (which left it empty
+// and so never exercised the deadlock).
+describe('applyBracketConvergence — comboCardNames must not deadlock DOWN convergence', () => {
+  it('cuts a combo piece to converge even when every piece is marked in state.comboCardNames', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    state.gameChangerNames = new Set(); // the combo is the only over-target signal
+    state.categories.synergy = [
+      scryfallCard('Combo A'),
+      scryfallCard('Combo B'),
+      scryfallCard('Spell A'),
+      scryfallCard('Spell B'),
+    ];
+    state.usedNames = new Set(['Combo A', 'Combo B', 'Spell A', 'Spell B']);
+    // Mirrors deckGenerator.ts's real population: every combo piece marked,
+    // not just the one currently over target.
+    state.comboCardNames = new Set(['Combo A', 'Combo B']);
+    const combo = {
+      comboId: 'k',
+      cards: ['Combo A', 'Combo B'],
+      results: ['Win the game'],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 200,
+      bracket: 3,
+      bracketTag: null,
+      cardCount: 2,
+    };
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: fillerScryfallMap(),
+      detectedCombos: [combo],
+      mustIncludeNames: new Set(),
+    });
+
+    expect(result.applied).toBeGreaterThanOrEqual(1);
+    expect(result.finalBracket).toBeLessThanOrEqual(2);
+    const remaining = ['Combo A', 'Combo B'].filter((n) => state.usedNames.has(n));
+    expect(remaining).toHaveLength(1);
+  });
+
+  it('still never cuts a must-include combo piece, leaving an honest residual above target', () => {
+    // computeDownshiftPlan (bracketFit.ts) proposes exactly one deterministic
+    // victim per combo (tie-broken to the first card in combo.cards when
+    // inclusion/staple/uniqueness all tie, as here) — it doesn't retry with
+    // the partner piece if its chosen victim turns out protected. So
+    // must-including the chosen victim ('Combo A') must leave the combo, and
+    // the residual, untouched — same honesty guarantee as the plain
+    // must-include test above, just through a combo-piece signal instead of
+    // a Game Changer.
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    state.gameChangerNames = new Set();
+    state.categories.synergy = [
+      scryfallCard('Combo A'),
+      scryfallCard('Combo B'),
+      scryfallCard('Spell A'),
+      scryfallCard('Spell B'),
+    ];
+    state.usedNames = new Set(['Combo A', 'Combo B', 'Spell A', 'Spell B']);
+    state.comboCardNames = new Set(['Combo A', 'Combo B']);
+    const combo = {
+      comboId: 'k',
+      cards: ['Combo A', 'Combo B'],
+      results: ['Win the game'],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 200,
+      bracket: 3,
+      bracketTag: null,
+      cardCount: 2,
+    };
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: fillerScryfallMap(),
+      detectedCombos: [combo],
+      mustIncludeNames: new Set(['combo a']),
+    });
+
+    expect(result.applied).toBe(0);
+    expect(result.finalBracket).toBeGreaterThan(2);
+    expect(state.usedNames.has('Combo A')).toBe(true);
+    expect(state.usedNames.has('Combo B')).toBe(true);
+  });
+
+  it('bans a cut combo piece so a later phase cannot re-add it', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    state.gameChangerNames = new Set();
+    state.categories.synergy = [
+      scryfallCard('Combo A'),
+      scryfallCard('Combo B'),
+      scryfallCard('Spell A'),
+      scryfallCard('Spell B'),
+    ];
+    state.usedNames = new Set(['Combo A', 'Combo B', 'Spell A', 'Spell B']);
+    state.comboCardNames = new Set(['Combo A', 'Combo B']);
+    const combo = {
+      comboId: 'k',
+      cards: ['Combo A', 'Combo B'],
+      results: ['Win the game'],
+      isComplete: true,
+      missingCards: [],
+      deckCount: 200,
+      bracket: 3,
+      bracketTag: null,
+      cardCount: 2,
+    };
+
+    applyBracketConvergence(state, {
+      scryfallCardMap: fillerScryfallMap(),
+      detectedCombos: [combo],
+      mustIncludeNames: new Set(),
+    });
+
+    const cutName = state.usedNames.has('Combo A') ? 'Combo B' : 'Combo A';
+    expect(state.bannedCards.has(cutName)).toBe(true);
+  });
+
+  it('UP direction still refuses to cut a combo piece to make room for a power add', () => {
+    const state = underTargetState();
+    // Every in-deck candidate reads as a combo piece — pickCut can never find
+    // a card to make room with, same deadlock shape as the
+    // isProtectionPiece/isFreeInteraction UP tests above, but this direction
+    // is SUPPOSED to keep protecting combos (only DOWN drops the clause).
+    state.comboCardNames = new Set(['Spell A', 'Spell B', 'Spell C', 'Spell D']);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Pool GC', 95), ...FILLER_POOL] },
+    } as unknown as GenerationState['edhrecData'];
+    const map = fillerScryfallMap();
+    map.set('Pool GC', scryfallCard('Pool GC'));
+
+    const result = applyBracketConvergence(state, {
+      scryfallCardMap: map,
+      detectedCombos: undefined,
+      mustIncludeNames: new Set(),
+    });
+
+    expect(result.applied).toBe(0);
+    expect(state.usedNames.has('Pool GC')).toBe(false);
+  });
+});
+
+// E105: deckGenerator.ts's final unconditional refreshComboCompleteness runs
+// AFTER the one-shot applyBracketConvergence call above — so a combo any
+// ordinary pick/fill/swap/rebalance completed emergently, after convergence's
+// last look, was invisible to it. reconvergeUntilStable is the bounded
+// re-entry loop deckGenerator.ts wires in right after that final refresh.
+describe('reconvergeUntilStable', () => {
+  it('does not refresh or loop again when the first round already applies nothing', () => {
+    const run = vi.fn(() => ({ applied: 0, finalBracket: 2 }));
+    const refresh = vi.fn();
+
+    const total = reconvergeUntilStable(run, refresh);
+
+    expect(total).toBe(0);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('refreshes between rounds and stops the moment a round applies zero swaps', () => {
+    const rounds = [
+      { applied: 2, finalBracket: 3 },
+      { applied: 0, finalBracket: 2 },
+    ];
+    let i = 0;
+    const run = vi.fn(() => rounds[i++]);
+    const refresh = vi.fn();
+
+    const total = reconvergeUntilStable(run, refresh);
+
+    expect(total).toBe(2);
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(refresh).toHaveBeenCalledTimes(1); // only after the applied round, never after a 0
+  });
+
+  it('bounds iterations on a pathological always-over state instead of looping forever', () => {
+    const run = vi.fn(() => ({ applied: 1, finalBracket: 5 }));
+    const refresh = vi.fn();
+
+    const total = reconvergeUntilStable(run, refresh, 3);
+
+    expect(total).toBe(3);
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(refresh).toHaveBeenCalledTimes(3);
+  });
+
+  it('cuts a combo that only became complete after the (simulated) final refresh', () => {
+    // Mirrors deckGenerator.ts's real wiring: applyBracketConvergence ran
+    // once already and missed this combo because it wasn't complete then;
+    // an ordinary later pick completed it, and the final
+    // refreshComboCompleteness marked it isComplete: true. The re-entry call
+    // below is what now must see and cut it.
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    state.gameChangerNames = new Set(); // the combo is the only over-target signal
+    state.categories.synergy = [
+      scryfallCard('Combo A'),
+      scryfallCard('Combo B'),
+      scryfallCard('Spell A'),
+      scryfallCard('Spell B'),
+    ];
+    state.usedNames = new Set(['Combo A', 'Combo B', 'Spell A', 'Spell B']);
+    let detectedCombos: DetectedCombo[] | undefined = [
+      {
+        comboId: 'k',
+        cards: ['Combo A', 'Combo B'],
+        results: ['Win the game'],
+        isComplete: true,
+        missingCards: [],
+        deckCount: 200,
+        bracket: 3,
+        bracketTag: null,
+        cardCount: 2,
+      },
+    ];
+    // Stand-in for refreshComboCompleteness: recomputes isComplete against
+    // whatever the deck holds right now (same idiom deckGenerator.ts uses).
+    const refresh = vi.fn(() => {
+      detectedCombos = detectedCombos!.map((c) => ({
+        ...c,
+        isComplete: c.cards.every((n) => state.usedNames.has(n)),
+      }));
+    });
+
+    const total = reconvergeUntilStable(
+      () =>
+        applyBracketConvergence(state, {
+          scryfallCardMap: fillerScryfallMap(),
+          detectedCombos,
+          mustIncludeNames: new Set(),
+        }),
+      refresh
+    );
+
+    expect(total).toBeGreaterThanOrEqual(1);
+    // Broke the combo without gutting both pieces (same as the single-pass test above).
+    const remaining = ['Combo A', 'Combo B'].filter((n) => state.usedNames.has(n));
+    expect(remaining).toHaveLength(1);
+    // The combo the re-entry cut must now read as incomplete — this is what
+    // keeps comboCompletionNotes from advertising a line the deck no longer runs.
+    expect(detectedCombos!.find((c) => c.comboId === 'k')!.isComplete).toBe(false);
   });
 });

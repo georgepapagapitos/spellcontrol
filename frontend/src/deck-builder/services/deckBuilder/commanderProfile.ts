@@ -150,7 +150,9 @@ function frontTypeLine(card: ScryfallCard): string {
   return card.type_line ?? '';
 }
 
-const KNOWN_TRIBES = new Set([
+// Exported for reuse by the qualified-payoff nonbo check (E106) — creature
+// TYPE qualifiers ("another Elf") are matched against this same tribe list.
+export const KNOWN_TRIBES = new Set([
   'elf',
   'goblin',
   'zombie',

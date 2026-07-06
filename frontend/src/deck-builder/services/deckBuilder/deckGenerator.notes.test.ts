@@ -37,6 +37,7 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  buildComboAuditBracketBlockNote,
   buildLandSqueezeTrimNote,
   reconcileLandSqueezeDisclosure,
   buildComboUpsideNotes,
@@ -429,6 +430,24 @@ describe('buildPriceSanityNote (E80)', () => {
     const note = buildPriceSanityNote(1);
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
+    );
+  });
+});
+
+describe('buildComboAuditBracketBlockNote (E104)', () => {
+  it('returns undefined when auditAdd never hit the bracket-ceiling backstop', () => {
+    expect(buildComboAuditBracketBlockNote(0)).toBeUndefined();
+  });
+
+  it('names the count with plural phrasing', () => {
+    expect(buildComboAuditBracketBlockNote(2)).toBe(
+      '2 combo-audit swaps skipped to stay within your target bracket'
+    );
+  });
+
+  it('uses singular phrasing for exactly one block', () => {
+    expect(buildComboAuditBracketBlockNote(1)).toBe(
+      '1 combo-audit swap skipped to stay within your target bracket'
     );
   });
 });

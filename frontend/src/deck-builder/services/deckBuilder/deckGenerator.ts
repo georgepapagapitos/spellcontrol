@@ -153,7 +153,10 @@ import { cardRelevancyPhase } from './deckGeneration/phaseCardRelevancy';
 import { stapleManaRocksPhase } from './deckGeneration/phaseStapleManaRocks';
 import { finalStatsPhase } from './deckGeneration/phaseFinalStats';
 import { applyComboFloor } from './deckGeneration/phaseApplyComboFloor';
-import { applyBracketConvergence } from './deckGeneration/phaseBracketConverge';
+import {
+  applyBracketConvergence,
+  reconvergeUntilStable,
+} from './deckGeneration/phaseBracketConverge';
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
@@ -680,6 +683,20 @@ export function resolvePriceSanity(
 export function buildPriceSanityNote(decidedCount: number): string | undefined {
   if (decidedCount <= 0) return undefined;
   return `Preferred ${decidedCount} cheaper near-equivalent${decidedCount === 1 ? '' : 's'} over premium picks — set budget preference to "expensive" to disable.`;
+}
+
+/**
+ * Disclosure for the E101 bracket-ceiling backstop inside the Combo Integrity
+ * Audit's auditAdd() (see the three pre-filtered call sites) — mirrors the
+ * buildPriceSanityNote idiom. Undefined in the common case: the pre-filters
+ * already keep a bracket-rejected candidate from ever reaching auditAdd, so
+ * this only surfaces the rarer case where an earlier swap in the same audit
+ * pass pushed a signal to the ceiling between a later candidate's scoring and
+ * its actual swap, leaving one weak card evicted with nothing added back.
+ */
+export function buildComboAuditBracketBlockNote(blockCount: number): string | undefined {
+  if (blockCount <= 0) return undefined;
+  return `${blockCount} combo-audit swap${blockCount === 1 ? '' : 's'} skipped to stay within your target bracket`;
 }
 
 /**
@@ -1223,6 +1240,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Combo-completion budget disclosure: how many combo-audit/combo-floor
   // candidates were skipped for exceeding the budget cap (see budgetNote below).
   let comboBudgetSkipCount = 0;
+  // E104: combo-audit adds that auditAdd() blocked for exceeding the target-
+  // bracket ceiling AFTER a weak card was already evicted to make room. The
+  // three candidate-list call sites all pre-filter on the same ceiling (E101),
+  // so this only fires on the rarer running-count race (an earlier swap in
+  // the same audit pass pushes a signal to the ceiling between when a later
+  // candidate was scored and when its swap actually executes) — see
+  // buildComboAuditBracketBlockNote below.
+  let comboAuditBracketBlockCount = 0;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
@@ -4498,7 +4523,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // land denial/extra-turn/stax signal past the ceiling with no gate at
       // all (e.g. auditAdd seating Teferi, Master of Time into a bracket-2
       // deck, later silently evicted again by bracket convergence).
-      if (bracketGuard?.exceedsCeiling(card.name)) return false;
+      if (bracketGuard?.exceedsCeiling(card.name)) {
+        comboAuditBracketBlockCount++;
+        return false;
+      }
       // Defense-in-depth: every call site below pre-filters candidates for
       // color identity before evicting a card to make room (a candidate
       // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
@@ -5230,6 +5258,42 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // identical — whenever nothing actually changed completeness.
   detectedCombos = refreshComboCompleteness(detectedCombos, state);
 
+  // ── Post-refresh convergence re-entry (E105) ──
+  // Bracket convergence ran ABOVE, before this refresh — so an emergent combo
+  // completion from an ordinary pick/fill/swap/rebalance (anything other than
+  // the combo-audit's own adds, already fenced against the ceiling by E101)
+  // was invisible to it. Re-enter the same convergence phase now that the
+  // combo floor is finally accurate; it reuses applyBracketConvergence
+  // wholesale (which itself no-ops with 0 applied when no bracket ceiling was
+  // asked, or the estimate is already in-band, so this is a structural no-op
+  // for every ungated generation). Bounded because a cut here can itself
+  // complete or break a different combo, which needs one more refresh to stay
+  // honest — cap the ping-pong rather than let it loop forever. Nothing after
+  // this point mutates deck contents (liftPicksPhase below only suggests), so
+  // this is the true last word on combo membership feeding the disclosure
+  // below and the final bracket estimate/grade.
+  const postRefreshMustInclude = new Set([
+    ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
+    ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
+  ]);
+  reconvergeUntilStable(
+    () =>
+      applyBracketConvergence(state, {
+        scryfallCardMap,
+        detectedCombos,
+        mustIncludeNames: postRefreshMustInclude,
+        cardAllowed: isCardAllowedBySynergyDependencies,
+        roleTargets,
+        budgetTracker,
+        maxCardPrice,
+        currency,
+        ignoreOwnedBudget,
+      }),
+    () => {
+      detectedCombos = refreshComboCompleteness(detectedCombos, state);
+    }
+  );
+
   // Emergent combo-completion disclosure: diff the truly-final detectedCombos
   // just refreshed above against the generation-start baseline captured
   // right after must-includes were seeded (state.baselineDetectedCombos) —
@@ -5400,6 +5464,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // actually decided an outcome (off, or no qualifying pair arose).
   const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
 
+  // Combo-audit bracket-block disclosure (E104) — undefined in the common
+  // case (see buildComboAuditBracketBlockNote).
+  const comboAuditBracketBlockNote = buildComboAuditBracketBlockNote(comboAuditBracketBlockCount);
+
   // Land-squeeze reconciliation disclosure (E88 + E82 attempt 6) — undefined
   // when the auto-tune never raised land count past baseline AND the
   // wildcard scan never found a leftover card worth adding (the common
@@ -5485,6 +5553,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    comboAuditBracketBlockNote,
     landSqueezeTrimNote,
     comboUpsideNotes,
     comboCompletionNotes,

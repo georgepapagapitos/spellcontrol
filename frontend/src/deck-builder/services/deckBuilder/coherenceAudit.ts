@@ -21,7 +21,7 @@ import { BASIC_LAND_NAMES } from '@/lib/allocations';
 import { detectWinConditions } from '@/deck-builder/services/winConditions/detect';
 import { unsupportedPayoffAxes } from './synergyDependency';
 import { answerCoverageFindings } from './answerCoverage';
-import { nonboFindings } from './nonbo';
+import { nonboFindings, qualifiedTriggerFindings } from './nonbo';
 import { BASIC_TYPE_COLORS, fetchedBasicRequirement, WUBRG, type ManaColor } from './manabaseMath';
 import type { CoherenceFinding } from '@/deck-builder/types';
 
@@ -340,6 +340,12 @@ export function auditDeckCoherence(input: CoherenceAuditInput): CoherenceFinding
   // Nonbo audit (E80): cards that OPPOSE an axis the deck is invested in
   // (Rest in Peace in a graveyard deck, Torpor Orb beside an ETB engine).
   findings.push(...nonboFindings(nonLandCards, invested));
+
+  // Qualified ETB/death payoffs (E106): a color/type-qualified trigger
+  // ("another black creature", "another Elf") that the deck's own creatures
+  // and token engine can barely feed (Ayara seated in an all-colorless token
+  // deck). Independent of axis investment — checks composition directly.
+  findings.push(...qualifiedTriggerFindings(nonLandCards));
 
   // Deck-level engine notes last, after the per-card flags they contextualize.
   for (const w of deckSynergy.warnings) {
