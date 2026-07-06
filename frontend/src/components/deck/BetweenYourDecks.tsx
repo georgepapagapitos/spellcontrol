@@ -12,14 +12,15 @@ import { dismissCrossDeckMove, isCrossDeckMoveDismissed } from '@/lib/between-de
 import { useCardThumb } from '@/lib/card-thumbs';
 import { getOwnedPrinting } from '@/deck-builder/services/scryfall/client';
 import { WhyBreakdown } from './WhyBreakdown';
-import { MeterBar } from '../shared/MeterBar';
 import { toast } from '@/store/toasts';
 import { haptics } from '@/lib/haptics';
 
-/** Every axis hit counts toward the meter; 3 established engines reinforced
- *  at once is already a strong signal, so the bar reads full there rather
- *  than needing an unrealistic 5-6 to visually "complete". */
-const FIT_METER_MAX = 3;
+/** fitGain is a small integer (1-3 in practice), so it renders as discrete
+ *  pips rather than a proportional bar — a bar reads as a percentage, and
+ *  "Fits 1 engine" as a third-full track is a false-precision signal. Three
+ *  pips because 3 reinforced engines is already a strong signal; higher
+ *  gains cap the pips while the adjacent text carries the true count. */
+const FIT_PIP_COUNT = 3;
 /** Cap the feed so a huge collection doesn't turn this into a wall of rows —
  *  the strongest moves (highest fitGain) sort first. */
 const MAX_SHOWN = 8;
@@ -66,14 +67,16 @@ function MoveRow({
             {move.toDeckName}
           </span>
         </div>
-        <div className="between-decks-move-meter-wrap">
-          <MeterBar
-            value={move.fitGain}
-            max={FIT_METER_MAX}
-            color="var(--success)"
-            className="between-decks-move-meter"
-          />
-          <span className="between-decks-move-meter-label">
+        <div className="between-decks-move-fit">
+          <span className="between-decks-fit-pips" aria-hidden>
+            {Array.from({ length: FIT_PIP_COUNT }, (_, i) => (
+              <span
+                key={i}
+                className={`between-decks-fit-pip${i < move.fitGain ? ' is-filled' : ''}`}
+              />
+            ))}
+          </span>
+          <span className="between-decks-move-fit-label">
             Fits {move.fitGain} engine{move.fitGain === 1 ? '' : 's'} in {move.toDeckName}
           </span>
         </div>
