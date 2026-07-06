@@ -6,6 +6,7 @@ import {
   getCardRole,
   isExtraTurn,
   isProtectionPiece,
+  isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
@@ -142,7 +143,8 @@ export function applyBracketConvergence(
     mustIncludeNames.has(card.name.toLowerCase()) ||
     state.comboCardNames.has(card.name) ||
     commanderNames.includes(card.name) ||
-    isProtectionPiece(card);
+    isProtectionPiece(card) ||
+    isFreeInteraction(card);
 
   const inclusionMap: Record<string, number> = {};
   for (const c of pool) inclusionMap[c.name] = c.inclusion ?? 0;
