@@ -581,3 +581,58 @@ describe('synthesized stats', () => {
     expect(result.data.similarCommanders).toEqual([]);
   });
 });
+
+// ── buildAlternatePool — Pauper Commander (E92) ──────────────────────────────
+
+describe('buildAlternatePool — Pauper Commander', () => {
+  const pdhCust = (overrides: Partial<Customization> = {}) =>
+    cust({ mtgFormat: 'paupercommander', ...overrides });
+
+  it('edhrec mode routes to the function-faceted pool with f:paupercommander, reported as its own source', async () => {
+    searchCards.mockResolvedValue(okResponse(makeCards(5, 'Creature', 1)));
+    const result = await buildAlternatePool('edhrec', pdhCust(), ['G']);
+
+    expect(result.dataSource).toBe('paupercommander');
+    expect(result.effectiveConstraint).toBe('f:paupercommander');
+    // Every pool facet query carries the PDH constraint.
+    for (const call of searchCards.mock.calls) {
+      expect(call[0]).toContain('f:paupercommander');
+    }
+  });
+
+  it('oracle-role mode keeps its own dataSource but still constrains the pool', async () => {
+    searchCards.mockResolvedValue(okResponse(makeCards(5, 'Creature', 1)));
+    const result = await buildAlternatePool(
+      'oracle-role',
+      pdhCust({ generationMode: 'oracle-role' }),
+      ['G']
+    );
+    expect(result.dataSource).toBe('oracle-role');
+    expect(result.effectiveConstraint).toContain('f:paupercommander');
+  });
+
+  it('art-theme mode composes the motif with the PDH constraint', async () => {
+    searchCards.mockResolvedValue(okResponse(makeCards(5, 'Creature', 1)));
+    const result = await buildAlternatePool(
+      'art-theme',
+      pdhCust({ generationMode: 'art-theme', artThemeTag: 'dragon' }),
+      ['G']
+    );
+    expect(result.effectiveConstraint).toBe('art:dragon f:paupercommander');
+    expect(searchCards.mock.calls[0][0]).toContain('art:dragon');
+    expect(searchCards.mock.calls[0][0]).toContain('f:paupercommander');
+  });
+
+  it('non-PDH builds are byte-identical: no constraint appended anywhere', async () => {
+    searchCards.mockResolvedValue(okResponse(makeCards(5, 'Creature', 1)));
+    const result = await buildAlternatePool(
+      'oracle-role',
+      cust({ generationMode: 'oracle-role' }),
+      ['G']
+    );
+    expect(result.effectiveConstraint).toBe('');
+    for (const call of searchCards.mock.calls) {
+      expect(call[0]).not.toContain('f:paupercommander');
+    }
+  });
+});

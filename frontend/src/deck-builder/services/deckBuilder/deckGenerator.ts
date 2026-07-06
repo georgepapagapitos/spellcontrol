@@ -81,6 +81,7 @@ import {
   isOwnedRarityExempt,
   notOnArena,
   exceedsCmcCap,
+  notPauperCommanderLegal,
 } from './deckFilters';
 import {
   calculateTargetCounts,
@@ -414,6 +415,8 @@ function buildCacheKey(context: GenerationContext) {
       customization.artThemeTag ?? '',
       customization.historicalYear ?? '',
       customization.permanentsOnly ? 'perm' : '',
+      // Isolates PDH builds — same commander, same mode, different legal pool.
+      customization.mtgFormat ?? 'commander',
     ].join('|'),
   };
 }
@@ -955,11 +958,17 @@ export function computeTrimResistance(
  */
 export async function generateDeck(context: GenerationContext): Promise<GeneratedDeck> {
   const mode = context.customization.generationMode ?? 'edhrec';
-  if (mode === 'edhrec') return generateDeckInner(context);
+  // PDH always sources from the Scryfall alt-pool (EDHREC has no data for
+  // non-legendary uncommon commanders), so it takes the force-live path even
+  // in the default mode — the offline parser can't evaluate f:paupercommander.
+  const isPdh = (context.customization.mtgFormat ?? 'commander') === 'paupercommander';
+  if (mode === 'edhrec' && !isPdh) return generateDeckInner(context);
 
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     throw new Error(
-      'The alternative generators need an internet connection. Reconnect, or switch to Standard (EDHREC) mode.'
+      isPdh
+        ? 'Pauper Commander builds need an internet connection. Reconnect and try again.'
+        : 'The alternative generators need an internet connection. Reconnect, or switch to Standard (EDHREC) mode.'
     );
   }
 
@@ -1262,6 +1271,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         continue;
       }
 
+      // PDH: combo-sourced must-includes are gated on the 99s legality
+      // (the combo dataset is Commander-scoped). USER must-includes stay
+      // ungated — an explicit pick is honored and flagged by validation.
+      if (
+        state.cfg.mtgFormat === 'paupercommander' &&
+        mustIncludeSources.get(name) === 'combo' &&
+        notPauperCommanderLegal(card)
+      ) {
+        logger.debug(`[DeckGen] Must-include combo card "${name}" skipped (not PDH-legal)`);
+        continue;
+      }
+
       // Skip cards that exceed the max rarity limit
       if (!isOwnedRarityExempt(name, context.collectionNames, ignoreOwnedRarity)) {
         if (exceedsMaxRarity(card, maxRarity)) {
@@ -1353,7 +1374,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Alternative generators: synthesize the candidate pool from Scryfall instead
   // of EDHREC. Populates state.edhrecData so the entire pipeline below runs
   // unchanged; selectedThemes are ignored (the UI hides the theme picker here).
-  if (!usingCache && mode !== 'edhrec') {
+  // PDH routes here even in the default mode — EDHREC has nothing for
+  // non-legendary uncommon commanders; the pool builder appends
+  // f:paupercommander so every query (and the fills below, via
+  // effectiveConstraint → scryfallQuery) stays inside the legal pool.
+  if (!usingCache && (mode !== 'edhrec' || state.cfg.mtgFormat === 'paupercommander')) {
     altPool = await buildAlternatePool(mode, customization, colorIdentity, onProgress);
     state.edhrecData = altPool.data;
     state.dataSource = altPool.dataSource;
@@ -2044,7 +2069,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ...Object.values(categories).flat(),
   ];
   const dependencyCommanderCount = partnerCommander ? 2 : 1;
+  // The `cardAllowed` gate threaded through every pick path (type passes,
+  // Scryfall fills, converge/rebalance swap-ins). For PDH it ALSO enforces the
+  // 99s legality — EDHREC/lift-derived candidates aren't pre-scoped to the
+  // f:paupercommander pool the way the Scryfall searches are.
+  const isPdhBuild = state.cfg.mtgFormat === 'paupercommander';
   const isCardAllowedBySynergyDependencies = (card: ScryfallCard) =>
+    (!isPdhBuild || !notPauperCommanderLegal(card)) &&
     !isUnsupportedSynergyPayoff(card, dependencySupportCards(), dependencyCommanderCount);
 
   // EDHREC lift pools (E71 slice 2): fetch intent-anchored seeds once, before
@@ -4399,6 +4430,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     function auditAdd(card: ScryfallCard): boolean {
       if (usedNames.has(card.name)) return false; // guard against duplicates
       if (bannedCards.has(card.name)) return false; // respect banlist
+      // PDH 99s gate — combo candidates come from the (Commander-scoped)
+      // EDHREC combo dataset, not the PDH-legal pool.
+      if (isPdhBuild && notPauperCommanderLegal(card)) return false;
       // Defense-in-depth: every call site below pre-filters candidates for
       // color identity before evicting a card to make room (a candidate
       // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
@@ -4442,6 +4476,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         // color identity (needed to detect near-misses at all) — this is
         // the only gate keeping an off-identity combo card out of the deck.
         if (!fitsColorIdentity(scryfallCardMap.get(name)!, colorIdentity)) continue;
+        // Pre-filter mirrors auditAdd's PDH gate so an eviction is never
+        // stranded by a rejected add.
+        if (isPdhBuild && notPauperCommanderLegal(scryfallCardMap.get(name)!)) continue;
         enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
         const ids = enablerCombos.get(name) ?? [];
         ids.push(dc.comboId);
@@ -4523,6 +4560,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         // color identity (needed to detect near-misses at all) — this is
         // the only gate keeping an off-identity combo card out of the deck.
         .filter((c) => fitsColorIdentity(c, colorIdentity))
+        // Pre-filter mirrors auditAdd's PDH gate so an eviction is never
+        // stranded by a rejected add.
+        .filter((c) => !isPdhBuild || !notPauperCommanderLegal(c))
         .filter((c) => {
           if (auditPassesBudget(c)) return true;
           comboBudgetSkipCount++;

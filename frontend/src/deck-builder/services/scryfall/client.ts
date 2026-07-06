@@ -266,6 +266,40 @@ export async function searchCardsLive(
   return wrappedLive.searchCards(query, colorIdentity, options);
 }
 
+/**
+ * Pauper Commander (PDH) commander search — ALWAYS live. Eligibility is
+ * derived (any creature with an uncommon printing; Scryfall dropped the
+ * restricted=commander convention, so there is no `f:` / `is:` query for it),
+ * and the offline query parser has no rarity clause. `unique:cards` keeps a
+ * printing that MATCHES the query, so results come back as uncommon printings
+ * — the same thing `isPdhCommanderEligible` validates on the stored card.
+ */
+export async function searchPdhCommanders(query: string): Promise<ScryfallCard[]> {
+  if (!query.trim()) return [];
+  try {
+    const response = await searchCardsLive(`t:creature r:uncommon ${query}`, [], {
+      skipFormatFilter: true,
+      order: 'edhrec',
+    });
+    return response.data;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('404')) return [];
+    throw err;
+  }
+}
+
+/**
+ * Random PDH-eligible commander from the live API ("Surprise me" in PDH mode).
+ * `colorIdentity` is an EXACT identity match when non-empty (mirrors the
+ * EDHREC surprise-me behavior); `['C']` means colorless.
+ */
+export async function getRandomPdhCommander(colorIdentity: string[] = []): Promise<ScryfallCard> {
+  const idClause = colorIdentity.length > 0 ? ` id=${colorIdentity.join('').toLowerCase()}` : '';
+  return scryfallFetch<ScryfallCard>(
+    `/cards/random?q=${encodeURIComponent(`t:creature r:uncommon${idClause}`)}`
+  );
+}
+
 async function liveGetCardByName(name: string, exact = true): Promise<ScryfallCard> {
   const cached = cardCache.get(name);
   if (cached) return freshCopy(cached);

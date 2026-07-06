@@ -259,7 +259,11 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
       themeSource: 'local',
       edhrecNumDecks: null,
       userEditedLands: false,
-      customization: state.customization,
+      // Customization (user knobs) survives reset — but mtgFormat is page
+      // context, not a knob: every build surface resets to Commander and the
+      // DeckNewPage format pill re-stamps PDH after its own reset. Without
+      // this, a PDH visit would leak into the guided/brew Commander flows.
+      customization: { ...state.customization, mtgFormat: 'commander' },
       generatedDeck: null,
       deckHistory: [],
       isLoading: false,

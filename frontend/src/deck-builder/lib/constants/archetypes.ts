@@ -51,6 +51,26 @@ export const DECK_FORMAT_CONFIGS: Record<DeckFormat, DeckFormatConfig> = {
     legalityKey: 'brawl',
     supportsGeneration: true,
   },
+  paupercommander: {
+    format: 'paupercommander',
+    label: 'Pauper Commander',
+    description: '99 commons + an uncommon creature commander, optional sideboard',
+    deckSize: 100,
+    mainboardSize: 99,
+    /* Same treatment as Commander — no enforced sideboard limit. */
+    sideboardSize: Number.POSITIVE_INFINITY,
+    defaultLands: 37,
+    landRange: [32, 42],
+    hasCommander: true,
+    isSingleton: true,
+    maxCopies: 1,
+    /* Scryfall's paupercommander legality is oracle-level ("ever printed at
+       common"), so downshifts (Chainer's Edict, Command Tower, Arcane Signet)
+       validate correctly. Commander-zone eligibility is DERIVED instead —
+       see lib/commanders.ts:isPdhCommanderEligible. */
+    legalityKey: 'paupercommander',
+    supportsGeneration: true,
+  },
   standard: {
     format: 'standard',
     label: 'Standard',

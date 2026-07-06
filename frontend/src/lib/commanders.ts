@@ -24,3 +24,22 @@ export function isValidCommander(card: ScryfallCard): boolean {
     card.oracle_text ?? card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ?? '';
   return isCommanderEligibleFrom(typeLine, oracleText, card.legalities?.commander);
 }
+
+/**
+ * Pauper Commander (PDH) commander eligibility — DERIVED, because Scryfall
+ * dropped the restricted=commander convention: uncommon commanders (Fynn, the
+ * Fangbearer) read `not_legal` under the `paupercommander` legality key, so
+ * neither `isValidCommander` nor `isCardLegal` can be reused here. The rule:
+ * any creature printed at uncommon — deliberately NOT legendary-gated.
+ *
+ * `rarity` is per-printing: PDH commander pickers search `r:uncommon`, so the
+ * printing they surface (and the deck stores) is the uncommon one. A card
+ * whose stored printing is common/rare but that has an uncommon printing
+ * elsewhere would false-negative — acceptable ceiling for now.
+ */
+export function isPdhCommanderEligible(card: ScryfallCard): boolean {
+  const typeLine = card.type_line ?? card.card_faces?.[0]?.type_line ?? '';
+  if (!typeLine.includes('Creature')) return false;
+  if (card.legalities?.paupercommander === 'banned') return false;
+  return card.rarity === 'uncommon';
+}

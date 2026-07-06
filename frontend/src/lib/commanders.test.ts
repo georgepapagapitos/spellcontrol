@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isValidCommander, isCommanderEligibleFrom, isCommanderEligible } from './commanders';
+import {
+  isValidCommander,
+  isCommanderEligibleFrom,
+  isCommanderEligible,
+  isPdhCommanderEligible,
+} from './commanders';
 import type { ScryfallCard } from '../deck-builder/types';
 import type { EnrichedCard } from '../types';
 
@@ -155,5 +160,65 @@ describe('isCommanderEligible (EnrichedCard)', () => {
     expect(
       isCommanderEligible(ec({ typeLine: undefined, oracleText: undefined, legalities: undefined }))
     ).toBe(false);
+  });
+});
+
+describe('isPdhCommanderEligible', () => {
+  // Note: real PDH commanders read `not_legal` under the paupercommander key
+  // (the oracle stamp only describes the 99) — the predicate must not care.
+  const uncommonCreature = card({
+    type_line: 'Creature — Snake',
+    rarity: 'uncommon',
+    legalities: { commander: 'legal', paupercommander: 'not_legal' },
+  });
+
+  it('accepts a non-legendary uncommon creature (Scryfall says not_legal)', () => {
+    expect(isPdhCommanderEligible(uncommonCreature)).toBe(true);
+  });
+
+  it('accepts a LEGENDARY uncommon creature (legendary is allowed, not required)', () => {
+    expect(
+      isPdhCommanderEligible(
+        card({
+          type_line: 'Legendary Creature — Human Warrior',
+          rarity: 'uncommon',
+          legalities: { commander: 'legal', paupercommander: 'not_legal' },
+        })
+      )
+    ).toBe(true);
+  });
+
+  it('rejects non-uncommon printings and non-creatures', () => {
+    expect(isPdhCommanderEligible(card({ type_line: 'Creature — Bear', rarity: 'rare' }))).toBe(
+      false
+    );
+    expect(isPdhCommanderEligible(card({ type_line: 'Creature — Bear', rarity: 'common' }))).toBe(
+      false
+    );
+    expect(isPdhCommanderEligible(card({ type_line: 'Instant', rarity: 'uncommon' }))).toBe(false);
+  });
+
+  it('rejects a PDH-banned card outright', () => {
+    expect(
+      isPdhCommanderEligible(
+        card({
+          type_line: 'Creature — Devil',
+          rarity: 'uncommon',
+          legalities: { commander: 'legal', paupercommander: 'banned' },
+        })
+      )
+    ).toBe(false);
+  });
+
+  it('reads the front face of a DFC', () => {
+    expect(
+      isPdhCommanderEligible(
+        card({
+          type_line: undefined as unknown as string,
+          card_faces: [{ type_line: 'Creature — Werewolf' } as never],
+          rarity: 'uncommon',
+        })
+      )
+    ).toBe(true);
   });
 });

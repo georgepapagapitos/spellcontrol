@@ -68,6 +68,9 @@ interface Props {
   /** 'all' (default) renders cards + config together (quick-build page). The
    *  guided wizard splits them: 'cards' to pick the approach, 'config' to tune it. */
   section?: 'all' | 'cards' | 'config';
+  /** PDH build: the default mode sources from the PDH-legal Scryfall pool,
+   *  not EDHREC — the Standard card says so. */
+  pdh?: boolean;
 }
 
 /** Live online/offline flag (the Scryfall modes need a connection). */
@@ -94,6 +97,7 @@ export function GenerationModePicker({
   colorIdentity,
   commanderName,
   section = 'all',
+  pdh = false,
 }: Props) {
   const online = useOnline();
   const mode = customization.generationMode;
@@ -128,7 +132,10 @@ export function GenerationModePicker({
           <div className="gen-mode-grid" role="radiogroup" aria-labelledby={groupLabelId}>
             {MODES.map((m) => {
               const Icon = m.icon;
-              const disabled = m.online && !online;
+              // PDH always builds from live Scryfall searches — the Standard
+              // card is a Scryfall mode there too (and needs a connection).
+              const isPdhStandard = pdh && m.id === 'edhrec';
+              const disabled = (m.online || isPdhStandard) && !online;
               const active = mode === m.id;
               return (
                 <button
@@ -143,9 +150,13 @@ export function GenerationModePicker({
                   <span className="gen-mode-card-head">
                     <Icon width={18} height={18} strokeWidth={2} aria-hidden />
                     <span className="gen-mode-card-label">{m.label}</span>
-                    <span className="gen-mode-card-tag">{m.tag}</span>
+                    <span className="gen-mode-card-tag">{isPdhStandard ? 'Scryfall' : m.tag}</span>
                   </span>
-                  <span className="gen-mode-card-blurb">{m.blurb}</span>
+                  <span className="gen-mode-card-blurb">
+                    {isPdhStandard
+                      ? 'A balanced build from Pauper Commander–legal cards, chosen by function.'
+                      : m.blurb}
+                  </span>
                 </button>
               );
             })}
