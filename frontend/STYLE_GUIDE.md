@@ -279,6 +279,32 @@ it rides the existing trailing auto-margins — don't add a competing
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and scroll-lock come for free (see § Motion).
 
+## Index-page insight strips (UX-334)
+
+An insight/advisor engine surfaced on an index page (readiness, coaching,
+cross-entity suggestions) **collapses to a one-row summary strip that opens a
+sheet on tap — it never displaces the page's primary content.** The first ship
+of "Between your decks" (E90) rendered its full suggestion list inline above
+the Decks Index grid, pushing every deck below the fold; the fix (`fix(decks):
+Between your decks collapses to a one-row strip + sheet`) is the reference
+implementation (`components/deck/BetweenYourDecks.tsx`):
+
+- **Strip**: one toolbar-row tall, full-width, a real `<button>` (not a card),
+  `min-height: 44px` on coarse pointers. Contents: a leading icon, a label, a
+  small count pill (`999px`, `--surface` bg — a non-actionable label per the
+  Pills rule), and space permitting a one-line teaser of the top item that
+  truncates with ellipsis — **hide the teaser entirely below 600px rather than
+  wrapping it**. Trailing chevron signals "opens something."
+- **Zero visible items → render nothing.** No empty state on the index itself
+  (a "you're all caught up" message, if ever needed, lives inside the sheet,
+  not as a permanent fixture on the page).
+- **Tap opens the existing `card-picker` sheet shell** (§ Overlays) with the
+  full suggestion cards — same accept/dismiss/undo behavior, just re-housed.
+  Dismissing the last item inside the sheet closes it and removes the strip.
+- This is a re-housing pattern, not a new interaction: the sheet's contents
+  should be near-identical to what an inline surface would have shown, just
+  gated behind one tap instead of always-on real estate.
+
 ## Public shared views (/s/:token)
 
 Public shared views wrap their content in `components/shared/SharedShell.tsx` — **not** the app
