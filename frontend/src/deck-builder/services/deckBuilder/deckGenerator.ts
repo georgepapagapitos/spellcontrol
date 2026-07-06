@@ -4433,6 +4433,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // PDH 99s gate — combo candidates come from the (Commander-scoped)
       // EDHREC combo dataset, not the PDH-legal pool.
       if (isPdhBuild && notPauperCommanderLegal(card)) return false;
+      // E101: every other add path (cardPicking, scryfallFill) checks the
+      // target-bracket ceiling before accepting a card — the combo audit
+      // never did, so it could push a bracket<=2 ask's Game Changer/mass
+      // land denial/extra-turn/stax signal past the ceiling with no gate at
+      // all (e.g. auditAdd seating Teferi, Master of Time into a bracket-2
+      // deck, later silently evicted again by bracket convergence).
+      if (bracketGuard?.exceedsCeiling(card.name)) return false;
       // Defense-in-depth: every call site below pre-filters candidates for
       // color identity before evicting a card to make room (a candidate
       // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
@@ -4447,6 +4454,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       if (!isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) {
         budgetTracker?.deductCard(card);
       }
+      bracketGuard?.record(card.name);
       return true;
     }
 
@@ -4479,6 +4487,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         // Pre-filter mirrors auditAdd's PDH gate so an eviction is never
         // stranded by a rejected add.
         if (isPdhBuild && notPauperCommanderLegal(scryfallCardMap.get(name)!)) continue;
+        // E101: pre-filter mirrors auditAdd's bracket-ceiling gate — same
+        // stranding concern as the PDH gate above.
+        if (bracketGuard?.exceedsCeiling(name)) continue;
         enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
         const ids = enablerCombos.get(name) ?? [];
         ids.push(dc.comboId);
@@ -4563,6 +4574,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         // Pre-filter mirrors auditAdd's PDH gate so an eviction is never
         // stranded by a rejected add.
         .filter((c) => !isPdhBuild || !notPauperCommanderLegal(c))
+        // E101: pre-filter mirrors auditAdd's bracket-ceiling gate — same
+        // stranding concern as the PDH gate above.
+        .filter((c) => !bracketGuard?.exceedsCeiling(c.name))
         .filter((c) => {
           if (auditPassesBudget(c)) return true;
           comboBudgetSkipCount++;
@@ -4638,6 +4652,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
                 !bannedCards.has(c.name) &&
                 scryfallCardMap.has(c.name) &&
                 fitsColorIdentity(scryfallCardMap.get(c.name)!, colorIdentity) &&
+                // E101: pre-filter mirrors auditAdd's bracket-ceiling gate so
+                // an orphan eviction is never stranded by a rejected add.
+                !bracketGuard?.exceedsCeiling(c.name) &&
                 !(
                   constrainsToCollection(collectionStrategy) &&
                   notInCollection(c.name, context.collectionNames)
