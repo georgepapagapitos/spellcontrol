@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateTargetCounts,
   computeAutoLandCount,
+  computeLandCountSizingAnchor,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -256,29 +257,61 @@ describe('isDefaultLandCount', () => {
   });
 });
 
-describe('computeAutoLandCount', () => {
-  it('stays at 37 for a plain goodstuff deck with average ramp/curve', () => {
-    expect(computeAutoLandCount(Archetype.GOODSTUFF, 5, 3.2)).toBe(37);
+describe('computeAutoLandCount (Karsten formula)', () => {
+  // round(31.42 + 3.13*avgCmc - 0.28*rampDensity), clamped [32, 40].
+  // Archetype no longer feeds the formula — passed values are arbitrary.
+
+  it('matches the known-value case: avgCmc 3.0, ramp 12 => 37', () => {
+    // 31.42 + 3.13*3.0 - 0.28*12 = 31.42 + 9.39 - 3.36 = 37.45 => round 37
+    expect(computeAutoLandCount(Archetype.GOODSTUFF, 12, 3.0)).toBe(37);
   });
 
-  it('scales down for an elf-ball/tribal deck dense with ramp (Lathril-shaped)', () => {
-    // Tribal archetype delta (-1) + strong ramp density (>=10 => -2) = -3 => 34
-    const auto = computeAutoLandCount(Archetype.TRIBAL, 20, 2.4);
-    expect(auto).toBeLessThan(37);
-    expect(auto).toBeGreaterThanOrEqual(32);
+  it('clamps to the 32-land floor for low curve + heavy ramp (Lathril-shaped)', () => {
+    // 31.42 + 3.13*2.0 - 0.28*30 = 31.42 + 6.26 - 8.4 = 29.28 => round 29 => floor 32
+    expect(computeAutoLandCount(Archetype.TRIBAL, 30, 2.0)).toBe(32);
   });
 
-  it('nudges up for a high-curve control/ramp deck', () => {
-    const auto = computeAutoLandCount(Archetype.CONTROL, 3, 4.0);
-    expect(auto).toBeGreaterThan(37);
-    expect(auto).toBeLessThanOrEqual(40);
+  it('clamps to the 40-land ceiling for a high-curve, ramp-light deck (Kozilek-shaped)', () => {
+    // 31.42 + 3.13*5.0 - 0.28*14 = 31.42 + 15.65 - 3.92 = 43.15 => round 43 => ceiling 40
+    expect(computeAutoLandCount(Archetype.CONTROL, 14, 5.0)).toBe(40);
   });
 
   it('never goes below the 32-land floor even with extreme inputs', () => {
-    expect(computeAutoLandCount(Archetype.TRIBAL, 999, 0.5)).toBeGreaterThanOrEqual(32);
+    expect(computeAutoLandCount(Archetype.TRIBAL, 999, 0)).toBeGreaterThanOrEqual(32);
   });
 
   it('never exceeds the 40-land ceiling even with extreme inputs', () => {
     expect(computeAutoLandCount(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
+  });
+});
+
+// E94: the legacy archetype-delta heuristic, recovered verbatim under a new
+// name for its ORIGINAL job — sizing typeTargetLandCount's pass proportions
+// — never the delivered land count (Karsten owns that now). Expectations are
+// the same ones computeAutoLandCount had before Karsten replaced it.
+describe('computeLandCountSizingAnchor (recovered legacy heuristic, sizing-only)', () => {
+  it('stays at 37 for a plain goodstuff deck with average ramp/curve', () => {
+    expect(computeLandCountSizingAnchor(Archetype.GOODSTUFF, 5, 3.2)).toBe(37);
+  });
+
+  it('scales down for an elf-ball/tribal deck dense with ramp (Lathril-shaped)', () => {
+    // Tribal archetype delta (-1) + strong ramp density (>=10 => -2) = -3 => 34
+    const anchor = computeLandCountSizingAnchor(Archetype.TRIBAL, 20, 2.4);
+    expect(anchor).toBeLessThan(37);
+    expect(anchor).toBeGreaterThanOrEqual(32);
+  });
+
+  it('nudges up for a high-curve control/ramp deck', () => {
+    const anchor = computeLandCountSizingAnchor(Archetype.CONTROL, 3, 4.0);
+    expect(anchor).toBeGreaterThan(37);
+    expect(anchor).toBeLessThanOrEqual(40);
+  });
+
+  it('never goes below the 32-land floor even with extreme inputs', () => {
+    expect(computeLandCountSizingAnchor(Archetype.TRIBAL, 999, 0.5)).toBeGreaterThanOrEqual(32);
+  });
+
+  it('never exceeds the 40-land ceiling even with extreme inputs', () => {
+    expect(computeLandCountSizingAnchor(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
   });
 });

@@ -65,7 +65,6 @@ import {
   estimatePacingFromStats,
   inferArchetype,
   inferArchetypeFromEdhrecThemes,
-  computeEdhrecRoleTargets,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
@@ -87,6 +86,7 @@ import {
 import {
   calculateTargetCounts,
   computeAutoLandCount,
+  computeLandCountSizingAnchor,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -511,7 +511,7 @@ export function buildLandCountNote(params: {
     params.finalLandCount !== params.resolvedLandCount
       ? `; delivered ${params.finalLandCount} after post-tune deck adjustments`
       : '';
-  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} typical ramp sources, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause} — set land count explicitly under Customize to override.`;
+  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} planned ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause} — set land count explicitly under Customize to override.`;
 }
 
 /**
@@ -693,37 +693,60 @@ export function reconcileLandSqueezeDisclosure(
 }
 
 /**
- * E88 + E82 attempt 6 disclosure: names the cards phaseLandSqueezeReconcile.ts
- * cut to bring the deck back to size after auto-tuning land count up past the
- * 37-land baseline, plus (independently) any leftover cards its wildcard scan
- * added that outscored an incumbent. Composed POST-HOC from the phase's own
- * `cut`/`wildcardsKept` lists (never from inside a sort comparator — see
- * buildComboUpsideNotes's doc for why comparator-side collection is
- * structurally unreliable) — callers MUST run them through
+ * E88 + E82 attempt 6 disclosure (E94 fix-round: cause-honest wording) —
+ * names the cards phaseLandSqueezeReconcile.ts cut to bring the deck back to
+ * size after auto-tuning land count, plus (independently) any leftover cards
+ * its wildcard scan added that outscored an incumbent. Composed POST-HOC from
+ * the phase's own `cut`/`wildcardsKept` lists (never from inside a sort
+ * comparator — see buildComboUpsideNotes's doc for why comparator-side
+ * collection is structurally unreliable) — callers MUST run them through
  * `reconcileLandSqueezeDisclosure` first so both lists already agree with the
- * final deck. The two aren't 1:1 pairable (one combined sort/cut over both
- * sets, not N independent swaps — see phaseLandSqueezeReconcile.ts's
- * header), so wildcards get their own sentence rather than a misleading
- * per-card pairing. Undefined when neither the squeeze cut nor the wildcard
- * scan did anything (the common case).
+ * final deck. Undefined when neither the squeeze cut nor the wildcard scan
+ * did anything (the common case).
+ *
+ * The combined `cutNames` list is ONE sort/cut over both the land-delta's own
+ * casualties and the wildcard scan's incumbent displacements (not N
+ * independent swaps — see phaseLandSqueezeReconcile.ts's header), so there's
+ * no per-cut attribution to whether a wildcard "caused" it. The one honest
+ * split available is aggregate: `landDriven = cutNames.length -
+ * wildcardsKept.length` is the count the land-count raise alone would have
+ * required even with zero wildcard activity; anything beyond that is the
+ * wildcard scan's own doing. When `landDriven <= 0` the land-count raise (if
+ * any) needed no casualties at all — every cut is wildcard-driven, so the
+ * note names ONLY the wildcard cause, never blaming the land count for cuts
+ * it didn't need (this previously misfired on an exactly-37 resolve, which
+ * took zero slots of its own, and could even go negative for a
+ * land-count-lowering tune).
  */
 export function buildLandSqueezeTrimNote(
   cutNames: readonly string[],
   wildcardsKept: readonly string[],
-  finalLandCount: number,
-  defaultLandCount: number
+  finalLandCount: number
 ): string | undefined {
   if (cutNames.length === 0 && wildcardsKept.length === 0) return undefined;
-  let note = '';
-  if (cutNames.length > 0) {
-    const extra = finalLandCount - defaultLandCount;
-    note = `Auto-tuned land count to ${finalLandCount} (${extra} more than the ${defaultLandCount}-land default) left ${cutNames.length} fewer spell slot${cutNames.length === 1 ? '' : 's'} than usual — reconciled by cutting the lowest-value pick${cutNames.length === 1 ? '' : 's'}: ${cutNames.join(', ')}.`;
+
+  const wildcardCount = wildcardsKept.length;
+  const landDriven = cutNames.length - wildcardCount;
+  const cutList = cutNames.join(', ');
+  const wildcardList = wildcardsKept.join(', ');
+
+  if (landDriven > 0 && wildcardCount > 0) {
+    return `Auto-tuning the land count to ${finalLandCount} took ${landDriven} spell slot${landDriven === 1 ? '' : 's'}, and ${wildcardCount} stronger leftover card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) claimed ${wildcardCount} more — reconciled by cutting the ${cutNames.length} lowest-value picks: ${cutList}.`;
   }
-  if (wildcardsKept.length > 0) {
-    const wildcardSentence = `${note ? 'Additionally, ' : ''}${wildcardsKept.length} stronger leftover card${wildcardsKept.length === 1 ? '' : 's'} (${wildcardsKept.join(', ')}) displaced an equal number of the deck's weakest picks.`;
-    note = note ? `${note} ${wildcardSentence}` : wildcardSentence;
+  if (landDriven > 0) {
+    return `Auto-tuning the land count to ${finalLandCount} took ${landDriven} spell slot${landDriven === 1 ? '' : 's'} — reconciled by cutting the ${cutNames.length === 1 ? 'lowest-value pick' : 'lowest-value picks'}: ${cutList}.`;
   }
-  return note;
+  // landDriven <= 0 (including the defensive negative case — wildcardsKept
+  // can't exceed cutNames.length without landDriven going negative, which
+  // still belongs here: the land count isn't the cause either way): every
+  // cut is the wildcard scan's own doing, so no land-count blame at all.
+  if (cutNames.length === 0) {
+    // Only reachable post-reconcileLandSqueezeDisclosure: a downstream repair
+    // restored every originally-cut incumbent while the kept wildcards stayed
+    // genuine adds — nothing left to name as "displaced".
+    return `${wildcardCount} stronger leftover card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) added, with no incumbent cut needed.`;
+  }
+  return `${wildcardCount} stronger leftover card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) displaced the deck's ${cutNames.length === 1 ? 'lowest-value pick' : 'lowest-value picks'}: ${cutList}.`;
 }
 
 /**
@@ -1865,12 +1888,40 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
   detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
 
-  // Archetype-aware land count: only when the user hasn't customized land
+  // Dynamic role targets (blended EDHREC + archetype-model ramp/removal/
+  // boardwipe/cardDraw slots) — computed once, unconditionally, so both the
+  // Karsten land-count formula below AND the balancedRoles branch further
+  // down (which used to recompute this from scratch) share ONE result.
+  // Pure / side-effect-free aside from a debug log; every input it needs
+  // (format, context.selectedThemes, state.edhrecData, archetypeFallback)
+  // is already in scope above.
+  const dynamicRoleTargets = getDynamicRoleTargets(
+    format,
+    context.selectedThemes,
+    state.edhrecData?.stats,
+    state.edhrecData,
+    customization.advancedTargets?.edhrecBlendWeight ?? null,
+    customization.advancedTargets?.edhrecInclusionThreshold ?? null,
+    archetypeFallback
+  );
+
+  // Karsten land-count formula: only when the user hasn't customized land
   // inputs (still at the store defaults) — an explicit user choice is never
-  // second-guessed. Uses the EDHREC-typical ramp count for this commander
-  // (a pre-generation proxy for dork/rock density) + the EDHREC average CMC.
+  // second-guessed. Uses the deck's planned ramp-slot target (blended EDHREC
+  // + archetype model — NOT the raw EDHREC inclusion count, which reads a
+  // commander's typical ramp density rather than what this deck will
+  // actually run) + the EDHREC average CMC. The note fires whenever this
+  // tune runs, even when it resolves back to the 37-land baseline — a
+  // deck genuinely tuned to 37 still deserves disclosure, and the
+  // superset-pick wildcard scan (see wildcardCount below) is meant to run
+  // for it too.
+  // SIZING-ONLY anchor for the type/curve passes below — see
+  // computeLandCountSizingAnchor's doc. Default (not auto-tuned) is the flat
+  // baseline, matching typeTargetLandCount's own pre-existing default.
+  let landCountSizingAnchor = DEFAULT_LAND_COUNT;
+
   if (isDefaultLandCount(customization) && state.edhrecData) {
-    const edhrecRampCount = computeEdhrecRoleTargets(state.edhrecData).ramp;
+    const plannedRampCount = dynamicRoleTargets.targets.ramp;
     const manaCurve = state.edhrecData.stats?.manaCurve ?? {};
     const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
     const avgCmc =
@@ -1878,28 +1929,33 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         ? Object.entries(manaCurve).reduce((s, [cmc, count]) => s + Number(cmc) * count, 0) /
           curveTotal
         : 0;
-    const autoLandCount = computeAutoLandCount(detectedArchetype, edhrecRampCount, avgCmc);
-    if (autoLandCount !== resolvedLandCount) {
-      resolvedLandCount = autoLandCount;
-      landCountAutoTuned = true;
-      edhrecRampCountForNote = edhrecRampCount;
-    }
+    resolvedLandCount = computeAutoLandCount(detectedArchetype, plannedRampCount, avgCmc);
+    landCountSizingAnchor = computeLandCountSizingAnchor(
+      detectedArchetype,
+      plannedRampCount,
+      avgCmc
+    );
+    landCountAutoTuned = true;
+    edhrecRampCountForNote = plannedRampCount;
   }
 
-  // E88: when the auto-tune RAISES land count above the 37-land baseline, size
-  // the type passes as if lands were still at baseline — so they pick their
-  // full, un-squeezed complement (including the marginal roleless-premium
-  // cards that would otherwise never be tried) — and let
-  // phaseLandSqueezeReconcile (just before Smart Trim, below) reconcile the
-  // resulting surplus down to the real land count, globally, disclosed, and
-  // with the SAME protection tiers (must-include/staple/protection-piece/
-  // combo/role) Smart Trim already carries. Only the "shrink nonland budget"
-  // direction needs this — when the auto-tune LOWERS land count, the deck is
-  // genuinely short and the existing generic shortage-fill path already
-  // handles it gracefully by ADDING marginal picks, which has no casualty
-  // problem.
+  // E88 + E94: when the auto-tune RAISES land count above the sizing anchor
+  // (legacy-validated per archetype/ramp/curve — see
+  // computeLandCountSizingAnchor), size the type passes as if lands were
+  // still at that anchor — so they pick their full, un-squeezed complement
+  // (including the marginal roleless-premium cards that would otherwise
+  // never be tried) — and let phaseLandSqueezeReconcile (just before Smart
+  // Trim, below) reconcile the resulting surplus down to the real land
+  // count, globally, disclosed, and with the SAME protection tiers
+  // (must-include/staple/protection-piece/combo/role) Smart Trim already
+  // carries. This routes the ENTIRE Karsten-vs-legacy-anchor delta (not just
+  // the >37 case) through that disclosed/protected reconcile — Karsten can
+  // land anywhere in its own 32-40 band relative to a legacy anchor that
+  // independently varies 32-40, and either direction of "resolved lower than
+  // anchor" is a genuine shortage the existing shortage-fill path already
+  // handles gracefully by ADDING marginal picks (no casualty problem there).
   const typeTargetLandCount = landCountAutoTuned
-    ? Math.min(resolvedLandCount, DEFAULT_LAND_COUNT)
+    ? Math.min(resolvedLandCount, landCountSizingAnchor)
     : resolvedLandCount;
 
   // Calculate target counts with type and curve targets
@@ -2355,15 +2411,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // Advanced override always takes precedence
       roleTargets = customization.advancedTargets.roleTargets as Record<RoleKey, number>;
     } else if (customization.balancedRoles) {
-      const dynamic = getDynamicRoleTargets(
-        format,
-        context.selectedThemes,
-        state.edhrecData?.stats,
-        state.edhrecData,
-        customization.advancedTargets?.edhrecBlendWeight ?? null,
-        customization.advancedTargets?.edhrecInclusionThreshold ?? null,
-        archetypeFallback // same EDHREC-theme-first fallback used above, not the raw keyword vote
-      );
+      // Reuses the SAME dynamicRoleTargets computed unconditionally above
+      // (the Karsten land-count formula needs its .ramp before this gate
+      // is known) — don't recompute.
+      const dynamic = dynamicRoleTargets;
       roleTargets = dynamic.targets;
       detectedArchetype = dynamic.archetype; // same value already set above; kept for shape parity
       roleTargetBreakdown = dynamic.breakdown;
@@ -3418,7 +3469,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // wildcardCount so this is fully inert — empty array, zero scan cost — for
   // every non-auto-tuned generation and any auto-tuned deck that lands
   // exactly at the 32-land floor.
-  const wildcardCount = landCountAutoTuned ? Math.max(0, resolvedLandCount - 32) : 0;
+  //
+  // E94 round 2: anchors to typeTargetLandCount (the legacy sizing anchor),
+  // NOT resolvedLandCount (Karsten's delivered count) — squeezeDelta
+  // (resolvedLandCount - typeTargetLandCount, computed inside the reconcile
+  // phase below) already carries the entire Karsten-vs-anchor delta through
+  // the protected reconcile. Reading resolvedLandCount here double-charged
+  // that same delta a second time as extra wildcard reach, on top of the
+  // squeeze it was already producing — inflating combined churn (squeeze +
+  // wildcard cuts) well past pre-Karsten levels and starving
+  // phaseRoleSurplusRebalance downstream (measured: meren 3->7, ur-dragon
+  // 3->13 vs a 3-cut baseline). Anchoring here to typeTargetLandCount matches
+  // pre-Karsten K exactly, whatever Karsten resolves to.
+  const wildcardCount = landCountAutoTuned ? Math.max(0, typeTargetLandCount - 32) : 0;
   let wildcardCandidates: ScryfallCard[] = [];
   if (wildcardCount > 0) {
     const wildcardPool = state.edhrecData?.cardlists.allNonLand ?? [];
@@ -5237,8 +5300,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const landSqueezeTrimNote = buildLandSqueezeTrimNote(
     finalLandSqueezeCut,
     finalWildcardsKept,
-    categories.lands.length,
-    DEFAULT_LAND_COUNT
+    categories.lands.length
   );
 
   // Combo-upside price disclosure — post-hoc scan of the FINAL deck against

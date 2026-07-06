@@ -37,7 +37,45 @@ export function isDefaultLandCount(customization: Customization): boolean {
   return customization.landCount === DEFAULT_LAND_COUNT && customization.nonBasicLandCount === 15;
 }
 
-// Archetypes that lean go-wide/low-curve/dork-heavy and can safely run fewer lands.
+// Karsten's land-count formula (Frank Karsten, "How Many Lands Do You Need
+// to Consistently Hit Your Land Drops", 2022) — a curve/ramp-driven linear
+// model, replacing the old hand-tuned archetype-delta heuristic. Coefficients
+// are the published formula; clamped to the same 32-40 sane band as before.
+const KARSTEN_INTERCEPT = 31.42;
+const KARSTEN_CMC_COEFFICIENT = 3.13;
+const KARSTEN_RAMP_COEFFICIENT = 0.28;
+
+/**
+ * Karsten land-count formula: intercept + avgCmc slope − ramp-density slope,
+ * clamped to a 32-40 sane band. `archetype` is unused by the formula itself
+ * (kept for signature stability — every call site still passes it).
+ * `rampDensity` is the deck's planned ramp-slot target (blended EDHREC +
+ * archetype model, see `getDynamicRoleTargets(...).targets.ramp`) — a
+ * pre-generation proxy for how much of the manabase the deck's own
+ * dorks/rocks will cover.
+ */
+export function computeAutoLandCount(
+  _archetype: Archetype,
+  rampDensity: number,
+  avgCmc: number
+): number {
+  return Math.max(
+    32,
+    Math.min(
+      40,
+      Math.round(
+        KARSTEN_INTERCEPT +
+          KARSTEN_CMC_COEFFICIENT * avgCmc -
+          KARSTEN_RAMP_COEFFICIENT * rampDensity
+      )
+    )
+  );
+}
+
+// Archetypes that lean go-wide/low-curve/dork-heavy and can safely run fewer
+// lands — the pre-Karsten archetype-delta heuristic, recovered verbatim (was
+// deleted whole by 30ab5e9a) for its ORIGINAL job: sizing typeTargetLandCount
+// (nonLandCards), never the delivered land count.
 const LAND_COUNT_ARCHETYPE_DELTA: Partial<Record<Archetype, number>> = {
   [Archetype.TRIBAL]: -1,
   [Archetype.AGGRO]: -1,
@@ -50,13 +88,22 @@ const LAND_COUNT_ARCHETYPE_DELTA: Partial<Record<Archetype, number>> = {
 };
 
 /**
- * Archetype + ramp-density + curve aware nudge off the 37-land baseline,
- * bounded to +/-5 and clamped to a 32-40 sane band so it can never run away.
- * `rampDensity` is the EDHREC-typical ramp/dork count for this commander
- * (see `computeEdhrecRoleTargets(...).ramp`) — a pre-generation proxy for
- * how much of the manabase the deck's own dorks/rocks will cover.
+ * SIZING-ONLY anchor for the type/curve passes — NOT a land-count decision.
+ * Karsten (computeAutoLandCount above) now owns the delivered land count; but
+ * lifting resolvedLandCount INSIDE the 32-40 band still flows straight into
+ * typeTargetLandCount (`min(resolvedLandCount, anchor)`), silently shrinking
+ * every type/curve pass's nonLandCards budget with zero disclosure or
+ * protection — the >37 case is safe (phaseLandSqueezeReconcile discloses and
+ * protects it), but a <=37 shrink bypassed that reconcile entirely (killed
+ * Rhystic Study/Ugin/Skullclamp-class picks in the differ gate). This
+ * function is the legacy archetype-delta heuristic, byte-identical to the
+ * body computeAutoLandCount had before Karsten replaced it — its only job
+ * now is anchoring pass sizing to that legacy-validated shape, so the entire
+ * Karsten-vs-legacy delta (in EITHER direction) routes through the existing,
+ * disclosed, protected squeeze reconcile instead of an invisible pass-sizing
+ * shrink.
  */
-export function computeAutoLandCount(
+export function computeLandCountSizingAnchor(
   archetype: Archetype,
   rampDensity: number,
   avgCmc: number
