@@ -16,6 +16,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // E87-new Slice A: isProtected now also checks isProtectionPiece — default
   // false, overridden per-test where protection behavior is under test.
   isProtectionPiece: vi.fn(() => false),
+  // iter-10 Slice A: isProtected now also checks isFreeInteraction — same
+  // default-false, per-test override shape.
+  isFreeInteraction: vi.fn(() => false),
 }));
 
 // stampRoleSubtypes is a no-op in tests; routeCardByType keeps its real
@@ -29,7 +32,11 @@ vi.mock('../categorize', async (importOriginal) => {
 });
 
 import { applyBracketConvergence } from './phaseBracketConverge';
-import { getCardRole, isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import {
+  getCardRole,
+  isProtectionPiece,
+  isFreeInteraction,
+} from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from '../budgetTracker';
 import type { GenerationState } from './state';
 
@@ -277,6 +284,24 @@ describe('applyBracketConvergence', () => {
     }
   });
 
+  it('never cuts a free-interaction-class card, leaving an honest residual above target (iter-10 Slice A)', () => {
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    vi.mocked(isFreeInteraction).mockImplementation((c) => c.name === 'Power Card');
+    try {
+      const result = applyBracketConvergence(state, {
+        scryfallCardMap: fillerScryfallMap(),
+        detectedCombos: undefined,
+        mustIncludeNames: new Set(),
+      });
+      expect(result.applied).toBe(0);
+      expect(state.categories.synergy.some((c) => c.name === 'Power Card')).toBe(true);
+      expect(result.finalBracket).toBeGreaterThan(2);
+    } finally {
+      vi.mocked(isFreeInteraction).mockReturnValue(false);
+    }
+  });
+
   it('never cuts the commander even when it is the power source', () => {
     const state = makeState();
     state.cfg.targetBracket = 2;
@@ -369,6 +394,30 @@ describe('applyBracketConvergence', () => {
       expect(state.usedNames.has('Pool GC')).toBe(false);
     } finally {
       vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
+  });
+
+  it('never treats a free-interaction-class card as a pickCut candidate (iter-10 Slice A, UP direction)', () => {
+    const state = underTargetState();
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Pool GC', 95), ...FILLER_POOL] },
+    } as unknown as GenerationState['edhrecData'];
+    const map = fillerScryfallMap();
+    map.set('Pool GC', scryfallCard('Pool GC'));
+    // Every in-deck candidate now reads as a free-interaction piece — pickCut
+    // can never find a card to make room with, same shape as the
+    // isProtectionPiece case above.
+    vi.mocked(isFreeInteraction).mockReturnValue(true);
+    try {
+      const result = applyBracketConvergence(state, {
+        scryfallCardMap: map,
+        detectedCombos: undefined,
+        mustIncludeNames: new Set(),
+      });
+      expect(result.applied).toBe(0);
+      expect(state.usedNames.has('Pool GC')).toBe(false);
+    } finally {
+      vi.mocked(isFreeInteraction).mockReturnValue(false);
     }
   });
 

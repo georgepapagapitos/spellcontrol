@@ -9,6 +9,9 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // E87-new Slice A: softProtectionLabel also checks isProtectionPiece —
   // default false, overridden per-test where protection behavior is under test.
   isProtectionPiece: vi.fn(() => false),
+  // iter-10 Slice A: softProtectionLabel also checks isFreeInteraction — same
+  // default-false, per-test override shape.
+  isFreeInteraction: vi.fn(() => false),
 }));
 
 vi.mock('../categorize', async (importOriginal) => {
@@ -31,7 +34,11 @@ vi.mock('@/deck-builder/services/winConditions/detect', () => ({
 }));
 
 import { applyBudgetConvergence } from './phaseBudgetConverge';
-import { getCardRole, isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import {
+  getCardRole,
+  isProtectionPiece,
+  isFreeInteraction,
+} from '@/deck-builder/services/tagger/client';
 import { isLoadBearing } from '@/deck-builder/services/synergy/deckSynergy';
 import { isAltWinCard } from '@/deck-builder/services/winConditions/detect';
 import { BudgetTracker } from '../budgetTracker';
@@ -314,6 +321,37 @@ describe('applyBudgetConvergence', () => {
       );
     } finally {
       vi.mocked(isProtectionPiece).mockReturnValue(false);
+    }
+  });
+
+  // iter-10 Slice A: isFreeInteraction is the same soft-protection tier as
+  // isProtectionPiece, but its own branch/label — Commandeer-class cards the
+  // protection classifier's regex misses.
+  it('never cuts a free-interaction-class card when unprotected candidates suffice (soft)', async () => {
+    vi.mocked(isFreeInteraction).mockImplementation((c) => c.name === 'Pricey Card');
+    try {
+      const state = makeState();
+      const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 40 }));
+      expect(state.usedNames.has('Pricey Card')).toBe(true);
+      expect(result.finalTotal).toBeLessThanOrEqual(40);
+    } finally {
+      vi.mocked(isFreeInteraction).mockReturnValue(false);
+    }
+  });
+
+  it('discloses a free-interaction-class card in the swap reason once stage 2 must cut it', async () => {
+    vi.mocked(isFreeInteraction).mockImplementation((c) => c.name === 'Pricey Card');
+    try {
+      const state = makeState();
+      // Tight enough that Mid + Cheap alone can't reach it, forcing stage 2
+      // to cut the (soft) free-interaction-class Pricey Card too.
+      const result = await applyBudgetConvergence(state, baseCtx({ deckBudget: 20 }));
+      const pricey = result.repairs.find((r) => r.cut === 'Pricey Card');
+      expect(pricey?.reason).toBe(
+        'Saves $27.00 — similar card type; swapped a free-interaction piece to fit your budget'
+      );
+    } finally {
+      vi.mocked(isFreeInteraction).mockReturnValue(false);
     }
   });
 

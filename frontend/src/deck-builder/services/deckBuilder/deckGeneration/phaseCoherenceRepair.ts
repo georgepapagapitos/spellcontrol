@@ -8,7 +8,11 @@ import type {
 } from '@/deck-builder/types';
 import { type GenerationState, markBanned } from './state';
 import { frontFaceName } from '@/lib/card-text';
-import { getCardRole, isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import {
+  getCardRole,
+  isProtectionPiece,
+  isFreeInteraction,
+} from '@/deck-builder/services/tagger/client';
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import {
   constrainsToCollection,
@@ -165,7 +169,8 @@ export async function applyCoherenceRepair(
     (liftedByMap[card.name.toLowerCase()]?.length ?? 0) >= 2 ||
     state.gameChangerNames.has(card.name) ||
     isLoadBearing(card, deckSynergy) ||
-    isProtectionPiece(card);
+    isProtectionPiece(card) ||
+    isFreeInteraction(card);
 
   const findInDeck = (name: string): { card: ScryfallCard; category: DeckCategory } | null => {
     for (const [cat, cards] of Object.entries(state.categories) as [

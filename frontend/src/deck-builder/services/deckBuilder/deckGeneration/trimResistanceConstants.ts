@@ -24,3 +24,12 @@ export const STAPLE_PROTECTION_BOOST = 100;
 // order (the motivating loss: Heroic Intervention/Fierce Guardianship-class
 // cards silently evicted by a land-count squeeze — see board E82).
 export const PROTECTION_PIECE_BOOST = 100;
+// Free-interaction pieces (iter-10 Slice A) — same tier as PROTECTION_PIECE_BOOST:
+// a reflexive alt-cost interaction spell (Commandeer, Fierce Guardianship-
+// class) is categorically important the same way a protection piece is, just
+// a distinct classifier (isFreeInteraction, tagger/client.ts) scoped to never
+// overlap with isProtectionPiece. Precedent + measured motivation: a
+// yuriko-b4 generation ranked Commandeer's combined score at 2414.48 against
+// on-theme ninja wildcards at 6206.97-7973.51 (commandeer-debug.log) —
+// Commandeer never had a chance under the existing tiers alone. See board E82.
+export const FREE_INTERACTION_BOOST = 100;

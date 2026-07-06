@@ -341,8 +341,14 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
 // keyword line matches none of the above — every branch requires a grant verb
 // (have/gain(s)) or an explicit target/subject qualifier adjacent to the
 // keyword, not a standalone "Protection from X" line.
+//
+// Slice-A fix (iter-10): the counter-clause literal was `counter target
+// spell`, which misses `Counter target NONCREATURE spell` — Fierce
+// Guardianship's and Force of Negation's exact live wording (verified
+// against Scryfall) — so both silently fell through this branch. Widened to
+// `counter target(?: noncreature)? spell`; only widens matches, never narrows.
 const PROTECTION_EVIDENCE =
-  /(permanents?|creatures?) you control[^.]*?(have|gains?)[^.]*?(hexproof|shroud|indestructible)|equipped (creature|permanent)[^.]*?(has|have)[^.]*?(hexproof|shroud|indestructible)|target (creature|permanent)[^.]*?gains? (hexproof|shroud|indestructible|protection from)|without paying (its|this spell.?s) mana cost[\s\S]*?(counter target spell|choose new targets)|choose new targets for target spell or ability|(spells? you control|target spell)[^.]*?can'?t be countered|phas(?:e|ing)[^.]*?(?:along with you|out|in)|can'?t lose the game/i;
+  /(permanents?|creatures?) you control[^.]*?(have|gains?)[^.]*?(hexproof|shroud|indestructible)|equipped (creature|permanent)[^.]*?(has|have)[^.]*?(hexproof|shroud|indestructible)|target (creature|permanent)[^.]*?gains? (hexproof|shroud|indestructible|protection from)|without paying (its|this spell.?s) mana cost[\s\S]*?(counter target(?: noncreature)? spell|choose new targets)|choose new targets for target spell or ability|(spells? you control|target spell)[^.]*?can'?t be countered|phas(?:e|ing)[^.]*?(?:along with you|out|in)|can'?t lose the game/i;
 
 /**
  * Positive-evidence protection/free-interaction classifier (E87-new Slice A).
@@ -365,6 +371,101 @@ export function isProtectionPiece(card: {
   ).trim();
   if (!text) return false;
   return PROTECTION_EVIDENCE.test(text);
+}
+
+// Free-interaction / reflexive alt-cost pieces (iter-10 Slice A) — cards whose
+// OWN oracle text lets you cast THEM without their printed mana cost
+// (reflexively, not as a favor granted to other spells) AND whose payoff is
+// itself interaction. Boundary and every branch below is live-verified
+// against real Scryfall oracle text — see the build spec for the full
+// candidate table; summarized per branch:
+//
+// Branch A — reflexive "rather than pay this/its OWN mana cost": Commandeer
+// ("You may exile two blue cards from your hand rather than pay this
+// spell's mana cost."), Force of Will, Force of Negation, Misdirection,
+// Foil, Daze, Snuff Out. Requires "this spell's"/"its" immediately after
+// "rather than pay ... mana cost" — this is what excludes Dream Halls
+// ("...for A SPELL"), As Foretold/Fist of Suns/Omniscience/Aluren ("...for
+// spells you cast"/"spells from your hand"), which grant the discount to
+// spells OTHER than themselves (enablers, not free-interaction spells).
+const ALT_COST_REFLEXIVE = /rather than pay (?:this spell'?s|its) mana cost/i;
+
+// Branch B — commander-gated free cast: Deadly Rollick, Deflecting Swat,
+// Fierce Guardianship, Flawless Maneuver all share this exact live wording.
+const COMMANDER_FREE_CAST =
+  /if you control a commander,? you may cast this spell without paying its mana cost/i;
+
+// Branch D — Evoke cycle: Fury/Solitude/Subtlety/Endurance/Grief all print
+// "Evoke—Exile a <color> card from your hand." verbatim (live-verified).
+const EVOKE = /\bevoke\s*[—-]\s*exile a .{0,25} card from your hand/i;
+
+// Branch E — Pact deferred-payment cycle: Pact of Negation / Slaughter Pact
+// ("At the beginning of your next upkeep, pay {cost}. If you don't, you
+// lose the game.", live-verified).
+const PACT_DEFERRED =
+  /at the beginning of your next upkeep,? pay [^.]*\. if you don'?t,? you lose the game/i;
+
+const ALT_COST_EVIDENCE = new RegExp(
+  [ALT_COST_REFLEXIVE, COMMANDER_FREE_CAST, EVOKE, PACT_DEFERRED].map((r) => r.source).join('|'),
+  'i'
+);
+
+// Interaction gate — the payoff itself must be counter/destroy/exile/steal/
+// redirect/damage-sweep/library-tuck/graveyard-hate/hand-disruption. Every
+// branch cites the live text it exists for:
+//  - "counter target"             → Force of Will/Negation, Fierce
+//                                    Guardianship ("Counter target
+//                                    noncreature spell"), Foil, Daze, Pact
+//                                    of Negation
+//  - "destroy target"             → Snuff Out, Slaughter Pact
+//  - "exile target"                → Deadly Rollick
+//  - "exile up to ... target"      → Solitude ("exile up to one other
+//                                    target creature")
+//  - "gain control of target"      → Commandeer
+//  - "choose new targets"          → Commandeer, Deflecting Swat
+//  - "change the target"           → Misdirection
+//  - "deals ... damage ... target" → Fury
+//  - "puts ... library"            → Subtlety ("puts it on ... top or
+//                                    bottom of their library"), Endurance
+//                                    ("puts all the cards from their
+//                                    graveyard on the bottom of their
+//                                    library")
+//  - "target player/opponent ... reveals/discards" → Grief ("target
+//                                    opponent reveals their hand ...
+//                                    discards that card")
+const INTERACTION_EVIDENCE =
+  /counter target|destroy target|exile target|exile up to [^.]*?target|gain control of target|choose new targets|change the target|deals? [^.]*?damage[^.]*?target|puts? (?:it|them|all the cards)[^.]*?library|target (?:player|opponent)[^.]*?(?:reveals|discards)/i;
+
+/**
+ * Positive-evidence free-interaction classifier (iter-10 Slice A). Pure
+ * oracle-text check, same shape as isProtectionPiece/isUntapProducer — no
+ * tag to fall back to, so a text-less card returns false.
+ *
+ * Scoped to the non-protection remainder by construction: some in-scope
+ * candidates (Deflecting Swat, Flawless Maneuver) already trip
+ * isProtectionPiece, so this guards `isProtectionPiece(card) → false` up
+ * front rather than requiring every one of the ~6 consumer call sites to
+ * OR/max the two classifiers themselves — a single `return false` here
+ * applies uniformly everywhere and can't drift out of sync at a call site.
+ * (With the PROTECTION_EVIDENCE noncreature-branch fix above, Fierce
+ * Guardianship trips isProtectionPiece and IS excluded here; Force of
+ * Negation is NOT — its counter clause follows "rather than pay", not
+ * "without paying", so it never reaches the protection counter branch and
+ * stays free-interaction.)
+ */
+export function isFreeInteraction(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  if (isProtectionPiece(card)) return false; // never double-boost — see overlap ruling above
+  return ALT_COST_EVIDENCE.test(text) && INTERACTION_EVIDENCE.test(text);
 }
 
 // Untap producers (E89, iter-7 Slice E) — cards whose own oracle text untaps
