@@ -155,9 +155,13 @@ describe('getDynamicRoleTargets archetype threading', () => {
 });
 
 // isBoardCentricPlan (E109): gates both the wipe-target shave and the
-// wipe-selection preference in deckGenerator.ts. Two independent signals —
-// go-wide archetype membership, or a creature-dense type target the
-// archetype vote missed (a split-strategy commander defaults to GOODSTUFF).
+// wipe-selection preference in deckGenerator.ts. Three independent signals —
+// go-wide archetype membership, a creature-dense type target the archetype
+// vote missed (a split-strategy commander defaults to GOODSTUFF), or an
+// attack-trigger commander (E109 fix round: Isshin's own archetype vote
+// lands GOODSTUFF — its top EDHREC theme holds only 31.6% — and its PLANNED
+// creature density undercounts what it actually delivers, so neither of the
+// first two signals sees it).
 describe('isBoardCentricPlan', () => {
   it.each([Archetype.TOKENS, Archetype.TRIBAL, Archetype.ARISTOCRATS, Archetype.AGGRO])(
     'trips on the %s archetype regardless of creature density',
@@ -190,5 +194,31 @@ describe('isBoardCentricPlan', () => {
 
   it('is inert on an empty type-target map (no nonland total to divide by)', () => {
     expect(isBoardCentricPlan(Archetype.GOODSTUFF, {})).toBe(false);
+  });
+
+  it('trips on an attack-trigger commander (Isshin-shaped) even at GOODSTUFF archetype and low creature density', () => {
+    // 0.44 planned density — under the 0.45 bar, and GOODSTUFF isn't in the
+    // go-wide set — neither of the other two signals would trip here.
+    expect(
+      isBoardCentricPlan(
+        Archetype.GOODSTUFF,
+        { creature: 27, instant: 17, sorcery: 17 },
+        true // attackTriggerCommander
+      )
+    ).toBe(true);
+  });
+
+  it('does not let the attack-trigger clause trip when the commander is not one (default false)', () => {
+    expect(
+      isBoardCentricPlan(Archetype.GOODSTUFF, { creature: 27, instant: 17, sorcery: 17 })
+    ).toBe(false);
+  });
+
+  it('does not lower the density bar for kozilek/yuriko-shaped decks just under 0.45 (no attack-trigger signal)', () => {
+    // 0.436 and 0.443 delivered densities from live-panel evidence — both
+    // correctly stay under the bar and neither is an attack-trigger commander.
+    expect(
+      isBoardCentricPlan(Archetype.GOODSTUFF, { creature: 27, instant: 17.5, sorcery: 17.5 }, false)
+    ).toBe(false);
   });
 });

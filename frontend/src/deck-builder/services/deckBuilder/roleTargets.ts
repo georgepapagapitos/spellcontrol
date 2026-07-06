@@ -78,18 +78,16 @@ const ARCHETYPE_ROLE_MULTIPLIERS: Record<Archetype, Record<RoleKey, number>> = {
 
 // ─── Board-Centric Plan Detection (E109) ─────────────────────────────
 // A symmetric board wipe costs a deck whose own plan puts outsized value on
-// its board (go-wide/token/tribal shells, or any creature-dense build) far
-// more than a generic goodstuff deck — it torches the caster's own board
-// along with its opponents'. ARCHETYPE_ROLE_MULTIPLIERS above already
-// shaves the boardwipe TARGET for the archetypes whose whole plan is "many
-// cheap bodies" (TOKENS/TRIBAL/ARISTOCRATS/AGGRO), but panel evidence shows
-// that alone isn't enough (Isshin, an AGGRO-detected attack-trigger
-// commander, still ran 4 wipes including Farewell and Blasphemous Act
-// against its own token board) — deckGenerator.ts additionally shaves the
-// target by one more point and prefers one-sided wipes at pick time when
-// this gate trips.
+// its board (go-wide/token/tribal shells, attack-trigger commanders, or any
+// creature-dense build) far more than a generic goodstuff deck — it torches
+// the caster's own board along with its opponents'. ARCHETYPE_ROLE_MULTIPLIERS
+// above already shaves the boardwipe TARGET for the archetypes whose whole
+// plan is "many cheap bodies" (TOKENS/TRIBAL/ARISTOCRATS/AGGRO), but panel
+// evidence shows that alone isn't enough — deckGenerator.ts additionally
+// shaves the target by one more point and prefers one-sided wipes at pick
+// time when this gate trips.
 //
-// Two independent signals, either one trips it:
+// Three independent signals, any one trips it:
 //  - The archetype already blended EDHREC + archetype-model + user theme
 //    picks (getDynamicRoleTargets's own `archetype` return) lands on one of
 //    the four go-wide archetypes above.
@@ -101,7 +99,21 @@ const ARCHETYPE_ROLE_MULTIPLIERS: Record<Archetype, Record<RoleKey, number>> = {
 //    above) shouldn't matter. 0.45 sits above the generic ~0.40 baseline
 //    creature weight (rawTypeWeights in targetCounts.ts) so an ordinary
 //    midrange goodstuff deck doesn't trip this by default — only a build
-//    that's meaningfully more creature-heavy than typical.
+//    that's meaningfully more creature-heavy than typical. Live-panel
+//    calibration (E109 fix round): kozilek (0.436) / yuriko (0.443)
+//    delivered creature density sit just under 0.45 and correctly don't
+//    trip — do not lower this threshold to chase a different deck; use the
+//    attackTriggerCommander clause below instead.
+//  - `attackTriggerCommander` (E109 fix round): the commander's payoff IS
+//    attacking (Isshin doubles attack triggers, Aurelia/Karlach grant extra
+//    combats) — that deck needs its attackers alive through a wipe by
+//    construction, independent of archetype/creature-count. Isshin's own
+//    archetype vote lands GOODSTUFF (its top EDHREC theme holds only
+//    31.6% — under DOMINANT_THEME_SHARE) and its PLANNED creature density
+//    (pre-generation typeTargets, ~0.44) undercounts its DELIVERED density
+//    (~0.475, only known after picking) — this clause catches it without
+//    switching the density check to delivered counts or lowering the
+//    threshold, either of which would also catch kozilek/yuriko above.
 export const BOARD_CENTRIC_ARCHETYPES: ReadonlySet<Archetype> = new Set([
   Archetype.TOKENS,
   Archetype.TRIBAL,
@@ -112,8 +124,16 @@ export const BOARD_CENTRIC_CREATURE_DENSITY = 0.45;
 
 export function isBoardCentricPlan(
   archetype: Archetype,
-  typeTargets: Record<string, number>
+  typeTargets: Record<string, number>,
+  /** Reuses the EXACT E102 extra-combat commander gate (see
+   *  deckGenerator.ts's `commanderWantsExtraCombat`: isExtraCombatPiece on
+   *  the commander/partner OR commanderProfile's attack-trigger detector)
+   *  rather than re-deriving a regex — a commander whose payoff is
+   *  attacking is board-centric by definition. Defaults false for callers
+   *  (tests, other call sites) that don't have the signal. */
+  attackTriggerCommander: boolean = false
 ): boolean {
+  if (attackTriggerCommander) return true;
   if (BOARD_CENTRIC_ARCHETYPES.has(archetype)) return true;
   const nonLandTotal = Object.values(typeTargets).reduce((s, v) => s + v, 0);
   if (nonLandTotal <= 0) return false;
