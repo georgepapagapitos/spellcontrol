@@ -17,9 +17,9 @@ import { useConfirm } from '../lib/use-confirm';
 import { useSheetExit } from '../lib/use-sheet-exit';
 
 export interface ScannedEntry {
-  /** Stable row id = oracle_id + finish (see useScanQueue's entryKey), so a
-   *  foil and a nonfoil copy of the same card are distinct rows. Different
-   *  printings of the same card+finish share a row. */
+  /** Stable row id = printing id + finish (see useScanQueue's entryKey), so
+   *  a foil and a nonfoil copy of the same card are distinct rows — and so
+   *  are two different printings, each keeping its own set/collector. */
   id: string;
   card: ScryfallCard;
   qty: number;
@@ -130,7 +130,7 @@ export function ScannerQueueSheet({
   );
 
   // Only one printing-picker open at a time — phones can't usefully render
-  // two side-by-side. The id is the entry id (oracle_id).
+  // two side-by-side. The id is the entry id (printing id + finish).
   const [openPickerFor, setOpenPickerFor] = useState<string | null>(null);
 
   // Printings cache scoped to this sheet instance. A re-mount (sheet closed
