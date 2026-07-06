@@ -181,6 +181,11 @@ export function findCrossDeckMoves(
       let best: { target: DeckProfile; hits: AxisHit[] } | null = null;
       for (const target of profiles) {
         if (target.deck.id === donor.deck.id) continue;
+        // Target already runs this card — a singleton (commander-family) deck
+        // would be offered a nonsensical duplicate. Applied universally: all
+        // current suggestion targets are singleton formats, and skipping is
+        // conservative even for a hypothetical 4-of target (v2: copies >= maxCopies).
+        if (target.names.has(card.name)) continue;
         if (!withinColorIdentity(card, target.identity)) continue;
         const hits = axisHits(card, target.investedAxes);
         if (hits.length < MIN_TARGET_HITS) continue;
