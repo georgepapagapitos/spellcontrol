@@ -191,6 +191,7 @@ export function BuildReportPanel({
     roleCapOverflowNote,
     priceSanityNote,
     comboUpsideNotes,
+    comboCompletionNote,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -321,6 +322,10 @@ export function BuildReportPanel({
             ))}
           </ul>
         </details>
+      )}
+
+      {comboCompletionNote && (
+        <p className="build-report-line build-report-source">{comboCompletionNote}</p>
       )}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (
