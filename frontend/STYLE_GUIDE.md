@@ -271,6 +271,14 @@ it rides the existing trailing auto-margins — don't add a competing
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
+- **Every card-picker sheet must dim the page behind it.** The scrim comes from
+  one of exactly two places: a `.card-picker-backdrop` child (the shell's
+  default), or — for sheets that close on root click and render no backdrop
+  div — `background: var(--overlay-sheet)` on the sheet's **scoped root class**
+  (`.between-decks-sheet-root`, `.move-deck-root`). Never put a background on
+  the shared `.card-picker-root` shell: consumers that do render the backdrop
+  child would double-stack scrims. (Settled by E95 #1048, re-applied E99 — this
+  omission has now shipped twice; check for the scrim when adding a new sheet.)
 - **Destructive confirmations go through the shared `<Modal>`, never
   `window.confirm()`.** The native dialog can't be themed, freezes the event
   loop, loses focus on dismiss, and renders inconsistently in Capacitor
