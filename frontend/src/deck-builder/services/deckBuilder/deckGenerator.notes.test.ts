@@ -849,32 +849,29 @@ describe('buildComboCompletionNote (emergent combo-completion disclosure)', () =
     expect(buildComboCompletionNote([])).toBeUndefined();
   });
 
-  it('names the cards and result for a single newly-completed combo', () => {
-    const note = buildComboCompletionNote([completedCombo()]);
-    expect(note).toBe(
-      'Picks made during this build completed 1 combo with cards already in the deck: Grim Monolith + Rings of Brighthearth (produces Infinite colorless mana).'
-    );
+  it('returns one row naming the cards and result for a single newly-completed combo', () => {
+    const notes = buildComboCompletionNote([completedCombo()]);
+    expect(notes).toEqual([
+      'Grim Monolith + Rings of Brighthearth — produces Infinite colorless mana',
+    ]);
   });
 
-  it('names every combo when multiple newly completed', () => {
+  it('returns one row per combo when multiple newly completed', () => {
     const second = completedCombo({
       comboId: 'combo-2',
       cards: ['Basalt Monolith', 'Rings of Brighthearth'],
       results: ['Infinite colorless mana'],
     });
-    const note = buildComboCompletionNote([completedCombo(), second]);
-    expect(note).toBe(
-      'Picks made during this build completed 2 combos with cards already in the deck: ' +
-        'Grim Monolith + Rings of Brighthearth (produces Infinite colorless mana); ' +
-        'Basalt Monolith + Rings of Brighthearth (produces Infinite colorless mana).'
-    );
+    const notes = buildComboCompletionNote([completedCombo(), second]);
+    expect(notes).toEqual([
+      'Grim Monolith + Rings of Brighthearth — produces Infinite colorless mana',
+      'Basalt Monolith + Rings of Brighthearth — produces Infinite colorless mana',
+    ]);
   });
 
   it('falls back to generic wording when results is empty', () => {
-    const note = buildComboCompletionNote([completedCombo({ results: [] })]);
-    expect(note).toBe(
-      'Picks made during this build completed 1 combo with cards already in the deck: Grim Monolith + Rings of Brighthearth (produces a combo finish).'
-    );
+    const notes = buildComboCompletionNote([completedCombo({ results: [] })]);
+    expect(notes).toEqual(['Grim Monolith + Rings of Brighthearth — produces a combo finish']);
   });
 
   it('the baseline diff excludes combos already complete at generation start', () => {
@@ -898,8 +895,10 @@ describe('buildComboCompletionNote (emergent combo-completion disclosure)', () =
       (dc) => dc.isComplete && !baselineCompleteIds.has(dc.comboId)
     );
     expect(newlyComplete.map((dc) => dc.comboId)).toEqual(['combo-2']);
-    expect(buildComboCompletionNote(newlyComplete)).toContain('Basalt Monolith');
-    expect(buildComboCompletionNote(newlyComplete)).not.toContain('combo-1');
+    const notes = buildComboCompletionNote(newlyComplete);
+    expect(notes).toEqual([
+      'Basalt Monolith + Rings of Brighthearth — produces Infinite colorless mana',
+    ]);
   });
 });
 

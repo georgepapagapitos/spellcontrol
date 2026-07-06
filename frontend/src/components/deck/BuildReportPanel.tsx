@@ -191,7 +191,7 @@ export function BuildReportPanel({
     roleCapOverflowNote,
     priceSanityNote,
     comboUpsideNotes,
-    comboCompletionNote,
+    comboCompletionNotes,
     packagePicks,
     liftPicksNote,
     manabase,
@@ -324,8 +324,20 @@ export function BuildReportPanel({
         </details>
       )}
 
-      {comboCompletionNote && (
-        <p className="build-report-line build-report-source">{comboCompletionNote}</p>
+      {comboCompletionNotes && comboCompletionNotes.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            Build picks completed <strong>{comboCompletionNotes.length}</strong> combo
+            {comboCompletionNotes.length === 1 ? '' : 's'} with cards already in the deck
+          </summary>
+          <ul className="build-report-subs-list">
+            {comboCompletionNotes.map((note, i) => (
+              <li key={`${note}-${i}`} className="build-report-sub">
+                <span className="build-report-sub-reason">{note}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {builtFromCollection && typeof ownedPercentActual === 'number' && (

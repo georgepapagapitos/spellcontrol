@@ -510,8 +510,9 @@ export interface BuildReport {
   /** Disclosure when picks made during this build (curve/role/synergy fill,
    *  combo floor, coherence repair, …) completed a latent combo with cards
    *  already locked in — a diff of final detectedCombos completeness against
-   *  a generation-start baseline. Undefined when nothing newly completed. */
-  comboCompletionNote?: string;
+   *  a generation-start baseline. One entry per newly-completed combo.
+   *  Undefined when nothing newly completed. */
+  comboCompletionNotes?: string[];
   /** Disclosure when the Staples <-> Brew dial was off its 0.5 Balanced default —
    *  names which direction the user leaned so the report never leaves a
    *  reweighted pick pool unexplained. Undefined at the default. */
@@ -647,7 +648,7 @@ export interface GeneratedDeck {
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
-  comboCompletionNote?: string; // e.g. picks made during this build completed a latent combo with cards already in the deck
+  comboCompletionNotes?: string[]; // one per combo the build's own picks completed with cards already in the deck
 }
 
 export interface DeckStats {

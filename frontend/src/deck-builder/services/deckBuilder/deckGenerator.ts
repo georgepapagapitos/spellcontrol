@@ -731,18 +731,18 @@ export function buildLandSqueezeTrimNote(
  * (commander, must-includes), with zero prior disclosure. Composed
  * POST-HOC by the caller diffing state.baselineDetectedCombos against the
  * truly-final detectedCombos — this function only turns that diff into
- * prose. Undefined when nothing newly completed (the common case).
+ * prose. One row per combo (live decks can complete a dozen+ at once — see
+ * comboUpsideNotes for the same one-row-per-item precedent) rather than a
+ * single run-on sentence. Undefined when nothing newly completed (the
+ * common case).
  */
-export function buildComboCompletionNote(newlyComplete: DetectedCombo[]): string | undefined {
+export function buildComboCompletionNote(newlyComplete: DetectedCombo[]): string[] | undefined {
   if (newlyComplete.length === 0) return undefined;
-  const pieces = newlyComplete
-    .map((combo) => {
-      const cards = combo.cards.join(' + ');
-      const results = combo.results.length > 0 ? combo.results.join(', ') : 'a combo finish';
-      return `${cards} (produces ${results})`;
-    })
-    .join('; ');
-  return `Picks made during this build completed ${newlyComplete.length} combo${newlyComplete.length === 1 ? '' : 's'} with cards already in the deck: ${pieces}.`;
+  return newlyComplete.map((combo) => {
+    const cards = combo.cards.join(' + ');
+    const results = combo.results.length > 0 ? combo.results.join(', ') : 'a combo finish';
+    return `${cards} — produces ${results}`;
+  });
 }
 
 /**
@@ -5026,7 +5026,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const newlyCompletedCombos = (detectedCombos ?? []).filter(
     (dc) => dc.isComplete && !baselineCompleteIds.has(dc.comboId)
   );
-  const comboCompletionNote = buildComboCompletionNote(newlyCompletedCombos);
+  const comboCompletionNotes = buildComboCompletionNote(newlyCompletedCombos);
 
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the
@@ -5268,7 +5268,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     priceSanityNote,
     landSqueezeTrimNote,
     comboUpsideNotes,
-    comboCompletionNote,
+    comboCompletionNotes,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
