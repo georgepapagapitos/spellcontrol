@@ -1,0 +1,116 @@
+/* ── SealBurst ─────────────────────────────────────────────────────────────
+   Deck-generation-complete flourish: the grimoire seal flares (brass #f0c368,
+   matching the BrandMark clasp seal) and sheds mana sparks in the deck's colour
+   identity. One-shot emphasis animation — plays once as the takeover exits,
+   then unmounts. Every keyframe is reduced-motion gated (the component also
+   returns null under reduce; this is the CSS backstop per STYLE_GUIDE). */
+
+.seal-burst {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Anchor every child to the hero's centre. */
+.seal-burst-flare,
+.seal-burst-ring,
+.seal-burst-mote {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+/* ── The seal flare — a brass glow that swells and fades once. ─────────────── */
+.seal-burst-flare {
+  width: 15rem;
+  height: 15rem;
+  margin: -7.5rem 0 0 -7.5rem;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, #f0c368 85%, transparent) 0%,
+    color-mix(in srgb, #f0c368 30%, transparent) 42%,
+    transparent 70%
+  );
+  animation: seal-burst-flare 620ms var(--ease-out-soft, ease-out) both;
+}
+
+/* ── The seal ring — expands outward like brand-mark-seal-ring. ───────────── */
+.seal-burst-ring {
+  width: 5rem;
+  height: 5rem;
+  margin: -2.5rem 0 0 -2.5rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, #f0c368 70%, transparent);
+  animation: seal-burst-ring 700ms var(--ease-out-soft, ease-out) both;
+}
+
+/* ── Mana sparks — colour-identity motes flung radially outward. ──────────── */
+.seal-burst-mote {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0.5rem 0.12rem currentColor;
+  animation-name: seal-burst-spark;
+  animation-timing-function: var(--ease-out-soft, ease-out);
+  animation-fill-mode: both;
+}
+
+@keyframes seal-burst-flare {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes seal-burst-ring {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
+/* --angle / --dist are static per-mote custom props; only translateX(0→dist)
+   and scale/opacity interpolate, so the mote rides straight out along --angle. */
+@keyframes seal-burst-spark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(0.3);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist)) scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal-burst {
+    display: none;
+  }
+
+  .seal-burst-flare,
+  .seal-burst-ring,
+  .seal-burst-mote {
+    animation: none;
+  }
+}

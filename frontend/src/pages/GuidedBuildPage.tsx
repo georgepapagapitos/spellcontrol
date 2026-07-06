@@ -121,6 +121,7 @@ export function GuidedBuildPage() {
             percent={progress.percent}
             isExiting={takeoverExiting}
             onExitComplete={handleTakeoverExitComplete}
+            colorIdentity={colorIdentity}
           />
         </div>
         {error && <div className="error-banner deck-builder-error">{error}</div>}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { ProgressBar } from '../ProgressBar';
+import { SealBurst } from './SealBurst';
 import './GenerationTakeover.css';
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   percent: number;
   isExiting?: boolean;
   onExitComplete?: () => void;
+  /** Deck colour identity (WUBRG keys) — tints the completion seal-burst sparks. */
+  colorIdentity?: string[];
 }
 
 // Flavor lines keyed by substring match against real generator messages.
@@ -235,6 +238,7 @@ export function GenerationTakeover({
   percent,
   isExiting = false,
   onExitComplete,
+  colorIdentity = [],
 }: Props) {
   // Resolve from CDN if we only have a name; direct URL wins immediately.
   const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
@@ -301,6 +305,9 @@ export function GenerationTakeover({
             <div className="gen-takeover-art-fade" aria-hidden />
           </div>
         )}
+        {/* The deck is done — the seal flares and sheds mana sparks in its
+            colours as the takeover exits. */}
+        {isExiting && <SealBurst colors={colorIdentity} />}
         <div className="gen-takeover-body">
           {commanderName && (
             <p className="gen-takeover-commander" aria-hidden>
