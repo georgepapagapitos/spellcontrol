@@ -262,6 +262,28 @@ describe('findCrossDeckMoves', () => {
     expect(moves[0].replacementName).toBe('Spare Rock');
   });
 
+  it('collapses a multi-copy donor into one suggestion per card+target', () => {
+    const { donor, target } = buildScene();
+    // A second sleeved copy of the same card in the same (non-singleton) donor.
+    donor.cards.push({
+      slotId: 'slot-Idle Cleric-b',
+      card: idleCard,
+      allocatedCopyId: 'copy-Idle Cleric-b',
+    });
+    const decks = [donor, target];
+    // TWO viable ramp replacements — without the dedupe the duplicate
+    // suggestion would eat the second one from the claim pool.
+    const collection: EnrichedCard[] = [
+      owned('Spare Rock', { cmc: 2 }),
+      owned('Idle Cleric 2', { cmc: 2 }),
+    ];
+    const allocations = buildAllocationMap(decks);
+
+    const moves = findCrossDeckMoves(decks, collection, allocations);
+    expect(moves).toHaveLength(1);
+    expect(moves[0].cardName).toBe('Idle Cleric');
+  });
+
   it('respects the limit option', () => {
     const { donor, target } = buildScene();
     const decks = [donor, target];
