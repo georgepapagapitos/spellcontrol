@@ -103,6 +103,9 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
         <CollapsibleGroup title="Card pool" defaultOpen={false}>
           <PoolGroup customization={customization} update={update} />
         </CollapsibleGroup>
+        <CollapsibleGroup title="Card priority" defaultOpen={false}>
+          <BrewDialGroup customization={customization} update={update} />
+        </CollapsibleGroup>
         <CollapsibleGroup title="Tempo" defaultOpen={false}>
           <TempoGroup customization={customization} update={update} />
         </CollapsibleGroup>
@@ -239,6 +242,64 @@ function SaltGroup({ customization, update }: DeckCustomizerProps) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// 5 stops: 0 / 0.25 / 0.5 / 0.75 / 1 — endpoints "Staples" / "Brew", center
+// "Balanced" (the default, a no-op — see cardPicking.ts's calculateCardPriority).
+type BrewStop = 0 | 0.25 | 0.5 | 0.75 | 1;
+const BREW_LABELS: Record<BrewStop, string> = {
+  0: 'Staples',
+  0.25: 'Leaning staples',
+  0.5: 'Balanced',
+  0.75: 'Leaning brew',
+  1: 'Brew',
+};
+const BREW_DESCRIPTIONS: Record<BrewStop, string> = {
+  0: "The proven 99 — EDHREC's most-played picks.",
+  0.25: 'Mostly staples, with some room for cards that fit your theme.',
+  0.5: 'An even mix of proven staples and theme-driven picks.',
+  1: "Deep cuts — cards that fit your theme's mechanics over the popular picks.",
+  0.75: 'Mostly deep cuts, keeping the strongest staples.',
+};
+
+function BrewDialGroup({ customization, update }: DeckCustomizerProps) {
+  const value = (customization.brewLevel ?? 0.5) as BrewStop;
+  const label = BREW_LABELS[value] ?? BREW_LABELS[0.5];
+  const description = BREW_DESCRIPTIONS[value] ?? BREW_DESCRIPTIONS[0.5];
+  return (
+    <div className="deck-customizer-slider">
+      <div className="deck-customizer-slider-header">
+        <span className="deck-customizer-slider-label">Staples ↔ Brew</span>
+        <span className="deck-customizer-slider-value">{label}</span>
+      </div>
+      <input
+        type="range"
+        className="deck-customizer-range"
+        min={0}
+        max={1}
+        step={0.25}
+        value={value}
+        aria-label="Staples to Brew dial — how much to favor EDHREC's most-played cards over off-meta theme fits"
+        aria-valuetext={label}
+        onChange={(e) => update({ brewLevel: Number(e.target.value) })}
+        style={{
+          ['--range-progress' as string]: `${value * 100}%`,
+        }}
+      />
+      <div className="deck-customizer-slider-anchors">
+        <span className="deck-customizer-slider-anchor" data-align="start">
+          <span className="deck-customizer-slider-anchor-label">Staples</span>
+        </span>
+        <span className="deck-customizer-slider-anchor" data-align="center">
+          <span className="deck-customizer-slider-anchor-label">Balanced</span>
+        </span>
+        <span className="deck-customizer-slider-anchor" data-align="end">
+          <span className="deck-customizer-slider-anchor-label">Brew</span>
+        </span>
+      </div>
+      <p className="deck-customizer-slider-desc">{description}</p>
     </div>
   );
 }

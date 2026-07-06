@@ -141,6 +141,11 @@ export interface GapAddSignals {
   /** Lift co-play seed names (strongest first) this card is connected to. */
   liftedBy?: string[];
   owned: boolean;
+  /** True when the Staples <-> Brew dial is leaned toward Brew AND this card
+   *  has real evidence of fit (synergy or lift) despite being a fringe/
+   *  non-staple pick — i.e. exactly the case the dial was built to surface.
+   *  Never set for a merely-obscure card with no synergy/lift backing. */
+  brewFavored?: boolean;
 }
 
 /**
@@ -174,6 +179,12 @@ export function buildGapAddFactors(s: GapAddSignals): WhyFactor[] {
     });
   }
   if (s.owned) out.push({ text: 'Already in your collection — no purchase', tone: 'pro' });
+  if (s.brewFavored) {
+    out.push({
+      text: 'You dialed toward Brew — deep cuts like this get weighted over play-rate',
+      tone: 'neutral',
+    });
+  }
   return out;
 }
 

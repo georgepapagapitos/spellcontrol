@@ -82,6 +82,7 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     artThemeTag: '',
     historicalYear: 2005,
     permanentsOnly: false,
+    brewLevel: 0.5,
     // E80 A/B knob, two-way: LIVE_GEN_PRICE_SANITY=1 forces the flag ON,
     // =0 forces it OFF, unset leaves it undefined (the product default —
     // resolvePriceSanity's budgetOption inference — applies). Lets the
