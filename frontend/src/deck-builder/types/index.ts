@@ -492,6 +492,13 @@ export interface BuildReport {
    *  37-land baseline. Undefined when the auto-tune never raised land count
    *  past baseline (the common case). */
   landSqueezeTrimNote?: string;
+  /** Disclosure when the bracket-narrowed EDHREC page (bracket-only or
+   *  theme+bracket) was too thin to build from (E93) and generation laddered
+   *  down to a broader page — naming what was missing, what was used
+   *  instead, and that the target bracket's card permissions were kept
+   *  regardless. Undefined when no bracket was targeted, or the requested
+   *  page had real data. */
+  bracketPoolFallbackNote?: string;
   /** Expensive combo pieces the price-sanity tie-break let win over a cheaper
    *  same-role staple for a live-but-still-incomplete combo. Undefined when
    *  none arose, or every combo those cards belonged to went on to complete. */
@@ -625,6 +632,7 @@ export interface GeneratedDeck {
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
+  bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
 }
 

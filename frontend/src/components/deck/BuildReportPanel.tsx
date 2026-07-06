@@ -185,6 +185,7 @@ export function BuildReportPanel({
     generationNote,
     landCountNote,
     landSqueezeTrimNote,
+    bracketPoolFallbackNote,
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
@@ -242,6 +243,10 @@ export function BuildReportPanel({
 
       {(!generationMode || generationMode === 'edhrec') && (
         <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>
+      )}
+
+      {bracketPoolFallbackNote && (
+        <p className="build-report-line build-report-source">{bracketPoolFallbackNote}</p>
       )}
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}

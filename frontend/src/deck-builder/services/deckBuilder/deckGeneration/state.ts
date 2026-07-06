@@ -121,6 +121,9 @@ export interface GenerationState {
   combos: EDHRECCombo[];
   edhrecData: EDHRECCommanderData | null;
   dataSource: DeckDataSource;
+  /** E93 disclosure: set when a bracket-narrowed EDHREC page was too thin and
+   *  generation laddered down to a broader page. Undefined otherwise. */
+  bracketPoolFallbackNote: string | undefined;
   baseData: EDHRECCommanderData | null;
   themeOverlapCounts: Map<string, number>;
   roleTargets: Record<RoleKey, number> | null;
@@ -201,6 +204,7 @@ export function createState(context: GenerationContext): GenerationState {
     combos: [],
     edhrecData: null,
     dataSource: 'scryfall',
+    bracketPoolFallbackNote: undefined,
     baseData: null,
     themeOverlapCounts: new Map<string, number>(),
     roleTargets: null,
