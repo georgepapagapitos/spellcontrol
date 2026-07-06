@@ -413,7 +413,8 @@ export interface CoherenceFinding {
     | 'land-sanity'
     | 'win-condition'
     | 'answer-coverage'
-    | 'nonbo';
+    | 'nonbo'
+    | 'qualified-payoff';
   severity: 'warn' | 'info';
   /** Card the finding is about; absent for deck-level findings. */
   card?: string;

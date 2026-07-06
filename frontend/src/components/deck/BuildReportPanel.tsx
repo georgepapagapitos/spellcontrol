@@ -540,7 +540,9 @@ export function BuildReportPanel({
                                 ? 'Answer gap'
                                 : f.kind === 'nonbo'
                                   ? 'Nonbo'
-                                  : 'Engine note'
+                                  : f.kind === 'qualified-payoff'
+                                    ? 'Thin payoff'
+                                    : 'Engine note'
                     }
                   />
                 </span>
