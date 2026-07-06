@@ -323,8 +323,35 @@ const QUALIFIED_PAYOFF_SHARE_FLOOR = 0.25;
 // a single marginal producer (e.g. a 1-in-6 die-roll mode) sits inside an
 // otherwise non-matching engine (Night Shift of the Living Dead's black
 // Zombie mode beside a 100%-colorless Securitron engine must not grant full
-// credit on its own).
+// credit on its own — this exact case shipped broken as a boolean ANY-producer
+// check first and was corrected to this share-based ruling; the pick-time gate
+// below calls this SAME function so the two can never drift apart on it).
 const MIN_MATCHING_PRODUCERS_ALWAYS_COVERS = 2;
+
+interface TokenEngineCoverage {
+  covers: boolean;
+  /** Count of token producers whose token matches the qualifier — surfaced
+   *  separately from `covers` because the audit's message wording ("nothing"
+   *  vs "almost nothing") depends on whether it's zero or just thin. */
+  matchingCount: number;
+}
+
+/**
+ * Single source of truth for "does the deck's token production feed this
+ * qualifier" — shared between the report-only audit (qualifiedTriggerFindings)
+ * and the pick-time veto (qualifiedPayoffMismatch, E111) so they can never
+ * disagree on what counts as real token support vs. a marginal one-off mode.
+ */
+function tokenEngineCoverage(otherCards: ScryfallCard[], qualifier: string): TokenEngineCoverage {
+  const tokenProducers = otherCards.filter((c) => producesAnyToken(c));
+  const matchingProducers = tokenProducers.filter((c) => producesMatchingToken(c, qualifier));
+  const producerShare =
+    tokenProducers.length > 0 ? matchingProducers.length / tokenProducers.length : 0;
+  const covers =
+    matchingProducers.length >= MIN_MATCHING_PRODUCERS_ALWAYS_COVERS ||
+    producerShare >= QUALIFIED_PAYOFF_SHARE_FLOOR;
+  return { covers, matchingCount: matchingProducers.length };
+}
 
 /**
  * Findings for color/creature-type-qualified ETB/death triggers whose
@@ -347,20 +374,14 @@ export function qualifiedTriggerFindings(nonLandCards: ScryfallCard[]): Coherenc
     const share = others.length > 0 ? matching.length / others.length : 0;
     if (share >= QUALIFIED_PAYOFF_SHARE_FLOOR) continue;
 
-    const tokenProducers = otherCards.filter((c) => producesAnyToken(c));
-    const matchingProducers = tokenProducers.filter((c) => producesMatchingToken(c, qualifier));
-    const producerShare =
-      tokenProducers.length > 0 ? matchingProducers.length / tokenProducers.length : 0;
-    const tokenEngineCovers =
-      matchingProducers.length >= MIN_MATCHING_PRODUCERS_ALWAYS_COVERS ||
-      producerShare >= QUALIFIED_PAYOFF_SHARE_FLOOR;
+    const { covers: tokenEngineCovers, matchingCount } = tokenEngineCoverage(otherCards, qualifier);
     if (tokenEngineCovers) continue;
 
     const label = COLOR_WORDS.has(qualifier)
       ? qualifier
       : qualifier[0].toUpperCase() + qualifier.slice(1);
     const tokenPhrase =
-      matchingProducers.length === 0
+      matchingCount === 0
         ? 'nothing makes a matching token'
         : 'almost nothing makes a matching token';
     findings.push({
@@ -386,7 +407,7 @@ export function qualifiedTriggerFindings(nonLandCards: ScryfallCard[]): Coherenc
 // First of Locthwain that never shows up in the commander's own EDHREC pool
 // at all (it isn't a top-50 EDHREC creature for Mr. House, President and
 // CEO — verified against the live EDHREC dump). Reuses
-// triggerQualifier/matchesQualifier/producesMatchingToken verbatim; adds one
+// triggerQualifier/matchesQualifier/tokenEngineCoverage verbatim; adds one
 // narrow "drain shape" pattern to recognize an unqualified card already doing
 // the same job. Mirkwood Bats, Reckless Fireweaver, Nadier's Nightblade, and
 // Impact Tremors are all this shape: a creature/token/artifact
@@ -395,12 +416,14 @@ export function qualifiedTriggerFindings(nonLandCards: ScryfallCard[]): Coherenc
 const DRAIN_PAYOFF_TRIGGER =
   /\bwhenever\b[^.]*\b(?:enters?|dies|leaves the battlefield|is created|sacrifice[sd]?)\b[^.]*(?:loses? \d+ life|deals? \d+ damage to (?:each opponent|that player|target opponent))/;
 
-// Pick-time floor, stricter than the audit's report-only QUALIFIED_PAYOFF_SHARE_FLOOR
-// (0.25) above — this only fires the veto (rejects/deprioritizes a pick), so
-// it can afford to be more conservative about false positives. Calibrated
-// against real Mr. House data: the user's actual black-aristocrats 99 runs
-// 9/27 black creatures (share 0.33) and must clear this easily; a die-roll/
-// colorless-token-engine build's matching share sits near zero and must not.
+// Pick-time floor, LOWER than the audit's report-only QUALIFIED_PAYOFF_SHARE_FLOOR
+// (0.25) above — the pick gate only rejects clear deadness, not "thinner than
+// ideal." Calibrated against real Mr. House data: the user's actual
+// black-aristocrats 99 runs 9/27 black creatures (share 0.33) and clears this
+// with room; a fresh die-roll Mr. House generation delivered 24 creatures with
+// 4 black (share ≈ 0.167) — just above this floor, and deliberately ALLOWED
+// (marginal feed, not clearly dead); a true all-colorless build's matching
+// share sits at 0 and must not clear it.
 export const QUALIFIED_PICK_SHARE_FLOOR = 0.15;
 
 function isUnqualifiedDrainEquivalent(card: ScryfallCard, exclude: ScryfallCard): boolean {
@@ -412,10 +435,11 @@ function isUnqualifiedDrainEquivalent(card: ScryfallCard, exclude: ScryfallCard)
 
 /**
  * True when `candidate` is a qualified ETB/death payoff the deck can't feed
- * (thin matching-creature share AND no matching token producer) AND an
- * unqualified same-shape equivalent is already available in the deck or the
- * pool being drawn from — so a marginal-fill/repair path seating `candidate`
- * instead would be strictly worse than seating the equivalent.
+ * (thin matching-creature share AND no real token-engine coverage, per the
+ * shared `tokenEngineCoverage` ruling) AND an unqualified same-shape
+ * equivalent is already available in the deck or the pool being drawn from —
+ * so a marginal-fill/repair path seating `candidate` instead would be
+ * strictly worse than seating the equivalent.
  *
  * Callers own the escape hatch: this only says "there's a better option
  * available," never "ship the deck short instead" — when nothing else clears
@@ -437,7 +461,12 @@ export function qualifiedPayoffMismatch(
   const share = deckCreatures.length > 0 ? matching.length / deckCreatures.length : 0;
   if (share >= QUALIFIED_PICK_SHARE_FLOOR) return false;
 
-  if (deckCards.some((c) => producesMatchingToken(c, qualifier))) return false;
+  // Same share-based ruling as the audit (tokenEngineCoverage) — NOT a
+  // boolean any-producer check. E106 shipped that boolean first and it
+  // failed on Night Shift of the Living Dead (a black Zombie token only on a
+  // die roll of 6) suppressing the flag inside a 100%-colorless Securitron
+  // engine; this call is what keeps the pick gate from repeating that bug.
+  if (tokenEngineCoverage(deckCards, qualifier).covers) return false;
 
   return (
     deckCards.some((c) => isUnqualifiedDrainEquivalent(c, candidate)) ||

@@ -475,6 +475,46 @@ describe('qualifiedPayoffMismatch — pick-time gate (E111)', () => {
     expect(qualifiedPayoffMismatch(ayara, colorlessDeck, [recklessFireweaver])).toBe(true);
   });
 
+  // Real oracle text — a real die-roll deck staple with ONE marginal (1-in-6)
+  // matching mode beside an otherwise-colorless token engine. E106's audit
+  // shipped a boolean any-producer check first and it failed exactly this
+  // case (Night Shift alone suppressed the flag); this pick gate must call
+  // the SAME share-based tokenEngineCoverage ruling, not repeat that bug.
+  const nightShift = card({
+    name: 'Night Shift of the Living Dead',
+    type_line: 'Enchantment',
+    colors: ['B'],
+    oracle_text:
+      'After you roll a die, you may pay 1 life. If you do, increase or decrease the result by 1. Do this only once each turn.\nWhenever you roll a 6, create a 2/2 black Zombie Employee creature token.',
+  });
+  const colorlessTokenProducer = (i: number) =>
+    card({
+      name: `Colorless Producer ${i}`,
+      type_line: 'Artifact',
+      oracle_text: 'Create a 1/1 colorless Servo artifact creature token.',
+    });
+
+  it('still vetoes Ayara when only ONE marginal (1-in-6) producer matches inside a mostly-colorless token engine (real Mr. House/Night Shift case)', () => {
+    const deck = [
+      ...colorlessDeck,
+      recklessFireweaver, // the unqualified equivalent already in the deck
+      nightShift,
+      ...Array.from({ length: 5 }, (_, i) => colorlessTokenProducer(i)),
+    ];
+    expect(qualifiedPayoffMismatch(ayara, deck, [])).toBe(true);
+  });
+
+  it('does not veto once two real matching token producers are present', () => {
+    const deck = [
+      ...colorlessDeck,
+      recklessFireweaver,
+      nightShift,
+      blackTokenMaker,
+      ...Array.from({ length: 5 }, (_, i) => colorlessTokenProducer(i)),
+    ];
+    expect(qualifiedPayoffMismatch(ayara, deck, [])).toBe(false);
+  });
+
   it('does not veto once real black-creature share clears the pick-time floor', () => {
     // 3/10 creatures = 0.3, well above the 0.15 pick-time floor — even with
     // an unqualified equivalent sitting right there, the payoff is fed.

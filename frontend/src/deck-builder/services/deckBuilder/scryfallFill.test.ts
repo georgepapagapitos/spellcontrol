@@ -439,6 +439,53 @@ describe('fillWithScryfall qualified-payoff gate (E111)', () => {
     expect(out.map((c) => c.name)).toEqual(['Plain Beater']);
   });
 
+  // End-to-end through the real fillWithScryfall path (only the network fetch
+  // — searchCards — is mocked): a marginal 1-in-6 token producer beside a
+  // mostly-colorless engine must still veto, and a second real matching
+  // producer must clear it. This is the exact regression E106's first ship
+  // had (a boolean any-producer check let Night Shift alone suppress the
+  // flag) — the pick gate must not repeat it. Real oracle text throughout.
+  it('vetoes despite one marginal (1-in-6) producer, does not veto with two real matching producers', async () => {
+    const nightShift = sc({
+      name: 'Night Shift of the Living Dead',
+      type_line: 'Enchantment',
+      colors: ['B'],
+      oracle_text:
+        'After you roll a die, you may pay 1 life. If you do, increase or decrease the result by 1. Do this only once each turn.\nWhenever you roll a 6, create a 2/2 black Zombie Employee creature token.',
+    });
+    const blackTokenMaker = sc({
+      name: 'Bad Moon Rising',
+      type_line: 'Sorcery',
+      oracle_text: 'Create two 2/2 black Zombie creature tokens.',
+    });
+    const colorlessTokenProducer = (i: number) =>
+      sc({
+        name: `Colorless Producer ${i}`,
+        type_line: 'Artifact',
+        oracle_text: 'Create a 1/1 colorless Servo artifact creature token.',
+      });
+    const dilutingProducers = Array.from({ length: 5 }, (_, i) => colorlessTokenProducer(i));
+
+    searchCards.mockResolvedValue({ data: [ayara, sc({ name: 'Plain Beater' })] });
+
+    const vetoed = await fillWithDeck(1, [
+      securitron,
+      recklessFireweaver,
+      nightShift,
+      ...dilutingProducers,
+    ]);
+    expect(vetoed.map((c) => c.name)).toEqual(['Plain Beater']);
+
+    const fed = await fillWithDeck(1, [
+      securitron,
+      recklessFireweaver,
+      nightShift,
+      blackTokenMaker,
+      ...dilutingProducers,
+    ]);
+    expect(fed.map((c) => c.name)).toEqual(['Ayara, First of Locthwain']);
+  });
+
   it('escape hatch: seats the mismatched candidate rather than shipping the fill short, and discloses it', async () => {
     searchCards.mockResolvedValue({ data: [ayara] }); // no alternative at all
     const overflowCount = { value: 0 };
