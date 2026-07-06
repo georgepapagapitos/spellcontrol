@@ -12,6 +12,7 @@ import { frontFaceName } from '@/lib/card-text';
 import {
   getCardRole,
   isProtectionPiece,
+  isFreeInteraction,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { roleCapTolerance, stampRoleSubtypes, routeCardByType } from '../categorize';
@@ -350,6 +351,13 @@ export async function applyBudgetConvergence(
       return 'a game changer';
     if (state.comboCardNames.has(card.name)) return 'a combo-flavored pick';
     if (isProtectionPiece(card)) return 'a protection/free-interaction piece';
+    // iter-10 Slice A: isProtectionPiece's label above already says
+    // "protection/free-interaction piece", but its regex misses the
+    // Commandeer-class cards this new classifier exists for (e.g. Fierce
+    // Guardianship's "Counter target noncreature spell" still trips the
+    // widened isProtectionPiece branch, but Commandeer itself never did) —
+    // this branch is for exactly the ones that classifier's regex misses.
+    if (isFreeInteraction(card)) return 'a free-interaction piece';
     return null;
   };
 

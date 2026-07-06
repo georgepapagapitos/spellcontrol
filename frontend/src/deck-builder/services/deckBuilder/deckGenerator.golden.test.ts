@@ -179,6 +179,9 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // cards all have oracle_text: '', which already reads false, but stubbing
   // it explicitly keeps goldens inert by construction rather than by luck).
   isProtectionPiece: vi.fn(() => false),
+  // iter-10 Slice A: isFreeInteraction is the same shape — same explicit
+  // inert-by-construction stub.
+  isFreeInteraction: vi.fn(() => false),
   // E89 (iter-7 Slice E): isUntapProducer is the same shape — a pure
   // oracle-text regex, not tag-routed — so it needs the same explicit
   // inert-by-construction stub (this fixture universe's oracle_text: ''
@@ -213,7 +216,7 @@ import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/c
 import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount } from './targetCounts';
-import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
 
@@ -600,6 +603,69 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     } finally {
       mockedFetch.mockImplementation(realFetch);
       vi.mocked(isProtectionPiece).mockReturnValue(false);
+      clearGenerationCache();
+    }
+  });
+
+  it('never evicts anything via auditWeakest when every candidate reads as a free-interaction piece (iter-10 Slice A)', async () => {
+    // Mirrors the isProtectionPiece proof above, but for the new classifier —
+    // auditWeakest's skip condition is `isProtectionPiece(card) ||
+    // isFreeInteraction(card)`, so forcing isFreeInteraction true must have
+    // the same "no evictable candidate found" effect.
+    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+      {
+        comboId: 'test-combo-g',
+        cards: [
+          { name: 'Creature_1', id: 'c1' },
+          { name: 'On-Color Enabler 3', id: 'oce3' },
+        ],
+        results: ['Test combo G result'],
+        deckCount: 500,
+        rank: 1,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+      {
+        comboId: 'test-combo-h',
+        cards: [
+          { name: 'Creature_2', id: 'c2' },
+          { name: 'On-Color Enabler 3', id: 'oce3' },
+        ],
+        results: ['Test combo H result'],
+        deckCount: 400,
+        rank: 2,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    const ON_COLOR3: ScryfallCard = mkSC('On-Color Enabler 3', 'Enchantment', 5); // color_identity ['G']
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      if (names.includes('On-Color Enabler 3')) m.set('On-Color Enabler 3', ON_COLOR3);
+      return m;
+    });
+    vi.mocked(isFreeInteraction).mockReturnValue(true);
+    try {
+      const ctx = baseContext();
+      ctx.customization = customization({ comboCount: 3, tinyLeaders: true });
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).not.toContain('On-Color Enabler 3');
+      const repair = (deck.coherenceRepairs ?? []).find((r) => r.added === 'On-Color Enabler 3');
+      expect(repair).toBeUndefined();
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
+      vi.mocked(isFreeInteraction).mockReturnValue(false);
       clearGenerationCache();
     }
   });

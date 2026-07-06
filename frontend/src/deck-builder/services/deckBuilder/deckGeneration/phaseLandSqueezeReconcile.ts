@@ -3,6 +3,7 @@ import type { GenerationState } from './state';
 import {
   getCardRole,
   isProtectionPiece,
+  isFreeInteraction,
   validateCardRole,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -10,10 +11,12 @@ import { calculateCardPriority } from '../cardPicking';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { routeCardByType } from '../categorize';
 import type { BracketGuard } from '../bracketGuard';
+import { LIFT_PICK_BOOST_MAX, LIFT_PICK_BOOST_SCALE } from '../packageBoost';
 import {
   MUST_INCLUDE_BOOST,
   STAPLE_PROTECTION_BOOST,
   PROTECTION_PIECE_BOOST,
+  FREE_INTERACTION_BOOST,
   COMBO_TRIM_BOOST,
   ROLE_DEFICIT_TRIM_BOOST,
   ROLE_SURPLUS_TRIM_PENALTY,
@@ -163,11 +166,28 @@ export function applyLandSqueezeReconcile(
     const role = validateCardRole(card);
     const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
     let score = ec ? calculateCardPriority(ec) : (roleFallback ?? deckAveragePriority);
-    score += ctx.liftScoreOf(card.name);
+    // iter-10 Slice A: was `score += ctx.liftScoreOf(card.name)` — raw,
+    // unscaled clusterScore (median ~2150, p75 ~8350, observed outliers
+    // >20000, packageBoost.ts:137-143). Every OTHER lift-aware consumer
+    // scales this term (packageBoost.ts's computeLiftPickBoosts,
+    // phaseRoleSurplusRebalance.ts's survivalScoreOf); this was the one
+    // outlier adding the raw signal directly, which let an unrelated theme's
+    // clusterScore swamp the protection/free-interaction/combo tiers below —
+    // the measured failure: a yuriko-b4 generation ranked on-theme ninja
+    // wildcards at 6207-7973 (almost entirely clusterScore) over Commandeer
+    // at 2414 (calculateCardPriority + a much smaller lift connection), so
+    // Commandeer never had a chance under the additive tiers alone. Reusing
+    // the already-validated scaler restores this site to the same
+    // relationship every other consumer already has.
+    score += Math.min(
+      LIFT_PICK_BOOST_MAX,
+      Math.max(0, ctx.liftScoreOf(card.name)) * LIFT_PICK_BOOST_SCALE
+    );
 
     if (card.isMustInclude) score += MUST_INCLUDE_BOOST;
     if (card.isStapleRock || STAPLE_ROCK_NAMES.has(card.name)) score += STAPLE_PROTECTION_BOOST;
     if (isProtectionPiece(card)) score += PROTECTION_PIECE_BOOST;
+    if (isFreeInteraction(card)) score += FREE_INTERACTION_BOOST;
     if (state.comboCardNames.has(card.name)) score += COMBO_TRIM_BOOST;
     if (ctx.roleTargets && role) {
       const target = ctx.roleTargets[role] ?? 0;

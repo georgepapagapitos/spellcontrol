@@ -46,6 +46,7 @@ import {
   validateCardRole,
   getCardSubtype,
   isProtectionPiece,
+  isFreeInteraction,
   isUntapProducer,
   isBlinkProducer,
   isExileProducer,
@@ -158,6 +159,7 @@ import {
   ROLE_SURPLUS_TRIM_PENALTY,
   STAPLE_PROTECTION_BOOST,
   PROTECTION_PIECE_BOOST,
+  FREE_INTERACTION_BOOST,
 } from './deckGeneration/trimResistanceConstants';
 import { frontFaceName } from '@/lib/card-text';
 
@@ -173,6 +175,7 @@ export {
   ROLE_SURPLUS_TRIM_PENALTY,
   STAPLE_PROTECTION_BOOST,
   PROTECTION_PIECE_BOOST,
+  FREE_INTERACTION_BOOST,
 };
 export type { GenerationContext };
 
@@ -760,6 +763,9 @@ export function computeTrimResistance(
   }
   if (isProtectionPiece(card)) {
     resistance += PROTECTION_PIECE_BOOST;
+  }
+  if (isFreeInteraction(card)) {
+    resistance += FREE_INTERACTION_BOOST;
   }
   if (category === 'lands' && !card.isMustInclude) {
     resistance += LAND_PROTECTION_BOOST;
@@ -4015,7 +4021,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         for (const card of categories[cat]) {
           if (auditMustInclude.has(card.name.toLowerCase())) continue;
           if (completeComboCards.has(card.name)) continue;
-          if (isProtectionPiece(card)) continue;
+          if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
           if (skipNames?.has(card.name)) continue;
           const incl = auditInclusion.get(card.name) ?? 0;
           if (!best || incl < best.incl) best = { card, category: cat, incl };

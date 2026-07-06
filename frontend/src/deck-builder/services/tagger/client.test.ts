@@ -5,6 +5,7 @@ import {
   cubeRole,
   validateCardRole,
   isProtectionPiece,
+  isFreeInteraction,
   isUntapProducer,
   isBlinkProducer,
   isExileProducer,
@@ -604,22 +605,43 @@ describe('isProtectionPiece', () => {
     ).toBe(true);
   });
 
-  it('free alt-cost counterspell (Fierce Guardianship, sentence-crossing template)', () => {
+  it('commander-gated free cast + counter, noncreature branch (Fierce Guardianship — live oracle text, iter-10 Slice A fix)', () => {
+    // Live-verified real text (was previously a fabricated fixture attributed
+    // to this card — see iter-10 Slice A's fixture-correction pass). Only
+    // passes because of the widened `counter target(?: noncreature)? spell`
+    // branch above — pre-fix this card was a live, unnoticed miss.
     expect(
       isProtectionPiece({
         name: 'Fierce Guardianship',
+        oracle_text:
+          'If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.',
+      })
+    ).toBe(true);
+  });
+
+  it('synthetic sentence-crossing alt-cost counterspell (not a real card — exercises the [\\s\\S] cross-newline path with an extra qualifying clause)', () => {
+    // The fixture previously (mis)attributed to Fierce Guardianship above —
+    // kept as a synthetic case since it exercises a template shape (a
+    // targeting-restriction clause between the alt-cost sentence and the
+    // counter clause, with a "pay {N}" soft-counter tail) distinct from the
+    // real card's own text.
+    expect(
+      isProtectionPiece({
+        name: 'Synthetic Sentence-Crossing Counterspell',
         oracle_text:
           "You may cast this spell without paying its mana cost if it targets a permanent or player you control and it isn't your turn.\nCounter target spell unless its controller pays {5}.",
       })
     ).toBe(true);
   });
 
-  it('unconditional redirect (Deflecting Swat — "rather than pay", not "without paying")', () => {
+  it('unconditional redirect (Deflecting Swat — "rather than pay", not "without paying" — live oracle text, iter-10 Slice A fix)', () => {
+    // Live-verified real text (was previously a fabricated fixture attributed
+    // to this card).
     expect(
       isProtectionPiece({
         name: 'Deflecting Swat',
         oracle_text:
-          "If it's not your turn, you may exile a card from your hand rather than pay this spell's mana cost.\nChoose new targets for target spell or ability.",
+          'If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.',
       })
     ).toBe(true);
   });
@@ -1192,5 +1214,241 @@ describe('isExileProducer', () => {
 
   it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
     expect(isExileProducer({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// isFreeInteraction (iter-10 Slice A): reflexive alt-cost interaction spells —
+// see the build spec (board E82) for the full candidate table and boundary
+// rationale. All oracle text below is live-verified against Scryfall.
+//
+// NOTE on the overlap with isProtectionPiece, verified directly against the
+// real regexes (not re-derived from the build spec's narrative, which
+// undercounted this): only Fierce Guardianship trips the widened
+// isProtectionPiece counter-clause branch (its text literally says "without
+// paying its mana cost"), so only IT flips to isFreeInteraction=false here.
+// Force of Negation's live text says "rather than pay this spell's mana
+// cost" (not "without paying ... mana cost"), which the isProtectionPiece
+// counter-clause branch never matched by construction — it was never
+// protection-boosted and correctly reads isFreeInteraction=true below.
+describe('isFreeInteraction', () => {
+  it.each([
+    ['Commandeer', 'gain control of target', 'reflexive alt-cost, gain-control payoff'],
+    ['Force of Will', 'counter target', 'reflexive alt-cost, counter payoff'],
+    [
+      'Force of Negation',
+      'counter target',
+      'reflexive alt-cost, counter payoff — NOT protection-boosted (see note above)',
+    ],
+    ['Misdirection', 'change the target', 'reflexive alt-cost, redirect payoff'],
+    ['Foil', 'counter target', 'reflexive alt-cost (discard), counter payoff'],
+    ['Daze', 'counter target', 'reflexive alt-cost (bounce a land), counter payoff'],
+    ['Snuff Out', 'destroy target', 'reflexive alt-cost (life payment), destroy payoff'],
+  ])('Bucket A — %s (%s)', (name) => {
+    const ORACLE: Record<string, string> = {
+      Commandeer:
+        "You may exile two blue cards from your hand rather than pay this spell's mana cost. Gain control of target noncreature spell. You may choose new targets for it.",
+      'Force of Will':
+        "You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost. Counter target spell.",
+      'Force of Negation':
+        "If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost. Counter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+      Misdirection:
+        "You may exile a blue card from your hand rather than pay this spell's mana cost. Change the target of target spell with a single target.",
+      Foil: "You may discard an Island card and another card rather than pay this spell's mana cost. Counter target spell.",
+      Daze: "You may return an Island you control to its owner's hand rather than pay this spell's mana cost. Counter target spell unless its controller pays {1}.",
+      'Snuff Out':
+        "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost. Destroy target nonblack creature. It can't be regenerated.",
+    };
+    expect(isFreeInteraction({ name, oracle_text: ORACLE[name] })).toBe(true);
+  });
+
+  it('Bucket B — Deadly Rollick: commander-gated free cast, exile payoff, NOT protection-boosted', () => {
+    expect(
+      isFreeInteraction({
+        name: 'Deadly Rollick',
+        oracle_text:
+          'If you control a commander, you may cast this spell without paying its mana cost. Exile target creature.',
+      })
+    ).toBe(true);
+  });
+
+  it('Bucket B — Deflecting Swat: commander-gated free cast, but already isProtectionPiece → false (overlap exclusion)', () => {
+    const card = {
+      name: 'Deflecting Swat',
+      oracle_text:
+        'If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.',
+    };
+    expect(isProtectionPiece(card)).toBe(true);
+    expect(isFreeInteraction(card)).toBe(false);
+  });
+
+  it('Bucket B — Fierce Guardianship: commander-gated free cast + counter, but the noncreature-branch fix makes it isProtectionPiece → false (overlap exclusion)', () => {
+    const card = {
+      name: 'Fierce Guardianship',
+      oracle_text:
+        'If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.',
+    };
+    expect(isProtectionPiece(card)).toBe(true);
+    expect(isFreeInteraction(card)).toBe(false);
+  });
+
+  it('Bucket B — Flawless Maneuver: commander-gated free cast, but already isProtectionPiece → false (overlap exclusion)', () => {
+    const card = {
+      name: 'Flawless Maneuver',
+      oracle_text:
+        'If you control a commander, you may cast this spell without paying its mana cost. Creatures you control gain indestructible until end of turn.',
+    };
+    expect(isProtectionPiece(card)).toBe(true);
+    expect(isFreeInteraction(card)).toBe(false);
+  });
+
+  it.each([
+    [
+      'Fury',
+      'Double strike. When this creature enters, it deals 4 damage divided as you choose among any number of target creatures and/or planeswalkers. Evoke—Exile a red card from your hand.',
+    ],
+    [
+      'Solitude',
+      "Flash. Lifelink. When this creature enters, exile up to one other target creature. That creature's controller gains life equal to its power. Evoke—Exile a white card from your hand.",
+    ],
+    [
+      'Subtlety',
+      'Flash. Flying. When this creature enters, choose up to one target creature spell or planeswalker spell. Its owner puts it on their choice of the top or bottom of their library. Evoke—Exile a blue card from your hand.',
+    ],
+    [
+      'Endurance',
+      'Flash. Reach. When this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order. Evoke—Exile a green card from your hand.',
+    ],
+    [
+      'Grief',
+      'Menace. When this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card. Evoke—Exile a black card from your hand.',
+    ],
+  ])('Bucket D — Evoke cycle: %s', (name, oracle_text) => {
+    expect(isFreeInteraction({ name, oracle_text })).toBe(true);
+  });
+
+  it.each([
+    [
+      'Pact of Negation',
+      "Counter target spell. At the beginning of your next upkeep, pay {3}{U}{U}. If you don't, you lose the game.",
+    ],
+    [
+      'Slaughter Pact',
+      "Destroy target nonblack creature. At the beginning of your next upkeep, pay {2}{B}. If you don't, you lose the game.",
+    ],
+  ])('Bucket E — Pact deferred-payment cycle: %s', (name, oracle_text) => {
+    expect(isFreeInteraction({ name, oracle_text })).toBe(true);
+  });
+
+  it('negative controls: enablers-for-other-spells, cost reductions, and non-interaction all read false', () => {
+    const NEGATIVE_CONTROLS: Array<{ name: string; oracle_text: string }> = [
+      {
+        name: 'Dream Halls',
+        oracle_text:
+          'Rather than pay the mana cost for a spell, its controller may discard a card that shares a color with that spell.',
+      },
+      {
+        name: 'As Foretold',
+        oracle_text:
+          'At the beginning of your upkeep, put a time counter on this enchantment. Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast with mana value X or less, where X is the number of time counters on this enchantment.',
+      },
+      {
+        name: 'Fist of Suns',
+        oracle_text:
+          'You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.',
+      },
+      {
+        name: 'Omniscience',
+        oracle_text: 'You may cast spells from your hand without paying their mana costs.',
+      },
+      {
+        name: 'Aluren',
+        oracle_text:
+          'Any player may cast creature spells with mana value 3 or less without paying their mana costs and as though they had flash.',
+      },
+      {
+        name: 'Bolt Bend',
+        oracle_text:
+          'This spell costs {3} less to cast if you control a creature with power 4 or greater.\nChange the target of target spell or ability with a single target.',
+      },
+      {
+        name: 'Cavern Harpy',
+        oracle_text:
+          "Flying\nWhen this creature enters, return a blue or black creature you control to its owner's hand.\nPay 1 life: Return this creature to its owner's hand.",
+      },
+      {
+        name: 'Chrome Mox',
+        oracle_text:
+          "Imprint — When this artifact enters, you may exile a nonartifact, nonland card from your hand.\n{T}: Add one mana of any of the exiled card's colors.",
+      },
+      {
+        name: 'Mox Diamond',
+        oracle_text:
+          "If this artifact would enter, you may discard a land card instead. If you do, this artifact enters. If you don't, put this artifact into its owner's graveyard.\n{T}: Add one mana of any color.",
+      },
+      {
+        name: 'Lotus Petal',
+        oracle_text: '{T}, Sacrifice Lotus Petal: Add one mana of any color.',
+      },
+      {
+        name: 'Allosaurus Shepherd',
+        oracle_text:
+          "This spell can't be countered.\nGreen spells you control can't be countered.\n{X}{G}, Discard a card: Allosaurus Shepherd gets +X/+X until end of turn.",
+      },
+      {
+        name: 'Gitaxian Probe',
+        oracle_text:
+          "({U/P} can be paid with either {U} or 2 life.)\nLook at target player's hand. Draw a card.",
+      },
+      { name: 'Mental Misstep', oracle_text: 'Counter target spell with mana value 1.' },
+      {
+        name: "Teferi's Protection",
+        oracle_text:
+          "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out. (They phase in before you untap during your next untap step.)",
+      },
+    ];
+    for (const card of NEGATIVE_CONTROLS) {
+      expect(isFreeInteraction(card)).toBe(false);
+    }
+  });
+
+  it('overlap invariant: no card is ever true for both isProtectionPiece and isFreeInteraction', () => {
+    const ALL_LIVE_CANDIDATES: Array<{ name: string; oracle_text: string }> = [
+      {
+        name: 'Commandeer',
+        oracle_text:
+          "You may exile two blue cards from your hand rather than pay this spell's mana cost. Gain control of target noncreature spell. You may choose new targets for it.",
+      },
+      {
+        name: 'Deflecting Swat',
+        oracle_text:
+          'If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.',
+      },
+      {
+        name: 'Fierce Guardianship',
+        oracle_text:
+          'If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.',
+      },
+      {
+        name: 'Flawless Maneuver',
+        oracle_text:
+          'If you control a commander, you may cast this spell without paying its mana cost. Creatures you control gain indestructible until end of turn.',
+      },
+      {
+        name: "Teferi's Protection",
+        oracle_text:
+          "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out.",
+      },
+      {
+        name: 'Allosaurus Shepherd',
+        oracle_text: "This spell can't be countered.\nGreen spells you control can't be countered.",
+      },
+    ];
+    for (const card of ALL_LIVE_CANDIDATES) {
+      expect(isProtectionPiece(card) && isFreeInteraction(card)).toBe(false);
+    }
+  });
+
+  it('returns false for a text-less card (no tag to trust — same fallback direction as isProtectionPiece)', () => {
+    expect(isFreeInteraction({ name: 'No-Text Card' })).toBe(false);
   });
 });

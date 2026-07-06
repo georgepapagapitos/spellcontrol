@@ -16,13 +16,14 @@ import { availableFinishes, finishUnitPrice } from './scanner-feedback';
 export type AddScanResult = 'accepted' | 'duplicate';
 
 /**
- * Row identity. A foil and a nonfoil copy of the same card are distinct
- * collection items (different value), so the queue keys on `oracle_id +
- * finish` — they occupy separate rows. Different *printings* of the same
- * card+finish still collapse (finish, not set, is what splits a row).
+ * Row identity. Keys on `printing id + finish`: a foil and a nonfoil copy
+ * are distinct collection items (different value), and so are two different
+ * printings of the same card — each row carries its own set/collector number
+ * into the import, so collapsing printings would silently discard real data.
+ * Only genuinely identical scans (same printing, same finish) share a row.
  */
-export function entryKey(oracleId: string, finish: Finish): string {
-  return `${oracleId}::${finish}`;
+export function entryKey(printingId: string, finish: Finish): string {
+  return `${printingId}::${finish}`;
 }
 
 /**
@@ -33,7 +34,7 @@ export function entryKey(oracleId: string, finish: Finish): string {
  */
 function upsertCard(queue: ScannedEntry[], card: ScryfallCard): ScannedEntry[] {
   const finish: Finish = 'nonfoil';
-  const id = entryKey(card.oracle_id, finish);
+  const id = entryKey(card.id, finish);
   const existing = queue.find((e) => e.id === id);
   if (existing) {
     return queue.map((e) => (e.id === id ? { ...e, qty: e.qty + 1 } : e));
@@ -43,11 +44,12 @@ function upsertCard(queue: ScannedEntry[], card: ScryfallCard): ScannedEntry[] {
 
 /**
  * Apply a card and/or finish change to one row. Because identity depends on
- * `oracle_id + finish`, this re-keys the row; if a row of the new identity
+ * `printing id + finish`, this re-keys the row; if a row of the new identity
  * already exists (e.g. toggling a nonfoil row to foil when a foil row is
- * already present) the two are merged rather than left as duplicates. The
- * requested finish is clamped to one the printing actually offers, so we
- * never emit an impossible foil row on import.
+ * already present, or swapping a row's printing to one already queued) the
+ * two are merged rather than left as duplicates. The requested finish is
+ * clamped to one the printing actually offers, so we never emit an
+ * impossible foil row on import.
  */
 function applyEntryPatch(
   queue: ScannedEntry[],
@@ -61,7 +63,7 @@ function applyEntryPatch(
   const requested = patch.finish ?? cur.finish;
   const allowed = availableFinishes(card.finishes);
   const finish = allowed.includes(requested) ? requested : allowed[0];
-  const newId = entryKey(card.oracle_id, finish);
+  const newId = entryKey(card.id, finish);
   const mergeIdx = queue.findIndex((e, i) => i !== idx && e.id === newId);
   if (mergeIdx >= 0) {
     return queue
@@ -131,9 +133,9 @@ export interface UseScanQueueResult {
    * Try to add a scan to the queue. Dedupes against the most recently
    * accepted scan (by Scryfall printing id) — two consecutive scans of
    * the same physical card almost always mean the user is still framing
-   * the same one. New scans land as a nonfoil row keyed by `oracle_id +
-   * finish` (see {@link entryKey}); different printings of the same
-   * card+finish collapse into one row.
+   * the same one. New scans land as a nonfoil row keyed by `printing id +
+   * finish` (see {@link entryKey}); only scans of the same printing
+   * roll up into one row.
    *
    * Pass `force` for a deliberate, user-initiated capture (tap-to-rescan):
    * it bypasses the back-to-back dedupe so the same card increments, while
@@ -161,8 +163,8 @@ export interface UseScanQueueResult {
   changePrinting: (id: string, newCard: ScryfallCard) => void;
   /**
    * Set the owned finish (nonfoil / foil / etched) for an entry. Re-keys the
-   * row by `oracle_id + finish`, merging into an existing same-finish row if
-   * one is present.
+   * row by `printing id + finish`, merging into an existing same-finish row
+   * if one is present.
    */
   changeFinish: (id: string, finish: Finish) => void;
 }
@@ -175,11 +177,12 @@ export interface UseScanQueueResult {
  * row, the second hit is silently skipped — without this, a still card
  * in front of the camera would re-add itself every capture cycle.
  *
- * Queue entries are keyed by `oracle_id + finish` (see {@link entryKey}):
+ * Queue entries are keyed by `printing id + finish` (see {@link entryKey}):
  * scanning a Sol Ring from Commander 2014 then a Sol Ring from a Secret Lair
- * drop produces a single nonfoil row with qty 2 (printing doesn't split a
- * row), but a foil and a nonfoil Sol Ring are two rows. The user can swap the
- * printing or toggle the finish on a row via the queue sheet / panel.
+ * drop produces two rows — each printing's set/collector number survives into
+ * the import — and a foil and a nonfoil Sol Ring are likewise two rows. The
+ * user can swap the printing or toggle the finish on a row via the queue
+ * sheet / panel.
  */
 export function useScanQueue(): UseScanQueueResult {
   const queue = useScanQueueStore((s) => s.queue);

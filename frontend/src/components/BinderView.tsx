@@ -417,7 +417,13 @@ function SectionList({
           currentFinish={editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil')}
           quantity={qtyByCopyId ? editingQty : undefined}
           singleCopy={!qtyByCopyId}
-          details={{ condition: editingCard.condition, language: editingCard.language }}
+          details={{
+            condition: editingCard.condition,
+            language: editingCard.language,
+            altered: editingCard.altered,
+            proxy: editingCard.proxy,
+            misprint: editingCard.misprint,
+          }}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />

@@ -32,11 +32,25 @@ const AVAILABILITY_BADGE: Record<
   'in-cube': { label: 'In a cube', className: 'is-in-cube' },
 };
 
-/** Per-copy inventory details (condition/language). A missing key means "not set". */
+/** Per-copy inventory details (condition/language/flags). A missing key means "not set". */
 export interface CardDetails {
   condition?: Condition;
   language?: string;
+  /** Physical card has custom/altered art. */
+  altered?: boolean;
+  /** Copy is a proxy rather than a real printing. */
+  proxy?: boolean;
+  /** Physical card is a misprint. */
+  misprint?: boolean;
 }
+
+type CardFlag = 'altered' | 'proxy' | 'misprint';
+
+const FLAG_OPTIONS: { key: CardFlag; label: string }[] = [
+  { key: 'altered', label: 'Altered' },
+  { key: 'proxy', label: 'Proxy' },
+  { key: 'misprint', label: 'Misprint' },
+];
 
 export interface PrintingSelection {
   card: ScryfallCard;
@@ -135,6 +149,11 @@ export function CardEditDialog({
   // '' = "not set" (mirrors CONDITION_OPTIONS / LANGUAGE_OPTIONS sentinels).
   const [condition, setCondition] = useState<string>(details?.condition ?? '');
   const [language, setLanguage] = useState<string>(details?.language ?? '');
+  const [flags, setFlags] = useState<Record<CardFlag, boolean>>({
+    altered: details?.altered ?? false,
+    proxy: details?.proxy ?? false,
+    misprint: details?.misprint ?? false,
+  });
   const [search, setSearch] = useState('');
   const [ownedOnly, setOwnedOnly] = useState(false);
 
@@ -245,7 +264,9 @@ export function CardEditDialog({
     selectedFinish !== currentFinish ||
     (quantity !== undefined && qty !== quantity) ||
     (details !== undefined &&
-      (condition !== (details.condition ?? '') || language !== (details.language ?? '')));
+      (condition !== (details.condition ?? '') ||
+        language !== (details.language ?? '') ||
+        FLAG_OPTIONS.some(({ key }) => flags[key] !== (details[key] ?? false))));
 
   const handleConfirm = () => {
     if (!selectedCard) return;
@@ -258,6 +279,9 @@ export function CardEditDialog({
             details: {
               ...(condition ? { condition: condition as Condition } : {}),
               ...(language ? { language } : {}),
+              ...(flags.altered ? { altered: true } : {}),
+              ...(flags.proxy ? { proxy: true } : {}),
+              ...(flags.misprint ? { misprint: true } : {}),
             },
           }
         : {}),
@@ -346,6 +370,19 @@ export function CardEditDialog({
                     onChange={setLanguage}
                     className="card-edit-details-select"
                   />
+                  <div className="card-edit-finishes" role="group" aria-label="Card flags">
+                    {FLAG_OPTIONS.map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`card-edit-finish-btn${flags[key] ? ' is-active' : ''}`}
+                        onClick={() => setFlags((f) => ({ ...f, [key]: !f[key] }))}
+                        aria-pressed={flags[key]}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

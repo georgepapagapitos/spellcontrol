@@ -304,7 +304,13 @@ const DETECTORS: Detector[] = [
   {
     keyword: 'attack-trigger',
     label: 'Attack trigger',
-    commander: /\b(when|whenever)\b[^.]*?\battacks?\b/,
+    // Second branch: the attack-trigger DOUBLER idiom ("If a creature [you
+    // control] attacking causes a triggered ability ... to trigger, it
+    // triggers an additional time") carries no when/whenever token, so the
+    // first branch misses it. The literal phrase "attacking causes" exists on
+    // exactly 2 legal commanders in all of Magic (Isshin, Wulfgar of Icewind
+    // Dale; Scryfall o:"attacking causes") — no false-positive surface.
+    commander: /\b(when|whenever)\b[^.]*?\battacks?\b|\battacking causes\b/,
     wants: ['Evasion so it connects safely', 'Extra combat steps', 'Go-wide attackers'],
     themes: ['combat', 'aggro', 'extra combat', 'attack triggers'],
     archetypeHint: Archetype.AGGRO,

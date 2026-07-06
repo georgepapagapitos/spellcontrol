@@ -8,6 +8,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
   isProtectionPiece: vi.fn(() => false),
+  isFreeInteraction: vi.fn(() => false),
 }));
 
 import {
@@ -15,7 +16,8 @@ import {
   type LandSqueezeReconcileContext,
 } from './phaseLandSqueezeReconcile';
 import type { GenerationState } from './state';
-import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
+import { FREE_INTERACTION_BOOST } from './trimResistanceConstants';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -135,6 +137,7 @@ function makeCtx(
 beforeEach(() => {
   ROLE_OF.clear();
   vi.mocked(isProtectionPiece).mockReturnValue(false);
+  vi.mocked(isFreeInteraction).mockReturnValue(false);
 });
 
 describe('applyLandSqueezeReconcile', () => {
@@ -357,5 +360,57 @@ describe('applyLandSqueezeReconcile', () => {
     expect(result.cut).not.toContain('Heroic Intervention');
     expect(result.cut).toEqual(['Filler_1']);
     expect(result.wildcardsKept).toEqual([]);
+  });
+
+  it('gives a free-interaction card FREE_INTERACTION_BOOST, saving it over a worse-inclusion filler (iter-10 Slice A)', () => {
+    const state = makeState();
+    const filler = scryfallCard('Genuine Filler 2');
+    const freeInteractionCard = scryfallCard('Commandeer');
+    state.categories.synergy.push(filler, freeInteractionCard);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [edhrecCard('Genuine Filler 2', 50), edhrecCard('Commandeer', 5)],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    vi.mocked(isFreeInteraction).mockImplementation((c) => c.name === 'Commandeer');
+
+    // Raw inclusion alone would cut Commandeer (5 < 50); FREE_INTERACTION_BOOST
+    // (100) must flip that — proves the boost tier works in isolation
+    // (liftScoreOf returns 0 for both via the default makeCtx).
+    const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+    expect(result.cut).toEqual(['Genuine Filler 2']);
+  });
+
+  it('regression: the unscaled-lift bug let a high-clusterScore incumbent outrank a free-interaction candidate — the scaling fix restores the correct order (iter-10 Slice A / board E82)', () => {
+    // Measured shape from the yuriko-b4 debug log: on-theme ninja wildcards
+    // scored 6207-7973 (almost entirely raw clusterScore) against
+    // Commandeer's 2414 (calculateCardPriority + a much smaller lift
+    // connection). A flat FREE_INTERACTION_BOOST alone (+100) cannot close
+    // a multi-thousand-point gap — only scaling the lift term the same way
+    // every other lift-aware consumer already does (packageBoost.ts's
+    // computeLiftPickBoosts) restores a fair fight.
+    const state = makeState();
+    const incumbent = scryfallCard('On-Theme Wildcard');
+    const candidate = scryfallCard('Commandeer');
+    state.categories.synergy.push(incumbent, candidate);
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [edhrecCard('On-Theme Wildcard', 90), edhrecCard('Commandeer', 52)],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    vi.mocked(isFreeInteraction).mockImplementation((c) => c.name === 'Commandeer');
+    const liftScoreOf = (name: string) => (name === 'On-Theme Wildcard' ? 6500 : 2400);
+
+    // squeezeDelta: 1 cuts exactly the lowest-scoring of the two.
+    const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1, liftScoreOf }));
+
+    // Pre-fix (raw, unscaled lift): incumbent = 90 + 6500 = 6590; candidate =
+    // 52 + 2400 + 100 = 2552 → candidate would have been cut. Post-fix
+    // (lift capped at LIFT_PICK_BOOST_MAX=30 via LIFT_PICK_BOOST_SCALE):
+    // incumbent = 90 + 30 = 120; candidate = 52 + 18 + FREE_INTERACTION_BOOST
+    // (100) = 170 → incumbent is now the lower score and gets cut instead.
+    expect(result.cut).toEqual(['On-Theme Wildcard']);
+    expect(FREE_INTERACTION_BOOST).toBe(100);
   });
 });

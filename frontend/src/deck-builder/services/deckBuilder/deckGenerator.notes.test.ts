@@ -23,9 +23,13 @@ const ROLES: Record<string, RoleKey> = {};
 // directly — stub it the same way (name-set membership, not real oracle
 // text; the classifier's own regex is covered in tagger/client.test.ts).
 const PROTECTED_NAMES = new Set<string>();
+// computeTrimResistance (iter-10 Slice A) also calls isFreeInteraction —
+// same stub shape.
+const FREE_INTERACTION_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   validateCardRole: (card: { name: string }) => ROLES[card.name] ?? null,
   isProtectionPiece: (card: { name: string }) => PROTECTED_NAMES.has(card.name),
+  isFreeInteraction: (card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name),
 }));
 
 import {
@@ -45,6 +49,7 @@ import {
   hasExilePayoffIdentity,
   STAPLE_PROTECTION_BOOST,
   PROTECTION_PIECE_BOOST,
+  FREE_INTERACTION_BOOST,
   ROLE_SURPLUS_TRIM_PENALTY,
 } from './deckGenerator';
 
@@ -592,6 +597,38 @@ describe('computeTrimResistance — staple-rock protection', () => {
     );
     // Base resistance only: position (21-20=1) + role-surplus penalty, no protection boost.
     expect(r).toBe(21 - 20 + ROLE_SURPLUS_TRIM_PENALTY);
+  });
+
+  it('gives a free-interaction-class card at the tail position more resistance than a same-position filler (iter-10 Slice A)', () => {
+    ROLES.Filler3 = 'ramp';
+    ROLES.Commandeer = 'ramp'; // role identity is irrelevant here — only the boost is under test
+    FREE_INTERACTION_NAMES.add('Commandeer');
+    try {
+      const filler = sc('Filler3');
+      const freeInteraction = sc('Commandeer');
+
+      const rFiller = computeTrimResistance(
+        filler,
+        20,
+        21,
+        'ramp',
+        noComboCards,
+        roleTargets,
+        surplusRoleCounts
+      );
+      const rFreeInteraction = computeTrimResistance(
+        freeInteraction,
+        20,
+        21,
+        'ramp',
+        noComboCards,
+        roleTargets,
+        surplusRoleCounts
+      );
+      expect(rFreeInteraction - rFiller).toBe(FREE_INTERACTION_BOOST);
+    } finally {
+      FREE_INTERACTION_NAMES.delete('Commandeer');
+    }
   });
 });
 
