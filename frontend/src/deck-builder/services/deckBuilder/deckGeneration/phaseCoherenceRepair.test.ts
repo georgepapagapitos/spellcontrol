@@ -260,6 +260,49 @@ describe('applyCoherenceRepair', () => {
     expect(state.bannedCards.has('Junk Card')).toBe(true);
   });
 
+  // E111: findCandidate() is a marginal repair-pick path — it must not seat a
+  // qualified ETB/death payoff (Ayara-style) the deck can't feed when an
+  // unqualified equivalent is already available, even though the payoff
+  // otherwise outranks everything else by EDHREC inclusion.
+  it('skips a qualified-mismatched top candidate for the next-best alternative (E111)', async () => {
+    const state = makeState();
+    addToDeck(state, scryfallCard('Junk Card')); // not in pool → unjustified-slot
+    addToDeck(
+      state,
+      scryfallCard('Colorless Producer', { type_line: 'Artifact Creature — Robot', colors: [] })
+    );
+    // Real oracle text (verified against Scryfall) — an unqualified drain
+    // already doing the same job as the mismatched candidate below.
+    addToDeck(
+      state,
+      scryfallCard('Reckless Fireweaver', {
+        type_line: 'Creature — Goblin Shaman',
+        colors: ['R'],
+        oracle_text:
+          'Whenever an artifact you control enters, this creature deals 1 damage to each opponent.',
+      })
+    );
+
+    const ctx = makeCtx(state);
+    // Safe Filler A (inclusion 80, ranks first) is a qualified black payoff
+    // this all-colorless deck can't feed — real Ayara oracle text.
+    ctx.scryfallCardMap.set(
+      'Safe Filler A',
+      scryfallCard('Safe Filler A', {
+        type_line: 'Legendary Creature — Elf Noble',
+        colors: ['B'],
+        oracle_text:
+          'Whenever Safe Filler A or another black creature you control enters, each opponent loses 1 life and you gain 1 life.',
+      })
+    );
+
+    const { repairs } = await applyCoherenceRepair(state, ctx);
+
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0].cut).toBe('Junk Card');
+    expect(repairs[0].added).toBe('Safe Filler B'); // A skipped — qualified mismatch
+  });
+
   it(`caps repairs at MAX_COHERENCE_SWAPS (${MAX_COHERENCE_SWAPS})`, async () => {
     const state = makeState();
     for (let i = 0; i < 5; i++) addToDeck(state, scryfallCard(`Junk ${i}`));

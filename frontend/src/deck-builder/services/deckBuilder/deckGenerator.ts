@@ -743,6 +743,20 @@ export function countFinalWipeAsymmetry(
 }
 
 /**
+ * Disclosure for the E111 qualified-payoff pick-time gate's escape hatch —
+ * mirrors the buildRoleCapOverflowNote idiom. A qualified ETB/death payoff
+ * (Ayara, First of Locthwain-style: "another black creature") the deck can't
+ * feed is normally skipped in favor of an unqualified equivalent already
+ * available; this counts the rarer case where the hatch seated it anyway
+ * because nothing else was left to fill the slot. Undefined when the hatch
+ * never actually fired.
+ */
+export function buildQualifiedPayoffGateNote(overflowCount: number): string | undefined {
+  if (overflowCount <= 0) return undefined;
+  return `Seated ${overflowCount} color/type-qualified payoff${overflowCount === 1 ? '' : 's'} the deck can't fully feed — nothing better cleared every other gate.`;
+}
+
+/**
  * Disclosure for the E101 bracket-ceiling backstop inside the Combo Integrity
  * Audit's auditAdd() (see the three pre-filtered call sites) — mirrors the
  * buildPriceSanityNote idiom. Undefined in the common case: the pre-filters
@@ -2276,6 +2290,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const bracketGuard = ceilingsAreOpen(bracketCeil)
     ? undefined
     : new BracketGuard(bracketCeil, state.gameChangerNames);
+  // E111: qualified-payoff pick-time gate escape-hatch disclosure — see
+  // qualifiedPayoffGateNote below. Undefined-safe like gameChangerCount.
+  const qualifiedGateOverflowCount = { value: 0 };
   // Hard gates threaded into every fillWithScryfall call (E71 controls audit):
   // the fallback fill enforces the same salt / game-changer-cap / bracket-
   // ceiling gates as the EDHREC-pool picker, sharing its running counts.
@@ -2285,6 +2302,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     gameChangerNames: state.gameChangerNames,
     gameChangerCount,
     maxGameChangers,
+    // Live snapshot for the E111 qualified-payoff gate — every category
+    // mutates `categories` in place, so this always reflects everything
+    // seated so far, across every fill call in this generation.
+    deckCardsSoFar: () => Object.values(categories).flat(),
+    qualifiedGateOverflowCount,
   };
   // Aggregate, generation-wide count of role-cap escape-hatch admissions —
   // every gated path (pick loop, Scryfall fallback, shortage backfill, owned
@@ -5638,6 +5660,9 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     finalOneSidedWipeCount,
     finalWipeCount
   );
+  // Qualified-payoff gate escape-hatch disclosure (E111) — undefined in the
+  // common case (the hatch only fires when nothing else could fill the slot).
+  const qualifiedPayoffGateNote = buildQualifiedPayoffGateNote(qualifiedGateOverflowCount.value);
 
   // Combo-audit bracket-block disclosure (E104) — undefined in the common
   // case (see buildComboAuditBracketBlockNote).
@@ -5729,6 +5754,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     roleCapOverflowNote,
     priceSanityNote,
     wipeAsymmetryNote,
+    qualifiedPayoffGateNote,
     comboAuditBracketBlockNote,
     landSqueezeTrimNote,
     comboUpsideNotes,

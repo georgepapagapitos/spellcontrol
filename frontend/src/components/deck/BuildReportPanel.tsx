@@ -193,6 +193,7 @@ export function BuildReportPanel({
     roleCapOverflowNote,
     priceSanityNote,
     wipeAsymmetryNote,
+    qualifiedPayoffGateNote,
     comboAuditBracketBlockNote,
     comboUpsideNotes,
     comboCompletionNotes,
@@ -330,6 +331,10 @@ export function BuildReportPanel({
 
       {wipeAsymmetryNote && (
         <p className="build-report-line build-report-source">{wipeAsymmetryNote}</p>
+      )}
+
+      {qualifiedPayoffGateNote && (
+        <p className="build-report-line build-report-source">{qualifiedPayoffGateNote}</p>
       )}
 
       {comboAuditBracketBlockNote && (
