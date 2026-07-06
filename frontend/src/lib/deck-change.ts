@@ -263,11 +263,20 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
  * Adapt a Brew-mode slot candidate into an add Change for `<DeckCardRow>` —
  * the shared candidate-hand row (thumb, mana cost, why chips, Add/Pass
  * actions) reuses the exact same row primitive the Coach feed does, per the
- * STYLE_GUIDE ruling that no surface hand-rolls a suggestion row. Brew mode's
- * ownership is binary (owned/unowned) — it doesn't resolve the
- * allocation-aware in-other-deck/in-cube split the Coach feed does.
+ * STYLE_GUIDE ruling that no surface hand-rolls a suggestion row. `ownership`
+ * is the full allocation-aware state (owned/in-other-deck/in-cube/unowned) —
+ * the caller re-derives it live via `buildAllocationMap` (see
+ * `useBrewOwnership` in `BrewSlotPanel`), same vocabulary/badges as every
+ * other `<DeckCardRow>` surface. This is pick-time decision support for a
+ * physical collection: "owned and free" vs "owned but committed elsewhere"
+ * vs "unowned" changes what the player actually does with the row.
  */
-export function fromBrewCandidate(c: BrewCandidate, id: string, manaCost?: string): Change {
+export function fromBrewCandidate(
+  c: BrewCandidate,
+  id: string,
+  ownership: ChangeOwnership,
+  manaCost?: string
+): Change {
   return {
     id,
     type: 'add',
@@ -284,9 +293,9 @@ export function fromBrewCandidate(c: BrewCandidate, id: string, manaCost?: strin
       roleLabel: c.roleLabel,
       inclusion: c.inclusion || undefined,
       synergy: c.synergy,
-      owned: c.isOwned,
+      owned: ownership === 'owned',
     }),
-    ownership: c.isOwned ? 'owned' : 'unowned',
+    ownership,
     deltaPrice: parsePrice(c.price) ?? undefined,
     role: c.role,
     roleLabel: c.roleLabel,

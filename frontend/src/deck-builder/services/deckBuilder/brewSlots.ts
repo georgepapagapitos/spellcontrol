@@ -47,6 +47,12 @@ export interface BrewCandidate {
   typeLine: string;
   cmc?: number;
   imageUrl?: string;
+  /** "Somewhere in the collection" (mirrors the generator's own owned-priority
+   *  boost — see OWNED_PRIORITY_BOOST) — ranking-only. The row's ownership
+   *  BADGE is a separate, allocation-aware lookup (owned-and-free vs
+   *  committed-elsewhere vs unowned), computed live at render time; see
+   *  `useBrewOwnership` in `BrewSlotPanel`. Don't use this field for the
+   *  badge — a card can be "owned" here but every copy already claimed. */
   isOwned: boolean;
   role?: RoleKey;
   roleLabel?: string;

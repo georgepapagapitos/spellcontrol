@@ -200,8 +200,8 @@ describe('fromBrewCandidate', () => {
     roleLabel: 'Ramp',
   };
 
-  it('maps a role-classified candidate into an add Change, unowned', () => {
-    const c = fromBrewCandidate(base, 'brew:ramp:Arcane Signet', '{1}');
+  it('maps a role-classified candidate into an add Change with the caller-supplied ownership', () => {
+    const c = fromBrewCandidate(base, 'brew:ramp:Arcane Signet', 'unowned', '{1}');
     expect(c.type).toBe('add');
     expect(c.lane).toBe('fill-gaps');
     expect(c.id).toBe('brew:ramp:Arcane Signet');
@@ -212,15 +212,27 @@ describe('fromBrewCandidate', () => {
     expect(c.manaCost).toBe('{1}');
   });
 
-  it('marks ownership when the candidate is owned', () => {
-    const c = fromBrewCandidate({ ...base, isOwned: true }, 'x');
-    expect(c.ownership).toBe('owned');
+  it('passes through the full allocation-aware ownership state, not just owned/unowned', () => {
+    expect(fromBrewCandidate(base, 'x', 'owned').ownership).toBe('owned');
+    expect(fromBrewCandidate(base, 'x', 'in-other-deck').ownership).toBe('in-other-deck');
+    expect(fromBrewCandidate(base, 'x', 'in-cube').ownership).toBe('in-cube');
+  });
+
+  it('feeds the why-factor "owned" signal from ownership === owned, not the raw candidate flag', () => {
+    // isOwned:false on the candidate itself — only the ownership arg should drive the chip.
+    const owned = fromBrewCandidate(base, 'x', 'owned');
+    const claimed = fromBrewCandidate(base, 'x', 'in-other-deck');
+    expect(owned.whyFactors?.some((f) => f.text.includes('Already in your collection'))).toBe(true);
+    expect(claimed.whyFactors?.some((f) => f.text.includes('Already in your collection'))).toBe(
+      false
+    );
   });
 
   it('falls back to a theme-synergy reason when there is no role', () => {
     const c = fromBrewCandidate(
       { ...base, role: undefined, roleLabel: undefined, isThemeSynergy: true },
-      'x'
+      'x',
+      'unowned'
     );
     expect(c.reason).toBe('Theme synergy');
   });
@@ -228,18 +240,19 @@ describe('fromBrewCandidate', () => {
   it('falls back to a Game Changer reason when there is no role or theme synergy', () => {
     const c = fromBrewCandidate(
       { ...base, role: undefined, roleLabel: undefined, isGameChanger: true },
-      'x'
+      'x',
+      'unowned'
     );
     expect(c.reason).toBe('Game Changer');
   });
 
   it('has no reason when neither role, theme synergy, nor Game Changer apply', () => {
-    const c = fromBrewCandidate({ ...base, role: undefined, roleLabel: undefined }, 'x');
+    const c = fromBrewCandidate({ ...base, role: undefined, roleLabel: undefined }, 'x', 'unowned');
     expect(c.reason).toBeUndefined();
   });
 
   it('omits manaCost, inclusion, and synergy when not provided/zero', () => {
-    const c = fromBrewCandidate({ ...base, inclusion: 0, synergy: 0, price: null }, 'x');
+    const c = fromBrewCandidate({ ...base, inclusion: 0, synergy: 0, price: null }, 'x', 'unowned');
     expect(c.manaCost).toBeUndefined();
     expect(c.inclusion).toBeUndefined();
     expect(c.synergy).toBeUndefined();

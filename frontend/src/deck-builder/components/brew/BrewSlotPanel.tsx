@@ -1,12 +1,57 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { Search, X } from 'lucide-react';
 import './BrewSlotPanel.css';
 import '@/styles/deck-builder-skeleton.css';
 import { DeckCardRow } from '@/components/deck/DeckCardRow';
-import { fromBrewCandidate } from '@/lib/deck-change';
+import { fromBrewCandidate, type ChangeOwnership } from '@/lib/deck-change';
+import { buildAllocationMap } from '@/lib/allocations';
+import { useDecksStore } from '@/store/decks';
+import { useCubeStore } from '@/store/cube';
+import { useCollectionStore } from '@/store/collection';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import type { BrewCandidate, BrewSlotDef } from '@/deck-builder/services/deckBuilder/brewSlots';
+
+/**
+ * Tri-state (really 4-state) availability for a card name: 'owned' = at
+ * least one free copy exists (there's no "current deck" yet during a brew —
+ * unlike the deck editor's `ownershipFor`, ANY existing claim counts as
+ * elsewhere); 'in-other-deck' / 'in-cube' = every copy is checked out;
+ * 'unowned' = not in the collection at all. Mirrors DeckEditorPage's
+ * `ownershipFor` (same `buildAllocationMap` machinery, same vocabulary/badges
+ * via `<DeckCardRow>`) — deck identity isn't threaded through (DeckEditorPage's
+ * own version doesn't either), so a claimed copy just reads "In other deck".
+ */
+function useBrewOwnership(): (name: string) => ChangeOwnership {
+  const decks = useDecksStore((s) => s.decks);
+  const savedCubes = useCubeStore((s) => s.saved);
+  const collectionCards = useCollectionStore((s) => s.cards);
+
+  const byName = useMemo(() => {
+    const allocations = buildAllocationMap(decks, savedCubes);
+    const map = new Map<string, { free: number; deck: number; cube: number }>();
+    for (const copy of collectionCards) {
+      if (!copy.name) continue;
+      const key = copy.name.toLowerCase();
+      const e = map.get(key) ?? { free: 0, deck: 0, cube: 0 };
+      const claim = allocations.get(copy.copyId);
+      if (!claim) e.free += 1;
+      else if (claim.ownerKind === 'cube') e.cube += 1;
+      else e.deck += 1;
+      map.set(key, e);
+    }
+    return map;
+  }, [decks, savedCubes, collectionCards]);
+
+  return (name: string) => {
+    const e = byName.get(name.toLowerCase());
+    if (!e) return 'unowned';
+    if (e.free > 0) return 'owned';
+    if (e.deck > 0) return 'in-other-deck';
+    if (e.cube > 0) return 'in-cube';
+    return 'unowned';
+  };
+}
 
 /** Resolve mana-cost pip strings for whatever's currently on screen — the
  * EDHREC-sourced candidate list doesn't carry `mana_cost`, only Scryfall
@@ -131,6 +176,7 @@ export function BrewSlotPanel(): JSX.Element {
   const search = useBrewStore((s) => s.search);
   const clearSearch = useBrewStore((s) => s.clearSearch);
   const [showSearch, setShowSearch] = useState(false);
+  const ownershipFor = useBrewOwnership();
 
   const displayed: BrewCandidate[] = searchResults ?? hand;
   const manaCosts = useResolvedManaCosts(displayed.map((c) => c.name));
@@ -196,7 +242,12 @@ export function BrewSlotPanel(): JSX.Element {
           {displayed.map((c) => (
             <DeckCardRow
               key={c.name}
-              change={fromBrewCandidate(c, `brew:${slot.key}:${c.name}`, manaCosts.get(c.name))}
+              change={fromBrewCandidate(
+                c,
+                `brew:${slot.key}:${c.name}`,
+                ownershipFor(c.name),
+                manaCosts.get(c.name)
+              )}
               onAct={() => accept(c)}
               secondaryAction={{
                 label: 'Pass',
