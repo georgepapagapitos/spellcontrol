@@ -12,6 +12,7 @@ import { CardGroupSheet } from './CardGroupSheet';
 import type { CardAnnotation } from './CardGroupSheet';
 import type { CardTally } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
+import { classifyInclusion } from '@/lib/inclusion-label';
 import { StackedBar } from '../shared/MeterBar';
 
 export interface EnginePanelProps {
@@ -140,9 +141,7 @@ function SuggestionTile({
           Adds a {sideWord} — {suggestion.reason}
         </span>
         <span className="engine-suggestion-meta">
-          {suggestion.inclusion != null
-            ? `In ${Math.round(suggestion.inclusion)}% of decks`
-            : 'Off-meta'}
+          {classifyInclusion(suggestion.inclusion).label}
           <OwnershipBadge owned={owned} />
         </span>
       </button>
@@ -222,7 +221,7 @@ export function EnginePanel({
     () =>
       analysis.suggestions.map((s) => ({
         name: s.cardName,
-        label: s.inclusion != null ? `In ${Math.round(s.inclusion)}% of decks` : 'Off-meta',
+        label: classifyInclusion(s.inclusion).label,
       })),
     [analysis.suggestions]
   );

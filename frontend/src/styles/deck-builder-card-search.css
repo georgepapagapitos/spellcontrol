@@ -257,6 +257,12 @@
   color: var(--text-muted);
 }
 
+/* No-signal inclusion note — same muted color as the rest of the meta line,
+   italicized so it reads as an aside rather than a data point. */
+.card-search-offmeta {
+  font-style: italic;
+}
+
 /* Collection add-cards variant: the li wraps a row + an expandable printing
    picker, so the row classes move to an inner div and the grid gains a column
    for the "Printing & finish" toggle. */
