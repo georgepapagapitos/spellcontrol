@@ -51,6 +51,18 @@ export class BudgetTracker {
     this.cardsRemaining = Math.max(0, this.cardsRemaining - 1);
   }
 
+  /** Independent snapshot with the same remaining budget/cards/currency —
+   *  for a caller that needs to test a large batch of candidates against
+   *  the current picture without committing real deductions for the
+   *  (usually most of them) it doesn't end up keeping (e.g. the
+   *  land-squeeze wildcard scan). Bypasses the constructor's `Math.max(1,
+   *  ...)` floor so a genuine 0 stays 0. */
+  clone(): BudgetTracker {
+    const copy = new BudgetTracker(this.remainingBudget, this.cardsRemaining, this.currency);
+    copy.cardsRemaining = this.cardsRemaining;
+    return copy;
+  }
+
   /** Deduct cost of must-include cards upfront */
   deductMustIncludes(cards: ScryfallCard[]): void {
     for (const card of cards) {

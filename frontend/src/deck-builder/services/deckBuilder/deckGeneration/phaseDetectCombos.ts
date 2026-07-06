@@ -94,3 +94,38 @@ export function detectCombosPhase(state: GenerationState): DetectedCombo[] | und
 
   return detectedCombos;
 }
+
+// Recompute isComplete/missingCards for an already-detected combo list
+// against whatever `state.categories` holds RIGHT NOW. Several post-fill
+// phases (combo audit, coherence repair, bracket/budget convergence) already
+// call this exact map+filter idiom inline after their own swaps — this is
+// the same logic, extracted so a final catch-all call can run unconditionally
+// right before the report is built (see deckGenerator.ts), instead of relying
+// on every phase remembering to refresh combo state after a cut.
+export function refreshComboCompleteness(
+  detectedCombos: DetectedCombo[] | undefined,
+  state: GenerationState
+): DetectedCombo[] | undefined {
+  if (!detectedCombos) return detectedCombos;
+  const { commander, partnerCommander } = state.context;
+  const liveNames = new Set<string>();
+  if (commander) {
+    liveNames.add(commander.name);
+    if (commander.name.includes(' // ')) liveNames.add(frontFaceName(commander.name));
+  }
+  if (partnerCommander) {
+    liveNames.add(partnerCommander.name);
+    if (partnerCommander.name.includes(' // ')) liveNames.add(frontFaceName(partnerCommander.name));
+  }
+  for (const c of Object.values(state.categories).flat()) {
+    liveNames.add(c.name);
+    if (c.name.includes(' // ')) liveNames.add(frontFaceName(c.name));
+  }
+  const refreshed = detectedCombos
+    .map((dc) => {
+      const missing = dc.cards.filter((n) => !liveNames.has(n));
+      return { ...dc, isComplete: missing.length === 0, missingCards: missing };
+    })
+    .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
+  return refreshed.length > 0 ? refreshed : undefined;
+}

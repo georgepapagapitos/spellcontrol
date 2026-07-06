@@ -81,4 +81,15 @@ describe('BudgetTracker deductions', () => {
     t.deductCard(makeCard({ prices: { usd: '1.00' } }));
     expect(t.cardsRemaining).toBe(0);
   });
+
+  it('clone() deducts independently of the original, including a genuine 0 floor', () => {
+    const t = new BudgetTracker(100, 1);
+    t.deductCard(makeCard({ prices: { usd: '1.00' } })); // cardsRemaining -> 0
+    const clone = t.clone();
+    expect(clone.cardsRemaining).toBe(0); // constructor would have floored this to 1
+
+    clone.deductCard(makeCard({ prices: { usd: '50.00' } }));
+    expect(clone.remainingBudget).toBeCloseTo(49);
+    expect(t.remainingBudget).toBeCloseTo(99); // original untouched
+  });
 });

@@ -95,4 +95,14 @@ export class BracketGuard {
     const cat = this.category(name);
     if (cat !== null) this.counts[cat]++;
   }
+
+  // Independent copy with the same ceilings/counts so far — for a caller
+  // that needs to test a large batch of candidates against the current
+  // picture without committing real `.record()`s for the (usually most of
+  // them) it doesn't end up keeping (e.g. the land-squeeze wildcard scan).
+  clone(): BracketGuard {
+    const copy = new BracketGuard(this.ceilings, this.gameChangerNames);
+    copy.counts = { ...this.counts };
+    return copy;
+  }
 }

@@ -15,6 +15,7 @@ import {
   applyLandSqueezeReconcile,
   type LandSqueezeReconcileContext,
 } from './phaseLandSqueezeReconcile';
+import { detectCombosPhase } from './phaseDetectCombos';
 import type { GenerationState } from './state';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import { FREE_INTERACTION_BOOST } from './trimResistanceConstants';
@@ -128,6 +129,8 @@ function makeCtx(
     roleTargets: null,
     currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
     squeezeDelta: 0,
+    wildcardCandidates: [],
+    wildcardCount: 0,
     ...overrides,
   };
 }
@@ -139,7 +142,7 @@ beforeEach(() => {
 });
 
 describe('applyLandSqueezeReconcile', () => {
-  it('is an exact no-op when squeezeDelta is 0 — state.categories untouched', () => {
+  it('is an exact no-op when squeezeDelta and wildcardCount are both 0 — state.categories untouched', () => {
     const state = makeState();
     state.categories.creatures.push(scryfallCard('Filler_1'), scryfallCard('Filler_2'));
     const before = JSON.stringify(state.categories);
@@ -147,6 +150,7 @@ describe('applyLandSqueezeReconcile', () => {
     const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 0 }));
 
     expect(result.cut).toEqual([]);
+    expect(result.wildcardsKept).toEqual([]);
     expect(JSON.stringify(state.categories)).toBe(before);
   });
 
@@ -232,6 +236,59 @@ describe('applyLandSqueezeReconcile', () => {
     expect(result.cut).toEqual(['Genuine Filler']);
   });
 
+  it('E82 attempt-7: protects a piece of a DETECTED-COMPLETE combo even though it was never in the small top-N "attempted" comboCardNames set (Doomsday/Thassa\'s Oracle repro)', () => {
+    const state = makeState();
+    const comboPieceA = scryfallCard('Doomsday');
+    const comboPieceB = scryfallCard("Thassa's Oracle");
+    const filler = scryfallCard('Genuine Filler');
+    state.categories.synergy.push(comboPieceA, comboPieceB, filler);
+    // Both combo pieces score WORSE than the filler by raw inclusion — proves
+    // the combo-completeness protection, not luck, is what saves Doomsday.
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Doomsday', 1),
+          edhrecCard("Thassa's Oracle", 1),
+          edhrecCard('Genuine Filler', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    // A real EDHREC combo dataset containing this pairing — comboCardNames
+    // (the top-N "attempted" boost list) is deliberately left EMPTY here,
+    // mirroring the bug: this combo never cleared comboSliceCount/
+    // comboInclusionFloor, so the only signal deckGenerator.ts has for it is
+    // detectCombosPhase finding it genuinely complete in the current picks.
+    state.combos = [
+      {
+        comboId: 'doomsday-thassa',
+        cards: [
+          { name: 'Doomsday', id: 'a' },
+          { name: "Thassa's Oracle", id: 'b' },
+        ],
+        results: ['Win the game'],
+        deckCount: 13598,
+        rank: 50,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ];
+
+    // The exact fold deckGenerator.ts performs right before calling the
+    // reconcile: preview detectCombosPhase against the current picks and fold
+    // any complete combo's cards into comboCardNames.
+    for (const dc of detectCombosPhase(state) ?? []) {
+      if (dc.isComplete) for (const name of dc.cards) state.comboCardNames.add(name);
+    }
+    expect(state.comboCardNames.has('Doomsday')).toBe(true);
+
+    const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+    expect(result.cut).toEqual(['Genuine Filler']);
+  });
+
   it('falls back to role-average inclusion (never 0) for a pool-absent incumbent', () => {
     const state = makeState();
     ROLE_OF.set('Absent Ramp Card', 'ramp');
@@ -269,6 +326,160 @@ describe('applyLandSqueezeReconcile', () => {
     applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1, currentRoleCounts }));
 
     expect(currentRoleCounts.ramp).toBe(2);
+  });
+
+  // ── E82 attempt 6: superset-pick wildcards ──
+
+  function setupWildcardComparisonState(): GenerationState {
+    const state = makeState();
+    state.categories.creatures.push(scryfallCard('Incumbent_Low'), scryfallCard('Incumbent_High'));
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Incumbent_Low', 20),
+          edhrecCard('Incumbent_High', 60),
+          edhrecCard('Weak_Wildcard', 1),
+          edhrecCard('Strong_Wildcard', 95),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    return state;
+  }
+
+  it('is byte-identical to the no-wildcard baseline when every wildcard candidate scores below every incumbent', () => {
+    const weakWildcard = scryfallCard('Weak_Wildcard');
+
+    const before = applyLandSqueezeReconcile(
+      setupWildcardComparisonState(),
+      makeCtx({ squeezeDelta: 1, wildcardCandidates: [], wildcardCount: 0 })
+    );
+    const after = applyLandSqueezeReconcile(
+      setupWildcardComparisonState(),
+      makeCtx({ squeezeDelta: 1, wildcardCandidates: [weakWildcard], wildcardCount: 1 })
+    );
+
+    // Every wildcard added is the exact one cut back out — the deck's real
+    // cards (and cut order) are unaffected.
+    expect(after.cut).toEqual(before.cut);
+    expect(after.wildcardsKept).toEqual([]);
+  });
+
+  it('displaces the deck-wide-weakest incumbent when a wildcard scores higher', () => {
+    const state = setupWildcardComparisonState();
+    const strongWildcard = scryfallCard('Strong_Wildcard');
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual(['Strong_Wildcard']);
+    expect(result.cut).toEqual(['Incumbent_Low']);
+    expect(state.categories.creatures.map((c) => c.name)).not.toContain('Incumbent_Low');
+    expect(state.categories.creatures.map((c) => c.name)).toContain('Incumbent_High');
+    // Routed via routeCardByType (no role mapped in this fixture) — lands
+    // straight into 'synergy', the type-router's default bucket.
+    expect(state.categories.synergy.map((c) => c.name)).toContain('Strong_Wildcard');
+  });
+
+  it('protects a must-include and a protection piece even when the combined cut count grows via wildcards', () => {
+    const state = makeState();
+    const mustInclude = scryfallCard('Must Have', { isMustInclude: true });
+    const protectionPiece = scryfallCard('Heroic Intervention');
+    const filler1 = scryfallCard('Filler_1');
+    const filler2 = scryfallCard('Filler_2');
+    state.categories.synergy.push(mustInclude, protectionPiece, filler1, filler2);
+    vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Heroic Intervention');
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Must Have', 1),
+          edhrecCard('Heroic Intervention', 1),
+          edhrecCard('Filler_1', 30),
+          edhrecCard('Filler_2', 40),
+          edhrecCard('Weak_Wildcard', 10),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const weakWildcard = scryfallCard('Weak_Wildcard');
+
+    // squeezeDelta(1) + actualAdd(1) = 2 — a bigger combined cut than
+    // squeezeDelta alone, exactly the "cut count grows via wildcards" case.
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 1, wildcardCandidates: [weakWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.cut).not.toContain('Must Have');
+    expect(result.cut).not.toContain('Heroic Intervention');
+    expect(result.cut).toEqual(['Filler_1']);
+    expect(result.wildcardsKept).toEqual([]);
+  });
+
+  it('E82 attempt-7: drops a kept wildcard whose price blows the deck-budget headroom, restoring the incumbent it displaced', () => {
+    const state = setupWildcardComparisonState();
+    // Overwrite the fixture's default $1.00 prices: incumbents are cheap, the
+    // wildcard is expensive enough to blow a tight budget even though it
+    // scores far above both incumbents (same score shape as "displaces the
+    // deck-wide-weakest incumbent", which passes with a generous/null budget).
+    state.categories.creatures = [
+      scryfallCard('Incumbent_Low', { prices: { usd: '0.50' } }),
+      scryfallCard('Incumbent_High', { prices: { usd: '5.00' } }),
+    ];
+    const strongWildcard = scryfallCard('Strong_Wildcard', { prices: { usd: '50.00' } });
+    state.cfg.deckBudget = 10; // currentTotal 5.50 → 4.50 headroom, nowhere near $50
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual([]);
+    expect(result.cut).toEqual([]);
+    expect(state.categories.creatures.map((c) => c.name)).toEqual([
+      'Incumbent_Low',
+      'Incumbent_High',
+    ]);
+  });
+
+  it('E82 attempt-7: keeps a wildcard that fits within deck-budget headroom (gate is a ceiling, not a blanket block)', () => {
+    const state = setupWildcardComparisonState();
+    state.categories.creatures = [
+      scryfallCard('Incumbent_Low', { prices: { usd: '0.50' } }),
+      scryfallCard('Incumbent_High', { prices: { usd: '5.00' } }),
+    ];
+    const strongWildcard = scryfallCard('Strong_Wildcard', { prices: { usd: '2.00' } });
+    state.cfg.deckBudget = 100; // currentTotal 5.50 → 94.50 headroom, plenty for $2
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual(['Strong_Wildcard']);
+    expect(result.cut).toEqual(['Incumbent_Low']);
+  });
+
+  it('E82 attempt-7: non-budget decks (deckBudget null) are unaffected by the gate — passthrough', () => {
+    // Same shape as the dropped-wildcard case above, but with the default
+    // null deckBudget from makeState()/setupWildcardComparisonState() — the
+    // $50 wildcard is kept exactly as it was pre-fix, since the gate is
+    // wholly inert without an active budget.
+    const state = setupWildcardComparisonState();
+    state.categories.creatures = [
+      scryfallCard('Incumbent_Low', { prices: { usd: '0.50' } }),
+      scryfallCard('Incumbent_High', { prices: { usd: '5.00' } }),
+    ];
+    const strongWildcard = scryfallCard('Strong_Wildcard', { prices: { usd: '50.00' } });
+    expect(state.cfg.deckBudget).toBeNull();
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual(['Strong_Wildcard']);
+    expect(result.cut).toEqual(['Incumbent_Low']);
   });
 
   it('gives a free-interaction card FREE_INTERACTION_BOOST, saving it over a worse-inclusion filler (iter-10 Slice A)', () => {

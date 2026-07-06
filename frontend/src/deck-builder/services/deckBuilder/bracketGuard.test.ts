@@ -61,4 +61,16 @@ describe('BracketGuard', () => {
     guard.record('Llanowar Elves');
     expect(guard.exceedsCeiling('Llanowar Elves')).toBe(false);
   });
+
+  it('clone() copies counts so far without linking to the original', () => {
+    const guard = new BracketGuard(bracketCeilings(3), new Set(['A', 'B', 'C', 'D']));
+    guard.record('A');
+    guard.record('B');
+    const clone = guard.clone();
+    expect(clone.exceedsCeiling('C')).toBe(false); // 2 < 3, matches the original so far
+
+    clone.record('C'); // clone now at 3 — the original must be untouched
+    expect(clone.exceedsCeiling('D')).toBe(true);
+    expect(guard.exceedsCeiling('D')).toBe(false);
+  });
 });

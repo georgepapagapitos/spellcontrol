@@ -140,7 +140,7 @@ import {
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
 } from './deckGeneration/state';
-import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
+import { detectCombosPhase, refreshComboCompleteness } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
 import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
@@ -661,21 +661,66 @@ export function buildPriceSanityNote(decidedCount: number): string | undefined {
 }
 
 /**
- * E88 disclosure: names the cards phaseLandSqueezeReconcile.ts cut to bring
- * the deck back to size after auto-tuning land count up past the 37-land
- * baseline. Composed POST-HOC from the phase's own `cut` list (never from
- * inside a sort comparator — see buildComboUpsideNotes's doc for why
- * comparator-side collection is structurally unreliable). Undefined when the
- * pass never actually cut anything (the common case — see targetCounts.ts).
+ * E82 fix-round: phaseLandSqueezeReconcile.ts's `cut`/`wildcardsKept` are
+ * correct as of the moment that phase runs, but combo audit / coherence
+ * repair / budget convergence / bracket convergence all run AFTER it and can
+ * still cut a wildcard it just kept, or (far rarer) re-add a name it just
+ * cut — those phases have their own disclosure (coherenceRepairs,
+ * surplusConversions, …) for whatever THEY change, so this note must not
+ * keep naming a card that no longer reflects the truth. Reconciles the
+ * phase's own lists to the actual FINAL deck: a "kept" wildcard is only
+ * disclosed if it's still in the deck; a "cut" incumbent is only disclosed
+ * if it never came back. Guarantees every name buildLandSqueezeTrimNote
+ * receives is on the correct side of `finalNonLandNames` — the property a
+ * differ audit (E82 attempt 6 fix-round) caught missing: a misattributed
+ * "kept" wildcard that was actually an unchanged holdover, and a "cut"
+ * incumbent that was never in the deck at all (both symptoms of composing
+ * straight from the phase's own intermediate lists instead of the final
+ * state).
+ */
+export function reconcileLandSqueezeDisclosure(
+  cut: readonly string[],
+  wildcardsKept: readonly string[],
+  finalNonLandNames: ReadonlySet<string>
+): { cut: string[]; wildcardsKept: string[] } {
+  return {
+    cut: cut.filter((name) => !finalNonLandNames.has(name)),
+    wildcardsKept: wildcardsKept.filter((name) => finalNonLandNames.has(name)),
+  };
+}
+
+/**
+ * E88 + E82 attempt 6 disclosure: names the cards phaseLandSqueezeReconcile.ts
+ * cut to bring the deck back to size after auto-tuning land count up past the
+ * 37-land baseline, plus (independently) any leftover cards its wildcard scan
+ * added that outscored an incumbent. Composed POST-HOC from the phase's own
+ * `cut`/`wildcardsKept` lists (never from inside a sort comparator — see
+ * buildComboUpsideNotes's doc for why comparator-side collection is
+ * structurally unreliable) — callers MUST run them through
+ * `reconcileLandSqueezeDisclosure` first so both lists already agree with the
+ * final deck. The two aren't 1:1 pairable (one combined sort/cut over both
+ * sets, not N independent swaps — see phaseLandSqueezeReconcile.ts's
+ * header), so wildcards get their own sentence rather than a misleading
+ * per-card pairing. Undefined when neither the squeeze cut nor the wildcard
+ * scan did anything (the common case).
  */
 export function buildLandSqueezeTrimNote(
   cutNames: readonly string[],
+  wildcardsKept: readonly string[],
   finalLandCount: number,
   defaultLandCount: number
 ): string | undefined {
-  if (cutNames.length === 0) return undefined;
-  const extra = finalLandCount - defaultLandCount;
-  return `Auto-tuned land count to ${finalLandCount} (${extra} more than the ${defaultLandCount}-land default) left ${cutNames.length} fewer spell slot${cutNames.length === 1 ? '' : 's'} than usual — reconciled by cutting the lowest-value pick${cutNames.length === 1 ? '' : 's'}: ${cutNames.join(', ')}.`;
+  if (cutNames.length === 0 && wildcardsKept.length === 0) return undefined;
+  let note = '';
+  if (cutNames.length > 0) {
+    const extra = finalLandCount - defaultLandCount;
+    note = `Auto-tuned land count to ${finalLandCount} (${extra} more than the ${defaultLandCount}-land default) left ${cutNames.length} fewer spell slot${cutNames.length === 1 ? '' : 's'} than usual — reconciled by cutting the lowest-value pick${cutNames.length === 1 ? '' : 's'}: ${cutNames.join(', ')}.`;
+  }
+  if (wildcardsKept.length > 0) {
+    const wildcardSentence = `${note ? 'Additionally, ' : ''}${wildcardsKept.length} stronger leftover card${wildcardsKept.length === 1 ? '' : 's'} (${wildcardsKept.join(', ')}) displaced an equal number of the deck's weakest picks.`;
+    note = note ? `${note} ${wildcardSentence}` : wildcardSentence;
+  }
+  return note;
 }
 
 /**
@@ -3303,19 +3348,120 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Helper to count all cards
   const countAllCards = () => stCountAllCards(state);
 
-  // ── Land-Squeeze Reconciliation (E88) ──
+  // ── Superset-pick wildcard candidates (E82 attempt 6) ──
+  // See phaseLandSqueezeReconcile.ts's header for the full mechanism. Pulls
+  // every leftover EDHREC-pool card that already clears every pick-time gate
+  // (the same pickFromPrefetchedWithCurve every type pass above uses), for
+  // the reconcile below to re-rank by its own survival score and fold into
+  // ONE combined cut alongside the existing incumbents. Gated on
+  // wildcardCount so this is fully inert — empty array, zero scan cost — for
+  // every non-auto-tuned generation and any auto-tuned deck that lands
+  // exactly at the 32-land floor.
+  const wildcardCount = landCountAutoTuned ? Math.max(0, resolvedLandCount - 32) : 0;
+  let wildcardCandidates: ScryfallCard[] = [];
+  if (wildcardCount > 0) {
+    const wildcardPool = state.edhrecData?.cardlists.allNonLand ?? [];
+    // Scratch clones: this scan pulls EVERY leftover card that clears the
+    // pick gates (not just the K we end up keeping), so it must not leak
+    // state into the real generation-wide counters for the — usually
+    // large — majority of candidates the reconcile doesn't keep. Role cap
+    // is the one gate handled AFTER the scan instead of inside it (see
+    // isOverRoleCap below): this call site has no pre-built cardRoleMap
+    // (that map is scoped to the EDHREC-pool branch above, out of reach
+    // here), and passing `count = pool.length` would otherwise trip the
+    // picker's own role-cap escape hatch (built for "never ship a quota
+    // short," not for an unbounded scan) on effectively every call.
+    const scratchUsedNames = new Set(usedNames);
+    const scratchGameChangerCount = { value: gameChangerCount.value };
+    const scratchBudgetTracker = budgetTracker?.clone() ?? null;
+    const scratchBracketGuard = bracketGuard?.clone();
+    // Wide-open curve — this pass has no curve slot of its own, it's a flat
+    // marginal scan re-ranked by phaseLandSqueezeReconcile's own scoreOf,
+    // not this picker's EDHREC-priority order.
+    const wildcardCurveTargets: Record<number, number> = {
+      0: 999,
+      1: 999,
+      2: 999,
+      3: 999,
+      4: 999,
+      5: 999,
+      6: 999,
+      7: 999,
+    };
+    const rawWildcardCandidates = pickFromPrefetchedWithCurve(
+      wildcardPool,
+      scryfallCardMap,
+      wildcardPool.length,
+      scratchUsedNames,
+      colorIdentity,
+      wildcardCurveTargets,
+      {},
+      bannedCards,
+      undefined,
+      maxCardPrice,
+      maxGameChangers,
+      scratchGameChangerCount,
+      maxRarity,
+      maxCmc,
+      scratchBudgetTracker,
+      context.collectionNames,
+      getComboBoosts(),
+      currency,
+      state.gameChangerNames,
+      arenaOnly,
+      false,
+      collectionStrategy,
+      collectionOwnedPercent,
+      ignoreOwnedBudget,
+      ignoreOwnedRarity,
+      scratchBracketGuard,
+      isCardAllowedBySynergyDependencies,
+      liftTieBreak,
+      undefined,
+      resolvePriceSanity(customization),
+      getComboBoosts()
+    );
+    // Hard role cap: same shape as isOverRoleCap's other two callers above
+    // — a direct validateCardRole check against the real, current
+    // currentRoleCounts, applied post-hoc instead of threading a
+    // RoleCapConfig through the throwaway scan above.
+    wildcardCandidates = rawWildcardCandidates.filter(
+      (c) => !isOverRoleCap(c, roleTargets, currentRoleCounts)
+    );
+  }
+
+  // ── Land-Squeeze Reconciliation (E88 + E82 attempt 6) ──
   // See phaseLandSqueezeReconcile.ts's header for the full mechanism. Runs
   // immediately before Smart Trim so the deck it hands off is already at (or
   // very near) targetDeckSize in the common case, making Smart Trim's own
   // `currentCount > targetDeckSize` check a no-op right after — zero changes
   // to Smart Trim itself. No-op when the auto-tune never raised land count
-  // past baseline (squeezeDelta <= 0), which covers every existing scenario.
+  // past baseline AND never produced any wildcard slots (squeezeDelta <= 0
+  // && wildcardCount <= 0).
   const landSqueezeDelta = Math.max(0, resolvedLandCount - typeTargetLandCount);
+  // Detected-COMPLETE combo pieces earn the same COMBO_TRIM_BOOST protection
+  // as EDHREC-boosted combo attempts. `comboCardNames` above is only the
+  // small top-N "attempted" combo list scored before any card was picked
+  // (bounded by comboSliceCount/comboInclusionFloor, further gated on
+  // edhrecData being present) — a combo can complete via unrelated picks
+  // (staple inclusion, lift, a Game Changer already in the pool) and never
+  // appear there, leaving it invisible to this reconcile's and Smart Trim's
+  // COMBO_TRIM_BOOST check (both read `comboCardNames`/`state.comboCardNames`
+  // directly). Preview detectCombosPhase against the current pre-reconcile
+  // picks — pure, reads state only, no mutation — and fold any complete
+  // combo's cards into the SAME set so every existing COMBO_TRIM_BOOST site
+  // protects them too, with zero new plumbing.
+  for (const dc of detectCombosPhase(state) ?? []) {
+    if (dc.isComplete) for (const name of dc.cards) comboCardNames.add(name);
+  }
   const landSqueezeResult = applyLandSqueezeReconcile(state, {
     liftScoreOf,
     roleTargets,
     currentRoleCounts,
     squeezeDelta: landSqueezeDelta,
+    wildcardCandidates,
+    wildcardCount,
+    bracketGuard,
   });
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
@@ -4821,6 +4967,22 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   });
   const surplusConversions = surplusResult.conversions;
 
+  // ── Final combo-state reconciliation ──
+  // Every mutating phase above (reconcile, combo audit, coherence repair,
+  // bracket/budget convergence, role-surplus rebalance) already has its OWN
+  // conditional isComplete/missingCards refresh gated on "did THIS phase
+  // change anything" — easy to miss on a new pass (role-surplus-rebalance's
+  // own comment above claims it "can't break a tracked combo," which is only
+  // as true as every one of its skip conditions holding). Rather than trust
+  // N scattered gated refreshes to all fire correctly, do ONE unconditional
+  // recompute here against the truly-final `state.categories`, right before
+  // detectedCombos feeds cardRelevancyPhase/computeGradeAndBracket/the report
+  // below — a stale isComplete:true (and the bracketEstimation
+  // twoCardComboCount/multiCardComboCount it drives) can no longer survive a
+  // cut piece, no matter which upstream phase caused it. No-op — byte-
+  // identical — whenever nothing actually changed completeness.
+  detectedCombos = refreshComboCompleteness(detectedCombos, state);
+
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the
   // deck. Suggestions only — never added to the deck. Runs here, AFTER every
@@ -4974,10 +5136,22 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // actually decided an outcome (off, or no qualifying pair arose).
   const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
 
-  // Land-squeeze reconciliation disclosure (E88) — undefined when the auto-tune
-  // never raised land count past baseline (the common case).
+  // Land-squeeze reconciliation disclosure (E88 + E82 attempt 6) — undefined
+  // when the auto-tune never raised land count past baseline AND the
+  // wildcard scan never found a leftover card worth adding (the common
+  // case). Reconciled to the final deck first (see
+  // reconcileLandSqueezeDisclosure's doc) — everything downstream of the
+  // reconcile phase has already run by this point, so `nonLandCards` is the
+  // true final set.
+  const { cut: finalLandSqueezeCut, wildcardsKept: finalWildcardsKept } =
+    reconcileLandSqueezeDisclosure(
+      landSqueezeResult.cut,
+      landSqueezeResult.wildcardsKept,
+      new Set(nonLandCards.map((c) => c.name))
+    );
   const landSqueezeTrimNote = buildLandSqueezeTrimNote(
-    landSqueezeResult.cut,
+    finalLandSqueezeCut,
+    finalWildcardsKept,
     categories.lands.length,
     DEFAULT_LAND_COUNT
   );
