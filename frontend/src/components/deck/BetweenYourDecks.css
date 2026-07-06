@@ -1,0 +1,228 @@
+.between-decks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.between-decks-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.between-decks-eyebrow {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.between-decks-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.between-decks-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+}
+
+.between-decks-empty-tagline {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.between-decks-empty-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.between-decks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.between-decks-move {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+}
+
+.between-decks-move-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.between-decks-move-cards {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.between-decks-move-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.between-decks-move-card img,
+.between-decks-art-ph {
+  width: 2.2rem;
+  height: 3.05rem;
+  border-radius: var(--radius);
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  flex: 0 0 auto;
+  background: var(--surface-raised);
+}
+
+.between-decks-move-card-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
+}
+
+.between-decks-move-arrow {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  width: 16px;
+  height: 16px;
+}
+
+.between-decks-move-dest {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.between-decks-move-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--deck-color, var(--accent));
+  border: 0.5px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.between-decks-move-meter-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 10rem;
+}
+
+.between-decks-move-meter {
+  width: 100%;
+}
+
+.between-decks-move-meter-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.between-decks-move-replacement {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 0.5px dashed var(--border);
+}
+
+.between-decks-move-replacement img,
+.between-decks-move-replacement .between-decks-art-ph {
+  width: 1.8rem;
+  height: 2.5rem;
+}
+
+.between-decks-move-replacement-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.between-decks-move-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.between-decks-move-dismiss,
+.between-decks-move-accept {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+@media (pointer: coarse) {
+  .between-decks-move-dismiss,
+  .between-decks-move-accept {
+    min-height: 44px;
+  }
+}
+
+.between-decks-move-spinner {
+  width: 14px;
+  height: 14px;
+  animation: between-decks-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .between-decks-move-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+@keyframes between-decks-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .between-decks-move-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .between-decks-move-meter-wrap {
+    width: 100%;
+  }
+
+  .between-decks-move-card-name {
+    max-width: 100%;
+  }
+}

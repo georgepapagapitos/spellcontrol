@@ -3,6 +3,7 @@ import {
   buildBracketMoveFactors,
   buildBudgetSwapFactors,
   buildComboCompletionFactors,
+  buildCrossDeckMoveFactors,
   buildCutFactors,
   buildGapAddFactors,
   buildOptimizeFactors,
@@ -226,5 +227,29 @@ describe('buildBudgetSwapFactors', () => {
     expect(owned.some((f) => /already own it/.test(f.text) && f.tone === 'pro')).toBe(true);
     // Budget downgrades are bought by design — never scold the user for not owning it.
     expect(unowned.some((f) => /[Nn]ot in your collection/.test(f.text))).toBe(false);
+  });
+});
+
+describe('buildCrossDeckMoveFactors', () => {
+  it('names the target engines reinforced and always notes the donor gets nothing', () => {
+    const factors = buildCrossDeckMoveFactors({
+      targetAxisLabels: ['Sacrifice / aristocrats'],
+      toDeckName: 'Aristocrats',
+      fromDeckName: 'Lifegain',
+    });
+    expect(factors[0]).toMatchObject({ tone: 'pro' });
+    expect(factors[0].text).toMatch(/Aristocrats/);
+    expect(factors[0].text).toMatch(/Sacrifice/);
+    expect(factors.some((f) => /Lifegain/.test(f.text) && /generic value/.test(f.text))).toBe(true);
+  });
+
+  it('still notes the donor side even with no named axis', () => {
+    const factors = buildCrossDeckMoveFactors({
+      targetAxisLabels: [],
+      toDeckName: 'Deck B',
+      fromDeckName: 'Deck A',
+    });
+    expect(factors).toHaveLength(1);
+    expect(factors[0].text).toMatch(/Deck A/);
   });
 });
