@@ -88,6 +88,7 @@ import {
   calculateTargetCounts,
   computeAutoLandCount,
   computeLandCountSizingAnchor,
+  computeEffectiveNonBasicLandCount,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -496,6 +497,13 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
  * keyword-vote heuristic, not a real EDHREC theme or user pick — naming a
  * wrong archetype ("for a Voltron deck") is worse than naming none ("for this
  * deck's profile").
+ *
+ * E100: `nonBasicLandCount`/`effectiveNonBasicLandCount` are optional — every
+ * live-differ reviewer flagged the nonbasic-budget scaling (see
+ * computeEffectiveNonBasicLandCount) as a silent composition change when it
+ * fired, so it gets the same disclosure treatment as the delivered-count
+ * clause above: named only when it actually raised the budget above the
+ * user's own number.
  */
 export function buildLandCountNote(params: {
   resolvedLandCount: number;
@@ -504,6 +512,8 @@ export function buildLandCountNote(params: {
   isLowConfidence: boolean;
   edhrecRampCount: number;
   finalAvgCmc: number;
+  nonBasicLandCount?: number;
+  effectiveNonBasicLandCount?: number;
 }): string {
   const label = ARCHETYPE_LABEL[params.archetype];
   const archetypeText = params.isLowConfidence
@@ -513,7 +523,13 @@ export function buildLandCountNote(params: {
     params.finalLandCount !== params.resolvedLandCount
       ? `; delivered ${params.finalLandCount} after post-tune deck adjustments`
       : '';
-  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} planned ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause} — set land count explicitly under Customize to override.`;
+  const nonBasicClause =
+    params.effectiveNonBasicLandCount != null &&
+    params.nonBasicLandCount != null &&
+    params.effectiveNonBasicLandCount > params.nonBasicLandCount
+      ? `; nonbasic land budget raised to ${params.effectiveNonBasicLandCount} to match the higher land count`
+      : '';
+  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} planned ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause}${nonBasicClause} — set land count explicitly under Customize to override.`;
 }
 
 /**
@@ -1960,6 +1976,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ? Math.min(resolvedLandCount, landCountSizingAnchor)
     : resolvedLandCount;
 
+  // E100: scale the nonbasic land budget with the auto-tune raise so it
+  // never lands entirely as basics — see computeEffectiveNonBasicLandCount's
+  // doc for the full mechanism (targetCounts.ts). No-op (verbatim
+  // customization.nonBasicLandCount) whenever landCountAutoTuned is false.
+  const effectiveNonBasicLandCount = computeEffectiveNonBasicLandCount(
+    customization.nonBasicLandCount,
+    landCountAutoTuned,
+    resolvedLandCount,
+    typeTargetLandCount,
+    colorIdentity.length
+  );
+
   // Calculate target counts with type and curve targets
   const {
     composition: targets,
@@ -3068,7 +3096,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ).length;
     const remainingNonBasicBudget = Math.max(
       0,
-      customization.nonBasicLandCount - mustIncludeNonBasicCount
+      effectiveNonBasicLandCount - mustIncludeNonBasicCount
     );
     const nonbasicTarget = Math.min(remainingNonBasicBudget, adjustedLandTarget);
     const basicCount = Math.max(0, adjustedLandTarget - nonbasicTarget);
@@ -3424,7 +3452,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ).length;
     const fallbackRemainingNonBasicBudget = Math.max(
       0,
-      customization.nonBasicLandCount - fallbackMustIncludeNonBasicCount
+      effectiveNonBasicLandCount - fallbackMustIncludeNonBasicCount
     );
     const fallbackNonbasicTarget = Math.min(
       fallbackRemainingNonBasicBudget,
@@ -5265,6 +5293,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isLowConfidence: archetypeIsLowConfidence,
       edhrecRampCount: edhrecRampCountForNote ?? 0,
       finalAvgCmc: stats.averageCmc,
+      nonBasicLandCount: customization.nonBasicLandCount,
+      effectiveNonBasicLandCount,
     });
   }
 

@@ -119,6 +119,56 @@ export function computeLandCountSizingAnchor(
   return Math.max(32, Math.min(40, 37 + delta));
 }
 
+/**
+ * E100: `nonBasicLandCount` is a flat user-facing customization (store
+ * default 15) — untouched by the Karsten auto-tune. When the tune raises
+ * `resolvedLandCount` past the legacy sizing anchor (see
+ * computeLandCountSizingAnchor), that raise otherwise lands entirely as
+ * basics: the nonbasic budget stays flat while the extra land slots dilute
+ * the manabase with basics/Wastes instead of getting the same shot at
+ * premium utility lands the rest of the deck got (board E100 — same shape
+ * as E88/E94's typeTargets shrink, but for the land-internal basic/nonbasic
+ * split, which neither of those guards protects).
+ *
+ * Additive, tied to the exact overflow-past-anchor amount
+ * (`resolvedLandCount - typeTargetLandCount`) — the SAME delta
+ * phaseLandSqueezeReconcile's `squeezeDelta` already reconciles elsewhere —
+ * so raising the land count can only ever grow the nonbasic budget, never
+ * shrink it, and this is an exact no-op (`nonBasicLandCount` verbatim)
+ * whenever `landCountAutoTuned` is false. `landCountAutoTuned` can only be
+ * true when `isDefaultLandCount(customization)` held, which already
+ * requires `nonBasicLandCount === 15` — so this never overrides an explicit
+ * user value; an explicit `nonBasicLandCount` always leaves
+ * `landCountAutoTuned` false, making this call a no-op by construction.
+ *
+ * Live-differ gate (11 improved / 2 regressed) found the scaling actively
+ * hurts mono-color identities: krenko and talrand both traded a basic for a
+ * colorless/tapped utility land, cutting the ONE color they produce against
+ * a colored-source target the manabase math already judged short (krenko's
+ * own coherence-repair had just re-added Mountain sources three times;
+ * talrand's own land-sanity check flagged the incoming nonbasic as
+ * inferior). Every improved deck was multi-color (incoming nonbasics are
+ * fixers) or colorless (kozilek — utility is a pure upgrade with no colored
+ * source to trade away). `colorIdentityCount` gates on that split.
+ */
+export function computeEffectiveNonBasicLandCount(
+  nonBasicLandCount: number,
+  landCountAutoTuned: boolean,
+  resolvedLandCount: number,
+  typeTargetLandCount: number,
+  colorIdentityCount: number
+): number {
+  if (!landCountAutoTuned) return nonBasicLandCount;
+  // ponytail: mono-color skipped — a utility nonbasic trades the deck's one
+  // colored source for colorless/tapped upside, and the manabase math
+  // already treats that source as scarce. Upgrade path: replace this flat
+  // color-count gate with a colored-source-target-aware cap (compare
+  // against buildManabaseSummary's per-color targets) so a mono deck with
+  // genuine colored-source slack could still scale.
+  if (colorIdentityCount === 1) return nonBasicLandCount;
+  return nonBasicLandCount + Math.max(0, resolvedLandCount - typeTargetLandCount);
+}
+
 // Apply user's advanced target overrides (curve percentages, type percentages)
 function applyAdvancedOverrides(
   customization: Customization,
