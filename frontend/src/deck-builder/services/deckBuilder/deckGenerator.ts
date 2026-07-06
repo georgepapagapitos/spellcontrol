@@ -158,6 +158,7 @@ import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
+import { applyFlagshipSeating } from './deckGeneration/phaseFlagshipSeating';
 import {
   MUST_INCLUDE_BOOST,
   LAND_PROTECTION_BOOST,
@@ -1883,6 +1884,60 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // gated behind balancedRoles): a tribal/spellslinger/enchantress commander
   // should get its real archetype and land count regardless of that toggle.
   const commanderProfile = buildCommanderProfile(commander, partnerCommander);
+
+  // E89 (iter-7 Slice E): untap-theme visibility. commanderWantsUntap is
+  // near-inert for most decks — true only when the commander (or partner)
+  // either untaps things itself (isUntapProducer, e.g. Tezzeret, Cruel
+  // Captain's loyalty ability) or has its own reusable {T} ability worth
+  // extra activations (hasReusableTapAbility above — Urianger Augurelt's
+  // Draw/Play Arcanum has no untap text at all, so the "wants untap"
+  // signal for him is that his own ability is worth reusing, not that he
+  // produces untaps). Hoisted to function scope (E103) — E103's flagship
+  // seating phase needs commanderWantsExtraCombat outside the EDHREC-pool
+  // picking block these were previously scoped to.
+  const commanderWantsUntap =
+    isUntapProducer(commander) ||
+    hasReusableTapAbility(commander) ||
+    (!!partnerCommander &&
+      (isUntapProducer(partnerCommander) || hasReusableTapAbility(partnerCommander)));
+
+  // iter-8 Slice B: blink/flicker theme visibility. Single-clause gate —
+  // both named blink commanders (Brago, Aminatou) are themselves blink
+  // producers, no second helper needed (unlike untap's Urianger case).
+  // Accepted miss, documented not fixed: Yarok, the Desecrated (an
+  // ETB-doubler, not itself a producer) doesn't trip this — see
+  // isBlinkProducer's doc comment in tagger/client.ts.
+  const commanderWantsBlink =
+    isBlinkProducer(commander) || (!!partnerCommander && isBlinkProducer(partnerCommander));
+
+  // iter-8 Slice B: exile-matters (impulse draw) theme visibility.
+  // Two-clause gate — producer OR payoff-identity — because the payoff
+  // signal (hasExilePayoffIdentity above) is what catches Urianger
+  // Augurelt, whose own text never matches isExileProducer. Prosper,
+  // Tome-Bound is caught by both clauses independently.
+  const commanderWantsExile =
+    isExileProducer(commander) ||
+    hasExilePayoffIdentity(commander) ||
+    (!!partnerCommander &&
+      (isExileProducer(partnerCommander) || hasExilePayoffIdentity(partnerCommander)));
+
+  // E102 (iter-11 Slice C): extra-combat theme visibility. Two-clause gate,
+  // same shape as commanderWantsExile — a producer clause (the commander's
+  // own text grants an extra combat: Aurelia, Karlach) OR a payoff-identity
+  // clause. Unlike exile's hasExilePayoffIdentity (a bespoke text check),
+  // the payoff signal here is commanderProfile's existing 'attack-trigger'
+  // detector (iter-9/#1032, commanderProfile.ts) — an attack-trigger
+  // commander (Isshin, Wulfgar) wants extra swings even though its own text
+  // never grants one, exactly the gap that left Helm of the Host and
+  // Aggravated Assault unused in Isshin decks. commanderProfile already
+  // merges partner oracle text, so this one check covers both slots. Read
+  // again in E103's flagship-seating call (deckGeneration/phaseFlagshipSeating.ts)
+  // as the reserved-seat gate, same boolean the +15 visibility boost already uses.
+  const commanderWantsExtraCombat =
+    isExtraCombatPiece(commander) ||
+    (!!partnerCommander && isExtraCombatPiece(partnerCommander)) ||
+    commanderProfile.abilities.some((a) => a.keyword === 'attack-trigger');
+
   // Prefer EDHREC's own ranked commander-page themes (the community's stated
   // consensus) over the oracle-text keyword-vote heuristic, which tie-breaks
   // on a static precedence list and mislabels commanders like Atraxa
@@ -2514,55 +2569,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     const strictRoles = !!customization.advancedTargets?.roleTargets;
     // E80 product ruling: price-sanity ships as the DEFAULT (see resolvePriceSanity).
     const priceSanity = resolvePriceSanity(customization);
-
-    // E89 (iter-7 Slice E): untap-theme visibility. commanderWantsUntap is
-    // near-inert for most decks — true only when the commander (or partner)
-    // either untaps things itself (isUntapProducer, e.g. Tezzeret, Cruel
-    // Captain's loyalty ability) or has its own reusable {T} ability worth
-    // extra activations (hasReusableTapAbility above — Urianger Augurelt's
-    // Draw/Play Arcanum has no untap text at all, so the "wants untap"
-    // signal for him is that his own ability is worth reusing, not that he
-    // produces untaps).
-    const commanderWantsUntap =
-      isUntapProducer(commander) ||
-      hasReusableTapAbility(commander) ||
-      (!!partnerCommander &&
-        (isUntapProducer(partnerCommander) || hasReusableTapAbility(partnerCommander)));
-
-    // iter-8 Slice B: blink/flicker theme visibility. Single-clause gate —
-    // both named blink commanders (Brago, Aminatou) are themselves blink
-    // producers, no second helper needed (unlike untap's Urianger case).
-    // Accepted miss, documented not fixed: Yarok, the Desecrated (an
-    // ETB-doubler, not itself a producer) doesn't trip this — see
-    // isBlinkProducer's doc comment in tagger/client.ts.
-    const commanderWantsBlink =
-      isBlinkProducer(commander) || (!!partnerCommander && isBlinkProducer(partnerCommander));
-
-    // iter-8 Slice B: exile-matters (impulse draw) theme visibility.
-    // Two-clause gate — producer OR payoff-identity — because the payoff
-    // signal (hasExilePayoffIdentity above) is what catches Urianger
-    // Augurelt, whose own text never matches isExileProducer. Prosper,
-    // Tome-Bound is caught by both clauses independently.
-    const commanderWantsExile =
-      isExileProducer(commander) ||
-      hasExilePayoffIdentity(commander) ||
-      (!!partnerCommander &&
-        (isExileProducer(partnerCommander) || hasExilePayoffIdentity(partnerCommander)));
-
-    // E102 (iter-11 Slice C): extra-combat theme visibility. Two-clause gate,
-    // same shape as commanderWantsExile — a producer clause (the commander's
-    // own text grants an extra combat: Aurelia, Karlach) OR a payoff-identity
-    // clause. Unlike exile's hasExilePayoffIdentity (a bespoke text check),
-    // the payoff signal here is commanderProfile's existing 'attack-trigger'
-    // detector (iter-9/#1032, commanderProfile.ts) — an attack-trigger
-    // commander (Isshin, Wulfgar) wants extra swings even though its own text
-    // never grants one, exactly the gap that left Helm of the Host and
-    // Aggravated Assault unused in Isshin decks. commanderProfile already
-    // merges partner oracle text, so this one check covers both slots.
-    const commanderWantsExtraCombat =
-      isExtraCombatPiece(commander) ||
-      (!!partnerCommander && isExtraCombatPiece(partnerCommander)) ||
-      commanderProfile.abilities.some((a) => a.keyword === 'attack-trigger');
 
     // Package-completion boost (bounded re-rank, cap +30): favors candidates
     // that complete a live engine's scarcer side — the positive counterpart to
@@ -5010,6 +5016,44 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
+  // ── Flagship Theme/Axis Seating (E103) ──
+  // See phaseFlagshipSeating.ts's header for the full mechanism: a flat
+  // commanderWantsX visibility boost (packageBoost.ts) can't close a 20+
+  // inclusion-point gap, so the taxonomy's own flagship cards (Helm of the
+  // Host / Aggravated Assault on an Isshin build) never seat. Reserves up to
+  // FLAGSHIP_SEAT_MAX slots for the top gated candidates, displacing the
+  // single lowest-survival-score incumbent per seat. Runs right after
+  // Coherence Repair (deck composition is settled) and before Bracket/Budget
+  // Convergence, so those passes' own safety nets still catch any overshoot
+  // the seat introduces — the same reliance Coherence Repair's own adds
+  // already have. Structural no-op whenever commanderWantsExtraCombat is
+  // false (the overwhelming majority of decks).
+  const flagshipResult = applyFlagshipSeating(state, {
+    gateFires: commanderWantsExtraCombat,
+    isFlagshipCandidate: isExtraCombatPiece,
+    themeLabel: 'extra combats',
+    scryfallCardMap,
+    colorIdentity,
+    liftScoreOf,
+    roleTargets,
+    isSaltBlocked,
+    cardAllowed: isCardAllowedBySynergyDependencies,
+    bracketGuard,
+    gameChangerCount,
+    maxGameChangers,
+    budgetTracker,
+    maxCardPrice,
+    maxRarity,
+    maxCmc,
+    arenaOnly,
+    currency,
+    ignoreOwnedBudget,
+    ignoreOwnedRarity,
+    collectionNames: context.collectionNames,
+    ownedOnly: constrainsToCollection(collectionStrategy),
+  });
+  const flagshipSeatings = flagshipResult.seated;
+
   // ── Bracket Convergence ──
   // Close the loop on the target bracket: the pick-time guard caps hard-floor
   // signals, but the estimator's soft score (fast mana/tutors/low curve) can
@@ -5420,6 +5464,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
     budgetRepairs: budgetRepairs.length > 0 ? budgetRepairs : undefined,
     surplusConversions: surplusConversions.length > 0 ? surplusConversions : undefined,
+    flagshipSeatings: flagshipSeatings.length > 0 ? flagshipSeatings : undefined,
     liftedByMap: Object.keys(liftedByMap).length > 0 ? liftedByMap : undefined,
     detectedCombos,
     collectionShortfall:

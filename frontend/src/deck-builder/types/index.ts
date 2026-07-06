@@ -568,6 +568,13 @@ export interface BuildReport {
    *  payoff pick — see phaseRoleSurplusRebalance.ts (E87). Undefined when no
    *  role ran over cap, or nothing cleared the improvement margin. */
   surplusConversions?: CoherenceRepair[];
+  /** Reserved-slot seatings for a taxonomy's own flagship cards (E103) — a
+   *  flat commanderWantsX visibility boost can't close a 20+ inclusion-point
+   *  gap (Helm of the Host / Aggravated Assault on an Isshin build), so this
+   *  displaces the single lowest-survival incumbent per seat instead. See
+   *  phaseFlagshipSeating.ts. Undefined when the gate never fired or nothing
+   *  cleared every pick-time gate. */
+  flagshipSeatings?: CoherenceRepair[];
   /** Count of protection/free-interaction pieces (E87-new Slice A) — a
    *  parallel class, not one of the 4 tracked roles. Always set by
    *  assembleBuildReport (including 0 — the motivating gap is decks
@@ -610,6 +617,9 @@ export interface GeneratedDeck {
   budgetRepairs?: CoherenceRepair[];
   /** Swaps the role-surplus rebalance pass applied (E87). */
   surplusConversions?: CoherenceRepair[];
+  /** Reserved-slot flagship seatings applied (E103). See BuildReport's field
+   *  of the same name for the full rationale. */
+  flagshipSeatings?: CoherenceRepair[];
   builtFromCollection?: boolean;
   collectionShortfall?: number;
   filterShortfall?: number; // Extra basic lands added because scryfallQuery filters reduced the available card pool

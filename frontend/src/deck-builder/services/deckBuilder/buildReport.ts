@@ -76,6 +76,8 @@ export function assembleBuildReport(input: {
     report.comboUpsideNotes = generated.comboUpsideNotes;
   if (generated.comboCompletionNotes && generated.comboCompletionNotes.length > 0)
     report.comboCompletionNotes = generated.comboCompletionNotes;
+  if (generated.flagshipSeatings && generated.flagshipSeatings.length > 0)
+    report.flagshipSeatings = generated.flagshipSeatings;
 
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {
