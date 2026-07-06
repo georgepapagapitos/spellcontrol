@@ -90,6 +90,13 @@
 
 /* ── Sheet (card-picker shell — see MoveToDeckSheet for the same pattern) ── */
 
+/* The shell's scrim normally comes from a .card-picker-backdrop child; this
+   sheet closes on root click instead, so the root carries the scrim itself —
+   without it the busy index grid bleeds through undimmed. */
+.between-decks-sheet-root {
+  background: var(--overlay-sheet);
+}
+
 .between-decks-sheet-head {
   display: flex;
   align-items: flex-start;
@@ -247,18 +254,30 @@
   flex: 0 0 auto;
 }
 
-.between-decks-move-meter-wrap {
+.between-decks-move-fit {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.between-decks-fit-pips {
+  display: flex;
   gap: var(--space-1);
-  min-width: 10rem;
+  flex: 0 0 auto;
 }
 
-.between-decks-move-meter {
-  width: 100%;
+.between-decks-fit-pip {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--border);
 }
 
-.between-decks-move-meter-label {
+.between-decks-fit-pip.is-filled {
+  background: var(--success);
+}
+
+.between-decks-move-fit-label {
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
@@ -333,11 +352,35 @@
     align-items: flex-start;
   }
 
-  .between-decks-move-meter-wrap {
-    width: 100%;
-  }
-
   .between-decks-move-card-name {
     max-width: 100%;
+  }
+}
+
+/* ── Desktop (the shell centers as a 480px modal at ≥1024px — too narrow and
+   too dense for these two-column move cards; widen and loosen only this
+   sheet, never the shared shell) ─────────────────────────────────────────── */
+
+@media (min-width: 1024px) {
+  .between-decks-sheet {
+    width: min(640px, calc(100vw - 2 * var(--space-6)));
+  }
+
+  .between-decks-sheet-head {
+    padding: var(--space-4) var(--space-4) var(--space-3);
+  }
+
+  .between-decks-sheet-body {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  .between-decks-move {
+    padding: var(--space-4);
+  }
+
+  .between-decks-move-card img,
+  .between-decks-move-card .between-decks-art-ph {
+    width: 2.6rem;
+    height: 3.6rem;
   }
 }

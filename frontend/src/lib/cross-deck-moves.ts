@@ -221,9 +221,17 @@ export function findCrossDeckMoves(
   }
 
   const claimed = new Set<string>();
+  // One suggestion per (card, target): a multi-copy donor emits one raw
+  // candidate per slot, but the target can only absorb one copy — extras are
+  // noise, collide on `id`, and eat replacements from the claim pool. Marked
+  // on success (not up-front) so a different donor's copy still gets a shot
+  // when the first donor has no viable patch.
+  const suggested = new Set<string>();
   const moves: CrossDeckMove[] = [];
 
   for (const cand of raw) {
+    const moveKey = `${cand.card.name}:${cand.target.deck.id}`;
+    if (suggested.has(moveKey)) continue;
     const pool = claimed.size === 0 ? freePool : freePool.filter((c) => !claimed.has(c.name));
     const missing: GapAnalysisCard = {
       name: cand.card.name,
@@ -241,6 +249,7 @@ export function findCrossDeckMoves(
     if (!copy) continue; // defensive: findOwnedSubstitute only offers owned names
 
     claimed.add(sub.usedName);
+    suggested.add(moveKey);
     moves.push({
       id: `${cand.donor.deck.id}:${cand.card.name}:${cand.target.deck.id}`,
       cardName: cand.card.name,
