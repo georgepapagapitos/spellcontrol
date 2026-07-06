@@ -244,14 +244,14 @@ export function DeckNewPage() {
       {formatConfig.hasCommander && (
         <section className="deck-builder-section guided-cta">
           <div className="guided-cta-text">
-            <strong>Want to feel every pick?</strong>
+            <strong>Prefer to pick every card?</strong>
             <span>
-              Brew it with me — go slot by slot (ramp, draw, removal, wipes, your theme, finishers)
-              with a hand of candidates to add or pass on each one.
+              Brew mode walks the deck slot by slot — ramp, draw, removal, wipes, your theme,
+              finishers — dealing you a hand of candidates to add or pass at each stop.
             </span>
           </div>
           <button type="button" className="btn" onClick={() => navigate('/decks/new/brew')}>
-            Brew it with me →
+            Start brewing →
           </button>
         </section>
       )}
