@@ -792,4 +792,22 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
     const deck = await generateDeck(baseContext());
     expect(deck.landSqueezeTrimNote).toBeUndefined();
   });
+
+  it('discloses the auto-tune note even when it resolves to exactly the 37-land baseline', async () => {
+    // E94: the auto-tune previously suppressed landCountNote (and the
+    // wildcard superset-pick scan) whenever the tune's own math landed back
+    // on 37 — as if nothing happened. The tune DID run; a 37-land resolve is
+    // a genuine (if unremarkable) result, so the note must still fire.
+    vi.mocked(computeAutoLandCount).mockImplementationOnce(() => 37);
+
+    const ctx = baseContext();
+    ctx.customization = customization({ nonBasicLandCount: 15 });
+    try {
+      const deck = await generateDeck(ctx);
+      expect(deck.landCountNote).toBeDefined();
+      expect(deck.landCountNote).toMatch(/^Auto-tuned to 37 lands/);
+    } finally {
+      clearGenerationCache();
+    }
+  });
 });

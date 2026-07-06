@@ -37,39 +37,39 @@ export function isDefaultLandCount(customization: Customization): boolean {
   return customization.landCount === DEFAULT_LAND_COUNT && customization.nonBasicLandCount === 15;
 }
 
-// Archetypes that lean go-wide/low-curve/dork-heavy and can safely run fewer lands.
-const LAND_COUNT_ARCHETYPE_DELTA: Partial<Record<Archetype, number>> = {
-  [Archetype.TRIBAL]: -1,
-  [Archetype.AGGRO]: -1,
-  [Archetype.VOLTRON]: -1,
-  [Archetype.STORM]: -1,
-  [Archetype.TEMPO]: -1,
-  [Archetype.CONTROL]: 1,
-  [Archetype.LANDFALL]: 1,
-  [Archetype.REANIMATOR]: 1,
-};
+// Karsten's land-count formula (Frank Karsten, "How Many Lands Do You Need
+// to Consistently Hit Your Land Drops", 2022) — a curve/ramp-driven linear
+// model, replacing the old hand-tuned archetype-delta heuristic. Coefficients
+// are the published formula; clamped to the same 32-40 sane band as before.
+const KARSTEN_INTERCEPT = 31.42;
+const KARSTEN_CMC_COEFFICIENT = 3.13;
+const KARSTEN_RAMP_COEFFICIENT = 0.28;
 
 /**
- * Archetype + ramp-density + curve aware nudge off the 37-land baseline,
- * bounded to +/-5 and clamped to a 32-40 sane band so it can never run away.
- * `rampDensity` is the EDHREC-typical ramp/dork count for this commander
- * (see `computeEdhrecRoleTargets(...).ramp`) — a pre-generation proxy for
- * how much of the manabase the deck's own dorks/rocks will cover.
+ * Karsten land-count formula: intercept + avgCmc slope − ramp-density slope,
+ * clamped to a 32-40 sane band. `archetype` is unused by the formula itself
+ * (kept for signature stability — every call site still passes it).
+ * `rampDensity` is the deck's planned ramp-slot target (blended EDHREC +
+ * archetype model, see `getDynamicRoleTargets(...).targets.ramp`) — a
+ * pre-generation proxy for how much of the manabase the deck's own
+ * dorks/rocks will cover.
  */
 export function computeAutoLandCount(
-  archetype: Archetype,
+  _archetype: Archetype,
   rampDensity: number,
   avgCmc: number
 ): number {
-  let delta = LAND_COUNT_ARCHETYPE_DELTA[archetype] ?? 0;
-  if (rampDensity >= 10) delta -= 2;
-  else if (rampDensity >= 7) delta -= 1;
-
-  if (avgCmc > 0 && avgCmc < 2.6) delta -= 1;
-  else if (avgCmc >= 3.6) delta += 1;
-
-  delta = Math.max(-5, Math.min(5, delta));
-  return Math.max(32, Math.min(40, 37 + delta));
+  return Math.max(
+    32,
+    Math.min(
+      40,
+      Math.round(
+        KARSTEN_INTERCEPT +
+          KARSTEN_CMC_COEFFICIENT * avgCmc -
+          KARSTEN_RAMP_COEFFICIENT * rampDensity
+      )
+    )
+  );
 }
 
 // Apply user's advanced target overrides (curve percentages, type percentages)
