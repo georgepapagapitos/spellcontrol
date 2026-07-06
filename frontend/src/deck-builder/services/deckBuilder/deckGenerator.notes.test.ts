@@ -143,6 +143,49 @@ describe('buildLandCountNote', () => {
     });
     expect(note).toContain('avg CMC 3.0');
   });
+
+  // E100: the nonbasic-budget scaling (computeEffectiveNonBasicLandCount) is
+  // a silent composition change unless disclosed here — every live-differ
+  // reviewer flagged the un-disclosed swap as a trust issue.
+  it('discloses the nonbasic budget raise when the scaling actually fired', () => {
+    const note = buildLandCountNote({
+      resolvedLandCount: 43,
+      finalLandCount: 43,
+      archetype: Archetype.CONTROL,
+      isLowConfidence: false,
+      edhrecRampCount: 8,
+      finalAvgCmc: 4.0,
+      nonBasicLandCount: 15,
+      effectiveNonBasicLandCount: 17,
+    });
+    expect(note).toContain('nonbasic land budget raised to 17 to match the higher land count');
+  });
+
+  it('says nothing about the nonbasic budget when the scaling never fired (values equal)', () => {
+    const note = buildLandCountNote({
+      resolvedLandCount: 37,
+      finalLandCount: 37,
+      archetype: Archetype.GOODSTUFF,
+      isLowConfidence: false,
+      edhrecRampCount: 10,
+      finalAvgCmc: 3.2,
+      nonBasicLandCount: 15,
+      effectiveNonBasicLandCount: 15,
+    });
+    expect(note).not.toContain('nonbasic land budget');
+  });
+
+  it('says nothing about the nonbasic budget when the params are omitted (backward compatible)', () => {
+    const note = buildLandCountNote({
+      resolvedLandCount: 37,
+      finalLandCount: 37,
+      archetype: Archetype.GOODSTUFF,
+      isLowConfidence: false,
+      edhrecRampCount: 10,
+      finalAvgCmc: 3.2,
+    });
+    expect(note).not.toContain('nonbasic land budget');
+  });
 });
 
 describe('buildOverBudgetNote', () => {

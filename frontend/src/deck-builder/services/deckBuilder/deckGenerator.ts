@@ -495,6 +495,13 @@ function collectEarlyLiftSeeds(state: GenerationState): string[] {
  * keyword-vote heuristic, not a real EDHREC theme or user pick — naming a
  * wrong archetype ("for a Voltron deck") is worse than naming none ("for this
  * deck's profile").
+ *
+ * E100: `nonBasicLandCount`/`effectiveNonBasicLandCount` are optional — every
+ * live-differ reviewer flagged the nonbasic-budget scaling (see
+ * computeEffectiveNonBasicLandCount) as a silent composition change when it
+ * fired, so it gets the same disclosure treatment as the delivered-count
+ * clause above: named only when it actually raised the budget above the
+ * user's own number.
  */
 export function buildLandCountNote(params: {
   resolvedLandCount: number;
@@ -503,6 +510,8 @@ export function buildLandCountNote(params: {
   isLowConfidence: boolean;
   edhrecRampCount: number;
   finalAvgCmc: number;
+  nonBasicLandCount?: number;
+  effectiveNonBasicLandCount?: number;
 }): string {
   const label = ARCHETYPE_LABEL[params.archetype];
   const archetypeText = params.isLowConfidence
@@ -512,7 +521,13 @@ export function buildLandCountNote(params: {
     params.finalLandCount !== params.resolvedLandCount
       ? `; delivered ${params.finalLandCount} after post-tune deck adjustments`
       : '';
-  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} planned ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause} — set land count explicitly under Customize to override.`;
+  const nonBasicClause =
+    params.effectiveNonBasicLandCount != null &&
+    params.nonBasicLandCount != null &&
+    params.effectiveNonBasicLandCount > params.nonBasicLandCount
+      ? `; nonbasic land budget raised to ${params.effectiveNonBasicLandCount} to match the higher land count`
+      : '';
+  return `Auto-tuned to ${params.resolvedLandCount} lands ${archetypeText} (${params.edhrecRampCount} planned ramp slots, avg CMC ${params.finalAvgCmc.toFixed(1)})${deliveredClause}${nonBasicClause} — set land count explicitly under Customize to override.`;
 }
 
 /**
@@ -1967,7 +1982,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     customization.nonBasicLandCount,
     landCountAutoTuned,
     resolvedLandCount,
-    typeTargetLandCount
+    typeTargetLandCount,
+    colorIdentity.length
   );
 
   // Calculate target counts with type and curve targets
@@ -5235,6 +5251,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       isLowConfidence: archetypeIsLowConfidence,
       edhrecRampCount: edhrecRampCountForNote ?? 0,
       finalAvgCmc: stats.averageCmc,
+      nonBasicLandCount: customization.nonBasicLandCount,
+      effectiveNonBasicLandCount,
     });
   }
 
