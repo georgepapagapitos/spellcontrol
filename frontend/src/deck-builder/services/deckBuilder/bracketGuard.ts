@@ -17,7 +17,7 @@
 // so to stay at/below target N we cap each signal at the largest count that
 // doesn't trip the next floor.
 import type { TargetBracket } from '@/deck-builder/types';
-import { isStaxPiece, isMassLandDenialFloor } from './bracketEstimator';
+import { isStaxPiece, isMassLandDenialFloor, isGameChangerCard } from './bracketEstimator';
 import { isExtraTurn } from '@/deck-builder/services/tagger/client';
 
 export interface BracketCeilings {
@@ -77,7 +77,7 @@ export class BracketGuard {
   ) {}
 
   private category(name: string): keyof BracketCeilings | null {
-    if (this.gameChangerNames.has(name)) return 'gameChangers';
+    if (isGameChangerCard(name, this.gameChangerNames)) return 'gameChangers';
     if (isMassLandDenialFloor(name)) return 'massLandDenial';
     if (isExtraTurn(name)) return 'extraTurns';
     if (isStaxPiece(name)) return 'stax';

@@ -361,4 +361,27 @@ describe('liftPicksPhase constraint gates (E71 controls audit)', () => {
     expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
     expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: over mana-value cap');
   });
+
+  it('rejects a Game Changer candidate at a bracket-2 ask (E104)', async () => {
+    // The seating path (cardPicking/scryfallFill/auditAdd) never lets a GC
+    // signal into a bracket<=2 deck — this pins the advisory surface to the
+    // same ceiling instead of advertising a pick the deck could never run.
+    const state = makeState();
+    state.cfg.targetBracket = 2;
+    state.gameChangerNames = new Set(['Gated Card']);
+    resolveCards(card('Gated Card'));
+
+    const result = await liftPicksPhase(state);
+    expect(result?.packagePicks.map((p) => p.name)).toEqual(['Safe Card']);
+    expect(result?.liftPicksNote).toBe('1 higher-lift candidate hidden: over your target bracket');
+  });
+
+  it('surfaces the same Game Changer candidate when no bracket is targeted (E104)', async () => {
+    const state = makeState();
+    state.gameChangerNames = new Set(['Gated Card']);
+    resolveCards(card('Gated Card'));
+
+    const result = await liftPicksPhase(state);
+    expect(result?.packagePicks.map((p) => p.name)).toContain('Gated Card');
+  });
 });
