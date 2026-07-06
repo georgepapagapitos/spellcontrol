@@ -242,6 +242,21 @@ export function DeckNewPage() {
       )}
 
       {formatConfig.hasCommander && (
+        <section className="deck-builder-section guided-cta">
+          <div className="guided-cta-text">
+            <strong>Want to feel every pick?</strong>
+            <span>
+              Brew it with me — go slot by slot (ramp, draw, removal, wipes, your theme, finishers)
+              with a hand of candidates to add or pass on each one.
+            </span>
+          </div>
+          <button type="button" className="btn" onClick={() => navigate('/decks/new/brew')}>
+            Brew it with me →
+          </button>
+        </section>
+      )}
+
+      {formatConfig.hasCommander && (
         <section className="deck-builder-section">
           <h2 className="deck-builder-section-title">Commander</h2>
           <CommanderSearch value={commander} onSelect={selectCommander} />

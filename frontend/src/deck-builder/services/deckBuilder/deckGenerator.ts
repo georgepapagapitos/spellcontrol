@@ -16,6 +16,7 @@ import type {
   Customization,
   DetectedCombo,
   ComboUpsideNote,
+  ThemeResult,
 } from '@/deck-builder/types';
 import {
   getCardByName,
@@ -38,7 +39,9 @@ import {
   fetchPartnerThemeData,
   fetchCommanderCombos,
   fetchSaltIndex,
+  isPoolTooThin,
 } from '@/deck-builder/services/edhrec/client';
+import { bracketLabel } from './bracketEstimator';
 import {
   loadTaggerData,
   hasTaggerData,
@@ -260,6 +263,112 @@ function mergeThemeCardlists(themeDataResults: EDHRECCommanderData[]): {
   return { cardlists, themeOverlapCounts };
 }
 
+/**
+ * Fetch + merge all selected EDHREC themes for a given bracket (or `undefined`
+ * for the bracket-agnostic page). Each theme's fetch failure is swallowed
+ * (logged) so one theme's 404/network error doesn't sink the others; returns
+ * `null` only when every theme failed. Shared by the normal fetch phase and
+ * the E93 thinness fallback ladder below, so both go through one fetch+merge
+ * path instead of two hand-rolled copies.
+ */
+async function fetchMergedThemeData(
+  themes: ThemeResult[],
+  commanderName: string,
+  partnerCommanderName: string | undefined,
+  budgetOption: BudgetOption | undefined,
+  bracket: TargetBracket | undefined
+): Promise<{ data: EDHRECCommanderData; themeOverlapCounts: Map<string, number> } | null> {
+  const results = await Promise.all(
+    themes.map((theme) =>
+      (partnerCommanderName
+        ? fetchPartnerThemeData(
+            commanderName,
+            partnerCommanderName,
+            theme.slug!,
+            budgetOption,
+            bracket
+          )
+        : fetchCommanderThemeData(commanderName, theme.slug!, budgetOption, bracket)
+      ).catch((err) => {
+        logger.warn(`[DeckGen] theme fetch failed, skipping "${theme.slug}":`, err);
+        return null;
+      })
+    )
+  );
+  const ok = results.filter((r): r is EDHRECCommanderData => r != null);
+  if (ok.length === 0) return null;
+  const merged = mergeThemeCardlists(ok);
+  return {
+    data: { themes: [], stats: ok[0].stats, cardlists: merged.cardlists, similarCommanders: [] },
+    themeOverlapCounts: merged.themeOverlapCounts,
+  };
+}
+
+/** The EDHREC pool candidates the E93 thinness ladder can land on, from most
+ *  to least specific. Mirrors the existing DeckDataSource labels so the
+ *  Build Report's "which pool" line needs no new vocabulary. */
+export type PoolRung = Extract<DeckDataSource, 'theme+bracket' | 'base+bracket' | 'theme' | 'base'>;
+
+/**
+ * Ladder through EDHREC pool candidates from most to least specific (E93),
+ * stopping at the first with real signal (isPoolTooThin === false). If every
+ * candidate is thin, returns the LAST successfully-fetched rung — the
+ * broadest page tried is still the best data available, and it's what the
+ * pre-E93 error-only fallback would have landed on anyway. Returns `null`
+ * only when every rung's fetch threw (matches pre-E93 total-failure behavior).
+ */
+export async function fetchPoolWithFallback(
+  rungs: Array<{ source: PoolRung; fetch: () => Promise<EDHRECCommanderData> }>
+): Promise<{ data: EDHRECCommanderData; source: PoolRung; fellBackFrom?: PoolRung } | null> {
+  let last: { data: EDHRECCommanderData; source: PoolRung } | null = null;
+  for (const rung of rungs) {
+    const data = await rung.fetch().catch(() => null);
+    if (!data) continue;
+    last = { data, source: rung.source };
+    if (!isPoolTooThin(data)) break;
+  }
+  if (!last) return null;
+  return { ...last, fellBackFrom: last.source !== rungs[0].source ? rungs[0].source : undefined };
+}
+
+/** Human-readable label for one EDHREC page rung, for the E93 disclosure note. */
+function poolRungLabel(
+  source: PoolRung,
+  bracketPhrase: string,
+  themeNames: string | undefined
+): string {
+  switch (source) {
+    case 'theme+bracket':
+      return `the ${themeNames} page filtered to ${bracketPhrase}`;
+    case 'base+bracket':
+      return `the main ${bracketPhrase} page`;
+    case 'theme':
+      return `the main ${themeNames} page`;
+    case 'base':
+      return 'the main commander page';
+  }
+}
+
+/**
+ * E93 disclosure text: names what EDHREC page was too thin, what page was
+ * used instead, and confirms the target bracket's card permissions (which
+ * only ever control curve/salt/game-changer ceilings downstream — never the
+ * pool fetch itself) were kept regardless of which page supplied the pool.
+ */
+export function buildBracketPoolFallbackNote(
+  commanderLabel: string,
+  targetBracket: TargetBracket,
+  fellBackFrom: PoolRung,
+  usedSource: PoolRung,
+  themeNames: string | undefined
+): string {
+  const bracketPhrase = `bracket-${targetBracket} (${bracketLabel(Number(targetBracket))})`;
+  const subject = themeNames ? `${commanderLabel} + ${themeNames}` : commanderLabel;
+  const missingLabel = poolRungLabel(fellBackFrom, bracketPhrase, themeNames);
+  const usedLabel = poolRungLabel(usedSource, bracketPhrase, themeNames);
+  return `EDHREC has too little data on ${missingLabel} for ${subject} — built from ${usedLabel} instead, with ${bracketPhrase} card permissions kept.`;
+}
+
 // ---- Fast regeneration cache ----
 // Caches EDHREC + Scryfall data from the first generation so regenerations
 // (ban a card, add a must-include, tweak settings) can skip the fetch phase entirely.
@@ -271,6 +380,7 @@ interface GenerationCache {
   combos: EDHRECCombo[];
   gameChangerNames: Set<string>;
   dataSource: DeckDataSource;
+  bracketPoolFallbackNote: string | undefined;
   representativeStats: EDHRECCommanderStats;
   // Cache keys — ALL must match for a cache hit
   commanderName: string;
@@ -918,6 +1028,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     state.combos = generationCache!.combos;
     state.edhrecData = generationCache!.edhrecData;
     state.dataSource = generationCache!.dataSource;
+    state.bracketPoolFallbackNote = generationCache!.bracketPoolFallbackNote;
     state.baseData = generationCache!.baseData;
     state.themeOverlapCounts = generationCache!.themeOverlapCounts;
     await loadTaggerData();
@@ -1218,25 +1329,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // Fetch theme-specific data for all selected themes
     onProgress?.('Consulting the Oracle…', 8);
     try {
-      // Catch each theme fetch individually so one theme's 404/network error
-      // doesn't discard the themes that succeeded (F14). We fall back to base
-      // commander data only if EVERY theme fetch fails (below).
-      const themeDataPromises = selectedThemesWithSlugs.map((theme) =>
-        (partnerCommander
-          ? fetchPartnerThemeData(
-              commander.name,
-              partnerCommander.name,
-              theme.slug!,
-              budgetOption,
-              targetBracket
-            )
-          : fetchCommanderThemeData(commander.name, theme.slug!, budgetOption, targetBracket)
-        ).catch((err) => {
-          logger.warn(`[DeckGen] theme fetch failed, skipping "${theme.slug}":`, err);
-          return null;
-        })
-      );
-
       // If hyper focus is on, also fetch base commander data in parallel to compare
       const baseDataPromise = customization.hyperFocus
         ? (partnerCommander
@@ -1250,28 +1342,115 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           ).catch(() => null)
         : Promise.resolve(null);
 
-      const [themeDataRaw, fetchedBaseData] = await Promise.all([
-        Promise.all(themeDataPromises),
+      // Catch each theme fetch individually so one theme's 404/network error
+      // doesn't discard the themes that succeeded (F14). We fall back to base
+      // commander data only if EVERY theme fetch fails (below).
+      const [themeMergeResult, fetchedBaseData] = await Promise.all([
+        fetchMergedThemeData(
+          selectedThemesWithSlugs,
+          commander.name,
+          partnerCommander?.name,
+          budgetOption,
+          targetBracket
+        ),
         baseDataPromise,
       ]);
       state.baseData = fetchedBaseData;
 
-      // Keep only the themes that resolved. If every theme failed, bail to the
-      // base-commander fallback in the catch below rather than merging nothing.
-      const themeDataResults = themeDataRaw.filter((r): r is NonNullable<typeof r> => r != null);
-      if (themeDataResults.length === 0) {
+      if (!themeMergeResult) {
         throw new Error('All theme-specific EDHREC fetches failed');
       }
 
-      // Merge cardlists from all (surviving) themes
-      const merged = mergeThemeCardlists(themeDataResults);
-      const mergedCardlists = merged.cardlists;
-      state.themeOverlapCounts = merged.themeOverlapCounts;
+      let mergedCardlists = themeMergeResult.data.cardlists;
+      state.themeOverlapCounts = themeMergeResult.themeOverlapCounts;
+      let representativeStats = themeMergeResult.data.stats;
+      let dataSource: DeckDataSource = targetBracket ? 'theme+bracket' : 'theme';
 
-      // Use the first theme's stats as representative, but if the theme endpoint
-      // lacks type distribution data (numDecks=0), fetch base commander stats instead
-      let representativeStats = themeDataResults[0].stats;
-      if (!representativeStats.numDecks || representativeStats.numDecks === 0) {
+      if (targetBracket && isPoolTooThin(themeMergeResult.data)) {
+        // E93: a bracket-narrowed theme page can resolve to a statistically
+        // thin (or entirely empty) pool while still parsing as valid JSON.
+        // Ladder down to a broader page rather than silently generate off
+        // noise — but theme outranks bracket-only: the user explicitly
+        // picked this theme, so it's the deck's identity, while the target
+        // bracket's power semantics (permissions/ceilings below) survive
+        // untouched regardless of which page supplied the pool. Dropping the
+        // theme first (bracket-only) would silently swap "the theme deck the
+        // user asked for" for "a goodstuff deck at the right power level" —
+        // the exact failure this fix exists to prevent. So: theme+bracket →
+        // theme (no bracket) → bracket-only → plain commander page.
+        let noBracketThemeOverlapCounts: Map<string, number> | undefined;
+        const outcome = await fetchPoolWithFallback([
+          { source: 'theme+bracket', fetch: () => Promise.resolve(themeMergeResult.data) },
+          {
+            source: 'theme',
+            fetch: async () => {
+              const noBracket = await fetchMergedThemeData(
+                selectedThemesWithSlugs,
+                commander.name,
+                partnerCommander?.name,
+                budgetOption,
+                undefined
+              );
+              if (!noBracket) throw new Error('theme-only EDHREC fetch failed');
+              // Stash the counts but don't commit to state yet — this rung
+              // may still turn out thin and the ladder moves on, in which
+              // case these counts would describe a page that isn't the pool.
+              noBracketThemeOverlapCounts = noBracket.themeOverlapCounts;
+              return noBracket.data;
+            },
+          },
+          {
+            source: 'base+bracket',
+            fetch: () =>
+              partnerCommander
+                ? fetchPartnerCommanderData(
+                    commander.name,
+                    partnerCommander.name,
+                    budgetOption,
+                    targetBracket
+                  )
+                : fetchCommanderData(commander.name, budgetOption, targetBracket),
+          },
+          {
+            source: 'base',
+            fetch: () =>
+              partnerCommander
+                ? fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
+                : fetchCommanderData(commander.name, budgetOption),
+          },
+        ]);
+        if (outcome) {
+          mergedCardlists = outcome.data.cardlists;
+          representativeStats = outcome.data.stats;
+          dataSource = outcome.source;
+          // Only commit the theme-only overlap counts if the ladder actually
+          // settled on that rung — otherwise leave the theme+bracket counts
+          // already assigned above (or whatever an earlier rung set).
+          if (outcome.source === 'theme' && noBracketThemeOverlapCounts) {
+            state.themeOverlapCounts = noBracketThemeOverlapCounts;
+          }
+          if (outcome.fellBackFrom) {
+            logger.warn(
+              `[DeckGen] E93: theme+bracket pool too thin, laddered down to "${outcome.source}"`
+            );
+            const commanderLabel = partnerCommander
+              ? `${commander.name} // ${partnerCommander.name}`
+              : commander.name;
+            state.bracketPoolFallbackNote = buildBracketPoolFallbackNote(
+              commanderLabel,
+              targetBracket,
+              outcome.fellBackFrom,
+              outcome.source,
+              selectedThemesWithSlugs.map((t) => t.name).join(', ')
+            );
+          }
+        }
+        // outcome === null means every rung's fetch threw — keep the original
+        // thin-but-parsed theme+bracket pool computed above rather than nothing.
+      } else if (!representativeStats.numDecks || representativeStats.numDecks === 0) {
+        // Pre-E93 behavior, unchanged: no bracket was targeted, but the theme
+        // endpoint parsed fine while lacking type-distribution stats — patch
+        // stats only from the base page (the cardlist itself is still used).
         logger.warn(
           '[DeckGen] FALLBACK: Theme endpoint lacks stats (numDecks=0), fetching base commander stats'
         );
@@ -1287,7 +1466,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           representativeStats = baseStatsData.stats;
           logger.debug('[DeckGen] FALLBACK: Got stats from base commander+bracket');
         } catch {
-          // Try without bracket if bracket-specific base also fails
           if (targetBracket) {
             logger.warn(
               '[DeckGen] FALLBACK: Base commander+bracket stats failed, trying without bracket'
@@ -1322,7 +1500,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         similarCommanders: [],
       };
 
-      state.dataSource = targetBracket ? 'theme+bracket' : 'theme';
+      state.dataSource = dataSource;
       const themeNames = selectedThemesWithSlugs.map((t) => t.name).join(', ');
       onProgress?.(`Attuning to ${themeNames}…`, 12);
     } catch (error) {
@@ -1373,34 +1551,64 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   } else if (!usingCache) {
     // No themes selected - use base commander data (top recommended cards)
     onProgress?.('Consulting the Oracle…', 8);
-    try {
-      state.edhrecData = partnerCommander
-        ? await fetchPartnerCommanderData(
-            commander.name,
-            partnerCommander.name,
-            budgetOption,
-            targetBracket
-          )
-        : await fetchCommanderData(commander.name, budgetOption, targetBracket);
-      state.dataSource = targetBracket ? 'base+bracket' : 'base';
-      onProgress?.('Your commander heeds the call…', 12);
-    } catch (error) {
-      logger.warn('[DeckGen] FALLBACK: Base commander+bracket fetch failed:', error);
-      if (targetBracket) {
-        try {
-          state.edhrecData = partnerCommander
-            ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
-            : await fetchCommanderData(commander.name, budgetOption);
-          state.dataSource = 'base';
-          logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
-          onProgress?.('Your commander heeds the call…', 12);
-        } catch {
+    if (targetBracket) {
+      // E93: ladder bracket-only → plain commander page when the bracket page
+      // is too thin to build from. This also subsumes the pre-E93 error-only
+      // fallback below (a thrown fetch is just a rung with no data).
+      const outcome = await fetchPoolWithFallback([
+        {
+          source: 'base+bracket',
+          fetch: () =>
+            partnerCommander
+              ? fetchPartnerCommanderData(
+                  commander.name,
+                  partnerCommander.name,
+                  budgetOption,
+                  targetBracket
+                )
+              : fetchCommanderData(commander.name, budgetOption, targetBracket),
+        },
+        {
+          source: 'base',
+          fetch: () =>
+            partnerCommander
+              ? fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
+              : fetchCommanderData(commander.name, budgetOption),
+        },
+      ]);
+      if (outcome) {
+        state.edhrecData = outcome.data;
+        state.dataSource = outcome.source;
+        if (outcome.fellBackFrom) {
           logger.warn(
-            '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
+            `[DeckGen] E93: bracket-only pool too thin, laddered down to "${outcome.source}"`
           );
-          onProgress?.('Scrying for more…', 12);
+          const commanderLabel = partnerCommander
+            ? `${commander.name} // ${partnerCommander.name}`
+            : commander.name;
+          state.bracketPoolFallbackNote = buildBracketPoolFallbackNote(
+            commanderLabel,
+            targetBracket,
+            outcome.fellBackFrom,
+            outcome.source,
+            undefined
+          );
         }
+        onProgress?.('Your commander heeds the call…', 12);
       } else {
+        logger.warn(
+          '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
+        );
+        onProgress?.('Scrying for more…', 12);
+      }
+    } else {
+      try {
+        state.edhrecData = partnerCommander
+          ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
+          : await fetchCommanderData(commander.name, budgetOption);
+        state.dataSource = 'base';
+        onProgress?.('Your commander heeds the call…', 12);
+      } catch {
         logger.warn(
           '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
         );
@@ -1558,6 +1766,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       combos: state.combos,
       gameChangerNames: state.gameChangerNames,
       dataSource: state.dataSource,
+      bracketPoolFallbackNote: state.bracketPoolFallbackNote,
       representativeStats: state.edhrecData.stats,
       ...key,
     };
@@ -1891,32 +2100,56 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       0,
       originalCreatureTarget - (preFilledTypeCounts.creature ?? 0)
     );
-    const creaturePool = mergeWithAllNonLand(cardlists.creatures, cardlists.allNonLand);
+    const creaturePool = mergeWithAllNonLand(
+      cardlists.creatures,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const instantTarget = Math.max(
       0,
       (typeTargets.instant ?? 0) - (preFilledTypeCounts.instant ?? 0)
     );
-    const instantPool = mergeWithAllNonLand(cardlists.instants, cardlists.allNonLand);
+    const instantPool = mergeWithAllNonLand(
+      cardlists.instants,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const sorceryTarget = Math.max(
       0,
       (typeTargets.sorcery ?? 0) - (preFilledTypeCounts.sorcery ?? 0)
     );
-    const sorceryPool = mergeWithAllNonLand(cardlists.sorceries, cardlists.allNonLand);
+    const sorceryPool = mergeWithAllNonLand(
+      cardlists.sorceries,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const artifactTarget = Math.max(
       0,
       (typeTargets.artifact ?? 0) - (preFilledTypeCounts.artifact ?? 0)
     );
-    const artifactPool = mergeWithAllNonLand(cardlists.artifacts, cardlists.allNonLand);
+    const artifactPool = mergeWithAllNonLand(
+      cardlists.artifacts,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const enchantmentTarget = Math.max(
       0,
       (typeTargets.enchantment ?? 0) - (preFilledTypeCounts.enchantment ?? 0)
     );
-    const enchantmentPool = mergeWithAllNonLand(cardlists.enchantments, cardlists.allNonLand);
+    const enchantmentPool = mergeWithAllNonLand(
+      cardlists.enchantments,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
     const planeswalkerTarget = Math.max(
       0,
       (typeTargets.planeswalker ?? 0) - (preFilledTypeCounts.planeswalker ?? 0)
     );
-    const planeswalkerPool = mergeWithAllNonLand(cardlists.planeswalkers, cardlists.allNonLand);
+    const planeswalkerPool = mergeWithAllNonLand(
+      cardlists.planeswalkers,
+      cardlists.allNonLand,
+      state.cfg.brewLevel
+    );
 
     // Collect ALL unique card names from all pools for a single batch fetch
     onProgress?.('Searching your library…', 18);
@@ -2212,7 +2445,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       for (const [name, b] of pkg) boosts.set(name, (boosts.get(name) ?? 0) + b);
       const lift = computeLiftPickBoosts(
         pool.map((c) => c.name),
-        liftScoreOf
+        liftScoreOf,
+        2 * state.cfg.brewLevel
       );
       for (const [name, b] of lift) boosts.set(name, (boosts.get(name) ?? 0) + b);
       const untap = computeUntapVisibilityBoosts(
@@ -2291,7 +2525,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     categories.creatures.push(...creatures);
     for (const card of creatures) {
@@ -2388,7 +2623,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
@@ -2454,7 +2690,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
@@ -2520,7 +2757,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
@@ -2586,7 +2824,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         : undefined,
       priceSanity,
       getComboBoosts(),
-      priceSanityDecided
+      priceSanityDecided,
+      state.cfg.brewLevel
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
@@ -2653,7 +2892,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           : undefined,
         priceSanity,
         getComboBoosts(),
-        priceSanityDecided
+        priceSanityDecided,
+        state.cfg.brewLevel
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
@@ -4973,6 +5213,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     collectionSubstitutions: survivingSubstitutions.length > 0 ? survivingSubstitutions : undefined,
     typeTargets,
     dataSource: state.dataSource,
+    bracketPoolFallbackNote: state.bracketPoolFallbackNote,
     generationMode: mode,
     generationModeDetail: altPool?.detail,
     generationRelaxedNote: altPool?.relaxedNote,

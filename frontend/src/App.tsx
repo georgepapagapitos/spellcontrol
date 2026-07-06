@@ -12,6 +12,7 @@ import { ListsPage } from './pages/ListsPage';
 import { DecksIndexPage } from './pages/DecksIndexPage';
 import { DeckNewPage } from './pages/DeckNewPage';
 import { GuidedBuildPage } from './pages/GuidedBuildPage';
+import { BrewBuildPage } from './pages/BrewBuildPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
 import { PlaytestPage } from './pages/PlaytestPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -252,6 +253,7 @@ export default function App() {
           <Route path="/decks" element={<DecksIndexPage />} />
           <Route path="/decks/new" element={<DeckNewPage />} />
           <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
+          <Route path="/decks/new/brew" element={<BrewBuildPage />} />
           <Route path="/decks/compare" element={<DeckComparePage />} />
           <Route path="/decks/:id" element={<DeckEditorPage />} />
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />

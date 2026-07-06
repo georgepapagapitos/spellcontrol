@@ -7,6 +7,7 @@ import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { normalizeForSearch } from '../../lib/normalize-search';
+import { classifyInclusion } from '../../lib/inclusion-label';
 import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '../../lib/api';
 import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
@@ -803,12 +804,15 @@ function SuggestionsResults({
           <span className={badge.className}>{badgeLabel}</span>
           {row.kind === 'staple' ? (
             <>
-              {row.inclusion != null && (
-                <>
-                  {' · '}
-                  {`${Math.round(row.inclusion)}%`}
-                </>
-              )}
+              {' · '}
+              {(() => {
+                const info = classifyInclusion(row.inclusion);
+                return info.kind === 'pct' ? (
+                  `${info.pct}%`
+                ) : (
+                  <span className="card-search-offmeta">Off-meta</span>
+                );
+              })()}
               {row.roleLabel && (
                 <>
                   {' · '}
