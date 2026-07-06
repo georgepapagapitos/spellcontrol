@@ -12,9 +12,11 @@ import {
   toSwapAgainst,
   fromCostSwapRow,
   fromComboCompletion,
+  fromBrewCandidate,
   mergeImprove,
   parsePrice,
 } from './deck-change';
+import type { BrewCandidate } from '@/deck-builder/services/deckBuilder/brewSlots';
 import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest';
 import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
@@ -182,6 +184,66 @@ describe('fromGapCard', () => {
   it('falls back past liftedBy to the role label when liftedBy is empty', () => {
     const c = fromGapCard({ ...gap, liftedBy: [] });
     expect(c.reason).toBe('Ramp staple');
+  });
+});
+
+describe('fromBrewCandidate', () => {
+  const base: BrewCandidate = {
+    name: 'Arcane Signet',
+    price: '$1.20',
+    inclusion: 80,
+    synergy: 0,
+    typeLine: 'Artifact',
+    cmc: 1,
+    isOwned: false,
+    role: 'ramp',
+    roleLabel: 'Ramp',
+  };
+
+  it('maps a role-classified candidate into an add Change, unowned', () => {
+    const c = fromBrewCandidate(base, 'brew:ramp:Arcane Signet', '{1}');
+    expect(c.type).toBe('add');
+    expect(c.lane).toBe('fill-gaps');
+    expect(c.id).toBe('brew:ramp:Arcane Signet');
+    expect(c.reason).toBe('Ramp pick');
+    expect(c.ownership).toBe('unowned');
+    expect(c.deltaPrice).toBe(1.2);
+    expect(c.role).toBe('ramp');
+    expect(c.manaCost).toBe('{1}');
+  });
+
+  it('marks ownership when the candidate is owned', () => {
+    const c = fromBrewCandidate({ ...base, isOwned: true }, 'x');
+    expect(c.ownership).toBe('owned');
+  });
+
+  it('falls back to a theme-synergy reason when there is no role', () => {
+    const c = fromBrewCandidate(
+      { ...base, role: undefined, roleLabel: undefined, isThemeSynergy: true },
+      'x'
+    );
+    expect(c.reason).toBe('Theme synergy');
+  });
+
+  it('falls back to a Game Changer reason when there is no role or theme synergy', () => {
+    const c = fromBrewCandidate(
+      { ...base, role: undefined, roleLabel: undefined, isGameChanger: true },
+      'x'
+    );
+    expect(c.reason).toBe('Game Changer');
+  });
+
+  it('has no reason when neither role, theme synergy, nor Game Changer apply', () => {
+    const c = fromBrewCandidate({ ...base, role: undefined, roleLabel: undefined }, 'x');
+    expect(c.reason).toBeUndefined();
+  });
+
+  it('omits manaCost, inclusion, and synergy when not provided/zero', () => {
+    const c = fromBrewCandidate({ ...base, inclusion: 0, synergy: 0, price: null }, 'x');
+    expect(c.manaCost).toBeUndefined();
+    expect(c.inclusion).toBeUndefined();
+    expect(c.synergy).toBeUndefined();
+    expect(c.deltaPrice).toBeUndefined();
   });
 });
 

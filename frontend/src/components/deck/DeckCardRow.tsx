@@ -15,6 +15,7 @@ const CONFIDENCE_BADGE: Record<string, { tone: VerdictTone; label: string }> = {
 };
 import { useCardThumb } from '@/lib/card-thumbs';
 import { formatMoney } from '@/lib/format-money';
+import { ManaCost } from '../ManaCost';
 
 /** Card art, or a placeholder while it resolves (thin EDHREC/synergy rows arrive
  *  name-only and resolve their CDN art lazily — never a bare img against the
@@ -106,7 +107,7 @@ export function DeckCardRow({
   peekName,
   secondaryAction,
 }: DeckCardRowProps): JSX.Element {
-  const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice } = change;
+  const { name, reason, ownership, inclusion, synergy, roleLabel, deltaPrice, manaCost } = change;
   // Prefer an imageUrl already carried by the Change; otherwise resolve the
   // card's CDN art by name (cached + batched), never the rate-limited API host.
   const resolved = useCardThumb(change.imageUrl ? undefined : name);
@@ -185,6 +186,7 @@ export function DeckCardRow({
       <div className="deck-card-row-body">
         <span className="deck-card-row-title">
           <span className="deck-card-row-name">{name}</span>
+          {manaCost && <ManaCost cost={manaCost} className="deck-card-row-mana" />}
           {/* Tags are shared VerdictBadge chips (tone + label, per the finer-scale
               convention) so the row speaks the Tune-board vocabulary instead of
               hand-rolled pills: warn = bracket-relevant caution, accent = theme

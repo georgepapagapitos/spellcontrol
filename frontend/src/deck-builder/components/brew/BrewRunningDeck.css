@@ -1,0 +1,229 @@
+/* Desktop: persistent inline panel. Mobile (<=600px): hidden in favor of the
+ * collapsed summary bar + sheet — see STYLE_GUIDE device tiers. */
+.brew-running-deck {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(var(--space-3), 2cqi, var(--space-4));
+  align-self: start;
+  position: sticky;
+  top: var(--space-4);
+}
+
+.brew-running-title {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--text-base);
+}
+
+.brew-running-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.brew-running-section h3 {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.brew-running-curve,
+.brew-running-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.brew-running-curve-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 1.5rem;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.brew-running-curve-label {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.brew-running-curve-count {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.brew-running-empty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.brew-running-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.brew-running-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-sm);
+  padding: 0.15rem 0;
+}
+
+.brew-running-item-slot {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+  min-width: 3.5rem;
+}
+
+.brew-running-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.brew-running-item-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2rem;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .brew-running-item-remove:hover {
+    color: var(--err-text);
+    background: var(--surface);
+  }
+}
+
+.brew-running-item-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+  .brew-running-item-remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ── Mobile collapsed summary bar ─────────────────────────────────────── */
+.brew-running-bar {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .brew-running-deck {
+    display: none;
+  }
+
+  .brew-running-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: fixed;
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    z-index: var(--z-sheet-bg);
+    background: var(--surface-raised);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 0.7rem var(--space-4);
+    box-shadow: 0 4px 16px color-mix(in srgb, black 20%, transparent);
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    min-height: 44px;
+  }
+
+  .brew-running-bar-cta {
+    color: var(--accent);
+  }
+}
+
+/* ── Mobile sheet ──────────────────────────────────────────────────────── */
+.brew-running-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  z-index: var(--z-sheet-bg);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fade-in var(--motion-base) var(--ease-out-soft) both;
+}
+
+.brew-running-sheet-backdrop.is-closing {
+  animation: fade-out var(--motion-base) var(--ease-out-soft) forwards;
+}
+
+.brew-running-sheet {
+  position: relative;
+  z-index: var(--z-sheet-fg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 85dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: sheet-rise var(--motion-drawer) var(--ease-drawer) backwards;
+  padding: var(--space-4);
+  gap: var(--space-3);
+}
+
+.brew-running-sheet.is-closing {
+  animation: sheet-fall 0.34s var(--ease-drawer) forwards;
+}
+
+.brew-running-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brew-running-sheet-header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.brew-running-sheet-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.brew-running-sheet-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
