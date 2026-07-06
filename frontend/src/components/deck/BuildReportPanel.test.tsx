@@ -62,6 +62,20 @@ describe('BuildReportPanel', () => {
     expect(container.textContent).not.toContain('padded');
   });
 
+  it('renders the Staples <-> Brew dial disclosure when present', () => {
+    render(
+      <BuildReportPanel
+        report={makeReport({ brewDialNote: 'Brew dial leaned toward deep cuts' })}
+      />
+    );
+    expect(screen.getByText('Brew dial leaned toward deep cuts')).toBeTruthy();
+  });
+
+  it('omits the brew-dial note when unset (Balanced default)', () => {
+    const { container } = render(<BuildReportPanel report={makeReport()} />);
+    expect(container.textContent).not.toContain('Brew dial');
+  });
+
   it('renders role gaps as have / target with humanized labels', () => {
     const { container } = render(
       <BuildReportPanel
