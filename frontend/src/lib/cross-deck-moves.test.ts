@@ -184,6 +184,27 @@ describe('findCrossDeckMoves', () => {
     expect(moves).toHaveLength(0);
   });
 
+  it('never suggests a card the target deck already runs (singleton duplicate)', () => {
+    const { donor, target } = buildScene();
+    // The target (singleton commander deck) already sleeves its own Idle
+    // Cleric — offering the donor's copy would be a nonsensical duplicate.
+    // (Reassign rather than push: target.cards is the shared lifegainCards.)
+    target.cards = [
+      ...lifegainCards,
+      {
+        slotId: 'slot-Idle Cleric-target',
+        card: idleCard,
+        allocatedCopyId: 'copy-Idle Cleric-target',
+      },
+    ];
+    const decks = [donor, target];
+    const collection: EnrichedCard[] = [owned('Spare Rock', { cmc: 2 })];
+    const allocations = buildAllocationMap(decks);
+
+    const moves = findCrossDeckMoves(decks, collection, allocations);
+    expect(moves).toHaveLength(0);
+  });
+
   it('skips when a free unallocated copy already exists (gap analysis territory, not a move)', () => {
     const { donor, target } = buildScene();
     const decks = [donor, target];
