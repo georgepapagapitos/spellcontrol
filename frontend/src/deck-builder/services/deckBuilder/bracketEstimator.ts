@@ -415,13 +415,17 @@ export function estimateBracket(
     const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense;
 
     // Byte-identical to the pre-E97 text when there are no multi-card combos;
-    // names both counts once multi-card lines contribute.
+    // names both counts once multi-card lines contribute. Never prints a
+    // "0 two-card + N multi-card" prefix — mirrors BracketBreakdown.tsx's
+    // comboFloorNote, which already special-cases twoCardComboCount === 0.
     const comboLabel =
-      multiCardComboCount > 0
-        ? `${twoCardComboCount} two-card + ${multiCardComboCount} multi-card combo${
-            twoCardComboCount + multiCardComboCount === 1 ? '' : 's'
-          }`
-        : `${twoCardComboCount} two-card combo${twoCardComboCount === 1 ? '' : 's'}`;
+      multiCardComboCount === 0
+        ? `${twoCardComboCount} two-card combo${twoCardComboCount === 1 ? '' : 's'}`
+        : twoCardComboCount === 0
+          ? `${multiCardComboCount} multi-card combo${multiCardComboCount === 1 ? '' : 's'}`
+          : `${twoCardComboCount} two-card + ${multiCardComboCount} multi-card combo${
+              twoCardComboCount + multiCardComboCount === 1 ? '' : 's'
+            }`;
 
     if (isEarlyAssembly) {
       // When redundancy (not raw speed) is what tips it, say so — the deck may have

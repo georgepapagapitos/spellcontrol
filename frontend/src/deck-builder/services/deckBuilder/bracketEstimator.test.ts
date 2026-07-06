@@ -207,7 +207,12 @@ describe('estimateBracket — hard floors', () => {
     expect(r.breakdown.twoCardComboCount).toBe(0);
     expect(r.breakdown.multiCardComboCount).toBe(2);
     expect(r.bracket).toBe(3);
-    expect(r.hardFloors.some((f) => f.bracket === 3 && f.reason.includes('multi-card'))).toBe(true);
+    const comboFloor = r.hardFloors.find((f) => f.reason.includes('multi-card'));
+    expect(comboFloor?.bracket).toBe(3);
+    // Zero two-card combos must never print a "0 two-card +" prefix (matches
+    // the krenko-mob-boss-budget50 panel deck: 0 two-card + 4 multi-card).
+    expect(comboFloor?.reason).toBe('2 multi-card combos');
+    expect(comboFloor?.reason).not.toContain('0 two-card');
   });
 
   it('E97: 3 complete multi-card combos escalate to a B3 floor', () => {
