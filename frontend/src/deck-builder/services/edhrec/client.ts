@@ -602,6 +602,32 @@ function mergeCardlists(
 }
 
 /**
+ * Minimum decks/cards for an EDHREC page to carry real signal, rather than
+ * being statistical noise. A bracket- or theme-narrowed URL can resolve to a
+ * page EDHREC still serves (valid JSON, 200 OK) with almost no underlying
+ * decks (E93). Calibrated against live measurements: a bracket+theme combo
+ * page returned 0 decks / 0 cards, a cEDH-only page returned 19 decks, while
+ * a healthy theme page carried 768 decks / 267 cards. 25 decks and 10
+ * non-land cards sit comfortably above the observed noise floor and below
+ * every verified-healthy page.
+ */
+export const MIN_HEALTHY_POOL_DECKS = 25;
+export const MIN_HEALTHY_POOL_CARDS = 10;
+
+/**
+ * True when a parsed EDHREC pool is too thin to build a deck from — too few
+ * decks contributed to the page's stats, or too few distinct non-land cards
+ * recommended. Generation should ladder down to a broader page rather than
+ * accept a pool like this silently.
+ */
+export function isPoolTooThin(data: EDHRECCommanderData): boolean {
+  return (
+    data.stats.numDecks < MIN_HEALTHY_POOL_DECKS ||
+    data.cardlists.allNonLand.length < MIN_HEALTHY_POOL_CARDS
+  );
+}
+
+/**
  * Fetch full commander data from EDHREC
  */
 export async function fetchCommanderData(
