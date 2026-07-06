@@ -147,6 +147,14 @@
   color: var(--text-primary);
 }
 
+.deck-card-row-mana {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
 .deck-card-row-meta {
   display: flex;
   align-items: center;

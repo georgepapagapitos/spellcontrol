@@ -1109,11 +1109,11 @@ the same thing, and "cost" ambiguously meant either the mana number or the dolla
 price. Canonical vocabulary, use it everywhere **user-facing** (labels, aria,
 chips, tooltips, analysis messages):
 
-| Concept                          | Canonical term        | Never say                    |
-| -------------------------------- | --------------------- | ---------------------------- |
-| The converted-cost **number**    | **Mana value** (`Avg mana value` for the average) | ~~CMC~~, ~~Avg CMC~~, ~~cost~~ (for the number) |
-| The **`{2}{G}` pip symbols**     | **Mana cost**         | —                            |
-| The **dollar amount**            | **Price**             | ~~cost~~ (for dollars)       |
+| Concept                       | Canonical term                                    | Never say                                       |
+| ----------------------------- | ------------------------------------------------- | ----------------------------------------------- |
+| The converted-cost **number** | **Mana value** (`Avg mana value` for the average) | ~~CMC~~, ~~Avg CMC~~, ~~cost~~ (for the number) |
+| The **`{2}{G}` pip symbols**  | **Mana cost**                                     | —                                               |
+| The **dollar amount**         | **Price**                                         | ~~cost~~ (for dollars)                          |
 
 - "Mana value" is MTG's official term since 2021; "CMC" is legacy and reads as
   jargon to newer players. Spell it out ("Mana value"), don't abbreviate to
@@ -1194,12 +1194,12 @@ the thumb, badges, reason, and action layout.
 ### Why disclosure (the reasoning behind a suggestion)
 
 The differentiator is **explainable** editing: a cut/swap suggestion must be
-able to show *why this card*, in plain English, from signals the engine already
+able to show _why this card_, in plain English, from signals the engine already
 computed — never an opaque "weak slot". When a `Change` (or `RankedCut`) carries
 `whyFactors`, the shared **`components/deck/WhyBreakdown.tsx`** renders a quiet,
 tappable disclosure under the reason line.
 
-- **Disclosure, not tooltip.** This is per-row *reasoning* (multiple factors,
+- **Disclosure, not tooltip.** This is per-row _reasoning_ (multiple factors,
   primary content the user scans while deciding), so it is an inline
   `aria-expanded` toggle that stays open — **not** an `InfoTip`. `InfoTip` is for
   a one-off concept/jargon gloss (one per concept); reasoning that differs per

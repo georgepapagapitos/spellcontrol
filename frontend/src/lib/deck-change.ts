@@ -22,6 +22,7 @@ import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracket
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
+import type { BrewCandidate } from '@/deck-builder/services/deckBuilder/brewSlots';
 import {
   buildBracketMoveFactors,
   buildBudgetSwapFactors,
@@ -136,6 +137,10 @@ export interface Change {
   typeLine?: string;
   /** Thumbnail; the row falls back to a Scryfall named-image CDN when absent. */
   imageUrl?: string;
+  /** Raw Scryfall mana cost string (e.g. "{2}{U}{U}"), rendered as pips via
+   *  <ManaCost>. Thin EDHREC-sourced rows don't carry this — only populated
+   *  when the caller has already resolved the full ScryfallCard. */
+  manaCost?: string;
 }
 
 /** Sort rank: a free owned copy beats an owned-but-committed copy beats unowned. */
@@ -252,6 +257,57 @@ export function fromGapCard(g: GapAnalysisCard, ownership?: ChangeOwnership): Ch
     cmc: g.cmc,
     typeLine: g.typeLine,
     imageUrl: g.imageUrl,
+  };
+}
+
+/**
+ * Adapt a Brew-mode slot candidate into an add Change for `<DeckCardRow>` —
+ * the shared candidate-hand row (thumb, mana cost, why chips, Add/Pass
+ * actions) reuses the exact same row primitive the Coach feed does, per the
+ * STYLE_GUIDE ruling that no surface hand-rolls a suggestion row. `ownership`
+ * is the full allocation-aware state (owned/in-other-deck/in-cube/unowned) —
+ * the caller re-derives it live via `buildAllocationMap` (see
+ * `useBrewOwnership` in `BrewSlotPanel`), same vocabulary/badges as every
+ * other `<DeckCardRow>` surface. This is pick-time decision support for a
+ * physical collection: "owned and free" vs "owned but committed elsewhere"
+ * vs "unowned" changes what the player actually does with the row.
+ */
+export function fromBrewCandidate(
+  c: BrewCandidate,
+  id: string,
+  ownership: ChangeOwnership,
+  manaCost?: string
+): Change {
+  return {
+    id,
+    type: 'add',
+    lane: 'fill-gaps',
+    name: c.name,
+    reason: c.roleLabel
+      ? `${c.roleLabel} pick`
+      : c.isThemeSynergy
+        ? 'Theme synergy'
+        : c.isGameChanger
+          ? 'Game Changer'
+          : undefined,
+    whyFactors: buildGapAddFactors({
+      roleLabel: c.roleLabel,
+      inclusion: c.inclusion || undefined,
+      synergy: c.synergy,
+      owned: ownership === 'owned',
+    }),
+    ownership,
+    deltaPrice: parsePrice(c.price) ?? undefined,
+    role: c.role,
+    roleLabel: c.roleLabel,
+    inclusion: c.inclusion || undefined,
+    synergy: c.synergy || undefined,
+    isGameChanger: c.isGameChanger,
+    isThemeSynergy: c.isThemeSynergy,
+    cmc: c.cmc,
+    typeLine: c.typeLine,
+    imageUrl: c.imageUrl,
+    manaCost,
   };
 }
 

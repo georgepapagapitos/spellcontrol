@@ -1,0 +1,163 @@
+.brew-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(var(--space-3), 2cqi, var(--space-5));
+}
+
+.brew-slot-header h2 {
+  margin: 0 0 0.2rem 0;
+  font-size: var(--text-lg);
+}
+
+.brew-slot-purpose {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  max-width: 48rem;
+}
+
+.brew-slot-progress {
+  margin: 0.3rem 0 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.brew-slot-progress-met {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.brew-slot-search-toggle {
+  display: flex;
+}
+
+.brew-mechanic-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.brew-mechanic-search-input {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.brew-mechanic-search-input input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.brew-mechanic-search-input input:focus {
+  outline: none;
+}
+
+.brew-mechanic-search-input:focus-within {
+  border-color: var(--accent);
+}
+
+.brew-mechanic-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.2rem;
+}
+
+@media (pointer: coarse) {
+  .brew-mechanic-search-clear {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.brew-mechanic-search-status {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.brew-mechanic-search-status.is-error {
+  color: var(--err-text);
+}
+
+.brew-hand {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.brew-hand-empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.brew-hand-skeleton {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.brew-hand-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brew-hand-skeleton-art {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+.brew-hand-skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.brew-slot-actions,
+.brew-slot-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.brew-slot-nav {
+  justify-content: space-between;
+  border-top: 0.5px solid var(--border);
+  padding-top: var(--space-3);
+}
+
+.brew-slot-empty {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: var(--space-4);
+}

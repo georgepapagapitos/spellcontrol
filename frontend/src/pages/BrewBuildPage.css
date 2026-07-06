@@ -1,0 +1,51 @@
+.brew-resume-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.brew-resume-banner strong {
+  color: var(--text-primary);
+}
+
+.brew-resume-banner span {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.brew-resume-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.brew-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Room for the fixed mobile summary bar so it never covers the last slot action. */
+  padding-bottom: 4.5rem;
+}
+
+.brew-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .brew-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: start;
+    padding-bottom: 0;
+  }
+}
+
+.brew-saving-note {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
