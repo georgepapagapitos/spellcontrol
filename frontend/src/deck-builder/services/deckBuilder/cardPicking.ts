@@ -41,6 +41,16 @@ export interface RoleCapConfig {
    *  the escape hatch admits an over-cap card, so the build report can
    *  disclose it in one aggregate note (never silent). */
   overflowCounts?: Partial<Record<RoleKey, number>>;
+  /** E109 board-centric wipe-asymmetry preference: when set, a boardwipe-role
+   *  candidate that spares the caller's own board (isOneSidedWipe,
+   *  tagger/client.ts) is always tried before a symmetric one — see
+   *  wipeAsymmetryTieBreak. Undefined (the common case, every deck whose
+   *  plan isn't board-centric) is a no-op. */
+  isOneSidedWipe?: (card: ScryfallCard) => boolean;
+  /** Unordered name-pair keys the tie-break has actually decided (mirrors
+   *  priceSanityDecided below) — the build report's "N one-sided wipes
+   *  preferred" count. */
+  wipeAsymmetryDecided?: Set<string>;
 }
 
 // Pick cards from a pre-fetched card map (no API calls)
@@ -327,6 +337,50 @@ function priceSanityTieBreak(
   return priceA < priceB ? -1 : 1;
 }
 
+// E109 board-centric wipe-asymmetry preference: among two boardwipe-role
+// candidates, always try a one-sided wipe (isOneSidedWipe, tagger/client.ts
+// — spares the caster's own board) before a symmetric one, regardless of the
+// priority/inclusion gap between them. Deliberately unconditional (not
+// banded like priceSanityTieBreak above) — a capped additive boost (the
+// packageBoost.ts visibility-boost family) tops out well below the real
+// inclusion gap between a niche one-sided wipe and a top symmetric staple
+// (same "boost couldn't close a 20+ point gap" shape as E103's extra-combat
+// slice), so the comparator has to be the thing that actually wins the slot,
+// not a nudge that competes with it.
+//
+// `isOneSidedWipe` is injected (mirrors packageBoost.ts's `isProducer`
+// params for the untap/blink/exile/extra-combat visibility boosts) so this
+// module doesn't need a value import from tagger/client.ts; undefined
+// (the common case — every deck whose plan isn't board-centric) is a no-op.
+// Bounded by construction: only fires when both candidates already share the
+// 'boardwipe' role (never reorders across roles or touches a non-wipe card),
+// and only when their one-sidedness actually differs (two symmetric wipes,
+// or two one-sided wipes, fall through to ordinary priority). `decided`
+// records only the pairs where this actually flipped the outcome (mirrors
+// `priceSanityDecided`) — the build report's "N one-sided wipes preferred".
+function wipeAsymmetryTieBreak(
+  a: EDHRECCard,
+  b: EDHRECCard,
+  cardMap: Map<string, ScryfallCard>,
+  cardRoleMap: Map<string, RoleKey> | undefined,
+  isOneSidedWipe: ((card: ScryfallCard) => boolean) | undefined,
+  decided?: Set<string>
+): number {
+  if (!isOneSidedWipe || !cardRoleMap) return 0;
+  if (cardRoleMap.get(a.name) !== 'boardwipe' || cardRoleMap.get(b.name) !== 'boardwipe') return 0;
+
+  const cardA = cardMap.get(a.name);
+  const cardB = cardMap.get(b.name);
+  if (!cardA || !cardB) return 0;
+
+  const oneSidedA = isOneSidedWipe(cardA);
+  const oneSidedB = isOneSidedWipe(cardB);
+  if (oneSidedA === oneSidedB) return 0;
+
+  decided?.add([a.name, b.name].sort().join('|'));
+  return oneSidedA ? -1 : 1;
+}
+
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
 export function pickFromPrefetchedWithCurve(
@@ -404,6 +458,17 @@ export function pickFromPrefetchedWithCurve(
   const allCandidates = edhrecCards
     .filter((c) => !usedNames.has(c.name) && !bannedCards.has(c.name))
     .sort((a, b) => {
+      // Checked before price-sanity/priority — see wipeAsymmetryTieBreak's
+      // doc for why this preference must be unconditional, not banded.
+      const wipePref = wipeAsymmetryTieBreak(
+        a,
+        b,
+        cardMap,
+        roleCapConfig?.cardRoleMap,
+        roleCapConfig?.isOneSidedWipe,
+        roleCapConfig?.wipeAsymmetryDecided
+      );
+      if (wipePref !== 0) return wipePref;
       const sanity = priceSanityTieBreak(
         a,
         b,

@@ -651,6 +651,65 @@ export function isExtraCombatPiece(card: {
   return EXTRA_COMBAT_PRODUCER.test(text);
 }
 
+// One-sided (asymmetric) board wipes (E109) — same shape again: a pure
+// oracle-text predicate. A symmetric wipe (the boardwipe role's common case)
+// hits every player equally; a one-sided wipe spares the caster's own board.
+// Two branches, each verified against real Scryfall oracle text:
+//  - "you don't control" scope — Plague Wind ("Destroy all creatures you
+//    don't control. They can't be regenerated."), In Garruk's Wake ("Destroy
+//    all creatures you don't control and all planeswalkers you don't
+//    control.").
+//  - "your opponent(s) control" scope — Ruinous Ultimatum ("Destroy all
+//    nonland permanents your opponents control.").
+// Both branches require the scope clause to land in the SAME sentence as the
+// sweep verb ([^.]*? stops at a period — the codebase's own documented FP
+// hazard for a scope clause that could otherwise span into an unrelated
+// later sentence).
+//
+// False-positive guard, verified against real Scryfall oracle text for every
+// symmetric wipe this slice's build spec named or that's a natural
+// boundary-check: Farewell ("Exile all artifacts."/"...creatures."/
+// "...enchantments."/"...graveyards.", no qualifier), Blasphemous Act
+// ("deals 13 damage to each creature", no destroy/exile verb at all), Wrath
+// of God/Damnation ("Destroy all creatures.", no qualifier), Toxic Deluge
+// ("-X/-X", no verb), Crux of Fate/Vanquish the Horde ("Destroy all
+// [non-]Dragon creatures."/"Destroy all creatures.", no qualifier), Austere
+// Command (four "destroy all X" modes, none ever scoped to an opponent),
+// Extinction Event ("Exile each creature with mana value...", no qualifier
+// and no literal "all") — none contain either scope clause, so none trip
+// this. Single Combat ("Each player chooses a creature or planeswalker they
+// control, then sacrifices the rest.") uses neither the destroy/exile verb
+// nor either scope clause — it's genuinely symmetric (every player,
+// including the caster, loses down to one); this corrects an assumption in
+// this slice's own build spec, which grouped it with the one-sided cards
+// from memory rather than the real printed text.
+//
+// Known accepted miss, not in scope for v1: Cyclonic Rift's Overload mode
+// ("Return target nonland permanent you don't control to its owner's hand.
+// Overload {6}{U}...") is a genuinely one-sided sweep once overloaded, but
+// its one-sidedness comes from a base "target ... you don't control" clause
+// plus the separate Overload keyword rewriting "target" to "each" — a
+// different shape from the "destroy/exile ALL ... you don't control" idiom
+// above, and not one of the cards this slice's ground truth requires. Same
+// "low-stakes for a preference boost, not a gate" framing as this file's
+// other documented accepted misses.
+const ONE_SIDED_WIPE_EVIDENCE =
+  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control/i;
+
+export function isOneSidedWipe(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): boolean {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return false;
+  return ONE_SIDED_WIPE_EVIDENCE.test(text);
+}
+
 /**
  * Positive-evidence-gated role classification. Returns the same role
  * `getCardRole` would (by name) IFF the card's own oracle text corroborates

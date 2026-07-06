@@ -76,6 +76,50 @@ const ARCHETYPE_ROLE_MULTIPLIERS: Record<Archetype, Record<RoleKey, number>> = {
   [Archetype.GOODSTUFF]: { ramp: 1.0, removal: 1.0, boardwipe: 1.0, cardDraw: 1.0 },
 };
 
+// ─── Board-Centric Plan Detection (E109) ─────────────────────────────
+// A symmetric board wipe costs a deck whose own plan puts outsized value on
+// its board (go-wide/token/tribal shells, or any creature-dense build) far
+// more than a generic goodstuff deck — it torches the caster's own board
+// along with its opponents'. ARCHETYPE_ROLE_MULTIPLIERS above already
+// shaves the boardwipe TARGET for the archetypes whose whole plan is "many
+// cheap bodies" (TOKENS/TRIBAL/ARISTOCRATS/AGGRO), but panel evidence shows
+// that alone isn't enough (Isshin, an AGGRO-detected attack-trigger
+// commander, still ran 4 wipes including Farewell and Blasphemous Act
+// against its own token board) — deckGenerator.ts additionally shaves the
+// target by one more point and prefers one-sided wipes at pick time when
+// this gate trips.
+//
+// Two independent signals, either one trips it:
+//  - The archetype already blended EDHREC + archetype-model + user theme
+//    picks (getDynamicRoleTargets's own `archetype` return) lands on one of
+//    the four go-wide archetypes above.
+//  - The commander's own EDHREC-typical build (typeTargets.creature, driven
+//    by the commander's real EDHREC type breakdown — see
+//    calculateTargetCounts) is creature-dense enough that the archetype
+//    vote missing it (a split-strategy commander like Atraxa defaults to
+//    GOODSTUFF when no single theme dominates — see DOMINANT_THEME_SHARE
+//    above) shouldn't matter. 0.45 sits above the generic ~0.40 baseline
+//    creature weight (rawTypeWeights in targetCounts.ts) so an ordinary
+//    midrange goodstuff deck doesn't trip this by default — only a build
+//    that's meaningfully more creature-heavy than typical.
+export const BOARD_CENTRIC_ARCHETYPES: ReadonlySet<Archetype> = new Set([
+  Archetype.TOKENS,
+  Archetype.TRIBAL,
+  Archetype.ARISTOCRATS,
+  Archetype.AGGRO,
+]);
+export const BOARD_CENTRIC_CREATURE_DENSITY = 0.45;
+
+export function isBoardCentricPlan(
+  archetype: Archetype,
+  typeTargets: Record<string, number>
+): boolean {
+  if (BOARD_CENTRIC_ARCHETYPES.has(archetype)) return true;
+  const nonLandTotal = Object.values(typeTargets).reduce((s, v) => s + v, 0);
+  if (nonLandTotal <= 0) return false;
+  return (typeTargets.creature ?? 0) / nonLandTotal >= BOARD_CENTRIC_CREATURE_DENSITY;
+}
+
 // ─── Pacing Adjustments ─────────────────────────────────────────────
 // Small secondary multipliers that fine-tune based on tempo.
 

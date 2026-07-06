@@ -37,6 +37,7 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  buildWipeAsymmetryNote,
   buildComboAuditBracketBlockNote,
   buildLandSqueezeTrimNote,
   reconcileLandSqueezeDisclosure,
@@ -430,6 +431,30 @@ describe('buildPriceSanityNote (E80)', () => {
     const note = buildPriceSanityNote(1);
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
+    );
+  });
+});
+
+describe('buildWipeAsymmetryNote (E109)', () => {
+  it('returns undefined when the plan was not board-centric (neither half fired)', () => {
+    expect(buildWipeAsymmetryNote(false, 0)).toBeUndefined();
+  });
+
+  it('names only the target shave when no selection preference decided anything', () => {
+    expect(buildWipeAsymmetryNote(true, 0)).toBe(
+      'Own board matters for this plan — trimmed the board wipe target by one.'
+    );
+  });
+
+  it('names only the selection preference (singular) when the target was not shaved', () => {
+    expect(buildWipeAsymmetryNote(false, 1)).toBe(
+      'Own board matters for this plan — preferred 1 one-sided wipe over symmetric ones.'
+    );
+  });
+
+  it('names both, plural, when the target was shaved and multiple wipes were preferred', () => {
+    expect(buildWipeAsymmetryNote(true, 2)).toBe(
+      'Own board matters for this plan — trimmed the board wipe target by one and preferred 2 one-sided wipes over symmetric ones.'
     );
   });
 });

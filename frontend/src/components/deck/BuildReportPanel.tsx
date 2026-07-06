@@ -192,6 +192,7 @@ export function BuildReportPanel({
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    wipeAsymmetryNote,
     comboAuditBracketBlockNote,
     comboUpsideNotes,
     comboCompletionNotes,
@@ -325,6 +326,10 @@ export function BuildReportPanel({
 
       {priceSanityNote && (
         <p className="build-report-line build-report-source">{priceSanityNote}</p>
+      )}
+
+      {wipeAsymmetryNote && (
+        <p className="build-report-line build-report-source">{wipeAsymmetryNote}</p>
       )}
 
       {comboAuditBracketBlockNote && (

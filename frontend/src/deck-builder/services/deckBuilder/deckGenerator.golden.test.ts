@@ -194,6 +194,9 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // E102 (iter-11 Slice C): isExtraCombatPiece is the same shape — same
   // explicit inert-by-construction stub.
   isExtraCombatPiece: vi.fn(() => false),
+  // E109: isOneSidedWipe is the same shape — same explicit
+  // inert-by-construction stub.
+  isOneSidedWipe: vi.fn(() => false),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver
