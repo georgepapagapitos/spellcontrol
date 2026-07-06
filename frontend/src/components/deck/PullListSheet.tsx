@@ -85,7 +85,11 @@ export function PullListSheet({
   const titleId = useId();
   useLockBodyScroll();
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
-  useEscapeKey(beginClose);
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
+    else beginClose();
+  }, [beginClose, onClose]);
+  useEscapeKey(dismiss);
   const setMap = useSetMap();
 
   const groups = useMemo(
@@ -119,7 +123,7 @@ export function PullListSheet({
       className="card-picker-root pull-list-root"
       onClick={(e) => {
         e.stopPropagation();
-        beginClose();
+        dismiss();
       }}
       role="presentation"
     >
@@ -149,7 +153,7 @@ export function PullListSheet({
           <button
             type="button"
             className="pull-list-close"
-            onClick={() => beginClose()}
+            onClick={() => dismiss()}
             aria-label="Close"
           >
             <X width={18} height={18} strokeWidth={2} aria-hidden />
