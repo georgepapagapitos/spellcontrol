@@ -204,8 +204,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     card: ScryfallCard;
     tier: CardValueTier;
     key: number;
-    /** Composite queue-row id (oracle_id + finish) this scan landed in, so the
-     *  panel's finish/qty controls target the exact row even after re-keying. */
+    /** Composite queue-row id (printing id + finish) this scan landed in, so
+     *  the panel's finish/qty controls target the exact row even after
+     *  re-keying. */
     entryId: string;
   } | null>(null);
 
@@ -657,7 +658,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
         // animation replays even when the same card lands twice.
         // Scans always land as the nonfoil row (the matcher can't read finish);
         // track that row's key so the panel's toggle/+1 act on the right row.
-        setLastScan({ card, tier, key: Date.now(), entryId: entryKey(card.oracle_id, 'nonfoil') });
+        setLastScan({ card, tier, key: Date.now(), entryId: entryKey(card.id, 'nonfoil') });
         // Teach tap-to-rescan once: the auto loop won't re-add the same card, so
         // surface how to add another copy the first time a scan lands.
         if (!tapHintShownRef.current) {
@@ -898,7 +899,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   /**
    * "+1" on the bottom card panel: bumps the qty of the currently-shown
-   * row (its exact oracle+finish). Useful when the user has several copies
+   * row (its exact printing+finish). Useful when the user has several copies
    * of the same card and the auto-detector keeps deduping them. Re-pulses
    * the count badge and fires haptic feedback; a no-op if the row was since
    * removed, but the button still confirms the press.
@@ -1159,7 +1160,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                         // The row re-keys on finish change; keep the panel
                         // pointed at it so the price/qty stay in sync.
                         setLastScan((prev) =>
-                          prev ? { ...prev, entryId: entryKey(prev.card.oracle_id, next) } : prev
+                          prev ? { ...prev, entryId: entryKey(prev.card.id, next) } : prev
                         );
                       }}
                       aria-label={`Finish: ${FINISH_LABELS[finish]}. Tap to change.`}
@@ -1202,7 +1203,19 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             setSheetOpen(false);
             setPickerFor(null);
           }}
-          onChangePrinting={changePrinting}
+          onChangePrinting={(id, newCard) => {
+            changePrinting(id, newCard);
+            // A printing swap re-keys the row (identity is printing+finish);
+            // if it was the bottom panel's row, follow it so the panel's
+            // card/finish/+1 controls stay wired to the right row.
+            setLastScan((prev) => {
+              if (!prev || prev.entryId !== id) return prev;
+              const allowed = availableFinishes(newCard.finishes);
+              const cur = queue.find((e) => e.id === id)?.finish ?? 'nonfoil';
+              const finish = allowed.includes(cur) ? cur : allowed[0];
+              return { ...prev, card: newCard, entryId: entryKey(newCard.id, finish) };
+            });
+          }}
           onChangeQty={changeQty}
           onChangeFinish={changeFinish}
           onRemove={removeFromQueue}

@@ -11,8 +11,8 @@ beforeEach(() => {
   useScanQueueStore.setState({ queue: [] });
 });
 
-// Row identity is oracle_id + finish; scans land as nonfoil.
-const NONFOIL_1 = entryKey('oracle-1', 'nonfoil');
+// Row identity is printing id + finish; scans land as nonfoil.
+const NONFOIL_1 = entryKey('print-1', 'nonfoil');
 
 /**
  * Minimal ScryfallCard shape, matching the fields the hook actually
@@ -74,17 +74,21 @@ describe('useScanQueue', () => {
       expect(result.current.queue[0].qty).toBe(1);
     });
 
-    it('increments qty when a different printing of the same oracle id is scanned', () => {
+    it('keeps different printings of the same card as separate rows, each with its own set/collector', () => {
+      // E85 regression: keying on oracle_id collapsed printings, silently
+      // discarding the second scan's real set/collector number on import.
       const { result } = renderHook(() => useScanQueue());
       act(() => {
-        result.current.addScan(makeCard({ id: 'print-1' }));
+        result.current.addScan(makeCard({ id: 'print-c14', set: 'c14', collector_number: '261' }));
       });
       act(() => {
-        // Different printing id (so it isn't a dedupe duplicate), same oracle id.
-        result.current.addScan(makeCard({ id: 'print-2' }));
+        result.current.addScan(makeCard({ id: 'print-sld', set: 'sld', collector_number: '1546' }));
       });
-      expect(result.current.queue).toHaveLength(1);
-      expect(result.current.queue[0].qty).toBe(2);
+      expect(result.current.queue).toHaveLength(2);
+      expect(result.current.queue.map((e) => [e.card.set, e.card.collector_number])).toEqual([
+        ['c14', '261'],
+        ['sld', '1546'],
+      ]);
       expect(result.current.totalCount).toBe(2);
     });
 
@@ -100,8 +104,8 @@ describe('useScanQueue', () => {
       });
       expect(result.current.queue).toHaveLength(2);
       expect(result.current.queue.map((e) => e.id)).toEqual([
-        entryKey('oracle-1', 'nonfoil'),
-        entryKey('oracle-2', 'nonfoil'),
+        entryKey('print-1', 'nonfoil'),
+        entryKey('print-2', 'nonfoil'),
       ]);
     });
 
@@ -198,14 +202,14 @@ describe('useScanQueue', () => {
       });
       expect(result.current.queue).toHaveLength(2);
       act(() => {
-        result.current.removeFromQueue(entryKey('oracle-a', 'nonfoil'));
+        result.current.removeFromQueue(entryKey('print-1', 'nonfoil'));
       });
-      expect(result.current.queue.map((e) => e.id)).toEqual([entryKey('oracle-b', 'nonfoil')]);
+      expect(result.current.queue.map((e) => e.id)).toEqual([entryKey('print-b', 'nonfoil')]);
 
       act(() => {
         result.current.removeFromQueue('does-not-exist');
       });
-      expect(result.current.queue.map((e) => e.id)).toEqual([entryKey('oracle-b', 'nonfoil')]);
+      expect(result.current.queue.map((e) => e.id)).toEqual([entryKey('print-b', 'nonfoil')]);
     });
   });
 
@@ -237,7 +241,7 @@ describe('useScanQueue', () => {
       const { result } = renderHook(() => useScanQueue());
       act(() => {
         result.current.addScan(makeCard());
-        result.current.addScan(makeCard({ id: 'print-2' })); // qty -> 2
+        result.current.addScan(makeCard(), true); // forced rescan, qty -> 2
       });
       act(() => {
         result.current.changeQty(NONFOIL_1, 3);
@@ -271,7 +275,7 @@ describe('useScanQueue', () => {
   });
 
   describe('changePrinting', () => {
-    it('swaps the card while preserving qty and id', () => {
+    it('swaps the card, preserving qty and re-keying the row to the new printing', () => {
       const { result } = renderHook(() => useScanQueue());
       act(() => {
         result.current.addScan(makeCard());
@@ -280,11 +284,30 @@ describe('useScanQueue', () => {
       act(() => {
         result.current.changePrinting(NONFOIL_1, newPrinting);
       });
-      // Same oracle + finish, so the row keeps its identity (printing doesn't split a row).
-      expect(result.current.queue[0].id).toBe(NONFOIL_1);
+      expect(result.current.queue[0].id).toBe(entryKey('print-secret-lair', 'nonfoil'));
       expect(result.current.queue[0].qty).toBe(1);
       expect(result.current.queue[0].card.id).toBe('print-secret-lair');
       expect(result.current.queue[0].card.name).toBe('Sol Ring (SLD)');
+    });
+
+    it('merges into an existing row when swapped to a printing already queued', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard({ id: 'print-c14' }));
+      });
+      act(() => {
+        result.current.addScan(makeCard({ id: 'print-sld' }));
+      });
+      expect(result.current.queue).toHaveLength(2);
+      act(() => {
+        result.current.changePrinting(
+          entryKey('print-sld', 'nonfoil'),
+          makeCard({ id: 'print-c14' })
+        );
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0].id).toBe(entryKey('print-c14', 'nonfoil'));
+      expect(result.current.queue[0].qty).toBe(2);
     });
 
     it('clamps the finish when the new printing lacks the current one', () => {
@@ -299,7 +322,7 @@ describe('useScanQueue', () => {
       // Swap to a nonfoil-only printing — the foil finish must fall back.
       act(() => {
         result.current.changePrinting(
-          entryKey('oracle-1', 'foil'),
+          entryKey('print-1', 'foil'),
           makeCard({ id: 'print-nonfoil', finishes: ['nonfoil'] })
         );
       });
@@ -345,8 +368,8 @@ describe('useScanQueue', () => {
       });
       expect(result.current.queue).toHaveLength(2);
       const byId = Object.fromEntries(result.current.queue.map((e) => [e.id, e.qty]));
-      expect(byId[entryKey('oracle-1', 'foil')]).toBe(1);
-      expect(byId[entryKey('oracle-1', 'nonfoil')]).toBe(1);
+      expect(byId[entryKey('print-1', 'foil')]).toBe(1);
+      expect(byId[entryKey('print-1', 'nonfoil')]).toBe(1);
     });
 
     it('merges into an existing finish row instead of creating a duplicate', () => {
@@ -367,7 +390,7 @@ describe('useScanQueue', () => {
         result.current.changeFinish(NONFOIL_1, 'foil');
       });
       expect(result.current.queue).toHaveLength(1);
-      expect(result.current.queue[0].id).toBe(entryKey('oracle-1', 'foil'));
+      expect(result.current.queue[0].id).toBe(entryKey('print-1', 'foil'));
       expect(result.current.queue[0].qty).toBe(2);
     });
 
@@ -409,7 +432,7 @@ describe('useScanQueue', () => {
 
       // Bump qty on the $2.50 card by 2 -> total becomes 3*2.50 + 0.50 = 8.00.
       act(() => {
-        result.current.changeQty(entryKey('oracle-a', 'nonfoil'), 2);
+        result.current.changeQty(entryKey('print-1', 'nonfoil'), 2);
       });
       expect(result.current.totalPrice).toBeCloseTo(8.0);
     });
