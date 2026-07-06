@@ -362,6 +362,72 @@ describe('applyLandSqueezeReconcile', () => {
     expect(result.wildcardsKept).toEqual([]);
   });
 
+  it('E82 attempt-7: drops a kept wildcard whose price blows the deck-budget headroom, restoring the incumbent it displaced', () => {
+    const state = setupWildcardComparisonState();
+    // Overwrite the fixture's default $1.00 prices: incumbents are cheap, the
+    // wildcard is expensive enough to blow a tight budget even though it
+    // scores far above both incumbents (same score shape as "displaces the
+    // deck-wide-weakest incumbent", which passes with a generous/null budget).
+    state.categories.creatures = [
+      scryfallCard('Incumbent_Low', { prices: { usd: '0.50' } }),
+      scryfallCard('Incumbent_High', { prices: { usd: '5.00' } }),
+    ];
+    const strongWildcard = scryfallCard('Strong_Wildcard', { prices: { usd: '50.00' } });
+    state.cfg.deckBudget = 10; // currentTotal 5.50 → 4.50 headroom, nowhere near $50
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual([]);
+    expect(result.cut).toEqual([]);
+    expect(state.categories.creatures.map((c) => c.name)).toEqual([
+      'Incumbent_Low',
+      'Incumbent_High',
+    ]);
+  });
+
+  it('E82 attempt-7: keeps a wildcard that fits within deck-budget headroom (gate is a ceiling, not a blanket block)', () => {
+    const state = setupWildcardComparisonState();
+    state.categories.creatures = [
+      scryfallCard('Incumbent_Low', { prices: { usd: '0.50' } }),
+      scryfallCard('Incumbent_High', { prices: { usd: '5.00' } }),
+    ];
+    const strongWildcard = scryfallCard('Strong_Wildcard', { prices: { usd: '2.00' } });
+    state.cfg.deckBudget = 100; // currentTotal 5.50 → 94.50 headroom, plenty for $2
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual(['Strong_Wildcard']);
+    expect(result.cut).toEqual(['Incumbent_Low']);
+  });
+
+  it('E82 attempt-7: non-budget decks (deckBudget null) are unaffected by the gate — passthrough', () => {
+    // Same shape as the dropped-wildcard case above, but with the default
+    // null deckBudget from makeState()/setupWildcardComparisonState() — the
+    // $50 wildcard is kept exactly as it was pre-fix, since the gate is
+    // wholly inert without an active budget.
+    const state = setupWildcardComparisonState();
+    state.categories.creatures = [
+      scryfallCard('Incumbent_Low', { prices: { usd: '0.50' } }),
+      scryfallCard('Incumbent_High', { prices: { usd: '5.00' } }),
+    ];
+    const strongWildcard = scryfallCard('Strong_Wildcard', { prices: { usd: '50.00' } });
+    expect(state.cfg.deckBudget).toBeNull();
+
+    const result = applyLandSqueezeReconcile(
+      state,
+      makeCtx({ squeezeDelta: 0, wildcardCandidates: [strongWildcard], wildcardCount: 1 })
+    );
+
+    expect(result.wildcardsKept).toEqual(['Strong_Wildcard']);
+    expect(result.cut).toEqual(['Incumbent_Low']);
+  });
+
   it('gives a free-interaction card FREE_INTERACTION_BOOST, saving it over a worse-inclusion filler (iter-10 Slice A)', () => {
     const state = makeState();
     const filler = scryfallCard('Genuine Filler 2');

@@ -8,6 +8,9 @@ import {
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { calculateCardPriority } from '../cardPicking';
+import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { parsePrice } from '../costAnalyzer';
+import { isOwnedBudgetExempt } from '../deckFilters';
 import { STAPLE_ROCK_NAMES } from './phaseStapleManaRocks';
 import { routeCardByType } from '../categorize';
 import type { BracketGuard } from '../bracketGuard';
@@ -225,6 +228,84 @@ export function applyLandSqueezeReconcile(
 
   const toCut = candidates.slice(0, ctx.squeezeDelta + actualAdd);
   const cutSet = new Set(toCut.map((c) => c.card));
+
+  // ── Budget-headroom gate on wildcards (E82 attempt 7) ──
+  // scoreOf above (and the combined sort/cut it feeds) has no price term at
+  // all — a wildcard is ranked purely on priority/lift/protection-tier, same
+  // as an incumbent. That's fine for the unmodified squeeze-only case (no
+  // wildcards, nothing new added), but once a deck budget is active a
+  // wildcard can win the combined cut over a genuinely cheaper incumbent
+  // even though its price was never re-checked against the REAL remaining
+  // headroom: the per-pick scratch-tracker gate at the scan site
+  // (deckGenerator.ts) is frequently inert here too (BudgetTracker
+  // .getEffectiveCap short-circuits to the static maxCardPrice — usually
+  // null for a deckBudget-only ask — the instant its cloned cardsRemaining
+  // has already hit 0, which this late in generation it usually has), so a
+  // "candidate that cleared every pick-time gate" can still be arbitrarily
+  // expensive. Measured: atraxa-praetors-voice-budget75 folded in Force of
+  // Will ($63.28) this way, landing the deck $11+ over a $75 ask even after
+  // phaseBudgetConverge's damage control.
+  //
+  // Fix mirrors phaseRoleSurplusRebalance.ts's `runningTotal` doctrine (same
+  // rationale as its header comment): the real, live deck total is the only
+  // number that can't lie, so gate the DISCRETIONARY part of this pass (kept
+  // wildcards are optional; the squeezeDelta cut is not) against it directly,
+  // priciest-wildcard-first, restoring the highest-scoring displaced
+  // incumbent for each one dropped (see the module-scope math below the
+  // header — kept-wildcard-count and displaced-incumbent-count move in
+  // lockstep by construction, so dropping one must free the other to keep
+  // the final deck size unchanged). Inert — byte-identical — when no deck
+  // budget is set.
+  if (state.cfg.deckBudget != null && actualAdd > 0) {
+    const priceOf = (card: ScryfallCard): number =>
+      parsePrice(getCardPrice(card, state.cfg.currency)) ?? 0;
+    const isExempt = (card: ScryfallCard): boolean =>
+      isOwnedBudgetExempt(card.name, state.context.collectionNames, state.cfg.ignoreOwnedBudget);
+
+    // Real deck total BEFORE this pass touches anything — always the full,
+    // unexempted price sum (mirrors runningTotal's own baseline), so it
+    // matches what a build-report/live-eval total actually reads.
+    let currentTotal = 0;
+    for (const cards of Object.values(state.categories)) {
+      for (const card of cards) currentTotal += priceOf(card);
+    }
+    const headroom = state.cfg.deckBudget - currentTotal;
+
+    let keptWildcards = rankedWildcards.filter((w) => !cutSet.has(w.card));
+    const netDelta = (): number => {
+      const wildcardCost = keptWildcards.reduce(
+        (sum, w) => sum + (isExempt(w.card) ? 0 : priceOf(w.card)),
+        0
+      );
+      const incumbentCredit = toCut
+        .filter((c) => !wildcardCardSet.has(c.card) && cutSet.has(c.card))
+        .reduce((sum, c) => sum + priceOf(c.card), 0);
+      return wildcardCost - incumbentCredit;
+    };
+
+    // Drop the priciest non-exempt kept wildcard first (biggest single
+    // reduction in the overshoot), restoring the highest-scoring incumbent
+    // it had displaced each time — a dropped wildcard was never added to the
+    // deck, so "restoring" its counterpart is really just declining to cut
+    // it in the first place (see cutSet.delete below).
+    while (netDelta() > headroom) {
+      const dropOrder = keptWildcards
+        .filter((w) => !isExempt(w.card))
+        .sort((a, b) => priceOf(b.card) - priceOf(a.card));
+      const drop = dropOrder[0];
+      if (!drop) break; // every remaining kept wildcard is owned-exempt — can't reduce further
+      keptWildcards = keptWildcards.filter((w) => w.card !== drop.card);
+      cutSet.add(drop.card);
+
+      let bestIncumbent: { card: ScryfallCard; score: number } | null = null;
+      for (const c of toCut) {
+        if (wildcardCardSet.has(c.card) || !cutSet.has(c.card)) continue;
+        if (!bestIncumbent || c.score > bestIncumbent.score) bestIncumbent = c;
+      }
+      if (bestIncumbent) cutSet.delete(bestIncumbent.card);
+    }
+  }
+
   for (const cat of Object.keys(state.categories) as DeckCategory[]) {
     if (cat === 'lands') continue;
     state.categories[cat] = state.categories[cat].filter((c) => !cutSet.has(c));
@@ -237,7 +318,7 @@ export function applyLandSqueezeReconcile(
   // bumped below for the ones that actually survive), so it's excluded, not
   // decremented into some unrelated incumbent's tally.
   for (const { card } of toCut) {
-    if (wildcardCardSet.has(card)) continue;
+    if (wildcardCardSet.has(card) || !cutSet.has(card)) continue;
     const role = validateCardRole(card);
     if (role && ctx.currentRoleCounts[role] > 0) {
       ctx.currentRoleCounts[role]--;
@@ -267,7 +348,12 @@ export function applyLandSqueezeReconcile(
   // combined cut was never in the deck to begin with (only kept wildcards
   // ever reach `state.categories`, just above), so listing it here would
   // misreport "cut" a card the user never saw — that's what `wildcardsKept`
-  // (or its absence) already discloses.
-  const cut = toCut.filter((c) => !wildcardCardSet.has(c.card)).map((c) => c.card.name);
+  // (or its absence) already discloses. `cutSet.has` (not just membership in
+  // the original `toCut` slice) so a budget-headroom-restored incumbent
+  // (above) is correctly excluded — it was never actually removed.
+  const cut = toCut
+    .filter((c) => !wildcardCardSet.has(c.card) && cutSet.has(c.card))
+    .map((c) => c.card.name);
+
   return { cut, wildcardsKept };
 }
