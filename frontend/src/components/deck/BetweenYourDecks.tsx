@@ -1,10 +1,12 @@
 import { type JSX, useMemo, useState } from 'react';
-import { ArrowRight, ArrowLeftRight, Loader2, X } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, ChevronRight, Loader2, X } from 'lucide-react';
 import './BetweenYourDecks.css';
 import { useDecksStore } from '@/store/decks';
 import { useCollectionStore } from '@/store/collection';
 import { useAllocations } from '@/lib/allocations';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { useEscapeKey } from '@/lib/use-escape-key';
+import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { findCrossDeckMoves, type CrossDeckMove } from '@/lib/cross-deck-moves';
 import { dismissCrossDeckMove, isCrossDeckMoveDismissed } from '@/lib/between-decks-dismissed';
 import { useCardThumb } from '@/lib/card-thumbs';
@@ -121,14 +123,127 @@ function MoveRow({
 }
 
 /**
+ * The full suggestion list, in a `card-picker` bottom sheet (mobile) / centered
+ * modal (≥1024px) — the same shared shell `MoveToDeckSheet` uses. No portal:
+ * this mounts from the Decks Index page's top level, which has no
+ * `transform`/`container-type` ancestor to trap `position: fixed` (verified
+ * against `deck-builder-decks-index.css` / `base-layout.css`); introducing
+ * `createPortal` + `useSheetExit`'s animated-close machinery (as `CardGroupSheet`
+ * does) would be unused complexity here — `MoveToDeckSheet` proves the simpler
+ * inline-shell path is enough for a picker sheet of this shape.
+ */
+function BetweenYourDecksSheet({
+  moves,
+  busyId,
+  onAccept,
+  onDismiss,
+  onClose,
+}: {
+  moves: CrossDeckMove[];
+  busyId: string | null;
+  onAccept: (move: CrossDeckMove) => void;
+  onDismiss: (id: string) => void;
+  onClose: () => void;
+}): JSX.Element {
+  useLockBodyScroll();
+  useEscapeKey(onClose);
+
+  return (
+    <div
+      className="card-picker-root between-decks-sheet-root"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="card-picker-sheet between-decks-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Between your decks"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="card-picker-handle" aria-hidden />
+        <header className="between-decks-sheet-head">
+          <div className="between-decks-sheet-titles">
+            <h2 className="between-decks-sheet-title">Between your decks</h2>
+            <p className="between-decks-sheet-sub">
+              Cards sleeved into the wrong deck — moved together with an owned replacement, so
+              nothing is left worse off.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="between-decks-sheet-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X width={18} height={18} strokeWidth={2} aria-hidden />
+          </button>
+        </header>
+        <ul className="between-decks-list between-decks-sheet-body" role="list">
+          {moves.map((move) => (
+            <MoveRow
+              key={move.id}
+              move={move}
+              busy={busyId === move.id}
+              onAccept={onAccept}
+              onDismiss={onDismiss}
+            />
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/** One-row summary: icon, label, a count pill, and (space permitting) a
+ *  teaser of the top suggestion — the sibling of the pull-readiness badge
+ *  and other quiet index-page affordances, not a card panel. See
+ *  STYLE_GUIDE.md "Index-page insight strips". */
+function BetweenYourDecksStrip({
+  moves,
+  onOpen,
+}: {
+  moves: CrossDeckMove[];
+  onOpen: () => void;
+}): JSX.Element {
+  const top = moves[0];
+  return (
+    <button type="button" className="between-decks-strip" onClick={onOpen} aria-haspopup="dialog">
+      <ArrowLeftRight className="between-decks-strip-icon" aria-hidden width={16} height={16} />
+      <span className="between-decks-strip-label">Between your decks</span>
+      <span className="between-decks-strip-count">
+        {moves.length} move{moves.length === 1 ? '' : 's'}
+      </span>
+      {top && (
+        <span className="between-decks-strip-teaser">
+          {top.cardName}
+          <ArrowRight
+            className="between-decks-strip-teaser-arrow"
+            aria-hidden
+            width={11}
+            height={11}
+          />
+          {top.toDeckName}
+        </span>
+      )}
+      <ChevronRight className="between-decks-strip-chevron" aria-hidden width={16} height={16} />
+    </button>
+  );
+}
+
+/**
  * "Between your decks" (E90): a physical-reality-aware coach lane on the Decks
  * Index page. Detects a card allocated to one deck that would decisively pull
  * more weight in a sibling deck, and proposes the move together with an owned
  * replacement that keeps the donor deck whole — see `lib/cross-deck-moves.ts`
  * for the engine and its conservative gating.
  *
- * Self-contained (pulls its own store data), mirroring `ReadinessSpotlight`'s
- * pattern — the parent page just renders `<BetweenYourDecks />`.
+ * UX-334 follow-up: the first ship rendered the full suggestion list inline,
+ * pushing the deck grid below the fold. This collapses to a one-row strip
+ * (mirroring `ReadinessSpotlight`'s self-contained-data pattern, but only the
+ * summary, not the cards) that opens the same suggestion cards in a sheet on
+ * tap. Zero visible suggestions (none found, or all dismissed) renders
+ * nothing at all — no empty state on the index itself.
  */
 export function BetweenYourDecks(): JSX.Element | null {
   const decks = useDecksStore((s) => s.decks);
@@ -142,6 +257,7 @@ export function BetweenYourDecks(): JSX.Element | null {
   // silently missing every role-gated suggestion on a fast first paint.
   const taggerReady = useTaggerReady();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const [, forceRerender] = useState(0);
 
   const moves = useMemo(
@@ -149,10 +265,19 @@ export function BetweenYourDecks(): JSX.Element | null {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- taggerReady is a recompute trigger, not read directly
     [decks, collection, allocations, taggerReady]
   );
-
-  if (decks.length < 2) return null;
-
   const visible = moves.filter((m) => !isCrossDeckMoveDismissed(m.id));
+
+  // Render-phase adjustment (react.dev "storing information from previous
+  // renders"): guarded setState during render, NOT an effect — React
+  // re-renders immediately without committing the stale frame. The sheet
+  // must not silently reopen on its own later — reset once the strip
+  // actually disappears (dismissing the last suggestion, or an in-flight
+  // recompute racing the sheet's mount) so a future batch of suggestions
+  // starts collapsed, matching "dismissing the last suggestion closes the
+  // sheet" rather than leaving stale open state behind.
+  if (open && visible.length === 0) setOpen(false);
+
+  if (decks.length < 2 || visible.length === 0) return null;
 
   const handleDismiss = (id: string) => {
     dismissCrossDeckMove(id);
@@ -201,36 +326,17 @@ export function BetweenYourDecks(): JSX.Element | null {
   };
 
   return (
-    <section className="between-decks" aria-label="Between your decks">
-      <div className="between-decks-header">
-        <p className="between-decks-eyebrow">Between your decks</p>
-        <p className="between-decks-hint">
-          Cards sleeved into the wrong deck — moved together with an owned replacement, so nothing
-          is left worse off.
-        </p>
-      </div>
-
-      {visible.length === 0 ? (
-        <div className="between-decks-empty">
-          <p className="between-decks-empty-tagline">Your decks are already well-sorted.</p>
-          <p className="between-decks-empty-hint">
-            Every allocated card is pulling its weight where it sits — or moving it wouldn&rsquo;t
-            leave an owned replacement behind, so nothing gets suggested.
-          </p>
-        </div>
-      ) : (
-        <ul className="between-decks-list" role="list">
-          {visible.map((move) => (
-            <MoveRow
-              key={move.id}
-              move={move}
-              busy={busyId === move.id}
-              onAccept={(m) => void handleAccept(m)}
-              onDismiss={handleDismiss}
-            />
-          ))}
-        </ul>
+    <>
+      <BetweenYourDecksStrip moves={visible} onOpen={() => setOpen(true)} />
+      {open && (
+        <BetweenYourDecksSheet
+          moves={visible}
+          busyId={busyId}
+          onAccept={(m) => void handleAccept(m)}
+          onDismiss={handleDismiss}
+          onClose={() => setOpen(false)}
+        />
       )}
-    </section>
+    </>
   );
 }
