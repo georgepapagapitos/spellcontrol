@@ -7,12 +7,14 @@ import {
   computeUntapVisibilityBoosts,
   computeBlinkVisibilityBoosts,
   computeExileVisibilityBoosts,
+  computeExtraCombatVisibilityBoosts,
   LIFT_PICK_BOOST_MAX,
   LIFT_PICK_BOOST_SCALE,
   PACKAGE_BOOST_MAX,
   UNTAP_VISIBILITY_BOOST_MAX,
   BLINK_VISIBILITY_BOOST_MAX,
   EXILE_VISIBILITY_BOOST_MAX,
+  EXTRA_COMBAT_VISIBILITY_BOOST_MAX,
   tallyAxisInvestment,
 } from './packageBoost';
 
@@ -303,6 +305,57 @@ describe('computeExileVisibilityBoosts', () => {
     const boosts = computeExileVisibilityBoosts(
       ['Nonexistent Card'],
       exileCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+});
+
+describe('computeExtraCombatVisibilityBoosts', () => {
+  // isProducer is injected (mirrors computeExileVisibilityBoosts's) — a
+  // simple name-set stub is enough here, the real classifier's regex is
+  // covered in tagger/client.test.ts.
+  const extraCombatProducerNames = new Set(['Aggravated Assault', 'Aurelia, the Warleader']);
+  const isProducer = (c: ScryfallCard) => extraCombatProducerNames.has(c.name);
+  const aggravatedAssault = card(
+    'Aggravated Assault',
+    '{3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase. Activate only as a sorcery.'
+  );
+  const aurelia = card(
+    'Aurelia, the Warleader',
+    'Whenever Aurelia attacks for the first time each turn, untap all creatures you control. After this phase, there is an additional combat phase.'
+  );
+  const extraCombatCardMap = new Map(
+    [aggravatedAssault, aurelia, divination].map((c) => [c.name, c])
+  );
+
+  it('stays an empty map when the commander does not want extra combats (near-inert requirement)', () => {
+    const boosts = computeExtraCombatVisibilityBoosts(
+      ['Aggravated Assault', 'Aurelia, the Warleader', 'Divination'],
+      extraCombatCardMap,
+      false,
+      isProducer
+    );
+    expect(boosts.size).toBe(0);
+  });
+
+  it('boosts only producer candidates, exactly at the cap, when the commander wants extra combats', () => {
+    const boosts = computeExtraCombatVisibilityBoosts(
+      ['Aggravated Assault', 'Aurelia, the Warleader', 'Divination'],
+      extraCombatCardMap,
+      true,
+      isProducer
+    );
+    expect(boosts.get('Aggravated Assault')).toBe(EXTRA_COMBAT_VISIBILITY_BOOST_MAX);
+    expect(boosts.get('Aurelia, the Warleader')).toBe(EXTRA_COMBAT_VISIBILITY_BOOST_MAX);
+    expect(boosts.has('Divination')).toBe(false); // non-producer → absent, not zero-valued
+  });
+
+  it('does not throw on a candidate name missing from cardMap', () => {
+    const boosts = computeExtraCombatVisibilityBoosts(
+      ['Nonexistent Card'],
+      extraCombatCardMap,
       true,
       isProducer
     );

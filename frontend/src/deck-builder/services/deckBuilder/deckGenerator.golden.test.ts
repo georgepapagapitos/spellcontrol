@@ -191,6 +191,9 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // same explicit inert-by-construction stubs.
   isBlinkProducer: vi.fn(() => false),
   isExileProducer: vi.fn(() => false),
+  // E102 (iter-11 Slice C): isExtraCombatPiece is the same shape — same
+  // explicit inert-by-construction stub.
+  isExtraCombatPiece: vi.fn(() => false),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver
@@ -226,7 +229,11 @@ vi.mock('./deckGeneration/phaseLandSqueezeReconcile', async (orig) => {
 });
 
 import { generateDeck, clearGenerationCache } from './deckGenerator';
-import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import {
+  searchCards,
+  getCardsByNames,
+  getGameChangerNames,
+} from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
@@ -682,6 +689,147 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     } finally {
       mockedFetch.mockImplementation(realFetch);
       vi.mocked(isFreeInteraction).mockReturnValue(false);
+      clearGenerationCache();
+    }
+  });
+
+  it('never adds a bracket-ceiling-violating combo enabler at bracket<=2 (E101)', async () => {
+    // Same shape as the "discloses a legal combo-audit swap" case above, but
+    // the enabler is flagged as a Game Changer instead of off-color/off-cmc —
+    // this is the dimension auditAdd never checked (live evidence: auditAdd
+    // added Teferi, Master of Time to an atraxa bracket-2 ask, later silently
+    // evicted again by applyBracketConvergence — an add-then-evict churn
+    // cycle). targetBracket:2 gives a Game Changer ceiling of 0 (any GC forces
+    // at least B3), so the enabler should never be seated in the first place.
+    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+      {
+        comboId: 'test-combo-i',
+        cards: [
+          { name: 'Creature_1', id: 'c1' },
+          { name: 'Bracket-Gated Enabler', id: 'bge' },
+        ],
+        results: ['Test combo I result'],
+        deckCount: 500,
+        rank: 1,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+      {
+        comboId: 'test-combo-j',
+        cards: [
+          { name: 'Creature_2', id: 'c2' },
+          { name: 'Bracket-Gated Enabler', id: 'bge' },
+        ],
+        results: ['Test combo J result'],
+        deckCount: 400,
+        rank: 2,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    const GC_ENABLER: ScryfallCard = mkSC('Bracket-Gated Enabler', 'Enchantment', 5); // color_identity ['G']
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      if (names.includes('Bracket-Gated Enabler')) m.set('Bracket-Gated Enabler', GC_ENABLER);
+      return m;
+    });
+    vi.mocked(getGameChangerNames).mockResolvedValueOnce(new Set(['Bracket-Gated Enabler']));
+    try {
+      const ctx = baseContext();
+      // tinyLeaders forces the enabler to be reachable ONLY via the audit
+      // (same reasoning as the on-color-enabler test above); targetBracket:2
+      // is the bracket the live defect hit.
+      ctx.customization = customization({
+        comboCount: 3,
+        tinyLeaders: true,
+        targetBracket: 2,
+      });
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      // The bracket-ceiling-violating enabler never entered the deck...
+      expect(names).not.toContain('Bracket-Gated Enabler');
+      // ...and nothing was evicted-then-stranded to make room for it.
+      expect(names.length).toBe(99);
+      const addedNames = (deck.coherenceRepairs ?? []).map((r) => r.added);
+      expect(addedNames).not.toContain('Bracket-Gated Enabler');
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
+      clearGenerationCache();
+    }
+  });
+
+  it('adds the same combo enabler once its Game Changer signal fits the target bracket (E101)', async () => {
+    // Mirror of the test above with targetBracket:4, where the Game Changer
+    // ceiling is Infinity — proves the guard gates on the ceiling, not on the
+    // card unconditionally, so a bracket-4/5 (or unrestricted) ask still gets
+    // the combo-completion benefit the audit exists for.
+    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+      {
+        comboId: 'test-combo-k',
+        cards: [
+          { name: 'Creature_1', id: 'c1' },
+          { name: 'Bracket-Gated Enabler', id: 'bge' },
+        ],
+        results: ['Test combo K result'],
+        deckCount: 500,
+        rank: 1,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+      {
+        comboId: 'test-combo-l',
+        cards: [
+          { name: 'Creature_2', id: 'c2' },
+          { name: 'Bracket-Gated Enabler', id: 'bge' },
+        ],
+        results: ['Test combo L result'],
+        deckCount: 400,
+        rank: 2,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ]);
+    const GC_ENABLER: ScryfallCard = mkSC('Bracket-Gated Enabler', 'Enchantment', 5); // color_identity ['G']
+    const mockedFetch = vi.mocked(getCardsByNames);
+    const realFetch = mockedFetch.getMockImplementation()!;
+    mockedFetch.mockImplementation(async (names: string[], ...rest) => {
+      const m = await realFetch(names, ...rest);
+      if (names.includes('Bracket-Gated Enabler')) m.set('Bracket-Gated Enabler', GC_ENABLER);
+      return m;
+    });
+    vi.mocked(getGameChangerNames).mockResolvedValueOnce(new Set(['Bracket-Gated Enabler']));
+    try {
+      const ctx = baseContext();
+      ctx.customization = customization({
+        comboCount: 3,
+        tinyLeaders: true,
+        targetBracket: 4,
+      });
+      const deck = await generateDeck(ctx);
+      const names = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(names).toContain('Bracket-Gated Enabler');
+      const repair = (deck.coherenceRepairs ?? []).find((r) => r.added === 'Bracket-Gated Enabler');
+      expect(repair).toBeDefined();
+    } finally {
+      mockedFetch.mockImplementation(realFetch);
       clearGenerationCache();
     }
   });

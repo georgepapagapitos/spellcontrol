@@ -278,6 +278,27 @@ function accelerationScore(fastMana: string[], tutors: string[]): number {
  */
 const COMBO_REDUNDANCY_THRESHOLD = 4;
 
+/**
+ * Multi-card (3+) completed combos need one more live piece to assemble than
+ * a 2-card combo, so they count toward the same floor/redundancy math above
+ * at half value — 2 completed multi-card lines ≈ 1 two-card line. Previously
+ * `multiCardComboCount` was computed and returned in `breakdown` but never
+ * read by any floor or soft-score logic (E97): a deck could hold several
+ * complete 3+-card infinite combos (each individually disclosed elsewhere in
+ * the report) while the bracket estimate stayed as if none existed.
+ *
+ * Calibrated against real E94 panel decks: a lone multi-card combo (weight
+ * 0.5, below the >=1 floor gate) still doesn't move the bracket — an
+ * isolated 3+-card value line shouldn't blow a casual deck into B4. But a
+ * deck with several complete multi-card lines (e.g. a "Magistrate's Scepter
+ * + Contagion Engine + <any of 4 proliferate/counter pieces>" cluster — 6
+ * complete lines in one panel deck) now clears the redundancy threshold the
+ * same way 4+ two-card combos do, correctly escalating a deck that was
+ * otherwise stuck reporting a lower bracket while its own combo panel
+ * disclosed multiple complete infinite lines.
+ */
+const MULTI_CARD_COMBO_WEIGHT = 0.5;
+
 export function estimateBracket(
   allCardNames: string[],
   detectedCombos: DetectedCombo[] | undefined,
@@ -366,7 +387,13 @@ export function estimateBracket(
     });
   }
 
-  if (twoCardComboCount > 0) {
+  // See MULTI_CARD_COMBO_WEIGHT: multi-card completed combos count toward the
+  // same gate/redundancy thresholds as two-card combos, at half value. A lone
+  // multi-card combo (0.5) stays below the >=1 gate; two-card-only decks are
+  // unaffected (multiCardComboCount contributes 0).
+  const effectiveComboCount = twoCardComboCount + multiCardComboCount * MULTI_CARD_COMBO_WEIGHT;
+
+  if (effectiveComboCount >= 1) {
     // Deck-relative speed: can the deck assemble a 2-card combo before ~turn 6?
     // R/S bracketTag = Spellbook's signal that the combo is near-guaranteed early.
     // High acceleration (fastMana + tutors) escalates the same combo to B4.
@@ -384,8 +411,21 @@ export function estimateBracket(
     );
     // Redundancy is its own form of speed: many interchangeable combos assemble
     // reliably without tutors/fast mana.
-    const isComboDense = twoCardComboCount >= COMBO_REDUNDANCY_THRESHOLD;
+    const isComboDense = effectiveComboCount >= COMBO_REDUNDANCY_THRESHOLD;
     const isEarlyAssembly = accel >= 4 || hasReliableTag || isComboDense;
+
+    // Byte-identical to the pre-E97 text when there are no multi-card combos;
+    // names both counts once multi-card lines contribute. Never prints a
+    // "0 two-card + N multi-card" prefix — mirrors BracketBreakdown.tsx's
+    // comboFloorNote, which already special-cases twoCardComboCount === 0.
+    const comboLabel =
+      multiCardComboCount === 0
+        ? `${twoCardComboCount} two-card combo${twoCardComboCount === 1 ? '' : 's'}`
+        : twoCardComboCount === 0
+          ? `${multiCardComboCount} multi-card combo${multiCardComboCount === 1 ? '' : 's'}`
+          : `${twoCardComboCount} two-card + ${multiCardComboCount} multi-card combo${
+              twoCardComboCount + multiCardComboCount === 1 ? '' : 's'
+            }`;
 
     if (isEarlyAssembly) {
       // When redundancy (not raw speed) is what tips it, say so — the deck may have
@@ -394,8 +434,10 @@ export function estimateBracket(
       hardFloors.push({
         bracket: 4,
         reason: byRedundancyOnly
-          ? `${twoCardComboCount} two-card combos (highly redundant)`
-          : `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
+          ? `${comboLabel} (highly redundant)`
+          : multiCardComboCount > 0
+            ? `${comboLabel} (fast assembly)`
+            : `${twoCardComboCount} fast two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
         detail: byRedundancyOnly
           ? 'With this many interchangeable combos, the deck assembles one reliably even without tutors — competitive-level consistency.'
           : 'This combo can fire before opponents can respond — equivalent to competitive power.',
@@ -403,14 +445,14 @@ export function estimateBracket(
     } else {
       hardFloors.push({
         bracket: 3,
-        reason: `${twoCardComboCount} two-card combo${twoCardComboCount === 1 ? '' : 's'}`,
+        reason: comboLabel,
         detail:
-          'An infinite combo with two cards bumps the power level — even if the deck isn’t optimized to assemble it quickly.',
+          multiCardComboCount > 0
+            ? 'An infinite combo bumps the power level — even if the deck isn’t optimized to assemble it quickly.'
+            : 'An infinite combo with two cards bumps the power level — even if the deck isn’t optimized to assemble it quickly.',
       });
     }
   }
-  // 3+-card combos: soft score only (no hard floor). They already contributed to
-  // fastMana/tutor counts which drive the soft score.
 
   if (extraTurns.length >= EXTRA_TURN_FLOOR_THRESHOLD) {
     // Per RC: 1–2 extra-turn spells is fine in any bracket. 3+ implies a deliberate

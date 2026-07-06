@@ -105,8 +105,11 @@ function floorChips(reason: string, breakdown: BracketEstimation['breakdown']): 
 function comboFloorNote(reason: string, breakdown: BracketEstimation['breakdown']): string | null {
   const r = reason.toLowerCase();
   if (!r.includes('combo')) return null;
-  const count = breakdown.twoCardComboCount;
-  return `${count} two-card combo${count === 1 ? '' : 's'} detected`;
+  const { twoCardComboCount: two, multiCardComboCount: multi } = breakdown;
+  // Byte-identical to the pre-E97 note when the floor is two-card-only.
+  if (multi === 0) return `${two} two-card combo${two === 1 ? '' : 's'} detected`;
+  if (two === 0) return `${multi} multi-card combo${multi === 1 ? '' : 's'} detected`;
+  return `${two} two-card + ${multi} multi-card combo${two + multi === 1 ? '' : 's'} detected`;
 }
 
 /** One row in the soft-score table: component name, value/max, detail, chips. */
