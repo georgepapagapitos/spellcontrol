@@ -390,36 +390,63 @@ describe('buildPriceSanityNote (E80)', () => {
   });
 });
 
-describe('buildLandSqueezeTrimNote (E88 + E82 attempt 6)', () => {
+describe('buildLandSqueezeTrimNote (E88 + E82 attempt 6, E94 cause-honest rewrite)', () => {
   it('returns undefined when nothing was cut and no wildcard was kept', () => {
-    expect(buildLandSqueezeTrimNote([], [], 40, 37)).toBeUndefined();
+    expect(buildLandSqueezeTrimNote([], [], 40)).toBeUndefined();
   });
 
-  it('names the count, delta, and cut cards with plural phrasing', () => {
-    const note = buildLandSqueezeTrimNote(['Card A', 'Card B'], [], 40, 37);
+  it('land-driven only (no wildcards): plural phrasing, no per-cut count restated', () => {
+    // landDriven = 2 - 0 = 2, wildcardCount = 0
+    const note = buildLandSqueezeTrimNote(['Card A', 'Card B'], [], 40);
     expect(note).toBe(
-      'Auto-tuned land count to 40 (3 more than the 37-land default) left 2 fewer spell slots than usual — reconciled by cutting the lowest-value picks: Card A, Card B.'
+      'Auto-tuning the land count to 40 took 2 spell slots — reconciled by cutting the lowest-value picks: Card A, Card B.'
     );
   });
 
-  it('uses singular phrasing for exactly one cut card', () => {
-    const note = buildLandSqueezeTrimNote(['Card A'], [], 38, 37);
+  it('land-driven only: singular phrasing for exactly one cut card', () => {
+    // landDriven = 1 - 0 = 1, wildcardCount = 0
+    const note = buildLandSqueezeTrimNote(['Card A'], [], 38);
     expect(note).toBe(
-      'Auto-tuned land count to 38 (1 more than the 37-land default) left 1 fewer spell slot than usual — reconciled by cutting the lowest-value pick: Card A.'
+      'Auto-tuning the land count to 38 took 1 spell slot — reconciled by cutting the lowest-value pick: Card A.'
     );
   });
 
-  it('appends a combined wildcard sentence when both a cut and a keep happened', () => {
-    const note = buildLandSqueezeTrimNote(['Card A'], ['Card B'], 38, 37);
+  it('both drivers: land delta AND wildcard displacement each take their own named share', () => {
+    // landDriven = 3 - 1 = 2 (land count's own share), wildcardCount = 1
+    const note = buildLandSqueezeTrimNote(['Card A', 'Card B', 'Card C'], ['Card D'], 39);
     expect(note).toBe(
-      "Auto-tuned land count to 38 (1 more than the 37-land default) left 1 fewer spell slot than usual — reconciled by cutting the lowest-value pick: Card A. Additionally, 1 stronger leftover card (Card B) displaced an equal number of the deck's weakest picks."
+      'Auto-tuning the land count to 39 took 2 spell slots, and 1 stronger leftover card (Card D) claimed 1 more — reconciled by cutting the 3 lowest-value picks: Card A, Card B, Card C.'
     );
   });
 
-  it('stands alone (no "Additionally") when only a wildcard was kept', () => {
-    const note = buildLandSqueezeTrimNote([], ['Card B', 'Card C'], 34, 37);
+  it('exactly-37 resolve (landDriven === 0): no land-count blame at all, wildcard-only wording', () => {
+    // The auto-tune resolved back to the 37-land baseline — it took ZERO
+    // slots of its own. landDriven = 1 - 1 = 0, so every cut is credited to
+    // the wildcard scan, and the note must not mention the land count.
+    const note = buildLandSqueezeTrimNote(['Card A'], ['Card B'], 37);
     expect(note).toBe(
-      "2 stronger leftover cards (Card B, Card C) displaced an equal number of the deck's weakest picks."
+      "1 stronger leftover card (Card B) displaced the deck's lowest-value pick: Card A."
+    );
+    expect(note).not.toMatch(/land count/i);
+  });
+
+  it('defensive: landDriven negative (a land-count-lowering tune) still falls back to wildcard-only wording', () => {
+    // landDriven = 1 - 2 = -1 — inconsistent/negative, must not surface a
+    // negative number or blame the land count.
+    const note = buildLandSqueezeTrimNote(['Card A'], ['Card B', 'Card C'], 34);
+    expect(note).toBe(
+      "2 stronger leftover cards (Card B, Card C) displaced the deck's lowest-value pick: Card A."
+    );
+    expect(note).not.toMatch(/-1|land count/i);
+  });
+
+  it('wildcard-only (no cuts at all): degrades gracefully instead of naming an empty pick list', () => {
+    // Only reachable post-reconcile-to-final-deck (a downstream repair
+    // restored every originally-cut incumbent) — landDriven = 0 - 2 = -2,
+    // wildcardCount = 2, cutNames empty.
+    const note = buildLandSqueezeTrimNote([], ['Card B', 'Card C'], 34);
+    expect(note).toBe(
+      '2 stronger leftover cards (Card B, Card C) added, with no incumbent cut needed.'
     );
   });
 });

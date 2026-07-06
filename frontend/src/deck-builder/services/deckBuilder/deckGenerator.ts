@@ -689,37 +689,60 @@ export function reconcileLandSqueezeDisclosure(
 }
 
 /**
- * E88 + E82 attempt 6 disclosure: names the cards phaseLandSqueezeReconcile.ts
- * cut to bring the deck back to size after auto-tuning land count up past the
- * 37-land baseline, plus (independently) any leftover cards its wildcard scan
- * added that outscored an incumbent. Composed POST-HOC from the phase's own
- * `cut`/`wildcardsKept` lists (never from inside a sort comparator — see
- * buildComboUpsideNotes's doc for why comparator-side collection is
- * structurally unreliable) — callers MUST run them through
+ * E88 + E82 attempt 6 disclosure (E94 fix-round: cause-honest wording) —
+ * names the cards phaseLandSqueezeReconcile.ts cut to bring the deck back to
+ * size after auto-tuning land count, plus (independently) any leftover cards
+ * its wildcard scan added that outscored an incumbent. Composed POST-HOC from
+ * the phase's own `cut`/`wildcardsKept` lists (never from inside a sort
+ * comparator — see buildComboUpsideNotes's doc for why comparator-side
+ * collection is structurally unreliable) — callers MUST run them through
  * `reconcileLandSqueezeDisclosure` first so both lists already agree with the
- * final deck. The two aren't 1:1 pairable (one combined sort/cut over both
- * sets, not N independent swaps — see phaseLandSqueezeReconcile.ts's
- * header), so wildcards get their own sentence rather than a misleading
- * per-card pairing. Undefined when neither the squeeze cut nor the wildcard
- * scan did anything (the common case).
+ * final deck. Undefined when neither the squeeze cut nor the wildcard scan
+ * did anything (the common case).
+ *
+ * The combined `cutNames` list is ONE sort/cut over both the land-delta's own
+ * casualties and the wildcard scan's incumbent displacements (not N
+ * independent swaps — see phaseLandSqueezeReconcile.ts's header), so there's
+ * no per-cut attribution to whether a wildcard "caused" it. The one honest
+ * split available is aggregate: `landDriven = cutNames.length -
+ * wildcardsKept.length` is the count the land-count raise alone would have
+ * required even with zero wildcard activity; anything beyond that is the
+ * wildcard scan's own doing. When `landDriven <= 0` the land-count raise (if
+ * any) needed no casualties at all — every cut is wildcard-driven, so the
+ * note names ONLY the wildcard cause, never blaming the land count for cuts
+ * it didn't need (this previously misfired on an exactly-37 resolve, which
+ * took zero slots of its own, and could even go negative for a
+ * land-count-lowering tune).
  */
 export function buildLandSqueezeTrimNote(
   cutNames: readonly string[],
   wildcardsKept: readonly string[],
-  finalLandCount: number,
-  defaultLandCount: number
+  finalLandCount: number
 ): string | undefined {
   if (cutNames.length === 0 && wildcardsKept.length === 0) return undefined;
-  let note = '';
-  if (cutNames.length > 0) {
-    const extra = finalLandCount - defaultLandCount;
-    note = `Auto-tuned land count to ${finalLandCount} (${extra} more than the ${defaultLandCount}-land default) left ${cutNames.length} fewer spell slot${cutNames.length === 1 ? '' : 's'} than usual — reconciled by cutting the lowest-value pick${cutNames.length === 1 ? '' : 's'}: ${cutNames.join(', ')}.`;
+
+  const wildcardCount = wildcardsKept.length;
+  const landDriven = cutNames.length - wildcardCount;
+  const cutList = cutNames.join(', ');
+  const wildcardList = wildcardsKept.join(', ');
+
+  if (landDriven > 0 && wildcardCount > 0) {
+    return `Auto-tuning the land count to ${finalLandCount} took ${landDriven} spell slot${landDriven === 1 ? '' : 's'}, and ${wildcardCount} stronger leftover card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) claimed ${wildcardCount} more — reconciled by cutting the ${cutNames.length} lowest-value picks: ${cutList}.`;
   }
-  if (wildcardsKept.length > 0) {
-    const wildcardSentence = `${note ? 'Additionally, ' : ''}${wildcardsKept.length} stronger leftover card${wildcardsKept.length === 1 ? '' : 's'} (${wildcardsKept.join(', ')}) displaced an equal number of the deck's weakest picks.`;
-    note = note ? `${note} ${wildcardSentence}` : wildcardSentence;
+  if (landDriven > 0) {
+    return `Auto-tuning the land count to ${finalLandCount} took ${landDriven} spell slot${landDriven === 1 ? '' : 's'} — reconciled by cutting the ${cutNames.length === 1 ? 'lowest-value pick' : 'lowest-value picks'}: ${cutList}.`;
   }
-  return note;
+  // landDriven <= 0 (including the defensive negative case — wildcardsKept
+  // can't exceed cutNames.length without landDriven going negative, which
+  // still belongs here: the land count isn't the cause either way): every
+  // cut is the wildcard scan's own doing, so no land-count blame at all.
+  if (cutNames.length === 0) {
+    // Only reachable post-reconcileLandSqueezeDisclosure: a downstream repair
+    // restored every originally-cut incumbent while the kept wildcards stayed
+    // genuine adds — nothing left to name as "displaced".
+    return `${wildcardCount} stronger leftover card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) added, with no incumbent cut needed.`;
+  }
+  return `${wildcardCount} stronger leftover card${wildcardCount === 1 ? '' : 's'} (${wildcardList}) displaced the deck's ${cutNames.length === 1 ? 'lowest-value pick' : 'lowest-value picks'}: ${cutList}.`;
 }
 
 /**
@@ -5211,8 +5234,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const landSqueezeTrimNote = buildLandSqueezeTrimNote(
     finalLandSqueezeCut,
     finalWildcardsKept,
-    categories.lands.length,
-    DEFAULT_LAND_COUNT
+    categories.lands.length
   );
 
   // Combo-upside price disclosure — post-hoc scan of the FINAL deck against

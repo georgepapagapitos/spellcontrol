@@ -777,7 +777,7 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       // only the guarantees E88 itself makes.)
       expect(names.length).toBe(99);
       expect(deck.landSqueezeTrimNote).toBeDefined();
-      expect(deck.landSqueezeTrimNote).toMatch(/^Auto-tuned land count to \d+/);
+      expect(deck.landSqueezeTrimNote).toMatch(/^Auto-tuning the land count to \d+/);
       // The protected piece survived...
       expect(names).toContain('Creature_31');
       // ...while the next-worst, unprotected filler was cut instead.
