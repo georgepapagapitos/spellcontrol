@@ -441,6 +441,7 @@ export type DeckDataSource =
   | 'base+bracket' // Base commander data with bracket/power level
   | 'base' // Base commander data, no bracket
   | 'scryfall' // No EDHREC data at all — pure Scryfall search
+  | 'paupercommander' // PDH: function-faceted Scryfall pool constrained to f:paupercommander (EDHREC has no PDH data)
   | 'oracle-role' // Alternative generator: pool built from Scryfall oracle (function) tags
   | 'art-theme' // Alternative generator: pool filtered to a single art motif (arttag:)
   | 'historical'; // Alternative generator: pool limited to cards printed on/before a year
@@ -680,6 +681,7 @@ export type DeckSize = number;
 export type DeckFormat =
   | 'commander'
   | 'brawl'
+  | 'paupercommander'
   | 'standard'
   | 'pauper'
   | 'modern'
@@ -791,6 +793,13 @@ export interface AdvancedTargets {
 // User customization
 export interface Customization {
   deckFormat: DeckSize;
+  /**
+   * MTG format the build targets. Only commander-family formats generate;
+   * 'paupercommander' (PDH) routes sourcing to a Scryfall pool constrained to
+   * `f:paupercommander` and gates every pick on that legality. Optional —
+   * absent means 'commander' (all pre-existing builds).
+   */
+  mtgFormat?: DeckFormat;
   landCount: number;
   nonBasicLandCount: number; // How many non-basic lands to include (rest will be basics)
   bannedCards: string[]; // Card names to exclude from deck generation

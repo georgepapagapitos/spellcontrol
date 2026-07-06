@@ -65,6 +65,9 @@ export interface GenerationContext {
 // Immutable config snapshot — verbatim from generateDeck's top-of-body derivations.
 export interface GenerationConfig {
   format: Customization['deckFormat'];
+  /** MTG format ('commander' default). 'paupercommander' gates every pick on
+   *  PDH legality and routes pool sourcing to the Scryfall alt-pool builder. */
+  mtgFormat: NonNullable<Customization['mtgFormat']>;
   maxCardPrice: number | null;
   budgetOption: BudgetOption | undefined;
   targetBracket: TargetBracket | undefined;
@@ -150,6 +153,7 @@ export function createState(context: GenerationContext): GenerationState {
 
   const cfg: GenerationConfig = {
     format: customization.deckFormat,
+    mtgFormat: customization.mtgFormat ?? 'commander',
     maxCardPrice: customization.maxCardPrice ?? null,
     budgetOption: customization.budgetOption !== 'any' ? customization.budgetOption : undefined,
     targetBracket: customization.targetBracket !== 'all' ? customization.targetBracket : undefined,

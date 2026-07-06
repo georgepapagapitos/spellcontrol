@@ -29,6 +29,8 @@ import {
   validateDeck as runValidation,
   validateDeckSize,
   countFlaggedCards,
+  COMMANDER_SLOT_ID,
+  PARTNER_COMMANDER_SLOT_ID,
   type LegalityIssue,
 } from '../../lib/deck-validation';
 import type { DeckCard } from '../../store/decks';
@@ -532,6 +534,10 @@ interface Row {
   /** True for the partner commander's synthetic row — drives the "Partner"
    *  tag that distinguishes it from the primary commander. */
   isPartner?: boolean;
+  /** Legality lookup key for rows with no list slot (the commander zone).
+   *  Slot-based rows resolve their badge via slotIds[0]; commander rows keep
+   *  slotIds empty (no remove/qty actions) but still need their issues shown. */
+  legalitySlotKey?: string;
 }
 
 // ── Foil treatment ─────────────────────────────────────────────────────────
@@ -1143,6 +1149,7 @@ export function DeckDisplay({
         setName: owned?.setName || c.set_name,
         collectorNumber: owned?.collectorNumber || c.collector_number || '',
         isPartner,
+        legalitySlotKey: isPartner ? PARTNER_COMMANDER_SLOT_ID : COMMANDER_SLOT_ID,
       });
     };
     if (commander) push(commander, commanderAllocatedCopyId);
@@ -1813,7 +1820,11 @@ export function DeckDisplay({
                   isCommander={!r.isPartner && commander?.name === r.name}
                   synergies={synergyByName?.get(r.name)}
                   inclusionPct={resolveInclusionPct(cardInclusionMap, r.name)}
-                  legality={r.slotIds[0] ? legalityBySlot.get(r.slotIds[0]) : undefined}
+                  legality={
+                    (r.legalitySlotKey ?? r.slotIds[0])
+                      ? legalityBySlot.get(r.legalitySlotKey ?? r.slotIds[0])
+                      : undefined
+                  }
                   status={r.status}
                 />
               );
@@ -2540,7 +2551,7 @@ function DeckCardGrid({
                           />
                         ))}
                       {(() => {
-                        const issue = legalityBySlot?.get(row.slotIds[0]);
+                        const issue = legalityBySlot?.get(row.legalitySlotKey ?? row.slotIds[0]);
                         return issue ? (
                           <LegalityBadge issue={issue} className="deck-card-grid-illegal" />
                         ) : null;
@@ -2694,7 +2705,7 @@ function CategorySection({
             onRemoveCard={entry.leaving ? undefined : onRemoveCard}
             onSetQty={entry.leaving ? undefined : onSetQty}
             onEditCard={entry.leaving ? undefined : onEditCard}
-            legalityIssue={legalityBySlot?.get(entry.item.slotIds[0])}
+            legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
             onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
             moveLabel={
               onMoveToSideboard

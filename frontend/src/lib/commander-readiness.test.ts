@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   extractCommanderCandidates,
+  isPdhCommanderCandidate,
   computeReadiness,
   sortCommanderCandidates,
   READINESS_POOL_SIZE,
@@ -230,5 +231,41 @@ describe('sortCommanderCandidates', () => {
     const input = [...candidates];
     sortCommanderCandidates(input, new Map(), 'name');
     expect(input).toEqual(candidates);
+  });
+});
+
+describe('isPdhCommanderCandidate', () => {
+  it('accepts an uncommon creature (legendary or not)', () => {
+    expect(
+      isPdhCommanderCandidate(card({ name: 'A', rarity: 'uncommon', typeLine: 'Creature — Ape' }))
+    ).toBe(true);
+    expect(
+      isPdhCommanderCandidate(
+        card({ name: 'B', rarity: 'uncommon', typeLine: 'Legendary Creature — Human' })
+      )
+    ).toBe(true);
+  });
+
+  it('rejects non-uncommon printings and non-creatures', () => {
+    expect(
+      isPdhCommanderCandidate(card({ name: 'C', rarity: 'common', typeLine: 'Creature — Ape' }))
+    ).toBe(false);
+    expect(
+      isPdhCommanderCandidate(card({ name: 'D', rarity: 'uncommon', typeLine: 'Instant' }))
+    ).toBe(false);
+    expect(isPdhCommanderCandidate(card({ name: 'E', rarity: 'uncommon' }))).toBe(false);
+  });
+});
+
+describe('extractCommanderCandidates — custom predicate', () => {
+  it('extracts PDH candidates with the PDH predicate, deduped by name', () => {
+    const cards = [
+      card({ name: 'Uncommon Ape', rarity: 'uncommon', typeLine: 'Creature — Ape' }),
+      card({ name: 'Uncommon Ape', rarity: 'uncommon', typeLine: 'Creature — Ape' }),
+      card({ name: 'Rare Ape', rarity: 'rare', typeLine: 'Creature — Ape' }),
+      commander('Legendary Mythic'), // mythic rarity — commander-eligible, NOT PDH-eligible
+    ];
+    const out = extractCommanderCandidates(cards, undefined, isPdhCommanderCandidate);
+    expect(out.map((c) => c.name)).toEqual(['Uncommon Ape']);
   });
 });

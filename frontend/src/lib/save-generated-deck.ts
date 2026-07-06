@@ -72,6 +72,9 @@ export function saveGeneratedDeck(
 
   return createDeck({
     source: 'generated',
+    // Only PDH generates as its own format today; everything else stays the
+    // standard Commander 100 (matches createDeck's own default).
+    format: customization.mtgFormat ?? 'commander',
     commander,
     partnerCommander: partner,
     commanderAllocatedCopyId: commanderAlloc,

@@ -12,7 +12,7 @@ import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
-import { isValidCommander } from '../../lib/commanders';
+import { isValidCommander, isPdhCommanderEligible } from '../../lib/commanders';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
@@ -62,6 +62,21 @@ function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
     seen.add(c.name);
     return true;
   });
+}
+
+/** Format-aware commander eligibility: PDH derives it (uncommon creature —
+ *  see lib/commanders.ts), every other commander format uses the legendary rule. */
+function commanderEligibleFor(format: DeckFormat): (card: ScryfallCard) => boolean {
+  return format === 'paupercommander' ? isPdhCommanderEligible : isValidCommander;
+}
+
+/** Deduped commander candidates present in an imported list, for a format. */
+function commanderCandidatesFor(
+  cards: ScryfallCard[] | undefined,
+  format: DeckFormat
+): ScryfallCard[] {
+  if (!cards) return [];
+  return dedupeByName(cards.filter(commanderEligibleFor(format)));
 }
 
 /**
@@ -146,6 +161,8 @@ const PASTE_PLACEHOLDERS: Record<DeckFormat, string> = {
     'Commander\n1 Korvold, Fae-Cursed King\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n1 Cultivate\n...',
   brawl:
     'Commander\n1 Chulane, Teller of Tales\n\nDeck\n1 Arcane Signet\n1 Cultivate\n1 Llanowar Elves\n...',
+  paupercommander:
+    'Commander\n1 Fynn, the Fangbearer\n\nDeck\n1 Arcane Signet\n1 Command Tower\n1 Rampant Growth\n...',
   standard:
     'Deck\n4 Lightning Strike\n4 Monastery Swiftspear\n20 Mountain\n...\n\nSideboard\n3 Roiling Vortex\n...',
   pauper:
@@ -186,8 +203,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const dragDepthRef = useRef(0);
 
   const commanderCandidates = useMemo(
-    () => dedupeByName(pendingResult?.cards.filter(isValidCommander) ?? []),
-    [pendingResult]
+    () => commanderCandidatesFor(pendingResult?.cards, selectedFormat),
+    [pendingResult, selectedFormat]
   );
 
   const partnerCandidates = useMemo(
@@ -215,7 +232,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         return { commander: null, needsChoice: false };
       }
       if (result.commander) return { commander: result.commander, needsChoice: false };
-      const candidates = dedupeByName(result.cards.filter(isValidCommander));
+      const candidates = commanderCandidatesFor(result.cards, format);
       if (candidates.length === 1) return { commander: candidates[0], needsChoice: false };
       return { commander: null, needsChoice: true };
     },
@@ -388,7 +405,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
           format: fmt,
           commander,
           partner: null,
-          candidates: dedupeByName(r.cards.filter(isValidCommander)),
+          candidates: commanderCandidatesFor(r.cards, fmt),
           searchOpen: false,
         });
       } catch (err) {
@@ -444,7 +461,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         patchDraft(d.key, {
           result: r,
           commander: d.commander ?? commander,
-          candidates: dedupeByName(r.cards.filter(isValidCommander)),
+          candidates: commanderCandidatesFor(r.cards, d.format),
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Retry failed. Give it a moment.');
@@ -459,14 +476,19 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     setDrafts((ds) =>
       ds.map((d) => {
         if (d.key !== key) return d;
-        let commander = d.commander;
-        if (DECK_FORMAT_CONFIGS[format].hasCommander && !commander && d.candidates.length === 1) {
-          commander = d.candidates[0];
+        // Eligibility differs per format (PDH: uncommon creature; others:
+        // legendary) — recompute the candidate list and drop a commander the
+        // new format can't legally have.
+        const candidates = commanderCandidatesFor(d.result?.cards, format);
+        let commander =
+          d.commander && commanderEligibleFor(format)(d.commander) ? d.commander : null;
+        if (DECK_FORMAT_CONFIGS[format].hasCommander && !commander && candidates.length === 1) {
+          commander = candidates[0];
         }
         // A format without a commander (or a different commander) invalidates
         // any previously-chosen partner.
         const partner = DECK_FORMAT_CONFIGS[format].hasCommander ? d.partner : null;
-        return { ...d, format, commander, partner };
+        return { ...d, format, commander, partner, candidates };
       })
     );
   }, []);
@@ -886,6 +908,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                           </>
                         ) : (
                           <CommanderSearch
+                            key={d.format}
+                            format={d.format}
                             value={d.commander}
                             onSelect={(card) =>
                               patchDraft(d.key, {
@@ -1050,7 +1074,12 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                     </button>
                   </>
                 ) : (
-                  <CommanderSearch value={null} onSelect={handleCommanderSelect} />
+                  <CommanderSearch
+                    key={selectedFormat}
+                    format={selectedFormat}
+                    value={null}
+                    onSelect={handleCommanderSelect}
+                  />
                 )}
               </div>
             )}

@@ -141,14 +141,31 @@ export async function buildAlternatePool(
   colorIdentity: string[],
   onProgress?: (message: string, percent: number) => void
 ): Promise<AlternatePoolResult> {
+  // PDH (a FORMAT, orthogonal to the sourcing mode): every pool query is
+  // additionally constrained to the PDH-legal pool, and it lands in
+  // effectiveConstraint so the downstream fills/printing upgrades stay inside
+  // it too. Scryfall's `f:paupercommander` is oracle-level ("ever printed at
+  // common"), so downshifts are correctly admitted.
+  const formatConstraint =
+    (customization.mtgFormat ?? 'commander') === 'paupercommander' ? 'f:paupercommander' : '';
   switch (mode) {
     case 'art-theme':
-      return buildArtThemePool(customization, colorIdentity, onProgress);
+      return buildArtThemePool(customization, colorIdentity, formatConstraint, onProgress);
     case 'historical':
-      return buildHistoricalPool(customization, colorIdentity, onProgress);
+      return buildHistoricalPool(customization, colorIdentity, formatConstraint, onProgress);
     case 'oracle-role':
-    default:
-      return buildOraclePool(customization, colorIdentity, onProgress, undefined);
+    default: {
+      // 'edhrec' mode reaches here only for PDH (the generator routes it in —
+      // EDHREC has no data for non-legendary uncommon commanders), so the
+      // function-faceted pool is the PDH default; report it as its own source.
+      const result = await buildOraclePool(
+        customization,
+        colorIdentity,
+        onProgress,
+        formatConstraint || undefined
+      );
+      return mode === 'oracle-role' ? result : { ...result, dataSource: 'paupercommander' };
+    }
   }
 }
 
@@ -203,6 +220,7 @@ async function buildOraclePool(
 async function buildArtThemePool(
   customization: Customization,
   colorIdentity: string[],
+  formatConstraint: string,
   onProgress?: (message: string, percent: number) => void
 ): Promise<AlternatePoolResult> {
   const tag = slugifyTag(customization.artThemeTag);
@@ -211,10 +229,11 @@ async function buildArtThemePool(
     return { data: emptyData(), dataSource: 'art-theme', poolSize: 0, effectiveConstraint: '' };
   }
 
+  const constraint = [`art:${tag}`, formatConstraint].filter(Boolean).join(' ');
   onProgress?.(`Gathering ${customization.artThemeTag} art…`, 8);
   // The art constraint IS the pool: take the most playable cards depicting the
   // motif across all types, then let the engine pick by type/curve from them.
-  const cards = await fetchPool(`art:${tag} -t:land`, colorIdentity, 320);
+  const cards = await fetchPool(`${constraint} -t:land`, colorIdentity, 320);
   const data = synthesize(cards.map((card) => ({ card, flexHits: 0 })));
   onProgress?.(`Gathering ${customization.artThemeTag} art…`, 14);
 
@@ -223,7 +242,7 @@ async function buildArtThemePool(
     dataSource: 'art-theme',
     poolSize: data.cardlists.allNonLand.length,
     detail: tag,
-    effectiveConstraint: `art:${tag}`,
+    effectiveConstraint: constraint,
   };
 }
 
@@ -232,6 +251,7 @@ async function buildArtThemePool(
 async function buildHistoricalPool(
   customization: Customization,
   colorIdentity: string[],
+  formatConstraint: string,
   onProgress?: (message: string, percent: number) => void
 ): Promise<AlternatePoolResult> {
   const requested = customization.historicalYear;
@@ -249,7 +269,7 @@ async function buildHistoricalPool(
       { ...customization, permanentsOnly: false },
       colorIdentity,
       onProgress,
-      `year<=${year}`
+      [`year<=${year}`, formatConstraint].filter(Boolean).join(' ')
     );
     if (result.poolSize >= HISTORICAL_MIN_POOL || bump === 10) {
       return {
