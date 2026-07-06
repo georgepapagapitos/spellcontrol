@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { nonboFindings, qualifiedTriggerFindings } from './nonbo';
+import { nonboFindings, qualifiedTriggerFindings, qualifiedPayoffMismatch } from './nonbo';
 
 function card(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -398,5 +398,174 @@ describe('qualifiedTriggerFindings — color/type-qualified ETB & death triggers
       ])
     ).toHaveLength(0);
     expect(qualifiedTriggerFindings([card({ name: 'Blank' })])).toHaveLength(0);
+  });
+});
+
+describe('qualifiedPayoffMismatch — pick-time gate (E111)', () => {
+  // Real oracle text (verified against Scryfall) — never quote from memory.
+  const ayara = card({
+    name: 'Ayara, First of Locthwain',
+    type_line: 'Legendary Creature — Elf Noble',
+    colors: ['B'],
+    oracle_text:
+      'Whenever Ayara or another black creature you control enters, each opponent loses 1 life and you gain 1 life.\n{T}, Sacrifice another black creature: Draw a card.',
+  });
+  const securitron = (i: number) =>
+    card({ name: `Securitron ${i}`, type_line: 'Artifact Creature — Robot', colors: [] });
+  const blackBeater = (i: number) =>
+    card({ name: `Black Beater ${i}`, type_line: 'Creature — Zombie', colors: ['B'] });
+  const blackTokenMaker = card({
+    name: 'Bad Moon Rising',
+    type_line: 'Sorcery',
+    oracle_text: 'Create two 2/2 black Zombie creature tokens.',
+  });
+  const elf = (i: number) =>
+    card({ name: `Elf Warrior ${i}`, type_line: 'Creature — Elf Warrior' });
+  const human = (i: number) => card({ name: `Human ${i}`, type_line: 'Creature — Human' });
+
+  // The four "strictly-better unqualified drains" the live Mr. House case
+  // named — real oracle text, verified against Scryfall.
+  const mirkwoodBats = card({
+    name: 'Mirkwood Bats',
+    type_line: 'Creature — Bat',
+    colors: ['B'],
+    oracle_text: 'Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life.',
+  });
+  const recklessFireweaver = card({
+    name: 'Reckless Fireweaver',
+    type_line: 'Creature — Goblin Shaman',
+    colors: ['R'],
+    oracle_text:
+      'Whenever an artifact you control enters, this creature deals 1 damage to each opponent.',
+  });
+  const nadiersNightblade = card({
+    name: "Nadier's Nightblade",
+    type_line: 'Creature — Human Cleric',
+    colors: ['B'],
+    oracle_text:
+      'Whenever a token you control leaves the battlefield, each opponent loses 1 life and you gain 1 life.',
+  });
+  const impactTremors = card({
+    name: 'Impact Tremors',
+    type_line: 'Enchantment',
+    colors: ['R'],
+    oracle_text:
+      'Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.',
+  });
+
+  const colorlessDeck = Array.from({ length: 18 }, (_, i) => securitron(i));
+
+  it('does not veto when no unqualified equivalent exists anywhere in scope', () => {
+    // Ayara is unfeedable in this deck (all-colorless, no black creatures),
+    // but nothing better is available either — vetoing here would just lose
+    // a slot for nothing, so the gate stays quiet.
+    expect(qualifiedPayoffMismatch(ayara, colorlessDeck, [])).toBe(false);
+  });
+
+  it.each([
+    ['Mirkwood Bats', mirkwoodBats],
+    ['Reckless Fireweaver', recklessFireweaver],
+    ["Nadier's Nightblade", nadiersNightblade],
+    ['Impact Tremors', impactTremors],
+  ])('vetoes Ayara when the deck already has %s (real Mr. House case)', (_name, equivalent) => {
+    expect(qualifiedPayoffMismatch(ayara, [...colorlessDeck, equivalent], [])).toBe(true);
+  });
+
+  it('vetoes Ayara when the equivalent is only in the pool, not yet in the deck', () => {
+    expect(qualifiedPayoffMismatch(ayara, colorlessDeck, [recklessFireweaver])).toBe(true);
+  });
+
+  // Real oracle text — a real die-roll deck staple with ONE marginal (1-in-6)
+  // matching mode beside an otherwise-colorless token engine. E106's audit
+  // shipped a boolean any-producer check first and it failed exactly this
+  // case (Night Shift alone suppressed the flag); this pick gate must call
+  // the SAME share-based tokenEngineCoverage ruling, not repeat that bug.
+  const nightShift = card({
+    name: 'Night Shift of the Living Dead',
+    type_line: 'Enchantment',
+    colors: ['B'],
+    oracle_text:
+      'After you roll a die, you may pay 1 life. If you do, increase or decrease the result by 1. Do this only once each turn.\nWhenever you roll a 6, create a 2/2 black Zombie Employee creature token.',
+  });
+  const colorlessTokenProducer = (i: number) =>
+    card({
+      name: `Colorless Producer ${i}`,
+      type_line: 'Artifact',
+      oracle_text: 'Create a 1/1 colorless Servo artifact creature token.',
+    });
+
+  it('still vetoes Ayara when only ONE marginal (1-in-6) producer matches inside a mostly-colorless token engine (real Mr. House/Night Shift case)', () => {
+    const deck = [
+      ...colorlessDeck,
+      recklessFireweaver, // the unqualified equivalent already in the deck
+      nightShift,
+      ...Array.from({ length: 5 }, (_, i) => colorlessTokenProducer(i)),
+    ];
+    expect(qualifiedPayoffMismatch(ayara, deck, [])).toBe(true);
+  });
+
+  it('does not veto once two real matching token producers are present', () => {
+    const deck = [
+      ...colorlessDeck,
+      recklessFireweaver,
+      nightShift,
+      blackTokenMaker,
+      ...Array.from({ length: 5 }, (_, i) => colorlessTokenProducer(i)),
+    ];
+    expect(qualifiedPayoffMismatch(ayara, deck, [])).toBe(false);
+  });
+
+  it('does not veto once real black-creature share clears the pick-time floor', () => {
+    // 3/10 creatures = 0.3, well above the 0.15 pick-time floor — even with
+    // an unqualified equivalent sitting right there, the payoff is fed.
+    const deck = [
+      ...Array.from({ length: 3 }, (_, i) => blackBeater(i)),
+      ...Array.from({ length: 7 }, (_, i) => securitron(i)),
+      recklessFireweaver,
+    ];
+    expect(qualifiedPayoffMismatch(ayara, deck, [])).toBe(false);
+  });
+
+  it('does not veto once a matching black token producer is present', () => {
+    const deck = [...colorlessDeck, blackTokenMaker, recklessFireweaver];
+    expect(qualifiedPayoffMismatch(ayara, deck, [])).toBe(false);
+  });
+
+  it('tribal guard: does not veto an Elf-qualified payoff in an actual Elf deck (Marwyn)', () => {
+    const marwyn = card({
+      name: 'Marwyn, the Nurturer',
+      type_line: 'Legendary Creature — Elf Druid',
+      oracle_text: 'Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.',
+    });
+    // High Elf share (all 15/15 = 1.0) AND an unqualified equivalent present —
+    // share alone must keep this quiet, same as the real Lathril-style case.
+    const elfDeck = [...Array.from({ length: 15 }, (_, i) => elf(i)), recklessFireweaver];
+    expect(qualifiedPayoffMismatch(marwyn, elfDeck, [])).toBe(false);
+  });
+
+  it('still vetoes the same Elf-qualified payoff outside an Elf deck when an equivalent exists', () => {
+    const marwyn = card({
+      name: 'Marwyn, the Nurturer',
+      type_line: 'Legendary Creature — Elf Druid',
+      oracle_text: 'Whenever another Elf you control enters, put a +1/+1 counter on Marwyn.',
+    });
+    const nonElfDeck = [...Array.from({ length: 15 }, (_, i) => human(i)), recklessFireweaver];
+    expect(qualifiedPayoffMismatch(marwyn, nonElfDeck, [])).toBe(true);
+  });
+
+  it('never vetoes an unqualified trigger, regardless of composition', () => {
+    const zulaportCutthroat = card({
+      name: 'Zulaport Cutthroat',
+      type_line: 'Creature — Human Cleric',
+      oracle_text:
+        'Whenever Zulaport Cutthroat or another creature you control dies, each opponent loses 1 life and you gain 1 life.',
+    });
+    expect(
+      qualifiedPayoffMismatch(zulaportCutthroat, [...colorlessDeck, recklessFireweaver], [])
+    ).toBe(false);
+  });
+
+  it('ignores a blank oracle', () => {
+    expect(qualifiedPayoffMismatch(card({ name: 'Blank' }), colorlessDeck, [])).toBe(false);
   });
 });

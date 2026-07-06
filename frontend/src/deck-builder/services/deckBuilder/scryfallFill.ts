@@ -19,6 +19,7 @@ import { buildSynergyFingerprint, synergyScore } from './synergyFingerprint';
 import type { BracketGuard } from './bracketGuard';
 import { validateCardRole, type RoleKey } from '@/deck-builder/services/tagger/client';
 import { roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
+import { qualifiedPayoffMismatch } from './nonbo';
 
 /**
  * Same hard role-cap gate as the primary pick loop (cardPicking.ts's
@@ -52,6 +53,18 @@ export interface FillHardGates {
   /** Set per-call (not on the shared base gates object) where the brief
    *  actually wants role-awareness — see deckGenerator.ts call sites. */
   roleCap?: RoleCapGate;
+  /** Live snapshot of every card seated so far this generation (all
+   *  categories, all fill/pick paths) — needed to evaluate whether a
+   *  color/type-qualified ETB/death payoff (E111, e.g. Ayara, First of
+   *  Locthwain) the deck can't feed is being seated in place of an
+   *  unqualified equivalent. Undefined disables the gate (tests that don't
+   *  care about it never need to thread it through). */
+  deckCardsSoFar?: () => ScryfallCard[];
+  /** Shared across every gated path, like `overflowCounts` — incremented
+   *  whenever the escape hatch admits a qualified-mismatched card rather
+   *  than shipping the deck short (E111), so the build report can disclose
+   *  it once, never silently. */
+  qualifiedGateOverflowCount?: { value: number };
 }
 
 // Fill remaining slots with Scryfall search (fallback)
@@ -150,11 +163,28 @@ export async function fillWithScryfall(
     // escape hatch (least-over-target first) if the fill would otherwise ship
     // short, same shape as the primary pick loop's role-cap gate.
     const capSkipped: ScryfallCard[] = [];
-    const tryAcceptCard = (card: ScryfallCard, allowCapOverflow: boolean): boolean => {
+    // Candidates skipped for being a qualified ETB/death payoff (E111) the
+    // deck can't feed while an unqualified equivalent is available — same
+    // escape-hatch shape as capSkipped, kept separate so a qualified-gate
+    // admission never gets misattributed to the role-cap disclosure.
+    const qualifiedGateSkipped: ScryfallCard[] = [];
+    const tryAcceptCard = (
+      card: ScryfallCard,
+      allowCapOverflow: boolean,
+      allowQualifiedOverflow = false
+    ): boolean => {
       const ownedExempt = isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget);
       if (!ownedExempt) {
         const effectiveCap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
         if (exceedsMaxPrice(card, effectiveCap, currency)) return false;
+      }
+      if (
+        !allowQualifiedOverflow &&
+        gates?.deckCardsSoFar &&
+        qualifiedPayoffMismatch(card, gates.deckCardsSoFar(), passing)
+      ) {
+        qualifiedGateSkipped.push(card);
+        return false;
       }
       // Running-count gates (checked at accept time, like cardPicking's tryPick,
       // so counts shared with the picking phases stay accurate).
@@ -183,6 +213,9 @@ export async function fillWithScryfall(
       if (isGC && gates?.gameChangerCount) {
         card.isGameChanger = true;
         gates.gameChangerCount.value++;
+      }
+      if (allowQualifiedOverflow && gates?.qualifiedGateOverflowCount) {
+        gates.qualifiedGateOverflowCount.value++;
       }
       gates?.bracketGuard?.record(card.name);
       result.push(card);
@@ -225,6 +258,18 @@ export async function fillWithScryfall(
         if (result.length >= count) break;
         if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
         if (tryAcceptCard(card, true)) admitted++;
+      }
+    }
+
+    // Qualified-payoff escape hatch (E111) — mirrors the role-cap hatch above:
+    // seating a dead-text qualified payoff still beats shipping the deck
+    // short, so replay the skipped candidates once nothing else is left.
+    if (result.length < count && qualifiedGateSkipped.length > 0) {
+      let admitted = 0;
+      for (const card of qualifiedGateSkipped) {
+        if (result.length >= count) break;
+        if (admitted >= ROLE_CAP_HATCH_MAX_PER_PASS) break;
+        if (tryAcceptCard(card, false, true)) admitted++;
       }
     }
 

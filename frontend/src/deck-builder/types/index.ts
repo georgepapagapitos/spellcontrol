@@ -493,6 +493,11 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Disclosure when the E111 qualified-payoff pick-time gate's escape hatch
+   *  seated a color/type-qualified ETB/death payoff the deck can't feed
+   *  anyway (nothing else cleared every other gate to fill the slot).
+   *  Undefined when the hatch never actually fired. */
+  qualifiedPayoffGateNote?: string;
   /** Disclosure when the Combo Integrity Audit's auditAdd() bracket-ceiling
    *  backstop (E101) actually blocked a swap after its weak card was already
    *  evicted (E104). Undefined in the common case — the audit's own
@@ -663,6 +668,7 @@ export interface GeneratedDeck {
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
+  qualifiedPayoffGateNote?: string; // e.g. N qualified ETB/death payoffs seated anyway — nothing else cleared every gate (E111)
   comboAuditBracketBlockNote?: string; // e.g. N combo-audit swaps skipped to stay within the target bracket (E104)
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
