@@ -734,12 +734,37 @@ label = `neutral`, Synergy = `accent` (theme fit), In other deck = `neutral`.
 A chip may carry a `title` tooltip, but per the touch rule it's
 enhancement-only — never the sole path to the information.
 
-**Inclusion-% tint: red < 10% only.** The inclusion percentage on suggestion
-rows (`inclusionColor` in `DeckCardRow.tsx`) is hue-tinted, but **red is
-reserved for genuine fringe picks (<10% inclusion)** so it can never collide
-with red = remove (the Cut tone). 10–50% reads amber→yellow
-(neutral/caution); ≥50% ramps yellow→green. Don't smear red across the low-mid
-range — a 35%-inclusion card is a normal, healthy inclusion, not an alarm.
+**Inclusion-% tint: never red (E88).** The inclusion percentage on suggestion
+rows (`inclusionColor` in `DeckCardRow.tsx`) is hue-tinted amber→yellow→green
+across 1–100% and **never renders red at any percentage** — a 1–9% real
+inclusion is a "deep cut" pick (spicy, not broken), not an error, and red stays
+reserved exclusively for the Cut verdict tone. 1–50% reads amber→yellow
+(neutral/caution); ≥50% ramps yellow→green. (Superseded ruling: an earlier
+version of this scale used red below 10% — that collided with the "0%/missing
+reads as a bug" problem E88 fixed, so it's gone.) A real percentage is only
+ever passed to `inclusionColor` for a genuine ≥1% signal — see the "No-signal
+inclusion" ruling below for 0/undefined.
+
+**No-signal inclusion is "Off-meta", never a bare 0% (E88).** EDHREC
+inclusion is a popularity signal, not a quality verdict — a card can
+legitimately sit at 0% or have no EDHREC data at all because it's a combo
+piece, a Scryfall role-fill, a collection substitution, or an off-meta synergy
+pick, not because "the generator glitched." Every surface that shows an
+inclusion % (`DeckCardRow`, `DeckDisplay`, `DeckCardPreviewMeta`,
+`EnginePanel`, `CoachFeed`, `DeckAnalysisPanel`, `CardSearchPanel`) routes
+through the shared `classifyInclusion` (`lib/inclusion-label.ts`), which
+treats `0`, `undefined`, and `null` as the exact same "no play-rate evidence"
+state: **never** render "0%"/"In 0% of decks", and never go silently blank
+where a percentage would otherwise appear (blank reads as forgotten data;
+"Off-meta" reads as intentional) — reuse the existing muted+italic
+`is-offmeta` treatment, never a red/error tint. On a surface with no
+"why"-pipeline (`DeckDisplay`, `DeckCardPreviewMeta`), the Off-meta chip
+carries `OFFMETA_TOOLTIP` as its `title` so the verdict doesn't read as an
+unexplained gap; rows that already show `WhyBreakdown`/a reason line don't
+need it — the reason already carries the explanation. One exception: basic
+lands are excluded entirely (never shown as a percentage or "Off-meta") since
+the generator never scores them for EDHREC inclusion in the first place —
+that's "not applicable", not "no signal".
 
 ## Bars & meters
 
