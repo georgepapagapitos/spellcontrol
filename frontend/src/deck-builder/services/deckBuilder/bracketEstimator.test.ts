@@ -182,12 +182,98 @@ describe('estimateBracket — hard floors', () => {
     expect(r.hardFloors.some((f) => f.bracket === 4)).toBe(false);
   });
 
-  it('3+-card combo → no hard floor, only soft score', () => {
+  it('a single 3+-card combo stays below the E97 floor gate — no escalation', () => {
+    // MULTI_CARD_COMBO_WEIGHT (0.5) means one multi-card combo contributes 0.5
+    // toward effectiveComboCount, below the >=1 gate — an isolated 3+-card
+    // value line shouldn't blow a casual deck into a higher bracket.
     const r = estimateBracket(['Forest'], [combo(4, true, 3)], 4, undefined, undefined, new Set());
     expect(r.breakdown.twoCardComboCount).toBe(0);
     expect(r.breakdown.multiCardComboCount).toBe(1);
     expect(r.hardFloors.filter((f) => f.reason.includes('combo'))).toHaveLength(0);
     expect(r.bracket).toBe(2);
+  });
+
+  // ── E97: multi-card completed combos now count toward the floor (discounted) ──
+
+  it('E97: 2 complete multi-card combos alone clear the floor gate (2 multi-card ≈ 1 two-card)', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(null, true, 3), combo(null, true, 3)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.twoCardComboCount).toBe(0);
+    expect(r.breakdown.multiCardComboCount).toBe(2);
+    expect(r.bracket).toBe(3);
+    const comboFloor = r.hardFloors.find((f) => f.reason.includes('multi-card'));
+    expect(comboFloor?.bracket).toBe(3);
+    // Zero two-card combos must never print a "0 two-card +" prefix (matches
+    // the krenko-mob-boss-budget50 panel deck: 0 two-card + 4 multi-card).
+    expect(comboFloor?.reason).toBe('2 multi-card combos');
+    expect(comboFloor?.reason).not.toContain('0 two-card');
+  });
+
+  it('E97: 3 complete multi-card combos escalate to a B3 floor', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(null, true, 3), combo(null, true, 3), combo(null, true, 3)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.multiCardComboCount).toBe(3);
+    expect(r.bracket).toBe(3);
+    expect(r.hardFloors.some((f) => f.bracket === 3 && f.reason.includes('multi-card'))).toBe(true);
+  });
+
+  it('E97: many complete multi-card combos alone escalate to B4 by redundancy', () => {
+    // 8 * 0.5 = 4.0, clearing COMBO_REDUNDANCY_THRESHOLD on its own.
+    const combos = Array.from({ length: 8 }, () => combo(null, true, 3));
+    const r = estimateBracket(['Forest'], combos, 4, undefined, undefined, new Set());
+    expect(r.breakdown.multiCardComboCount).toBe(8);
+    expect(r.bracket).toBe(4);
+    const comboFloor = r.hardFloors.find((f) => f.reason.includes('multi-card'));
+    expect(comboFloor?.bracket).toBe(4);
+    expect(comboFloor?.reason).toContain('redundant');
+  });
+
+  it('E97: two-card combos + multi-card combos combine to cross the redundancy threshold', () => {
+    // Mirrors the flagship panel case (E97 board item): a deck with a couple
+    // two-card combos AND several complete multi-card variants of a shared
+    // "hub" engine (e.g. Magistrate's Scepter + Contagion Engine + <any of
+    // several proliferate pieces>) — individually below B4, combined effective
+    // count (2 + 6*0.5 = 5) clears it.
+    const twoCard = [combo(null), combo(null)];
+    const multiCard = Array.from({ length: 6 }, () => combo(null, true, 3));
+    const r = estimateBracket(
+      ['Forest'],
+      [...twoCard, ...multiCard],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.twoCardComboCount).toBe(2);
+    expect(r.breakdown.multiCardComboCount).toBe(6);
+    expect(r.bracket).toBe(4);
+  });
+
+  it('E97: pure two-card combo behavior is byte-unchanged (multiCardComboCount = 0)', () => {
+    const r = estimateBracket(
+      ['Forest'],
+      [combo(null), combo(null)],
+      4,
+      undefined,
+      undefined,
+      new Set()
+    );
+    expect(r.breakdown.multiCardComboCount).toBe(0);
+    expect(r.bracket).toBe(3);
+    const floor = r.hardFloors.find((f) => f.reason.includes('combo'));
+    expect(floor?.reason).toBe('2 two-card combos');
   });
 
   it('incomplete combos still ignored', () => {
