@@ -14,6 +14,7 @@ import {
 } from '../deckFilters';
 import type { GenerationState } from './state';
 import { ensureLiftPools, MAX_LIFT_SEEDS } from './liftPools';
+import { BracketGuard, bracketCeilings, ceilingsAreOpen } from '../bracketGuard';
 
 const MAX_CANDIDATES = 24;
 const MAX_PICKS = 4;
@@ -32,6 +33,7 @@ const FILTER_REASON_LABELS = {
   budget: 'over budget cap',
   salt: 'over salt tolerance',
   filter: 'outside your card filters',
+  bracket: 'over your target bracket',
 } as const;
 
 type FilterReason = keyof typeof FILTER_REASON_LABELS;
@@ -78,7 +80,8 @@ function collectSeeds(state: GenerationState, nonLandCards: ScryfallCard[]): str
 function rejectionReason(
   card: ScryfallCard,
   state: GenerationState,
-  isSaltBlocked?: (name: string) => boolean
+  isSaltBlocked?: (name: string) => boolean,
+  bracketGuard?: BracketGuard
 ): FilterReason | undefined {
   if (!fitsColorIdentity(card, state.context.colorIdentity)) return 'offColor';
   if (notCommanderLegal(card)) return 'legal';
@@ -95,6 +98,13 @@ function rejectionReason(
   )
     return 'budget';
   if (isSaltBlocked?.(card.name)) return 'salt';
+  // E104: the seating path (cardPicking/scryfallFill/auditAdd) never lets a
+  // Game Changer/MLD/extra-turn/stax signal push a bracket-capped deck past
+  // its ceiling — this advisory surface was the one add-adjacent path that
+  // didn't check it, so it could advertise a pick the deck could never
+  // actually run at the user's target bracket. Same BracketGuard, same
+  // ceilings — no separate list.
+  if (bracketGuard?.exceedsCeiling(card.name)) return 'bracket';
   return undefined;
 }
 
@@ -135,6 +145,19 @@ export async function liftPicksPhase(
       .filter((cat) => cat !== 'lands')
       .flatMap((cat) => state.categories[cat]);
 
+    // Same ceiling the seating path enforces (cardPicking/scryfallFill/
+    // auditAdd), seeded with the deck as it actually shipped so a candidate
+    // is only rejected if it would push a signal already at the ceiling over
+    // the top — undefined (no-op) when no bracket is targeted or the target
+    // is high enough that nothing binds.
+    const bracketCeil = bracketCeilings(state.cfg.targetBracket);
+    const bracketGuard = ceilingsAreOpen(bracketCeil)
+      ? undefined
+      : new BracketGuard(bracketCeil, state.gameChangerNames);
+    if (bracketGuard) {
+      for (const c of nonLandCards) bracketGuard.record(c.name);
+    }
+
     const seeds = collectSeeds(state, nonLandCards);
     if (seeds.length === 0) return undefined;
 
@@ -164,6 +187,7 @@ export async function liftPicksPhase(
       budget: 0,
       salt: 0,
       filter: 0,
+      bracket: 0,
     };
 
     // Lift candidates come from EDHREC card pages, not the query-scoped pool,
@@ -181,7 +205,7 @@ export async function liftPicksPhase(
     for (const candidate of topCandidates) {
       const card = cardMap.get(candidate.name);
       if (!card) continue; // unresolvable — drop silently, not a constraint rejection
-      const reason = rejectionReason(card, state, opts.isSaltBlocked);
+      const reason = rejectionReason(card, state, opts.isSaltBlocked, bracketGuard);
       if (reason) {
         filterCounts[reason]++;
         continue;

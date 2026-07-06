@@ -216,6 +216,14 @@ export function isMassLandDenialFloor(name: string): boolean {
   return isMassLandDenial(name) && !MLD_FALSE_POSITIVES.has(name);
 }
 
+// Game Changer membership as both the estimator's floor and BracketGuard's
+// pick-time ceiling count it — a thin wrapper (not a curated list, since GC
+// membership is the live/hardcoded Set threaded in from getGameChangerNames())
+// so the two never fork onto separately-inlined `.has()` checks (E104).
+export function isGameChangerCard(name: string, gameChangerNames: Set<string>): boolean {
+  return gameChangerNames.has(name);
+}
+
 // Fast mana / tutors drive the estimator's SOFT score (the `floor+1` bump),
 // which the pick-time BracketGuard doesn't cap. Exported as the exact same
 // predicates the estimator counts below, so the generation convergence pass can
@@ -322,7 +330,7 @@ export function estimateBracket(
   const counterspells = new Set<string>();
 
   for (const name of allCardNames) {
-    if (gameChangerNames.has(name)) gameChangers.push(name);
+    if (isGameChangerCard(name, gameChangerNames)) gameChangers.push(name);
     if (isMassLandDenialFloor(name)) massLandDenial.push(name);
     if (isExtraTurn(name)) extraTurns.push(name);
     if (FAST_MANA.has(name)) fastMana.push(name);
