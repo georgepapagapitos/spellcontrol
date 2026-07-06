@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import type { DeckCategory, DetectedCombo, EDHRECCard, ScryfallCard } from '@/deck-builder/types';
-import type { GenerationState } from './state';
+import { markBanned, type GenerationState } from './state';
 import { frontFaceName } from '@/lib/card-text';
 import {
   getCardRole,
@@ -146,6 +146,26 @@ export function applyBracketConvergence(
     isProtectionPiece(card) ||
     isFreeInteraction(card);
 
+  // DOWN-only variant (E105 iter-2): `state.comboCardNames` marks EVERY piece
+  // of EVERY detected combo (a whole-generation preview, since #1044), not
+  // just the piece currently over target. Guarding the DOWN loop with the
+  // full `isProtected` deadlocks a combo-driven floor: computeDownshiftPlan's
+  // whole reason to propose cutting a combo piece is that the combo itself is
+  // what's over target, so "never cut a combo piece" makes that floor
+  // uncuttable by construction (applied stays 0, the loop below no-ops, and
+  // reconvergeUntilStable's re-entry has nothing to converge). Breaking an
+  // over-target combo is this direction's entire purpose, so drop that one
+  // clause here — must-include/commander/protection-piece/free-interaction
+  // guards still hold, so a user-pinned combo piece is still never touched.
+  // The UP direction (pickCut below) keeps the full `isProtected` — protecting
+  // combos while powering UP (never cutting a combo piece to make room for a
+  // Game Changer add) is correct there.
+  const isProtectedForDownshift = (card: ScryfallCard): boolean =>
+    mustIncludeNames.has(card.name.toLowerCase()) ||
+    commanderNames.includes(card.name) ||
+    isProtectionPiece(card) ||
+    isFreeInteraction(card);
+
   const inclusionMap: Record<string, number> = {};
   for (const c of pool) inclusionMap[c.name] = c.inclusion ?? 0;
 
@@ -222,6 +242,13 @@ export function applyBracketConvergence(
     if (card.name.includes(' // ')) state.usedNames.delete(frontFaceName(card.name));
     const role = getCardRole(card.name);
     if (role && state.currentRoleCounts[role] > 0) state.currentRoleCounts[role]--;
+    // Veto the name (mirrors phaseCoherenceRepair's E87 removeCard) so a
+    // later mutating phase — budget convergence, role-surplus rebalance, lift
+    // picks — can't re-pick a card this pass just cut for a reason that still
+    // holds. Matters more now that DOWN can cut a combo piece (E105): those
+    // read as high-inclusion EDHREC staples, exactly what a later pass would
+    // otherwise resurface.
+    markBanned(state, card.name);
   };
 
   const addCard = (card: ScryfallCard) => {
@@ -366,7 +393,7 @@ export function applyBracketConvergence(
       if (est.bracket <= target) break;
       const loc = findInDeck(move.name);
       if (!loc) continue; // a land or already gone
-      if (isProtected(loc.card)) continue;
+      if (isProtectedForDownshift(loc.card)) continue;
       const filler = pickFiller(getCardRole(move.name));
       if (!filler) continue; // can't keep 100 cards safely — leave the offender
 
