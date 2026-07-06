@@ -24,6 +24,7 @@
  */
 import type { CoherenceFinding, ScryfallCard } from '@/deck-builder/types';
 import { AXES, type AxisKey } from '@/deck-builder/services/synergy/axes';
+import { KNOWN_TRIBES } from './commanderProfile';
 
 const AXIS_LABELS = new Map(AXES.map((a) => [a.key, a.label]));
 
@@ -108,18 +109,24 @@ function tribalDodgeType(phrase: string): string | null {
   return phrase.match(/\bnon-([a-z]+) creatures?\b/)?.[1] ?? null;
 }
 
+const typeLineOf = (c: ScryfallCard): string =>
+  (c.type_line ?? c.card_faces?.[0]?.type_line ?? '').toLowerCase();
+const isCreature = (c: ScryfallCard): boolean => typeLineOf(c).includes('creature');
+
 // ponytail: creature subtypes = every word after the type line's em dash.
 // Good enough for a majority-share check; not a full typal engine.
+function cardCreatureTypes(c: ScryfallCard): string[] {
+  if (!isCreature(c)) return [];
+  return typeLineOf(c).split('—').slice(1).join(' ').split(/\s+/).filter(Boolean);
+}
+
 function creatureTypeShares(cards: ScryfallCard[]): Map<string, number> {
   const counts = new Map<string, number>();
   let creatureCount = 0;
   for (const c of cards) {
-    const typeLine = (c.type_line ?? c.card_faces?.[0]?.type_line ?? '').toLowerCase();
-    if (!typeLine.includes('creature')) continue;
+    if (!isCreature(c)) continue;
     creatureCount++;
-    for (const t of typeLine.split('—').slice(1).join(' ').split(/\s+/)) {
-      if (t) counts.set(t, (counts.get(t) ?? 0) + 1);
-    }
+    for (const t of cardCreatureTypes(c)) counts.set(t, (counts.get(t) ?? 0) + 1);
   }
   const shares = new Map<string, number>();
   if (creatureCount === 0) return shares;
@@ -231,6 +238,139 @@ export function nonboFindings(
       severity: hit.severity,
       card: card.name,
       message: hit.message(opposed.map((a) => AXIS_LABELS.get(a) ?? a).join(' and ')),
+    });
+  }
+
+  return findings;
+}
+
+// ── Qualified ETB/death payoffs (E106) ──────────────────────────────────────
+//
+// "Whenever Ayara or another black creature you control enters, each opponent
+// loses 1 life…" only pays off BLACK creatures — in a deck whose token engine
+// is colorless, that clause is close to dead text. The 23-axis classifiers
+// are adjacency-strict (`hasCreatureEtbTrigger`, `paysOffCreatureDeath`) and
+// don't even recognize a qualified clause as an ETB/death payoff at all today,
+// so a qualified card currently gets ZERO axis credit — this reads the
+// qualifier straight off the oracle text instead of touching that
+// precision-gated corpus (see `classify.fixtures.ts`). Only a color word or a
+// known creature type (reusing commanderProfile's tribe list) counts as a
+// qualifier; anything else ("another permanent", "another nontoken creature")
+// is left alone — this only flags patterns we can positively identify.
+const COLOR_WORDS = new Set(['white', 'blue', 'black', 'red', 'green']);
+const COLOR_LETTER: Record<string, string> = {
+  white: 'W',
+  blue: 'U',
+  black: 'B',
+  red: 'R',
+  green: 'G',
+};
+
+// "whenever <~ or the card's own name> or another/each black creature (you
+// control) enters/dies" — the qualifying word sits directly before
+// "creature(s)". oracle_text isn't name-neutralized here (unlike
+// commanderProfile's getCombinedOracleText), so the self-reference is an
+// arbitrary (non-greedy, period-bounded) run of text up to the first "or".
+const QUALIFIED_CREATURE_TRIGGER =
+  /\bwhenever\s+(?:[^.]*?\bor\s+)?(?:another|each)\s+([a-z]+)\s+creatures?(?:\s+you control)?\s+(enters?|dies)\b/;
+// "whenever another Elf (you control) enters/dies" — no "creature" word at all.
+const QUALIFIED_TYPE_TRIGGER =
+  /\bwhenever\s+(?:[^.]*?\bor\s+)?(?:another|each)\s+([a-z]+)(?:\s+you control)?\s+(enters?|dies)\b/;
+
+/**
+ * The color or creature-type word qualifying a "whenever another X enters/
+ * dies" trigger, or null when the clause is unqualified ("another creature")
+ * or the captured word isn't a color/type we can positively identify.
+ */
+function triggerQualifier(oracle: string): string | null {
+  const m = QUALIFIED_CREATURE_TRIGGER.exec(oracle) ?? QUALIFIED_TYPE_TRIGGER.exec(oracle);
+  if (!m) return null;
+  const word = m[1];
+  if (word === 'creature' || word === 'creatures') return null; // unqualified
+  if (!COLOR_WORDS.has(word) && !KNOWN_TRIBES.has(word)) return null;
+  return word;
+}
+
+function matchesQualifier(card: ScryfallCard, qualifier: string): boolean {
+  if (COLOR_WORDS.has(qualifier)) return (card.colors ?? []).includes(COLOR_LETTER[qualifier]);
+  return cardCreatureTypes(card).includes(qualifier);
+}
+
+/** Any "create … token" clause, regardless of color/type. */
+function producesAnyToken(card: ScryfallCard): boolean {
+  return oracleOf(card)
+    .split(/[.;]+/)
+    .some((clause) => /\bcreates?\b/.test(clause) && /\btoken/.test(clause));
+}
+
+/** A "create … token" clause that also names the qualifying color/type word. */
+function producesMatchingToken(card: ScryfallCard, qualifier: string): boolean {
+  for (const clause of oracleOf(card).split(/[.;]+/)) {
+    if (/\bcreates?\b/.test(clause) && /\btoken/.test(clause) && clause.includes(qualifier))
+      return true;
+  }
+  return false;
+}
+
+// A payoff scoped to a color/type only needs to clear ONE side to keep full
+// credit: a real share of matching creatures already in the 99 (mono-black
+// aristocrats, Elf tribal), OR a token engine that substantially makes
+// matching tokens. Both thin = the payoff is close to dead text.
+const QUALIFIED_PAYOFF_SHARE_FLOOR = 0.25;
+// A token engine "covers" a qualifier when it has at least 2 matching
+// producers (real, deliberate support regardless of engine size) or when
+// matching producers are a real share of the whole token engine — NOT when
+// a single marginal producer (e.g. a 1-in-6 die-roll mode) sits inside an
+// otherwise non-matching engine (Night Shift of the Living Dead's black
+// Zombie mode beside a 100%-colorless Securitron engine must not grant full
+// credit on its own).
+const MIN_MATCHING_PRODUCERS_ALWAYS_COVERS = 2;
+
+/**
+ * Findings for color/creature-type-qualified ETB/death triggers whose
+ * qualifier the deck can barely feed — neither enough matching creatures nor
+ * a matching token producer. Report-only (info), same family as `nonboFindings`.
+ */
+export function qualifiedTriggerFindings(nonLandCards: ScryfallCard[]): CoherenceFinding[] {
+  const findings: CoherenceFinding[] = [];
+
+  for (const card of nonLandCards) {
+    if (card.isMustInclude) continue; // the user forced it — their call
+    const oracle = oracleOf(card);
+    if (!oracle) continue;
+    const qualifier = triggerQualifier(oracle);
+    if (!qualifier) continue;
+
+    const otherCards = nonLandCards.filter((c) => c !== card);
+    const others = otherCards.filter((c) => isCreature(c));
+    const matching = others.filter((c) => matchesQualifier(c, qualifier));
+    const share = others.length > 0 ? matching.length / others.length : 0;
+    if (share >= QUALIFIED_PAYOFF_SHARE_FLOOR) continue;
+
+    const tokenProducers = otherCards.filter((c) => producesAnyToken(c));
+    const matchingProducers = tokenProducers.filter((c) => producesMatchingToken(c, qualifier));
+    const producerShare =
+      tokenProducers.length > 0 ? matchingProducers.length / tokenProducers.length : 0;
+    const tokenEngineCovers =
+      matchingProducers.length >= MIN_MATCHING_PRODUCERS_ALWAYS_COVERS ||
+      producerShare >= QUALIFIED_PAYOFF_SHARE_FLOOR;
+    if (tokenEngineCovers) continue;
+
+    const label = COLOR_WORDS.has(qualifier)
+      ? qualifier
+      : qualifier[0].toUpperCase() + qualifier.slice(1);
+    const tokenPhrase =
+      matchingProducers.length === 0
+        ? 'nothing makes a matching token'
+        : 'almost nothing makes a matching token';
+    findings.push({
+      kind: 'qualified-payoff',
+      severity: 'info',
+      card: card.name,
+      message:
+        matching.length === 0
+          ? `Its ${label} trigger has no other matching creature in the deck, and ${tokenPhrase} — it'll rarely fire.`
+          : `Its ${label} trigger only matches ${matching.length} other creature${matching.length === 1 ? '' : 's'} in the deck, and ${tokenPhrase} — it'll fire rarely.`,
     });
   }
 

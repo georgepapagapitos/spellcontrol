@@ -192,6 +192,7 @@ export function BuildReportPanel({
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    comboAuditBracketBlockNote,
     comboUpsideNotes,
     comboCompletionNotes,
     packagePicks,
@@ -302,6 +303,10 @@ export function BuildReportPanel({
 
       {priceSanityNote && (
         <p className="build-report-line build-report-source">{priceSanityNote}</p>
+      )}
+
+      {comboAuditBracketBlockNote && (
+        <p className="build-report-line build-report-source">{comboAuditBracketBlockNote}</p>
       )}
 
       {comboUpsideNotes && comboUpsideNotes.length > 0 && (
@@ -535,7 +540,9 @@ export function BuildReportPanel({
                                 ? 'Answer gap'
                                 : f.kind === 'nonbo'
                                   ? 'Nonbo'
-                                  : 'Engine note'
+                                  : f.kind === 'qualified-payoff'
+                                    ? 'Thin payoff'
+                                    : 'Engine note'
                     }
                   />
                 </span>

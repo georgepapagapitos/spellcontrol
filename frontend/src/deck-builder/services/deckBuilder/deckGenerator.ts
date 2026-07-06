@@ -685,6 +685,20 @@ export function buildPriceSanityNote(decidedCount: number): string | undefined {
 }
 
 /**
+ * Disclosure for the E101 bracket-ceiling backstop inside the Combo Integrity
+ * Audit's auditAdd() (see the three pre-filtered call sites) — mirrors the
+ * buildPriceSanityNote idiom. Undefined in the common case: the pre-filters
+ * already keep a bracket-rejected candidate from ever reaching auditAdd, so
+ * this only surfaces the rarer case where an earlier swap in the same audit
+ * pass pushed a signal to the ceiling between a later candidate's scoring and
+ * its actual swap, leaving one weak card evicted with nothing added back.
+ */
+export function buildComboAuditBracketBlockNote(blockCount: number): string | undefined {
+  if (blockCount <= 0) return undefined;
+  return `${blockCount} combo-audit swap${blockCount === 1 ? '' : 's'} skipped to stay within your target bracket`;
+}
+
+/**
  * E82 fix-round: phaseLandSqueezeReconcile.ts's `cut`/`wildcardsKept` are
  * correct as of the moment that phase runs, but combo audit / coherence
  * repair / budget convergence / bracket convergence all run AFTER it and can
@@ -1225,6 +1239,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // Combo-completion budget disclosure: how many combo-audit/combo-floor
   // candidates were skipped for exceeding the budget cap (see budgetNote below).
   let comboBudgetSkipCount = 0;
+  // E104: combo-audit adds that auditAdd() blocked for exceeding the target-
+  // bracket ceiling AFTER a weak card was already evicted to make room. The
+  // three candidate-list call sites all pre-filter on the same ceiling (E101),
+  // so this only fires on the rarer running-count race (an earlier swap in
+  // the same audit pass pushes a signal to the ceiling between when a later
+  // candidate was scored and when its swap actually executes) — see
+  // buildComboAuditBracketBlockNote below.
+  let comboAuditBracketBlockCount = 0;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
@@ -4495,7 +4517,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // land denial/extra-turn/stax signal past the ceiling with no gate at
       // all (e.g. auditAdd seating Teferi, Master of Time into a bracket-2
       // deck, later silently evicted again by bracket convergence).
-      if (bracketGuard?.exceedsCeiling(card.name)) return false;
+      if (bracketGuard?.exceedsCeiling(card.name)) {
+        comboAuditBracketBlockCount++;
+        return false;
+      }
       // Defense-in-depth: every call site below pre-filters candidates for
       // color identity before evicting a card to make room (a candidate
       // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
@@ -5395,6 +5420,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // actually decided an outcome (off, or no qualifying pair arose).
   const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
 
+  // Combo-audit bracket-block disclosure (E104) — undefined in the common
+  // case (see buildComboAuditBracketBlockNote).
+  const comboAuditBracketBlockNote = buildComboAuditBracketBlockNote(comboAuditBracketBlockCount);
+
   // Land-squeeze reconciliation disclosure (E88 + E82 attempt 6) — undefined
   // when the auto-tune never raised land count past baseline AND the
   // wildcard scan never found a leftover card worth adding (the common
@@ -5479,6 +5508,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
+    comboAuditBracketBlockNote,
     landSqueezeTrimNote,
     comboUpsideNotes,
     comboCompletionNotes,

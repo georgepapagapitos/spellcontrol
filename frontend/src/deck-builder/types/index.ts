@@ -413,7 +413,8 @@ export interface CoherenceFinding {
     | 'land-sanity'
     | 'win-condition'
     | 'answer-coverage'
-    | 'nonbo';
+    | 'nonbo'
+    | 'qualified-payoff';
   severity: 'warn' | 'info';
   /** Card the finding is about; absent for deck-level findings. */
   card?: string;
@@ -492,6 +493,12 @@ export interface BuildReport {
    *  tie-break never decided an outcome (off via budgetOption='expensive', or no
    *  qualifying pair ever arose). */
   priceSanityNote?: string;
+  /** Disclosure when the Combo Integrity Audit's auditAdd() bracket-ceiling
+   *  backstop (E101) actually blocked a swap after its weak card was already
+   *  evicted (E104). Undefined in the common case — the audit's own
+   *  candidate-list pre-filters keep this from firing except on the rarer
+   *  running-count race between candidates in the same audit pass. */
+  comboAuditBracketBlockNote?: string;
   /** Disclosure when phaseLandSqueezeReconcile.ts (E88) cut cards to bring the
    *  deck back to size after the auto-tune raised land count past the
    *  37-land baseline. Undefined when the auto-tune never raised land count
@@ -646,6 +653,7 @@ export interface GeneratedDeck {
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
+  comboAuditBracketBlockNote?: string; // e.g. N combo-audit swaps skipped to stay within the target bracket (E104)
   landSqueezeTrimNote?: string; // e.g. N cards cut to reconcile an auto-tuned land count raise (E88)
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
