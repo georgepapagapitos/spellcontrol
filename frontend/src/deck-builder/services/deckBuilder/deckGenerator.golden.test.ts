@@ -216,11 +216,21 @@ vi.mock('./targetCounts', async (orig) => {
   };
 });
 
+// Spies on applyLandSqueezeReconcile (E94 round 2) so a single test can
+// assert the EXACT ctx.wildcardCount deckGenerator.ts computes, without
+// having to reverse-engineer it from final deck composition — the cheapest
+// seam that pins "anchored to typeTargetLandCount, not resolvedLandCount".
+vi.mock('./deckGeneration/phaseLandSqueezeReconcile', async (orig) => {
+  const actual = await orig<typeof import('./deckGeneration/phaseLandSqueezeReconcile')>();
+  return { ...actual, applyLandSqueezeReconcile: vi.fn(actual.applyLandSqueezeReconcile) };
+});
+
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { searchCards, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
+import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 
 // ---- Customization factory (static, no localStorage) ----------------------
@@ -847,6 +857,28 @@ describe('generateDeck — land-squeeze reconciliation (E88, iter-7 Slice B)', (
       expect(names).toContain('Creature_31');
     } finally {
       vi.mocked(isProtectionPiece).mockReturnValue(false);
+      clearGenerationCache();
+    }
+  });
+
+  it("E94 round 2: wildcard scan reach anchors to typeTargetLandCount, not resolvedLandCount — no double-charging Karsten's delta", async () => {
+    // Karsten resolves to 39, but the legacy sizing anchor is 34: wildcardCount
+    // must be anchor-32=2 (matching pre-Karsten K exactly), NOT resolved-32=7
+    // — the "extra" 5 lands are already carried once, by squeezeDelta
+    // (resolved - typeTargetLandCount = 39-34=5), through the reconcile.
+    // Charging them a second time as wildcard reach inflates combined churn.
+    vi.mocked(computeAutoLandCount).mockImplementationOnce(() => 39);
+    vi.mocked(computeLandCountSizingAnchor).mockImplementationOnce(() => 34);
+
+    const ctx = baseContext();
+    ctx.customization = customization({ nonBasicLandCount: 15 });
+    try {
+      await generateDeck(ctx);
+      expect(vi.mocked(applyLandSqueezeReconcile)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ squeezeDelta: 5, wildcardCount: 2 })
+      );
+    } finally {
       clearGenerationCache();
     }
   });

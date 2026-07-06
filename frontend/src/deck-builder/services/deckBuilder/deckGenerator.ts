@@ -3438,7 +3438,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // wildcardCount so this is fully inert — empty array, zero scan cost — for
   // every non-auto-tuned generation and any auto-tuned deck that lands
   // exactly at the 32-land floor.
-  const wildcardCount = landCountAutoTuned ? Math.max(0, resolvedLandCount - 32) : 0;
+  //
+  // E94 round 2: anchors to typeTargetLandCount (the legacy sizing anchor),
+  // NOT resolvedLandCount (Karsten's delivered count) — squeezeDelta
+  // (resolvedLandCount - typeTargetLandCount, computed inside the reconcile
+  // phase below) already carries the entire Karsten-vs-anchor delta through
+  // the protected reconcile. Reading resolvedLandCount here double-charged
+  // that same delta a second time as extra wildcard reach, on top of the
+  // squeeze it was already producing — inflating combined churn (squeeze +
+  // wildcard cuts) well past pre-Karsten levels and starving
+  // phaseRoleSurplusRebalance downstream (measured: meren 3->7, ur-dragon
+  // 3->13 vs a 3-cut baseline). Anchoring here to typeTargetLandCount matches
+  // pre-Karsten K exactly, whatever Karsten resolves to.
+  const wildcardCount = landCountAutoTuned ? Math.max(0, typeTargetLandCount - 32) : 0;
   let wildcardCandidates: ScryfallCard[] = [];
   if (wildcardCount > 0) {
     const wildcardPool = state.edhrecData?.cardlists.allNonLand ?? [];

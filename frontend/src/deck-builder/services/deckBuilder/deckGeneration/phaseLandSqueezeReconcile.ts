@@ -72,8 +72,12 @@ import {
 //
 // Attempt 6 leaves typeTargetLandCount and every type/curve target byte-
 // identical to today (E88, unmodified) and instead widens the reach of THIS
-// already-safe reconcile pass: `wildcardCount = max(0, resolvedLandCount -
-// 32)` (32 is computeAutoLandCount's own existing floor, not a new constant)
+// already-safe reconcile pass: `wildcardCount = max(0, typeTargetLandCount -
+// 32)` (32 is computeAutoLandCount's own existing floor, not a new constant;
+// E94 round 2 re-anchored this from resolvedLandCount to typeTargetLandCount
+// — resolvedLandCount is Karsten's delivered count, and squeezeDelta below
+// already carries the full Karsten-vs-anchor delta through this reconcile,
+// so anchoring wildcard reach to resolvedLandCount too double-charged it)
 // leftover EDHREC-pool cards — ones that already cleared every pick-time gate
 // via the same `pickFromPrefetchedWithCurve` every type pass uses — are
 // scored with the SAME scoreOf as incumbents and folded into ONE combined
@@ -102,9 +106,10 @@ export interface LandSqueezeReconcileContext {
    *  Re-scored and re-ranked HERE by the SAME scoreOf blend that decides
    *  cuts, never the picker's own EDHREC-priority order (see header). */
   wildcardCandidates: ScryfallCard[];
-  /** max(0, resolvedLandCount - 32) — see header for why 32 isn't a new
-   *  constant. 0 when landCountAutoTuned is false (user-set land count) —
-   *  mechanism fully inert. */
+  /** max(0, typeTargetLandCount - 32) — see header for why 32 isn't a new
+   *  constant, and why this anchors to typeTargetLandCount rather than
+   *  resolvedLandCount. 0 when landCountAutoTuned is false (user-set land
+   *  count) — mechanism fully inert. */
   wildcardCount: number;
   /** Same guard every EDHREC-pool pick already shares (deckGenerator.ts) —
    *  a kept wildcard is a genuine new add, so it must record here too or a
