@@ -119,6 +119,38 @@ export function computeLandCountSizingAnchor(
   return Math.max(32, Math.min(40, 37 + delta));
 }
 
+/**
+ * E100: `nonBasicLandCount` is a flat user-facing customization (store
+ * default 15) — untouched by the Karsten auto-tune. When the tune raises
+ * `resolvedLandCount` past the legacy sizing anchor (see
+ * computeLandCountSizingAnchor), that raise otherwise lands entirely as
+ * basics: the nonbasic budget stays flat while the extra land slots dilute
+ * the manabase with basics/Wastes instead of getting the same shot at
+ * premium utility lands the rest of the deck got (board E100 — same shape
+ * as E88/E94's typeTargets shrink, but for the land-internal basic/nonbasic
+ * split, which neither of those guards protects).
+ *
+ * Additive, tied to the exact overflow-past-anchor amount
+ * (`resolvedLandCount - typeTargetLandCount`) — the SAME delta
+ * phaseLandSqueezeReconcile's `squeezeDelta` already reconciles elsewhere —
+ * so raising the land count can only ever grow the nonbasic budget, never
+ * shrink it, and this is an exact no-op (`nonBasicLandCount` verbatim)
+ * whenever `landCountAutoTuned` is false. `landCountAutoTuned` can only be
+ * true when `isDefaultLandCount(customization)` held, which already
+ * requires `nonBasicLandCount === 15` — so this never overrides an explicit
+ * user value; an explicit `nonBasicLandCount` always leaves
+ * `landCountAutoTuned` false, making this call a no-op by construction.
+ */
+export function computeEffectiveNonBasicLandCount(
+  nonBasicLandCount: number,
+  landCountAutoTuned: boolean,
+  resolvedLandCount: number,
+  typeTargetLandCount: number
+): number {
+  if (!landCountAutoTuned) return nonBasicLandCount;
+  return nonBasicLandCount + Math.max(0, resolvedLandCount - typeTargetLandCount);
+}
+
 // Apply user's advanced target overrides (curve percentages, type percentages)
 function applyAdvancedOverrides(
   customization: Customization,

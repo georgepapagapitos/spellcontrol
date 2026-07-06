@@ -3,6 +3,7 @@ import {
   calculateTargetCounts,
   computeAutoLandCount,
   computeLandCountSizingAnchor,
+  computeEffectiveNonBasicLandCount,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -313,5 +314,41 @@ describe('computeLandCountSizingAnchor (recovered legacy heuristic, sizing-only)
 
   it('never exceeds the 40-land ceiling even with extreme inputs', () => {
     expect(computeLandCountSizingAnchor(Archetype.LANDFALL, 0, 10)).toBeLessThanOrEqual(40);
+  });
+});
+
+// E100: nonBasicLandCount is a flat user-facing customization that the
+// Karsten auto-tune raise otherwise leaves untouched — so a raise lands
+// entirely as basics, diluting the manabase. This scales it by the same
+// overflow-past-anchor amount the land-squeeze reconcile already tracks.
+describe('computeEffectiveNonBasicLandCount', () => {
+  it('is byte-identical to the input when the land count was never auto-tuned', () => {
+    expect(computeEffectiveNonBasicLandCount(15, false, 43, 37)).toBe(15);
+  });
+
+  it('is byte-identical to the input when auto-tuned but resolved count never exceeds the anchor', () => {
+    // Kozilek-shaped: Karsten resolves at or below the legacy sizing anchor.
+    expect(computeEffectiveNonBasicLandCount(15, true, 37, 37)).toBe(15);
+    expect(computeEffectiveNonBasicLandCount(15, true, 34, 37)).toBe(15);
+  });
+
+  it('scales up by exactly the overflow when the auto-tune raises past the anchor (kozilek-shaped)', () => {
+    // resolvedLandCount 43 vs anchor 41 => +2 nonbasic slots, never a drop.
+    expect(computeEffectiveNonBasicLandCount(15, true, 43, 41)).toBe(17);
+  });
+
+  it('never reduces the nonbasic count as the raise grows — monotonically non-decreasing', () => {
+    const base = computeEffectiveNonBasicLandCount(15, true, 37, 37);
+    const raised1 = computeEffectiveNonBasicLandCount(15, true, 39, 37);
+    const raised2 = computeEffectiveNonBasicLandCount(15, true, 40, 37);
+    expect(raised1).toBeGreaterThanOrEqual(base);
+    expect(raised2).toBeGreaterThanOrEqual(raised1);
+  });
+
+  it('respects an explicit user nonBasicLandCount verbatim (auto-tune is inert whenever the user customized it)', () => {
+    // landCountAutoTuned is always false once the user has touched
+    // nonBasicLandCount (isDefaultLandCount requires ===15) — this call
+    // models that guaranteed-false case for a user's explicit 25.
+    expect(computeEffectiveNonBasicLandCount(25, false, 43, 37)).toBe(25);
   });
 });

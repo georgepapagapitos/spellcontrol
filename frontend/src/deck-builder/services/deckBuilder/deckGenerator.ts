@@ -87,6 +87,7 @@ import {
   calculateTargetCounts,
   computeAutoLandCount,
   computeLandCountSizingAnchor,
+  computeEffectiveNonBasicLandCount,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
@@ -1958,6 +1959,17 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ? Math.min(resolvedLandCount, landCountSizingAnchor)
     : resolvedLandCount;
 
+  // E100: scale the nonbasic land budget with the auto-tune raise so it
+  // never lands entirely as basics — see computeEffectiveNonBasicLandCount's
+  // doc for the full mechanism (targetCounts.ts). No-op (verbatim
+  // customization.nonBasicLandCount) whenever landCountAutoTuned is false.
+  const effectiveNonBasicLandCount = computeEffectiveNonBasicLandCount(
+    customization.nonBasicLandCount,
+    landCountAutoTuned,
+    resolvedLandCount,
+    typeTargetLandCount
+  );
+
   // Calculate target counts with type and curve targets
   const {
     composition: targets,
@@ -3043,7 +3055,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ).length;
     const remainingNonBasicBudget = Math.max(
       0,
-      customization.nonBasicLandCount - mustIncludeNonBasicCount
+      effectiveNonBasicLandCount - mustIncludeNonBasicCount
     );
     const nonbasicTarget = Math.min(remainingNonBasicBudget, adjustedLandTarget);
     const basicCount = Math.max(0, adjustedLandTarget - nonbasicTarget);
@@ -3399,7 +3411,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ).length;
     const fallbackRemainingNonBasicBudget = Math.max(
       0,
-      customization.nonBasicLandCount - fallbackMustIncludeNonBasicCount
+      effectiveNonBasicLandCount - fallbackMustIncludeNonBasicCount
     );
     const fallbackNonbasicTarget = Math.min(
       fallbackRemainingNonBasicBudget,
