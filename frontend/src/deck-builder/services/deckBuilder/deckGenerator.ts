@@ -137,7 +137,7 @@ import {
   getComboBoosts as stGetComboBoosts,
   countAllCards as stCountAllCards,
 } from './deckGeneration/state';
-import { detectCombosPhase } from './deckGeneration/phaseDetectCombos';
+import { detectCombosPhase, refreshComboCompleteness } from './deckGeneration/phaseDetectCombos';
 import { gapAnalysisPhase } from './deckGeneration/phaseGapAnalysis';
 import { liftPicksPhase } from './deckGeneration/phaseLiftPicks';
 import { ensureLiftPools, getLiftIndex, MAX_LIFT_SEEDS } from './deckGeneration/liftPools';
@@ -3199,6 +3199,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // past baseline AND never produced any wildcard slots (squeezeDelta <= 0
   // && wildcardCount <= 0).
   const landSqueezeDelta = Math.max(0, resolvedLandCount - typeTargetLandCount);
+  // Detected-COMPLETE combo pieces earn the same COMBO_TRIM_BOOST protection
+  // as EDHREC-boosted combo attempts. `comboCardNames` above is only the
+  // small top-N "attempted" combo list scored before any card was picked
+  // (bounded by comboSliceCount/comboInclusionFloor, further gated on
+  // edhrecData being present) — a combo can complete via unrelated picks
+  // (staple inclusion, lift, a Game Changer already in the pool) and never
+  // appear there, leaving it invisible to this reconcile's and Smart Trim's
+  // COMBO_TRIM_BOOST check (both read `comboCardNames`/`state.comboCardNames`
+  // directly). Preview detectCombosPhase against the current pre-reconcile
+  // picks — pure, reads state only, no mutation — and fold any complete
+  // combo's cards into the SAME set so every existing COMBO_TRIM_BOOST site
+  // protects them too, with zero new plumbing.
+  for (const dc of detectCombosPhase(state) ?? []) {
+    if (dc.isComplete) for (const name of dc.cards) comboCardNames.add(name);
+  }
   const landSqueezeResult = applyLandSqueezeReconcile(state, {
     liftScoreOf,
     roleTargets,
@@ -4711,6 +4726,22 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     deckBudget,
   });
   const surplusConversions = surplusResult.conversions;
+
+  // ── Final combo-state reconciliation ──
+  // Every mutating phase above (reconcile, combo audit, coherence repair,
+  // bracket/budget convergence, role-surplus rebalance) already has its OWN
+  // conditional isComplete/missingCards refresh gated on "did THIS phase
+  // change anything" — easy to miss on a new pass (role-surplus-rebalance's
+  // own comment above claims it "can't break a tracked combo," which is only
+  // as true as every one of its skip conditions holding). Rather than trust
+  // N scattered gated refreshes to all fire correctly, do ONE unconditional
+  // recompute here against the truly-final `state.categories`, right before
+  // detectedCombos feeds cardRelevancyPhase/computeGradeAndBracket/the report
+  // below — a stale isComplete:true (and the bracketEstimation
+  // twoCardComboCount/multiCardComboCount it drives) can no longer survive a
+  // cut piece, no matter which upstream phase caused it. No-op — byte-
+  // identical — whenever nothing actually changed completeness.
+  detectedCombos = refreshComboCompleteness(detectedCombos, state);
 
   // Hidden-synergy "package picks": EDHREC lift candidates not in the pool
   // for this commander but strongly co-played with cards already in the

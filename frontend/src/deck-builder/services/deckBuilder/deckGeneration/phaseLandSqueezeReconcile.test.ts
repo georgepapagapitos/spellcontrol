@@ -15,6 +15,7 @@ import {
   applyLandSqueezeReconcile,
   type LandSqueezeReconcileContext,
 } from './phaseLandSqueezeReconcile';
+import { detectCombosPhase } from './phaseDetectCombos';
 import type { GenerationState } from './state';
 import { isProtectionPiece, isFreeInteraction } from '@/deck-builder/services/tagger/client';
 import { FREE_INTERACTION_BOOST } from './trimResistanceConstants';
@@ -229,6 +230,59 @@ describe('applyLandSqueezeReconcile', () => {
         ],
       },
     } as unknown as GenerationState['edhrecData'];
+
+    const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+    expect(result.cut).toEqual(['Genuine Filler']);
+  });
+
+  it('E82 attempt-7: protects a piece of a DETECTED-COMPLETE combo even though it was never in the small top-N "attempted" comboCardNames set (Doomsday/Thassa\'s Oracle repro)', () => {
+    const state = makeState();
+    const comboPieceA = scryfallCard('Doomsday');
+    const comboPieceB = scryfallCard("Thassa's Oracle");
+    const filler = scryfallCard('Genuine Filler');
+    state.categories.synergy.push(comboPieceA, comboPieceB, filler);
+    // Both combo pieces score WORSE than the filler by raw inclusion — proves
+    // the combo-completeness protection, not luck, is what saves Doomsday.
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Doomsday', 1),
+          edhrecCard("Thassa's Oracle", 1),
+          edhrecCard('Genuine Filler', 50),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    // A real EDHREC combo dataset containing this pairing — comboCardNames
+    // (the top-N "attempted" boost list) is deliberately left EMPTY here,
+    // mirroring the bug: this combo never cleared comboSliceCount/
+    // comboInclusionFloor, so the only signal deckGenerator.ts has for it is
+    // detectCombosPhase finding it genuinely complete in the current picks.
+    state.combos = [
+      {
+        comboId: 'doomsday-thassa',
+        cards: [
+          { name: 'Doomsday', id: 'a' },
+          { name: "Thassa's Oracle", id: 'b' },
+        ],
+        results: ['Win the game'],
+        deckCount: 13598,
+        rank: 50,
+        bracket: null,
+        bracketTag: null,
+        prereqCount: 0,
+        cardCount: 2,
+        href: null,
+      },
+    ];
+
+    // The exact fold deckGenerator.ts performs right before calling the
+    // reconcile: preview detectCombosPhase against the current picks and fold
+    // any complete combo's cards into comboCardNames.
+    for (const dc of detectCombosPhase(state) ?? []) {
+      if (dc.isComplete) for (const name of dc.cards) state.comboCardNames.add(name);
+    }
+    expect(state.comboCardNames.has('Doomsday')).toBe(true);
 
     const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
 
