@@ -63,7 +63,25 @@ function hasUpside(card: ScryfallCard): boolean {
   if (isChannelLand(card) || /\bchannel\b/.test(ot)) return true;
   // An activated ability whose cost isn't purely tapping for mana.
   if (/\{t\}[^:]*:(?!\s*add\b)/.test(ot)) return true;
-  return /draw a card|destroy target|deals? \d+ damage|create a .* token|scry/.test(ot);
+  // Damage-dealing is upside only when it hits something else — "damage to you"
+  // is the painland downside, handled by painPenalty, not a reason to run it.
+  return /draw a card|destroy target|deals? \d+ damage(?! to you)|create a .* token|scry/.test(ot);
+}
+
+/**
+ * Recurring self-cost of a fixer that the color-count credit ignores: painlands
+ * (City of Brass, Grand Coliseum, Yavimaya Coast — "deals N damage to you" when
+ * tapped) and pay-life rainbow lands (Mana Confluence — "pay N life: add …").
+ * Without this, a rainbow land clamped to a 2-color deck scores like a clean
+ * untapped dual it's strictly worse than — it out-selected Darkslick Shores on
+ * Yuriko in the E116 A/B. In a 4–5 color deck the higher color count still wins;
+ * this only rebalances the low-color case where the extra colors go unused.
+ */
+function painPenalty(card: ScryfallCard): number {
+  const ot = (card.oracle_text ?? card.card_faces?.[0]?.oracle_text ?? '').toLowerCase();
+  if (/deals? \d+ damage to you/.test(ot)) return 12;
+  if (/pay \d+ life[,.:]?\s*(?:and [^:]*)?add\b/.test(ot)) return 10;
+  return 0;
 }
 
 /**
@@ -104,6 +122,7 @@ export function landPowerScore(card: ScryfallCard, identity: ReadonlySet<string>
   if (fetchedBasicRequirement(card)) score += 12; // deck-thinning fetch
   if (isMdfcLand(card)) score += 12; // near-free land slot (spell side)
   if (hasUpside(card)) score += 10; // channel / activated ability / effect
+  score -= painPenalty(card); // painland / pay-life self-cost the color count ignores
 
   // A basic land is the explicit floor: cap it below any real nonbasic so the
   // upgrade engine always prefers a better land over an extra basic.
