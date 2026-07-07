@@ -5,6 +5,8 @@ import {
   GameNightNotFoundError,
   gameNightUrl,
   rsvpGameNight,
+  suggestGameNightOption,
+  voteGameNight,
   type NightRsvp,
   type PublicGameNight,
   type RsvpStatus,
@@ -13,6 +15,7 @@ import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../lib/calen
 import { useAuth } from '../store/auth';
 import { SharedShell } from '../components/shared/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
+import { NightPoll } from '../components/NightPoll';
 import './GameNightView.css';
 
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
@@ -163,8 +166,9 @@ function NightBody({
   username: string | null;
   onPayload: (p: PublicGameNight) => void;
 }) {
-  const { night, rsvps, myRsvp } = payload;
+  const { night, rsvps, myRsvp, options } = payload;
   const cancelled = night.cancelledAt !== null;
+  const polling = options.length > 0;
   const when = useMemo(
     () =>
       new Date(night.startsAt).toLocaleString(undefined, {
@@ -183,6 +187,30 @@ function NightBody({
   const [formError, setFormError] = useState<string | null>(null);
 
   const needsName = username === null && myRsvp === null;
+
+  /**
+   * Shared identity plumbing for poll writes (vote / suggest): guests need a
+   * name unless they already hold a credential; the returned rsvp credential
+   * is stored and the payload re-fetched so tallies update in place.
+   */
+  async function pollWrite(
+    fn: (identity: {
+      displayName?: string;
+      rsvpId?: string;
+    }) => Promise<{ id: string; displayName: string }>
+  ) {
+    const trimmed = name.trim();
+    const rsvpId = username === null ? (myRsvp?.id ?? loadGuestRsvp(token)?.id) : undefined;
+    if (username === null && rsvpId === undefined && trimmed.length === 0) {
+      throw new Error('Enter your name so the host knows who can make it.');
+    }
+    const rsvp = await fn({
+      displayName: trimmed.length > 0 ? trimmed : undefined,
+      rsvpId,
+    });
+    if (username === null) saveGuestRsvp(token, rsvp.id, rsvp.displayName);
+    onPayload(await fetchPublicGameNight(token, username === null ? rsvp.id : undefined));
+  }
 
   async function reply(status: RsvpStatus) {
     if (busy) return;
@@ -234,7 +262,7 @@ function NightBody({
       <dl className="game-night-facts">
         <div className="game-night-fact">
           <dt>When</dt>
-          <dd>{when}</dd>
+          <dd>{polling ? `Being decided — ${options.length} times proposed` : when}</dd>
         </div>
         {night.location && (
           <div className="game-night-fact">
@@ -250,7 +278,29 @@ function NightBody({
         )}
       </dl>
 
-      {!cancelled && (
+      {!cancelled && polling && (
+        <section className="game-night-reply" aria-label="Vote on a date">
+          <h2 className="game-night-section-title">
+            {myRsvp ? 'Your votes — change them any time' : 'Which times can you make?'}
+          </h2>
+          {username !== null ? (
+            <p className="game-night-reply-as">Voting as {username}</p>
+          ) : (
+            <GuestNameField value={name} onChange={setName} />
+          )}
+          <NightPoll
+            options={options}
+            onVote={(optionIds) =>
+              pollWrite((identity) => voteGameNight(token, { optionIds, ...identity }))
+            }
+            onSuggest={(startsAt) =>
+              pollWrite((identity) => suggestGameNightOption(token, { startsAt, ...identity }))
+            }
+          />
+        </section>
+      )}
+
+      {!cancelled && !polling && (
         <section className="game-night-reply" aria-label="Your reply">
           <h2 className="game-night-section-title">
             {myRsvp ? 'Your reply — change it any time' : 'Can you make it?'}
@@ -258,16 +308,7 @@ function NightBody({
           {username !== null ? (
             <p className="game-night-reply-as">Replying as {username}</p>
           ) : (
-            <label className="game-night-name-field">
-              <span>Your name</span>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={40}
-                placeholder="e.g. Pat"
-                autoComplete="name"
-              />
-            </label>
+            <GuestNameField value={name} onChange={setName} />
           )}
           <div className="game-night-status-btns" role="group" aria-label="RSVP">
             {STATUS_LABELS.map(({ status, label }) => (
@@ -291,7 +332,7 @@ function NightBody({
         </section>
       )}
 
-      {!cancelled && (
+      {!cancelled && !polling && (
         <section className="game-night-calendar" aria-label="Add to calendar">
           <h2 className="game-night-section-title">Add it to your calendar</h2>
           <div className="game-night-calendar-btns">
@@ -316,8 +357,23 @@ function NightBody({
         </section>
       )}
 
-      <AttendeeList rsvps={rsvps} />
+      {!polling && <AttendeeList rsvps={rsvps} />}
     </main>
+  );
+}
+
+function GuestNameField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="game-night-name-field">
+      <span>Your name</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={40}
+        placeholder="e.g. Pat"
+        autoComplete="name"
+      />
+    </label>
   );
 }
 

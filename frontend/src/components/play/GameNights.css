@@ -205,3 +205,58 @@
   justify-content: flex-end;
   gap: var(--space-2);
 }
+
+/* ── Date-poll create mode (E124) ─────────────────────────────────────── */
+
+.game-night-dialog-pollmode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.game-night-dialog-pollmode input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.game-night-dialog-options {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.game-night-dialog-options legend {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: 0 var(--space-1);
+}
+
+.game-night-dialog-option-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.game-night-dialog-option-row input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.game-night-dialog-add-option {
+  align-self: flex-start;
+}

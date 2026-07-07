@@ -313,6 +313,53 @@ export const gameNightInvites = pgTable(
  * returned to that guest (a bearer credential the client stores locally — the
  * public read never exposes other people's row ids).
  */
+/**
+ * Candidate date slots while a night is polling for a date (E124). A night
+ * with option rows is in the polling phase — the public page and Play-tab
+ * card show voting UI instead of RSVP/calendar. `proposedBy` is the display
+ * name of the attendee who suggested the slot (NULL = a host-created slot).
+ * The host's "lock it in" deletes all options (cascading votes), flipping
+ * the night back to the plain scheduled shape.
+ */
+export const gameNightOptions = pgTable(
+  'game_night_options',
+  {
+    id: text('id').primaryKey(),
+    nightId: text('night_id')
+      .notNull()
+      .references(() => gameNights.id, { onDelete: 'cascade' }),
+    /** Epoch ms candidate start. While polling, the night's own startsAt mirrors the max slot. */
+    startsAt: bigint('starts_at', { mode: 'number' }).notNull(),
+    proposedBy: text('proposed_by'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    nightIdx: index('game_night_options_night_idx').on(t.nightId),
+  })
+);
+
+/**
+ * "I can make this slot" checkmarks, multi-select per voter. The voter is
+ * their rsvp row — so guests vote with the same stored rsvpId bearer
+ * credential the RSVP flow uses, and signed-in users via their user row.
+ */
+export const gameNightVotes = pgTable(
+  'game_night_votes',
+  {
+    optionId: text('option_id')
+      .notNull()
+      .references(() => gameNightOptions.id, { onDelete: 'cascade' }),
+    rsvpId: text('rsvp_id')
+      .notNull()
+      .references(() => gameNightRsvps.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.optionId, t.rsvpId] }),
+    rsvpIdx: index('game_night_votes_rsvp_idx').on(t.rsvpId),
+  })
+);
+
 export const gameNightRsvps = pgTable(
   'game_night_rsvps',
   {
@@ -407,5 +454,7 @@ export type ShareRow = typeof shares.$inferSelect;
 export type GameNightRow = typeof gameNights.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;
 export type GameNightRsvpRow = typeof gameNightRsvps.$inferSelect;
+export type GameNightOptionRow = typeof gameNightOptions.$inferSelect;
+export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;

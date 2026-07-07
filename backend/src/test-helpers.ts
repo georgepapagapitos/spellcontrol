@@ -247,6 +247,21 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE INDEX game_night_rsvps_night_idx ON game_night_rsvps(night_id);
     CREATE UNIQUE INDEX game_night_rsvps_user_idx
       ON game_night_rsvps(night_id, user_id) WHERE user_id IS NOT NULL;
+    CREATE TABLE game_night_options (
+      id TEXT PRIMARY KEY,
+      night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
+      starts_at BIGINT NOT NULL,
+      proposed_by TEXT,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX game_night_options_night_idx ON game_night_options(night_id);
+    CREATE TABLE game_night_votes (
+      option_id TEXT NOT NULL REFERENCES game_night_options(id) ON DELETE CASCADE,
+      rsvp_id TEXT NOT NULL REFERENCES game_night_rsvps(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (option_id, rsvp_id)
+    );
+    CREATE INDEX game_night_votes_rsvp_idx ON game_night_votes(rsvp_id);
     CREATE TABLE friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
