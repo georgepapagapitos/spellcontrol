@@ -1,7 +1,10 @@
+import { AlignJustify, LayoutGrid, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import './SearchPage.css';
 import { SearchPill } from '../components/SearchPill';
-import { InlineCardSearch } from '../components/InlineCardSearch';
+import { InlineCardSearch, type InlineCardSearchView } from '../components/InlineCardSearch';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { useStoredView } from '../lib/use-stored-view';
 
 // Don't autofocus on touch — the soft keyboard would cover the landing copy
 // the moment the page opens. Desktop (fine pointer, per the project's touch
@@ -15,13 +18,18 @@ const autoFocusSearch =
  * shareable and survives back/forward. Results, owned-count badges, the
  * full-card preview carousel, and the add-a-copy action are all
  * {@link InlineCardSearch}, shared with the collection add flow — this page
- * only owns the input and the landing state.
+ * only owns the input, the layout toggle, and the landing state.
  */
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
+  const [view, setView] = useStoredView<InlineCardSearchView>(
+    'mtg-search-view-mode',
+    ['grid', 'list', 'compact'],
+    'grid'
+  );
   return (
-    <div className="search-page">
+    <div className={`search-page${view === 'grid' ? ' search-page--grid' : ''}`}>
       <header className="search-page-head">
         <h1>Card search</h1>
         <p className="search-page-sub">
@@ -38,7 +46,33 @@ export function SearchPage() {
         autoFocus={autoFocusSearch}
       />
       {query.trim().length >= 2 ? (
-        <InlineCardSearch query={query} />
+        <>
+          <div className="search-page-toolbar">
+            <ViewModeToggle<InlineCardSearchView>
+              ariaLabel="Result layout"
+              value={view}
+              onChange={setView}
+              options={[
+                {
+                  value: 'grid',
+                  label: 'Grid view',
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'list',
+                  label: 'List view (with thumbnails)',
+                  icon: <List width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'compact',
+                  label: 'Compact list (text only)',
+                  icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+              ]}
+            />
+          </div>
+          <InlineCardSearch query={query} view={view} />
+        </>
       ) : (
         <div className="empty-state">
           <p className="empty-state-tagline">Every card, one search away.</p>
