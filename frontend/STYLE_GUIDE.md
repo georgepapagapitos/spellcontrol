@@ -686,6 +686,27 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   container px — independent of viewport tier. This is why a half-width panel on a
   wide tablet can look cramped even though the _viewport_ is "desktop": tune the
   **container** threshold, not a viewport media query.
+- **Bento panel CSS gates on `@container`, never viewport width (E61).** A
+  panel that can render in a half-width box — a `.deck-stats-pair` cell, the
+  compare page's `.deck-compare-col`, the CoachFeed — must gate its compact
+  layout on an unnamed `@container (max-width: …)` query; a `@media
+  (max-width: 600px)` rule never fires in a ~300–500px cell on a tablet. The
+  query containers are provided by scaffolding (`.deck-stats-pair > *`,
+  `.deck-compare-col`, `.coach-feed` are all `container-type: inline-size`).
+  Tiers: **26rem** = pair-cell compact (spacing/rail tightening), **22rem** =
+  near the 18rem pair floor (structural collapse, e.g. BracketBreakdown's
+  1-col stack), **36rem** = "was 600px viewport" equivalence for full-width
+  feeds (NextBestMove). Snap to these before inventing new ones. Device-
+  capability queries (`pointer: coarse` 44px targets, `hover`, reduced-motion)
+  stay `@media` — they're about the device, not the box. Full-width panels
+  (`--wide`, hero cards) may keep viewport gates: their box tracks the
+  viewport anyway. Floating UI inside any panel must portal to `<body>`
+  (`container-type` traps `position: fixed` — see Popovers).
+- **A lone full-width bento child needs `grid-column: 1 / -1`.** The bento's
+  2-col template uses **explicit** tracks (`repeat(2, minmax(0,1fr))`), so an
+  unspanned single child sits in column 1 at half width beside a dead column
+  (this shipped: the Tune tab's CoachFeed). `.deck-stats-pair`'s `auto-fit`
+  orphan guard collapses empty tracks; the bento grid itself does not.
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
   (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
 

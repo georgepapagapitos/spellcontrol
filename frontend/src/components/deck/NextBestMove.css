@@ -244,12 +244,14 @@
   color: var(--text-secondary);
 }
 
-/* ── Mobile: the nav becomes a full-width CTA stacked under the body text.
-   Inline-right reads as cramped chrome on a phone; a full-bleed button is a
-   bigger, more obvious tap target. Wraps cleanly (no indent, edge-to-edge) so
-   width:100% == the row's content width — no overflow. Above 600px it stays the
-   compact inline-right affordance. ── */
-@media (max-width: 600px) {
+/* ── Narrow feed: the nav becomes a full-width CTA stacked under the body
+   text. Inline-right reads as cramped chrome in a narrow box; a full-bleed
+   button is a bigger, more obvious tap target. Wraps cleanly (no indent,
+   edge-to-edge) so width:100% == the row's content width — no overflow.
+   Container-gated off the CoachFeed's own width (.coach-feed is the query
+   container), not the viewport — the feed can be narrow on a wide screen
+   (E61). 36rem ≈ the old 600px viewport tier minus page gutters. ── */
+@container (max-width: 36rem) {
   .next-best-move-row {
     flex-wrap: wrap;
   }
