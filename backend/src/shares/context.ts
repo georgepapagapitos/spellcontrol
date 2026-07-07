@@ -4,7 +4,6 @@ import {
   shares,
   users,
   userCards,
-  userImports,
   userLists,
   userBinders,
   userDecks,
@@ -76,40 +75,51 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
   if (userRows.length === 0) return null;
   const ownerUsername = userRows[0].username;
 
-  // Fan-out: live rows per entity for this owner. Tombstones are filtered out.
-  // For deck/binder shares we still read the full set because binder
-  // materialization (matchers, priority) needs every binder + every card.
-  const [cards, imports, lists, binders, decks, cubes] = await Promise.all([
-    db
-      .select({ data: userCards.data })
-      .from(userCards)
-      .where(and(eq(userCards.userId, share.userId), isNull(userCards.deletedAt))),
-    db
-      .select({ data: userImports.data })
-      .from(userImports)
-      .where(and(eq(userImports.userId, share.userId), isNull(userImports.deletedAt))),
-    db
-      .select({ data: userLists.data })
-      .from(userLists)
-      .where(and(eq(userLists.userId, share.userId), isNull(userLists.deletedAt))),
-    db
-      .select({ data: userBinders.data })
-      .from(userBinders)
-      .where(and(eq(userBinders.userId, share.userId), isNull(userBinders.deletedAt))),
-    db
-      .select({ data: userDecks.data })
-      .from(userDecks)
-      .where(and(eq(userDecks.userId, share.userId), isNull(userDecks.deletedAt))),
-    db
-      .select({ data: userCubes.data })
-      .from(userCubes)
-      .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt))),
+  // Per-kind fetch: only the tables this share's projection actually reads
+  // (E70 — the old six-table fan-out meant one table's transient failure
+  // 500'd every share kind). Binder shares also need every card, because
+  // binder materialization (matchers, priority) is only correct over the
+  // full collection. `importHistory` had no consumer at all and is now
+  // always empty. Unknown kinds fetch nothing — the projectors 404 them.
+  const kind = share.kind;
+  const wantCards = kind === 'collection' || kind === 'binder';
+  const [cards, lists, binders, decks, cubes] = await Promise.all([
+    wantCards
+      ? db
+          .select({ data: userCards.data })
+          .from(userCards)
+          .where(and(eq(userCards.userId, share.userId), isNull(userCards.deletedAt)))
+      : [],
+    kind === 'list'
+      ? db
+          .select({ data: userLists.data })
+          .from(userLists)
+          .where(and(eq(userLists.userId, share.userId), isNull(userLists.deletedAt)))
+      : [],
+    kind === 'binder'
+      ? db
+          .select({ data: userBinders.data })
+          .from(userBinders)
+          .where(and(eq(userBinders.userId, share.userId), isNull(userBinders.deletedAt)))
+      : [],
+    kind === 'deck'
+      ? db
+          .select({ data: userDecks.data })
+          .from(userDecks)
+          .where(and(eq(userDecks.userId, share.userId), isNull(userDecks.deletedAt)))
+      : [],
+    kind === 'cube'
+      ? db
+          .select({ data: userCubes.data })
+          .from(userCubes)
+          .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt)))
+      : [],
   ]);
 
   const data: ShareDataView = {
     collection: {
       cards: cards.map((r) => r.data).filter((d): d is unknown => d != null),
-      importHistory: imports.map((r) => r.data).filter((d): d is unknown => d != null),
+      importHistory: [],
       lists: lists.map((r) => r.data).filter((d): d is unknown => d != null),
     },
     binders: binders.map((r) => r.data).filter((d): d is unknown => d != null),

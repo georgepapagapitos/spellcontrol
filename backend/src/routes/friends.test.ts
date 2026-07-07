@@ -138,6 +138,45 @@ describe('POST /api/friends/requests', () => {
     expect(req2.body.friendStatus).toBe('friends');
     expect(req2.body.addressee.username).toBe('fr-auto-alice');
   });
+
+  it('concurrent mutual requests never leave two rows for the pair (E69)', async () => {
+    // A→B and B→A fired together: whatever the interleaving, the pair-unique
+    // index guarantees a single friendships row, and the 23505 fallback in the
+    // route resolves the loser's insert instead of erroring. Run a few rounds
+    // to give the race a chance to actually interleave.
+    for (let round = 0; round < 3; round++) {
+      const a = await makeUser(`fr-race-a-${round}`);
+      const b = await makeUser(`fr-race-b-${round}`);
+      const [ra, rb] = await Promise.all([
+        request(app)
+          .post('/api/friends/requests')
+          .set('Cookie', a)
+          .send({ username: `fr-race-b-${round}` }),
+        request(app)
+          .post('/api/friends/requests')
+          .set('Cookie', b)
+          .send({ username: `fr-race-a-${round}` }),
+      ]);
+      // Both callers get a non-error outcome (201 sent/friends, or 409 dup).
+      for (const r of [ra, rb]) {
+        expect([201, 409]).toContain(r.status);
+      }
+      const idRows = await pool.query<{ id: string }>(
+        `SELECT id FROM users WHERE username = ANY($1::text[])`,
+        [[`fr-race-a-${round}`, `fr-race-b-${round}`]]
+      );
+      const ids = idRows.rows.map((r) => r.id);
+      const pair = await pool.query<{ status: string }>(
+        `SELECT status FROM friendships
+         WHERE requester_id = ANY($1::text[]) AND addressee_id = ANY($1::text[])`,
+        [ids]
+      );
+      // The invariant the old code violated: exactly one row, never two.
+      expect(pair.rows.length).toBe(1);
+      // Mutual sends resolve to accepted or a single pending — never stuck double-pending.
+      expect(['pending', 'accepted']).toContain(pair.rows[0].status);
+    }
+  });
 });
 
 // ─── POST /api/friends/requests/:requesterId/accept ──────────────────────────
