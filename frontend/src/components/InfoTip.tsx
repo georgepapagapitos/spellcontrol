@@ -35,15 +35,22 @@ interface TipPos {
 }
 
 export interface InfoTipProps {
-  /** Used for the trigger's aria-label ("What is {label}?"). */
+  /** Used for the trigger's aria-label ("What is {label}?"), unless `ariaLabel` overrides it. */
   label: string;
   /** The explainer body — a string or rich node (intro + list, etc.). */
   text: ReactNode;
   /** Roomier bubble — for consolidated, multi-point explainers. */
   wide?: boolean;
+  /** Override the default "What is {label}?" template — for a trigger whose
+   *  semantics aren't "explain this concept" (e.g. a per-row "why is this
+   *  card here" affordance, which needs its own subject-specific phrasing). */
+  ariaLabel?: string;
+  /** Extra class appended to the trigger button, e.g. to opt a specific call
+   *  site into a larger (pointer: coarse) touch target via a ghost ::after. */
+  className?: string;
 }
 
-export function InfoTip({ label, text, wide }: InfoTipProps): JSX.Element {
+export function InfoTip({ label, text, wide, ariaLabel, className }: InfoTipProps): JSX.Element {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<TipPos | null>(null);
 
@@ -80,8 +87,8 @@ export function InfoTip({ label, text, wide }: InfoTipProps): JSX.Element {
       <button
         ref={btnRef}
         type="button"
-        className="info-tip-btn"
-        aria-label={`What is ${label}?`}
+        className={`info-tip-btn${className ? ` ${className}` : ''}`}
+        aria-label={ariaLabel ?? `What is ${label}?`}
         onMouseEnter={place}
         onMouseLeave={close}
         onFocus={place}

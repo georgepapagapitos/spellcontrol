@@ -44,6 +44,7 @@ import { typeIcon } from '../../lib/card-types';
 import { formatMoney } from '../../lib/format-money';
 import { Modal } from '../Modal';
 import { SearchPill } from '../SearchPill';
+import { InfoTip } from '../InfoTip';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
@@ -3030,6 +3031,26 @@ function DeckCardRow({
                   </span>
                 );
               })()}
+            {/* E120: alt-generator modes (oracle-role/art-theme/historical/PDH —
+                Scryfall-driven, no EDHREC data) can record a provenance reason
+                for a card that has NEITHER a synergy pill nor an inclusion
+                chip, leaving that reason with nowhere to surface. This third
+                affordance renders only in that gap — a quiet ⓘ using the
+                shared InfoTip (portal, hover/focus/tap, Esc/scroll dismiss) —
+                so it adds zero visual noise on a standard EDHREC deck where
+                the two chips above already carry the "Why it's here" line. */}
+            {provenanceReason &&
+              !(synergyReasons && synergyReasons.length > 0) &&
+              typeof inclusionPct !== 'number' && (
+                <span className="deck-row-provenance">
+                  <InfoTip
+                    label={`why ${row.name} is in this deck`}
+                    ariaLabel={`Why ${row.name} is in this deck`}
+                    className="deck-row-provenance-trigger"
+                    text={`Why it's here: ${provenanceReason}`}
+                  />
+                </span>
+              )}
           </span>
         </span>
         {showPrefs.mana &&
