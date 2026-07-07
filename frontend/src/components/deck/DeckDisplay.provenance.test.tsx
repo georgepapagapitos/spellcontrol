@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { BuildReport, ScryfallCard } from '@/deck-builder/types';
 import { DeckDisplay, type DeckDisplayCard } from './DeckDisplay';
@@ -118,5 +118,92 @@ describe('DeckDisplay per-card pick provenance (S2)', () => {
     expect(chip).not.toBeNull();
     const title = chip!.getAttribute('title') ?? '';
     expect(title).toContain("Why it's here: Added from a Scryfall search");
+  });
+});
+
+// E120: alt-generator modes (oracle-role/art-theme/historical/PDH — Scryfall-
+// driven, no EDHREC data) can record a provenance reason for a card that has
+// neither a synergy pill (no commander ability profile match) nor an
+// inclusion chip (no cardInclusionMap at all), leaving S2's reason with
+// nowhere to surface. This third affordance — a quiet InfoTip trigger — fills
+// exactly that gap and stays silent everywhere the two existing tooltips
+// already cover it.
+describe('DeckDisplay third "why it\'s here" affordance (E120)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('mtg-decks-view-mode', 'list');
+  });
+
+  it('renders when provenance is recorded and neither the synergy pill nor the inclusion chip apply', () => {
+    const card = creature({ id: 'sf-10', name: 'Scryfall Fill' });
+    const { container } = renderDeck([{ slotId: 'slot-1', card }], {
+      buildReport: makeBuildReport({ 'Scryfall Fill': 'Matches your art/theme search' }),
+    });
+
+    expect(container.querySelector('.deck-row-synergy')).toBeNull();
+    expect(container.querySelector('.deck-row-inclusion')).toBeNull();
+    const trigger = container.querySelector('.deck-row-provenance-trigger');
+    expect(trigger).not.toBeNull();
+    expect(trigger!.getAttribute('aria-label')).toBe('Why Scryfall Fill is in this deck');
+  });
+
+  it('surfaces the recorded reason in the tooltip on focus (keyboard-reachable)', () => {
+    const card = creature({ id: 'sf-11', name: 'Scryfall Fill 2' });
+    const { container } = renderDeck([{ slotId: 'slot-1', card }], {
+      buildReport: makeBuildReport({ 'Scryfall Fill 2': 'Matches your art/theme search' }),
+    });
+
+    const trigger = container.querySelector('.deck-row-provenance-trigger') as HTMLButtonElement;
+    fireEvent.focus(trigger);
+    const bubble = document.body.querySelector('.info-tip-bubble');
+    expect(bubble).not.toBeNull();
+    expect(bubble!.textContent).toBe("Why it's here: Matches your art/theme search");
+  });
+
+  it('does not render when the inclusion chip is present', () => {
+    const card = creature({ id: 'sf-12', name: 'EDHREC Pick' });
+    const { container } = renderDeck([{ slotId: 'slot-1', card }], {
+      cardInclusionMap: { 'EDHREC Pick': 40 },
+      buildReport: makeBuildReport({ 'EDHREC Pick': 'EDHREC staple for this commander' }),
+    });
+
+    expect(container.querySelector('.deck-row-inclusion')).not.toBeNull();
+    expect(container.querySelector('.deck-row-provenance')).toBeNull();
+  });
+
+  it('does not render when there is no provenance recorded at all', () => {
+    const card = creature({ id: 'sf-13', name: 'No Provenance' });
+    const { container } = renderDeck([{ slotId: 'slot-1', card }]);
+
+    expect(container.querySelector('.deck-row-provenance')).toBeNull();
+  });
+
+  it('does not render when the synergy pill is present (commander ability profile match)', () => {
+    const commander = creature({
+      id: 'cmd-1',
+      oracle_id: 'cmd-o-1',
+      name: 'Test Commander',
+      type_line: 'Legendary Creature — Human',
+      oracle_text: 'Whenever a creature you control enters the battlefield, draw a card.',
+    });
+    const card = creature({
+      id: 'sf-14',
+      name: 'ETB Synergy Card',
+      oracle_text: 'When this creature enters the battlefield, create a 1/1 token.',
+    });
+
+    const { container } = render(
+      <MemoryRouter>
+        <DeckDisplay
+          title="Test deck"
+          commander={commander}
+          cards={[{ slotId: 'slot-1', card }]}
+          buildReport={makeBuildReport({ 'ETB Synergy Card': 'Auto-included staple mana rock' })}
+        />
+      </MemoryRouter>
+    );
+
+    expect(container.querySelector('.deck-row-synergy')).not.toBeNull();
+    expect(container.querySelector('.deck-row-provenance')).toBeNull();
   });
 });
