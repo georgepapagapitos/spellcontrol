@@ -358,6 +358,75 @@ describe('generateDeck — golden master', () => {
     expect(all).toContain('Creature_7');
   });
 
+  it('seats a must-include stored under a non-canonical name (Scryfall canonical-keyed fetch)', async () => {
+    // getCardsByNames keys results by Scryfall's CANONICAL name, but the user's
+    // stored name differs by punctuation ("Comet Stellar Pup" vs the canonical
+    // "Comet, Stellar Pup"). The resilient normalized lookup must still seat it
+    // rather than silently drop it as "not found".
+    const canonical = mkSC('Comet, Stellar Pup', 'Planeswalker', 5); // CI ['G'] — on-color
+    const mocked = vi.mocked(getCardsByNames);
+    const prev = mocked.getMockImplementation();
+    mocked.mockImplementation(async (names: string[]) => {
+      const m = new Map<string, ScryfallCard>();
+      for (const n of names) {
+        if (
+          n
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim() === 'comet stellar pup'
+        ) {
+          m.set('Comet, Stellar Pup', canonical); // canonical key, NOT the requested name
+        } else {
+          const c = POOL.scMap.get(n);
+          if (c) m.set(n, c);
+        }
+      }
+      return m;
+    });
+    try {
+      const ctx = baseContext();
+      ctx.customization = customization({ mustIncludeCards: ['Comet Stellar Pup'] });
+      const deck = await generateDeck(ctx);
+      const all = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(all).toContain('Comet, Stellar Pup');
+      expect(deck.mustIncludeSkippedNote).toBeUndefined();
+    } finally {
+      if (prev) mocked.mockImplementation(prev);
+    }
+  });
+
+  it('surfaces an off-color must-include as a named skipped-pick note instead of dropping it silently', async () => {
+    const offColor: ScryfallCard = { ...mkSC('Blue Bolt', 'Instant', 1), color_identity: ['U'] };
+    const mocked = vi.mocked(getCardsByNames);
+    const prev = mocked.getMockImplementation();
+    mocked.mockImplementation(async (names: string[]) => {
+      const m = new Map<string, ScryfallCard>();
+      for (const n of names) {
+        if (n === 'Blue Bolt') m.set(n, offColor);
+        else {
+          const c = POOL.scMap.get(n);
+          if (c) m.set(n, c);
+        }
+      }
+      return m;
+    });
+    try {
+      const ctx = baseContext(); // commander color identity is ['G']
+      ctx.customization = customization({ mustIncludeCards: ['Blue Bolt'] });
+      const deck = await generateDeck(ctx);
+      const all = Object.values(deck.categories)
+        .flat()
+        .map((c) => c.name);
+      expect(all).not.toContain('Blue Bolt');
+      expect(deck.mustIncludeSkippedNote).toContain('Blue Bolt');
+      expect(deck.mustIncludeSkippedNote).toMatch(/color identity/i);
+    } finally {
+      if (prev) mocked.mockImplementation(prev);
+    }
+  });
+
   it('snapshots a Tiny-Leaders (CMC<=3, 49-card) variant', async () => {
     const ctx = baseContext();
     ctx.customization = customization({ deckFormat: 99, tinyLeaders: true });
