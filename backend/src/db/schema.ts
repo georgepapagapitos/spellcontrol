@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   text,
@@ -7,6 +8,7 @@ import {
   boolean,
   primaryKey,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { GameResultParticipant } from '../games/result-types';
 
@@ -281,12 +283,38 @@ export const gameNights = pgTable(
     notes: text('notes'),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     cancelledAt: bigint('cancelled_at', { mode: 'number' }),
+    /** Recurring series this night is an occurrence of (E125); NULL = one-off. */
+    seriesId: text('series_id').references(() => gameNightSeries.id, { onDelete: 'set null' }),
   },
   (t) => ({
     hostIdx: index('game_nights_host_idx').on(t.hostUserId),
     startsIdx: index('game_nights_starts_idx').on(t.startsAt),
+    // One occurrence per series slot — makes lazy materialization race-safe.
+    seriesSlotIdx: uniqueIndex('game_nights_series_slot_idx')
+      .on(t.seriesId, t.startsAt)
+      .where(sql`series_id IS NOT NULL`),
   })
 );
+
+/**
+ * A weekly recurring game night (E125). Deliberately template-free: the
+ * "every Tue 7pm" shape lives in the series' latest occurrence — materializing
+ * the next occurrence copies that night (title, place, notes, invites) one
+ * DST-corrected week later, so editing this week's night IS editing the
+ * template. The stable `token` powers the pinnable /gn/s/:token link, which
+ * always resolves to the upcoming occurrence; mirroring the E123 contract,
+ * unknown tokens 404 but an ended series stays resolvable to its last night.
+ */
+export const gameNightSeries = pgTable('game_night_series', {
+  id: text('id').primaryKey(),
+  token: text('token').notNull().unique(),
+  hostUserId: text('host_user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  /** Host pressed "stop repeating" — existing occurrences remain plain nights. */
+  endedAt: bigint('ended_at', { mode: 'number' }),
+});
 
 /** Friends the host invited to a night. Their RSVP (if any) lives in `game_night_rsvps`. */
 export const gameNightInvites = pgTable(
@@ -452,6 +480,7 @@ export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
 export type GameNightRow = typeof gameNights.$inferSelect;
+export type GameNightSeriesRow = typeof gameNightSeries.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;
 export type GameNightRsvpRow = typeof gameNightRsvps.$inferSelect;
 export type GameNightOptionRow = typeof gameNightOptions.$inferSelect;

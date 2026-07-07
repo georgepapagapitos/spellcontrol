@@ -29,6 +29,18 @@ export interface NightOption {
   myVote: boolean;
 }
 
+/**
+ * The weekly series a night belongs to (E125). The series `token` powers the
+ * stable /gn/s/:token link that always resolves to the upcoming occurrence —
+ * the one to pin in the group chat. `endedAt` set = the host stopped it
+ * repeating (existing nights stay as plain one-offs).
+ */
+export interface NightSeries {
+  id: string;
+  token: string;
+  endedAt: number | null;
+}
+
 /** A night as seen by a signed-in caller (host, invitee, or link-joiner). */
 export interface GameNight {
   id: string;
@@ -48,6 +60,8 @@ export interface GameNight {
   awaiting: string[];
   /** Candidate date slots while polling; empty once a date is locked in. */
   options: NightOption[];
+  /** The weekly series this night belongs to; null for a one-off night. */
+  series: NightSeries | null;
 }
 
 /** The public (token) view — what a guest with the link sees. */
@@ -61,6 +75,7 @@ export interface PublicGameNight {
     notes: string | null;
     cancelledAt: number | null;
     hostUsername: string;
+    series: NightSeries | null;
   };
   rsvps: NightRsvp[];
   /** The caller's own RSVP; its id is the guest's edit credential. */
@@ -95,6 +110,8 @@ export interface GameNightInput {
   location?: string;
   notes?: string;
   inviteUserIds?: string[];
+  /** Repeat weekly (E125): the next occurrence materializes as the date passes. */
+  repeatsWeekly?: boolean;
 }
 
 export async function createGameNight(input: GameNightInput): Promise<GameNight> {
@@ -234,6 +251,50 @@ export async function suggestGameNightOption(
   return body.rsvp;
 }
 
+/** Host only: open a date vote on an existing night (2–5 candidate slots). */
+export async function openGameNightPoll(id: string, options: number[]): Promise<GameNight> {
+  const res = await fetch(apiUrl(`/api/game-nights/${encodeURIComponent(id)}/poll`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ options }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't open the date vote."));
+  }
+  const body = (await res.json()) as { night: GameNight };
+  return body.night;
+}
+
+/** Host only: stop a series repeating. Existing nights stay as one-offs. */
+export async function endGameNightSeries(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/game-nights/series/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't stop the series."));
+  }
+}
+
+/**
+ * Resolve a stable series link to the night it currently points at. Reading
+ * it materializes the next occurrence server-side when one is due.
+ */
+export async function resolveGameNightSeries(token: string): Promise<string> {
+  const res = await fetch(apiUrl(`/api/game-nights/public/series/${encodeURIComponent(token)}`), {
+    credentials: 'include',
+  });
+  if (res.status === 404) {
+    throw new GameNightNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't load the game night."));
+  }
+  const body = (await res.json()) as { nightToken: string };
+  return body.nightToken;
+}
+
 /** Host only: lock a poll option in — the night flips to a plain scheduled date. */
 export async function lockGameNight(id: string, optionId: string): Promise<GameNight> {
   const res = await fetch(apiUrl(`/api/game-nights/${encodeURIComponent(id)}/lock`), {
@@ -257,4 +318,11 @@ export function gameNightUrl(token: string): string {
   if (isNativePlatform()) return `${WEB_ORIGIN}/gn/${token}`;
   if (typeof window === 'undefined') return `/gn/${token}`;
   return `${window.location.origin}/gn/${token}`;
+}
+
+/** Stable URL for a weekly series — always opens the upcoming occurrence. */
+export function gameNightSeriesUrl(token: string): string {
+  if (isNativePlatform()) return `${WEB_ORIGIN}/gn/s/${token}`;
+  if (typeof window === 'undefined') return `/gn/s/${token}`;
+  return `${window.location.origin}/gn/s/${token}`;
 }
