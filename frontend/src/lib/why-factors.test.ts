@@ -6,6 +6,7 @@ import {
   buildCrossDeckMoveFactors,
   buildCutFactors,
   buildGapAddFactors,
+  buildLandUpgradeFactors,
   buildOptimizeFactors,
   buildSwapAlternativeFactors,
   buildSynergyPickFactors,
@@ -261,5 +262,30 @@ describe('buildCrossDeckMoveFactors', () => {
     });
     expect(factors).toHaveLength(1);
     expect(factors[0].text).toMatch(/Deck A/);
+  });
+});
+
+describe('buildLandUpgradeFactors', () => {
+  it('leads with the short color it covers', () => {
+    const f = buildLandUpgradeFactors({
+      fixesShortColors: ['blue'],
+      addsColors: ['blue'],
+      strongerFixing: true,
+      outName: 'Plains',
+    });
+    expect(f[0].text).toMatch(/blue/);
+    expect(f[0].tone).toBe('pro');
+    // Always ends with the owned-already reassurance.
+    expect(f.some((x) => x.text.includes('already own'))).toBe(true);
+  });
+
+  it('falls back to the colors added when no color was short', () => {
+    const f = buildLandUpgradeFactors({
+      fixesShortColors: [],
+      addsColors: ['green'],
+      strongerFixing: false,
+      outName: 'Forest',
+    });
+    expect(f.some((x) => x.text.includes('green') && x.text.includes('Forest'))).toBe(true);
   });
 });

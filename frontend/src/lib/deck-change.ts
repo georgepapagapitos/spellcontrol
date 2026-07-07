@@ -19,6 +19,7 @@ import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest'
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
+import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { parsePrice } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
@@ -28,6 +29,7 @@ import {
   buildBudgetSwapFactors,
   buildComboCompletionFactors,
   buildGapAddFactors,
+  buildLandUpgradeFactors,
   buildOptimizeFactors,
   buildSynergyPickFactors,
   type WhyFactor,
@@ -50,7 +52,8 @@ export type LaneId =
   | 'collection'
   | 'similar'
   | 'bracket-fit'
-  | 'combos';
+  | 'combos'
+  | 'lands';
 
 /**
  * Allocation-aware ownership, evaluated at render time:
@@ -492,6 +495,45 @@ export function fromBracketFitMove(move: BracketFitMove, ownership?: ChangeOwner
     cmc: move.cmc,
     typeLine: move.typeLine,
     imageUrl: move.imageUrl,
+  };
+}
+
+const COLOR_NAME: Record<string, string> = {
+  W: 'white',
+  U: 'blue',
+  B: 'black',
+  R: 'red',
+  G: 'green',
+};
+
+/**
+ * Adapt a {@link LandUpgradeMove} (from the "Re-analyze lands" engine) into a
+ * swap `Change`. Like a Bracket Fit swap, the row surfaces the REPLACEMENT
+ * (`inCard`) as its primary card and folds the cut land into `inName` (the page
+ * reads that to find the slot). Ownership is always `owned` — the engine only
+ * ever proposes lands from the user's own collection.
+ */
+export function fromLandUpgradeMove(move: LandUpgradeMove): Change {
+  return {
+    id: `lands:swap:${move.outName}→${move.inName}`,
+    type: 'swap',
+    lane: 'lands',
+    name: move.inName, // incoming land (primary card)
+    inName: move.outName, // cut land (the page finds its slot by this name)
+    card: move.inCard,
+    reason: move.reason,
+    whyFactors: buildLandUpgradeFactors({
+      fixesShortColors: move.fixesShortColors.map((c) => COLOR_NAME[c] ?? c),
+      addsColors: move.addsColors.map((c) => COLOR_NAME[c] ?? c),
+      strongerFixing: move.inScore - move.outScore >= 20,
+      outName: move.outName,
+    }),
+    ownership: 'owned',
+    role: 'land',
+    roleLabel: 'Lands',
+    deltaScore: move.inScore - move.outScore,
+    cmc: move.inCard.cmc,
+    typeLine: move.inCard.type_line,
   };
 }
 

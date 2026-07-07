@@ -99,6 +99,7 @@ import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtil
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
+import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import { getCardPrice, getCardByName } from '../deck-builder/services/scryfall/client';
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
@@ -742,6 +743,35 @@ export function DeckEditorPage() {
       inclusionByName,
     });
   }, [deck, ownedNames, collectionCards, commanderColorIdentity]);
+
+  // Merit-based land upgrades — the "Re-analyze lands" tool. Scores the user's
+  // OWNED lands by intrinsic strength (popularity-blind, so a strong new land
+  // EDHREC hasn't rated still surfaces) and proposes safe swaps for weak lands
+  // in the deck. EnrichedCard is camelCase and lacks produced_mana; we map it to
+  // the ScryfallCard shape the engine reads (producedManaColors' oracle-text
+  // fallback recovers colors) — mirroring classifyOwnedCommanderPlaystyles.
+  const landUpgrades = useMemo(() => {
+    if (!deck) return [];
+    const identity = new Set(commanderColorIdentity);
+    if (identity.size === 0) return [];
+    const seen = new Set<string>();
+    const ownedLands: ScryfallCard[] = [];
+    for (const c of collectionCards) {
+      if (!c.typeLine?.toLowerCase().includes('land')) continue;
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      ownedLands.push({
+        name: c.name,
+        type_line: c.typeLine,
+        oracle_text: c.oracleText,
+        mana_cost: c.manaCost,
+        cmc: c.cmc,
+        color_identity: c.colorIdentity,
+        layout: c.layout,
+      } as ScryfallCard);
+    }
+    return computeLandUpgrades(deckCards, identity, ownedLands);
+  }, [deck, commanderColorIdentity, collectionCards, deckCards]);
 
   // `/` opens the search panel; `c` jumps to the Power tab and reveals the
   // combos panel; `a` opens the Coach tab (suggestions). Skipped while the user
@@ -2209,6 +2239,7 @@ export function DeckEditorPage() {
             addingSuggestedCardNames={addingEngineNames}
             oneAwayCombos={comboData.data?.oneAway}
             ownedOracleIds={ownedOracleIdSet}
+            landUpgradeCount={landUpgrades.length}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}
@@ -2294,6 +2325,7 @@ export function DeckEditorPage() {
                   substitutes={substitutionPlan?.rows ?? []}
                   costPlan={effectiveCostPlan ?? undefined}
                   bracketFit={deck.bracketFit ?? undefined}
+                  landUpgrades={landUpgrades}
                   oneAwayCombos={comboData.data?.oneAway}
                   planScore={deck.planScore}
                   roleCounts={deck.roleCounts ?? {}}

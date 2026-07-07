@@ -20,6 +20,7 @@ import {
   fromBracketFitMove,
   fromCostSwapRow,
   fromComboCompletion,
+  fromLandUpgradeMove,
   mergeImprove,
   type Change,
   type ChangeOwnership,
@@ -32,6 +33,7 @@ import type { SynergySuggestion } from '@/deck-builder/services/synergy/suggest'
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { CostPlan } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
+import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { ComboMatch } from '@/types/combos';
 import type { PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
 import type {
@@ -49,7 +51,8 @@ type FilterId =
   | 'budget'
   | 'collection'
   | 'bracket-fit'
-  | 'combos';
+  | 'combos'
+  | 'lands';
 
 const FILTER_LABELS: Record<FilterId, string> = {
   all: 'All',
@@ -59,6 +62,7 @@ const FILTER_LABELS: Record<FilterId, string> = {
   collection: 'Stand-ins',
   'bracket-fit': 'Bracket',
   combos: 'Combos',
+  lands: 'Lands',
 };
 
 /** tuneFocusLane → feed filter chip mapping. */
@@ -68,6 +72,7 @@ const FOCUS_TO_FILTER: Record<string, FilterId> = {
   budget: 'budget',
   collection: 'collection',
   'bracket-fit': 'bracket-fit',
+  lands: 'lands',
 };
 
 // ── Shortcuts ─────────────────────────────────────────────────────────────
@@ -90,6 +95,7 @@ export interface CoachFeedProps {
   substitutes: SubstituteRow[];
   costPlan?: CostPlan;
   bracketFit?: BracketFitPlan;
+  landUpgrades?: LandUpgradeMove[];
   oneAwayCombos?: ComboMatch[];
   // Context for ranking
   planScore?: PlanScore;
@@ -171,6 +177,7 @@ export function CoachFeed({
   substitutes,
   costPlan,
   bracketFit,
+  landUpgrades,
   oneAwayCombos,
   planScore,
   roleCounts,
@@ -365,9 +372,12 @@ export function CoachFeed({
     // Swaps/cuts from cost + bracket-fit (have specific target slots, skip dedup),
     // plus the optimizer's "consider cutting" rows (ownership-blind — the card is
     // already in the deck).
+    const landChanges: Change[] = (landUpgrades ?? []).map(fromLandUpgradeMove);
+
     const swapsAndCuts = [
       ...costChanges,
       ...bracketChanges.filter((c) => c.type === 'swap' || c.type === 'cut'),
+      ...landChanges,
       ...(optimize?.removals ?? []).map((o) => fromOptimizeCard(o, 'cut')),
     ];
 
@@ -390,6 +400,7 @@ export function CoachFeed({
     substitutes,
     costPlan,
     bracketFit,
+    landUpgrades,
     oneAwayCombos,
     resolveOwnership,
     deckNames,
@@ -480,6 +491,7 @@ export function CoachFeed({
       collection: 0,
       'bracket-fit': 0,
       combos: 0,
+      lands: 0,
     });
     const shown = make();
     const total = make();

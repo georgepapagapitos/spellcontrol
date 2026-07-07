@@ -134,6 +134,8 @@ export function DeckColorPanel({
   manaProduction,
   cardsByColor,
   manaCurve,
+  landUpgradeCount,
+  onReanalyzeLands,
 }: {
   colorDist: { counts: Record<string, number>; total: number };
   manaProduction: {
@@ -146,6 +148,11 @@ export function DeckColorPanel({
   cardsByColor?: Record<string, CardTally[]>;
   /** Nonland mana curve (CMC → count) → pacing for the Mana base shortfall bar. */
   manaCurve?: Record<number, number>;
+  /** Count of stronger owned lands found → drives the Mana base "Re-analyze
+   *  lands" CTA (hidden at 0). */
+  landUpgradeCount?: number;
+  /** Deep-link into the Coach tab's Lands lane. */
+  onReanalyzeLands?: () => void;
 }): JSX.Element {
   // Two carousels so each drill-down shows an accurate context label: the
   // Production sources vs. the Distribution (colored cards) for a color.
@@ -197,6 +204,8 @@ export function DeckColorPanel({
           openGroup(sourcesCarousel, manaProduction.sourcesByColor?.[k], `${colorLabel(k)} sources`)
         }
         manaCurve={manaCurve}
+        landUpgradeCount={landUpgradeCount}
+        onReanalyzeLands={onReanalyzeLands}
       />
 
       {groupSheet && (
