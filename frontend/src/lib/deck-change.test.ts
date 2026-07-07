@@ -391,6 +391,7 @@ describe('fromLandUpgradeMove', () => {
       cmc: 0,
       type_line: 'Land — Plains Island',
     } as ScryfallCard,
+    owned: true,
     reason: 'Stronger land you own — adds blue fixing.',
     outScore: 20,
     inScore: 52,
@@ -398,20 +399,26 @@ describe('fromLandUpgradeMove', () => {
     addsColors: ['U'],
   };
 
-  it('surfaces the incoming land as primary, cut land in inName, owned', () => {
-    const c = fromLandUpgradeMove(move);
+  it('surfaces the incoming land as primary, cut land in inName, live ownership', () => {
+    const c = fromLandUpgradeMove(move, 'owned');
     expect(c.type).toBe('swap');
     expect(c.lane).toBe('lands');
     expect(c.name).toBe('Hallowed Fountain'); // primary = incoming land
     expect(c.inName).toBe('Plains'); // slot to cut
-    expect(c.ownership).toBe('owned'); // engine only proposes owned lands
+    expect(c.ownership).toBe('owned'); // caller-supplied live ownership
     expect(c.deltaScore).toBe(32);
     expect(c.roleLabel).toBe('Lands');
     expect(c.card).toBe(move.inCard);
   });
 
+  it('carries the caller ownership (an unowned dual renders as an acquire)', () => {
+    const c = fromLandUpgradeMove({ ...move, owned: false }, 'unowned');
+    expect(c.ownership).toBe('unowned');
+    expect(c.whyFactors?.some((f) => f.text.toLowerCase().includes('acquir'))).toBe(true);
+  });
+
   it('builds a why-factor naming the short color it covers', () => {
-    const c = fromLandUpgradeMove(move);
+    const c = fromLandUpgradeMove(move, 'owned');
     expect(c.whyFactors?.some((f) => f.text.includes('blue'))).toBe(true);
     expect(c.whyFactors?.some((f) => f.text.includes('already own'))).toBe(true);
   });

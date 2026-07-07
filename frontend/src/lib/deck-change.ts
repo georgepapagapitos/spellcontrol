@@ -510,10 +510,12 @@ const COLOR_NAME: Record<string, string> = {
  * Adapt a {@link LandUpgradeMove} (from the "Re-analyze lands" engine) into a
  * swap `Change`. Like a Bracket Fit swap, the row surfaces the REPLACEMENT
  * (`inCard`) as its primary card and folds the cut land into `inName` (the page
- * reads that to find the slot). Ownership is always `owned` — the engine only
- * ever proposes lands from the user's own collection.
+ * reads that to find the slot). Ownership is supplied live by the caller — the
+ * engine now proposes both owned lands (apply-now) and strong on-color duals the
+ * user may not own yet (acquire rows), so the row's owned/unowned badge is the
+ * app's live ownership of the incoming land, not a fixed value.
  */
-export function fromLandUpgradeMove(move: LandUpgradeMove): Change {
+export function fromLandUpgradeMove(move: LandUpgradeMove, ownership: ChangeOwnership): Change {
   return {
     id: `lands:swap:${move.outName}→${move.inName}`,
     type: 'swap',
@@ -526,9 +528,10 @@ export function fromLandUpgradeMove(move: LandUpgradeMove): Change {
       fixesShortColors: move.fixesShortColors.map((c) => COLOR_NAME[c] ?? c),
       addsColors: move.addsColors.map((c) => COLOR_NAME[c] ?? c),
       strongerFixing: move.inScore - move.outScore >= 20,
+      owned: move.owned,
       outName: move.outName,
     }),
-    ownership: 'owned',
+    ownership,
     role: 'land',
     roleLabel: 'Lands',
     deltaScore: move.inScore - move.outScore,

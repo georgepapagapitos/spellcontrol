@@ -389,14 +389,17 @@ export interface LandUpgradeSignals {
   addsColors: string[];
   /** Whether the incoming land carries non-mana upside / is a proven fixer type. */
   strongerFixing: boolean;
+  /** Whether the user owns a copy — drives the "already own" vs "acquire" line. */
+  owned: boolean;
   /** Name of the land being cut, for the like-for-like line. */
   outName: string;
 }
 
 /**
- * Why swapping in a land from your collection is an upgrade — grounded in the
- * merit score, never EDHREC popularity (the whole point is that this surfaces
- * strong lands too new for EDHREC to have rated). Leads with the fixing win.
+ * Why swapping in a stronger land is an upgrade — grounded in the merit score,
+ * never EDHREC popularity (the whole point is that this surfaces strong lands
+ * too new for EDHREC to have rated). Leads with the fixing win, and closes with
+ * whether it's a land you already have or one worth acquiring.
  */
 export function buildLandUpgradeFactors(s: LandUpgradeSignals): WhyFactor[] {
   const out: WhyFactor[] = [];
@@ -414,7 +417,11 @@ export function buildLandUpgradeFactors(s: LandUpgradeSignals): WhyFactor[] {
   if (s.strongerFixing) {
     out.push({ text: 'Rated on the card itself, not its popularity', tone: 'neutral' });
   }
-  out.push({ text: `A land you already own — no acquisition needed`, tone: 'pro' });
+  out.push(
+    s.owned
+      ? { text: 'A land you already own — no acquisition needed', tone: 'pro' }
+      : { text: "Worth acquiring — you don't own it yet", tone: 'neutral' }
+  );
   return out;
 }
 

@@ -372,7 +372,9 @@ export function CoachFeed({
     // Swaps/cuts from cost + bracket-fit (have specific target slots, skip dedup),
     // plus the optimizer's "consider cutting" rows (ownership-blind — the card is
     // already in the deck).
-    const landChanges: Change[] = (landUpgrades ?? []).map(fromLandUpgradeMove);
+    const landChanges: Change[] = (landUpgrades ?? []).map((m) =>
+      fromLandUpgradeMove(m, resolveOwnership(m.inName))
+    );
 
     const swapsAndCuts = [
       ...costChanges,

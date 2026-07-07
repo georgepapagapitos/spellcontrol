@@ -203,8 +203,8 @@ export function DeckColorBalance({
         <button type="button" className="deck-color-balance-reanalyze" onClick={onReanalyzeLands}>
           <span className="deck-color-balance-reanalyze-text">
             {landUpgradeCount === 1
-              ? '1 stronger land in your collection'
-              : `${landUpgradeCount} stronger lands in your collection`}
+              ? '1 stronger land for this deck'
+              : `${landUpgradeCount} stronger lands for this deck`}
           </span>
           <span className="deck-color-balance-reanalyze-chevron" aria-hidden="true">
             ›

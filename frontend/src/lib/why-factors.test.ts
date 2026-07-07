@@ -266,16 +266,16 @@ describe('buildCrossDeckMoveFactors', () => {
 });
 
 describe('buildLandUpgradeFactors', () => {
-  it('leads with the short color it covers', () => {
+  it('leads with the short color it covers and notes an owned land', () => {
     const f = buildLandUpgradeFactors({
       fixesShortColors: ['blue'],
       addsColors: ['blue'],
       strongerFixing: true,
+      owned: true,
       outName: 'Plains',
     });
     expect(f[0].text).toMatch(/blue/);
     expect(f[0].tone).toBe('pro');
-    // Always ends with the owned-already reassurance.
     expect(f.some((x) => x.text.includes('already own'))).toBe(true);
   });
 
@@ -284,8 +284,21 @@ describe('buildLandUpgradeFactors', () => {
       fixesShortColors: [],
       addsColors: ['green'],
       strongerFixing: false,
+      owned: true,
       outName: 'Forest',
     });
     expect(f.some((x) => x.text.includes('green') && x.text.includes('Forest'))).toBe(true);
+  });
+
+  it('closes with an acquire note when the land is unowned', () => {
+    const f = buildLandUpgradeFactors({
+      fixesShortColors: ['blue'],
+      addsColors: [],
+      strongerFixing: false,
+      owned: false,
+      outName: 'Island',
+    });
+    expect(f.some((x) => x.text.toLowerCase().includes('acquir'))).toBe(true);
+    expect(f.some((x) => x.text.includes('already own'))).toBe(false);
   });
 });
