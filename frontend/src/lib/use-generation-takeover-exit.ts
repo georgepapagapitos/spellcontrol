@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const EXIT_FALLBACK_MS = 700;
+// Covers the takeover's completion beat (~950ms seal-burst hold) + the ~200ms
+// fade. This is only the safety net if the fade's animationend never fires;
+// the real handoff is onExitComplete.
+const EXIT_FALLBACK_MS = 1400;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;

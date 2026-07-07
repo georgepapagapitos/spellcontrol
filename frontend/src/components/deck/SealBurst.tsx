@@ -32,7 +32,7 @@ const SPARK_HEX: Record<string, string> = {
 /** Colourless / unknown identity — a warm gold in the seal's own family. */
 const FALLBACK_HEX = '#e6d2a0';
 
-const MOTE_COUNT = 18;
+const MOTE_COUNT = 30;
 
 export interface SealMote {
   hex: string;
@@ -54,9 +54,9 @@ export function buildMotes(colors: string[]): SealMote[] {
     return {
       hex,
       angle: (i / MOTE_COUNT) * 360 + (i % 3) * 7,
-      dist: 64 + (i % 5) * 16, // 64–128px radial spread
-      delay: (i % 6) * 22, // 0–110ms stagger
-      dur: 620 + (i % 4) * 90, // 620–890ms
+      dist: 80 + (i % 6) * 18, // 80–170px radial spread
+      delay: (i % 8) * 18, // 0–126ms stagger
+      dur: 720 + (i % 4) * 100, // 720–1020ms
     };
   });
 }

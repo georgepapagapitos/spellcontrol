@@ -63,7 +63,8 @@ describe('GenerationTakeover', () => {
       />
     );
     const el = container.querySelector('.gen-takeover');
-    expect(el?.classList.contains('is-exiting')).toBe(true);
+    // The exit is two-phase: it first holds in the celebration beat.
+    expect(el?.classList.contains('is-celebrating')).toBe(true);
 
     fireEvent.animationEnd(el!, { animationName: 'fade-in' });
     expect(onExitComplete).not.toHaveBeenCalled();

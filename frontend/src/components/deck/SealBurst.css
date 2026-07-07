@@ -24,35 +24,39 @@
 
 /* ── The seal flare — a brass glow that swells and fades once. ─────────────── */
 .seal-burst-flare {
-  width: 15rem;
-  height: 15rem;
-  margin: -7.5rem 0 0 -7.5rem;
+  width: 22rem;
+  height: 22rem;
+  margin: -11rem 0 0 -11rem;
   border-radius: 999px;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, #f0c368 85%, transparent) 0%,
-    color-mix(in srgb, #f0c368 30%, transparent) 42%,
-    transparent 70%
+    color-mix(in srgb, #f0c368 95%, transparent) 0%,
+    color-mix(in srgb, #f0c368 55%, transparent) 32%,
+    color-mix(in srgb, #f0c368 18%, transparent) 55%,
+    transparent 72%
   );
-  animation: seal-burst-flare 620ms var(--ease-out-soft, ease-out) both;
+  animation: seal-burst-flare 900ms var(--ease-out-soft, ease-out) both;
 }
 
 /* ── The seal ring — expands outward like brand-mark-seal-ring. ───────────── */
 .seal-burst-ring {
-  width: 5rem;
-  height: 5rem;
-  margin: -2.5rem 0 0 -2.5rem;
+  width: 6rem;
+  height: 6rem;
+  margin: -3rem 0 0 -3rem;
   border-radius: 999px;
-  border: 2px solid color-mix(in srgb, #f0c368 70%, transparent);
-  animation: seal-burst-ring 700ms var(--ease-out-soft, ease-out) both;
+  border: 3px solid color-mix(in srgb, #f0c368 85%, transparent);
+  box-shadow: 0 0 1.5rem color-mix(in srgb, #f0c368 45%, transparent);
+  animation: seal-burst-ring 850ms var(--ease-out-soft, ease-out) both;
 }
 
 /* ── Mana sparks — colour-identity motes flung radially outward. ──────────── */
 .seal-burst-mote {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.7rem;
+  height: 0.7rem;
   border-radius: 999px;
-  box-shadow: 0 0 0.5rem 0.12rem currentColor;
+  box-shadow:
+    0 0 0.75rem 0.18rem currentColor,
+    0 0 0.25rem 0.05rem #fff;
   animation-name: seal-burst-spark;
   animation-timing-function: var(--ease-out-soft, ease-out);
   animation-fill-mode: both;
@@ -79,11 +83,11 @@
     transform: scale(0.3);
   }
   20% {
-    opacity: 0.9;
+    opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: scale(3.4);
+    transform: scale(4.2);
   }
 }
 

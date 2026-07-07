@@ -13,8 +13,17 @@
   animation: fade-in var(--motion-base) var(--ease-out-soft) both;
 }
 
-.gen-takeover.is-exiting {
+/* Completion beat — the takeover holds fully visible while the seal-burst
+   plays; the fade only starts once `.is-leaving` is added. */
+.gen-takeover.is-leaving {
   animation: gen-takeover-exit var(--motion-base) var(--ease-in-soft) both;
+}
+
+/* Dim + desaturate the commander art so the seal flare and colour sparks
+   pop against it during the celebration. */
+.gen-takeover.is-celebrating .gen-takeover-art-img {
+  filter: brightness(0.45) saturate(0.85);
+  transition: filter 320ms var(--ease-out-soft);
 }
 
 /* Hero region — art + headline; fixed minimum so the art always reads. */
@@ -37,7 +46,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top;
+  object-position: center;
 }
 
 /* Gradient overlay: darkens the bottom half for text legibility without
@@ -81,6 +90,17 @@
   font-size: var(--text-sm);
   color: var(--text-secondary);
   min-height: 1.4em; /* prevent layout jump between messages */
+}
+
+/* Completion headline — swaps the mono step line for a serif payoff, tinted
+   the seal's brass so it reads as the same moment as the flare. */
+.gen-takeover-step--done {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #f0c368;
+  text-shadow: 0 0 1.25rem color-mix(in srgb, #f0c368 55%, transparent);
 }
 
 /* ── Flavor line ───────────────────────────────────────────────────────── */
@@ -209,8 +229,12 @@
     animation: none;
   }
 
-  .gen-takeover.is-exiting {
+  .gen-takeover.is-leaving {
     animation: none;
+  }
+
+  .gen-takeover.is-celebrating .gen-takeover-art-img {
+    transition: none;
   }
 
   .gen-takeover-flavor {
