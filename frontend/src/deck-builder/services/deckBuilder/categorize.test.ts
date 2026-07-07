@@ -4,6 +4,7 @@ import {
   categorizeCards,
   routeCardByType,
   computeRoleBoosts,
+  roleCapTolerance,
 } from './categorize';
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
@@ -192,5 +193,23 @@ describe('computeRoleBoosts', () => {
       true
     );
     expect(boosts.get('Y')).toBe(-100);
+  });
+});
+
+// roleCapTolerance is the generic pick-time band (max 2, else 20% of target),
+// role-agnostic. E113's tighter board-wipe cap is NOT here — it lives in
+// phaseRoleSurplusRebalance's post-fill BOARDWIPE_SURPLUS_TOLERANCE (trim to
+// exactly target), so pick time stays generous and the quality-aware rebalance
+// does the wipe trim. See phaseRoleSurplusRebalance.test.ts.
+describe('roleCapTolerance', () => {
+  it('floors at 2 cards for small targets', () => {
+    expect(roleCapTolerance(1)).toBe(2);
+    expect(roleCapTolerance(5)).toBe(2);
+  });
+
+  it('scales to 20% of target once that exceeds 2', () => {
+    expect(roleCapTolerance(10)).toBe(2);
+    expect(roleCapTolerance(15)).toBe(3);
+    expect(roleCapTolerance(20)).toBe(4);
   });
 });

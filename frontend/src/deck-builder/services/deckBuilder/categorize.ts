@@ -228,6 +228,14 @@ const ROLE_SUBTYPES: Record<string, string[]> = {
  * over-target boost penalty below and the hard pick-loop cap gate
  * (cardPicking.ts's role-cap gate). One constant, so a role that's "at cap"
  * means the same thing to both surfaces.
+ *
+ * E113 note: board wipes get a TIGHTER band than this generic one, but that
+ * tightening lives ONLY in phaseRoleSurplusRebalance's post-fill cap (trim to
+ * exactly target), NOT at pick time. Rationing wipes at pick time cuts by raw
+ * priority, which drops the deck-appropriate low-inclusion wipe (an
+ * enchantress's Wrath) before the quality-aware rebalance can protect it — so
+ * pick time stays generous here and the rebalance does the quality-ordered
+ * trim. See phaseRoleSurplusRebalance's BOARDWIPE_SURPLUS_TOLERANCE.
  */
 export function roleCapTolerance(target: number): number {
   return Math.max(2, Math.round(target * 0.2));

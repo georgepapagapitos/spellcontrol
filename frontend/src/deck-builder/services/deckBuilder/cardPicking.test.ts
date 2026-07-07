@@ -6,10 +6,14 @@ import {
   pickFromPrefetched,
   pickFromPrefetchedWithCurve,
   OWNED_PRIORITY_BOOST,
+  wipeQualityPenalty,
+  WIPE_QUALITY_SYMMETRIC_PENALTY,
+  WIPE_QUALITY_COLLATERAL_BASE,
+  WIPE_QUALITY_COLLATERAL_SCALE,
 } from './cardPicking';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
-import { isOneSidedWipe, type RoleKey } from '@/deck-builder/services/tagger/client';
+import { isOneSidedWipe, getWipeScope, type RoleKey } from '@/deck-builder/services/tagger/client';
 
 function ec(overrides: Partial<EDHRECCard> = {}): EDHRECCard {
   return {
@@ -1156,5 +1160,188 @@ describe('wipe-asymmetry tie-break (E109)', () => {
     const decided = new Set<string>();
     pickWipe(false, decided);
     expect(decided.size).toBe(0);
+  });
+});
+
+// E112: own-board scope-collateral preference among boardwipe-role
+// candidates. Real oracle text (Wrath of God vs Farewell — see
+// tagger/client.test.ts's getWipeScope ground truth) so this exercises the
+// real getWipeScope classifier, not a stub. Unlike the E109 block above,
+// this is NOT gated on a board-centric preference — it fires purely off the
+// deck's own planned type-target density (deckTypeTargets), independent of
+// archetype/creature-density.
+describe('wipe scope-collateral tie-break (E112)', () => {
+  const lowCollateral = ec({ name: 'Wrath of God', inclusion: 20, primary_type: 'Sorcery' });
+  const highCollateral = ec({ name: 'Farewell', inclusion: 60, primary_type: 'Sorcery' }); // outranks on raw priority
+  const wipeRoleMap = new Map<string, RoleKey>([
+    ['Wrath of God', 'boardwipe'],
+    ['Farewell', 'boardwipe'],
+  ]);
+  const wipeCardMap = new Map<string, ScryfallCard>([
+    [
+      'Wrath of God',
+      sc({
+        name: 'Wrath of God',
+        type_line: 'Sorcery',
+        oracle_text: "Destroy all creatures. They can't be regenerated.",
+      }),
+    ],
+    [
+      'Farewell',
+      sc({
+        name: 'Farewell',
+        type_line: 'Sorcery',
+        oracle_text:
+          'Choose one or more — Exile all creatures. Their controllers create that many 1/1 white Spirit creature tokens. Exile all artifacts and enchantments. Exile all graveyards.',
+      }),
+    ],
+  ]);
+  // Enchantment-heavy deck plan (a sythis-style enchantress build) — own
+  // board mass is disproportionately enchantments, so Farewell's own-board
+  // collateral (it also exiles the deck's own enchantments/artifacts)
+  // should outweigh its higher raw priority/inclusion.
+  const enchantressTypeTargets = {
+    creature: 10,
+    instant: 5,
+    sorcery: 5,
+    artifact: 5,
+    enchantment: 20,
+    planeswalker: 0,
+  };
+
+  function pickWipeByScope(deckTypeTargets: Record<string, number> | undefined) {
+    return pickFromPrefetchedWithCurve(
+      [highCollateral, lowCollateral],
+      wipeCardMap,
+      1, // only room for one — forces a real either/or choice
+      new Set(),
+      [],
+      { 3: 100, 4: 100, 5: 100 },
+      {},
+      new Set(),
+      'Sorcery',
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined,
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      false,
+      'full',
+      100,
+      false,
+      false,
+      undefined,
+      undefined,
+      undefined,
+      {
+        cardRoleMap: wipeRoleMap,
+        roleTargets: { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 },
+        currentRoleCounts: { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 },
+        getWipeScope,
+        deckTypeTargets,
+      }
+    );
+  }
+
+  it('prefers the low-collateral wipe (Wrath of God) over the high-collateral one (Farewell) for an enchantment-heavy deck, despite a 40pt inclusion deficit', () => {
+    const picked = pickWipeByScope(enchantressTypeTargets);
+    expect(picked.map((c) => c.name)).toEqual(['Wrath of God']);
+  });
+
+  it('falls through to ordinary priority when no deck type-target context is available (deckTypeTargets undefined)', () => {
+    const picked = pickWipeByScope(undefined);
+    expect(picked.map((c) => c.name)).toEqual(['Farewell']);
+  });
+
+  it('falls through to ordinary priority for a creature-only deck (no non-creature collateral difference between the two)', () => {
+    const creatureHeavyTypeTargets = {
+      creature: 30,
+      instant: 5,
+      sorcery: 5,
+      artifact: 0,
+      enchantment: 0,
+      planeswalker: 0,
+    };
+    const picked = pickWipeByScope(creatureHeavyTypeTargets);
+    expect(picked.map((c) => c.name)).toEqual(['Farewell']); // both score 0 collateral -> raw priority wins
+  });
+});
+
+// E112/E113 coordination fix: wipeQualityPenalty is the shared quality signal
+// (asymmetry + own-board collateral) phaseRoleSurplusRebalance folds into its
+// boardwipe eviction/replacement survival score — so a symmetric or
+// high-collateral wipe ranks as the WORST wipe to keep even when its raw
+// EDHREC priority is high. Exercises the REAL isOneSidedWipe/getWipeScope
+// classifiers against real oracle text (same ground truth as the E112 block
+// above). A hard tier by design (symmetric penalty >> calculateCardPriority's
+// ~0-250 range), not a capped nudge.
+describe('wipeQualityPenalty (E112/E113)', () => {
+  const oneSided = sc({
+    name: 'Ruinous Ultimatum',
+    type_line: 'Sorcery',
+    oracle_text:
+      "Destroy all nonland permanents your opponents control. You can't lose the game this turn.",
+  });
+  const symmetricCreatureOnly = sc({
+    name: 'Wrath of God',
+    type_line: 'Sorcery',
+    oracle_text: "Destroy all creatures. They can't be regenerated.",
+  });
+  const symmetricModal = sc({
+    name: 'Farewell',
+    type_line: 'Sorcery',
+    oracle_text:
+      'Choose one or more — Exile all creatures. Exile all artifacts and enchantments. Exile all graveyards.',
+  });
+  const enchantressTargets = { creature: 10, artifact: 5, enchantment: 20, instant: 5, sorcery: 5 };
+
+  it('scores a one-sided wipe at zero penalty (best to keep)', () => {
+    expect(wipeQualityPenalty(oneSided, isOneSidedWipe, getWipeScope, enchantressTargets)).toBe(0);
+  });
+
+  it('scores a symmetric creature-only wipe at exactly the symmetric tier (no non-creature collateral)', () => {
+    // Wrath hits only creatures -> collateral term is 0 even on an enchantment-heavy board.
+    expect(
+      wipeQualityPenalty(symmetricCreatureOnly, isOneSidedWipe, getWipeScope, enchantressTargets)
+    ).toBe(WIPE_QUALITY_SYMMETRIC_PENALTY);
+  });
+
+  it('penalizes a high-collateral symmetric modal wipe strictly more than a low-collateral one', () => {
+    const modal = wipeQualityPenalty(
+      symmetricModal,
+      isOneSidedWipe,
+      getWipeScope,
+      enchantressTargets
+    );
+    const wrath = wipeQualityPenalty(
+      symmetricCreatureOnly,
+      isOneSidedWipe,
+      getWipeScope,
+      enchantressTargets
+    );
+    // Farewell exiles the enchantress's own enchantments+artifacts -> strictly worse to keep.
+    expect(modal).toBeGreaterThan(wrath);
+    // Collateral is a flat BASE tier (dominates priority) + a share-scaled term,
+    // added on top of the symmetric tier.
+    const nonLand = Object.values(enchantressTargets).reduce((s, v) => s + v, 0);
+    const share = (enchantressTargets.enchantment + enchantressTargets.artifact) / nonLand;
+    expect(modal).toBeCloseTo(
+      WIPE_QUALITY_SYMMETRIC_PENALTY +
+        WIPE_QUALITY_COLLATERAL_BASE +
+        share * WIPE_QUALITY_COLLATERAL_SCALE
+    );
+  });
+
+  it('drops the collateral term when no deck type-target context is available', () => {
+    // Symmetric tier still applies; collateral is unknowable -> omitted.
+    expect(wipeQualityPenalty(symmetricModal, isOneSidedWipe, getWipeScope, undefined)).toBe(
+      WIPE_QUALITY_SYMMETRIC_PENALTY
+    );
   });
 });

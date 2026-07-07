@@ -7,7 +7,7 @@ import { hasCurveRoom } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
 import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
-import type { RoleKey } from '@/deck-builder/services/tagger/client';
+import type { RoleKey, WipeScope } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
   exceedsMaxPrice,
@@ -51,6 +51,23 @@ export interface RoleCapConfig {
    *  priceSanityDecided below) — the build report's "N one-sided wipes
    *  preferred" count. */
   wipeAsymmetryDecided?: Set<string>;
+  /** E112 own-board scope-collateral preference: among two boardwipe-role
+   *  candidates that tie on the isOneSidedWipe tie-break above (both
+   *  symmetric, or both already one-sided — see wipeScopeCollateralTieBreak),
+   *  prefer whichever destroys/exiles less of the deck's own non-creature
+   *  permanent mass (getWipeScope, tagger/client.ts — already returns the
+   *  empty/no-collateral scope for a one-sided wipe, so this never
+   *  re-litigates the isOneSidedWipe axis above). Unlike isOneSidedWipe,
+   *  this is NOT gated on the board-centric preference — scope mismatch (an
+   *  enchantress deck's own Farewell) is a separate concern from player-
+   *  asymmetry and matters for any deck with real non-creature permanent
+   *  density, not just go-wide/attack-trigger board-centric plans. */
+  getWipeScope?: (card: ScryfallCard) => WipeScope;
+  /** The deck's planned non-land type distribution (typeTargets from
+   *  calculateTargetCounts) — the "own board mass" the scope-collateral
+   *  tie-break weighs a wipe's printed scope against. Same source
+   *  isBoardCentricPlan already reads for creature density. */
+  deckTypeTargets?: Record<string, number>;
 }
 
 // Pick cards from a pre-fetched card map (no API calls)
@@ -381,6 +398,109 @@ function wipeAsymmetryTieBreak(
   return oneSidedA ? -1 : 1;
 }
 
+// E112 own-board scope-collateral preference: among two boardwipe-role
+// candidates that tied on wipeAsymmetryTieBreak above (both symmetric, or
+// both already one-sided), prefer whichever destroys/exiles less of the
+// deck's OWN non-creature permanent mass. Creatures are expected collateral
+// for nearly every wrath — the mismatch that actually hurts a plan is a wipe
+// that ALSO nukes the non-creature type the deck is heavy in (an
+// enchantress deck's own enchantments, an artifact deck's own rocks). Not
+// gated on the board-centric preference (unlike wipeAsymmetryTieBreak) — see
+// getWipeScope's doc field in RoleCapConfig above for why this is a
+// separate, always-on axis. `getWipeScope` already returns the empty scope
+// for a one-sided wipe, so this naturally scores it as zero collateral
+// without re-deriving that check here.
+// Exported for reuse: phaseRoleSurplusRebalance.ts's post-fill eviction
+// ordering needs the SAME collateral signal this comparator uses at pick
+// time (E112/E113 unification) — a low-collateral wipe shouldn't win the
+// pick-time slot only to be the first one evicted afterward on a signal
+// that ignores collateral entirely.
+export function wipeOwnBoardCollateral(
+  card: ScryfallCard,
+  getWipeScope: (card: ScryfallCard) => WipeScope,
+  deckTypeTargets: Record<string, number>
+): number {
+  const scope = getWipeScope(card);
+  const nonLandTotal = Object.values(deckTypeTargets).reduce((sum, v) => sum + v, 0) || 1;
+  const enchantmentShare = (deckTypeTargets.enchantment ?? 0) / nonLandTotal;
+  const artifactShare = (deckTypeTargets.artifact ?? 0) / nonLandTotal;
+  let collateral = 0;
+  if (scope.all || scope.enchantments) collateral += enchantmentShare;
+  if (scope.all || scope.artifacts) collateral += artifactShare;
+  return collateral;
+}
+
+// Exported for reuse: phaseRoleSurplusRebalance.ts folds this into its
+// post-fill eviction/replacement scoring for the boardwipe role specifically
+// (E112/E113 coordination fix). Root cause of the sythis/krenko regressions
+// this closes: wipeAsymmetryTieBreak/wipeScopeCollateralTieBreak above only
+// ever run when two boardwipe candidates are DIRECTLY compared in the SAME
+// pickFromPrefetchedWithCurve sort — they're silent once a wipe's fate is
+// decided by rationing elsewhere (the role-cap escape hatch admitting all of
+// them at pick time, then this pass's priority-only survival/replacement
+// scoring deciding which one survives). The same asymmetry+collateral
+// signal has to govern that decision too, or a low-quality high-inclusion
+// wipe (a splashy modal sweeper) can win the pick-time slot on raw priority
+// and then never get evicted because eviction ranking never looked at
+// quality at all.
+//
+// Deliberately NOT a capped nudge (packageBoost.ts's ~15-30 range) — same
+// "has to actually win the slot" rationale as wipeAsymmetryTieBreak's own doc.
+// Both quality axes are TIERS that dominate calculateCardPriority's ~0-250
+// range (plus a ~30 lift boost), so raw popularity can never keep a worse wipe:
+//  - asymmetry: a symmetric wipe is always worse to keep than a one-sided one
+//    (WIPE_QUALITY_SYMMETRIC_PENALTY).
+//  - own-board collateral: a wipe that ALSO nukes the deck's own enchantments /
+//    artifacts is always worse to keep than a clean same-asymmetry wipe. This
+//    MUST be a tier too, not a small scaled nudge — a splashy modal sweeper
+//    (Farewell, 16-26% incl) out-includes a clean Wrath (10%) by more than a
+//    share-scaled penalty could ever cover, so it would survive on raw
+//    popularity (the E103 "a small nudge can't close a 20-40pt inclusion gap"
+//    lesson, learned again the hard way in iter-15 r3). So any nonzero
+//    collateral clears a flat BASE tier at once, then a share-scaled term
+//    orders collateral-bearing wipes among themselves (more own-board mass
+//    threatened = worse).
+export const WIPE_QUALITY_SYMMETRIC_PENALTY = 1000;
+export const WIPE_QUALITY_COLLATERAL_BASE = 400;
+export const WIPE_QUALITY_COLLATERAL_SCALE = 200;
+
+export function wipeQualityPenalty(
+  card: ScryfallCard,
+  isOneSidedWipe: (card: ScryfallCard) => boolean,
+  getWipeScope: (card: ScryfallCard) => WipeScope,
+  deckTypeTargets: Record<string, number> | undefined
+): number {
+  let penalty = isOneSidedWipe(card) ? 0 : WIPE_QUALITY_SYMMETRIC_PENALTY;
+  if (deckTypeTargets) {
+    const collateral = wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets);
+    if (collateral > 0) {
+      penalty += WIPE_QUALITY_COLLATERAL_BASE + collateral * WIPE_QUALITY_COLLATERAL_SCALE;
+    }
+  }
+  return penalty;
+}
+
+function wipeScopeCollateralTieBreak(
+  a: EDHRECCard,
+  b: EDHRECCard,
+  cardMap: Map<string, ScryfallCard>,
+  cardRoleMap: Map<string, RoleKey> | undefined,
+  getWipeScope: ((card: ScryfallCard) => WipeScope) | undefined,
+  deckTypeTargets: Record<string, number> | undefined
+): number {
+  if (!getWipeScope || !cardRoleMap || !deckTypeTargets) return 0;
+  if (cardRoleMap.get(a.name) !== 'boardwipe' || cardRoleMap.get(b.name) !== 'boardwipe') return 0;
+
+  const cardA = cardMap.get(a.name);
+  const cardB = cardMap.get(b.name);
+  if (!cardA || !cardB) return 0;
+
+  const collateralA = wipeOwnBoardCollateral(cardA, getWipeScope, deckTypeTargets);
+  const collateralB = wipeOwnBoardCollateral(cardB, getWipeScope, deckTypeTargets);
+  if (collateralA === collateralB) return 0;
+  return collateralA < collateralB ? -1 : 1;
+}
+
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
 export function pickFromPrefetchedWithCurve(
@@ -469,6 +589,15 @@ export function pickFromPrefetchedWithCurve(
         roleCapConfig?.wipeAsymmetryDecided
       );
       if (wipePref !== 0) return wipePref;
+      const scopePref = wipeScopeCollateralTieBreak(
+        a,
+        b,
+        cardMap,
+        roleCapConfig?.cardRoleMap,
+        roleCapConfig?.getWipeScope,
+        roleCapConfig?.deckTypeTargets
+      );
+      if (scopePref !== 0) return scopePref;
       const sanity = priceSanityTieBreak(
         a,
         b,

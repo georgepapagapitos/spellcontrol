@@ -9,6 +9,8 @@ import type { GenerationState } from './state';
 import {
   getCardRole,
   isProtectionPiece,
+  isOneSidedWipe,
+  getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
@@ -16,7 +18,7 @@ import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts } from '../commanderDeckAnalysis';
 import { computeLiftPickBoosts } from '../packageBoost';
-import { calculateCardPriority, PRICE_SANITY_RATIO } from '../cardPicking';
+import { calculateCardPriority, PRICE_SANITY_RATIO, wipeQualityPenalty } from '../cardPicking';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from '../nonbo';
 import { getLiftIndex } from './liftPools';
@@ -120,6 +122,23 @@ const MIN_IMPROVEMENT_MARGIN = 15;
 
 const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
 
+// E112/E113: board wipes get a TIGHTER surplus band than the generic
+// max(2,20%) — a surplus wipe torches the deck's own board rather than being a
+// merely-weaker filler slot, so the critic-flagged target+2 wipe piles get
+// trimmed. Set to 1 (cap = target + 1), NOT 0: trimming to exactly target
+// pushed at-target decks UNDER their own wipe target in iter-15 r3 (atraxa 3/3
+// -> 2, meren 2/1 -> 0), which reads as under-provisioned removal. target+1
+// trims only the genuine overshoots (sythis 4/2, isshin 3/1) and leaves
+// at-target/at-target+1 decks alone. The survival score's wipeQualityPenalty
+// evicts the highest-collateral / symmetric wipes FIRST, so an enchantress
+// sheds Farewell/Austere before Wrath/Winds of Rath and a go-wide deck keeps
+// its one-sided wipe. This lives ONLY here (post-fill), NOT in the pick-time
+// roleCapTolerance: pick time stays generous so the deck-appropriate
+// low-inclusion wipes actually get picked for this pass to choose among;
+// rationing them at pick time cuts by raw priority and drops exactly the wipe
+// we want to protect.
+const BOARDWIPE_SURPLUS_TOLERANCE = 1;
+
 const ROLE_LABEL: Record<RoleKey, string> = {
   ramp: 'ramp',
   removal: 'removal',
@@ -158,6 +177,14 @@ export interface RoleSurplusRebalanceContext {
    *  per-card maxCardPrice cap — a swap's net price delta must not push the
    *  deck's real total over this. Null when no total-deck budget is set. */
   deckBudget: number | null;
+  /** The deck's planned non-land type distribution (typeTargets from
+   *  calculateTargetCounts) — E112/E113 coordination fix: feeds
+   *  wipeQualityPenalty's own-board collateral term so the boardwipe role's
+   *  eviction/replacement ranking judges wipe QUALITY (asymmetry +
+   *  collateral), not just raw EDHREC priority. Undefined is a safe no-op
+   *  (the collateral term drops out; the symmetric-vs-one-sided tier still
+   *  applies). */
+  deckTypeTargets?: Record<string, number>;
 }
 
 export interface RoleSurplusRebalanceResult {
@@ -264,7 +291,9 @@ export function applyRoleSurplusRebalance(
 
   const capOf = (role: RoleKey): number => {
     const target = roleTargets[role] ?? 0;
-    return target + roleCapTolerance(target);
+    return role === 'boardwipe'
+      ? target + BOARDWIPE_SURPLUS_TOLERANCE
+      : target + roleCapTolerance(target);
   };
   const isOverCap = (role: RoleKey): boolean => {
     const target = roleTargets[role] ?? 0;
@@ -374,14 +403,27 @@ export function applyRoleSurplusRebalance(
   // the Eldrazi got cut). Folding in liftScoreOf also protects a card whose
   // regex tagger role reads reactive but is actually a live payoff (Krenko's
   // Warstorm Surge, tagged 'removal', lift-connected to the goblin cluster).
+  // E112/E113 coordination fix: for the boardwipe role specifically, fold in
+  // wipeQualityPenalty (asymmetry + own-board collateral) so a symmetric or
+  // high-collateral wipe scores as the WORST card to keep even when its raw
+  // EDHREC priority is high — otherwise this survival score is priority-only
+  // and a low-priority-but-deck-appropriate wipe (Wrath of God for an
+  // enchantress deck) gets evicted ahead of a higher-priority but
+  // self-nuking one (Farewell/Austere Command), the exact opposite of what
+  // E112 exists to prevent. See cardPicking.ts's wipeQualityPenalty doc for
+  // why this is a dominant term, not a capped nudge.
   const survivalScoreOf = (
-    name: string,
+    card: ScryfallCard,
     role: RoleKey,
     liftBoosts: Map<string, number>
   ): number => {
-    const ec = poolByName.get(name);
+    const ec = poolByName.get(card.name);
     const priority = ec ? calculateCardPriority(ec) : (roleAverageInclusion.get(role) ?? 0);
-    return priority + (liftBoosts.get(name) ?? 0);
+    const quality =
+      role === 'boardwipe'
+        ? wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
+        : 0;
+    return priority + (liftBoosts.get(card.name) ?? 0) - quality;
   };
 
   // Best pool candidate clearing every hard gate the pick-time path enforces
@@ -411,8 +453,22 @@ export function applyRoleSurplusRebalance(
       eligible.map((c) => c.name),
       ctx.liftScoreOf
     );
+    // E112/E113 coordination fix: the SAME wipeQualityPenalty survivalScoreOf
+    // applies above also has to govern which REPLACEMENT candidate wins a
+    // boardwipe slot — otherwise a symmetric/high-collateral wipe can still
+    // win re-entry here on raw priority alone even after a worse one was
+    // just evicted for exactly that reason (this is the "pick-time swap"
+    // shape of the krenko regression: Vandalblast evicted, a higher-
+    // inclusion but self-nuking symmetric wipe seated in its place).
     const ranked = eligible
-      .map((ec) => ({ ec, score: calculateCardPriority(ec) + (liftBoosts.get(ec.name) ?? 0) }))
+      .map((ec) => {
+        const role = getCardRole(ec.name);
+        const scryfallCard = role === 'boardwipe' ? ctx.scryfallCardMap.get(ec.name) : undefined;
+        const quality = scryfallCard
+          ? wipeQualityPenalty(scryfallCard, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
+          : 0;
+        return { ec, score: calculateCardPriority(ec) + (liftBoosts.get(ec.name) ?? 0) - quality };
+      })
       .sort((a, b) => b.score - a.score);
 
     for (const { ec, score } of ranked) {
@@ -496,7 +552,7 @@ export function applyRoleSurplusRebalance(
       ctx.liftScoreOf
     );
     const scored = evictable
-      .map((e) => ({ ...e, survival: survivalScoreOf(e.card.name, e.role, liftBoosts) }))
+      .map((e) => ({ ...e, survival: survivalScoreOf(e.card, e.role, liftBoosts) }))
       .sort((a, b) => Number(b.nonbo) - Number(a.nonbo) || a.survival - b.survival);
 
     for (const candidate of scored) {

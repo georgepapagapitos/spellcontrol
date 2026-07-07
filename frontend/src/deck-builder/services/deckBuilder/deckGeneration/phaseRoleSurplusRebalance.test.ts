@@ -5,6 +5,26 @@ import type { RoleKey } from '@/deck-builder/services/tagger/client';
 // Deterministic role signals — individual tests set `ROLE_OF` per case rather
 // than depending on real tagger/bundled JSON data.
 const ROLE_OF = new Map<string, RoleKey>();
+// E112/E113 coordination fix: same deterministic-mock shape as ROLE_OF/
+// NONBO_FLAGGED — individual tests set which names are one-sided and what
+// scope they carry, rather than depending on real oracle text (that's
+// tagger/client.test.ts's job).
+const ONE_SIDED_WIPE_NAMES = new Set<string>();
+interface MockWipeScope {
+  creatures: boolean;
+  artifacts: boolean;
+  enchantments: boolean;
+  planeswalkers: boolean;
+  all: boolean;
+}
+const EMPTY_WIPE_SCOPE: MockWipeScope = {
+  creatures: false,
+  artifacts: false,
+  enchantments: false,
+  planeswalkers: false,
+  all: false,
+};
+const WIPE_SCOPE_OF = new Map<string, MockWipeScope>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
@@ -16,6 +36,8 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   // false, overridden per-test via mockReturnValueOnce where protection
   // behavior itself is under test (mirrors phaseCoherenceRepair.test.ts).
   isProtectionPiece: vi.fn(() => false),
+  isOneSidedWipe: vi.fn((card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name)),
+  getWipeScope: vi.fn((card: { name: string }) => WIPE_SCOPE_OF.get(card.name) ?? EMPTY_WIPE_SCOPE),
 }));
 
 vi.mock('../categorize', async (importOriginal) => {
@@ -186,10 +208,27 @@ function addRampCards(state: GenerationState, count: number, prefix = 'Ramp'): S
   return cards;
 }
 
+function addBoardWipes(
+  state: GenerationState,
+  specs: Array<{ name: string; oneSided?: boolean; scope?: Partial<MockWipeScope> }>
+): ScryfallCard[] {
+  return specs.map((s) => {
+    const c = scryfallCard(s.name, { type_line: 'Sorcery' });
+    ROLE_OF.set(s.name, 'boardwipe');
+    if (s.oneSided) ONE_SIDED_WIPE_NAMES.add(s.name);
+    if (s.scope) WIPE_SCOPE_OF.set(s.name, { ...EMPTY_WIPE_SCOPE, ...s.scope });
+    state.usedNames.add(s.name);
+    state.categories.boardWipes.push(c);
+    return c;
+  });
+}
+
 describe('applyRoleSurplusRebalance', () => {
   beforeEach(() => {
     ROLE_OF.clear();
     NONBO_FLAGGED.clear();
+    ONE_SIDED_WIPE_NAMES.clear();
+    WIPE_SCOPE_OF.clear();
   });
 
   it('is a no-op when no role target is set', () => {
@@ -228,6 +267,41 @@ describe('applyRoleSurplusRebalance', () => {
     // Exactly evicted down to cap (7), not to target (5).
     const remainingRamp = state.categories.synergy.filter((c) => ROLE_OF.get(c.name) === 'ramp');
     expect(remainingRamp).toHaveLength(7);
+  });
+
+  // E112/E113 coordination fix: when the boardwipe role is rationed, the wipes
+  // that SURVIVE must be the low-collateral / one-sided ones — not whichever
+  // has the highest raw EDHREC priority. Before this fix, E113's count-cut
+  // evicted by priority alone and cut the deck-appropriate wipe (sythis lost
+  // Wrath while keeping Farewell+Austere; krenko swapped one-sided Vandalblast
+  // for symmetric Chain Reaction). survivalScoreOf now subtracts
+  // wipeQualityPenalty for the boardwipe role, so a symmetric/high-collateral
+  // wipe is the first evicted even when its priority is highest.
+  it('E112/E113: evicts the high-collateral symmetric wipe first, keeping the one-sided and low-collateral ones', () => {
+    const state = makeState();
+    // boardwipe target 1 -> BOARDWIPE_SURPLUS_TOLERANCE 1 -> cap 2; three wipes = 1 over.
+    addBoardWipes(state, [
+      { name: 'Ruinous Ultimatum', oneSided: true }, // penalty 0 -> KEEP (best wipe)
+      { name: 'Wrath of God', scope: { creatures: true } }, // symmetric, 0 non-creature collateral -> KEEP
+      { name: 'Farewell', scope: { creatures: true, artifacts: true, enchantments: true } }, // symmetric + own-board collateral -> EVICT
+    ]);
+    state.edhrecData = {
+      cardlists: { allNonLand: [edhrecCard('Payoff A', 90)] },
+    } as unknown as GenerationState['edhrecData'];
+    // Enchantment-heavy own board so Farewell's collateral term bites.
+    const deckTypeTargets = { creature: 10, artifact: 5, enchantment: 20, instant: 5, sorcery: 5 };
+    const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+    const result = applyRoleSurplusRebalance(
+      state,
+      makeCtx(state, { roleTargets, deckTypeTargets })
+    );
+
+    // Exactly one wipe evicted (down to cap 2 = target + 1), and it's the high-collateral modal one.
+    expect(result.conversions).toHaveLength(1);
+    expect(result.conversions[0].cut).toBe('Farewell');
+    expect(state.usedNames.has('Farewell')).toBe(false);
+    expect(state.usedNames.has('Ruinous Ultimatum')).toBe(true);
+    expect(state.usedNames.has('Wrath of God')).toBe(true);
   });
 
   // E87: an earlier-run coherence repair marks its cut card's name into
@@ -939,6 +1013,71 @@ describe('applyRoleSurplusRebalance', () => {
       expect(result.conversions).toHaveLength(1);
       expect(result.conversions[0].cut).toBe('Whisper of the Dross');
       expect(state.usedNames.has('Path to Exile')).toBe(true);
+    });
+  });
+
+  // E112/E113: board wipes get a tighter surplus band (cap = target + 1) than
+  // every other reactive role's generic max(2, 20%). The tightening lives ONLY
+  // in this post-fill pass (BOARDWIPE_SURPLUS_TOLERANCE), not at pick time, so
+  // the deck-appropriate low-inclusion wipes get picked and the quality-aware
+  // survival score below chooses which survive. Cap is target+1, NOT target:
+  // trimming to exactly target pushed at-target decks under their own wipe
+  // target in iter-15 r3 (atraxa 3/3, meren 2/1). Panel evidence: sythis 4/2,
+  // isshin 3/1 carried genuine target+2 piles the critics flagged.
+  describe('boardwipe overshoot cap (E112/E113)', () => {
+    function addWipeCards(state: GenerationState, count: number, prefix = 'Wipe'): ScryfallCard[] {
+      const cards = Array.from({ length: count }, (_, i) => scryfallCard(`${prefix}_${i + 1}`));
+      for (const c of cards) {
+        ROLE_OF.set(c.name, 'boardwipe');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...cards);
+      return cards;
+    }
+
+    it('trims a target+2 wipe overshoot down to target+1', () => {
+      const state = makeState();
+      addWipeCards(state, 5); // target 3 -> cap 4 (tol 1) -> 1 over
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Wipe Payoff', 90)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 3, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      expect(remainingWipes).toHaveLength(4); // target + 1
+    });
+
+    it('trims down to target+1, never below (a bigger overshoot)', () => {
+      const state = makeState();
+      addWipeCards(state, 4); // target 1 -> cap 2 (tol 1) -> 2 over
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Wipe Payoff 1', 90), edhrecCard('Wipe Payoff 2', 85)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(2);
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      expect(remainingWipes).toHaveLength(2); // target + 1, never below
+    });
+
+    it('is an exact no-op when the wipe count is already at target+1 (leaves at-target decks alone)', () => {
+      const state = makeState();
+      addWipeCards(state, 4); // target 3 -> cap 4, exactly at cap (not over)
+      const before = state.categories.synergy;
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 3, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toEqual([]);
+      expect(state.categories.synergy).toBe(before);
     });
   });
 });
