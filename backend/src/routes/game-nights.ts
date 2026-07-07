@@ -9,6 +9,7 @@ import {
   gameNightOptions,
   gameNightRsvps,
   gameNights,
+  gameNightSeries,
   type GameNightRow,
 } from '../db/schema';
 import { areFriends } from '../friends/relations';
@@ -235,6 +236,169 @@ function nightClosedError(night: GameNightRow): string | null {
   return null;
 }
 
+/** Validated 2–5 distinct candidate slots for a date poll, or an error string. */
+function cleanOptionSlots(raw: unknown): number[] | string {
+  if (!Array.isArray(raw) || raw.some((x) => !isValidStartsAt(x))) {
+    return 'options must be an array of epoch-ms timestamps.';
+  }
+  const slots = raw as number[];
+  if (new Set(slots).size !== slots.length) {
+    return 'options must be distinct times.';
+  }
+  if (slots.length < MIN_OPTIONS || slots.length > MAX_HOST_OPTIONS) {
+    return `Give ${MIN_OPTIONS}–${MAX_HOST_OPTIONS} candidate times to vote on.`;
+  }
+  return slots;
+}
+
+/** Recurring-series details attached to an occurrence's view (E125). */
+interface SeriesInfo {
+  id: string;
+  token: string;
+  endedAt: number | null;
+}
+
+async function seriesInfoOf(night: GameNightRow): Promise<SeriesInfo | null> {
+  if (night.seriesId === null) return null;
+  const rows = await getDb()
+    .select()
+    .from(gameNightSeries)
+    .where(eq(gameNightSeries.id, night.seriesId))
+    .limit(1);
+  return rows.length > 0
+    ? { id: rows[0].id, token: rows[0].token, endedAt: rows[0].endedAt }
+    : null;
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * One week later, holding the wall-clock time steady in the given timezone —
+ * "every Tue 7pm" stays 7pm across a DST change instead of drifting an hour.
+ */
+export function plusWeek(t: number, timezone: string | null): number {
+  const naive = t + WEEK_MS;
+  if (!timezone) return naive;
+  try {
+    const minutesOfDay = (ms: number): number => {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+      }).formatToParts(ms);
+      const h = Number(parts.find((p) => p.type === 'hour')!.value) % 24;
+      const m = Number(parts.find((p) => p.type === 'minute')!.value);
+      return h * 60 + m;
+    };
+    let diff = minutesOfDay(t) - minutesOfDay(naive);
+    // The wall-clock delta is at most the DST hour; anything near ±24h is the
+    // same delta wrapped across midnight.
+    if (diff > 720) diff -= 1440;
+    if (diff < -720) diff += 1440;
+    return naive + diff * 60_000;
+  } catch {
+    return naive;
+  }
+}
+
+/**
+ * Lazy materialization (E125): make sure a live series has an upcoming,
+ * non-cancelled occurrence. The new night is a copy of the series' *latest*
+ * night — title, place, notes, timezone, and the invite list all carry
+ * forward, so the latest occurrence IS the template and editing this week's
+ * night is how the template evolves. Steps a week at a time past unmaterialized
+ * weeks and cancelled ("skipped") slots; the unique (series_id, starts_at)
+ * index makes concurrent calls collapse into one row.
+ */
+async function ensureNextOccurrence(seriesId: string): Promise<void> {
+  const pool = getPool();
+  // Each pass inserts a slot or steps past a cancelled one; 8 outlasts any
+  // realistic chain of consecutively skipped weeks.
+  for (let pass = 0; pass < 8; pass++) {
+    const latestRes = await pool.query<{
+      id: string;
+      host_user_id: string;
+      title: string;
+      starts_at: string;
+      timezone: string | null;
+      location: string | null;
+      notes: string | null;
+      cancelled_at: string | null;
+    }>(
+      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at
+         FROM game_nights WHERE series_id = $1 ORDER BY starts_at DESC LIMIT 1`,
+      [seriesId]
+    );
+    if (latestRes.rows.length === 0) return; // a series is always created with its first night
+    const latest = latestRes.rows[0];
+    const now = Date.now();
+    if (Number(latest.starts_at) > now && latest.cancelled_at === null) return;
+    let t = Number(latest.starts_at);
+    do {
+      t = plusWeek(t, latest.timezone);
+    } while (t <= now);
+    const inserted = await pool.query<{ id: string }>(
+      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10)
+       ON CONFLICT (series_id, starts_at) WHERE series_id IS NOT NULL DO NOTHING
+       RETURNING id`,
+      [
+        crypto.randomUUID(),
+        newToken(),
+        latest.host_user_id,
+        latest.title,
+        t,
+        latest.timezone,
+        latest.location,
+        latest.notes,
+        now,
+        seriesId,
+      ]
+    );
+    if (inserted.rows.length === 0) continue; // slot already exists (race, or cancelled) — re-read
+    const nightId = inserted.rows[0].id;
+    // The standing invite list carries forward from the latest occurrence.
+    await pool.query(
+      `INSERT INTO game_night_invites (night_id, user_id, created_at)
+       SELECT $1, user_id, $2 FROM game_night_invites WHERE night_id = $3`,
+      [nightId, now, latest.id]
+    );
+    // The host is going by definition, same as a hand-created night.
+    const host = await pool.query<{ username: string }>(
+      `SELECT username FROM users WHERE id = $1`,
+      [latest.host_user_id]
+    );
+    await pool.query(
+      `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'going', $5, $5)`,
+      [crypto.randomUUID(), nightId, latest.host_user_id, host.rows[0].username, now]
+    );
+    return;
+  }
+}
+
+/**
+ * The night a series link points at right now: the soonest upcoming
+ * non-cancelled occurrence, falling back to the latest occurrence (so an
+ * ended or fully skipped series still resolves — the pinned link never dies).
+ */
+async function resolveSeriesNight(seriesId: string): Promise<{ token: string } | null> {
+  const pool = getPool();
+  const upcoming = await pool.query<{ token: string }>(
+    `SELECT token FROM game_nights
+      WHERE series_id = $1 AND starts_at > $2 AND cancelled_at IS NULL
+      ORDER BY starts_at ASC LIMIT 1`,
+    [seriesId, Date.now()]
+  );
+  if (upcoming.rows.length > 0) return upcoming.rows[0];
+  const latest = await pool.query<{ token: string }>(
+    `SELECT token FROM game_nights WHERE series_id = $1 ORDER BY starts_at DESC LIMIT 1`,
+    [seriesId]
+  );
+  return latest.rows[0] ?? null;
+}
+
 interface NightView {
   id: string;
   token: string;
@@ -253,6 +417,8 @@ interface NightView {
   awaiting: string[];
   /** Candidate date slots while polling; empty once a date is locked in. */
   options: OptionView[];
+  /** The weekly series this night belongs to; null for a one-off night. */
+  series: SeriesInfo | null;
 }
 
 /** Load rsvps + unanswered invites for a set of nights, keyed by night id. */
@@ -310,7 +476,8 @@ function toNightView(
   viewerId: string,
   rsvps: Array<{ userId: string | null; displayName: string; status: RsvpStatus }>,
   awaiting: string[],
-  options: LoadedOption[]
+  options: LoadedOption[],
+  series: SeriesInfo | null
 ): NightView {
   const mine = rsvps.find((r) => r.userId === viewerId);
   return {
@@ -333,6 +500,7 @@ function toNightView(
     })),
     awaiting,
     options: toOptionViews(options, (v) => v.userId === viewerId),
+    series,
   };
 }
 
@@ -370,22 +538,21 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   }
   let optionSlots: number[] = [];
   if (body.options !== undefined) {
-    const raw = body.options;
-    if (!Array.isArray(raw) || raw.some((x) => !isValidStartsAt(x))) {
-      return res.status(400).json({ error: 'options must be an array of epoch-ms timestamps.' });
+    const cleaned = cleanOptionSlots(body.options);
+    if (typeof cleaned === 'string') {
+      return res.status(400).json({ error: cleaned });
     }
-    optionSlots = raw as number[];
-    if (new Set(optionSlots).size !== optionSlots.length) {
-      return res.status(400).json({ error: 'options must be distinct times.' });
-    }
-    if (optionSlots.length < MIN_OPTIONS || optionSlots.length > MAX_HOST_OPTIONS) {
-      return res.status(400).json({
-        error: `Give ${MIN_OPTIONS}–${MAX_HOST_OPTIONS} candidate times to vote on.`,
-      });
-    }
+    optionSlots = cleaned;
   }
   if (optionSlots.length === 0 && !isValidStartsAt(body.startsAt)) {
     return res.status(400).json({ error: 'startsAt must be a valid epoch-ms timestamp.' });
+  }
+  // A weekly series (E125) needs a set date to step from — a date poll decides
+  // one occurrence, not the cadence.
+  if (body.repeatsWeekly === true && optionSlots.length > 0) {
+    return res
+      .status(400)
+      .json({ error: 'A weekly night needs a set date — you can vote on a single night instead.' });
   }
   const location = cleanOptional(body.location, LOCATION_MAX) ?? null;
   const notes = cleanOptional(body.notes, NOTES_MAX) ?? null;
@@ -396,6 +563,18 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   }
 
   const now = Date.now();
+  const db = getDb();
+  let series: SeriesInfo | null = null;
+  if (body.repeatsWeekly === true) {
+    series = { id: crypto.randomUUID(), token: newToken(), endedAt: null };
+    await db.insert(gameNightSeries).values({
+      id: series.id,
+      token: series.token,
+      hostUserId: req.user!.id,
+      createdAt: now,
+      endedAt: null,
+    });
+  }
   const night = {
     id: crypto.randomUUID(),
     token: newToken(),
@@ -407,8 +586,8 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     notes,
     createdAt: now,
     cancelledAt: null,
+    seriesId: series?.id ?? null,
   };
-  const db = getDb();
   await db.insert(gameNights).values(night);
   if (optionSlots.length > 0) {
     await db.insert(gameNightOptions).values(
@@ -446,7 +625,8 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       req.user!.id,
       rsvpsByNight.get(night.id) ?? [],
       awaitingByNight.get(night.id) ?? [],
-      optionsByNight.get(night.id) ?? []
+      optionsByNight.get(night.id) ?? [],
+      series
     ),
   });
 });
@@ -458,6 +638,24 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
  */
 gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
   const pool = getPool();
+  // Lazy materialization (E125): before listing, make sure every live series
+  // the caller is part of has its next occurrence — reading the list is the
+  // trigger, no cron. A user's series count is tiny, so N small queries is fine.
+  const liveSeries = await pool.query<{ id: string }>(
+    `SELECT s.id FROM game_night_series s
+      WHERE s.ended_at IS NULL
+        AND (s.host_user_id = $1
+          OR EXISTS (SELECT 1 FROM game_nights n
+                       JOIN game_night_invites i ON i.night_id = n.id
+                      WHERE n.series_id = s.id AND i.user_id = $1)
+          OR EXISTS (SELECT 1 FROM game_nights n
+                       JOIN game_night_rsvps r ON r.night_id = n.id
+                      WHERE n.series_id = s.id AND r.user_id = $1))`,
+    [req.user!.id]
+  );
+  for (const s of liveSeries.rows) {
+    await ensureNextOccurrence(s.id);
+  }
   const rows = await pool.query<{
     id: string;
     token: string;
@@ -469,11 +667,15 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     notes: string | null;
     created_at: string;
     cancelled_at: string | null;
+    series_id: string | null;
     host_username: string;
+    series_token: string | null;
+    series_ended_at: string | null;
   }>(
-    `SELECT n.*, u.username AS host_username
+    `SELECT n.*, u.username AS host_username, s.token AS series_token, s.ended_at AS series_ended_at
        FROM game_nights n
        JOIN users u ON u.id = n.host_user_id
+       LEFT JOIN game_night_series s ON s.id = n.series_id
       WHERE n.starts_at >= $2
         AND (n.host_user_id = $1
           OR EXISTS (SELECT 1 FROM game_night_invites i
@@ -498,12 +700,20 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
         notes: r.notes,
         createdAt: Number(r.created_at),
         cancelledAt: r.cancelled_at === null ? null : Number(r.cancelled_at),
+        seriesId: r.series_id,
       },
       r.host_username,
       req.user!.id,
       rsvpsByNight.get(r.id) ?? [],
       awaitingByNight.get(r.id) ?? [],
-      optionsByNight.get(r.id) ?? []
+      optionsByNight.get(r.id) ?? [],
+      r.series_id === null || r.series_token === null
+        ? null
+        : {
+            id: r.series_id,
+            token: r.series_token,
+            endedAt: r.series_ended_at === null ? null : Number(r.series_ended_at),
+          }
     )
   );
   res.json({ nights });
@@ -579,7 +789,8 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
       req.user!.id,
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
-      nightOptions
+      nightOptions,
+      await seriesInfoOf(night)
     ),
   });
 });
@@ -627,10 +838,124 @@ gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Respon
       req.user!.id,
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
-      []
+      [],
+      await seriesInfoOf(night)
     ),
   });
 });
+
+/**
+ * Open a date vote on an existing night (host only) — E124's poll attached
+ * after creation, so a series occurrence (or any scheduled night) can ask
+ * "should we move this one?". Everything downstream — voting, suggesting,
+ * lock-in — is the existing poll machinery untouched.
+ */
+gameNightsRouter.post('/:id/poll', requireAuth, async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : '';
+  const db = getDb();
+  const found = await db
+    .select()
+    .from(gameNights)
+    .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+    .limit(1);
+  if (found.length === 0) {
+    return res.status(404).json({ error: 'Game night not found.' });
+  }
+  const night = found[0];
+  const closed = nightClosedError(night);
+  if (closed) {
+    return res.status(400).json({ error: closed });
+  }
+  if (((await loadNightOptions([id])).get(id) ?? []).length > 0) {
+    return res.status(400).json({ error: 'This night is already voting on a date.' });
+  }
+  const cleaned = cleanOptionSlots((req.body as Record<string, unknown>).options);
+  if (typeof cleaned === 'string') {
+    return res.status(400).json({ error: cleaned });
+  }
+  const now = Date.now();
+  await db.insert(gameNightOptions).values(
+    cleaned.map((startsAt) => ({
+      id: crypto.randomUUID(),
+      nightId: id,
+      startsAt,
+      proposedBy: null,
+      createdAt: now,
+    }))
+  );
+  // The polling invariant: while voting, startsAt mirrors the latest candidate.
+  const startsAt = Math.max(...cleaned);
+  await getPool().query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
+
+  const { rsvpsByNight, awaitingByNight } = await loadNightDetails([id]);
+  res.status(201).json({
+    night: toNightView(
+      { ...night, startsAt },
+      req.user!.username,
+      req.user!.id,
+      rsvpsByNight.get(id) ?? [],
+      awaitingByNight.get(id) ?? [],
+      (await loadNightOptions([id])).get(id) ?? [],
+      await seriesInfoOf(night)
+    ),
+  });
+});
+
+/**
+ * Stop a series repeating (host only). Existing occurrences — including the
+ * already-materialized upcoming one — stay as plain nights; the series link
+ * keeps resolving to the latest of them instead of going dead.
+ */
+gameNightsRouter.delete('/series/:id', requireAuth, async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : '';
+  const updated = await getDb()
+    .update(gameNightSeries)
+    .set({ endedAt: Date.now() })
+    .where(
+      and(
+        eq(gameNightSeries.id, id),
+        eq(gameNightSeries.hostUserId, req.user!.id),
+        isNull(gameNightSeries.endedAt)
+      )
+    )
+    .returning({ id: gameNightSeries.id });
+  if (updated.length === 0) {
+    // Non-host gets the same 404 as a bad id — don't confirm the series exists.
+    return res.status(404).json({ error: 'Series not found.' });
+  }
+  res.status(204).end();
+});
+
+/**
+ * Resolve a stable series link (E125) to the night it currently points at —
+ * the pinnable /gn/s/:token URL. Reading it materializes the next occurrence
+ * when one is due, so a pinned link stays fresh even if the host never opens
+ * the app. Token contract mirrors nights: unknown 404s; an ended series stays
+ * resolvable to its last night.
+ */
+gameNightsRouter.get(
+  '/public/series/:token',
+  publicLimiter,
+  async (req: Request, res: Response) => {
+    const token = typeof req.params.token === 'string' ? req.params.token : '';
+    const rows = await getPool().query<{ id: string; ended_at: string | null }>(
+      `SELECT id, ended_at FROM game_night_series WHERE token = $1`,
+      [token]
+    );
+    if (rows.rows.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const series = rows.rows[0];
+    if (series.ended_at === null) {
+      await ensureNextOccurrence(series.id);
+    }
+    const night = await resolveSeriesNight(series.id);
+    if (!night) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    res.json({ nightToken: night.token });
+  }
+);
 
 /** Cancel a night (host only). The link keeps working and shows the cancelled state. */
 gameNightsRouter.delete('/:id', requireAuth, async (req: Request, res: Response) => {
@@ -655,7 +980,7 @@ gameNightsRouter.delete('/:id', requireAuth, async (req: Request, res: Response)
 
 async function findNightByToken(
   token: string
-): Promise<{ night: GameNightRow; hostUsername: string } | null> {
+): Promise<{ night: GameNightRow; hostUsername: string; series: SeriesInfo | null } | null> {
   const pool = getPool();
   const rows = await pool.query<{
     id: string;
@@ -668,10 +993,15 @@ async function findNightByToken(
     notes: string | null;
     created_at: string;
     cancelled_at: string | null;
+    series_id: string | null;
     host_username: string;
+    series_token: string | null;
+    series_ended_at: string | null;
   }>(
-    `SELECT n.*, u.username AS host_username
-       FROM game_nights n JOIN users u ON u.id = n.host_user_id
+    `SELECT n.*, u.username AS host_username, s.token AS series_token, s.ended_at AS series_ended_at
+       FROM game_nights n
+       JOIN users u ON u.id = n.host_user_id
+       LEFT JOIN game_night_series s ON s.id = n.series_id
       WHERE n.token = $1`,
     [token]
   );
@@ -689,8 +1019,17 @@ async function findNightByToken(
       notes: r.notes,
       createdAt: Number(r.created_at),
       cancelledAt: r.cancelled_at === null ? null : Number(r.cancelled_at),
+      seriesId: r.series_id,
     },
     hostUsername: r.host_username,
+    series:
+      r.series_id === null || r.series_token === null
+        ? null
+        : {
+            id: r.series_id,
+            token: r.series_token,
+            endedAt: r.series_ended_at === null ? null : Number(r.series_ended_at),
+          },
   };
 }
 
@@ -711,7 +1050,7 @@ gameNightsRouter.get(
     if (!found) {
       return res.status(404).json({ error: 'Game night not found.' });
     }
-    const { night, hostUsername } = found;
+    const { night, hostUsername, series } = found;
     const db = getDb();
     const rsvps = await db
       .select()
@@ -739,6 +1078,7 @@ gameNightsRouter.get(
         notes: night.notes,
         cancelledAt: night.cancelledAt,
         hostUsername,
+        series,
       },
       rsvps: rsvps.map((r) => ({
         displayName: r.displayName,
@@ -1016,5 +1356,33 @@ export async function lookupGameNightLandingMeta(token: string): Promise<ShareLa
     title: `${night.title} — hosted by ${hostUsername}`,
     description,
     url: `${ORIGIN}/gn/${token}`,
+  };
+}
+
+/**
+ * OG/Twitter unfurl for the stable series link `/gn/s/:token` — the current
+ * occurrence's unfurl marked as weekly. Scraper reads materialize the next
+ * occurrence too (idempotent), so a pinned link unfurls this week's night.
+ */
+export async function lookupGameNightSeriesLandingMeta(
+  token: string
+): Promise<ShareLandingMeta | null> {
+  const rows = await getPool().query<{ id: string; ended_at: string | null }>(
+    `SELECT id, ended_at FROM game_night_series WHERE token = $1`,
+    [token]
+  );
+  if (rows.rows.length === 0) return null;
+  const series = rows.rows[0];
+  if (series.ended_at === null) {
+    await ensureNextOccurrence(series.id);
+  }
+  const night = await resolveSeriesNight(series.id);
+  if (!night) return null;
+  const meta = await lookupGameNightLandingMeta(night.token);
+  if (!meta) return null;
+  return {
+    ...meta,
+    description: `Repeats weekly. ${meta.description}`,
+    url: `${ORIGIN}/gn/s/${token}`,
   };
 }

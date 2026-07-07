@@ -298,6 +298,20 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (option_id, rsvp_id)
     );
     CREATE INDEX IF NOT EXISTS game_night_votes_rsvp_idx ON game_night_votes(rsvp_id);
+    -- Weekly recurring series (E125). Template-free: the next occurrence is a
+    -- copy of the series' latest night, one week later. ended_at = "stop
+    -- repeating"; existing occurrences remain plain nights.
+    CREATE TABLE IF NOT EXISTS game_night_series (
+      id TEXT PRIMARY KEY,
+      token TEXT NOT NULL UNIQUE,
+      host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      ended_at BIGINT
+    );
+    ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS series_id TEXT REFERENCES game_night_series(id) ON DELETE SET NULL;
+    -- One occurrence per series slot — makes lazy materialization race-safe.
+    CREATE UNIQUE INDEX IF NOT EXISTS game_nights_series_slot_idx
+      ON game_nights(series_id, starts_at) WHERE series_id IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
