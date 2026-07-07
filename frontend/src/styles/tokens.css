@@ -124,6 +124,13 @@
      Collection search row pins below, so the two stack flush. Single
      source of truth for both rules. */
   --hub-tabs-sticky-h: 2.9rem;
+  /* Height of the sticky Collection search row (.collection-toolbar-row).
+     A FIXED height, not padding-derived: the controls row pins directly
+     beneath at hub-tabs + this, so the offset arithmetic must be exact on
+     every platform (font metrics vary; a guessed height opened a gap on
+     Android). Anything added to that row must fit on one line — the
+     SearchPill shrinks; wrapping controls belong in the controls row. */
+  --collection-search-sticky-h: 3.8rem;
 
   /* ── Z-index scale ───────────────────────────────────────────────────── */
   --z-dropdown: 50;
@@ -226,4 +233,13 @@
      distinct from the deck-blue accent and the WUBRG set so a cube marker is
      never mistaken for a deck. Referenced as CUBE_BADGE_COLOR in allocations.ts. */
   --cube-color: #8b5cf6;
+}
+
+/* Phones (and short landscape viewports): tighter sticky search row so the
+   pinned chrome leaves room for content. Kept beside the base token — the
+   two values are one contract. */
+@media (max-width: 600px), (max-height: 480px) {
+  :root {
+    --collection-search-sticky-h: 3rem;
+  }
 }

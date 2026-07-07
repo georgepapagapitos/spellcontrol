@@ -496,6 +496,7 @@ export function CardListTable({
   const listContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const controlsRowRef = useRef<HTMLDivElement>(null);
+  const toolbarRowRef = useRef<HTMLDivElement>(null);
 
   // The window no longer scrolls — .app-main is the scroll container. The
   // virtualized list lives below the hero/search/toolbar inside it, so the
@@ -504,10 +505,24 @@ export function CardListTable({
   // wrappers are positioned and to toolbar reflow.
   const scrollEl = useScrollContainer();
   const [scrollMargin, setScrollMargin] = useState(0);
-  // Measured bottom of the controls row relative to the scroll container top —
-  // used as the `top` for the sticky section overlay so it sits flush below
-  // the full sticky chrome stack regardless of filter-chip row height.
+  // Measured bottom of the lowest pinned chrome bar relative to the scroll
+  // container top — used as the `top` for the sticky section overlay so it
+  // sits flush below the sticky stack regardless of filter-chip row height.
+  // On phones the controls row is not sticky (scrolls away; see
+  // collection.css), so the pin line falls back to the search row's bottom —
+  // hence the max() over both bars wherever this is measured.
   const [controlsBottom, setControlsBottom] = useState(0);
+  // Bottom edge of the lowest chrome bar still in view (viewport-relative,
+  // offset by the scrollport top). The max() picks the controls row while it
+  // is visible/pinned and the search row once the controls have scrolled away.
+  const chromeBottom = useCallback((scrollRectTop: number) => {
+    const ctrl = controlsRowRef.current;
+    const bar = toolbarRowRef.current;
+    return Math.max(
+      ctrl ? ctrl.getBoundingClientRect().bottom - scrollRectTop : 0,
+      bar ? bar.getBoundingClientRect().bottom - scrollRectTop : 0
+    );
+  }, []);
 
   // Global hotkeys while the table is mounted. We ignore key events when the
   // user is typing into an input/textarea/contenteditable so the shortcuts
@@ -913,11 +928,10 @@ export function CardListTable({
       const scrollRect = scrollEl.getBoundingClientRect();
       const top = el.getBoundingClientRect().top - scrollRect.top + scrollEl.scrollTop;
       setScrollMargin((prev) => (Math.abs(prev - top) > 0.5 ? top : prev));
-      // Measure controls row bottom so the overlay sits snug below it.
-      const ctrl = controlsRowRef.current;
-      if (ctrl) {
-        const ctrlBottom = ctrl.getBoundingClientRect().bottom - scrollRect.top;
-        setControlsBottom((prev) => (Math.abs(prev - ctrlBottom) > 0.5 ? ctrlBottom : prev));
+      // Measure the pinned chrome's bottom so the overlay sits snug below it.
+      const bottom = chromeBottom(scrollRect.top);
+      if (bottom > 0) {
+        setControlsBottom((prev) => (Math.abs(prev - bottom) > 0.5 ? bottom : prev));
       }
     };
     measure();
@@ -928,7 +942,7 @@ export function CardListTable({
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [scrollEl, view, gridCols, sorted.length]);
+  }, [scrollEl, view, gridCols, sorted.length, chromeBottom]);
 
   // Header rows are short; card rows fall back to the per-view estimate. Exact
   // heights still come from measureElement, so the estimate only seeds layout.
@@ -1027,20 +1041,21 @@ export function CardListTable({
       return;
     }
     const onScroll = () => {
-      // The pin line is the bottom of the sticky chrome stack (search +
-      // controls), measured live so it tracks the full stack height — not the
-      // overlay's own height. A section becomes active the moment its header
-      // reaches that line; using OVERLAY_H here instead left a dead zone where
-      // the header had slid up behind the taller controls but the overlay had
+      // The pin line is the bottom of the lowest chrome bar still in view,
+      // measured live so it tracks the full stack height — not the overlay's
+      // own height. A section becomes active the moment its header reaches
+      // that line; using OVERLAY_H here instead left a dead zone where the
+      // header had slid up behind the taller controls but the overlay had
       // not yet appeared. Re-measured here (vs the scrollTop-0 layout effect)
-      // because only once scrolled are the controls actually pinned.
-      const ctrl = controlsRowRef.current;
-      let pin = controlsBottom;
-      if (ctrl) {
-        pin = ctrl.getBoundingClientRect().bottom - scrollEl.getBoundingClientRect().top;
+      // because only once scrolled is the chrome actually pinned. On phones
+      // the controls row is not sticky, so once it scrolls away chromeBottom
+      // hands the pin line to the search row.
+      let pin = chromeBottom(scrollEl.getBoundingClientRect().top);
+      if (pin > 0) {
         setControlsBottom((prev) => (Math.abs(prev - pin) > 0.5 ? pin : prev));
+      } else {
+        pin = OVERLAY_H; // fallback while the chrome rows aren't mounted
       }
-      if (pin <= 0) pin = OVERLAY_H; // fallback before the first measurement
       const raw = scrollEl.scrollTop - scrollMargin + pin;
       let active = -1;
       for (let i = 0; i < boundaries.length; i++) {
@@ -1053,7 +1068,7 @@ export function CardListTable({
     // Run once immediately to sync with current scroll position.
     onScroll();
     return () => scrollEl.removeEventListener('scroll', onScroll);
-  }, [scrollEl, groupKey, boundaries, scrollMargin]);
+  }, [scrollEl, groupKey, boundaries, scrollMargin, chromeBottom]);
 
   // Reset when grouping is turned off.
   useEffect(() => {
@@ -1666,7 +1681,7 @@ export function CardListTable({
           Search + filter icon only; totals and Stats sit in the
           secondary row below so this bar stays compact across every
           breakpoint. */}
-      <div className="collection-toolbar-row">
+      <div ref={toolbarRowRef} className="collection-toolbar-row">
         <SearchPill
           value={search}
           onChange={setSearch}
