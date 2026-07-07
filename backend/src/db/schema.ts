@@ -258,6 +258,81 @@ export const shares = pgTable(
 );
 
 /**
+ * Scheduled game nights (E123). A night is a *scheduling* artifact — date,
+ * place, who's coming — separate from `game_sessions` (the live authed game).
+ * The unguessable `token` powers the public no-account RSVP page (`/gn/:token`),
+ * mirroring the shares token contract: unknown and revoked (cancelled nights
+ * stay readable so the page can say "cancelled") — only unknown tokens 404.
+ */
+export const gameNights = pgTable(
+  'game_nights',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull().unique(),
+    hostUserId: text('host_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    /** Epoch ms. Clients render in their own timezone. */
+    startsAt: bigint('starts_at', { mode: 'number' }).notNull(),
+    /** Host's IANA timezone at creation — lets the OG unfurl show the host-local time. */
+    timezone: text('timezone'),
+    location: text('location'),
+    notes: text('notes'),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    cancelledAt: bigint('cancelled_at', { mode: 'number' }),
+  },
+  (t) => ({
+    hostIdx: index('game_nights_host_idx').on(t.hostUserId),
+    startsIdx: index('game_nights_starts_idx').on(t.startsAt),
+  })
+);
+
+/** Friends the host invited to a night. Their RSVP (if any) lives in `game_night_rsvps`. */
+export const gameNightInvites = pgTable(
+  'game_night_invites',
+  {
+    nightId: text('night_id')
+      .notNull()
+      .references(() => gameNights.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.nightId, t.userId] }),
+    userIdx: index('game_night_invites_user_idx').on(t.userId),
+  })
+);
+
+/**
+ * RSVPs, from accounts and guests alike. Authed rows carry `userId` (one per
+ * user per night, enforced by a partial unique index); guest rows have a NULL
+ * `userId` and are edited by presenting the row `id`, which the RSVP endpoint
+ * returned to that guest (a bearer credential the client stores locally — the
+ * public read never exposes other people's row ids).
+ */
+export const gameNightRsvps = pgTable(
+  'game_night_rsvps',
+  {
+    id: text('id').primaryKey(),
+    nightId: text('night_id')
+      .notNull()
+      .references(() => gameNights.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    displayName: text('display_name').notNull(),
+    /** 'going' | 'maybe' | 'declined' */
+    status: text('status').notNull().$type<'going' | 'maybe' | 'declined'>(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    nightIdx: index('game_night_rsvps_night_idx').on(t.nightId),
+  })
+);
+
+/**
  * Friend relationships between users. Stored directionally: the sender is
  * `requester_id`, the recipient is `addressee_id`. Status is 'pending' until
  * the addressee accepts, then 'accepted'. Uniqueness across both orderings is
@@ -329,5 +404,8 @@ export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
+export type GameNightRow = typeof gameNights.$inferSelect;
+export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;
+export type GameNightRsvpRow = typeof gameNightRsvps.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
