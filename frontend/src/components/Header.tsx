@@ -1,4 +1,4 @@
-import { BookOpen, Settings } from 'lucide-react';
+import { BookOpen, Search, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
@@ -82,6 +82,16 @@ export function Header() {
               users see them wherever they are; the full indicator (with "Synced
               Nm ago") lives in the Settings Account card. Silence = synced. */}
           <HeaderSyncIndicator />
+          <NavLink
+            to="/search"
+            className={({ isActive }) =>
+              isActive ? 'site-nav-settings active' : 'site-nav-settings'
+            }
+            aria-label="Card search"
+          >
+            <Search width={18} height={18} strokeWidth={1.6} aria-hidden />
+            <span className="site-nav-settings-label">Search</span>
+          </NavLink>
           <button
             type="button"
             className="site-nav-settings"
