@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { BrandMark } from '../shared/BrandMark';
 import './SealBurst.css';
 
 /**
@@ -75,6 +76,9 @@ export function SealBurst({ colors }: { colors: string[] }) {
     <div className="seal-burst" aria-hidden="true">
       <span className="seal-burst-flare" />
       <span className="seal-burst-ring" />
+      {/* The brand grimoire blooms at the centre — the icon does the
+          celebrating; the sparks radiate from it in the deck's colours. */}
+      <BrandMark size={112} className="seal-burst-mark" aria-hidden />
       {motes.map((m, i) => (
         <span
           key={i}

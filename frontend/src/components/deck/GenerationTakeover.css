@@ -92,17 +92,6 @@
   min-height: 1.4em; /* prevent layout jump between messages */
 }
 
-/* Completion headline — swaps the mono step line for a serif payoff, tinted
-   the seal's brass so it reads as the same moment as the flare. */
-.gen-takeover-step--done {
-  font-family: var(--font-serif);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #f0c368;
-  text-shadow: 0 0 1.25rem color-mix(in srgb, #f0c368 55%, transparent);
-}
-
 /* ── Flavor line ───────────────────────────────────────────────────────── */
 .gen-takeover-flavor {
   margin: 0;

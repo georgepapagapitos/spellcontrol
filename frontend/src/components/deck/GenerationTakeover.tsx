@@ -339,9 +339,9 @@ export function GenerationTakeover({
               {commanderName}
             </p>
           )}
-          <p className={`gen-takeover-step${isFinishing ? ' gen-takeover-step--done' : ''}`}>
-            {isFinishing ? 'Your grimoire is complete.' : message}
-          </p>
+          {/* During the completion beat the build chatter clears — the
+              blooming brand mark + sparks carry the moment, not text. */}
+          <p className="gen-takeover-step">{isFinishing ? '' : message}</p>
           <p
             className={`gen-takeover-flavor${visible && !isFinishing ? '' : ' gen-takeover-flavor--hidden'}`}
             aria-hidden="true"

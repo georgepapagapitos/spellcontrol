@@ -16,10 +16,35 @@
 /* Anchor every child to the hero's centre. */
 .seal-burst-flare,
 .seal-burst-ring,
+.seal-burst-mark,
 .seal-burst-mote {
   position: absolute;
   top: 50%;
   left: 50%;
+}
+
+/* ── The brand grimoire — blooms in and holds, glowing brass. ─────────────── */
+.seal-burst-mark {
+  filter: drop-shadow(0 0 0.9rem color-mix(in srgb, #f0c368 80%, transparent));
+  animation: seal-burst-mark 900ms var(--ease-out-soft, ease-out) both;
+}
+
+@keyframes seal-burst-mark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.55) rotate(-6deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(0.98) rotate(0deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
 }
 
 /* ── The seal flare — a brass glow that swells and fades once. ─────────────── */
@@ -114,6 +139,7 @@
 
   .seal-burst-flare,
   .seal-burst-ring,
+  .seal-burst-mark,
   .seal-burst-mote {
     animation: none;
   }
