@@ -91,6 +91,13 @@ describe('matchesQuery', () => {
     expect(matchesQuery(nonLegendary, parseQuery('is:commander'))).toBe(false);
   });
 
+  it('is:gamechanger checks the isGameChanger flag', () => {
+    expect(matchesQuery(mkCard({ isGameChanger: true }), parseQuery('is:gamechanger'))).toBe(true);
+    expect(matchesQuery(mkCard({ isGameChanger: undefined }), parseQuery('is:gamechanger'))).toBe(
+      false
+    );
+  });
+
   it('f:format checks legalities map', () => {
     expect(matchesQuery(mkCard(), parseQuery('f:commander'))).toBe(true);
     expect(
