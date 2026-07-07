@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import type {
+  CoherenceRepair,
   DetectedCombo,
   ScryfallCard,
   DeckCategory,
@@ -61,6 +62,10 @@ export interface ComboFloorResult {
   seeded: boolean;
   /** Count of otherwise-eligible combo pieces skipped for exceeding budget. */
   budgetSkipped: number;
+  /** The swap this phase applied, in the same {cut, added, reason} shape every
+   *  sibling swap phase discloses (S2 — nothing moves silently). Null when no
+   *  combo was seeded. */
+  repair: CoherenceRepair | null;
 }
 
 /**
@@ -90,23 +95,23 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
   // Don't fire when the user has explicitly requested combos (the Combo
   // Integrity Audit already runs in that path).
   if (state.cfg.comboCountSetting > 0) {
-    return { detectedCombos, seeded: false, budgetSkipped: 0 };
+    return { detectedCombos, seeded: false, budgetSkipped: 0, repair: null };
   }
 
   // Respect bracket guardrail — brackets 1 & 2 are combo-free.
   if (!bracketAllowsCombos(targetBracket)) {
-    return { detectedCombos, seeded: false, budgetSkipped: 0 };
+    return { detectedCombos, seeded: false, budgetSkipped: 0, repair: null };
   }
 
   // Check whether the deck already has at least one complete 2-card combo.
   const hasComplete2Card = detectedCombos?.some((dc) => dc.isComplete && dc.cardCount <= 2);
   if (hasComplete2Card) {
-    return { detectedCombos, seeded: false, budgetSkipped: 0 };
+    return { detectedCombos, seeded: false, budgetSkipped: 0, repair: null };
   }
 
   // No combos to search from — bail early.
   if (state.combos.length === 0) {
-    return { detectedCombos, seeded: false, budgetSkipped: 0 };
+    return { detectedCombos, seeded: false, budgetSkipped: 0, repair: null };
   }
 
   // Build the current deck name set (commanders + category cards).
@@ -174,7 +179,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
 
   if (!best) {
     logger.debug('[DeckGen] Combo floor: no eligible 2-card combo found to seed');
-    return { detectedCombos, seeded: false, budgetSkipped };
+    return { detectedCombos, seeded: false, budgetSkipped, repair: null };
   }
 
   // Names that must never be evicted to make room for the seed: the pieces of
@@ -214,7 +219,7 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
   const evict = findWeakest();
   if (!evict) {
     logger.debug('[DeckGen] Combo floor: no evictable card found');
-    return { detectedCombos, seeded: false, budgetSkipped };
+    return { detectedCombos, seeded: false, budgetSkipped, repair: null };
   }
 
   // Perform the swap.
@@ -280,9 +285,15 @@ export function applyComboFloor(state: GenerationState, ctx: ComboFloorContext):
     updated.unshift(seededDetected);
   }
 
+  const producesText = best.combo.results.length > 0 ? ` (${best.combo.results.join(', ')})` : '';
   return {
     detectedCombos: updated.length > 0 ? updated : undefined,
     seeded: true,
     budgetSkipped,
+    repair: {
+      cut: evict.card.name,
+      added: best.missingCard.name,
+      reason: `Completes the ${best.combo.cards.map((p) => p.name).join(' + ')} combo${producesText}`,
+    },
   };
 }

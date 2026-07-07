@@ -63,6 +63,7 @@ import {
   PROTECTION_PIECE_BOOST,
   FREE_INTERACTION_BOOST,
   ROLE_SURPLUS_TRIM_PENALTY,
+  assembleCardProvenance,
 } from './deckGenerator';
 
 function sc(name: string): ScryfallCard {
@@ -1190,5 +1191,143 @@ describe('hasExilePayoffIdentity', () => {
 
   it('returns false for a text-less card', () => {
     expect(hasExilePayoffIdentity(sc('No-Text Card'))).toBe(false);
+  });
+});
+
+// ── assembleCardProvenance (S2 — per-card "why is this here") ──────────────
+
+describe('assembleCardProvenance', () => {
+  it('records a must-include reason, highest priority over every other signal', () => {
+    const card = { ...sc('Forced Pick'), isMustInclude: true, isStapleRock: true };
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: { 'Forced Pick': 40 },
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Forced Pick']).toBe('You required this card');
+  });
+
+  it('records a distinct reason for the combo-floor add, overriding EDHREC signal', () => {
+    const card = sc('Gravecrawler');
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: { Gravecrawler: 15 },
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: { name: 'Gravecrawler', reason: 'Completes the Gravecrawler + Altar combo' },
+      themeNames: [],
+    });
+    expect(result['Gravecrawler']).toBe('Completes the Gravecrawler + Altar combo');
+  });
+
+  it('records the staple-rock reason', () => {
+    const card = { ...sc('Sol Ring'), isStapleRock: true };
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: undefined,
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Sol Ring']).toBe('Auto-included staple mana rock');
+  });
+
+  it('records the wildcard flex-slot reason', () => {
+    const card = sc('Leftover Gem');
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: undefined,
+      boostProvenance: new Map(),
+      wildcardsKept: ['Leftover Gem'],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Leftover Gem']).toBe('Earned a flex slot on deck-wide value');
+  });
+
+  it('names the selected theme for a theme-synergy card', () => {
+    const card = { ...sc('Theme Payoff'), isThemeSynergyCard: true };
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: undefined,
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: ['+1/+1 Counters'],
+    });
+    expect(result['Theme Payoff']).toBe('From your +1/+1 Counters theme');
+  });
+
+  it('falls back to a generic high-synergy label for a theme-synergy card with no selected theme', () => {
+    const card = { ...sc('Gamechanger Pick'), isThemeSynergyCard: true };
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: undefined,
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Gamechanger Pick']).toBe('High-synergy pick for this commander');
+  });
+
+  it('records a boost-driven reason when the card carries a live package/lift/visibility boost', () => {
+    const card = sc('Boosted Pick');
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: { 'Boosted Pick': 5 },
+      boostProvenance: new Map([['Boosted Pick', 'Cluster-lift pick']]),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Boosted Pick']).toBe('Cluster-lift pick');
+  });
+
+  it('falls back to plain EDHREC staple when the card has inclusion signal but no boost', () => {
+    const card = sc('Plain Staple');
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: { 'Plain Staple': 62 },
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Plain Staple']).toBe('EDHREC staple for this commander');
+  });
+
+  it('falls back to the Scryfall-fill reason when there is no EDHREC signal at all', () => {
+    const card = sc('Filler Card');
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: { 'Filler Card': 0 },
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Filler Card']).toBe(
+      'Added from a Scryfall search — the EDHREC pool ran short for this slot'
+    );
+  });
+
+  it('falls back to the Scryfall-fill reason when cardInclusionMap is entirely absent (alt-generator modes)', () => {
+    const card = sc('Oracle Role Pick');
+    const result = assembleCardProvenance({
+      nonLandCards: [card],
+      cardInclusionMap: undefined,
+      boostProvenance: new Map(),
+      wildcardsKept: [],
+      comboFloorAdd: null,
+      themeNames: [],
+    });
+    expect(result['Oracle Role Pick']).toBe(
+      'Added from a Scryfall search — the EDHREC pool ran short for this slot'
+    );
   });
 });

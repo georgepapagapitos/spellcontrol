@@ -255,6 +255,31 @@ describe('applyComboFloor', () => {
     const seeded = result.detectedCombos?.find((dc) => dc.comboId === 'c1');
     expect(seeded?.isComplete).toBe(true);
     expect(seeded?.missingCards).toHaveLength(0);
+    // S2: the swap is disclosed in the same {cut, added, reason} shape every
+    // sibling swap phase uses, so it can render next to coherenceRepairs and
+    // drive per-card provenance — nothing moves silently.
+    expect(result.repair).toEqual({
+      cut: 'Filler Creature B',
+      added: 'Gravecrawler',
+      reason: expect.stringContaining('Gravecrawler'),
+    });
+  });
+
+  it('returns repair: null when nothing was seeded', () => {
+    const state = makeState({
+      combos: [edhrec2CardCombo('c1', ['Gravecrawler', 'Phyrexian Altar'])],
+    });
+    state.bannedCards.add('Gravecrawler');
+
+    const result = applyComboFloor(state, {
+      detectedCombos: undefined,
+      scryfallCardMap: new Map([['Gravecrawler', scryfallCard('Gravecrawler')]]),
+      mustIncludeNames: new Set(),
+      targetBracket: undefined,
+    });
+
+    expect(result.seeded).toBe(false);
+    expect(result.repair).toBeNull();
   });
 
   it('prefers the combo with the highest deckCount when multiple qualify', () => {
