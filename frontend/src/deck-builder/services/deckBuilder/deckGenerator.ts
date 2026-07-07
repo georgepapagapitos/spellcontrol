@@ -108,12 +108,7 @@ import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { resolveMultiCopyCards } from './multiCopy';
-import {
-  generateLands,
-  countColorPips,
-  CHANNEL_LAND_BOOST,
-  MDFC_LAND_BOOST,
-} from './landGenerator';
+import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
@@ -150,6 +145,11 @@ import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
 import { applyFlagshipSeating } from './deckGeneration/phaseFlagshipSeating';
+import {
+  runLandDeficitTopUp,
+  runLastResortLandFill,
+  type LandTopUpContext,
+} from './deckGeneration/landTopUp';
 import {
   acquireCommanderDataPhase,
   acquireCardPoolPhase,
@@ -2907,105 +2907,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // owned-only deck (the smart relaxation below). Surfaced in the build report.
   const substitutionRows: SubstituteRow[] = [];
 
-  // Add `amount` basic lands (Wastes for a colorless identity), split across
-  // colors by weighted mana-pip demand of the deck's non-land cards so far.
-  // Shared by the land-specific top-up right below and the total-count
-  // last-resort fallback further down — same fill, two different reasons to
-  // reach for it.
-  const addBasicLands = async (amount: number): Promise<void> => {
-    if (amount <= 0) return;
-    const basicTypes: Record<string, string> = {
-      W: 'Plains',
-      U: 'Island',
-      B: 'Swamp',
-      R: 'Mountain',
-      G: 'Forest',
-    };
-    const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
-
-    if (colorsWithBasics.length > 0) {
-      const allNonLands = [
-        ...categories.creatures,
-        ...categories.ramp,
-        ...categories.cardDraw,
-        ...categories.singleRemoval,
-        ...categories.boardWipes,
-        ...categories.utility,
-        ...categories.synergy,
-      ];
-      const pipCounts = countColorPips(allNonLands);
-      const totalPips = colorsWithBasics.reduce((sum, c) => sum + (pipCounts[c] || 0), 0);
-
-      const landsPerColor: Record<string, number> = {};
-      if (totalPips > 0) {
-        let assigned = 0;
-        for (let i = 0; i < colorsWithBasics.length; i++) {
-          const color = colorsWithBasics[i];
-          if (i === colorsWithBasics.length - 1) {
-            landsPerColor[color] = amount - assigned;
-          } else {
-            landsPerColor[color] = Math.round((amount * (pipCounts[color] || 0)) / totalPips);
-            assigned += landsPerColor[color];
-          }
-        }
-      } else {
-        const perColor = Math.floor(amount / colorsWithBasics.length);
-        const remainder = amount % colorsWithBasics.length;
-        for (let i = 0; i < colorsWithBasics.length; i++) {
-          landsPerColor[colorsWithBasics[i]] = perColor + (i < remainder ? 1 : 0);
-        }
-      }
-
-      for (const color of colorsWithBasics) {
-        const basicName = basicTypes[color];
-        const countForColor = landsPerColor[color];
-
-        let basicCard = getCachedCard(basicName);
-        if (!basicCard) {
-          try {
-            basicCard = await getCardByName(basicName, true);
-          } catch {
-            continue;
-          }
-        }
-
-        // Top-up copies share card.id so the deck view aggregates them into
-        // one row; allocation still claims any free owned copy by name.
-        for (let j = 0; j < countForColor; j++) {
-          categories.lands.push({ ...basicCard });
-        }
-      }
-    } else {
-      // Colorless deck — use Wastes as the basic land
-      let wastesCard = getCachedCard('Wastes');
-      if (!wastesCard) {
-        try {
-          wastesCard = await getCardByName('Wastes', true);
-        } catch {
-          // Skip if can't fetch
-        }
-      }
-      if (wastesCard) {
-        for (let j = 0; j < amount; j++) {
-          categories.lands.push({ ...wastesCard });
-        }
-      }
-    }
-  };
-
-  // Land top-up (Fix 1, iter-6 Slice B): gated on the land-specific deficit
-  // (categories.lands.length vs targets.lands), not total card count — and
-  // run BEFORE the generic nonland shortage fill below. generateLands() can
-  // silently under-deliver (a basic-land fetch throws and that color's
-  // allocation is dropped — landGenerator.ts's retry+reallocate hardening
-  // makes this rare but not impossible); the old last-resort top-up was
-  // gated on total count and ran AFTER the nonland fill, so a land shortfall
-  // shipped as a full-size deck with a spell squatting in a land slot.
-  const landDeficit = targets.lands - categories.lands.length;
-  if (landDeficit > 0) {
-    logger.debug(`[DeckGen] Land top-up: ${landDeficit} land(s) short of target, adding basics`);
-    await addBasicLands(landDeficit);
-  }
+  // Land top-up/backfill (E68 phase 4 split — see deckGeneration/landTopUp.ts
+  // for addBasicLands + the two call sites' shared rationale). `landTopUpCtx`
+  // is a thin view over the same `colorIdentity`/`categories` this function
+  // already mutates by reference, so both call sites below stay in sync with
+  // everything else in generateDeckInner.
+  const landTopUpCtx: LandTopUpContext = { colorIdentity, categories };
+  await runLandDeficitTopUp(landTopUpCtx, targets.lands);
 
   // If we have too few cards, fill shortage — budget is best-effort here,
   // deck size and structure are non-negotiable
@@ -3541,12 +3449,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     // If STILL short, add basic lands as absolute last resort
     currentCount = countAllCards();
-    if (currentCount < targetDeckSize) {
-      const remainingShortage = targetDeckSize - currentCount;
-      basicLandFillCount = remainingShortage;
-      logger.debug(`[DeckGen] Still need ${remainingShortage} more cards, adding basic lands`);
-      await addBasicLands(remainingShortage);
-    }
+    basicLandFillCount = await runLastResortLandFill(landTopUpCtx, targetDeckSize, currentCount);
   }
 
   // Final verification - log warning if still wrong
