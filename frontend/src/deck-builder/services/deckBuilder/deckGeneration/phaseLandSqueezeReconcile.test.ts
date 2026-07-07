@@ -101,7 +101,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
     combos: [],
     edhrecData: { cardlists: { allNonLand: [] } } as unknown as GenerationState['edhrecData'],
     dataSource: 'base',
-    baseData: null,
     themeOverlapCounts: new Map(),
     roleTargets: null,
     roleTargetBreakdown: undefined,

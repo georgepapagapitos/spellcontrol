@@ -169,51 +169,6 @@ export function computeEffectiveNonBasicLandCount(
   return nonBasicLandCount + Math.max(0, resolvedLandCount - typeTargetLandCount);
 }
 
-// Apply user's advanced target overrides (curve percentages, type percentages)
-function applyAdvancedOverrides(
-  customization: Customization,
-  typeTargets: Record<string, number>,
-  curveTargets: Record<number, number>,
-  nonLandCards: number
-): void {
-  const adv = customization.advancedTargets;
-
-  if (adv?.curvePercentages) {
-    const pcts = adv.curvePercentages;
-    const total = Object.values(pcts).reduce((s, v) => s + v, 0) || 100;
-    let allocated = 0;
-    const cmcKeys = Object.keys(pcts)
-      .map(Number)
-      .sort((a, b) => a - b);
-    for (const cmc of cmcKeys) {
-      curveTargets[cmc] = Math.round((pcts[cmc] / total) * nonLandCards);
-      allocated += curveTargets[cmc];
-    }
-    const diff = nonLandCards - allocated;
-    if (diff !== 0) {
-      const largest = cmcKeys.reduce(
-        (m, c) => (curveTargets[c] > curveTargets[m] ? c : m),
-        cmcKeys[0]
-      );
-      curveTargets[largest] += diff;
-    }
-  }
-
-  if (adv?.typePercentages) {
-    const pcts = adv.typePercentages;
-    const total = Object.values(pcts).reduce((s, v) => s + v, 0) || 100;
-    let allocated = 0;
-    for (const type of Object.keys(pcts)) {
-      typeTargets[type] = Math.round((pcts[type] / total) * nonLandCards);
-      allocated += typeTargets[type];
-    }
-    const diff = nonLandCards - allocated;
-    if (diff !== 0) {
-      typeTargets.creature = (typeTargets.creature ?? 0) + diff;
-    }
-  }
-}
-
 // Calculate target counts for each category based on EDHREC stats or fallback defaults
 export function calculateTargetCounts(
   customization: Customization,
@@ -254,11 +209,7 @@ export function calculateTargetCounts(
   // If we have EDHREC stats, use percentage-based targets
   if (edhrecStats && edhrecStats.numDecks > 0) {
     const typeTargets = calculateTypeTargets(edhrecStats, nonLandCards);
-    const curveTargets = calculateCurveTargets(
-      edhrecStats.manaCurve,
-      nonLandCards,
-      customization.advancedTargets?.curvePercentages ? undefined : pacing
-    );
+    const curveTargets = calculateCurveTargets(edhrecStats.manaCurve, nonLandCards, pacing);
 
     // Composition is now just for tracking - actual selection uses typeTargets
     const composition: DeckComposition = {
@@ -272,9 +223,6 @@ export function calculateTargetCounts(
       synergy: 0,
       utility: typeTargets.planeswalker ?? 0,
     };
-
-    // Apply advanced target overrides if set
-    applyAdvancedOverrides(customization, typeTargets, curveTargets, nonLandCards);
 
     return { composition, typeTargets, curveTargets };
   }
@@ -368,9 +316,6 @@ export function calculateTargetCounts(
     6: Math.round(nonLandCards * 0.06),
     7: Math.round(nonLandCards * 0.05),
   };
-
-  // Apply advanced target overrides if set
-  applyAdvancedOverrides(customization, fallbackTypeTargets, fallbackCurveTargets, nonLandCards);
 
   return {
     composition: fallbackComposition,
