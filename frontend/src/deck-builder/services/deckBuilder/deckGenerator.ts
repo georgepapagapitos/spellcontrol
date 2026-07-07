@@ -80,7 +80,6 @@ import { applyArchetypeTypeFloor } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
-  pickFromPrefetchedWithCurve,
   mergeWithAllNonLand,
   calculateCardPriority,
   isHighSynergyCard,
@@ -90,7 +89,6 @@ import {
   categorizeCards,
   stampRoleSubtypes,
   collectSwapCandidates,
-  computeRoleBoosts,
   routeCardByType,
   roleCapTolerance,
   ROLE_CAP_HATCH_MAX_PER_PASS,
@@ -116,6 +114,13 @@ import {
   CHANNEL_LAND_BOOST,
   MDFC_LAND_BOOST,
 } from './landGenerator';
+import {
+  pickEdhrecTypePass,
+  bumpRoleAndSubtypeCounts,
+  scryfallFallbackTypePass,
+  type TypePassContext,
+  type ScryfallFallbackContext,
+} from './deckGeneration/typePassPick';
 
 import {
   type GenerationContext,
@@ -1403,72 +1408,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
-  // Build hyper focus boost map if enabled (runs with cached or fresh data)
-  if (state.edhrecData && customization.hyperFocus && selectedThemesWithSlugs.length >= 1) {
-    const baseCardNames = new Set<string>();
-    if (state.baseData) {
-      for (const list of Object.values(state.baseData.cardlists)) {
-        for (const card of list) {
-          baseCardNames.add(card.name);
-        }
-      }
-    }
-
-    const allThemeCards = [
-      ...state.edhrecData.cardlists.creatures,
-      ...state.edhrecData.cardlists.instants,
-      ...state.edhrecData.cardlists.sorceries,
-      ...state.edhrecData.cardlists.artifacts,
-      ...state.edhrecData.cardlists.enchantments,
-      ...state.edhrecData.cardlists.planeswalkers,
-    ];
-
-    if (selectedThemesWithSlugs.length === 1) {
-      let boosted = 0,
-        penalized = 0;
-      for (const card of allThemeCards) {
-        const synergy = card.synergy ?? 0;
-        const inBase = baseCardNames.has(card.name);
-
-        if (!inBase && synergy >= 0.1) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) + 1000);
-          boosted++;
-        } else if (!inBase) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) + 500);
-          boosted++;
-        } else if (inBase && synergy >= 0.3) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) + 200);
-          boosted++;
-        } else if (inBase && synergy < 0.1) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) - 500);
-          penalized++;
-        }
-      }
-      logger.debug(
-        `[DeckGen] Hyper Focus (single theme, base pool: ${baseCardNames.size} cards): boosted ${boosted}, penalized ${penalized}`
-      );
-    } else {
-      const numThemes = selectedThemesWithSlugs.length;
-      for (const [name, count] of state.themeOverlapCounts) {
-        const inBase = baseCardNames.has(name);
-        let boost = 0;
-        if (count === 1 && !inBase) {
-          boost = 1000;
-        } else if (count === 1) {
-          boost = 300;
-        } else if (count >= numThemes || inBase) {
-          boost = -500;
-        } else {
-          boost = -200 * (count - 1);
-        }
-        staticComboBoosts.set(name, (staticComboBoosts.get(name) ?? 0) + boost);
-      }
-      logger.debug(
-        `[DeckGen] Hyper Focus (${numThemes} themes, base pool: ${baseCardNames.size} cards): adjusted ${state.themeOverlapCounts.size} cards`
-      );
-    }
-  }
-
   // Populate generation cache after successful EDHREC fetch
   populateGenerationCachePhase(state, { usingCache, cacheableIntegrityNotes });
 
@@ -1580,8 +1519,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     context.selectedThemes,
     state.edhrecData?.stats,
     state.edhrecData,
-    customization.advancedTargets?.edhrecBlendWeight ?? null,
-    customization.advancedTargets?.edhrecInclusionThreshold ?? null,
+    null, // E121: was customization.advancedTargets?.edhrecBlendWeight (deleted, dead at default)
+    null, // E121: was customization.advancedTargets?.edhrecInclusionThreshold (deleted, dead at default)
     archetypeFallback
   );
 
@@ -1666,10 +1605,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Archetype identity floor on top of EDHREC's purely stats-driven type
   // targets (e.g. a spellslinger commander needs a real instant/sorcery
-  // density even if its EDHREC page sample skews creature-heavy). Skipped
-  // when the user set explicit type percentages — an explicit choice is
-  // never second-guessed.
-  if (!customization.advancedTargets?.typePercentages) {
+  // density even if its EDHREC page sample skews creature-heavy).
+  {
     const nonLandTotalForFloor = Object.values(typeTargets).reduce((s, v) => s + v, 0);
     applyArchetypeTypeFloor(
       typeTargets,
@@ -2109,10 +2046,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
 
     // ---- Balanced Roles: pre-compute role map and seed counts ----
-    if (customization.advancedTargets?.roleTargets) {
-      // Advanced override always takes precedence
-      roleTargets = customization.advancedTargets.roleTargets as Record<RoleKey, number>;
-    } else if (customization.balancedRoles) {
+    if (customization.balancedRoles) {
       // Reuses the SAME dynamicRoleTargets computed unconditionally above
       // (the Karsten land-count formula needs its .ramp before this gate
       // is known) — don't recompute.
@@ -2223,9 +2157,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         commanderWantsExtraCombat
       );
 
-    // When the user has explicitly set curve/role targets, enforce them strictly
-    const strictCurve = !!customization.advancedTargets?.curvePercentages;
-    const strictRoles = !!customization.advancedTargets?.roleTargets;
+    // E121: strict curve/role enforcement was only ever driven by the
+    // (now-deleted) advancedTargets override — always false without it.
+    // Left as named constants rather than inlining `false` at each of the
+    // dozen pickFromPrefetchedWithCurve/computeRoleBoosts call sites below.
+    const strictCurve = false;
+    const strictRoles = false;
     // E80 product ruling: price-sanity ships as the DEFAULT (see resolvePriceSanity).
     const priceSanity = resolvePriceSanity(customization);
 
@@ -2313,44 +2250,28 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       return boosts;
     };
 
-    // Now process each type synchronously using the pre-fetched cards
-    // 1. Creatures
-    logger.debug(
-      `[DeckGen] Creatures: need ${creatureTarget}, pool has ${creaturePool.length} cards`
-    );
-    onProgress?.('Summoning creatures…', 35);
-    const creatureBoosts = roleTargets
-      ? computeRoleBoosts(
-          cardRoleMap,
-          roleTargets,
-          currentRoleCounts,
-          getComboBoosts(),
-          cardCmcMap,
-          cardSubtypeMap,
-          currentSubtypeCounts,
-          strictRoles
-        )
-      : getComboBoosts();
-    const creatures = pickFromPrefetchedWithCurve(
-      creaturePool,
+    // Now process each type synchronously using the pre-fetched cards.
+    // Shared machinery for the six EDHREC-pool passes below lives in
+    // deckGeneration/typePassPick.ts (E68 phase 2, mechanical split) — see
+    // that file's header for exactly what stayed here per-pass and why
+    // (log/sink/bump ordering is NOT uniform across the six; creature is the
+    // one genuine outlier).
+    const typePassCtx: TypePassContext = {
       cardMap,
-      creatureTarget,
       usedNames,
       colorIdentity,
       curveTargets,
       currentCurveCounts,
       bannedCards,
-      'Creature',
       maxCardPrice,
       maxGameChangers,
       gameChangerCount,
       maxRarity,
       maxCmc,
       budgetTracker,
-      context.collectionNames,
-      withPackageBoosts(creatureBoosts, creaturePool),
+      collectionNames: context.collectionNames,
       currency,
-      state.gameChangerNames,
+      gameChangerNames: state.gameChangerNames,
       arenaOnly,
       strictCurve,
       collectionStrategy,
@@ -2360,34 +2281,41 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       bracketGuard,
       isCardAllowedBySynergyDependencies,
       liftTieBreak,
-      roleTargets
-        ? {
-            cardRoleMap,
-            roleTargets,
-            currentRoleCounts,
-            overflowCounts: roleCapOverflowCounts,
-            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
-            wipeAsymmetryDecided,
-            getWipeScope,
-            deckTypeTargets: typeTargets,
-          }
-        : undefined,
       priceSanity,
-      getComboBoosts(),
       priceSanityDecided,
-      state.cfg.brewLevel
+      brewLevel: state.cfg.brewLevel,
+      roleTargets,
+      strictRoles,
+      cardRoleMap,
+      cardCmcMap,
+      cardSubtypeMap,
+      currentRoleCounts,
+      currentSubtypeCounts,
+      roleCapOverflowCounts,
+      preferAsymmetricWipes,
+      wipeAsymmetryDecided,
+      isOneSidedWipe,
+      getWipeScope,
+      typeTargets,
+      getComboBoosts,
+      withPackageBoosts,
+      onProgress,
+    };
+
+    // 1. Creatures
+    logger.debug(
+      `[DeckGen] Creatures: need ${creatureTarget}, pool has ${creaturePool.length} cards`
+    );
+    const creatures = pickEdhrecTypePass(
+      typePassCtx,
+      'Creature',
+      creaturePool,
+      creatureTarget,
+      'Summoning creatures…',
+      35
     );
     categories.creatures.push(...creatures);
-    for (const card of creatures) {
-      const role = cardRoleMap.get(card.name);
-      if (role) {
-        currentRoleCounts[role]++;
-        card.deckRole = role;
-        stampRoleSubtypes(card);
-        const st = cardSubtypeMap.get(card.name);
-        if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
-      }
-    }
+    bumpRoleAndSubtypeCounts(typePassCtx, creatures);
     logger.debug(`[DeckGen] Creatures: got ${creatures.length} from EDHREC`);
 
     // Fill remaining creatures from Scryfall if needed (use original target since categories include must-includes)
@@ -2425,382 +2353,82 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     // 2. Instants
     logger.debug(`[DeckGen] Instants: need ${instantTarget}, pool has ${instantPool.length} cards`);
-    onProgress?.('Readying instants…', 45);
-    const instantBoosts = roleTargets
-      ? computeRoleBoosts(
-          cardRoleMap,
-          roleTargets,
-          currentRoleCounts,
-          getComboBoosts(),
-          cardCmcMap,
-          cardSubtypeMap,
-          currentSubtypeCounts,
-          strictRoles
-        )
-      : getComboBoosts();
-    const instants = pickFromPrefetchedWithCurve(
-      instantPool,
-      cardMap,
-      instantTarget,
-      usedNames,
-      colorIdentity,
-      curveTargets,
-      currentCurveCounts,
-      bannedCards,
+    const instants = pickEdhrecTypePass(
+      typePassCtx,
       'Instant',
-      maxCardPrice,
-      maxGameChangers,
-      gameChangerCount,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      withPackageBoosts(instantBoosts, instantPool),
-      currency,
-      state.gameChangerNames,
-      arenaOnly,
-      strictCurve,
-      collectionStrategy,
-      collectionOwnedPercent,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      bracketGuard,
-      isCardAllowedBySynergyDependencies,
-      liftTieBreak,
-      roleTargets
-        ? {
-            cardRoleMap,
-            roleTargets,
-            currentRoleCounts,
-            overflowCounts: roleCapOverflowCounts,
-            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
-            wipeAsymmetryDecided,
-            getWipeScope,
-            deckTypeTargets: typeTargets,
-          }
-        : undefined,
-      priceSanity,
-      getComboBoosts(),
-      priceSanityDecided,
-      state.cfg.brewLevel
+      instantPool,
+      instantTarget,
+      'Readying instants…',
+      45
     );
     logger.debug(`[DeckGen] Instants: got ${instants.length} from EDHREC`);
     categorizeCards(instants, categories);
-    for (const card of instants) {
-      const role = cardRoleMap.get(card.name);
-      if (role) {
-        currentRoleCounts[role]++;
-        card.deckRole = role;
-        stampRoleSubtypes(card);
-        const st = cardSubtypeMap.get(card.name);
-        if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
-      }
-    }
+    bumpRoleAndSubtypeCounts(typePassCtx, instants);
 
     // 3. Sorceries
     logger.debug(
       `[DeckGen] Sorceries: need ${sorceryTarget}, pool has ${sorceryPool.length} cards`
     );
-    onProgress?.('Inscribing sorceries…', 55);
-    const sorceryBoosts = roleTargets
-      ? computeRoleBoosts(
-          cardRoleMap,
-          roleTargets,
-          currentRoleCounts,
-          getComboBoosts(),
-          cardCmcMap,
-          cardSubtypeMap,
-          currentSubtypeCounts,
-          strictRoles
-        )
-      : getComboBoosts();
-    const sorceries = pickFromPrefetchedWithCurve(
-      sorceryPool,
-      cardMap,
-      sorceryTarget,
-      usedNames,
-      colorIdentity,
-      curveTargets,
-      currentCurveCounts,
-      bannedCards,
+    const sorceries = pickEdhrecTypePass(
+      typePassCtx,
       'Sorcery',
-      maxCardPrice,
-      maxGameChangers,
-      gameChangerCount,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      withPackageBoosts(sorceryBoosts, sorceryPool),
-      currency,
-      state.gameChangerNames,
-      arenaOnly,
-      strictCurve,
-      collectionStrategy,
-      collectionOwnedPercent,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      bracketGuard,
-      isCardAllowedBySynergyDependencies,
-      liftTieBreak,
-      roleTargets
-        ? {
-            cardRoleMap,
-            roleTargets,
-            currentRoleCounts,
-            overflowCounts: roleCapOverflowCounts,
-            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
-            wipeAsymmetryDecided,
-            getWipeScope,
-            deckTypeTargets: typeTargets,
-          }
-        : undefined,
-      priceSanity,
-      getComboBoosts(),
-      priceSanityDecided,
-      state.cfg.brewLevel
+      sorceryPool,
+      sorceryTarget,
+      'Inscribing sorceries…',
+      55
     );
     logger.debug(`[DeckGen] Sorceries: got ${sorceries.length} from EDHREC`);
     categorizeCards(sorceries, categories);
-    for (const card of sorceries) {
-      const role = cardRoleMap.get(card.name);
-      if (role) {
-        currentRoleCounts[role]++;
-        card.deckRole = role;
-        stampRoleSubtypes(card);
-        const st = cardSubtypeMap.get(card.name);
-        if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
-      }
-    }
+    bumpRoleAndSubtypeCounts(typePassCtx, sorceries);
 
     // 4. Artifacts
     logger.debug(
       `[DeckGen] Artifacts: need ${artifactTarget}, pool has ${artifactPool.length} cards`
     );
-    onProgress?.('Forging artifacts…', 62);
-    const artifactBoosts = roleTargets
-      ? computeRoleBoosts(
-          cardRoleMap,
-          roleTargets,
-          currentRoleCounts,
-          getComboBoosts(),
-          cardCmcMap,
-          cardSubtypeMap,
-          currentSubtypeCounts,
-          strictRoles
-        )
-      : getComboBoosts();
-    const artifacts = pickFromPrefetchedWithCurve(
-      artifactPool,
-      cardMap,
-      artifactTarget,
-      usedNames,
-      colorIdentity,
-      curveTargets,
-      currentCurveCounts,
-      bannedCards,
+    const artifacts = pickEdhrecTypePass(
+      typePassCtx,
       'Artifact',
-      maxCardPrice,
-      maxGameChangers,
-      gameChangerCount,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      withPackageBoosts(artifactBoosts, artifactPool),
-      currency,
-      state.gameChangerNames,
-      arenaOnly,
-      strictCurve,
-      collectionStrategy,
-      collectionOwnedPercent,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      bracketGuard,
-      isCardAllowedBySynergyDependencies,
-      liftTieBreak,
-      roleTargets
-        ? {
-            cardRoleMap,
-            roleTargets,
-            currentRoleCounts,
-            overflowCounts: roleCapOverflowCounts,
-            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
-            wipeAsymmetryDecided,
-            getWipeScope,
-            deckTypeTargets: typeTargets,
-          }
-        : undefined,
-      priceSanity,
-      getComboBoosts(),
-      priceSanityDecided,
-      state.cfg.brewLevel
+      artifactPool,
+      artifactTarget,
+      'Forging artifacts…',
+      62
     );
     logger.debug(`[DeckGen] Artifacts: got ${artifacts.length} from EDHREC`);
     categorizeCards(artifacts, categories);
-    for (const card of artifacts) {
-      const role = cardRoleMap.get(card.name);
-      if (role) {
-        currentRoleCounts[role]++;
-        card.deckRole = role;
-        stampRoleSubtypes(card);
-        const st = cardSubtypeMap.get(card.name);
-        if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
-      }
-    }
+    bumpRoleAndSubtypeCounts(typePassCtx, artifacts);
 
     // 5. Enchantments
     logger.debug(
       `[DeckGen] Enchantments: need ${enchantmentTarget}, pool has ${enchantmentPool.length} cards`
     );
-    onProgress?.('Weaving enchantments…', 68);
-    const enchantmentBoosts = roleTargets
-      ? computeRoleBoosts(
-          cardRoleMap,
-          roleTargets,
-          currentRoleCounts,
-          getComboBoosts(),
-          cardCmcMap,
-          cardSubtypeMap,
-          currentSubtypeCounts,
-          strictRoles
-        )
-      : getComboBoosts();
-    const enchantments = pickFromPrefetchedWithCurve(
-      enchantmentPool,
-      cardMap,
-      enchantmentTarget,
-      usedNames,
-      colorIdentity,
-      curveTargets,
-      currentCurveCounts,
-      bannedCards,
+    const enchantments = pickEdhrecTypePass(
+      typePassCtx,
       'Enchantment',
-      maxCardPrice,
-      maxGameChangers,
-      gameChangerCount,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      withPackageBoosts(enchantmentBoosts, enchantmentPool),
-      currency,
-      state.gameChangerNames,
-      arenaOnly,
-      strictCurve,
-      collectionStrategy,
-      collectionOwnedPercent,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      bracketGuard,
-      isCardAllowedBySynergyDependencies,
-      liftTieBreak,
-      roleTargets
-        ? {
-            cardRoleMap,
-            roleTargets,
-            currentRoleCounts,
-            overflowCounts: roleCapOverflowCounts,
-            isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
-            wipeAsymmetryDecided,
-            getWipeScope,
-            deckTypeTargets: typeTargets,
-          }
-        : undefined,
-      priceSanity,
-      getComboBoosts(),
-      priceSanityDecided,
-      state.cfg.brewLevel
+      enchantmentPool,
+      enchantmentTarget,
+      'Weaving enchantments…',
+      68
     );
     logger.debug(`[DeckGen] Enchantments: got ${enchantments.length} from EDHREC`);
     categorizeCards(enchantments, categories);
-    for (const card of enchantments) {
-      const role = cardRoleMap.get(card.name);
-      if (role) {
-        currentRoleCounts[role]++;
-        card.deckRole = role;
-        stampRoleSubtypes(card);
-        const st = cardSubtypeMap.get(card.name);
-        if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
-      }
-    }
+    bumpRoleAndSubtypeCounts(typePassCtx, enchantments);
 
     // 6. Planeswalkers
     logger.debug(
       `[DeckGen] Planeswalkers: need ${planeswalkerTarget}, pool has ${planeswalkerPool.length} cards`
     );
     if (planeswalkerPool.length > 0 && planeswalkerTarget > 0) {
-      onProgress?.('Calling planeswalkers…', 72);
-      const planeswalkerBoosts = roleTargets
-        ? computeRoleBoosts(
-            cardRoleMap,
-            roleTargets,
-            currentRoleCounts,
-            getComboBoosts(),
-            cardCmcMap,
-            cardSubtypeMap,
-            currentSubtypeCounts,
-            strictRoles
-          )
-        : getComboBoosts();
-      const planeswalkers = pickFromPrefetchedWithCurve(
-        planeswalkerPool,
-        cardMap,
-        planeswalkerTarget,
-        usedNames,
-        colorIdentity,
-        curveTargets,
-        currentCurveCounts,
-        bannedCards,
+      const planeswalkers = pickEdhrecTypePass(
+        typePassCtx,
         'Planeswalker',
-        maxCardPrice,
-        maxGameChangers,
-        gameChangerCount,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        withPackageBoosts(planeswalkerBoosts, planeswalkerPool),
-        currency,
-        state.gameChangerNames,
-        arenaOnly,
-        strictCurve,
-        collectionStrategy,
-        collectionOwnedPercent,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        bracketGuard,
-        isCardAllowedBySynergyDependencies,
-        liftTieBreak,
-        roleTargets
-          ? {
-              cardRoleMap,
-              roleTargets,
-              currentRoleCounts,
-              overflowCounts: roleCapOverflowCounts,
-              isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
-              wipeAsymmetryDecided,
-              getWipeScope,
-              deckTypeTargets: typeTargets,
-            }
-          : undefined,
-        priceSanity,
-        getComboBoosts(),
-        priceSanityDecided,
-        state.cfg.brewLevel
+        planeswalkerPool,
+        planeswalkerTarget,
+        'Calling planeswalkers…',
+        72
       );
       logger.debug(`[DeckGen] Planeswalkers: got ${planeswalkers.length} from EDHREC`);
       categories.utility.push(...planeswalkers);
-      for (const card of planeswalkers) {
-        const role = cardRoleMap.get(card.name);
-        if (role) {
-          currentRoleCounts[role]++;
-          card.deckRole = role;
-          stampRoleSubtypes(card);
-          const st = cardSubtypeMap.get(card.name);
-          if (st) currentSubtypeCounts[st] = (currentSubtypeCounts[st] ?? 0) + 1;
-        }
-      }
+      bumpRoleAndSubtypeCounts(typePassCtx, planeswalkers);
     }
 
     // Log balanced roles result
@@ -3021,34 +2649,45 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       fillGates
     );
 
-    // Use typeTargets for remaining slots to get a balanced type distribution
-    const scryfallCreatureTarget = Math.max(
-      0,
-      (typeTargets.creature ?? 0) -
-        (preFilledTypeCounts.creature ?? 0) -
-        categories.creatures.length
-    );
-    onProgress?.('Summoning creatures…', 60);
-    const scryfallCreatures = await fillWithScryfall(
-      't:creature',
+    // Use typeTargets for remaining slots to get a balanced type distribution.
+    // Shared machinery for the five Scryfall-only type-pass twins below lives
+    // in deckGeneration/typePassPick.ts (E68 phase 2 follow-up) — see
+    // ScryfallFallbackContext's doc for why this is a narrower context than
+    // the EDHREC-pool passes' (no role-boost machinery exists on this
+    // no-EDHREC-data path).
+    const scryfallFallbackCtx: ScryfallFallbackContext = {
       colorIdentity,
-      scryfallCreatureTarget,
       usedNames,
       bannedCards,
       maxCardPrice,
       maxRarity,
       maxCmc,
       budgetTracker,
-      context.collectionNames,
+      collectionNames: context.collectionNames,
       currency,
       arenaOnly,
-      scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
+      onProgress,
+      scryfallQueryFilter: scryfallQuery,
       liftScoreOf,
-      fillGates
+      fillGates,
+    };
+
+    const scryfallCreatureTarget = Math.max(
+      0,
+      (typeTargets.creature ?? 0) -
+        (preFilledTypeCounts.creature ?? 0) -
+        categories.creatures.length
+    );
+    const scryfallCreatures = await scryfallFallbackTypePass(
+      scryfallFallbackCtx,
+      't:creature',
+      scryfallCreatureTarget,
+      'Summoning creatures…',
+      60
     );
     categories.creatures.push(...scryfallCreatures);
 
@@ -3056,27 +2695,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       0,
       (typeTargets.artifact ?? 0) - (preFilledTypeCounts.artifact ?? 0)
     );
-    onProgress?.('Forging artifacts…', 65);
-    const scryfallArtifacts = await fillWithScryfall(
+    const scryfallArtifacts = await scryfallFallbackTypePass(
+      scryfallFallbackCtx,
       't:artifact -t:creature',
-      colorIdentity,
       scryfallArtifactTarget,
-      usedNames,
-      bannedCards,
-      maxCardPrice,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      currency,
-      arenaOnly,
-      scryfallQuery,
-      collectionStrategy,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies,
-      liftScoreOf,
-      fillGates
+      'Forging artifacts…',
+      65
     );
     categorizeCards(scryfallArtifacts, categories);
 
@@ -3084,27 +2708,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       0,
       (typeTargets.enchantment ?? 0) - (preFilledTypeCounts.enchantment ?? 0)
     );
-    onProgress?.('Weaving enchantments…', 70);
-    const scryfallEnchantments = await fillWithScryfall(
+    const scryfallEnchantments = await scryfallFallbackTypePass(
+      scryfallFallbackCtx,
       't:enchantment -t:creature',
-      colorIdentity,
       scryfallEnchantmentTarget,
-      usedNames,
-      bannedCards,
-      maxCardPrice,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      currency,
-      arenaOnly,
-      scryfallQuery,
-      collectionStrategy,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies,
-      liftScoreOf,
-      fillGates
+      'Weaving enchantments…',
+      70
     );
     categorizeCards(scryfallEnchantments, categories);
 
@@ -3116,27 +2725,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         categories.boardWipes.length
     );
     if (scryfallInstantTarget > 0) {
-      onProgress?.('Readying instants…', 72);
-      const scryfallInstants = await fillWithScryfall(
+      const scryfallInstants = await scryfallFallbackTypePass(
+        scryfallFallbackCtx,
         't:instant',
-        colorIdentity,
         scryfallInstantTarget,
-        usedNames,
-        bannedCards,
-        maxCardPrice,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        currency,
-        arenaOnly,
-        scryfallQuery,
-        collectionStrategy,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies,
-        liftScoreOf,
-        fillGates
+        'Readying instants…',
+        72
       );
       categorizeCards(scryfallInstants, categories);
     }
@@ -3146,27 +2740,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       (typeTargets.sorcery ?? 0) - (preFilledTypeCounts.sorcery ?? 0)
     );
     if (scryfallSorceryTarget > 0) {
-      onProgress?.('Inscribing sorceries…', 74);
-      const scryfallSorceries = await fillWithScryfall(
+      const scryfallSorceries = await scryfallFallbackTypePass(
+        scryfallFallbackCtx,
         't:sorcery',
-        colorIdentity,
         scryfallSorceryTarget,
-        usedNames,
-        bannedCards,
-        maxCardPrice,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        currency,
-        arenaOnly,
-        scryfallQuery,
-        collectionStrategy,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies,
-        liftScoreOf,
-        fillGates
+        'Inscribing sorceries…',
+        74
       );
       categorizeCards(scryfallSorceries, categories);
     }
@@ -4294,11 +3873,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
 
   // ── Role-Surplus → Payoff Conversion (E87) ──
-  // Post-fill role caps still overshoot (Combo Integrity Audit's uncapped
-  // auditAdd/auditRemove never updates currentRoleCounts; coherence-repair/
-  // bracket-convergence/the role-cap escape hatch all admit over-cap fillers
-  // without a later pass pulling them back). This bounded pass converts the
-  // worst of that surplus into an actual payoff pick. Runs after every
+  // Post-fill role caps still overshoot (E119: Combo Integrity Audit's
+  // auditAdd/auditRemove now keep currentRoleCounts in sync, but they're
+  // still uncapped — nothing in the audit checks the role cap before
+  // swapping; coherence-repair/bracket-convergence/the role-cap escape hatch
+  // all admit over-cap fillers without a later pass pulling them back). This
+  // bounded pass converts the worst of that surplus into an actual payoff
+  // pick. Runs after every
   // mutating phase above (its fresh recount sees what actually shipped) and
   // before lift picks (so a converted-out card is excluded from resurfacing
   // as a "hidden synergy" suggestion via preSwapUsedNames below). Never

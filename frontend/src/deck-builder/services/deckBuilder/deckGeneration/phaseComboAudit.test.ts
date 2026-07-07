@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ScryfallCard, DetectedCombo, EDHRECCard } from '@/deck-builder/types';
 
 vi.mock('@/deck-builder/services/tagger/client', () => ({
-  getCardRole: () => null,
+  getCardRole: vi.fn(() => null),
   isProtectionPiece: () => false,
   isFreeInteraction: () => false,
 }));
@@ -18,6 +18,9 @@ vi.mock('../categorize', async (importOriginal) => {
 import { comboIntegrityAuditPhase } from './phaseComboAudit';
 import { BudgetTracker } from '../budgetTracker';
 import type { GenerationState } from './state';
+import { getCardRole } from '@/deck-builder/services/tagger/client';
+
+const mockGetCardRole = vi.mocked(getCardRole);
 
 function scryfallCard(name: string, overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -115,7 +118,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
     combos: [],
     edhrecData: null,
     dataSource: 'base',
-    baseData: null,
     themeOverlapCounts: new Map(),
     roleTargets: null,
     roleTargetBreakdown: undefined,
@@ -136,6 +138,11 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
 }
 
 describe('comboIntegrityAuditPhase', () => {
+  beforeEach(() => {
+    mockGetCardRole.mockReset();
+    mockGetCardRole.mockReturnValue(null);
+  });
+
   it('no-ops when combos were never requested (comboCountSetting <= 0)', () => {
     const state = makeState();
     state.cfg.comboCountSetting = 0;
@@ -241,5 +248,83 @@ describe('comboIntegrityAuditPhase', () => {
     expect(result.budgetSkipped).toBeGreaterThan(0);
     // No swap applied, so the returned list is the same reference (no rebuild).
     expect(result.detectedCombos).toBe(detectedCombos);
+  });
+
+  it('E119: keeps currentRoleCounts in sync on audit swaps (increment on add, decrement on remove)', () => {
+    const state = makeState();
+    const filler = scryfallCard('Filler');
+    const pieceA = scryfallCard('PieceA');
+    const pieceB = scryfallCard('PieceB');
+    const enabler = scryfallCard('Enabler');
+    state.categories.creatures = [pieceA, pieceB, filler];
+    state.usedNames = new Set(['PieceA', 'PieceB', 'Filler']);
+    // Filler (evicted) reads as 'removal'; Enabler (added) reads as 'ramp' —
+    // distinct roles so increment/decrement aren't just cancelling each other.
+    mockGetCardRole.mockImplementation((name: string) =>
+      name === 'Filler' ? 'removal' : name === 'Enabler' ? 'ramp' : null
+    );
+    state.currentRoleCounts = { ramp: 0, removal: 1, boardwipe: 0, cardDraw: 0 };
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Filler', 1),
+          edhrecCard('PieceA', 50),
+          edhrecCard('PieceB', 50),
+          edhrecCard('Enabler', 80),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('c1', ['PieceA', 'Enabler'], ['Enabler']),
+      combo('c2', ['PieceB', 'Enabler'], ['Enabler']),
+    ];
+
+    comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([['Enabler', enabler]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    // Filler evicted (removal: 1 -> 0), Enabler added (ramp: 0 -> 1).
+    expect(state.currentRoleCounts.removal).toBe(0);
+    expect(state.currentRoleCounts.ramp).toBe(1);
+  });
+
+  it('E119: auditRemove floors currentRoleCounts at 0 rather than going negative', () => {
+    const state = makeState();
+    const filler = scryfallCard('Filler');
+    const pieceA = scryfallCard('PieceA');
+    const pieceB = scryfallCard('PieceB');
+    const enabler = scryfallCard('Enabler');
+    state.categories.creatures = [pieceA, pieceB, filler];
+    state.usedNames = new Set(['PieceA', 'PieceB', 'Filler']);
+    mockGetCardRole.mockImplementation((name: string) => (name === 'Filler' ? 'removal' : null));
+    // Already-stale-zero count (e.g. from an earlier unbookkept phase) — the
+    // guard must not decrement past 0.
+    state.currentRoleCounts = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
+    state.edhrecData = {
+      cardlists: {
+        allNonLand: [
+          edhrecCard('Filler', 1),
+          edhrecCard('PieceA', 50),
+          edhrecCard('PieceB', 50),
+          edhrecCard('Enabler', 80),
+        ],
+      },
+    } as unknown as GenerationState['edhrecData'];
+    const detectedCombos = [
+      combo('c1', ['PieceA', 'Enabler'], ['Enabler']),
+      combo('c2', ['PieceB', 'Enabler'], ['Enabler']),
+    ];
+
+    comboIntegrityAuditPhase(state, {
+      detectedCombos,
+      scryfallCardMap: new Map([['Enabler', enabler]]),
+      budgetTracker: null,
+      bracketGuard: undefined,
+    });
+
+    expect(state.currentRoleCounts.removal).toBe(0);
   });
 });

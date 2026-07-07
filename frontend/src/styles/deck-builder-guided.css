@@ -280,11 +280,47 @@
   font-style: italic;
 }
 
+/* E120: the third "why is this here" affordance — only rendered when a row
+   has a recorded provenance reason but neither the synergy pill nor the
+   inclusion chip above it (alt-generator modes with no EDHREC data). Reuses
+   the shared InfoTip trigger, just given the same trailing-chip spacing as
+   its siblings so it reads as part of the same chip row. */
+.deck-row-provenance {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+}
+
+/* The InfoTip trigger is a small icon button; expand its hit area to the
+   44px floor on coarse pointers via an invisible centered ghost, without
+   inflating the visible glyph (mirrors .set-filter-chip-x in collection.css —
+   this is the row's first genuinely interactive chip, unlike the inert
+   synergy/inclusion spans beside it, so it's the one that needs a real
+   touch target here). */
+.deck-row-provenance-trigger {
+  position: relative;
+}
+@media (pointer: coarse) {
+  .deck-row-provenance-trigger::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* Phones: the name span holds qty/role/name + up to three trailing chips
    (allocation, synergy, inclusion). Let the chips wrap under the name rather
    than forcing the row wider than the viewport. */
 @media (max-width: 600px) {
   .deck-row-inclusion {
+    margin-left: 0.3rem;
+  }
+
+  .deck-row-provenance {
     margin-left: 0.3rem;
   }
 

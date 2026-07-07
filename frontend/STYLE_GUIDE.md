@@ -373,6 +373,48 @@ tooltip; reuse this so they behave identically everywhere.
   different content — use the `WhyBreakdown` disclosure (see Suggestion feeds →
   Why disclosure), not an `ⓘ` on every row.
 
+### Deck-row "why it's here" affordances (E120)
+
+A generated deck can record a per-card pick reason (`buildReport.cardProvenance`,
+S2 #1076). A mainboard/sideboard row surfaces it through **exactly one** of
+three affordances, in this priority order, never more than one at a time:
+
+1. **Synergy pill present** (`.deck-row-synergy`, a commander-ability match) —
+   the reason folds into that pill's `title` as an extra "Why it's here" line.
+2. **Inclusion chip present** (`.deck-row-inclusion`, an EDHREC play-rate % or
+   "Off-meta") — same fold-in, on that chip's `title` instead.
+3. **Neither applies** — a dedicated `InfoTip` trigger, class
+   `.deck-row-provenance-trigger`, wrapped in `.deck-row-provenance` for
+   trailing-chip spacing. This is the gap the Scryfall-driven alt-generator
+   modes fall into (oracle-role, art-theme, historical, PDH) — they carry no
+   EDHREC signal and no commander-ability match, so tiers 1–2 never fire, and
+   without a third affordance a real recorded reason would be unreachable.
+
+**Reuse `InfoTip`, not `WhyBreakdown`, for tier 3** — this is a deliberate,
+narrow exception to the "not for per-row reasoning" rule two bullets up.
+`WhyBreakdown` is for a multi-factor, tone-tagged, always-open breakdown (the
+Coach tab's `whyFactors`); tier 3 is a single recorded string, exactly the
+shape `InfoTip` already handles, and it gets the reveal model (hover/focus/tap,
+portal, Esc/scroll dismiss) for free instead of re-implementing it. Two things
+make it a first-class per-row control rather than a generic concept gloss:
+
+- **Pass a subject-specific `ariaLabel`** ("Why {card name} is in this deck")
+  instead of `InfoTip`'s default "What is {label}?" template — `InfoTip` takes
+  an `ariaLabel?` override for exactly this case (falls back to the default
+  when omitted, so every other call site is unaffected).
+- **Give the trigger a real 44px touch target** via a `className` on `InfoTip`
+  (also a new optional prop) that adds a `(pointer: coarse) { ::after }` ghost
+  centered on the button, mirroring `.set-filter-chip-x` in `collection.css`.
+  This one matters here specifically because the synergy/inclusion siblings it
+  sits beside are inert `<span>`s with nothing to tap — tier 3 is the row's
+  first genuinely interactive, keyboard-reachable "why" control, so unlike its
+  neighbors it needs a real target size.
+
+Zero visual noise on a standard EDHREC-generated deck: tier 3 only mounts when
+`cardProvenance` has an entry for that name **and** tiers 1–2 both fail their
+render conditions, so nothing changes for the common case tiers 1–2 already
+cover.
+
 ## Z-index / layering
 
 - **Always use the `--z-*` tokens** (in `styles/tokens.css`), never raw integers:
