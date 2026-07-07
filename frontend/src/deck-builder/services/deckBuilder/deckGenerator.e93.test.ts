@@ -109,6 +109,9 @@ describe('fetchPoolWithFallback', () => {
     const outcome = await fetchPoolWithFallback(candidates);
     expect(outcome?.source).toBe('base+bracket');
     expect(outcome?.fellBackFrom).toBe('theme+bracket');
+    // S1 ladder-cause-honesty: the first rung THREW — that's a fetch failure,
+    // not a thin-but-parsed pool, and the two must stay distinguishable.
+    expect(outcome?.fellBackCause).toBe('fetch-failed');
   });
 
   it('falls back to the broadest (last) rung when every candidate is thin', async () => {
@@ -119,6 +122,8 @@ describe('fetchPoolWithFallback', () => {
     const outcome = await fetchPoolWithFallback(candidates);
     expect(outcome?.source).toBe('base');
     expect(outcome?.fellBackFrom).toBe('theme+bracket');
+    // The first rung resolved fine — it was just thin, never a fetch failure.
+    expect(outcome?.fellBackCause).toBe('thin');
   });
 
   it('returns null only when every rung throws', async () => {
@@ -168,5 +173,39 @@ describe('buildBracketPoolFallbackNote', () => {
     );
     expect(note).not.toContain('+ undefined');
     expect(note).toContain('built from the main commander page instead');
+  });
+
+  // S1 ladder-cause-honesty: the note's existing sentence is pinned by the
+  // three tests above with no `cause` argument at all — confirms the default
+  // (omitted / 'thin') is byte-identical to the pre-S1 copy those tests pin.
+  it('appends the fetch-failed cause distinction when the page never resolved', () => {
+    const note = buildBracketPoolFallbackNote(
+      'Mr. House, President and CEO',
+      5,
+      'theme+bracket',
+      'base+bracket',
+      'Die Roll',
+      'fetch-failed'
+    );
+    expect(note).toContain("(the page couldn't be fetched)");
+  });
+
+  it('adds no cause phrase for a genuinely thin page (matches the no-cause copy)', () => {
+    const withCause = buildBracketPoolFallbackNote(
+      'Mr. House, President and CEO',
+      5,
+      'theme+bracket',
+      'base+bracket',
+      'Die Roll',
+      'thin'
+    );
+    const withoutCause = buildBracketPoolFallbackNote(
+      'Mr. House, President and CEO',
+      5,
+      'theme+bracket',
+      'base+bracket',
+      'Die Roll'
+    );
+    expect(withCause).toBe(withoutCause);
   });
 });

@@ -1354,10 +1354,14 @@ interface RawComboResponse {
 }
 
 /**
- * Fetch known combos for a commander from EDHREC.
- * Returns combos sorted by popularity (deckCount descending).
+ * Same as `fetchCommanderCombos` but doesn't swallow a fetch failure — it
+ * rethrows, so a caller that needs to tell "genuinely zero combos" (a common,
+ * valid result) apart from "the fetch failed" (e.g. the deck generator's
+ * generation-integrity disclosure, S1) can do so. `fetchCommanderCombos`
+ * below is the catch-and-degrade wrapper every other caller keeps using
+ * unchanged.
  */
-export async function fetchCommanderCombos(commanderName: string): Promise<EDHRECCombo[]> {
+export async function fetchCommanderCombosRaw(commanderName: string): Promise<EDHRECCombo[]> {
   const slug = formatCommanderNameForUrl(commanderName);
 
   const cached = comboCache.get(slug);
@@ -1367,34 +1371,42 @@ export async function fetchCommanderCombos(commanderName: string): Promise<EDHRE
 
   if (offlineActive()) return [];
 
+  const response = await edhrecFetch<RawComboResponse>(`/pages/combos/${slug}.json`);
+
+  const rawCombos = response.container?.json_dict?.cardlists || [];
+
+  const combos: EDHRECCombo[] = rawCombos.map((entry) => {
+    // Store href for later detail fetches
+    if (entry.href) comboHrefMap.set(entry.combo.comboId, entry.href);
+    const cards = entry.cardviews.map((cv) => ({ name: cv.name, id: cv.id }));
+    const rawBracket = entry.combo.comboVote?.bracket;
+    return {
+      comboId: entry.combo.comboId,
+      cards,
+      results: entry.combo.results || [],
+      deckCount: entry.combo.count || 0,
+      rank: entry.combo.rank || 0,
+      bracket: typeof rawBracket === 'number' ? rawBracket : null,
+      bracketTag: null,
+      prereqCount: entry.combo.nonCardPrerequisiteCount || 0,
+      cardCount: cards.length,
+      href: entry.href ?? null,
+    };
+  });
+
+  combos.sort((a, b) => b.deckCount - a.deckCount);
+
+  comboCache.set(slug, { data: combos, timestamp: Date.now() });
+  return combos;
+}
+
+/**
+ * Fetch known combos for a commander from EDHREC.
+ * Returns combos sorted by popularity (deckCount descending).
+ */
+export async function fetchCommanderCombos(commanderName: string): Promise<EDHRECCombo[]> {
   try {
-    const response = await edhrecFetch<RawComboResponse>(`/pages/combos/${slug}.json`);
-
-    const rawCombos = response.container?.json_dict?.cardlists || [];
-
-    const combos: EDHRECCombo[] = rawCombos.map((entry) => {
-      // Store href for later detail fetches
-      if (entry.href) comboHrefMap.set(entry.combo.comboId, entry.href);
-      const cards = entry.cardviews.map((cv) => ({ name: cv.name, id: cv.id }));
-      const rawBracket = entry.combo.comboVote?.bracket;
-      return {
-        comboId: entry.combo.comboId,
-        cards,
-        results: entry.combo.results || [],
-        deckCount: entry.combo.count || 0,
-        rank: entry.combo.rank || 0,
-        bracket: typeof rawBracket === 'number' ? rawBracket : null,
-        bracketTag: null,
-        prereqCount: entry.combo.nonCardPrerequisiteCount || 0,
-        cardCount: cards.length,
-        href: entry.href ?? null,
-      };
-    });
-
-    combos.sort((a, b) => b.deckCount - a.deckCount);
-
-    comboCache.set(slug, { data: combos, timestamp: Date.now() });
-    return combos;
+    return await fetchCommanderCombosRaw(commanderName);
   } catch (error) {
     logger.error(`[EDHREC] Failed to fetch combos for ${commanderName}:`, error);
     return [];

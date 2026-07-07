@@ -37,7 +37,7 @@ import {
   fetchCommanderThemeData,
   fetchPartnerCommanderData,
   fetchPartnerThemeData,
-  fetchCommanderCombos,
+  fetchCommanderCombosRaw,
   fetchSaltIndex,
   isPoolTooThin,
 } from '@/deck-builder/services/edhrec/client';
@@ -128,7 +128,7 @@ import {
 import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
-import { loadCardSimilar } from './cardSimilar';
+import { loadCardSimilar, hasCardSimilar } from './cardSimilar';
 import { resolveMultiCopyCards } from './multiCopy';
 import {
   generateLands,
@@ -328,18 +328,38 @@ export type PoolRung = Extract<DeckDataSource, 'theme+bracket' | 'base+bracket' 
  * pre-E93 error-only fallback would have landed on anyway. Returns `null`
  * only when every rung's fetch threw (matches pre-E93 total-failure behavior).
  */
+/** Why the ladder moved past the originally-requested (first) rung — a
+ *  genuine thinness call vs. a fetch that never even resolved to check. See
+ *  `buildBracketPoolFallbackNote`'s `cause` param (S1 ladder-cause-honesty). */
+export type PoolFallbackCause = 'fetch-failed' | 'thin';
+
 export async function fetchPoolWithFallback(
   rungs: Array<{ source: PoolRung; fetch: () => Promise<EDHRECCommanderData> }>
-): Promise<{ data: EDHRECCommanderData; source: PoolRung; fellBackFrom?: PoolRung } | null> {
+): Promise<{
+  data: EDHRECCommanderData;
+  source: PoolRung;
+  fellBackFrom?: PoolRung;
+  fellBackCause?: PoolFallbackCause;
+} | null> {
   let last: { data: EDHRECCommanderData; source: PoolRung } | null = null;
-  for (const rung of rungs) {
-    const data = await rung.fetch().catch(() => null);
+  let firstRungFetchFailed = false;
+  for (let i = 0; i < rungs.length; i++) {
+    const rung = rungs[i];
+    const data = await rung.fetch().catch(() => {
+      if (i === 0) firstRungFetchFailed = true;
+      return null;
+    });
     if (!data) continue;
     last = { data, source: rung.source };
     if (!isPoolTooThin(data)) break;
   }
   if (!last) return null;
-  return { ...last, fellBackFrom: last.source !== rungs[0].source ? rungs[0].source : undefined };
+  const fellBack = last.source !== rungs[0].source;
+  return {
+    ...last,
+    fellBackFrom: fellBack ? rungs[0].source : undefined,
+    fellBackCause: fellBack ? (firstRungFetchFailed ? 'fetch-failed' : 'thin') : undefined,
+  };
 }
 
 /** Human-readable label for one EDHREC page rung, for the E93 disclosure note. */
@@ -371,13 +391,71 @@ export function buildBracketPoolFallbackNote(
   targetBracket: TargetBracket,
   fellBackFrom: PoolRung,
   usedSource: PoolRung,
-  themeNames: string | undefined
+  themeNames: string | undefined,
+  cause?: PoolFallbackCause
 ): string {
   const bracketPhrase = `bracket-${targetBracket} (${bracketLabel(Number(targetBracket))})`;
   const subject = themeNames ? `${commanderLabel} + ${themeNames}` : commanderLabel;
   const missingLabel = poolRungLabel(fellBackFrom, bracketPhrase, themeNames);
   const usedLabel = poolRungLabel(usedSource, bracketPhrase, themeNames);
-  return `EDHREC has too little data on ${missingLabel} for ${subject} — built from ${usedLabel} instead, with ${bracketPhrase} card permissions kept.`;
+  // S1 ladder-cause-honesty: undefined (the common "thin" case pre-S1) keeps
+  // the exact pre-existing sentence so old snapshots/copy don't drift; only a
+  // genuine fetch failure appends the distinction (a thrown fetch never got
+  // to prove itself thin — it just never resolved).
+  const causeSuffix = cause === 'fetch-failed' ? " (the page couldn't be fetched)" : '';
+  return `EDHREC has too little data on ${missingLabel} for ${subject} — built from ${usedLabel} instead, with ${bracketPhrase} card permissions kept${causeSuffix}.`;
+}
+
+/**
+ * Calls `fn` once; if it throws, or resolves to a value that fails the
+ * optional `isOk` check, tries again exactly once. No backoff — for the
+ * per-generation data loads (tagger role data, combos, the substitute index)
+ * a single retry is enough to tell "the network blipped" from "it's actually
+ * down" without building retry-queue machinery (S1). The second attempt's
+ * outcome (success, failure value, or thrown error) is returned/thrown as-is
+ * — this only buys one extra try, not resilience against a truly-down host.
+ */
+export async function retryOnce<T>(fn: () => Promise<T>, isOk?: (value: T) => boolean): Promise<T> {
+  try {
+    const result = await fn();
+    if (!isOk || isOk(result)) return result;
+  } catch {
+    // fall through to the retry below
+  }
+  return fn();
+}
+
+/** S1 generation-integrity disclosure: tagger role-data still unavailable
+ *  after the retry. Role caps/targets/boosts all silently no-op without it —
+ *  the #1 cause of a "random-looking" deck out of an RNG-free generator. */
+export function buildTaggerIntegrityNote(taggerAvailable: boolean): string | undefined {
+  if (taggerAvailable) return undefined;
+  return "Card-role data couldn't be loaded, so role targets and balance limits weren't enforced on this build. Regenerate to retry with full data.";
+}
+
+/** S1 generation-integrity disclosure: the EDHREC combo fetch genuinely
+ *  failed (not just "this commander happens to have zero combos" — a
+ *  common, valid result the note must never fire for) AND the user actually
+ *  asked for combo seeding (comboCountSetting > 0) — so combo detection and
+ *  the combo boost/floor system were both silently skipped this build. */
+export function buildComboIntegrityNote(
+  fetchFailed: boolean,
+  comboCountSetting: number
+): string | undefined {
+  if (!fetchFailed || comboCountSetting <= 0) return undefined;
+  return "Combo data couldn't be loaded — combo detection and combo seeding were skipped on this build.";
+}
+
+/** S1 generation-integrity disclosure: the EDHREC substitute-ranking index
+ *  is unavailable AND this build is collection-constrained (the only path
+ *  that actually reaches for it, for shortage-fill ranking) — so replacement
+ *  picks fell back to the built-in heuristic instead of the real signal. */
+export function buildSubstituteIntegrityNote(
+  substituteIndexAvailable: boolean,
+  collectionMode: boolean
+): string | undefined {
+  if (substituteIndexAvailable || !collectionMode) return undefined;
+  return "The substitute-ranking index couldn't be loaded — replacement picks used the built-in heuristic.";
 }
 
 // ---- Fast regeneration cache ----
@@ -392,6 +470,9 @@ interface GenerationCache {
   gameChangerNames: Set<string>;
   dataSource: DeckDataSource;
   bracketPoolFallbackNote: string | undefined;
+  /** S1: combo/substitute integrity notes only (never the tagger note — that's
+   *  always recomputed fresh on regeneration, see the Phase A block). */
+  integrityNotes: string[];
   representativeStats: EDHRECCommanderStats;
   // Cache keys — ALL must match for a cache hit
   commanderName: string;
@@ -1207,6 +1288,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // --- Phase A: Data Acquisition (skippable via generation cache) ---
   const usingCache = isCacheValid(context);
+  // S1 generation-integrity disclosures. `cacheableIntegrityNotes` holds only
+  // the combo/substitute notes — the data the fast (cache) path never
+  // refetches — so a regeneration from cache carries them forward unchanged.
+  // The tagger note is recomputed fresh on every path below (tagger reloads
+  // regardless of cache hit) and is deliberately never itself cached.
+  const cacheableIntegrityNotes: string[] = [];
+  let integrityNotes: string[];
 
   if (usingCache) {
     logger.debug('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
@@ -1218,17 +1306,22 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     state.bracketPoolFallbackNote = generationCache!.bracketPoolFallbackNote;
     state.baseData = generationCache!.baseData;
     state.themeOverlapCounts = generationCache!.themeOverlapCounts;
-    await loadTaggerData();
+    integrityNotes = [...(generationCache!.integrityNotes ?? [])];
+    await retryOnce(loadTaggerData, (d) => d !== null);
     onProgress?.('Your library takes shape…', 12);
   } else {
     // FULL PATH: Pre-fetch basic lands, game changer list, combo data, and tagger data in parallel
     onProgress?.('Shuffling up…', 5);
+    let combosFetchFailed = false;
     const [, fetchedGCNames, fetchedCombos] = await Promise.all([
       prefetchBasicLands(),
       getGameChangerNames(),
-      fetchCommanderCombos(commander.name).catch(() => [] as EDHRECCombo[]),
-      loadTaggerData(),
-      loadCardSimilar(), // EDHREC substitute index for shortage-fill ranking
+      retryOnce(() => fetchCommanderCombosRaw(commander.name)).catch(() => {
+        combosFetchFailed = true;
+        return [] as EDHRECCombo[];
+      }),
+      retryOnce(loadTaggerData, (d) => d !== null),
+      retryOnce(loadCardSimilar, (d) => d !== null), // EDHREC substitute index for shortage-fill ranking
     ]);
     state.gameChangerNames = fetchedGCNames;
     state.combos = fetchedCombos;
@@ -1237,7 +1330,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     logger.debug(
       `[DeckGen] Tagger data: ${hasTaggerData() ? 'loaded' : 'unavailable (role detection disabled)'}`
     );
+    const comboNote = buildComboIntegrityNote(combosFetchFailed, comboCountSetting);
+    if (comboNote) cacheableIntegrityNotes.push(comboNote);
+    const substituteNote = buildSubstituteIntegrityNote(
+      hasCardSimilar(),
+      !!context.collectionNames
+    );
+    if (substituteNote) cacheableIntegrityNotes.push(substituteNote);
+    integrityNotes = [...cacheableIntegrityNotes];
   }
+
+  const taggerNote = buildTaggerIntegrityNote(hasTaggerData());
+  if (taggerNote) integrityNotes.push(taggerNote);
 
   // Build combo priority boost map + combo membership index for dynamic boosting
   if (comboCountSetting > 0 && state.combos.length > 0) {
@@ -1712,7 +1816,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
               targetBracket,
               outcome.fellBackFrom,
               outcome.source,
-              selectedThemesWithSlugs.map((t) => t.name).join(', ')
+              selectedThemesWithSlugs.map((t) => t.name).join(', '),
+              outcome.fellBackCause
             );
           }
         }
@@ -1862,7 +1967,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             targetBracket,
             outcome.fellBackFrom,
             outcome.source,
-            undefined
+            undefined,
+            outcome.fellBackCause
           );
         }
         onProgress?.('Your commander heeds the call…', 12);
@@ -2038,6 +2144,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       gameChangerNames: state.gameChangerNames,
       dataSource: state.dataSource,
       bracketPoolFallbackNote: state.bracketPoolFallbackNote,
+      integrityNotes: cacheableIntegrityNotes,
       representativeStats: state.edhrecData.stats,
       ...key,
     };
@@ -5838,6 +5945,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     typeTargets,
     dataSource: state.dataSource,
     bracketPoolFallbackNote: state.bracketPoolFallbackNote,
+    integrityNotes: integrityNotes.length > 0 ? integrityNotes : undefined,
     generationMode: mode,
     generationModeDetail: altPool?.detail,
     generationRelaxedNote: altPool?.relaxedNote,

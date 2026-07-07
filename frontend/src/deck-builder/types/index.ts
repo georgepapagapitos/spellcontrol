@@ -542,6 +542,12 @@ export interface BuildReport {
    *  a generation-start baseline. One entry per newly-completed combo.
    *  Undefined when nothing newly completed. */
   comboCompletionNotes?: string[];
+  /** Generation-integrity disclosures (S1): a data source (tagger role data,
+   *  combo data, the substitute-ranking index) failed to load even after a
+   *  retry, so this build ran degraded on that axis without telling anyone.
+   *  Rendered up top with warning styling. Undefined/empty when every source
+   *  loaded fine. */
+  integrityNotes?: string[];
   /** Disclosure when the Staples <-> Brew dial was off its 0.5 Balanced default —
    *  names which direction the user leaned so the report never leaves a
    *  reweighted pick pool unexplained. Undefined at the default. */
@@ -693,6 +699,11 @@ export interface GeneratedDeck {
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
   comboCompletionNotes?: string[]; // one per combo the build's own picks completed with cards already in the deck
+  /** Generation-integrity disclosures (S1): a data source that couldn't be
+   *  loaded (even after a retry) and so degraded this build silently unless
+   *  flagged here — tagger role data, combo data, or the substitute-ranking
+   *  index. Undefined/empty when every source loaded fine. */
+  integrityNotes?: string[];
 }
 
 export interface DeckStats {

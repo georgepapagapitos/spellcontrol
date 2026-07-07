@@ -190,6 +190,7 @@ export function BuildReportPanel({
     brewDialNote,
     landSqueezeTrimNote,
     bracketPoolFallbackNote,
+    integrityNotes,
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
@@ -239,6 +240,12 @@ export function BuildReportPanel({
 
   return (
     <div className="build-report">
+      {integrityNotes?.map((note) => (
+        <p key={note} className="build-report-flag">
+          {note}
+        </p>
+      ))}
+
       {generationMode && generationMode !== 'edhrec' && (
         <p className="build-report-line build-report-method">
           <strong>{humanizeGenerationMode(generationMode, generationModeDetail)}</strong>
