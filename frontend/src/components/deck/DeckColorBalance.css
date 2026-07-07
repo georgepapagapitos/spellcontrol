@@ -225,11 +225,13 @@
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
-/* Phones: tighten the row padding and the meter's fixed label/value columns
-   so the demand/sources bars keep usable width down to ~320px. The track
-   itself is the flexible 1fr column, so shrinking the rails is enough — no
-   reflow needed. Matches the 600px tier used by the sibling stat panels. */
-@media (max-width: 600px) {
+/* Narrow boxes: tighten the row padding and the meter's fixed label/value
+   columns so the demand/sources bars keep usable width down to the ~288px
+   pair-cell floor. Container-gated, not viewport-gated: this panel renders
+   at half-width in the Stats bento pair and in the compare page's 2-up
+   columns, where the viewport is wide but the box is narrow (E61). The
+   nearest query container is the pair cell / compare column. */
+@container (max-width: 26rem) {
   .deck-color-balance-rows {
     gap: 0.45rem;
   }
