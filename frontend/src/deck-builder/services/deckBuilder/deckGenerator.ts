@@ -117,7 +117,9 @@ import {
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
+  scryfallFallbackTypePass,
   type TypePassContext,
+  type ScryfallFallbackContext,
 } from './deckGeneration/typePassPick';
 
 import {
@@ -2647,34 +2649,45 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       fillGates
     );
 
-    // Use typeTargets for remaining slots to get a balanced type distribution
-    const scryfallCreatureTarget = Math.max(
-      0,
-      (typeTargets.creature ?? 0) -
-        (preFilledTypeCounts.creature ?? 0) -
-        categories.creatures.length
-    );
-    onProgress?.('Summoning creatures…', 60);
-    const scryfallCreatures = await fillWithScryfall(
-      't:creature',
+    // Use typeTargets for remaining slots to get a balanced type distribution.
+    // Shared machinery for the five Scryfall-only type-pass twins below lives
+    // in deckGeneration/typePassPick.ts (E68 phase 2 follow-up) — see
+    // ScryfallFallbackContext's doc for why this is a narrower context than
+    // the EDHREC-pool passes' (no role-boost machinery exists on this
+    // no-EDHREC-data path).
+    const scryfallFallbackCtx: ScryfallFallbackContext = {
       colorIdentity,
-      scryfallCreatureTarget,
       usedNames,
       bannedCards,
       maxCardPrice,
       maxRarity,
       maxCmc,
       budgetTracker,
-      context.collectionNames,
+      collectionNames: context.collectionNames,
       currency,
       arenaOnly,
-      scryfallQuery,
       collectionStrategy,
       ignoreOwnedBudget,
       ignoreOwnedRarity,
       isCardAllowedBySynergyDependencies,
+      onProgress,
+      scryfallQueryFilter: scryfallQuery,
       liftScoreOf,
-      fillGates
+      fillGates,
+    };
+
+    const scryfallCreatureTarget = Math.max(
+      0,
+      (typeTargets.creature ?? 0) -
+        (preFilledTypeCounts.creature ?? 0) -
+        categories.creatures.length
+    );
+    const scryfallCreatures = await scryfallFallbackTypePass(
+      scryfallFallbackCtx,
+      't:creature',
+      scryfallCreatureTarget,
+      'Summoning creatures…',
+      60
     );
     categories.creatures.push(...scryfallCreatures);
 
@@ -2682,27 +2695,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       0,
       (typeTargets.artifact ?? 0) - (preFilledTypeCounts.artifact ?? 0)
     );
-    onProgress?.('Forging artifacts…', 65);
-    const scryfallArtifacts = await fillWithScryfall(
+    const scryfallArtifacts = await scryfallFallbackTypePass(
+      scryfallFallbackCtx,
       't:artifact -t:creature',
-      colorIdentity,
       scryfallArtifactTarget,
-      usedNames,
-      bannedCards,
-      maxCardPrice,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      currency,
-      arenaOnly,
-      scryfallQuery,
-      collectionStrategy,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies,
-      liftScoreOf,
-      fillGates
+      'Forging artifacts…',
+      65
     );
     categorizeCards(scryfallArtifacts, categories);
 
@@ -2710,27 +2708,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       0,
       (typeTargets.enchantment ?? 0) - (preFilledTypeCounts.enchantment ?? 0)
     );
-    onProgress?.('Weaving enchantments…', 70);
-    const scryfallEnchantments = await fillWithScryfall(
+    const scryfallEnchantments = await scryfallFallbackTypePass(
+      scryfallFallbackCtx,
       't:enchantment -t:creature',
-      colorIdentity,
       scryfallEnchantmentTarget,
-      usedNames,
-      bannedCards,
-      maxCardPrice,
-      maxRarity,
-      maxCmc,
-      budgetTracker,
-      context.collectionNames,
-      currency,
-      arenaOnly,
-      scryfallQuery,
-      collectionStrategy,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      isCardAllowedBySynergyDependencies,
-      liftScoreOf,
-      fillGates
+      'Weaving enchantments…',
+      70
     );
     categorizeCards(scryfallEnchantments, categories);
 
@@ -2742,27 +2725,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         categories.boardWipes.length
     );
     if (scryfallInstantTarget > 0) {
-      onProgress?.('Readying instants…', 72);
-      const scryfallInstants = await fillWithScryfall(
+      const scryfallInstants = await scryfallFallbackTypePass(
+        scryfallFallbackCtx,
         't:instant',
-        colorIdentity,
         scryfallInstantTarget,
-        usedNames,
-        bannedCards,
-        maxCardPrice,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        currency,
-        arenaOnly,
-        scryfallQuery,
-        collectionStrategy,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies,
-        liftScoreOf,
-        fillGates
+        'Readying instants…',
+        72
       );
       categorizeCards(scryfallInstants, categories);
     }
@@ -2772,27 +2740,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       (typeTargets.sorcery ?? 0) - (preFilledTypeCounts.sorcery ?? 0)
     );
     if (scryfallSorceryTarget > 0) {
-      onProgress?.('Inscribing sorceries…', 74);
-      const scryfallSorceries = await fillWithScryfall(
+      const scryfallSorceries = await scryfallFallbackTypePass(
+        scryfallFallbackCtx,
         't:sorcery',
-        colorIdentity,
         scryfallSorceryTarget,
-        usedNames,
-        bannedCards,
-        maxCardPrice,
-        maxRarity,
-        maxCmc,
-        budgetTracker,
-        context.collectionNames,
-        currency,
-        arenaOnly,
-        scryfallQuery,
-        collectionStrategy,
-        ignoreOwnedBudget,
-        ignoreOwnedRarity,
-        isCardAllowedBySynergyDependencies,
-        liftScoreOf,
-        fillGates
+        'Inscribing sorceries…',
+        74
       );
       categorizeCards(scryfallSorceries, categories);
     }

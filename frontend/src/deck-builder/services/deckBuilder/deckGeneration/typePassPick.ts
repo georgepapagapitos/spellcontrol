@@ -18,6 +18,7 @@ import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/
 import type { RoleKey, WipeScope } from '@/deck-builder/services/tagger/client';
 import { pickFromPrefetchedWithCurve } from '../cardPicking';
 import { computeRoleBoosts, stampRoleSubtypes } from '../categorize';
+import { fillWithScryfall, type FillHardGates } from '../scryfallFill';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
 
@@ -168,4 +169,78 @@ export function bumpRoleAndSubtypeCounts(ctx: TypePassContext, picked: ScryfallC
       if (st) ctx.currentSubtypeCounts[st] = (ctx.currentSubtypeCounts[st] ?? 0) + 1;
     }
   }
+}
+
+/**
+ * Everything the no-EDHREC-data Scryfall-only type-pass twins (creature/
+ * artifact/enchantment/instant/sorcery — the "else" of the same branch the
+ * six passes above belong to the "if" of) read in common. A `Pick` of
+ * `TypePassContext`'s already-typed fields plus the three extra ones
+ * `fillWithScryfall` needs that the EDHREC-pool passes don't — deliberately
+ * NOT the full `TypePassContext`, since this branch runs when `cardRoleMap` /
+ * `cardCmcMap` / `cardSubtypeMap` / `roleTargets` etc. were never built (no
+ * EDHREC data means no role-boost machinery at all here).
+ */
+export type ScryfallFallbackContext = Pick<
+  TypePassContext,
+  | 'colorIdentity'
+  | 'usedNames'
+  | 'bannedCards'
+  | 'maxCardPrice'
+  | 'maxRarity'
+  | 'maxCmc'
+  | 'budgetTracker'
+  | 'collectionNames'
+  | 'currency'
+  | 'arenaOnly'
+  | 'collectionStrategy'
+  | 'ignoreOwnedBudget'
+  | 'ignoreOwnedRarity'
+  | 'isCardAllowedBySynergyDependencies'
+  | 'onProgress'
+> & {
+  /** The user's additional Scryfall filter (`state.cfg.scryfallQuery`,
+   *  possibly relaxed by an alternative-pool generator) — passed to
+   *  `fillWithScryfall` as its own `scryfallQuery` parameter, distinct from
+   *  this function's `query` argument (the type-defining search). */
+  scryfallQueryFilter: string;
+  liftScoreOf: (name: string) => number;
+  fillGates: FillHardGates;
+};
+
+/**
+ * Runs ONE Scryfall-only fallback type pass: onProgress → `fillWithScryfall`.
+ * Does NOT categorize the result or apply the (per-type, sometimes absent)
+ * `target > 0` guard — both differ per call site; see each of the five call
+ * sites in deckGenerator.ts's no-EDHREC-data branch.
+ */
+export async function scryfallFallbackTypePass(
+  ctx: ScryfallFallbackContext,
+  query: string,
+  target: number,
+  progressMessage: string,
+  progressPct: number
+): Promise<ScryfallCard[]> {
+  ctx.onProgress?.(progressMessage, progressPct);
+  return fillWithScryfall(
+    query,
+    ctx.colorIdentity,
+    target,
+    ctx.usedNames,
+    ctx.bannedCards,
+    ctx.maxCardPrice,
+    ctx.maxRarity,
+    ctx.maxCmc,
+    ctx.budgetTracker,
+    ctx.collectionNames,
+    ctx.currency,
+    ctx.arenaOnly,
+    ctx.scryfallQueryFilter,
+    ctx.collectionStrategy,
+    ctx.ignoreOwnedBudget,
+    ctx.ignoreOwnedRarity,
+    ctx.isCardAllowedBySynergyDependencies,
+    ctx.liftScoreOf,
+    ctx.fillGates
+  );
 }
