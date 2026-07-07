@@ -352,6 +352,25 @@ describe('tombstones', () => {
     expect(liveCards.map((r) => r.id)).toEqual(['c-3']);
   });
 
+  it('cascades a card upserted in the same batch as its import deletion (E67)', async () => {
+    // The delete wins over the same-batch upsert — matching what would happen
+    // if the upsert had landed in an earlier batch. The old pre-SELECT cascade
+    // resolved cascade targets before applying upserts, so this card survived
+    // as a live orphan under a tombstoned import.
+    const cookie = await registerAndGetCookie('tomb_cascade_same_batch');
+    await push(cookie, {
+      upserts: [{ kind: 'import', id: 'imp-r', data: { id: 'imp-r' } }],
+    });
+    await push(cookie, {
+      upserts: [{ kind: 'card', id: 'c-raced', data: { copyId: 'c-raced' }, importId: 'imp-r' }],
+      deletions: [{ kind: 'import', id: 'imp-r' }],
+    });
+    const view = await pull(cookie);
+    const card = view.rows.find((r) => r.kind === 'card' && r.id === 'c-raced');
+    expect(card).toBeDefined();
+    expect(card!.deletedAt).not.toBeNull();
+  });
+
   it("does not resurrect a deleted row when a stale device's push arrives later", async () => {
     // The original bug. Device A clears a card; device B (with stale local
     // state) later pushes the SAME card back as an upsert. Result: row exists

@@ -223,6 +223,8 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX friendships_addressee_idx ON friendships(addressee_id);
     CREATE INDEX friendships_status_idx ON friendships(status);
+    CREATE UNIQUE INDEX friendships_pair_idx
+      ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
 
     CREATE TABLE game_results (
       session_id TEXT PRIMARY KEY,

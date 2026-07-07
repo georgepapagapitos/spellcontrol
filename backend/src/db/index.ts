@@ -257,6 +257,30 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS friendships_addressee_idx ON friendships(addressee_id);
     CREATE INDEX IF NOT EXISTS friendships_status_idx ON friendships(status);
 
+    -- E69: mutual A→B / B→A requests could race past the app-level check
+    -- (ordered-pair PK, non-transactional check+insert), leaving two live
+    -- pending rows. Collapse any existing duplicates — mutual pendings are
+    -- mutual consent, so the older row is promoted to accepted; otherwise
+    -- the accepted (or older) row wins — then enforce one row per unordered
+    -- pair. Both statements are no-ops once clean, so re-running each boot
+    -- is harmless. The request route treats a unique violation on insert as
+    -- "the reverse request just landed" and auto-accepts it.
+    UPDATE friendships f
+    SET status = 'accepted', accepted_at = COALESCE(f.accepted_at, r.created_at)
+    FROM friendships r
+    WHERE r.requester_id = f.addressee_id AND r.addressee_id = f.requester_id
+      AND f.status = 'pending' AND r.status = 'pending'
+      AND (f.created_at, f.requester_id) < (r.created_at, r.requester_id);
+    DELETE FROM friendships f
+    USING friendships r
+    WHERE r.requester_id = f.addressee_id AND r.addressee_id = f.requester_id
+      AND (
+        (f.status = 'pending' AND r.status = 'accepted')
+        OR (f.status = r.status AND (f.created_at, f.requester_id) > (r.created_at, r.requester_id))
+      );
+    CREATE UNIQUE INDEX IF NOT EXISTS friendships_pair_idx
+      ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
+
     CREATE TABLE IF NOT EXISTS game_results (
       session_id TEXT PRIMARY KEY,
       code TEXT NOT NULL,

@@ -190,13 +190,46 @@ friendsRouter.post(
       }
     }
 
-    // No existing row — insert new pending request
+    // No existing row — insert new pending request. The pair-unique index
+    // (friendships_pair_idx) can still reject this if the reverse request
+    // lands between the check above and the insert — the E69 race that used
+    // to leave two pending rows. Treat that violation as "the reverse row
+    // just appeared" and resolve it the same way the check would have.
     const now = Date.now();
-    await pool.query(
-      `INSERT INTO friendships (requester_id, addressee_id, status, created_at)
-       VALUES ($1, $2, 'pending', $3)`,
-      [callerId, target.id, now]
-    );
+    try {
+      await pool.query(
+        `INSERT INTO friendships (requester_id, addressee_id, status, created_at)
+         VALUES ($1, $2, 'pending', $3)`,
+        [callerId, target.id, now]
+      );
+    } catch (err) {
+      if ((err as { code?: string }).code !== '23505') throw err;
+      const accepted = await pool.query(
+        `UPDATE friendships SET status = 'accepted', accepted_at = $1
+         WHERE requester_id = $2 AND addressee_id = $3 AND status = 'pending'
+         RETURNING requester_id`,
+        [now, target.id, callerId]
+      );
+      if (accepted.rowCount === 1) {
+        return res.status(201).json({
+          friendStatus: 'friends',
+          addressee: { id: target.id, username: target.username },
+        });
+      }
+      // Not a pending reverse row — either our own duplicate direction
+      // (double-tap) or a pair that just got accepted. Mirror the check's
+      // responses.
+      const pair = await pool.query<{ status: string }>(
+        `SELECT status FROM friendships
+         WHERE (requester_id = $1 AND addressee_id = $2)
+            OR (requester_id = $2 AND addressee_id = $1)`,
+        [callerId, target.id]
+      );
+      if (pair.rows.some((r) => r.status === 'accepted')) {
+        return res.status(409).json({ error: 'Already friends.' });
+      }
+      return res.status(409).json({ error: 'Friend request already sent.' });
+    }
 
     return res.status(201).json({
       friendStatus: 'request_sent',
