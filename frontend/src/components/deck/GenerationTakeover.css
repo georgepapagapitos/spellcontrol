@@ -22,8 +22,8 @@
 /* Dim + desaturate the commander art so the seal flare and colour sparks
    pop against it during the celebration. */
 .gen-takeover.is-celebrating .gen-takeover-art-img {
-  filter: brightness(0.45) saturate(0.85);
-  transition: filter 320ms var(--ease-out-soft);
+  filter: brightness(0.6) saturate(0.9);
+  transition: filter 360ms var(--ease-out-soft);
 }
 
 /* Hero region — art + headline; fixed minimum so the art always reads. */

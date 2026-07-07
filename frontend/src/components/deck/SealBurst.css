@@ -1,9 +1,10 @@
 /* ── SealBurst ─────────────────────────────────────────────────────────────
-   Deck-generation-complete flourish: the grimoire seal flares (brass #f0c368,
-   matching the BrandMark clasp seal) and sheds mana sparks in the deck's colour
-   identity. One-shot emphasis animation — plays once as the takeover exits,
-   then unmounts. Every keyframe is reduced-motion gated (the component also
-   returns null under reduce; this is the CSS backstop per STYLE_GUIDE). */
+   Deck-generation-complete flourish: the brand grimoire blooms at the centre
+   in a soft brass glow (#f0c368, the BrandMark clasp seal) and a few mana
+   motes drift outward in the deck's colour identity, then everything fades.
+   Restrained by design — one gentle bloom, not a firework. One-shot; plays as
+   the takeover holds, then unmounts. Every keyframe is reduced-motion gated
+   (the component also returns null under reduce; this is the CSS backstop). */
 
 .seal-burst {
   position: absolute;
@@ -23,65 +24,57 @@
   left: 50%;
 }
 
-/* ── The brand grimoire — blooms in and holds, glowing brass. ─────────────── */
+/* ── The brand grimoire — settles in with a soft brass glow. ──────────────── */
 .seal-burst-mark {
-  filter: drop-shadow(0 0 0.9rem color-mix(in srgb, #f0c368 80%, transparent));
-  animation: seal-burst-mark 900ms var(--ease-out-soft, ease-out) both;
+  filter: drop-shadow(0 0 0.7rem color-mix(in srgb, #f0c368 55%, transparent));
+  animation: seal-burst-mark 1000ms var(--ease-out-soft, ease-out) both;
 }
 
 @keyframes seal-burst-mark {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.55) rotate(-6deg);
+    transform: translate(-50%, -50%) scale(0.72);
   }
-  45% {
+  55% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
-  }
-  70% {
-    transform: translate(-50%, -50%) scale(0.98) rotate(0deg);
+    transform: translate(-50%, -50%) scale(1.03);
   }
   100% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
-/* ── The seal flare — a brass glow that swells and fades once. ─────────────── */
+/* ── The flare — a soft brass halo that swells gently behind the mark. ─────── */
 .seal-burst-flare {
-  width: 22rem;
-  height: 22rem;
-  margin: -11rem 0 0 -11rem;
+  width: 24rem;
+  height: 24rem;
+  margin: -12rem 0 0 -12rem;
   border-radius: 999px;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, #f0c368 95%, transparent) 0%,
-    color-mix(in srgb, #f0c368 55%, transparent) 32%,
-    color-mix(in srgb, #f0c368 18%, transparent) 55%,
-    transparent 72%
+    color-mix(in srgb, #f0c368 55%, transparent) 0%,
+    color-mix(in srgb, #f0c368 26%, transparent) 38%,
+    color-mix(in srgb, #f0c368 8%, transparent) 62%,
+    transparent 78%
   );
-  animation: seal-burst-flare 900ms var(--ease-out-soft, ease-out) both;
+  animation: seal-burst-flare 1000ms var(--ease-out-soft, ease-out) both;
 }
 
-/* ── The seal ring — expands outward like brand-mark-seal-ring. ───────────── */
+/* ── A single thin ring, quietly expanding like a stamped seal. ───────────── */
 .seal-burst-ring {
-  width: 6rem;
-  height: 6rem;
-  margin: -3rem 0 0 -3rem;
+  width: 5rem;
+  height: 5rem;
+  margin: -2.5rem 0 0 -2.5rem;
   border-radius: 999px;
-  border: 3px solid color-mix(in srgb, #f0c368 85%, transparent);
-  box-shadow: 0 0 1.5rem color-mix(in srgb, #f0c368 45%, transparent);
-  animation: seal-burst-ring 850ms var(--ease-out-soft, ease-out) both;
+  border: 1.5px solid color-mix(in srgb, #f0c368 55%, transparent);
+  animation: seal-burst-ring 1000ms var(--ease-out-soft, ease-out) both;
 }
 
-/* ── Mana sparks — colour-identity motes flung radially outward. ──────────── */
+/* ── Mana motes — colour-identity sparks drifting outward (size set inline). ─ */
 .seal-burst-mote {
-  width: 0.7rem;
-  height: 0.7rem;
   border-radius: 999px;
-  box-shadow:
-    0 0 0.75rem 0.18rem currentColor,
-    0 0 0.25rem 0.05rem #fff;
+  box-shadow: 0 0 0.5rem 0.08rem currentColor;
   animation-name: seal-burst-spark;
   animation-timing-function: var(--ease-out-soft, ease-out);
   animation-fill-mode: both;
@@ -90,45 +83,46 @@
 @keyframes seal-burst-flare {
   0% {
     opacity: 0;
-    transform: scale(0.4);
+    transform: scale(0.62);
   }
-  35% {
-    opacity: 1;
+  40% {
+    opacity: 0.82;
     transform: scale(1);
   }
   100% {
     opacity: 0;
-    transform: scale(1.25);
+    transform: scale(1.16);
   }
 }
 
 @keyframes seal-burst-ring {
   0% {
     opacity: 0;
-    transform: scale(0.3);
+    transform: scale(0.5);
   }
-  20% {
-    opacity: 1;
+  28% {
+    opacity: 0.6;
   }
   100% {
     opacity: 0;
-    transform: scale(4.2);
+    transform: scale(3);
   }
 }
 
-/* --angle / --dist are static per-mote custom props; only translateX(0→dist)
-   and scale/opacity interpolate, so the mote rides straight out along --angle. */
+/* --angle / --dist are static per-mote custom props; only translateX and
+   opacity/scale interpolate, so the mote drifts straight out along --angle
+   and decelerates (ease-out) as it fades. */
 @keyframes seal-burst-spark {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(0) scale(0.3);
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(6px) scale(0.5);
   }
-  18% {
-    opacity: 1;
+  25% {
+    opacity: 0.92;
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist)) scale(0.7);
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(var(--dist)) scale(0.85);
   }
 }
 

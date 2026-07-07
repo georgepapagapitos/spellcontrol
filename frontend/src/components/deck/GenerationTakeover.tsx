@@ -223,10 +223,10 @@ function prefersReducedMotion(): boolean {
 }
 
 // How long the completion beat holds before the takeover fades out — enough
-// for the seal-burst sparks (~1s) to travel and read. The fade itself is a
-// further ~200ms (gen-takeover-exit); use-generation-takeover-exit's fallback
-// timer covers the sum.
-const CELEBRATE_MS = 950;
+// for the mark bloom + mote drift (~1s) to land and read. The fade itself is
+// a further ~200ms (gen-takeover-exit); use-generation-takeover-exit's
+// fallback timer covers the sum.
+const CELEBRATE_MS = 1050;
 
 /**
  * Full-page takeover shown while commander-deck generation is running.

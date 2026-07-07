@@ -3,7 +3,7 @@ import { buildMotes } from './SealBurst';
 
 describe('buildMotes', () => {
   it('emits a full spark field', () => {
-    expect(buildMotes(['G']).length).toBe(30);
+    expect(buildMotes(['G']).length).toBe(16);
   });
 
   it('cycles every colour in the identity', () => {

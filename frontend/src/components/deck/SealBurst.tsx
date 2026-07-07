@@ -33,12 +33,15 @@ const SPARK_HEX: Record<string, string> = {
 /** Colourless / unknown identity — a warm gold in the seal's own family. */
 const FALLBACK_HEX = '#e6d2a0';
 
-const MOTE_COUNT = 30;
+// Restrained on purpose — a handful of drifting motes reads more refined than
+// a dense firework. Taste lives in fewer, softer, slower.
+const MOTE_COUNT = 16;
 
 export interface SealMote {
   hex: string;
   angle: number;
   dist: number;
+  size: number;
   delay: number;
   dur: number;
 }
@@ -46,7 +49,8 @@ export interface SealMote {
 /**
  * Deterministic radial spark field for a colour identity. Colours cycle across
  * the identity so a two-colour deck alternates both; an empty identity (a
- * colourless commander) falls back to the seal gold so it still sparks.
+ * colourless commander) falls back to the seal gold so it still sparks. The
+ * motes drift outward unhurriedly and fade — settling embers, not a burst.
  */
 export function buildMotes(colors: string[]): SealMote[] {
   return Array.from({ length: MOTE_COUNT }, (_, i) => {
@@ -54,10 +58,12 @@ export function buildMotes(colors: string[]): SealMote[] {
     const hex = (key && SPARK_HEX[key.toUpperCase()]) || FALLBACK_HEX;
     return {
       hex,
-      angle: (i / MOTE_COUNT) * 360 + (i % 3) * 7,
-      dist: 80 + (i % 6) * 18, // 80–170px radial spread
-      delay: (i % 8) * 18, // 0–126ms stagger
-      dur: 720 + (i % 4) * 100, // 720–1020ms
+      // Even spread with a touch of jitter so it never reads as a clock face.
+      angle: (i / MOTE_COUNT) * 360 + (i % 2 ? 9 : -6),
+      dist: 74 + (i % 5) * 13, // 74–126px — a gentle drift, not an explosion
+      size: 0.34 + (i % 3) * 0.05, // 0.34–0.44rem, lightly varied
+      delay: (i % 6) * 26, // 0–130ms stagger
+      dur: 880 + (i % 3) * 120, // 880–1120ms — slow enough to feel graceful
     };
   });
 }
@@ -85,7 +91,9 @@ export function SealBurst({ colors }: { colors: string[] }) {
           className="seal-burst-mote"
           style={{
             background: m.hex,
-            color: m.hex, // drives the box-shadow bloom via currentColor
+            color: m.hex, // drives the soft glow via currentColor
+            width: `${m.size}rem`,
+            height: `${m.size}rem`,
             ['--angle' as never]: `${m.angle}deg`,
             ['--dist' as never]: `${m.dist}px`,
             animationDelay: `${m.delay}ms`,
