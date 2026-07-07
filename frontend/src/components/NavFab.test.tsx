@@ -26,7 +26,7 @@ describe('NavFab', () => {
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('fans the four destinations out on tap', () => {
+  it('fans the five destinations out on tap', () => {
     vi.mocked(useCanScan).mockReturnValue(false);
     renderFab();
     // Collapsed: links are aria-hidden, so out of the accessibility tree.
@@ -37,7 +37,7 @@ describe('NavFab', () => {
     expect(
       screen.getByRole('button', { name: 'Close navigation' }).getAttribute('aria-expanded')
     ).toBe('true');
-    for (const label of ['Collection', 'Decks', 'Play', 'Settings']) {
+    for (const label of ['Collection', 'Decks', 'Play', 'Search', 'Settings']) {
       expect(screen.getByRole('link', { name: label })).toBeTruthy();
     }
   });
@@ -73,8 +73,8 @@ describe('NavFab', () => {
     // when the menu opens.
     const scan = screen.getByRole('button', { name: 'Scan' });
     expect(scan).toBeTruthy();
-    // The four nav destinations stay reachable alongside it.
-    for (const label of ['Collection', 'Decks', 'Play', 'Settings']) {
+    // The five nav destinations stay reachable alongside it.
+    for (const label of ['Collection', 'Decks', 'Play', 'Search', 'Settings']) {
       expect(screen.getByRole('link', { name: label })).toBeTruthy();
     }
   });
