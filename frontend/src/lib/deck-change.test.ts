@@ -8,6 +8,7 @@ import {
   fromOptimizeCard,
   fromSubstituteRow,
   fromBracketFitMove,
+  fromLandUpgradeMove,
   fromSwap,
   toSwapAgainst,
   fromCostSwapRow,
@@ -22,6 +23,7 @@ import type { GapAnalysisCard, ScryfallCard } from '@/deck-builder/types';
 import type { OptimizeCard } from '@/deck-builder/services/deckBuilder/deckAnalyzer';
 import type { SubstituteRow } from '@/deck-builder/services/deckBuilder/substituteFinder';
 import type { BracketFitMove } from '@/deck-builder/services/deckBuilder/bracketFit';
+import type { LandUpgradeMove } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import type { CostSwapRow } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import type { ComboMatch } from '@/types/combos';
 
@@ -376,6 +378,42 @@ describe('fromBracketFitMove', () => {
     expect(c.name).toBe('Smothering Tithe');
     expect(c.inName).toBe('Llanowar Elves');
     expect(c.isGameChanger).toBe(true); // the incoming GC drives the badge
+  });
+});
+
+describe('fromLandUpgradeMove', () => {
+  const move: LandUpgradeMove = {
+    outName: 'Plains',
+    outCard: { name: 'Plains' } as ScryfallCard,
+    inName: 'Hallowed Fountain',
+    inCard: {
+      name: 'Hallowed Fountain',
+      cmc: 0,
+      type_line: 'Land — Plains Island',
+    } as ScryfallCard,
+    reason: 'Stronger land you own — adds blue fixing.',
+    outScore: 20,
+    inScore: 52,
+    fixesShortColors: ['U'],
+    addsColors: ['U'],
+  };
+
+  it('surfaces the incoming land as primary, cut land in inName, owned', () => {
+    const c = fromLandUpgradeMove(move);
+    expect(c.type).toBe('swap');
+    expect(c.lane).toBe('lands');
+    expect(c.name).toBe('Hallowed Fountain'); // primary = incoming land
+    expect(c.inName).toBe('Plains'); // slot to cut
+    expect(c.ownership).toBe('owned'); // engine only proposes owned lands
+    expect(c.deltaScore).toBe(32);
+    expect(c.roleLabel).toBe('Lands');
+    expect(c.card).toBe(move.inCard);
+  });
+
+  it('builds a why-factor naming the short color it covers', () => {
+    const c = fromLandUpgradeMove(move);
+    expect(c.whyFactors?.some((f) => f.text.includes('blue'))).toBe(true);
+    expect(c.whyFactors?.some((f) => f.text.includes('already own'))).toBe(true);
   });
 });
 

@@ -382,6 +382,42 @@ export function buildBracketMoveFactors(s: BracketMoveSignals): WhyFactor[] {
   return out;
 }
 
+export interface LandUpgradeSignals {
+  /** Colors this incoming land helps cover that the deck was short on. */
+  fixesShortColors: string[];
+  /** New colors it adds over the land being cut (color names, not letters). */
+  addsColors: string[];
+  /** Whether the incoming land carries non-mana upside / is a proven fixer type. */
+  strongerFixing: boolean;
+  /** Name of the land being cut, for the like-for-like line. */
+  outName: string;
+}
+
+/**
+ * Why swapping in a land from your collection is an upgrade — grounded in the
+ * merit score, never EDHREC popularity (the whole point is that this surfaces
+ * strong lands too new for EDHREC to have rated). Leads with the fixing win.
+ */
+export function buildLandUpgradeFactors(s: LandUpgradeSignals): WhyFactor[] {
+  const out: WhyFactor[] = [];
+  if (s.fixesShortColors.length > 0) {
+    out.push({
+      text: `Covers ${s.fixesShortColors.join(' and ')} — a color your manabase was short on`,
+      tone: 'pro',
+    });
+  } else if (s.addsColors.length > 0) {
+    out.push({
+      text: `Adds ${s.addsColors.join(' and ')} while keeping every color ${s.outName} made`,
+      tone: 'pro',
+    });
+  }
+  if (s.strongerFixing) {
+    out.push({ text: 'Rated on the card itself, not its popularity', tone: 'neutral' });
+  }
+  out.push({ text: `A land you already own — no acquisition needed`, tone: 'pro' });
+  return out;
+}
+
 export interface ComboCompletionSignals {
   /** Total pieces in the combo (including the missing one). */
   totalPieces: number;

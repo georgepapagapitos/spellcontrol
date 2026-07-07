@@ -47,6 +47,8 @@ export function DeckColorBalance({
   sourcesByColor,
   onShowSources,
   manaCurve,
+  landUpgradeCount = 0,
+  onReanalyzeLands,
 }: {
   colorRequirements: Record<string, number>;
   colorProduction: Record<string, number>;
@@ -55,6 +57,11 @@ export function DeckColorBalance({
   /** The deck's nonland mana curve (CMC → count), used to derive pacing for the
    *  shortfall thresholds. Absent → balanced pacing → the static base bar. */
   manaCurve?: Record<number, number>;
+  /** How many stronger owned lands the merit-based engine found for this deck.
+   *  Drives the "Re-analyze lands" call-to-action — hidden at 0 (no nag). */
+  landUpgradeCount?: number;
+  /** Deep-link into the Coach tab's Lands lane to review the proposed swaps. */
+  onReanalyzeLands?: () => void;
 }): JSX.Element {
   const { rows, scaleMax, colorlessProd } = useMemo(() => {
     const thresholds = shortfallThresholdsForCurve(manaCurve ?? {});
@@ -190,6 +197,19 @@ export function DeckColorBalance({
             </li>
           )}
         </ul>
+      )}
+
+      {landUpgradeCount > 0 && onReanalyzeLands && (
+        <button type="button" className="deck-color-balance-reanalyze" onClick={onReanalyzeLands}>
+          <span className="deck-color-balance-reanalyze-text">
+            {landUpgradeCount === 1
+              ? '1 stronger land in your collection'
+              : `${landUpgradeCount} stronger lands in your collection`}
+          </span>
+          <span className="deck-color-balance-reanalyze-chevron" aria-hidden="true">
+            ›
+          </span>
+        </button>
       )}
     </section>
   );

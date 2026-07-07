@@ -449,6 +449,9 @@ export interface DeckDisplayProps {
   oneAwayCombos?: ComboMatch[];
   /** Owned oracle ids — ranks owned-missing-piece combos first. */
   ownedOracleIds?: ReadonlySet<string>;
+  /** Stronger owned lands the merit-based engine found → the Mana base
+   *  "Re-analyze lands" CTA on the Stats tab. */
+  landUpgradeCount?: number;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -1007,6 +1010,7 @@ export function DeckDisplay({
   addingSuggestedCardNames,
   oneAwayCombos,
   ownedOracleIds,
+  landUpgradeCount,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
@@ -1775,6 +1779,7 @@ export function DeckDisplay({
             addingSuggestedCardNames={addingSuggestedCardNames}
             oneAwayCombos={oneAwayCombos}
             ownedOracleIds={ownedOracleIds}
+            landUpgradeCount={landUpgradeCount}
           />
         )}
 
@@ -3274,6 +3279,7 @@ function DeckAnalysisView({
   addingSuggestedCardNames,
   oneAwayCombos,
   ownedOracleIds,
+  landUpgradeCount,
 }: {
   view: AnalysisTabId;
   allCards: ScryfallCard[];
@@ -3306,6 +3312,8 @@ function DeckAnalysisView({
   analysisState?: 'pending' | 'ready';
   /** UX-311: deep-link from a DeckIdentityCard shortfall to the Tune lane that fixes it. */
   onNavigateToTune?: (lane: LaneId) => void;
+  /** Stronger owned lands found for this deck → the Mana base "Re-analyze lands" CTA. */
+  landUpgradeCount?: number;
   /** Session-scoped reveal key for score animations. Null/undefined suppresses the reveal. */
   scoreRevealKey?: string | null;
   /** Commander card for DeckIdentityCard art + arc. */
@@ -3425,6 +3433,8 @@ function DeckAnalysisView({
                 manaProduction={manaData.manaProduction}
                 cardsByColor={manaData.cardsByColor}
                 manaCurve={manaData.manaCurve}
+                landUpgradeCount={landUpgradeCount}
+                onReanalyzeLands={onNavigateToTune ? () => onNavigateToTune('lands') : undefined}
               />
             </Panel>
             <Panel title="Types">
