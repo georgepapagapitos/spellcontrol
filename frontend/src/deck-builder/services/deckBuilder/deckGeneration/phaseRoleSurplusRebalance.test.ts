@@ -1175,5 +1175,52 @@ describe('applyRoleSurplusRebalance', () => {
       expect(result.conversions).toHaveLength(1);
       expect(result.conversions[0].cut).toBe('RampOwned');
     });
+
+    // E123 zero-slack guard: an owned-boost-driven conversion must never push
+    // the exited role's live count below its own target — cardPicking.ts's
+    // ownership term only reorders WHICH card survives an already-over-cap
+    // role, it never widens how far this pass is allowed to cut. Boardwipe
+    // carries the tightest tolerance in the codebase (BOARDWIPE_SURPLUS_
+    // TOLERANCE = 1, vs roleCapTolerance's floor of 2 for ramp/removal/
+    // cardDraw), so target=1 here is the tightest margin reachable — the
+    // same boundary the pre-existing non-owned "never below" test (boardwipe
+    // overshoot cap describe, above) pins, now proven to hold when the
+    // survivor set is reshaped by the owned boost.
+    it('never drops the exited role below target even when the owned boost reshuffles survivors', () => {
+      const state = makeState();
+      state.edhrecData = {
+        cardlists: { allNonLand: [] },
+      } as unknown as GenerationState['edhrecData'];
+      const wipes = Array.from({ length: 3 }, (_, i) => ({
+        name: `WipeNonOwned_${i + 1}`,
+        inclusion: 30,
+      }));
+      for (const { name, inclusion } of [...wipes, { name: 'WipeOwned', inclusion: 25 }]) {
+        ROLE_OF.set(name, 'boardwipe');
+        state.usedNames.add(name);
+        state.categories.synergy.push(scryfallCard(name));
+        state.edhrecData!.cardlists.allNonLand.push(edhrecCard(name, inclusion));
+      }
+      state.edhrecData!.cardlists.allNonLand.push(
+        edhrecCard('Wipe Payoff 1', 90),
+        edhrecCard('Wipe Payoff 2', 85)
+      );
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['WipeOwned']);
+      // target 1 -> cap 2 (boardwipe tolerance 1) -> 4 incumbents is 2 over.
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(2);
+      expect(result.conversions.map((c) => c.cut)).not.toContain('WipeOwned');
+      expect(state.usedNames.has('WipeOwned')).toBe(true);
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      // target + 1, never below target — the zero-slack floor holds exactly
+      // as it does without ownership in play.
+      expect(remainingWipes).toHaveLength(2);
+    });
   });
 });

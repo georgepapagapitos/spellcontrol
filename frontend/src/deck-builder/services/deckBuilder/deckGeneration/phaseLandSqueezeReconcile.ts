@@ -7,7 +7,12 @@ import {
   validateCardRole,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
-import { calculateCardPriority } from '../cardPicking';
+import {
+  calculateCardPriority,
+  isHighSynergyCard,
+  OWNED_PRIORITY_BOOST,
+  OWNED_PRIORITY_BOOST_THEME_TIER,
+} from '../cardPicking';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
 import { parsePrice } from '../costAnalyzer';
 import { isOwnedBudgetExempt } from '../deckFilters';
@@ -169,6 +174,25 @@ export function applyLandSqueezeReconcile(
   const deckAveragePriority =
     pool.length > 0 ? pool.reduce((sum, c) => sum + calculateCardPriority(c), 0) / pool.length : 0;
 
+  // E123 (E122 follow-up, pick/cut symmetry): this scoreOf blends
+  // calculateCardPriority + lift + protection-tier boosts with NO ownership
+  // term — the same gap phaseRoleSurplusRebalance.ts fixed for its own
+  // survival/replacement scoring. Both the squeeze cut AND the wildcard
+  // ranking below reuse scoreOf, so an owned card that only made the
+  // pick-time cut via cardPicking.ts's priorityWithBoosts owned boost was
+  // silently getting re-evicted here, undoing collectionStrategy='prefer'.
+  // Reuses the exact cardPicking.ts constants (no new tunables) and mirrors
+  // phaseRoleSurplusRebalance.ts's ownedBoostFor gating verbatim, so
+  // no-collection/'full' generation stays byte-for-byte unchanged.
+  const preferOwned = state.cfg.collectionStrategy === 'prefer';
+  const collectionNames = state.context.collectionNames;
+  const ownedBoostFor = (name: string, isThemeTier: boolean): number =>
+    preferOwned && collectionNames?.has(name)
+      ? isThemeTier
+        ? OWNED_PRIORITY_BOOST_THEME_TIER
+        : OWNED_PRIORITY_BOOST
+      : 0;
+
   const scoreOf = (card: ScryfallCard): number => {
     const ec = poolByName.get(card.name);
     const role = validateCardRole(card);
@@ -203,6 +227,7 @@ export function applyLandSqueezeReconcile(
       if (current <= target) score += ROLE_DEFICIT_TRIM_BOOST;
       else if (current >= target + 3) score += ROLE_SURPLUS_TRIM_PENALTY;
     }
+    score += ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
     return score;
   };
 

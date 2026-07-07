@@ -532,4 +532,118 @@ describe('applyLandSqueezeReconcile', () => {
     expect(result.cut).toEqual(['On-Theme Wildcard']);
     expect(FREE_INTERACTION_BOOST).toBe(100);
   });
+
+  // E123 (E122 follow-up): scoreOf feeds BOTH the squeeze cut and the
+  // wildcard ranking below — an owned card that only made the pick-time cut
+  // via cardPicking.ts's owned boost must not get silently re-evicted here.
+  // Mirrors phaseRoleSurplusRebalance.test.ts's "E122: owned-preference
+  // symmetry" suite for this file's scoreOf.
+  describe('E123: owned-preference symmetry in scoreOf', () => {
+    it('keeps an owned near-tie incumbent that would otherwise have been cut', () => {
+      const state = makeState();
+      const ownedCard = scryfallCard('OwnedFiller');
+      const nonOwnedCard = scryfallCard('NonOwnedFiller');
+      state.categories.synergy.push(ownedCard, nonOwnedCard);
+      // Raw priority: owned=15, non-owned=20 — owned loses by 5, well inside
+      // OWNED_PRIORITY_BOOST(40)'s reach.
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('OwnedFiller', 15), edhrecCard('NonOwnedFiller', 20)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['OwnedFiller']);
+
+      const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+      expect(result.cut).toEqual(['NonOwnedFiller']);
+    });
+
+    it('no-op when collectionStrategy is not "prefer": eviction order is untouched', () => {
+      const state = makeState();
+      state.categories.synergy.push(scryfallCard('OwnedFiller'), scryfallCard('NonOwnedFiller'));
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('OwnedFiller', 15), edhrecCard('NonOwnedFiller', 20)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      // collectionStrategy stays 'full' (makeState default); collectionNames
+      // is set but must be ignored without 'prefer'.
+      state.context.collectionNames = new Set(['OwnedFiller']);
+
+      const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+      expect(result.cut).toEqual(['OwnedFiller']);
+    });
+
+    it('no-op when collectionNames is absent, even with collectionStrategy "prefer"', () => {
+      const state = makeState();
+      state.categories.synergy.push(scryfallCard('OwnedFiller'), scryfallCard('NonOwnedFiller'));
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('OwnedFiller', 15), edhrecCard('NonOwnedFiller', 20)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      state.cfg.collectionStrategy = 'prefer';
+      // context.collectionNames intentionally left unset.
+
+      const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+      expect(result.cut).toEqual(['OwnedFiller']);
+    });
+
+    it('applies the wider theme-tier boost for a high-synergy owned card — the filler-tier boost alone would not bridge the gap', () => {
+      const state = makeState();
+      const ownedTheme = scryfallCard('OwnedThemeCard');
+      const competitor = scryfallCard('NonOwnedCompetitor');
+      state.categories.synergy.push(ownedTheme, competitor);
+      // OwnedThemeCard: synergy=0.5 (isHighSynergyCard via >0.3) => raw
+      // priority = 0.5*100*1.0 + 5*1.0 = 55. Competitor: plain inclusion=100
+      // => raw priority 100. Gap is 45 — OWNED_PRIORITY_BOOST(40) alone
+      // (55+40=95) still loses; only OWNED_PRIORITY_BOOST_THEME_TIER(60)
+      // (55+60=115) clears it.
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            { ...edhrecCard('OwnedThemeCard', 5), synergy: 0.5 },
+            edhrecCard('NonOwnedCompetitor', 100),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['OwnedThemeCard']);
+
+      const result = applyLandSqueezeReconcile(state, makeCtx({ squeezeDelta: 1 }));
+
+      expect(result.cut).toEqual(['NonOwnedCompetitor']);
+    });
+
+    it('wildcard ranking inherits the owned boost too — an owned wildcard displaces a stronger non-owned incumbent', () => {
+      const state = makeState();
+      state.categories.creatures.push(scryfallCard('Incumbent'));
+      const ownedWildcard = scryfallCard('OwnedWildcard');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Incumbent', 50),
+            edhrecCard('OwnedWildcard', 20), // 20 + 40 (owned) = 60 > 50
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['OwnedWildcard']);
+
+      const result = applyLandSqueezeReconcile(
+        state,
+        makeCtx({
+          squeezeDelta: 0,
+          wildcardCandidates: [ownedWildcard],
+          wildcardCount: 1,
+        })
+      );
+
+      expect(result.wildcardsKept).toEqual(['OwnedWildcard']);
+      expect(result.cut).toEqual(['Incumbent']);
+    });
+  });
 });
