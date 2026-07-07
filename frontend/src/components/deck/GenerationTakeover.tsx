@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { ProgressBar } from '../ProgressBar';
+import { SealBurst } from './SealBurst';
 import './GenerationTakeover.css';
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   percent: number;
   isExiting?: boolean;
   onExitComplete?: () => void;
+  /** Deck colour identity (WUBRG keys) — tints the completion seal-burst sparks. */
+  colorIdentity?: string[];
 }
 
 // Flavor lines keyed by substring match against real generator messages.
@@ -219,6 +222,12 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+// How long the completion beat holds before the takeover fades out — enough
+// for the mark bloom + mote drift (~1s) to land and read. The fade itself is
+// a further ~200ms (gen-takeover-exit); use-generation-takeover-exit's
+// fallback timer covers the sum.
+const CELEBRATE_MS = 1050;
+
 /**
  * Full-page takeover shown while commander-deck generation is running.
  * Replaces the small inline progress strip so the build event feels
@@ -235,6 +244,7 @@ export function GenerationTakeover({
   percent,
   isExiting = false,
   onExitComplete,
+  colorIdentity = [],
 }: Props) {
   // Resolve from CDN if we only have a name; direct URL wins immediately.
   const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
@@ -244,6 +254,19 @@ export function GenerationTakeover({
   const [visible, setVisible] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevMessageRef = useRef(message);
+
+  // Two-phase exit: on `isExiting` the takeover first HOLDS at 100% while the
+  // seal-burst plays (the celebration beat), then fades out. Firing the burst
+  // straight into the 200ms fade cut the sparks off mid-flight. The celebrate
+  // phase is derived from `isExiting`; only the deferred `isLeaving` flip (via
+  // the timer) sets state, so nothing is set synchronously in the effect.
+  const [isLeaving, setIsLeaving] = useState(false);
+  useEffect(() => {
+    if (!isExiting) return;
+    const t = setTimeout(() => setIsLeaving(true), CELEBRATE_MS);
+    return () => clearTimeout(t);
+  }, [isExiting]);
+  const isFinishing = isExiting;
 
   // Rotating timer — also resets when the generator phase changes.
   // Only runs when reduced motion is not requested.
@@ -286,12 +309,18 @@ export function GenerationTakeover({
     if (isExiting && e.animationName === 'gen-takeover-exit') onExitComplete?.();
   };
 
+  const phaseClass = isFinishing
+    ? isLeaving
+      ? ' is-celebrating is-leaving'
+      : ' is-celebrating'
+    : '';
+
   return (
     <div
-      className={`gen-takeover${isExiting ? ' is-exiting' : ''}`}
+      className={`gen-takeover${phaseClass}`}
       role="status"
       aria-live="polite"
-      aria-label="Building deck…"
+      aria-label={isFinishing ? 'Deck complete' : 'Building deck…'}
       onAnimationEnd={handleAnimationEnd}
     >
       <div className="gen-takeover-hero">
@@ -301,20 +330,25 @@ export function GenerationTakeover({
             <div className="gen-takeover-art-fade" aria-hidden />
           </div>
         )}
+        {/* The deck is done — the seal flares and sheds mana sparks in its
+            colours during the completion beat, then the takeover fades. */}
+        {isFinishing && <SealBurst colors={colorIdentity} />}
         <div className="gen-takeover-body">
           {commanderName && (
             <p className="gen-takeover-commander" aria-hidden>
               {commanderName}
             </p>
           )}
-          <p className="gen-takeover-step">{message}</p>
+          {/* During the completion beat the build chatter clears — the
+              blooming brand mark + sparks carry the moment, not text. */}
+          <p className="gen-takeover-step">{isFinishing ? '' : message}</p>
           <p
-            className={`gen-takeover-flavor${visible ? '' : ' gen-takeover-flavor--hidden'}`}
+            className={`gen-takeover-flavor${visible && !isFinishing ? '' : ' gen-takeover-flavor--hidden'}`}
             aria-hidden="true"
           >
             {flavorText}
           </p>
-          <ProgressBar percent={percent} className="gen-takeover-bar" />
+          <ProgressBar percent={isFinishing ? 100 : percent} className="gen-takeover-bar" />
         </div>
       </div>
       {/* Macro outline — aria-hidden; the live region above already

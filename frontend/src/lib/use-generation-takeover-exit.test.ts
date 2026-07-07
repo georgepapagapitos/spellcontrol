@@ -56,7 +56,7 @@ describe('useGenerationTakeoverExit', () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(700);
+      vi.advanceTimersByTime(1400);
       await Promise.resolve();
     });
     expect(done).toBe(true);
