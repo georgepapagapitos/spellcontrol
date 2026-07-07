@@ -44,6 +44,7 @@ import {
   buildOverBudgetNote,
   buildRoleCapOverflowNote,
   buildPriceSanityNote,
+  countFinalPriceSanityPicks,
   buildBracketPriceDisclosureNote,
   buildWipeAsymmetryNote,
   countFinalWipeAsymmetry,
@@ -442,6 +443,192 @@ describe('buildPriceSanityNote (E80)', () => {
     expect(note).toBe(
       'Preferred 1 cheaper near-equivalent over premium picks — set budget preference to "expensive" to disable.'
     );
+  });
+});
+
+describe('countFinalPriceSanityPicks (E126 — post-hoc scan replaces priceSanityDecided)', () => {
+  // Post-hoc replacement for a comparator-collector version that proved
+  // dishonest at disclosure altitude: priceSanityDecided counted comparator
+  // FIRINGS (an Array.sort() implementation detail), not surviving picks —
+  // between two runs that shipped BYTE-IDENTICAL decklists the count still
+  // shifted, and a sythis build whose only visible swap ADDED a pricier card
+  // still claimed "one more cheaper pick". This scans the FINAL deck against
+  // the EDHREC pool directly instead (mirrors buildComboUpsideNotes/
+  // countFinalWipeAsymmetry's own post-hoc precedent).
+  function priced(name: string, usd: string): ScryfallCard {
+    return { ...sc(name), prices: { usd } };
+  }
+
+  function edhrecCard(name: string, inclusion: number): EDHRECCard {
+    return {
+      name,
+      sanitized: name.toLowerCase(),
+      primary_type: 'Artifact',
+      inclusion,
+      num_decks: 100,
+    };
+  }
+
+  function edhrecData(nonLand: EDHRECCard[]): EDHRECCommanderData {
+    return {
+      themes: [],
+      stats: {
+        avgPrice: 0,
+        numDecks: 0,
+        deckSize: 99,
+        manaCurve: {},
+        typeDistribution: {
+          creature: 0,
+          instant: 0,
+          sorcery: 0,
+          artifact: 0,
+          enchantment: 0,
+          land: 0,
+          planeswalker: 0,
+          battle: 0,
+        },
+        landDistribution: { basic: 0, nonbasic: 0, total: 0 },
+      },
+      cardlists: {
+        creatures: [],
+        instants: [],
+        sorceries: [],
+        artifacts: nonLand,
+        enchantments: [],
+        planeswalkers: [],
+        lands: [],
+        allNonLand: nonLand,
+      },
+      similarCommanders: [],
+    };
+  }
+
+  beforeEach(() => {
+    Object.keys(ROLES).forEach((k) => delete ROLES[k]);
+    ROLES['Mind Stone'] = 'ramp';
+    ROLES['Grim Monolith'] = 'ramp';
+    ROLES['Swords to Plowshares'] = 'removal';
+  });
+
+  it('counts a shipped cheap card that beat a same-role, comparable-inclusion, dramatically pricier alt', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const grim = priced('Grim Monolith', '472.00'); // never shipped
+    const pool = edhrecData([edhrecCard('Mind Stone', 86), edhrecCard('Grim Monolith', 80)]);
+    const poolCardMap = new Map([
+      ['Mind Stone', mindStone],
+      ['Grim Monolith', grim],
+    ]);
+
+    const count = countFinalPriceSanityPicks([mindStone], pool, poolCardMap, 'USD', true);
+    expect(count).toBe(1);
+  });
+
+  it('is 0 when price-sanity was never active for this generation', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const grim = priced('Grim Monolith', '472.00');
+    const pool = edhrecData([edhrecCard('Mind Stone', 86), edhrecCard('Grim Monolith', 80)]);
+    const poolCardMap = new Map([
+      ['Mind Stone', mindStone],
+      ['Grim Monolith', grim],
+    ]);
+
+    const count = countFinalPriceSanityPicks([mindStone], pool, poolCardMap, 'USD', false);
+    expect(count).toBe(0);
+  });
+
+  // The sythis regression this closes: a decided pair whose PRICIER member
+  // actually shipped must never count — the deck paid the premium, so
+  // there's nothing left to credit as "preferred cheaper".
+  it('sythis-shaped: does not count when the pricier alternative also shipped', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const grim = priced('Grim Monolith', '472.00');
+    const pool = edhrecData([edhrecCard('Mind Stone', 86), edhrecCard('Grim Monolith', 80)]);
+    const poolCardMap = new Map([
+      ['Mind Stone', mindStone],
+      ['Grim Monolith', grim],
+    ]);
+
+    // Both cards shipped — the "premium pick" was never actually passed over.
+    const count = countFinalPriceSanityPicks([mindStone, grim], pool, poolCardMap, 'USD', true);
+    expect(count).toBe(0);
+  });
+
+  it('is silent on a different-role alternative — never a valid substitute', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const removal = priced('Swords to Plowshares', '400.00');
+    const pool = edhrecData([edhrecCard('Mind Stone', 86), edhrecCard('Swords to Plowshares', 90)]);
+    const poolCardMap = new Map([
+      ['Mind Stone', mindStone],
+      ['Swords to Plowshares', removal],
+    ]);
+
+    const count = countFinalPriceSanityPicks([mindStone], pool, poolCardMap, 'USD', true);
+    expect(count).toBe(0);
+  });
+
+  it('is silent when the price gap is not dramatic (below PRICE_SANITY_RATIO)', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const cheapish = priced('Grim Monolith', '10.00'); // 5x — below the 20x ratio
+    const pool = edhrecData([edhrecCard('Mind Stone', 86), edhrecCard('Grim Monolith', 80)]);
+    const poolCardMap = new Map([
+      ['Mind Stone', mindStone],
+      ['Grim Monolith', cheapish],
+    ]);
+
+    const count = countFinalPriceSanityPicks([mindStone], pool, poolCardMap, 'USD', true);
+    expect(count).toBe(0);
+  });
+
+  it('is silent when inclusion is too far apart to be a near-equivalent', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const grim = priced('Grim Monolith', '472.00');
+    // 86 - 40 = 46pt gap, well past PRICE_SANITY_INCLUSION_BAND (15).
+    const pool = edhrecData([edhrecCard('Mind Stone', 86), edhrecCard('Grim Monolith', 40)]);
+    const poolCardMap = new Map([
+      ['Mind Stone', mindStone],
+      ['Grim Monolith', grim],
+    ]);
+
+    const count = countFinalPriceSanityPicks([mindStone], pool, poolCardMap, 'USD', true);
+    expect(count).toBe(0);
+  });
+
+  // Stability proof: the old priceSanityDecided-derived count could shift
+  // between two runs that shipped the SAME final decklist, because it was a
+  // property of which pairs Array.sort() happened to compare (an
+  // implementation detail), not of the deck itself. This function takes no
+  // "decided" set at all — feeding it the same final deck against pool maps
+  // built in different insertion/iteration order (standing in for two
+  // different comparator-firing histories that could have produced the same
+  // shipped deck) must still produce an identical count, and
+  // buildPriceSanityNote must render identical text either way.
+  it('stability: identical final deck + pool yields an identical count/note regardless of pool iteration order', () => {
+    const mindStone = priced('Mind Stone', '2.00');
+    const grim = priced('Grim Monolith', '472.00');
+    const staple = priced('Sol Ring', '3.00');
+    ROLES['Sol Ring'] = 'ramp';
+    const pool = edhrecData([
+      edhrecCard('Mind Stone', 86),
+      edhrecCard('Grim Monolith', 80),
+      edhrecCard('Sol Ring', 95),
+    ]);
+
+    const poolMapA = new Map([
+      ['Mind Stone', mindStone],
+      ['Grim Monolith', grim],
+      ['Sol Ring', staple],
+    ]);
+    const poolMapB = new Map([
+      ['Sol Ring', staple],
+      ['Grim Monolith', grim],
+      ['Mind Stone', mindStone],
+    ]);
+
+    const finalDeck = [mindStone, staple];
+    const countA = countFinalPriceSanityPicks(finalDeck, pool, poolMapA, 'USD', true);
+    const countB = countFinalPriceSanityPicks(finalDeck, pool, poolMapB, 'USD', true);
+    expect(countA).toBe(countB);
+    expect(buildPriceSanityNote(countA)).toBe(buildPriceSanityNote(countB));
   });
 });
 
