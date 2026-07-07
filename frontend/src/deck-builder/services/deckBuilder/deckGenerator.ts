@@ -5496,6 +5496,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ignoreOwnedBudget,
     ignoreOwnedRarity,
     deckBudget,
+    deckTypeTargets: typeTargets,
   });
   const surplusConversions = surplusResult.conversions;
 

@@ -684,17 +684,29 @@ export function isExtraCombatPiece(card: {
 // this slice's own build spec, which grouped it with the one-sided cards
 // from memory rather than the real printed text.
 //
-// Known accepted miss, not in scope for v1: Cyclonic Rift's Overload mode
-// ("Return target nonland permanent you don't control to its owner's hand.
-// Overload {6}{U}...") is a genuinely one-sided sweep once overloaded, but
-// its one-sidedness comes from a base "target ... you don't control" clause
-// plus the separate Overload keyword rewriting "target" to "each" — a
-// different shape from the "destroy/exile ALL ... you don't control" idiom
-// above, and not one of the cards this slice's ground truth requires. Same
-// "low-stakes for a preference boost, not a gate" framing as this file's
-// other documented accepted misses.
+// E112 fix-round: the "known accepted miss" this slice originally shipped
+// with (Cyclonic Rift's Overload mode) is now closed by a third branch —
+// E112's own scope-collateral selection made the gap actively harmful
+// (Vandalblast overloaded, same shape, started losing pick-time comparisons
+// to a genuinely-worse symmetric wipe because it read as "symmetric" here
+// while only scoring a small nonzero collateral penalty in
+// wipeScopeCollateralTieBreak — a bogus tie that let raw priority/false
+// symmetry pick the wrong wipe). Overload rewrites "target" to "each" via a
+// RULES INSTRUCTION in the reminder text (never literally in the effect
+// line), so the base "target ... you don't control" clause plus a
+// co-occurring "overload" keyword is the same one-sidedness evidence as the
+// literal "all ... you don't control" branches above, just pre-rewrite.
+// Verified against real oracle text: Vandalblast ("Destroy target artifact
+// you don't control.\nOverload {4}{R}...") and Cyclonic Rift ("Return target
+// nonland permanent you don't control to its owner's hand.\nOverload
+// {6}{U}..."). Requires the "you don't control" qualifier in the SAME
+// sentence as the target clause (not just a bare "overload" anywhere in the
+// text) — Damn's overloaded mode ("Destroy target creature. ... Overload
+// {2}{W}{W}") has no "don't control" qualifier at all and correctly stays
+// symmetric (its overloaded "destroy each creature" hits every player,
+// including the caster).
 const ONE_SIDED_WIPE_EVIDENCE =
-  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control/i;
+  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)/i;
 
 export function isOneSidedWipe(card: {
   name: string;
@@ -729,16 +741,18 @@ export function isOneSidedWipe(card: {
 //    (modal — choose one/two of these clauses, but the printed card CAN nuke
 //    any of them, so scope is the union of its modes).
 //  - Vandalblast overloaded ("Destroy target artifact you don't control.
-//    Overload {4}{R}..."): artifacts only, `all` false — same overload
-//    co-occurrence idiom ROLE_EVIDENCE.boardwipe already relies on (the
-//    rules-text "target"->"each" swap never appears literally in the effect
-//    line).
-//  - Cyclonic Rift overloaded ("Return target nonland permanent you don't
-//    control... Overload {6}{U}..."): `all` true (a bare "nonland permanent"
-//    scope, not restricted to one type) — the per-type fields don't
-//    individually trip (no literal "creature"/"artifact"/"enchantment"
-//    word), so every consumer must treat `all` as implying every type, not
-//    just another independent flag.
+//    Overload {4}{R}...") and Cyclonic Rift overloaded ("Return target
+//    nonland permanent you don't control... Overload {6}{U}..."): both now
+//    read as one-sided (isOneSidedWipe's own overload+"you don't control"
+//    branch — E112 fix-round) and so short-circuit to the empty scope below,
+//    never reaching WIPE_SCOPE_ARTIFACTS/WIPE_SCOPE_ALL's own overload
+//    branches at all. Those two branches stay for the narrower case they
+//    were built for — a hypothetical SYMMETRIC overloaded wipe (an
+//    overloaded "destroy/return target artifact"/"target nonland permanent"
+//    with no "you don't control" qualifier, so its overloaded mode hits
+//    every player's copies, not just an opponent's) — no such real card is
+//    in this slice's ground truth, so this is a documented, currently-
+//    unexercised-by-name defensive branch, not dead code.
 //
 // A one-sided wipe (isOneSidedWipe) spares the caster's own board by
 // construction, so it always returns the empty/no-collateral scope

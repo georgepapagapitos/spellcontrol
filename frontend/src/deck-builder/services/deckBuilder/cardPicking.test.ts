@@ -6,6 +6,9 @@ import {
   pickFromPrefetched,
   pickFromPrefetchedWithCurve,
   OWNED_PRIORITY_BOOST,
+  wipeQualityPenalty,
+  WIPE_QUALITY_SYMMETRIC_PENALTY,
+  WIPE_QUALITY_COLLATERAL_PENALTY,
 } from './cardPicking';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
@@ -1266,5 +1269,75 @@ describe('wipe scope-collateral tie-break (E112)', () => {
     };
     const picked = pickWipeByScope(creatureHeavyTypeTargets);
     expect(picked.map((c) => c.name)).toEqual(['Farewell']); // both score 0 collateral -> raw priority wins
+  });
+});
+
+// E112/E113 coordination fix: wipeQualityPenalty is the shared quality signal
+// (asymmetry + own-board collateral) phaseRoleSurplusRebalance folds into its
+// boardwipe eviction/replacement survival score — so a symmetric or
+// high-collateral wipe ranks as the WORST wipe to keep even when its raw
+// EDHREC priority is high. Exercises the REAL isOneSidedWipe/getWipeScope
+// classifiers against real oracle text (same ground truth as the E112 block
+// above). A hard tier by design (symmetric penalty >> calculateCardPriority's
+// ~0-250 range), not a capped nudge.
+describe('wipeQualityPenalty (E112/E113)', () => {
+  const oneSided = sc({
+    name: 'Ruinous Ultimatum',
+    type_line: 'Sorcery',
+    oracle_text:
+      "Destroy all nonland permanents your opponents control. You can't lose the game this turn.",
+  });
+  const symmetricCreatureOnly = sc({
+    name: 'Wrath of God',
+    type_line: 'Sorcery',
+    oracle_text: "Destroy all creatures. They can't be regenerated.",
+  });
+  const symmetricModal = sc({
+    name: 'Farewell',
+    type_line: 'Sorcery',
+    oracle_text:
+      'Choose one or more — Exile all creatures. Exile all artifacts and enchantments. Exile all graveyards.',
+  });
+  const enchantressTargets = { creature: 10, artifact: 5, enchantment: 20, instant: 5, sorcery: 5 };
+
+  it('scores a one-sided wipe at zero penalty (best to keep)', () => {
+    expect(wipeQualityPenalty(oneSided, isOneSidedWipe, getWipeScope, enchantressTargets)).toBe(0);
+  });
+
+  it('scores a symmetric creature-only wipe at exactly the symmetric tier (no non-creature collateral)', () => {
+    // Wrath hits only creatures -> collateral term is 0 even on an enchantment-heavy board.
+    expect(
+      wipeQualityPenalty(symmetricCreatureOnly, isOneSidedWipe, getWipeScope, enchantressTargets)
+    ).toBe(WIPE_QUALITY_SYMMETRIC_PENALTY);
+  });
+
+  it('penalizes a high-collateral symmetric modal wipe strictly more than a low-collateral one', () => {
+    const modal = wipeQualityPenalty(
+      symmetricModal,
+      isOneSidedWipe,
+      getWipeScope,
+      enchantressTargets
+    );
+    const wrath = wipeQualityPenalty(
+      symmetricCreatureOnly,
+      isOneSidedWipe,
+      getWipeScope,
+      enchantressTargets
+    );
+    // Farewell exiles the enchantress's own enchantments+artifacts -> strictly worse to keep.
+    expect(modal).toBeGreaterThan(wrath);
+    // Collateral term = (enchantment+artifact share) * penalty, added on top of the symmetric tier.
+    const nonLand = Object.values(enchantressTargets).reduce((s, v) => s + v, 0);
+    const share = (enchantressTargets.enchantment + enchantressTargets.artifact) / nonLand;
+    expect(modal).toBeCloseTo(
+      WIPE_QUALITY_SYMMETRIC_PENALTY + share * WIPE_QUALITY_COLLATERAL_PENALTY
+    );
+  });
+
+  it('drops the collateral term when no deck type-target context is available', () => {
+    // Symmetric tier still applies; collateral is unknowable -> omitted.
+    expect(wipeQualityPenalty(symmetricModal, isOneSidedWipe, getWipeScope, undefined)).toBe(
+      WIPE_QUALITY_SYMMETRIC_PENALTY
+    );
   });
 });

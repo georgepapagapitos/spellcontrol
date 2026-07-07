@@ -410,7 +410,12 @@ function wipeAsymmetryTieBreak(
 // separate, always-on axis. `getWipeScope` already returns the empty scope
 // for a one-sided wipe, so this naturally scores it as zero collateral
 // without re-deriving that check here.
-function wipeOwnBoardCollateral(
+// Exported for reuse: phaseRoleSurplusRebalance.ts's post-fill eviction
+// ordering needs the SAME collateral signal this comparator uses at pick
+// time (E112/E113 unification) — a low-collateral wipe shouldn't win the
+// pick-time slot only to be the first one evicted afterward on a signal
+// that ignores collateral entirely.
+export function wipeOwnBoardCollateral(
   card: ScryfallCard,
   getWipeScope: (card: ScryfallCard) => WipeScope,
   deckTypeTargets: Record<string, number>
@@ -423,6 +428,48 @@ function wipeOwnBoardCollateral(
   if (scope.all || scope.enchantments) collateral += enchantmentShare;
   if (scope.all || scope.artifacts) collateral += artifactShare;
   return collateral;
+}
+
+// Exported for reuse: phaseRoleSurplusRebalance.ts folds this into its
+// post-fill eviction/replacement scoring for the boardwipe role specifically
+// (E112/E113 coordination fix). Root cause of the sythis/krenko regressions
+// this closes: wipeAsymmetryTieBreak/wipeScopeCollateralTieBreak above only
+// ever run when two boardwipe candidates are DIRECTLY compared in the SAME
+// pickFromPrefetchedWithCurve sort — they're silent once a wipe's fate is
+// decided by rationing elsewhere (the role-cap escape hatch admitting all of
+// them at pick time, then this pass's priority-only survival/replacement
+// scoring deciding which one survives). The same asymmetry+collateral
+// signal has to govern that decision too, or a low-quality high-inclusion
+// wipe (a splashy modal sweeper) can win the pick-time slot on raw priority
+// and then never get evicted because eviction ranking never looked at
+// quality at all.
+//
+// Deliberately NOT a capped nudge (packageBoost.ts's ~15-30 range) — same
+// "has to actually win the slot" rationale as wipeAsymmetryTieBreak's own
+// doc: a symmetric wipe is ALWAYS worse to keep than a one-sided one
+// (WIPE_QUALITY_SYMMETRIC_PENALTY is a hard tier, comfortably clearing
+// calculateCardPriority's ~0-250 range), while collateral scales the
+// penalty by how much of the deck's own board the wipe actually threatens
+// (0 to WIPE_QUALITY_COLLATERAL_PENALTY, proportional to the
+// enchantment+artifact share wipeOwnBoardCollateral computes) rather than
+// another flat tier — two symmetric wipes competing for the same slot
+// should still differ by how MUCH collateral they carry, not just whether
+// they carry any.
+export const WIPE_QUALITY_SYMMETRIC_PENALTY = 1000;
+export const WIPE_QUALITY_COLLATERAL_PENALTY = 200;
+
+export function wipeQualityPenalty(
+  card: ScryfallCard,
+  isOneSidedWipe: (card: ScryfallCard) => boolean,
+  getWipeScope: (card: ScryfallCard) => WipeScope,
+  deckTypeTargets: Record<string, number> | undefined
+): number {
+  let penalty = isOneSidedWipe(card) ? 0 : WIPE_QUALITY_SYMMETRIC_PENALTY;
+  if (deckTypeTargets) {
+    penalty +=
+      wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets) * WIPE_QUALITY_COLLATERAL_PENALTY;
+  }
+  return penalty;
 }
 
 function wipeScopeCollateralTieBreak(
