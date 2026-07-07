@@ -277,7 +277,6 @@ export function buildSubstituteIntegrityNote(
 // (ban a card, add a must-include, tweak settings) can skip the fetch phase entirely.
 interface GenerationCache {
   edhrecData: EDHRECCommanderData;
-  baseData: EDHRECCommanderData | null;
   cardMap: Map<string, ScryfallCard>;
   themeOverlapCounts: Map<string, number>;
   combos: EDHRECCombo[];
@@ -393,7 +392,6 @@ export async function acquireCommanderDataPhase(
     state.edhrecData = generationCache!.edhrecData;
     state.dataSource = generationCache!.dataSource;
     state.bracketPoolFallbackNote = generationCache!.bracketPoolFallbackNote;
-    state.baseData = generationCache!.baseData;
     state.themeOverlapCounts = generationCache!.themeOverlapCounts;
     integrityNotes = [...(generationCache!.integrityNotes ?? [])];
     await retryOnce(loadTaggerData, (d) => d !== null);
@@ -798,7 +796,6 @@ export function populateGenerationCachePhase(
     const key = buildCacheKey(state.context);
     generationCache = {
       edhrecData: state.edhrecData,
-      baseData: state.baseData,
       cardMap: new Map(), // Will be populated after Scryfall batch fetch
       themeOverlapCounts: state.themeOverlapCounts,
       combos: state.combos,

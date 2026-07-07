@@ -142,7 +142,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
       },
     } as unknown as GenerationState['edhrecData'],
     dataSource: 'base',
-    baseData: null,
     themeOverlapCounts: new Map(),
     roleTargets: null,
     roleTargetBreakdown: undefined,

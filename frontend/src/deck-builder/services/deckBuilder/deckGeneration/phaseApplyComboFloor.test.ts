@@ -116,7 +116,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
     combos: [],
     edhrecData: null,
     dataSource: 'scryfall',
-    baseData: null,
     themeOverlapCounts: new Map(),
     roleTargets: null,
     roleTargetBreakdown: undefined,

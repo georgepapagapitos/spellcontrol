@@ -85,7 +85,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
     combos: [],
     edhrecData: null,
     dataSource: 'base',
-    baseData: null,
     themeOverlapCounts: new Map(),
     roleTargets: null,
     roleTargetBreakdown: undefined,
