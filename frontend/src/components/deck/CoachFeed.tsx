@@ -52,7 +52,8 @@ type FilterId =
   | 'collection'
   | 'bracket-fit'
   | 'combos'
-  | 'lands';
+  | 'lands'
+  | 'cuts';
 
 const FILTER_LABELS: Record<FilterId, string> = {
   all: 'All',
@@ -63,6 +64,7 @@ const FILTER_LABELS: Record<FilterId, string> = {
   'bracket-fit': 'Bracket',
   combos: 'Combos',
   lands: 'Lands',
+  cuts: 'Cuts',
 };
 
 /** tuneFocusLane → feed filter chip mapping. */
@@ -463,7 +465,12 @@ export function CoachFeed({
 
   // ── Filter ───────────────────────────────────────────────────────────────
 
-  const filteredAdds = useMemo(() => {
+  const filteredRows = useMemo(() => {
+    // Cuts are a pseudo-lane keyed on change.type, not change.lane (a cut's
+    // lane is its source engine, e.g. bracket-fit). They stay out of "All" —
+    // trimming is a different intent than improving — and `ownedOnly` never
+    // applies: every cut is a card already in the deck.
+    if (activeFilter === 'cuts') return cuts;
     let list = addsAndSwaps;
     if (ownedOnly) {
       list = list.filter((r) => r.change.ownership === 'owned');
@@ -472,7 +479,7 @@ export function CoachFeed({
       list = list.filter((r) => r.change.lane === activeFilter);
     }
     return list;
-  }, [addsAndSwaps, activeFilter, ownedOnly]);
+  }, [addsAndSwaps, cuts, activeFilter, ownedOnly]);
 
   // ── Chip counts ──────────────────────────────────────────────────────────
   //
@@ -494,6 +501,7 @@ export function CoachFeed({
       'bracket-fit': 0,
       combos: 0,
       lands: 0,
+      cuts: 0,
     });
     const shown = make();
     const total = make();
@@ -507,14 +515,17 @@ export function CoachFeed({
       total.all++;
       if (visible) shown.all++;
     }
+    // Cuts pseudo-lane: in-deck cards, so `ownedOnly` never hides them and
+    // they don't count toward "All" (adds/swaps only).
+    shown.cuts = total.cuts = cuts.length;
     return { shownCounts: shown, totalCounts: total };
-  }, [addsAndSwaps, ownedOnly]);
+  }, [addsAndSwaps, cuts, ownedOnly]);
 
   // Body empty purely because `ownedOnly` hid every match in this lane — drives
   // the context-aware empty state (explain + one-tap relax) rather than a bare
   // "nothing here", which reads as a dead-end.
   const hiddenByOwned = totalCounts[activeFilter] - shownCounts[activeFilter];
-  const isOwnedEmpty = ownedOnly && filteredAdds.length === 0 && hiddenByOwned > 0;
+  const isOwnedEmpty = ownedOnly && filteredRows.length === 0 && hiddenByOwned > 0;
 
   // ── Update cyclable-filters ref (for `f` key cycle) ─────────────────────
   // The `f` key listener uses a ref so it doesn't need to re-register on
@@ -608,6 +619,18 @@ export function CoachFeed({
   // ── Empty state (tuned deck, no changes at all) ───────────────────────────
 
   const isPending = analysisState === 'pending';
+
+  // EDHREC theme browser — rendered right under the header when the feed has
+  // rows (below the fold it was never discovered), or after the empty state.
+  const browserSection = browser && (
+    <details className="coach-feed-browser-section">
+      <summary>
+        <ChevronDown width={14} height={14} aria-hidden />
+        Browse all EDHREC suggestions
+      </summary>
+      <div className="coach-feed-browser">{browser}</div>
+    </details>
+  );
 
   return (
     <div className="coach-feed" {...hoverPeek.listHandlers}>
@@ -713,8 +736,10 @@ export function CoachFeed({
             )}
           </div>
 
+          {browserSection}
+
           {/* Budget confidence legend — budget filter only */}
-          {activeFilter === 'budget' && filteredAdds.length > 0 && (
+          {activeFilter === 'budget' && filteredRows.length > 0 && (
             <div className="coach-feed-budget-strip">
               <span className="coach-feed-budget-summary">
                 Badges rate how close each cheaper pick is to the card it replaces
@@ -754,7 +779,7 @@ export function CoachFeed({
           )}
 
           {/* Stand-ins strip — collection filter only */}
-          {activeFilter === 'collection' && filteredAdds.length > 0 && (
+          {activeFilter === 'collection' && filteredRows.length > 0 && (
             <div className="coach-feed-collection-strip">
               <span className="coach-feed-collection-summary">
                 Cards you already own that cover staples this deck is missing.
@@ -763,9 +788,9 @@ export function CoachFeed({
           )}
 
           {/* Feed rows */}
-          {filteredAdds.length > 0 ? (
+          {filteredRows.length > 0 ? (
             <ul className="coach-feed-rows">
-              {filteredAdds.map(({ change }) => {
+              {filteredRows.map(({ change }) => {
                 const isLeaving = leavingIds.has(change.id);
                 const showFit = onPreviewFit && change.type !== 'cut';
                 return (
@@ -833,44 +858,6 @@ export function CoachFeed({
             ))
           )}
 
-          {/* Cuts disclosure group */}
-          {cuts.length > 0 && (
-            <details className="coach-feed-cuts">
-              <summary className="coach-feed-cuts-title">
-                <ChevronDown
-                  width={14}
-                  height={14}
-                  aria-hidden
-                  className="coach-feed-cuts-chevron"
-                />
-                Cuts ({cuts.length})
-              </summary>
-              <ul className="coach-feed-rows coach-feed-cuts-list">
-                {cuts.map(({ change }) => {
-                  const isLeaving = leavingIds.has(change.id);
-                  return (
-                    <li
-                      key={change.id}
-                      className={isLeaving ? 'coach-feed-row-leaving' : undefined}
-                      onAnimationEnd={
-                        isLeaving ? (e) => handleLeavingAnimationEnd(change.id, e) : undefined
-                      }
-                    >
-                      <DeckCardRow
-                        change={change}
-                        commanderName={commanderName}
-                        peekName={change.name}
-                        onPreview={() => carousel.open(previewEntries, change.name)}
-                        onAct={(c) => handleApplyWithLeave(c)}
-                        acting={busy.has(change.name)}
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            </details>
-          )}
-
           {/* Aligned bracket state */}
           {activeFilter === 'bracket-fit' && bracketFit?.direction === 'aligned' && (
             <div className="coach-feed-bracket-aligned">
@@ -880,16 +867,9 @@ export function CoachFeed({
         </>
       )}
 
-      {/* EDHREC theme browser */}
-      {browser && (
-        <details className="coach-feed-browser-section">
-          <summary>
-            <ChevronDown width={14} height={14} aria-hidden />
-            Browse all EDHREC suggestions
-          </summary>
-          <div className="coach-feed-browser">{browser}</div>
-        </details>
-      )}
+      {/* EDHREC theme browser — after the empty state only; the non-empty
+          branch renders it under the header instead. */}
+      {!isPending && allChanges.length === 0 && browserSection}
 
       {/* Desktop hover-peek — portaled to <body> so it escapes any
           container-type ancestor (e.g. .deck-bento--tune) that would

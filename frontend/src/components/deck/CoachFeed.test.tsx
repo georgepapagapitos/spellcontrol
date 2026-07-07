@@ -214,7 +214,7 @@ describe('CoachFeed', () => {
     expect(screen.getAllByText('Cultivate')).toHaveLength(1);
   });
 
-  it('cuts render in a collapsed disclosure group, not the main feed', () => {
+  it('cuts render behind the Cuts filter chip, not in the All feed', () => {
     const props = makeProps({
       // Cut rows only render while their card is still in the deck.
       deckNames: new Set(['smothering tithe', 'bad card']),
@@ -228,13 +228,12 @@ describe('CoachFeed', () => {
       } as CoachFeedProps['optimize'],
     });
     render(<CoachFeed {...props} />);
-    // The summary's text is split across nodes (icon + "Cuts (" + count) — match
-    // on the <summary> element's full textContent.
-    const summary = screen.getByText(
-      (_, el) => el?.tagName === 'SUMMARY' && /Cuts \(1\)/.test(el.textContent ?? '')
-    );
-    expect(summary).toBeTruthy();
-    // The cut row itself lives inside the disclosure group, not the main feed list.
+    // Under the default "All" filter the cut row is not in the feed…
+    expect(screen.queryByText('Bad Card')).toBeNull();
+    // …but the chip announces it with its count.
+    const chip = screen.getByRole('button', { name: /^Cuts\b/ });
+    expect(chip.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(chip);
     expect(screen.getByText('Bad Card')).toBeTruthy();
   });
 
