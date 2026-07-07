@@ -137,6 +137,11 @@ vi.mock('@/deck-builder/services/edhrec/client', async (orig) => ({
   fetchPartnerCommanderData: vi.fn(async () => edhrecData()),
   fetchPartnerThemeData: vi.fn(async () => edhrecData()),
   fetchCommanderCombos: vi.fn(async () => []),
+  // S1: deckGenerator.ts fetches combos via the throwing variant (so a real
+  // fetch failure is distinguishable from a genuinely-empty combo list) and
+  // wraps it in retryOnce itself — the fixture universe just returns empty,
+  // same as fetchCommanderCombos above.
+  fetchCommanderCombosRaw: vi.fn(async () => []),
   fetchSaltIndex: vi.fn(async () => new Map()),
   fetchAverageDeckMultiCopies: vi.fn(async () => null),
   // Lift-picks phase (E71): no card-page data in this fixture universe, so
@@ -247,7 +252,7 @@ import {
   getCardsByNames,
   getGameChangerNames,
 } from '@/deck-builder/services/scryfall/client';
-import { fetchCommanderData, fetchCommanderCombos } from '@/deck-builder/services/edhrec/client';
+import { fetchCommanderData, fetchCommanderCombosRaw } from '@/deck-builder/services/edhrec/client';
 import { generateLands } from './landGenerator';
 import { computeAutoLandCount, computeLandCountSizingAnchor } from './targetCounts';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
@@ -508,7 +513,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // already be in the generated deck as top-inclusion creatures), so the
     // shared missing card qualifies as a "multi-combo enabler" (completes
     // 2+ combos) — the Phase-1 path that the Kozilek/Omniscience defect hit.
-    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+    vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
         comboId: 'test-combo-a',
         cards: [
@@ -582,7 +587,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // identity — this swap should actually fire and must be disclosed
     // (T37 ethos), unlike before this fix where combo-audit swaps were
     // silent (the Thran Dynamo -> Ornithopter of Paradise defect).
-    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+    vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
         comboId: 'test-combo-c',
         cards: [
@@ -652,7 +657,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // near-miss combo can't complete even though its enabler is legal and
     // resolvable. Proves the wiring (auditWeakest → isProtectionPiece) without
     // needing to know which specific card the real fill would pick as weakest.
-    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+    vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
         comboId: 'test-combo-e',
         cards: [
@@ -717,7 +722,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // auditWeakest's skip condition is `isProtectionPiece(card) ||
     // isFreeInteraction(card)`, so forcing isFreeInteraction true must have
     // the same "no evictable candidate found" effect.
-    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+    vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
         comboId: 'test-combo-g',
         cards: [
@@ -783,7 +788,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // evicted again by applyBracketConvergence — an add-then-evict churn
     // cycle). targetBracket:2 gives a Game Changer ceiling of 0 (any GC forces
     // at least B3), so the enabler should never be seated in the first place.
-    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+    vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
         comboId: 'test-combo-i',
         cards: [
@@ -855,7 +860,7 @@ describe('generateDeck — Combo Integrity Audit color-identity gate (defect A1/
     // ceiling is Infinity — proves the guard gates on the ceiling, not on the
     // card unconditionally, so a bracket-4/5 (or unrestricted) ask still gets
     // the combo-completion benefit the audit exists for.
-    vi.mocked(fetchCommanderCombos).mockResolvedValueOnce([
+    vi.mocked(fetchCommanderCombosRaw).mockResolvedValueOnce([
       {
         comboId: 'test-combo-k',
         cards: [

@@ -76,6 +76,32 @@ describe('BuildReportPanel', () => {
     expect(container.textContent).not.toContain('Brew dial');
   });
 
+  describe('generation-integrity notes (S1)', () => {
+    it('renders each note up front with warning styling', () => {
+      const { container } = render(
+        <BuildReportPanel
+          report={makeReport({
+            integrityNotes: [
+              "Card-role data couldn't be loaded, so role targets and balance limits weren't enforced on this build. Regenerate to retry with full data.",
+              "Combo data couldn't be loaded — combo detection and combo seeding were skipped on this build.",
+            ],
+          })}
+        />
+      );
+      const flags = container.querySelectorAll('.build-report-flag');
+      expect(flags).toHaveLength(2);
+      expect(flags[0].textContent).toContain("Card-role data couldn't be loaded");
+      expect(flags[1].textContent).toContain("Combo data couldn't be loaded");
+      // Rendered before every other line — the first child of the panel.
+      expect(container.querySelector('.build-report')?.firstElementChild).toBe(flags[0]);
+    });
+
+    it('renders nothing when there are no integrity notes', () => {
+      const { container } = render(<BuildReportPanel report={makeReport()} />);
+      expect(container.querySelectorAll('.build-report-flag')).toHaveLength(0);
+    });
+  });
+
   it('renders role gaps as have / target with humanized labels', () => {
     const { container } = render(
       <BuildReportPanel

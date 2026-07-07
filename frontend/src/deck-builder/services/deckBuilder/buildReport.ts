@@ -81,6 +81,8 @@ export function assembleBuildReport(input: {
   if (generated.landSqueezeTrimNote) report.landSqueezeTrimNote = generated.landSqueezeTrimNote;
   if (generated.bracketPoolFallbackNote)
     report.bracketPoolFallbackNote = generated.bracketPoolFallbackNote;
+  if (generated.integrityNotes && generated.integrityNotes.length > 0)
+    report.integrityNotes = generated.integrityNotes;
   if (generated.comboUpsideNotes && generated.comboUpsideNotes.length > 0)
     report.comboUpsideNotes = generated.comboUpsideNotes;
   if (generated.comboCompletionNotes && generated.comboCompletionNotes.length > 0)

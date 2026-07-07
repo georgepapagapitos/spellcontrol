@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import {
   loadTaggerData,
   getCardRole,
@@ -1855,5 +1855,60 @@ describe('isFreeInteraction', () => {
 
   it('returns false for a text-less card (no tag to trust — same fallback direction as isProtectionPiece)', () => {
     expect(isFreeInteraction({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// S1 (generation-integrity): a failed loadTaggerData() must not poison the
+// module for the rest of the session — the next call has to actually retry
+// the fetch, not permanently report "unavailable". Uses a fresh module
+// instance (vi.resetModules + dynamic import) so it doesn't disturb the
+// shared, already-successfully-loaded module the rest of this file imports
+// statically via the top `beforeAll`. Placed last in the file so resetting
+// the module registry can't affect any test that runs after it.
+describe('loadTaggerData / hasTaggerData — un-latch after a failed fetch (S1)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('does not cache the failure — a later call retries the fetch and can succeed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      })
+    );
+    const mod = await import('./client');
+    const first = await mod.loadTaggerData();
+    expect(first).toBeNull();
+    expect(mod.hasTaggerData()).toBe(false);
+
+    // Network recovers. If the failure were latched (null cached as "loaded"),
+    // this would never re-fetch and hasTaggerData() would stay false forever.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => DATA }) as unknown as Response)
+    );
+    const second = await mod.loadTaggerData();
+    expect(second).not.toBeNull();
+    expect(mod.hasTaggerData()).toBe(true);
+  });
+
+  it('still dedupes concurrent in-flight callers to a single fetch', async () => {
+    let callCount = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        callCount++;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return { ok: true, json: async () => DATA } as unknown as Response;
+      })
+    );
+    const mod = await import('./client');
+    const [a, b] = await Promise.all([mod.loadTaggerData(), mod.loadTaggerData()]);
+    expect(a).toEqual(b);
+    expect(callCount).toBe(1);
   });
 });
