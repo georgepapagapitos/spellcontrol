@@ -236,34 +236,14 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     await client.query('BEGIN');
 
-    // Resolve import-delete cascades up front: every live card under a deleted
-    // import becomes a tombstone. Doing the SELECTs first lets us allocate the
-    // exact number of revs in a single round-trip below.
-    const cascadeIdsByDeletion: (string[] | null)[] = [];
-    for (const d of deletions.value) {
-      if (d.kind === 'import') {
-        const cards = await client.query<{ id: string }>(
-          `SELECT id FROM user_cards
-           WHERE user_id = $1 AND import_id = $2 AND deleted_at IS NULL`,
-          [userId, d.id]
-        );
-        cascadeIdsByDeletion.push(cards.rows.map((r) => r.id));
-      } else {
-        cascadeIdsByDeletion.push(null);
-      }
-    }
-
     // Allocate every rev this request needs in ONE sequence round-trip. The
     // old code called nextval() once per row inside the loop, so a 2000-row
     // chunk meant 2000 extra round-trips to the DB (~24s on prod). Pairing
     // this with the batched writes below collapses a chunk to a handful of
     // queries total. nextval() is non-transactional, so a rollback just leaves
-    // unused gaps in the sequence — harmless.
-    const cascadeTotal = cascadeIdsByDeletion.reduce((n, ids) => n + (ids?.length ?? 0), 0);
-    const revs = await allocRevs(
-      client,
-      upserts.value.length + deletions.value.length + cascadeTotal
-    );
+    // unused gaps in the sequence — harmless. (Import-cascade tombstones draw
+    // their revs from nextval() inside the cascade UPDATE itself, below.)
+    const revs = await allocRevs(client, upserts.value.length + deletions.value.length);
     let ri = 0;
 
     // ── Upserts: one bulk INSERT … ON CONFLICT per kind via unnest. ──
@@ -374,20 +354,9 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       applied.push({ kind: 'deck', id, rev: d.rev, deletedAt: null });
     }
 
-    // ── Deletions (+ cascades): assign revs in the same order the old loop did
-    //    (cascade cards first, then the deletion itself), then bulk-tombstone. ──
-    const cascadePairs: Array<{ id: string; rev: number }> = [];
+    // ── Deletions (+ cascades). ──
     const delByKind = new Map<Kind, Map<string, number>>();
-    for (let i = 0; i < deletions.value.length; i++) {
-      const d = deletions.value[i];
-      const cascadeIds = cascadeIdsByDeletion[i];
-      if (cascadeIds) {
-        for (const cid of cascadeIds) {
-          const cr = revs[ri++];
-          cascadePairs.push({ id: cid, rev: cr });
-          applied.push({ kind: 'card', id: cid, rev: cr, deletedAt: now });
-        }
-      }
+    for (const d of deletions.value) {
       const r = revs[ri++];
       const bucket = delByKind.get(d.kind) ?? new Map();
       delByKind.set(d.kind, bucket);
@@ -395,16 +364,28 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       applied.push({ kind: d.kind, id: d.id, rev: r, deletedAt: now });
     }
 
-    // Cascade cards are known to exist (just SELECTed live), so a single bulk
-    // UPDATE keyed by id is enough — no shell-insert fallback needed.
-    if (cascadePairs.length > 0) {
-      await client.query(
-        `UPDATE user_cards AS c
-         SET data = NULL, rev = v.rev, deleted_at = $2, updated_at = $2
-         FROM unnest($3::text[], $4::bigint[]) AS v(id, rev)
-         WHERE c.user_id = $1 AND c.id = v.id`,
-        [userId, now, cascadePairs.map((p) => p.id), cascadePairs.map((p) => p.rev)]
+    // Import-delete cascades: tombstone every live card under a deleted
+    // import in ONE atomic UPDATE, drawing revs from nextval() in-statement.
+    // The old pre-SELECT → bulk-UPDATE pair left a READ COMMITTED window
+    // where a concurrently-committed card upsert slipped between the SELECT
+    // and the UPDATE and survived as a live orphan under a tombstoned import
+    // (E67). Running the cascade after this batch's upserts also means a
+    // card upserted in the same batch as its import's deletion is cascaded
+    // too — the delete wins, matching cross-batch semantics. (A card that
+    // commits in another transaction after this one has no fix at the
+    // cascade side; that residual is cosmetic import-grouping only.)
+    const importDeleteIds = [...(delByKind.get('import')?.keys() ?? [])];
+    if (importDeleteIds.length > 0) {
+      const cascaded = await client.query<{ id: string; rev: string }>(
+        `UPDATE user_cards
+         SET data = NULL, rev = nextval('user_data_rev_seq'), deleted_at = $2, updated_at = $2
+         WHERE user_id = $1 AND import_id = ANY($3::text[]) AND deleted_at IS NULL
+         RETURNING id, rev`,
+        [userId, now, importDeleteIds]
       );
+      for (const row of cascaded.rows) {
+        applied.push({ kind: 'card', id: row.id, rev: Number(row.rev), deletedAt: now });
+      }
     }
 
     for (const [kind, bucket] of delByKind) {
