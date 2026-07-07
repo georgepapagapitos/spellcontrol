@@ -1290,6 +1290,12 @@ export function DeckDisplay({
     return map;
   }, [commanderProfile, cards]);
 
+  // Per-card pick provenance (S2 — "why is this here"), keyed by card name.
+  // Set only on decks generated after this shipped; absent (undefined) for
+  // manual/imported/older decks, which keeps every row's tooltip exactly as
+  // it rendered before this feature existed.
+  const cardProvenance = buildReport?.cardProvenance;
+
   // Stats summary line.
   const totalCards = allCards.length;
   const totalPrice = useMemo(
@@ -1664,6 +1670,7 @@ export function DeckDisplay({
                         }
                         synergyByName={synergyByName}
                         cardInclusionMap={cardInclusionMap}
+                        cardProvenance={cardProvenance}
                       />
                     ))}
 
@@ -1699,6 +1706,7 @@ export function DeckDisplay({
                             onUseOwnCopy={onUseOwnCopy}
                             synergyByName={synergyByName}
                             cardInclusionMap={cardInclusionMap}
+                            cardProvenance={cardProvenance}
                           />
                         ))}
                         {sideboard.length === 0 && (
@@ -2649,6 +2657,7 @@ function CategorySection({
   headerAction,
   synergyByName,
   cardInclusionMap,
+  cardProvenance,
 }: {
   title: string;
   icon: string;
@@ -2674,6 +2683,8 @@ function CategorySection({
   headerAction?: React.ReactNode;
   synergyByName?: Map<string, string[]>;
   cardInclusionMap?: Record<string, number>;
+  /** Per-card "why is this here" reason (S2), keyed by card name. */
+  cardProvenance?: Record<string, string>;
 }) {
   // Hooks must run unconditionally — keep them above the empty-section early
   // return (a section emptying from N→0 cards would otherwise change the hook
@@ -2728,6 +2739,7 @@ function CategorySection({
             onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
             synergyReasons={synergyByName?.get(entry.item.card.name)}
             inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item.card.name)}
+            provenanceReason={cardProvenance?.[entry.item.card.name]}
             entering={entry.entering}
             leaving={entry.leaving}
             leavingStyle={entry.leaving ? entry.style : undefined}
@@ -2760,6 +2772,7 @@ function DeckCardRow({
   onUseOwnCopy,
   synergyReasons,
   inclusionPct,
+  provenanceReason,
   entering,
   leaving,
   leavingStyle,
@@ -2786,6 +2799,10 @@ function DeckCardRow({
   synergyReasons?: string[];
   /** EDHREC inclusion rate (0–100) for this card; renders a subtle chip when set. */
   inclusionPct?: number;
+  /** Per-card "why is this here" reason (S2) — folded into whichever of the
+   *  synergy/inclusion tooltips above renders for this row. Undefined for
+   *  manual adds and decks generated before this shipped. */
+  provenanceReason?: string;
   /** True on the commit this key first appears — drives the enter keyframe. */
   entering?: boolean;
   /** True when this row is a ghost playing its leave animation. */
@@ -2959,10 +2976,15 @@ function DeckCardRow({
               dimmed qty cell (deck-row-qty-missing) and the deck-level banner. */}
           <span className="deck-row-hovermeta">
             <AllocationChip row={row} />
+            {/* S2: per-card pick provenance folds into whichever of these two
+                tooltips already renders for this row, as an extra "Why it's
+                here" line — no new always-visible badge, no layout shift, and
+                a row with no provenance (manual add, older deck) shows the
+                tooltip exactly as before. */}
             {synergyReasons && synergyReasons.length > 0 && (
               <span
                 className="deck-row-synergy"
-                title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}`}
+                title={`Synergy with your commander:\n• ${synergyReasons.join('\n• ')}${provenanceReason ? `\n\nWhy it's here: ${provenanceReason}` : ''}`}
                 aria-label={`Synergy: ${synergyReasons.join('; ')}`}
               >
                 <span className="deck-row-synergy-icon" aria-hidden>
@@ -2980,13 +3002,20 @@ function DeckCardRow({
                 return info.kind === 'pct' ? (
                   <span
                     className="deck-row-inclusion"
-                    title={`${info.pct}% of EDHREC decks with this commander run this card`}
+                    title={`${info.pct}% of EDHREC decks with this commander run this card${provenanceReason ? `\n\nWhy it's here: ${provenanceReason}` : ''}`}
                     aria-label={`EDHREC inclusion ${info.pct} percent`}
                   >
                     {info.pct}%
                   </span>
                 ) : (
-                  <span className="deck-row-inclusion is-offmeta" title={OFFMETA_TOOLTIP}>
+                  <span
+                    className="deck-row-inclusion is-offmeta"
+                    title={
+                      provenanceReason
+                        ? `${OFFMETA_TOOLTIP}\n\nWhy it's here: ${provenanceReason}`
+                        : OFFMETA_TOOLTIP
+                    }
+                  >
                     Off-meta
                   </span>
                 );

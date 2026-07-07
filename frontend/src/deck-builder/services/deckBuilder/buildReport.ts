@@ -128,12 +128,15 @@ export function assembleBuildReport(input: {
   }
 
   // Provenance for the deck's off-EDHREC cards — the ones the fallback fill added
-  // because the owned∩EDHREC pool ran short (this is where the "0% inclusion"
-  // cards come from). For each we surface the deck-synergy tags it shares with
-  // the rest of the deck, so the user can see WHY it was picked (or that it was a
-  // pure slot-filler with no shared tags). Collection builds only; needs the
-  // inclusion map to tell EDHREC-sourced cards from fills.
-  if (builtFromCollection && generated.cardInclusionMap) {
+  // because the EDHREC (or, in collection mode, owned∩EDHREC) pool ran short
+  // (this is where the "0% inclusion" cards come from). For each we surface the
+  // deck-synergy tags it shares with the rest of the deck, so the user can see
+  // WHY it was picked (or that it was a pure slot-filler with no shared tags).
+  // Needs the inclusion map to tell EDHREC-sourced cards from fills — that's
+  // the only real dependency, so this fires for every build, not just
+  // collection ones (S2): collectionSubstitutions/liftedByMap below are read
+  // optionally and simply stay empty for a non-collection build.
+  if (generated.cardInclusionMap) {
     const inclusionMap = generated.cardInclusionMap;
     const substituted = new Set((generated.collectionSubstitutions ?? []).map((s) => s.usedName));
     const nonLand = (Object.keys(generated.categories) as DeckCategory[])
@@ -248,6 +251,29 @@ export function assembleBuildReport(input: {
   if (generated.packagePicks && generated.packagePicks.length > 0) {
     report.packagePicks = generated.packagePicks;
     report.liftPicksNote = generated.liftPicksNote;
+  }
+
+  // Per-card pick provenance (S2 — "why is this here"): start from what
+  // generation itself recorded (EDHREC/theme/staple/wildcard/boost/combo-floor/
+  // Scryfall-fill — see deckGenerator.ts), then let every swap phase's own
+  // disclosure win for any card it added. A repair/converge/rebalance reason is
+  // always more specific than whatever reason that name got before the swap —
+  // and reusing these EXISTING {cut, added, reason} records (already rendered
+  // in BuildReportPanel) means no new plumbing inside those phases.
+  if (generated.cardProvenance) {
+    const cardProvenance: Record<string, string> = { ...generated.cardProvenance };
+    const repairSources = [
+      report.coherenceRepairs,
+      report.budgetRepairs,
+      report.surplusConversions,
+      report.flagshipSeatings,
+    ];
+    for (const repairs of repairSources) {
+      for (const r of repairs ?? []) {
+        cardProvenance[r.added] = `Swapped in: ${r.reason}`;
+      }
+    }
+    report.cardProvenance = cardProvenance;
   }
 
   return report;

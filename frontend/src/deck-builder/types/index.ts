@@ -619,6 +619,12 @@ export interface BuildReport {
    *  a real gap (Voltron for v1 — see PROTECTION_MOTIVATED_ARCHETYPES).
    *  Undefined otherwise. */
   protectionZeroNote?: string;
+  /** Per-card "why is this here" provenance (S2) — card name → short human
+   *  reason (EDHREC staple, theme fit, must-include, staple rock, combo
+   *  floor, boost-driven pick, Scryfall shortfall fill, or a repair-phase
+   *  swap reason). Lands are out of scope (land notes already exist).
+   *  Undefined on decks generated before this shipped. */
+  cardProvenance?: Record<string, string>;
 }
 
 export interface GeneratedDeck {
@@ -704,6 +710,9 @@ export interface GeneratedDeck {
    *  flagged here — tagger role data, combo data, or the substitute-ranking
    *  index. Undefined/empty when every source loaded fine. */
   integrityNotes?: string[];
+  /** Per-card "why is this here" provenance (S2) — see BuildReport's field of
+   *  the same name for the full rationale. */
+  cardProvenance?: Record<string, string>;
 }
 
 export interface DeckStats {

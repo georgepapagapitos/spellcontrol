@@ -340,7 +340,11 @@ describe('assembleBuildReport', () => {
       expect(report.synergyFills).toEqual([{ name: 'Fill A', matchedTags: [] }]);
     });
 
-    it('is omitted when not built from collection', () => {
+    // S2: previously gated on builtFromCollection, so a non-collection build's
+    // 0%-inclusion cards were completely unexplained — the inclusion map is
+    // the only real dependency (it's what tells a fill apart from an EDHREC
+    // pick), so this now fires for every build.
+    it('fires for a non-collection build too, as long as the inclusion map is present', () => {
       const report = assembleBuildReport({
         generated: makeGenerated({
           builtFromCollection: false,
@@ -350,7 +354,7 @@ describe('assembleBuildReport', () => {
         customization: makeCustomization({ collectionMode: false }),
         collectionNames: new Set(),
       });
-      expect(report.synergyFills).toBeUndefined();
+      expect(report.synergyFills).toEqual([{ name: 'Fill A', matchedTags: [] }]);
     });
 
     it('is omitted when the inclusion map is absent (can’t tell fills from EDHREC picks)', () => {
@@ -663,6 +667,73 @@ describe('assembleBuildReport', () => {
         collectionNames: new Set(),
       });
       expect(report.brewDialNote).toMatch(/staples/i);
+    });
+  });
+
+  describe('cardProvenance (S2 — per-card "why is this here")', () => {
+    it('passes through generation-time provenance untouched when nothing was repaired', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          cardProvenance: { 'Fill A': 'EDHREC staple for this commander' },
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+      expect(report.cardProvenance).toEqual({ 'Fill A': 'EDHREC staple for this commander' });
+    });
+
+    it('is undefined when generation recorded no provenance at all (pre-S2 decks)', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+      expect(report.cardProvenance).toBeUndefined();
+    });
+
+    // Repair/converge/rebalance swaps (coherenceRepairs, budgetRepairs,
+    // surplusConversions, flagshipSeatings — comboAuditRepairs folds into
+    // coherenceRepairs at generation time) are the more specific, more recent
+    // reason a card is in the deck — they must win over whatever generic
+    // reason the type-pass pick assigned that same name earlier.
+    it('lets a coherenceRepairs add override the type-pass reason for that card', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          cardProvenance: { 'Weak Filler': 'EDHREC staple for this commander' },
+          coherenceRepairs: [
+            { cut: 'Dead Payoff', added: 'Weak Filler', reason: 'Fixed a dead payoff' },
+          ],
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+      expect(report.cardProvenance).toEqual({ 'Weak Filler': 'Swapped in: Fixed a dead payoff' });
+    });
+
+    it('layers budgetRepairs, surplusConversions, and flagshipSeatings all independently', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          cardProvenance: {
+            'Budget Add': 'EDHREC staple for this commander',
+            'Surplus Add': 'EDHREC staple for this commander',
+            'Flagship Add': 'EDHREC staple for this commander',
+          },
+          budgetRepairs: [{ cut: 'Pricey', added: 'Budget Add', reason: 'Fit the budget cap' }],
+          surplusConversions: [
+            { cut: 'Extra Ramp', added: 'Surplus Add', reason: 'Ramp was over cap' },
+          ],
+          flagshipSeatings: [
+            { cut: 'Weak Incumbent', added: 'Flagship Add', reason: 'Reserved flagship seat' },
+          ],
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+      expect(report.cardProvenance).toEqual({
+        'Budget Add': 'Swapped in: Fit the budget cap',
+        'Surplus Add': 'Swapped in: Ramp was over cap',
+        'Flagship Add': 'Swapped in: Reserved flagship seat',
+      });
     });
   });
 });

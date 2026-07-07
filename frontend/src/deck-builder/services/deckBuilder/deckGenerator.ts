@@ -1074,6 +1074,61 @@ export function buildComboUpsideNotes(
   return notes.length > 0 ? notes : undefined;
 }
 
+/**
+ * Per-card pick provenance (S2 — "every generated card can answer 'why is
+ * this here'"). Assembled over the FINAL non-land deck so it reflects
+ * whatever survived every mutating phase — reuses fields/lists already
+ * computed for other disclosures (isMustInclude/isStapleRock/
+ * isThemeSynergyCard are persisted on the card; wildcardsKept and
+ * boostProvenance are populated during type-pass picking) rather than
+ * threading new plumbing through each individual pick site. Priority order
+ * (first matching bucket wins): must-include > combo-floor add > staple rock
+ * > wildcard flex slot > theme-synergy list > a live package/lift/visibility
+ * boost > plain EDHREC signal > Scryfall shortfall fill. Repair/converge/
+ * rebalance swaps (coherenceRepairs, budgetRepairs, surplusConversions,
+ * flagshipSeatings) are layered on top of this at report-assembly time
+ * (buildReport.ts), since those arrays are only finalized after generation.
+ */
+export function assembleCardProvenance(params: {
+  nonLandCards: readonly ScryfallCard[];
+  cardInclusionMap: Record<string, number> | undefined;
+  boostProvenance: ReadonlyMap<string, string>;
+  wildcardsKept: readonly string[];
+  comboFloorAdd: { name: string; reason: string } | null;
+  /** Selected EDHREC theme names, for the "From your X theme" label. Empty
+   *  when no theme was selected (isThemeSynergyCard can still be true — it
+   *  also flags EDHREC's own topcards/gamechangers lists). */
+  themeNames: readonly string[];
+}): Record<string, string> {
+  const themeProvenanceLabel =
+    params.themeNames.length > 0
+      ? `From your ${params.themeNames.join(', ')} theme`
+      : 'High-synergy pick for this commander';
+  const wildcardNames = new Set(params.wildcardsKept);
+  const cardProvenance: Record<string, string> = {};
+  for (const card of params.nonLandCards) {
+    if (card.isMustInclude) {
+      cardProvenance[card.name] = 'You required this card';
+    } else if (params.comboFloorAdd && params.comboFloorAdd.name === card.name) {
+      cardProvenance[card.name] = params.comboFloorAdd.reason;
+    } else if (card.isStapleRock) {
+      cardProvenance[card.name] = 'Auto-included staple mana rock';
+    } else if (wildcardNames.has(card.name)) {
+      cardProvenance[card.name] = 'Earned a flex slot on deck-wide value';
+    } else if (card.isThemeSynergyCard) {
+      cardProvenance[card.name] = themeProvenanceLabel;
+    } else if (params.boostProvenance.has(card.name)) {
+      cardProvenance[card.name] = params.boostProvenance.get(card.name)!;
+    } else if ((params.cardInclusionMap?.[card.name] ?? 0) > 0) {
+      cardProvenance[card.name] = 'EDHREC staple for this commander';
+    } else {
+      cardProvenance[card.name] =
+        'Added from a Scryfall search — the EDHREC pool ran short for this slot';
+    }
+  }
+  return cardProvenance;
+}
+
 // ── Smart Trim resistance constants (priority-aware, role-aware, combo-aware) ──
 // Live in deckGeneration/trimResistanceConstants.ts (E88, imported up top) so
 // phaseLandSqueezeReconcile.ts can reuse them without a circular import back
@@ -1422,6 +1477,16 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let resolvedPacing: Pacing = 'balanced';
   let detectedPacing: Pacing = 'balanced';
   let swapCandidates: Record<string, ScryfallCard[]> | undefined;
+  // Per-card pick provenance (S2 — "why is this here"). `boostProvenance`
+  // records, per candidate name, which live package/lift/visibility boost
+  // (if any) drove a type-pass pick — populated inside withPackageBoosts
+  // below, read back in the final cardProvenance pass near the return so it
+  // survives every mutating phase in between. `comboFloorAdd` captures the
+  // one card (if any) the combo-floor phase seeds, so its distinct "completes
+  // the combo" reason can override the generic EDHREC/boost bucket that same
+  // name would otherwise land in.
+  const boostProvenance = new Map<string, string>();
+  let comboFloorAdd: { name: string; reason: string } | null = null;
   // Land count: resolved once (flat default or archetype-aware auto-tune) so
   // the actual generation math and the post-generation grader agree on the
   // same target — see computeGradeAndBracket call below.
@@ -2936,46 +3001,56 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         picked,
         [commander, partnerCommander].filter((c): c is ScryfallCard => !!c)
       );
+      // S2 provenance: first boost source to actually move a candidate's score
+      // wins the "why" label (package > lift > per-theme visibility, matching
+      // the order these are folded in below) — a card touched by more than one
+      // keeps its first, most-specific attribution.
+      const applyBoost = (map: Map<string, number>, label: string) => {
+        for (const [name, b] of map) {
+          boosts.set(name, (boosts.get(name) ?? 0) + b);
+          if (b > 0 && !boostProvenance.has(name)) boostProvenance.set(name, label);
+        }
+      };
       const pkg = computePackageBoosts(
         pool.map((c) => c.name),
         cardMap,
         investment
       );
-      for (const [name, b] of pkg) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      applyBoost(pkg, 'Synergy package pick');
       const lift = computeLiftPickBoosts(
         pool.map((c) => c.name),
         liftScoreOf,
         2 * state.cfg.brewLevel
       );
-      for (const [name, b] of lift) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      applyBoost(lift, 'Cluster-lift pick');
       const untap = computeUntapVisibilityBoosts(
         pool.map((c) => c.name),
         cardMap,
         commanderWantsUntap,
         isUntapProducer
       );
-      for (const [name, b] of untap) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      applyBoost(untap, 'Untap-synergy pick');
       const blink = computeBlinkVisibilityBoosts(
         pool.map((c) => c.name),
         cardMap,
         commanderWantsBlink,
         isBlinkProducer
       );
-      for (const [name, b] of blink) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      applyBoost(blink, 'Blink-synergy pick');
       const exile = computeExileVisibilityBoosts(
         pool.map((c) => c.name),
         cardMap,
         commanderWantsExile,
         isExileProducer
       );
-      for (const [name, b] of exile) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      applyBoost(exile, 'Exile-synergy pick');
       const extraCombat = computeExtraCombatVisibilityBoosts(
         pool.map((c) => c.name),
         cardMap,
         commanderWantsExtraCombat,
         isExtraCombatPiece
       );
-      for (const [name, b] of extraCombat) boosts.set(name, (boosts.get(name) ?? 0) + b);
+      applyBoost(extraCombat, 'Extra-combat synergy pick');
       return boosts;
     };
 
@@ -5189,6 +5264,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     });
     detectedCombos = floorResult.detectedCombos;
     comboBudgetSkipCount += floorResult.budgetSkipped;
+    // Nothing moves silently (T37 ethos): fold the floor's swap into the same
+    // disclosure list every sibling swap phase feeds (coherenceRepairs below),
+    // and record its own distinct per-card "why" (S2) — overrides the generic
+    // repair-derived reason buildReport.ts assigns for the rest of this list.
+    if (floorResult.repair) {
+      comboAuditRepairs.push(floorResult.repair);
+      comboFloorAdd = { name: floorResult.repair.added, reason: floorResult.repair.reason };
+    }
   }
 
   // Disclose combo-completion candidates that were available but skipped for
@@ -5886,6 +5969,17 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     categories.lands.length
   );
 
+  // Per-card pick provenance (S2 — "why is this here") — see
+  // assembleCardProvenance's own doc for the full rationale/priority order.
+  const cardProvenance = assembleCardProvenance({
+    nonLandCards,
+    cardInclusionMap,
+    boostProvenance,
+    wildcardsKept: finalWildcardsKept,
+    comboFloorAdd,
+    themeNames: selectedThemesWithSlugs.map((t) => t.name),
+  });
+
   // Combo-upside price disclosure — post-hoc scan of the FINAL deck against
   // the FINAL detectedCombos (post trim/audit/repair, mutated in place above)
   // and the batch-fetched EDHREC pool, so a card carrying a live combo boost
@@ -5961,6 +6055,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     landSqueezeTrimNote,
     comboUpsideNotes,
     comboCompletionNotes,
+    cardProvenance: Object.keys(cardProvenance).length > 0 ? cardProvenance : undefined,
     roleCounts: roleTargets ? { ...finalRoleCounts } : undefined,
     roleTargets: roleTargets ? { ...roleTargets } : undefined,
     roleTargetBreakdown,
