@@ -1354,6 +1354,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // candidate was scored and when its swap actually executes) — see
   // buildComboAuditBracketBlockNote below.
   let comboAuditBracketBlockCount = 0;
+  // Explicit user/deck must-includes that intake couldn't seat (off-color,
+  // over the rarity/CMC cap, not on Arena, or unresolvable) — surfaced in the
+  // build report so a forced pick never vanishes silently. Combo-sourced
+  // picks are excluded: their skips are by design (owned-only / PDH legality).
+  const skippedMustIncludes: { name: string; reason: string }[] = [];
+  let mustIncludeSkippedNote: string | undefined;
 
   // Process must-include cards FIRST — they get priority over all other selections
   // Track where each must-include came from (first source wins)
@@ -1396,12 +1402,35 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     );
 
     const mustIncludeMap = await getCardsByNames(mustIncludeNames, undefined, preferredSet);
+    // getCardsByNames keys results by Scryfall's CANONICAL card name, but
+    // Scryfall fuzzy-resolves punctuation/case differences (e.g. a stored
+    // "Comet Stellar Pup" → "Comet, Stellar Pup"). A direct .get(requestedName)
+    // would then MISS a card Scryfall actually found and silently drop the
+    // user's forced pick. Index the results by a normalized name so the lookup
+    // survives that mismatch.
+    const normalizeName = (n: string) =>
+      n
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    const mustIncludeByNormalized = new Map<string, ScryfallCard>();
+    for (const c of mustIncludeMap.values()) {
+      mustIncludeByNormalized.set(normalizeName(c.name), c);
+      const front = c.name.split(' // ')[0];
+      if (front !== c.name) mustIncludeByNormalized.set(normalizeName(front), c);
+    }
+    // Record an explicit (user/deck) pick intake couldn't seat, for the report.
+    const noteSkip = (name: string, reason: string) => {
+      const source = mustIncludeSources.get(name);
+      if (source === 'user' || source === 'deck') skippedMustIncludes.push({ name, reason });
+    };
     let addedCount = 0;
 
     for (const name of mustIncludeNames) {
-      const card = mustIncludeMap.get(name);
+      const card = mustIncludeMap.get(name) ?? mustIncludeByNormalized.get(normalizeName(name));
       if (!card) {
         logger.warn(`[DeckGen] Must-include card not found: "${name}"`);
+        noteSkip(name, 'card not found');
         continue;
       }
 
@@ -1418,6 +1447,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
       // Skip cards that don't fit the commander's color identity
       if (!fitsColorIdentity(card, colorIdentity)) {
         logger.debug(`[DeckGen] Must-include card "${name}" skipped (color identity mismatch)`);
+        noteSkip(name, "outside the commander's color identity");
         continue;
       }
 
@@ -1439,6 +1469,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
           logger.warn(
             `[DeckGen] Must-include card "${name}" skipped (rarity "${card.rarity}" exceeds max "${maxRarity}")`
           );
+          noteSkip(name, `rarity "${card.rarity}" exceeds your max-rarity cap`);
           continue;
         }
       }
@@ -1448,12 +1479,14 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         logger.warn(
           `[DeckGen] Must-include card "${name}" skipped (CMC ${card.cmc} exceeds max ${maxCmc})`
         );
+        noteSkip(name, `mana value ${card.cmc} exceeds the ${maxCmc} cap`);
         continue;
       }
 
       // Skip cards not available on Arena when arena-only mode is enabled
       if (notOnArena(card, arenaOnly)) {
         logger.warn(`[DeckGen] Must-include card "${name}" skipped (not available on Arena)`);
+        noteSkip(name, 'not available on Arena');
         continue;
       }
 
@@ -1511,6 +1544,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     if (gameChangerCount.value > 0) {
       logger.debug(`[DeckGen] ${gameChangerCount.value} must-include card(s) are game changers`);
     }
+  }
+
+  // Disclosure: any explicit must-include intake couldn't seat. Named with the
+  // reason so a forced pick that gets dropped (off-color, capped, not on Arena,
+  // unresolvable) is never silent — see BuildReportPanel.
+  if (skippedMustIncludes.length > 0) {
+    mustIncludeSkippedNote = `Couldn't include ${skippedMustIncludes.length} of your must-include ${
+      skippedMustIncludes.length === 1 ? 'card' : 'cards'
+    }: ${skippedMustIncludes.map((s) => `${s.name} (${s.reason})`).join('; ')}.`;
   }
 
   // Emergent combo-completion disclosure baseline: snapshot combo
@@ -5786,6 +5828,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     generationModeDetail: altPool?.detail,
     generationRelaxedNote: altPool?.relaxedNote,
     landCountNote,
+    mustIncludeSkippedNote,
     budgetNote,
     roleCapOverflowNote,
     priceSanityNote,
