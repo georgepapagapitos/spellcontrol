@@ -941,4 +941,69 @@ describe('applyRoleSurplusRebalance', () => {
       expect(state.usedNames.has('Path to Exile')).toBe(true);
     });
   });
+
+  // E113: board wipes get a tighter role-cap tolerance (1, not the generic
+  // max(2, 20%)) — see categorize.ts's roleCapTolerance. This pass's own
+  // capOf() reads that same function, so a wipe count sitting at the OLD
+  // target+2 ceiling (previously exactly AT cap, never triggering this pass
+  // at all — see project_deckgen_eval_loop's panel evidence: atraxa-b2 5 vs
+  // target 3, isshin 4 vs 2) now reads as 1-over and gets evicted down.
+  describe('boardwipe overshoot cap (E113)', () => {
+    function addWipeCards(state: GenerationState, count: number, prefix = 'Wipe'): ScryfallCard[] {
+      const cards = Array.from({ length: count }, (_, i) => scryfallCard(`${prefix}_${i + 1}`));
+      for (const c of cards) {
+        ROLE_OF.set(c.name, 'boardwipe');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...cards);
+      return cards;
+    }
+
+    it('evicts a wipe count at the old target+2 ceiling down to target+1', () => {
+      const state = makeState();
+      addWipeCards(state, 5); // target 3 -> new cap 3+1=4; was never over the old 3+2=5 cap
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Wipe Payoff', 90)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 3, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      expect(remainingWipes).toHaveLength(4); // target + 1, never the old target + 2
+    });
+
+    it('never evicts a board-centric wipe target (E109-shaved floor of 1) below its own target', () => {
+      const state = makeState();
+      addWipeCards(state, 4); // target 1 -> new cap 1+1=2 -> needs 2 conversions to reach cap
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Wipe Payoff 1', 90), edhrecCard('Wipe Payoff 2', 85)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(2);
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      // Bounded at target + 1 (2), and never zeroed out below the target (1).
+      expect(remainingWipes.length).toBeLessThanOrEqual(2);
+      expect(remainingWipes.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('is an exact no-op when the wipe count is already within the tightened cap', () => {
+      const state = makeState();
+      addWipeCards(state, 4); // target 3 -> new cap 3+1=4, exactly at cap (not over)
+      const before = state.categories.synergy;
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 3, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toEqual([]);
+      expect(state.categories.synergy).toBe(before);
+    });
+  });
 });

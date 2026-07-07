@@ -4,6 +4,7 @@ import {
   categorizeCards,
   routeCardByType,
   computeRoleBoosts,
+  roleCapTolerance,
 } from './categorize';
 import type { ScryfallCard, DeckCategory } from '@/deck-builder/types';
 import type { RoleKey } from '@/deck-builder/services/tagger/client';
@@ -192,5 +193,36 @@ describe('computeRoleBoosts', () => {
       true
     );
     expect(boosts.get('Y')).toBe(-100);
+  });
+});
+
+// E113: board wipes get a tighter role-cap tolerance than every other
+// reactive role — a surplus wipe actively hurts a deck (torches board state)
+// rather than just being a weaker filler slot, so its admission band is
+// narrower. This is the one function every hard-cap gate (pick loop,
+// Scryfall fallback, budget/bracket convergence, flagship seating) and the
+// post-fill role-surplus rebalance's own cap share, so tightening it here
+// closes the observed target+2 overshoot everywhere at once.
+describe('roleCapTolerance (E113)', () => {
+  it('boardwipe gets tolerance 1 regardless of target size (tighter than the generic band)', () => {
+    expect(roleCapTolerance(1, 'boardwipe')).toBe(1);
+    expect(roleCapTolerance(2, 'boardwipe')).toBe(1);
+    expect(roleCapTolerance(3, 'boardwipe')).toBe(1);
+    expect(roleCapTolerance(10, 'boardwipe')).toBe(1);
+  });
+
+  it('every other reactive role keeps the generic max(2, 20%) band', () => {
+    expect(roleCapTolerance(3, 'ramp')).toBe(2);
+    expect(roleCapTolerance(3, 'removal')).toBe(2);
+    expect(roleCapTolerance(3, 'cardDraw')).toBe(2);
+    expect(roleCapTolerance(10)).toBe(2);
+  });
+
+  it('a boardwipe target of 1 (E109-shaved floor) never zeroes: cap = target + 1 = 2', () => {
+    expect(1 + roleCapTolerance(1, 'boardwipe')).toBe(2);
+  });
+
+  it('omitting role keeps the exact pre-E113 generic behavior (backward compatible)', () => {
+    expect(roleCapTolerance(5)).toBe(Math.max(2, Math.round(5 * 0.2)));
   });
 });

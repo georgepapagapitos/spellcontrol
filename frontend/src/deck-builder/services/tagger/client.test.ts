@@ -11,6 +11,7 @@ import {
   isExileProducer,
   isExtraCombatPiece,
   isOneSidedWipe,
+  getWipeScope,
 } from './client';
 
 // Minimal tagger dataset: a cost-reducer (which the generic classifier folds
@@ -1461,6 +1462,109 @@ describe('isOneSidedWipe', () => {
 
   it('returns false for a text-less card (no tag to trust — there is no tag for this class)', () => {
     expect(isOneSidedWipe({ name: 'No-Text Card' })).toBe(false);
+  });
+});
+
+// getWipeScope (E112): which permanent types a symmetric board wipe
+// destroys/exiles — a separate axis from isOneSidedWipe above (who it hits).
+// Every oracle text below is live-verified against Scryfall (see the module
+// doc above getWipeScope for the full false-positive-guard rationale).
+describe('getWipeScope', () => {
+  it.each([
+    ['Wrath of God', "Destroy all creatures. They can't be regenerated."],
+    ['Damnation', "Destroy all creatures. They can't be regenerated."],
+    [
+      'Toxic Deluge',
+      'As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.',
+    ],
+    [
+      'Blasphemous Act',
+      'This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature.',
+    ],
+  ])(
+    '%s: creatures only — no artifact/enchantment/planeswalker/all collateral',
+    (name, oracle_text) => {
+      expect(getWipeScope({ name, oracle_text })).toEqual({
+        creatures: true,
+        artifacts: false,
+        enchantments: false,
+        planeswalkers: false,
+        all: false,
+      });
+    }
+  );
+
+  it('Farewell: modal exile hits creatures + artifacts + enchantments (not planeswalkers, not a bare "all")', () => {
+    const scope = getWipeScope({
+      name: 'Farewell',
+      oracle_text:
+        'Choose one or more — Exile all creatures. Their controllers create that many 1/1 white Spirit creature tokens. Exile all artifacts and enchantments. Exile all graveyards.',
+    });
+    expect(scope.creatures).toBe(true);
+    expect(scope.artifacts).toBe(true);
+    expect(scope.enchantments).toBe(true);
+    expect(scope.planeswalkers).toBe(false);
+    expect(scope.all).toBe(false);
+  });
+
+  it('Austere Command: modal destroy hits creatures + artifacts + enchantments (not planeswalkers)', () => {
+    const scope = getWipeScope({
+      name: 'Austere Command',
+      oracle_text:
+        'Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with power 3 or greater.\n• Destroy all creatures with power 2 or less.',
+    });
+    expect(scope.creatures).toBe(true);
+    expect(scope.artifacts).toBe(true);
+    expect(scope.enchantments).toBe(true);
+    expect(scope.planeswalkers).toBe(false);
+    expect(scope.all).toBe(false);
+  });
+
+  it('Vandalblast (overloaded): artifacts only, never flagged "all" (it never touches creatures/enchantments)', () => {
+    const scope = getWipeScope({
+      name: 'Vandalblast',
+      oracle_text:
+        'Destroy target artifact you don\'t control.\nOverload {4}{R} (You may cast this spell for its overload cost. If you do, change "target" in its text with "each.")',
+    });
+    expect(scope.artifacts).toBe(true);
+    expect(scope.all).toBe(false);
+  });
+
+  it('Cyclonic Rift (overloaded): a bare "nonland permanent" scope reads as `all`', () => {
+    const scope = getWipeScope({
+      name: 'Cyclonic Rift',
+      oracle_text:
+        'Return target nonland permanent you don\'t control to its owner\'s hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of "target" with "each.")',
+    });
+    expect(scope.all).toBe(true);
+  });
+
+  it('a one-sided wipe (isOneSidedWipe) always returns the empty/no-collateral scope regardless of its printed types', () => {
+    // Plague Wind hits "all creatures" but only the opponents' — since it
+    // spares the caster's own board entirely, own-board collateral is zero
+    // by construction, independent of how many types it prints.
+    expect(
+      getWipeScope({
+        name: 'Plague Wind',
+        oracle_text: "Destroy all creatures you don't control. They can't be regenerated.",
+      })
+    ).toEqual({
+      creatures: false,
+      artifacts: false,
+      enchantments: false,
+      planeswalkers: false,
+      all: false,
+    });
+  });
+
+  it('returns the empty scope for a text-less card', () => {
+    expect(getWipeScope({ name: 'No-Text Card' })).toEqual({
+      creatures: false,
+      artifacts: false,
+      enchantments: false,
+      planeswalkers: false,
+      all: false,
+    });
   });
 });
 

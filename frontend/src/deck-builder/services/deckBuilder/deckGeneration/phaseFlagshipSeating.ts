@@ -149,7 +149,7 @@ export function applyFlagshipSeating(
     if (!role) return false;
     const target = ctx.roleTargets[role] ?? 0;
     if (target <= 0) return false;
-    return (state.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
+    return (state.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role);
   };
 
   // Every gate a normal pick-time candidate already clears (mirrors

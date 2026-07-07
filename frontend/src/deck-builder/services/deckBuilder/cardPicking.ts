@@ -7,7 +7,7 @@ import { hasCurveRoom } from './curveUtils';
 import { BudgetTracker } from './budgetTracker';
 import type { BracketGuard } from './bracketGuard';
 import { matchesExpectedType, roleCapTolerance, ROLE_CAP_HATCH_MAX_PER_PASS } from './categorize';
-import type { RoleKey } from '@/deck-builder/services/tagger/client';
+import type { RoleKey, WipeScope } from '@/deck-builder/services/tagger/client';
 import {
   fitsColorIdentity,
   exceedsMaxPrice,
@@ -51,6 +51,23 @@ export interface RoleCapConfig {
    *  priceSanityDecided below) — the build report's "N one-sided wipes
    *  preferred" count. */
   wipeAsymmetryDecided?: Set<string>;
+  /** E112 own-board scope-collateral preference: among two boardwipe-role
+   *  candidates that tie on the isOneSidedWipe tie-break above (both
+   *  symmetric, or both already one-sided — see wipeScopeCollateralTieBreak),
+   *  prefer whichever destroys/exiles less of the deck's own non-creature
+   *  permanent mass (getWipeScope, tagger/client.ts — already returns the
+   *  empty/no-collateral scope for a one-sided wipe, so this never
+   *  re-litigates the isOneSidedWipe axis above). Unlike isOneSidedWipe,
+   *  this is NOT gated on the board-centric preference — scope mismatch (an
+   *  enchantress deck's own Farewell) is a separate concern from player-
+   *  asymmetry and matters for any deck with real non-creature permanent
+   *  density, not just go-wide/attack-trigger board-centric plans. */
+  getWipeScope?: (card: ScryfallCard) => WipeScope;
+  /** The deck's planned non-land type distribution (typeTargets from
+   *  calculateTargetCounts) — the "own board mass" the scope-collateral
+   *  tie-break weighs a wipe's printed scope against. Same source
+   *  isBoardCentricPlan already reads for creature density. */
+  deckTypeTargets?: Record<string, number>;
 }
 
 // Pick cards from a pre-fetched card map (no API calls)
@@ -381,6 +398,54 @@ function wipeAsymmetryTieBreak(
   return oneSidedA ? -1 : 1;
 }
 
+// E112 own-board scope-collateral preference: among two boardwipe-role
+// candidates that tied on wipeAsymmetryTieBreak above (both symmetric, or
+// both already one-sided), prefer whichever destroys/exiles less of the
+// deck's OWN non-creature permanent mass. Creatures are expected collateral
+// for nearly every wrath — the mismatch that actually hurts a plan is a wipe
+// that ALSO nukes the non-creature type the deck is heavy in (an
+// enchantress deck's own enchantments, an artifact deck's own rocks). Not
+// gated on the board-centric preference (unlike wipeAsymmetryTieBreak) — see
+// getWipeScope's doc field in RoleCapConfig above for why this is a
+// separate, always-on axis. `getWipeScope` already returns the empty scope
+// for a one-sided wipe, so this naturally scores it as zero collateral
+// without re-deriving that check here.
+function wipeOwnBoardCollateral(
+  card: ScryfallCard,
+  getWipeScope: (card: ScryfallCard) => WipeScope,
+  deckTypeTargets: Record<string, number>
+): number {
+  const scope = getWipeScope(card);
+  const nonLandTotal = Object.values(deckTypeTargets).reduce((sum, v) => sum + v, 0) || 1;
+  const enchantmentShare = (deckTypeTargets.enchantment ?? 0) / nonLandTotal;
+  const artifactShare = (deckTypeTargets.artifact ?? 0) / nonLandTotal;
+  let collateral = 0;
+  if (scope.all || scope.enchantments) collateral += enchantmentShare;
+  if (scope.all || scope.artifacts) collateral += artifactShare;
+  return collateral;
+}
+
+function wipeScopeCollateralTieBreak(
+  a: EDHRECCard,
+  b: EDHRECCard,
+  cardMap: Map<string, ScryfallCard>,
+  cardRoleMap: Map<string, RoleKey> | undefined,
+  getWipeScope: ((card: ScryfallCard) => WipeScope) | undefined,
+  deckTypeTargets: Record<string, number> | undefined
+): number {
+  if (!getWipeScope || !cardRoleMap || !deckTypeTargets) return 0;
+  if (cardRoleMap.get(a.name) !== 'boardwipe' || cardRoleMap.get(b.name) !== 'boardwipe') return 0;
+
+  const cardA = cardMap.get(a.name);
+  const cardB = cardMap.get(b.name);
+  if (!cardA || !cardB) return 0;
+
+  const collateralA = wipeOwnBoardCollateral(cardA, getWipeScope, deckTypeTargets);
+  const collateralB = wipeOwnBoardCollateral(cardB, getWipeScope, deckTypeTargets);
+  if (collateralA === collateralB) return 0;
+  return collateralA < collateralB ? -1 : 1;
+}
+
 // Pick cards with curve awareness from pre-fetched map (no API calls)
 // Prioritizes high-synergy theme cards over generic high-inclusion cards
 export function pickFromPrefetchedWithCurve(
@@ -451,7 +516,7 @@ export function pickFromPrefetchedWithCurve(
     if (!role) return false;
     const target = roleCapConfig.roleTargets[role] ?? 0;
     if (target <= 0) return false;
-    return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
+    return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role);
   };
 
   // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)
@@ -469,6 +534,15 @@ export function pickFromPrefetchedWithCurve(
         roleCapConfig?.wipeAsymmetryDecided
       );
       if (wipePref !== 0) return wipePref;
+      const scopePref = wipeScopeCollateralTieBreak(
+        a,
+        b,
+        cardMap,
+        roleCapConfig?.cardRoleMap,
+        roleCapConfig?.getWipeScope,
+        roleCapConfig?.deckTypeTargets
+      );
+      if (scopePref !== 0) return scopePref;
       const sanity = priceSanityTieBreak(
         a,
         b,

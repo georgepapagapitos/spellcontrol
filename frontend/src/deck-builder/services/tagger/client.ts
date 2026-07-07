@@ -710,6 +710,91 @@ export function isOneSidedWipe(card: {
   return ONE_SIDED_WIPE_EVIDENCE.test(text);
 }
 
+// Which permanent types a board wipe destroys/exiles (E112) — a SEPARATE
+// axis from isOneSidedWipe above (who it hits) and getBoardwipeSubtype (a
+// tagger-tag lookup, not oracle text). Creatures are expected collateral for
+// almost every wipe — that's what a wrath is FOR — the mismatch that
+// actually hurts a deck's own plan is a wipe that ALSO destroys/exiles the
+// non-creature type the deck is heavy in (an enchantress deck's own
+// Farewell, an artifact deck's own Vandalblast-overloaded board). Each field
+// is verified against real Scryfall oracle text:
+//  - Wrath of God / Damnation ("Destroy all creatures. They can't be
+//    regenerated."), Toxic Deluge ("All creatures get -X/-X..."),
+//    Blasphemous Act ("...deals 13 damage to each creature."): creatures
+//    only — none of artifacts/enchantments/planeswalkers/all trip.
+//  - Farewell ("Exile all creatures. ... Exile all artifacts and
+//    enchantments. Exile all graveyards.") and Austere Command ("Destroy
+//    all artifacts."/"...enchantments."/"...creatures with power 3 or
+//    greater."/"...power 2 or less."): creatures + artifacts + enchantments
+//    (modal — choose one/two of these clauses, but the printed card CAN nuke
+//    any of them, so scope is the union of its modes).
+//  - Vandalblast overloaded ("Destroy target artifact you don't control.
+//    Overload {4}{R}..."): artifacts only, `all` false — same overload
+//    co-occurrence idiom ROLE_EVIDENCE.boardwipe already relies on (the
+//    rules-text "target"->"each" swap never appears literally in the effect
+//    line).
+//  - Cyclonic Rift overloaded ("Return target nonland permanent you don't
+//    control... Overload {6}{U}..."): `all` true (a bare "nonland permanent"
+//    scope, not restricted to one type) — the per-type fields don't
+//    individually trip (no literal "creature"/"artifact"/"enchantment"
+//    word), so every consumer must treat `all` as implying every type, not
+//    just another independent flag.
+//
+// A one-sided wipe (isOneSidedWipe) spares the caster's own board by
+// construction, so it always returns the empty/no-collateral scope
+// regardless of which types it prints — "does this wipe hurt MY board" is
+// the only question this classifier's consumers (own-board collateral
+// scoring) ever ask, and folding that check in here keeps it a single
+// self-contained answer instead of threading a second one-sidedness check
+// through every caller.
+export interface WipeScope {
+  creatures: boolean;
+  artifacts: boolean;
+  enchantments: boolean;
+  planeswalkers: boolean;
+  /** A bare "all/each (nonland) permanent(s)" scope — implies every type,
+   *  even where the per-type field above didn't independently trip. */
+  all: boolean;
+}
+
+const NO_WIPE_SCOPE: WipeScope = {
+  creatures: false,
+  artifacts: false,
+  enchantments: false,
+  planeswalkers: false,
+  all: false,
+};
+
+const WIPE_SCOPE_CREATURES =
+  /(?:destroy|exile)\b[^.]*?\ball\b[^.]*?creatures?\b|\ball creatures\b[^.]*?(?:get|take|deal)|each creature (?:gets|takes)|creatures?[^.]*?get -\d+\/-\d+|damage to each creature|(?:destroy|exile) each creature/i;
+const WIPE_SCOPE_ARTIFACTS =
+  /(?:destroy|exile)\b[^.]*?\ball\b[^.]*?artifacts?\b|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target artifact\b)/i;
+const WIPE_SCOPE_ENCHANTMENTS = /(?:destroy|exile)\b[^.]*?\ball\b[^.]*?enchantments?\b/i;
+const WIPE_SCOPE_PLANESWALKERS = /(?:destroy|exile)\b[^.]*?\ball\b[^.]*?planeswalkers?\b/i;
+const WIPE_SCOPE_ALL =
+  /\ball (?:nonland )?permanents?\b|\beach permanent\b|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target nonland permanent\b)/i;
+
+export function getWipeScope(card: {
+  name: string;
+  oracle_text?: string;
+  card_faces?: Array<{ oracle_text?: string }>;
+}): WipeScope {
+  const text = (
+    card.oracle_text ??
+    card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
+    ''
+  ).trim();
+  if (!text) return NO_WIPE_SCOPE;
+  if (isOneSidedWipe(card)) return NO_WIPE_SCOPE;
+  return {
+    creatures: WIPE_SCOPE_CREATURES.test(text),
+    artifacts: WIPE_SCOPE_ARTIFACTS.test(text),
+    enchantments: WIPE_SCOPE_ENCHANTMENTS.test(text),
+    planeswalkers: WIPE_SCOPE_PLANESWALKERS.test(text),
+    all: WIPE_SCOPE_ALL.test(text),
+  };
+}
+
 /**
  * Positive-evidence-gated role classification. Returns the same role
  * `getCardRole` would (by name) IFF the card's own oracle text corroborates

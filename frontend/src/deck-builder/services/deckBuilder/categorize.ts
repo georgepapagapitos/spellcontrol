@@ -228,8 +228,21 @@ const ROLE_SUBTYPES: Record<string, string[]> = {
  * over-target boost penalty below and the hard pick-loop cap gate
  * (cardPicking.ts's role-cap gate). One constant, so a role that's "at cap"
  * means the same thing to both surfaces.
+ *
+ * E113: board wipes get a tighter band (1, not the generic 2/20%) — every
+ * caller of this function (the pick-loop gate, the Scryfall-fallback gate,
+ * budget/bracket convergence, flagship seating, and the post-fill role-
+ * surplus rebalance's own cap) shares this one constant, so tightening it
+ * here alone closes the observed panel-wide overshoot (target+2 delivered
+ * against a target+2 cap) everywhere at once, without touching any of those
+ * call sites' own logic. A surplus wipe is worse than a surplus draw/ramp/
+ * removal slot — it actively hurts the deck rather than just being a
+ * slightly-weaker filler pick — so it doesn't get the same slack. `role` is
+ * optional (defaults to the generic band) so every pre-E113 caller that
+ * doesn't pass it keeps its exact prior behavior.
  */
-export function roleCapTolerance(target: number): number {
+export function roleCapTolerance(target: number, role?: RoleKey): number {
+  if (role === 'boardwipe') return 1;
   return Math.max(2, Math.round(target * 0.2));
 }
 
@@ -290,7 +303,7 @@ export function computeRoleBoosts(
       if (current >= target) {
         // Soft over-target penalty on the default (non-strict) path too — otherwise a role
         // that hits target keeps absorbing cards on pure priority with no cap (iter-3 cluster 1).
-        const tolerance = roleCapTolerance(target);
+        const tolerance = roleCapTolerance(target, role);
         if (current - target >= tolerance) {
           boosts.set(name, (boosts.get(name) ?? 0) - 20 - (current - target - tolerance) * 10);
         }

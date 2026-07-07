@@ -264,7 +264,7 @@ export function applyRoleSurplusRebalance(
 
   const capOf = (role: RoleKey): number => {
     const target = roleTargets[role] ?? 0;
-    return target + roleCapTolerance(target);
+    return target + roleCapTolerance(target, role);
   };
   const isOverCap = (role: RoleKey): boolean => {
     const target = roleTargets[role] ?? 0;

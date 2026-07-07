@@ -197,6 +197,16 @@ vi.mock('@/deck-builder/services/tagger/client', async (orig) => ({
   // E109: isOneSidedWipe is the same shape — same explicit
   // inert-by-construction stub.
   isOneSidedWipe: vi.fn(() => false),
+  // E112: getWipeScope is the same shape — same explicit inert-by-
+  // construction stub (this fixture universe's oracle_text: '' already
+  // reads as the empty scope, but don't rely on that by luck).
+  getWipeScope: vi.fn(() => ({
+    creatures: false,
+    artifacts: false,
+    enchantments: false,
+    planeswalkers: false,
+    all: false,
+  })),
 }));
 
 // Wraps the real generateLands so a single test can force it to underdeliver

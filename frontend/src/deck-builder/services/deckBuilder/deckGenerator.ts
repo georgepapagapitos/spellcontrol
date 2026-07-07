@@ -55,6 +55,7 @@ import {
   isExileProducer,
   isExtraCombatPiece,
   isOneSidedWipe,
+  getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
 import {
@@ -599,7 +600,7 @@ export function isOverRoleCap(
   if (!role) return false;
   const target = roleTargets[role] ?? 0;
   if (target <= 0) return false;
-  return (currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
+  return (currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role);
 }
 
 export function bumpRoleCapCount(
@@ -2926,6 +2927,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             overflowCounts: roleCapOverflowCounts,
             isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
             wipeAsymmetryDecided,
+            getWipeScope,
+            deckTypeTargets: typeTargets,
           }
         : undefined,
       priceSanity,
@@ -3031,6 +3034,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             overflowCounts: roleCapOverflowCounts,
             isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
             wipeAsymmetryDecided,
+            getWipeScope,
+            deckTypeTargets: typeTargets,
           }
         : undefined,
       priceSanity,
@@ -3105,6 +3110,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             overflowCounts: roleCapOverflowCounts,
             isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
             wipeAsymmetryDecided,
+            getWipeScope,
+            deckTypeTargets: typeTargets,
           }
         : undefined,
       priceSanity,
@@ -3179,6 +3186,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             overflowCounts: roleCapOverflowCounts,
             isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
             wipeAsymmetryDecided,
+            getWipeScope,
+            deckTypeTargets: typeTargets,
           }
         : undefined,
       priceSanity,
@@ -3253,6 +3262,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
             overflowCounts: roleCapOverflowCounts,
             isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
             wipeAsymmetryDecided,
+            getWipeScope,
+            deckTypeTargets: typeTargets,
           }
         : undefined,
       priceSanity,
@@ -3328,6 +3339,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
               overflowCounts: roleCapOverflowCounts,
               isOneSidedWipe: preferAsymmetricWipes ? isOneSidedWipe : undefined,
               wipeAsymmetryDecided,
+              getWipeScope,
+              deckTypeTargets: typeTargets,
             }
           : undefined,
         priceSanity,
