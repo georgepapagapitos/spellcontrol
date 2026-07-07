@@ -1,4 +1,4 @@
-import { BookOpen, Camera, Layers, List, Settings, Users } from 'lucide-react';
+import { BookOpen, Camera, Layers, List, Search, Settings, Users } from 'lucide-react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
@@ -15,6 +15,7 @@ const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m
  *  Last entry = closest to the FAB trigger (easiest one-thumb tap). */
 const NAV_ITEMS = [
   { to: '/settings', label: 'Settings', Icon: Settings },
+  { to: '/search', label: 'Search', Icon: Search },
   { to: '/decks', label: 'Decks', Icon: Layers },
   { to: '/play', label: 'Play', Icon: Users },
   { to: '/collection', label: 'Collection', Icon: List },

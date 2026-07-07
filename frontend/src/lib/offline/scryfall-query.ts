@@ -15,7 +15,7 @@ import type { SlimCard } from './types';
  *   - `id<=WUBRG` / `id=WUBRG` / `id:WUBRG` → color_identity subset / equals
  *   - `c<=WU` / `c:WU` → colors subset
  *   - `cmc<=N` `cmc>=N` `cmc<N` `cmc>N` `cmc=N` `cmc:N`
- *   - `is:commander` `is:mdfc` `is:gamechanger` (no-op — slim payload doesn't track) `is:digital`
+ *   - `is:commander` `is:mdfc` `is:gamechanger` `is:digital`
  *   - `!"<exact name>"` → name equals (case-insensitive)
  *   - `-` prefix → negation
  *   - `OR` (uppercase) splits clauses into alternative groups (top-level only)

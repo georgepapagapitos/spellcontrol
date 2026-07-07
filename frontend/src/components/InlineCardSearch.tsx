@@ -10,9 +10,16 @@ import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 
+/** Result layouts: `list` (thumbnail rows — the default everywhere this panel
+ *  is embedded), `grid` (card-image tiles, preview-first), `compact`
+ *  (text-only rows). Grid/compact are offered by the standalone /search page. */
+export type InlineCardSearchView = 'grid' | 'list' | 'compact';
+
 interface Props {
   /** The shared collection search term — this panel never owns an input. */
   query: string;
+  /** Result layout. Defaults to the thumbnail-row list. */
+  view?: InlineCardSearchView;
   /** When provided, a Hide control is shown that calls this. */
   onClose?: () => void;
   /**
@@ -33,6 +40,11 @@ function cardThumb(card: ScryfallCard): string | undefined {
   return card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small;
 }
 
+/** Normal-res image for grid tiles — `small` is too soft at tile size. */
+function cardImage(card: ScryfallCard): string | undefined {
+  return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
+}
+
 /**
  * Live Scryfall search-and-add results panel, driven entirely by the
  * collection's own search bar (no second input — typing up top updates
@@ -45,7 +57,7 @@ function cardThumb(card: ScryfallCard): string | undefined {
  * mis-tap never needs a trip back to the collection table. All network
  * goes through the shared rate-limited, cached client.
  */
-export function InlineCardSearch({ query, onClose, onAdd }: Props) {
+export function InlineCardSearch({ query, view = 'list', onClose, onAdd }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const collection = useCollectionStore((s) => s.cards);
@@ -137,7 +149,7 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
   };
 
   return (
-    <div className="inline-card-search">
+    <div className={`inline-card-search${view === 'grid' ? ' inline-card-search--grid' : ''}`}>
       <div className="inline-card-search-head">
         <span className="inline-card-search-head-title">Scryfall results for “{q}”</span>
         {onClose && (
@@ -155,7 +167,37 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
         <p className="inline-card-search-status">No cards on Scryfall match “{q}”.</p>
       )}
 
-      {results.length > 0 && (
+      {results.length > 0 && view === 'grid' && (
+        <ul className="inline-card-search-grid" aria-label="Scryfall results">
+          {results.slice(0, visible).map((c, idx) => {
+            const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
+            const added = addedCounts[c.id] ?? 0;
+            const img = cardImage(c);
+            return (
+              <li key={c.id} className="inline-card-search-tile">
+                <button
+                  type="button"
+                  className="collection-grid-item inline-card-search-tile-btn"
+                  aria-label={`Preview ${c.name}`}
+                  onClick={() => setPreviewIndex(idx)}
+                >
+                  {img ? (
+                    <img src={img} alt="" loading="lazy" className="collection-grid-img" />
+                  ) : (
+                    <span className="collection-grid-placeholder">{c.name}</span>
+                  )}
+                  {(added > 0 || owned > 0) && (
+                    <span className="inline-card-search-tile-badge">
+                      {added > 0 ? `added ×${added}` : `own ×${owned}`}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {results.length > 0 && view !== 'grid' && (
         <ul className="inline-card-search-list" role="listbox" aria-label="Scryfall results">
           {results.slice(0, visible).map((c, idx) => {
             const owned = ownedCounts.get(c.name.toLowerCase()) ?? 0;
@@ -184,19 +226,20 @@ export function InlineCardSearch({ query, onClose, onAdd }: Props) {
                     aria-label={`Preview ${c.name}`}
                     onClick={() => setPreviewIndex(idx)}
                   >
-                    {cardThumb(c) ? (
-                      <img
-                        src={cardThumb(c)}
-                        alt=""
-                        loading="lazy"
-                        className="inline-card-search-thumb"
-                      />
-                    ) : (
-                      <span
-                        className="inline-card-search-thumb inline-card-search-thumb--ph"
-                        aria-hidden
-                      />
-                    )}
+                    {view !== 'compact' &&
+                      (cardThumb(c) ? (
+                        <img
+                          src={cardThumb(c)}
+                          alt=""
+                          loading="lazy"
+                          className="inline-card-search-thumb"
+                        />
+                      ) : (
+                        <span
+                          className="inline-card-search-thumb inline-card-search-thumb--ph"
+                          aria-hidden
+                        />
+                      ))}
                     <span className="inline-card-search-name">{c.name}</span>
                   </button>
                   {c.mana_cost && (

@@ -27,9 +27,24 @@ const DEFAULT_BULK_CARD = {
   games: ['paper'],
 };
 
-function mockScryfallFetch(cards: Record<string, unknown>[] = [DEFAULT_BULK_CARD]) {
+/**
+ * `gameChangerNames` seeds the mocked `is:gamechanger` search response (one
+ * page, `has_more: false`). Pass `null` to simulate a live-search failure so
+ * tests can assert the hardcoded-list fallback kicks in.
+ */
+function mockScryfallFetch(
+  cards: Record<string, unknown>[] = [DEFAULT_BULK_CARD],
+  gameChangerNames: string[] | null = []
+) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const u = typeof input === 'string' ? input : input.toString();
+    if (u.includes('/cards/search')) {
+      if (gameChangerNames === null) throw new Error('simulated Scryfall outage');
+      return new Response(
+        JSON.stringify({ data: gameChangerNames.map((name) => ({ name })), has_more: false }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+    }
     if (u.includes('/bulk-data')) {
       return new Response(
         JSON.stringify({
@@ -309,5 +324,59 @@ describe('bulk-cache slimCard filtering', () => {
     ]);
     const bulk = await getOracleBulk();
     expect(bulk.cardCount).toBe(1);
+  });
+});
+
+describe('bulk-cache isGameChanger flag (E108)', () => {
+  const originalOfflineDir = process.env.OFFLINE_DATA_DIR;
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    await __resetOracleBulkForTesting();
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bulk-cache-gc-'));
+    process.env.OFFLINE_DATA_DIR = tmpDir;
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await __resetOracleBulkForTesting();
+    if (originalOfflineDir === undefined) delete process.env.OFFLINE_DATA_DIR;
+    else process.env.OFFLINE_DATA_DIR = originalOfflineDir;
+    await new Promise((r) => setTimeout(r, 60));
+    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('sets isGameChanger:true for a card the live is:gamechanger search returns', async () => {
+    mockScryfallFetch(
+      [
+        { ...DEFAULT_BULK_CARD, id: 's-rs', oracle_id: 'o-rs', name: 'Rhystic Study' },
+        { ...DEFAULT_BULK_CARD, id: 's-plain', oracle_id: 'o-plain', name: 'Plain Card' },
+      ],
+      ['Rhystic Study']
+    );
+    const bulk = await getOracleBulk();
+    const slims = JSON.parse(gunzipSync(bulk.gzipped).toString('utf8')) as Array<{
+      name: string;
+      isGameChanger?: boolean;
+    }>;
+    expect(slims.find((c) => c.name === 'Rhystic Study')?.isGameChanger).toBe(true);
+    expect(slims.find((c) => c.name === 'Plain Card')?.isGameChanger).toBeUndefined();
+  });
+
+  it('falls back to the hardcoded RC list when the live search fails', async () => {
+    // gameChangerNames: null → mockScryfallFetch throws on /cards/search,
+    // simulating a Scryfall outage during the bulk build.
+    mockScryfallFetch(
+      [{ ...DEFAULT_BULK_CARD, id: 's-cyc', oracle_id: 'o-cyc', name: 'Cyclonic Rift' }],
+      null
+    );
+    const bulk = await getOracleBulk();
+    const slims = JSON.parse(gunzipSync(bulk.gzipped).toString('utf8')) as Array<{
+      name: string;
+      isGameChanger?: boolean;
+    }>;
+    // Cyclonic Rift is on the hardcoded fallback list, so the flag still lands
+    // even though the live query never returned anything.
+    expect(slims.find((c) => c.name === 'Cyclonic Rift')?.isGameChanger).toBe(true);
   });
 });

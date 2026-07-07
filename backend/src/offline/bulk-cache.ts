@@ -65,8 +65,120 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  *   3 — carry `rarity` so consumers don't default everything to common.
  *   4 — carry `tokens` (a card's creatable tokens, from all_parts) for the
  *       deck token checklist.
+ *   5 — populate `isGameChanger` (was permanently undefined) so the offline
+ *       `is:gamechanger` search operator returns results (E108).
  */
-const BUILDER_VERSION = 4;
+const BUILDER_VERSION = 5;
+
+const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
+
+interface ScryfallSearchNameOnly {
+  data: Array<{ name: string }>;
+  has_more: boolean;
+}
+
+/**
+ * Official Commander Game Changers list (Feb 9, 2026 — 53 cards). Mirrors
+ * `HARDCODED_GAME_CHANGERS` in frontend/src/deck-builder/services/scryfall/client.ts
+ * (kept verbatim, not imported — the backend can't reach into frontend source).
+ * Used as a floor when the live `is:gamechanger` query fails or returns partial
+ * results, so a Scryfall outage during the daily bulk build doesn't silently
+ * zero out every card's flag.
+ */
+const HARDCODED_GAME_CHANGERS: ReadonlySet<string> = new Set([
+  // White
+  'Drannith Magistrate',
+  'Enlightened Tutor',
+  'Farewell',
+  'Humility',
+  "Serra's Sanctum",
+  'Smothering Tithe',
+  "Teferi's Protection",
+  // Blue
+  'Consecrated Sphinx',
+  'Cyclonic Rift',
+  'Fierce Guardianship',
+  'Force of Will',
+  'Gifts Ungiven',
+  'Intuition',
+  'Mystical Tutor',
+  'Narset, Parter of Veils',
+  'Rhystic Study',
+  "Thassa's Oracle",
+  // Black
+  'Ad Nauseam',
+  "Bolas's Citadel",
+  'Braids, Cabal Minion',
+  'Demonic Tutor',
+  'Imperial Seal',
+  'Necropotence',
+  'Opposition Agent',
+  'Orcish Bowmasters',
+  'Tergrid, God of Fright',
+  'Vampiric Tutor',
+  // Red
+  'Gamble',
+  "Jeska's Will",
+  'Underworld Breach',
+  // Green
+  'Biorhythm',
+  'Crop Rotation',
+  "Gaea's Cradle",
+  'Natural Order',
+  'Seedborn Muse',
+  'Survival of the Fittest',
+  'Worldly Tutor',
+  // Multicolor
+  'Aura Shards',
+  'Coalition Victory',
+  'Grand Arbiter Augustin IV',
+  'Notion Thief',
+  // Colorless / Lands
+  'Ancient Tomb',
+  'Chrome Mox',
+  'Field of the Dead',
+  'Glacial Chasm',
+  'Grim Monolith',
+  "Lion's Eye Diamond",
+  'Mana Vault',
+  "Mishra's Workshop",
+  'Mox Diamond',
+  'Panoptic Mirror',
+  'The One Ring',
+  'The Tabernacle at Pendrell Vale',
+]);
+
+/**
+ * Live paginated fetch of every `is:gamechanger` card name from Scryfall,
+ * unioned with {@link HARDCODED_GAME_CHANGERS} as a floor. The bulk build
+ * already requires network (it downloads the ~200MB oracle bulk), so this
+ * extra query rides the same network dependency rather than duplicating the
+ * RC's list as the sole source of truth. On any failure (a page throws) we
+ * log and fall back to the hardcoded list alone — same graceful degrade as
+ * the rest of the build.
+ */
+async function fetchGameChangerNames(): Promise<Set<string>> {
+  const names = new Set<string>();
+  let page = 1;
+  let hasMore = true;
+  try {
+    while (hasMore) {
+      const res = await fetch(
+        `${SCRYFALL_SEARCH_URL}?q=${encodeURIComponent('is:gamechanger')}&page=${page}`,
+        { headers: { 'User-Agent': SCRYFALL_USER_AGENT } }
+      );
+      if (!res.ok) throw new Error(`Scryfall is:gamechanger search returned ${res.status}`);
+      const body = (await res.json()) as ScryfallSearchNameOnly;
+      for (const card of body.data) names.add(card.name);
+      hasMore = body.has_more;
+      page++;
+    }
+  } catch (err) {
+    logger.warn('[offline] live is:gamechanger fetch failed, falling back to hardcoded list:', err);
+    return new Set(HARDCODED_GAME_CHANGERS);
+  }
+  return new Set([...HARDCODED_GAME_CHANGERS, ...names]);
+}
 
 /**
  * Persisted gzipped slim oracle bulk. We compute it once a day from Scryfall's
@@ -118,7 +230,7 @@ function tokensFromParts(parts: ScryfallBulkCard['all_parts']): SlimTokenRef[] |
   return out.length > 0 ? out : undefined;
 }
 
-function slimCard(card: ScryfallBulkCard): SlimCard | null {
+function slimCard(card: ScryfallBulkCard, gameChangerNames: ReadonlySet<string>): SlimCard | null {
   if (!card.oracle_id || !card.name) return null;
   // Skip non-paper digital-only cards and Alchemy duplicates we never want offline.
   if (card.set_type === 'alchemy') return null;
@@ -164,13 +276,16 @@ function slimCard(card: ScryfallBulkCard): SlimCard | null {
       imageLarge: f.image_uris?.large,
     })),
     usdPrice: card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched ?? undefined,
-    isGameChanger: undefined, // populated post-build from is:gamechanger search if/when needed
+    isGameChanger: gameChangerNames.has(card.name) || undefined,
     tokens: tokensFromParts(card.all_parts),
   };
 }
 
 async function buildPayload(): Promise<BulkPayload> {
-  const { url, updatedAt } = await fetchOracleBulkUrl();
+  const [{ url, updatedAt }, gameChangerNames] = await Promise.all([
+    fetchOracleBulkUrl(),
+    fetchGameChangerNames(),
+  ]);
   logger.info('[offline] downloading Scryfall oracle bulk from', url);
   const dlRes = await fetch(url, { headers: { 'User-Agent': SCRYFALL_USER_AGENT } });
   if (!dlRes.ok || !dlRes.body) {
@@ -193,7 +308,7 @@ async function buildPayload(): Promise<BulkPayload> {
   const slims: SlimCard[] = [];
   for await (const entry of pipeline) {
     const card = (entry as { value: ScryfallBulkCard }).value;
-    const s = slimCard(card);
+    const s = slimCard(card, gameChangerNames);
     if (s) slims.push(s);
   }
 

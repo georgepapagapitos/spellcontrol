@@ -1,0 +1,56 @@
+/* SearchPage.css — standalone any-card lookup (/search). Sized to the shared
+   .inline-card-search column (540px) so the pill, landing state, and results
+   read as one centered rail. */
+.search-page {
+  max-width: calc(540px + var(--space-4) * 2);
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.search-page-head h1 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+}
+
+.search-page-sub {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  max-width: 60ch;
+}
+
+/* The results block (.inline-card-search) brings its own top margin; the
+   landing empty-state doesn't, so the pill carries the gap. */
+.search-page-pill {
+  margin-bottom: var(--space-4);
+}
+
+/* Layout toggle sits between the pill and the results, right-aligned. The
+   results' own top margin is generous next to the toggle — tighten it. */
+.search-page-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-page-toolbar + .inline-card-search {
+  margin-top: var(--space-2);
+}
+
+/* Grid layout lets the tiles breathe on desktop; the head, pill, and toggle
+   stay on the 540px rail so the page still reads as one centered column. */
+.search-page--grid {
+  max-width: 1100px;
+}
+
+.search-page--grid .search-page-head,
+.search-page--grid .search-page-toolbar {
+  width: 100%;
+  max-width: 540px;
+  margin-inline: auto;
+}
+
+.search-page--grid .search-page-pill {
+  max-width: 540px;
+  margin-inline: auto;
+}
