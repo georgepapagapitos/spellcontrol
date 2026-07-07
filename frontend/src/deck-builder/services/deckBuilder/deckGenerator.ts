@@ -4,26 +4,19 @@ import type {
   ScryfallCard,
   GeneratedDeck,
   DeckCategory,
-  DeckDataSource,
   EDHRECCard,
-  EDHRECCombo,
   EDHRECCommanderData,
-  EDHRECCommanderStats,
   TargetBracket,
-  BudgetOption,
   GapAnalysisCard,
   CoherenceRepair,
   Customization,
   DetectedCombo,
   ComboUpsideNote,
-  ThemeResult,
 } from '@/deck-builder/types';
 import {
   getCardByName,
   getCardsByNames,
-  prefetchBasicLands,
   getCachedCard,
-  getGameChangerNames,
   getCardPrice,
   getFrontFaceTypeLine,
   upgradeCardPrintings,
@@ -31,25 +24,12 @@ import {
   isChannelLand,
   setForceLiveSearch,
 } from '@/deck-builder/services/scryfall/client';
-import { buildAlternatePool, type AlternatePoolResult } from './phaseAlternatePool';
+import { type AlternatePoolResult } from './phaseAlternatePool';
+import { fetchCommanderData, fetchSaltIndex } from '@/deck-builder/services/edhrec/client';
 import {
-  fetchCommanderData,
-  fetchCommanderThemeData,
-  fetchPartnerCommanderData,
-  fetchPartnerThemeData,
-  fetchCommanderCombosRaw,
-  fetchSaltIndex,
-  isPoolTooThin,
-} from '@/deck-builder/services/edhrec/client';
-import { bracketLabel } from './bracketEstimator';
-import {
-  loadTaggerData,
-  hasTaggerData,
   getCardRole,
   validateCardRole,
   getCardSubtype,
-  isProtectionPiece,
-  isFreeInteraction,
   isUntapProducer,
   isBlinkProducer,
   isExileProducer,
@@ -129,7 +109,6 @@ import {
 import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
-import { loadCardSimilar, hasCardSimilar } from './cardSimilar';
 import { resolveMultiCopyCards } from './multiCopy';
 import {
   generateLands,
@@ -167,6 +146,26 @@ import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusReba
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
 import { applyFlagshipSeating } from './deckGeneration/phaseFlagshipSeating';
 import {
+  acquireCommanderDataPhase,
+  acquireCardPoolPhase,
+  populateGenerationCachePhase,
+  retryOnce,
+  buildTaggerIntegrityNote,
+  buildComboIntegrityNote,
+  buildSubstituteIntegrityNote,
+  fetchPoolWithFallback,
+  buildBracketPoolFallbackNote,
+  clearGenerationCache,
+  getGenerationCacheEdhrecData,
+  setGenerationCacheCardMap,
+  type PoolRung,
+  type PoolFallbackCause,
+} from './deckGeneration/dataAcquisition';
+import { comboIntegrityAuditPhase } from './deckGeneration/phaseComboAudit';
+import { postGenFixupPhase } from './deckGeneration/phasePostGenFixup';
+import { smartTrimPhase, computeTrimResistance } from './deckGeneration/phaseSmartTrim';
+import { wildcardScanPhase } from './deckGeneration/phaseWildcardScan';
+import {
   MUST_INCLUDE_BOOST,
   LAND_PROTECTION_BOOST,
   COMBO_TRIM_BOOST,
@@ -193,6 +192,18 @@ export {
   FREE_INTERACTION_BOOST,
 };
 export type { GenerationContext };
+export {
+  retryOnce,
+  buildTaggerIntegrityNote,
+  buildComboIntegrityNote,
+  buildSubstituteIntegrityNote,
+  fetchPoolWithFallback,
+  buildBracketPoolFallbackNote,
+  clearGenerationCache,
+  getGenerationCacheEdhrecData,
+  computeTrimResistance,
+};
+export type { PoolRung, PoolFallbackCause };
 
 /**
  * Return the simple card type string from a lowercased type line, or null for
@@ -213,328 +224,6 @@ function getSimpleCardType(typeLine: string): string | null {
             : typeLine.includes('planeswalker')
               ? 'planeswalker'
               : null;
-}
-
-// Merge cardlists from multiple theme results
-function mergeThemeCardlists(themeDataResults: EDHRECCommanderData[]): {
-  cardlists: EDHRECCommanderData['cardlists'];
-  themeOverlapCounts: Map<string, number>;
-} {
-  // Track how many themes each card appears in (for hyper focus mode)
-  const themeOverlapCounts = new Map<string, number>();
-
-  // Merge all cards, keeping the best version for duplicates
-  // Prioritize: highest synergy first, then highest inclusion
-  const mergeCards = (cards: EDHRECCard[][]): EDHRECCard[] => {
-    const cardMap = new Map<string, EDHRECCard>();
-
-    for (const cardList of cards) {
-      // Track which cards we've seen in THIS theme's list to avoid double-counting
-      const seenInThisList = new Set<string>();
-      for (const card of cardList) {
-        if (!seenInThisList.has(card.name)) {
-          seenInThisList.add(card.name);
-          themeOverlapCounts.set(card.name, (themeOverlapCounts.get(card.name) ?? 0) + 1);
-        }
-
-        const existing = cardMap.get(card.name);
-        if (!existing) {
-          cardMap.set(card.name, card);
-        } else {
-          // Keep the card with better synergy, or if tied, better inclusion
-          const existingSynergy = existing.synergy ?? 0;
-          const newSynergy = card.synergy ?? 0;
-
-          if (
-            newSynergy > existingSynergy ||
-            (newSynergy === existingSynergy && card.inclusion > existing.inclusion)
-          ) {
-            cardMap.set(card.name, card);
-          }
-        }
-      }
-    }
-
-    // Sort by priority (synergy-aware)
-    return Array.from(cardMap.values()).sort(
-      (a, b) => calculateCardPriority(b) - calculateCardPriority(a)
-    );
-  };
-
-  const cardlists = {
-    creatures: mergeCards(themeDataResults.map((r) => r.cardlists.creatures)),
-    instants: mergeCards(themeDataResults.map((r) => r.cardlists.instants)),
-    sorceries: mergeCards(themeDataResults.map((r) => r.cardlists.sorceries)),
-    artifacts: mergeCards(themeDataResults.map((r) => r.cardlists.artifacts)),
-    enchantments: mergeCards(themeDataResults.map((r) => r.cardlists.enchantments)),
-    planeswalkers: mergeCards(themeDataResults.map((r) => r.cardlists.planeswalkers)),
-    lands: mergeCards(themeDataResults.map((r) => r.cardlists.lands)),
-    allNonLand: mergeCards(themeDataResults.map((r) => r.cardlists.allNonLand)),
-  };
-
-  return { cardlists, themeOverlapCounts };
-}
-
-/**
- * Fetch + merge all selected EDHREC themes for a given bracket (or `undefined`
- * for the bracket-agnostic page). Each theme's fetch failure is swallowed
- * (logged) so one theme's 404/network error doesn't sink the others; returns
- * `null` only when every theme failed. Shared by the normal fetch phase and
- * the E93 thinness fallback ladder below, so both go through one fetch+merge
- * path instead of two hand-rolled copies.
- */
-async function fetchMergedThemeData(
-  themes: ThemeResult[],
-  commanderName: string,
-  partnerCommanderName: string | undefined,
-  budgetOption: BudgetOption | undefined,
-  bracket: TargetBracket | undefined
-): Promise<{ data: EDHRECCommanderData; themeOverlapCounts: Map<string, number> } | null> {
-  const results = await Promise.all(
-    themes.map((theme) =>
-      (partnerCommanderName
-        ? fetchPartnerThemeData(
-            commanderName,
-            partnerCommanderName,
-            theme.slug!,
-            budgetOption,
-            bracket
-          )
-        : fetchCommanderThemeData(commanderName, theme.slug!, budgetOption, bracket)
-      ).catch((err) => {
-        logger.warn(`[DeckGen] theme fetch failed, skipping "${theme.slug}":`, err);
-        return null;
-      })
-    )
-  );
-  const ok = results.filter((r): r is EDHRECCommanderData => r != null);
-  if (ok.length === 0) return null;
-  const merged = mergeThemeCardlists(ok);
-  return {
-    data: { themes: [], stats: ok[0].stats, cardlists: merged.cardlists, similarCommanders: [] },
-    themeOverlapCounts: merged.themeOverlapCounts,
-  };
-}
-
-/** The EDHREC pool candidates the E93 thinness ladder can land on, from most
- *  to least specific. Mirrors the existing DeckDataSource labels so the
- *  Build Report's "which pool" line needs no new vocabulary. */
-export type PoolRung = Extract<DeckDataSource, 'theme+bracket' | 'base+bracket' | 'theme' | 'base'>;
-
-/**
- * Ladder through EDHREC pool candidates from most to least specific (E93),
- * stopping at the first with real signal (isPoolTooThin === false). If every
- * candidate is thin, returns the LAST successfully-fetched rung — the
- * broadest page tried is still the best data available, and it's what the
- * pre-E93 error-only fallback would have landed on anyway. Returns `null`
- * only when every rung's fetch threw (matches pre-E93 total-failure behavior).
- */
-/** Why the ladder moved past the originally-requested (first) rung — a
- *  genuine thinness call vs. a fetch that never even resolved to check. See
- *  `buildBracketPoolFallbackNote`'s `cause` param (S1 ladder-cause-honesty). */
-export type PoolFallbackCause = 'fetch-failed' | 'thin';
-
-export async function fetchPoolWithFallback(
-  rungs: Array<{ source: PoolRung; fetch: () => Promise<EDHRECCommanderData> }>
-): Promise<{
-  data: EDHRECCommanderData;
-  source: PoolRung;
-  fellBackFrom?: PoolRung;
-  fellBackCause?: PoolFallbackCause;
-} | null> {
-  let last: { data: EDHRECCommanderData; source: PoolRung } | null = null;
-  let firstRungFetchFailed = false;
-  for (let i = 0; i < rungs.length; i++) {
-    const rung = rungs[i];
-    const data = await rung.fetch().catch(() => {
-      if (i === 0) firstRungFetchFailed = true;
-      return null;
-    });
-    if (!data) continue;
-    last = { data, source: rung.source };
-    if (!isPoolTooThin(data)) break;
-  }
-  if (!last) return null;
-  const fellBack = last.source !== rungs[0].source;
-  return {
-    ...last,
-    fellBackFrom: fellBack ? rungs[0].source : undefined,
-    fellBackCause: fellBack ? (firstRungFetchFailed ? 'fetch-failed' : 'thin') : undefined,
-  };
-}
-
-/** Human-readable label for one EDHREC page rung, for the E93 disclosure note. */
-function poolRungLabel(
-  source: PoolRung,
-  bracketPhrase: string,
-  themeNames: string | undefined
-): string {
-  switch (source) {
-    case 'theme+bracket':
-      return `the ${themeNames} page filtered to ${bracketPhrase}`;
-    case 'base+bracket':
-      return `the main ${bracketPhrase} page`;
-    case 'theme':
-      return `the main ${themeNames} page`;
-    case 'base':
-      return 'the main commander page';
-  }
-}
-
-/**
- * E93 disclosure text: names what EDHREC page was too thin, what page was
- * used instead, and confirms the target bracket's card permissions (which
- * only ever control curve/salt/game-changer ceilings downstream — never the
- * pool fetch itself) were kept regardless of which page supplied the pool.
- */
-export function buildBracketPoolFallbackNote(
-  commanderLabel: string,
-  targetBracket: TargetBracket,
-  fellBackFrom: PoolRung,
-  usedSource: PoolRung,
-  themeNames: string | undefined,
-  cause?: PoolFallbackCause
-): string {
-  const bracketPhrase = `bracket-${targetBracket} (${bracketLabel(Number(targetBracket))})`;
-  const subject = themeNames ? `${commanderLabel} + ${themeNames}` : commanderLabel;
-  const missingLabel = poolRungLabel(fellBackFrom, bracketPhrase, themeNames);
-  const usedLabel = poolRungLabel(usedSource, bracketPhrase, themeNames);
-  // S1 ladder-cause-honesty: undefined (the common "thin" case pre-S1) keeps
-  // the exact pre-existing sentence so old snapshots/copy don't drift; only a
-  // genuine fetch failure appends the distinction (a thrown fetch never got
-  // to prove itself thin — it just never resolved).
-  const causeSuffix = cause === 'fetch-failed' ? " (the page couldn't be fetched)" : '';
-  return `EDHREC has too little data on ${missingLabel} for ${subject} — built from ${usedLabel} instead, with ${bracketPhrase} card permissions kept${causeSuffix}.`;
-}
-
-/**
- * Calls `fn` once; if it throws, or resolves to a value that fails the
- * optional `isOk` check, tries again exactly once. No backoff — for the
- * per-generation data loads (tagger role data, combos, the substitute index)
- * a single retry is enough to tell "the network blipped" from "it's actually
- * down" without building retry-queue machinery (S1). The second attempt's
- * outcome (success, failure value, or thrown error) is returned/thrown as-is
- * — this only buys one extra try, not resilience against a truly-down host.
- */
-export async function retryOnce<T>(fn: () => Promise<T>, isOk?: (value: T) => boolean): Promise<T> {
-  try {
-    const result = await fn();
-    if (!isOk || isOk(result)) return result;
-  } catch {
-    // fall through to the retry below
-  }
-  return fn();
-}
-
-/** S1 generation-integrity disclosure: tagger role-data still unavailable
- *  after the retry. Role caps/targets/boosts all silently no-op without it —
- *  the #1 cause of a "random-looking" deck out of an RNG-free generator. */
-export function buildTaggerIntegrityNote(taggerAvailable: boolean): string | undefined {
-  if (taggerAvailable) return undefined;
-  return "Card-role data couldn't be loaded, so role targets and balance limits weren't enforced on this build. Regenerate to retry with full data.";
-}
-
-/** S1 generation-integrity disclosure: the EDHREC combo fetch genuinely
- *  failed (not just "this commander happens to have zero combos" — a
- *  common, valid result the note must never fire for) AND the user actually
- *  asked for combo seeding (comboCountSetting > 0) — so combo detection and
- *  the combo boost/floor system were both silently skipped this build. */
-export function buildComboIntegrityNote(
-  fetchFailed: boolean,
-  comboCountSetting: number
-): string | undefined {
-  if (!fetchFailed || comboCountSetting <= 0) return undefined;
-  return "Combo data couldn't be loaded — combo detection and combo seeding were skipped on this build.";
-}
-
-/** S1 generation-integrity disclosure: the EDHREC substitute-ranking index
- *  is unavailable AND this build is collection-constrained (the only path
- *  that actually reaches for it, for shortage-fill ranking) — so replacement
- *  picks fell back to the built-in heuristic instead of the real signal. */
-export function buildSubstituteIntegrityNote(
-  substituteIndexAvailable: boolean,
-  collectionMode: boolean
-): string | undefined {
-  if (substituteIndexAvailable || !collectionMode) return undefined;
-  return "The substitute-ranking index couldn't be loaded — replacement picks used the built-in heuristic.";
-}
-
-// ---- Fast regeneration cache ----
-// Caches EDHREC + Scryfall data from the first generation so regenerations
-// (ban a card, add a must-include, tweak settings) can skip the fetch phase entirely.
-interface GenerationCache {
-  edhrecData: EDHRECCommanderData;
-  baseData: EDHRECCommanderData | null;
-  cardMap: Map<string, ScryfallCard>;
-  themeOverlapCounts: Map<string, number>;
-  combos: EDHRECCombo[];
-  gameChangerNames: Set<string>;
-  dataSource: DeckDataSource;
-  bracketPoolFallbackNote: string | undefined;
-  /** S1: combo/substitute integrity notes only (never the tagger note — that's
-   *  always recomputed fresh on regeneration, see the Phase A block). */
-  integrityNotes: string[];
-  representativeStats: EDHRECCommanderStats;
-  // Cache keys — ALL must match for a cache hit
-  commanderName: string;
-  partnerName: string | null;
-  themeSlugs: string[];
-  targetBracket: TargetBracket | undefined;
-  budgetOption: BudgetOption | undefined;
-  // Isolates alternative generators so an art/oracle/historical pool can never be
-  // served from (or pollute) a plain-EDHREC cache for the same commander.
-  modeKey: string;
-}
-
-let generationCache: GenerationCache | null = null;
-
-function buildCacheKey(context: GenerationContext) {
-  const { commander, partnerCommander, customization } = context;
-  const selectedThemesWithSlugs =
-    context.selectedThemes?.filter((t) => t.isSelected && t.source === 'edhrec' && t.slug) || [];
-  return {
-    commanderName: commander.name,
-    partnerName: partnerCommander?.name ?? null,
-    themeSlugs: selectedThemesWithSlugs.map((t) => t.slug!).sort(),
-    targetBracket: (customization.targetBracket !== 'all'
-      ? customization.targetBracket
-      : undefined) as TargetBracket | undefined,
-    budgetOption: (customization.budgetOption !== 'any'
-      ? customization.budgetOption
-      : undefined) as BudgetOption | undefined,
-    modeKey: [
-      customization.generationMode ?? 'edhrec',
-      customization.artThemeTag ?? '',
-      customization.historicalYear ?? '',
-      customization.permanentsOnly ? 'perm' : '',
-      // Isolates PDH builds — same commander, same mode, different legal pool.
-      customization.mtgFormat ?? 'commander',
-    ].join('|'),
-  };
-}
-
-function isCacheValid(context: GenerationContext): boolean {
-  if (!generationCache) return false;
-  const key = buildCacheKey(context);
-  return (
-    generationCache.commanderName === key.commanderName &&
-    generationCache.partnerName === key.partnerName &&
-    generationCache.targetBracket === key.targetBracket &&
-    generationCache.budgetOption === key.budgetOption &&
-    generationCache.modeKey === key.modeKey &&
-    generationCache.themeSlugs.length === key.themeSlugs.length &&
-    generationCache.themeSlugs.every((s, i) => s === key.themeSlugs[i])
-  );
-}
-
-export function clearGenerationCache(): void {
-  generationCache = null;
-  logger.debug('[DeckGen] Generation cache cleared');
-}
-
-/** Expose the cached EDHREC data from the most recent generation (avoids re-fetching). */
-export function getGenerationCacheEdhrecData(): EDHRECCommanderData | null {
-  return generationCache?.edhrecData ?? null;
 }
 
 /**
@@ -1165,59 +854,6 @@ export function hasExilePayoffIdentity(card: ScryfallCard): boolean {
 }
 
 /**
- * Per-card trim resistance for the Smart Trim pass: higher survives, lower
- * gets cut first. Position in its category is the base signal (cards are
- * already priority-ordered, so a higher index = lower priority = lower
- * resistance); must-includes, staple rocks, lands (up to the land target),
- * combo pieces, and role-deficit cards all add protection, while role
- * surplus (>= target+3) subtracts it.
- */
-export function computeTrimResistance(
-  card: ScryfallCard,
-  positionIndex: number,
-  categoryLength: number,
-  category: DeckCategory,
-  comboCardNames: ReadonlySet<string>,
-  roleTargets: Record<RoleKey, number> | null,
-  currentRoleCounts: Record<RoleKey, number>
-): number {
-  let resistance = categoryLength - positionIndex;
-
-  if (card.isMustInclude) {
-    resistance += MUST_INCLUDE_BOOST;
-  }
-  if (card.isStapleRock) {
-    resistance += STAPLE_PROTECTION_BOOST;
-  }
-  if (isProtectionPiece(card)) {
-    resistance += PROTECTION_PIECE_BOOST;
-  }
-  if (isFreeInteraction(card)) {
-    resistance += FREE_INTERACTION_BOOST;
-  }
-  if (category === 'lands' && !card.isMustInclude) {
-    resistance += LAND_PROTECTION_BOOST;
-  }
-  if (comboCardNames.has(card.name)) {
-    resistance += COMBO_TRIM_BOOST;
-  }
-  if (roleTargets) {
-    const role = validateCardRole(card);
-    if (role) {
-      const target = roleTargets[role] ?? 0;
-      const current = currentRoleCounts[role] ?? 0;
-      if (current <= target) {
-        resistance += ROLE_DEFICIT_TRIM_BOOST;
-      } else if (current >= target + 3) {
-        resistance += ROLE_SURPLUS_TRIM_PENALTY;
-      }
-    }
-  }
-
-  return resistance;
-}
-
-/**
  * Public entry point. For the default EDHREC mode this is a passthrough. For the
  * alternative generators it forces all card fetches to the live API for the
  * duration of the build (the offline query parser can't evaluate otag:/art:/year<=).
@@ -1343,61 +979,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
 
   // --- Phase A: Data Acquisition (skippable via generation cache) ---
-  const usingCache = isCacheValid(context);
-  // S1 generation-integrity disclosures. `cacheableIntegrityNotes` holds only
-  // the combo/substitute notes — the data the fast (cache) path never
-  // refetches — so a regeneration from cache carries them forward unchanged.
-  // The tagger note is recomputed fresh on every path below (tagger reloads
-  // regardless of cache hit) and is deliberately never itself cached.
-  const cacheableIntegrityNotes: string[] = [];
-  let integrityNotes: string[];
-
-  if (usingCache) {
-    logger.debug('[DeckGen] FAST PATH: Reusing cached EDHREC + Scryfall data');
-    onProgress?.('Reshuffling…', 5);
-    state.gameChangerNames = generationCache!.gameChangerNames;
-    state.combos = generationCache!.combos;
-    state.edhrecData = generationCache!.edhrecData;
-    state.dataSource = generationCache!.dataSource;
-    state.bracketPoolFallbackNote = generationCache!.bracketPoolFallbackNote;
-    state.baseData = generationCache!.baseData;
-    state.themeOverlapCounts = generationCache!.themeOverlapCounts;
-    integrityNotes = [...(generationCache!.integrityNotes ?? [])];
-    await retryOnce(loadTaggerData, (d) => d !== null);
-    onProgress?.('Your library takes shape…', 12);
-  } else {
-    // FULL PATH: Pre-fetch basic lands, game changer list, combo data, and tagger data in parallel
-    onProgress?.('Shuffling up…', 5);
-    let combosFetchFailed = false;
-    const [, fetchedGCNames, fetchedCombos] = await Promise.all([
-      prefetchBasicLands(),
-      getGameChangerNames(),
-      retryOnce(() => fetchCommanderCombosRaw(commander.name)).catch(() => {
-        combosFetchFailed = true;
-        return [] as EDHRECCombo[];
-      }),
-      retryOnce(loadTaggerData, (d) => d !== null),
-      retryOnce(loadCardSimilar, (d) => d !== null), // EDHREC substitute index for shortage-fill ranking
-    ]);
-    state.gameChangerNames = fetchedGCNames;
-    state.combos = fetchedCombos;
-    onProgress?.('Studying the cards…', 7);
-    logger.debug(`[DeckGen] Fetched ${state.combos.length} combos from EDHREC`);
-    logger.debug(
-      `[DeckGen] Tagger data: ${hasTaggerData() ? 'loaded' : 'unavailable (role detection disabled)'}`
-    );
-    const comboNote = buildComboIntegrityNote(combosFetchFailed, comboCountSetting);
-    if (comboNote) cacheableIntegrityNotes.push(comboNote);
-    const substituteNote = buildSubstituteIntegrityNote(
-      hasCardSimilar(),
-      !!context.collectionNames
-    );
-    if (substituteNote) cacheableIntegrityNotes.push(substituteNote);
-    integrityNotes = [...cacheableIntegrityNotes];
-  }
-
-  const taggerNote = buildTaggerIntegrityNote(hasTaggerData());
-  if (taggerNote) integrityNotes.push(taggerNote);
+  // See deckGeneration/dataAcquisition.ts for the cache-check/prefetch-battery
+  // implementation (moved verbatim, E68 mechanical split).
+  const acquireDataResult = await acquireCommanderDataPhase(state);
+  const { usingCache, cacheableIntegrityNotes } = acquireDataResult;
+  const integrityNotes = acquireDataResult.integrityNotes;
 
   // Build combo priority boost map + combo membership index for dynamic boosting
   if (comboCountSetting > 0 && state.combos.length > 0) {
@@ -1738,331 +1324,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // must-includes already brought.
   state.baselineDetectedCombos = detectCombosPhase(state);
 
-  // Alternative generators: synthesize the candidate pool from Scryfall instead
-  // of EDHREC. Populates state.edhrecData so the entire pipeline below runs
-  // unchanged; selectedThemes are ignored (the UI hides the theme picker here).
-  // PDH routes here even in the default mode — EDHREC has nothing for
-  // non-legendary uncommon commanders; the pool builder appends
-  // f:paupercommander so every query (and the fills below, via
-  // effectiveConstraint → scryfallQuery) stays inside the legal pool.
-  if (!usingCache && (mode !== 'edhrec' || state.cfg.mtgFormat === 'paupercommander')) {
-    altPool = await buildAlternatePool(mode, customization, colorIdentity, onProgress);
-    state.edhrecData = altPool.data;
-    state.dataSource = altPool.dataSource;
-    // Append the pool's EFFECTIVE constraint (e.g. the relaxed historical year)
-    // so the strict printing upgrade + fallback fills match what was fetched.
-    if (altPool.effectiveConstraint) {
-      scryfallQuery = [scryfallQuery.trim(), altPool.effectiveConstraint].filter(Boolean).join(' ');
-    }
-    if (altPool.poolSize === 0) {
-      logger.warn(
-        `[DeckGen] Alternative pool (${mode}) returned no cards — falling back to Scryfall-only fill.`
-      );
-      // Surface it in the report rather than leaving the user with a basics pile.
-      altPool = {
-        ...altPool,
-        relaxedNote:
-          altPool.relaxedNote ??
-          (mode === 'art-theme'
-            ? 'No cards matched that motif in your colors — we built by function instead.'
-            : 'That pool came up empty — we filled the deck by function instead.'),
-      };
-    }
-  }
-  // Try to fetch EDHREC data (works for all formats) — skip on cache hit
-  else if (!usingCache && selectedThemesWithSlugs.length > 0) {
-    // Fetch theme-specific data for all selected themes
-    onProgress?.('Consulting the Oracle…', 8);
-    try {
-      // If hyper focus is on, also fetch base commander data in parallel to compare
-      const baseDataPromise = customization.hyperFocus
-        ? (partnerCommander
-            ? fetchPartnerCommanderData(
-                commander.name,
-                partnerCommander.name,
-                budgetOption,
-                targetBracket
-              )
-            : fetchCommanderData(commander.name, budgetOption, targetBracket)
-          ).catch(() => null)
-        : Promise.resolve(null);
-
-      // Catch each theme fetch individually so one theme's 404/network error
-      // doesn't discard the themes that succeeded (F14). We fall back to base
-      // commander data only if EVERY theme fetch fails (below).
-      const [themeMergeResult, fetchedBaseData] = await Promise.all([
-        fetchMergedThemeData(
-          selectedThemesWithSlugs,
-          commander.name,
-          partnerCommander?.name,
-          budgetOption,
-          targetBracket
-        ),
-        baseDataPromise,
-      ]);
-      state.baseData = fetchedBaseData;
-
-      if (!themeMergeResult) {
-        throw new Error('All theme-specific EDHREC fetches failed');
-      }
-
-      let mergedCardlists = themeMergeResult.data.cardlists;
-      state.themeOverlapCounts = themeMergeResult.themeOverlapCounts;
-      let representativeStats = themeMergeResult.data.stats;
-      let dataSource: DeckDataSource = targetBracket ? 'theme+bracket' : 'theme';
-
-      if (targetBracket && isPoolTooThin(themeMergeResult.data)) {
-        // E93: a bracket-narrowed theme page can resolve to a statistically
-        // thin (or entirely empty) pool while still parsing as valid JSON.
-        // Ladder down to a broader page rather than silently generate off
-        // noise — but theme outranks bracket-only: the user explicitly
-        // picked this theme, so it's the deck's identity, while the target
-        // bracket's power semantics (permissions/ceilings below) survive
-        // untouched regardless of which page supplied the pool. Dropping the
-        // theme first (bracket-only) would silently swap "the theme deck the
-        // user asked for" for "a goodstuff deck at the right power level" —
-        // the exact failure this fix exists to prevent. So: theme+bracket →
-        // theme (no bracket) → bracket-only → plain commander page.
-        let noBracketThemeOverlapCounts: Map<string, number> | undefined;
-        const outcome = await fetchPoolWithFallback([
-          { source: 'theme+bracket', fetch: () => Promise.resolve(themeMergeResult.data) },
-          {
-            source: 'theme',
-            fetch: async () => {
-              const noBracket = await fetchMergedThemeData(
-                selectedThemesWithSlugs,
-                commander.name,
-                partnerCommander?.name,
-                budgetOption,
-                undefined
-              );
-              if (!noBracket) throw new Error('theme-only EDHREC fetch failed');
-              // Stash the counts but don't commit to state yet — this rung
-              // may still turn out thin and the ladder moves on, in which
-              // case these counts would describe a page that isn't the pool.
-              noBracketThemeOverlapCounts = noBracket.themeOverlapCounts;
-              return noBracket.data;
-            },
-          },
-          {
-            source: 'base+bracket',
-            fetch: () =>
-              partnerCommander
-                ? fetchPartnerCommanderData(
-                    commander.name,
-                    partnerCommander.name,
-                    budgetOption,
-                    targetBracket
-                  )
-                : fetchCommanderData(commander.name, budgetOption, targetBracket),
-          },
-          {
-            source: 'base',
-            fetch: () =>
-              partnerCommander
-                ? fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
-                : fetchCommanderData(commander.name, budgetOption),
-          },
-        ]);
-        if (outcome) {
-          mergedCardlists = outcome.data.cardlists;
-          representativeStats = outcome.data.stats;
-          dataSource = outcome.source;
-          // Only commit the theme-only overlap counts if the ladder actually
-          // settled on that rung — otherwise leave the theme+bracket counts
-          // already assigned above (or whatever an earlier rung set).
-          if (outcome.source === 'theme' && noBracketThemeOverlapCounts) {
-            state.themeOverlapCounts = noBracketThemeOverlapCounts;
-          }
-          if (outcome.fellBackFrom) {
-            logger.warn(
-              `[DeckGen] E93: theme+bracket pool too thin, laddered down to "${outcome.source}"`
-            );
-            const commanderLabel = partnerCommander
-              ? `${commander.name} // ${partnerCommander.name}`
-              : commander.name;
-            state.bracketPoolFallbackNote = buildBracketPoolFallbackNote(
-              commanderLabel,
-              targetBracket,
-              outcome.fellBackFrom,
-              outcome.source,
-              selectedThemesWithSlugs.map((t) => t.name).join(', '),
-              outcome.fellBackCause
-            );
-          }
-        }
-        // outcome === null means every rung's fetch threw — keep the original
-        // thin-but-parsed theme+bracket pool computed above rather than nothing.
-      } else if (!representativeStats.numDecks || representativeStats.numDecks === 0) {
-        // Pre-E93 behavior, unchanged: no bracket was targeted, but the theme
-        // endpoint parsed fine while lacking type-distribution stats — patch
-        // stats only from the base page (the cardlist itself is still used).
-        logger.warn(
-          '[DeckGen] FALLBACK: Theme endpoint lacks stats (numDecks=0), fetching base commander stats'
-        );
-        try {
-          const baseStatsData = partnerCommander
-            ? await fetchPartnerCommanderData(
-                commander.name,
-                partnerCommander.name,
-                budgetOption,
-                targetBracket
-              )
-            : await fetchCommanderData(commander.name, budgetOption, targetBracket);
-          representativeStats = baseStatsData.stats;
-          logger.debug('[DeckGen] FALLBACK: Got stats from base commander+bracket');
-        } catch {
-          if (targetBracket) {
-            logger.warn(
-              '[DeckGen] FALLBACK: Base commander+bracket stats failed, trying without bracket'
-            );
-            try {
-              const fallbackData = partnerCommander
-                ? await fetchPartnerCommanderData(
-                    commander.name,
-                    partnerCommander.name,
-                    budgetOption
-                  )
-                : await fetchCommanderData(commander.name, budgetOption);
-              representativeStats = fallbackData.stats;
-              logger.debug('[DeckGen] FALLBACK: Got stats from base commander (no bracket)');
-            } catch {
-              logger.warn(
-                '[DeckGen] FALLBACK: All stats fetches failed — will use fallback type targets'
-              );
-            }
-          } else {
-            logger.warn(
-              '[DeckGen] FALLBACK: Base commander stats fetch failed — will use fallback type targets'
-            );
-          }
-        }
-      }
-
-      state.edhrecData = {
-        themes: [],
-        stats: representativeStats,
-        cardlists: mergedCardlists,
-        similarCommanders: [],
-      };
-
-      state.dataSource = dataSource;
-      const themeNames = selectedThemesWithSlugs.map((t) => t.name).join(', ');
-      onProgress?.(`Attuning to ${themeNames}…`, 12);
-    } catch (error) {
-      logger.warn(
-        '[DeckGen] FALLBACK: Theme-specific EDHREC fetch failed, trying base commander+bracket:',
-        error
-      );
-      // Fall back to base commander data (with bracket)
-      try {
-        state.edhrecData = partnerCommander
-          ? await fetchPartnerCommanderData(
-              commander.name,
-              partnerCommander.name,
-              budgetOption,
-              targetBracket
-            )
-          : await fetchCommanderData(commander.name, budgetOption, targetBracket);
-        state.dataSource = targetBracket ? 'base+bracket' : 'base';
-        logger.debug('[DeckGen] FALLBACK: Using base commander data (with bracket)');
-        onProgress?.('Consulting the Oracle…', 12);
-      } catch {
-        // Fall back to base commander without bracket
-        if (targetBracket) {
-          logger.warn(
-            '[DeckGen] FALLBACK: Base commander+bracket also failed, trying without bracket'
-          );
-          try {
-            state.edhrecData = partnerCommander
-              ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
-              : await fetchCommanderData(commander.name, budgetOption);
-            state.dataSource = 'base';
-            logger.debug('[DeckGen] FALLBACK: Using base commander data (no bracket)');
-            onProgress?.('Consulting the Oracle…', 12);
-          } catch {
-            logger.warn(
-              '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
-            );
-            onProgress?.('Scrying for more…', 12);
-          }
-        } else {
-          logger.warn(
-            '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
-          );
-          onProgress?.('Scrying for more…', 12);
-        }
-      }
-    }
-  } else if (!usingCache) {
-    // No themes selected - use base commander data (top recommended cards)
-    onProgress?.('Consulting the Oracle…', 8);
-    if (targetBracket) {
-      // E93: ladder bracket-only → plain commander page when the bracket page
-      // is too thin to build from. This also subsumes the pre-E93 error-only
-      // fallback below (a thrown fetch is just a rung with no data).
-      const outcome = await fetchPoolWithFallback([
-        {
-          source: 'base+bracket',
-          fetch: () =>
-            partnerCommander
-              ? fetchPartnerCommanderData(
-                  commander.name,
-                  partnerCommander.name,
-                  budgetOption,
-                  targetBracket
-                )
-              : fetchCommanderData(commander.name, budgetOption, targetBracket),
-        },
-        {
-          source: 'base',
-          fetch: () =>
-            partnerCommander
-              ? fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
-              : fetchCommanderData(commander.name, budgetOption),
-        },
-      ]);
-      if (outcome) {
-        state.edhrecData = outcome.data;
-        state.dataSource = outcome.source;
-        if (outcome.fellBackFrom) {
-          logger.warn(
-            `[DeckGen] E93: bracket-only pool too thin, laddered down to "${outcome.source}"`
-          );
-          const commanderLabel = partnerCommander
-            ? `${commander.name} // ${partnerCommander.name}`
-            : commander.name;
-          state.bracketPoolFallbackNote = buildBracketPoolFallbackNote(
-            commanderLabel,
-            targetBracket,
-            outcome.fellBackFrom,
-            outcome.source,
-            undefined,
-            outcome.fellBackCause
-          );
-        }
-        onProgress?.('Your commander heeds the call…', 12);
-      } else {
-        logger.warn(
-          '[DeckGen] FALLBACK: All EDHREC fetches failed — will use Scryfall-only generation'
-        );
-        onProgress?.('Scrying for more…', 12);
-      }
-    } else {
-      try {
-        state.edhrecData = partnerCommander
-          ? await fetchPartnerCommanderData(commander.name, partnerCommander.name, budgetOption)
-          : await fetchCommanderData(commander.name, budgetOption);
-        state.dataSource = 'base';
-        onProgress?.('Your commander heeds the call…', 12);
-      } catch {
-        logger.warn(
-          '[DeckGen] FALLBACK: Base commander fetch failed — will use Scryfall-only generation'
-        );
-        onProgress?.('Scrying for more…', 12);
-      }
-    }
-  }
+  // Candidate-pool fetch ladder (alt-pool synthesis, or EDHREC theme/base
+  // pages with the E93 thinness fallback). See deckGeneration/dataAcquisition.ts
+  // for the implementation (moved verbatim, E68 mechanical split).
+  const acquirePoolResult = await acquireCardPoolPhase(state, { usingCache, scryfallQuery });
+  altPool = acquirePoolResult.altPool;
+  scryfallQuery = acquirePoolResult.scryfallQuery;
 
   // ── Salt tolerance: filter or boost based on EDHREC salt scores ──
   // EDHREC's cardlist payloads don't carry per-card salt, so we fetch the
@@ -2203,23 +1470,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
 
   // Populate generation cache after successful EDHREC fetch
-  if (!usingCache && state.edhrecData) {
-    const key = buildCacheKey(context);
-    generationCache = {
-      edhrecData: state.edhrecData,
-      baseData: state.baseData,
-      cardMap: new Map(), // Will be populated after Scryfall batch fetch
-      themeOverlapCounts: state.themeOverlapCounts,
-      combos: state.combos,
-      gameChangerNames: state.gameChangerNames,
-      dataSource: state.dataSource,
-      bracketPoolFallbackNote: state.bracketPoolFallbackNote,
-      integrityNotes: cacheableIntegrityNotes,
-      representativeStats: state.edhrecData.stats,
-      ...key,
-    };
-    logger.debug('[DeckGen] Generation cache populated for fast regeneration');
-  }
+  populateGenerationCachePhase(state, { usingCache, cacheableIntegrityNotes });
 
   // Resolve pacing: user override > auto-detect from EDHREC stats > fallback
   if (!customization.tempoAutoDetect) {
@@ -2783,9 +2034,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     // Update generation cache with the cardMap (not used on fast path currently,
     // but kept for potential future use)
-    if (generationCache) {
-      generationCache.cardMap = cardMap;
-    }
+    setGenerationCacheCardMap(cardMap);
 
     // MDFC land boost: prioritize spell/land MDFCs in spell pools.
     // These are strictly better than their spell-only equivalents since they can
@@ -4014,78 +3263,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // phaseRoleSurplusRebalance downstream (measured: meren 3->7, ur-dragon
   // 3->13 vs a 3-cut baseline). Anchoring here to typeTargetLandCount matches
   // pre-Karsten K exactly, whatever Karsten resolves to.
-  const wildcardCount = landCountAutoTuned ? Math.max(0, typeTargetLandCount - 32) : 0;
-  let wildcardCandidates: ScryfallCard[] = [];
-  if (wildcardCount > 0) {
-    const wildcardPool = state.edhrecData?.cardlists.allNonLand ?? [];
-    // Scratch clones: this scan pulls EVERY leftover card that clears the
-    // pick gates (not just the K we end up keeping), so it must not leak
-    // state into the real generation-wide counters for the — usually
-    // large — majority of candidates the reconcile doesn't keep. Role cap
-    // is the one gate handled AFTER the scan instead of inside it (see
-    // isOverRoleCap below): this call site has no pre-built cardRoleMap
-    // (that map is scoped to the EDHREC-pool branch above, out of reach
-    // here), and passing `count = pool.length` would otherwise trip the
-    // picker's own role-cap escape hatch (built for "never ship a quota
-    // short," not for an unbounded scan) on effectively every call.
-    const scratchUsedNames = new Set(usedNames);
-    const scratchGameChangerCount = { value: gameChangerCount.value };
-    const scratchBudgetTracker = budgetTracker?.clone() ?? null;
-    const scratchBracketGuard = bracketGuard?.clone();
-    // Wide-open curve — this pass has no curve slot of its own, it's a flat
-    // marginal scan re-ranked by phaseLandSqueezeReconcile's own scoreOf,
-    // not this picker's EDHREC-priority order.
-    const wildcardCurveTargets: Record<number, number> = {
-      0: 999,
-      1: 999,
-      2: 999,
-      3: 999,
-      4: 999,
-      5: 999,
-      6: 999,
-      7: 999,
-    };
-    const rawWildcardCandidates = pickFromPrefetchedWithCurve(
-      wildcardPool,
-      scryfallCardMap,
-      wildcardPool.length,
-      scratchUsedNames,
-      colorIdentity,
-      wildcardCurveTargets,
-      {},
-      bannedCards,
-      undefined,
-      maxCardPrice,
-      maxGameChangers,
-      scratchGameChangerCount,
-      maxRarity,
-      maxCmc,
-      scratchBudgetTracker,
-      context.collectionNames,
-      getComboBoosts(),
-      currency,
-      state.gameChangerNames,
-      arenaOnly,
-      false,
-      collectionStrategy,
-      collectionOwnedPercent,
-      ignoreOwnedBudget,
-      ignoreOwnedRarity,
-      scratchBracketGuard,
-      isCardAllowedBySynergyDependencies,
-      liftTieBreak,
-      undefined,
-      resolvePriceSanity(customization),
-      getComboBoosts()
-    );
-    // Hard role cap: same shape as isOverRoleCap's other two callers above
-    // — a direct validateCardRole check against the real, current
-    // currentRoleCounts, applied post-hoc instead of threading a
-    // RoleCapConfig through the throwaway scan above.
-    wildcardCandidates = rawWildcardCandidates.filter(
-      (c) => !isOverRoleCap(c, roleTargets, currentRoleCounts)
-    );
-  }
+  const { wildcardCount, wildcardCandidates } = wildcardScanPhase(state, {
+    landCountAutoTuned,
+    typeTargetLandCount,
+    scryfallCardMap,
+    budgetTracker,
+    bracketGuard,
+    isCardAllowedBySynergyDependencies,
+    liftTieBreak,
+    resolvePriceSanity,
+    isOverRoleCap,
+    roleTargets,
+  });
 
   // ── Land-Squeeze Reconciliation (E88 + E82 attempt 6) ──
   // See phaseLandSqueezeReconcile.ts's header for the full mechanism. Runs
@@ -4122,72 +3311,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   });
 
   // ── Smart Trim: priority-aware, role-aware, combo-aware ──
-  // Resistance formula lives in computeTrimResistance above (module-scope,
+  // Resistance formula lives in computeTrimResistance (deckGeneration/phaseSmartTrim.ts,
   // unit-tested independently of this orchestration).
   let currentCount = countAllCards();
-  if (currentCount > targetDeckSize) {
-    const trimCandidates: { card: ScryfallCard; category: DeckCategory; trimResistance: number }[] =
-      [];
-
-    // Protect lands: calculate how many non-must-include lands we can afford to trim
-    const currentLandCount = categories.lands.length;
-    const landTrimBudget = Math.max(0, currentLandCount - targets.lands);
-
-    for (const cat of Object.keys(categories) as DeckCategory[]) {
-      const cards = categories[cat];
-      for (let i = 0; i < cards.length; i++) {
-        const card = cards[i];
-        const resistance = computeTrimResistance(
-          card,
-          i,
-          cards.length,
-          cat,
-          comboCardNames,
-          roleTargets,
-          currentRoleCounts
-        );
-        trimCandidates.push({ card, category: cat, trimResistance: resistance });
-      }
-    }
-
-    // Sort ascending: lowest resistance = first to trim
-    trimCandidates.sort((a, b) => a.trimResistance - b.trimResistance);
-
-    const excess = currentCount - targetDeckSize;
-    // Respect the land trim budget: don't trim more lands than we can afford
-    const toRemove: typeof trimCandidates = [];
-    let landsTrimmed = 0;
-    for (const candidate of trimCandidates) {
-      if (toRemove.length >= excess) break;
-      if (candidate.category === 'lands' && !candidate.card.isMustInclude) {
-        if (landsTrimmed >= landTrimBudget) continue; // skip — would go below land target
-        landsTrimmed++;
-      }
-      toRemove.push(candidate);
-    }
-
-    // Build removal sets per category for efficient filtering
-    const removeByCategory = new Map<DeckCategory, Set<ScryfallCard>>();
-    for (const { card, category } of toRemove) {
-      if (!removeByCategory.has(category)) removeByCategory.set(category, new Set());
-      removeByCategory.get(category)!.add(card);
-    }
-
-    // Apply removals
-    for (const [cat, removeSet] of removeByCategory) {
-      categories[cat] = categories[cat].filter((c) => !removeSet.has(c));
-    }
-
-    // Update role counts for trimmed role cards
-    if (roleTargets) {
-      for (const { card } of toRemove) {
-        const role = validateCardRole(card);
-        if (role && currentRoleCounts[role] > 0) {
-          currentRoleCounts[role]--;
-        }
-      }
-    }
-  }
+  smartTrimPhase(state, { targetDeckSize, landTarget: targets.lands, roleTargets });
 
   // Track how many basic lands are added as filler when collection is too small
   let basicLandFillCount = 0;
@@ -4891,368 +4018,18 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   const comboAuditRepairs: CoherenceRepair[] = [];
 
   // ── Combo Integrity Audit ──
-  // After deck assembly: if a combo piece slipped in but its combo is incomplete,
-  // either complete the combo (swap in missing pieces) or evict the low-value orphan.
-  if (detectedCombos && state.edhrecData && comboCountSetting > 0) {
-    const ORPHAN_INCLUSION_THRESHOLD = 25; // below this %, the card is considered combo-dependent
-    const MAX_AUDIT_SWAPS = 4;
-    let auditSwaps = 0;
-
-    // Build inclusion index from EDHREC pool
-    const auditInclusion = new Map<string, number>();
-    for (const c of state.edhrecData.cardlists.allNonLand) auditInclusion.set(c.name, c.inclusion);
-
-    // Build must-include protection set
-    const auditMustInclude = new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]);
-
-    // Track cards that are part of a COMPLETE combo — never evict them
-    const completeComboCards = new Set<string>();
-    for (const dc of detectedCombos) {
-      if (dc.isComplete) for (const name of dc.cards) completeComboCards.add(name);
-    }
-
-    // Count how many detected combos (complete or near-miss) each card appears in.
-    // Cards in 2+ combos are valuable enablers and should not be treated as orphans.
-    const cardComboCount = new Map<string, number>();
-    for (const dc of detectedCombos) {
-      for (const name of dc.cards) {
-        if (usedNames.has(name)) cardComboCount.set(name, (cardComboCount.get(name) ?? 0) + 1);
-      }
-    }
-
-    // Helper: find the weakest (lowest inclusion%) evictable non-land card
-    function auditWeakest(
-      skipNames?: Set<string>
-    ): { card: ScryfallCard; category: DeckCategory } | null {
-      let best: { card: ScryfallCard; category: DeckCategory; incl: number } | null = null;
-      for (const cat of Object.keys(categories) as DeckCategory[]) {
-        if (cat === 'lands') continue;
-        for (const card of categories[cat]) {
-          if (auditMustInclude.has(card.name.toLowerCase())) continue;
-          if (completeComboCards.has(card.name)) continue;
-          if (isProtectionPiece(card) || isFreeInteraction(card)) continue;
-          if (skipNames?.has(card.name)) continue;
-          const incl = auditInclusion.get(card.name) ?? 0;
-          if (!best || incl < best.incl) best = { card, category: cat, incl };
-        }
-      }
-      return best ? { card: best.card, category: best.category } : null;
-    }
-
-    function auditRemove(card: ScryfallCard, category: DeckCategory) {
-      categories[category] = categories[category].filter((c) => c !== card);
-      usedNames.delete(card.name);
-      // E87: this cut is about to be disclosed in coherenceRepairs — veto the
-      // name so no downstream add phase (bracket/budget convergence, role-
-      // surplus rebalance, lift picks) can silently re-pick it and leave the
-      // disclosure describing an intermediate state the shipped deck contradicts.
-      markBanned(card.name);
-    }
-
-    // Same budget gate cardPicking/scryfallFill/coherenceRepair enforce — owned
-    // copies are exempt, everything else checks the live effective cap.
-    function auditPassesBudget(card: ScryfallCard): boolean {
-      if (isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) return true;
-      const cap = budgetTracker?.getEffectiveCap(maxCardPrice) ?? maxCardPrice;
-      return !exceedsMaxPrice(card, cap, currency);
-    }
-
-    function auditAdd(card: ScryfallCard): boolean {
-      if (usedNames.has(card.name)) return false; // guard against duplicates
-      if (bannedCards.has(card.name)) return false; // respect banlist
-      // PDH 99s gate — combo candidates come from the (Commander-scoped)
-      // EDHREC combo dataset, not the PDH-legal pool.
-      if (isPdhBuild && notPauperCommanderLegal(card)) return false;
-      // E101: every other add path (cardPicking, scryfallFill) checks the
-      // target-bracket ceiling before accepting a card — the combo audit
-      // never did, so it could push a bracket<=2 ask's Game Changer/mass
-      // land denial/extra-turn/stax signal past the ceiling with no gate at
-      // all (e.g. auditAdd seating Teferi, Master of Time into a bracket-2
-      // deck, later silently evicted again by bracket convergence).
-      if (bracketGuard?.exceedsCeiling(card.name)) {
-        comboAuditBracketBlockCount++;
-        return false;
-      }
-      // Defense-in-depth: every call site below pre-filters candidates for
-      // color identity before evicting a card to make room (a candidate
-      // fetch batch pulls in EVERY combo's cards, on- or off-color, purely
-      // to resolve near-miss detection — see the batch fetch above — so this
-      // is the only gate standing between an off-identity combo card and the
-      // decklist). Sites must still pre-filter so a rejected add doesn't
-      // strand the just-evicted card with nothing added back.
-      if (!fitsColorIdentity(card, colorIdentity)) return false;
-      stampRoleSubtypes(card);
-      routeCardByType(card, categories);
-      usedNames.add(card.name);
-      if (!isOwnedBudgetExempt(card.name, context.collectionNames, ignoreOwnedBudget)) {
-        budgetTracker?.deductCard(card);
-      }
-      bracketGuard?.record(card.name);
-      return true;
-    }
-
-    // ── Phase 1: Multi-combo enablers ──
-    // Before processing individual combos, find single cards NOT in the deck that
-    // would complete the most near-miss combos. One Gravecrawler completing 5 combos
-    // is far more valuable than 2 cards completing 1 isolated combo.
-    {
-      // For each missing card across all near-miss combos, count how many combos
-      // it would complete if added (i.e., it's the ONLY missing piece for that combo).
-      const enablerScore = new Map<string, number>(); // cardName → combos it would complete
-      const enablerCombos = new Map<string, string[]>(); // cardName → combo IDs
-
-      for (const dc of detectedCombos) {
-        if (dc.isComplete) continue;
-        const trulyMissing = dc.missingCards.filter((n) => !usedNames.has(n));
-        // Only count combos where this card is the sole missing piece
-        if (trulyMissing.length !== 1) continue;
-        const name = trulyMissing[0];
-        if (bannedCards.has(name) || !scryfallCardMap.has(name)) continue;
-        if (
-          constrainsToCollection(collectionStrategy) &&
-          notInCollection(name, context.collectionNames)
-        )
-          continue;
-        // The batch fetch above resolves every combo's cards regardless of
-        // color identity (needed to detect near-misses at all) — this is
-        // the only gate keeping an off-identity combo card out of the deck.
-        if (!fitsColorIdentity(scryfallCardMap.get(name)!, colorIdentity)) continue;
-        // Pre-filter mirrors auditAdd's PDH gate so an eviction is never
-        // stranded by a rejected add.
-        if (isPdhBuild && notPauperCommanderLegal(scryfallCardMap.get(name)!)) continue;
-        // E101: pre-filter mirrors auditAdd's bracket-ceiling gate — same
-        // stranding concern as the PDH gate above.
-        if (bracketGuard?.exceedsCeiling(name)) continue;
-        enablerScore.set(name, (enablerScore.get(name) ?? 0) + 1);
-        const ids = enablerCombos.get(name) ?? [];
-        ids.push(dc.comboId);
-        enablerCombos.set(name, ids);
-      }
-
-      // Sort by combos completed (descending), only consider cards completing 2+ combos
-      const topEnablers = [...enablerScore.entries()]
-        .filter(([, count]) => count >= 2)
-        .sort(([, a], [, b]) => b - a);
-
-      for (const [name, combosCompleted] of topEnablers) {
-        if (auditSwaps >= MAX_AUDIT_SWAPS) break;
-        const card = scryfallCardMap.get(name)!;
-        if (!auditPassesBudget(card)) {
-          comboBudgetSkipCount++;
-          continue; // next-best enabler under budget
-        }
-        const weak = auditWeakest();
-        if (!weak) break;
-        auditRemove(weak.card, weak.category);
-        if (auditAdd(card)) {
-          auditSwaps++;
-          comboAuditRepairs.push({
-            cut: weak.card.name,
-            added: card.name,
-            reason: `${weak.card.name} (${auditInclusion.get(weak.card.name) ?? 0}% inclusion) wasn't earning its slot — swapped for ${card.name}, which completes ${combosCompleted} near-miss combo${combosCompleted === 1 ? '' : 's'}.`,
-          });
-          // Mark all combos this card completes
-          for (const dc of detectedCombos) {
-            if (dc.isComplete) continue;
-            const stillMissing = dc.missingCards.filter((n) => !usedNames.has(n));
-            if (stillMissing.length === 0) {
-              dc.isComplete = true;
-              dc.missingCards = [];
-            }
-          }
-          // Update completeComboCards so newly completed combo pieces are protected
-          for (const dc of detectedCombos) {
-            if (dc.isComplete) for (const n of dc.cards) completeComboCards.add(n);
-          }
-          logger.debug(
-            `[DeckGen] Combo audit: added multi-combo enabler ${name} (completes ${combosCompleted} combos) → evicted ${weak.card.name} (${auditInclusion.get(weak.card.name) ?? 0}%)`
-          );
-        }
-      }
-    }
-
-    // ── Phase 2: Per-combo completion / orphan eviction (existing logic) ──
-    for (const dc of detectedCombos) {
-      if (dc.isComplete || auditSwaps >= MAX_AUDIT_SWAPS) continue;
-
-      // Find in-deck pieces that only justify their slot because of this combo.
-      // Cards in 2+ combos are valuable enablers — never treat them as orphans.
-      const orphans = dc.cards.filter((name) => {
-        if (!usedNames.has(name)) return false;
-        if (auditMustInclude.has(name.toLowerCase())) return false;
-        if (completeComboCards.has(name)) return false;
-        if ((cardComboCount.get(name) ?? 0) >= 2) return false;
-        return (auditInclusion.get(name) ?? 0) <= ORPHAN_INCLUSION_THRESHOLD;
-      });
-
-      if (orphans.length === 0) continue; // all in-deck pieces are fine standalone
-
-      // Check if we can complete the combo: missing pieces must be available, not banned, and not already in deck
-      const trulyMissing = dc.missingCards.filter((n) => !usedNames.has(n));
-      const missingResolved = trulyMissing
-        .filter((n) => !bannedCards.has(n))
-        .filter(
-          (n) =>
-            !(
-              constrainsToCollection(collectionStrategy) &&
-              notInCollection(n, context.collectionNames)
-            )
-        )
-        .map((n) => scryfallCardMap.get(n))
-        .filter((c): c is ScryfallCard => !!c)
-        // The batch fetch above resolves every combo's cards regardless of
-        // color identity (needed to detect near-misses at all) — this is
-        // the only gate keeping an off-identity combo card out of the deck.
-        .filter((c) => fitsColorIdentity(c, colorIdentity))
-        // Pre-filter mirrors auditAdd's PDH gate so an eviction is never
-        // stranded by a rejected add.
-        .filter((c) => !isPdhBuild || !notPauperCommanderLegal(c))
-        // E101: pre-filter mirrors auditAdd's bracket-ceiling gate — same
-        // stranding concern as the PDH gate above.
-        .filter((c) => !bracketGuard?.exceedsCeiling(c.name))
-        .filter((c) => {
-          if (auditPassesBudget(c)) return true;
-          comboBudgetSkipCount++;
-          return false;
-        });
-
-      // If all "missing" pieces are actually already in the deck now, mark complete and move on
-      if (trulyMissing.length === 0) {
-        dc.isComplete = true;
-        dc.missingCards = [];
-        continue;
-      }
-
-      const canComplete =
-        missingResolved.length === trulyMissing.length &&
-        auditSwaps + trulyMissing.length <= MAX_AUDIT_SWAPS;
-
-      if (canComplete) {
-        // Swap in the missing pieces by evicting the weakest non-essential cards
-        const evicted = new Set<string>();
-        let ok = true;
-        for (const missing of missingResolved) {
-          if (usedNames.has(missing.name)) continue; // already in deck from a prior combo
-          const weak = auditWeakest(evicted);
-          if (!weak) {
-            ok = false;
-            break;
-          }
-          evicted.add(weak.card.name);
-          auditRemove(weak.card, weak.category);
-          if (!auditAdd(missing)) {
-            ok = false;
-            break;
-          }
-          auditSwaps++;
-          comboAuditRepairs.push({
-            cut: weak.card.name,
-            added: missing.name,
-            reason: `Completes the ${dc.cards.join(' + ')} combo${dc.results[0] ? ` (${dc.results[0]})` : ''} — swapped in ${missing.name}.`,
-          });
-        }
-        if (ok) {
-          logger.debug(
-            `[DeckGen] Combo audit: completed combo ${dc.comboId} → added ${missingResolved.map((c) => c.name).join(', ')}`
-          );
-          dc.isComplete = true;
-          dc.missingCards = [];
-        }
-      } else {
-        // Can't complete — evict the orphaned low-value pieces, replace with best EDHREC candidates
-        for (const orphanName of orphans) {
-          if (auditSwaps >= MAX_AUDIT_SWAPS) break;
-          // Never evict lands here — the replacement pool below is
-          // allNonLand-only, so an orphaned combo piece that happens to be a
-          // land (e.g. Riptide Laboratory) would get silently swapped for a
-          // spell, shrinking the land count out from under the resolved
-          // target. Lands have their own top-up/target and stay untouched by
-          // this audit, same as auditWeakest/findWeakestCard just above.
-          let found: { card: ScryfallCard; category: DeckCategory } | null = null;
-          for (const cat of Object.keys(categories) as DeckCategory[]) {
-            if (cat === 'lands') continue;
-            const card = categories[cat].find((c) => c.name === orphanName);
-            if (card) {
-              found = { card, category: cat };
-              break;
-            }
-          }
-          if (!found) continue;
-          const replacementCandidates = state.edhrecData.cardlists.allNonLand
-            .filter(
-              (c) =>
-                !usedNames.has(c.name) &&
-                !bannedCards.has(c.name) &&
-                scryfallCardMap.has(c.name) &&
-                fitsColorIdentity(scryfallCardMap.get(c.name)!, colorIdentity) &&
-                // E101: pre-filter mirrors auditAdd's bracket-ceiling gate so
-                // an orphan eviction is never stranded by a rejected add.
-                !bracketGuard?.exceedsCeiling(c.name) &&
-                !(
-                  constrainsToCollection(collectionStrategy) &&
-                  notInCollection(c.name, context.collectionNames)
-                )
-            )
-            .sort((a, b) => b.inclusion - a.inclusion);
-          // Fall through past budget-exceeding candidates to the next-best one.
-          let replacement: (typeof replacementCandidates)[0] | undefined;
-          for (const cand of replacementCandidates) {
-            if (auditPassesBudget(scryfallCardMap.get(cand.name)!)) {
-              replacement = cand;
-              break;
-            }
-            comboBudgetSkipCount++;
-          }
-          if (!replacement) continue;
-          auditRemove(found.card, found.category);
-          // Gate on the result — an EDHREC-pool candidate should always be
-          // legal/unbanned/undupe by construction, but auditAdd is the sole
-          // backstop; an unchecked call here previously left the orphan
-          // evicted with nothing added back if it ever returned false.
-          if (auditAdd(scryfallCardMap.get(replacement.name)!)) {
-            auditSwaps++;
-            comboAuditRepairs.push({
-              cut: orphanName,
-              added: replacement.name,
-              reason: `${orphanName} was an orphaned piece of an incomplete combo (still missing ${trulyMissing.length} card${trulyMissing.length === 1 ? '' : 's'}) — swapped for ${replacement.name}.`,
-            });
-            logger.debug(
-              `[DeckGen] Combo audit: evicted orphan ${orphanName} (${auditInclusion.get(orphanName) ?? 0}% inclusion) → ${replacement.name}`
-            );
-          }
-        }
-      }
-    }
-
-    // Rebuild detectedCombos if deck changed so completeness flags are accurate
-    if (auditSwaps > 0) {
-      const newDeckNames = new Set<string>();
-      if (commander) {
-        newDeckNames.add(commander.name);
-        if (commander.name.includes(' // ')) newDeckNames.add(frontFaceName(commander.name));
-      }
-      if (partnerCommander) {
-        newDeckNames.add(partnerCommander.name);
-        if (partnerCommander.name.includes(' // '))
-          newDeckNames.add(frontFaceName(partnerCommander.name));
-      }
-      for (const c of Object.values(categories).flat()) {
-        newDeckNames.add(c.name);
-        if (c.name.includes(' // ')) newDeckNames.add(frontFaceName(c.name));
-      }
-      detectedCombos = detectedCombos
-        .map((dc) => {
-          const missing = dc.cards.filter((n) => !newDeckNames.has(n));
-          return { ...dc, isComplete: missing.length === 0, missingCards: missing };
-        })
-        .filter((dc) => dc.isComplete || dc.missingCards.length <= 2);
-      if (detectedCombos.length === 0) detectedCombos = undefined;
-      logger.debug(`[DeckGen] Combo audit complete: ${auditSwaps} swap(s) applied`);
-    }
-  }
+  // See deckGeneration/phaseComboAudit.ts for the implementation (moved
+  // verbatim, E68 mechanical split).
+  const comboAuditResult = comboIntegrityAuditPhase(state, {
+    detectedCombos,
+    scryfallCardMap,
+    budgetTracker,
+    bracketGuard,
+  });
+  detectedCombos = comboAuditResult.detectedCombos;
+  comboAuditRepairs.push(...comboAuditResult.repairs);
+  comboBudgetSkipCount += comboAuditResult.budgetSkipped;
+  comboAuditBracketBlockCount += comboAuditResult.bracketBlocked;
 
   // ── Combo Floor ──
   // If the deck has zero complete 2-card combos and bracket allows it,
@@ -5298,155 +4075,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
 
   // ── Post-Generation Fixup Pass (light touch) ──
-  // Only fix critical gaps: roles ≤50% of target, dead CMC 1/2 slots
-  if (state.edhrecData && customization.balancedRoles) {
-    const MAX_FIXUP_SWAPS = 5;
-    let fixupSwaps = 0;
-
-    const fixupMustIncludeSet = new Set([
-      ...customization.mustIncludeCards.map((n) => n.toLowerCase()),
-      ...customization.tempMustIncludeCards.map((n) => n.toLowerCase()),
-    ]);
-
-    // Helper: find the lowest-priority non-protected card matching a filter
-    // Never evict lands — they have their own target and shouldn't be swapped for spells
-    function findWeakestCard(
-      filter?: (card: ScryfallCard, cat: DeckCategory) => boolean
-    ): { card: ScryfallCard; category: DeckCategory } | null {
-      let weakest: { card: ScryfallCard; category: DeckCategory; priority: number } | null = null;
-      for (const cat of Object.keys(categories) as DeckCategory[]) {
-        if (cat === 'lands') continue;
-        const cards = categories[cat];
-        for (let i = cards.length - 1; i >= 0; i--) {
-          const card = cards[i];
-          if (fixupMustIncludeSet.has(card.name.toLowerCase())) continue;
-          if (comboCardNames.has(card.name)) continue;
-          if (filter && !filter(card, cat)) continue;
-          const priority = cards.length - i;
-          if (!weakest || priority < weakest.priority) {
-            weakest = { card, category: cat, priority };
-          }
-        }
-      }
-      return weakest ? { card: weakest.card, category: weakest.category } : null;
-    }
-
-    // Helper: remove a card from its category and update tracking
-    function fixupRemoveCard(card: ScryfallCard, category: DeckCategory) {
-      categories[category] = categories[category].filter((c) => c !== card);
-      usedNames.delete(card.name);
-      const role = getCardRole(card.name);
-      if (role && currentRoleCounts[role] > 0) currentRoleCounts[role]--;
-    }
-
-    // Helper: add a card to the appropriate category
-    function fixupAddCard(card: ScryfallCard) {
-      stampRoleSubtypes(card);
-      const role = getCardRole(card.name);
-      routeCardByType(card, categories);
-      usedNames.add(card.name);
-      if (role) currentRoleCounts[role] = (currentRoleCounts[role] || 0) + 1;
-    }
-
-    // In owned-only modes, fixup swaps must never inject an unowned card —
-    // restrict replacement candidates to cards the user owns.
-    const ownedOnly = constrainsToCollection(collectionStrategy);
-    const isOwnedCandidate = (name: string) =>
-      !ownedOnly || !notInCollection(name, context.collectionNames);
-
-    // Helper: find best EDHREC candidate for a role that's already fetched
-    function findRoleCandidate(role: RoleKey): ScryfallCard | null {
-      const candidates = state
-        .edhrecData!.cardlists.allNonLand.filter(
-          (c) =>
-            !usedNames.has(c.name) &&
-            !bannedCards.has(c.name) &&
-            getCardRole(c.name) === role &&
-            scryfallCardMap.has(c.name) &&
-            isOwnedCandidate(c.name)
-        )
-        .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
-      return candidates.length > 0 ? scryfallCardMap.get(candidates[0].name)! : null;
-    }
-
-    // 5a: Critical Role Deficits (≤50% of target)
-    if (roleTargets) {
-      const roleKeys: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
-      for (const role of roleKeys) {
-        if (fixupSwaps >= MAX_FIXUP_SWAPS) break;
-        const target = roleTargets[role] ?? 0;
-        const current = currentRoleCounts[role] ?? 0;
-        if (target > 0 && current <= target * 0.5) {
-          const swapsForRole = Math.min(2, MAX_FIXUP_SWAPS - fixupSwaps);
-          for (let i = 0; i < swapsForRole; i++) {
-            const weak = findWeakestCard((card) => getCardRole(card.name) !== role);
-            if (!weak) break;
-            const replacement = findRoleCandidate(role);
-            if (!replacement) break;
-            fixupRemoveCard(weak.card, weak.category);
-            fixupAddCard(replacement);
-            if (swapCandidates) {
-              const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
-              if (!swapCandidates[key]) swapCandidates[key] = [];
-              swapCandidates[key].push(weak.card);
-            }
-            fixupSwaps++;
-          }
-        }
-      }
-    }
-
-    // 5b: Dead CMC Slots (zero cards at CMC 1 or 2)
-    if (!customization.tinyLeaders && !customization.advancedTargets?.curvePercentages) {
-      for (const targetCmc of [1, 2]) {
-        if (fixupSwaps >= MAX_FIXUP_SWAPS) break;
-        const cardsAtCmc = Object.values(categories)
-          .flat()
-          .filter((c) => (c.cmc ?? 0) === targetCmc).length;
-        if (cardsAtCmc === 0) {
-          const cmcCounts: Record<number, number> = {};
-          for (const cards of Object.values(categories)) {
-            for (const card of cards) {
-              cmcCounts[card.cmc ?? 0] = (cmcCounts[card.cmc ?? 0] || 0) + 1;
-            }
-          }
-          const overfullEntry = Object.entries(cmcCounts)
-            .filter(([cmc]) => Number(cmc) !== targetCmc)
-            .sort(([, a], [, b]) => b - a)[0];
-          if (overfullEntry) {
-            const weak = findWeakestCard((card) => (card.cmc ?? 0) === Number(overfullEntry[0]));
-            if (weak) {
-              const candidates = state
-                .edhrecData!.cardlists.allNonLand.filter(
-                  (c) =>
-                    !usedNames.has(c.name) &&
-                    !bannedCards.has(c.name) &&
-                    scryfallCardMap.has(c.name) &&
-                    isOwnedCandidate(c.name) &&
-                    (scryfallCardMap.get(c.name)!.cmc ?? 0) === targetCmc
-                )
-                .sort((a, b) => calculateCardPriority(b) - calculateCardPriority(a));
-              if (candidates.length > 0) {
-                const replacement = scryfallCardMap.get(candidates[0].name)!;
-                fixupRemoveCard(weak.card, weak.category);
-                fixupAddCard(replacement);
-                if (swapCandidates) {
-                  const key = `type:${(getFrontFaceTypeLine(weak.card) || 'unknown').split(' ')[0].toLowerCase()}`;
-                  if (!swapCandidates[key]) swapCandidates[key] = [];
-                  swapCandidates[key].push(weak.card);
-                }
-                fixupSwaps++;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (fixupSwaps > 0) {
-      logger.debug(`[DeckGen] Fixup pass: ${fixupSwaps} swap(s) applied`);
-    }
-  }
+  // See deckGeneration/phasePostGenFixup.ts for the implementation (moved
+  // verbatim, E68 mechanical split). Only fixes critical gaps: roles ≤50% of
+  // target, dead CMC 1/2 slots.
+  postGenFixupPhase(state, { roleTargets, swapCandidates, scryfallCardMap });
 
   // ── Coherence Repair (E78 phase 3) ──
   // Run the coherence audit while the deck can still be mutated and repair a
