@@ -693,3 +693,41 @@ describe('BuildReportPanel', () => {
     });
   });
 });
+
+describe('BuildReportPanel — bracket-1 (Exhibition) expectations', () => {
+  it('renders the plain aimed-vs-estimated line for any bracket other than 1', () => {
+    const { container } = render(
+      <BuildReportPanel report={makeReport({ targetBracket: 4, estimatedBracket: 4 })} />
+    );
+    const line = container.querySelector('.build-report-bracket');
+    expect(line?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Aimed Bracket 4 → estimated 4');
+  });
+
+  it('explains Exhibition never reads below Core instead of just stating the mismatch', () => {
+    const { container } = render(
+      <BuildReportPanel report={makeReport({ targetBracket: 1, estimatedBracket: 2 })} />
+    );
+    const line = container.querySelector('.build-report-bracket');
+    expect(line?.textContent).toMatch(/Exhibition/);
+    expect(line?.textContent).toMatch(/themed-build intent/);
+    expect(line?.textContent).toMatch(/expected, not a miss/);
+  });
+});
+
+describe('BuildReportPanel — archetype disclosure', () => {
+  it('renders nothing when the report predates the archetype note', () => {
+    render(<BuildReportPanel report={makeReport()} />);
+    expect(screen.queryByText(/Built as/)).toBeNull();
+  });
+
+  it('renders the archetype note when present', () => {
+    render(
+      <BuildReportPanel
+        report={makeReport({
+          archetypeNote: 'Built as Enchantress — from EDHREC’s dominant theme for this commander.',
+        })}
+      />
+    );
+    expect(screen.getByText(/Built as Enchantress/)).toBeTruthy();
+  });
+});

@@ -81,11 +81,23 @@ export function deriveDeckIdentity(input: {
   selectedThemes?: ThemeResult[];
   /** Full mainboard (commanders optional); lands are filtered out internally. */
   cards: ScryfallCard[];
+  /**
+   * The archetype generation actually used (persisted `BuildReport.archetype`)
+   * — when present, this is the single source of truth for the headline
+   * label so it can never disagree with what generation built (role targets,
+   * auto land count, type floor). Generation consults EDHREC theme data that
+   * this function has no access to, so its own `pickArchetype` fallback below
+   * is a strictly worse guess whenever a persisted value exists. Undefined
+   * for manual/imported decks (no generation ever ran), which keeps today's
+   * oracle-text-driven fallback.
+   */
+  persistedArchetype?: Archetype;
 }): DeckIdentity {
   const selectedThemes = (input.selectedThemes ?? []).filter((t) => t.isSelected);
   const nonLand = input.cards.filter((c) => !isLand(c));
 
-  const archetypeLabel = ARCHETYPE_LABEL[pickArchetype(input.profile, selectedThemes)];
+  const archetype = input.persistedArchetype ?? pickArchetype(input.profile, selectedThemes);
+  const archetypeLabel = ARCHETYPE_LABEL[archetype];
 
   const { pacing } = detectPacing(nonLand, buildCurve(nonLand));
   const pacingShort = shortPacing(pacing);

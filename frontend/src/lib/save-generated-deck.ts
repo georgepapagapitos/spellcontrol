@@ -68,6 +68,7 @@ export function saveGeneratedDeck(
     customization,
     collectionNames,
     claimedConflicts: claimedConflicts > 0 ? claimedConflicts : undefined,
+    selectedThemes,
   });
 
   return createDeck({

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   inferArchetype,
   inferArchetypeFromEdhrecThemes,
+  inferArchetypeProvenance,
   getDynamicRoleTargets,
   isBoardCentricPlan,
 } from './roleTargets';
@@ -55,6 +56,38 @@ describe('inferArchetype', () => {
       archetype: Archetype.GOODSTUFF,
     };
     expect(inferArchetype([explicit], Archetype.TRIBAL)).toBe(Archetype.GOODSTUFF);
+  });
+});
+
+describe('inferArchetypeProvenance', () => {
+  it("is 'user-theme' when the first selected theme resolves to a real archetype", () => {
+    expect(inferArchetypeProvenance([theme('tokens')], Archetype.ENCHANTRESS, true)).toBe(
+      'user-theme'
+    );
+  });
+
+  it("is 'user-theme' even when EDHREC has no dominant theme — the user pick outranks it", () => {
+    expect(inferArchetypeProvenance([theme('tokens')], undefined, true)).toBe('user-theme');
+  });
+
+  it("falls through to 'edhrec-dominant' when the selected theme is unmapped (GOODSTUFF)", () => {
+    expect(inferArchetypeProvenance([theme('some-unmapped-theme')], Archetype.AGGRO, true)).toBe(
+      'edhrec-dominant'
+    );
+  });
+
+  it("falls through to 'edhrec-dominant' with no selected themes at all", () => {
+    expect(inferArchetypeProvenance(undefined, Archetype.AGGRO, true)).toBe('edhrec-dominant');
+  });
+
+  it("is 'neutral' when EDHREC theme data exists but nothing dominates and no theme was picked", () => {
+    expect(inferArchetypeProvenance(undefined, undefined, true)).toBe('neutral');
+    expect(inferArchetypeProvenance([theme('tokens', false)], undefined, true)).toBe('neutral');
+  });
+
+  it("is 'oracle-text' only when there's no EDHREC theme data and no user pick", () => {
+    expect(inferArchetypeProvenance(undefined, undefined, false)).toBe('oracle-text');
+    expect(inferArchetypeProvenance([], undefined, false)).toBe('oracle-text');
   });
 });
 

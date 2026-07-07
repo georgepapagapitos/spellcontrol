@@ -185,6 +185,7 @@ export function BuildReportPanel({
     generationMode,
     generationModeDetail,
     generationNote,
+    archetypeNote,
     landCountNote,
     mustIncludeSkippedNote,
     brewDialNote,
@@ -253,10 +254,20 @@ export function BuildReportPanel({
         </p>
       )}
 
-      <p className="build-report-line build-report-bracket">
-        Aimed Bracket <strong>{targetBracket}</strong> &rarr; estimated{' '}
-        <strong>{estimatedBracket}</strong>
-      </p>
+      {targetBracket === 1 ? (
+        <p className="build-report-line build-report-bracket">
+          Aimed Bracket <strong>1 (Exhibition)</strong> — estimated{' '}
+          <strong>{estimatedBracket}</strong>. Exhibition is a themed-build intent, not a measurable
+          power level, so estimates never read below Core (2) — this is expected, not a miss.
+        </p>
+      ) : (
+        <p className="build-report-line build-report-bracket">
+          Aimed Bracket <strong>{targetBracket}</strong> &rarr; estimated{' '}
+          <strong>{estimatedBracket}</strong>
+        </p>
+      )}
+
+      {archetypeNote && <p className="build-report-line build-report-source">{archetypeNote}</p>}
 
       {(!generationMode || generationMode === 'edhrec') && (
         <p className="build-report-line build-report-source">{humanizeDataSource(dataSource)}</p>

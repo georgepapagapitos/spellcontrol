@@ -68,12 +68,13 @@ import {
   estimatePacingFromStats,
   inferArchetype,
   inferArchetypeFromEdhrecThemes,
+  inferArchetypeProvenance,
   isBoardCentricPlan,
 } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
 import { ARCHETYPE_LABEL } from './strategyVocabulary';
 import { Archetype } from '@/deck-builder/types';
-import type { Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
+import type { ArchetypeProvenance, Pacing, RoleTargetBreakdown } from '@/deck-builder/types';
 import { loadUserLists } from '@/deck-builder/hooks/useUserLists';
 import {
   fitsColorIdentity,
@@ -1473,6 +1474,10 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   let roleTargets: Record<RoleKey, number> | null = null;
   let roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
   let detectedArchetype: Archetype | undefined;
+  // Which precedence tier decided detectedArchetype — persisted onto the
+  // build report (S3) so the archetype label the user sees always names
+  // where it came from instead of just asserting a value.
+  let detectedArchetypeProvenance: ArchetypeProvenance = 'oracle-text';
   // resolvedPacing is set after edhrecData is available; detectedPacing mirrors it for the return value
   let resolvedPacing: Pacing = 'balanced';
   let detectedPacing: Pacing = 'balanced';
@@ -2306,6 +2311,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   archetypeIsLowConfidence =
     edhrecThemeArchetype === undefined && !context.selectedThemes?.some((t) => t.isSelected);
   detectedArchetype = inferArchetype(context.selectedThemes, archetypeFallback);
+  detectedArchetypeProvenance = inferArchetypeProvenance(
+    context.selectedThemes,
+    edhrecThemeArchetype,
+    hasEdhrecThemeData
+  );
 
   // Dynamic role targets (blended EDHREC + archetype-model ramp/removal/
   // boardwipe/cardDraw slots) — computed once, unconditionally, so both the
@@ -6107,6 +6117,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     cardInclusionMap,
     cardRelevancyMap,
     detectedArchetype,
+    archetypeProvenance: detectedArchetypeProvenance,
+    archetypeIsLowConfidence,
     detectedPacing,
     bracketEstimation,
     gameChangerNames: [...state.gameChangerNames],

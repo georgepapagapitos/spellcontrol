@@ -135,6 +135,19 @@ export enum Archetype {
   GOODSTUFF = 'goodstuff',
 }
 
+/**
+ * Which precedence tier decided a deck's `detectedArchetype` (see
+ * `inferArchetypeProvenance` in roleTargets.ts) — persisted so the report/UI
+ * layer can explain the archetype label instead of just asserting it:
+ * - 'user-theme': the user's first selected theme resolved to a real archetype.
+ * - 'edhrec-dominant': EDHREC's own ranked commander-page themes had a clear
+ *   plurality strategy (see DOMINANT_THEME_SHARE).
+ * - 'neutral': EDHREC theme data exists but no theme dominates — GOODSTUFF.
+ * - 'oracle-text': no EDHREC theme data at all; fell back to the
+ *   commander-profile oracle-text keyword vote.
+ */
+export type ArchetypeProvenance = 'user-theme' | 'edhrec-dominant' | 'neutral' | 'oracle-text';
+
 // EDHREC Theme types
 export interface EDHRECTheme {
   name: string;
@@ -470,6 +483,20 @@ export interface BuildReport {
   estimatedBracket: number;
   /** Which EDHREC pool we ended up using (reveals silent fallbacks). */
   dataSource: DeckDataSource;
+  /** The archetype generation actually used for role targets, auto land count,
+   *  and the type floor — the single source of truth for "what archetype was
+   *  this deck built as" (see project S3: single-sourcing the archetype
+   *  label). Undefined only on reports assembled before this shipped. */
+  archetype?: Archetype;
+  /** Which precedence tier decided `archetype` (user theme pick, EDHREC
+   *  dominant theme, neutral goodstuff, or the oracle-text keyword vote) —
+   *  drives `archetypeNote`'s wording. */
+  archetypeProvenance?: ArchetypeProvenance;
+  /** Human-readable disclosure of the archetype and where it came from, e.g.
+   *  "Built as Enchantress — from EDHREC's dominant theme for this
+   *  commander." Includes a multi-theme addendum when more than one theme
+   *  was selected (role targets only follow the first). */
+  archetypeNote?: string;
   /** Which generation strategy the user chose (defaults to 'edhrec'). */
   generationMode?: GenerationMode;
   /** Mode-specific descriptor for the report (art motif slug, or print-year ceiling). */
@@ -685,6 +712,8 @@ export interface GeneratedDeck {
   cardInclusionMap?: Record<string, number>; // cardName → EDHREC inclusion %
   cardRelevancyMap?: Record<string, number>; // cardName → composite relevancy score (raw, 0-200+)
   detectedArchetype?: Archetype; // Archetype inferred from themes for dynamic role targeting
+  archetypeProvenance?: ArchetypeProvenance; // Which precedence tier decided detectedArchetype
+  archetypeIsLowConfidence?: boolean; // True when detectedArchetype fell all the way to the oracle-text keyword vote (no EDHREC theme data, no user theme pick)
   detectedPacing?: Pacing; // Pacing estimated from EDHREC stats at generation time
   bracketEstimation?: import('@/deck-builder/services/deckBuilder/bracketEstimator').BracketEstimation;
   gameChangerNames?: string[]; // Cached for bracket re-estimation on swap (avoids async)

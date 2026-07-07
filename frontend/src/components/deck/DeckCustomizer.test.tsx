@@ -190,3 +190,20 @@ describe('DeckCustomizer — Staples <-> Brew dial', () => {
     expect(update).toHaveBeenCalledWith({ brewLevel: 0.75 });
   });
 });
+
+describe('DeckCustomizer — Target Bracket (Exhibition expectations)', () => {
+  it('shows no bracket-1 helper text for any other bracket', () => {
+    render(
+      <DeckCustomizer customization={baseCustomization({ targetBracket: 3 })} update={vi.fn()} />
+    );
+    expect(screen.queryByText(/themed-build intent/)).toBeNull();
+  });
+
+  it('explains that Exhibition never reads below Core once bracket 1 is picked', () => {
+    render(
+      <DeckCustomizer customization={baseCustomization({ targetBracket: 1 })} update={vi.fn()} />
+    );
+    expect(screen.getByText(/themed-build intent/)).toBeTruthy();
+    expect(screen.getByText(/estimate it at Core \(2\) or higher/)).toBeTruthy();
+  });
+});

@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import {
   Archetype,
+  type ArchetypeProvenance,
   type DeckSize,
   type ThemeResult,
   type EDHRECCommanderStats,
@@ -255,6 +256,22 @@ export function inferArchetypeFromEdhrecThemes(themes?: EDHRECTheme[]): Archetyp
 }
 
 /**
+ * The archetype implied by the user's FIRST selected theme, if it resolves to
+ * one — shared by `inferArchetype` and `inferArchetypeProvenance` so the
+ * "does the first selected theme actually decide this?" check lives in
+ * exactly one place. Uses the theme's own `archetype` field if populated,
+ * else looks up its name; returns undefined (not GOODSTUFF) when nothing at
+ * all is selected OR the lookup finds nothing, so callers can tell "no
+ * signal" apart from "explicitly resolved to GOODSTUFF".
+ */
+function firstSelectedThemeArchetype(selectedThemes?: ThemeResult[]): Archetype | undefined {
+  const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
+  if (!selected.length) return undefined;
+  const lower = selected[0].name.toLowerCase().trim();
+  return selected[0].archetype ?? THEME_TO_ARCHETYPE[lower];
+}
+
+/**
  * Infer the archetype from the user's selected EDHREC themes. `fallback` is
  * used whenever theme-inference has nothing to say (no themes, none
  * selected, or the theme maps to the generic GOODSTUFF bucket) — pass the
@@ -268,17 +285,29 @@ export function inferArchetype(
   selectedThemes?: ThemeResult[],
   fallback: Archetype = Archetype.GOODSTUFF
 ): Archetype {
-  const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
-  if (!selected.length) return fallback;
+  return firstSelectedThemeArchetype(selectedThemes) ?? fallback;
+}
 
-  // Use existing archetype field if populated, else look up primary theme name.
-  // Only fall back to `fallback` when the lookup finds nothing at all
-  // (`matched` undefined) — an explicit pick that genuinely resolves to
-  // GOODSTUFF (e.g. a selected "Superfriends" theme) should stick, not be
-  // silently discarded as if nothing were selected.
-  const lower = selected[0].name.toLowerCase().trim();
-  const matched = selected[0].archetype ?? THEME_TO_ARCHETYPE[lower];
-  return matched ?? fallback;
+/**
+ * Which precedence tier decided `inferArchetype`'s result, for report/UI
+ * disclosure — mirrors `inferArchetype`'s own precedence chain (user's first
+ * selected theme > EDHREC's dominant theme > neutral goodstuff > oracle-text
+ * keyword vote) exactly, so the label shown to the user can never disagree
+ * with the archetype generation actually used. `edhrecThemeArchetype` and
+ * `hasEdhrecThemeData` are the same values the caller already computed via
+ * `inferArchetypeFromEdhrecThemes` for the `fallback` it passes to
+ * `inferArchetype` — passed in rather than recomputed here to keep this a
+ * pure classification with no EDHREC-fetching of its own.
+ */
+export function inferArchetypeProvenance(
+  selectedThemes: ThemeResult[] | undefined,
+  edhrecThemeArchetype: Archetype | undefined,
+  hasEdhrecThemeData: boolean
+): ArchetypeProvenance {
+  if (firstSelectedThemeArchetype(selectedThemes) !== undefined) return 'user-theme';
+  if (edhrecThemeArchetype !== undefined) return 'edhrec-dominant';
+  if (hasEdhrecThemeData) return 'neutral';
+  return 'oracle-text';
 }
 
 // ─── Base Targets (format-only, backward compat) ────────────────────

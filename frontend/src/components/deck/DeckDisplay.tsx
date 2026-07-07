@@ -1266,13 +1266,23 @@ export function DeckDisplay({
   );
 
   // Live-computed deck identity (archetype + pacing + themes), derived from the
-  // current card list so it stays honest as the deck is edited.
+  // current card list so it stays honest as the deck is edited. The archetype
+  // label single-sources from the persisted build report when this is a
+  // generated deck (buildReport.archetype — what generation actually used for
+  // role targets/land count/type floor), so the headline never disagrees with
+  // the build; manual/imported decks (no buildReport) keep the oracle-text
+  // fallback pickArchetype already computed from the commander alone.
   const identity = useMemo(
     () =>
       commanderProfile
-        ? deriveDeckIdentity({ profile: commanderProfile, selectedThemes, cards: allCards })
+        ? deriveDeckIdentity({
+            profile: commanderProfile,
+            selectedThemes,
+            cards: allCards,
+            persistedArchetype: buildReport?.archetype,
+          })
         : null,
-    [commanderProfile, selectedThemes, allCards]
+    [commanderProfile, selectedThemes, allCards, buildReport?.archetype]
   );
 
   // "Why this card" synergy reasons, keyed by card name. Computed from the
