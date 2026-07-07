@@ -1,19 +1,62 @@
 import {
   Archetype,
+  type ArchetypeProvenance,
   type BuildReport,
   type Customization,
   type DeckCategory,
   type GeneratedDeck,
+  type ThemeResult,
 } from '@/deck-builder/types';
 import { buildSynergyFingerprint, topMatchedTags } from './synergyFingerprint';
 import { isRoleExcess } from './deckAnalyzer';
 import { countProtectionPieces } from './commanderDeckAnalysis';
+import { ARCHETYPE_LABEL } from './strategyVocabulary';
 
 // Archetypes where a deck built with ZERO protection/free-interaction pieces
 // is a real gap worth flagging — Voltron (one big threat that needs Lightning
 // Greaves/Swiftfoot Boots/Heroic Intervention-class insurance) for v1. Not
 // broadened beyond this without panel evidence (E87-new Slice A).
 const PROTECTION_MOTIVATED_ARCHETYPES: Archetype[] = [Archetype.VOLTRON];
+
+/**
+ * Compose the report's archetype disclosure — the archetype AND which
+ * precedence tier decided it (S3: single-sourcing the archetype label), so
+ * the report never just asserts a value without saying where it came from.
+ * When more than one theme was selected, appends the multi-theme caveat:
+ * generation's role targets/land math only ever follow the FIRST selected
+ * theme (see `inferArchetype` in roleTargets.ts) — later themes still shape
+ * the card pool, but silently, so this makes that explicit.
+ */
+export function buildArchetypeNote(params: {
+  archetype: Archetype;
+  provenance: ArchetypeProvenance;
+  isLowConfidence: boolean;
+  firstThemeName?: string;
+  multiThemeSelected: boolean;
+}): string {
+  const label = ARCHETYPE_LABEL[params.archetype];
+  let base: string;
+  switch (params.provenance) {
+    case 'user-theme':
+      base = `Built as ${label} — from your ${params.firstThemeName ?? label} theme pick.`;
+      break;
+    case 'edhrec-dominant':
+      base = `Built as ${label} — from EDHREC's dominant theme for this commander.`;
+      break;
+    case 'neutral':
+      base = `Built as balanced ${label} — no single theme dominates this commander's EDHREC data.`;
+      break;
+    case 'oracle-text':
+      base = params.isLowConfidence
+        ? `Built as ${label} — read from the commander's card text (no EDHREC theme data to confirm it).`
+        : `Built as ${label} — from a read of the commander's card text.`;
+      break;
+  }
+  const multiClause = params.multiThemeSelected
+    ? ` Role targets follow your first theme (${params.firstThemeName}); all selected themes shape the card pool.`
+    : '';
+  return base + multiClause;
+}
 
 /**
  * Assemble the compact, persisted "build report" recording how a generated
@@ -30,8 +73,13 @@ export function assembleBuildReport(input: {
   customization: Customization;
   collectionNames: Set<string>;
   claimedConflicts?: number;
+  /** The deck's selected themes, for the archetype-note's "your X theme
+   *  pick" / multi-theme disclosure. Undefined for non-theme generators
+   *  (e.g. oracle-role, art-theme) — the note still discloses the archetype
+   *  itself, just without a theme name. */
+  selectedThemes?: ThemeResult[];
 }): BuildReport {
-  const { generated, customization, collectionNames, claimedConflicts } = input;
+  const { generated, customization, collectionNames, claimedConflicts, selectedThemes } = input;
 
   const builtFromCollection = generated.builtFromCollection ?? customization.collectionMode;
   const collectionStrategy = customization.collectionStrategy;
@@ -44,6 +92,23 @@ export function assembleBuildReport(input: {
     dataSource: generated.dataSource ?? 'base',
     builtFromCollection,
   };
+
+  // Archetype disclosure (S3): the single source of truth for "what archetype
+  // was this deck built as" — persisted alongside its provenance so the label
+  // the deck page/report show can never disagree with what generation
+  // actually used for role targets / auto land count / type floor.
+  if (generated.detectedArchetype != null) {
+    report.archetype = generated.detectedArchetype;
+    report.archetypeProvenance = generated.archetypeProvenance;
+    const selected = (selectedThemes ?? []).filter((t) => t.isSelected);
+    report.archetypeNote = buildArchetypeNote({
+      archetype: generated.detectedArchetype,
+      provenance: generated.archetypeProvenance ?? 'oracle-text',
+      isLowConfidence: generated.archetypeIsLowConfidence ?? false,
+      firstThemeName: selected[0]?.name,
+      multiThemeSelected: selected.length > 1,
+    });
+  }
 
   // Alternative generators: record how the deck was built for the report header.
   const mode = generated.generationMode ?? customization.generationMode ?? 'edhrec';

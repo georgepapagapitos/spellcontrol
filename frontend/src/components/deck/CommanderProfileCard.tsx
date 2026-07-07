@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { CommanderProfile } from '@/deck-builder/services/deckBuilder/commanderProfile';
+import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import { useCollapsedPref } from '../../lib/use-collapsed-pref';
 
 interface CommanderProfileCardProps {
@@ -73,7 +74,8 @@ export function CommanderProfileCard({
         )}
 
         <p className="cmdr-profile-footer">
-          Detected archetype: <strong>{primaryArchetype}</strong>
+          Reads as: <strong>{ARCHETYPE_LABEL[primaryArchetype]}</strong> (from card text — refined
+          at build time)
           {profile.suggestedThemes.length > 0 && <> · {themesNote}</>}
         </p>
       </div>

@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { assembleBuildReport } from './buildReport';
+import { assembleBuildReport, buildArchetypeNote } from './buildReport';
 import {
   Archetype,
   type Customization,
   type DeckCategory,
   type GeneratedDeck,
   type ScryfallCard,
+  type ThemeResult,
 } from '@/deck-builder/types';
+
+function theme(name: string, isSelected = true): ThemeResult {
+  return { name, source: 'edhrec', isSelected };
+}
 
 function makeCard(name: string): ScryfallCard {
   return {
@@ -735,5 +740,108 @@ describe('assembleBuildReport', () => {
         'Flagship Add': 'Swapped in: Reserved flagship seat',
       });
     });
+  });
+
+  // S3: archetype single-sourcing — the report persists the same archetype +
+  // provenance generation used for role targets/land count/type floor, so the
+  // label the user sees can never disagree with what was actually built.
+  describe('archetype disclosure', () => {
+    it('is absent when generation never resolved an archetype (pre-S3 reports, or no fixture override)', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+      });
+      expect(report.archetype).toBeUndefined();
+      expect(report.archetypeNote).toBeUndefined();
+    });
+
+    it('persists archetype + provenance and composes a note for each precedence branch', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          detectedArchetype: Archetype.ARISTOCRATS,
+          archetypeProvenance: 'user-theme',
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+        selectedThemes: [theme('Aristocrats')],
+      });
+      expect(report.archetype).toBe(Archetype.ARISTOCRATS);
+      expect(report.archetypeProvenance).toBe('user-theme');
+      expect(report.archetypeNote).toMatch(/Built as Aristocrats/);
+      expect(report.archetypeNote).toMatch(/your Aristocrats theme pick/);
+    });
+
+    it('appends the multi-theme caveat when more than one theme was selected', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          detectedArchetype: Archetype.ARISTOCRATS,
+          archetypeProvenance: 'user-theme',
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+        selectedThemes: [theme('Aristocrats'), theme('Lifegain')],
+      });
+      expect(report.archetypeNote).toMatch(
+        /Role targets follow your first theme \(Aristocrats\); all selected themes shape the card pool\./
+      );
+    });
+
+    it('does not append the multi-theme caveat for a single selected theme', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated({
+          detectedArchetype: Archetype.ARISTOCRATS,
+          archetypeProvenance: 'user-theme',
+        }),
+        customization: makeCustomization(),
+        collectionNames: new Set(),
+        selectedThemes: [theme('Aristocrats')],
+      });
+      expect(report.archetypeNote).not.toMatch(/Role targets follow/);
+    });
+  });
+});
+
+describe('buildArchetypeNote', () => {
+  it('names the EDHREC dominant theme for the edhrec-dominant tier', () => {
+    const note = buildArchetypeNote({
+      archetype: Archetype.ENCHANTRESS,
+      provenance: 'edhrec-dominant',
+      isLowConfidence: false,
+      multiThemeSelected: false,
+    });
+    expect(note).toBe("Built as Enchantress — from EDHREC's dominant theme for this commander.");
+  });
+
+  it('names the split-strategy reason for the neutral tier', () => {
+    const note = buildArchetypeNote({
+      archetype: Archetype.GOODSTUFF,
+      provenance: 'neutral',
+      isLowConfidence: false,
+      multiThemeSelected: false,
+    });
+    expect(note).toBe(
+      "Built as balanced Goodstuff — no single theme dominates this commander's EDHREC data."
+    );
+  });
+
+  it('softens the copy for a low-confidence oracle-text read', () => {
+    const note = buildArchetypeNote({
+      archetype: Archetype.VOLTRON,
+      provenance: 'oracle-text',
+      isLowConfidence: true,
+      multiThemeSelected: false,
+    });
+    expect(note).toMatch(/no EDHREC theme data to confirm it/);
+  });
+
+  it('states the oracle-text read plainly when not low-confidence', () => {
+    const note = buildArchetypeNote({
+      archetype: Archetype.VOLTRON,
+      provenance: 'oracle-text',
+      isLowConfidence: false,
+      multiThemeSelected: false,
+    });
+    expect(note).toBe("Built as Voltron — from a read of the commander's card text.");
   });
 });
