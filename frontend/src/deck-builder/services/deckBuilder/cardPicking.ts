@@ -563,7 +563,7 @@ export function pickFromPrefetchedWithCurve(
     if (!role) return false;
     const target = roleCapConfig.roleTargets[role] ?? 0;
     if (target <= 0) return false;
-    return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role);
+    return (liveRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
   };
 
   // Filter and sort ALL candidates by priority (synergy + combo + owned-first bias)

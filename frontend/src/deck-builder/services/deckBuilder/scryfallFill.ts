@@ -203,7 +203,7 @@ export async function fillWithScryfall(
           const target = gates.roleCap.roleTargets[role] ?? 0;
           if (
             target > 0 &&
-            (gates.roleCap.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role)
+            (gates.roleCap.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target)
           ) {
             capSkipped.push(card);
             return false;

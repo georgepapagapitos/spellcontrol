@@ -600,7 +600,7 @@ export function isOverRoleCap(
   if (!role) return false;
   const target = roleTargets[role] ?? 0;
   if (target <= 0) return false;
-  return (currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role);
+  return (currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
 }
 
 export function bumpRoleCapCount(

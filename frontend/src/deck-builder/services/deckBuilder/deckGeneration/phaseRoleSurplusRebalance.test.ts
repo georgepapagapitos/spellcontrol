@@ -279,7 +279,7 @@ describe('applyRoleSurplusRebalance', () => {
   // wipe is the first evicted even when its priority is highest.
   it('E112/E113: evicts the high-collateral symmetric wipe first, keeping the one-sided and low-collateral ones', () => {
     const state = makeState();
-    // boardwipe target 1 -> tolerance 1 (roleCapTolerance boardwipe branch) -> cap 2; three wipes = 1 over.
+    // boardwipe target 2 -> BOARDWIPE_SURPLUS_TOLERANCE 0 -> cap 2; three wipes = 1 over.
     addBoardWipes(state, [
       { name: 'Ruinous Ultimatum', oneSided: true }, // penalty 0 -> KEEP (best wipe)
       { name: 'Wrath of God', scope: { creatures: true } }, // symmetric, 0 non-creature collateral -> KEEP
@@ -290,13 +290,13 @@ describe('applyRoleSurplusRebalance', () => {
     } as unknown as GenerationState['edhrecData'];
     // Enchantment-heavy own board so Farewell's collateral term bites.
     const deckTypeTargets = { creature: 10, artifact: 5, enchantment: 20, instant: 5, sorcery: 5 };
-    const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+    const roleTargets = { ramp: 0, removal: 0, boardwipe: 2, cardDraw: 0 };
     const result = applyRoleSurplusRebalance(
       state,
       makeCtx(state, { roleTargets, deckTypeTargets })
     );
 
-    // Exactly one wipe evicted (down to cap 2), and it's the high-collateral modal one.
+    // Exactly one wipe evicted (down to cap 2 = target), and it's the high-collateral modal one.
     expect(result.conversions).toHaveLength(1);
     expect(result.conversions[0].cut).toBe('Farewell');
     expect(state.usedNames.has('Farewell')).toBe(false);
@@ -1016,13 +1016,14 @@ describe('applyRoleSurplusRebalance', () => {
     });
   });
 
-  // E113: board wipes get a tighter role-cap tolerance (1, not the generic
-  // max(2, 20%)) — see categorize.ts's roleCapTolerance. This pass's own
-  // capOf() reads that same function, so a wipe count sitting at the OLD
-  // target+2 ceiling (previously exactly AT cap, never triggering this pass
-  // at all — see project_deckgen_eval_loop's panel evidence: atraxa-b2 5 vs
-  // target 3, isshin 4 vs 2) now reads as 1-over and gets evicted down.
-  describe('boardwipe overshoot cap (E113)', () => {
+  // E112/E113: board wipes are trimmed to EXACTLY target here (0 slack), unlike
+  // every other reactive role's generic max(2, 20%) band. The tightening lives
+  // ONLY in this post-fill pass (BOARDWIPE_SURPLUS_TOLERANCE), not at pick time,
+  // so the deck-appropriate low-inclusion wipes get picked and the quality-aware
+  // survival score below chooses which survive. Panel evidence: atraxa-b2 /
+  // isshin / sythis carried target+1/+2 wipe piles the critics flagged as
+  // self-defeating (see project_deckgen_eval_loop).
+  describe('boardwipe overshoot cap (E112/E113)', () => {
     function addWipeCards(state: GenerationState, count: number, prefix = 'Wipe'): ScryfallCard[] {
       const cards = Array.from({ length: count }, (_, i) => scryfallCard(`${prefix}_${i + 1}`));
       for (const c of cards) {
@@ -1033,25 +1034,27 @@ describe('applyRoleSurplusRebalance', () => {
       return cards;
     }
 
-    it('evicts a wipe count at the old target+2 ceiling down to target+1', () => {
+    it('trims a wipe overshoot down to exactly target (tolerance 0)', () => {
       const state = makeState();
-      addWipeCards(state, 5); // target 3 -> new cap 3+1=4; was never over the old 3+2=5 cap
+      addWipeCards(state, 5); // target 3 -> cap 3 (tol 0) -> 2 over
       state.edhrecData = {
-        cardlists: { allNonLand: [edhrecCard('Wipe Payoff', 90)] },
+        cardlists: {
+          allNonLand: [edhrecCard('Wipe Payoff 1', 90), edhrecCard('Wipe Payoff 2', 85)],
+        },
       } as unknown as GenerationState['edhrecData'];
       const roleTargets = { ramp: 0, removal: 0, boardwipe: 3, cardDraw: 0 };
       const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
 
-      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions).toHaveLength(2);
       const remainingWipes = state.categories.synergy.filter(
         (c) => ROLE_OF.get(c.name) === 'boardwipe'
       );
-      expect(remainingWipes).toHaveLength(4); // target + 1, never the old target + 2
+      expect(remainingWipes).toHaveLength(3); // exactly target, no slack
     });
 
-    it('never evicts a board-centric wipe target (E109-shaved floor of 1) below its own target', () => {
+    it('trims down to target but never below it (target as the floor)', () => {
       const state = makeState();
-      addWipeCards(state, 4); // target 1 -> new cap 1+1=2 -> needs 2 conversions to reach cap
+      addWipeCards(state, 3); // target 1 -> cap 1 (tol 0) -> 2 over
       state.edhrecData = {
         cardlists: {
           allNonLand: [edhrecCard('Wipe Payoff 1', 90), edhrecCard('Wipe Payoff 2', 85)],
@@ -1064,14 +1067,12 @@ describe('applyRoleSurplusRebalance', () => {
       const remainingWipes = state.categories.synergy.filter(
         (c) => ROLE_OF.get(c.name) === 'boardwipe'
       );
-      // Bounded at target + 1 (2), and never zeroed out below the target (1).
-      expect(remainingWipes.length).toBeLessThanOrEqual(2);
-      expect(remainingWipes.length).toBeGreaterThanOrEqual(1);
+      expect(remainingWipes).toHaveLength(1); // trimmed to target, never below
     });
 
-    it('is an exact no-op when the wipe count is already within the tightened cap', () => {
+    it('is an exact no-op when the wipe count is already at target', () => {
       const state = makeState();
-      addWipeCards(state, 4); // target 3 -> new cap 3+1=4, exactly at cap (not over)
+      addWipeCards(state, 3); // target 3 -> cap 3, exactly at cap (not over)
       const before = state.categories.synergy;
       const roleTargets = { ramp: 0, removal: 0, boardwipe: 3, cardDraw: 0 };
       const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));

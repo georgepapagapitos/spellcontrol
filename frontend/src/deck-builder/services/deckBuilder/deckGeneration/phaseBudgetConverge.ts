@@ -403,7 +403,7 @@ export async function applyBudgetConvergence(
     if (!role) return false;
     const target = ctx.roleTargets[role] ?? 0;
     if (target <= 0) return false;
-    return (state.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target, role);
+    return (state.currentRoleCounts[role] ?? 0) >= target + roleCapTolerance(target);
   };
 
   const commitAdd = (card: ScryfallCard) => {

@@ -196,33 +196,20 @@ describe('computeRoleBoosts', () => {
   });
 });
 
-// E113: board wipes get a tighter role-cap tolerance than every other
-// reactive role — a surplus wipe actively hurts a deck (torches board state)
-// rather than just being a weaker filler slot, so its admission band is
-// narrower. This is the one function every hard-cap gate (pick loop,
-// Scryfall fallback, budget/bracket convergence, flagship seating) and the
-// post-fill role-surplus rebalance's own cap share, so tightening it here
-// closes the observed target+2 overshoot everywhere at once.
-describe('roleCapTolerance (E113)', () => {
-  it('boardwipe gets tolerance 1 regardless of target size (tighter than the generic band)', () => {
-    expect(roleCapTolerance(1, 'boardwipe')).toBe(1);
-    expect(roleCapTolerance(2, 'boardwipe')).toBe(1);
-    expect(roleCapTolerance(3, 'boardwipe')).toBe(1);
-    expect(roleCapTolerance(10, 'boardwipe')).toBe(1);
+// roleCapTolerance is the generic pick-time band (max 2, else 20% of target),
+// role-agnostic. E113's tighter board-wipe cap is NOT here — it lives in
+// phaseRoleSurplusRebalance's post-fill BOARDWIPE_SURPLUS_TOLERANCE (trim to
+// exactly target), so pick time stays generous and the quality-aware rebalance
+// does the wipe trim. See phaseRoleSurplusRebalance.test.ts.
+describe('roleCapTolerance', () => {
+  it('floors at 2 cards for small targets', () => {
+    expect(roleCapTolerance(1)).toBe(2);
+    expect(roleCapTolerance(5)).toBe(2);
   });
 
-  it('every other reactive role keeps the generic max(2, 20%) band', () => {
-    expect(roleCapTolerance(3, 'ramp')).toBe(2);
-    expect(roleCapTolerance(3, 'removal')).toBe(2);
-    expect(roleCapTolerance(3, 'cardDraw')).toBe(2);
+  it('scales to 20% of target once that exceeds 2', () => {
     expect(roleCapTolerance(10)).toBe(2);
-  });
-
-  it('a boardwipe target of 1 (E109-shaved floor) never zeroes: cap = target + 1 = 2', () => {
-    expect(1 + roleCapTolerance(1, 'boardwipe')).toBe(2);
-  });
-
-  it('omitting role keeps the exact pre-E113 generic behavior (backward compatible)', () => {
-    expect(roleCapTolerance(5)).toBe(Math.max(2, Math.round(5 * 0.2)));
+    expect(roleCapTolerance(15)).toBe(3);
+    expect(roleCapTolerance(20)).toBe(4);
   });
 });

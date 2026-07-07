@@ -122,6 +122,19 @@ const MIN_IMPROVEMENT_MARGIN = 15;
 
 const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
 
+// E112/E113: board wipes are trimmed to EXACTLY target here (0 slack), unlike
+// the generic max(2,20%) band every other reactive role keeps. A surplus wipe
+// torches the deck's own board rather than being a merely-weaker filler slot,
+// so its overshoot (the critic-flagged target+1/+2 wipe piles) is trimmed away,
+// and the survival score's wipeQualityPenalty evicts the highest-collateral /
+// symmetric wipes FIRST — so an enchantress keeps Wrath and sheds Farewell,
+// a go-wide deck keeps a one-sided wipe over a symmetric one. This lives ONLY
+// here (post-fill), NOT in the pick-time roleCapTolerance: pick time stays
+// generous so the deck-appropriate low-inclusion wipes actually get picked for
+// this pass to choose among; rationing them at pick time cuts by raw priority
+// and drops exactly the wipe we want to protect.
+const BOARDWIPE_SURPLUS_TOLERANCE = 0;
+
 const ROLE_LABEL: Record<RoleKey, string> = {
   ramp: 'ramp',
   removal: 'removal',
@@ -274,7 +287,9 @@ export function applyRoleSurplusRebalance(
 
   const capOf = (role: RoleKey): number => {
     const target = roleTargets[role] ?? 0;
-    return target + roleCapTolerance(target, role);
+    return role === 'boardwipe'
+      ? target + BOARDWIPE_SURPLUS_TOLERANCE
+      : target + roleCapTolerance(target);
   };
   const isOverCap = (role: RoleKey): boolean => {
     const target = roleTargets[role] ?? 0;
