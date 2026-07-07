@@ -445,18 +445,24 @@ export function wipeOwnBoardCollateral(
 // quality at all.
 //
 // Deliberately NOT a capped nudge (packageBoost.ts's ~15-30 range) — same
-// "has to actually win the slot" rationale as wipeAsymmetryTieBreak's own
-// doc: a symmetric wipe is ALWAYS worse to keep than a one-sided one
-// (WIPE_QUALITY_SYMMETRIC_PENALTY is a hard tier, comfortably clearing
-// calculateCardPriority's ~0-250 range), while collateral scales the
-// penalty by how much of the deck's own board the wipe actually threatens
-// (0 to WIPE_QUALITY_COLLATERAL_PENALTY, proportional to the
-// enchantment+artifact share wipeOwnBoardCollateral computes) rather than
-// another flat tier — two symmetric wipes competing for the same slot
-// should still differ by how MUCH collateral they carry, not just whether
-// they carry any.
+// "has to actually win the slot" rationale as wipeAsymmetryTieBreak's own doc.
+// Both quality axes are TIERS that dominate calculateCardPriority's ~0-250
+// range (plus a ~30 lift boost), so raw popularity can never keep a worse wipe:
+//  - asymmetry: a symmetric wipe is always worse to keep than a one-sided one
+//    (WIPE_QUALITY_SYMMETRIC_PENALTY).
+//  - own-board collateral: a wipe that ALSO nukes the deck's own enchantments /
+//    artifacts is always worse to keep than a clean same-asymmetry wipe. This
+//    MUST be a tier too, not a small scaled nudge — a splashy modal sweeper
+//    (Farewell, 16-26% incl) out-includes a clean Wrath (10%) by more than a
+//    share-scaled penalty could ever cover, so it would survive on raw
+//    popularity (the E103 "a small nudge can't close a 20-40pt inclusion gap"
+//    lesson, learned again the hard way in iter-15 r3). So any nonzero
+//    collateral clears a flat BASE tier at once, then a share-scaled term
+//    orders collateral-bearing wipes among themselves (more own-board mass
+//    threatened = worse).
 export const WIPE_QUALITY_SYMMETRIC_PENALTY = 1000;
-export const WIPE_QUALITY_COLLATERAL_PENALTY = 200;
+export const WIPE_QUALITY_COLLATERAL_BASE = 400;
+export const WIPE_QUALITY_COLLATERAL_SCALE = 200;
 
 export function wipeQualityPenalty(
   card: ScryfallCard,
@@ -466,8 +472,10 @@ export function wipeQualityPenalty(
 ): number {
   let penalty = isOneSidedWipe(card) ? 0 : WIPE_QUALITY_SYMMETRIC_PENALTY;
   if (deckTypeTargets) {
-    penalty +=
-      wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets) * WIPE_QUALITY_COLLATERAL_PENALTY;
+    const collateral = wipeOwnBoardCollateral(card, getWipeScope, deckTypeTargets);
+    if (collateral > 0) {
+      penalty += WIPE_QUALITY_COLLATERAL_BASE + collateral * WIPE_QUALITY_COLLATERAL_SCALE;
+    }
   }
   return penalty;
 }

@@ -8,7 +8,8 @@ import {
   OWNED_PRIORITY_BOOST,
   wipeQualityPenalty,
   WIPE_QUALITY_SYMMETRIC_PENALTY,
-  WIPE_QUALITY_COLLATERAL_PENALTY,
+  WIPE_QUALITY_COLLATERAL_BASE,
+  WIPE_QUALITY_COLLATERAL_SCALE,
 } from './cardPicking';
 import { BracketGuard, bracketCeilings } from './bracketGuard';
 import type { EDHRECCard, ScryfallCard } from '@/deck-builder/types';
@@ -1326,11 +1327,14 @@ describe('wipeQualityPenalty (E112/E113)', () => {
     );
     // Farewell exiles the enchantress's own enchantments+artifacts -> strictly worse to keep.
     expect(modal).toBeGreaterThan(wrath);
-    // Collateral term = (enchantment+artifact share) * penalty, added on top of the symmetric tier.
+    // Collateral is a flat BASE tier (dominates priority) + a share-scaled term,
+    // added on top of the symmetric tier.
     const nonLand = Object.values(enchantressTargets).reduce((s, v) => s + v, 0);
     const share = (enchantressTargets.enchantment + enchantressTargets.artifact) / nonLand;
     expect(modal).toBeCloseTo(
-      WIPE_QUALITY_SYMMETRIC_PENALTY + share * WIPE_QUALITY_COLLATERAL_PENALTY
+      WIPE_QUALITY_SYMMETRIC_PENALTY +
+        WIPE_QUALITY_COLLATERAL_BASE +
+        share * WIPE_QUALITY_COLLATERAL_SCALE
     );
   });
 

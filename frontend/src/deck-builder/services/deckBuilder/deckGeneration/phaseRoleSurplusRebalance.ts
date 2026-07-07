@@ -122,18 +122,22 @@ const MIN_IMPROVEMENT_MARGIN = 15;
 
 const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
 
-// E112/E113: board wipes are trimmed to EXACTLY target here (0 slack), unlike
-// the generic max(2,20%) band every other reactive role keeps. A surplus wipe
-// torches the deck's own board rather than being a merely-weaker filler slot,
-// so its overshoot (the critic-flagged target+1/+2 wipe piles) is trimmed away,
-// and the survival score's wipeQualityPenalty evicts the highest-collateral /
-// symmetric wipes FIRST — so an enchantress keeps Wrath and sheds Farewell,
-// a go-wide deck keeps a one-sided wipe over a symmetric one. This lives ONLY
-// here (post-fill), NOT in the pick-time roleCapTolerance: pick time stays
-// generous so the deck-appropriate low-inclusion wipes actually get picked for
-// this pass to choose among; rationing them at pick time cuts by raw priority
-// and drops exactly the wipe we want to protect.
-const BOARDWIPE_SURPLUS_TOLERANCE = 0;
+// E112/E113: board wipes get a TIGHTER surplus band than the generic
+// max(2,20%) — a surplus wipe torches the deck's own board rather than being a
+// merely-weaker filler slot, so the critic-flagged target+2 wipe piles get
+// trimmed. Set to 1 (cap = target + 1), NOT 0: trimming to exactly target
+// pushed at-target decks UNDER their own wipe target in iter-15 r3 (atraxa 3/3
+// -> 2, meren 2/1 -> 0), which reads as under-provisioned removal. target+1
+// trims only the genuine overshoots (sythis 4/2, isshin 3/1) and leaves
+// at-target/at-target+1 decks alone. The survival score's wipeQualityPenalty
+// evicts the highest-collateral / symmetric wipes FIRST, so an enchantress
+// sheds Farewell/Austere before Wrath/Winds of Rath and a go-wide deck keeps
+// its one-sided wipe. This lives ONLY here (post-fill), NOT in the pick-time
+// roleCapTolerance: pick time stays generous so the deck-appropriate
+// low-inclusion wipes actually get picked for this pass to choose among;
+// rationing them at pick time cuts by raw priority and drops exactly the wipe
+// we want to protect.
+const BOARDWIPE_SURPLUS_TOLERANCE = 1;
 
 const ROLE_LABEL: Record<RoleKey, string> = {
   ramp: 'ramp',
