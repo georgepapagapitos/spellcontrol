@@ -226,57 +226,6 @@
   list-style: none;
 }
 
-/* ── Cuts disclosure ────────────────────────────────────────────────────── */
-
-.coach-feed-cuts {
-  border-top: 0.5px solid var(--border);
-  padding-top: var(--space-2);
-  margin-top: var(--space-1);
-}
-
-.coach-feed-cuts-title {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  list-style: none;
-  font-family: var(--font-serif);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-}
-
-.coach-feed-cuts-title::-webkit-details-marker {
-  display: none;
-}
-
-.coach-feed-cuts-chevron {
-  transition: transform var(--motion-fast) ease;
-  color: var(--text-muted);
-}
-
-.coach-feed-cuts[open] .coach-feed-cuts-chevron {
-  transform: rotate(180deg);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .coach-feed-cuts-title:hover .coach-feed-cuts-chevron {
-    color: var(--accent);
-  }
-}
-
-.coach-feed-cuts-list {
-  margin-top: var(--space-2);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .coach-feed-cuts-chevron {
-    transition: none;
-  }
-}
-
 /* ── Empty states ───────────────────────────────────────────────────────── */
 
 /* Filter empty: when a chip filter returns nothing but allChanges is non-empty. */
@@ -343,10 +292,12 @@
 /* ── EDHREC browser section ─────────────────────────────────────────────── */
 
 /* Ported from the deleted ImproveLane.css `.improve-lane-section` family —
-   same visual treatment, now owned here. */
+   same visual treatment, now owned here. Sits between the filter header and
+   the feed rows, so it's bracketed by hairlines to read as its own band. */
 .coach-feed-browser-section {
   border-top: 0.5px solid var(--border);
-  padding-top: var(--space-2);
+  border-bottom: 0.5px solid var(--border);
+  padding: var(--space-2) 0;
 }
 
 .coach-feed-browser-section > summary {
