@@ -21,6 +21,7 @@ import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
 import { friendsRouter } from './routes/friends';
 import { usersRouter } from './routes/users';
+import { gameNightsRouter, lookupGameNightLandingMeta } from './routes/game-nights';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import {
@@ -146,6 +147,7 @@ app.use('/api/offline', offlineRouter);
 app.use('/api/scanner', scannerRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/game-nights', gameNightsRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the
@@ -835,6 +837,7 @@ if (existsSync(SPA_DIR)) {
   // index.html, but after every /api/* route so nothing here can shadow
   // the API surface.
   app.get('/s/:token', createShareLandingHandler(SPA_DIR));
+  app.get('/gn/:token', createShareLandingHandler(SPA_DIR, lookupGameNightLandingMeta));
 
   app.use(
     express.static(SPA_DIR, {

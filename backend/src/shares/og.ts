@@ -12,8 +12,8 @@ import {
   findListById,
 } from './projections';
 
-const ORIGIN = 'https://spellcontrol.com';
-const SITE_NAME = 'SpellControl';
+export const ORIGIN = 'https://spellcontrol.com';
+export const SITE_NAME = 'SpellControl';
 const FALLBACK_DESCRIPTION = 'A read-only view of a SpellControl Magic: The Gathering collection.';
 const OG_IMAGE_URL = `${ORIGIN}/og-image.png`;
 
@@ -158,14 +158,18 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
 }
 
 /**
- * Express handler for `GET /s/:token`. Reads `<spaDir>/index.html` once at
+ * Express handler for `GET /s/:token` (and, via a custom `lookup`, any other
+ * token-landing route like `/gn/:token`). Reads `<spaDir>/index.html` once at
  * factory-call time (kept in a closure so we don't re-read per request), then
- * for each hit looks up the share, injects OG + noindex into <head>, and
- * sends it back. DB / template errors fall back to the bare SPA shell with
+ * for each hit looks up the token's meta, injects OG + noindex into <head>,
+ * and sends it back. DB / template errors fall back to the bare SPA shell with
  * just the noindex meta — the React app then renders its own 404 / loading
- * state from the same `/api/shares/public/:token` endpoint it always uses.
+ * state from the same public endpoint it always uses.
  */
-export function createShareLandingHandler(spaDir: string): RequestHandler {
+export function createShareLandingHandler(
+  spaDir: string,
+  lookup: (token: string) => Promise<ShareLandingMeta | null> = lookupShareLandingMeta
+): RequestHandler {
   const indexPath = path.join(spaDir, 'index.html');
   let cachedShell: string | null = null;
   const loadShell = (): string => {
@@ -186,7 +190,7 @@ export function createShareLandingHandler(spaDir: string): RequestHandler {
     }
     let meta: ShareLandingMeta | null = null;
     try {
-      meta = await lookupShareLandingMeta(token);
+      meta = await lookup(token);
     } catch (err) {
       logger.warn('[shares/og] lookup failed, serving bare shell with noindex:', err);
     }

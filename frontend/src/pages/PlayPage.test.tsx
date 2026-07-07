@@ -14,12 +14,12 @@ function renderPage(initialEntry = '/play') {
 }
 
 describe('PlayPage tabs', () => {
-  it('renders Local/Online/History through the shared Tabs primitive', () => {
+  it('renders Local/Online/Game nights/History through the shared Tabs primitive', () => {
     const { container } = renderPage();
     const tablist = screen.getByRole('tablist', { name: 'Play sections' });
     expect(tablist.classList.contains('sc-tabs')).toBe(true);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Local', 'Online', 'History']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Local', 'Online', 'Game nights', 'History']);
     // No hand-rolled strip left behind.
     expect(container.querySelector('.play-tabs')).toBeNull();
   });

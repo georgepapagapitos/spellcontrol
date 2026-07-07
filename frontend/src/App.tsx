@@ -21,6 +21,7 @@ import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
+import { GameNightView } from './pages/GameNightView';
 import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
 import { FriendsPage } from './pages/FriendsPage';
@@ -196,6 +197,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
+        <Route path="/gn/:token" element={<GameNightView />} />
         <Route
           path="*"
           element={
@@ -221,6 +223,7 @@ export default function App() {
       <AutoLinkBanner />
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
+        <Route path="/gn/:token" element={<GameNightView />} />
         {/* Root: the public marketing landing for first-time/logged-out
             visitors (and search-engine crawlers — empty storage + guest auth),
             otherwise straight into the app. Rendered outside <Layout> so the
