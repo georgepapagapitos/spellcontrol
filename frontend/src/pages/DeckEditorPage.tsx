@@ -100,8 +100,18 @@ import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSel
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
+import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
-import { getCardPrice, getCardByName } from '../deck-builder/services/scryfall/client';
+import { getCardPrice, getCardByName, searchCards } from '../deck-builder/services/scryfall/client';
+
+// Fetch strong on-color fixing lands for the "Re-analyze lands" tool's acquire
+// rows (duals the user may not own yet). The deck's identity letters are passed
+// as the search hook's query string; this parses them back into a color filter.
+// edhrec order surfaces the popular duals first, bounded by the hook's limit.
+// Module-level (stable ref) as useSearchCards requires. Basics excluded; the
+// merit engine ranks and filters what's returned.
+const fetchFixingLands = (identityKey: string): Promise<ScryfallCard[]> =>
+  searchCards('t:land -t:basic', identityKey.split(''), { order: 'edhrec' }).then((r) => r.data);
 import type { WinConditionAnalysis } from '@/deck-builder/services/winConditions/types';
 
 /**
@@ -744,23 +754,40 @@ export function DeckEditorPage() {
     });
   }, [deck, ownedNames, collectionCards, commanderColorIdentity]);
 
-  // Merit-based land upgrades — the "Re-analyze lands" tool. Scores the user's
-  // OWNED lands by intrinsic strength (popularity-blind, so a strong new land
-  // EDHREC hasn't rated still surfaces) and proposes safe swaps for weak lands
-  // in the deck. EnrichedCard is camelCase and lacks produced_mana; we map it to
-  // the ScryfallCard shape the engine reads (producedManaColors' oracle-text
-  // fallback recovers colors) — mirroring classifyOwnedCommanderPlaystyles.
+  // Strong on-color duals for the deck's colors, fetched live for the
+  // "Re-analyze lands" tool's acquire rows (duals worth getting, not just ones
+  // you own). Gated to 2+ color decks (minLength 2) — mono-color decks have no
+  // duals to fetch; the owned-swap path still works for them. Cached 10min by
+  // the search client, so re-opens are cheap. Failure is silent → owned-only.
+  const identityKey = useMemo(
+    () => [...commanderColorIdentity].sort().join(''),
+    [commanderColorIdentity]
+  );
+  const { results: fetchedFixingLands } = useSearchCards(identityKey, {
+    fetcher: fetchFixingLands,
+    limit: 60,
+    minLength: 2,
+  });
+
+  // Merit-based land upgrades — the "Re-analyze lands" tool. Scores on-color
+  // candidate lands by intrinsic strength (popularity-blind, so a strong new
+  // land EDHREC hasn't rated still surfaces) and proposes safe swaps for weak
+  // lands in the deck. Candidate pool = the user's OWNED unused lands (apply-now)
+  // + the fetched duals above (acquire). EnrichedCard is camelCase and lacks
+  // produced_mana; we map owned copies to the ScryfallCard shape the engine reads
+  // (producedManaColors' oracle-text fallback recovers colors) — mirroring
+  // classifyOwnedCommanderPlaystyles. Fetched cards are already full ScryfallCards.
   const landUpgrades = useMemo(() => {
     if (!deck) return [];
     const identity = new Set(commanderColorIdentity);
     if (identity.size === 0) return [];
     const seen = new Set<string>();
-    const ownedLands: ScryfallCard[] = [];
+    const candidateLands: ScryfallCard[] = [];
     for (const c of collectionCards) {
       if (!c.typeLine?.toLowerCase().includes('land')) continue;
       if (seen.has(c.name)) continue;
       seen.add(c.name);
-      ownedLands.push({
+      candidateLands.push({
         name: c.name,
         type_line: c.typeLine,
         oracle_text: c.oracleText,
@@ -770,8 +797,13 @@ export function DeckEditorPage() {
         layout: c.layout,
       } as ScryfallCard);
     }
-    return computeLandUpgrades(deckCards, identity, ownedLands);
-  }, [deck, commanderColorIdentity, collectionCards, deckCards]);
+    for (const c of fetchedFixingLands) {
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      candidateLands.push(c);
+    }
+    return computeLandUpgrades(deckCards, identity, candidateLands, ownedNames);
+  }, [deck, commanderColorIdentity, collectionCards, deckCards, fetchedFixingLands, ownedNames]);
 
   // `/` opens the search panel; `c` jumps to the Power tab and reveals the
   // combos panel; `a` opens the Coach tab (suggestions). Skipped while the user
