@@ -20,6 +20,8 @@ import {
   CHANNEL_LANDS,
   getCardByName,
   getCachedCard,
+  searchCards,
+  commanderSearchIdentity,
 } from '@/deck-builder/services/scryfall/client';
 import { isTapland } from '@/deck-builder/services/tagger/client';
 import { BudgetTracker } from './budgetTracker';
@@ -28,6 +30,7 @@ import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { constrainsToCollection, notInCollection } from './deckFilters';
 import { planBasicColorSplit, weightedColorDemand, WUBRG } from './manabaseMath';
 import { producedManaColors } from '@/lib/mana-sources';
+import { landPowerScore } from './landPower';
 
 /** Ceiling for the color-deficit nonbasic boost — a bounded re-rank (below the
  *  MDFC/channel boosts), never a new eligibility path. */
@@ -42,6 +45,14 @@ export { BASIC_LAND_NAMES };
 export const CHANNEL_LAND_BOOST = 80;
 /** Priority boost for MDFC spell/lands — strictly better than spell-only equivalents. */
 export const MDFC_LAND_BOOST = 50;
+/** Ceiling for the intrinsic land-power (merit) boost (E116). Bounded re-rank —
+ *  scaled by landPowerScore/100 — so a genuinely strong land EDHREC hasn't rated
+ *  yet (0 inclusion) can compete with mid-inclusion staples, without steamrolling
+ *  a proven high-inclusion pick. Sized between COLOR_DEMAND (25) and MDFC (50). */
+export const LAND_POWER_BOOST_MAX = 40;
+/** How many newest on-identity nonbasic lands to seed into the candidate pool
+ *  beyond EDHREC's list — the merit-widen that lets brand-new lands be seen. */
+const MERIT_POOL_MAX = 40;
 
 const TAPLAND_PENALTIES: Record<Pacing, number> = {
   'aggressive-early': -30,
@@ -184,6 +195,52 @@ export async function generateLands(
     }
     await upgradeCardPrintings(landCardMap, scryfallQuery, true);
 
+    // Merit widen (E116): EDHREC's `lands` list can't yet include a strong
+    // brand-new land, and the Scryfall fallback below only fires on a shortfall
+    // (and is itself edhrec_rank-ordered, which buries new prints). Seed the
+    // candidate pool with the newest on-identity nonbasic lands so a genuinely
+    // strong new land is at least SEEN; the landPowerScore boost below is what
+    // lets it out-rank filler on merit. Zero-inclusion candidates, same shape as
+    // the channel-land injection above. Best-effort — a failure leaves the
+    // EDHREC-sourced pool + shortfall fallback intact.
+    //
+    // Plain nonbasic lands only — MDFC spell/lands are excluded: they already
+    // carry MDFC_LAND_BOOST (+50), so widening the pool with off-EDHREC MDFCs
+    // let that boost over-select them against higher-inclusion plain utility
+    // lands (the E116 A/B lost Phyrexian Tower / Urborg / Bojuka Bog on Meren
+    // to MDFCs). The widen's real job is the PLAIN fixers EDHREC misses — new
+    // duals / rainbow lands — which is also the headline use case.
+    try {
+      const meritQuery =
+        colorIdentity.length > 0
+          ? `t:land (${colorIdentity.map((c) => `o:{${c}}`).join(' OR ')}) -t:basic`
+          : `t:land id:c -t:basic`;
+      const meritResp = await searchCards(meritQuery, commanderSearchIdentity(colorIdentity), {
+        order: 'released',
+      });
+      let added = 0;
+      for (const card of meritResp.data) {
+        if (added >= MERIT_POOL_MAX) break;
+        if (usedNames.has(card.name) || bannedCards.has(card.name)) continue;
+        if (landCardMap.has(card.name)) continue;
+        if (isMdfcLand(card)) continue;
+        landCardMap.set(card.name, card);
+        if (!edhrecLandNames.has(card.name)) {
+          edhrecLandNames.add(card.name);
+          nonBasicEdhrecLands.push({
+            name: card.name,
+            sanitized: card.name,
+            primary_type: 'Land',
+            inclusion: 0,
+            num_decks: 0,
+          });
+        }
+        added++;
+      }
+    } catch {
+      // Ignore — the EDHREC-sourced pool + Scryfall fallback still apply.
+    }
+
     // Build priority boost / penalty map for pacing-aware land selection
     const landPenalties = new Map<string, number>();
 
@@ -214,6 +271,27 @@ export async function generateLands(
         }
         const boost = Math.round(COLOR_DEMAND_BOOST_MAX * Math.min(1, share));
         if (boost > 0) landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);
+      }
+    }
+
+    // Merit boost (E116): scale the intrinsic land-power score into a bounded
+    // re-rank so a strong land with little/no EDHREC inclusion (especially a new
+    // one seeded by the merit widen above) competes with mid-inclusion staples.
+    // Popularity stays primary via calculateCardPriority; this is a nudge on top,
+    // like the color-demand boost, never a new eligibility gate.
+    //
+    // Skip channel + MDFC lands: they already get their own dedicated boosts
+    // (CHANNEL_LAND_BOOST / MDFC_LAND_BOOST) above, and landPowerScore rewards
+    // the same traits — stacking a third boost double-counts them and floods the
+    // manabase with MDFCs at the cost of high-inclusion untapped duals (observed
+    // in the E116 A/B on Sythis). Merit's unique job is the lands those boosts
+    // DON'T cover — plain fixers, especially new ones.
+    for (const [name, card] of landCardMap) {
+      if (isChannelLand(card) || isMdfcLand(card)) continue;
+      const merit = landPowerScore(card, identitySet);
+      if (merit > 0) {
+        const boost = Math.round((LAND_POWER_BOOST_MAX * merit) / 100);
+        landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);
       }
     }
 

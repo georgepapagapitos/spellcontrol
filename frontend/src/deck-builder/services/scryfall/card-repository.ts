@@ -65,7 +65,10 @@ export interface CardRepository {
 }
 
 export interface CardSearchOptions {
-  order?: 'edhrec' | 'cmc' | 'name';
+  // 'released' (newest first) surfaces brand-new cards that edhrec_rank buries —
+  // used by the land merit-widen (E116). Passed straight through to Scryfall's
+  // ?order= param on the live path.
+  order?: 'edhrec' | 'cmc' | 'name' | 'released';
   page?: number;
   skipFormatFilter?: boolean;
   skipColorFilter?: boolean;

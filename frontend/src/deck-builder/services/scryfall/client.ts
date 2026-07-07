@@ -220,7 +220,10 @@ function offlineSearchCardsImpl(
   const { order = 'edhrec', page = 1, skipFormatFilter = false, skipColorFilter = false } = options;
   return offlineSearchCards(query, {
     colorIdentity,
-    order,
+    // The offline slim catalog has no release-date index (and carries no
+    // brand-new cards anyway), so 'released' is meaningless here — fall back to
+    // edhrec order. The merit-widen that needs 'released' is a live-data path.
+    order: order === 'released' ? 'edhrec' : order,
     page,
     skipFormatFilter,
     skipColorFilter,

@@ -62,4 +62,20 @@ describe('landPowerScore', () => {
     expect(landPowerScore(plains, WU)).toBeLessThanOrEqual(20);
     expect(landPowerScore(card({ name: 'Bolt', type_line: 'Instant' }), WU)).toBe(0);
   });
+
+  it('penalizes a painland below a clean dual in a low-color deck, but keeps it strong at 5c', () => {
+    const cityOfBrass = card({
+      name: 'City of Brass',
+      type_line: 'Land',
+      produced_mana: ['W', 'U', 'B', 'R', 'G'],
+      oracle_text:
+        'Whenever City of Brass becomes tapped, it deals 1 damage to you. {T}: Add one mana of any color.',
+    });
+    // In a 2-color deck it clamps to 2 colors and the ping makes it strictly
+    // worse than a clean untapped dual — must not out-score one.
+    expect(landPowerScore(cityOfBrass, WU)).toBeLessThan(landPowerScore(newUntappedDual, WU));
+    // In 5 colors the fixing is worth the ping — it stays a strong pick.
+    const WUBRG = new Set(['W', 'U', 'B', 'R', 'G']);
+    expect(landPowerScore(cityOfBrass, WUBRG)).toBeGreaterThanOrEqual(60);
+  });
 });

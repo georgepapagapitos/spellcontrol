@@ -268,8 +268,25 @@ interface SummaryEntry {
 
 const summaries: SummaryEntry[] = [];
 
+// LIVE_GEN_ONLY: comma-separated substrings to restrict the panel to a subset
+// (e.g. LIVE_GEN_ONLY="atraxa,meren" for a fast bounded A/B). Matches against the
+// slug and the commander name. Empty/unset → the full panel.
+const ONLY = process.env.LIVE_GEN_ONLY?.split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+const ACTIVE_RUNS =
+  ONLY && ONLY.length > 0
+    ? RUNS.filter((r) =>
+        ONLY.some(
+          (o) =>
+            slugify(r.commanderName, r.variant).includes(o) ||
+            r.commanderName.toLowerCase().includes(o)
+        )
+      )
+    : RUNS;
+
 describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
-  it.each(RUNS)(
+  it.each(ACTIVE_RUNS)(
     '$commanderName [$variant]',
     async (spec) => {
       const slug = slugify(spec.commanderName, spec.variant);
@@ -362,6 +379,6 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
     // Depends on it.each above having populated `summaries` — vitest runs
     // its within a describe block in declaration order.
     writeFileSync(join(OUT_DIR, 'summary.json'), JSON.stringify(summaries, null, 2));
-    expect(summaries.length).toBe(RUNS.length);
+    expect(summaries.length).toBe(ACTIVE_RUNS.length);
   });
 });
