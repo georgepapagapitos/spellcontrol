@@ -69,6 +69,7 @@ import {
 } from './phaseRoleSurplusRebalance';
 import type { GenerationState } from './state';
 import { isProtectionPiece } from '@/deck-builder/services/tagger/client';
+import { OWNED_PRIORITY_BOOST } from '../cardPicking';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -1077,6 +1078,102 @@ describe('applyRoleSurplusRebalance', () => {
 
       expect(result.conversions).toEqual([]);
       expect(state.categories.synergy).toBe(before);
+    });
+  });
+
+  // E122 follow-up (E82 attempt-6 pick/cut symmetry): survivalScoreOf and
+  // findReplacement must weigh ownership the SAME way cardPicking.ts's
+  // priorityWithBoosts does at pick time, or an owned card that only made
+  // the cut because of that boost gets evicted right back out here.
+  describe('E122: owned-preference symmetry in survival scoring', () => {
+    function addRampIncumbents(
+      state: GenerationState,
+      specs: Array<{ name: string; inclusion: number }>
+    ): void {
+      for (const { name, inclusion } of specs) {
+        ROLE_OF.set(name, 'ramp');
+        state.usedNames.add(name);
+        state.categories.synergy.push(scryfallCard(name));
+        (state.edhrecData!.cardlists.allNonLand as EDHRECCard[]).push(edhrecCard(name, inclusion));
+      }
+    }
+
+    it('keeps an owned near-tie incumbent that would otherwise have been evicted', () => {
+      const state = makeState();
+      state.edhrecData = {
+        cardlists: { allNonLand: [] },
+      } as unknown as GenerationState['edhrecData'];
+      // 7 non-owned at inclusion=20 (priority 20) + 1 owned at inclusion=15
+      // (priority 15 — the worst on raw priority alone, by less than
+      // OWNED_PRIORITY_BOOST=40). Target 5 -> cap 7, 1 over.
+      const nonOwned = Array.from({ length: 7 }, (_, i) => ({
+        name: `RampNonOwned_${i + 1}`,
+        inclusion: 20,
+      }));
+      addRampIncumbents(state, [...nonOwned, { name: 'RampOwned', inclusion: 15 }]);
+      state.edhrecData!.cardlists.allNonLand.push(edhrecCard('Payoff A', 90));
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['RampOwned']);
+      const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Payoff A');
+      // Boosted survival score (15 + 40 = 55) beats every 20-priority
+      // non-owned incumbent, so RampOwned is NOT the one cut.
+      expect(result.conversions[0].cut).not.toBe('RampOwned');
+      expect(state.usedNames.has('RampOwned')).toBe(true);
+    });
+
+    it('still evicts a clearly-worse owned card — the bias is bounded', () => {
+      const state = makeState();
+      state.edhrecData = {
+        cardlists: { allNonLand: [] },
+      } as unknown as GenerationState['edhrecData'];
+      // 7 non-owned at inclusion=60 vs 1 owned at inclusion=5. Even fully
+      // boosted (5 + OWNED_PRIORITY_BOOST = 45) the owned card stays well
+      // below the non-owned incumbents — it's genuinely the worst card, not
+      // a near-tie, so ownership must not save it.
+      const nonOwned = Array.from({ length: 7 }, (_, i) => ({
+        name: `RampNonOwned_${i + 1}`,
+        inclusion: 60,
+      }));
+      addRampIncumbents(state, [...nonOwned, { name: 'RampOwned', inclusion: 5 }]);
+      expect(5 + OWNED_PRIORITY_BOOST).toBeLessThan(60); // sanity: gap really is unbridgeable
+      state.edhrecData!.cardlists.allNonLand.push(edhrecCard('Payoff A', 90));
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['RampOwned']);
+      const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('RampOwned');
+      expect(state.usedNames.has('RampOwned')).toBe(false);
+    });
+
+    it('no collection / strategy off: eviction order is untouched (byte-identical to today)', () => {
+      const state = makeState();
+      state.edhrecData = {
+        cardlists: { allNonLand: [] },
+      } as unknown as GenerationState['edhrecData'];
+      const nonOwned = Array.from({ length: 7 }, (_, i) => ({
+        name: `RampNonOwned_${i + 1}`,
+        inclusion: 20,
+      }));
+      addRampIncumbents(state, [...nonOwned, { name: 'RampOwned', inclusion: 15 }]);
+      state.edhrecData!.cardlists.allNonLand.push(edhrecCard('Payoff A', 90));
+      // collectionStrategy stays 'full' (makeState default) and no
+      // collectionNames is set — strategy='prefer' is required for any
+      // boost, so this must evict the lowest raw-priority incumbent exactly
+      // as it did before this PR.
+      const roleTargets = { ramp: 5, removal: 0, boardwipe: 0, cardDraw: 0 };
+
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('RampOwned');
     });
   });
 });

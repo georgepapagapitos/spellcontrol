@@ -281,6 +281,23 @@ export async function ensureSchema(): Promise<void> {
     -- by this index and capped in the route instead.
     CREATE UNIQUE INDEX IF NOT EXISTS game_night_rsvps_user_idx
       ON game_night_rsvps(night_id, user_id) WHERE user_id IS NOT NULL;
+    -- Candidate date slots while a night is polling (E124). Deleted on lock-in;
+    -- a night with option rows is "polling", one without is scheduled.
+    CREATE TABLE IF NOT EXISTS game_night_options (
+      id TEXT PRIMARY KEY,
+      night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
+      starts_at BIGINT NOT NULL,
+      proposed_by TEXT,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS game_night_options_night_idx ON game_night_options(night_id);
+    CREATE TABLE IF NOT EXISTS game_night_votes (
+      option_id TEXT NOT NULL REFERENCES game_night_options(id) ON DELETE CASCADE,
+      rsvp_id TEXT NOT NULL REFERENCES game_night_rsvps(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (option_id, rsvp_id)
+    );
+    CREATE INDEX IF NOT EXISTS game_night_votes_rsvp_idx ON game_night_votes(rsvp_id);
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -254,15 +254,28 @@ export function calculateCardPriority(card: EDHRECCard, brewLevel: number = 0.5)
 }
 
 // Owned-first ('prefer' strategy): a bounded boost so owned cards win ties and
-// near-ties within the filler tier, without dredging a weak owned card over a
-// premium staple. Theme/high-synergy cards already score >=100 and are
-// partitioned first, so they're unaffected — the bias only operates among
-// regular inclusion-ranked cards (where "use what I own" helps, not hurts).
-// Applied in the sort comparator ONLY (not calculateCardPriority), so ownership
-// changes pick *preference*, never a card's type classification or its right to
-// break curve.
+// near-ties, without dredging a weak owned card over a premium staple.
+// Applied in the sort comparator ONLY (not calculateCardPriority), so
+// ownership changes pick *preference*, never a card's type classification or
+// its right to break curve.
 // ponytail: single tunable constant; raise if the owned bias feels too weak.
 export const OWNED_PRIORITY_BOOST = 40;
+
+// E122: theme/high-synergy cards (isHighSynergyCard) score on a much wider
+// scale — a 100-point floor plus up to +50 synergy and +100 inclusion (see
+// calculateCardPriority), often further stacked with a comboPriorityBoost/
+// role-deficit term of 100+ (categorize.ts's computeRoleBoosts) — so the
+// filler-tier OWNED_PRIORITY_BOOST=40 above is proportionally tiny there and
+// rarely crosses a real gap. Sizing data (E122 PR, live EDHREC pulls, two
+// strongly-themed commanders): adjacent-ranked theme candidates typically sit
+// 2-30 points apart, with genuine quality tiers (a format staple vs a
+// commander-specific niche pick) starting around 60-80+. 60 sits just above
+// that near-tie band without reaching into it — an owned card can leapfrog a
+// handful of ranks of real noise, but a Wild Growth-tier staple (a `~80pt`
+// raw gap over a niche owned enchantress payoff in one live dump) still wins
+// outright. This is a SEPARATE constant, not a raised OWNED_PRIORITY_BOOST,
+// so the filler tier's existing near-tie sizing is untouched.
+export const OWNED_PRIORITY_BOOST_THEME_TIER = 60;
 
 function priorityWithBoosts(
   card: EDHRECCard,
@@ -271,10 +284,14 @@ function priorityWithBoosts(
   collectionNames: Set<string> | undefined,
   brewLevel: number = 0.5
 ): number {
+  const ownedBoost =
+    preferOwned && collectionNames?.has(card.name)
+      ? isHighSynergyCard(card)
+        ? OWNED_PRIORITY_BOOST_THEME_TIER
+        : OWNED_PRIORITY_BOOST
+      : 0;
   return (
-    calculateCardPriority(card, brewLevel) +
-    (comboPriorityBoost?.get(card.name) ?? 0) +
-    (preferOwned && collectionNames?.has(card.name) ? OWNED_PRIORITY_BOOST : 0)
+    calculateCardPriority(card, brewLevel) + (comboPriorityBoost?.get(card.name) ?? 0) + ownedBoost
   );
 }
 

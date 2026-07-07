@@ -6,8 +6,11 @@ import {
   GameNightNotFoundError,
   gameNightUrl,
   listGameNights,
+  lockGameNight,
   rsvpGameNight,
+  suggestGameNightOption,
   updateGameNight,
+  voteGameNight,
 } from './game-nights-api';
 
 const NIGHT = { id: 'n1', token: 'tok', title: 'Friday commander' };
@@ -98,6 +101,58 @@ describe('rsvpGameNight', () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'displayName is required.' }, 400));
     await expect(rsvpGameNight('tok', { status: 'going' })).rejects.toThrow(
       'displayName is required.'
+    );
+  });
+});
+
+describe('voteGameNight / suggestGameNightOption', () => {
+  it('POSTs the vote set and returns the rsvp credential', async () => {
+    const rsvp = { id: 'r1', displayName: 'Pat' };
+    fetchMock.mockResolvedValue(jsonResponse({ rsvp }));
+    expect(await voteGameNight('tok', { optionIds: ['o1', 'o2'], displayName: 'Pat' })).toEqual(
+      rsvp
+    );
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/public/tok/votes');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ optionIds: ['o1', 'o2'], displayName: 'Pat' });
+  });
+
+  it('POSTs a suggested slot and surfaces errors', async () => {
+    const rsvp = { id: 'r1', displayName: 'Sam' };
+    fetchMock.mockResolvedValue(jsonResponse({ rsvp }, 201));
+    expect(await suggestGameNightOption('tok', { startsAt: 123, rsvpId: 'r1' })).toEqual(rsvp);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/game-nights/public/tok/options');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'That time is already an option.' }, 400));
+    await expect(suggestGameNightOption('tok', { startsAt: 123 })).rejects.toThrow(
+      'That time is already an option.'
+    );
+  });
+
+  it('throws GameNightNotFoundError on 404', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'nope' }, 404));
+    await expect(voteGameNight('gone', { optionIds: [] })).rejects.toBeInstanceOf(
+      GameNightNotFoundError
+    );
+  });
+});
+
+describe('lockGameNight', () => {
+  it('POSTs the option id to /:id/lock and unwraps the night', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ night: NIGHT }));
+    expect(await lockGameNight('n1', 'o1')).toEqual(NIGHT);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1/lock');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ optionId: 'o1' });
+  });
+
+  it('surfaces the server error', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: 'Pick one of the poll options to lock in.' }, 400)
+    );
+    await expect(lockGameNight('n1', 'bad')).rejects.toThrow(
+      'Pick one of the poll options to lock in.'
     );
   });
 });
