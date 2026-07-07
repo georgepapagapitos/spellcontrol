@@ -129,11 +129,13 @@
    (components/shared/MeterBar.tsx) with its default accent fill. */
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
-/* Phones: tighten inter-row gaps. The row name truncates with an ellipsis
-   and the count/pct meta is pinned (flex: 0 0 auto), so the head row can't
-   overflow regardless of type-name length. Matches the 600px tier used by
-   the sibling stat panels. */
-@media (max-width: 600px) {
+/* Narrow boxes: tighten inter-row gaps. The row name truncates with an
+   ellipsis and the count/pct meta is pinned (flex: 0 0 auto), so the head
+   row can't overflow regardless of type-name length. Container-gated — this
+   panel renders at half-width in the Stats bento pair, where a tablet's
+   wide viewport never tripped the old 600px gate (E61). Same 26rem tier as
+   its pair sibling DeckColorBalance. */
+@container (max-width: 26rem) {
   .deck-type-breakdown {
     gap: var(--space-2);
   }
