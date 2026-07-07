@@ -154,7 +154,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       const { subtypes } = parseTypeLine(c.typeLine);
       for (const s of subtypes) collectionSubtypeTokens.add(s);
     }
+    // Cancelled on unmount: the catalog promise can outlive the component
+    // (a post-teardown setState flaked CI in the CardListTable twin of this).
+    let cancelled = false;
     fetchTypeSuggestions().then((catalog) => {
+      if (cancelled) return;
       const byLower = new Map<string, string>();
       for (const t of [...catalog, ...collectionSubtypeTokens]) {
         const key = t.toLowerCase();
@@ -164,6 +168,9 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
       }
       setSubtypeSuggestions([...byLower.values()].sort((a, b) => a.localeCompare(b)));
     });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
