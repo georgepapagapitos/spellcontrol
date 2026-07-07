@@ -257,7 +257,11 @@ export function BinderEditor() {
       }
     }
 
+    // Cancelled on cleanup: the catalog promises can outlive the editor
+    // (a post-teardown setState flaked CI in the CardListTable twin of this).
+    let cancelled = false;
     fetchTypeSuggestions().then((catalog) => {
+      if (cancelled) return;
       const merged = [...new Set([...catalog, ...collectionTokens])].sort((a, b) =>
         a.localeCompare(b)
       );
@@ -265,8 +269,12 @@ export function BinderEditor() {
     });
 
     fetchOracleSuggestions().then((catalog) => {
+      if (cancelled) return;
       setOracleSuggestions(catalog);
     });
+    return () => {
+      cancelled = true;
+    };
     // Only re-run when the editor opens (isOpen), not on every card change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
