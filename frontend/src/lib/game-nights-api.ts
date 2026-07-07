@@ -14,6 +14,21 @@ export interface NightRsvp {
   isHost: boolean;
 }
 
+/**
+ * A candidate date slot while a night is polling (E124). A night with a
+ * non-empty `options` list is in the voting phase — clients show the poll
+ * instead of the RSVP/calendar UI until the host locks a slot in.
+ */
+export interface NightOption {
+  id: string;
+  startsAt: number;
+  /** Who suggested the slot; null = one of the host's original candidates. */
+  proposedBy: string | null;
+  /** Display names of everyone who can make this slot. */
+  voters: string[];
+  myVote: boolean;
+}
+
 /** A night as seen by a signed-in caller (host, invitee, or link-joiner). */
 export interface GameNight {
   id: string;
@@ -31,6 +46,8 @@ export interface GameNight {
   rsvps: NightRsvp[];
   /** Invited friends who haven't replied yet. */
   awaiting: string[];
+  /** Candidate date slots while polling; empty once a date is locked in. */
+  options: NightOption[];
 }
 
 /** The public (token) view — what a guest with the link sees. */
@@ -48,6 +65,8 @@ export interface PublicGameNight {
   rsvps: NightRsvp[];
   /** The caller's own RSVP; its id is the guest's edit credential. */
   myRsvp: { id: string; displayName: string; status: RsvpStatus } | null;
+  /** Candidate date slots while polling; empty once a date is locked in. */
+  options: NightOption[];
 }
 
 export class GameNightNotFoundError extends Error {
@@ -68,7 +87,10 @@ async function readError(res: Response, fallback: string): Promise<string> {
 
 export interface GameNightInput {
   title: string;
-  startsAt: number;
+  /** Required unless `options` is given (then the server derives it from the poll). */
+  startsAt?: number;
+  /** 2–5 candidate epoch-ms slots — creates the night in the date-polling phase. */
+  options?: number[];
   timezone?: string;
   location?: string;
   notes?: string;
@@ -164,6 +186,67 @@ export async function rsvpGameNight(
     rsvp: { id: string; displayName: string; status: RsvpStatus };
   };
   return body.rsvp;
+}
+
+/**
+ * Cast votes — the full set of option ids the caller can make (replaces their
+ * previous votes; empty retracts all). Returns the rsvp credential — guests
+ * should store it, same as an RSVP.
+ */
+export async function voteGameNight(
+  token: string,
+  input: { optionIds: string[]; displayName?: string; rsvpId?: string }
+): Promise<{ id: string; displayName: string }> {
+  const res = await fetch(apiUrl(`/api/game-nights/public/${encodeURIComponent(token)}/votes`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (res.status === 404) {
+    throw new GameNightNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't save your votes."));
+  }
+  const body = (await res.json()) as { rsvp: { id: string; displayName: string } };
+  return body.rsvp;
+}
+
+/** Suggest an extra time slot for a polling night (auto-votes the proposer for it). */
+export async function suggestGameNightOption(
+  token: string,
+  input: { startsAt: number; displayName?: string; rsvpId?: string }
+): Promise<{ id: string; displayName: string }> {
+  const res = await fetch(apiUrl(`/api/game-nights/public/${encodeURIComponent(token)}/options`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (res.status === 404) {
+    throw new GameNightNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't suggest that time."));
+  }
+  const body = (await res.json()) as { rsvp: { id: string; displayName: string } };
+  return body.rsvp;
+}
+
+/** Host only: lock a poll option in — the night flips to a plain scheduled date. */
+export async function lockGameNight(id: string, optionId: string): Promise<GameNight> {
+  const res = await fetch(apiUrl(`/api/game-nights/${encodeURIComponent(id)}/lock`), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ optionId }),
+  });
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't lock the date in."));
+  }
+  const body = (await res.json()) as { night: GameNight };
+  return body.night;
 }
 
 /** Public web origin — see shareUrl in share-client.ts for the native rationale. */

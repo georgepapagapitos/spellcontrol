@@ -369,6 +369,297 @@ describe('POST /api/game-nights/public/:token/rsvp', () => {
   });
 });
 
+/** A polling night (E124): three candidate slots a week-ish out. */
+const SLOT_A = () => Date.now() + 7 * 24 * 60 * 60 * 1000;
+
+async function createPollNight(
+  cookie: string,
+  slots?: number[]
+): Promise<{
+  id: string;
+  token: string;
+  startsAt: number;
+  options: Array<{ id: string; startsAt: number; proposedBy: string | null }>;
+}> {
+  const base = SLOT_A();
+  const options = slots ?? [base + 2 * 86_400_000, base, base + 86_400_000];
+  const res = await request(app)
+    .post('/api/game-nights')
+    .set('Cookie', cookie)
+    .send({ title: 'Poll night', options });
+  expect(res.status).toBe(201);
+  return res.body.night;
+}
+
+describe('POST /api/game-nights with options (date poll)', () => {
+  it('creates a polling night: slots sorted soonest-first, startsAt mirrors the latest', async () => {
+    const host = await makeUser('gn-poll-create');
+    const base = SLOT_A();
+    const night = await createPollNight(host, [base + 2 * 86_400_000, base, base + 86_400_000]);
+    expect(night.options).toHaveLength(3);
+    expect(night.options.map((o) => o.startsAt)).toEqual([
+      base,
+      base + 86_400_000,
+      base + 2 * 86_400_000,
+    ]);
+    expect(night.options.every((o) => o.proposedBy === null)).toBe(true);
+    expect(night.startsAt).toBe(base + 2 * 86_400_000);
+  });
+
+  it('validates the options list (count, distinctness, timestamps)', async () => {
+    const host = await makeUser('gn-poll-validate');
+    const base = SLOT_A();
+    const send = (options: unknown) =>
+      request(app).post('/api/game-nights').set('Cookie', host).send({ title: 'x', options });
+    expect((await send([base])).status).toBe(400); // too few
+    expect((await send([1, 2, 3, 4, 5, 6].map((i) => base + i * 3_600_000))).status).toBe(400); // too many
+    expect((await send([base, base])).status).toBe(400); // duplicate
+    expect((await send([base, 'friday'])).status).toBe(400); // not a timestamp
+    // No startsAt and no options → still the plain startsAt error.
+    const neither = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'x' });
+    expect(neither.status).toBe(400);
+  });
+
+  it('a plain single-date night has an empty options list', async () => {
+    const host = await makeUser('gn-poll-plain');
+    const res = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'Plain', startsAt: IN_A_WEEK() });
+    expect(res.body.night.options).toEqual([]);
+  });
+
+  it('blocks plain RSVPs and startsAt edits while the date is up for vote', async () => {
+    const host = await makeUser('gn-poll-blocked');
+    const night = await createPollNight(host);
+    const rsvp = await request(app)
+      .post(`/api/game-nights/public/${night.token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat' });
+    expect(rsvp.status).toBe(400);
+    const patch = await request(app)
+      .patch(`/api/game-nights/${night.id}`)
+      .set('Cookie', host)
+      .send({ startsAt: IN_A_WEEK() });
+    expect(patch.status).toBe(400);
+    // Other fields still editable while polling.
+    const title = await request(app)
+      .patch(`/api/game-nights/${night.id}`)
+      .set('Cookie', host)
+      .send({ title: 'Renamed poll' });
+    expect(title.status).toBe(200);
+    expect(title.body.night.options).toHaveLength(3);
+  });
+});
+
+describe('POST /api/game-nights/public/:token/votes', () => {
+  it('guest votes create a maybe-RSVP identity and the credential re-votes later', async () => {
+    const host = await makeUser('gn-vote-guest');
+    const night = await createPollNight(host);
+    const [a, b, c] = night.options.map((o) => o.id);
+
+    const first = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: [a, b], displayName: 'Pat' });
+    expect(first.status).toBe(200);
+    const rsvpId = first.body.rsvp.id as string;
+
+    const read = await request(app).get(`/api/game-nights/public/${night.token}?rsvpId=${rsvpId}`);
+    const byId = new Map(
+      (read.body.options as Array<{ id: string; voters: string[]; myVote: boolean }>).map((o) => [
+        o.id,
+        o,
+      ])
+    );
+    expect(byId.get(a)!.myVote).toBe(true);
+    expect(byId.get(a)!.voters).toContain('Pat');
+    expect(byId.get(b)!.myVote).toBe(true);
+    expect(byId.get(c)!.myVote).toBe(false);
+    // The voter shows up as a 'maybe' reply, never exposing their rsvp id.
+    expect(read.body.rsvps).toContainEqual({ displayName: 'Pat', status: 'maybe', isHost: false });
+
+    // Re-voting with the credential replaces the whole set.
+    const second = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: [c], rsvpId });
+    expect(second.status).toBe(200);
+    expect(second.body.rsvp.id).toBe(rsvpId);
+    const after = await request(app).get(`/api/game-nights/public/${night.token}?rsvpId=${rsvpId}`);
+    const afterById = new Map(
+      (after.body.options as Array<{ id: string; myVote: boolean }>).map((o) => [o.id, o])
+    );
+    expect(afterById.get(a)!.myVote).toBe(false);
+    expect(afterById.get(c)!.myVote).toBe(true);
+  });
+
+  it('validates option ids and requires a name for a brand-new guest', async () => {
+    const host = await makeUser('gn-vote-validate');
+    const night = await createPollNight(host);
+    const bad = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: ['nope'], displayName: 'Pat' });
+    expect(bad.status).toBe(400);
+    const notArray = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: 'all', displayName: 'Pat' });
+    expect(notArray.status).toBe(400);
+    const noName = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: [night.options[0].id] });
+    expect(noName.status).toBe(400);
+  });
+
+  it('authed votes use the username and never clobber an existing RSVP status', async () => {
+    const host = await makeUser('gn-vote-authed');
+    const night = await createPollNight(host);
+    // The host is auto-RSVP'd 'going' — voting must not overwrite that.
+    const res = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .set('Cookie', host)
+      .send({ optionIds: [night.options[0].id] });
+    expect(res.status).toBe(200);
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    const mine = list.body.nights.find((n: { id: string }) => n.id === night.id);
+    expect(mine.myStatus).toBe('going');
+    expect(mine.options.find((o: { id: string }) => o.id === night.options[0].id).myVote).toBe(
+      true
+    );
+    expect(mine.options.find((o: { id: string }) => o.id === night.options[0].id).voters).toContain(
+      'gn-vote-authed'
+    );
+  });
+
+  it('rejects votes on a non-polling night', async () => {
+    const host = await makeUser('gn-vote-locked');
+    const { token } = await createNight(host);
+    const res = await request(app)
+      .post(`/api/game-nights/public/${token}/votes`)
+      .send({ optionIds: [], displayName: 'Pat' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/game-nights/public/:token/options (suggest a time)', () => {
+  it('adds a slot flagged with the proposer, auto-voted, and keeps startsAt at the latest', async () => {
+    const host = await makeUser('gn-suggest');
+    const night = await createPollNight(host);
+    const later = night.startsAt + 86_400_000;
+    const res = await request(app)
+      .post(`/api/game-nights/public/${night.token}/options`)
+      .send({ startsAt: later, displayName: 'Sam' });
+    expect(res.status).toBe(201);
+
+    const read = await request(app).get(`/api/game-nights/public/${night.token}`);
+    expect(read.body.options).toHaveLength(4);
+    const suggested = read.body.options.find((o: { startsAt: number }) => o.startsAt === later);
+    expect(suggested.proposedBy).toBe('Sam');
+    expect(suggested.voters).toEqual(['Sam']);
+    // The polling invariant: night.startsAt mirrors the latest candidate.
+    expect(read.body.night.startsAt).toBe(later);
+  });
+
+  it('rejects duplicates, bad timestamps, and enforces the option cap', async () => {
+    const host = await makeUser('gn-suggest-validate');
+    const base = SLOT_A();
+    const night = await createPollNight(
+      host,
+      [1, 2, 3, 4, 5].map((i) => base + i * 3_600_000)
+    );
+    const dup = await request(app)
+      .post(`/api/game-nights/public/${night.token}/options`)
+      .send({ startsAt: base + 3_600_000, displayName: 'Sam' });
+    expect(dup.status).toBe(400);
+    const bad = await request(app)
+      .post(`/api/game-nights/public/${night.token}/options`)
+      .send({ startsAt: 'friday', displayName: 'Sam' });
+    expect(bad.status).toBe(400);
+    // 5 host slots + 3 suggestions = the cap of 8; the 4th suggestion bounces.
+    for (let i = 6; i <= 8; i++) {
+      const ok = await request(app)
+        .post(`/api/game-nights/public/${night.token}/options`)
+        .send({ startsAt: base + i * 3_600_000, displayName: 'Sam' });
+      expect(ok.status).toBe(201);
+    }
+    const over = await request(app)
+      .post(`/api/game-nights/public/${night.token}/options`)
+      .send({ startsAt: base + 9 * 3_600_000, displayName: 'Sam' });
+    expect(over.status).toBe(400);
+  });
+
+  it('rejects suggestions on a non-polling night', async () => {
+    const host = await makeUser('gn-suggest-locked');
+    const { token } = await createNight(host);
+    const res = await request(app)
+      .post(`/api/game-nights/public/${token}/options`)
+      .send({ startsAt: IN_A_WEEK(), displayName: 'Sam' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/game-nights/:id/lock', () => {
+  it('locks the chosen slot in: startsAt set, poll gone, RSVPs open again', async () => {
+    const host = await makeUser('gn-lock');
+    const night = await createPollNight(host);
+    const chosen = night.options[0];
+    const res = await request(app)
+      .post(`/api/game-nights/${night.id}/lock`)
+      .set('Cookie', host)
+      .send({ optionId: chosen.id });
+    expect(res.status).toBe(200);
+    expect(res.body.night.startsAt).toBe(chosen.startsAt);
+    expect(res.body.night.options).toEqual([]);
+
+    const read = await request(app).get(`/api/game-nights/public/${night.token}`);
+    expect(read.body.night.startsAt).toBe(chosen.startsAt);
+    expect(read.body.options).toEqual([]);
+
+    // The night now behaves like a plain scheduled one.
+    const rsvp = await request(app)
+      .post(`/api/game-nights/public/${night.token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat' });
+    expect(rsvp.status).toBe(201);
+    const vote = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: [], rsvpId: rsvp.body.rsvp.id });
+    expect(vote.status).toBe(400);
+    const relock = await request(app)
+      .post(`/api/game-nights/${night.id}/lock`)
+      .set('Cookie', host)
+      .send({ optionId: chosen.id });
+    expect(relock.status).toBe(400);
+  });
+
+  it('404s for a non-host and 400s for a foreign option id', async () => {
+    const host = await makeUser('gn-lock-host');
+    const other = await makeUser('gn-lock-other');
+    const night = await createPollNight(host);
+    const nonHost = await request(app)
+      .post(`/api/game-nights/${night.id}/lock`)
+      .set('Cookie', other)
+      .send({ optionId: night.options[0].id });
+    expect(nonHost.status).toBe(404);
+    const otherNight = await createPollNight(host);
+    const foreign = await request(app)
+      .post(`/api/game-nights/${night.id}/lock`)
+      .set('Cookie', host)
+      .send({ optionId: otherNight.options[0].id });
+    expect(foreign.status).toBe(400);
+  });
+
+  it('rejects locking a cancelled night', async () => {
+    const host = await makeUser('gn-lock-cancelled');
+    const night = await createPollNight(host);
+    await request(app).delete(`/api/game-nights/${night.id}`).set('Cookie', host);
+    const res = await request(app)
+      .post(`/api/game-nights/${night.id}/lock`)
+      .set('Cookie', host)
+      .send({ optionId: night.options[0].id });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('lookupGameNightLandingMeta', () => {
   it('returns unfurl meta with host, count, and the /gn URL', async () => {
     const host = await makeUser('gn-og-host');
@@ -383,6 +674,14 @@ describe('lookupGameNightLandingMeta', () => {
     expect(meta!.url).toContain(`/gn/${token}`);
     expect(meta!.description).toContain('The shop');
     expect(meta!.description).toContain('1 going');
+  });
+
+  it('unfurls a polling night as a date vote, not a confidently wrong time', async () => {
+    const host = await makeUser('gn-og-poll');
+    const night = await createPollNight(host);
+    const meta = await lookupGameNightLandingMeta(night.token);
+    expect(meta!.description).toContain('Voting on a date');
+    expect(meta!.description).toContain('3 times proposed');
   });
 
   it('returns null for an unknown token and a cancelled description after cancel', async () => {

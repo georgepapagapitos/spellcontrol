@@ -4,7 +4,13 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { testAwareLimiter } from '../route-utils';
 import { optionalAuth, requireAuth } from '../auth';
 import { getDb, getPool } from '../db';
-import { gameNightInvites, gameNightRsvps, gameNights, type GameNightRow } from '../db/schema';
+import {
+  gameNightInvites,
+  gameNightOptions,
+  gameNightRsvps,
+  gameNights,
+  type GameNightRow,
+} from '../db/schema';
 import { areFriends } from '../friends/relations';
 import { ORIGIN, SITE_NAME, type ShareLandingMeta } from '../shares/og';
 
@@ -33,6 +39,10 @@ const MAX_RSVPS = 64;
 const MAX_FUTURE_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 /** A night stays listed/RSVP-able until a day after it starts. */
 const GRACE_MS = 24 * 60 * 60 * 1000;
+/** Date-poll bounds (E124): the host proposes 2–5 slots; suggestions cap the total. */
+const MIN_OPTIONS = 2;
+const MAX_HOST_OPTIONS = 5;
+const MAX_OPTIONS = 8;
 
 type RsvpStatus = 'going' | 'maybe' | 'declined';
 
@@ -82,6 +92,149 @@ interface RsvpView {
   isHost: boolean;
 }
 
+/** A poll option as sent to clients — voter display names only, never rsvp ids. */
+interface OptionView {
+  id: string;
+  startsAt: number;
+  /** Display name of the attendee who suggested it; null = host-created slot. */
+  proposedBy: string | null;
+  voters: string[];
+  myVote: boolean;
+}
+
+/** A poll option with voter identities, for per-viewer projection. */
+interface LoadedOption {
+  id: string;
+  startsAt: number;
+  proposedBy: string | null;
+  voters: Array<{ rsvpId: string; userId: string | null; displayName: string }>;
+}
+
+/** Options + votes for a set of nights, keyed by night id, slots soonest-first. */
+async function loadNightOptions(nightIds: string[]): Promise<Map<string, LoadedOption[]>> {
+  const byNight = new Map<string, LoadedOption[]>();
+  if (nightIds.length === 0) return byNight;
+  const rows = await getPool().query<{
+    id: string;
+    night_id: string;
+    starts_at: string;
+    proposed_by: string | null;
+    rsvp_id: string | null;
+    user_id: string | null;
+    display_name: string | null;
+  }>(
+    `SELECT o.id, o.night_id, o.starts_at, o.proposed_by,
+            v.rsvp_id, r.user_id, r.display_name
+       FROM game_night_options o
+       LEFT JOIN game_night_votes v ON v.option_id = o.id
+       LEFT JOIN game_night_rsvps r ON r.id = v.rsvp_id
+      WHERE o.night_id = ANY($1)
+      ORDER BY o.starts_at ASC, o.created_at ASC, v.created_at ASC`,
+    [nightIds]
+  );
+  const byOption = new Map<string, LoadedOption>();
+  for (const r of rows.rows) {
+    let option = byOption.get(r.id);
+    if (!option) {
+      option = {
+        id: r.id,
+        startsAt: Number(r.starts_at),
+        proposedBy: r.proposed_by,
+        voters: [],
+      };
+      byOption.set(r.id, option);
+      const arr = byNight.get(r.night_id) ?? [];
+      arr.push(option);
+      byNight.set(r.night_id, arr);
+    }
+    if (r.rsvp_id !== null) {
+      option.voters.push({
+        rsvpId: r.rsvp_id,
+        userId: r.user_id,
+        displayName: r.display_name ?? '',
+      });
+    }
+  }
+  return byNight;
+}
+
+function toOptionViews(
+  options: LoadedOption[],
+  isMine: (v: { rsvpId: string; userId: string | null }) => boolean
+): OptionView[] {
+  return options.map((o) => ({
+    id: o.id,
+    startsAt: o.startsAt,
+    proposedBy: o.proposedBy,
+    voters: o.voters.map((v) => v.displayName),
+    myVote: o.voters.some(isMine),
+  }));
+}
+
+/**
+ * The voter identity for poll writes is an rsvp row, so the guest credential
+ * story matches RSVPs exactly: authed voters get their user row (created as
+ * 'maybe' if they haven't replied — voting never overwrites a status they
+ * already gave); guests present their stored rsvpId, with stale/unknown ids
+ * falling through to create-with-displayName like the RSVP flow.
+ */
+async function resolveVoterRsvp(
+  night: GameNightRow,
+  user: { id: string; username: string } | undefined,
+  body: Record<string, unknown>
+): Promise<{ rsvp: { id: string; displayName: string } } | { error: string; status: number }> {
+  const pool = getPool();
+  const now = Date.now();
+  if (user) {
+    const upsert = await pool.query<{ id: string; display_name: string }>(
+      `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'maybe', $5, $5)
+       ON CONFLICT (night_id, user_id) WHERE user_id IS NOT NULL
+       DO UPDATE SET updated_at = $5
+       RETURNING id, display_name`,
+      [crypto.randomUUID(), night.id, user.id, user.username, now]
+    );
+    const r = upsert.rows[0];
+    return { rsvp: { id: r.id, displayName: r.display_name } };
+  }
+  if (typeof body.rsvpId === 'string' && body.rsvpId.length > 0) {
+    const found = await pool.query<{ id: string; display_name: string }>(
+      `SELECT id, display_name FROM game_night_rsvps
+        WHERE id = $1 AND night_id = $2 AND user_id IS NULL`,
+      [body.rsvpId, night.id]
+    );
+    if (found.rows.length > 0) {
+      const r = found.rows[0];
+      return { rsvp: { id: r.id, displayName: r.display_name } };
+    }
+  }
+  const displayName = cleanRequired(body.displayName, NAME_MAX);
+  if (!displayName) {
+    return { error: `displayName is required (max ${NAME_MAX} characters).`, status: 400 };
+  }
+  const count = await pool.query<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM game_night_rsvps WHERE night_id = $1`,
+    [night.id]
+  );
+  if (Number(count.rows[0].n) >= MAX_RSVPS) {
+    return { error: 'This game night is full.', status: 400 };
+  }
+  const id = crypto.randomUUID();
+  await pool.query(
+    `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
+     VALUES ($1, $2, NULL, $3, 'maybe', $4, $4)`,
+    [id, night.id, displayName, now]
+  );
+  return { rsvp: { id, displayName } };
+}
+
+/** Why poll/RSVP writes are refused, or null if the night is still open. */
+function nightClosedError(night: GameNightRow): string | null {
+  if (night.cancelledAt !== null) return 'This game night was cancelled.';
+  if (night.startsAt < Date.now() - GRACE_MS) return 'This game night has already happened.';
+  return null;
+}
+
 interface NightView {
   id: string;
   token: string;
@@ -98,6 +251,8 @@ interface NightView {
   rsvps: RsvpView[];
   /** Invited friends who haven't responded yet (host sees who's pending). */
   awaiting: string[];
+  /** Candidate date slots while polling; empty once a date is locked in. */
+  options: OptionView[];
 }
 
 /** Load rsvps + unanswered invites for a set of nights, keyed by night id. */
@@ -154,7 +309,8 @@ function toNightView(
   hostUsername: string,
   viewerId: string,
   rsvps: Array<{ userId: string | null; displayName: string; status: RsvpStatus }>,
-  awaiting: string[]
+  awaiting: string[],
+  options: LoadedOption[]
 ): NightView {
   const mine = rsvps.find((r) => r.userId === viewerId);
   return {
@@ -176,6 +332,7 @@ function toNightView(
       isHost: r.userId !== null && r.userId === night.hostUserId,
     })),
     awaiting,
+    options: toOptionViews(options, (v) => v.userId === viewerId),
   };
 }
 
@@ -198,14 +355,36 @@ async function cleanInvitees(callerId: string, raw: unknown): Promise<string[] |
   return ids;
 }
 
-/** Create a game night; optionally invite friends. The host is auto-RSVP'd as going. */
+/**
+ * Create a game night; optionally invite friends. The host is auto-RSVP'd as
+ * going. Passing `options` (2–5 epoch-ms slots) instead of `startsAt` starts
+ * the night in a date-polling phase (E124): attendees vote on the slots and
+ * the host locks one in later. While polling, `startsAt` mirrors the latest
+ * candidate so the upcoming-list and grace-window queries need no special case.
+ */
 gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   const body = req.body as Record<string, unknown>;
   const title = cleanRequired(body.title, TITLE_MAX);
   if (!title) {
     return res.status(400).json({ error: `title is required (max ${TITLE_MAX} characters).` });
   }
-  if (!isValidStartsAt(body.startsAt)) {
+  let optionSlots: number[] = [];
+  if (body.options !== undefined) {
+    const raw = body.options;
+    if (!Array.isArray(raw) || raw.some((x) => !isValidStartsAt(x))) {
+      return res.status(400).json({ error: 'options must be an array of epoch-ms timestamps.' });
+    }
+    optionSlots = raw as number[];
+    if (new Set(optionSlots).size !== optionSlots.length) {
+      return res.status(400).json({ error: 'options must be distinct times.' });
+    }
+    if (optionSlots.length < MIN_OPTIONS || optionSlots.length > MAX_HOST_OPTIONS) {
+      return res.status(400).json({
+        error: `Give ${MIN_OPTIONS}–${MAX_HOST_OPTIONS} candidate times to vote on.`,
+      });
+    }
+  }
+  if (optionSlots.length === 0 && !isValidStartsAt(body.startsAt)) {
     return res.status(400).json({ error: 'startsAt must be a valid epoch-ms timestamp.' });
   }
   const location = cleanOptional(body.location, LOCATION_MAX) ?? null;
@@ -222,7 +401,7 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     token: newToken(),
     hostUserId: req.user!.id,
     title,
-    startsAt: body.startsAt,
+    startsAt: optionSlots.length > 0 ? Math.max(...optionSlots) : (body.startsAt as number),
     timezone: cleanTimezone(body.timezone),
     location,
     notes,
@@ -231,6 +410,17 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   };
   const db = getDb();
   await db.insert(gameNights).values(night);
+  if (optionSlots.length > 0) {
+    await db.insert(gameNightOptions).values(
+      optionSlots.map((startsAt) => ({
+        id: crypto.randomUUID(),
+        nightId: night.id,
+        startsAt,
+        proposedBy: null,
+        createdAt: now,
+      }))
+    );
+  }
   if (invitees.length > 0) {
     await db
       .insert(gameNightInvites)
@@ -248,13 +438,15 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   });
 
   const { rsvpsByNight, awaitingByNight } = await loadNightDetails([night.id]);
+  const optionsByNight = await loadNightOptions([night.id]);
   res.status(201).json({
     night: toNightView(
       night,
       req.user!.username,
       req.user!.id,
       rsvpsByNight.get(night.id) ?? [],
-      awaitingByNight.get(night.id) ?? []
+      awaitingByNight.get(night.id) ?? [],
+      optionsByNight.get(night.id) ?? []
     ),
   });
 });
@@ -292,6 +484,7 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     [req.user!.id, Date.now() - GRACE_MS]
   );
   const { rsvpsByNight, awaitingByNight } = await loadNightDetails(rows.rows.map((r) => r.id));
+  const optionsByNight = await loadNightOptions(rows.rows.map((r) => r.id));
   const nights = rows.rows.map((r) =>
     toNightView(
       {
@@ -309,7 +502,8 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
       r.host_username,
       req.user!.id,
       rsvpsByNight.get(r.id) ?? [],
-      awaitingByNight.get(r.id) ?? []
+      awaitingByNight.get(r.id) ?? [],
+      optionsByNight.get(r.id) ?? []
     )
   );
   res.json({ nights });
@@ -342,7 +536,12 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
     }
     patch.title = title;
   }
+  const nightOptions = (await loadNightOptions([id])).get(id) ?? [];
   if (body.startsAt !== undefined) {
+    if (nightOptions.length > 0) {
+      // While polling, the date comes from the poll — lock in an option instead.
+      return res.status(400).json({ error: 'This night is voting on a date. Lock one in first.' });
+    }
     if (!isValidStartsAt(body.startsAt)) {
       return res.status(400).json({ error: 'startsAt must be a valid epoch-ms timestamp.' });
     }
@@ -379,7 +578,56 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
       req.user!.username,
       req.user!.id,
       rsvpsByNight.get(id) ?? [],
-      awaitingByNight.get(id) ?? []
+      awaitingByNight.get(id) ?? [],
+      nightOptions
+    ),
+  });
+});
+
+/**
+ * Lock in a poll option (host only): the night flips to the plain scheduled
+ * shape — `startsAt` becomes the chosen slot and the options (with their
+ * votes, via cascade) are deleted. Everything downstream (RSVPs, calendar,
+ * OG unfurl) then behaves exactly like a night created with a single date.
+ */
+gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : '';
+  const db = getDb();
+  const found = await db
+    .select()
+    .from(gameNights)
+    .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+    .limit(1);
+  if (found.length === 0) {
+    return res.status(404).json({ error: 'Game night not found.' });
+  }
+  const night = found[0];
+  if (night.cancelledAt !== null) {
+    return res.status(400).json({ error: 'This game night was cancelled.' });
+  }
+  const body = req.body as Record<string, unknown>;
+  const optionId = typeof body.optionId === 'string' ? body.optionId : '';
+  const pool = getPool();
+  const option = await pool.query<{ starts_at: string }>(
+    `SELECT starts_at FROM game_night_options WHERE id = $1 AND night_id = $2`,
+    [optionId, id]
+  );
+  if (option.rows.length === 0) {
+    return res.status(400).json({ error: 'Pick one of the poll options to lock in.' });
+  }
+  const startsAt = Number(option.rows[0].starts_at);
+  await pool.query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
+  await pool.query(`DELETE FROM game_night_options WHERE night_id = $1`, [id]);
+
+  const { rsvpsByNight, awaitingByNight } = await loadNightDetails([id]);
+  res.json({
+    night: toNightView(
+      { ...night, startsAt },
+      req.user!.username,
+      req.user!.id,
+      rsvpsByNight.get(id) ?? [],
+      awaitingByNight.get(id) ?? [],
+      []
     ),
   });
 });
@@ -480,6 +728,7 @@ gameNightsRouter.get(
       if (mine) myRsvp = { id: mine.id, displayName: mine.displayName, status: mine.status };
     }
 
+    const options = (await loadNightOptions([night.id])).get(night.id) ?? [];
     res.json({
       night: {
         token: night.token,
@@ -497,6 +746,9 @@ gameNightsRouter.get(
         isHost: r.userId !== null && r.userId === night.hostUserId,
       })),
       myRsvp,
+      options: toOptionViews(options, (v) =>
+        req.user ? v.userId === req.user.id : myRsvp !== null && v.rsvpId === myRsvp.id
+      ),
     });
   }
 );
@@ -518,11 +770,16 @@ gameNightsRouter.post(
       return res.status(404).json({ error: 'Game night not found.' });
     }
     const { night } = found;
-    if (night.cancelledAt !== null) {
-      return res.status(400).json({ error: 'This game night was cancelled.' });
+    const closed = nightClosedError(night);
+    if (closed) {
+      return res.status(400).json({ error: closed });
     }
-    if (night.startsAt < Date.now() - GRACE_MS) {
-      return res.status(400).json({ error: 'This game night has already happened.' });
+    const polling = (await loadNightOptions([night.id])).get(night.id) ?? [];
+    if (polling.length > 0) {
+      // Going/maybe/declined refers to a locked date; while polling, votes are the reply.
+      return res
+        .status(400)
+        .json({ error: 'This night is still voting on a date — check the times you can make.' });
     }
 
     const body = req.body as Record<string, unknown>;
@@ -586,6 +843,132 @@ gameNightsRouter.post(
 );
 
 /**
+ * Cast the caller's votes — the full set of slots they can make (checkbox
+ * semantics: the sent list replaces their previous votes; an empty list
+ * retracts them all). Works signed in or as a guest, with the same identity
+ * rules as RSVPs; guests get their rsvp credential back to store.
+ */
+gameNightsRouter.post(
+  '/public/:token/votes',
+  rsvpLimiter,
+  optionalAuth,
+  async (req: Request, res: Response) => {
+    const token = typeof req.params.token === 'string' ? req.params.token : '';
+    const found = await findNightByToken(token);
+    if (!found) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const { night } = found;
+    const closed = nightClosedError(night);
+    if (closed) {
+      return res.status(400).json({ error: closed });
+    }
+    const pool = getPool();
+    const optionRows = await pool.query<{ id: string }>(
+      `SELECT id FROM game_night_options WHERE night_id = $1`,
+      [night.id]
+    );
+    if (optionRows.rows.length === 0) {
+      return res.status(400).json({ error: 'Voting is closed — a date is locked in.' });
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const raw = body.optionIds;
+    if (!Array.isArray(raw) || raw.some((x) => typeof x !== 'string')) {
+      return res.status(400).json({ error: 'optionIds must be an array of option ids.' });
+    }
+    const valid = new Set(optionRows.rows.map((r) => r.id));
+    const optionIds = [...new Set(raw as string[])];
+    if (optionIds.some((id) => !valid.has(id))) {
+      return res.status(400).json({ error: 'Unknown option id.' });
+    }
+
+    const resolved = await resolveVoterRsvp(night, req.user, body);
+    if ('error' in resolved) {
+      return res.status(resolved.status).json({ error: resolved.error });
+    }
+    const now = Date.now();
+    await pool.query(
+      `DELETE FROM game_night_votes
+        WHERE rsvp_id = $1
+          AND option_id IN (SELECT id FROM game_night_options WHERE night_id = $2)`,
+      [resolved.rsvp.id, night.id]
+    );
+    if (optionIds.length > 0) {
+      await pool.query(
+        `INSERT INTO game_night_votes (option_id, rsvp_id, created_at)
+         SELECT unnest($1::text[]), $2, $3`,
+        [optionIds, resolved.rsvp.id, now]
+      );
+    }
+    res.json({ rsvp: resolved.rsvp });
+  }
+);
+
+/**
+ * Suggest an extra time slot — any attendee can, flagged with their name so
+ * the poll shows whose idea it was. Proposing implies being able to make it,
+ * so the proposer is auto-voted for their slot.
+ */
+gameNightsRouter.post(
+  '/public/:token/options',
+  rsvpLimiter,
+  optionalAuth,
+  async (req: Request, res: Response) => {
+    const token = typeof req.params.token === 'string' ? req.params.token : '';
+    const found = await findNightByToken(token);
+    if (!found) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const { night } = found;
+    const closed = nightClosedError(night);
+    if (closed) {
+      return res.status(400).json({ error: closed });
+    }
+    const pool = getPool();
+    const existing = await pool.query<{ starts_at: string }>(
+      `SELECT starts_at FROM game_night_options WHERE night_id = $1`,
+      [night.id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(400).json({ error: 'Voting is closed — a date is locked in.' });
+    }
+    const body = req.body as Record<string, unknown>;
+    if (!isValidStartsAt(body.startsAt)) {
+      return res.status(400).json({ error: 'startsAt must be a valid epoch-ms timestamp.' });
+    }
+    if (existing.rows.some((r) => Number(r.starts_at) === body.startsAt)) {
+      return res.status(400).json({ error: 'That time is already an option.' });
+    }
+    if (existing.rows.length >= MAX_OPTIONS) {
+      return res.status(400).json({ error: `A poll can have up to ${MAX_OPTIONS} options.` });
+    }
+
+    const resolved = await resolveVoterRsvp(night, req.user, body);
+    if ('error' in resolved) {
+      return res.status(resolved.status).json({ error: resolved.error });
+    }
+    const now = Date.now();
+    const optionId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO game_night_options (id, night_id, starts_at, proposed_by, created_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [optionId, night.id, body.startsAt, resolved.rsvp.displayName, now]
+    );
+    await pool.query(
+      `INSERT INTO game_night_votes (option_id, rsvp_id, created_at) VALUES ($1, $2, $3)`,
+      [optionId, resolved.rsvp.id, now]
+    );
+    // Keep the polling invariant: the night's startsAt mirrors the latest slot.
+    await pool.query(`UPDATE game_nights SET starts_at = GREATEST(starts_at, $2) WHERE id = $1`, [
+      night.id,
+      body.startsAt,
+    ]);
+    res.status(201).json({ rsvp: resolved.rsvp });
+  }
+);
+
+/**
  * OG/Twitter unfurl metadata for `/gn/:token` — the link's group-chat preview
  * ("Friday commander — hosted by anna · Fri, Jul 10, 7:00 PM · 3 going").
  * Times render in the host's timezone when we have it, else date-only UTC so
@@ -616,9 +999,19 @@ export async function lookupGameNightLandingMeta(token: string): Promise<ShareLa
       [night.id]
     )
   ).rows[0].n;
+  const optionCount = Number(
+    (
+      await getPool().query<{ n: string }>(
+        `SELECT COUNT(*) AS n FROM game_night_options WHERE night_id = $1`,
+        [night.id]
+      )
+    ).rows[0].n
+  );
   const description = night.cancelledAt
     ? `This game night was cancelled.`
-    : `${when}${night.location ? ` · ${night.location}` : ''} · ${going} going. RSVP on ${SITE_NAME} — no account needed.`;
+    : optionCount > 0
+      ? `Voting on a date — ${optionCount} times proposed. Vote on ${SITE_NAME} — no account needed.`
+      : `${when}${night.location ? ` · ${night.location}` : ''} · ${going} going. RSVP on ${SITE_NAME} — no account needed.`;
   return {
     title: `${night.title} — hosted by ${hostUsername}`,
     description,

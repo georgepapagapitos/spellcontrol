@@ -5,9 +5,13 @@ import {
   createGameNight,
   gameNightUrl,
   listGameNights,
+  lockGameNight,
   rsvpGameNight,
+  suggestGameNightOption,
   updateGameNight,
+  voteGameNight,
   type GameNight,
+  type NightOption,
   type RsvpStatus,
 } from '../../lib/game-nights-api';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
@@ -15,6 +19,7 @@ import { listFriends, type Friend } from '../../lib/friends-client';
 import { toast } from '../../store/toasts';
 import { Modal } from '../Modal';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { NightPoll, formatSlot } from '../NightPoll';
 import './GameNights.css';
 
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
@@ -108,7 +113,8 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
         <div className="empty-state">
           <p className="empty-state-tagline">No game nights planned.</p>
           <p className="empty-state-hint">
-            Pick a date, invite friends, and share the link — anyone can RSVP, no account needed.
+            Pick a date — or let the group vote on one — invite friends, and share the link. Anyone
+            can RSVP, no account needed.
           </p>
           <div className="empty-state-actions">
             <button type="button" className="btn btn-primary" onClick={() => setDialog('create')}>
@@ -192,7 +198,9 @@ function NightCard({
   refresh: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState<RsvpStatus | null>(null);
+  const [pendingLock, setPendingLock] = useState<NightOption | null>(null);
   const cancelled = night.cancelledAt !== null;
+  const polling = night.options.length > 0;
   const when = new Date(night.startsAt).toLocaleString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -243,23 +251,42 @@ function NightCard({
         <h3 className="game-night-card-title">{night.title}</h3>
         {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
       </div>
-      <p className="game-night-card-when">{when}</p>
+      <p className="game-night-card-when">
+        {polling ? `Date up for vote · ${night.options.length} times proposed` : when}
+      </p>
       <p className="game-night-card-meta">
         {night.isHost ? 'Hosted by you' : `Hosted by ${night.hostUsername}`}
         {night.location ? ` · ${night.location}` : ''}
       </p>
       {night.notes && <p className="game-night-card-notes">{night.notes}</p>}
-      <p className="game-night-card-tally">
-        {tally}
-        {night.isHost && night.awaiting.length > 0 && (
-          <span className="game-night-card-awaiting">
-            {' '}
-            · waiting on {night.awaiting.join(', ')}
-          </span>
-        )}
-      </p>
+      {!polling && (
+        <p className="game-night-card-tally">
+          {tally}
+          {night.isHost && night.awaiting.length > 0 && (
+            <span className="game-night-card-awaiting">
+              {' '}
+              · waiting on {night.awaiting.join(', ')}
+            </span>
+          )}
+        </p>
+      )}
 
-      {!cancelled && (
+      {!cancelled && polling && (
+        <NightPoll
+          options={night.options}
+          onVote={async (optionIds) => {
+            await voteGameNight(night.token, { optionIds });
+            await refresh();
+          }}
+          onSuggest={async (startsAt) => {
+            await suggestGameNightOption(night.token, { startsAt });
+            await refresh();
+          }}
+          onLock={night.isHost ? setPendingLock : undefined}
+        />
+      )}
+
+      {!cancelled && !polling && (
         <div className="game-night-card-reply" role="group" aria-label={`RSVP to ${night.title}`}>
           {STATUS_LABELS.map(({ status, label }) => (
             <button
@@ -280,7 +307,7 @@ function NightCard({
         <button type="button" className="btn" onClick={() => void copyLink()}>
           Copy link
         </button>
-        {!cancelled && (
+        {!cancelled && !polling && (
           <>
             <a
               className="btn"
@@ -312,6 +339,28 @@ function NightCard({
           </>
         )}
       </div>
+
+      {pendingLock && (
+        <ConfirmDialog
+          title={`Lock in ${formatSlot(pendingLock.startsAt)}?`}
+          body="Voting closes and everyone with the link sees this date."
+          confirmLabel="Lock it in"
+          onConfirm={() => {
+            const option = pendingLock;
+            setPendingLock(null);
+            lockGameNight(night.id, option.id)
+              .then(refresh)
+              .then(() => toast.show({ message: 'Date locked in.' }))
+              .catch((err) =>
+                toast.show({
+                  message: err instanceof Error ? err.message : "Couldn't lock the date in.",
+                  tone: 'error',
+                })
+              );
+          }}
+          onCancel={() => setPendingLock(null)}
+        />
+      )}
     </li>
   );
 }
@@ -334,6 +383,8 @@ function NightDialog({
 }) {
   const [title, setTitle] = useState(night?.title ?? '');
   const [whenInput, setWhenInput] = useState(night ? epochToInput(night.startsAt) : '');
+  const [pollMode, setPollMode] = useState(false);
+  const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [location, setLocation] = useState(night?.location ?? '');
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friends, setFriends] = useState<Friend[] | null>(null);
@@ -363,16 +414,36 @@ function NightDialog({
     });
   }
 
+  // While a night polls, its date belongs to the poll — edits leave it alone.
+  const pollingEdit = night !== null && night.options.length > 0;
+  const pollCreate = night === null && pollMode;
+
   async function save() {
     const trimmed = title.trim();
     if (trimmed.length === 0) {
       setFormError('Give the night a name.');
       return;
     }
-    const startsAt = whenInput ? new Date(whenInput).getTime() : NaN;
-    if (!Number.isFinite(startsAt)) {
-      setFormError('Pick a date and time.');
-      return;
+    let startsAt: number | undefined;
+    if (!pollingEdit && !pollCreate) {
+      startsAt = whenInput ? new Date(whenInput).getTime() : NaN;
+      if (!Number.isFinite(startsAt)) {
+        setFormError('Pick a date and time.');
+        return;
+      }
+    }
+    let options: number[] | undefined;
+    if (pollCreate) {
+      const slots = optionInputs.map((v) => (v ? new Date(v).getTime() : NaN));
+      if (slots.some((t) => !Number.isFinite(t))) {
+        setFormError('Fill in every candidate time.');
+        return;
+      }
+      if (new Set(slots).size !== slots.length) {
+        setFormError('Candidate times must be different.');
+        return;
+      }
+      options = slots;
     }
     setFormError(null);
     setSaving(true);
@@ -381,7 +452,7 @@ function NightDialog({
       if (night) {
         await updateGameNight(night.id, {
           title: trimmed,
-          startsAt,
+          ...(pollingEdit ? {} : { startsAt }),
           location: location.trim(),
           notes: notes.trim(),
           addInviteUserIds: inviteIds,
@@ -390,7 +461,7 @@ function NightDialog({
       } else {
         const created = await createGameNight({
           title: trimmed,
-          startsAt,
+          ...(options ? { options } : { startsAt }),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: location.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -434,14 +505,66 @@ function NightDialog({
           />
         </label>
 
-        <label className="game-night-dialog-field">
-          <span>When</span>
-          <input
-            type="datetime-local"
-            value={whenInput}
-            onChange={(e) => setWhenInput(e.target.value)}
-          />
-        </label>
+        {night === null && (
+          <label className="game-night-dialog-pollmode">
+            <input
+              type="checkbox"
+              checked={pollMode}
+              onChange={(e) => setPollMode(e.target.checked)}
+            />
+            <span>Let attendees vote on the date</span>
+          </label>
+        )}
+
+        {pollingEdit ? (
+          <p className="game-night-dialog-hint">
+            The date is being voted on — lock one in from the night's card.
+          </p>
+        ) : pollCreate ? (
+          <fieldset className="game-night-dialog-options">
+            <legend>Times to vote on (2–5)</legend>
+            {optionInputs.map((value, i) => (
+              <div key={i} className="game-night-dialog-option-row">
+                <input
+                  type="datetime-local"
+                  value={value}
+                  aria-label={`Candidate time ${i + 1}`}
+                  onChange={(e) =>
+                    setOptionInputs(optionInputs.map((v, j) => (j === i ? e.target.value : v)))
+                  }
+                />
+                {optionInputs.length > 2 && (
+                  <button
+                    type="button"
+                    className="btn"
+                    aria-label={`Remove candidate time ${i + 1}`}
+                    onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            {optionInputs.length < 5 && (
+              <button
+                type="button"
+                className="btn game-night-dialog-add-option"
+                onClick={() => setOptionInputs([...optionInputs, ''])}
+              >
+                Add another time
+              </button>
+            )}
+          </fieldset>
+        ) : (
+          <label className="game-night-dialog-field">
+            <span>When</span>
+            <input
+              type="datetime-local"
+              value={whenInput}
+              onChange={(e) => setWhenInput(e.target.value)}
+            />
+          </label>
+        )}
 
         <label className="game-night-dialog-field">
           <span>Where (optional)</span>
@@ -506,7 +629,13 @@ function NightDialog({
             Close
           </button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving…' : night ? 'Save changes' : 'Create night'}
+            {saving
+              ? 'Saving…'
+              : night
+                ? 'Save changes'
+                : pollMode
+                  ? 'Start the vote'
+                  : 'Create night'}
           </button>
         </div>
       </form>

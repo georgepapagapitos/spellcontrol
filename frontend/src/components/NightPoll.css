@@ -1,0 +1,118 @@
+/* Date poll for game nights (E124) — shared by the public /gn page and the
+   Play-tab card. Rows are 44px+ touch targets; buttons are rects per the
+   shape rules. */
+
+.night-poll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.night-poll-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.night-poll-option {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.night-poll-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.night-poll-check input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.night-poll-when {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.night-poll-proposed {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+  line-height: 1.6;
+}
+
+.night-poll-tally {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.night-poll-lock-btn {
+  align-self: flex-start;
+  min-height: 44px;
+}
+
+.night-poll-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.night-poll-actions .btn,
+.night-poll-suggest .btn {
+  min-height: 44px;
+}
+
+.night-poll-suggest {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.night-poll-suggest-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.night-poll-suggest-field span {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.night-poll-suggest-field input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.night-poll-error {
+  margin: 0;
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
