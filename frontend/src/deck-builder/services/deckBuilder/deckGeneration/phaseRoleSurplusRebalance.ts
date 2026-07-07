@@ -41,10 +41,11 @@ import {
 //
 // Pick-time role caps (#1008) hold, but several post-fill phases still push a
 // reactive role (ramp/removal/boardwipe/cardDraw) over its cap without a
-// later pass ever pulling it back: the Combo Integrity Audit's uncapped
-// auditAdd/auditRemove (deckGenerator.ts:3683-3693, which never touches
-// currentRoleCounts), phaseCoherenceRepair's findCandidate (no cap check on
-// adds), phaseBracketConverge's pickFiller (no upper-cap check), and the
+// later pass ever pulling it back: the Combo Integrity Audit's auditAdd/
+// auditRemove (phaseComboAudit.ts — E119 made these keep currentRoleCounts
+// in sync, but they still don't check a role cap before swapping),
+// phaseCoherenceRepair's findCandidate (no cap check on adds),
+// phaseBracketConverge's pickFiller (no upper-cap check), and the
 // role-cap escape hatch (cardPicking.ts, unbounded once triggered). Panel
 // evidence (15-deck baseline, decks-sliceA-ship): ramp +47 / cardDraw +47 /
 // removal +33 / boardwipe +12 slots panel-wide; the floor deck (Isshin,
@@ -62,9 +63,11 @@ import {
 // relocate the surplus onto a different reactive role.
 //
 // Runs from a FRESH recount (computeRoleCounts over the live nonland cards),
-// never `state.currentRoleCounts` — the combo audit above drifts that
-// incremental tally stale by never updating it, so trusting it here would
-// both miss real surplus and imagine surplus that isn't there.
+// never `state.currentRoleCounts`. E119 fixed the one real drift source (the
+// combo audit's auditAdd/auditRemove now keep currentRoleCounts in sync,
+// same as every other mutating phase) — but this is the last pass before
+// role surplus gets converted, so it stays a defensive recount rather than
+// trusting an incremental tally accumulated across a dozen call sites.
 //
 // Live-eval fixes (post-ship gate, first pass): eviction "worst first" is
 // scored by the SAME priority+lift signal `findReplacement` uses for

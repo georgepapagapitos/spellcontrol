@@ -20,6 +20,7 @@ import {
 import { stampRoleSubtypes, routeCardByType } from '../categorize';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
+import { getCardRole } from '@/deck-builder/services/tagger/client';
 
 export interface ComboAuditContext {
   /** Result of detectCombosPhase — the audit no-ops when undefined. */
@@ -121,6 +122,12 @@ export function comboIntegrityAuditPhase(
   function auditRemove(card: ScryfallCard, category: DeckCategory) {
     categories[category] = categories[category].filter((c) => c !== card);
     usedNames.delete(card.name);
+    // E119: keep currentRoleCounts in sync — mirrors phaseBracketConverge's
+    // removeCard/addCard pattern — so phaseBracketConverge (which reads
+    // state.currentRoleCounts directly) doesn't see a stale-low tally after
+    // the combo audit has already run.
+    const role = getCardRole(card.name);
+    if (role && state.currentRoleCounts[role] > 0) state.currentRoleCounts[role]--;
     // E87: this cut is about to be disclosed in coherenceRepairs — veto the
     // name so no downstream add phase (bracket/budget convergence, role-
     // surplus rebalance, lift picks) can silently re-pick it and leave the
@@ -163,6 +170,11 @@ export function comboIntegrityAuditPhase(
     stampRoleSubtypes(card);
     routeCardByType(card, categories);
     usedNames.add(card.name);
+    // E119: mirrors phaseBracketConverge's addCard — keep the incremental
+    // tally live so later phases reading state.currentRoleCounts see this
+    // add.
+    const role = getCardRole(card.name);
+    if (role) state.currentRoleCounts[role] = (state.currentRoleCounts[role] ?? 0) + 1;
     if (!isOwnedBudgetExempt(card.name, collectionNames, ignoreOwnedBudget)) {
       budgetTracker?.deductCard(card);
     }

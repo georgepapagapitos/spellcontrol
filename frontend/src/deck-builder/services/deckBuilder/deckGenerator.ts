@@ -4294,11 +4294,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   }
 
   // ── Role-Surplus → Payoff Conversion (E87) ──
-  // Post-fill role caps still overshoot (Combo Integrity Audit's uncapped
-  // auditAdd/auditRemove never updates currentRoleCounts; coherence-repair/
-  // bracket-convergence/the role-cap escape hatch all admit over-cap fillers
-  // without a later pass pulling them back). This bounded pass converts the
-  // worst of that surplus into an actual payoff pick. Runs after every
+  // Post-fill role caps still overshoot (E119: Combo Integrity Audit's
+  // auditAdd/auditRemove now keep currentRoleCounts in sync, but they're
+  // still uncapped — nothing in the audit checks the role cap before
+  // swapping; coherence-repair/bracket-convergence/the role-cap escape hatch
+  // all admit over-cap fillers without a later pass pulling them back). This
+  // bounded pass converts the worst of that surplus into an actual payoff
+  // pick. Runs after every
   // mutating phase above (its fresh recount sees what actually shipped) and
   // before lift picks (so a converted-out card is excluded from resurfacing
   // as a "hidden synergy" suggestion via preSwapUsedNames below). Never
