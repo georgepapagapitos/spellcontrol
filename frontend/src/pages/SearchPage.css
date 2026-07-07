@@ -25,3 +25,32 @@
 .search-page-pill {
   margin-bottom: var(--space-4);
 }
+
+/* Layout toggle sits between the pill and the results, right-aligned. The
+   results' own top margin is generous next to the toggle — tighten it. */
+.search-page-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-page-toolbar + .inline-card-search {
+  margin-top: var(--space-2);
+}
+
+/* Grid layout lets the tiles breathe on desktop; the head, pill, and toggle
+   stay on the 540px rail so the page still reads as one centered column. */
+.search-page--grid {
+  max-width: 1100px;
+}
+
+.search-page--grid .search-page-head,
+.search-page--grid .search-page-toolbar {
+  width: 100%;
+  max-width: 540px;
+  margin-inline: auto;
+}
+
+.search-page--grid .search-page-pill {
+  max-width: 540px;
+  margin-inline: auto;
+}
