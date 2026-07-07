@@ -502,33 +502,15 @@ export async function acquireCardPoolPhase(
     // Fetch theme-specific data for all selected themes
     onProgress?.('Consulting the Oracle…', 8);
     try {
-      // If hyper focus is on, also fetch base commander data in parallel to compare
-      const baseDataPromise = customization.hyperFocus
-        ? (partnerCommander
-            ? fetchPartnerCommanderData(
-                commander.name,
-                partnerCommander.name,
-                budgetOption,
-                targetBracket
-              )
-            : fetchCommanderData(commander.name, budgetOption, targetBracket)
-          ).catch(() => null)
-        : Promise.resolve(null);
-
       // Catch each theme fetch individually so one theme's 404/network error
-      // doesn't discard the themes that succeeded (F14). We fall back to base
-      // commander data only if EVERY theme fetch fails (below).
-      const [themeMergeResult, fetchedBaseData] = await Promise.all([
-        fetchMergedThemeData(
-          selectedThemesWithSlugs,
-          commander.name,
-          partnerCommander?.name,
-          budgetOption,
-          targetBracket
-        ),
-        baseDataPromise,
-      ]);
-      state.baseData = fetchedBaseData;
+      // doesn't discard the themes that succeeded (F14).
+      const themeMergeResult = await fetchMergedThemeData(
+        selectedThemesWithSlugs,
+        commander.name,
+        partnerCommander?.name,
+        budgetOption,
+        targetBracket
+      );
 
       if (!themeMergeResult) {
         throw new Error('All theme-specific EDHREC fetches failed');

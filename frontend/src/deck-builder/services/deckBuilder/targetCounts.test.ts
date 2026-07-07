@@ -37,18 +37,10 @@ function makeCustomization(overrides: Partial<Customization> = {}): Customizatio
     arenaOnly: false,
     scryfallQuery: '',
     comboCount: 1,
-    hyperFocus: false,
     balancedRoles: true,
     currency: 'USD',
     appliedExcludeLists: [],
     appliedIncludeLists: [],
-    advancedTargets: {
-      curvePercentages: null,
-      typePercentages: null,
-      roleTargets: null,
-      edhrecBlendWeight: null,
-      edhrecInclusionThreshold: null,
-    },
     tempoAutoDetect: true,
     tempoPacing: 'balanced',
     saltTolerance: 2,
@@ -90,47 +82,6 @@ describe('calculateTargetCounts — fallback path (no EDHREC stats)', () => {
   it('clamps an absurd land count to deckCards - 1', () => {
     const { composition } = calculateTargetCounts(makeCustomization({ landCount: 999 }));
     expect(composition.lands).toBe(98);
-  });
-});
-
-describe('calculateTargetCounts — advanced overrides', () => {
-  // NOTE: applyAdvancedOverrides only rewrites the *specified* types/buckets and
-  // leaves the pre-seeded fallback ones in place — so the grand total exceeds
-  // nonLand. These tests pin that real behavior (a refactor must preserve it),
-  // not an idealized "normalizes to nonLand" that the code does not implement.
-  it('type percentage overrides make the dominant type the largest target', () => {
-    const c = makeCustomization({
-      landCount: 37,
-      advancedTargets: {
-        curvePercentages: null,
-        typePercentages: { creature: 50, instant: 25, sorcery: 25 },
-        roleTargets: null,
-        edhrecBlendWeight: null,
-        edhrecInclusionThreshold: null,
-      },
-    });
-    const { typeTargets } = calculateTargetCounts(c);
-    expect(typeTargets.creature).toBeGreaterThan(typeTargets.instant);
-    expect(typeTargets.creature).toBeGreaterThan(typeTargets.sorcery);
-    // 50% of 62 non-lands, minus the rounding fixup applied to creature
-    expect(typeTargets.creature).toBeGreaterThanOrEqual(28);
-  });
-
-  it('curve percentage overrides populate the specified CMC buckets', () => {
-    const c = makeCustomization({
-      landCount: 37,
-      advancedTargets: {
-        curvePercentages: { 1: 25, 2: 25, 3: 25, 4: 25 },
-        typePercentages: null,
-        roleTargets: null,
-        edhrecBlendWeight: null,
-        edhrecInclusionThreshold: null,
-      },
-    });
-    const { curveTargets } = calculateTargetCounts(c);
-    const overridden = curveTargets[1] + curveTargets[2] + curveTargets[3] + curveTargets[4];
-    expect(overridden).toBe(nonLand(37)); // the four overridden buckets re-total exactly
-    expect(curveTargets[1]).toBeGreaterThan(0);
   });
 });
 

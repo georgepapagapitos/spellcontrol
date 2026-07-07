@@ -1403,72 +1403,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
   }
 
-  // Build hyper focus boost map if enabled (runs with cached or fresh data)
-  if (state.edhrecData && customization.hyperFocus && selectedThemesWithSlugs.length >= 1) {
-    const baseCardNames = new Set<string>();
-    if (state.baseData) {
-      for (const list of Object.values(state.baseData.cardlists)) {
-        for (const card of list) {
-          baseCardNames.add(card.name);
-        }
-      }
-    }
-
-    const allThemeCards = [
-      ...state.edhrecData.cardlists.creatures,
-      ...state.edhrecData.cardlists.instants,
-      ...state.edhrecData.cardlists.sorceries,
-      ...state.edhrecData.cardlists.artifacts,
-      ...state.edhrecData.cardlists.enchantments,
-      ...state.edhrecData.cardlists.planeswalkers,
-    ];
-
-    if (selectedThemesWithSlugs.length === 1) {
-      let boosted = 0,
-        penalized = 0;
-      for (const card of allThemeCards) {
-        const synergy = card.synergy ?? 0;
-        const inBase = baseCardNames.has(card.name);
-
-        if (!inBase && synergy >= 0.1) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) + 1000);
-          boosted++;
-        } else if (!inBase) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) + 500);
-          boosted++;
-        } else if (inBase && synergy >= 0.3) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) + 200);
-          boosted++;
-        } else if (inBase && synergy < 0.1) {
-          staticComboBoosts.set(card.name, (staticComboBoosts.get(card.name) ?? 0) - 500);
-          penalized++;
-        }
-      }
-      logger.debug(
-        `[DeckGen] Hyper Focus (single theme, base pool: ${baseCardNames.size} cards): boosted ${boosted}, penalized ${penalized}`
-      );
-    } else {
-      const numThemes = selectedThemesWithSlugs.length;
-      for (const [name, count] of state.themeOverlapCounts) {
-        const inBase = baseCardNames.has(name);
-        let boost = 0;
-        if (count === 1 && !inBase) {
-          boost = 1000;
-        } else if (count === 1) {
-          boost = 300;
-        } else if (count >= numThemes || inBase) {
-          boost = -500;
-        } else {
-          boost = -200 * (count - 1);
-        }
-        staticComboBoosts.set(name, (staticComboBoosts.get(name) ?? 0) + boost);
-      }
-      logger.debug(
-        `[DeckGen] Hyper Focus (${numThemes} themes, base pool: ${baseCardNames.size} cards): adjusted ${state.themeOverlapCounts.size} cards`
-      );
-    }
-  }
-
   // Populate generation cache after successful EDHREC fetch
   populateGenerationCachePhase(state, { usingCache, cacheableIntegrityNotes });
 
@@ -1580,8 +1514,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     context.selectedThemes,
     state.edhrecData?.stats,
     state.edhrecData,
-    customization.advancedTargets?.edhrecBlendWeight ?? null,
-    customization.advancedTargets?.edhrecInclusionThreshold ?? null,
+    null, // E121: was customization.advancedTargets?.edhrecBlendWeight (deleted, dead at default)
+    null, // E121: was customization.advancedTargets?.edhrecInclusionThreshold (deleted, dead at default)
     archetypeFallback
   );
 
@@ -1666,10 +1600,8 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
   // Archetype identity floor on top of EDHREC's purely stats-driven type
   // targets (e.g. a spellslinger commander needs a real instant/sorcery
-  // density even if its EDHREC page sample skews creature-heavy). Skipped
-  // when the user set explicit type percentages — an explicit choice is
-  // never second-guessed.
-  if (!customization.advancedTargets?.typePercentages) {
+  // density even if its EDHREC page sample skews creature-heavy).
+  {
     const nonLandTotalForFloor = Object.values(typeTargets).reduce((s, v) => s + v, 0);
     applyArchetypeTypeFloor(
       typeTargets,
@@ -2109,10 +2041,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     }
 
     // ---- Balanced Roles: pre-compute role map and seed counts ----
-    if (customization.advancedTargets?.roleTargets) {
-      // Advanced override always takes precedence
-      roleTargets = customization.advancedTargets.roleTargets as Record<RoleKey, number>;
-    } else if (customization.balancedRoles) {
+    if (customization.balancedRoles) {
       // Reuses the SAME dynamicRoleTargets computed unconditionally above
       // (the Karsten land-count formula needs its .ramp before this gate
       // is known) — don't recompute.
@@ -2223,9 +2152,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         commanderWantsExtraCombat
       );
 
-    // When the user has explicitly set curve/role targets, enforce them strictly
-    const strictCurve = !!customization.advancedTargets?.curvePercentages;
-    const strictRoles = !!customization.advancedTargets?.roleTargets;
+    // E121: strict curve/role enforcement was only ever driven by the
+    // (now-deleted) advancedTargets override — always false without it.
+    // Left as named constants rather than inlining `false` at each of the
+    // dozen pickFromPrefetchedWithCurve/computeRoleBoosts call sites below.
+    const strictCurve = false;
+    const strictRoles = false;
     // E80 product ruling: price-sanity ships as the DEFAULT (see resolvePriceSanity).
     const priceSanity = resolvePriceSanity(customization);
 

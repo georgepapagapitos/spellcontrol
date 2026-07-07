@@ -137,7 +137,7 @@ export function postGenFixupPhase(
   }
 
   // 5b: Dead CMC Slots (zero cards at CMC 1 or 2)
-  if (!customization.tinyLeaders && !customization.advancedTargets?.curvePercentages) {
+  if (!customization.tinyLeaders) {
     for (const targetCmc of [1, 2]) {
       if (fixupSwaps >= MAX_FIXUP_SWAPS) break;
       const cardsAtCmc = Object.values(categories)
