@@ -233,6 +233,37 @@ at 320px. If it can't shrink, it must wrap or collapse.
 Verify both at the **320px floor** in the Responsive section — that's where the
 clip shows up first.
 
+## Sticky chrome stacks (collection hub)
+
+Stacked sticky bars (hub tabs → search row → controls row on `/collection`) pin
+at offsets that must equal the exact rendered height of every bar above them.
+Those heights are **layout contracts, not styling**:
+
+- **Token-driven offsets, fixed heights.** `--hub-tabs-sticky-h` (2.9rem) and
+  `--collection-search-sticky-h` (3.8rem; 3rem on phones) live in `tokens.css`;
+  each bar sets `height:` to its token and the bar below pins at the sum. Never
+  derive a pinned-under bar's height from padding + content — font metrics vary
+  per platform, and a guessed offset opened a visible gap on Android. Anything
+  added to a fixed-height bar must fit on one line (the SearchPill shrinks);
+  wrapping controls belong in the auto-height controls row, whose own underside
+  is tracked by live measurement (`chromeBottom` in `CardListTable`), never by
+  CSS arithmetic.
+- **1px seam overlap.** Each bar pins 1px above the bottom of the bar above it
+  (`top: calc(… - 1px)`): DPR subpixel rounding otherwise opens a see-through
+  seam between stacked sticky elements while scrolling.
+- **Phones pin the minimum.** At `≤600px` width — or `≤480px` height, i.e.
+  landscape phones — only the hub tabs + search row stay sticky; the
+  sort/group/view controls row scrolls away with content (`position: static`).
+  Mid-scroll the essential tool is search, and sort/group changes reposition
+  the list anyway. Precedent: the binders/lists index ("only the search bar
+  pins; the sort/view row scrolls away"). With the bottom tab bar, tabs, and
+  search already pinned on a phone, do not add further sticky rows there.
+- **Under the hub, pin below the tabs.** Any sticky row rendered inside the
+  hub's outlet must offset by the tab strip via a `.collection-hub-tabs ~ *`
+  scoped rule pinning at `calc(var(--hub-tabs-sticky-h) - 1px)` (see
+  `.collection-toolbar-row`, `.binders-index-search-row`). A bare `top: 0`
+  slides **over** the tab strip when scrolled — same z tier, later in DOM.
+
 ## Card-name chips
 
 Card-name chips render the name on **one line with ellipsis truncation** and

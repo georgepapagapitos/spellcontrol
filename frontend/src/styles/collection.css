@@ -71,7 +71,12 @@
      pins beneath); below the app frame + hero menus. See STYLE_GUIDE. */
   z-index: var(--z-popover);
   background: var(--bg);
-  padding: var(--space-3) var(--page-gutter, var(--space-4)) 0.65rem;
+  /* Fixed height (--collection-search-sticky-h), not padding-derived: the
+     controls row's sticky `top` pins beneath this row, so its rendered
+     height must be deterministic on every platform (font metrics vary; a
+     guessed height opened a gap on Android). The pill centers vertically. */
+  height: var(--collection-search-sticky-h);
+  padding: 0 var(--page-gutter, var(--space-4));
   margin: 0 calc(var(--page-gutter, var(--space-4)) * -1) var(--space-3);
   display: flex;
   align-items: center;
@@ -81,9 +86,11 @@
 
 /* Under the Collection hub the search row pins beneath the sticky hub-tabs
    strip rather than at the very top, so the two stack flush. Scoped to the
-   hub so a `.collection-toolbar-row` used elsewhere keeps `top: 0`. */
+   hub so a `.collection-toolbar-row` used elsewhere keeps `top: 0`. The
+   -1px overlap covers the subpixel seam DPR rounding can open between
+   stacked sticky bars (scrolled content peeked through it on device). */
 .collection-hub-tabs ~ * .collection-toolbar-row {
-  top: var(--hub-tabs-sticky-h);
+  top: calc(var(--hub-tabs-sticky-h) - 1px);
 }
 
 /* Collection hero meta — totals + Stats button sit under the Collection
@@ -789,13 +796,14 @@
 
 /* Sticky sort/group/view controls row — pins below the search bar so
    controls stay reachable while scrolling through thousands of rows.
-   The --collection-search-sticky-h token is the approximate rendered
-   height of .collection-toolbar-row (input row padding + pill height).
-   Under the Collection hub the offset stacks beneath --hub-tabs-sticky-h
-   as well. Same --z-popover tier as the search row above it. */
+   --collection-search-sticky-h is the search row's FIXED height (see
+   tokens.css), so this offset is exact — not a guess. Under the Collection
+   hub the offset stacks beneath --hub-tabs-sticky-h as well; each bar in
+   the stack overlaps the one above by 1px to close subpixel seams. Same
+   --z-popover tier as the search row above it. */
 .card-list-controls-sticky {
   position: sticky;
-  top: var(--collection-search-sticky-h, 3.7rem);
+  top: calc(var(--collection-search-sticky-h) - 1px);
   z-index: var(--z-popover);
   background: var(--bg);
   /* Match the search row's bleed so the two bars look unified. */
@@ -807,9 +815,25 @@
   padding-bottom: var(--space-2);
 }
 
-/* Under the Collection hub tabs the sticky stack is deeper. */
+/* Under the Collection hub tabs the sticky stack is deeper (search pins at
+   hub-tabs − 1px, so this row pins at its bottom minus its own 1px seam
+   overlap: hub-tabs + search − 2px). */
 .collection-hub-tabs ~ * .card-list-controls-sticky {
-  top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h, 3.7rem));
+  top: calc(var(--hub-tabs-sticky-h) + var(--collection-search-sticky-h) - 2px);
+}
+
+/* Phones and short landscape viewports: the controls row scrolls away with
+   the content instead of pinning — the pinned chrome is hub-tabs + search
+   only. With tabs + search + a two-line wrapped controls row + the bottom
+   tab bar, a phone showed barely two card rows; mid-scroll the essential
+   tool is search, and sort/group changes reposition the list anyway.
+   Matches the binders/lists index ("only the search bar pins; the sort/view
+   row scrolls away"). CardListTable's section-overlay pin line follows the
+   lowest *pinned* bar, so grouped section labels still dock correctly. */
+@media (max-width: 600px), (max-height: 480px) {
+  .card-list-controls-sticky {
+    position: static;
+  }
 }
 
 /* Sticky section overlay — floats below the sticky controls and swaps its label
