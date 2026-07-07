@@ -2,11 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   cancelGameNight,
   createGameNight,
+  endGameNightSeries,
   fetchPublicGameNight,
   GameNightNotFoundError,
+  gameNightSeriesUrl,
   gameNightUrl,
   listGameNights,
   lockGameNight,
+  openGameNightPoll,
+  resolveGameNightSeries,
   rsvpGameNight,
   suggestGameNightOption,
   updateGameNight,
@@ -157,8 +161,53 @@ describe('lockGameNight', () => {
   });
 });
 
+describe('recurring series (E125)', () => {
+  it('createGameNight passes repeatsWeekly through', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ night: NIGHT }, 201));
+    await createGameNight({ title: 'Weekly', startsAt: 123, repeatsWeekly: true });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      title: 'Weekly',
+      startsAt: 123,
+      repeatsWeekly: true,
+    });
+  });
+
+  it('openGameNightPoll POSTs the slots to /:id/poll and unwraps the night', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ night: NIGHT }, 201));
+    expect(await openGameNightPoll('n1', [1, 2])).toEqual(NIGHT);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1/poll');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({ options: [1, 2] });
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'This night is already voting.' }, 400));
+    await expect(openGameNightPoll('n1', [1, 2])).rejects.toThrow('This night is already voting.');
+  });
+
+  it('endGameNightSeries treats 204 as success and surfaces errors', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(endGameNightSeries('s1')).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/series/s1');
+    expect(init.method).toBe('DELETE');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'Series not found.' }, 404));
+    await expect(endGameNightSeries('s2')).rejects.toThrow('Series not found.');
+  });
+
+  it('resolveGameNightSeries returns the night token and 404s as not-found', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ nightToken: 'occ-tok' }));
+    expect(await resolveGameNightSeries('ser-tok')).toBe('occ-tok');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/game-nights/public/series/ser-tok');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'nope' }, 404));
+    await expect(resolveGameNightSeries('gone')).rejects.toBeInstanceOf(GameNightNotFoundError);
+  });
+});
+
 describe('gameNightUrl', () => {
   it('builds a /gn/ URL', () => {
     expect(gameNightUrl('tok123')).toContain('/gn/tok123');
+  });
+
+  it('builds a stable /gn/s/ URL for a series', () => {
+    expect(gameNightSeriesUrl('ser123')).toContain('/gn/s/ser123');
   });
 });

@@ -84,6 +84,7 @@ import {
   calculateCardPriority,
   isHighSynergyCard,
   PRICE_SANITY_RATIO,
+  PRICE_SANITY_INCLUSION_BAND,
 } from './cardPicking';
 import {
   categorizeCards,
@@ -108,12 +109,7 @@ import { buildManabaseSummary } from './manabaseMath';
 import { auditDeckCoherence } from './coherenceAudit';
 import { buildSubstitutionPlan, type SubstituteRow } from './substituteFinder';
 import { resolveMultiCopyCards } from './multiCopy';
-import {
-  generateLands,
-  countColorPips,
-  CHANNEL_LAND_BOOST,
-  MDFC_LAND_BOOST,
-} from './landGenerator';
+import { generateLands, CHANNEL_LAND_BOOST, MDFC_LAND_BOOST } from './landGenerator';
 import {
   pickEdhrecTypePass,
   bumpRoleAndSubtypeCounts,
@@ -150,6 +146,11 @@ import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
 import { applyFlagshipSeating } from './deckGeneration/phaseFlagshipSeating';
+import {
+  runLandDeficitTopUp,
+  runLastResortLandFill,
+  type LandTopUpContext,
+} from './deckGeneration/landTopUp';
 import {
   acquireCommanderDataPhase,
   acquireCardPoolPhase,
@@ -454,14 +455,81 @@ export function resolvePriceSanity(
 /**
  * Disclosure for the price-sanity tie-break (E80) — mirrors the
  * buildRoleCapOverflowNote idiom: one terse note naming the total, not
- * per-card spam. Undefined when the tie-break never actually decided an
- * outcome (off via budgetOption='expensive'/explicit false, or no
- * qualifying same-role/comparable-inclusion/dramatic-price-gap pair ever
- * arose in this generation).
+ * per-card spam. Undefined when the count is zero (off via
+ * budgetOption='expensive'/explicit false, or no qualifying
+ * same-role/comparable-inclusion/dramatic-price-gap pair ever survived to
+ * the final deck — see countFinalPriceSanityPicks, its only caller).
  */
 export function buildPriceSanityNote(decidedCount: number): string | undefined {
   if (decidedCount <= 0) return undefined;
   return `Preferred ${decidedCount} cheaper near-equivalent${decidedCount === 1 ? '' : 's'} over premium picks — set budget preference to "expensive" to disable.`;
+}
+
+/**
+ * E126 fix-round: the count buildPriceSanityNote receives MUST be derived
+ * post-hoc from the FINAL deck, never from cardPicking.ts's
+ * `priceSanityDecided` (a Set the pick comparator populates whenever
+ * priceSanityTieBreak's verdict flips priority's own pick during a sort). A
+ * differ audit proved that collector dishonest at disclosure altitude twice
+ * over: (1) it counts comparator FIRINGS, not surviving picks — Array.sort()
+ * only makes O(n log n) comparisons and its exact comparison set is an
+ * implementation detail, so between two runs that shipped BYTE-IDENTICAL
+ * decklists the count still shifted (krenko 15→13, yuriko 26→28); (2) on a
+ * sythis build whose only visible swap ADDED a pricier card, the note still
+ * claimed "one more cheaper pick" — the decided pair's cheap member never
+ * shipped, but nothing rechecked that. This is the same defect
+ * buildComboUpsideNotes' doc already diagnosed for the combo-upside note
+ * (a deep-pool piece is never directly compared against the pool's real
+ * cheap staple, so a comparator-collector stays empty despite real upside)
+ * and countFinalWipeAsymmetry already fixed for wipe-asymmetry (E109) —
+ * mirrors both: scans the FINAL deck against the same batch-fetched EDHREC
+ * pool picking actually drew from, deterministic and independent of
+ * sort/comparator internals. For every shipped card, counts it once if the
+ * pool held a same-role, comparable-inclusion (within
+ * PRICE_SANITY_INCLUSION_BAND), dramatically-pricier (>= PRICE_SANITY_RATIO)
+ * alternative that never made the deck — i.e. this exact card really did
+ * win its slot over a premium near-equivalent. Gated on `priceSanityEnabled`
+ * (mirrors countFinalWipeAsymmetry's `preferAsymmetricWipes` gate) so a cheap
+ * card that made the deck for ordinary reasons while the tie-break was off
+ * never gets credited as "preferred".
+ */
+export function countFinalPriceSanityPicks(
+  finalDeckCards: readonly ScryfallCard[],
+  edhrecData: EDHRECCommanderData | null | undefined,
+  poolCardMap: ReadonlyMap<string, ScryfallCard>,
+  currency: 'USD' | 'EUR',
+  priceSanityEnabled: boolean
+): number {
+  if (!priceSanityEnabled || !edhrecData || poolCardMap.size === 0) return 0;
+
+  const inclusionIndex = buildInclusionIndex(edhrecData);
+  const finalNames = new Set(finalDeckCards.map((c) => c.name));
+  let count = 0;
+
+  for (const card of finalDeckCards) {
+    const role = validateCardRole(card);
+    if (!role) continue;
+    const price = parseFloat(getCardPrice(card, currency) ?? '');
+    if (!isFinite(price) || price <= 0) continue;
+    const cardInclusion = inclusionIndex.get(card.name) ?? 0;
+
+    const passedOverPremium = [...poolCardMap].some(([altName, altCard]) => {
+      if (altName === card.name || finalNames.has(altName)) return false;
+      if (validateCardRole(altCard) !== role) return false;
+      if (
+        Math.abs((inclusionIndex.get(altName) ?? 0) - cardInclusion) > PRICE_SANITY_INCLUSION_BAND
+      ) {
+        return false;
+      }
+      const altPrice = parseFloat(getCardPrice(altCard, currency) ?? '');
+      if (!isFinite(altPrice) || altPrice <= 0) return false;
+      return altPrice / price >= PRICE_SANITY_RATIO;
+    });
+
+    if (passedOverPremium) count += 1;
+  }
+
+  return count;
 }
 
 /**
@@ -1104,6 +1172,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // composition needs it, and that runs after the EDHREC-data branch that
   // assigns it has already closed.
   let preferAsymmetricWipes = false;
+  // E80 product ruling: price-sanity ships as the DEFAULT (see
+  // resolvePriceSanity). Hoisted here (not block-scoped at its original
+  // pick-time site) for the same reason as preferAsymmetricWipes above — the
+  // E126 post-hoc price-sanity note composed at the end of generateDeck()
+  // needs this same value, and it depends only on `customization`, already
+  // in scope this early.
+  const priceSanity = resolvePriceSanity(customization);
   // True when detectedArchetype came only from the oracle-text keyword-vote
   // heuristic (commanderProfile.primaryArchetype) — neither the user's own
   // theme picks nor EDHREC's own ranked commander-page themes resolved to a
@@ -2163,8 +2238,6 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     // dozen pickFromPrefetchedWithCurve/computeRoleBoosts call sites below.
     const strictCurve = false;
     const strictRoles = false;
-    // E80 product ruling: price-sanity ships as the DEFAULT (see resolvePriceSanity).
-    const priceSanity = resolvePriceSanity(customization);
 
     // Package-completion boost (bounded re-rank, cap +30): favors candidates
     // that complete a live engine's scarcer side — the positive counterpart to
@@ -2907,105 +2980,13 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // owned-only deck (the smart relaxation below). Surfaced in the build report.
   const substitutionRows: SubstituteRow[] = [];
 
-  // Add `amount` basic lands (Wastes for a colorless identity), split across
-  // colors by weighted mana-pip demand of the deck's non-land cards so far.
-  // Shared by the land-specific top-up right below and the total-count
-  // last-resort fallback further down — same fill, two different reasons to
-  // reach for it.
-  const addBasicLands = async (amount: number): Promise<void> => {
-    if (amount <= 0) return;
-    const basicTypes: Record<string, string> = {
-      W: 'Plains',
-      U: 'Island',
-      B: 'Swamp',
-      R: 'Mountain',
-      G: 'Forest',
-    };
-    const colorsWithBasics = colorIdentity.filter((c) => basicTypes[c]);
-
-    if (colorsWithBasics.length > 0) {
-      const allNonLands = [
-        ...categories.creatures,
-        ...categories.ramp,
-        ...categories.cardDraw,
-        ...categories.singleRemoval,
-        ...categories.boardWipes,
-        ...categories.utility,
-        ...categories.synergy,
-      ];
-      const pipCounts = countColorPips(allNonLands);
-      const totalPips = colorsWithBasics.reduce((sum, c) => sum + (pipCounts[c] || 0), 0);
-
-      const landsPerColor: Record<string, number> = {};
-      if (totalPips > 0) {
-        let assigned = 0;
-        for (let i = 0; i < colorsWithBasics.length; i++) {
-          const color = colorsWithBasics[i];
-          if (i === colorsWithBasics.length - 1) {
-            landsPerColor[color] = amount - assigned;
-          } else {
-            landsPerColor[color] = Math.round((amount * (pipCounts[color] || 0)) / totalPips);
-            assigned += landsPerColor[color];
-          }
-        }
-      } else {
-        const perColor = Math.floor(amount / colorsWithBasics.length);
-        const remainder = amount % colorsWithBasics.length;
-        for (let i = 0; i < colorsWithBasics.length; i++) {
-          landsPerColor[colorsWithBasics[i]] = perColor + (i < remainder ? 1 : 0);
-        }
-      }
-
-      for (const color of colorsWithBasics) {
-        const basicName = basicTypes[color];
-        const countForColor = landsPerColor[color];
-
-        let basicCard = getCachedCard(basicName);
-        if (!basicCard) {
-          try {
-            basicCard = await getCardByName(basicName, true);
-          } catch {
-            continue;
-          }
-        }
-
-        // Top-up copies share card.id so the deck view aggregates them into
-        // one row; allocation still claims any free owned copy by name.
-        for (let j = 0; j < countForColor; j++) {
-          categories.lands.push({ ...basicCard });
-        }
-      }
-    } else {
-      // Colorless deck — use Wastes as the basic land
-      let wastesCard = getCachedCard('Wastes');
-      if (!wastesCard) {
-        try {
-          wastesCard = await getCardByName('Wastes', true);
-        } catch {
-          // Skip if can't fetch
-        }
-      }
-      if (wastesCard) {
-        for (let j = 0; j < amount; j++) {
-          categories.lands.push({ ...wastesCard });
-        }
-      }
-    }
-  };
-
-  // Land top-up (Fix 1, iter-6 Slice B): gated on the land-specific deficit
-  // (categories.lands.length vs targets.lands), not total card count — and
-  // run BEFORE the generic nonland shortage fill below. generateLands() can
-  // silently under-deliver (a basic-land fetch throws and that color's
-  // allocation is dropped — landGenerator.ts's retry+reallocate hardening
-  // makes this rare but not impossible); the old last-resort top-up was
-  // gated on total count and ran AFTER the nonland fill, so a land shortfall
-  // shipped as a full-size deck with a spell squatting in a land slot.
-  const landDeficit = targets.lands - categories.lands.length;
-  if (landDeficit > 0) {
-    logger.debug(`[DeckGen] Land top-up: ${landDeficit} land(s) short of target, adding basics`);
-    await addBasicLands(landDeficit);
-  }
+  // Land top-up/backfill (E68 phase 4 split — see deckGeneration/landTopUp.ts
+  // for addBasicLands + the two call sites' shared rationale). `landTopUpCtx`
+  // is a thin view over the same `colorIdentity`/`categories` this function
+  // already mutates by reference, so both call sites below stay in sync with
+  // everything else in generateDeckInner.
+  const landTopUpCtx: LandTopUpContext = { colorIdentity, categories };
+  await runLandDeficitTopUp(landTopUpCtx, targets.lands);
 
   // If we have too few cards, fill shortage — budget is best-effort here,
   // deck size and structure are non-negotiable
@@ -3541,12 +3522,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
 
     // If STILL short, add basic lands as absolute last resort
     currentCount = countAllCards();
-    if (currentCount < targetDeckSize) {
-      const remainingShortage = targetDeckSize - currentCount;
-      basicLandFillCount = remainingShortage;
-      logger.debug(`[DeckGen] Still need ${remainingShortage} more cards, adding basic lands`);
-      await addBasicLands(remainingShortage);
-    }
+    basicLandFillCount = await runLastResortLandFill(landTopUpCtx, targetDeckSize, currentCount);
   }
 
   // Final verification - log warning if still wrong
@@ -4142,9 +4118,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // never actually breached.
   const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts);
 
-  // Price-sanity disclosure (E80) — undefined when the tie-break never
-  // actually decided an outcome (off, or no qualifying pair arose).
-  const priceSanityNote = buildPriceSanityNote(priceSanityDecided.size);
+  // Price-sanity disclosure (E80, honesty fix E126) — composed from the
+  // FINAL deck (nonLandCards) + the same batch-fetched EDHREC pool picking
+  // drew from, NOT from priceSanityDecided (see countFinalPriceSanityPicks's
+  // doc for why the pick-time collector is dishonest at disclosure altitude:
+  // it counts comparator firings, not surviving picks). Undefined when zero
+  // shipped cards actually won their slot over a premium near-equivalent.
+  const priceSanityNote = buildPriceSanityNote(
+    countFinalPriceSanityPicks(
+      nonLandCards,
+      state.edhrecData,
+      scryfallCardMap,
+      currency,
+      priceSanity
+    )
+  );
 
   // Board-centric wipe-asymmetry disclosure (E109) — composed from the FINAL
   // deck (nonLandCards, above), NOT from wipeAsymmetryDecided. The tie-break's

@@ -21,7 +21,11 @@ import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
 import { friendsRouter } from './routes/friends';
 import { usersRouter } from './routes/users';
-import { gameNightsRouter, lookupGameNightLandingMeta } from './routes/game-nights';
+import {
+  gameNightsRouter,
+  lookupGameNightLandingMeta,
+  lookupGameNightSeriesLandingMeta,
+} from './routes/game-nights';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import {
@@ -837,6 +841,7 @@ if (existsSync(SPA_DIR)) {
   // index.html, but after every /api/* route so nothing here can shadow
   // the API surface.
   app.get('/s/:token', createShareLandingHandler(SPA_DIR));
+  app.get('/gn/s/:token', createShareLandingHandler(SPA_DIR, lookupGameNightSeriesLandingMeta));
   app.get('/gn/:token', createShareLandingHandler(SPA_DIR, lookupGameNightLandingMeta));
 
   app.use(
