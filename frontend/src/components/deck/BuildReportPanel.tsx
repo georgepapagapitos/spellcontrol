@@ -186,6 +186,7 @@ export function BuildReportPanel({
     generationModeDetail,
     generationNote,
     landCountNote,
+    mustIncludeSkippedNote,
     brewDialNote,
     landSqueezeTrimNote,
     bracketPoolFallbackNote,
@@ -259,6 +260,8 @@ export function BuildReportPanel({
       )}
 
       {landCountNote && <p className="build-report-line build-report-source">{landCountNote}</p>}
+
+      {mustIncludeSkippedNote && <p className="build-report-flag">{mustIncludeSkippedNote}</p>}
 
       {brewDialNote && <p className="build-report-line build-report-source">{brewDialNote}</p>}
 

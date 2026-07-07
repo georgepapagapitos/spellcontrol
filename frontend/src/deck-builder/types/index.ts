@@ -480,6 +480,11 @@ export interface BuildReport {
    *  default (e.g. tribal/dork-dense decks running fewer). Undefined when the
    *  user set land count explicitly, or no adjustment applied. */
   landCountNote?: string;
+  /** Disclosure when an explicit (user/deck) must-include couldn't be seated —
+   *  off-color, over the rarity/CMC cap, not on Arena, or unresolvable. Names
+   *  each dropped pick with its reason so a forced card never vanishes
+   *  silently. Undefined when every explicit pick was included. */
+  mustIncludeSkippedNote?: string;
   /** Disclosure when a combo-completion candidate (Combo Integrity Audit /
    *  combo floor) was skipped because it would exceed the deck budget.
    *  Undefined when no budget is set or nothing was skipped. */
@@ -676,6 +681,7 @@ export interface GeneratedDeck {
   generationModeDetail?: string; // Mode-specific descriptor (art motif slug, or "year<=YYYY")
   generationRelaxedNote?: string; // e.g. historical mode eased its year ceiling to find a pool
   landCountNote?: string; // e.g. archetype-aware auto land count nudged the 37-land default
+  mustIncludeSkippedNote?: string; // e.g. a forced pick was off-color / over a cap / not on Arena and couldn't be seated
   budgetNote?: string; // e.g. a combo upgrade was skipped to honor the budget cap
   roleCapOverflowNote?: string; // e.g. N cards kept over their role target to finish the deck (thin type pool)
   priceSanityNote?: string; // e.g. N cheaper near-equivalents preferred over premium picks (E80)
