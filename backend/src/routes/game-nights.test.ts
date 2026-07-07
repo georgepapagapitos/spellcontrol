@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
-import { lookupGameNightLandingMeta } from './game-nights';
+import {
+  lookupGameNightLandingMeta,
+  lookupGameNightSeriesLandingMeta,
+  plusWeek,
+} from './game-nights';
 
 let app: Express;
 let cleanup: () => Promise<void>;
@@ -657,6 +661,271 @@ describe('POST /api/game-nights/:id/lock', () => {
       .set('Cookie', host)
       .send({ optionId: night.options[0].id });
     expect(res.status).toBe(400);
+  });
+});
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+interface NightBody {
+  id: string;
+  token: string;
+  title: string;
+  startsAt: number;
+  cancelledAt: number | null;
+  myStatus: string | null;
+  awaiting: string[];
+  location: string | null;
+  options: Array<{ id: string; startsAt: number }>;
+  series: { id: string; token: string; endedAt: number | null } | null;
+}
+
+async function createWeeklyNight(
+  cookie: string,
+  overrides: Record<string, unknown> = {}
+): Promise<NightBody> {
+  const res = await request(app)
+    .post('/api/game-nights')
+    .set('Cookie', cookie)
+    .send({ title: 'Weekly commander', startsAt: IN_A_WEEK(), repeatsWeekly: true, ...overrides });
+  expect(res.status).toBe(201);
+  return res.body.night;
+}
+
+async function listNights(cookie: string): Promise<NightBody[]> {
+  const res = await request(app).get('/api/game-nights').set('Cookie', cookie);
+  expect(res.status).toBe(200);
+  return res.body.nights;
+}
+
+describe('recurring game nights (E125)', () => {
+  it('creates a weekly night carrying a stable series token', async () => {
+    const host = await makeUser('gn-rec-create');
+    const night = await createWeeklyNight(host);
+    expect(night.series).not.toBeNull();
+    expect(night.series!.token).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    expect(night.series!.endedAt).toBeNull();
+    // A one-off night has no series.
+    const plain = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'One-off', startsAt: IN_A_WEEK() });
+    expect(plain.body.night.series).toBeNull();
+  });
+
+  it('rejects repeatsWeekly combined with a date poll (400)', async () => {
+    const host = await makeUser('gn-rec-poll-clash');
+    const base = IN_A_WEEK();
+    const res = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'x', options: [base, base + DAY_MS], repeatsWeekly: true });
+    expect(res.status).toBe(400);
+  });
+
+  it('materializes the next occurrence on list-read, copying the latest night as the template', async () => {
+    const host = await makeUser('gn-rec-mat-host');
+    const guest = await makeUser('gn-rec-mat-guest');
+    await befriend(host, 'gn-rec-mat-guest', guest, 'gn-rec-mat-host');
+    const guestId = await friendIdOf(host, 'gn-rec-mat-guest');
+    // Anchor two days in the past: the first occurrence has already happened,
+    // so the next one (five days out) is due.
+    const anchor = Date.now() - 2 * DAY_MS;
+    const first = await createWeeklyNight(host, { startsAt: anchor, inviteUserIds: [guestId] });
+    // The template evolves by editing the current night.
+    await request(app)
+      .patch(`/api/game-nights/${first.id}`)
+      .set('Cookie', host)
+      .send({ title: 'Renamed weekly', location: 'New spot' });
+
+    const nights = await listNights(host);
+    const occurrence = nights.find((n) => n.series?.token === first.series!.token);
+    expect(occurrence).toBeDefined();
+    expect(occurrence!.id).not.toBe(first.id);
+    expect(occurrence!.token).not.toBe(first.token);
+    expect(occurrence!.startsAt).toBe(anchor + WEEK_MS);
+    // Copied template fields + invites, and the host is auto-going again.
+    expect(occurrence!.title).toBe('Renamed weekly');
+    expect(occurrence!.location).toBe('New spot');
+    expect(occurrence!.awaiting).toEqual(['gn-rec-mat-guest']);
+    expect(occurrence!.myStatus).toBe('going');
+
+    // Idempotent: a second read doesn't mint a second occurrence.
+    const again = await listNights(host);
+    expect(again.filter((n) => n.series?.token === first.series!.token)).toHaveLength(1);
+
+    // The invited friend sees the new week too (their read also materializes).
+    const guestNights = await listNights(guest);
+    expect(guestNights.some((n) => n.id === occurrence!.id)).toBe(true);
+  });
+
+  it('skipping a week: cancelling the upcoming occurrence materializes the following one', async () => {
+    const host = await makeUser('gn-rec-skip');
+    const night = await createWeeklyNight(host, { startsAt: Date.now() + DAY_MS });
+    await request(app).delete(`/api/game-nights/${night.id}`).set('Cookie', host);
+
+    const nights = await listNights(host);
+    const mine = nights.filter((n) => n.series?.token === night.series!.token);
+    expect(mine).toHaveLength(2); // the skipped week (still visible) + next week
+    const next = mine.find((n) => n.cancelledAt === null);
+    expect(next).toBeDefined();
+    expect(next!.startsAt).toBe(night.startsAt + WEEK_MS);
+
+    // The pinned series link points past the skipped week at the live one.
+    const resolved = await request(app).get(
+      `/api/game-nights/public/series/${night.series!.token}`
+    );
+    expect(resolved.status).toBe(200);
+    expect(resolved.body.nightToken).toBe(next!.token);
+  });
+
+  it('the public series link 404s for unknown tokens and materializes without auth', async () => {
+    expect((await request(app).get('/api/game-nights/public/series/nope')).status).toBe(404);
+
+    const host = await makeUser('gn-rec-public');
+    const night = await createWeeklyNight(host, { startsAt: Date.now() - 2 * DAY_MS });
+    // No host list-read happened — the guest's pinned link does the work.
+    const resolved = await request(app).get(
+      `/api/game-nights/public/series/${night.series!.token}`
+    );
+    expect(resolved.status).toBe(200);
+    expect(resolved.body.nightToken).not.toBe(night.token);
+    const pub = await request(app).get(`/api/game-nights/public/${resolved.body.nightToken}`);
+    expect(pub.status).toBe(200);
+    expect(pub.body.night.startsAt).toBe(night.startsAt + WEEK_MS);
+    expect(pub.body.night.series.token).toBe(night.series!.token);
+  });
+
+  it('stop repeating: 204 once then 404, non-host 404s, and no new weeks materialize', async () => {
+    const host = await makeUser('gn-rec-end');
+    const other = await makeUser('gn-rec-end-other');
+    // Past anchor, so a live series would materialize on read — an ended one must not.
+    const night = await createWeeklyNight(host, { startsAt: Date.now() - 2 * DAY_MS });
+    const seriesId = night.series!.id;
+    expect(
+      (await request(app).delete(`/api/game-nights/series/${seriesId}`).set('Cookie', other)).status
+    ).toBe(404);
+    expect(
+      (await request(app).delete(`/api/game-nights/series/${seriesId}`).set('Cookie', host)).status
+    ).toBe(204);
+    expect(
+      (await request(app).delete(`/api/game-nights/series/${seriesId}`).set('Cookie', host)).status
+    ).toBe(404);
+
+    // The link never dies: it resolves to the last night instead of minting new ones.
+    const resolved = await request(app).get(
+      `/api/game-nights/public/series/${night.series!.token}`
+    );
+    expect(resolved.status).toBe(200);
+    expect(resolved.body.nightToken).toBe(night.token);
+  });
+
+  it('plusWeek holds the wall-clock steady across DST and is a plain week without a timezone', () => {
+    const t = Date.UTC(2026, 0, 6, 19, 0);
+    expect(plusWeek(t, null)).toBe(t + WEEK_MS);
+    // US fall-back (Nov 1 2026): Fri Oct 30 19:00 CDT → Fri Nov 6 19:00 CST.
+    const beforeFallBack = Date.UTC(2026, 9, 31, 0, 0); // Oct 30 19:00 in UTC-5
+    expect(plusWeek(beforeFallBack, 'America/Chicago')).toBe(Date.UTC(2026, 10, 7, 1, 0));
+    // US spring-forward (Mar 8 2026): Fri Mar 6 19:00 CST → Fri Mar 13 19:00 CDT.
+    const beforeSpring = Date.UTC(2026, 2, 7, 1, 0); // Mar 6 19:00 in UTC-6
+    expect(plusWeek(beforeSpring, 'America/Chicago')).toBe(Date.UTC(2026, 2, 14, 0, 0));
+  });
+});
+
+describe('POST /api/game-nights/:id/poll (open a date vote on an existing night)', () => {
+  it('404s for a non-host, validates options, and rejects an already-polling night', async () => {
+    const host = await makeUser('gn-openpoll-host');
+    const other = await makeUser('gn-openpoll-other');
+    const { id } = await createNight(host);
+    const base = IN_A_WEEK();
+    expect(
+      (
+        await request(app)
+          .post(`/api/game-nights/${id}/poll`)
+          .set('Cookie', other)
+          .send({ options: [base, base + DAY_MS] })
+      ).status
+    ).toBe(404);
+    expect(
+      (
+        await request(app)
+          .post(`/api/game-nights/${id}/poll`)
+          .set('Cookie', host)
+          .send({
+            options: [base],
+          })
+      ).status
+    ).toBe(400);
+    const opened = await request(app)
+      .post(`/api/game-nights/${id}/poll`)
+      .set('Cookie', host)
+      .send({ options: [base, base + DAY_MS] });
+    expect(opened.status).toBe(201);
+    const again = await request(app)
+      .post(`/api/game-nights/${id}/poll`)
+      .set('Cookie', host)
+      .send({ options: [base, base + DAY_MS] });
+    expect(again.status).toBe(400);
+  });
+
+  it('rejects opening a vote on a cancelled night (400)', async () => {
+    const host = await makeUser('gn-openpoll-cancelled');
+    const { id } = await createNight(host);
+    await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
+    const base = IN_A_WEEK();
+    const res = await request(app)
+      .post(`/api/game-nights/${id}/poll`)
+      .set('Cookie', host)
+      .send({ options: [base, base + DAY_MS] });
+    expect(res.status).toBe(400);
+  });
+
+  it('flips the night to polling with the invariant startsAt, and the E124 flow composes', async () => {
+    const host = await makeUser('gn-openpoll-flow');
+    const { id, token } = await createNight(host);
+    const base = IN_A_WEEK();
+    const opened = await request(app)
+      .post(`/api/game-nights/${id}/poll`)
+      .set('Cookie', host)
+      .send({ options: [base, base + DAY_MS] });
+    expect(opened.status).toBe(201);
+    expect(opened.body.night.options).toHaveLength(2);
+    // The polling invariant: startsAt mirrors the latest candidate.
+    expect(opened.body.night.startsAt).toBe(base + DAY_MS);
+
+    // Plain RSVPs are blocked while polling; votes + lock-in work unchanged.
+    const rsvp = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat' });
+    expect(rsvp.status).toBe(400);
+    const optionId = opened.body.night.options[0].id as string;
+    const vote = await request(app)
+      .post(`/api/game-nights/public/${token}/votes`)
+      .send({ optionIds: [optionId], displayName: 'Pat' });
+    expect(vote.status).toBe(200);
+    const locked = await request(app)
+      .post(`/api/game-nights/${id}/lock`)
+      .set('Cookie', host)
+      .send({ optionId });
+    expect(locked.status).toBe(200);
+    expect(locked.body.night.startsAt).toBe(base);
+    expect(locked.body.night.options).toEqual([]);
+  });
+});
+
+describe('lookupGameNightSeriesLandingMeta', () => {
+  it('unfurls the current occurrence flagged as weekly, at the series URL', async () => {
+    const host = await makeUser('gn-og-series');
+    const night = await createWeeklyNight(host, { title: 'Tuesday commander' });
+    const meta = await lookupGameNightSeriesLandingMeta(night.series!.token);
+    expect(meta).not.toBeNull();
+    expect(meta!.title).toBe('Tuesday commander — hosted by gn-og-series');
+    expect(meta!.description).toContain('Repeats weekly.');
+    expect(meta!.url).toContain(`/gn/s/${night.series!.token}`);
+  });
+
+  it('returns null for an unknown token', async () => {
+    expect(await lookupGameNightSeriesLandingMeta('nope')).toBeNull();
   });
 });
 

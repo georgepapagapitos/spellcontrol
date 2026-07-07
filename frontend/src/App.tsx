@@ -22,6 +22,7 @@ import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
 import { GameNightView } from './pages/GameNightView';
+import { GameNightSeriesView } from './pages/GameNightSeriesView';
 import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
 import { FriendsPage } from './pages/FriendsPage';
@@ -197,6 +198,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
+        <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         <Route
           path="*"
@@ -223,6 +225,7 @@ export default function App() {
       <AutoLinkBanner />
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
+        <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         {/* Root: the public marketing landing for first-time/logged-out
             visitors (and search-engine crawlers — empty storage + guest auth),

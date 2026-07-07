@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import {
   cancelGameNight,
   createGameNight,
+  endGameNightSeries,
+  gameNightSeriesUrl,
   gameNightUrl,
   listGameNights,
   lockGameNight,
+  openGameNightPoll,
   rsvpGameNight,
   suggestGameNightOption,
   updateGameNight,
@@ -162,16 +165,33 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
 
       {pendingCancel && (
         <ConfirmDialog
-          title={`Cancel "${pendingCancel.title}"?`}
-          body="Everyone opening the link will see it as cancelled. This can't be undone."
-          confirmLabel="Cancel night"
+          title={
+            pendingCancel.series && pendingCancel.series.endedAt === null
+              ? `Skip "${pendingCancel.title}"?`
+              : `Cancel "${pendingCancel.title}"?`
+          }
+          body={
+            pendingCancel.series && pendingCancel.series.endedAt === null
+              ? "This week is skipped — anyone opening the link sees it as cancelled, and next week's night takes its place."
+              : "Everyone opening the link will see it as cancelled. This can't be undone."
+          }
+          confirmLabel={
+            pendingCancel.series && pendingCancel.series.endedAt === null
+              ? 'Skip night'
+              : 'Cancel night'
+          }
           danger
           onConfirm={() => {
             const night = pendingCancel;
+            const skipped = night.series !== null && night.series.endedAt === null;
             setPendingCancel(null);
             cancelGameNight(night.id)
               .then(refresh)
-              .then(() => toast.show({ message: 'Game night cancelled.' }))
+              .then(() =>
+                toast.show({
+                  message: skipped ? 'Night skipped — see you next week.' : 'Game night cancelled.',
+                })
+              )
               .catch((err) =>
                 toast.show({
                   message: err instanceof Error ? err.message : "Couldn't cancel the game night.",
@@ -199,8 +219,11 @@ function NightCard({
 }) {
   const [busy, setBusy] = useState<RsvpStatus | null>(null);
   const [pendingLock, setPendingLock] = useState<NightOption | null>(null);
+  const [pendingStopRepeat, setPendingStopRepeat] = useState(false);
+  const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const cancelled = night.cancelledAt !== null;
   const polling = night.options.length > 0;
+  const weekly = night.series !== null && night.series.endedAt === null;
   const when = new Date(night.startsAt).toLocaleString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -230,8 +253,15 @@ function NightCard({
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(gameNightUrl(night.token));
-      toast.show({ message: 'Link copied — anyone with it can RSVP.' });
+      // An active series shares its stable link — pin it once, it always
+      // opens the upcoming night.
+      if (weekly) {
+        await navigator.clipboard.writeText(gameNightSeriesUrl(night.series!.token));
+        toast.show({ message: 'Series link copied — it always opens the next night.' });
+      } else {
+        await navigator.clipboard.writeText(gameNightUrl(night.token));
+        toast.show({ message: 'Link copied — anyone with it can RSVP.' });
+      }
     } catch {
       toast.show({ message: "Couldn't copy the link.", tone: 'error' });
     }
@@ -249,6 +279,7 @@ function NightCard({
     <li className={`game-night-card${cancelled ? ' is-cancelled' : ''}`}>
       <div className="game-night-card-head">
         <h3 className="game-night-card-title">{night.title}</h3>
+        {weekly && <span className="game-night-weekly-pill">Weekly</span>}
         {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
       </div>
       <p className="game-night-card-when">
@@ -333,12 +364,54 @@ function NightCard({
             <button type="button" className="btn" onClick={onEdit}>
               Edit
             </button>
+            {!polling && (
+              <button type="button" className="btn" onClick={() => setPollDialogOpen(true)}>
+                Vote on a new date
+              </button>
+            )}
+            {weekly && (
+              <button type="button" className="btn" onClick={() => setPendingStopRepeat(true)}>
+                Stop repeating
+              </button>
+            )}
             <button type="button" className="btn btn-danger" onClick={onCancel}>
-              Cancel night
+              {weekly ? 'Skip this night' : 'Cancel night'}
             </button>
           </>
         )}
       </div>
+
+      {pollDialogOpen && (
+        <PollDialog
+          night={night}
+          onClose={() => setPollDialogOpen(false)}
+          onSaved={() => {
+            setPollDialogOpen(false);
+            void refresh();
+          }}
+        />
+      )}
+
+      {pendingStopRepeat && (
+        <ConfirmDialog
+          title={`Stop repeating "${night.title}"?`}
+          body="This night stays on the calendar, but no new weeks will be scheduled. The series link keeps opening the last night."
+          confirmLabel="Stop repeating"
+          onConfirm={() => {
+            setPendingStopRepeat(false);
+            endGameNightSeries(night.series!.id)
+              .then(refresh)
+              .then(() => toast.show({ message: 'Series stopped — no more weekly nights.' }))
+              .catch((err) =>
+                toast.show({
+                  message: err instanceof Error ? err.message : "Couldn't stop the series.",
+                  tone: 'error',
+                })
+              );
+          }}
+          onCancel={() => setPendingStopRepeat(false)}
+        />
+      )}
 
       {pendingLock && (
         <ConfirmDialog
@@ -365,6 +438,114 @@ function NightCard({
   );
 }
 
+/**
+ * Host tool: open a date vote on an existing night — "should we move this
+ * one?". The current date is pre-filled as the first candidate; voting,
+ * suggestions, and lock-in are the same poll everyone already knows.
+ */
+function PollDialog({
+  night,
+  onClose,
+  onSaved,
+}: {
+  night: GameNight;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [optionInputs, setOptionInputs] = useState<string[]>([epochToInput(night.startsAt), '']);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  async function save() {
+    const slots = optionInputs.map((v) => (v ? new Date(v).getTime() : NaN));
+    if (slots.some((t) => !Number.isFinite(t))) {
+      setFormError('Fill in every candidate time.');
+      return;
+    }
+    if (new Set(slots).size !== slots.length) {
+      setFormError('Candidate times must be different.');
+      return;
+    }
+    setFormError(null);
+    setSaving(true);
+    try {
+      await openGameNightPoll(night.id, slots);
+      toast.show({ message: 'Date vote opened — attendees can vote now.' });
+      onSaved();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Couldn't open the date vote.");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} labelledBy="game-night-poll-dialog-title" dismissable={!saving}>
+      <form
+        className="game-night-dialog"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <h2 id="game-night-poll-dialog-title" className="game-night-dialog-title">
+          Vote on a new date
+        </h2>
+        <p className="game-night-dialog-hint">
+          Attendees vote on which times they can make; you lock one in from the night's card. The
+          current time is the first option.
+        </p>
+        <fieldset className="game-night-dialog-options">
+          <legend>Times to vote on (2–5)</legend>
+          {optionInputs.map((value, i) => (
+            <div key={i} className="game-night-dialog-option-row">
+              <input
+                type="datetime-local"
+                value={value}
+                aria-label={`Candidate time ${i + 1}`}
+                onChange={(e) =>
+                  setOptionInputs(optionInputs.map((v, j) => (j === i ? e.target.value : v)))
+                }
+              />
+              {optionInputs.length > 2 && (
+                <button
+                  type="button"
+                  className="btn"
+                  aria-label={`Remove candidate time ${i + 1}`}
+                  onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          {optionInputs.length < 5 && (
+            <button
+              type="button"
+              className="btn game-night-dialog-add-option"
+              onClick={() => setOptionInputs([...optionInputs, ''])}
+            >
+              Add another time
+            </button>
+          )}
+        </fieldset>
+        {formError && (
+          <p className="game-night-form-error" role="alert">
+            {formError}
+          </p>
+        )}
+        <div className="game-night-dialog-actions">
+          <button type="button" className="btn" onClick={onClose} disabled={saving}>
+            Close
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Opening…' : 'Start the vote'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function epochToInput(ms: number): string {
   const d = new Date(ms);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -384,6 +565,7 @@ function NightDialog({
   const [title, setTitle] = useState(night?.title ?? '');
   const [whenInput, setWhenInput] = useState(night ? epochToInput(night.startsAt) : '');
   const [pollMode, setPollMode] = useState(false);
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [location, setLocation] = useState(night?.location ?? '');
   const [notes, setNotes] = useState(night?.notes ?? '');
@@ -466,10 +648,17 @@ function NightDialog({
           location: location.trim() || undefined,
           notes: notes.trim() || undefined,
           inviteUserIds: inviteIds,
+          ...(repeatWeekly ? { repeatsWeekly: true } : {}),
         });
         try {
-          await navigator.clipboard.writeText(gameNightUrl(created.token));
-          toast.show({ message: 'Game night created — link copied.' });
+          // A weekly night copies its stable series link — the one to pin.
+          if (created.series) {
+            await navigator.clipboard.writeText(gameNightSeriesUrl(created.series.token));
+            toast.show({ message: 'Weekly night created — series link copied.' });
+          } else {
+            await navigator.clipboard.writeText(gameNightUrl(created.token));
+            toast.show({ message: 'Game night created — link copied.' });
+          }
         } catch {
           toast.show({ message: 'Game night created.' });
         }
@@ -506,14 +695,43 @@ function NightDialog({
         </label>
 
         {night === null && (
-          <label className="game-night-dialog-pollmode">
-            <input
-              type="checkbox"
-              checked={pollMode}
-              onChange={(e) => setPollMode(e.target.checked)}
-            />
-            <span>Let attendees vote on the date</span>
-          </label>
+          <>
+            <label className="game-night-dialog-pollmode">
+              <input
+                type="checkbox"
+                checked={pollMode}
+                onChange={(e) => {
+                  setPollMode(e.target.checked);
+                  // A weekly series steps from a set date; a poll decides one
+                  // night — the two don't combine.
+                  if (e.target.checked) setRepeatWeekly(false);
+                }}
+              />
+              <span>Let attendees vote on the date</span>
+            </label>
+            <label className="game-night-dialog-pollmode">
+              <input
+                type="checkbox"
+                checked={repeatWeekly}
+                onChange={(e) => {
+                  setRepeatWeekly(e.target.checked);
+                  if (e.target.checked) setPollMode(false);
+                }}
+              />
+              <span>Repeat weekly</span>
+            </label>
+            {repeatWeekly && (
+              <p className="game-night-dialog-hint">
+                Same time every week. You'll get one stable link that always opens the next night —
+                perfect for pinning in the group chat.
+              </p>
+            )}
+          </>
+        )}
+        {night !== null && night.series !== null && night.series.endedAt === null && (
+          <p className="game-night-dialog-hint">
+            This night repeats weekly — your changes carry forward to future weeks.
+          </p>
         )}
 
         {pollingEdit ? (
@@ -635,7 +853,9 @@ function NightDialog({
                 ? 'Save changes'
                 : pollMode
                   ? 'Start the vote'
-                  : 'Create night'}
+                  : repeatWeekly
+                    ? 'Start weekly night'
+                    : 'Create night'}
           </button>
         </div>
       </form>
