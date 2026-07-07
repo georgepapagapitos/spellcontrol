@@ -6,6 +6,7 @@ import {
   pickFromPrefetched,
   pickFromPrefetchedWithCurve,
   OWNED_PRIORITY_BOOST,
+  OWNED_PRIORITY_BOOST_THEME_TIER,
   wipeQualityPenalty,
   WIPE_QUALITY_SYMMETRIC_PENALTY,
   WIPE_QUALITY_COLLATERAL_BASE,
@@ -407,6 +408,93 @@ describe("owned-first ('prefer' strategy)", () => {
       'prefer'
     );
     expect(picked.map((c) => c.name)).toEqual(['O']);
+  });
+});
+
+describe('owned-first bias in the theme/high-synergy tier (E122)', () => {
+  const ownedInc = 10;
+
+  // Both cards are theme-synergy (isThemeSynergyCard), so they land in the
+  // >=100 tier where OWNED_PRIORITY_BOOST_THEME_TIER (not the filler-tier
+  // OWNED_PRIORITY_BOOST) applies.
+  function pickOnePreferredTheme(unownedInc: number) {
+    const cards = [
+      ec({ name: 'U', inclusion: unownedInc, isThemeSynergyCard: true }),
+      ec({ name: 'O', inclusion: ownedInc, isThemeSynergyCard: true }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    return pickFromPrefetched(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      new Set(['O']), // collectionNames — 'O' is owned
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'prefer'
+    );
+  }
+
+  it('picks the owned theme card when the gap is within the theme-tier boost', () => {
+    expect(
+      pickOnePreferredTheme(ownedInc + OWNED_PRIORITY_BOOST_THEME_TIER - 5).map((c) => c.name)
+    ).toEqual(['O']);
+  });
+
+  it('does NOT override a clearly-higher-synergy unowned theme card — still bounded', () => {
+    expect(
+      pickOnePreferredTheme(ownedInc + OWNED_PRIORITY_BOOST_THEME_TIER + 20).map((c) => c.name)
+    ).toEqual(['U']);
+  });
+
+  it('the theme-tier boost is sized independently of (larger than) the filler-tier one', () => {
+    // A gap that clears the theme boost but not the filler one proves this
+    // is a genuinely separate constant, not OWNED_PRIORITY_BOOST reused —
+    // guards against ever collapsing the two back into one shared value.
+    expect(OWNED_PRIORITY_BOOST_THEME_TIER).toBeGreaterThan(OWNED_PRIORITY_BOOST);
+    const gap = ownedInc + OWNED_PRIORITY_BOOST_THEME_TIER - 5;
+    expect(pickOnePreferredTheme(gap).map((c) => c.name)).toEqual(['O']);
+  });
+
+  it('no collection: theme-tier ranking is untouched (byte-identical to today)', () => {
+    const cards = [
+      ec({ name: 'U', inclusion: ownedInc + 5, isThemeSynergyCard: true }),
+      ec({ name: 'O', inclusion: ownedInc, isThemeSynergyCard: true }),
+    ];
+    const map = new Map(cards.map((c) => [c.name, sc({ name: c.name })]));
+    const picked = pickFromPrefetched(
+      cards,
+      map,
+      1,
+      new Set(),
+      [],
+      new Set(),
+      null,
+      Infinity,
+      { value: 0 },
+      null,
+      null,
+      null,
+      undefined, // no collectionNames at all — no strategy can bias anything
+      undefined,
+      'USD',
+      new Set(),
+      false,
+      'full'
+    );
+    // Higher raw inclusion wins outright — no owned bias is possible without
+    // a collection, regardless of collectionStrategy.
+    expect(picked.map((c) => c.name)).toEqual(['U']);
   });
 });
 
