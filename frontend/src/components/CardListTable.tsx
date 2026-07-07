@@ -431,7 +431,11 @@ export function CardListTable({
       const { subtypes } = parseTypeLine(c.typeLine);
       for (const s of subtypes) collectionSubtypeTokens.add(s);
     }
+    // Cancelled on unmount: the catalog promise can outlive the component
+    // (flaked CI — a setState after vitest tore the DOM env down).
+    let cancelled = false;
     fetchTypeSuggestions().then((catalog) => {
+      if (cancelled) return;
       // Dedupe by lowercase key but prefer the version that has any
       // capitals — the Scryfall catalog supplies canonical casing
       // ("Angel") while parseTypeLine lowercases collection tokens
@@ -448,6 +452,9 @@ export function CardListTable({
       const merged = [...byLower.values()].sort((a, b) => a.localeCompare(b));
       setSubtypeSuggestions(merged);
     });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [rarityExpr, setRarityExpr] = useState<ChipExpression>({

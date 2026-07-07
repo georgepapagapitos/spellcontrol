@@ -4,6 +4,14 @@
    Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
 
 .coach-feed {
+  /* Full-width bento panel (like .power-hero / .deck-identity-card): the Tune
+     bento's 2-col template uses explicit tracks, so an unspanned lone child
+     sat in column 1 at HALF width with a dead second column on tablet/desktop. */
+  grid-column: 1 / -1;
+  /* Query container for the feed's own width — the NextBestMove row layout
+     adapts to the feed's box (@container in NextBestMove.css), not the
+     viewport, so a narrow feed stacks its CTA wherever it happens to render. */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 0.55rem;

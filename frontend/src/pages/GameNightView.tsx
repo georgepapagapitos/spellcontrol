@@ -264,6 +264,12 @@ function NightBody({
           <dt>When</dt>
           <dd>{polling ? `Being decided — ${options.length} times proposed` : when}</dd>
         </div>
+        {night.series !== null && night.series.endedAt === null && (
+          <div className="game-night-fact">
+            <dt>Repeats</dt>
+            <dd>Weekly</dd>
+          </div>
+        )}
         {night.location && (
           <div className="game-night-fact">
             <dt>Where</dt>
