@@ -18,7 +18,14 @@ import { frontFaceName } from '@/lib/card-text';
 import { stampRoleSubtypes, routeCardByType, roleCapTolerance } from '../categorize';
 import { computeRoleCounts } from '../commanderDeckAnalysis';
 import { computeLiftPickBoosts } from '../packageBoost';
-import { calculateCardPriority, PRICE_SANITY_RATIO, wipeQualityPenalty } from '../cardPicking';
+import {
+  calculateCardPriority,
+  isHighSynergyCard,
+  OWNED_PRIORITY_BOOST,
+  OWNED_PRIORITY_BOOST_THEME_TIER,
+  PRICE_SANITY_RATIO,
+  wipeQualityPenalty,
+} from '../cardPicking';
 import { analyzeDeckSynergy } from '@/deck-builder/services/synergy/deckSynergy';
 import { nonboFindings } from '../nonbo';
 import { getLiftIndex } from './liftPools';
@@ -283,6 +290,24 @@ export function applyRoleSurplusRebalance(
   const colorIdentity = state.context.colorIdentity;
   const ownedOnly = constrainsToCollection(state.cfg.collectionStrategy);
   const collectionNames = state.context.collectionNames;
+  // E122 follow-up (E82 attempt-6 pick/cut symmetry): this pass's survival
+  // scoring (survivalScoreOf) and its replacement ranking (findReplacement)
+  // both rank candidates by bare calculateCardPriority — the same signal
+  // cardPicking.ts's priorityWithBoosts blends an owned-preference term
+  // into at pick time. Without the SAME term here, an owned card that only
+  // made the pick-time cut because of that boost looks like the worst
+  // candidate in its role the moment this pass runs, and gets evicted right
+  // back out — silently undoing collectionStrategy='prefer'. Reuses the
+  // exact cardPicking.ts constants (no new tunables) and is a no-op unless
+  // both preferOwned and collectionNames are set, so no-collection/'full'
+  // generation is byte-for-byte unchanged.
+  const preferOwned = state.cfg.collectionStrategy === 'prefer';
+  const ownedBoostFor = (name: string, isThemeTier: boolean): number =>
+    preferOwned && collectionNames?.has(name)
+      ? isThemeTier
+        ? OWNED_PRIORITY_BOOST_THEME_TIER
+        : OWNED_PRIORITY_BOOST
+      : 0;
 
   const nonLands = (): ScryfallCard[] =>
     (Object.entries(state.categories) as [DeckCategory, ScryfallCard[]][])
@@ -426,7 +451,8 @@ export function applyRoleSurplusRebalance(
       role === 'boardwipe'
         ? wipeQualityPenalty(card, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
         : 0;
-    return priority + (liftBoosts.get(card.name) ?? 0) - quality;
+    const ownedBoost = ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
+    return priority + (liftBoosts.get(card.name) ?? 0) - quality + ownedBoost;
   };
 
   // Best pool candidate clearing every hard gate the pick-time path enforces
@@ -470,7 +496,11 @@ export function applyRoleSurplusRebalance(
         const quality = scryfallCard
           ? wipeQualityPenalty(scryfallCard, isOneSidedWipe, getWipeScope, ctx.deckTypeTargets)
           : 0;
-        return { ec, score: calculateCardPriority(ec) + (liftBoosts.get(ec.name) ?? 0) - quality };
+        const ownedBoost = ownedBoostFor(ec.name, isHighSynergyCard(ec));
+        return {
+          ec,
+          score: calculateCardPriority(ec) + (liftBoosts.get(ec.name) ?? 0) - quality + ownedBoost,
+        };
       })
       .sort((a, b) => b.score - a.score);
 

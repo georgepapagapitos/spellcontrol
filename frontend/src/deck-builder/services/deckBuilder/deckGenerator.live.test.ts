@@ -26,7 +26,12 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import type { Customization, GeneratedDeck, ScryfallCard } from '@/deck-builder/types';
+import type {
+  Customization,
+  CollectionStrategy,
+  GeneratedDeck,
+  ScryfallCard,
+} from '@/deck-builder/types';
 import type { GenerationContext } from './deckGeneration/state';
 import { generateDeck, clearGenerationCache } from './deckGenerator';
 import { assembleBuildReport } from './buildReport';
@@ -35,6 +40,28 @@ import { validateCardRole, getCardTags } from '@/deck-builder/services/tagger/cl
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.LIVE_GEN_OUTDIR ?? join(tmpdir(), 'spellcontrol-live-gen');
+
+// E122: env-gated owned-collection knob so the panel can A/B
+// collectionStrategy=prefer (and 'partial'/'available') against a real
+// generation. LIVE_GEN_COLLECTION points at a JSON file — either a bare
+// string[] of card names or `{ names: string[], ... }` (the committed
+// __fixtures__/owned-collection.fixture.json is the latter; any other keys,
+// e.g. `_assembly`, are ignored). Unset by default, so every other LIVE_GEN
+// run is untouched. LIVE_GEN_COLLECTION_STRATEGY overrides the strategy
+// (defaults to 'prefer' once a collection is supplied — the one E122 exists
+// to test).
+const COLLECTION_PATH = process.env.LIVE_GEN_COLLECTION;
+const COLLECTION_NAMES: Set<string> | undefined = COLLECTION_PATH
+  ? new Set<string>(
+      (() => {
+        const parsed: unknown = JSON.parse(readFileSync(resolve(COLLECTION_PATH), 'utf8'));
+        return Array.isArray(parsed) ? parsed : (parsed as { names: string[] }).names;
+      })()
+    )
+  : undefined;
+const COLLECTION_STRATEGY: CollectionStrategy | undefined =
+  (process.env.LIVE_GEN_COLLECTION_STRATEGY as CollectionStrategy | undefined) ??
+  (COLLECTION_NAMES ? 'prefer' : undefined);
 
 // ---- Customization factory (copied from deckGenerator.golden.test.ts) -----
 
@@ -58,7 +85,7 @@ function customization(overrides: Partial<Customization> = {}): Customization {
     ignoreOwnedBudget: false,
     ignoreOwnedRarity: false,
     collectionMode: false,
-    collectionStrategy: 'full',
+    collectionStrategy: COLLECTION_STRATEGY ?? 'full',
     collectionOwnedPercent: 75,
     arenaOnly: false,
     scryfallQuery: '',
@@ -297,13 +324,14 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           colorIdentity,
           customization: custom,
           selectedThemes: [],
+          collectionNames: COLLECTION_NAMES,
         };
 
         const deck = await generateDeck(ctx);
         const buildReport = assembleBuildReport({
           generated: deck,
           customization: custom,
-          collectionNames: new Set(),
+          collectionNames: COLLECTION_NAMES ?? new Set(),
         });
 
         const decklist: Record<string, ReturnType<typeof projectCard>[]> = {};
