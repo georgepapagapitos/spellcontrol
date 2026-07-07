@@ -1,0 +1,146 @@
+/* Public game-night RSVP page (/gn/:token). Rides the shared-view shell
+   styles (shared.css) for the page frame; everything here is night-specific. */
+
+.game-night-view {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.game-night-cancelled {
+  margin: var(--space-2) 0 0;
+  color: var(--err-text);
+  font-weight: 600;
+}
+
+.game-night-facts {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-raised);
+  border-radius: var(--radius-lg);
+}
+
+.game-night-fact {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.game-night-fact dt {
+  flex: 0 0 4rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  padding-top: 2px;
+}
+
+.game-night-fact dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.game-night-section-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.game-night-reply-as {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.game-night-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  max-width: 20rem;
+}
+
+.game-night-name-field span {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.game-night-name-field input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.game-night-status-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.game-night-status-btn {
+  min-height: 44px;
+}
+
+.game-night-status-btn.is-selected {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.game-night-form-error {
+  margin: var(--space-2) 0 0;
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+.game-night-calendar-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.game-night-attendee-group + .game-night-attendee-group {
+  margin-top: var(--space-4);
+}
+
+.game-night-count {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.game-night-attendee-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.game-night-attendee-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.game-night-host-pill {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+  line-height: 1.5;
+}
+
+.game-night-no-replies {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

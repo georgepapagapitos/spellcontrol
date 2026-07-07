@@ -16,6 +16,7 @@ import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
 import { friendsRouter } from './routes/friends';
 import { usersRouter } from './routes/users';
+import { gameNightsRouter } from './routes/game-nights';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -213,6 +214,39 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE INDEX shares_resource_idx ON shares(user_id, kind, resource_id);
     CREATE INDEX shares_audience_idx ON shares(user_id, audience) WHERE revoked_at IS NULL;
     CREATE INDEX shares_addressee_idx ON shares(addressee_id) WHERE addressee_id IS NOT NULL;
+    CREATE TABLE game_nights (
+      id TEXT PRIMARY KEY,
+      token TEXT NOT NULL UNIQUE,
+      host_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      starts_at BIGINT NOT NULL,
+      timezone TEXT,
+      location TEXT,
+      notes TEXT,
+      created_at BIGINT NOT NULL,
+      cancelled_at BIGINT
+    );
+    CREATE INDEX game_nights_host_idx ON game_nights(host_user_id);
+    CREATE INDEX game_nights_starts_idx ON game_nights(starts_at);
+    CREATE TABLE game_night_invites (
+      night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (night_id, user_id)
+    );
+    CREATE INDEX game_night_invites_user_idx ON game_night_invites(user_id);
+    CREATE TABLE game_night_rsvps (
+      id TEXT PRIMARY KEY,
+      night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      display_name TEXT NOT NULL,
+      status TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE INDEX game_night_rsvps_night_idx ON game_night_rsvps(night_id);
+    CREATE UNIQUE INDEX game_night_rsvps_user_idx
+      ON game_night_rsvps(night_id, user_id) WHERE user_id IS NOT NULL;
     CREATE TABLE friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -260,6 +294,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/scanner', scannerRouter);
   app.use('/api/friends', friendsRouter);
   app.use('/api/users', usersRouter);
+  app.use('/api/game-nights', gameNightsRouter);
 
   return {
     app,

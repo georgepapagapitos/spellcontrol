@@ -17,10 +17,11 @@ import { SelectMenu } from '../components/SelectMenu';
 import { Tabs } from '../components/Tabs';
 import { StackedBar } from '../components/shared/MeterBar';
 import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
+import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
-type Tab = 'local' | 'online' | 'history';
+type Tab = 'local' | 'online' | 'nights' | 'history';
 
 const FORMAT_OPTIONS: { value: GameFormat; label: string; defaultLife: number; cmdDmg: boolean }[] =
   [
@@ -82,6 +83,9 @@ export function PlayPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const gameNights = useGameNights(!isGuest);
+  const inviteCount = pendingInviteCount(gameNights.nights);
+
   const [pendingEnd, setPendingEnd] = useState<'local' | 'online' | null>(null);
   const [pendingDiscard, setPendingDiscard] = useState(false);
   // Starting a new local game while one is active overwrites it; hold the setup
@@ -124,6 +128,13 @@ export function PlayPage() {
                 </>
               ),
               ariaLabel: online ? 'Online, game in progress' : undefined,
+            },
+            {
+              id: 'nights',
+              label: 'Game nights',
+              count: inviteCount > 0 ? inviteCount : null,
+              ariaLabel:
+                inviteCount > 0 ? `Game nights, ${inviteCount} awaiting your reply` : undefined,
             },
             {
               id: 'history',
@@ -239,6 +250,16 @@ export function PlayPage() {
             </>
           )}
         </>
+      )}
+
+      {tab === 'nights' && (
+        <GameNightsTab
+          isGuest={isGuest}
+          nights={gameNights.nights}
+          loading={gameNights.loading}
+          error={gameNights.error}
+          refresh={gameNights.refresh}
+        />
       )}
 
       {tab === 'history' && (

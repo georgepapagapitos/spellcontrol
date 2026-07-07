@@ -880,15 +880,6 @@ export interface RoleTargetBreakdown {
   blended: number; // final target after blend + pacing + clamp
 }
 
-// Advanced deck framework targets — null fields mean "use EDHREC/fallback defaults"
-export interface AdvancedTargets {
-  curvePercentages: Record<number, number> | null; // CMC bucket → percentage of non-land cards
-  typePercentages: Record<string, number> | null; // card type → percentage of non-land cards
-  roleTargets: Record<string, number> | null; // role → absolute count target (still wins outright when set)
-  edhrecBlendWeight: number | null; // 0..1, null = default (0.6). 0 = archetype only, 1 = EDHREC only.
-  edhrecInclusionThreshold: number | null; // percent, null = default (25). Dev-only tuning knob.
-}
-
 // User customization
 export interface Customization {
   deckFormat: DeckSize;
@@ -919,7 +910,6 @@ export interface Customization {
   arenaOnly: boolean; // When true, only use cards available on MTG Arena
   scryfallQuery: string; // Additional Scryfall search syntax appended to all card queries (e.g. "set:mkm", "is:full-art")
   comboCount: number; // 0 = none, 1 = normal, 2 = a few extra, 3 = many combo pieces prioritized
-  hyperFocus: boolean; // When true, boost unique theme cards and penalize generic multi-theme cards
   balancedRoles: boolean; // When true, boost cards that fill underrepresented functional roles (ramp, removal, etc.)
   // E80: price-sanity tie-break among comparable same-role candidates (see
   // cardPicking.ts's priceSanityTieBreak). This is a SMART DEFAULT, not a
@@ -935,7 +925,6 @@ export interface Customization {
   currency: 'USD' | 'EUR'; // Price currency for budget filtering and display
   appliedExcludeLists: AppliedList[]; // User lists toggled on as exclude lists
   appliedIncludeLists: AppliedList[]; // User lists toggled on as must-include lists
-  advancedTargets: AdvancedTargets; // Advanced framework overrides (null = use defaults)
   tempoAutoDetect: boolean;
   tempoPacing: Pacing;
   saltTolerance: SaltTolerance;

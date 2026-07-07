@@ -144,7 +144,6 @@ function makeState(overrides: Partial<GenerationState> = {}): GenerationState {
       cardlists: { allNonLand: FILLER_POOL },
     } as unknown as GenerationState['edhrecData'],
     dataSource: 'base',
-    baseData: null,
     themeOverlapCounts: new Map(),
     roleTargets: null,
     roleTargetBreakdown: undefined,

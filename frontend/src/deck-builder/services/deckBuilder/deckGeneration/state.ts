@@ -130,7 +130,6 @@ export interface GenerationState {
   /** E93 disclosure: set when a bracket-narrowed EDHREC page was too thin and
    *  generation laddered down to a broader page. Undefined otherwise. */
   bracketPoolFallbackNote: string | undefined;
-  baseData: EDHRECCommanderData | null;
   themeOverlapCounts: Map<string, number>;
   roleTargets: Record<RoleKey, number> | null;
   roleTargetBreakdown: Record<RoleKey, RoleTargetBreakdown> | undefined;
@@ -219,7 +218,6 @@ export function createState(context: GenerationContext): GenerationState {
     edhrecData: null,
     dataSource: 'scryfall',
     bracketPoolFallbackNote: undefined,
-    baseData: null,
     themeOverlapCounts: new Map<string, number>(),
     roleTargets: null,
     roleTargetBreakdown: undefined,

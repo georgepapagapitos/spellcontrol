@@ -19,8 +19,10 @@ import { THEME_TO_ARCHETYPE } from './strategyVocabulary';
 export const EDHREC_INCLUSION_THRESHOLD = 25; // percent
 
 // Weight for the EDHREC-derived role counts in the final blended target.
-// Default 0.6 means 60% EDHREC / 40% archetype model. Overridable per-deck
-// via customization.advancedTargets.edhrecBlendWeight.
+// Default 0.6 means 60% EDHREC / 40% archetype model. getDynamicRoleTargets
+// still accepts an overrideBlendWeight param, but its only production caller
+// (deckGenerator.ts) always passes null since E121 deleted the
+// customization.advancedTargets override that used to supply it.
 export const EDHREC_BLEND_WEIGHT = 0.6;
 
 // ─── EDHREC-Derived Role Counts ─────────────────────────────────────
