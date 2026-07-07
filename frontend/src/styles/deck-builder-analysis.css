@@ -305,6 +305,17 @@
   min-width: 0;
 }
 
+/* Pair cells are inline-size query containers: panel CSS adapts to the
+   CELL's width via unnamed @container rules (DeckColorBalance /
+   DeckTypeBreakdown / BracketBreakdown), not the viewport. A pair cell is
+   roughly half the bento — ~288-576px on a tablet whose wide viewport never
+   tripped the old 600px @media gates (E61). Floating UI inside panels must
+   already portal to <body> (InfoTip/CardRowMenu do): container-type traps
+   position:fixed, see STYLE_GUIDE "Popovers". */
+.deck-stats-pair > * {
+  container-type: inline-size;
+}
+
 /* ── Bento boards (Stats / Tune analysis tabs) ───────────────────────────────
    Each analysis tab is one dense, contained bento that reflows to its OWN
    width (container queries), not just the viewport — so it fills desktop

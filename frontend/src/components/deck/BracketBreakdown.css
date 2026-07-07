@@ -282,9 +282,11 @@
   text-align: right;
 }
 
-/* Very narrow containers: stack the two columns; the header row self-hides
-   since each data cell is self-describing. */
-@media (max-width: 360px) {
+/* Very narrow boxes: stack the two columns; the header row self-hides
+   since each data cell is self-describing. Container-gated so it fires in a
+   Power-pair cell near the 18rem auto-fit floor on tablets, not just on
+   tiny phone viewports (E61). */
+@container (max-width: 22rem) {
   .deck-bracket-row {
     grid-template-columns: 1fr;
     gap: 0.3rem;
@@ -327,11 +329,12 @@
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
-/* Phones: tighten the section/floor/summary padding and gaps. Bar labels
-   truncate with an ellipsis while the mono value stays pinned (flex: 0 0
-   auto), so each bar head holds its line. Floor detail text already wraps.
-   Matches the 600px tier used by the sibling stat panels. */
-@media (max-width: 600px) {
+/* Narrow boxes: tighten the section/floor/summary padding and gaps. Bar
+   labels truncate with an ellipsis while the mono value stays pinned
+   (flex: 0 0 auto), so each bar head holds its line. Floor detail text
+   already wraps. Container-gated — this panel renders at half-width in the
+   Power bento pair (E61); same 26rem tier as the Stats pair panels. */
+@container (max-width: 26rem) {
   .bracket-breakdown {
     gap: 0.7rem;
   }
