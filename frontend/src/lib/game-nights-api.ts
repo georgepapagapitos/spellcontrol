@@ -71,6 +71,8 @@ export interface GameNight {
   options: NightOption[];
   /** The weekly series this night belongs to; null for a one-off night. */
   series: NightSeries | null;
+  /** Host-only: usernames blocked from rejoining, alphabetical. Empty for non-hosts. */
+  blocked: string[];
 }
 
 /** The public (token) view — what a guest with the link sees. */
@@ -194,14 +196,39 @@ export async function deleteGameNight(id: string): Promise<void> {
   }
 }
 
-/** Host only: remove an attendee's RSVP (and their pending invite with it). */
-export async function removeGameNightRsvp(nightId: string, rsvpId: string): Promise<void> {
+/**
+ * Host only: remove an attendee's RSVP (and their pending invite with it).
+ * `block: true` also blocks an account-backed attendee from rejoining via the
+ * public link — guests have no stable identity to block, so the server 400s
+ * if the target rsvp is a guest row.
+ */
+export async function removeGameNightRsvp(
+  nightId: string,
+  rsvpId: string,
+  opts?: { block?: boolean }
+): Promise<void> {
+  const query = opts?.block ? '?block=1' : '';
   const res = await fetch(
-    apiUrl(`/api/game-nights/${encodeURIComponent(nightId)}/rsvps/${encodeURIComponent(rsvpId)}`),
+    apiUrl(
+      `/api/game-nights/${encodeURIComponent(nightId)}/rsvps/${encodeURIComponent(rsvpId)}${query}`
+    ),
     { method: 'DELETE', credentials: 'include' }
   );
   if (!res.ok && res.status !== 204) {
     throw new Error(await readError(res, "Couldn't remove them from the night."));
+  }
+}
+
+/** Host only: unblock a previously-blocked account. */
+export async function unblockGameNightUser(nightId: string, username: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(
+      `/api/game-nights/${encodeURIComponent(nightId)}/blocks/${encodeURIComponent(username)}`
+    ),
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't unblock them."));
   }
 }
 

@@ -16,6 +16,7 @@ import {
   resolveGameNightSeries,
   rsvpGameNight,
   suggestGameNightOption,
+  unblockGameNightUser,
   updateGameNight,
   voteGameNight,
 } from './game-nights-api';
@@ -96,9 +97,33 @@ describe('host controls: delete night, remove attendee, un-invite', () => {
     await expect(removeGameNightRsvp('n1', 'r9')).resolves.toBeUndefined();
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/api/game-nights/n1/rsvps/r9');
+    expect(String(url)).not.toContain('?block=1');
     expect(init.method).toBe('DELETE');
     fetchMock.mockResolvedValue(jsonResponse({ error: 'RSVP not found.' }, 404));
     await expect(removeGameNightRsvp('n1', 'r9')).rejects.toThrow('RSVP not found.');
+  });
+
+  it('removeGameNightRsvp with block:true appends ?block=1', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(removeGameNightRsvp('n1', 'r9', { block: true })).resolves.toBeUndefined();
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1/rsvps/r9?block=1');
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error: "Guests can't be blocked — make the night invite-only instead." }, 400)
+    );
+    await expect(removeGameNightRsvp('n1', 'r9', { block: true })).rejects.toThrow(
+      "Guests can't be blocked — make the night invite-only instead."
+    );
+  });
+
+  it('unblockGameNightUser DELETEs by username and surfaces errors', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(unblockGameNightUser('n1', 'sam')).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1/blocks/sam');
+    expect(init.method).toBe('DELETE');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'Block not found.' }, 404));
+    await expect(unblockGameNightUser('n1', 'sam')).rejects.toThrow('Block not found.');
   });
 
   it('removeGameNightInvite DELETEs by username and surfaces errors', async () => {

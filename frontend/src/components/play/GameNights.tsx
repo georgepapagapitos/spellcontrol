@@ -20,6 +20,7 @@ import {
   removeGameNightRsvp,
   rsvpGameNight,
   suggestGameNightOption,
+  unblockGameNightUser,
   updateGameNight,
   voteGameNight,
   type GameNight,
@@ -848,10 +849,18 @@ function NightDialog({
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [invited, setInvited] = useState<Set<string>>(new Set());
-  // The dialog holds a snapshot of the night; removals are tracked locally so
-  // the list updates in place while the parent list refreshes behind it.
+  // The dialog holds a snapshot of the night; removals/blocks are tracked
+  // locally so the list updates in place while the parent list refreshes
+  // behind it.
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState<string | null>(null);
+  const [pendingBlock, setPendingBlock] = useState<{
+    rsvpId: string;
+    displayName: string;
+    username: string;
+  } | null>(null);
+  const [blockedLocally, setBlockedLocally] = useState<Set<string>>(new Set());
+  const [unblockedLocally, setUnblockedLocally] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -932,6 +941,9 @@ function NightDialog({
   // Editable people list (host's view carries rsvp ids as removal handles).
   const people = night?.rsvps.filter((r) => r.id !== undefined && !removed.has(r.id)) ?? [];
   const awaitingLeft = night?.awaiting.filter((u) => !removed.has(`invite:${u}`)) ?? [];
+  const blockedList = Array.from(
+    new Set([...(night?.blocked.filter((u) => !unblockedLocally.has(u)) ?? []), ...blockedLocally])
+  ).sort((a, b) => a.localeCompare(b));
 
   async function removeRsvp(rsvpId: string, displayName: string) {
     if (!night || removing) return;
@@ -944,6 +956,43 @@ function NightDialog({
     } catch (err) {
       toast.show({
         message: err instanceof Error ? err.message : "Couldn't remove them from the night.",
+        tone: 'error',
+      });
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  async function blockRsvp(rsvpId: string, displayName: string, username: string) {
+    if (!night || removing) return;
+    setRemoving(rsvpId);
+    try {
+      await removeGameNightRsvp(night.id, rsvpId, { block: true });
+      setRemoved((prev) => new Set(prev).add(rsvpId));
+      setBlockedLocally((prev) => new Set(prev).add(username));
+      toast.show({ message: `${displayName} removed and blocked from the night.` });
+      onPeopleChanged();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't block them.",
+        tone: 'error',
+      });
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  async function unblockUser(username: string) {
+    if (!night || removing) return;
+    setRemoving(`unblock:${username}`);
+    try {
+      await unblockGameNightUser(night.id, username);
+      setUnblockedLocally((prev) => new Set(prev).add(username));
+      toast.show({ message: `${username} unblocked.` });
+      onPeopleChanged();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't unblock them.",
         tone: 'error',
       });
     } finally {
@@ -1057,296 +1106,358 @@ function NightDialog({
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="game-night-dialog-title" dismissable={!saving}>
-      <form
-        className="game-night-dialog"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save();
-        }}
-      >
-        <h2 id="game-night-dialog-title" className="game-night-dialog-title">
-          {night ? 'Edit game night' : 'Plan a game night'}
-        </h2>
+    <>
+      <Modal onClose={onClose} labelledBy="game-night-dialog-title" dismissable={!saving}>
+        <form
+          className="game-night-dialog"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <h2 id="game-night-dialog-title" className="game-night-dialog-title">
+            {night ? 'Edit game night' : 'Plan a game night'}
+          </h2>
 
-        <label className="game-night-dialog-field">
-          <span>Title</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={80}
-            placeholder="e.g. Friday commander"
-            autoFocus
-          />
-        </label>
-
-        {night === null && (
-          <>
-            <label className="game-night-dialog-pollmode">
-              <input
-                type="checkbox"
-                checked={pollMode}
-                onChange={(e) => {
-                  setPollMode(e.target.checked);
-                  // A weekly series steps from a set date; a poll decides one
-                  // night — the two don't combine.
-                  if (e.target.checked) setRepeatWeekly(false);
-                }}
-              />
-              <span>Let attendees vote on the date</span>
-            </label>
-            <label className="game-night-dialog-pollmode">
-              <input
-                type="checkbox"
-                checked={repeatWeekly}
-                onChange={(e) => {
-                  setRepeatWeekly(e.target.checked);
-                  if (e.target.checked) setPollMode(false);
-                }}
-              />
-              <span>Repeat weekly</span>
-            </label>
-            {repeatWeekly && (
-              <p className="game-night-dialog-hint">
-                Same time every week. You'll get one stable link that always opens the next night —
-                perfect for pinning in the group chat.
-              </p>
-            )}
-          </>
-        )}
-        {night !== null && night.series !== null && night.series.endedAt === null && (
-          <p className="game-night-dialog-hint">
-            This night repeats weekly — your changes carry forward to future weeks.
-          </p>
-        )}
-
-        {pollingEdit ? (
-          <p className="game-night-dialog-hint">
-            The date is being voted on — lock one in from the night's card.
-          </p>
-        ) : pollCreate ? (
-          <fieldset className="game-night-dialog-options">
-            <legend>Times to vote on (2–5)</legend>
-            {optionInputs.map((value, i) => (
-              <div key={i} className="game-night-dialog-option-row">
-                <input
-                  type="datetime-local"
-                  value={value}
-                  aria-label={`Candidate time ${i + 1}`}
-                  onChange={(e) =>
-                    setOptionInputs(optionInputs.map((v, j) => (j === i ? e.target.value : v)))
-                  }
-                />
-                {optionInputs.length > 2 && (
-                  <button
-                    type="button"
-                    className="btn"
-                    aria-label={`Remove candidate time ${i + 1}`}
-                    onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            {optionInputs.length < 5 && (
-              <button
-                type="button"
-                className="btn game-night-dialog-add-option"
-                onClick={() => setOptionInputs([...optionInputs, ''])}
-              >
-                Add another time
-              </button>
-            )}
-          </fieldset>
-        ) : (
           <label className="game-night-dialog-field">
-            <span>When</span>
+            <span>Title</span>
             <input
-              type="datetime-local"
-              value={whenInput}
-              onChange={(e) => setWhenInput(e.target.value)}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. Friday commander"
+              autoFocus
             />
           </label>
-        )}
 
-        <label className="game-night-dialog-field">
-          <span>Format (optional)</span>
-          <select value={format} onChange={(e) => setFormat(e.target.value)}>
-            <option value="">Undecided</option>
-            {FORMAT_OPTIONS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          {night === null && (
+            <>
+              <label className="game-night-dialog-pollmode">
+                <input
+                  type="checkbox"
+                  checked={pollMode}
+                  onChange={(e) => {
+                    setPollMode(e.target.checked);
+                    // A weekly series steps from a set date; a poll decides one
+                    // night — the two don't combine.
+                    if (e.target.checked) setRepeatWeekly(false);
+                  }}
+                />
+                <span>Let attendees vote on the date</span>
+              </label>
+              <label className="game-night-dialog-pollmode">
+                <input
+                  type="checkbox"
+                  checked={repeatWeekly}
+                  onChange={(e) => {
+                    setRepeatWeekly(e.target.checked);
+                    if (e.target.checked) setPollMode(false);
+                  }}
+                />
+                <span>Repeat weekly</span>
+              </label>
+              {repeatWeekly && (
+                <p className="game-night-dialog-hint">
+                  Same time every week. You'll get one stable link that always opens the next night
+                  — perfect for pinning in the group chat.
+                </p>
+              )}
+            </>
+          )}
+          {night !== null && night.series !== null && night.series.endedAt === null && (
+            <p className="game-night-dialog-hint">
+              This night repeats weekly — your changes carry forward to future weeks.
+            </p>
+          )}
 
-        {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
+          {pollingEdit ? (
+            <p className="game-night-dialog-hint">
+              The date is being voted on — lock one in from the night's card.
+            </p>
+          ) : pollCreate ? (
+            <fieldset className="game-night-dialog-options">
+              <legend>Times to vote on (2–5)</legend>
+              {optionInputs.map((value, i) => (
+                <div key={i} className="game-night-dialog-option-row">
+                  <input
+                    type="datetime-local"
+                    value={value}
+                    aria-label={`Candidate time ${i + 1}`}
+                    onChange={(e) =>
+                      setOptionInputs(optionInputs.map((v, j) => (j === i ? e.target.value : v)))
+                    }
+                  />
+                  {optionInputs.length > 2 && (
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-label={`Remove candidate time ${i + 1}`}
+                      onClick={() => setOptionInputs(optionInputs.filter((_, j) => j !== i))}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              {optionInputs.length < 5 && (
+                <button
+                  type="button"
+                  className="btn game-night-dialog-add-option"
+                  onClick={() => setOptionInputs([...optionInputs, ''])}
+                >
+                  Add another time
+                </button>
+              )}
+            </fieldset>
+          ) : (
+            <label className="game-night-dialog-field">
+              <span>When</span>
+              <input
+                type="datetime-local"
+                value={whenInput}
+                onChange={(e) => setWhenInput(e.target.value)}
+              />
+            </label>
+          )}
+
+          <label className="game-night-dialog-field">
+            <span>Format (optional)</span>
+            <select value={format} onChange={(e) => setFormat(e.target.value)}>
+              <option value="">Undecided</option>
+              {FORMAT_OPTIONS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
             suggestions are real places from the geocoder, shown exactly as
             returned — no browser substring filtering hiding fuzzy matches. */}
-        <label className="game-night-dialog-field game-night-place-field" ref={placeWrapRef}>
-          <span>Where (optional)</span>
-          <input
-            value={location}
-            onChange={(e) => {
-              setLocation(e.target.value);
-              setPlaceOpen(true);
-            }}
-            onFocus={() => setPlaceOpen(true)}
-            onKeyDown={onPlaceKeyDown}
-            maxLength={120}
-            placeholder="e.g. Sam's place, or search an address"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={placeOpen && placeOptions.length > 0}
-          />
-          {placeOpen && placeOptions.length > 0 && (
-            <ul className="game-night-place-results" role="listbox" aria-label="Place suggestions">
-              {placeOptions.map((p, i) => (
-                <li
-                  key={p}
-                  role="option"
-                  aria-selected={i === placeHighlight}
-                  className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
-                  onMouseEnter={() => setPlaceHighlight(i)}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    pickPlace(p);
-                  }}
-                >
-                  {p}
-                </li>
-              ))}
-            </ul>
+          <label className="game-night-dialog-field game-night-place-field" ref={placeWrapRef}>
+            <span>Where (optional)</span>
+            <input
+              value={location}
+              onChange={(e) => {
+                setLocation(e.target.value);
+                setPlaceOpen(true);
+              }}
+              onFocus={() => setPlaceOpen(true)}
+              onKeyDown={onPlaceKeyDown}
+              maxLength={120}
+              placeholder="e.g. Sam's place, or search an address"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={placeOpen && placeOptions.length > 0}
+            />
+            {placeOpen && placeOptions.length > 0 && (
+              <ul
+                className="game-night-place-results"
+                role="listbox"
+                aria-label="Place suggestions"
+              >
+                {placeOptions.map((p, i) => (
+                  <li
+                    key={p}
+                    role="option"
+                    aria-selected={i === placeHighlight}
+                    className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
+                    onMouseEnter={() => setPlaceHighlight(i)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickPlace(p);
+                    }}
+                  >
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </label>
+
+          <label className="game-night-dialog-field">
+            <span>Notes (optional)</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="e.g. bracket 2 decks, snacks covered"
+            />
+          </label>
+
+          <label className="game-night-dialog-pollmode">
+            <input
+              type="checkbox"
+              checked={inviteOnly}
+              onChange={(e) => setInviteOnly(e.target.checked)}
+            />
+            <span>Invite only</span>
+          </label>
+          {inviteOnly && (
+            <p className="game-night-dialog-hint">
+              Anyone with the link can see the night, but only people you invite — or who already
+              replied — can RSVP.
+            </p>
           )}
-        </label>
 
-        <label className="game-night-dialog-field">
-          <span>Notes (optional)</span>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            maxLength={500}
-            rows={3}
-            placeholder="e.g. bracket 2 decks, snacks covered"
-          />
-        </label>
-
-        <label className="game-night-dialog-pollmode">
-          <input
-            type="checkbox"
-            checked={inviteOnly}
-            onChange={(e) => setInviteOnly(e.target.checked)}
-          />
-          <span>Invite only</span>
-        </label>
-        {inviteOnly && (
-          <p className="game-night-dialog-hint">
-            Anyone with the link can see the night, but only people you invite — or who already
-            replied — can RSVP.
-          </p>
-        )}
-
-        {night !== null && (people.length > 0 || awaitingLeft.length > 0) && (
-          <fieldset className="game-night-dialog-people">
-            <legend>Who's in</legend>
-            <ul className="game-night-dialog-people-list">
-              {people.map((r) => (
-                <li key={r.id}>
-                  <span className="game-night-person-name">
-                    {r.displayName}
-                    {r.isHost ? ' (you)' : ''}
-                  </span>
-                  <span className="game-night-person-status">
-                    {STATUS_LABELS.find((s) => s.status === r.status)?.label}
-                  </span>
-                  {!r.isHost && (
+          {night !== null && (people.length > 0 || awaitingLeft.length > 0) && (
+            <fieldset className="game-night-dialog-people">
+              <legend>Who's in</legend>
+              <ul className="game-night-dialog-people-list">
+                {people.map((r) => (
+                  <li key={r.id}>
+                    <span className="game-night-person-name">
+                      {r.displayName}
+                      {r.isHost ? ' (you)' : ''}
+                    </span>
+                    <span className="game-night-person-status">
+                      {STATUS_LABELS.find((s) => s.status === r.status)?.label}
+                    </span>
+                    {!r.isHost && (
+                      <div className="game-night-person-actions">
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={removing !== null || saving}
+                          aria-label={`Remove ${r.displayName} from the night`}
+                          onClick={() => void removeRsvp(r.id!, r.displayName)}
+                        >
+                          {removing === r.id ? 'Removing…' : 'Remove'}
+                        </button>
+                        {r.username !== undefined && (
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            disabled={removing !== null || saving}
+                            aria-label={`Block ${r.displayName} from rejoining the night`}
+                            onClick={() =>
+                              setPendingBlock({
+                                rsvpId: r.id!,
+                                displayName: r.displayName,
+                                username: r.username!,
+                              })
+                            }
+                          >
+                            Block
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+                {awaitingLeft.map((username) => (
+                  <li key={`invite:${username}`}>
+                    <span className="game-night-person-name">{username}</span>
+                    <span className="game-night-person-status">Invited — hasn't replied</span>
                     <button
                       type="button"
                       className="btn"
                       disabled={removing !== null || saving}
-                      aria-label={`Remove ${r.displayName} from the night`}
-                      onClick={() => void removeRsvp(r.id!, r.displayName)}
+                      aria-label={`Remove the invite to ${username}`}
+                      onClick={() => void removeInvite(username)}
                     >
-                      {removing === r.id ? 'Removing…' : 'Remove'}
+                      {removing === `invite:${username}` ? 'Removing…' : 'Remove'}
                     </button>
-                  )}
-                </li>
-              ))}
-              {awaitingLeft.map((username) => (
-                <li key={`invite:${username}`}>
-                  <span className="game-night-person-name">{username}</span>
-                  <span className="game-night-person-status">Invited — hasn't replied</span>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={removing !== null || saving}
-                    aria-label={`Remove the invite to ${username}`}
-                    onClick={() => void removeInvite(username)}
-                  >
-                    {removing === `invite:${username}` ? 'Removing…' : 'Remove'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </fieldset>
-        )}
-
-        <fieldset className="game-night-dialog-invites">
-          <legend>Invite friends</legend>
-          {friends === null ? (
-            <p className="game-night-dialog-hint">Loading friends…</p>
-          ) : friends.length === 0 ? (
-            <p className="game-night-dialog-hint">
-              No friends yet — share the link instead; it works without an account.
-            </p>
-          ) : (
-            <ul className="game-night-dialog-friend-list">
-              {friends.map((f) => {
-                const already = alreadyIn.has(f.username);
-                return (
-                  <li key={f.id}>
-                    <label className={already ? 'is-disabled' : undefined}>
-                      <input
-                        type="checkbox"
-                        checked={already || invited.has(f.id)}
-                        disabled={already || saving}
-                        onChange={() => toggleInvite(f.id)}
-                      />
-                      <span>{f.username}</span>
-                      {already && <span className="game-night-dialog-hint">already invited</span>}
-                    </label>
                   </li>
-                );
-              })}
-            </ul>
+                ))}
+              </ul>
+            </fieldset>
           )}
-        </fieldset>
 
-        {formError && (
-          <p className="game-night-form-error" role="alert">
-            {formError}
-          </p>
-        )}
+          {night !== null && blockedList.length > 0 && (
+            <fieldset className="game-night-dialog-people">
+              <legend>Blocked</legend>
+              <ul className="game-night-dialog-people-list">
+                {blockedList.map((username) => (
+                  <li key={`blocked:${username}`}>
+                    <span className="game-night-person-name">{username}</span>
+                    <span className="game-night-person-status">Can't rejoin from the link</span>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={removing !== null || saving}
+                      aria-label={`Unblock ${username}`}
+                      onClick={() => void unblockUser(username)}
+                    >
+                      {removing === `unblock:${username}` ? 'Unblocking…' : 'Unblock'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
+          )}
 
-        <div className="game-night-dialog-actions">
-          <button type="button" className="btn" onClick={onClose} disabled={saving}>
-            Close
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving
-              ? 'Saving…'
-              : night
-                ? 'Save changes'
-                : pollMode
-                  ? 'Start the vote'
-                  : repeatWeekly
-                    ? 'Start weekly night'
-                    : 'Create night'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <fieldset className="game-night-dialog-invites">
+            <legend>Invite friends</legend>
+            {friends === null ? (
+              <p className="game-night-dialog-hint">Loading friends…</p>
+            ) : friends.length === 0 ? (
+              <p className="game-night-dialog-hint">
+                No friends yet — share the link instead; it works without an account.
+              </p>
+            ) : (
+              <ul className="game-night-dialog-friend-list">
+                {friends.map((f) => {
+                  const already = alreadyIn.has(f.username);
+                  return (
+                    <li key={f.id}>
+                      <label className={already ? 'is-disabled' : undefined}>
+                        <input
+                          type="checkbox"
+                          checked={already || invited.has(f.id)}
+                          disabled={already || saving}
+                          onChange={() => toggleInvite(f.id)}
+                        />
+                        <span>{f.username}</span>
+                        {already && <span className="game-night-dialog-hint">already invited</span>}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </fieldset>
+
+          {formError && (
+            <p className="game-night-form-error" role="alert">
+              {formError}
+            </p>
+          )}
+
+          <div className="game-night-dialog-actions">
+            <button type="button" className="btn" onClick={onClose} disabled={saving}>
+              Close
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving
+                ? 'Saving…'
+                : night
+                  ? 'Save changes'
+                  : pollMode
+                    ? 'Start the vote'
+                    : repeatWeekly
+                      ? 'Start weekly night'
+                      : 'Create night'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+      {pendingBlock && (
+        <ConfirmDialog
+          title={`Block ${pendingBlock.displayName}?`}
+          body="They're removed from the night and can't rejoin from the link. You can unblock them here later."
+          confirmLabel="Remove & block"
+          danger
+          onConfirm={() => {
+            const { rsvpId, displayName, username } = pendingBlock;
+            setPendingBlock(null);
+            void blockRsvp(rsvpId, displayName, username);
+          }}
+          onCancel={() => setPendingBlock(null)}
+        />
+      )}
+    </>
   );
 }

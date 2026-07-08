@@ -273,6 +273,13 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE UNIQUE INDEX game_nights_series_slot_idx
       ON game_nights(series_id, starts_at) WHERE series_id IS NOT NULL;
     ALTER TABLE game_nights ADD COLUMN invite_only BOOLEAN NOT NULL DEFAULT FALSE;
+    CREATE TABLE game_night_blocks (
+      night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (night_id, user_id)
+    );
+    CREATE INDEX game_night_blocks_user_idx ON game_night_blocks(user_id);
     ALTER TABLE game_nights ADD COLUMN format TEXT;
     CREATE TABLE friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

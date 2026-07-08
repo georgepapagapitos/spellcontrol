@@ -341,6 +341,28 @@ export const gameNightInvites = pgTable(
 );
 
 /**
+ * Host-blocked accounts (block-on-remove): a removed, account-backed attendee
+ * can also be blocked so they can't rejoin via the public link. Guests have no
+ * stable identity to block — invite-only is the tool for them instead.
+ */
+export const gameNightBlocks = pgTable(
+  'game_night_blocks',
+  {
+    nightId: text('night_id')
+      .notNull()
+      .references(() => gameNights.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.nightId, t.userId] }),
+    userIdx: index('game_night_blocks_user_idx').on(t.userId),
+  })
+);
+
+/**
  * RSVPs, from accounts and guests alike. Authed rows carry `userId` (one per
  * user per night, enforced by a partial unique index); guest rows have a NULL
  * `userId` and are edited by presenting the row `id`, which the RSVP endpoint
@@ -488,6 +510,7 @@ export type ShareRow = typeof shares.$inferSelect;
 export type GameNightRow = typeof gameNights.$inferSelect;
 export type GameNightSeriesRow = typeof gameNightSeries.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;
+export type GameNightBlockRow = typeof gameNightBlocks.$inferSelect;
 export type GameNightRsvpRow = typeof gameNightRsvps.$inferSelect;
 export type GameNightOptionRow = typeof gameNightOptions.$inferSelect;
 export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;

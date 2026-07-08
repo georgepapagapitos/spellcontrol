@@ -270,6 +270,16 @@ async function canReplyInviteOnly(
 }
 
 const INVITE_ONLY_ERROR = 'This game night is invite-only — ask the host for an invite.';
+const BLOCKED_ERROR = "You can't reply to this game night.";
+
+/** Whether the host has blocked this account from rejoining the night. */
+async function isBlocked(nightId: string, userId: string): Promise<boolean> {
+  const found = await getPool().query(
+    `SELECT 1 FROM game_night_blocks WHERE night_id = $1 AND user_id = $2`,
+    [nightId, userId]
+  );
+  return found.rows.length > 0;
+}
 
 /** Why poll/RSVP writes are refused, or null if the night is still open. */
 function nightClosedError(night: GameNightRow): string | null {
@@ -410,6 +420,12 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
        SELECT $1, user_id, $2 FROM game_night_invites WHERE night_id = $3`,
       [nightId, now, latest.id]
     );
+    // Blocked accounts stay blocked on the next occurrence too.
+    await pool.query(
+      `INSERT INTO game_night_blocks (night_id, user_id, created_at)
+       SELECT $1, user_id, $2 FROM game_night_blocks WHERE night_id = $3`,
+      [nightId, now, latest.id]
+    );
     // The host is going by definition, same as a hand-created night.
     const host = await pool.query<{ username: string }>(
       `SELECT username FROM users WHERE id = $1`,
@@ -469,9 +485,12 @@ interface NightView {
   options: OptionView[];
   /** The weekly series this night belongs to; null for a one-off night. */
   series: SeriesInfo | null;
+  /** Host-only: usernames blocked from rejoining, alphabetical. Empty for
+   *  non-hosts — mirrors how rsvp `id` is host-gated. */
+  blocked: string[];
 }
 
-/** Load rsvps + unanswered invites for a set of nights, keyed by night id. */
+/** Load rsvps + unanswered invites + blocked usernames for a set of nights, keyed by night id. */
 async function loadNightDetails(nightIds: string[]): Promise<{
   rsvpsByNight: Map<
     string,
@@ -484,6 +503,7 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     }>
   >;
   awaitingByNight: Map<string, string[]>;
+  blockedByNight: Map<string, string[]>;
 }> {
   const rsvpsByNight = new Map<
     string,
@@ -496,7 +516,8 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     }>
   >();
   const awaitingByNight = new Map<string, string[]>();
-  if (nightIds.length === 0) return { rsvpsByNight, awaitingByNight };
+  const blockedByNight = new Map<string, string[]>();
+  if (nightIds.length === 0) return { rsvpsByNight, awaitingByNight, blockedByNight };
   const pool = getPool();
   const rsvps = await pool.query<{
     id: string;
@@ -539,7 +560,19 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     arr.push(a.username);
     awaitingByNight.set(a.night_id, arr);
   }
-  return { rsvpsByNight, awaitingByNight };
+  const blocked = await pool.query<{ night_id: string; username: string }>(
+    `SELECT b.night_id, u.username FROM game_night_blocks b
+       JOIN users u ON u.id = b.user_id
+      WHERE b.night_id = ANY($1)
+      ORDER BY u.username ASC`,
+    [nightIds]
+  );
+  for (const b of blocked.rows) {
+    const arr = blockedByNight.get(b.night_id) ?? [];
+    arr.push(b.username);
+    blockedByNight.set(b.night_id, arr);
+  }
+  return { rsvpsByNight, awaitingByNight, blockedByNight };
 }
 
 function toNightView(
@@ -555,7 +588,8 @@ function toNightView(
   }>,
   awaiting: string[],
   options: LoadedOption[],
-  series: SeriesInfo | null
+  series: SeriesInfo | null,
+  blocked: string[]
 ): NightView {
   const mine = rsvps.find((r) => r.userId === viewerId);
   const isHost = night.hostUserId === viewerId;
@@ -589,6 +623,8 @@ function toNightView(
     awaiting,
     options: toOptionViews(options, (v) => v.userId === viewerId),
     series,
+    // Host-only, mirroring the rsvp id gating just above.
+    blocked: isHost ? blocked : [],
   };
 }
 
@@ -707,7 +743,7 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     updatedAt: now,
   });
 
-  const { rsvpsByNight, awaitingByNight } = await loadNightDetails([night.id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([night.id]);
   const optionsByNight = await loadNightOptions([night.id]);
   res.status(201).json({
     night: toNightView(
@@ -717,7 +753,8 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       rsvpsByNight.get(night.id) ?? [],
       awaitingByNight.get(night.id) ?? [],
       optionsByNight.get(night.id) ?? [],
-      series
+      series,
+      blockedByNight.get(night.id) ?? []
     ),
   });
 });
@@ -778,7 +815,9 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
       ORDER BY n.starts_at ASC`,
     [req.user!.id, Date.now() - GRACE_MS]
   );
-  const { rsvpsByNight, awaitingByNight } = await loadNightDetails(rows.rows.map((r) => r.id));
+  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails(
+    rows.rows.map((r) => r.id)
+  );
   const optionsByNight = await loadNightOptions(rows.rows.map((r) => r.id));
   const nights = rows.rows.map((r) =>
     toNightView(
@@ -808,7 +847,8 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
             id: r.series_id,
             token: r.series_token,
             endedAt: r.series_ended_at === null ? null : Number(r.series_ended_at),
-          }
+          },
+      blockedByNight.get(r.id) ?? []
     )
   );
   res.json({ nights });
@@ -883,7 +923,7 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
   }
 
   const updated = { ...night, ...patch };
-  const { rsvpsByNight, awaitingByNight } = await loadNightDetails([id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
   res.json({
     night: toNightView(
       updated,
@@ -892,7 +932,8 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
       nightOptions,
-      await seriesInfoOf(night)
+      await seriesInfoOf(night),
+      blockedByNight.get(id) ?? []
     ),
   });
 });
@@ -932,7 +973,7 @@ gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Respon
   await pool.query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
   await pool.query(`DELETE FROM game_night_options WHERE night_id = $1`, [id]);
 
-  const { rsvpsByNight, awaitingByNight } = await loadNightDetails([id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
   res.json({
     night: toNightView(
       { ...night, startsAt },
@@ -941,7 +982,8 @@ gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Respon
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
       [],
-      await seriesInfoOf(night)
+      await seriesInfoOf(night),
+      blockedByNight.get(id) ?? []
     ),
   });
 });
@@ -989,7 +1031,7 @@ gameNightsRouter.post('/:id/poll', requireAuth, async (req: Request, res: Respon
   const startsAt = Math.max(...cleaned);
   await getPool().query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
 
-  const { rsvpsByNight, awaitingByNight } = await loadNightDetails([id]);
+  const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
   res.status(201).json({
     night: toNightView(
       { ...night, startsAt },
@@ -998,7 +1040,8 @@ gameNightsRouter.post('/:id/poll', requireAuth, async (req: Request, res: Respon
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
       (await loadNightOptions([id])).get(id) ?? [],
-      await seriesInfoOf(night)
+      await seriesInfoOf(night),
+      blockedByNight.get(id) ?? []
     ),
   });
 });
@@ -1064,10 +1107,17 @@ gameNightsRouter.get(
  * pending invite (if any) goes with it, so on an invite-only night removal
  * also revokes reply access; on an open night they could re-join via the link,
  * which is the soft semantics we want. Votes cascade with the rsvp row.
+ *
+ * `?block=1` additionally blocks the account from rejoining via the public
+ * link — only meaningful for account-backed rows: a guest's rsvp id is a
+ * bearer credential removal already destroys, so there's no stable identity
+ * left to block (400, and the guest row is left alone for the client to
+ * retry as a plain remove).
  */
 gameNightsRouter.delete('/:id/rsvps/:rsvpId', requireAuth, async (req: Request, res: Response) => {
   const id = typeof req.params.id === 'string' ? req.params.id : '';
   const rsvpId = typeof req.params.rsvpId === 'string' ? req.params.rsvpId : '';
+  const block = req.query.block === '1';
   const found = await getDb()
     .select()
     .from(gameNights)
@@ -1084,15 +1134,28 @@ gameNightsRouter.delete('/:id/rsvps/:rsvpId', requireAuth, async (req: Request, 
   if (rsvp.rows.length === 0) {
     return res.status(404).json({ error: 'RSVP not found.' });
   }
-  if (rsvp.rows[0].user_id === req.user!.id) {
+  const userId = rsvp.rows[0].user_id;
+  if (userId === req.user!.id) {
     return res.status(400).json({ error: "You're the host — cancel the night instead." });
   }
+  if (block && userId === null) {
+    return res
+      .status(400)
+      .json({ error: "Guests can't be blocked — make the night invite-only instead." });
+  }
   await pool.query(`DELETE FROM game_night_rsvps WHERE id = $1`, [rsvpId]);
-  if (rsvp.rows[0].user_id !== null) {
+  if (userId !== null) {
     await pool.query(`DELETE FROM game_night_invites WHERE night_id = $1 AND user_id = $2`, [
       id,
-      rsvp.rows[0].user_id,
+      userId,
     ]);
+    if (block) {
+      await pool.query(
+        `INSERT INTO game_night_blocks (night_id, user_id, created_at)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [id, userId, Date.now()]
+      );
+    }
   }
   res.status(204).end();
 });
@@ -1119,6 +1182,33 @@ gameNightsRouter.delete(
     );
     if (deleted.rowCount === 0) {
       return res.status(404).json({ error: 'Invite not found.' });
+    }
+    res.status(204).end();
+  }
+);
+
+/** Unblock a previously-blocked account (host only), by username. */
+gameNightsRouter.delete(
+  '/:id/blocks/:username',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const id = typeof req.params.id === 'string' ? req.params.id : '';
+    const username = typeof req.params.username === 'string' ? req.params.username : '';
+    const found = await getDb()
+      .select()
+      .from(gameNights)
+      .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+      .limit(1);
+    if (found.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const deleted = await getPool().query(
+      `DELETE FROM game_night_blocks b USING users u
+        WHERE b.night_id = $1 AND b.user_id = u.id AND u.username = $2`,
+      [id, username]
+    );
+    if (deleted.rowCount === 0) {
+      return res.status(404).json({ error: 'Block not found.' });
     }
     res.status(204).end();
   }
@@ -1263,10 +1353,13 @@ gameNightsRouter.get(
     }
 
     const options = (await loadNightOptions([night.id])).get(night.id) ?? [];
-    // Invite-only: tell the page up front whether this caller may reply, so
-    // it can show "ask the host for an invite" instead of a doomed form.
+    // A blocked authed viewer can never reply, invite-only or not; tell the
+    // page up front so it can show "ask the host for an invite" instead of
+    // a doomed form.
+    const blocked = req.user ? await isBlocked(night.id, req.user.id) : false;
     const canRsvp =
-      !night.inviteOnly || (await canReplyInviteOnly(night, req.user, req.query.rsvpId));
+      !blocked &&
+      (!night.inviteOnly || (await canReplyInviteOnly(night, req.user, req.query.rsvpId)));
     res.json({
       night: {
         token: night.token,
@@ -1312,6 +1405,9 @@ gameNightsRouter.post(
       return res.status(404).json({ error: 'Game night not found.' });
     }
     const { night } = found;
+    if (req.user && (await isBlocked(night.id, req.user.id))) {
+      return res.status(403).json({ error: BLOCKED_ERROR });
+    }
     const closed = nightClosedError(night);
     if (closed) {
       return res.status(400).json({ error: closed });
@@ -1405,6 +1501,9 @@ gameNightsRouter.post(
       return res.status(404).json({ error: 'Game night not found.' });
     }
     const { night } = found;
+    if (req.user && (await isBlocked(night.id, req.user.id))) {
+      return res.status(403).json({ error: BLOCKED_ERROR });
+    }
     const closed = nightClosedError(night);
     if (closed) {
       return res.status(400).json({ error: closed });
@@ -1473,6 +1572,9 @@ gameNightsRouter.post(
       return res.status(404).json({ error: 'Game night not found.' });
     }
     const { night } = found;
+    if (req.user && (await isBlocked(night.id, req.user.id))) {
+      return res.status(403).json({ error: BLOCKED_ERROR });
+    }
     const closed = nightClosedError(night);
     if (closed) {
       return res.status(400).json({ error: closed });
