@@ -159,6 +159,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* A 40-char unbroken guest name must wrap at 320px, not clip. */
+  overflow-wrap: anywhere;
 }
 
 .game-night-host-pill {

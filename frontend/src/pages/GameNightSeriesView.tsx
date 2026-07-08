@@ -43,7 +43,7 @@ export function GameNightSeriesView() {
 
   if (!token || state.status === 'notFound') {
     return (
-      <SharedShell>
+      <SharedShell ctaLabel="Plan your own game nights">
         <main className="shared-view shared-view--missing">
           <h1>Link not found</h1>
           <p>This game night link is invalid or no longer exists.</p>
@@ -56,7 +56,7 @@ export function GameNightSeriesView() {
   }
   if (state.status === 'error') {
     return (
-      <SharedShell>
+      <SharedShell ctaLabel="Plan your own game nights">
         <main className="shared-view shared-view--error">
           <h1>Something went wrong</h1>
           <p>{state.message}</p>
@@ -68,7 +68,7 @@ export function GameNightSeriesView() {
     );
   }
   return (
-    <SharedShell>
+    <SharedShell ctaLabel="Plan your own game nights">
       <main className="shared-view shared-view--loading" aria-busy="true">
         <BrandMark size={64} motion="busy" aria-hidden />
         <p>Loading…</p>

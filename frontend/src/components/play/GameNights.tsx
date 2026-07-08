@@ -1449,7 +1449,7 @@ function NightDialog({
                           disabled={already || saving}
                           onChange={() => toggleInvite(f.id)}
                         />
-                        <span>{f.username}</span>
+                        <span className="game-night-person-name">{f.username}</span>
                         {already && <span className="game-night-dialog-hint">already invited</span>}
                       </label>
                     </li>

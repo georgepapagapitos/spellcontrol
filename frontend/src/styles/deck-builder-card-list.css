@@ -1035,6 +1035,14 @@
   cursor: pointer;
 }
 
+/* Menu items rest at desktop density; floor them on touch (STYLE_GUIDE
+   § Responsive). Covers every OverflowMenu/CardRowMenu caller. */
+@media (pointer: coarse) {
+  .deck-row-menu-item {
+    min-height: 44px;
+  }
+}
+
 .deck-row-menu-status {
   display: flex;
   align-items: center;

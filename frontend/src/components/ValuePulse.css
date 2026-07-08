@@ -7,6 +7,13 @@
   margin: var(--space-1) 0 0;
 }
 
+/* Reserved slot while the history read resolves — the sparkline (20px) sets
+   the row height, so matching it makes the fill-in shift-free. */
+.value-pulse--loading {
+  min-height: 20px;
+  visibility: hidden;
+}
+
 .value-pulse-spark {
   flex: none;
   display: block;

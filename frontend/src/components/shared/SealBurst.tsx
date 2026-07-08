@@ -4,7 +4,7 @@ import './SealBurst.css';
 
 /**
  * One-shot completion flourish, Magic-native by design: the grimoire seal
- * flares (the same `#f0c368` brass glow as the <BrandMark> clasp seal) and
+ * flares (the same `--brand-seal-gold` brass glow as the <BrandMark> clasp seal) and
  * sheds mana sparks in the deck's own colour identity. NOT confetti — the
  * material is the brand's seal + WUBRG mana, so the celebration knows what
  * you built. Purely decorative (`aria-hidden`); the surrounding surface

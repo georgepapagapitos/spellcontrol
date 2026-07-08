@@ -44,7 +44,12 @@
 }
 
 .welcome-digest-strip-label {
-  flex: 0 0 auto;
+  /* The one shrinkable segment at 320px — ellipsize the static label rather
+     than clipping the count badge / chevron off the strip's right edge. */
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -171,6 +176,9 @@
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--text-secondary);
+  /* The dollar figure counts up (useAnimatedNumber) — fixed-width digits
+     keep the line from jittering mid-tween. */
+  font-variant-numeric: tabular-nums;
 }
 
 .welcome-digest-value-delta--up {

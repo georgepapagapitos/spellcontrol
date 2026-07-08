@@ -27,8 +27,8 @@
  *             Plus `--keyboard-inset` when the on-screen keyboard is up
  *             (the CSS variable is the single source of truth — read it from
  *             `document.documentElement`).
- *     Left/Right: safe-area insets (already handled by body padding in CSS;
- *             we just use EDGE_PAD as the minimum margin).
+ *     Left/Right: notch safe-area insets, read from `--safe-left`/`--safe-right`
+ *             on `<html>` (tokens.css), plus EDGE_PAD as the minimum margin.
  *
  * This file is imported by React components that portal their panels to
  * `<body>` and call `computePopoverPlacement()` in a `useLayoutEffect` after
@@ -90,6 +90,7 @@ export interface PopoverPlacement {
  * @param align           Horizontal alignment preference ('right' or 'left').
  * @param gap             Vertical gap between trigger and panel edge (px).
  * @param viewportHeight  Raw `window.innerHeight`; pass explicitly for testability.
+ * @param viewportWidth   Raw `window.innerWidth`; pass explicitly for testability.
  */
 export function computePopoverPlacement(
   anchor: AnchorRect,
@@ -97,7 +98,8 @@ export function computePopoverPlacement(
   safe: SafeViewport,
   align: PopoverAlign = 'right',
   gap = 6,
-  viewportHeight = typeof window !== 'undefined' ? window.innerHeight : safe.bottom
+  viewportHeight = typeof window !== 'undefined' ? window.innerHeight : safe.bottom,
+  viewportWidth = typeof window !== 'undefined' ? window.innerWidth : safe.right
 ): PopoverPlacement {
   const vw = safe.right; // right boundary doubles as "max right px"
 
@@ -131,9 +133,13 @@ export function computePopoverPlacement(
   let left: number | undefined;
   let right: number | undefined;
 
+  // Minimum CSS `right` offset that keeps the panel clear of the right
+  // safe-area inset (notch in landscape) plus the edge pad.
+  const minRight = viewportWidth - safe.right + EDGE_PAD;
+
   if (align === 'right') {
     // Right-align: panel's right edge at trigger's right edge.
-    right = Math.max(EDGE_PAD, vw - anchor.right);
+    right = Math.max(minRight, viewportWidth - anchor.right);
     // Verify it won't clip the left safe edge.
     const computedLeft = anchor.right - panel.width;
     if (computedLeft < safe.left + EDGE_PAD) {
@@ -148,7 +154,7 @@ export function computePopoverPlacement(
     if (left + panel.width > vw - EDGE_PAD) {
       // Flip to right-align instead.
       left = undefined;
-      right = Math.max(EDGE_PAD, vw - anchor.right);
+      right = Math.max(minRight, viewportWidth - anchor.right);
     }
   }
 
@@ -182,18 +188,19 @@ export function getSafeViewport(): SafeViewport {
   const tabBarEl = document.querySelector<HTMLElement>('.mobile-tab-bar');
   const tabBarHeight = tabBarEl ? tabBarEl.getBoundingClientRect().height : 0;
 
-  // On-screen keyboard inset (maintained by lib/keyboard.ts).
-  const kbInsetStr = getComputedStyle(document.documentElement).getPropertyValue(
-    '--keyboard-inset'
-  );
-  const kbInset = parseFloat(kbInsetStr) || 0;
+  // On-screen keyboard inset (maintained by lib/keyboard.ts) + notch
+  // safe-area insets (tokens.css resolves env() into --safe-left/right).
+  const rootStyle = getComputedStyle(document.documentElement);
+  const kbInset = parseFloat(rootStyle.getPropertyValue('--keyboard-inset')) || 0;
+  const notchLeft = parseFloat(rootStyle.getPropertyValue('--safe-left')) || 0;
+  const notchRight = parseFloat(rootStyle.getPropertyValue('--safe-right')) || 0;
 
   const safeBottom = vh - tabBarHeight - kbInset;
 
   return {
     top: safeTop,
     bottom: Math.max(safeTop, safeBottom),
-    left: 0,
-    right: vw,
+    left: notchLeft,
+    right: vw - notchRight,
   };
 }

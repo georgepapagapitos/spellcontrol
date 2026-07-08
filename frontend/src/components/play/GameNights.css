@@ -331,6 +331,7 @@
 
 .game-night-dialog-friend-list label {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
@@ -456,11 +457,16 @@
 
 .game-night-dialog-option-row {
   display: flex;
+  /* Once a Remove button joins the row it must not crush the datetime-local
+     input's segments at 320px — the button wraps to its own line instead. */
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .game-night-dialog-option-row input {
-  flex: 1;
+  /* Real basis (not 0%) so the row actually wraps when Remove won't fit,
+     keeping every datetime segment legible. */
+  flex: 1 1 12rem;
   min-width: 0;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);

@@ -1185,11 +1185,12 @@ and is grandfathered; don't copy it).
   completion moment, a variant bloom — should snap to these two numbers
   rather than inventing its own; see `SealBurst.css` and the `MOMENT_MS`
   constant in `components/shared/SealMoment.tsx`.
-- **Brass-gold duplication.** `#f0c368` (the seal's brass) is hardcoded in
-  both `components/shared/BrandMark.tsx` (the clasp seal) and `SealBurst.css`
-  (the flare/ring/mark glow) rather than a shared token — they must be kept in
-  sync by hand if the brass hue ever changes. Token consolidation is tracked
-  separately; don't fix it as a drive-by in an unrelated PR.
+- **Brass gold has exactly two definition points.** The seal's brass lives in
+  `--brand-seal-gold` (`styles/tokens.css`, theme-invariant — CSS consumers
+  like `SealBurst.css` use the var) and the mirrored `SEAL_GOLD` const in
+  `components/shared/BrandMark.tsx` (SVG presentation attributes can't take
+  `var()`). Change the hue by editing both; never reintroduce a raw `#f0c368`
+  literal anywhere else.
 
 ## Card row information hierarchy
 
