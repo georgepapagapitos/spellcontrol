@@ -394,7 +394,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       )}
       {sealMoment}
       {successMsg && !error && (
-        <div className="success-banner">
+        <div className="success-banner" role="status">
           <span>{successMsg}</span>
           <button
             type="button"
