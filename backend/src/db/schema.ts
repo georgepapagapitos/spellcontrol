@@ -232,7 +232,9 @@ export const shares = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    kind: text('kind').notNull().$type<'collection' | 'binder' | 'deck' | 'list' | 'cube'>(),
+    kind: text('kind')
+      .notNull()
+      .$type<'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback'>(),
     resourceId: text('resource_id').notNull().default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     revokedAt: bigint('revoked_at', { mode: 'number' }),
@@ -436,6 +438,43 @@ export const gameNightRsvps = pgTable(
 );
 
 /**
+ * One submitted feedback response against a kind='feedback' share (the
+ * BlueprintMTG-style "feedback link" for a deck). The responder — signed in
+ * or a guest — proposes card adds/cuts plus an overall comment and an
+ * optional power-bracket read; the deck owner then accepts or rejects each
+ * suggestion. Suggestions live as a JSONB array (see FeedbackSuggestion in
+ * routes/feedback.ts) because they're only ever read/updated as a unit with
+ * their response. `ownerUserId`/`deckId` are denormalized off the share so
+ * the owner's "feedback for this deck" listing survives token revocation.
+ */
+export const deckFeedback = pgTable(
+  'deck_feedback',
+  {
+    id: text('id').primaryKey(),
+    shareToken: text('share_token')
+      .notNull()
+      .references(() => shares.token, { onDelete: 'cascade' }),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deckId: text('deck_id').notNull(),
+    /** NULL for guest responders (name captured in authorName instead). */
+    authorUserId: text('author_user_id').references(() => users.id, { onDelete: 'set null' }),
+    authorName: text('author_name').notNull(),
+    comment: text('comment').notNull().default(''),
+    /** Responder's power-bracket read of the deck (1–5); NULL = no opinion. */
+    bracketSuggestion: integer('bracket_suggestion'),
+    suggestions: jsonb('suggestions').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    deckIdx: index('deck_feedback_deck_idx').on(t.ownerUserId, t.deckId),
+    tokenIdx: index('deck_feedback_token_idx').on(t.shareToken),
+  })
+);
+
+/**
  * Friend relationships between users. Stored directionally: the sender is
  * `requester_id`, the recipient is `addressee_id`. Status is 'pending' until
  * the addressee accepts, then 'accepted'. Uniqueness across both orderings is
@@ -507,6 +546,7 @@ export type ComboRow = typeof combos.$inferSelect;
 export type ComboCardRow = typeof comboCards.$inferSelect;
 export type ComboIngestRunRow = typeof comboIngestRuns.$inferSelect;
 export type ShareRow = typeof shares.$inferSelect;
+export type DeckFeedbackRow = typeof deckFeedback.$inferSelect;
 export type GameNightRow = typeof gameNights.$inferSelect;
 export type GameNightSeriesRow = typeof gameNightSeries.$inferSelect;
 export type GameNightInviteRow = typeof gameNightInvites.$inferSelect;

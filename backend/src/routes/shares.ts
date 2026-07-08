@@ -30,10 +30,19 @@ export const sharesRouter: Router = Router();
 
 const publicLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
-type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube';
+/** 'feedback' is a deck share that also accepts suggestion submissions —
+ *  see routes/feedback.ts. Viewers get the same PublicDeck projection. */
+type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback';
 
 function isShareKind(x: unknown): x is ShareKind {
-  return x === 'collection' || x === 'binder' || x === 'deck' || x === 'list' || x === 'cube';
+  return (
+    x === 'collection' ||
+    x === 'binder' ||
+    x === 'deck' ||
+    x === 'list' ||
+    x === 'cube' ||
+    x === 'feedback'
+  );
 }
 
 /**
@@ -66,7 +75,7 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   };
   if (!isShareKind(body.kind)) {
     return res.status(400).json({
-      error: "kind must be one of 'collection', 'binder', 'deck', 'list', or 'cube'.",
+      error: "kind must be one of 'collection', 'binder', 'deck', 'list', 'cube', or 'feedback'.",
     });
   }
   const kind = body.kind;
@@ -278,13 +287,15 @@ function projectAndRespond(
       data: projectCollection(username, data.collection),
     });
   }
-  if (share.kind === 'deck') {
+  if (share.kind === 'deck' || share.kind === 'feedback') {
     const deck = findDeckById(data.decks, share.resourceId);
     const projected = projectDeck(username, deck);
     if (!projected) {
       return res.status(404).json({ error: 'Share not found.' });
     }
-    return res.json({ kind: 'deck' as const, data: projected });
+    // A feedback share projects the same deck view; the kind tells the client
+    // to render the suggestion-mode UI instead of the read-only one.
+    return res.json({ kind: share.kind, data: projected });
   }
   if (share.kind === 'list') {
     const list = findListById(data.collection, share.resourceId);

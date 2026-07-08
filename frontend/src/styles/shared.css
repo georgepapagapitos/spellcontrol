@@ -716,3 +716,204 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+
+/* ── Feedback Tool (suggestion-mode deck share) ───────────────────────── */
+
+.feedback-howto {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.feedback-add {
+  position: relative;
+  margin-bottom: var(--space-4);
+}
+
+.feedback-add-results {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-1);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.feedback-add-empty {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.feedback-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feedback-row,
+.feedback-add-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0.5px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.feedback-add-result:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .feedback-row:hover,
+  .feedback-add-result:not(:disabled):hover {
+    background: var(--accent-light);
+  }
+}
+
+.feedback-row:focus-visible,
+.feedback-add-result:focus-visible,
+.feedback-bracket:focus-visible,
+.feedback-submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.feedback-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feedback-row-type {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.feedback-row--cut {
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  text-decoration: line-through;
+}
+
+.feedback-row--cut .feedback-row-type {
+  color: var(--warn-text);
+  text-decoration: none;
+}
+
+.feedback-row--add {
+  border-color: color-mix(in srgb, var(--success, #2f7d4f) 45%, transparent);
+  background: color-mix(in srgb, var(--success, #2f7d4f) 12%, transparent);
+}
+
+.feedback-form {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.feedback-field input,
+.feedback-field textarea {
+  padding: var(--space-2) var(--space-3);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.feedback-brackets {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.feedback-bracket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.feedback-bracket small {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .feedback-bracket:hover {
+    border-color: var(--accent);
+  }
+}
+
+.feedback-bracket.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.feedback-error {
+  margin: 0;
+  color: var(--warn-text);
+  font-size: var(--text-sm);
+}
+
+.feedback-submit {
+  align-self: flex-start;
+}
+
+.feedback-sent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 60vh;
+  gap: var(--space-2);
+}
+
+.feedback-sent h1 {
+  font-family: var(--font-serif);
+  margin: 0;
+}

@@ -4,7 +4,9 @@
  * file is what the frontend renders the SharedView page from.
  */
 
-export type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube';
+/** 'feedback' is a deck share whose viewers can also submit suggestions —
+ *  same PublicDeck payload, different viewer UI. */
+export type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback';
 
 /** Who can open a share. 'direct' = addressed to one friend (the addressee). */
 export type ShareAudience = 'link' | 'friends' | 'direct';
@@ -173,5 +175,6 @@ export type PublicShareResponse =
   | { kind: 'collection'; data: PublicCollection }
   | { kind: 'binder'; data: PublicBinder }
   | { kind: 'deck'; data: PublicDeck }
+  | { kind: 'feedback'; data: PublicDeck }
   | { kind: 'list'; data: PublicList }
   | { kind: 'cube'; data: PublicCube };

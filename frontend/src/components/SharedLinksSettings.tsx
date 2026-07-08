@@ -15,6 +15,7 @@ const KIND_LABELS: Record<ShareKind, string> = {
   binder: 'Binder',
   list: 'List',
   cube: 'Cube',
+  feedback: 'Deck feedback',
 };
 
 interface ResolvedLabel {
