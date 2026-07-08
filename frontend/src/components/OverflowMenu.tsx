@@ -30,6 +30,11 @@ interface Props {
    */
   triggerClassName?: string;
   /**
+   * Custom trigger content (e.g. a labeled "Add to calendar" button).
+   * Defaults to the ⋮ kebab icon.
+   */
+  trigger?: ReactNode;
+  /**
    * Horizontal alignment of the panel.
    * 'right' (default) aligns to the trigger's right edge;
    * 'left' aligns to the left edge (use when the trigger is leftmost).
@@ -59,6 +64,7 @@ export function OverflowMenu({
   header,
   className,
   triggerClassName,
+  trigger,
   align = 'right',
   panelClassName,
 }: Props) {
@@ -150,7 +156,7 @@ export function OverflowMenu({
           handleToggle();
         }}
       >
-        <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />
+        {trigger ?? <MoreVertical width={16} height={16} strokeWidth={2} aria-hidden />}
       </button>
       {open &&
         panelPos &&
