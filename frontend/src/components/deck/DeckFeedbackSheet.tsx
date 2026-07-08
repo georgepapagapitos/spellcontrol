@@ -18,6 +18,7 @@ import { useEscapeKey } from '../../lib/use-escape-key';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSheetExit } from '../../lib/use-sheet-exit';
 import { useAuth } from '../../store/auth';
+import { useDeckHistoryStore } from '../../store/deck-history';
 import { useDecksStore, type Deck } from '../../store/decks';
 import { toast } from '../../store/toasts';
 
@@ -58,8 +59,7 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
         if (!cancelled) setLink(shareUrl(row.token));
       })
       .catch((err) => {
-        if (!cancelled)
-          setLinkError(err instanceof Error ? err.message : 'Failed to create link.');
+        if (!cancelled) setLinkError(err instanceof Error ? err.message : 'Failed to create link.');
       });
     listDeckFeedback(deck.id)
       .then((rows) => {
@@ -130,12 +130,15 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
   ) => {
     if (status === 'accepted') {
       if (suggestion.type === 'add') {
-        if (!suggestion.card) {
+        const card = suggestion.card;
+        if (!card) {
           toast.show({ message: 'This suggestion has no card data to apply.', tone: 'warn' });
           return;
         }
-        addCard(deck.id, suggestion.card);
-        toast.show({ message: `Added ${suggestion.cardName}.`, tone: 'success' });
+        useDeckHistoryStore
+          .getState()
+          .record(deck.id, `add ${suggestion.cardName}`, () => addCard(deck.id, card));
+        toast.show({ message: `Added ${suggestion.cardName}`, tone: 'success' });
       } else {
         const current = useDecksStore.getState().decks.find((d) => d.id === deck.id);
         const slot = current ? findSlotForCut(current.cards, suggestion) : null;
@@ -143,8 +146,10 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
           toast.show({ message: `${suggestion.cardName} is no longer in the deck.`, tone: 'warn' });
           return;
         }
-        removeCard(deck.id, slot.slotId);
-        toast.show({ message: `Cut ${suggestion.cardName}.`, tone: 'success' });
+        useDeckHistoryStore
+          .getState()
+          .record(deck.id, `cut ${suggestion.cardName}`, () => removeCard(deck.id, slot.slotId));
+        toast.show({ message: `Cut ${suggestion.cardName}`, tone: 'success' });
       }
     }
     stampStatus(response.id, suggestion.id, status);
@@ -207,8 +212,8 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
           <div className="deck-feedback-body">
             <p className="deck-feedback-hint">
               Anyone with this link gets a suggestion-only view of the deck — they can propose cuts
-              and adds, rate the power bracket, and leave comments. You review every suggestion
-              here and apply the ones you like with one tap.
+              and adds, rate the power bracket, and leave comments. You review every suggestion here
+              and apply the ones you like with one tap.
             </p>
             {linkError && (
               <p role="alert" className="deck-feedback-error">

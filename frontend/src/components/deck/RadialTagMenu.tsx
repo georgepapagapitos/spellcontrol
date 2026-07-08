@@ -168,7 +168,11 @@ export function RadialTagMenu({
 
   return createPortal(
     <div ref={panelRef} className="radial-tag-menu" role="menu" aria-label="Card tags">
-      <span className="radial-tag-menu-center" aria-hidden style={{ left: center.x, top: center.y }}>
+      <span
+        className="radial-tag-menu-center"
+        aria-hidden
+        style={{ left: center.x, top: center.y }}
+      >
         Tag
       </span>
       {DECK_CARD_TAGS.map((tag, i) => {

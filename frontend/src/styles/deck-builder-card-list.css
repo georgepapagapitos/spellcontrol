@@ -742,11 +742,13 @@
   outline-offset: 2px;
 }
 
-/* Coarse pointers get a bigger hit area (mirrors the row action minimums). */
+/* Coarse pointers get the full 44px floor (STYLE_GUIDE touch-target rule) —
+   doubly important here since touch-action: none means a mis-tap can't even
+   fall back to scrolling. */
 @media (pointer: coarse) {
   .deck-row-tag-btn {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 44px;
+    height: 44px;
   }
 }
 

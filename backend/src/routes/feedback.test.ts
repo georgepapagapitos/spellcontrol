@@ -278,3 +278,156 @@ describe('DELETE /api/feedback/:id', () => {
     expect(after.body.responses).toHaveLength(0);
   });
 });
+
+async function userIdByName(cookie: string, username: string): Promise<string> {
+  const search = await request(app).get(`/api/users/search?q=${username}`).set('Cookie', cookie);
+  return search.body.users[0].id as string;
+}
+
+/** Make two registered users accepted friends (A requests, B's reverse request auto-accepts). */
+async function befriend(
+  aCookie: string,
+  aName: string,
+  bCookie: string,
+  bName: string
+): Promise<void> {
+  await request(app).post('/api/friends/requests').set('Cookie', aCookie).send({ username: bName });
+  const auto = await request(app)
+    .post('/api/friends/requests')
+    .set('Cookie', bCookie)
+    .send({ username: aName });
+  expect(auto.body.friendStatus).toBe('friends');
+}
+
+describe('audience gates on submit', () => {
+  it('a friends feedback link 401s anonymous, 403s a stranger, 201s a friend', async () => {
+    const ownerName = 'fb-aud-owner';
+    const owner = await makeUser(ownerName);
+    const friendName = 'fb-aud-friend';
+    const friend = await makeUser(friendName);
+    const stranger = await makeUser('fb-aud-stranger');
+    await befriend(owner, ownerName, friend, friendName);
+    await setSnapshot(owner, { decks: [makeDeck('d-aud')] });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'feedback', resourceId: 'd-aud', audience: 'friends' });
+    const token = create.body.share.token as string;
+    const payload = { authorName: 'G', suggestions: [{ type: 'cut', cardName: 'Sol Ring' }] };
+
+    expect((await request(app).post(`/api/feedback/public/${token}`).send(payload)).status).toBe(
+      401
+    );
+    expect(
+      (
+        await request(app)
+          .post(`/api/feedback/public/${token}`)
+          .set('Cookie', stranger)
+          .send(payload)
+      ).status
+    ).toBe(403);
+    expect(
+      (await request(app).post(`/api/feedback/public/${token}`).set('Cookie', friend).send(payload))
+        .status
+    ).toBe(201);
+  });
+
+  it('a direct feedback link only accepts the addressee', async () => {
+    const ownerName = 'fb-dir-owner';
+    const owner = await makeUser(ownerName);
+    const addresseeName = 'fb-dir-addressee';
+    const addressee = await makeUser(addresseeName);
+    const other = await makeUser('fb-dir-other');
+    await befriend(owner, ownerName, addressee, addresseeName);
+    await setSnapshot(owner, { decks: [makeDeck('d-dir')] });
+    const addresseeId = await userIdByName(owner, addresseeName);
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'feedback', resourceId: 'd-dir', audience: 'direct', addresseeId });
+    const token = create.body.share.token as string;
+    const payload = { authorName: 'G', suggestions: [{ type: 'cut', cardName: 'Sol Ring' }] };
+
+    expect(
+      (await request(app).post(`/api/feedback/public/${token}`).set('Cookie', other).send(payload))
+        .status
+    ).toBe(404);
+    expect(
+      (
+        await request(app)
+          .post(`/api/feedback/public/${token}`)
+          .set('Cookie', addressee)
+          .send(payload)
+      ).status
+    ).toBe(201);
+  });
+});
+
+describe('abuse bounds', () => {
+  it('rejects an oversized card blob instead of silently dropping it', async () => {
+    const { token } = await makeFeedbackShare('fb-oversize');
+    const res = await request(app)
+      .post(`/api/feedback/public/${token}`)
+      .send({
+        authorName: 'G',
+        suggestions: [{ type: 'add', cardName: 'Big', card: { blob: 'x'.repeat(65 * 1024) } }],
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('caps total responses per feedback link', async () => {
+    const { token } = await makeFeedbackShare('fb-cap');
+    for (let i = 0; i < 64; i++) {
+      const res = await request(app)
+        .post(`/api/feedback/public/${token}`)
+        .send({ authorName: `G${i}`, comment: 'gg', suggestions: [] });
+      expect(res.status).toBe(201);
+    }
+    const overflow = await request(app)
+      .post(`/api/feedback/public/${token}`)
+      .send({ authorName: 'G65', comment: 'gg', suggestions: [] });
+    expect(overflow.status).toBe(400);
+    expect(overflow.body.error).toMatch(/full/i);
+  });
+});
+
+describe('concurrent verdicts', () => {
+  it('does not lose one of two simultaneous verdicts on sibling suggestions', async () => {
+    const { cookie, token } = await makeFeedbackShare('fb-race');
+    await request(app)
+      .post(`/api/feedback/public/${token}`)
+      .send({
+        authorName: 'G',
+        suggestions: [
+          { type: 'cut', cardName: 'Sol Ring' },
+          { type: 'cut', cardName: 'Arcane Signet' },
+        ],
+      });
+    const list = await request(app).get('/api/feedback/deck/d-1').set('Cookie', cookie);
+    const feedbackId = list.body.responses[0].id as string;
+    const [sugA, sugB] = list.body.responses[0].suggestions as Array<{ id: string }>;
+
+    const [a, b] = await Promise.all([
+      request(app)
+        .post(`/api/feedback/${feedbackId}/suggestions/${sugA.id}`)
+        .set('Cookie', cookie)
+        .send({ status: 'accepted' }),
+      request(app)
+        .post(`/api/feedback/${feedbackId}/suggestions/${sugB.id}`)
+        .set('Cookie', cookie)
+        .send({ status: 'rejected' }),
+    ]);
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+
+    const after = await request(app).get('/api/feedback/deck/d-1').set('Cookie', cookie);
+    const byId = new Map(
+      (after.body.responses[0].suggestions as Array<{ id: string; status: string }>).map((s) => [
+        s.id,
+        s.status,
+      ])
+    );
+    expect(byId.get(sugA.id)).toBe('accepted');
+    expect(byId.get(sugB.id)).toBe('rejected');
+  });
+});

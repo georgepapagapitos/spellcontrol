@@ -68,9 +68,9 @@ describe('suggestionBlockedReason', () => {
   const cards = [slot(card({ id: 'p1', oracle_id: 'o1', name: 'Sol Ring' }))];
 
   it('blocks an add already in the deck and an add without card data', () => {
-    expect(
-      suggestionBlockedReason(cards, cut({ type: 'add', cardName: 'Sol Ring' }))
-    ).toBe('Already in deck');
+    expect(suggestionBlockedReason(cards, cut({ type: 'add', cardName: 'Sol Ring' }))).toBe(
+      'Already in deck'
+    );
     expect(suggestionBlockedReason(cards, cut({ type: 'add', cardName: 'Mana Vault' }))).toBe(
       'Card data unavailable'
     );

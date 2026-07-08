@@ -133,4 +133,26 @@ describe('normalizeScryfallQuery', () => {
     expect(normalizeScryfallQuery('Sol Ring')).toBe('Sol Ring');
     expect(normalizeScryfallQuery('Borborygmos, Enraged')).toBe('Borborygmos, Enraged');
   });
+
+  it('collapses spaces around comparison operators too', () => {
+    expect(normalizeScryfallQuery('mv >= 6')).toBe('mv>=6');
+    expect(normalizeScryfallQuery('mv >=6')).toBe('mv>=6');
+    expect(normalizeScryfallQuery('mv>= 6')).toBe('mv>=6');
+    expect(normalizeScryfallQuery('pow <= 2')).toBe('pow<=2');
+    expect(normalizeScryfallQuery('cmc < 4')).toBe('cmc<4');
+    expect(normalizeScryfallQuery('year = 2020')).toBe('year=2020');
+    expect(normalizeScryfallQuery('tou != 3')).toBe('tou!=3');
+  });
+
+  it('collapses a keyboard space before the colon as well', () => {
+    expect(normalizeScryfallQuery('t : vampire')).toBe('t:vampire');
+  });
+
+  it('leaves comparison-like text alone for non-operator words', () => {
+    expect(normalizeScryfallQuery('blah >= 6')).toBe('blah >= 6');
+  });
+
+  it('is idempotent on comparison forms', () => {
+    expect(normalizeScryfallQuery(normalizeScryfallQuery('mv >= 6'))).toBe('mv>=6');
+  });
 });

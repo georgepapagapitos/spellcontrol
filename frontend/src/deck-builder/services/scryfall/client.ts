@@ -1291,9 +1291,10 @@ export async function searchValidPartners(
       return [];
   }
 
-  // Add user search query if provided
+  // Add user search query if provided (normalized like every other live
+  // search box, so a mobile-keyboard "t: elf" works here too).
   if (searchQuery.trim()) {
-    query = `${query} ${searchQuery}`;
+    query = `${query} ${normalizeScryfallQuery(searchQuery)}`;
   }
 
   try {

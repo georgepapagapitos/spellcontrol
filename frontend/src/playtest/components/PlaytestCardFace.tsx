@@ -7,6 +7,8 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
   size?: 'sm' | 'md' | 'lg';
 }
 
+const MAX_VISIBLE_STICKERS = 3;
+
 /**
  * Pure presentational card face — image / face-down back / placeholder plus
  * counters. Shared by the draggable `PlaytestCardView` and the top-level
@@ -38,11 +40,23 @@ export const PlaytestCardFace = forwardRef<HTMLDivElement, Props>(function Playt
       )}
       {stickers.length > 0 && (
         <div className="playtest-card__stickers">
-          {stickers.map((s, i) => (
+          {/* Cap the visible stack: the smallest card tier (100px) fits ~4
+              badges before .playtest-card's overflow:hidden silently clips.
+              The rest roll up into a +N chip; the full list lives in the
+              card context menu (where removal already is). */}
+          {stickers.slice(0, MAX_VISIBLE_STICKERS).map((s, i) => (
             <span key={`${i}-${s}`} className="playtest-card__sticker" title={s}>
               {s}
             </span>
           ))}
+          {stickers.length > MAX_VISIBLE_STICKERS && (
+            <span
+              className="playtest-card__sticker"
+              title={stickers.slice(MAX_VISIBLE_STICKERS).join(', ')}
+            >
+              +{stickers.length - MAX_VISIBLE_STICKERS} more
+            </span>
+          )}
         </div>
       )}
       {Object.entries(counters).length > 0 && (

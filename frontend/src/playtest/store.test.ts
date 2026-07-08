@@ -94,18 +94,88 @@ describe('playtest store — resistance mode', () => {
   it('the opponent response is undoable per-move', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
     store().toggleResistance();
-    usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
+    const pinned = createResistanceState(findSeedFor('counter'));
+    usePlaytestStore.setState({ resistanceState: pinned });
 
     const played = store().state!.zones.hand[0];
     store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: played.id, x: 10, y: 10 });
     expect(store().state!.zones.graveyard).toHaveLength(1);
+    expect(store().resistanceState!.respondedThisTurn).toBe(true);
 
-    // First undo reverses the opponent's graveyard move (card back on board)…
+    // First undo reverses the opponent's graveyard move (card back on board)
+    // AND rewinds the response bookkeeping — visually no response happened,
+    // so the flags and seed must agree.
     store().dispatch({ type: 'UNDO' });
     expect(store().state!.battlefield.map((b) => b.card.id)).toEqual([played.id]);
+    expect(store().resistanceState).toEqual(pinned);
     // …second undo reverses the play itself.
     store().dispatch({ type: 'UNDO' });
     expect(store().state!.zones.hand.some((c) => c.id === played.id)).toBe(true);
+    expect(store().resistanceState).toEqual(pinned);
+
+    // Deterministic replay: the same play re-rolls the same counter.
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: played.id, x: 10, y: 10 });
+    expect(store().state!.zones.graveyard.map((c) => c.id)).toEqual([played.id]);
+  });
+
+  it('fully undoing the board wipe re-arms it; a partial undo does not', () => {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().toggleResistance();
+    // Battlefield of 5 wipe targets, and a seed whose turn-start roll wipes.
+    const board = threatLibrary(5).map((card, i) => ({
+      card: { ...card, id: `bf-${i}` },
+      tapped: false,
+      counters: {},
+      stickers: [],
+      x: 10,
+      y: 10,
+      faceDown: false,
+    }));
+    let wipeSeed = 0;
+    for (let seed = 1; seed <= 10000 && !wipeSeed; seed++) {
+      const { response } = resistanceRespond(
+        createResistanceState(seed),
+        { kind: 'turnStart', turn: 2 },
+        { battlefield: board }
+      );
+      if (response?.effect === 'wipe') wipeSeed = seed;
+    }
+    expect(wipeSeed).toBeGreaterThan(0);
+    usePlaytestStore.setState({
+      state: { ...store().state!, battlefield: board },
+      resistanceState: createResistanceState(wipeSeed),
+    });
+
+    store().dispatch({ type: 'NEXT_TURN' });
+    expect(store().state!.battlefield).toHaveLength(0);
+    expect(store().resistanceState!.wipeUsed).toBe(true);
+
+    // Undo one wiped permanent: the wipe stays spent (no free claw-back).
+    store().dispatch({ type: 'UNDO' });
+    expect(store().state!.battlefield).toHaveLength(1);
+    expect(store().resistanceState!.wipeUsed).toBe(true);
+
+    // Undo the remaining four moves: board fully restored, wipe re-armed.
+    for (let i = 0; i < 4; i++) store().dispatch({ type: 'UNDO' });
+    expect(store().state!.battlefield).toHaveLength(5);
+    expect(store().resistanceState!.wipeUsed).toBe(false);
+  });
+
+  it('a dismissed banner id from a previous game never swallows the next announcement', () => {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().toggleResistance();
+    usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
+    const first = store().state!.zones.hand[0];
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: first.id, x: 5, y: 5 });
+    const firstId = store().lastResistanceEvent!.id;
+
+    store().dispatch({ type: 'RESET' });
+    usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
+    const second = store().state!.zones.hand[0];
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: second.id, x: 5, y: 5 });
+    // Ids keep counting across RESET, so `dismissedResistanceId === firstId`
+    // in the (unremounted) board component can't hide this one.
+    expect(store().lastResistanceEvent!.id).toBeGreaterThan(firstId);
   });
 
   it('disabled → plays resolve untouched and no event fires', () => {

@@ -1,7 +1,13 @@
 import { ExternalLink } from 'lucide-react';
 import { useCallback } from 'react';
 import './CardOtagsSheet.css';
-import { cardTagLabel, getCardTags, useCardTagsReady } from '../lib/card-tags';
+import {
+  cardTagLabel,
+  ensureCardTags,
+  getCardTags,
+  useCardTagsError,
+  useCardTagsReady,
+} from '../lib/card-tags';
 import { describeOtag } from '../lib/otag-descriptions';
 import { useEscapeKey } from '../lib/use-escape-key';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
@@ -23,6 +29,7 @@ interface Props {
  */
 export function CardOtagsSheet({ card, onClose }: Props) {
   const ready = useCardTagsReady();
+  const loadError = useCardTagsError();
 
   useLockBodyScroll();
 
@@ -66,7 +73,18 @@ export function CardOtagsSheet({ card, onClose }: Props) {
           <p className="card-otags-card-name">{card.name}</p>
         </div>
 
-        {!ready ? (
+        {!ready && loadError ? (
+          <div className="card-picker-empty" role="alert">
+            Couldn’t load the tag snapshot.{' '}
+            <button
+              type="button"
+              className="card-otags-retry"
+              onClick={() => void ensureCardTags()}
+            >
+              Retry
+            </button>
+          </div>
+        ) : !ready ? (
           <div className="card-picker-empty">Loading tags…</div>
         ) : tags.length === 0 ? (
           <div className="card-picker-empty">
@@ -95,8 +113,8 @@ export function CardOtagsSheet({ card, onClose }: Props) {
         )}
 
         <p className="card-otags-note">
-          Tags come from Scryfall’s community Tagger project; this app bundles a snapshot of
-          curated function tags.
+          Tags come from Scryfall’s community Tagger project; this app bundles a snapshot of curated
+          function tags.
           {taggerUrl && (
             <>
               {' '}

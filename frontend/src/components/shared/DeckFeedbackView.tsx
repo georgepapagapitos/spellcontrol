@@ -69,7 +69,10 @@ export function DeckFeedbackView({ data, token }: Props) {
   const [comment, setComment] = useState('');
   const [bracket, setBracket] = useState<number | null>(null);
   const [submitState, setSubmitState] = useState<
-    { status: 'idle' } | { status: 'sending' } | { status: 'sent' } | { status: 'error'; message: string }
+    | { status: 'idle' }
+    | { status: 'sending' }
+    | { status: 'sent' }
+    | { status: 'error'; message: string }
   >({ status: 'idle' });
 
   const { results: searchResults, loading: searching } = useSearchCards<ScryfallCard>(addQuery, {
@@ -113,9 +116,7 @@ export function DeckFeedbackView({ data, token }: Props) {
 
   const addSuggestion = (card: ScryfallCard) => {
     if (deckNameKeys.has(normalizeForSearch(card.name))) return;
-    setAdds((prev) =>
-      prev.some((c) => c.oracle_id === card.oracle_id) ? prev : [...prev, card]
-    );
+    setAdds((prev) => (prev.some((c) => c.oracle_id === card.oracle_id) ? prev : [...prev, card]));
     setAddQuery('');
   };
 

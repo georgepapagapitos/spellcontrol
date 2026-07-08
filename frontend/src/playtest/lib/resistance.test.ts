@@ -155,9 +155,18 @@ describe('resistanceRespond — played events', () => {
     let high = 0;
     let low = 0;
     for (let seed = 1; seed <= 1000; seed++) {
-      if (resistanceRespond(createResistanceState(seed), { kind: 'played', card: bigThreat }, emptyBoard).response)
+      if (
+        resistanceRespond(
+          createResistanceState(seed),
+          { kind: 'played', card: bigThreat },
+          emptyBoard
+        ).response
+      )
         high++;
-      if (resistanceRespond(createResistanceState(seed), { kind: 'played', card: cheap }, emptyBoard).response)
+      if (
+        resistanceRespond(createResistanceState(seed), { kind: 'played', card: cheap }, emptyBoard)
+          .response
+      )
         low++;
     }
     expect(high).toBeGreaterThan(low);

@@ -180,6 +180,13 @@ body:has(.playtest-page) .modal-backdrop {
   }
 }
 
+@media (pointer: coarse) {
+  .playtest-resistance-banner__dismiss {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .playtest-main {
   display: flex;
   flex: 1;
@@ -728,6 +735,13 @@ body:has(.playtest-page) .modal-backdrop {
   align-items: center;
   gap: 0.4rem;
   padding: 0.15rem 0.65rem;
+}
+
+/* Shown in place of the add row once the reducer's 8-per-card cap is hit. */
+.playtest-ctx-sticker-limit {
+  padding: 0.15rem 0.65rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 .playtest-ctx-sticker-add input {

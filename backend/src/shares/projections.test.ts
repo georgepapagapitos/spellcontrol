@@ -181,13 +181,13 @@ describe('projectDeck', () => {
     expect(projectDeck('alice', { id: 'd1' })).toBeNull();
   });
 
-  it('drops slotId / allocatedCopyId from slots', () => {
+  it('drops slotId / allocatedCopyId / tags from slots', () => {
     const out = projectDeck('alice', {
       id: 'd1',
       name: 'X',
       format: 'commander',
       commander: { name: 'Edric' },
-      cards: [{ slotId: 's1', card: { name: 'Sol Ring' }, allocatedCopyId: 'c1' }],
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' }, allocatedCopyId: 'c1', tags: ['ramp'] }],
       sideboard: [],
       color: '#888',
     });
@@ -196,6 +196,10 @@ describe('projectDeck', () => {
     expect((slot as { card: { name: string } }).card.name).toBe('Sol Ring');
     expect('slotId' in slot).toBe(false);
     expect('allocatedCopyId' in slot).toBe(false);
+    // Owner-private functional tags must never reach a public share/feedback
+    // projection — the allowlist ({ card }) excludes them by construction;
+    // this pins it against a future `...slot` spread refactor.
+    expect('tags' in slot).toBe(false);
   });
 });
 

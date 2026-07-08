@@ -95,27 +95,33 @@ export function CardContextMenu({
       </div>
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Stickers</div>
-        <div className="playtest-ctx-sticker-add">
-          <input
-            type="text"
-            value={stickerText}
-            onChange={(e) => setStickerText(e.target.value)}
-            placeholder="Add sticker (e.g. flying)"
-            maxLength={30}
-            aria-label="Sticker text"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitSticker();
-            }}
-          />
-          <button
-            type="button"
-            disabled={!stickerText.trim()}
-            onClick={submitSticker}
-            aria-label="add sticker"
-          >
-            Add
-          </button>
-        </div>
+        {/* The reducer hard-caps at 8 per card; mirror it here so the input
+            can't silently swallow a 9th (the add would no-op). */}
+        {stickers.length >= 8 ? (
+          <div className="playtest-ctx-sticker-limit">Sticker limit reached (8 per card).</div>
+        ) : (
+          <div className="playtest-ctx-sticker-add">
+            <input
+              type="text"
+              value={stickerText}
+              onChange={(e) => setStickerText(e.target.value)}
+              placeholder="Add sticker (e.g. flying)"
+              maxLength={30}
+              aria-label="Sticker text"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitSticker();
+              }}
+            />
+            <button
+              type="button"
+              disabled={!stickerText.trim()}
+              onClick={submitSticker}
+              aria-label="add sticker"
+            >
+              Add
+            </button>
+          </div>
+        )}
         {stickers.map((s, i) => (
           <div key={`${i}-${s}`} className="playtest-ctx-sticker">
             <span>{s}</span>

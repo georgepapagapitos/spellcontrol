@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import { optionalAuth, requireAuth } from '../auth';
 import { getDb } from '../db';
 import { deckFeedback } from '../db/schema';
@@ -30,6 +30,9 @@ const MAX_SUGGESTIONS = 60;
  *  apply one without a lookup; cap the serialized size so a hostile client
  *  can't stash megabytes per row (the JSON body limit is a shared 72mb). */
 const CARD_JSON_MAX = 64 * 1024;
+/** Abuse bound per feedback link, mirroring game nights' MAX_RSVPS — a
+ *  low-and-slow guest can't grow one owner's deck_feedback rows unboundedly. */
+const MAX_RESPONSES = 64;
 
 export type SuggestionStatus = 'pending' | 'accepted' | 'rejected';
 
@@ -68,7 +71,10 @@ function parseSuggestions(raw: unknown): FeedbackSuggestion[] | null {
     if (!cardName) return null;
     let card: unknown;
     if (s.type === 'add' && s.card && typeof s.card === 'object') {
-      if (JSON.stringify(s.card).length <= CARD_JSON_MAX) card = s.card;
+      // Reject, don't silently drop — a stripped card would look like a bug
+      // to the responder ("apply instantly" gone) with no error anywhere.
+      if (JSON.stringify(s.card).length > CARD_JSON_MAX) return null;
+      card = s.card;
     }
     out.push({
       id: crypto.randomUUID(),
@@ -127,6 +133,16 @@ feedbackRouter.post(
     // public share view.
     if (!findDeckById(ctx.data.decks, share.resourceId)) {
       return res.status(404).json({ error: 'Feedback link not found.' });
+    }
+
+    // ponytail: hard cap, no pagination — no deck accrues more real feedback
+    // than this; it exists purely so anonymous writes can't grow unboundedly.
+    const [existing] = await getDb()
+      .select({ n: count() })
+      .from(deckFeedback)
+      .where(eq(deckFeedback.shareToken, share.token));
+    if (existing.n >= MAX_RESPONSES) {
+      return res.status(400).json({ error: 'This feedback link is full.' });
     }
 
     const body = req.body as Record<string, unknown>;
@@ -211,28 +227,35 @@ feedbackRouter.post(
         .json({ error: "status must be 'accepted', 'rejected', or 'pending'." });
     }
 
-    const db = getDb();
-    const rows = await db
-      .select()
-      .from(deckFeedback)
-      .where(and(eq(deckFeedback.id, id), eq(deckFeedback.ownerUserId, req.user!.id)))
-      .limit(1);
-    const row = rows[0];
-    if (!row) {
+    // Row lock: two quick verdicts on sibling suggestions both rewrite the
+    // whole JSONB array, so an unguarded read-modify-write loses one of them.
+    const outcome = await getDb().transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(deckFeedback)
+        .where(and(eq(deckFeedback.id, id), eq(deckFeedback.ownerUserId, req.user!.id)))
+        .limit(1)
+        .for('update');
+      const row = rows[0];
+      if (!row) return 'no-row' as const;
+      const suggestions = Array.isArray(row.suggestions)
+        ? (row.suggestions as FeedbackSuggestion[])
+        : [];
+      const target = suggestions.find((s) => s.id === suggestionId);
+      if (!target) return 'no-suggestion' as const;
+      target.status = status;
+      await tx
+        .update(deckFeedback)
+        .set({ suggestions, updatedAt: Date.now() })
+        .where(eq(deckFeedback.id, id));
+      return 'ok' as const;
+    });
+    if (outcome === 'no-row') {
       return res.status(404).json({ error: 'Feedback not found.' });
     }
-    const suggestions = Array.isArray(row.suggestions)
-      ? (row.suggestions as FeedbackSuggestion[])
-      : [];
-    const target = suggestions.find((s) => s.id === suggestionId);
-    if (!target) {
+    if (outcome === 'no-suggestion') {
       return res.status(404).json({ error: 'Suggestion not found.' });
     }
-    target.status = status;
-    await db
-      .update(deckFeedback)
-      .set({ suggestions, updatedAt: Date.now() })
-      .where(eq(deckFeedback.id, id));
     res.json({ suggestion: { id: suggestionId, status } });
   }
 );

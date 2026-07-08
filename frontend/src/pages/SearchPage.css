@@ -64,6 +64,15 @@
   outline-offset: 2px;
 }
 
+/* STYLE_GUIDE touch-target floor — the toggle and the 12 tappable examples
+   are interactive, so they get their own coarse-pointer 44px block. */
+@media (pointer: coarse) {
+  .search-syntax-toggle,
+  .search-syntax-example {
+    min-height: 44px;
+  }
+}
+
 .search-syntax-panel {
   margin-top: var(--space-2);
   padding: var(--space-3);

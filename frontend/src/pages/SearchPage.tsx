@@ -26,7 +26,8 @@ interface SyntaxEntry {
 }
 
 // ~10 core operators. `onlineOnly` mirrors the offline parser's subset
-// (lib/offline/scryfall-query.ts: t, o, c, id, cmc/mv, f, is, kw, banned, OR);
+// (lib/offline/scryfall-query.ts: t, o, c, id, cmc/mv, f, is, keyword, banned,
+// OR — note `keyword:` spelled out; the `kw:` shorthand is online-only);
 // id<=esper is flagged because the offline parser only reads WUBRG letters,
 // not named identities.
 const SYNTAX_ENTRIES: SyntaxEntry[] = [

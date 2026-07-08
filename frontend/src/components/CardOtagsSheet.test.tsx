@@ -3,10 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CardOtagsSheet } from './CardOtagsSheet';
 
-// Isolate from the snapshot fetch — the sheet only calls these three.
+// Isolate from the snapshot fetch — the sheet only calls these five.
 const readyRef = { value: true };
+const errorRef = { value: false };
+const ensureCardTags = vi.fn();
 vi.mock('../lib/card-tags', () => ({
   useCardTagsReady: () => readyRef.value,
+  useCardTagsError: () => errorRef.value,
+  ensureCardTags: () => ensureCardTags(),
   getCardTags: (name: string) => (name === 'Sol Ring' ? ['mana-rock', 'ramp'] : []),
   cardTagLabel: (tag: string) => (tag === 'mana-rock' ? 'Mana rock' : 'Ramp'),
 }));
@@ -14,6 +18,8 @@ vi.mock('../lib/card-tags', () => ({
 afterEach(() => {
   vi.restoreAllMocks();
   readyRef.value = true;
+  errorRef.value = false;
+  ensureCardTags.mockClear();
 });
 
 const solRing = { name: 'Sol Ring', setCode: 'C21', collectorNumber: '263' };
@@ -44,7 +50,10 @@ describe('CardOtagsSheet', () => {
 
   it('omits the Tagger link when the printing identifiers are missing', () => {
     render(
-      <CardOtagsSheet card={{ name: 'Sol Ring', setCode: '', collectorNumber: '' }} onClose={() => {}} />
+      <CardOtagsSheet
+        card={{ name: 'Sol Ring', setCode: '', collectorNumber: '' }}
+        onClose={() => {}}
+      />
     );
     expect(screen.queryByRole('link', { name: /view this card on tagger/i })).toBeNull();
   });
@@ -63,6 +72,15 @@ describe('CardOtagsSheet', () => {
     readyRef.value = false;
     render(<CardOtagsSheet card={solRing} onClose={() => {}} />);
     expect(screen.getByText('Loading tags…')).toBeTruthy();
+  });
+
+  it('shows an error with retry when the snapshot fetch failed', () => {
+    readyRef.value = false;
+    errorRef.value = true;
+    render(<CardOtagsSheet card={solRing} onClose={() => {}} />);
+    expect(screen.getByRole('alert').textContent).toContain('Couldn’t load the tag snapshot.');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(ensureCardTags).toHaveBeenCalledTimes(1);
   });
 
   it('closes immediately on the desktop breakpoint (no exit keyframe there)', () => {

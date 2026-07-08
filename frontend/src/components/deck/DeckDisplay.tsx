@@ -3284,11 +3284,7 @@ function DeckCardRow({
               // selection / focus-scroll from riding the drag.
               e.stopPropagation();
               e.preventDefault();
-              onOpenTagMenu(
-                { x: e.clientX, y: e.clientY },
-                row.slotIds[0],
-                e.currentTarget
-              );
+              onOpenTagMenu({ x: e.clientX, y: e.clientY }, row.slotIds[0], e.currentTarget);
             }}
             onClick={(e) => {
               e.stopPropagation();
