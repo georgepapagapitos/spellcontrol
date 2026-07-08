@@ -1,0 +1,36 @@
+/* ValuePulse — collection hero value sparkline + delta line (E76). */
+
+.value-pulse {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: var(--space-1) 0 0;
+}
+
+.value-pulse-spark {
+  flex: none;
+  display: block;
+}
+
+/* Line in a de-emphasized accent, current point in the full accent. */
+.value-pulse-spark-line {
+  stroke: var(--accent);
+  opacity: 0.55;
+}
+
+.value-pulse-spark-dot {
+  fill: var(--accent);
+}
+
+.value-pulse-delta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.value-pulse-delta--up {
+  color: var(--success);
+}
+
+.value-pulse-delta--down {
+  color: var(--err-text);
+}

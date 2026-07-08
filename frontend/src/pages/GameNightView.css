@@ -54,6 +54,12 @@
   font-size: var(--text-sm);
 }
 
+.game-night-invite-only-note {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 .game-night-name-field {
   display: flex;
   flex-direction: column;

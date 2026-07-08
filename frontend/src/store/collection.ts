@@ -33,6 +33,8 @@ import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { acknowledgeInSnapshot } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
+import { recordValueSnapshot } from '../lib/value-history';
+import { logBinderMoves } from '../lib/welcome-digest';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
 import { remapCubeAllocations } from '../lib/remap-cube-allocations';
@@ -385,6 +387,16 @@ function openBinder(binderId: string): void {
  */
 function notifyBinderMoves(moves: BinderMove[]): void {
   if (moves.length === 0) return;
+
+  // E76 digest: remember these before toasting — toasts vanish, and the
+  // welcome-back digest replays anything the user wasn't around to see.
+  logBinderMoves(
+    moves.map((m) => ({
+      cardName: m.card.name,
+      fromBinder: m.fromBinder?.name ?? null,
+      toBinder: m.toBinder?.name ?? null,
+    }))
+  );
 
   if (moves.length > MAX_VISIBLE_TOASTS) {
     toast.show({
@@ -838,6 +850,14 @@ export const useCollectionStore = create<CollectionState>()(
             computeBinderMoves(beforeForMoves, afterForMoves, moveBinders, {
               allocatedCopyIds: allocated,
             })
+          );
+
+          // E76 value pulse: log today's total value into the device-local
+          // history (one point per day, never synced). Piggybacks this tick
+          // because prices move at most daily — never a server cron. Best
+          // effort: a missing/blocked IndexedDB must not fail the refresh.
+          recordValueSnapshot(afterCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0)).catch(
+            () => {}
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Failed to refresh prices.';

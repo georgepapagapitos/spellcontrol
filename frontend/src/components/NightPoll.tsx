@@ -29,13 +29,15 @@ export function NightPoll({
   onLock,
 }: {
   options: NightOption[];
-  /** Replace the caller's full vote set. */
-  onVote: (optionIds: string[]) => Promise<void>;
-  /** Propose an extra slot. */
-  onSuggest: (startsAt: number) => Promise<void>;
+  /** Replace the caller's full vote set. Omit for a read-only tally view
+   *  (e.g. an invite-only night the viewer can't reply to). */
+  onVote?: (optionIds: string[]) => Promise<void>;
+  /** Propose an extra slot. Omitted together with onVote. */
+  onSuggest?: (startsAt: number) => Promise<void>;
   /** Host only — parent confirms before locking. */
   onLock?: (option: NightOption) => void;
 }) {
+  const readOnly = onVote === undefined;
   // null = mirror the server's myVote flags; a Set = unsaved local edits.
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [suggestAt, setSuggestAt] = useState('');
@@ -52,7 +54,7 @@ export function NightPoll({
   }
 
   async function save() {
-    if (busy || selected === null) return;
+    if (busy || selected === null || !onVote) return;
     setBusy('vote');
     setError(null);
     try {
@@ -66,7 +68,7 @@ export function NightPoll({
   }
 
   async function suggest() {
-    if (busy) return;
+    if (busy || !onSuggest) return;
     const startsAt = suggestAt ? new Date(suggestAt).getTime() : NaN;
     if (!Number.isFinite(startsAt)) {
       setError('Pick a date and time to suggest.');
@@ -93,7 +95,7 @@ export function NightPoll({
               <input
                 type="checkbox"
                 checked={effective.has(o.id)}
-                disabled={busy !== null}
+                disabled={readOnly || busy !== null}
                 onChange={() => toggle(o.id)}
               />
               <span className="night-poll-when">
@@ -122,18 +124,20 @@ export function NightPoll({
         ))}
       </ul>
 
-      <div className="night-poll-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy !== null || selected === null}
-          onClick={() => void save()}
-        >
-          {busy === 'vote' ? 'Saving…' : 'Save my votes'}
-        </button>
-      </div>
+      {!readOnly && (
+        <div className="night-poll-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy !== null || selected === null}
+            onClick={() => void save()}
+          >
+            {busy === 'vote' ? 'Saving…' : 'Save my votes'}
+          </button>
+        </div>
+      )}
 
-      {options.length < POLL_MAX && (
+      {!readOnly && options.length < POLL_MAX && (
         <div className="night-poll-suggest">
           <label className="night-poll-suggest-field">
             <span>Suggest another time</span>
