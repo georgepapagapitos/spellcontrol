@@ -339,6 +339,20 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
           decklist[cat] = cards.map((c) => projectCard(c, deck));
         }
 
+        // E130: role truth by NAME. Decklist buckets are TYPE-routed
+        // (routeCardByType — a creature wipe sits in `creatures`), so a bucket
+        // like boardWipes can be empty while the deck has wipes; two iter-19
+        // blind critics misread exactly that as "zero board wipes". This is
+        // roleCounts with names, lands excluded to match computeRoleCounts.
+        const roleCardNames: Record<string, string[]> = {};
+        for (const [cat, cards] of Object.entries(decklist)) {
+          if (cat === 'lands') continue;
+          for (const c of cards) {
+            if (!c.role) continue;
+            (roleCardNames[c.role] ??= []).push(c.name);
+          }
+        }
+
         const output = {
           commander: spec.commanderName,
           variant: spec.variant,
@@ -353,6 +367,7 @@ describe.skipIf(!process.env.LIVE_GEN)('deckGenerator LIVE eval', () => {
             totalPriceUsd: totalPriceUsd(deck),
           },
           roleCounts: deck.roleCounts ?? null,
+          roleCardNames,
           roleTargets: deck.roleTargets ?? null,
           roleTargetBreakdown: deck.roleTargetBreakdown ?? null,
           bracketEstimation: deck.bracketEstimation ?? null,
