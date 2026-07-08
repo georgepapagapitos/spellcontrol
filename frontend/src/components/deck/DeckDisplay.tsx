@@ -15,6 +15,7 @@ import {
   MoreVertical,
   Pencil,
   Search,
+  Tags,
   Trash2,
   X,
 } from 'lucide-react';
@@ -66,6 +67,8 @@ import {
   type AllocationStatus,
 } from '../../lib/allocations';
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
+import { DECK_CARD_TAGS, tagCounts } from '@/lib/deck-card-tags';
+import { RadialTagMenu } from './RadialTagMenu';
 
 /**
  * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
@@ -264,6 +267,8 @@ export interface DeckDisplayCard {
   allocatedCopyId?: string | null;
   /** Unix ms when this slot was added. Absent on cards predating the field. */
   addedAt?: number;
+  /** Functional tags on this slot (see lib/deck-card-tags). */
+  tags?: string[];
 }
 
 export interface DeckDisplayProps {
@@ -327,6 +332,13 @@ export interface DeckDisplayProps {
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   /** When provided, each row gets an "Edit printing" option in its menu. */
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
+  /**
+   * Enables per-card functional tagging (the radial quick-pick + tag filter
+   * bar): toggle `tag` on the slot `slotId` — mainboard or sideboard. Only the
+   * owner deck editor passes this; read-only reuses of DeckDisplay leave it
+   * off and no tagging affordance renders.
+   */
+  onToggleCardTag?: (slotId: string, tag: string) => void;
   /** When provided, eligible rows get a "Make commander" option in their menu. */
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   /** Predicate that gates the "Make commander" menu item per card. */
@@ -544,6 +556,8 @@ interface Row {
   collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
+  /** Union of functional tags across this row's slots (deduped). */
+  tags: string[];
   /** True for the partner commander's synthetic row — drives the "Partner"
    *  tag that distinguishes it from the primary commander. */
   isPartner?: boolean;
@@ -687,6 +701,9 @@ function buildRows(
       existing.price += priceOf(card, currency);
       if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
       if (dc.slotId) existing.slotIds.push(dc.slotId);
+      for (const t of dc.tags ?? []) {
+        if (!existing.tags.includes(t)) existing.tags.push(t);
+      }
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -727,6 +744,7 @@ function buildRows(
       price: priceOf(card, currency),
       colorKey: colorKeyOf(card),
       addedAt: dc.addedAt ?? 0,
+      tags: dc.tags ? [...dc.tags] : [],
       slotIds: dc.slotId ? [dc.slotId] : [],
       allocatedCopyIds: dc.allocatedCopyId ? [dc.allocatedCopyId] : [],
       status,
@@ -989,6 +1007,7 @@ export function DeckDisplay({
   onMoveToMainboard,
   onSetQty,
   onEditCard,
+  onToggleCardTag,
   onMakeCommander,
   canMakeCommander,
   onMakePartner,
@@ -1142,6 +1161,7 @@ export function DeckDisplay({
         price: priceOf(c, currency),
         colorKey: colorKeyOf(c),
         addedAt: 0,
+        tags: [],
         slotIds: [],
         allocatedCopyIds: allocatedCopyId ? [allocatedCopyId] : [],
         status,
@@ -1544,6 +1564,48 @@ export function DeckDisplay({
   // it — the same carousel pattern as the analysis-tab drill-downs.
   const statCarousel = useCardCarousel(title);
 
+  // ── Functional tags (radial quick-pick + filter bar) ────────────────────
+  // Both pieces of state are view-local: the filter is a transient lens, and
+  // the radial menu is anchored to a live row. `trigger` is kept so focus can
+  // return to the row's tag button when the menu closes.
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [tagMenu, setTagMenu] = useState<{
+    anchor: { x: number; y: number };
+    slotId: string;
+    trigger: HTMLElement | null;
+  } | null>(null);
+
+  const deckTagCounts = useMemo(() => tagCounts([...cards, ...sideboard]), [cards, sideboard]);
+  // Palette order first, then any out-of-palette stragglers (tolerated by
+  // tagCounts — e.g. a synced deck from a newer build), alphabetically.
+  const orderedTagCounts = useMemo(() => {
+    const inPalette = DECK_CARD_TAGS.filter((t) => deckTagCounts.has(t)).map(
+      (t) => [t, deckTagCounts.get(t)!] as const
+    );
+    const extras = [...deckTagCounts.entries()]
+      .filter(([t]) => !(DECK_CARD_TAGS as readonly string[]).includes(t))
+      .sort(([a], [b]) => a.localeCompare(b));
+    return [...inPalette, ...extras];
+  }, [deckTagCounts]);
+  // Self-healing filter: when the active tag's last chip is untagged away the
+  // filter deactivates instead of dimming the whole list.
+  const activeTagFilter = tagFilter && deckTagCounts.has(tagFilter) ? tagFilter : null;
+
+  // Pressing a row's tag button while its menu is already open closes it
+  // (toggle) instead of re-anchoring.
+  const openTagMenu = onToggleCardTag
+    ? (anchor: { x: number; y: number }, slotId: string, trigger: HTMLElement | null) =>
+        setTagMenu((cur) => (cur && cur.slotId === slotId ? null : { anchor, slotId, trigger }))
+    : undefined;
+  // Live lookup (not a snapshot) so click-mode toggles repaint the menu chips.
+  const tagMenuActiveTags = useMemo(() => {
+    if (!tagMenu) return [];
+    const slot =
+      cards.find((c) => c.slotId === tagMenu.slotId) ??
+      sideboard.find((c) => c.slotId === tagMenu.slotId);
+    return slot?.tags ?? [];
+  }, [tagMenu, cards, sideboard]);
+
   const ctxValue = useMemo(
     () => ({
       openCard: () => {},
@@ -1695,6 +1757,50 @@ export function DeckDisplay({
               </div>
             )}
 
+            {/* Functional-tag bar — how the deck's roles balance, and a one-tap
+                lens: an active tag keeps every row in place but dims the rest,
+                so tagged cards pop without the layout reshuffling. */}
+            {onToggleCardTag && orderedTagCounts.length > 0 && (
+              <div className="deck-tag-bar" role="toolbar" aria-label="Functional tag filter">
+                {orderedTagCounts.map(([tag, count]) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`deck-tag-bar-chip${activeTagFilter === tag ? ' is-active' : ''}`}
+                    aria-pressed={activeTagFilter === tag}
+                    onClick={() => setTagFilter((cur) => (cur === tag ? null : tag))}
+                  >
+                    {tag}
+                    <span className="deck-tag-bar-count">{count}</span>
+                  </button>
+                ))}
+                {activeTagFilter && (
+                  <button
+                    type="button"
+                    className="deck-tag-bar-clear"
+                    onClick={() => setTagFilter(null)}
+                    aria-label={`Clear the ${activeTagFilter} tag filter`}
+                  >
+                    <X width={12} height={12} strokeWidth={2.2} aria-hidden />
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+
+            {tagMenu && onToggleCardTag && (
+              <RadialTagMenu
+                key={tagMenu.slotId}
+                anchor={tagMenu.anchor}
+                activeTags={tagMenuActiveTags}
+                onToggle={(tag) => onToggleCardTag(tagMenu.slotId, tag)}
+                onClose={() => {
+                  tagMenu.trigger?.focus({ preventScroll: true });
+                  setTagMenu(null);
+                }}
+              />
+            )}
+
             <div className="deck-display-body">
               <div className="deck-display-main">
                 {viewMode === 'list' && (
@@ -1711,6 +1817,8 @@ export function DeckDisplay({
                         onRemoveCard={onRemoveCard}
                         onSetQty={onSetQty}
                         onEditCard={onEditCard}
+                        onOpenTagMenu={openTagMenu}
+                        tagFilter={activeTagFilter}
                         legalityBySlot={legalityBySlot}
                         onMoveToSideboard={
                           formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
@@ -1757,6 +1865,8 @@ export function DeckDisplay({
                             onRemoveCard={onRemoveSideboardCard}
                             onSetQty={undefined}
                             onEditCard={onEditCard}
+                            onOpenTagMenu={openTagMenu}
+                            tagFilter={activeTagFilter}
                             legalityBySlot={legalityBySlot}
                             onMoveToMainboard={onMoveToMainboard}
                             onMakeCommander={onMakeCommander}
@@ -2706,6 +2816,8 @@ function CategorySection({
   onRemoveCard,
   onSetQty,
   onEditCard,
+  onOpenTagMenu,
+  tagFilter,
   legalityBySlot,
   onMoveToSideboard,
   onMoveToMainboard,
@@ -2730,6 +2842,14 @@ function CategorySection({
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
+  /** Open the radial tag quick-pick for a slot, anchored at a viewport point. */
+  onOpenTagMenu?: (
+    anchor: { x: number; y: number },
+    slotId: string,
+    trigger: HTMLElement | null
+  ) => void;
+  /** Active tag filter — rows not carrying it render dimmed. */
+  tagFilter?: string | null;
   legalityBySlot?: Map<string, LegalityIssue>;
   onMoveToSideboard?: (slotId: string) => void;
   onMoveToMainboard?: (slotId: string) => void;
@@ -2783,6 +2903,8 @@ function CategorySection({
             onRemoveCard={entry.leaving ? undefined : onRemoveCard}
             onSetQty={entry.leaving ? undefined : onSetQty}
             onEditCard={entry.leaving ? undefined : onEditCard}
+            onOpenTagMenu={entry.leaving ? undefined : onOpenTagMenu}
+            tagFilter={tagFilter}
             legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
             onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
             moveLabel={
@@ -2822,6 +2944,8 @@ function DeckCardRow({
   onRemoveCard,
   onSetQty,
   onEditCard,
+  onOpenTagMenu,
+  tagFilter,
   legalityIssue,
   onMoveToZone,
   moveLabel,
@@ -2848,6 +2972,14 @@ function DeckCardRow({
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
+  /** Open the radial tag quick-pick for this row's first slot. */
+  onOpenTagMenu?: (
+    anchor: { x: number; y: number },
+    slotId: string,
+    trigger: HTMLElement | null
+  ) => void;
+  /** Active tag filter — this row dims when it doesn't carry the tag. */
+  tagFilter?: string | null;
   legalityIssue?: LegalityIssue;
   onMoveToZone?: (slotId: string) => void;
   moveLabel?: string;
@@ -2915,10 +3047,15 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
+  // Tag-filter lens: non-matching rows dim in place (layout preserved) so the
+  // matching cards pop and the eye can jump between them.
+  const tagDimmed = !!tagFilter && !row.tags.includes(tagFilter);
+
   const rowClass =
     `deck-row` +
     (entering ? ' is-entering' : '') +
     (leaving ? ' is-leaving' : '') +
+    (tagDimmed ? ' is-tag-dimmed' : '') +
     (multiPrinting && expanded ? ' is-expanded' : '');
 
   return (
@@ -2991,6 +3128,15 @@ function DeckCardRow({
           <span className="deck-row-name-text" title={row.name}>
             {row.name}
           </span>
+          {row.tags.length > 0 && (
+            <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
+              {row.tags.map((t) => (
+                <span key={t} className="deck-row-tag-chip" title={t}>
+                  {t}
+                </span>
+              ))}
+            </span>
+          )}
           {multiPrinting && (
             <button
               type="button"
@@ -3125,6 +3271,42 @@ function DeckCardRow({
             // aligned across rows (mirrors the empty mana-cost placeholder).
             <span className="deck-row-price" aria-hidden />
           ))}
+        {onOpenTagMenu && row.slotIds.length > 0 && (
+          <button
+            type="button"
+            className="deck-row-tag-btn"
+            aria-label={`Tag ${row.name}`}
+            title={`Tag ${row.name} — press and swipe, or click a tag`}
+            aria-haspopup="menu"
+            onPointerDown={(e) => {
+              // pointerdown (not click) so press → drag toward a sector →
+              // release works as one gesture. preventDefault stops text
+              // selection / focus-scroll from riding the drag.
+              e.stopPropagation();
+              e.preventDefault();
+              onOpenTagMenu(
+                { x: e.clientX, y: e.clientY },
+                row.slotIds[0],
+                e.currentTarget
+              );
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // Keyboard activation (Enter/Space synthesizes a detail-0 click,
+              // with no preceding pointerdown) → open centered on the button.
+              if (e.detail === 0) {
+                const r = e.currentTarget.getBoundingClientRect();
+                onOpenTagMenu(
+                  { x: r.left + r.width / 2, y: r.top + r.height / 2 },
+                  row.slotIds[0],
+                  e.currentTarget
+                );
+              }
+            }}
+          >
+            <Tags width={14} height={14} strokeWidth={2} aria-hidden />
+          </button>
+        )}
         <ToolbarPopover
           wrapperClassName="deck-row-menu"
           triggerClassName="deck-row-menu-trigger"

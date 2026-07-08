@@ -71,6 +71,85 @@
   font-weight: 500;
 }
 
+/* ── Functional-tag filter bar ────────────────────────────────────── */
+/* One chip per used tag (+ count), above the card list. A single active
+   tag acts as a lens: matching rows stay bright, the rest dim in place
+   (see .deck-row.is-tag-dimmed in deck-builder-card-list.css). */
+.deck-tag-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.deck-tag-bar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: var(--space-1) 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deck-tag-bar-chip.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.deck-tag-bar-count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.deck-tag-bar-chip.is-active .deck-tag-bar-count {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.deck-tag-bar-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-tag-bar-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .deck-tag-bar-chip.is-active:hover {
+    background: var(--accent-hover);
+    color: var(--on-accent);
+  }
+
+  .deck-tag-bar-clear:hover {
+    color: var(--text-primary);
+    background: var(--accent-light);
+  }
+}
+
+.deck-tag-bar-chip:focus-visible,
+.deck-tag-bar-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* ── "Use my copies" resolver banner ──────────────────────────────── */
 /* Owned-but-elsewhere cards: a one-tap pull-them-in CTA. Informational accent
    tone (not warn) — these cards are owned, just checked out to other decks. */
