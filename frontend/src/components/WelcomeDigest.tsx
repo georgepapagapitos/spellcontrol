@@ -13,6 +13,7 @@ import {
 } from '../lib/welcome-digest';
 import { useEscapeKey } from '../lib/use-escape-key';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { useAnimatedNumber } from '../lib/use-animated-number';
 import './WelcomeDigest.css';
 
 const UNCAT = 'Uncategorized';
@@ -46,10 +47,16 @@ function WelcomeDigestSheet({
   const direction = whole > 0 ? 'up' : whole < 0 ? 'down' : 'flat';
   const sinceLabel =
     digest.baseline.day === openedToday ? 'earlier today' : formatDayKey(digest.baseline.day);
+  // The dollar figure counts up once per baseline (revealKey registry); the
+  // direction words stay static per the motion rules. Reduced motion snaps.
+  const { display: deltaDisplay } = useAnimatedNumber(Math.abs(whole), {
+    revealMs: 600,
+    revealKey: whole === 0 ? null : `digest:${digest.baseline.day}`,
+  });
   const valueLine =
     whole === 0
       ? 'Value is steady'
-      : `Value ${whole > 0 ? 'up' : 'down'} ${formatMoney(Math.abs(whole), { wholeDollars: true })}`;
+      : `Value ${whole > 0 ? 'up' : 'down'} ${formatMoney(deltaDisplay, { wholeDollars: true })}`;
 
   return (
     <div

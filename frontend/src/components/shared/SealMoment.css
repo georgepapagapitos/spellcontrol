@@ -1,0 +1,11 @@
+/* ── SealMoment ────────────────────────────────────────────────────────────
+   Viewport-centered host for the compact SealBurst completion moment.
+   Fixed + pointer-transparent: it decorates the moment, never blocks it.
+   Portals to <body>, so it must not rely on any ancestor context. */
+
+.seal-moment {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+}

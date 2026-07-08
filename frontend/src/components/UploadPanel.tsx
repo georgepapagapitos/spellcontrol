@@ -13,6 +13,7 @@ import { summarizeImportRouting } from '../lib/import-routing';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { Modal } from './Modal';
 import { useCanScan } from '../lib/use-can-scan';
+import { useSealMoment } from './shared/SealMoment';
 
 const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m.CardScanner })));
 import { ProgressBar } from './ProgressBar';
@@ -66,6 +67,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [showFetchErrors, setShowFetchErrors] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  // Completion moment — the seal blooms once when an import lands (the
+  // banner + haptic carry the substance; this is the visual counterpart
+  // the haptic never had).
+  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
   /** ImportIds from the most recent runImport invocation. Drives the
    *  post-import "where did my cards go?" panel. Cleared whenever the user
    *  starts a new import or dismisses the panel. */
@@ -224,6 +229,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         setStageNote(null);
         setRecentImportIds(newImportIds);
         haptics.success();
+        fireSealMoment();
         return;
       }
 
@@ -252,6 +258,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       if (p.label === 'pasted-list') setPasteText('');
       setRecentImportIds(newImportIds);
       haptics.success();
+      fireSealMoment();
     } catch (err) {
       const fallback = "Couldn't read that file. Double-check the format and try again.";
       setError(err instanceof Error ? err.message : fallback);
@@ -385,6 +392,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           )}
         </div>
       )}
+      {sealMoment}
       {successMsg && !error && (
         <div className="success-banner">
           <span>{successMsg}</span>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { ProgressBar } from '../ProgressBar';
-import { SealBurst } from './SealBurst';
+import { SealBurst } from '../shared/SealBurst';
 import './GenerationTakeover.css';
 
 interface Props {
