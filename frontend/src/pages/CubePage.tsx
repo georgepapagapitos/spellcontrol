@@ -13,9 +13,11 @@ export function CubePage() {
   const [mode, setMode] = useState<'build' | 'import' | 'collaborate'>('build');
   return (
     <div className="cube-page">
-      <header className="cube-page-head">
-        <h1>Cube workshop</h1>
-        <p className="cube-page-sub">
+      {/* Hero band — joins the .binder-hero family every sibling hub page
+          uses (Collection/Binders/Lists); the bare <h1> read as unfinished. */}
+      <header className="binder-hero">
+        <h1 className="binder-hero-name">Cube workshop</h1>
+        <p className="binder-hero-meta cube-page-sub">
           Build a draftable singleton cube from your collection, or import one from CubeCobra to see
           how much of it you own.
         </p>

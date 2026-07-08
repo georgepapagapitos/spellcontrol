@@ -1,6 +1,7 @@
 import { Coins, Copy, ListChecks, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../lib/haptics';
+import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import {
   useLocation,
@@ -868,6 +869,13 @@ export function DeckEditorPage() {
     const main = [...commanders, ...mainCards];
     return { count: main.length, value: sumPrice(main), sideboard: deck.sideboard.length };
   }, [deck]);
+
+  // Commander presence for the hero — same art_crop resolution + offline-URL
+  // healing as the Decks index cards (see DecksIndexPage). Undefined for
+  // commanderless decks; the hero keeps its plain color-border look.
+  const rawHeroArt =
+    deck?.commander?.image_uris?.art_crop ?? deck?.commander?.card_faces?.[0]?.image_uris?.art_crop;
+  const heroArt = rawHeroArt ? scryfallArtCrop(rawHeroArt) : undefined;
 
   // CoachFeed "Fit?" button — open the audition for a feed row's incoming card.
   // For swap rows, also store the outgoing card name so CardFitPanel can pin it
@@ -2013,6 +2021,15 @@ export function DeckEditorPage() {
       <BackLink to="/decks" label="All decks" />
       <header className="deck-editor-header">
         <div className="deck-editor-hero" style={{ borderLeftColor: deck.color }}>
+          {/* Commander art rides behind the title as a right-anchored backdrop
+              (≥600px; phones keep the plain hero — art behind full-width text
+              costs legibility there). Decorative only. */}
+          {heroArt && (
+            <span className="deck-editor-hero-artwrap" aria-hidden="true">
+              <img className="deck-editor-hero-art" src={heroArt} alt="" />
+              <span className="deck-editor-hero-art-fade" />
+            </span>
+          )}
           {renaming ? (
             <div
               className="deck-editor-hero-edit"

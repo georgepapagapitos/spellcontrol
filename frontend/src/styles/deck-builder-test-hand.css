@@ -398,7 +398,8 @@
 }
 
 .deck-test-hand-sim-heading-sub {
-  font-family: var(--font-sans);
+  /* No font-family: the intended `--font-sans` token never existed, so this
+     always inherited the body serif — keep what actually shipped. */
   font-size: var(--text-xs);
   font-weight: 400;
   color: var(--text-muted);

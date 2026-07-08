@@ -289,6 +289,48 @@
   margin-bottom: var(--space-4);
 }
 
+/* Queue-cleared beat — one transient "all caught up" row when the last review
+   item resolves. The keyframe is self-completing (rise in, hold, fade out),
+   which is its symmetric exit; the JS unmount at 2.6s trails the 2.5s fade. */
+.binder-drift--cleared {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--success);
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  animation: binder-drift-cleared 2500ms var(--ease-out-soft) both;
+}
+
+.binder-drift-cleared-icon {
+  flex-shrink: 0;
+}
+
+@keyframes binder-drift-cleared {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  8% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .binder-drift--cleared {
+    animation: none;
+  }
+}
+
 .binder-drift-header {
   display: flex;
   align-items: center;

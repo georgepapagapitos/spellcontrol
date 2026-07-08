@@ -13,6 +13,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
@@ -272,6 +273,12 @@ export function DecksIndexPage() {
       return 0;
     });
   }, [decks, sortField, sortDir, debouncedSearch, formatFilter, sourceFilter, colorFilter]);
+
+  // One-shot entrance cascade for the deck cards — same primitive (and
+  // once-per-session consumed registry) as the analysis bento panels. Keyed
+  // only when there's something to animate, so an empty first visit doesn't
+  // burn the key.
+  const cascade = usePanelCascade(sorted.length > 0 ? 'decks-index:cascade' : null);
 
   const [showImport, setShowImport] = useState(false);
   const [showProductSearch, setShowProductSearch] = useState(false);
@@ -541,7 +548,7 @@ export function DecksIndexPage() {
             </BulkSelectBar>
           )}
           <ul className={`decks-index-list is-${view}`}>
-            {sorted.map((deck) => {
+            {sorted.map((deck, cardIndex) => {
               const totalCards =
                 (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
               // Heal decks whose commander was added offline before the slim
@@ -584,6 +591,10 @@ export function DecksIndexPage() {
                   key={deck.id}
                   className={`decks-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                     selected ? ' bulk-selected' : ''
+                  }${
+                    panelCascadeClass(cardIndex, cascade.animating)
+                      ? ` ${panelCascadeClass(cardIndex, cascade.animating)}`
+                      : ''
                   }`}
                   /* `--deck-color` drives both the resting left-border accent
                    and the full hover-border tint via CSS. */

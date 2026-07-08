@@ -29,10 +29,14 @@ import {
   validateDeck as runValidation,
   validateDeckSize,
   countFlaggedCards,
+  effectiveDeckColors,
   COMMANDER_SLOT_ID,
   PARTNER_COMMANDER_SLOT_ID,
   type LegalityIssue,
 } from '../../lib/deck-validation';
+import { useSealMoment } from '../shared/SealMoment';
+import { toast } from '../../store/toasts';
+import { haptics } from '../../lib/haptics';
 import type { DeckCard } from '../../store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -127,6 +131,11 @@ import { SortDirArrow } from '../SortDirArrow';
 import { usePanelCascade, panelCascadeClass } from '@/lib/use-panel-cascade';
 import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+
+/** Deck ids whose completion moment already played this app-open — an edit
+ *  that re-crosses the complete boundary doesn't re-celebrate (mirrors the
+ *  consumedRevealKeys registry's once-per-session semantics). */
+const celebratedDeckComplete = new Set<string>();
 
 // ── Canonical card-type grouping ──────────────────────────────────────────
 // classifyType / tallyNames / TypeGroup live in lib/build-mana-data (shared
@@ -1222,6 +1231,45 @@ export function DeckDisplay({
     [cards.length, formatConfig]
   );
 
+  // Deck-complete moment: the edit that takes the deck from incomplete to
+  // exactly full-size with zero legality flags earns the seal + a toast —
+  // today that boundary is a silent badge repaint. Fires only on a transition
+  // observed while mounted (never on opening an already-complete deck), and
+  // once per deck per app-open (the module-level set), so re-cross edits
+  // don't re-celebrate.
+  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
+  const prevDeckComplete = useRef<boolean | null>(null);
+  useEffect(() => {
+    const complete =
+      cards.length > 0 && cards.length === formatConfig.mainboardSize && flaggedCardCount === 0;
+    if (
+      prevDeckComplete.current === false &&
+      complete &&
+      deckId &&
+      !celebratedDeckComplete.has(deckId)
+    ) {
+      celebratedDeckComplete.add(deckId);
+      const colors = [
+        ...effectiveDeckColors({
+          commander: commander ?? null,
+          partnerCommander: partnerCommander ?? null,
+          cards: cards.map((c) => ({
+            slotId: c.slotId ?? '',
+            card: c.card,
+            allocatedCopyId: c.allocatedCopyId ?? null,
+          })),
+        }),
+      ];
+      fireSealMoment(colors);
+      haptics.success();
+      toast.show({
+        message: `Deck complete — legal for ${formatConfig.label}`,
+        tone: 'success',
+      });
+    }
+    prevDeckComplete.current = complete;
+  }, [cards, flaggedCardCount, formatConfig, deckId, commander, partnerCommander, fireSealMoment]);
+
   const visibleGroups = useMemo(
     () => applyFilterSort(groups, search, sort, sortDir),
     [groups, search, sort, sortDir]
@@ -1513,6 +1561,9 @@ export function DeckDisplay({
         id={`deck-view-panel-${activeView}`}
         aria-labelledby={`sc-tab-${activeView}`}
       >
+        {/* Root-level so the deck-complete moment plays from any view (a
+            Coach apply on the Tune view can complete the deck too). */}
+        {sealMoment}
         {/* `deck` view: the card-list editing surface (toolbar + banner + body).
             The analysis views (stats/power/tune) replace it full-width — the
             page-top hub tab bar in DeckEditorPage switches between them. */}

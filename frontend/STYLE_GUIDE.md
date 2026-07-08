@@ -543,6 +543,14 @@ STYLE_GUIDE discussion, not an inline constant.
 6. **Feedback micro** — press = scale(0.97) `--motion-fast`; value change =
    `--ease-pop` one-shot ≤320ms; skeleton shimmer 1.4s; spinner 0.8s linear
    (use the shared `spin` / `skeleton-shimmer` keyframes — don't redeclare).
+7. **Staggered entrance (panels & index cards)** — every cascade goes through
+   `usePanelCascade(key)` + `panelCascadeClass(i, animating)` (the shared
+   `panel-cascade-in` keyframe: 8px rise + fade, 40ms steps, capped at 6
+   slots; reduced-motion gated). Key it to a computation identity (the
+   analysis bento) or a page-scoped once-per-session key (`'decks-index:cascade'`,
+   `'binders-index:cascade'`) — and pass the key **only when the list is
+   non-empty**, or an empty first visit consumes the key with nothing to show.
+   Don't hand-roll a bespoke list stagger.
 
 ### Live values
 
@@ -1039,6 +1047,37 @@ site that doesn't opt in is unaffected.
   elsewhere in the app, and don't add `motion` to a surface that already has
   its own designed loading experience — three loops covering four call sites
   is the whole system; a fifth bespoke one is drift, not a feature.
+
+## Completion moments (the seal)
+
+The seal is the app's one celebration language: `SealBurst`
+(`components/shared/SealBurst.tsx`) — the grimoire blooms in a brass flare and
+sheds mana motes in the subject's colour identity. **Never confetti, never a
+bespoke celebration** (the game board's `WinCelebration` predates this ruling
+and is grandfathered; don't copy it).
+
+- **Full scale belongs to the generation takeover only.** Everywhere else uses
+  the viewport-centered compact moment via **`useSealMoment()`**
+  (`components/shared/SealMoment.tsx`): render `{moment}`, call
+  `fire(colorIdentity)` on the completion event. It portals to `<body>`
+  (`--z-overlay`), is `aria-hidden` and pointer-transparent, and unmounts
+  itself after one play.
+- **A moment fires only on a completed-effort _transition_ observed while
+  mounted** — an import lands, the binder review queue empties, a deck crosses
+  from incomplete to full-size-and-legal. Never on mount of an
+  already-complete state, and **once per subject per app-open** (a
+  module-level consumed set, mirroring `consumedRevealKeys`). Re-crossing the
+  boundary in the same session doesn't replay.
+- **The seal is decorative and silent; the surface carries the words.** Every
+  moment pairs with a real announcement element — the import success banner,
+  the deck-complete toast, the binder "All caught up" status row — so
+  reduced-motion users (for whom `fire` is a no-op) lose nothing but sparkle.
+- **Colours are honest:** pass the real colour identity when the completed
+  thing has one (a deck); pass nothing for identity-less completions (a
+  collection import) and the motes fall back to seal gold.
+- **Anti-pattern — celebration inflation.** Low-stakes actions (copy link,
+  add one card, cut a card) get a toast at most. If everything celebrates,
+  nothing does; the seal marks _completed effort_, not activity.
 
 ## Card row information hierarchy
 
