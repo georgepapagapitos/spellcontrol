@@ -753,6 +753,7 @@ interface NightBody {
   location: string | null;
   options: Array<{ id: string; startsAt: number }>;
   series: { id: string; token: string; endedAt: number | null } | null;
+  blocked: string[];
 }
 
 async function createWeeklyNight(
@@ -1225,6 +1226,190 @@ describe('DELETE /api/game-nights/:id/invites/:username (host un-invites)', () =
       .delete(`/api/game-nights/${id}/invites/gn-uninv-friend`)
       .set('Cookie', host);
     expect(again.status).toBe(404);
+  });
+});
+
+describe('block on remove (host blocks an attendee)', () => {
+  it('blocked account gets 403 on rsvp/votes, public canRsvp is false, and only the host sees the blocked list', async () => {
+    const host = await makeUser('gn-block-host');
+    const target = await makeUser('gn-block-target');
+    const other = await makeUser('gn-block-other');
+    const { id, token } = await createNight(host);
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', target)
+      .send({ status: 'going' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', other)
+      .send({ status: 'going' });
+
+    const before = await request(app).get('/api/game-nights').set('Cookie', host);
+    const targetRsvpId = before.body.nights
+      .find((n: { id: string }) => n.id === id)
+      .rsvps.find((r: { displayName: string }) => r.displayName === 'gn-block-target').id;
+
+    const blockRes = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${targetRsvpId}?block=1`)
+      .set('Cookie', host);
+    expect(blockRes.status).toBe(204);
+
+    const reRsvp = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', target)
+      .send({ status: 'going' });
+    expect(reRsvp.status).toBe(403);
+    expect(reRsvp.body.error).toBe("You can't reply to this game night.");
+
+    const pub = await request(app).get(`/api/game-nights/public/${token}`).set('Cookie', target);
+    expect(pub.body.canRsvp).toBe(false);
+
+    const hostAfter = await request(app).get('/api/game-nights').set('Cookie', host);
+    expect(hostAfter.body.nights.find((n: { id: string }) => n.id === id).blocked).toEqual([
+      'gn-block-target',
+    ]);
+
+    // A non-host attendee never sees the blocked list.
+    const otherAfter = await request(app).get('/api/game-nights').set('Cookie', other);
+    expect(otherAfter.body.nights.find((n: { id: string }) => n.id === id).blocked).toEqual([]);
+
+    // Votes are refused too, once blocked on a polling night they already have an rsvp row on.
+    const poll = await createPollNight(host);
+    await request(app)
+      .post(`/api/game-nights/public/${poll.token}/votes`)
+      .set('Cookie', target)
+      .send({ optionIds: [] });
+    const pollHostView = await request(app).get('/api/game-nights').set('Cookie', host);
+    const pollTargetRsvpId = pollHostView.body.nights
+      .find((n: { id: string }) => n.id === poll.id)
+      .rsvps.find((r: { displayName: string }) => r.displayName === 'gn-block-target').id;
+    await request(app)
+      .delete(`/api/game-nights/${poll.id}/rsvps/${pollTargetRsvpId}?block=1`)
+      .set('Cookie', host);
+    const vote = await request(app)
+      .post(`/api/game-nights/public/${poll.token}/votes`)
+      .set('Cookie', target)
+      .send({ optionIds: [poll.options[0].id] });
+    expect(vote.status).toBe(403);
+    expect(vote.body.error).toBe("You can't reply to this game night.");
+  });
+
+  it('refuses to block a guest rsvp (400) and leaves the guest row in place', async () => {
+    const host = await makeUser('gn-block-guest-host');
+    const { id, token } = await createNight(host);
+    const joined = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Casual Casey' });
+    const guestRsvpId = joined.body.rsvp.id as string;
+
+    const res = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${guestRsvpId}?block=1`)
+      .set('Cookie', host);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Guests can't be blocked — make the night invite-only instead.");
+
+    const pub = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(
+      pub.body.rsvps.some((r: { displayName: string }) => r.displayName === 'Casual Casey')
+    ).toBe(true);
+  });
+
+  it('unblocking lets the account rejoin and drops them from the blocked list', async () => {
+    const host = await makeUser('gn-unblock-host');
+    const target = await makeUser('gn-unblock-target');
+    const { id, token } = await createNight(host);
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', target)
+      .send({ status: 'going' });
+    const before = await request(app).get('/api/game-nights').set('Cookie', host);
+    const targetRsvpId = before.body.nights
+      .find((n: { id: string }) => n.id === id)
+      .rsvps.find((r: { displayName: string }) => r.displayName === 'gn-unblock-target').id;
+    await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${targetRsvpId}?block=1`)
+      .set('Cookie', host);
+
+    const unblocked = await request(app)
+      .delete(`/api/game-nights/${id}/blocks/gn-unblock-target`)
+      .set('Cookie', host);
+    expect(unblocked.status).toBe(204);
+
+    const rejoin = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', target)
+      .send({ status: 'maybe' });
+    expect(rejoin.status).toBe(200);
+
+    const after = await request(app).get('/api/game-nights').set('Cookie', host);
+    expect(after.body.nights.find((n: { id: string }) => n.id === id).blocked).toEqual([]);
+  });
+
+  it('unblocking an unknown username 404s; non-host block/unblock both 404', async () => {
+    const host = await makeUser('gn-block-404-host');
+    const other = await makeUser('gn-block-404-other');
+    const { id, token } = await createNight(host);
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', other)
+      .send({ status: 'going' });
+
+    const unknownUnblock = await request(app)
+      .delete(`/api/game-nights/${id}/blocks/nobody-here`)
+      .set('Cookie', host);
+    expect(unknownUnblock.status).toBe(404);
+
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    const otherRsvpId = list.body.nights
+      .find((n: { id: string }) => n.id === id)
+      .rsvps.find((r: { displayName: string }) => r.displayName === 'gn-block-404-other').id;
+
+    const nonHostBlock = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${otherRsvpId}?block=1`)
+      .set('Cookie', other);
+    expect(nonHostBlock.status).toBe(404);
+
+    const nonHostUnblock = await request(app)
+      .delete(`/api/game-nights/${id}/blocks/gn-block-404-other`)
+      .set('Cookie', other);
+    expect(nonHostUnblock.status).toBe(404);
+  });
+
+  it('a blocked account stays blocked on the next materialized weekly occurrence', async () => {
+    const host = await makeUser('gn-block-weekly-host');
+    const target = await makeUser('gn-block-weekly-target');
+    // Just past due (so the next occurrence is due to materialize) but still
+    // inside the reply grace window, so the RSVP below is accepted.
+    const anchor = Date.now() - 60_000;
+    const first = await createWeeklyNight(host, { startsAt: anchor });
+    await request(app)
+      .post(`/api/game-nights/public/${first.token}/rsvp`)
+      .set('Cookie', target)
+      .send({ status: 'going' });
+    // Read via PATCH-by-id (not GET /, which would materialize the next
+    // occurrence prematurely — before the block below has a row to carry).
+    const patched = await request(app)
+      .patch(`/api/game-nights/${first.id}`)
+      .set('Cookie', host)
+      .send({});
+    const targetRsvpId = patched.body.night.rsvps.find(
+      (r: { displayName: string }) => r.displayName === 'gn-block-weekly-target'
+    ).id;
+    await request(app)
+      .delete(`/api/game-nights/${first.id}/rsvps/${targetRsvpId}?block=1`)
+      .set('Cookie', host);
+
+    const nights = await listNights(host);
+    const occurrence = nights.find(
+      (n) => n.series?.token === first.series!.token && n.id !== first.id
+    )!;
+    expect(occurrence.blocked).toEqual(['gn-block-weekly-target']);
+
+    const reRsvp = await request(app)
+      .post(`/api/game-nights/public/${occurrence.token}/rsvp`)
+      .set('Cookie', target)
+      .send({ status: 'going' });
+    expect(reRsvp.status).toBe(403);
   });
 });
 

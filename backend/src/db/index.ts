@@ -314,6 +314,17 @@ export async function ensureSchema(): Promise<void> {
       ON game_nights(series_id, starts_at) WHERE series_id IS NOT NULL;
     -- Invite-only nights: the link shows details, only invitees can reply.
     ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS invite_only BOOLEAN NOT NULL DEFAULT FALSE;
+    -- Host-blocked accounts: a removed, account-backed attendee who was also
+    -- blocked can't rejoin via the public link (guests have no stable identity
+    -- to block — invite-only is the tool for them). Carries forward to a
+    -- series' next materialized occurrence, same as invites.
+    CREATE TABLE IF NOT EXISTS game_night_blocks (
+      night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (night_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS game_night_blocks_user_idx ON game_night_blocks(user_id);
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

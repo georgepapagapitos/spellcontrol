@@ -359,6 +359,13 @@
   min-height: 44px;
 }
 
+.game-night-person-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .game-night-person-name {
   overflow-wrap: anywhere;
 }
