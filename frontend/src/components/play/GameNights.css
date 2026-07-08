@@ -208,6 +208,45 @@
   resize: vertical;
 }
 
+/* ── Where place combobox (mirrors .set-filter-results) ───────────────── */
+
+.game-night-place-field {
+  position: relative;
+}
+
+.game-night-place-results {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover);
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 14rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.game-night-place-result {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.game-night-place-result.is-highlight {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
 .game-night-dialog-invites {
   border: 1px solid var(--border);
   border-radius: var(--radius);
