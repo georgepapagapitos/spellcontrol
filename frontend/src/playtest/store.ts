@@ -6,6 +6,11 @@ import {
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
+import {
+  applyResistance,
+  createResistanceState,
+  type ResistanceState,
+} from './lib/resistance';
 
 /**
  * UI flow phase, separate from the game-state reducer.
@@ -21,8 +26,14 @@ interface PlaytestStore {
   deckId: string | null;
   phase: PlaytestPhase;
   mulliganCount: number;
+  /** "Resistance" mode — a simulated opponent that responds to plays. */
+  resistance: boolean;
+  resistanceState: ResistanceState | null;
+  /** Latest opponent announcement; `id` increments so repeats re-announce. */
+  lastResistanceEvent: { id: number; message: string } | null;
   init(deckId: string, init: PlaytestInit): void;
   dispatch(action: PlaytestAction): void;
+  toggleResistance(): void;
   /** Advance from opening → either playing (no mulligans) or mulligan-bottom. */
   keepOpeningHand(): void;
   /** Reshuffle hand + library; increment mulligan count; stay on opening. */
@@ -37,23 +48,65 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   deckId: null,
   phase: 'opening',
   mulliganCount: 0,
+  resistance: false,
+  resistanceState: null,
+  lastResistanceEvent: null,
   init(deckId, init) {
     set({
       deckId,
       state: createPlaytestState(init),
       phase: 'opening',
       mulliganCount: 0,
+      resistance: false,
+      resistanceState: null,
+      lastResistanceEvent: null,
     });
   },
   dispatch(action) {
     const current = get().state;
     if (!current) return;
     const next = applyAction(current, action);
-    // RESET drops us back to the opening hand flow with a fresh mulligan count.
+    // RESET drops us back to the opening hand flow with a fresh mulligan count
+    // (and, if Resistance is on, a fresh opponent for the fresh game).
     if (action.type === 'RESET') {
-      set({ state: next, phase: 'opening', mulliganCount: 0 });
+      const { resistance } = get();
+      set({
+        state: next,
+        phase: 'opening',
+        mulliganCount: 0,
+        resistanceState: resistance ? createResistanceState(next.rngSeed) : null,
+        lastResistanceEvent: null,
+      });
+      return;
+    }
+    const { resistance, resistanceState } = get();
+    if (resistance && resistanceState) {
+      const result = applyResistance(resistanceState, current, next, action);
+      set({
+        state: result.state,
+        resistanceState: result.resistanceState,
+        ...(result.message !== null && {
+          lastResistanceEvent: {
+            id: (get().lastResistanceEvent?.id ?? 0) + 1,
+            message: result.message,
+          },
+        }),
+      });
+      return;
+    }
+    set({ state: next });
+  },
+  toggleResistance() {
+    const { resistance, state } = get();
+    if (resistance) {
+      set({ resistance: false, resistanceState: null, lastResistanceEvent: null });
     } else {
-      set({ state: next });
+      // Seed from the game's rngSeed when available so a seeded session gets a
+      // deterministic opponent; Date.now() is a fine fallback (app code).
+      set({
+        resistance: true,
+        resistanceState: createResistanceState(state?.rngSeed ?? Date.now()),
+      });
     }
   },
   keepOpeningHand() {
@@ -84,6 +137,14 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     set({ state: current, phase: 'playing' });
   },
   teardown() {
-    set({ state: null, deckId: null, phase: 'opening', mulliganCount: 0 });
+    set({
+      state: null,
+      deckId: null,
+      phase: 'opening',
+      mulliganCount: 0,
+      resistance: false,
+      resistanceState: null,
+      lastResistanceEvent: null,
+    });
   },
 }));

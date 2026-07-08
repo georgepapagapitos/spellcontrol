@@ -29,6 +29,7 @@ import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { TokenCreator } from './TokenCreator';
 import { PlaytestStatsSheet } from './PlaytestStatsSheet';
+import { ResistanceBanner } from './ResistanceBanner';
 
 interface Props {
   state: PlaytestState;
@@ -50,6 +51,9 @@ export function PlaytestBoard({ state }: Props) {
   const keepOpeningHand = usePlaytestStore((s) => s.keepOpeningHand);
   const mulliganOpeningHand = usePlaytestStore((s) => s.mulliganOpeningHand);
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
+  const resistanceOn = usePlaytestStore((s) => s.resistance);
+  const toggleResistance = usePlaytestStore((s) => s.toggleResistance);
+  const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   const deck = useDecksStore((s) =>
     playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
@@ -80,6 +84,9 @@ export function PlaytestBoard({ state }: Props) {
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Banner dismissal is tracked by event id so a new opponent response (even
+  // with an identical message) re-shows and re-announces the banner.
+  const [dismissedResistanceId, setDismissedResistanceId] = useState<number | null>(null);
   const isNarrow = useNarrowViewport();
 
   // The card currently under the pointer, resolved to its data + display
@@ -218,7 +225,16 @@ export function PlaytestBoard({ state }: Props) {
         onScry={() => setViewer({ zone: 'library', topN: 3 })}
         onCreateToken={() => setTokenCreator(true)}
         onOpenStats={() => setShowStats(true)}
+        onToggleResistance={toggleResistance}
+        resistanceOn={resistanceOn}
       />
+      {lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId && (
+        <ResistanceBanner
+          key={lastResistanceEvent.id}
+          message={lastResistanceEvent.message}
+          onDismiss={() => setDismissedResistanceId(lastResistanceEvent.id)}
+        />
+      )}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
