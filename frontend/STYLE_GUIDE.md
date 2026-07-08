@@ -945,6 +945,26 @@ visible text — same a11y story as bars. Pips are fixed-size, so they don't
 test-hand histogram) are charts, not meters, and stay bespoke. Radar/polar
 charts also stay bespoke — see **"Radar / polar charts"** below.
 
+## Money deltas & value sparklines (E76)
+
+A signed money change ("+$18 this week", "Value down $4") follows the
+stat-tile delta convention:
+
+- **The sign carries the direction; color only reinforces it.** Always render
+  the `+`/`−` (typographic minus, U+2212) in the text — color is never the
+  sole channel. Whole dollars via `formatMoney(..., { wholeDollars: true })`.
+- **Direction colors:** up = `var(--success)`, down = `var(--err-text)`,
+  zero/flat = `var(--text-secondary)`. A zero delta reads as a word
+  ("Steady"), not "+$0".
+- **Be honest about the window.** "this week" only when the data actually
+  spans ~a week and is current; a gappy or stale log names the baseline date
+  instead ("since Jun 7" via `lib/value-history.ts` `formatDayKey`).
+- **Trend sparklines** are decorative reinforcement: small inline SVG
+  polyline, line in the accent at reduced opacity with the latest point as a
+  solid accent dot, `aria-hidden` with the delta text (plus an `.sr-only`
+  prefix) as the accessible content. Render nothing below two data points —
+  no empty state. Reference: `components/ValuePulse.tsx`.
+
 ## Radar / polar charts
 
 A radar chart is permitted only when displaying **≥3 labeled dimensions of one

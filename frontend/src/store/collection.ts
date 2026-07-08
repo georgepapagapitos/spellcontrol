@@ -34,6 +34,7 @@ import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/bin
 import { acknowledgeInSnapshot } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
 import { recordValueSnapshot } from '../lib/value-history';
+import { logBinderMoves } from '../lib/welcome-digest';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
 import { remapCubeAllocations } from '../lib/remap-cube-allocations';
@@ -386,6 +387,16 @@ function openBinder(binderId: string): void {
  */
 function notifyBinderMoves(moves: BinderMove[]): void {
   if (moves.length === 0) return;
+
+  // E76 digest: remember these before toasting — toasts vanish, and the
+  // welcome-back digest replays anything the user wasn't around to see.
+  logBinderMoves(
+    moves.map((m) => ({
+      cardName: m.card.name,
+      fromBinder: m.fromBinder?.name ?? null,
+      toBinder: m.toBinder?.name ?? null,
+    }))
+  );
 
   if (moves.length > MAX_VISIBLE_TOASTS) {
     toast.show({

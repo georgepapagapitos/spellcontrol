@@ -1,5 +1,5 @@
-/* SubScoreTile — compact per-subscore tile. Band colors mirror HeroScore.css
-   (same --success/--accent/--warn-text/--danger convention). Container surface
+/* SubScoreTile — compact per-subscore tile. Band colors follow the shared
+   --success/--accent/--warn-text/--danger convention. Container surface
    uses --radius-lg per STYLE_GUIDE.md; font sizes use the --text-* scale only.
    The parent dashboard owns the grid; the tile just fills its cell. */
 
