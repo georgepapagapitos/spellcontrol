@@ -624,14 +624,17 @@ export function curveShapeFromAvgCmc(avgCmc: number): 'top-heavy' | 'bottom-heav
   return null;
 }
 
+// Weight of each curve phase toward getCurveGrade's composite — also reused
+// by continuousCurvePhaseScore below (E129) so the two never drift apart.
+const CURVE_PHASE_WEIGHTS: Record<string, number> = { early: 0.3, mid: 0.4, late: 0.3 };
+
 export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
   if (phases.length === 0) return { letter: 'F', message: 'No non-land cards to evaluate.' };
 
   // Weighted average of phase grades: early 30%, mid 40%, late 30%
-  const PHASE_WEIGHTS: Record<string, number> = { early: 0.3, mid: 0.4, late: 0.3 };
   const weightedScore = phases.reduce((sum, p) => {
     const score = GRADE_SCORES[p.grade.letter] ?? 0;
-    const weight = PHASE_WEIGHTS[p.phase] ?? 0;
+    const weight = CURVE_PHASE_WEIGHTS[p.phase] ?? 0;
     return sum + score * weight;
   }, 0);
 
@@ -653,6 +656,56 @@ export function getCurveGrade(phases: CurvePhaseAnalysis[]): GradeResult {
   };
 
   return { letter, message: messages[letter] || messages.F };
+}
+
+/**
+ * Continuous 0-4 stand-in for a curve phase's letter grade — used ONLY by
+ * getDeckSummaryData's report-level deckGrade average below, never by
+ * curveGrade itself. curveGrade.letter still comes from getCurveGrade above
+ * and keeps feeding composition decisions untouched (e.g. deckAnalyzer.ts's
+ * own late-curve trim-protection check reads analysis.curveGrade.letter).
+ *
+ * E129: getDeckSummaryData averages just 3 dimension letters (roles/mana/
+ * curve), so any single dimension crossing its own bucket edge moves that
+ * 3-way average by a full 1/3 point — enough on its own to flip the overall
+ * letter. Two iter-18 A/B decks (krenko, lathril) hit exactly this: an
+ * owned-collection swap shifted one card between adjacent curve phases
+ * (e.g. trading a 0-cost rock for a 3-cost card), nudging one phase's
+ * deviationPct a hair past getCurveGrade's 10% A/B cutoff. curveGrade
+ * ticked A->B, and that alone dragged the averaged deckGrade letter down a
+ * full step even though the deck was functionally unchanged (one case $178
+ * cheaper for the same shape). Re-deriving curve's contribution as a smooth
+ * ramp through the SAME cutoffs — instead of re-quantizing through the
+ * already-discrete per-phase letter — means a marginal cutoff crossing
+ * moves the 3-way average by a sliver, not a third; a deck that's actually
+ * gotten meaningfully worse on curve still drags the letter down as before.
+ */
+export function continuousCurvePhaseScore(phases: CurvePhaseAnalysis[]): number {
+  if (phases.length === 0) return 0;
+  // Mirrors getCurvePhases' deviationPct -> letter cutoffs (0.1/0.2/0.35/0.5)
+  // above, scored at each cutoff as the midpoint between its two adjacent
+  // letters instead of stepping — a straight line between the anchors.
+  const ANCHORS: [deviation: number, score: number][] = [
+    [0, 4],
+    [0.1, 3.5],
+    [0.2, 2.5],
+    [0.35, 1.5],
+    [0.5, 0.5],
+    [1, 0],
+  ];
+  const scoreForDeviation = (deviationPct: number): number => {
+    const d = Math.min(deviationPct, 1);
+    for (let i = 1; i < ANCHORS.length; i++) {
+      const [prevD, prevS] = ANCHORS[i - 1];
+      const [curD, curS] = ANCHORS[i];
+      if (d <= curD) return prevS + (curS - prevS) * ((d - prevD) / (curD - prevD));
+    }
+    return 0;
+  };
+  return phases.reduce((sum, p) => {
+    const deviationPct = p.target > 0 ? Math.abs(p.delta) / p.target : p.current > 0 ? 0.5 : 0;
+    return sum + scoreForDeviation(deviationPct) * (CURVE_PHASE_WEIGHTS[p.phase] ?? 0);
+  }, 0);
 }
 
 /** Pacing multipliers shift curve targets to match detected deck tempo. Re-exported for consumers. */
@@ -991,8 +1044,18 @@ export function isRoleExcess(current: number, target: number): boolean {
 }
 
 export function getDeckSummaryData(analysis: DeckAnalysis, deckExcess?: number): DeckSummaryData {
-  const grades = [analysis.rolesGrade, analysis.manaGrade, analysis.curveGrade];
-  const avgScore = grades.reduce((s, g) => s + (GRADE_SCORES[g.letter] ?? 0), 0) / grades.length;
+  // E129: curve's contribution uses continuousCurvePhaseScore (a smooth ramp
+  // through getCurveGrade's own cutoffs) instead of re-quantizing
+  // curveGrade.letter, so a marginal single-card curve shift doesn't
+  // amplify into a full letter-grade swing on this 3-way average. Roles and
+  // mana keep their discrete letters — their buckets are integer-deficit /
+  // verdict-based, not a continuous ratio, so they weren't the amplification
+  // source in the observed cases. See continuousCurvePhaseScore for the trace.
+  const avgScore =
+    ((GRADE_SCORES[analysis.rolesGrade.letter] ?? 0) +
+      (GRADE_SCORES[analysis.manaGrade.letter] ?? 0) +
+      continuousCurvePhaseScore(analysis.curvePhases)) /
+    3;
 
   const totalCards = analysis.curveAnalysis.reduce((s, c) => s + c.current, 0);
   const weightedCmc = analysis.curveAnalysis.reduce((s, c) => s + c.cmc * c.current, 0);
