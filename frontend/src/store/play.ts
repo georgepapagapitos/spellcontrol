@@ -24,6 +24,7 @@ import {
 } from '../lib/games-api';
 import { setHapticsEnabled } from '../lib/haptics';
 import { clearUndo } from '../lib/undo-stack';
+import { FORMAT_OPTIONS } from '../lib/game-formats';
 
 const POLL_INTERVAL_MS = 2500;
 
@@ -112,6 +113,13 @@ interface PlayState {
    * default. Persisted. Holds preset ids or serialized custom layouts.
    */
   preferredLayouts: Record<number, string>;
+  /**
+   * Set by a game night's "Start game" (host, non-cancelled, non-polling
+   * night): the local setup form reads this once on mount to pre-fill player
+   * names + format, then clears it. Not persisted — it's a one-shot handoff
+   * to the next Play tab render, same tab in the same session.
+   */
+  gameNightSeed: { players: string[]; format: GameFormat | null } | null;
 
   // ── Board visibility ────────────────────────────────────────────────────
   hideBoard(): void;
@@ -119,6 +127,11 @@ interface PlayState {
   setHaptics(enabled: boolean): void;
   /** Remember (or clear, with null) the default layout for `count` seats. */
   setPreferredLayout(count: number, layout: string | null): void;
+
+  // ── Game night hand-off ─────────────────────────────────────────────────
+  /** Seed the local setup form with attendee names + an optional format id. */
+  seedGameSetup(names: string[], format?: string | null): void;
+  clearGameSeed(): void;
 
   // ── Local game ──────────────────────────────────────────────────────────
   startLocal(setup: LocalGameSetup): void;
@@ -238,6 +251,7 @@ export const usePlayStore = create<PlayState>()(
       boardVisible: true,
       hapticsEnabled: true,
       preferredLayouts: {},
+      gameNightSeed: null,
 
       hideBoard: () => set({ boardVisible: false }),
       showBoard: () => set({ boardVisible: true }),
@@ -253,6 +267,14 @@ export const usePlayStore = create<PlayState>()(
           return { preferredLayouts: nextLayouts };
         });
       },
+
+      seedGameSetup: (names, format) => {
+        const gameFormat = FORMAT_OPTIONS.some((f) => f.value === format)
+          ? (format as GameFormat)
+          : null;
+        set({ gameNightSeed: { players: names, format: gameFormat } });
+      },
+      clearGameSeed: () => set({ gameNightSeed: null }),
 
       // ── Local ─────────────────────────────────────────────────────────────
       startLocal: (setup) => {

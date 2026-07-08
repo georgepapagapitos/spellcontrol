@@ -34,6 +34,7 @@ const TITLE_MAX = 80;
 const LOCATION_MAX = 120;
 const NOTES_MAX = 500;
 const NAME_MAX = 40;
+const FORMAT_MAX = 40;
 const MAX_INVITES = 32;
 /** Abuse bound on a public link; no real table fits more people than this. */
 const MAX_RSVPS = 64;
@@ -94,6 +95,9 @@ interface RsvpView {
   displayName: string;
   status: RsvpStatus;
   isHost: boolean;
+  /** Present only for account-backed rsvps — lets an authed viewer friend-request
+   *  another attendee. Never sent on the public (token) payload. */
+  username?: string;
 }
 
 /** A poll option as sent to clients — voter display names only, never rsvp ids. */
@@ -343,8 +347,8 @@ export function plusWeek(t: number, timezone: string | null): number {
 /**
  * Lazy materialization (E125): make sure a live series has an upcoming,
  * non-cancelled occurrence. The new night is a copy of the series' *latest*
- * night — title, place, notes, timezone, and the invite list all carry
- * forward, so the latest occurrence IS the template and editing this week's
+ * night — title, place, notes, timezone, format, and the invite list all
+ * carry forward, so the latest occurrence IS the template and editing this week's
  * night is how the template evolves. Steps a week at a time past unmaterialized
  * weeks and cancelled ("skipped") slots; the unique (series_id, starts_at)
  * index makes concurrent calls collapse into one row.
@@ -364,8 +368,9 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       notes: string | null;
       cancelled_at: string | null;
       invite_only: boolean;
+      format: string | null;
     }>(
-      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at, invite_only
+      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at, invite_only, format
          FROM game_nights WHERE series_id = $1 ORDER BY starts_at DESC LIMIT 1`,
       [seriesId]
     );
@@ -378,8 +383,8 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       t = plusWeek(t, latest.timezone);
     } while (t <= now);
     const inserted = await pool.query<{ id: string }>(
-      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id, invite_only)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11)
+      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id, invite_only, format)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11, $12)
        ON CONFLICT (series_id, starts_at) WHERE series_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [
@@ -394,6 +399,7 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
         now,
         seriesId,
         latest.invite_only,
+        latest.format,
       ]
     );
     if (inserted.rows.length === 0) continue; // slot already exists (race, or cancelled) — re-read
@@ -451,6 +457,8 @@ interface NightView {
   cancelledAt: number | null;
   /** Only people already in (host, invitees, existing RSVPs) can reply. */
   inviteOnly: boolean;
+  /** Optional play format (e.g. 'commander'); null = undecided. */
+  format: string | null;
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
@@ -467,13 +475,25 @@ interface NightView {
 async function loadNightDetails(nightIds: string[]): Promise<{
   rsvpsByNight: Map<
     string,
-    Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>
+    Array<{
+      id: string;
+      userId: string | null;
+      username: string | null;
+      displayName: string;
+      status: RsvpStatus;
+    }>
   >;
   awaitingByNight: Map<string, string[]>;
 }> {
   const rsvpsByNight = new Map<
     string,
-    Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>
+    Array<{
+      id: string;
+      userId: string | null;
+      username: string | null;
+      displayName: string;
+      status: RsvpStatus;
+    }>
   >();
   const awaitingByNight = new Map<string, string[]>();
   if (nightIds.length === 0) return { rsvpsByNight, awaitingByNight };
@@ -482,16 +502,25 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     id: string;
     night_id: string;
     user_id: string | null;
+    username: string | null;
     display_name: string;
     status: RsvpStatus;
   }>(
-    `SELECT id, night_id, user_id, display_name, status FROM game_night_rsvps
-      WHERE night_id = ANY($1) ORDER BY created_at ASC`,
+    `SELECT r.id, r.night_id, r.user_id, u.username, r.display_name, r.status
+       FROM game_night_rsvps r
+       LEFT JOIN users u ON u.id = r.user_id
+      WHERE r.night_id = ANY($1) ORDER BY r.created_at ASC`,
     [nightIds]
   );
   for (const r of rsvps.rows) {
     const arr = rsvpsByNight.get(r.night_id) ?? [];
-    arr.push({ id: r.id, userId: r.user_id, displayName: r.display_name, status: r.status });
+    arr.push({
+      id: r.id,
+      userId: r.user_id,
+      username: r.username,
+      displayName: r.display_name,
+      status: r.status,
+    });
     rsvpsByNight.set(r.night_id, arr);
   }
   const awaiting = await pool.query<{ night_id: string; username: string }>(
@@ -517,7 +546,13 @@ function toNightView(
   night: GameNightRow,
   hostUsername: string,
   viewerId: string,
-  rsvps: Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>,
+  rsvps: Array<{
+    id: string;
+    userId: string | null;
+    username: string | null;
+    displayName: string;
+    status: RsvpStatus;
+  }>,
   awaiting: string[],
   options: LoadedOption[],
   series: SeriesInfo | null
@@ -535,6 +570,7 @@ function toNightView(
     createdAt: night.createdAt,
     cancelledAt: night.cancelledAt,
     inviteOnly: night.inviteOnly,
+    format: night.format,
     hostUsername,
     isHost,
     myStatus: mine?.status ?? null,
@@ -545,6 +581,10 @@ function toNightView(
       displayName: r.displayName,
       status: r.status,
       isHost: r.userId !== null && r.userId === night.hostUserId,
+      // Account-backed rsvps only — this whole view is authed-viewer-only
+      // (every route returning NightView is requireAuth), so it's safe to
+      // expose to any participant, unlike the public payload.
+      ...(r.username !== null ? { username: r.username } : {}),
     })),
     awaiting,
     options: toOptionViews(options, (v) => v.userId === viewerId),
@@ -604,6 +644,7 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   }
   const location = cleanOptional(body.location, LOCATION_MAX) ?? null;
   const notes = cleanOptional(body.notes, NOTES_MAX) ?? null;
+  const format = cleanOptional(body.format, FORMAT_MAX) ?? null;
   const invitees = await cleanInvitees(req.user!.id, body.inviteUserIds);
   if (typeof invitees === 'string') {
     const status = invitees === 'You can only invite friends.' ? 403 : 400;
@@ -636,6 +677,7 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     cancelledAt: null,
     seriesId: series?.id ?? null,
     inviteOnly: body.inviteOnly === true,
+    format,
   };
   await db.insert(gameNights).values(night);
   if (optionSlots.length > 0) {
@@ -718,6 +760,7 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     cancelled_at: string | null;
     series_id: string | null;
     invite_only: boolean;
+    format: string | null;
     host_username: string;
     series_token: string | null;
     series_ended_at: string | null;
@@ -752,6 +795,7 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
         cancelledAt: r.cancelled_at === null ? null : Number(r.cancelled_at),
         seriesId: r.series_id,
         inviteOnly: r.invite_only,
+        format: r.format,
       },
       r.host_username,
       req.user!.id,
@@ -812,6 +856,7 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
   if (body.location !== undefined)
     patch.location = cleanOptional(body.location, LOCATION_MAX) ?? null;
   if (body.notes !== undefined) patch.notes = cleanOptional(body.notes, NOTES_MAX) ?? null;
+  if (body.format !== undefined) patch.format = cleanOptional(body.format, FORMAT_MAX) ?? null;
   if (body.inviteOnly !== undefined) {
     if (typeof body.inviteOnly !== 'boolean') {
       return res.status(400).json({ error: 'inviteOnly must be a boolean.' });
@@ -1141,6 +1186,7 @@ async function findNightByToken(
     cancelled_at: string | null;
     series_id: string | null;
     invite_only: boolean;
+    format: string | null;
     host_username: string;
     series_token: string | null;
     series_ended_at: string | null;
@@ -1168,6 +1214,7 @@ async function findNightByToken(
       cancelledAt: r.cancelled_at === null ? null : Number(r.cancelled_at),
       seriesId: r.series_id,
       inviteOnly: r.invite_only,
+      format: r.format,
     },
     hostUsername: r.host_username,
     series:
@@ -1230,6 +1277,7 @@ gameNightsRouter.get(
         notes: night.notes,
         cancelledAt: night.cancelledAt,
         inviteOnly: night.inviteOnly,
+        format: night.format,
         hostUsername,
         series,
       },

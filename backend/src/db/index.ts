@@ -314,6 +314,8 @@ export async function ensureSchema(): Promise<void> {
       ON game_nights(series_id, starts_at) WHERE series_id IS NOT NULL;
     -- Invite-only nights: the link shows details, only invitees can reply.
     ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS invite_only BOOLEAN NOT NULL DEFAULT FALSE;
+    -- Optional play format (e.g. 'commander'); powers the "Start game" seed.
+    ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS format TEXT;
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

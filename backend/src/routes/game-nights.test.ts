@@ -104,8 +104,15 @@ describe('POST /api/game-nights', () => {
     expect(night.isHost).toBe(true);
     expect(night.myStatus).toBe('going');
     expect(night.rsvps).toEqual([
-      // The host's own view carries the rsvp id — their removal handle.
-      { id: expect.any(String), displayName: 'gn-create-host', status: 'going', isHost: true },
+      // The host's own view carries the rsvp id — their removal handle. Account-backed
+      // rsvps also carry username, for friend-requesting attendees from the sheet.
+      {
+        id: expect.any(String),
+        displayName: 'gn-create-host',
+        status: 'going',
+        isHost: true,
+        username: 'gn-create-host',
+      },
     ]);
   });
 
@@ -121,6 +128,33 @@ describe('POST /api/game-nights', () => {
       .set('Cookie', host)
       .send({ title: 'tz', startsAt: IN_A_WEEK(), timezone: 'Not/AZone' });
     expect(bad.body.night.timezone).toBeNull();
+  });
+
+  it('is optional (defaults to null) and round-trips through the view and public payload', async () => {
+    const host = await makeUser('gn-create-format');
+    const undecided = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'no format', startsAt: IN_A_WEEK() });
+    expect(undecided.body.night.format).toBeNull();
+
+    const withFormat = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'commander night', startsAt: IN_A_WEEK(), format: 'commander' });
+    expect(withFormat.body.night.format).toBe('commander');
+    const pub = await request(app).get(`/api/game-nights/public/${withFormat.body.night.token}`);
+    expect(pub.body.night.format).toBe('commander');
+  });
+
+  it('drops an invalid (non-string) format rather than rejecting the request', async () => {
+    const host = await makeUser('gn-create-format-invalid');
+    const res = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'bad format', startsAt: IN_A_WEEK(), format: 42 });
+    expect(res.status).toBe(201);
+    expect(res.body.night.format).toBeNull();
   });
 
   it('rejects inviting a non-friend (403)', async () => {
@@ -174,7 +208,70 @@ describe('POST /api/game-nights', () => {
       displayName: 'gn-invite-guest',
       status: 'going',
       isHost: false,
+      username: 'gn-invite-guest',
     });
+  });
+});
+
+describe('rsvp username exposure (authed views only, never public)', () => {
+  it('carries username on account-backed rsvp rows in both the host’s and an attendee’s authed list view', async () => {
+    const host = await makeUser('gn-username-host');
+    const attendee = await makeUser('gn-username-attendee');
+    const { id, token } = await createNight(host, { title: 'Username night' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', attendee)
+      .send({ status: 'going' });
+
+    const hostView = await request(app).get('/api/game-nights').set('Cookie', host);
+    const hostNight = hostView.body.nights.find((n: { id: string }) => n.id === id);
+    expect(hostNight.rsvps).toContainEqual(
+      expect.objectContaining({
+        displayName: 'gn-username-attendee',
+        username: 'gn-username-attendee',
+      })
+    );
+    expect(hostNight.rsvps).toContainEqual(
+      expect.objectContaining({ displayName: 'gn-username-host', username: 'gn-username-host' })
+    );
+
+    const attendeeView = await request(app).get('/api/game-nights').set('Cookie', attendee);
+    const attendeeNight = attendeeView.body.nights.find((n: { id: string }) => n.id === id);
+    expect(attendeeNight.rsvps).toContainEqual(
+      expect.objectContaining({ displayName: 'gn-username-host', username: 'gn-username-host' })
+    );
+  });
+
+  it('guest rsvp rows carry no username in the authed host view', async () => {
+    const host = await makeUser('gn-username-guest-host');
+    const { id, token } = await createNight(host, { title: 'Guest username night' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'maybe', displayName: 'Guesty' });
+
+    const hostView = await request(app).get('/api/game-nights').set('Cookie', host);
+    const hostNight = hostView.body.nights.find((n: { id: string }) => n.id === id);
+    const guestRow = hostNight.rsvps.find(
+      (r: { displayName: string }) => r.displayName === 'Guesty'
+    );
+    expect(guestRow).toBeDefined();
+    expect(guestRow.username).toBeUndefined();
+  });
+
+  it('the public payload keeps its exact {displayName,status,isHost} rsvp shape — no username, no id', async () => {
+    const host = await makeUser('gn-username-public-host');
+    const attendee = await makeUser('gn-username-public-attendee');
+    const { token } = await createNight(host, { title: 'Public shape night' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', attendee)
+      .send({ status: 'going' });
+
+    const pub = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(pub.status).toBe(200);
+    for (const r of pub.body.rsvps) {
+      expect(Object.keys(r).sort()).toEqual(['displayName', 'isHost', 'status']);
+    }
   });
 });
 
@@ -231,6 +328,24 @@ describe('PATCH /api/game-nights/:id', () => {
       .set('Cookie', host)
       .send({ title: '' });
     expect(bad.status).toBe(400);
+  });
+
+  it('updates the format, and drops an invalid value instead of rejecting', async () => {
+    const host = await makeUser('gn-patch-format');
+    const { id } = await createNight(host, { format: 'commander' });
+    const set = await request(app)
+      .patch(`/api/game-nights/${id}`)
+      .set('Cookie', host)
+      .send({ format: 'pauper' });
+    expect(set.status).toBe(200);
+    expect(set.body.night.format).toBe('pauper');
+
+    const invalid = await request(app)
+      .patch(`/api/game-nights/${id}`)
+      .set('Cookie', host)
+      .send({ format: 42 });
+    expect(invalid.status).toBe(200);
+    expect(invalid.body.night.format).toBeNull();
   });
 
   it('rejects edits to a cancelled night (400)', async () => {
@@ -681,6 +796,7 @@ interface NightBody {
   myStatus: string | null;
   awaiting: string[];
   location: string | null;
+  format: string | null;
   options: Array<{ id: string; startsAt: number }>;
   series: { id: string; token: string; endedAt: number | null } | null;
 }
@@ -736,7 +852,11 @@ describe('recurring game nights (E125)', () => {
     // Anchor two days in the past: the first occurrence has already happened,
     // so the next one (five days out) is due.
     const anchor = Date.now() - 2 * DAY_MS;
-    const first = await createWeeklyNight(host, { startsAt: anchor, inviteUserIds: [guestId] });
+    const first = await createWeeklyNight(host, {
+      startsAt: anchor,
+      inviteUserIds: [guestId],
+      format: 'commander',
+    });
     // The template evolves by editing the current night.
     await request(app)
       .patch(`/api/game-nights/${first.id}`)
@@ -752,6 +872,7 @@ describe('recurring game nights (E125)', () => {
     // Copied template fields + invites, and the host is auto-going again.
     expect(occurrence!.title).toBe('Renamed weekly');
     expect(occurrence!.location).toBe('New spot');
+    expect(occurrence!.format).toBe('commander');
     expect(occurrence!.awaiting).toEqual(['gn-rec-mat-guest']);
     expect(occurrence!.myStatus).toBe('going');
 
