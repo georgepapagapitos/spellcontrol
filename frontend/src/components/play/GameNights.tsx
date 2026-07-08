@@ -17,10 +17,12 @@ import {
   type NightOption,
   type RsvpStatus,
 } from '../../lib/game-nights-api';
+import { CalendarPlus, ChevronDown } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
 import { listFriends, type Friend } from '../../lib/friends-client';
 import { toast } from '../../store/toasts';
 import { Modal } from '../Modal';
+import { OverflowMenu } from '../OverflowMenu';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { NightPoll, formatSlot } from '../NightPoll';
 import './GameNights.css';
@@ -281,6 +283,26 @@ function NightCard({
         <h3 className="game-night-card-title">{night.title}</h3>
         {weekly && <span className="game-night-weekly-pill">Weekly</span>}
         {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
+        {night.isHost && !cancelled && (
+          <OverflowMenu
+            className="game-night-card-menu"
+            ariaLabel={`Manage ${night.title}`}
+            items={[
+              { label: 'Edit night', onClick: onEdit },
+              ...(!polling
+                ? [{ label: 'Vote on a new date', onClick: () => setPollDialogOpen(true) }]
+                : []),
+              ...(weekly
+                ? [{ label: 'Stop repeating', onClick: () => setPendingStopRepeat(true) }]
+                : []),
+              {
+                label: weekly ? 'Skip this night' : 'Cancel night',
+                onClick: onCancel,
+                danger: true,
+              },
+            ]}
+          />
+        )}
       </div>
       <p className="game-night-card-when">
         {polling ? `Date up for vote · ${night.options.length} times proposed` : when}
@@ -339,45 +361,29 @@ function NightCard({
           Copy link
         </button>
         {!cancelled && !polling && (
-          <>
-            <a
-              className="btn"
-              href={googleCalendarUrl(calendarEvent)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google Calendar
-            </a>
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                downloadIcs(calendarEvent, `${night.token}@spellcontrol.com`, 'game-night.ics')
-              }
-            >
-              Download .ics
-            </button>
-          </>
-        )}
-        {night.isHost && !cancelled && (
-          <>
-            <button type="button" className="btn" onClick={onEdit}>
-              Edit
-            </button>
-            {!polling && (
-              <button type="button" className="btn" onClick={() => setPollDialogOpen(true)}>
-                Vote on a new date
-              </button>
-            )}
-            {weekly && (
-              <button type="button" className="btn" onClick={() => setPendingStopRepeat(true)}>
-                Stop repeating
-              </button>
-            )}
-            <button type="button" className="btn btn-danger" onClick={onCancel}>
-              {weekly ? 'Skip this night' : 'Cancel night'}
-            </button>
-          </>
+          <OverflowMenu
+            ariaLabel={`Add ${night.title} to your calendar`}
+            triggerClassName="btn game-night-cal-trigger"
+            align="left"
+            trigger={
+              <>
+                <CalendarPlus width={15} height={15} strokeWidth={1.7} aria-hidden />
+                Add to calendar
+                <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+              </>
+            }
+            items={[
+              {
+                label: 'Google Calendar',
+                onClick: () => window.open(googleCalendarUrl(calendarEvent), '_blank', 'noopener'),
+              },
+              {
+                label: 'Apple / Outlook (.ics)',
+                onClick: () =>
+                  downloadIcs(calendarEvent, `${night.token}@spellcontrol.com`, 'game-night.ics'),
+              },
+            ]}
+          />
         )}
       </div>
 
