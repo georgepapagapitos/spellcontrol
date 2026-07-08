@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { Link } from 'react-router-dom';
 import {
   cancelGameNight,
@@ -804,6 +810,9 @@ function NightDialog({
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [location, setLocation] = useState(night?.location ?? '');
   const [placeOptions, setPlaceOptions] = useState<string[]>([]);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [placeHighlight, setPlaceHighlight] = useState(0);
+  const placeWrapRef = useRef<HTMLLabelElement>(null);
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [invited, setInvited] = useState<Set<string>>(new Set());
@@ -820,7 +829,7 @@ function NightDialog({
       .catch(() => setFriends([])); // No friends list ≠ no dialog — link-sharing still works.
   }, []);
 
-  // Debounced place suggestions for the Where datalist. Best-effort only:
+  // Debounced place suggestions for the Where combobox. Best-effort only:
   // aborted/failed lookups leave the typed text standing as the location.
   useEffect(() => {
     const ctrl = new AbortController();
@@ -830,7 +839,10 @@ function NightDialog({
         return;
       }
       searchPlaces(location, ctrl.signal)
-        .then(setPlaceOptions)
+        .then((opts) => {
+          setPlaceOptions(opts);
+          setPlaceHighlight(0);
+        })
         .catch(() => {});
     }, 300);
     return () => {
@@ -838,6 +850,45 @@ function NightDialog({
       ctrl.abort();
     };
   }, [location]);
+
+  // Close the suggestion list on outside taps (SetFilterPicker pattern).
+  useEffect(() => {
+    if (!placeOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (placeWrapRef.current && !placeWrapRef.current.contains(e.target as Node)) {
+        setPlaceOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [placeOpen]);
+
+  function pickPlace(label: string) {
+    setLocation(label);
+    setPlaceOpen(false);
+    setPlaceOptions([]); // the refetch for the picked text repopulates silently
+  }
+
+  function onPlaceKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
+    if (!placeOpen || placeOptions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPlaceHighlight((h) => Math.min(h + 1, placeOptions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPlaceHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      // Pick instead of submitting the dialog while the list is open.
+      e.preventDefault();
+      const pick = placeOptions[Math.min(placeHighlight, placeOptions.length - 1)];
+      if (pick) pickPlace(pick);
+    } else if (e.key === 'Escape') {
+      // Close just the list — don't let the Modal's Esc handler dismiss the dialog.
+      e.preventDefault();
+      e.stopPropagation();
+      setPlaceOpen(false);
+    }
+  }
 
   // Friends already invited or replied can't be re-invited (authed reply names
   // are usernames, so this matches the common case).
@@ -1085,22 +1136,44 @@ function NightDialog({
           </label>
         )}
 
-        <label className="game-night-dialog-field">
+        {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
+            suggestions are real places from the geocoder, shown exactly as
+            returned — no browser substring filtering hiding fuzzy matches. */}
+        <label className="game-night-dialog-field game-night-place-field" ref={placeWrapRef}>
           <span>Where (optional)</span>
           <input
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              setPlaceOpen(true);
+            }}
+            onFocus={() => setPlaceOpen(true)}
+            onKeyDown={onPlaceKeyDown}
             maxLength={120}
             placeholder="e.g. Sam's place, or search an address"
-            list="game-night-place-options"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={placeOpen && placeOptions.length > 0}
           />
-          {/* Native combobox: typed text always stands as-is; suggestions are
-              real places so the location links out to Google Maps cleanly. */}
-          <datalist id="game-night-place-options">
-            {placeOptions.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
+          {placeOpen && placeOptions.length > 0 && (
+            <ul className="game-night-place-results" role="listbox" aria-label="Place suggestions">
+              {placeOptions.map((p, i) => (
+                <li
+                  key={p}
+                  role="option"
+                  aria-selected={i === placeHighlight}
+                  className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
+                  onMouseEnter={() => setPlaceHighlight(i)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickPlace(p);
+                  }}
+                >
+                  {p}
+                </li>
+              ))}
+            </ul>
+          )}
         </label>
 
         <label className="game-night-dialog-field">
