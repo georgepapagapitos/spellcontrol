@@ -88,6 +88,9 @@ function cleanTimezone(x: unknown): string | null {
 }
 
 interface RsvpView {
+  /** Host-only removal handle (the rsvp row id) — omitted for other viewers,
+   *  since a guest's rsvp id is their bearer credential. */
+  id?: string;
   displayName: string;
   status: RsvpStatus;
   isHost: boolean;
@@ -229,6 +232,41 @@ async function resolveVoterRsvp(
   return { rsvp: { id, displayName } };
 }
 
+/**
+ * Whether the caller may write (RSVP / vote / suggest) to an invite-only
+ * night: the host, an invited friend, or anyone already holding an RSVP row
+ * (authed by user id, guest by their stored rsvpId credential). New faces
+ * with just the link are turned away — that's the point of the toggle.
+ */
+async function canReplyInviteOnly(
+  night: GameNightRow,
+  user: { id: string } | undefined,
+  rsvpId: unknown
+): Promise<boolean> {
+  const pool = getPool();
+  if (user) {
+    if (user.id === night.hostUserId) return true;
+    const found = await pool.query(
+      `SELECT 1 FROM game_night_invites WHERE night_id = $1 AND user_id = $2
+       UNION ALL
+       SELECT 1 FROM game_night_rsvps WHERE night_id = $1 AND user_id = $2
+       LIMIT 1`,
+      [night.id, user.id]
+    );
+    return found.rows.length > 0;
+  }
+  if (typeof rsvpId === 'string' && rsvpId.length > 0) {
+    const found = await pool.query(
+      `SELECT 1 FROM game_night_rsvps WHERE id = $1 AND night_id = $2 AND user_id IS NULL`,
+      [rsvpId, night.id]
+    );
+    return found.rows.length > 0;
+  }
+  return false;
+}
+
+const INVITE_ONLY_ERROR = 'This game night is invite-only — ask the host for an invite.';
+
 /** Why poll/RSVP writes are refused, or null if the night is still open. */
 function nightClosedError(night: GameNightRow): string | null {
   if (night.cancelledAt !== null) return 'This game night was cancelled.';
@@ -325,8 +363,9 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       location: string | null;
       notes: string | null;
       cancelled_at: string | null;
+      invite_only: boolean;
     }>(
-      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at
+      `SELECT id, host_user_id, title, starts_at, timezone, location, notes, cancelled_at, invite_only
          FROM game_nights WHERE series_id = $1 ORDER BY starts_at DESC LIMIT 1`,
       [seriesId]
     );
@@ -339,8 +378,8 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       t = plusWeek(t, latest.timezone);
     } while (t <= now);
     const inserted = await pool.query<{ id: string }>(
-      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10)
+      `INSERT INTO game_nights (id, token, host_user_id, title, starts_at, timezone, location, notes, created_at, cancelled_at, series_id, invite_only)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11)
        ON CONFLICT (series_id, starts_at) WHERE series_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [
@@ -354,6 +393,7 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
         latest.notes,
         now,
         seriesId,
+        latest.invite_only,
       ]
     );
     if (inserted.rows.length === 0) continue; // slot already exists (race, or cancelled) — re-read
@@ -409,6 +449,8 @@ interface NightView {
   notes: string | null;
   createdAt: number;
   cancelledAt: number | null;
+  /** Only people already in (host, invitees, existing RSVPs) can reply. */
+  inviteOnly: boolean;
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
@@ -425,30 +467,31 @@ interface NightView {
 async function loadNightDetails(nightIds: string[]): Promise<{
   rsvpsByNight: Map<
     string,
-    Array<{ userId: string | null; displayName: string; status: RsvpStatus }>
+    Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>
   >;
   awaitingByNight: Map<string, string[]>;
 }> {
   const rsvpsByNight = new Map<
     string,
-    Array<{ userId: string | null; displayName: string; status: RsvpStatus }>
+    Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>
   >();
   const awaitingByNight = new Map<string, string[]>();
   if (nightIds.length === 0) return { rsvpsByNight, awaitingByNight };
   const pool = getPool();
   const rsvps = await pool.query<{
+    id: string;
     night_id: string;
     user_id: string | null;
     display_name: string;
     status: RsvpStatus;
   }>(
-    `SELECT night_id, user_id, display_name, status FROM game_night_rsvps
+    `SELECT id, night_id, user_id, display_name, status FROM game_night_rsvps
       WHERE night_id = ANY($1) ORDER BY created_at ASC`,
     [nightIds]
   );
   for (const r of rsvps.rows) {
     const arr = rsvpsByNight.get(r.night_id) ?? [];
-    arr.push({ userId: r.user_id, displayName: r.display_name, status: r.status });
+    arr.push({ id: r.id, userId: r.user_id, displayName: r.display_name, status: r.status });
     rsvpsByNight.set(r.night_id, arr);
   }
   const awaiting = await pool.query<{ night_id: string; username: string }>(
@@ -474,12 +517,13 @@ function toNightView(
   night: GameNightRow,
   hostUsername: string,
   viewerId: string,
-  rsvps: Array<{ userId: string | null; displayName: string; status: RsvpStatus }>,
+  rsvps: Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>,
   awaiting: string[],
   options: LoadedOption[],
   series: SeriesInfo | null
 ): NightView {
   const mine = rsvps.find((r) => r.userId === viewerId);
+  const isHost = night.hostUserId === viewerId;
   return {
     id: night.id,
     token: night.token,
@@ -490,10 +534,14 @@ function toNightView(
     notes: night.notes,
     createdAt: night.createdAt,
     cancelledAt: night.cancelledAt,
+    inviteOnly: night.inviteOnly,
     hostUsername,
-    isHost: night.hostUserId === viewerId,
+    isHost,
     myStatus: mine?.status ?? null,
     rsvps: rsvps.map((r) => ({
+      // The rsvp id is the host's removal handle; for anyone else it stays
+      // hidden (a guest's id is their edit credential).
+      ...(isHost ? { id: r.id } : {}),
       displayName: r.displayName,
       status: r.status,
       isHost: r.userId !== null && r.userId === night.hostUserId,
@@ -587,6 +635,7 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     createdAt: now,
     cancelledAt: null,
     seriesId: series?.id ?? null,
+    inviteOnly: body.inviteOnly === true,
   };
   await db.insert(gameNights).values(night);
   if (optionSlots.length > 0) {
@@ -668,6 +717,7 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     created_at: string;
     cancelled_at: string | null;
     series_id: string | null;
+    invite_only: boolean;
     host_username: string;
     series_token: string | null;
     series_ended_at: string | null;
@@ -701,6 +751,7 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
         createdAt: Number(r.created_at),
         cancelledAt: r.cancelled_at === null ? null : Number(r.cancelled_at),
         seriesId: r.series_id,
+        inviteOnly: r.invite_only,
       },
       r.host_username,
       req.user!.id,
@@ -761,6 +812,12 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
   if (body.location !== undefined)
     patch.location = cleanOptional(body.location, LOCATION_MAX) ?? null;
   if (body.notes !== undefined) patch.notes = cleanOptional(body.notes, NOTES_MAX) ?? null;
+  if (body.inviteOnly !== undefined) {
+    if (typeof body.inviteOnly !== 'boolean') {
+      return res.status(400).json({ error: 'inviteOnly must be a boolean.' });
+    }
+    patch.inviteOnly = body.inviteOnly;
+  }
   const invitees = await cleanInvitees(req.user!.id, body.addInviteUserIds);
   if (typeof invitees === 'string') {
     const status = invitees === 'You can only invite friends.' ? 403 : 400;
@@ -957,10 +1014,99 @@ gameNightsRouter.get(
   }
 );
 
-/** Cancel a night (host only). The link keeps working and shows the cancelled state. */
+/**
+ * Remove an attendee (host only) — any RSVP row except the host's own. Their
+ * pending invite (if any) goes with it, so on an invite-only night removal
+ * also revokes reply access; on an open night they could re-join via the link,
+ * which is the soft semantics we want. Votes cascade with the rsvp row.
+ */
+gameNightsRouter.delete('/:id/rsvps/:rsvpId', requireAuth, async (req: Request, res: Response) => {
+  const id = typeof req.params.id === 'string' ? req.params.id : '';
+  const rsvpId = typeof req.params.rsvpId === 'string' ? req.params.rsvpId : '';
+  const found = await getDb()
+    .select()
+    .from(gameNights)
+    .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+    .limit(1);
+  if (found.length === 0) {
+    return res.status(404).json({ error: 'Game night not found.' });
+  }
+  const pool = getPool();
+  const rsvp = await pool.query<{ user_id: string | null }>(
+    `SELECT user_id FROM game_night_rsvps WHERE id = $1 AND night_id = $2`,
+    [rsvpId, id]
+  );
+  if (rsvp.rows.length === 0) {
+    return res.status(404).json({ error: 'RSVP not found.' });
+  }
+  if (rsvp.rows[0].user_id === req.user!.id) {
+    return res.status(400).json({ error: "You're the host — cancel the night instead." });
+  }
+  await pool.query(`DELETE FROM game_night_rsvps WHERE id = $1`, [rsvpId]);
+  if (rsvp.rows[0].user_id !== null) {
+    await pool.query(`DELETE FROM game_night_invites WHERE night_id = $1 AND user_id = $2`, [
+      id,
+      rsvp.rows[0].user_id,
+    ]);
+  }
+  res.status(204).end();
+});
+
+/** Un-invite a friend who hasn't replied yet (host only), by username. */
+gameNightsRouter.delete(
+  '/:id/invites/:username',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const id = typeof req.params.id === 'string' ? req.params.id : '';
+    const username = typeof req.params.username === 'string' ? req.params.username : '';
+    const found = await getDb()
+      .select()
+      .from(gameNights)
+      .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+      .limit(1);
+    if (found.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const deleted = await getPool().query(
+      `DELETE FROM game_night_invites i USING users u
+        WHERE i.night_id = $1 AND i.user_id = u.id AND u.username = $2`,
+      [id, username]
+    );
+    if (deleted.rowCount === 0) {
+      return res.status(404).json({ error: 'Invite not found.' });
+    }
+    res.status(204).end();
+  }
+);
+
+/**
+ * Cancel a night (host only) — the link keeps working and shows the cancelled
+ * state. With `?hard=1` the night is deleted outright instead: gone from
+ * everyone's list and the link 404s (invites/RSVPs/options cascade). Hard
+ * delete is refused for a live weekly occurrence — the next read would just
+ * re-materialize the slot; skip the week or stop the series instead.
+ */
 gameNightsRouter.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   const id = typeof req.params.id === 'string' ? req.params.id : '';
   const db = getDb();
+  if (req.query.hard === '1') {
+    const found = await db
+      .select()
+      .from(gameNights)
+      .where(and(eq(gameNights.id, id), eq(gameNights.hostUserId, req.user!.id)))
+      .limit(1);
+    if (found.length === 0) {
+      return res.status(404).json({ error: 'Game night not found.' });
+    }
+    const series = await seriesInfoOf(found[0]);
+    if (series !== null && series.endedAt === null) {
+      return res
+        .status(400)
+        .json({ error: 'This night repeats weekly — skip this week or stop the series instead.' });
+    }
+    await db.delete(gameNights).where(eq(gameNights.id, id));
+    return res.status(204).end();
+  }
   const updated = await db
     .update(gameNights)
     .set({ cancelledAt: Date.now() })
@@ -994,6 +1140,7 @@ async function findNightByToken(
     created_at: string;
     cancelled_at: string | null;
     series_id: string | null;
+    invite_only: boolean;
     host_username: string;
     series_token: string | null;
     series_ended_at: string | null;
@@ -1020,6 +1167,7 @@ async function findNightByToken(
       createdAt: Number(r.created_at),
       cancelledAt: r.cancelled_at === null ? null : Number(r.cancelled_at),
       seriesId: r.series_id,
+      inviteOnly: r.invite_only,
     },
     hostUsername: r.host_username,
     series:
@@ -1068,6 +1216,10 @@ gameNightsRouter.get(
     }
 
     const options = (await loadNightOptions([night.id])).get(night.id) ?? [];
+    // Invite-only: tell the page up front whether this caller may reply, so
+    // it can show "ask the host for an invite" instead of a doomed form.
+    const canRsvp =
+      !night.inviteOnly || (await canReplyInviteOnly(night, req.user, req.query.rsvpId));
     res.json({
       night: {
         token: night.token,
@@ -1077,9 +1229,11 @@ gameNightsRouter.get(
         location: night.location,
         notes: night.notes,
         cancelledAt: night.cancelledAt,
+        inviteOnly: night.inviteOnly,
         hostUsername,
         series,
       },
+      canRsvp,
       rsvps: rsvps.map((r) => ({
         displayName: r.displayName,
         status: r.status,
@@ -1113,6 +1267,10 @@ gameNightsRouter.post(
     const closed = nightClosedError(night);
     if (closed) {
       return res.status(400).json({ error: closed });
+    }
+    const rsvpBody = req.body as Record<string, unknown>;
+    if (night.inviteOnly && !(await canReplyInviteOnly(night, req.user, rsvpBody.rsvpId))) {
+      return res.status(403).json({ error: INVITE_ONLY_ERROR });
     }
     const polling = (await loadNightOptions([night.id])).get(night.id) ?? [];
     if (polling.length > 0) {
@@ -1203,6 +1361,12 @@ gameNightsRouter.post(
     if (closed) {
       return res.status(400).json({ error: closed });
     }
+    if (
+      night.inviteOnly &&
+      !(await canReplyInviteOnly(night, req.user, (req.body as Record<string, unknown>).rsvpId))
+    ) {
+      return res.status(403).json({ error: INVITE_ONLY_ERROR });
+    }
     const pool = getPool();
     const optionRows = await pool.query<{ id: string }>(
       `SELECT id FROM game_night_options WHERE night_id = $1`,
@@ -1264,6 +1428,12 @@ gameNightsRouter.post(
     const closed = nightClosedError(night);
     if (closed) {
       return res.status(400).json({ error: closed });
+    }
+    if (
+      night.inviteOnly &&
+      !(await canReplyInviteOnly(night, req.user, (req.body as Record<string, unknown>).rsvpId))
+    ) {
+      return res.status(403).json({ error: INVITE_ONLY_ERROR });
     }
     const pool = getPool();
     const existing = await pool.query<{ starts_at: string }>(

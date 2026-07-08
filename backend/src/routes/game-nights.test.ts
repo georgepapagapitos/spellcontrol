@@ -103,7 +103,10 @@ describe('POST /api/game-nights', () => {
     expect(night.location).toBe("Sam's place");
     expect(night.isHost).toBe(true);
     expect(night.myStatus).toBe('going');
-    expect(night.rsvps).toEqual([{ displayName: 'gn-create-host', status: 'going', isHost: true }]);
+    expect(night.rsvps).toEqual([
+      // The host's own view carries the rsvp id — their removal handle.
+      { id: expect.any(String), displayName: 'gn-create-host', status: 'going', isHost: true },
+    ]);
   });
 
   it('keeps a valid IANA timezone and drops garbage', async () => {
@@ -167,6 +170,7 @@ describe('POST /api/game-nights', () => {
     );
     expect(nightAfter.awaiting).toEqual([]);
     expect(nightAfter.rsvps).toContainEqual({
+      id: expect.any(String),
       displayName: 'gn-invite-guest',
       status: 'going',
       isHost: false,
@@ -378,7 +382,8 @@ const SLOT_A = () => Date.now() + 7 * 24 * 60 * 60 * 1000;
 
 async function createPollNight(
   cookie: string,
-  slots?: number[]
+  slots?: number[],
+  overrides: Record<string, unknown> = {}
 ): Promise<{
   id: string;
   token: string;
@@ -390,7 +395,7 @@ async function createPollNight(
   const res = await request(app)
     .post('/api/game-nights')
     .set('Cookie', cookie)
-    .send({ title: 'Poll night', options });
+    .send({ title: 'Poll night', options, ...overrides });
   expect(res.status).toBe(201);
   return res.body.night;
 }
@@ -960,5 +965,236 @@ describe('lookupGameNightLandingMeta', () => {
     await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
     const meta = await lookupGameNightLandingMeta(token);
     expect(meta!.description).toContain('cancelled');
+  });
+});
+
+describe('invite-only nights', () => {
+  it('gates guest and uninvited-user RSVPs (403) but lets invited friends reply', async () => {
+    const host = await makeUser('gn-io-host');
+    const friendCookie = await makeUser('gn-io-friend');
+    const strangerCookie = await makeUser('gn-io-stranger');
+    await befriend(host, 'gn-io-friend', friendCookie, 'gn-io-host');
+    const friendId = await friendIdOf(host, 'gn-io-friend');
+    const { token } = await createNight(host, {
+      inviteOnly: true,
+      inviteUserIds: [friendId],
+    });
+
+    const guest = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat' });
+    expect(guest.status).toBe(403);
+
+    const stranger = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', strangerCookie)
+      .send({ status: 'going' });
+    expect(stranger.status).toBe(403);
+
+    const friend = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', friendCookie)
+      .send({ status: 'going' });
+    expect(friend.status).toBe(200);
+  });
+
+  it('a guest who joined before the toggle keeps their credential after it flips on', async () => {
+    const host = await makeUser('gn-io-flip');
+    const { id, token } = await createNight(host);
+    const joined = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat' });
+    expect(joined.status).toBe(201);
+    const rsvpId = joined.body.rsvp.id as string;
+
+    const patched = await request(app)
+      .patch(`/api/game-nights/${id}`)
+      .set('Cookie', host)
+      .send({ inviteOnly: true });
+    expect(patched.status).toBe(200);
+    expect(patched.body.night.inviteOnly).toBe(true);
+
+    const update = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'maybe', rsvpId });
+    expect(update.status).toBe(200);
+
+    const newcomer = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Riley' });
+    expect(newcomer.status).toBe(403);
+  });
+
+  it('rejects a non-boolean inviteOnly patch (400)', async () => {
+    const host = await makeUser('gn-io-badpatch');
+    const { id } = await createNight(host);
+    const res = await request(app)
+      .patch(`/api/game-nights/${id}`)
+      .set('Cookie', host)
+      .send({ inviteOnly: 'yes' });
+    expect(res.status).toBe(400);
+  });
+
+  it('gates poll votes and suggestions the same way', async () => {
+    const host = await makeUser('gn-io-poll');
+    const night = await createPollNight(host, undefined, { inviteOnly: true });
+    const vote = await request(app)
+      .post(`/api/game-nights/public/${night.token}/votes`)
+      .send({ optionIds: [night.options[0].id], displayName: 'Pat' });
+    expect(vote.status).toBe(403);
+    const suggest = await request(app)
+      .post(`/api/game-nights/public/${night.token}/options`)
+      .send({ startsAt: SLOT_A() + 5 * 86_400_000, displayName: 'Pat' });
+    expect(suggest.status).toBe(403);
+  });
+
+  it('public read exposes inviteOnly and per-caller canRsvp', async () => {
+    const host = await makeUser('gn-io-read');
+    const { token } = await createNight(host, { inviteOnly: true });
+    const anon = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(anon.body.night.inviteOnly).toBe(true);
+    expect(anon.body.canRsvp).toBe(false);
+    const asHost = await request(app).get(`/api/game-nights/public/${token}`).set('Cookie', host);
+    expect(asHost.body.canRsvp).toBe(true);
+
+    const open = await createNight(host);
+    const openRead = await request(app).get(`/api/game-nights/public/${open.token}`);
+    expect(openRead.body.night.inviteOnly).toBe(false);
+    expect(openRead.body.canRsvp).toBe(true);
+  });
+});
+
+describe('DELETE /api/game-nights/:id/rsvps/:rsvpId (host removes an attendee)', () => {
+  it('removes a guest RSVP; non-hosts get 404; the host row is protected (400)', async () => {
+    const host = await makeUser('gn-rm-host');
+    const other = await makeUser('gn-rm-other');
+    const { id, token } = await createNight(host);
+    const joined = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat' });
+    const guestRsvpId = joined.body.rsvp.id as string;
+
+    const notHost = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${guestRsvpId}`)
+      .set('Cookie', other);
+    expect(notHost.status).toBe(404);
+
+    const removed = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${guestRsvpId}`)
+      .set('Cookie', host);
+    expect(removed.status).toBe(204);
+    const after = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(after.body.rsvps).toHaveLength(1); // just the host
+
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    const mine = list.body.nights.find((n: { id: string }) => n.id === id);
+    const hostRsvpId = mine.rsvps[0].id as string;
+    const self = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${hostRsvpId}`)
+      .set('Cookie', host);
+    expect(self.status).toBe(400);
+
+    const unknown = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${guestRsvpId}`)
+      .set('Cookie', host);
+    expect(unknown.status).toBe(404);
+  });
+
+  it("removing an invited friend's RSVP also revokes their invite", async () => {
+    const host = await makeUser('gn-rm-friend-host');
+    const friendCookie = await makeUser('gn-rm-friend');
+    await befriend(host, 'gn-rm-friend', friendCookie, 'gn-rm-friend-host');
+    const friendId = await friendIdOf(host, 'gn-rm-friend');
+    const { id, token } = await createNight(host, { inviteUserIds: [friendId] });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', friendCookie)
+      .send({ status: 'going' });
+
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    const mine = list.body.nights.find((n: { id: string }) => n.id === id);
+    const friendRsvp = mine.rsvps.find(
+      (r: { displayName: string }) => r.displayName === 'gn-rm-friend'
+    );
+    const removed = await request(app)
+      .delete(`/api/game-nights/${id}/rsvps/${friendRsvp.id}`)
+      .set('Cookie', host);
+    expect(removed.status).toBe(204);
+
+    // Invite gone too: not back in awaiting, and the night left their list.
+    const hostList = await request(app).get('/api/game-nights').set('Cookie', host);
+    const hostView = hostList.body.nights.find((n: { id: string }) => n.id === id);
+    expect(hostView.awaiting).toEqual([]);
+    const friendList = await request(app).get('/api/game-nights').set('Cookie', friendCookie);
+    expect(friendList.body.nights.find((n: { id: string }) => n.id === id)).toBeUndefined();
+  });
+});
+
+describe('DELETE /api/game-nights/:id/invites/:username (host un-invites)', () => {
+  it('removes a pending invite; unknown usernames 404; non-hosts 404', async () => {
+    const host = await makeUser('gn-uninv-host');
+    const friendCookie = await makeUser('gn-uninv-friend');
+    await befriend(host, 'gn-uninv-friend', friendCookie, 'gn-uninv-host');
+    const friendId = await friendIdOf(host, 'gn-uninv-friend');
+    const { id } = await createNight(host, { inviteUserIds: [friendId] });
+
+    const notHost = await request(app)
+      .delete(`/api/game-nights/${id}/invites/gn-uninv-friend`)
+      .set('Cookie', friendCookie);
+    expect(notHost.status).toBe(404);
+
+    const removed = await request(app)
+      .delete(`/api/game-nights/${id}/invites/gn-uninv-friend`)
+      .set('Cookie', host);
+    expect(removed.status).toBe(204);
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    const mine = list.body.nights.find((n: { id: string }) => n.id === id);
+    expect(mine.awaiting).toEqual([]);
+
+    const again = await request(app)
+      .delete(`/api/game-nights/${id}/invites/gn-uninv-friend`)
+      .set('Cookie', host);
+    expect(again.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/game-nights/:id?hard=1 (host deletes outright)', () => {
+  it('deletes the night for everyone — the link 404s and the list forgets it', async () => {
+    const host = await makeUser('gn-del-host');
+    const other = await makeUser('gn-del-other');
+    const { id, token } = await createNight(host);
+
+    const notHost = await request(app).delete(`/api/game-nights/${id}?hard=1`).set('Cookie', other);
+    expect(notHost.status).toBe(404);
+
+    const deleted = await request(app).delete(`/api/game-nights/${id}?hard=1`).set('Cookie', host);
+    expect(deleted.status).toBe(204);
+    const read = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(read.status).toBe(404);
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    expect(list.body.nights.find((n: { id: string }) => n.id === id)).toBeUndefined();
+  });
+
+  it('also deletes an already-cancelled night', async () => {
+    const host = await makeUser('gn-del-cancelled');
+    const { id, token } = await createNight(host);
+    await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
+    const deleted = await request(app).delete(`/api/game-nights/${id}?hard=1`).set('Cookie', host);
+    expect(deleted.status).toBe(204);
+    const read = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(read.status).toBe(404);
+  });
+
+  it('refuses to delete a live weekly occurrence (400) — skip or stop instead', async () => {
+    const host = await makeUser('gn-del-weekly');
+    const res = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'Weekly', startsAt: IN_A_WEEK(), repeatsWeekly: true });
+    expect(res.status).toBe(201);
+    const refused = await request(app)
+      .delete(`/api/game-nights/${res.body.night.id}?hard=1`)
+      .set('Cookie', host);
+    expect(refused.status).toBe(400);
   });
 });

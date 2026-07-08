@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import {
   cancelGameNight,
   createGameNight,
+  deleteGameNight,
   endGameNightSeries,
   gameNightSeriesUrl,
   gameNightUrl,
   listGameNights,
   lockGameNight,
   openGameNightPoll,
+  removeGameNightInvite,
+  removeGameNightRsvp,
   rsvpGameNight,
   suggestGameNightOption,
   updateGameNight,
@@ -76,6 +79,7 @@ interface GameNightsTabProps {
 export function GameNightsTab({ isGuest, nights, loading, error, refresh }: GameNightsTabProps) {
   const [dialog, setDialog] = useState<'closed' | 'create' | GameNight>('closed');
   const [pendingCancel, setPendingCancel] = useState<GameNight | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<GameNight | null>(null);
 
   if (isGuest) {
     return (
@@ -147,6 +151,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
                 night={night}
                 onEdit={() => setDialog(night)}
                 onCancel={() => setPendingCancel(night)}
+                onDelete={() => setPendingDelete(night)}
                 refresh={refresh}
               />
             ))}
@@ -162,6 +167,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
             setDialog('closed');
             void refresh();
           }}
+          onPeopleChanged={() => void refresh()}
         />
       )}
 
@@ -204,6 +210,29 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
           onCancel={() => setPendingCancel(null)}
         />
       )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title={`Delete "${pendingDelete.title}"?`}
+          body="This removes the night for everyone and the link stops working. This can't be undone."
+          confirmLabel="Delete night"
+          danger
+          onConfirm={() => {
+            const night = pendingDelete;
+            setPendingDelete(null);
+            deleteGameNight(night.id)
+              .then(refresh)
+              .then(() => toast.show({ message: 'Game night deleted.' }))
+              .catch((err) =>
+                toast.show({
+                  message: err instanceof Error ? err.message : "Couldn't delete the game night.",
+                  tone: 'error',
+                })
+              );
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
@@ -212,11 +241,13 @@ function NightCard({
   night,
   onEdit,
   onCancel,
+  onDelete,
   refresh,
 }: {
   night: GameNight;
   onEdit: () => void;
   onCancel: () => void;
+  onDelete: () => void;
   refresh: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState<RsvpStatus | null>(null);
@@ -262,7 +293,11 @@ function NightCard({
         toast.show({ message: 'Series link copied — it always opens the next night.' });
       } else {
         await navigator.clipboard.writeText(gameNightUrl(night.token));
-        toast.show({ message: 'Link copied — anyone with it can RSVP.' });
+        toast.show({
+          message: night.inviteOnly
+            ? 'Link copied — only people you invited can reply.'
+            : 'Link copied — anyone with it can RSVP.',
+        });
       }
     } catch {
       toast.show({ message: "Couldn't copy the link.", tone: 'error' });
@@ -277,30 +312,42 @@ function NightCard({
     url: gameNightUrl(night.token),
   };
 
+  // A live weekly occurrence can't be hard-deleted (the next read would just
+  // re-materialize the slot) — Skip / Stop repeating cover it.
+  const hostItems = !night.isHost
+    ? []
+    : cancelled
+      ? weekly
+        ? []
+        : [{ label: 'Delete night', onClick: onDelete, danger: true }]
+      : [
+          { label: 'Edit night', onClick: onEdit },
+          ...(!polling
+            ? [{ label: 'Vote on a new date', onClick: () => setPollDialogOpen(true) }]
+            : []),
+          ...(weekly
+            ? [{ label: 'Stop repeating', onClick: () => setPendingStopRepeat(true) }]
+            : []),
+          {
+            label: weekly ? 'Skip this night' : 'Cancel night',
+            onClick: onCancel,
+            danger: true,
+          },
+          ...(!weekly ? [{ label: 'Delete night', onClick: onDelete, danger: true }] : []),
+        ];
+
   return (
     <li className={`game-night-card${cancelled ? ' is-cancelled' : ''}`}>
       <div className="game-night-card-head">
         <h3 className="game-night-card-title">{night.title}</h3>
         {weekly && <span className="game-night-weekly-pill">Weekly</span>}
+        {night.inviteOnly && <span className="game-night-invite-pill">Invite only</span>}
         {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
-        {night.isHost && !cancelled && (
+        {hostItems.length > 0 && (
           <OverflowMenu
             className="game-night-card-menu"
             ariaLabel={`Manage ${night.title}`}
-            items={[
-              { label: 'Edit night', onClick: onEdit },
-              ...(!polling
-                ? [{ label: 'Vote on a new date', onClick: () => setPollDialogOpen(true) }]
-                : []),
-              ...(weekly
-                ? [{ label: 'Stop repeating', onClick: () => setPendingStopRepeat(true) }]
-                : []),
-              {
-                label: weekly ? 'Skip this night' : 'Cancel night',
-                onClick: onCancel,
-                danger: true,
-              },
-            ]}
+            items={hostItems}
           />
         )}
       </div>
@@ -563,20 +610,28 @@ function NightDialog({
   night,
   onClose,
   onSaved,
+  onPeopleChanged,
 }: {
   night: GameNight | null;
   onClose: () => void;
   onSaved: () => void;
+  /** A removal happened (people list changed) — parent should refresh. */
+  onPeopleChanged: () => void;
 }) {
   const [title, setTitle] = useState(night?.title ?? '');
   const [whenInput, setWhenInput] = useState(night ? epochToInput(night.startsAt) : '');
   const [pollMode, setPollMode] = useState(false);
   const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [inviteOnly, setInviteOnly] = useState(night?.inviteOnly ?? false);
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [location, setLocation] = useState(night?.location ?? '');
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [invited, setInvited] = useState<Set<string>>(new Set());
+  // The dialog holds a snapshot of the night; removals are tracked locally so
+  // the list updates in place while the parent list refreshes behind it.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -592,6 +647,46 @@ function NightDialog({
     ...(night?.awaiting ?? []),
     ...(night?.rsvps.map((r) => r.displayName) ?? []),
   ]);
+
+  // Editable people list (host's view carries rsvp ids as removal handles).
+  const people = night?.rsvps.filter((r) => r.id !== undefined && !removed.has(r.id)) ?? [];
+  const awaitingLeft = night?.awaiting.filter((u) => !removed.has(`invite:${u}`)) ?? [];
+
+  async function removeRsvp(rsvpId: string, displayName: string) {
+    if (!night || removing) return;
+    setRemoving(rsvpId);
+    try {
+      await removeGameNightRsvp(night.id, rsvpId);
+      setRemoved((prev) => new Set(prev).add(rsvpId));
+      toast.show({ message: `${displayName} removed from the night.` });
+      onPeopleChanged();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't remove them from the night.",
+        tone: 'error',
+      });
+    } finally {
+      setRemoving(null);
+    }
+  }
+
+  async function removeInvite(username: string) {
+    if (!night || removing) return;
+    setRemoving(`invite:${username}`);
+    try {
+      await removeGameNightInvite(night.id, username);
+      setRemoved((prev) => new Set(prev).add(`invite:${username}`));
+      toast.show({ message: `Invite to ${username} removed.` });
+      onPeopleChanged();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't remove the invite.",
+        tone: 'error',
+      });
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   function toggleInvite(id: string) {
     setInvited((prev) => {
@@ -643,6 +738,7 @@ function NightDialog({
           ...(pollingEdit ? {} : { startsAt }),
           location: location.trim(),
           notes: notes.trim(),
+          inviteOnly,
           addInviteUserIds: inviteIds,
         });
         toast.show({ message: 'Game night updated.' });
@@ -654,6 +750,7 @@ function NightDialog({
           location: location.trim() || undefined,
           notes: notes.trim() || undefined,
           inviteUserIds: inviteIds,
+          inviteOnly,
           ...(repeatWeekly ? { repeatsWeekly: true } : {}),
         });
         try {
@@ -810,6 +907,66 @@ function NightDialog({
             placeholder="e.g. bracket 2 decks, snacks covered"
           />
         </label>
+
+        <label className="game-night-dialog-pollmode">
+          <input
+            type="checkbox"
+            checked={inviteOnly}
+            onChange={(e) => setInviteOnly(e.target.checked)}
+          />
+          <span>Invite only</span>
+        </label>
+        {inviteOnly && (
+          <p className="game-night-dialog-hint">
+            Anyone with the link can see the night, but only people you invite — or who already
+            replied — can RSVP.
+          </p>
+        )}
+
+        {night !== null && (people.length > 0 || awaitingLeft.length > 0) && (
+          <fieldset className="game-night-dialog-people">
+            <legend>Who's in</legend>
+            <ul className="game-night-dialog-people-list">
+              {people.map((r) => (
+                <li key={r.id}>
+                  <span className="game-night-person-name">
+                    {r.displayName}
+                    {r.isHost ? ' (you)' : ''}
+                  </span>
+                  <span className="game-night-person-status">
+                    {STATUS_LABELS.find((s) => s.status === r.status)?.label}
+                  </span>
+                  {!r.isHost && (
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={removing !== null || saving}
+                      aria-label={`Remove ${r.displayName} from the night`}
+                      onClick={() => void removeRsvp(r.id!, r.displayName)}
+                    >
+                      {removing === r.id ? 'Removing…' : 'Remove'}
+                    </button>
+                  )}
+                </li>
+              ))}
+              {awaitingLeft.map((username) => (
+                <li key={`invite:${username}`}>
+                  <span className="game-night-person-name">{username}</span>
+                  <span className="game-night-person-status">Invited — hasn't replied</span>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={removing !== null || saving}
+                    aria-label={`Remove the invite to ${username}`}
+                    onClick={() => void removeInvite(username)}
+                  >
+                    {removing === `invite:${username}` ? 'Removing…' : 'Remove'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        )}
 
         <fieldset className="game-night-dialog-invites">
           <legend>Invite friends</legend>
