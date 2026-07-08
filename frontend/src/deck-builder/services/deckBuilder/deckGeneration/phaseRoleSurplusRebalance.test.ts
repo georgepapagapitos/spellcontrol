@@ -25,6 +25,10 @@ const EMPTY_WIPE_SCOPE: MockWipeScope = {
   all: false,
 };
 const WIPE_SCOPE_OF = new Map<string, MockWipeScope>();
+// E113 follow-up (donor-defect fixes): same deterministic-mock shape —
+// individual tests mark which names are free-interaction pieces (Fierce
+// Guardianship/Commandeer-class), rather than depending on real oracle text.
+const FREE_INTERACTION_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
@@ -38,6 +42,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isProtectionPiece: vi.fn(() => false),
   isOneSidedWipe: vi.fn((card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name)),
   getWipeScope: vi.fn((card: { name: string }) => WIPE_SCOPE_OF.get(card.name) ?? EMPTY_WIPE_SCOPE),
+  isFreeInteraction: vi.fn((card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name)),
 }));
 
 vi.mock('../categorize', async (importOriginal) => {
@@ -229,6 +234,7 @@ describe('applyRoleSurplusRebalance', () => {
     NONBO_FLAGGED.clear();
     ONE_SIDED_WIPE_NAMES.clear();
     WIPE_SCOPE_OF.clear();
+    FREE_INTERACTION_NAMES.clear();
   });
 
   it('is a no-op when no role target is set', () => {
@@ -1234,6 +1240,72 @@ describe('applyRoleSurplusRebalance', () => {
       // below its own target.
       const remainingRamp = state.categories.synergy.filter((c) => ROLE_OF.get(c.name) === 'ramp');
       expect(remainingRamp).toHaveLength(5);
+    });
+
+    // Donor-defect fix 3 (orchestrator diff-review): isProtectionPiece()
+    // deliberately returns false for a free-interaction piece (#1037's
+    // overlap exclusion), so a Fierce Guardianship/Commandeer-class roleless
+    // card was protected by nothing in the donor pool and — on raw priority
+    // alone — the cheapest candidate to cut.
+    it('never chooses a free-interaction filler as the boardwipe-deficit donor, even when it scores lowest', () => {
+      const state = makeState();
+      const freeInteraction = scryfallCard('Fierce Guardianship');
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Fierce Guardianship');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(freeInteraction, filler);
+      FREE_INTERACTION_NAMES.add('Fierce Guardianship');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Fierce Guardianship', 5), // lowest priority — would be
+            // the eviction target without the isFreeInteraction guard.
+            edhrecCard('Filler A', 80),
+            edhrecCard('Wipe Candidate', 70),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Filler A');
+      expect(state.usedNames.has('Fierce Guardianship')).toBe(true);
+    });
+
+    // Donor-defect fix 2 (orchestrator diff-review, this wave's own E128 bug
+    // class): the donor sort is a brand-new eviction ranking — without its
+    // own ownedBoostFor term, an owned filler that only won its pick-time
+    // slot via cardPicking.ts's owned boost reads as the worst donor and gets
+    // silently evicted, undoing collectionStrategy='prefer'. Mirrors the
+    // E122 "keeps an owned near-tie incumbent" test's magnitudes exactly.
+    it('never evicts an owned near-tie filler as the boardwipe-deficit donor (ownedBoostFor symmetry)', () => {
+      const state = makeState();
+      const ownedFiller = scryfallCard('Owned Filler');
+      const plainFiller = scryfallCard('Plain Filler');
+      state.usedNames.add('Owned Filler');
+      state.usedNames.add('Plain Filler');
+      state.categories.utility.push(ownedFiller, plainFiller);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Owned Filler', 15), // worst on raw priority alone —
+            // boosted to 15 + OWNED_PRIORITY_BOOST(40) = 55 once owned.
+            edhrecCard('Plain Filler', 20),
+            edhrecCard('Wipe Candidate', 70),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['Owned Filler']);
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Plain Filler');
+      expect(state.usedNames.has('Owned Filler')).toBe(true);
     });
   });
 

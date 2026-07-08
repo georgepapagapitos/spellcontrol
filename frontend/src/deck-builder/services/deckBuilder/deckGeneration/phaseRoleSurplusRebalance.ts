@@ -10,6 +10,7 @@ import {
   getCardRole,
   isProtectionPiece,
   isOneSidedWipe,
+  isFreeInteraction,
   getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -342,6 +343,15 @@ export function applyRoleSurplusRebalance(
       );
     }
   }
+  // Same E81 `?? 0` fix, for Phase 3's ROLELESS donor candidates (a roleless
+  // card has no REACTIVE_ROLES bucket to average) — mirrors
+  // phaseLandSqueezeReconcile.ts's deckAveragePriority verbatim: neutral
+  // average priority over the whole pool, not the single worst-possible value
+  // a pool-absent-but-not-actually-weak card (a combo-audit/coherence-repair/
+  // flagship add, or anything a bracket-restricted pool omitted) would
+  // otherwise be punished with.
+  const deckAveragePriority =
+    pool.length > 0 ? pool.reduce((sum, c) => sum + calculateCardPriority(c), 0) / pool.length : 0;
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
@@ -750,13 +760,23 @@ export function applyRoleSurplusRebalance(
   // elsewhere. liftBoosts protects a lift-connected filler card from being
   // evicted ahead of a genuinely replaceable one, same protection Phase 1/2
   // give outgoing reactive-role cards.
+  //
+  // isFreeInteraction is checked HERE only, not folded into the shared
+  // isProtected() — isProtectionPiece() deliberately returns false for a
+  // free-interaction piece (#1037's overlap exclusion between the two
+  // classifiers), so without this a Fierce Guardianship/Commandeer-class
+  // card is protected by nothing in this donor pool. Phase 1/2 never faced
+  // this: they only ever evict from OVER-CAP reactive roles, and a roleless
+  // free-interaction card was never eligible there, so widening the shared
+  // isProtected() would change Phase 1/2 eviction behavior beyond this
+  // slice's scope — scoped to this loop instead.
   const findWipeDeficitDonor = (): { card: ScryfallCard; category: DeckCategory } | null => {
     const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         const role = getCardRole(card.name);
-        if (role === 'boardwipe' || isProtected(card)) continue;
+        if (role === 'boardwipe' || isProtected(card) || isFreeInteraction(card)) continue;
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
           if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;
@@ -769,10 +789,21 @@ export function applyRoleSurplusRebalance(
       candidates.map((c) => c.card.name),
       ctx.liftScoreOf
     );
+    // Same pool-absent-`?? 0` and ownership gaps survivalScoreOf/scoreOf
+    // (phaseLandSqueezeReconcile.ts) already close: a pool-absent donor falls
+    // back to its role's average inclusion (or the deck-average priority for
+    // a roleless one), never a hard 0 that guarantees it reads as the worst
+    // possible donor; and an owned card gets the SAME ownedBoostFor term
+    // pick time already gave it, so it doesn't look like the worst donor here
+    // just because collectionStrategy='prefer' was the only reason it made
+    // the cut in the first place.
     const donorScore = (card: ScryfallCard): number => {
       const ec = poolByName.get(card.name);
-      const priority = ec ? calculateCardPriority(ec) : 0;
-      return priority + (liftBoosts.get(card.name) ?? 0);
+      const role = getCardRole(card.name);
+      const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
+      const priority = ec ? calculateCardPriority(ec) : (roleFallback ?? deckAveragePriority);
+      const ownedBoost = ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
+      return priority + (liftBoosts.get(card.name) ?? 0) + ownedBoost;
     };
     candidates.sort((a, b) => donorScore(a.card) - donorScore(b.card)); // ascending: worst first
     return candidates[0];
