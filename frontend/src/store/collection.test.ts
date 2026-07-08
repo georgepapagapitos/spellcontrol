@@ -441,6 +441,52 @@ describe('refreshPrices', () => {
     expect(useCollectionStore.getState().priceRefreshProgress).toBeNull();
   });
 
+  it('retries a transient 502 and succeeds — the native boot-refresh symptom', async () => {
+    resetPriceCache();
+    localStorage.removeItem('spellcontrol:card-prices');
+    // A cold/restarting Fly machine answers the first attempt with a 502, then
+    // recovers. This is the exact shape that made a native boot-time refresh
+    // fail where the warm web app didn't. It must NOT surface — a retry wins.
+    let call = 0;
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: { body: string }) => {
+      call++;
+      if (call === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 502,
+          json: async () => ({ error: 'Bad Gateway' }),
+        });
+      }
+      const { scryfallIds } = JSON.parse(init.body) as { scryfallIds: string[] };
+      const prices = Object.fromEntries(
+        scryfallIds.map((id) => [id, { usd: 5, usdFoil: 0, usdEtched: 0, pricedAt: 1000 }])
+      );
+      return Promise.resolve({ ok: true, json: async () => ({ prices }) });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+
+    await expect(useCollectionStore.getState().refreshPrices()).resolves.toBeUndefined();
+
+    expect(call).toBe(2); // one 502, one retry that succeeded
+    expect(useCollectionStore.getState().error).toBeNull();
+    expect(useCollectionStore.getState().cards[0].purchasePrice).toBe(5);
+  });
+
+  it('surfaces a 502 that never recovers after exhausting retries', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        json: async () => ({ error: 'Bad Gateway' }),
+      })
+    );
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    await expect(useCollectionStore.getState().refreshPrices()).rejects.toThrow('Bad Gateway');
+    expect(useCollectionStore.getState().isRefreshingPrices).toBe(false);
+  });
+
   it('pages a >1000-printing collection into chunks and prices ALL of it', async () => {
     // The server caps each request at 1000 ids; without client paging a large
     // collection only prices its first 1000 (and which 1000 is array-order
