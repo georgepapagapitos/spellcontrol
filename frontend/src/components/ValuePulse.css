@@ -3,7 +3,7 @@
 .value-pulse {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: var(--space-2);
   margin: var(--space-1) 0 0;
 }
 

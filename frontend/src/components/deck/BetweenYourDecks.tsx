@@ -1,4 +1,4 @@
-import { type JSX, useMemo, useState } from 'react';
+import { type JSX, useCallback, useMemo, useState } from 'react';
 import { ArrowLeftRight, ArrowRight, ChevronRight, Loader2, X } from 'lucide-react';
 import './BetweenYourDecks.css';
 import { useDecksStore } from '@/store/decks';
@@ -7,6 +7,7 @@ import { useAllocations } from '@/lib/allocations';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
+import { useSheetExit } from '@/lib/use-sheet-exit';
 import { findCrossDeckMoves, type CrossDeckMove } from '@/lib/cross-deck-moves';
 import { dismissCrossDeckMove, isCrossDeckMoveDismissed } from '@/lib/between-decks-dismissed';
 import { useCardThumb } from '@/lib/card-thumbs';
@@ -130,10 +131,11 @@ function MoveRow({
  * modal (≥1024px) — the same shared shell `MoveToDeckSheet` uses. No portal:
  * this mounts from the Decks Index page's top level, which has no
  * `transform`/`container-type` ancestor to trap `position: fixed` (verified
- * against `deck-builder-decks-index.css` / `base-layout.css`); introducing
- * `createPortal` + `useSheetExit`'s animated-close machinery (as `CardGroupSheet`
- * does) would be unused complexity here — `MoveToDeckSheet` proves the simpler
- * inline-shell path is enough for a picker sheet of this shape.
+ * against `deck-builder-decks-index.css` / `base-layout.css`). Below 1024px
+ * the entry is a `binder-sheet-slide` rise, so every dismiss path (backdrop,
+ * ✕, Escape) plays the mirrored `binder-sheet-slide-out` before unmounting
+ * via `useSheetExit`; desktop's centered panel has no entry animation, so
+ * dismissal stays instant there (STYLE_GUIDE.md "Motion").
  */
 function BetweenYourDecksSheet({
   moves,
@@ -149,20 +151,27 @@ function BetweenYourDecksSheet({
   onClose: () => void;
 }): JSX.Element {
   useLockBodyScroll();
-  useEscapeKey(onClose);
+
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onClose();
+    else beginClose();
+  }, [beginClose, onClose]);
+  useEscapeKey(dismiss);
 
   return (
     <div
       className="card-picker-root between-decks-sheet-root"
-      onClick={onClose}
+      onClick={dismiss}
       role="presentation"
     >
       <div
-        className="card-picker-sheet between-decks-sheet"
+        className={`card-picker-sheet between-decks-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Between your decks"
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <header className="between-decks-sheet-head">
@@ -176,7 +185,7 @@ function BetweenYourDecksSheet({
           <button
             type="button"
             className="between-decks-sheet-close"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="Close"
           >
             <X width={18} height={18} strokeWidth={2} aria-hidden />

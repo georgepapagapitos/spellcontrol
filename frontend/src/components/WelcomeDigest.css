@@ -8,7 +8,7 @@
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
@@ -74,6 +74,18 @@
   color: var(--text-secondary);
 }
 
+.welcome-digest-strip-teaser-delta {
+  color: var(--text-secondary);
+}
+
+.welcome-digest-strip-teaser-delta--up {
+  color: var(--success);
+}
+
+.welcome-digest-strip-teaser-delta--down {
+  color: var(--err-text);
+}
+
 .welcome-digest-strip-teaser-arrow {
   flex: 0 0 auto;
 }
@@ -92,6 +104,14 @@
 }
 
 /* ── Sheet ─────────────────────────────────────────────────────────────── */
+
+/* The shell's scrim normally comes from a .card-picker-backdrop child; this
+   sheet closes on root click instead, so the root carries the scrim itself —
+   without it the collection page bleeds through undimmed (same ruling as
+   .between-decks-sheet-root, E95/E99). */
+.welcome-digest-sheet-root {
+  background: var(--overlay-sheet);
+}
 
 .welcome-digest-sheet-head {
   display: flex;
@@ -158,6 +178,7 @@
 .welcome-digest-value-delta {
   font-size: var(--text-md);
   font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .welcome-digest-value-delta--up {
