@@ -144,7 +144,11 @@ describe('POST /api/feedback/public/:token', () => {
     expect(badType.status).toBe(400);
     const badBracket = await request(app)
       .post(`/api/feedback/public/${token}`)
-      .send({ authorName: 'G', bracketSuggestion: 9, suggestions: [{ type: 'cut', cardName: 'Sol Ring' }] });
+      .send({
+        authorName: 'G',
+        bracketSuggestion: 9,
+        suggestions: [{ type: 'cut', cardName: 'Sol Ring' }],
+      });
     expect(badBracket.status).toBe(400);
   });
 
@@ -265,9 +269,7 @@ describe('DELETE /api/feedback/:id', () => {
     const feedbackId = list.body.responses[0].id as string;
 
     const stranger = await makeUser('fb-delete-stranger');
-    const denied = await request(app)
-      .delete(`/api/feedback/${feedbackId}`)
-      .set('Cookie', stranger);
+    const denied = await request(app).delete(`/api/feedback/${feedbackId}`).set('Cookie', stranger);
     expect(denied.status).toBe(404);
 
     const ok = await request(app).delete(`/api/feedback/${feedbackId}`).set('Cookie', cookie);

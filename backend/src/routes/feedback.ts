@@ -206,7 +206,9 @@ feedbackRouter.post(
     const suggestionId = readParam(req, 'suggestionId');
     const status = (req.body as Record<string, unknown>).status;
     if (status !== 'accepted' && status !== 'rejected' && status !== 'pending') {
-      return res.status(400).json({ error: "status must be 'accepted', 'rejected', or 'pending'." });
+      return res
+        .status(400)
+        .json({ error: "status must be 'accepted', 'rejected', or 'pending'." });
     }
 
     const db = getDb();
