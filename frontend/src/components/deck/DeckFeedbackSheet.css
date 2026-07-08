@@ -224,6 +224,24 @@
   outline-offset: 2px;
 }
 
+/* 44px touch floor on coarse pointers (STYLE_GUIDE § Responsive) — the
+   desktop sizes above stay compact for mouse use. */
+@media (pointer: coarse) {
+  .deck-feedback-suggestion {
+    min-height: 44px;
+  }
+
+  .deck-feedback-verdict {
+    min-height: 44px;
+    padding: 0 var(--space-3);
+  }
+
+  .deck-feedback-dismiss {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .deck-feedback-blocked,
 .deck-feedback-status {
   flex-shrink: 0;

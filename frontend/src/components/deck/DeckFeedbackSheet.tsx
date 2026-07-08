@@ -12,6 +12,8 @@ import {
 } from '../../lib/feedback-client';
 import { findSlotForCut, suggestionBlockedReason } from '../../lib/feedback-apply';
 import { formatRelativeTime } from '../../lib/format-time';
+import { isNativePlatform } from '../../lib/platform';
+import { Share } from '@capacitor/share';
 import { useEscapeKey } from '../../lib/use-escape-key';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useSheetExit } from '../../lib/use-sheet-exit';
@@ -79,6 +81,23 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
       toast.show({ message: 'Feedback link copied to clipboard.', tone: 'success' });
     } catch {
       toast.show({ message: "Couldn't copy. Select and copy manually.", tone: 'warn' });
+    }
+  };
+
+  // Native system share sheet — parity with ShareDialog's handleNativeShare.
+  const handleNativeShare = async () => {
+    if (!link) return;
+    try {
+      await Share.share({
+        title: `Feedback on ${deck.name}`,
+        text: `Suggest cuts and adds for ${deck.name} on SpellControl`,
+        url: link,
+        dialogTitle: 'Share feedback link',
+      });
+    } catch (err) {
+      // Cancelling the system sheet rejects with a generic error; soft no-op.
+      if (err && (err as { message?: string }).message?.includes('cancel')) return;
+      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
     }
   };
 
@@ -208,6 +227,11 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                 <button type="button" className="btn btn-primary" onClick={handleCopy}>
                   Copy
                 </button>
+                {isNativePlatform() && (
+                  <button type="button" className="btn" onClick={handleNativeShare}>
+                    Share…
+                  </button>
+                )}
               </div>
             )}
 
