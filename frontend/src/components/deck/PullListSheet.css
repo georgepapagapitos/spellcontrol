@@ -4,6 +4,8 @@
    pullable rows are shared CardRows and keep their `.collection-list-*`
    contract, with a "pulled" override below. */
 
+/* Deliberately stronger than the shell's :where() base scrim (--overlay-sheet);
+   any real specificity beats :where()'s zero, so this wins regardless of order. */
 .pull-list-root {
   background: var(--overlay);
 }

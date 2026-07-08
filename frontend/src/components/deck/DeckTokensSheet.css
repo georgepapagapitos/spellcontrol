@@ -2,6 +2,8 @@
    (bottom sheet on mobile → centered modal ≥1024px). These rules only add the
    backdrop dim and the token-specific content (header / chips / detail). */
 
+/* Deliberately stronger than the shell's :where() base scrim (--overlay-sheet);
+   any real specificity beats :where()'s zero, so this wins regardless of order. */
 .deck-tokens-root {
   background: var(--overlay);
 }
