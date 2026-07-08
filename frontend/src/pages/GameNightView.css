@@ -42,6 +42,18 @@
   overflow-wrap: anywhere;
 }
 
+/* Location links out to Google Maps — reads as text, underline marks the tap. */
+.game-night-map-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.game-night-map-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .game-night-section-title {
   margin: 0 0 var(--space-2);
   font-size: var(--text-base);

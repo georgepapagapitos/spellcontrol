@@ -22,6 +22,7 @@ import {
 } from '../../lib/game-nights-api';
 import { CalendarPlus, ChevronDown } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
+import { mapsSearchUrl, searchPlaces } from '../../lib/place-search';
 import { listFriends, type Friend } from '../../lib/friends-client';
 import { toast } from '../../store/toasts';
 import { Modal } from '../Modal';
@@ -356,7 +357,20 @@ function NightCard({
       </p>
       <p className="game-night-card-meta">
         {night.isHost ? 'Hosted by you' : `Hosted by ${night.hostUsername}`}
-        {night.location ? ` · ${night.location}` : ''}
+        {night.location && (
+          <>
+            {' · '}
+            <a
+              className="game-night-map-link"
+              href={mapsSearchUrl(night.location)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open "${night.location}" in Google Maps`}
+            >
+              {night.location}
+            </a>
+          </>
+        )}
       </p>
       {night.notes && <p className="game-night-card-notes">{night.notes}</p>}
       {!polling && (
@@ -625,6 +639,7 @@ function NightDialog({
   const [inviteOnly, setInviteOnly] = useState(night?.inviteOnly ?? false);
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [location, setLocation] = useState(night?.location ?? '');
+  const [placeOptions, setPlaceOptions] = useState<string[]>([]);
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [invited, setInvited] = useState<Set<string>>(new Set());
@@ -640,6 +655,25 @@ function NightDialog({
       .then(setFriends)
       .catch(() => setFriends([])); // No friends list ≠ no dialog — link-sharing still works.
   }, []);
+
+  // Debounced place suggestions for the Where datalist. Best-effort only:
+  // aborted/failed lookups leave the typed text standing as the location.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      if (location.trim().length < 3) {
+        setPlaceOptions([]);
+        return;
+      }
+      searchPlaces(location, ctrl.signal)
+        .then(setPlaceOptions)
+        .catch(() => {});
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [location]);
 
   // Friends already invited or replied can't be re-invited (authed reply names
   // are usernames, so this matches the common case).
@@ -893,8 +927,16 @@ function NightDialog({
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             maxLength={120}
-            placeholder="e.g. Sam's place"
+            placeholder="e.g. Sam's place, or search an address"
+            list="game-night-place-options"
           />
+          {/* Native combobox: typed text always stands as-is; suggestions are
+              real places so the location links out to Google Maps cleanly. */}
+          <datalist id="game-night-place-options">
+            {placeOptions.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
         </label>
 
         <label className="game-night-dialog-field">
