@@ -1,3 +1,4 @@
+import { normalizeScryfallQuery } from '../normalize-search';
 import type { SlimCard } from './types';
 
 /**
@@ -44,7 +45,11 @@ export interface ParsedQuery {
 }
 
 export function parseQuery(input: string): ParsedQuery {
-  const tokens = tokenize(input);
+  // Undo the space mobile keyboards insert after an operator colon
+  // ("t: vampire" → "t:vampire") so the clause tokenizes as one operator
+  // instead of an empty filter + a free word. Mirrors the live client, which
+  // normalizes in liveSearchCards — here is the offline path's one place.
+  const tokens = tokenize(normalizeScryfallQuery(input));
   const groups: Clause[][] = [[]];
   for (const tok of tokens) {
     if (tok === 'OR') {

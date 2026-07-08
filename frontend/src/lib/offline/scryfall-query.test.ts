@@ -47,6 +47,12 @@ describe('parseQuery', () => {
     const q = parseQuery('-t:land');
     expect(q.groups[0][0]).toMatchObject({ kind: 'type', value: 'land', neg: true });
   });
+
+  it('normalizes the mobile-keyboard space after an operator colon', () => {
+    const q = parseQuery('t: creature');
+    expect(q.groups[0]).toHaveLength(1);
+    expect(q.groups[0][0]).toMatchObject({ kind: 'type', value: 'creature' });
+  });
 });
 
 describe('matchesQuery', () => {

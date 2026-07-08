@@ -5,6 +5,7 @@ import { getPartnerType, getPartnerWithName } from '@/deck-builder/lib/partnerUt
 import { offlineGetCardByName, offlineGetCardsByNames, offlineSearchCards } from '@/lib/offline';
 import { offlineDataAvailable, useOfflineStore } from '@/store/offline';
 import { frontFaceName } from '@/lib/card-text';
+import { normalizeScryfallQuery } from '@/lib/normalize-search';
 
 /**
  * Cheap synchronous gate used to short-circuit every Scryfall call when the
@@ -156,7 +157,9 @@ async function scryfallFetch<T>(endpoint: string, attempt = 0): Promise<T> {
 async function liveSearchCommanders(query: string): Promise<ScryfallCard[]> {
   if (!query.trim()) return [];
   try {
-    const encodedQuery = encodeURIComponent(`is:commander f:commander ${query}`);
+    const encodedQuery = encodeURIComponent(
+      `is:commander f:commander ${normalizeScryfallQuery(query)}`
+    );
     const response = await scryfallFetch<ScryfallSearchResponse>(
       `/cards/search?q=${encodedQuery}&order=edhrec`
     );
@@ -193,8 +196,12 @@ async function liveSearchCards(
   const colorFilter =
     !skipColorFilter && colorIdentity.length > 0 ? `id<=${colorIdentity.join('')}` : '';
   const formatFilter = skipFormatFilter ? '' : 'f:commander';
-  // Wrap query in parentheses so color filter applies to entire query (including OR clauses)
-  const fullQuery = `${colorFilter} (${query}) ${formatFilter}`;
+  // Wrap query in parentheses so color filter applies to entire query (including OR clauses).
+  // normalizeScryfallQuery undoes the space mobile keyboards insert after an
+  // operator's colon ("t: vampire" → "t:vampire") — this is the single live
+  // choke point, so every search box benefits. The offline path normalizes
+  // inside parseQuery.
+  const fullQuery = `${colorFilter} (${normalizeScryfallQuery(query)}) ${formatFilter}`;
   const encodedQuery = encodeURIComponent(fullQuery.trim());
 
   // Check search cache first
