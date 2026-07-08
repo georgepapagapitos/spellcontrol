@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import { useCollectionStore } from '../store/collection';
+import { useSealMoment } from './shared/SealMoment';
 import {
   captureBinderSnapshot,
   computeDrift,
@@ -83,6 +85,26 @@ export function BinderDriftBanner({ binder }: Props) {
     [drift, binder, allCards, binderDefs]
   );
 
+  // Queue-cleared beat: when the user resolves the last review item (or hits
+  // Mark reviewed), acknowledge the effort with one transient "caught up" row
+  // + the seal moment instead of the banner silently vanishing. Watched in a
+  // layout effect so the swap paints in the same frame as the queue's removal.
+  const [justCleared, setJustCleared] = useState(false);
+  const clearedTimer = useRef<number | undefined>(undefined);
+  const prevHadDrift = useRef(false);
+  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
+  useLayoutEffect(() => {
+    const has = !drift.neverReviewed && hasDrift(drift);
+    if (prevHadDrift.current && !has) {
+      setJustCleared(true);
+      fireSealMoment();
+      window.clearTimeout(clearedTimer.current);
+      clearedTimer.current = window.setTimeout(() => setJustCleared(false), 2600);
+    }
+    prevHadDrift.current = has;
+  }, [drift, fireSealMoment]);
+  useEffect(() => () => window.clearTimeout(clearedTimer.current), []);
+
   // Auto-baseline on first view. Effect deps include `binder.def.id` so
   // switching to *another* unbaselined binder triggers its own capture
   // exactly once; the snapshot field then disqualifies it from re-firing.
@@ -101,7 +123,16 @@ export function BinderDriftBanner({ binder }: Props) {
   // empty), there's nothing useful to show.
   if (drift.neverReviewed) return null;
 
-  if (!hasDrift(drift)) return null;
+  if (!hasDrift(drift)) {
+    if (!justCleared) return null;
+    return (
+      <div className="binder-drift binder-drift--cleared" role="status">
+        {sealMoment}
+        <CheckCircle2 className="binder-drift-cleared-icon" width={16} height={16} aria-hidden />
+        <span>All caught up — this binder matches your last review.</span>
+      </div>
+    );
+  }
 
   const binderId = binder.def.id;
 

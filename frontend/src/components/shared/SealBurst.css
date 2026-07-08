@@ -126,6 +126,21 @@
   }
 }
 
+/* ── Compact scale — completion moments anchored to a page, not the takeover.
+   Same choreography at ~60%: smaller flare/ring; the mark size + mote travel
+   scale in the component (BrandMark size, buildMotes dist). ───────────────── */
+.seal-burst--compact .seal-burst-flare {
+  width: 14rem;
+  height: 14rem;
+  margin: -7rem 0 0 -7rem;
+}
+
+.seal-burst--compact .seal-burst-ring {
+  width: 3rem;
+  height: 3rem;
+  margin: -1.5rem 0 0 -1.5rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .seal-burst {
     display: none;

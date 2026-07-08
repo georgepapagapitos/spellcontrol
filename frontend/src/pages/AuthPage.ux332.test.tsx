@@ -118,7 +118,7 @@ describe('UX-332 — auth page data-promotion honesty', () => {
     );
   });
 
-  it('does not fire a merge toast when there are no local cards', async () => {
+  it('acknowledges sign-in without claiming a merge when there are no local cards', async () => {
     mockCardsLength.value = 0;
     const { container } = await renderPage();
 
@@ -131,6 +131,17 @@ describe('UX-332 — auth page data-promotion honesty', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
-    expect(toastShow).not.toHaveBeenCalled();
+    // Honesty: no "cards added" claim when nothing merged — but the sign-in
+    // itself is acknowledged (previously this path gave zero feedback).
+    expect(toastShow).toHaveBeenCalledTimes(1);
+    expect(toastShow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tone: 'success',
+        message: 'Signed in as testuser',
+      })
+    );
+    expect(toastShow).not.toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringMatching(/added to your account/i) })
+    );
   });
 });
