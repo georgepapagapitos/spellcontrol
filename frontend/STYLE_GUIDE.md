@@ -230,8 +230,22 @@ at 320px. If it can't shrink, it must wrap or collapse.
    - Keep each control compact: a `SelectMenu` shows its **current value** (icon
      - value), not a redundant static label.
 
-Verify both at the **320px floor** in the Responsive section — that's where the
-clip shows up first.
+3. **Card action rows** — actions in the footer of a list card (the game-night
+   cards are the reference). A card earns **at most ~3 visible controls**, at
+   every breakpoint (not just `≤600px` — seven buttons on a card looks broken on
+   desktop too):
+   - Visible: the actions a _guest/attendee_ reaches for (Copy link, Add to
+     calendar).
+   - **Owner/management actions** (Edit, Stop repeating, Cancel…) collapse into
+     a `⋮` `OverflowMenu` at the card's **top-right** (`margin-left: auto` in
+     the head row). Destructive items go last in the menu with `danger: true` —
+     a card footer is not the place for a standing red button.
+   - **Multi-destination exports** (calendar, share targets) are **one labelled
+     menu trigger** (`trigger` prop on `OverflowMenu`, e.g. "Add to calendar ▾"
+     with a chevron), never one button per destination.
+
+Verify all three at the **320px floor** in the Responsive section — that's where
+the clip shows up first.
 
 ## Sticky chrome stacks (collection hub)
 
@@ -690,7 +704,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   panel that can render in a half-width box — a `.deck-stats-pair` cell, the
   compare page's `.deck-compare-col`, the CoachFeed — must gate its compact
   layout on an unnamed `@container (max-width: …)` query; a `@media
-  (max-width: 600px)` rule never fires in a ~300–500px cell on a tablet. The
+(max-width: 600px)` rule never fires in a ~300–500px cell on a tablet. The
   query containers are provided by scaffolding (`.deck-stats-pair > *`,
   `.deck-compare-col`, `.coach-feed` are all `container-type: inline-size`).
   Tiers: **26rem** = pair-cell compact (spacing/rail tightening), **22rem** =
