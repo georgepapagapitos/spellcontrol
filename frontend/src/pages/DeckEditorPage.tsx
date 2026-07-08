@@ -2026,7 +2026,7 @@ export function DeckEditorPage() {
               costs legibility there). Decorative only. */}
           {heroArt && (
             <span className="deck-editor-hero-artwrap" aria-hidden="true">
-              <img className="deck-editor-hero-art" src={heroArt} alt="" />
+              <img className="deck-editor-hero-art" src={heroArt} alt="" loading="lazy" />
               <span className="deck-editor-hero-art-fade" />
             </span>
           )}

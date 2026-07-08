@@ -194,7 +194,7 @@
 .game-night-card-menu .overflow-menu-trigger {
   min-width: 44px;
   min-height: 44px;
-  margin: -12px 0; /* keep the head row's visual height at the title's */
+  margin: calc(var(--space-3) * -1) 0; /* keep the head row's visual height at the title's */
 }
 
 .game-night-cal-trigger {
@@ -207,6 +207,16 @@
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Card action row + RSVP reply buttons rest at desktop density (~2rem) —
+   floor them on touch. */
+@media (pointer: coarse) {
+  .game-night-card-actions .btn,
+  .game-night-card-reply .btn,
+  .game-nights-retry-btn {
+    min-height: 44px;
+  }
 }
 
 .game-night-form-error {
@@ -276,7 +286,7 @@
   background: var(--surface);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-tooltip);
 }
 
 .game-night-place-result {
@@ -323,7 +333,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 32px;
+  min-height: 44px;
 }
 
 .game-night-dialog-friend-list label.is-disabled {
@@ -365,6 +375,7 @@
 .game-night-dialog-people-list li {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
   min-height: 44px;
 }
@@ -378,6 +389,7 @@
 
 .game-night-person-name {
   overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .game-night-person-status {
@@ -394,6 +406,22 @@
 }
 
 /* ── Date-poll create mode (E124) ─────────────────────────────────────── */
+
+.game-night-dialog-datemode {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.game-night-dialog-datemode legend {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: 0 var(--space-1);
+}
 
 .game-night-dialog-pollmode {
   display: flex;
@@ -446,6 +474,17 @@
 
 .game-night-dialog-add-option {
   align-self: flex-start;
+}
+
+/* Poll-option Remove/Add-another-time, people-list Remove/Block/Unblock, and
+   dialog-footer Close/submit buttons all rest at desktop density — floor
+   them on touch. */
+@media (pointer: coarse) {
+  .game-night-dialog-options .btn,
+  .game-night-dialog-people-list .btn,
+  .game-night-dialog-actions .btn {
+    min-height: 44px;
+  }
 }
 
 /* ── Attendee sheet ("who's in") ──────────────────────────────────────── */

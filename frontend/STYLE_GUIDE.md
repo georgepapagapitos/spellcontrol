@@ -33,7 +33,14 @@ never what the app "is."
    none". Never oversell; admitting a limit builds trust. Convey sophistication
    by being **specific about what the feature does**, never with adjectives
    ("powerful", "advanced", "AI-powered", "seamless") — a literate audience
-   reads those as noise.
+   reads those as noise. **When a boolean gate (`canRsvp`, `canEdit`, …) can be
+   false for more than one reason, surface the real reason or fall back to a
+   reason-agnostic message — a wrong specific reason is worse than a vague
+   one.** A public game-night page once told every non-repliable viewer "ask
+   for an invite," even when the real reason was that the host had blocked
+   them; the fix checks which condition actually applies and only names
+   "invite-only" when that's true, otherwise says "You can't reply to this
+   game night."
 4. **Sentence case, no exclamation marks, no cutesy filler.** No "Oops!",
    "Awesome!", emoji, or marketing adjectives.
 5. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
@@ -78,10 +85,11 @@ carry an aria-label qualified by the row's subject ("Moved it — Sol Ring") so
 screen-reader users can tell them apart.
 
 **Punctuation:** complete sentences end with a period; a trailing `…` means
-either "in progress" (loading) **or** an action/control that opens further
-input — a picker, dialog, or share sheet (the "Save As…" convention, e.g.
-"Move to another deck…", "Pick another card…"); never decorative. One em-dash
-max per string.
+either "in progress" (loading) **or** a **picker/selector action** — one that
+lets you choose an item from a list ("Move to another deck…", "Pick another
+card…", the "Save As…" convention); never decorative. It does **not** extend
+to general CRUD dialog openers — "Plan a game night", "Edit night", "New
+deck" open a form, not a picker, and stay bare. One em-dash max per string.
 
 **Canonical terms (use exactly):** _collection_ (your cards), _binder_ (a
 rule-defined group), _deck_, _power bracket_ (the 1–5 Commander tier — not
@@ -166,6 +174,22 @@ button is an \*\*accent-fill rect with a leading lucide icon at `width/height={1
 (`.synergy-picks-title`, `.engine-suggestion-group-label`, …) joins it; a plain
 sans-bold heading reads as off-family.
 
+## Icon scale
+
+App-wide `lucide-react` usage has ranged 11–18px / 1.6–3 stroke width with no
+stated rule. These are the **defaults for new usage** — not a retrofit
+obligation on existing icons:
+
+| Context                                                           | Size | Stroke |
+| ----------------------------------------------------------------- | ---- | ------ |
+| Inline-with-text (leading glyph beside a label/word)              | 14px | 1.8    |
+| Standalone trigger (a tappable icon-only or icon+chevron control) | 16px | 2      |
+| Hero-adjacent (next to a page-hero heading/CTA)                   | 18px | 2      |
+
+Pick by the icon's role, not the surface it happens to sit on — a leading
+icon inside a button label is "inline-with-text" even if the button itself is
+a hero CTA.
+
 ## Tabs / view switchers
 
 - Page-level "distinct views" switcher → the `underline` variant of
@@ -244,6 +268,17 @@ at 320px. If it can't shrink, it must wrap or collapse.
      menu trigger** (`trigger` prop on `OverflowMenu`, e.g. "Add to calendar ▾"
      with a chevron), never one button per destination.
 
+**Multi-destination exports are one labelled menu trigger — everywhere, not
+just card action rows.** The rule above is stated in the card-row context
+where it was first settled, but it's binding on **any** surface offering
+multiple destinations for the same export/share action. The public
+`/gn/:token` game-night page originally rendered "Google Calendar" and
+"Download .ics" as two side-by-side `<a>`/`<button>` elements outside any
+card — same anti-pattern, different surface. Fixed to reuse the identical
+`OverflowMenu` "Add to calendar ▾" pattern from the authed card
+(`GameNights.tsx`). Check for this on every new export/share surface, not
+just card footers.
+
 Verify all three at the **320px floor** in the Responsive section — that's where
 the clip shows up first.
 
@@ -312,6 +347,9 @@ it rides the existing trailing auto-margins — don't add a competing
 
 ## Overlays
 
+- **Multi-destination exports/shares are one labelled menu trigger**, never
+  one button per destination — see § Toolbars & action rows → Card action
+  rows for the full rule. It's binding on any surface, not just card footers.
 - On-demand panels that shouldn't live inline (Add cards, Test hand) use the
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
@@ -527,11 +565,19 @@ dismissal while work is in flight) rather than re-implementing the backdrop.
 | `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only)   |
 | `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move       |
 | `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel            |
-| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, celebration only |
+| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, numeric pops     |
 | `linear`          |                                   | spinners, progress, confetti          |
 
 Don't invent a new bezier — if none of these reads right, that's a
 STYLE_GUIDE discussion, not an inline constant.
+
+**`--ease-pop`'s overshoot is scoped to numeric/counter pops** (a value tick,
+a badge count bump) — a spring read that suits a number jumping. This is a
+**documented decision, not an oversight**: `SealBurst` (§ Completion moments)
+deliberately uses `--ease-out-soft` instead. A stamped seal settles into place;
+it doesn't spring. Don't "fix" SealBurst to use `--ease-pop` for consistency
+with the celebration-only half of this row's `Use` column — the two
+celebration surfaces have different physical characters on purpose.
 
 ### Canonical patterns
 
@@ -742,7 +788,12 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **44px touch targets** on coarse pointers for anything tappable. The
   mechanism is an explicit `@media (pointer: coarse) { .my-btn { min-height: 44px } }`
   block, separate from the resting style — a button's desktop-density height
-  (~2rem) cannot be assumed to meet the floor. For a small ✕/clear button inside
+  (~2rem) cannot be assumed to meet the floor. **`.btn`/`.pill-btn` are NOT
+  44px by default** — the shared base classes render at desktop density
+  (`padding: 6px 14px`, no explicit height); every new usage on a touch
+  surface needs its own coarse-pointer `min-height: 44px` block, scoped to
+  the container/selector that identifies it (don't assume a sibling rule
+  already covers it). For a small ✕/clear button inside
   a chip where growing it would distort the chip, expand the hit area with a
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
@@ -808,7 +859,26 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   `role="listbox"`.** Radio inputs provide selection state, arrow-key navigation,
   and group semantics natively, with no ARIA ownership model to maintain. A
   `role="listbox"` whose options are wrapped in `<li>`s breaks the
-  owned-elements chain per the ARIA spec.
+  owned-elements chain per the ARIA spec. **This extends to two-plus
+  checkboxes made mutually exclusive by hand** — an `onChange` that unchecks
+  its sibling(s) IS a single-select, however it's coded; model it as radios,
+  not independent checkboxes with imperative uncheck logic. A screen reader
+  can't infer exclusivity from checkbox semantics, so the checkbox version
+  announces "checkbox, not checked" for options the user can't actually
+  co-select. (Settled fixing the game-night create dialog's poll-mode /
+  repeat-weekly pair, which was two checkboxes standing in for a 3-way
+  fixed/poll/weekly choice.)
+- **Every `role="combobox"` wires the full ARIA set**: `aria-expanded` +
+  `aria-controls` (pointing at the listbox element's `id`) +
+  `aria-activedescendant` (naming the currently-highlighted option's `id`,
+  driven by the same highlight-index state that drives arrow-key nav) +
+  stable per-option `id`s on the listbox children. `aria-autocomplete="list"`
+  alone is not enough — without `aria-activedescendant` a screen-reader user
+  gets no announcement of which option arrow keys have highlighted. Reference
+  implementations: `SetFilterPicker.tsx` and the game-night dialog's Where
+  field (`GameNights.tsx`) — both retrofitted from partial ARIA
+  (`role`/`aria-expanded`/`aria-autocomplete` only) to the full set with no
+  behavior change for mouse/sighted users.
 - **44px touch targets** — see § Responsive for the `@media (pointer: coarse)`
   mechanism.
 
@@ -1081,7 +1151,14 @@ and is grandfathered; don't copy it).
   from incomplete to full-size-and-legal. Never on mount of an
   already-complete state, and **once per subject per app-open** (a
   module-level consumed set, mirroring `consumedRevealKeys`). Re-crossing the
-  boundary in the same session doesn't replay.
+  boundary in the same session doesn't replay. **The canonical pattern is a
+  module-level `Set` keyed by the subject's id, checked-and-added around the
+  `fire()` call** — see `celebratedDeckComplete` in
+  `components/deck/DeckDisplay.tsx` and `celebratedBinderCleared` in
+  `components/BinderDriftBanner.tsx`. Prose alone let a second call site
+  (the binder-cleared moment) ship without the guard, gated only by a
+  component-local ref that replays on every clear within a session — a new
+  call site should copy one of these two, not reinvent the guard.
 - **The seal is decorative and silent; the surface carries the words.** Every
   moment pairs with a real announcement element — the import success banner,
   the deck-complete toast, the binder "All caught up" status row — so
@@ -1092,6 +1169,18 @@ and is grandfathered; don't copy it).
 - **Anti-pattern — celebration inflation.** Low-stakes actions (copy link,
   add one card, cut a card) get a toast at most. If everything celebrates,
   nothing does; the seal marks _completed effort_, not activity.
+- **Timing precedent.** `SealBurst`'s bloom (mark/flare/ring) plays over
+  **~1000ms** with `--ease-out-soft`; `useSealMoment()` holds the compact
+  portal mounted for a **1250ms** total lifetime (the extra ~250ms lets the
+  bloom settle before unmount). The next celebration-adjacent surface — a new
+  completion moment, a variant bloom — should snap to these two numbers
+  rather than inventing its own; see `SealBurst.css` and the `MOMENT_MS`
+  constant in `components/shared/SealMoment.tsx`.
+- **Brass-gold duplication.** `#f0c368` (the seal's brass) is hardcoded in
+  both `components/shared/BrandMark.tsx` (the clasp seal) and `SealBurst.css`
+  (the flare/ring/mark glow) rather than a shared token — they must be kept in
+  sync by hand if the brass hue ever changes. Token consolidation is tracked
+  separately; don't fix it as a drive-by in an unrelated PR.
 
 ## Card row information hierarchy
 
