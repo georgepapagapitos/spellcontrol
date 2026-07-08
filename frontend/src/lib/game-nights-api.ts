@@ -56,6 +56,8 @@ export interface GameNight {
   cancelledAt: number | null;
   /** Only people already in (host, invitees, existing RSVPs) can reply. */
   inviteOnly: boolean;
+  /** Optional play format (e.g. 'commander'); null = undecided. */
+  format: string | null;
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
@@ -80,6 +82,8 @@ export interface PublicGameNight {
     cancelledAt: number | null;
     /** Only people already in (host, invitees, existing RSVPs) can reply. */
     inviteOnly: boolean;
+    /** Optional play format (e.g. 'commander'); null = undecided. */
+    format: string | null;
     hostUsername: string;
     series: NightSeries | null;
   };
@@ -117,6 +121,8 @@ export interface GameNightInput {
   timezone?: string;
   location?: string;
   notes?: string;
+  /** Optional play format (e.g. 'commander'); omitted/undecided = null. */
+  format?: string;
   inviteUserIds?: string[];
   /** Repeat weekly (E125): the next occurrence materializes as the date passes. */
   repeatsWeekly?: boolean;
