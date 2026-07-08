@@ -13,6 +13,7 @@ import { formatMoney } from '../lib/format-money';
 import { BrandMark } from '../components/shared/BrandMark';
 import { AddCardsSheet } from '../components/AddCardsSheet';
 import { StatsBar } from '../components/StatsBar';
+import { ValuePulse } from '../components/ValuePulse';
 import { CardListTable } from '../components/CardListTable';
 import { ShareDialog } from '../components/ShareDialog';
 
@@ -178,6 +179,7 @@ export function CollectionPage() {
                   </>
                 )}
               </p>
+              {!isEmpty && <ValuePulse refreshing={isRefreshingPrices} />}
             </div>
             <div className="collection-hero-actions">
               <button
