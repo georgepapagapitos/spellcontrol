@@ -5,6 +5,9 @@ import { BrandMark } from './BrandMark';
 interface Props {
   children: ReactNode;
   action?: ReactNode;
+  /** Footer CTA copy — override on surfaces where "binders & decks" misses
+      (e.g. game nights). */
+  ctaLabel?: string;
 }
 
 /**
@@ -12,7 +15,7 @@ interface Props {
  * bar above and a footer CTA below without pulling in any auth-coupled store
  * (unlike <Header> and <Footer> which depend on auth/collection/play stores).
  */
-export function SharedShell({ children, action }: Props) {
+export function SharedShell({ children, action, ctaLabel }: Props) {
   return (
     <div className="shared-shell">
       <header className="shared-brandbar">
@@ -27,7 +30,7 @@ export function SharedShell({ children, action }: Props) {
 
       <footer className="shared-footer">
         <Link className="shared-footer-cta" to="/">
-          Plan your own binders &amp; decks
+          {ctaLabel ?? 'Plan your own binders & decks'}
         </Link>
         <p className="shared-footer-fineprint">
           Card data from{' '}

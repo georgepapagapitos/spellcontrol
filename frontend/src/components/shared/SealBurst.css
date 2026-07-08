@@ -1,6 +1,6 @@
 /* ── SealBurst ─────────────────────────────────────────────────────────────
    Deck-generation-complete flourish: the brand grimoire blooms at the centre
-   in a soft brass glow (#f0c368, the BrandMark clasp seal) and a few mana
+   in a soft brass glow (--brand-seal-gold, the BrandMark clasp seal) and a few mana
    motes drift outward in the deck's colour identity, then everything fades.
    Restrained by design — one gentle bloom, not a firework. One-shot; plays as
    the takeover holds, then unmounts. Every keyframe is reduced-motion gated
@@ -26,7 +26,7 @@
 
 /* ── The brand grimoire — settles in with a soft brass glow. ──────────────── */
 .seal-burst-mark {
-  filter: drop-shadow(0 0 0.7rem color-mix(in srgb, #f0c368 55%, transparent));
+  filter: drop-shadow(0 0 0.7rem color-mix(in srgb, var(--brand-seal-gold) 55%, transparent));
   animation: seal-burst-mark 1000ms var(--ease-out-soft, ease-out) both;
 }
 
@@ -53,9 +53,9 @@
   border-radius: 999px;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, #f0c368 55%, transparent) 0%,
-    color-mix(in srgb, #f0c368 26%, transparent) 38%,
-    color-mix(in srgb, #f0c368 8%, transparent) 62%,
+    color-mix(in srgb, var(--brand-seal-gold) 55%, transparent) 0%,
+    color-mix(in srgb, var(--brand-seal-gold) 26%, transparent) 38%,
+    color-mix(in srgb, var(--brand-seal-gold) 8%, transparent) 62%,
     transparent 78%
   );
   animation: seal-burst-flare 1000ms var(--ease-out-soft, ease-out) both;
@@ -67,7 +67,7 @@
   height: 5rem;
   margin: -2.5rem 0 0 -2.5rem;
   border-radius: 999px;
-  border: 1.5px solid color-mix(in srgb, #f0c368 55%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--brand-seal-gold) 55%, transparent);
   animation: seal-burst-ring 1000ms var(--ease-out-soft, ease-out) both;
 }
 

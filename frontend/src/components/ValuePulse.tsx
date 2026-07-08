@@ -38,15 +38,40 @@ function sparkGeometry(points: ValuePoint[]): { line: string; endX: number; endY
  * isRefreshingPrices flag; the history is re-read when a refresh completes so
  * the point it just snapshotted appears without a reload.
  */
+/* The pulse rendered last session, so reserve its slot on the next load while
+   the IndexedDB read resolves — without this the row pops in after first paint
+   and shifts everything below it (CLS). Sync read; localStorage can throw in
+   private mode. */
+const SEEN_KEY = 'value-pulse-seen';
+
+function seenBefore(): boolean {
+  try {
+    return localStorage.getItem(SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markSeen(seen: boolean) {
+  try {
+    if (seen) localStorage.setItem(SEEN_KEY, '1');
+    else localStorage.removeItem(SEEN_KEY);
+  } catch {
+    // Best-effort hint only.
+  }
+}
+
 export function ValuePulse({ refreshing }: { refreshing: boolean }) {
   // "today" is captured with the load (not at render) so render stays pure.
   const [data, setData] = useState<{ points: ValuePoint[]; today: string } | null>(null);
+  const [expected] = useState(seenBefore);
 
   useEffect(() => {
     if (refreshing) return;
     let stale = false;
     getValueHistory()
       .then((history) => {
+        markSeen(Boolean(computeValueDelta(history)));
         if (!stale) setData({ points: history, today: dayKey(Date.now()) });
       })
       .catch(() => {
@@ -59,6 +84,10 @@ export function ValuePulse({ refreshing }: { refreshing: boolean }) {
 
   const points = data?.points ?? [];
   const delta = computeValueDelta(points);
+  if (!data && expected) {
+    // Invisible placeholder holding the row's exact height until the load lands.
+    return <p className="value-pulse value-pulse--loading" aria-hidden="true" />;
+  }
   if (!data || !delta) return null;
 
   const amount = Math.round(delta.amount);

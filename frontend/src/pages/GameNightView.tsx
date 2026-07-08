@@ -64,7 +64,7 @@ export function GameNightView() {
   const { token } = useParams<{ token: string }>();
   if (!token) {
     return (
-      <SharedShell>
+      <SharedShell ctaLabel="Plan your own game nights">
         <NotFoundView />
       </SharedShell>
     );
@@ -118,7 +118,7 @@ function GameNightViewInner({ token }: { token: string }) {
 
   if (state.status === 'loading') {
     return (
-      <SharedShell>
+      <SharedShell ctaLabel="Plan your own game nights">
         <main className="shared-view shared-view--loading" aria-busy="true">
           <BrandMark size={64} motion="busy" aria-hidden />
           <p>Loading…</p>
@@ -128,14 +128,14 @@ function GameNightViewInner({ token }: { token: string }) {
   }
   if (state.status === 'notFound') {
     return (
-      <SharedShell>
+      <SharedShell ctaLabel="Plan your own game nights">
         <NotFoundView />
       </SharedShell>
     );
   }
   if (state.status === 'error') {
     return (
-      <SharedShell>
+      <SharedShell ctaLabel="Plan your own game nights">
         <main className="shared-view shared-view--error">
           <h1>Something went wrong</h1>
           <p>{state.message}</p>
@@ -148,7 +148,7 @@ function GameNightViewInner({ token }: { token: string }) {
   }
 
   return (
-    <SharedShell>
+    <SharedShell ctaLabel="Plan your own game nights">
       <NightBody
         token={token}
         payload={state.payload}

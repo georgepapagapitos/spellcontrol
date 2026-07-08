@@ -171,6 +171,8 @@
   font-family: var(--font-serif);
   font-size: var(--text-xl);
   font-weight: 600;
+  /* User-authored titles can be one unbroken string — wrap, don't clip. */
+  overflow-wrap: anywhere;
 }
 
 .shared-view-subtitle {

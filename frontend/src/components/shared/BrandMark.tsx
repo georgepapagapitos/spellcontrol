@@ -26,6 +26,11 @@ import { joinClasses } from '@/lib/join-classes';
 
 type BrandMotion = 'boot' | 'busy' | 'idle';
 
+/* The clasp seal's brass gold. Mirrors --brand-seal-gold in styles/tokens.css
+   (the CSS-side canonical value) — SVG presentation attributes can't take
+   var(), so the hex lives here once instead of on every fill/stroke. */
+const SEAL_GOLD = '#f0c368';
+
 /* boot mode: one full sweep around the book, starting and ending at the
    clasp (256,287) — with a hold at the clasp on both ends of the cycle via
    the animateMotion keyPoints/keyTimes. */
@@ -53,8 +58,8 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
       {(motion === 'idle' || motion === 'busy') && (
         <defs>
           <radialGradient id="bm-glow-gradient">
-            <stop offset="0%" stopColor="#f0c368" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#f0c368" stopOpacity="0" />
+            <stop offset="0%" stopColor={SEAL_GOLD} stopOpacity="0.8" />
+            <stop offset="100%" stopColor={SEAL_GOLD} stopOpacity="0" />
           </radialGradient>
         </defs>
       )}
@@ -112,7 +117,7 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
         height="56"
         rx="10"
         transform="rotate(45 256 287)"
-        fill="#f0c368"
+        fill={SEAL_GOLD}
       />
 
       {motion === 'busy' && (
@@ -133,7 +138,7 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
             cy="287"
             r="70"
             fill="none"
-            stroke="#f0c368"
+            stroke={SEAL_GOLD}
             strokeWidth="6"
           />
         </>
@@ -167,7 +172,7 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
               height="42"
               rx="8"
               transform="rotate(45)"
-              fill="#f0c368"
+              fill={SEAL_GOLD}
             />
             <animateMotion
               dur="5s"
@@ -188,7 +193,7 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
               height="46"
               rx="9"
               transform="rotate(45)"
-              fill="#f0c368"
+              fill={SEAL_GOLD}
             />
             <animateMotion
               dur="5s"
@@ -209,7 +214,7 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
               height="52"
               rx="10"
               transform="rotate(45)"
-              fill="#f0c368"
+              fill={SEAL_GOLD}
             />
             <animateMotion
               dur="5s"
@@ -227,7 +232,7 @@ export function BrandMark({ size = 28, className, motion, 'aria-hidden': ariaHid
             cy="287"
             r="60"
             fill="none"
-            stroke="#f0c368"
+            stroke={SEAL_GOLD}
             strokeWidth="6"
           />
         </>
