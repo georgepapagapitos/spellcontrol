@@ -12,6 +12,7 @@ import {
   type RsvpStatus,
 } from '../lib/game-nights-api';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../lib/calendar-links';
+import { mapsSearchUrl } from '../lib/place-search';
 import { useAuth } from '../store/auth';
 import { SharedShell } from '../components/shared/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
@@ -273,7 +274,17 @@ function NightBody({
         {night.location && (
           <div className="game-night-fact">
             <dt>Where</dt>
-            <dd>{night.location}</dd>
+            <dd>
+              <a
+                className="game-night-map-link"
+                href={mapsSearchUrl(night.location)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open "${night.location}" in Google Maps`}
+              >
+                {night.location}
+              </a>
+            </dd>
           </div>
         )}
         {night.notes && (
