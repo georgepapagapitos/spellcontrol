@@ -1,4 +1,4 @@
-import { type JSX, useEffect, useState } from 'react';
+import { type JSX, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronRight, History, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatMoney } from '../lib/format-money';
@@ -14,9 +14,17 @@ import {
 import { useEscapeKey } from '../lib/use-escape-key';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useAnimatedNumber } from '../lib/use-animated-number';
+import { useSheetExit } from '../lib/use-sheet-exit';
 import './WelcomeDigest.css';
 
 const UNCAT = 'Uncategorized';
+
+type DeltaDirection = 'up' | 'down' | 'flat';
+
+function deltaDirection(amount: number): DeltaDirection {
+  const whole = Math.round(amount);
+  return whole > 0 ? 'up' : whole < 0 ? 'down' : 'flat';
+}
 
 /** "+$18" / "−$4" / "Steady" — whole dollars, typographic minus. */
 function deltaText(amount: number): string {
@@ -40,11 +48,34 @@ function WelcomeDigestSheet({
   onClose: () => void;
 }): JSX.Element {
   useLockBodyScroll();
-  useEscapeKey(onClose);
   const navigate = useNavigate();
 
+  // Below 1024px this is a bottom sheet with a slide-up entry, so every
+  // dismiss path (backdrop, ✕, Escape, "Got it") plays the symmetric
+  // `binder-sheet-slide-out` before unmounting; on desktop it's a centered
+  // panel with `animation: none`, so dismissal stays instant there (same
+  // convention as CardPickerSheet / DeckSizePrompt). "Got it" does extra
+  // bookkeeping (re-baseline, dismiss for the session) beyond a plain close,
+  // so the pending action is tracked and run once the exit — or the
+  // desktop no-op — completes.
+  const pendingRef = useRef<() => void>(onClose);
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    () => pendingRef.current(),
+    'binder-sheet-slide-out'
+  );
+  const dismiss = useCallback(
+    (action: () => void) => {
+      pendingRef.current = action;
+      if (window.matchMedia('(min-width: 1024px)').matches) action();
+      else beginClose();
+    },
+    [beginClose]
+  );
+  const close = useCallback(() => dismiss(onClose), [dismiss, onClose]);
+  useEscapeKey(close);
+
   const whole = Math.round(digest.deltaAmount);
-  const direction = whole > 0 ? 'up' : whole < 0 ? 'down' : 'flat';
+  const direction = deltaDirection(digest.deltaAmount);
   const sinceLabel =
     digest.baseline.day === openedToday ? 'earlier today' : formatDayKey(digest.baseline.day);
   // The dollar figure counts up once per baseline (revealKey registry); the
@@ -59,17 +90,14 @@ function WelcomeDigestSheet({
       : `Value ${whole > 0 ? 'up' : 'down'} ${formatMoney(deltaDisplay, { wholeDollars: true })}`;
 
   return (
-    <div
-      className="card-picker-root welcome-digest-sheet-root"
-      onClick={onClose}
-      role="presentation"
-    >
+    <div className="card-picker-root welcome-digest-sheet-root" onClick={close} role="presentation">
       <div
-        className="card-picker-sheet welcome-digest-sheet"
+        className={`card-picker-sheet welcome-digest-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Since your last visit"
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <header className="welcome-digest-sheet-head">
@@ -82,7 +110,7 @@ function WelcomeDigestSheet({
           <button
             type="button"
             className="welcome-digest-sheet-close"
-            onClick={onClose}
+            onClick={close}
             aria-label="Close"
           >
             <X width={18} height={18} strokeWidth={2} aria-hidden />
@@ -128,7 +156,7 @@ function WelcomeDigestSheet({
               View binders
             </button>
           )}
-          <button type="button" className="btn btn-primary" onClick={onGotIt}>
+          <button type="button" className="btn btn-primary" onClick={() => dismiss(onGotIt)}>
             Got it
           </button>
         </footer>
@@ -174,6 +202,7 @@ export function WelcomeDigest({
 
   const topMove = digest.moves[digest.moves.length - 1];
   const delta = deltaText(digest.deltaAmount);
+  const direction = deltaDirection(digest.deltaAmount);
 
   const handleGotIt = () => {
     setDigestBaseline(value);
@@ -196,7 +225,11 @@ export function WelcomeDigest({
           <span className="welcome-digest-strip-count">{digest.moves.length} moved</span>
         )}
         <span className="welcome-digest-strip-teaser">
-          {delta}
+          <span
+            className={`welcome-digest-strip-teaser-delta welcome-digest-strip-teaser-delta--${direction}`}
+          >
+            {delta}
+          </span>
           {topMove && (
             <>
               {' · '}

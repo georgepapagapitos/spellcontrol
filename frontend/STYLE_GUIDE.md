@@ -320,10 +320,15 @@ it rides the existing trailing auto-margins — don't add a competing
   one of exactly two places: a `.card-picker-backdrop` child (the shell's
   default), or — for sheets that close on root click and render no backdrop
   div — `background: var(--overlay-sheet)` on the sheet's **scoped root class**
-  (`.between-decks-sheet-root`, `.move-deck-root`). Never put a background on
-  the shared `.card-picker-root` shell: consumers that do render the backdrop
-  child would double-stack scrims. (Settled by E95 #1048, re-applied E99 — this
-  omission has now shipped twice; check for the scrim when adding a new sheet.)
+  (`.between-decks-sheet-root`, `.move-deck-root`, `.welcome-digest-sheet-root`,
+  `.shared-copies-root`). Never put a background on the shared `.card-picker-root`
+  shell: consumers that do render the backdrop child would double-stack scrims.
+  (Settled by E95 #1048, re-applied E99, shipped a third time on WelcomeDigest —
+  now **guard-tested**: `src/lib/no-unscrimmed-sheet-roots.test.ts` source-scans
+  every `card-picker-root <scoped-class>` consumer and fails if the scoped class
+  neither renders `.card-picker-backdrop` nor sets this background anywhere in
+  the app's CSS. A new sheet that fails this rule is now caught in CI, not
+  rediscovered in review a fourth time.)
 - **Destructive confirmations go through the shared `<Modal>`, never
   `window.confirm()`.** The native dialog can't be themed, freezes the event
   loop, loses focus on dismiss, and renders inconsistently in Capacitor
@@ -964,6 +969,15 @@ stat-tile delta convention:
 - **Direction colors:** up = `var(--success)`, down = `var(--err-text)`,
   zero/flat = `var(--text-secondary)`. A zero delta reads as a word
   ("Steady"), not "+$0".
+- **Color every rendering of the same delta, not just the sparkline's own
+  line.** When one money delta is restated in more than one place on a
+  page — a hero's inline figure, a sheet headline repeating it, a strip's
+  compact teaser — every rendering gets the direction color, not only the
+  first. `WelcomeDigest` shipped with the sheet headline colored and the
+  strip teaser a few pixels away flat `--text-secondary`; fixed by giving
+  the teaser's `$`-delta its own span with the same up/down/flat modifiers,
+  leaving the surrounding compound text ("+$18 · Sol Ring → High Value")
+  neutral — color only the money segment, never the whole line.
 - **Be honest about the window.** "this week" only when the data actually
   spans ~a week and is current; a gappy or stale log names the baseline date
   instead ("since Jun 7" via `lib/value-history.ts` `formatDayKey`).
