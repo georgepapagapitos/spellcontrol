@@ -14,6 +14,21 @@ export type WinConCategory =
   | 'combat'
   | 'none';
 
+/**
+ * One way a win path assembles: drawing `need` distinct cards from `names`.
+ * Each category declares its own commitment bar (mirroring the detector's
+ * qualification gates) — a combo needs every library piece of one loop, an
+ * alt-win needs any single finisher, a strategic plan needs the same critical
+ * mass the detector required to call it a plan at all.
+ */
+export interface AssemblyOption {
+  /** Library card names that advance this option. Commanders are excluded —
+   *  they start in the command zone, never the library. */
+  names: string[];
+  /** Distinct `names` that must be drawn for the path to count as assembled. */
+  need: number;
+}
+
 export interface WinCondition {
   category: WinConCategory;
   label: string;
@@ -26,6 +41,13 @@ export interface WinCondition {
    * internal ranking; not exposed to UI directly.
    */
   score: number;
+  /**
+   * Assembly-clock inputs — the path is "assembled" once ANY one option is
+   * satisfied (see {@link AssemblyOption}). Absent for paths with no discrete
+   * assembly (generic combat) and on analyses persisted before this field
+   * existed (the engine-version bump recomputes those).
+   */
+  assembly?: AssemblyOption[];
 }
 
 export interface WinConditionAnalysis {
@@ -35,4 +57,11 @@ export interface WinConditionAnalysis {
   secondary: WinCondition[];
   /** True when no path scored above the detection threshold. */
   noClearWinCondition: boolean;
+  /**
+   * Non-land tutors in the deck — assembly-clock wildcards. A drawn tutor
+   * fetches a missing piece, so it counts toward any assembly option; without
+   * this the simulated clock for tutor-reliant decks (combo especially) reads
+   * absurdly slow, which is the raw math but not how the deck plays.
+   */
+  tutors?: string[];
 }

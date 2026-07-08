@@ -814,6 +814,7 @@ export async function analyzeCommanderDeck(
       winConditions = detectWinConditions({
         cards: params.cards,
         commander: params.commander,
+        partnerCommander: params.partnerCommander,
         combosInDeck: (params.detectedCombos ?? []).map((c) => ({
           results: c.results,
           cards: c.cards,

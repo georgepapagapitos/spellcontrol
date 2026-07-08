@@ -43,8 +43,10 @@ const DEBOUNCE_MS = 500;
  *        + full-deck add↔cut pairing. v1 plans had unbounded "swap in N" lists.
  *   v3 — added win-condition detection + restored Bracket Fit alongside it; bumped
  *        to bust any cache from the window when Bracket Fit was missing from main.
+ *   v4 — win conditions gained `assembly` (E75 assembly clock); bumped so
+ *        persisted analyses recompute and the clock surfaces can render.
  */
-const ANALYSIS_ENGINE_VERSION = 'v3-wincon-bracketfit';
+const ANALYSIS_ENGINE_VERSION = 'v4-assembly-clock';
 
 /**
  * Signature of every input that materially affects grade/bracket: commander(s)

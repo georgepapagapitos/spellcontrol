@@ -179,3 +179,120 @@ export function simulateOpeningHands(
     floodRate: flood / denom,
   };
 }
+
+// ── Assembly clock — "typically online by turn N" ───────────────────────────
+
+export interface AssemblyClockOptions {
+  /** Runs to simulate. Default 1000, matching `simulateOpeningHands`. */
+  iterations?: number;
+  /** Cards in the opening hand. Default 7. */
+  handSize?: number;
+  /** Seed for the PRNG. Omit for a fresh random run; pass a fixed value in tests. */
+  seed?: number;
+  /**
+   * Wildcard card names (tutors): each drawn copy substitutes for one missing
+   * piece of whichever option is closest to done. Without these, tutor-reliant
+   * decks (combo especially) clock absurdly slow — the raw draw math, but not
+   * how the deck actually plays.
+   */
+  wildcards?: readonly string[];
+}
+
+export interface AssemblyClockResult {
+  iterations: number;
+  /**
+   * Median 1-based turn on which the win path assembled — "typically online by
+   * turn N". Turn 1 = the opening hand plus the first draw.
+   */
+  typicalTurn: number;
+  /** 90th-percentile turn — 90% of simulated games were online by this turn. */
+  p90Turn: number;
+}
+
+/**
+ * How many turns until the deck's win path is in hand, across many simulated
+ * games: shuffle, draw an opening hand, then draw one card per turn until any
+ * one `options` entry is satisfied (`need` distinct `names` drawn). Duplicate
+ * copies of a name only count once toward `need`.
+ *
+ * Deliberately a goldfish draw-clock: no tutors, cantrips, or mulligans are
+ * modeled, so real games usually assemble sooner — surfaces state this. Options
+ * naming cards the library no longer contains (stale persisted analysis after
+ * an edit) are dropped; returns null when nothing viable remains.
+ *
+ * The `options` shape matches `WinCondition.assembly` from the T16 detector,
+ * kept structural here so this file stays decoupled from deck-builder types.
+ */
+export function simulateAssemblyClock(
+  libraryNames: readonly string[],
+  options: ReadonlyArray<{ names: readonly string[]; need: number }>,
+  opts: AssemblyClockOptions = {}
+): AssemblyClockResult | null {
+  const iterations = Math.max(1, Math.floor(opts.iterations ?? 1000));
+  const handSize = Math.max(1, Math.floor(opts.handSize ?? 7));
+
+  const inLibrary = new Set(libraryNames);
+  const viable = options
+    .map((o) => ({
+      names: Array.from(new Set(o.names)).filter((n) => inLibrary.has(n)),
+      need: o.need,
+    }))
+    .filter((o) => o.need <= 0 || o.names.length >= o.need);
+  if (viable.length === 0) return null;
+
+  // A zero-need option (e.g. a commander + partner combo — every piece starts
+  // in the command zone) is online before the first draw.
+  if (viable.some((o) => o.need <= 0)) {
+    return { iterations, typicalTurn: 1, p90Turn: 1 };
+  }
+
+  // name → indices of the viable options it advances.
+  const optionsByName = new Map<string, number[]>();
+  viable.forEach((o, i) => {
+    for (const n of o.names) {
+      const hits = optionsByName.get(n);
+      if (hits) hits.push(i);
+      else optionsByName.set(n, [i]);
+    }
+  });
+
+  // Wildcards that are actual option pieces stay pieces — a card is one or the
+  // other, and the piece reading is the more specific one.
+  const wildcardSet = new Set((opts.wildcards ?? []).filter((n) => !optionsByName.has(n)));
+
+  const rand = mulberry32(opts.seed ?? (Math.random() * 0xffffffff) >>> 0);
+  const turns: number[] = [];
+
+  for (let i = 0; i < iterations; i++) {
+    const order = shuffle(libraryNames, rand);
+    const remaining = viable.map((o) => o.need);
+    const seen = new Set<string>();
+    let wildcardsHeld = 0;
+    // Every viable option's names are all present, so a full-library walk
+    // always completes — each run records exactly one turn.
+    for (let pos = 0; pos < order.length; pos++) {
+      const name = order[pos];
+      const hits = optionsByName.get(name);
+      if (hits && !seen.has(name)) {
+        seen.add(name);
+        for (const oi of hits) remaining[oi] -= 1;
+      } else if (wildcardSet.has(name)) {
+        // Each drawn copy is one substitution — all held wildcards go to the
+        // option closest to done (optimal, since only one option must finish).
+        wildcardsHeld += 1;
+      } else {
+        continue; // filler, or a duplicate copy of a piece — state unchanged
+      }
+      if (Math.min(...remaining) <= wildcardsHeld) {
+        // Cards seen by turn t = handSize + t (one draw per turn from turn 1),
+        // so the draw at 0-based position `pos` lands on turn pos + 1 - handSize.
+        turns.push(Math.max(1, pos + 1 - handSize));
+        break;
+      }
+    }
+  }
+
+  turns.sort((a, b) => a - b);
+  const at = (q: number) => turns[Math.min(turns.length - 1, Math.floor(turns.length * q))];
+  return { iterations, typicalTurn: at(0.5), p90Turn: at(0.9) };
+}

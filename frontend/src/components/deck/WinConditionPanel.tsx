@@ -1,14 +1,41 @@
-import type { JSX } from 'react';
+import { useMemo, type JSX } from 'react';
 import './WinConditionPanel.css';
-import { AlertTriangle, Trophy } from 'lucide-react';
+import { AlertTriangle, Hourglass, Trophy } from 'lucide-react';
 import type {
   WinConditionAnalysis,
   WinCondition,
 } from '@/deck-builder/services/winConditions/types';
+import { simulateAssemblyClock } from '@/lib/opening-hand-sim';
+import { InfoTip } from '../InfoTip';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 
 export interface WinConditionPanelProps {
   analysis: WinConditionAnalysis;
+  /**
+   * Mainboard card names (one entry per physical copy, commanders excluded) —
+   * feeds the assembly clock on the primary path. Omit to hide the clock.
+   */
+  libraryNames?: readonly string[];
+}
+
+/**
+ * Shared methodology explainer for the assembly clock — one ⓘ per concept
+ * (STYLE_GUIDE Info tooltips); also used by DeckTestHandPanel's clock line.
+ */
+export function assemblyClockTip(): JSX.Element {
+  return (
+    <>
+      <span className="info-tip-lead">
+        Across 1,000 simulated games: shuffle, draw an opening hand, then draw one card per turn
+        until the win path is in hand — every piece of one combo, any one alt-win card, or a
+        critical mass of a strategic plan. A drawn tutor counts as the missing piece it would fetch.
+      </span>
+      <span className="info-tip-lead">
+        Draw spells, ramp, and mulligans aren&apos;t modeled, so real games usually run a little
+        faster.
+      </span>
+    </>
+  );
 }
 
 function WinConRow({
@@ -57,8 +84,20 @@ function WinConRow({
  * Mirrors EnginePanel structure — headline, per-path rows, no-clear-wincon
  * fallback message.
  */
-export function WinConditionPanel({ analysis }: WinConditionPanelProps): JSX.Element {
+export function WinConditionPanel({ analysis, libraryNames }: WinConditionPanelProps): JSX.Element {
   const carousel = useCardCarousel('Win conditions');
+
+  // "Typically online by turn N" for the primary path. Null (→ hidden) when
+  // the analysis predates the assembly field, the path has no discrete
+  // assembly (generic combat), or the deck no longer holds the pieces.
+  const clock = useMemo(() => {
+    const assembly = analysis.primary?.assembly;
+    if (!assembly?.length || !libraryNames?.length) return null;
+    return simulateAssemblyClock(libraryNames, assembly, {
+      iterations: 1000,
+      wildcards: analysis.tutors,
+    });
+  }, [analysis, libraryNames]);
 
   if (analysis.noClearWinCondition) {
     return (
@@ -79,6 +118,23 @@ export function WinConditionPanel({ analysis }: WinConditionPanelProps): JSX.Ele
     <section className="win-con-panel" aria-label="Win condition analysis">
       {analysis.primary && (
         <WinConRow wincon={analysis.primary} primary onTapCard={carousel.open} />
+      )}
+      {clock && (
+        <p className="win-con-clock">
+          <Hourglass className="win-con-clock-icon" width={13} height={13} aria-hidden />
+          <span>
+            Typically online by turn <strong>{clock.typicalTurn}</strong>
+            <span className="win-con-clock-sub">
+              {' '}
+              · 90% of games by turn {clock.p90Turn}, across 1,000 simulated draws
+            </span>
+          </span>
+          <InfoTip
+            label="the assembly clock"
+            className="win-con-clock-tip"
+            text={assemblyClockTip()}
+          />
+        </p>
       )}
       {analysis.secondary.length > 0 && (
         <>

@@ -39,7 +39,7 @@ function sig(
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null
 ): string {
   return [
-    'v3-wincon-bracketfit',
+    'v4-assembly-clock',
     deck.commander?.name ?? '',
     deck.partnerCommander?.name ?? '',
     deck.cards

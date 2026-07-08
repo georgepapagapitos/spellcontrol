@@ -686,3 +686,137 @@ describe('ranking', () => {
     expect(result.secondary.some((s) => s.category === 'mill')).toBe(true);
   });
 });
+
+// ── Assembly-clock inputs (E75) ──────────────────────────────────────────
+
+describe('assembly', () => {
+  it('gives a combo one option per complete combo, needing every piece', () => {
+    const result = detectWinConditions(
+      input({
+        combosInDeck: [
+          { results: ['Win the game'], cards: ["Thassa's Oracle", 'Demonic Consultation'] },
+          { results: ['Win the game'], cards: ['Laboratory Maniac', 'Tainted Pact'] },
+        ],
+      })
+    );
+    expect(result.primary?.assembly).toEqual([
+      { names: ["Thassa's Oracle", 'Demonic Consultation'], need: 2 },
+      { names: ['Laboratory Maniac', 'Tainted Pact'], need: 2 },
+    ]);
+  });
+
+  it('excludes the commander and partner from combo assembly sets', () => {
+    const result = detectWinConditions(
+      input({
+        commander: card('Kiki-Jiki, Mirror Breaker'),
+        partnerCommander: card('Zealous Conscripts'),
+        combosInDeck: [
+          {
+            results: ['Infinite damage'],
+            cards: ['Kiki-Jiki, Mirror Breaker', 'Zealous Conscripts', 'Ashnod’s Altar'],
+          },
+        ],
+      })
+    );
+    expect(result.primary?.assembly).toEqual([{ names: ['Ashnod’s Altar'], need: 1 }]);
+  });
+
+  it('alt-win needs any single finisher', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('Laboratory Maniac', 'you win the game', 'Creature'),
+          card('Approach of the Second Sun', 'you win the game.', 'Sorcery'),
+        ],
+      })
+    );
+    expect(result.primary?.category).toBe('alt-win');
+    expect(result.primary?.assembly).toEqual([
+      { names: ['Laboratory Maniac', 'Approach of the Second Sun'], need: 1 },
+    ]);
+  });
+
+  it('a strategic plan needs its qualification mass, over the UNCAPPED card list', () => {
+    // 10 mill cards — evidence displays only 8, but the assembly pool keeps
+    // all 10 (the capped list would wrongly slow the simulated clock).
+    const millers = Array.from({ length: 10 }, (_, i) =>
+      card(`Miller ${i}`, 'each opponent mills 3 cards.', 'Sorcery')
+    );
+    const result = detectWinConditions(input({ cards: millers }));
+    expect(result.primary?.category).toBe('mill');
+    expect(result.primary?.evidence).toHaveLength(8);
+    expect(result.primary?.assembly).toEqual([{ names: millers.map((c) => c.name), need: 4 }]);
+  });
+
+  it('clamps need to the pool when an invested axis qualified a small list', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card('Mesmeric Orb', 'each opponent mills a card.', 'Artifact'),
+          card(
+            'Bruvac the Grandiloquent',
+            'if an opponent would mill one or more cards, that player mills twice that many instead.',
+            'Creature'
+          ),
+        ],
+        deckSynergy: emptySynergy(['mill']),
+      })
+    );
+    expect(result.primary?.category).toBe('mill');
+    expect(result.primary?.assembly).toEqual([
+      { names: ['Mesmeric Orb', 'Bruvac the Grandiloquent'], need: 2 },
+    ]);
+  });
+
+  it('voltron needs two pieces of gear', () => {
+    const gear = Array.from({ length: 5 }, (_, i) =>
+      card(`Blade ${i}`, 'equip {2}. equipped creature gets +2/+2.', 'Artifact — Equipment')
+    );
+    const result = detectWinConditions(
+      input({ commander: card('Rograkh', '', 'Legendary Creature', ['menace']), cards: gear })
+    );
+    expect(result.primary?.category).toBe('voltron');
+    expect(result.primary?.assembly).toEqual([{ names: gear.map((c) => c.name), need: 2 }]);
+  });
+
+  it('generic combat carries no assembly', () => {
+    const creatures = Array.from({ length: 16 }, (_, i) =>
+      card(`Bear ${i}`, '', 'Creature — Bear')
+    );
+    const result = detectWinConditions(input({ cards: creatures }));
+    expect(result.primary?.category).toBe('combat');
+    expect(result.primary?.assembly).toBeUndefined();
+  });
+
+  it('collects non-land tutors as clock wildcards, even with no win path', () => {
+    const result = detectWinConditions(
+      input({
+        cards: [
+          card(
+            'Demonic Tutor',
+            'Search your library for a card, put that card into your hand, then shuffle.',
+            'Sorcery'
+          ),
+          card(
+            'Mystical Tutor',
+            'Search your library for an instant or sorcery card, reveal it, then shuffle.',
+            'Instant'
+          ),
+          // Land tutors can't fetch a win-path piece — excluded.
+          card(
+            'Rampant Growth',
+            'Search your library for a basic land card, put that card onto the battlefield tapped.',
+            'Sorcery'
+          ),
+          card(
+            'Misty Rainforest',
+            'Sacrifice this land: Search your library for a Forest or Island card.',
+            'Land'
+          ),
+        ],
+      })
+    );
+    expect(result.tutors).toEqual(['Demonic Tutor', 'Mystical Tutor']);
+    expect(result.noClearWinCondition).toBe(true);
+  });
+});
