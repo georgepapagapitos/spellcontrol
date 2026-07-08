@@ -27,7 +27,7 @@ import {
 import { applyPrices, setPrices, priceKey } from '../lib/card-prices';
 import { buildBackup, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
-import { apiUrl } from '../lib/api-base';
+import { fetchWithAbortTimeout } from '../lib/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
@@ -75,6 +75,20 @@ const PRICE_REFRESH_RETRY_MS = 60 * 60 * 1000;
 // THIS device last try a price refresh" is a device concern and must never
 // ride the sync path (it would clobber another device's clock for no reason).
 const PRICE_REFRESH_LS_KEY = 'spellcontrol:lastPriceAutoRefreshAttempt';
+// Per-chunk request cap. Cold price lookups fan out to Scryfall server-side and
+// can take tens of seconds; without a ceiling a stalled request would hang the
+// whole refresh forever. Matches the import path's TIMEOUT_MS.
+const PRICE_REQUEST_TIMEOUT_MS = 120_000;
+// Gateway/server statuses that are transient and worth retrying: Fly
+// cold-start/restart or a redeploy (502/503/504) and rate limiting (429),
+// or an upstream Scryfall 5xx forwarded through /api/refresh-prices. Mirrors
+// /api/import's isRetryableStatus — a plain 4xx is the client's fault and
+// still fails fast.
+const PRICE_RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
+// Backoff before each retry; gives a cold/restarting machine time to recover.
+// Zero delays under test so the suite stays fast (same pattern as api.ts).
+const PRICE_RETRY_DELAYS_MS: readonly number[] =
+  import.meta.env.MODE === 'test' ? [0, 0] : [1500, 4000];
 
 interface CollectionState {
   cards: EnrichedCard[];
@@ -746,37 +760,54 @@ export const useCollectionStore = create<CollectionState>()(
             }
             return e;
           };
-          // Fetch one chunk, retrying a dropped CONNECTION a couple times before
-          // giving up. Cold price lookups take tens of seconds, so a flaky mobile
-          // link is likely to drop mid-request; without the retry the whole
-          // refresh aborts. Only a network rejection retries — an HTTP error
-          // (4xx/5xx) is surfaced immediately so a real server problem isn't
-          // masked behind silent retries.
+          // Fetch one chunk, retrying transient failures before giving up. Cold
+          // price lookups take tens of seconds, so TWO classes of failure are
+          // expected and recoverable — and BOTH must retry or a whole refresh
+          // aborts on a blip:
+          //   - the fetch rejects: a dropped connection on a flaky mobile link,
+          //     the abort timeout, or (native only) the CapacitorHttp/OkHttp
+          //     layer reusing a pooled keep-alive socket the server already
+          //     half-closed;
+          //   - the response is a transient gateway/server status
+          //     (429/502/503/504): Fly cold-starting, mid-restart, or a redeploy,
+          //     or an upstream Scryfall 5xx forwarded through.
+          // The old code retried only the first and surfaced every HTTP error at
+          // once — so a boot-time refresh on native (fired the instant the app
+          // resumes, often against a still-cold backend) threw a bare 502 that
+          // the always-warm web app rarely hit. /api/import already retries these
+          // exact statuses; this brings price refresh in line. A non-transient
+          // 4xx still fails fast — retrying a bad body just fails again.
+          const sleep = (ms: number) =>
+            ms <= 0 ? Promise.resolve() : new Promise<void>((r) => setTimeout(r, ms));
           const fetchChunk = async (batch: string[]): Promise<FinishPrices> => {
-            let lastErr: unknown;
-            for (let attempt = 0; attempt < 3; attempt++) {
+            for (let attempt = 0; ; attempt++) {
               let res: Response;
               try {
-                res = await fetch(apiUrl('/api/refresh-prices'), {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ scryfallIds: batch }),
-                });
+                res = await fetchWithAbortTimeout(
+                  '/api/refresh-prices',
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scryfallIds: batch }),
+                  },
+                  PRICE_REQUEST_TIMEOUT_MS,
+                  'Price refresh timed out.'
+                );
               } catch (err) {
-                lastErr = err;
-                if (attempt < 2) {
-                  await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-                  continue;
-                }
+                if (attempt >= PRICE_RETRY_DELAYS_MS.length) throw err;
+                await sleep(PRICE_RETRY_DELAYS_MS[attempt]);
+                continue;
+              }
+              if (res.ok) return ((await res.json()) as { prices: FinishPrices }).prices;
+              const body = (await res.json().catch(() => ({}))) as { error?: string };
+              const err = new Error(body.error || `HTTP ${res.status}`);
+              if (
+                !PRICE_RETRYABLE_STATUS.has(res.status) ||
+                attempt >= PRICE_RETRY_DELAYS_MS.length
+              )
                 throw err;
-              }
-              if (!res.ok) {
-                const body = (await res.json().catch(() => ({}))) as { error?: string };
-                throw new Error(body.error || `HTTP ${res.status}`);
-              }
-              return ((await res.json()) as { prices: FinishPrices }).prices;
+              await sleep(PRICE_RETRY_DELAYS_MS[attempt]);
             }
-            throw lastErr;
           };
 
           // Accumulate across chunks for the final carry-over reconciliation, but
