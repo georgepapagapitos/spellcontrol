@@ -128,7 +128,8 @@
 .shared-view {
   max-width: 1200px;
   margin: 0 auto;
-  padding: var(--space-5) var(--space-4) var(--space-8);
+  padding: var(--space-5) calc(var(--space-4) + var(--safe-right)) var(--space-8)
+    calc(var(--space-4) + var(--safe-left));
   color: var(--text-primary);
   background: var(--bg);
   /* When wrapped in .shared-shell the shell itself is the scroll root (flex
@@ -448,8 +449,8 @@
 @media (max-width: 560px) {
   /* Tighter page gutter on small phones (parity with the app's narrowed gutter). */
   .shared-view {
-    padding-left: var(--space-3);
-    padding-right: var(--space-3);
+    padding-left: calc(var(--space-3) + var(--safe-left));
+    padding-right: calc(var(--space-3) + var(--safe-right));
   }
 
   .shared-table-scroll {

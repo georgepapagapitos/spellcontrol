@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -120,7 +121,11 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
         <p className="empty-state-tagline">Couldn't load game nights</p>
         <p className="empty-state-hint">{error}</p>
         <div className="empty-state-actions">
-          <button type="button" className="btn" onClick={() => void refresh()}>
+          <button
+            type="button"
+            className="btn game-nights-retry-btn"
+            onClick={() => void refresh()}
+          >
             Retry
           </button>
         </div>
@@ -836,8 +841,11 @@ function NightDialog({
 }) {
   const [title, setTitle] = useState(night?.title ?? '');
   const [whenInput, setWhenInput] = useState(night ? epochToInput(night.startsAt) : '');
-  const [pollMode, setPollMode] = useState(false);
-  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  // A 3-way single-select modeled as a radio group — "fixed date" (default),
+  // "vote on a date", or "repeat weekly" are mutually exclusive by construction.
+  const [dateMode, setDateMode] = useState<'fixed' | 'poll' | 'weekly'>('fixed');
+  const pollMode = dateMode === 'poll';
+  const repeatWeekly = dateMode === 'weekly';
   const [inviteOnly, setInviteOnly] = useState(night?.inviteOnly ?? false);
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
   const [format, setFormat] = useState(night?.format ?? '');
@@ -846,8 +854,11 @@ function NightDialog({
   const [placeOpen, setPlaceOpen] = useState(false);
   const [placeHighlight, setPlaceHighlight] = useState(0);
   const placeWrapRef = useRef<HTMLLabelElement>(null);
+  const placeListboxId = useId();
   const [notes, setNotes] = useState(night?.notes ?? '');
-  const [friends, setFriends] = useState<Friend[] | null>(null);
+  const [friendsFetch, setFriendsFetch] = useState<
+    { status: 'loading' } | { status: 'error' } | { status: 'ready'; friends: Friend[] }
+  >({ status: 'loading' });
   const [invited, setInvited] = useState<Set<string>>(new Set());
   // The dialog holds a snapshot of the night; removals/blocks are tracked
   // locally so the list updates in place while the parent list refreshes
@@ -865,9 +876,18 @@ function NightDialog({
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     listFriends()
-      .then(setFriends)
-      .catch(() => setFriends([])); // No friends list ≠ no dialog — link-sharing still works.
+      .then((friends) => {
+        if (!cancelled) setFriendsFetch({ status: 'ready', friends });
+      })
+      .catch(() => {
+        // No friends list ≠ no dialog — link-sharing still works.
+        if (!cancelled) setFriendsFetch({ status: 'error' });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Debounced place suggestions for the Where combobox. Best-effort only:
@@ -1132,30 +1152,36 @@ function NightDialog({
 
           {night === null && (
             <>
-              <label className="game-night-dialog-pollmode">
-                <input
-                  type="checkbox"
-                  checked={pollMode}
-                  onChange={(e) => {
-                    setPollMode(e.target.checked);
-                    // A weekly series steps from a set date; a poll decides one
-                    // night — the two don't combine.
-                    if (e.target.checked) setRepeatWeekly(false);
-                  }}
-                />
-                <span>Let attendees vote on the date</span>
-              </label>
-              <label className="game-night-dialog-pollmode">
-                <input
-                  type="checkbox"
-                  checked={repeatWeekly}
-                  onChange={(e) => {
-                    setRepeatWeekly(e.target.checked);
-                    if (e.target.checked) setPollMode(false);
-                  }}
-                />
-                <span>Repeat weekly</span>
-              </label>
+              <fieldset className="game-night-dialog-datemode">
+                <legend>Date</legend>
+                <label className="game-night-dialog-pollmode">
+                  <input
+                    type="radio"
+                    name="game-night-date-mode"
+                    checked={dateMode === 'fixed'}
+                    onChange={() => setDateMode('fixed')}
+                  />
+                  <span>Fixed date</span>
+                </label>
+                <label className="game-night-dialog-pollmode">
+                  <input
+                    type="radio"
+                    name="game-night-date-mode"
+                    checked={dateMode === 'poll'}
+                    onChange={() => setDateMode('poll')}
+                  />
+                  <span>Vote on a date</span>
+                </label>
+                <label className="game-night-dialog-pollmode">
+                  <input
+                    type="radio"
+                    name="game-night-date-mode"
+                    checked={dateMode === 'weekly'}
+                    onChange={() => setDateMode('weekly')}
+                  />
+                  <span>Repeat weekly</span>
+                </label>
+              </fieldset>
               {repeatWeekly && (
                 <p className="game-night-dialog-hint">
                   Same time every week. You'll get one stable link that always opens the next night
@@ -1250,9 +1276,16 @@ function NightDialog({
               role="combobox"
               aria-autocomplete="list"
               aria-expanded={placeOpen && placeOptions.length > 0}
+              aria-controls={placeListboxId}
+              aria-activedescendant={
+                placeOpen && placeOptions.length > 0
+                  ? `${placeListboxId}-option-${Math.min(placeHighlight, placeOptions.length - 1)}`
+                  : undefined
+              }
             />
             {placeOpen && placeOptions.length > 0 && (
               <ul
+                id={placeListboxId}
                 className="game-night-place-results"
                 role="listbox"
                 aria-label="Place suggestions"
@@ -1260,6 +1293,7 @@ function NightDialog({
                 {placeOptions.map((p, i) => (
                   <li
                     key={p}
+                    id={`${placeListboxId}-option-${i}`}
                     role="option"
                     aria-selected={i === placeHighlight}
                     className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
@@ -1391,15 +1425,20 @@ function NightDialog({
 
           <fieldset className="game-night-dialog-invites">
             <legend>Invite friends</legend>
-            {friends === null ? (
+            {friendsFetch.status === 'loading' ? (
               <p className="game-night-dialog-hint">Loading friends…</p>
-            ) : friends.length === 0 ? (
+            ) : friendsFetch.status === 'error' ? (
+              <p className="game-night-dialog-hint">
+                Couldn't load your friends list — share the link instead; it works without an
+                account.
+              </p>
+            ) : friendsFetch.friends.length === 0 ? (
               <p className="game-night-dialog-hint">
                 No friends yet — share the link instead; it works without an account.
               </p>
             ) : (
               <ul className="game-night-dialog-friend-list">
-                {friends.map((f) => {
+                {friendsFetch.friends.map((f) => {
                   const already = alreadyIn.has(f.username);
                   return (
                     <li key={f.id}>

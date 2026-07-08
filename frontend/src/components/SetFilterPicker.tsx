@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { SetMap } from '../lib/api';
 
 interface Props {
@@ -22,6 +22,7 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
   const [highlight, setHighlight] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listboxId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -147,6 +148,12 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
           aria-label="Filter by set"
           aria-autocomplete="list"
           aria-expanded={open}
+          aria-controls={listboxId}
+          aria-activedescendant={
+            open && matches.length > 0
+              ? `${listboxId}-option-${Math.min(highlight, matches.length - 1)}`
+              : undefined
+          }
           role="combobox"
         />
         {value.size > 0 && (
@@ -167,12 +174,13 @@ export function SetFilterPicker({ setMap, value, onChange }: Props) {
         )}
       </div>
       {open && matches.length > 0 && (
-        <ul className="set-filter-results" role="listbox">
+        <ul id={listboxId} className="set-filter-results" role="listbox">
           {matches.map((s, i) => {
             const year = (s.releasedAt || '').slice(0, 4);
             return (
               <li
                 key={s.code}
+                id={`${listboxId}-option-${i}`}
                 role="option"
                 aria-selected={i === highlight}
                 className={`set-filter-result${i === highlight ? ' is-highlight' : ''}`}

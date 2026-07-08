@@ -33,7 +33,14 @@ never what the app "is."
    none". Never oversell; admitting a limit builds trust. Convey sophistication
    by being **specific about what the feature does**, never with adjectives
    ("powerful", "advanced", "AI-powered", "seamless") — a literate audience
-   reads those as noise.
+   reads those as noise. **When a boolean gate (`canRsvp`, `canEdit`, …) can be
+   false for more than one reason, surface the real reason or fall back to a
+   reason-agnostic message — a wrong specific reason is worse than a vague
+   one.** A public game-night page once told every non-repliable viewer "ask
+   for an invite," even when the real reason was that the host had blocked
+   them; the fix checks which condition actually applies and only names
+   "invite-only" when that's true, otherwise says "You can't reply to this
+   game night."
 4. **Sentence case, no exclamation marks, no cutesy filler.** No "Oops!",
    "Awesome!", emoji, or marketing adjectives.
 5. **Use contractions** — "Couldn't add {card}", not "Could not add". They match
@@ -78,10 +85,11 @@ carry an aria-label qualified by the row's subject ("Moved it — Sol Ring") so
 screen-reader users can tell them apart.
 
 **Punctuation:** complete sentences end with a period; a trailing `…` means
-either "in progress" (loading) **or** an action/control that opens further
-input — a picker, dialog, or share sheet (the "Save As…" convention, e.g.
-"Move to another deck…", "Pick another card…"); never decorative. One em-dash
-max per string.
+either "in progress" (loading) **or** a **picker/selector action** — one that
+lets you choose an item from a list ("Move to another deck…", "Pick another
+card…", the "Save As…" convention); never decorative. It does **not** extend
+to general CRUD dialog openers — "Plan a game night", "Edit night", "New
+deck" open a form, not a picker, and stay bare. One em-dash max per string.
 
 **Canonical terms (use exactly):** _collection_ (your cards), _binder_ (a
 rule-defined group), _deck_, _power bracket_ (the 1–5 Commander tier — not
@@ -166,6 +174,22 @@ button is an \*\*accent-fill rect with a leading lucide icon at `width/height={1
 (`.synergy-picks-title`, `.engine-suggestion-group-label`, …) joins it; a plain
 sans-bold heading reads as off-family.
 
+## Icon scale
+
+App-wide `lucide-react` usage has ranged 11–18px / 1.6–3 stroke width with no
+stated rule. These are the **defaults for new usage** — not a retrofit
+obligation on existing icons:
+
+| Context                                                           | Size | Stroke |
+| ----------------------------------------------------------------- | ---- | ------ |
+| Inline-with-text (leading glyph beside a label/word)              | 14px | 1.8    |
+| Standalone trigger (a tappable icon-only or icon+chevron control) | 16px | 2      |
+| Hero-adjacent (next to a page-hero heading/CTA)                   | 18px | 2      |
+
+Pick by the icon's role, not the surface it happens to sit on — a leading
+icon inside a button label is "inline-with-text" even if the button itself is
+a hero CTA.
+
 ## Tabs / view switchers
 
 - Page-level "distinct views" switcher → the `underline` variant of
@@ -244,6 +268,17 @@ at 320px. If it can't shrink, it must wrap or collapse.
      menu trigger** (`trigger` prop on `OverflowMenu`, e.g. "Add to calendar ▾"
      with a chevron), never one button per destination.
 
+**Multi-destination exports are one labelled menu trigger — everywhere, not
+just card action rows.** The rule above is stated in the card-row context
+where it was first settled, but it's binding on **any** surface offering
+multiple destinations for the same export/share action. The public
+`/gn/:token` game-night page originally rendered "Google Calendar" and
+"Download .ics" as two side-by-side `<a>`/`<button>` elements outside any
+card — same anti-pattern, different surface. Fixed to reuse the identical
+`OverflowMenu` "Add to calendar ▾" pattern from the authed card
+(`GameNights.tsx`). Check for this on every new export/share surface, not
+just card footers.
+
 Verify all three at the **320px floor** in the Responsive section — that's where
 the clip shows up first.
 
@@ -312,6 +347,9 @@ it rides the existing trailing auto-margins — don't add a competing
 
 ## Overlays
 
+- **Multi-destination exports/shares are one labelled menu trigger**, never
+  one button per destination — see § Toolbars & action rows → Card action
+  rows for the full rule. It's binding on any surface, not just card footers.
 - On-demand panels that shouldn't live inline (Add cards, Test hand) use the
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
@@ -737,7 +775,12 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
 - **44px touch targets** on coarse pointers for anything tappable. The
   mechanism is an explicit `@media (pointer: coarse) { .my-btn { min-height: 44px } }`
   block, separate from the resting style — a button's desktop-density height
-  (~2rem) cannot be assumed to meet the floor. For a small ✕/clear button inside
+  (~2rem) cannot be assumed to meet the floor. **`.btn`/`.pill-btn` are NOT
+  44px by default** — the shared base classes render at desktop density
+  (`padding: 6px 14px`, no explicit height); every new usage on a touch
+  surface needs its own coarse-pointer `min-height: 44px` block, scoped to
+  the container/selector that identifies it (don't assume a sibling rule
+  already covers it). For a small ✕/clear button inside
   a chip where growing it would distort the chip, expand the hit area with a
   centered `::after` ghost (`position: absolute; width/height: 44px;
 transform: translate(-50%, -50%)` on a `position: relative` parent) rather
@@ -803,7 +846,26 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   `role="listbox"`.** Radio inputs provide selection state, arrow-key navigation,
   and group semantics natively, with no ARIA ownership model to maintain. A
   `role="listbox"` whose options are wrapped in `<li>`s breaks the
-  owned-elements chain per the ARIA spec.
+  owned-elements chain per the ARIA spec. **This extends to two-plus
+  checkboxes made mutually exclusive by hand** — an `onChange` that unchecks
+  its sibling(s) IS a single-select, however it's coded; model it as radios,
+  not independent checkboxes with imperative uncheck logic. A screen reader
+  can't infer exclusivity from checkbox semantics, so the checkbox version
+  announces "checkbox, not checked" for options the user can't actually
+  co-select. (Settled fixing the game-night create dialog's poll-mode /
+  repeat-weekly pair, which was two checkboxes standing in for a 3-way
+  fixed/poll/weekly choice.)
+- **Every `role="combobox"` wires the full ARIA set**: `aria-expanded` +
+  `aria-controls` (pointing at the listbox element's `id`) +
+  `aria-activedescendant` (naming the currently-highlighted option's `id`,
+  driven by the same highlight-index state that drives arrow-key nav) +
+  stable per-option `id`s on the listbox children. `aria-autocomplete="list"`
+  alone is not enough — without `aria-activedescendant` a screen-reader user
+  gets no announcement of which option arrow keys have highlighted. Reference
+  implementations: `SetFilterPicker.tsx` and the game-night dialog's Where
+  field (`GameNights.tsx`) — both retrofitted from partial ARIA
+  (`role`/`aria-expanded`/`aria-autocomplete` only) to the full set with no
+  behavior change for mouse/sighted users.
 - **44px touch targets** — see § Responsive for the `@media (pointer: coarse)`
   mechanism.
 
