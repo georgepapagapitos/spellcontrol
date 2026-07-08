@@ -124,6 +124,19 @@
   gap: var(--space-2);
 }
 
+.game-night-cal-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* The OverflowMenu trigger rests at desktop density — floor it on touch. */
+@media (pointer: coarse) {
+  .game-night-calendar-btns .btn {
+    min-height: 44px;
+  }
+}
+
 .game-night-attendee-group + .game-night-attendee-group {
   margin-top: var(--space-4);
 }

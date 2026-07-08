@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { CalendarPlus, ChevronDown } from 'lucide-react';
 import {
   fetchPublicGameNight,
   GameNightNotFoundError,
@@ -18,6 +19,7 @@ import { useAuth } from '../store/auth';
 import { SharedShell } from '../components/shared/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NightPoll } from '../components/NightPoll';
+import { OverflowMenu } from '../components/OverflowMenu';
 import './GameNightView.css';
 
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
@@ -303,12 +305,17 @@ function NightBody({
       </dl>
 
       {!cancelled && !canRsvp && (
-        <section className="game-night-reply" aria-label="Invite only">
+        <section
+          className="game-night-reply"
+          aria-label={night.inviteOnly ? 'Invite only' : "Can't reply"}
+        >
           <h2 className="game-night-section-title">
             {polling ? 'Which times can you make?' : 'Can you make it?'}
           </h2>
           <p className="game-night-invite-only-note" role="status">
-            This night is invite-only — ask {night.hostUsername} for an invite to reply.
+            {night.inviteOnly
+              ? `This night is invite-only — ask ${night.hostUsername} for an invite to reply.`
+              : "You can't reply to this game night."}
           </p>
           {polling && <NightPoll options={options} />}
         </section>
@@ -372,23 +379,30 @@ function NightBody({
         <section className="game-night-calendar" aria-label="Add to calendar">
           <h2 className="game-night-section-title">Add it to your calendar</h2>
           <div className="game-night-calendar-btns">
-            <a
-              className="btn"
-              href={googleCalendarUrl(calendarEvent)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Google Calendar
-            </a>
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                downloadIcs(calendarEvent, `${token}@spellcontrol.com`, 'game-night.ics')
+            <OverflowMenu
+              ariaLabel="Add this game night to your calendar"
+              triggerClassName="btn game-night-cal-trigger"
+              align="left"
+              trigger={
+                <>
+                  <CalendarPlus width={15} height={15} strokeWidth={1.7} aria-hidden />
+                  Add to calendar
+                  <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+                </>
               }
-            >
-              Download .ics
-            </button>
+              items={[
+                {
+                  label: 'Google Calendar',
+                  onClick: () =>
+                    window.open(googleCalendarUrl(calendarEvent), '_blank', 'noopener'),
+                },
+                {
+                  label: 'Apple / Outlook (.ics)',
+                  onClick: () =>
+                    downloadIcs(calendarEvent, `${token}@spellcontrol.com`, 'game-night.ics'),
+                },
+              ]}
+            />
           </div>
         </section>
       )}
