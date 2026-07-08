@@ -95,5 +95,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- WebView geolocation (game-night Where suggestions). FINE must be
+         declared for the WebView to deliver a position at all; on Android 12+
+         the user can still grant only "approximate", which is all we use. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
 </manifest>
