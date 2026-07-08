@@ -312,6 +312,8 @@ export async function ensureSchema(): Promise<void> {
     -- One occurrence per series slot — makes lazy materialization race-safe.
     CREATE UNIQUE INDEX IF NOT EXISTS game_nights_series_slot_idx
       ON game_nights(series_id, starts_at) WHERE series_id IS NOT NULL;
+    -- Invite-only nights: the link shows details, only invitees can reply.
+    ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS invite_only BOOLEAN NOT NULL DEFAULT FALSE;
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
