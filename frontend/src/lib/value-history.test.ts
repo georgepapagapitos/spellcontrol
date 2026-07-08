@@ -4,6 +4,7 @@ import {
   clearValueHistory,
   computeValueDelta,
   dayKey,
+  formatDayKey,
   getValueHistory,
   recordValueSnapshot,
   type ValuePoint,
@@ -27,6 +28,12 @@ describe('dayKey', () => {
   it('formats a local-calendar day with zero padding', () => {
     expect(dayKey(new Date(2026, 0, 5, 12).getTime())).toBe('2026-01-05');
     expect(dayKey(new Date(2026, 10, 23, 12).getTime())).toBe('2026-11-23');
+  });
+});
+
+describe('formatDayKey', () => {
+  it('renders a short human date', () => {
+    expect(formatDayKey('2026-06-30')).toBe('Jun 30');
   });
 });
 

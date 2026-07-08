@@ -67,6 +67,14 @@ export function daysBetween(a: string, b: string): number {
   return Math.round((parse(b) - parse(a)) / 86400000);
 }
 
+/** Human-short form of a day key — `2026-06-30` → `Jun 30`. */
+export function formatDayKey(day: string): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
+    new Date(y, m - 1, d)
+  );
+}
+
 /**
  * Upsert today's point (last write per day wins) and trim the log to the
  * newest MAX_POINTS. `at` is injectable for tests.

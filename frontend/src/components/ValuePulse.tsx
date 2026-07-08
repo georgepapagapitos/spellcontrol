@@ -4,6 +4,7 @@ import {
   computeValueDelta,
   dayKey,
   daysBetween,
+  formatDayKey,
   getValueHistory,
   type ValuePoint,
 } from '../lib/value-history';
@@ -26,13 +27,6 @@ function sparkGeometry(points: ValuePoint[]): { line: string; endX: number; endY
   });
   const last = coords[coords.length - 1];
   return { line: coords.map(([x, y]) => `${x},${y}`).join(' '), endX: last[0], endY: last[1] };
-}
-
-function formatDayShort(day: string): string {
-  const [y, m, d] = day.split('-').map(Number);
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(
-    new Date(y, m - 1, d)
-  );
 }
 
 /**
@@ -72,7 +66,7 @@ export function ValuePulse({ refreshing }: { refreshing: boolean }) {
   // stale log names the baseline date instead of implying a weekly read.
   const isCurrent = daysBetween(delta.latestDay, data.today) <= 2;
   const period =
-    isCurrent && delta.spanDays <= 8 ? 'this week' : `since ${formatDayShort(delta.baselineDay)}`;
+    isCurrent && delta.spanDays <= 8 ? 'this week' : `since ${formatDayKey(delta.baselineDay)}`;
   const text =
     amount === 0
       ? `Steady ${period}`
