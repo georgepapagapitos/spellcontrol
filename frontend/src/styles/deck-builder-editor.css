@@ -81,6 +81,10 @@
     height: 100%;
     object-fit: cover;
     object-position: center 25%;
+    /* Slightly below full strength so an ellipsized long title crossing the
+       art zone keeps AA contrast in both themes (the fade below does the
+       heavy lifting; this caps the worst-case bright-art tail). */
+    opacity: 0.9;
   }
 
   .deck-editor-hero-art-fade {
@@ -89,7 +93,8 @@
     background: linear-gradient(
       to right,
       var(--bg) 0%,
-      color-mix(in srgb, var(--bg) 45%, transparent) 45%,
+      color-mix(in srgb, var(--bg) 60%, transparent) 50%,
+      color-mix(in srgb, var(--bg) 25%, transparent) 78%,
       transparent 100%
     );
   }
