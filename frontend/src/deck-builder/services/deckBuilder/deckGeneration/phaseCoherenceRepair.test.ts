@@ -541,6 +541,64 @@ describe('applyCoherenceRepair', () => {
     expect(JSON.stringify(state.categories)).toBe(before);
   });
 
+  // E128 (E122/E123 follow-up, pick/cut symmetry): weakestCut's inclusion
+  // score must weigh ownership the SAME way cardPicking.ts's
+  // priorityWithBoosts does at pick time, or an owned card that only made
+  // the pick-time cut because of that boost gets evicted right back out by
+  // this repair pass.
+  describe('E128: owned-preference symmetry in weakestCut (win-condition floor swap)', () => {
+    function twoCandidateState(): GenerationState {
+      const state = makeState();
+      state.categories.synergy = [scryfallCard('GenericOwned'), scryfallCard('GenericUnowned')];
+      state.usedNames = new Set(['GenericOwned', 'GenericUnowned']);
+      state.edhrecData!.cardlists.allNonLand = [
+        // Owned card has the LOWER raw inclusion (15) by less than
+        // OWNED_PRIORITY_BOOST=40 — a near-tie the boost should flip.
+        edhrecCard('GenericOwned', 15),
+        edhrecCard('GenericUnowned', 20),
+        edhrecCard('Grand Finale', 90),
+      ];
+      return state;
+    }
+
+    it('cuts the unowned card instead of the raw-lowest-inclusion owned one under prefer', async () => {
+      const state = twoCandidateState();
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['GenericOwned']);
+      const map = defaultScryfallMap(state);
+      map.set('Grand Finale', finisher());
+
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { scryfallCardMap: map })
+      );
+
+      expect(repairs).toHaveLength(1);
+      expect(repairs[0].added).toBe('Grand Finale');
+      expect(repairs[0].cut).toBe('GenericUnowned'); // shielded: GenericOwned survives
+      expect(deckNames(state)).toContain('GenericOwned');
+      expect(deckNames(state)).not.toContain('GenericUnowned');
+    });
+
+    it('no-collection / strategy off: cuts the raw-lowest-inclusion card as before (byte-identical)', async () => {
+      const state = twoCandidateState();
+      // collectionStrategy stays 'full' (makeState default) and no
+      // collectionNames is set — strategy='prefer' is required for any
+      // boost, so this must cut the raw-lowest-inclusion card exactly as it
+      // did before this PR.
+      const map = defaultScryfallMap(state);
+      map.set('Grand Finale', finisher());
+
+      const { repairs } = await applyCoherenceRepair(
+        state,
+        makeCtx(state, { scryfallCardMap: map })
+      );
+
+      expect(repairs).toHaveLength(1);
+      expect(repairs[0].cut).toBe('GenericOwned');
+    });
+  });
+
   // ── Answer-coverage holes (E79) ──
   // Real oracle texts on purpose: classifyAnswer works on positive evidence
   // only, so a textless map entry must never satisfy the predicate.

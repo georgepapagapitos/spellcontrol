@@ -16,7 +16,12 @@ import {
   exceedsMaxPrice,
   isOwnedBudgetExempt,
 } from '../deckFilters';
-import { calculateCardPriority } from '../cardPicking';
+import {
+  calculateCardPriority,
+  isHighSynergyCard,
+  OWNED_PRIORITY_BOOST,
+  OWNED_PRIORITY_BOOST_THEME_TIER,
+} from '../cardPicking';
 import type { BudgetTracker } from '../budgetTracker';
 import {
   estimateBracket,
@@ -133,6 +138,21 @@ export function applyBracketConvergence(
   const { commander, partnerCommander } = state.context;
   const ownedOnly = constrainsToCollection(state.cfg.collectionStrategy);
   const collectionNames = state.context.collectionNames;
+  // E128 (E122/E123 follow-up, pick/cut symmetry): priorityFor below ranks
+  // pickCut's UP-convergence eviction with ZERO ownership term, the same gap
+  // phaseRoleSurplusRebalance.ts / phaseLandSqueezeReconcile.ts already
+  // closed for their own eviction scoring — an owned card that only made the
+  // pick-time cut via cardPicking.ts's priorityWithBoosts owned boost looked
+  // like the weakest candidate here and got evicted right back out. Reuses
+  // the exact cardPicking.ts constants (no new tunables) and mirrors the
+  // donor gating verbatim, so no-collection/'full' generation is unchanged.
+  const preferOwned = state.cfg.collectionStrategy === 'prefer';
+  const ownedBoostFor = (name: string, isThemeTier: boolean): number =>
+    preferOwned && collectionNames?.has(name)
+      ? isThemeTier
+        ? OWNED_PRIORITY_BOOST_THEME_TIER
+        : OWNED_PRIORITY_BOOST
+      : 0;
 
   // Commander names are always in the deck for estimation but never cuttable.
   const commanderNames: string[] = [];
@@ -308,7 +328,8 @@ export function applyBracketConvergence(
   for (const c of pool) priorityByName.set(c.name, c);
   const priorityFor = (name: string): number => {
     const pooled = priorityByName.get(name);
-    return pooled ? calculateCardPriority(pooled) : (inclusionMap[name] ?? 0);
+    const base = pooled ? calculateCardPriority(pooled) : (inclusionMap[name] ?? 0);
+    return base + ownedBoostFor(name, !!pooled && isHighSynergyCard(pooled));
   };
 
   // A card is "floor-safe" to cut only if its role (if tracked) is currently
