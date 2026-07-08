@@ -280,6 +280,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       PRIMARY KEY (night_id, user_id)
     );
     CREATE INDEX game_night_blocks_user_idx ON game_night_blocks(user_id);
+    ALTER TABLE game_nights ADD COLUMN format TEXT;
     CREATE TABLE friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       addressee_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

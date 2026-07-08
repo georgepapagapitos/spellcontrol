@@ -325,6 +325,8 @@ export async function ensureSchema(): Promise<void> {
       PRIMARY KEY (night_id, user_id)
     );
     CREATE INDEX IF NOT EXISTS game_night_blocks_user_idx ON game_night_blocks(user_id);
+    -- Optional play format (e.g. 'commander'); powers the "Start game" seed.
+    ALTER TABLE game_nights ADD COLUMN IF NOT EXISTS format TEXT;
 
     CREATE TABLE IF NOT EXISTS friendships (
       requester_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -288,6 +288,9 @@ export const gameNights = pgTable(
     /** Invite-only: the link shows the night, but only people already in
      *  (host, invited friends, existing RSVP credential) can reply. */
     inviteOnly: boolean('invite_only').notNull().default(false),
+    /** Optional play format (e.g. 'commander'); NULL = undecided. Powers the
+     *  host's "Start game" action, which seeds the Play tab's local setup. */
+    format: text('format'),
   },
   (t) => ({
     hostIdx: index('game_nights_host_idx').on(t.hostUserId),
