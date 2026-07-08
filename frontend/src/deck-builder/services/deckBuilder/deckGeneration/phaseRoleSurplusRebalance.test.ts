@@ -25,6 +25,10 @@ const EMPTY_WIPE_SCOPE: MockWipeScope = {
   all: false,
 };
 const WIPE_SCOPE_OF = new Map<string, MockWipeScope>();
+// E113 follow-up (donor-defect fixes): same deterministic-mock shape —
+// individual tests mark which names are free-interaction pieces (Fierce
+// Guardianship/Commandeer-class), rather than depending on real oracle text.
+const FREE_INTERACTION_NAMES = new Set<string>();
 vi.mock('@/deck-builder/services/tagger/client', () => ({
   getCardRole: vi.fn((name: string) => ROLE_OF.get(name) ?? null),
   validateCardRole: vi.fn((card: { name: string }) => ROLE_OF.get(card.name) ?? null),
@@ -38,6 +42,7 @@ vi.mock('@/deck-builder/services/tagger/client', () => ({
   isProtectionPiece: vi.fn(() => false),
   isOneSidedWipe: vi.fn((card: { name: string }) => ONE_SIDED_WIPE_NAMES.has(card.name)),
   getWipeScope: vi.fn((card: { name: string }) => WIPE_SCOPE_OF.get(card.name) ?? EMPTY_WIPE_SCOPE),
+  isFreeInteraction: vi.fn((card: { name: string }) => FREE_INTERACTION_NAMES.has(card.name)),
 }));
 
 vi.mock('../categorize', async (importOriginal) => {
@@ -229,6 +234,7 @@ describe('applyRoleSurplusRebalance', () => {
     NONBO_FLAGGED.clear();
     ONE_SIDED_WIPE_NAMES.clear();
     WIPE_SCOPE_OF.clear();
+    FREE_INTERACTION_NAMES.clear();
   });
 
   it('is a no-op when no role target is set', () => {
@@ -1078,6 +1084,228 @@ describe('applyRoleSurplusRebalance', () => {
 
       expect(result.conversions).toEqual([]);
       expect(state.categories.synergy).toBe(before);
+    });
+  });
+
+  // E113 follow-up (iter-19): (a) board-centric decks (isBoardCentricPlan)
+  // still shipped target+1 wipes because BOARDWIPE_SURPLUS_TOLERANCE was
+  // global; scoping it to 0 for a board-centric plan closes that residual.
+  // (b) nothing upstream of this pass ever ADDS a card to close a boardwipe
+  // deficit (meren-base 0 vs target 1, ur-dragon 1 vs 3) — Phase 3 backfills
+  // it through the same quality-aware machinery every other boardwipe pick
+  // in this pass uses.
+  describe('E113 follow-up: board-centric tol-0 + boardwipe deficit backfill', () => {
+    function addWipeCards(state: GenerationState, count: number, prefix = 'Wipe'): ScryfallCard[] {
+      const cards = Array.from({ length: count }, (_, i) => scryfallCard(`${prefix}_${i + 1}`));
+      for (const c of cards) {
+        ROLE_OF.set(c.name, 'boardwipe');
+        state.usedNames.add(c.name);
+      }
+      state.categories.synergy.push(...cards);
+      return cards;
+    }
+
+    it('trims a board-centric target+1 pile down to exactly target (tol scoped to 0)', () => {
+      const state = makeState();
+      addWipeCards(state, 2); // target 1, board-centric cap 1 (tol 0) -> 1 over
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Wipe Payoff', 90)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: true })
+      );
+
+      expect(result.conversions).toHaveLength(1);
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      expect(remainingWipes).toHaveLength(1); // exactly target, not target+1
+    });
+
+    it('leaves the identical target+1 pile alone when the plan is NOT board-centric (global tol-1 unaffected)', () => {
+      const state = makeState();
+      addWipeCards(state, 2); // target 1, generic cap 2 (tol 1) -> not over
+      const before = state.categories.synergy;
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: false })
+      );
+
+      expect(result.conversions).toEqual([]);
+      expect(state.categories.synergy).toBe(before);
+    });
+
+    it('never trims a board-centric deck below its own wipe target on a bigger overshoot', () => {
+      const state = makeState();
+      addWipeCards(state, 4); // target 1, board-centric cap 1 (tol 0) -> 3 over
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Wipe Payoff 1', 90),
+            edhrecCard('Wipe Payoff 2', 85),
+            edhrecCard('Wipe Payoff 3', 80),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: true })
+      );
+
+      expect(result.conversions).toHaveLength(3); // 4 -> 1, three evictions
+      const remainingWipes = state.categories.synergy.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      expect(remainingWipes.length).toBeGreaterThanOrEqual(1); // never below target
+      expect(remainingWipes).toHaveLength(1); // trims all the way to target, not past it
+    });
+
+    it('is a no-op on a board-centric deck already exactly at target', () => {
+      const state = makeState();
+      addWipeCards(state, 1); // exactly at target
+      const before = state.categories.synergy;
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(
+        state,
+        makeCtx(state, { roleTargets, isBoardCentricPlan: true })
+      );
+
+      expect(result.conversions).toEqual([]);
+      expect(state.categories.synergy).toBe(before);
+    });
+
+    it('backfills a boardwipe deficit, preferring the one-sided/low-collateral candidate over a symmetric one', () => {
+      const state = makeState();
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      ONE_SIDED_WIPE_NAMES.clear();
+      ROLE_OF.set('One-Sided Wipe', 'boardwipe');
+      ROLE_OF.set('Symmetric Wipe', 'boardwipe');
+      ONE_SIDED_WIPE_NAMES.add('One-Sided Wipe');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            // Higher raw EDHREC priority, but symmetric — must lose to the
+            // one-sided candidate through wipeQualityPenalty, never raw
+            // inclusion.
+            edhrecCard('Symmetric Wipe', 90),
+            edhrecCard('One-Sided Wipe', 60),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('One-Sided Wipe');
+      expect(result.conversions[0].cut).toBe('Filler A');
+      expect(state.usedNames.has('One-Sided Wipe')).toBe(true);
+      expect(state.usedNames.has('Filler A')).toBe(false);
+    });
+
+    it('does not backfill past target, and is a no-op when boardwipe is already at target', () => {
+      const state = makeState();
+      addWipeCards(state, 1); // already at target
+      const before = state.categories.synergy;
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toEqual([]);
+      expect(state.categories.synergy).toBe(before);
+    });
+
+    it('never opens a new deficit while closing a boardwipe one — skips a donor whose own role is exactly at its target', () => {
+      const state = makeState();
+      // Ramp is exactly at its own target (5) — evicting it would open a new
+      // ramp deficit, so it must be skipped in favor of the roleless filler.
+      addRampCards(state, 5);
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Wipe Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      const roleTargets = { ramp: 5, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Filler A');
+      // Every ramp card survives — donating one would have dropped ramp
+      // below its own target.
+      const remainingRamp = state.categories.synergy.filter((c) => ROLE_OF.get(c.name) === 'ramp');
+      expect(remainingRamp).toHaveLength(5);
+    });
+
+    // Donor-defect fix 3 (orchestrator diff-review): isProtectionPiece()
+    // deliberately returns false for a free-interaction piece (#1037's
+    // overlap exclusion), so a Fierce Guardianship/Commandeer-class roleless
+    // card was protected by nothing in the donor pool and — on raw priority
+    // alone — the cheapest candidate to cut.
+    it('never chooses a free-interaction filler as the boardwipe-deficit donor, even when it scores lowest', () => {
+      const state = makeState();
+      const freeInteraction = scryfallCard('Fierce Guardianship');
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Fierce Guardianship');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(freeInteraction, filler);
+      FREE_INTERACTION_NAMES.add('Fierce Guardianship');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Fierce Guardianship', 5), // lowest priority — would be
+            // the eviction target without the isFreeInteraction guard.
+            edhrecCard('Filler A', 80),
+            edhrecCard('Wipe Candidate', 70),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Filler A');
+      expect(state.usedNames.has('Fierce Guardianship')).toBe(true);
+    });
+
+    // Donor-defect fix 2 (orchestrator diff-review, this wave's own E128 bug
+    // class): the donor sort is a brand-new eviction ranking — without its
+    // own ownedBoostFor term, an owned filler that only won its pick-time
+    // slot via cardPicking.ts's owned boost reads as the worst donor and gets
+    // silently evicted, undoing collectionStrategy='prefer'. Mirrors the
+    // E122 "keeps an owned near-tie incumbent" test's magnitudes exactly.
+    it('never evicts an owned near-tie filler as the boardwipe-deficit donor (ownedBoostFor symmetry)', () => {
+      const state = makeState();
+      const ownedFiller = scryfallCard('Owned Filler');
+      const plainFiller = scryfallCard('Plain Filler');
+      state.usedNames.add('Owned Filler');
+      state.usedNames.add('Plain Filler');
+      state.categories.utility.push(ownedFiller, plainFiller);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Owned Filler', 15), // worst on raw priority alone —
+            // boosted to 15 + OWNED_PRIORITY_BOOST(40) = 55 once owned.
+            edhrecCard('Plain Filler', 20),
+            edhrecCard('Wipe Candidate', 70),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      ROLE_OF.set('Wipe Candidate', 'boardwipe');
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['Owned Filler']);
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].cut).toBe('Plain Filler');
+      expect(state.usedNames.has('Owned Filler')).toBe(true);
     });
   });
 

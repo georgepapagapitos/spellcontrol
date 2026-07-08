@@ -10,6 +10,7 @@ import {
   getCardRole,
   isProtectionPiece,
   isOneSidedWipe,
+  isFreeInteraction,
   getWipeScope,
   type RoleKey,
 } from '@/deck-builder/services/tagger/client';
@@ -103,6 +104,15 @@ import {
 // falls back to its role's average inclusion instead of 0, so a
 // pool-omitted premium staple isn't guaranteed to look like the worst card
 // in its role.
+//
+// E113 follow-up (iter-19): this pass also runs a THIRD, direction-reversed
+// phase — boardwipe deficit backfill (baseline decks routinely ship FEWER
+// wipes than their own roleTargets.boardwipe; nothing else in generation ever
+// adds a card to close a role deficit, every other phase only protects an
+// at/under-target role from being cut further). Donates one non-wipe,
+// non-protected filler slot (never one whose own role would drop under ITS
+// target) for the best quality-gated wipe candidate the pool offers, ranked
+// by the same wipeQualityPenalty machinery as everything else here.
 
 // Total conversions this pass may apply per deck. Precedent: MAX_AUDIT_SWAPS
 // = 4 (deckGenerator.ts's Combo Integrity Audit), MAX_COHERENCE_SWAPS = 3
@@ -147,6 +157,21 @@ const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
 // low-inclusion wipes actually get picked for this pass to choose among;
 // rationing them at pick time cuts by raw priority and drops exactly the wipe
 // we want to protect.
+//
+// E113 follow-up (iter-19): a board-centric plan (isBoardCentricPlan — TOKENS/
+// TRIBAL/ARISTOCRATS/AGGRO/creature-dense/extra-combat) still ships target+1
+// symmetric-ish wipes today because this tolerance is global. Scoping it to 0
+// for a board-centric deck's `capOf('boardwipe')` closes that residual — but
+// the iter-15 r3 regression above happened under a GLOBAL tol-0 experiment,
+// so re-litigating "does 0 ever trim below target" matters here too. It
+// can't, by construction: `tryOneConversion`'s `beforeCount - 1 < roleTarget
+// -> continue` guard (below) refuses any eviction that would drop a role
+// under its OWN target regardless of what the cap says, and `isOverCap` only
+// admits roles strictly ABOVE cap, so cap == target (tol 0) still never
+// queues an eviction from an AT-target deck — the guard is redundant defense,
+// not the only thing standing between this and r3. See
+// 'never trims a board-centric deck below its own wipe target' below for the
+// pinned regression test.
 const BOARDWIPE_SURPLUS_TOLERANCE = 1;
 
 const ROLE_LABEL: Record<RoleKey, string> = {
@@ -195,6 +220,13 @@ export interface RoleSurplusRebalanceContext {
    *  (the collateral term drops out; the symmetric-vs-one-sided tier still
    *  applies). */
   deckTypeTargets?: Record<string, number>;
+  /** E113 follow-up: deckGenerator.ts's `isBoardCentricPlan(detectedArchetype,
+   *  typeTargets, commanderWantsExtraCombat)` result, already computed once
+   *  (it's `preferAsymmetricWipes`) and reused here rather than recomputed
+   *  with different inputs. Tightens the boardwipe surplus tolerance to 0 for
+   *  a board-centric plan (see BOARDWIPE_SURPLUS_TOLERANCE doc) — undefined/
+   *  false is the pre-existing global tolerance-1 behavior. */
+  isBoardCentricPlan?: boolean;
 }
 
 export interface RoleSurplusRebalanceResult {
@@ -248,6 +280,33 @@ function buildConversionReason(params: {
   return `${contextClause}${nonboClause}. ${addedClause}`;
 }
 
+// E113 follow-up (half b): the deficit-direction counterpart to
+// buildConversionReason's "over cap" wording — Phase 3 backfills a boardwipe
+// deficit, not a surplus, so the disclosure must say so honestly rather than
+// reusing the "over cap" phrasing.
+function buildBackfillReason(params: {
+  haveBefore: number;
+  target: number;
+  cutName: string;
+  addedName: string;
+  liftedBy?: string[];
+  cutPrice: number;
+  addedPrice: number;
+  currency: 'USD' | 'EUR';
+}): string {
+  const sym = params.currency === 'EUR' ? '€' : '$';
+  const priceClause =
+    params.addedPrice - params.cutPrice > DISCLOSE_PRICE_DELTA
+      ? ` (+${sym}${(params.addedPrice - params.cutPrice).toFixed(2)})`
+      : '';
+  const addedClause =
+    params.liftedBy && params.liftedBy.length > 0
+      ? `Added ${params.addedName}${priceClause}, lifted by ${params.liftedBy.slice(0, 3).join(', ')}.`
+      : `Added ${params.addedName}${priceClause} to close the gap.`;
+  const deficitClause = `Board wipe was running ${params.haveBefore} vs a ${params.target} target — under target. Freed a slot from ${params.cutName}. ${addedClause}`;
+  return deficitClause;
+}
+
 /**
  * Bounded, disclosed post-fill pass: evicts the worst of any reactive role's
  * over-cap surplus and converts each slot into the best gated payoff
@@ -284,6 +343,15 @@ export function applyRoleSurplusRebalance(
       );
     }
   }
+  // Same E81 `?? 0` fix, for Phase 3's ROLELESS donor candidates (a roleless
+  // card has no REACTIVE_ROLES bucket to average) — mirrors
+  // phaseLandSqueezeReconcile.ts's deckAveragePriority verbatim: neutral
+  // average priority over the whole pool, not the single worst-possible value
+  // a pool-absent-but-not-actually-weak card (a combo-audit/coherence-repair/
+  // flagship add, or anything a bracket-restricted pool omitted) would
+  // otherwise be punished with.
+  const deckAveragePriority =
+    pool.length > 0 ? pool.reduce((sum, c) => sum + calculateCardPriority(c), 0) / pool.length : 0;
 
   const { commander, partnerCommander } = state.context;
   const commanders = [commander, partnerCommander].filter((c): c is ScryfallCard => c != null);
@@ -319,15 +387,26 @@ export function applyRoleSurplusRebalance(
 
   const capOf = (role: RoleKey): number => {
     const target = roleTargets[role] ?? 0;
-    return role === 'boardwipe'
-      ? target + BOARDWIPE_SURPLUS_TOLERANCE
-      : target + roleCapTolerance(target);
+    if (role === 'boardwipe') {
+      const tolerance = ctx.isBoardCentricPlan ? 0 : BOARDWIPE_SURPLUS_TOLERANCE;
+      return target + tolerance;
+    }
+    return target + roleCapTolerance(target);
   };
   const isOverCap = (role: RoleKey): boolean => {
     const target = roleTargets[role] ?? 0;
     return target > 0 && (liveRoleCounts[role] ?? 0) > capOf(role);
   };
-  if (!REACTIVE_ROLES.some(isOverCap)) return { conversions };
+  // E113 follow-up (half b): a boardwipe DEFICIT is not a cap condition, so it
+  // can't gate through isOverCap — but it still has to keep this pass from
+  // no-op-returning below when nothing is over cap and the only work to do is
+  // Phase 3's backfill (see that phase for why nothing upstream of this pass
+  // ever closes a role deficit on its own).
+  const boardwipeDeficit = Math.max(
+    0,
+    (roleTargets.boardwipe ?? 0) - (liveRoleCounts.boardwipe ?? 0)
+  );
+  if (!REACTIVE_ROLES.some(isOverCap) && boardwipeDeficit === 0) return { conversions };
 
   const completeComboNames = new Set<string>();
   for (const combo of ctx.detectedCombos ?? []) {
@@ -378,11 +457,13 @@ export function applyRoleSurplusRebalance(
       ? [...nonLands(), ...state.categories.lands].reduce((sum, c) => sum + priceOf(c), 0)
       : 0;
 
-  const removeCard = (card: ScryfallCard, category: DeckCategory, role: RoleKey) => {
+  const removeCard = (card: ScryfallCard, category: DeckCategory, role?: RoleKey) => {
     state.categories[category] = state.categories[category].filter((c) => c !== card);
     state.usedNames.delete(card.name);
     if (card.name.includes(' // ')) state.usedNames.delete(frontFaceName(card.name));
-    liveRoleCounts[role] = Math.max(0, (liveRoleCounts[role] ?? 0) - 1);
+    // role is undefined for a roleless filler donor (Phase 3 backfill) — no
+    // role count to decrement.
+    if (role) liveRoleCounts[role] = Math.max(0, (liveRoleCounts[role] ?? 0) - 1);
   };
 
   const addCard = (card: ScryfallCard) => {
@@ -468,10 +549,17 @@ export function applyRoleSurplusRebalance(
      *  card's own role is rejected here, forcing a genuine reduction in the
      *  over-cap role's count rather than a same-role churn that leaves the
      *  overage exactly as bad as before. */
-    allowSameRole: boolean
+    allowSameRole: boolean,
+    /** E113 follow-up (half b): restricts the pool to exactly this role —
+     *  used by the Phase 3 deficit backfill, which must seat a boardwipe
+     *  specifically, not "whatever payoff ranks highest overall" (that's
+     *  Phase 1/2's job). Undefined for every existing caller (unchanged
+     *  behavior). */
+    roleFilter?: RoleKey
   ): ScryfallCard | null => {
     const eligible = pool.filter(
       (c) =>
+        (!roleFilter || getCardRole(c.name) === roleFilter) &&
         !state.usedNames.has(c.name) &&
         !state.bannedCards.has(c.name) &&
         ctx.scryfallCardMap.has(c.name) &&
@@ -663,6 +751,105 @@ export function applyRoleSurplusRebalance(
     const result = tryOneConversion(true);
     if (!result.didConvert) break;
     if (result.wasSameRole) sameRoleUpgrades++;
+  }
+
+  // Worst (lowest-priority) currently-donatable filler for a Phase 3
+  // backfill: not protected, not itself a board wipe (never cut a wipe to
+  // make room for a wipe), and — if it carries a role — that role has slack
+  // above ITS OWN target so freeing the slot can't open a NEW deficit
+  // elsewhere. liftBoosts protects a lift-connected filler card from being
+  // evicted ahead of a genuinely replaceable one, same protection Phase 1/2
+  // give outgoing reactive-role cards.
+  //
+  // isFreeInteraction is checked HERE only, not folded into the shared
+  // isProtected() — isProtectionPiece() deliberately returns false for a
+  // free-interaction piece (#1037's overlap exclusion between the two
+  // classifiers), so without this a Fierce Guardianship/Commandeer-class
+  // card is protected by nothing in this donor pool. Phase 1/2 never faced
+  // this: they only ever evict from OVER-CAP reactive roles, and a roleless
+  // free-interaction card was never eligible there, so widening the shared
+  // isProtected() would change Phase 1/2 eviction behavior beyond this
+  // slice's scope — scoped to this loop instead.
+  const findWipeDeficitDonor = (): { card: ScryfallCard; category: DeckCategory } | null => {
+    const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
+    for (const cat of Object.keys(state.categories) as DeckCategory[]) {
+      if (cat === 'lands') continue;
+      for (const card of state.categories[cat]) {
+        const role = getCardRole(card.name);
+        if (role === 'boardwipe' || isProtected(card) || isFreeInteraction(card)) continue;
+        if (role) {
+          const roleTarget = roleTargets[role] ?? 0;
+          if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;
+        }
+        candidates.push({ card, category: cat });
+      }
+    }
+    if (candidates.length === 0) return null;
+    const liftBoosts = computeLiftPickBoosts(
+      candidates.map((c) => c.card.name),
+      ctx.liftScoreOf
+    );
+    // Same pool-absent-`?? 0` and ownership gaps survivalScoreOf/scoreOf
+    // (phaseLandSqueezeReconcile.ts) already close: a pool-absent donor falls
+    // back to its role's average inclusion (or the deck-average priority for
+    // a roleless one), never a hard 0 that guarantees it reads as the worst
+    // possible donor; and an owned card gets the SAME ownedBoostFor term
+    // pick time already gave it, so it doesn't look like the worst donor here
+    // just because collectionStrategy='prefer' was the only reason it made
+    // the cut in the first place.
+    const donorScore = (card: ScryfallCard): number => {
+      const ec = poolByName.get(card.name);
+      const role = getCardRole(card.name);
+      const roleFallback = role ? roleAverageInclusion.get(role) : undefined;
+      const priority = ec ? calculateCardPriority(ec) : (roleFallback ?? deckAveragePriority);
+      const ownedBoost = ownedBoostFor(card.name, !!ec && isHighSynergyCard(ec));
+      return priority + (liftBoosts.get(card.name) ?? 0) + ownedBoost;
+    };
+    candidates.sort((a, b) => donorScore(a.card) - donorScore(b.card)); // ascending: worst first
+    return candidates[0];
+  };
+
+  // Phase 3 (E113 follow-up, half b): boardwipe deficit backfill. Nothing
+  // upstream of this pass — or any other post-fill phase — ever ADDS a card
+  // to close a role deficit; ROLE_DEFICIT_TRIM_BOOST (phaseSmartTrim.ts et
+  // al.) only PROTECTS an at/under-target role from being cut further, it
+  // never proactively fills the gap. Bounded by the same MAX_SURPLUS_
+  // CONVERSIONS budget as Phases 1/2 above (shared conversionsApplied
+  // counter) so a pathological deficit can't run away. The incoming wipe is
+  // ranked through the exact same quality-aware findReplacement/
+  // wipeQualityPenalty machinery every other boardwipe pick in this pass
+  // uses (one-sided/low-collateral preferred, never raw priority) — see
+  // findReplacement's roleFilter param.
+  while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
+    const target = roleTargets.boardwipe ?? 0;
+    const haveBefore = liveRoleCounts.boardwipe ?? 0;
+    if (haveBefore >= target) break;
+    const donor = findWipeDeficitDonor();
+    if (!donor) break;
+    const donorPrice = priceOf(donor.card);
+    const replacement = findReplacement(-Infinity, donorPrice, 'boardwipe', true, 'boardwipe');
+    if (!replacement) break;
+
+    removeCard(donor.card, donor.category, getCardRole(donor.card.name) ?? undefined);
+    addCard(replacement);
+    runningTotal += priceOf(replacement) - donorPrice;
+    conversionsApplied++;
+
+    const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
+    conversions.push({
+      cut: donor.card.name,
+      added: replacement.name,
+      reason: buildBackfillReason({
+        haveBefore,
+        target,
+        cutName: donor.card.name,
+        addedName: replacement.name,
+        liftedBy,
+        cutPrice: donorPrice,
+        addedPrice: priceOf(replacement),
+        currency: ctx.currency,
+      }),
+    });
   }
 
   return { conversions };

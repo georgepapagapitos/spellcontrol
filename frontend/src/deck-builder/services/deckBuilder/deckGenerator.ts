@@ -3886,6 +3886,12 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     ignoreOwnedRarity,
     deckBudget,
     deckTypeTargets: typeTargets,
+    // E113 follow-up: reuse the ALREADY-computed isBoardCentricPlan result
+    // (preferAsymmetricWipes, set from the same detectedArchetype/typeTargets/
+    // commanderWantsExtraCombat inputs at the wipe-asymmetry tie-break above)
+    // rather than recompute it here with different inputs — see
+    // phaseRoleSurplusRebalance.ts's isBoardCentricPlan doc.
+    isBoardCentricPlan: preferAsymmetricWipes,
   });
   const surplusConversions = surplusResult.conversions;
 
