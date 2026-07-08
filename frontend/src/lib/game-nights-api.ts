@@ -14,6 +14,9 @@ export interface NightRsvp {
   displayName: string;
   status: RsvpStatus;
   isHost: boolean;
+  /** Present only for account-backed rsvps in an authed viewer's list — lets the
+   *  attendee sheet offer "Add friend". Never present on the public payload. */
+  username?: string;
 }
 
 /**

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   cancelGameNight,
@@ -18,13 +24,15 @@ import {
   voteGameNight,
   type GameNight,
   type NightOption,
+  type NightRsvp,
   type RsvpStatus,
 } from '../../lib/game-nights-api';
-import { CalendarPlus, ChevronDown } from 'lucide-react';
+import { CalendarPlus, ChevronDown, ChevronRight } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
 import { mapsSearchUrl, searchPlaces } from '../../lib/place-search';
-import { listFriends, type Friend } from '../../lib/friends-client';
+import { listFriends, sendFriendRequest, type Friend } from '../../lib/friends-client';
 import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, gameFormatLabel } from '../../lib/game-formats';
+import { useAuth } from '../../store/auth';
 import { usePlayStore } from '../../store/play';
 import { toast } from '../../store/toasts';
 import { Modal } from '../Modal';
@@ -259,6 +267,7 @@ function NightCard({
   const [pendingLock, setPendingLock] = useState<NightOption | null>(null);
   const [pendingStopRepeat, setPendingStopRepeat] = useState(false);
   const [pollDialogOpen, setPollDialogOpen] = useState(false);
+  const [attendeeSheetOpen, setAttendeeSheetOpen] = useState(false);
   const cancelled = night.cancelledAt !== null;
   const polling = night.options.length > 0;
   const weekly = night.series !== null && night.series.endedAt === null;
@@ -395,15 +404,31 @@ function NightCard({
       </p>
       {night.notes && <p className="game-night-card-notes">{night.notes}</p>}
       {!polling && (
-        <p className="game-night-card-tally">
-          {tally}
-          {night.isHost && night.awaiting.length > 0 && (
-            <span className="game-night-card-awaiting">
-              {' '}
-              · waiting on {night.awaiting.join(', ')}
-            </span>
-          )}
-        </p>
+        <button
+          type="button"
+          className="game-night-card-tally-btn"
+          onClick={() => setAttendeeSheetOpen(true)}
+          aria-haspopup="dialog"
+          aria-label={`See who's in for ${night.title}`}
+        >
+          <span>
+            {tally}
+            {night.isHost && night.awaiting.length > 0 && (
+              <span className="game-night-card-awaiting">
+                {' '}
+                · waiting on {night.awaiting.join(', ')}
+              </span>
+            )}
+            {" — see who's in"}
+          </span>
+          <ChevronRight
+            width={16}
+            height={16}
+            strokeWidth={2}
+            aria-hidden
+            className="game-night-card-tally-chevron"
+          />
+        </button>
       )}
 
       {!cancelled && polling && (
@@ -532,7 +557,152 @@ function NightCard({
           onCancel={() => setPendingLock(null)}
         />
       )}
+
+      {attendeeSheetOpen && (
+        <AttendeeSheet night={night} onClose={() => setAttendeeSheetOpen(false)} />
+      )}
     </li>
+  );
+}
+
+/**
+ * "Who's in" sheet, opened from the tally line — lists rsvps grouped by
+ * status (host and attendees see the same thing), plus awaiting invitees
+ * when the viewer is the host. Account-backed rows carry a `username`
+ * (E123+ authed-viewer exposure); anyone else's, still-unfriended attendee
+ * gets an inline "Add friend" action.
+ */
+function AttendeeSheet({ night, onClose }: { night: GameNight; onClose: () => void }) {
+  const signedInUsername = useAuth((s) => s.user?.username ?? null);
+  const [friendsFetch, setFriendsFetch] = useState<
+    { status: 'loading' } | { status: 'error' } | { status: 'ready'; usernames: Set<string> }
+  >({ status: 'loading' });
+  const [requested, setRequested] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    listFriends()
+      .then((friends) => {
+        if (!cancelled) {
+          setFriendsFetch({ status: 'ready', usernames: new Set(friends.map((f) => f.username)) });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFriendsFetch({ status: 'error' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function addFriend(username: string, displayName: string) {
+    if (busy.has(username) || requested.has(username)) return;
+    setBusy((prev) => new Set(prev).add(username));
+    try {
+      await sendFriendRequest(username);
+      setRequested((prev) => new Set(prev).add(username));
+      toast.show({ message: `Friend request sent to ${displayName}.`, tone: 'success' });
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't send the friend request.",
+        tone: 'error',
+      });
+    } finally {
+      setBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(username);
+        return next;
+      });
+    }
+  }
+
+  function renderRow(r: NightRsvp, key: string) {
+    const canAddFriend =
+      friendsFetch.status === 'ready' &&
+      r.username !== undefined &&
+      r.username !== signedInUsername &&
+      !friendsFetch.usernames.has(r.username);
+    return (
+      <li key={key} className="game-night-attendee-row">
+        <span className="game-night-person-name">
+          {r.displayName}
+          {r.isHost && <span className="game-night-host-pill">Host</span>}
+        </span>
+        {canAddFriend && r.username !== undefined && (
+          <button
+            type="button"
+            className="btn game-night-attendee-add-friend"
+            disabled={busy.has(r.username) || requested.has(r.username)}
+            aria-label={
+              requested.has(r.username)
+                ? `Friend request sent to ${r.displayName}`
+                : `Add ${r.displayName} as a friend`
+            }
+            onClick={() => void addFriend(r.username!, r.displayName)}
+          >
+            {requested.has(r.username)
+              ? 'Requested'
+              : busy.has(r.username)
+                ? 'Sending…'
+                : 'Add friend'}
+          </button>
+        )}
+      </li>
+    );
+  }
+
+  const titleId = `game-night-attendee-sheet-title-${night.id}`;
+
+  return (
+    <Modal onClose={onClose} labelledBy={titleId}>
+      <div className="game-night-dialog">
+        <h2 id={titleId} className="game-night-dialog-title">
+          Who's in — {night.title}
+        </h2>
+        {friendsFetch.status !== 'ready' && (
+          <p className="game-night-dialog-hint">
+            {friendsFetch.status === 'loading'
+              ? "Checking who you're already friends with…"
+              : "Couldn't check friend status — add-friend isn't available right now."}
+          </p>
+        )}
+        {night.rsvps.length === 0 && <p className="game-night-dialog-hint">No replies yet.</p>}
+        {STATUS_LABELS.map(({ status, label }) => {
+          const group = night.rsvps.filter((r) => r.status === status);
+          if (group.length === 0) return null;
+          return (
+            <section key={status} className="game-night-attendee-group">
+              <h3 className="game-night-attendee-group-title">
+                {label} <span className="game-night-count">{group.length}</span>
+              </h3>
+              <ul className="game-night-attendee-sheet-list">
+                {group.map((r, i) => renderRow(r, r.id ?? `${status}-${i}-${r.displayName}`))}
+              </ul>
+            </section>
+          );
+        })}
+        {night.isHost && night.awaiting.length > 0 && (
+          <section className="game-night-attendee-group">
+            <h3 className="game-night-attendee-group-title">
+              Hasn't replied yet <span className="game-night-count">{night.awaiting.length}</span>
+            </h3>
+            <ul className="game-night-attendee-sheet-list">
+              {night.awaiting.map((username) => (
+                <li key={username} className="game-night-attendee-row">
+                  <span className="game-night-person-name">{username}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <div className="game-night-dialog-actions">
+          <button type="button" className="btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -672,6 +842,9 @@ function NightDialog({
   const [format, setFormat] = useState(night?.format ?? '');
   const [location, setLocation] = useState(night?.location ?? '');
   const [placeOptions, setPlaceOptions] = useState<string[]>([]);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [placeHighlight, setPlaceHighlight] = useState(0);
+  const placeWrapRef = useRef<HTMLLabelElement>(null);
   const [notes, setNotes] = useState(night?.notes ?? '');
   const [friends, setFriends] = useState<Friend[] | null>(null);
   const [invited, setInvited] = useState<Set<string>>(new Set());
@@ -688,7 +861,7 @@ function NightDialog({
       .catch(() => setFriends([])); // No friends list ≠ no dialog — link-sharing still works.
   }, []);
 
-  // Debounced place suggestions for the Where datalist. Best-effort only:
+  // Debounced place suggestions for the Where combobox. Best-effort only:
   // aborted/failed lookups leave the typed text standing as the location.
   useEffect(() => {
     const ctrl = new AbortController();
@@ -698,7 +871,10 @@ function NightDialog({
         return;
       }
       searchPlaces(location, ctrl.signal)
-        .then(setPlaceOptions)
+        .then((opts) => {
+          setPlaceOptions(opts);
+          setPlaceHighlight(0);
+        })
         .catch(() => {});
     }, 300);
     return () => {
@@ -706,6 +882,45 @@ function NightDialog({
       ctrl.abort();
     };
   }, [location]);
+
+  // Close the suggestion list on outside taps (SetFilterPicker pattern).
+  useEffect(() => {
+    if (!placeOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (placeWrapRef.current && !placeWrapRef.current.contains(e.target as Node)) {
+        setPlaceOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [placeOpen]);
+
+  function pickPlace(label: string) {
+    setLocation(label);
+    setPlaceOpen(false);
+    setPlaceOptions([]); // the refetch for the picked text repopulates silently
+  }
+
+  function onPlaceKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
+    if (!placeOpen || placeOptions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setPlaceHighlight((h) => Math.min(h + 1, placeOptions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setPlaceHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      // Pick instead of submitting the dialog while the list is open.
+      e.preventDefault();
+      const pick = placeOptions[Math.min(placeHighlight, placeOptions.length - 1)];
+      if (pick) pickPlace(pick);
+    } else if (e.key === 'Escape') {
+      // Close just the list — don't let the Modal's Esc handler dismiss the dialog.
+      e.preventDefault();
+      e.stopPropagation();
+      setPlaceOpen(false);
+    }
+  }
 
   // Friends already invited or replied can't be re-invited (authed reply names
   // are usernames, so this matches the common case).
@@ -967,22 +1182,44 @@ function NightDialog({
           </select>
         </label>
 
-        <label className="game-night-dialog-field">
+        {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
+            suggestions are real places from the geocoder, shown exactly as
+            returned — no browser substring filtering hiding fuzzy matches. */}
+        <label className="game-night-dialog-field game-night-place-field" ref={placeWrapRef}>
           <span>Where (optional)</span>
           <input
             value={location}
-            onChange={(e) => setLocation(e.target.value)}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              setPlaceOpen(true);
+            }}
+            onFocus={() => setPlaceOpen(true)}
+            onKeyDown={onPlaceKeyDown}
             maxLength={120}
             placeholder="e.g. Sam's place, or search an address"
-            list="game-night-place-options"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={placeOpen && placeOptions.length > 0}
           />
-          {/* Native combobox: typed text always stands as-is; suggestions are
-              real places so the location links out to Google Maps cleanly. */}
-          <datalist id="game-night-place-options">
-            {placeOptions.map((p) => (
-              <option key={p} value={p} />
-            ))}
-          </datalist>
+          {placeOpen && placeOptions.length > 0 && (
+            <ul className="game-night-place-results" role="listbox" aria-label="Place suggestions">
+              {placeOptions.map((p, i) => (
+                <li
+                  key={p}
+                  role="option"
+                  aria-selected={i === placeHighlight}
+                  className={`game-night-place-result${i === placeHighlight ? ' is-highlight' : ''}`}
+                  onMouseEnter={() => setPlaceHighlight(i)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickPlace(p);
+                  }}
+                >
+                  {p}
+                </li>
+              ))}
+            </ul>
+          )}
         </label>
 
         <label className="game-night-dialog-field">

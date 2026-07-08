@@ -95,6 +95,9 @@ interface RsvpView {
   displayName: string;
   status: RsvpStatus;
   isHost: boolean;
+  /** Present only for account-backed rsvps — lets an authed viewer friend-request
+   *  another attendee. Never sent on the public (token) payload. */
+  username?: string;
 }
 
 /** A poll option as sent to clients — voter display names only, never rsvp ids. */
@@ -472,13 +475,25 @@ interface NightView {
 async function loadNightDetails(nightIds: string[]): Promise<{
   rsvpsByNight: Map<
     string,
-    Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>
+    Array<{
+      id: string;
+      userId: string | null;
+      username: string | null;
+      displayName: string;
+      status: RsvpStatus;
+    }>
   >;
   awaitingByNight: Map<string, string[]>;
 }> {
   const rsvpsByNight = new Map<
     string,
-    Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>
+    Array<{
+      id: string;
+      userId: string | null;
+      username: string | null;
+      displayName: string;
+      status: RsvpStatus;
+    }>
   >();
   const awaitingByNight = new Map<string, string[]>();
   if (nightIds.length === 0) return { rsvpsByNight, awaitingByNight };
@@ -487,16 +502,25 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     id: string;
     night_id: string;
     user_id: string | null;
+    username: string | null;
     display_name: string;
     status: RsvpStatus;
   }>(
-    `SELECT id, night_id, user_id, display_name, status FROM game_night_rsvps
-      WHERE night_id = ANY($1) ORDER BY created_at ASC`,
+    `SELECT r.id, r.night_id, r.user_id, u.username, r.display_name, r.status
+       FROM game_night_rsvps r
+       LEFT JOIN users u ON u.id = r.user_id
+      WHERE r.night_id = ANY($1) ORDER BY r.created_at ASC`,
     [nightIds]
   );
   for (const r of rsvps.rows) {
     const arr = rsvpsByNight.get(r.night_id) ?? [];
-    arr.push({ id: r.id, userId: r.user_id, displayName: r.display_name, status: r.status });
+    arr.push({
+      id: r.id,
+      userId: r.user_id,
+      username: r.username,
+      displayName: r.display_name,
+      status: r.status,
+    });
     rsvpsByNight.set(r.night_id, arr);
   }
   const awaiting = await pool.query<{ night_id: string; username: string }>(
@@ -522,7 +546,13 @@ function toNightView(
   night: GameNightRow,
   hostUsername: string,
   viewerId: string,
-  rsvps: Array<{ id: string; userId: string | null; displayName: string; status: RsvpStatus }>,
+  rsvps: Array<{
+    id: string;
+    userId: string | null;
+    username: string | null;
+    displayName: string;
+    status: RsvpStatus;
+  }>,
   awaiting: string[],
   options: LoadedOption[],
   series: SeriesInfo | null
@@ -551,6 +581,10 @@ function toNightView(
       displayName: r.displayName,
       status: r.status,
       isHost: r.userId !== null && r.userId === night.hostUserId,
+      // Account-backed rsvps only — this whole view is authed-viewer-only
+      // (every route returning NightView is requireAuth), so it's safe to
+      // expose to any participant, unlike the public payload.
+      ...(r.username !== null ? { username: r.username } : {}),
     })),
     awaiting,
     options: toOptionViews(options, (v) => v.userId === viewerId),

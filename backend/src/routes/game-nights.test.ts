@@ -104,8 +104,15 @@ describe('POST /api/game-nights', () => {
     expect(night.isHost).toBe(true);
     expect(night.myStatus).toBe('going');
     expect(night.rsvps).toEqual([
-      // The host's own view carries the rsvp id — their removal handle.
-      { id: expect.any(String), displayName: 'gn-create-host', status: 'going', isHost: true },
+      // The host's own view carries the rsvp id — their removal handle. Account-backed
+      // rsvps also carry username, for friend-requesting attendees from the sheet.
+      {
+        id: expect.any(String),
+        displayName: 'gn-create-host',
+        status: 'going',
+        isHost: true,
+        username: 'gn-create-host',
+      },
     ]);
   });
 
@@ -201,7 +208,70 @@ describe('POST /api/game-nights', () => {
       displayName: 'gn-invite-guest',
       status: 'going',
       isHost: false,
+      username: 'gn-invite-guest',
     });
+  });
+});
+
+describe('rsvp username exposure (authed views only, never public)', () => {
+  it('carries username on account-backed rsvp rows in both the host’s and an attendee’s authed list view', async () => {
+    const host = await makeUser('gn-username-host');
+    const attendee = await makeUser('gn-username-attendee');
+    const { id, token } = await createNight(host, { title: 'Username night' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', attendee)
+      .send({ status: 'going' });
+
+    const hostView = await request(app).get('/api/game-nights').set('Cookie', host);
+    const hostNight = hostView.body.nights.find((n: { id: string }) => n.id === id);
+    expect(hostNight.rsvps).toContainEqual(
+      expect.objectContaining({
+        displayName: 'gn-username-attendee',
+        username: 'gn-username-attendee',
+      })
+    );
+    expect(hostNight.rsvps).toContainEqual(
+      expect.objectContaining({ displayName: 'gn-username-host', username: 'gn-username-host' })
+    );
+
+    const attendeeView = await request(app).get('/api/game-nights').set('Cookie', attendee);
+    const attendeeNight = attendeeView.body.nights.find((n: { id: string }) => n.id === id);
+    expect(attendeeNight.rsvps).toContainEqual(
+      expect.objectContaining({ displayName: 'gn-username-host', username: 'gn-username-host' })
+    );
+  });
+
+  it('guest rsvp rows carry no username in the authed host view', async () => {
+    const host = await makeUser('gn-username-guest-host');
+    const { id, token } = await createNight(host, { title: 'Guest username night' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'maybe', displayName: 'Guesty' });
+
+    const hostView = await request(app).get('/api/game-nights').set('Cookie', host);
+    const hostNight = hostView.body.nights.find((n: { id: string }) => n.id === id);
+    const guestRow = hostNight.rsvps.find(
+      (r: { displayName: string }) => r.displayName === 'Guesty'
+    );
+    expect(guestRow).toBeDefined();
+    expect(guestRow.username).toBeUndefined();
+  });
+
+  it('the public payload keeps its exact {displayName,status,isHost} rsvp shape — no username, no id', async () => {
+    const host = await makeUser('gn-username-public-host');
+    const attendee = await makeUser('gn-username-public-attendee');
+    const { token } = await createNight(host, { title: 'Public shape night' });
+    await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', attendee)
+      .send({ status: 'going' });
+
+    const pub = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(pub.status).toBe(200);
+    for (const r of pub.body.rsvps) {
+      expect(Object.keys(r).sort()).toEqual(['displayName', 'isHost', 'status']);
+    }
   });
 });
 
