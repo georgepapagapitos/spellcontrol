@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mapsSearchUrl, searchPlaces } from './place-search';
+import { mapsSearchUrl, resetLocationBiasForTests, searchPlaces } from './place-search';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -13,6 +13,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
+  resetLocationBiasForTests();
 });
 
 afterEach(() => {
@@ -60,6 +61,43 @@ describe('searchPlaces', () => {
       jsonResponse({ features: [{ properties: { name: 'Madison', city: 'Madison' } }] })
     );
     expect(await searchPlaces('madison')).toEqual(['Madison']);
+  });
+});
+
+describe('location bias', () => {
+  it('biases the query with lat/lon when granted, asking the device only once', async () => {
+    const getCurrentPosition = vi.fn(
+      (ok: (pos: { coords: { latitude: number; longitude: number } }) => void) =>
+        ok({ coords: { latitude: 44.98, longitude: -93.27 } })
+    );
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } });
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ features: [] })));
+
+    await searchPlaces('main st');
+    await searchPlaces('main st madison');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('lat=44.98');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('lon=-93.27');
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1); // cached for the session
+  });
+
+  it('searches unbiased when the user denies (and never re-prompts)', async () => {
+    const getCurrentPosition = vi.fn((_ok: unknown, err: (e: { code: number }) => void) =>
+      err({ code: 1 })
+    );
+    vi.stubGlobal('navigator', { geolocation: { getCurrentPosition } });
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ features: [] })));
+
+    await searchPlaces('main st');
+    await searchPlaces('main st again');
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('lat=');
+    expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('searches unbiased when geolocation is unavailable', async () => {
+    vi.stubGlobal('navigator', {});
+    fetchMock.mockResolvedValue(jsonResponse({ features: [] }));
+    await searchPlaces('main st');
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('lat=');
   });
 });
 
