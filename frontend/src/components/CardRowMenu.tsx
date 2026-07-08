@@ -1,6 +1,7 @@
-import { Layers, Notebook, Pencil, Trash2 } from 'lucide-react';
+import { Layers, Notebook, Pencil, Tags, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { AddToBinderSheet } from './AddToBinderSheet';
+import { CardOtagsSheet } from './CardOtagsSheet';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 import type { EnrichedCard } from '../types';
 
@@ -28,6 +29,7 @@ interface Props {
  */
 export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBinder }: Props) {
   const [binderSheetOpen, setBinderSheetOpen] = useState(false);
+  const [otagsSheetOpen, setOtagsSheetOpen] = useState(false);
 
   const items: OverflowMenuItem[] = [
     { label: 'Edit card', icon: Pencil, onClick: onEditCard },
@@ -39,6 +41,7 @@ export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBi
       icon: Notebook,
       onClick: () => setBinderSheetOpen(true),
     },
+    { label: 'View card tags', icon: Tags, onClick: () => setOtagsSheetOpen(true) },
     ...(onDelete
       ? [{ label: 'Remove from collection', icon: Trash2, danger: true, onClick: onDelete }]
       : []),
@@ -74,6 +77,8 @@ export function CardRowMenu({ card, onEditCard, onSplitCopy, onDelete, currentBi
           onClose={() => setBinderSheetOpen(false)}
         />
       )}
+
+      {otagsSheetOpen && <CardOtagsSheet card={card} onClose={() => setOtagsSheetOpen(false)} />}
     </>
   );
 }

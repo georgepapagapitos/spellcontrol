@@ -46,12 +46,23 @@ export function isCardTagsReady(): boolean {
   return tagsByName !== null;
 }
 
-/** Idempotent load of the tag snapshot. Safe to call repeatedly. */
+/** True after a load attempt failed (cleared when a retry starts). */
+let loadFailed = false;
+export function isCardTagsFailed(): boolean {
+  return loadFailed;
+}
+
+/** Idempotent load of the tag snapshot. Safe to call repeatedly — a failed
+ *  attempt can be retried by calling again (the promise clears on settle). */
 export async function ensureCardTags(): Promise<void> {
   if (tagsByName) return;
   if (loadPromise) return loadPromise;
   loadPromise = (async () => {
     try {
+      if (loadFailed) {
+        loadFailed = false;
+        emit();
+      }
       const res = await fetch(TAG_REPO_URL);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: TaggerData = await res.json();
@@ -67,6 +78,8 @@ export async function ensureCardTags(): Promise<void> {
       availableTags = Object.keys(data.tags).sort();
       emit();
     } catch (err) {
+      loadFailed = true;
+      emit();
       logger.warn(
         '[card-tags] Failed to load oracle-tag snapshot — binder tag rules will match nothing:',
         err
@@ -146,6 +159,13 @@ export function useCardTagsReady(active = true): boolean {
     if (active) void ensureCardTags();
   }, [active]);
   return ready;
+}
+
+/** Subscribe to load-failure state — pair with {@link useCardTagsReady} so a
+ *  fetch failure surfaces as an error (with retry) instead of a forever
+ *  spinner. Cleared when a retry attempt starts. */
+export function useCardTagsError(): boolean {
+  return useSyncExternalStore(subscribe, isCardTagsFailed, isCardTagsFailed);
 }
 
 /**

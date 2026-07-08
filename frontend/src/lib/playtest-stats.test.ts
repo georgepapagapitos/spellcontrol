@@ -26,6 +26,7 @@ function makeBfCard(
     card: makePlaytestCard(card),
     tapped: false,
     counters: {},
+    stickers: [],
     x: 0,
     y: 0,
     faceDown: false,

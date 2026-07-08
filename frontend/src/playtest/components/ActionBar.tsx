@@ -11,7 +11,9 @@ interface Props {
   onScry(): void;
   onCreateToken(): void;
   onOpenStats(): void;
+  onToggleResistance(): void;
   canUndo: boolean;
+  resistanceOn: boolean;
 }
 
 export function ActionBar({
@@ -27,7 +29,9 @@ export function ActionBar({
   onScry,
   onCreateToken,
   onOpenStats,
+  onToggleResistance,
   canUndo,
+  resistanceOn,
 }: Props) {
   return (
     <div className="playtest-actionbar" role="toolbar" aria-label="Playtest actions">
@@ -55,6 +59,15 @@ export function ActionBar({
       </button>
       <button type="button" onClick={onCreateToken}>
         Create token
+      </button>
+      <button
+        type="button"
+        onClick={onToggleResistance}
+        aria-pressed={resistanceOn}
+        className={`playtest-actionbar__resistance${resistanceOn ? ' is-active' : ''}`}
+        title="Simulated opponent: occasionally counters, removes, or wipes your plays"
+      >
+        Resistance
       </button>
       <button type="button" onClick={onUndo} disabled={!canUndo}>
         Undo

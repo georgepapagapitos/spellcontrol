@@ -19,6 +19,7 @@ const KIND_META: Record<ShareKind, { label: string; plural: string; Icon: typeof
   cube: { label: 'Cube', plural: 'Cubes', Icon: Box },
   binder: { label: 'Binder', plural: 'Binders', Icon: FolderOpen },
   list: { label: 'List', plural: 'Lists', Icon: ListChecks },
+  feedback: { label: 'Deck feedback', plural: 'Deck feedback', Icon: Layers },
 };
 const KIND_ORDER: ShareKind[] = ['deck', 'collection', 'cube', 'binder', 'list'];
 

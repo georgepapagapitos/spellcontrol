@@ -12,6 +12,7 @@ import { gamesRouter } from './routes/games';
 import { gameResultsRouter } from './routes/game-results';
 import { combosRouter } from './routes/combos';
 import { sharesRouter } from './routes/shares';
+import { feedbackRouter } from './routes/feedback';
 import { offlineRouter } from './routes/offline';
 import { scannerRouter } from './routes/scanner';
 import { friendsRouter } from './routes/friends';
@@ -214,6 +215,21 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE INDEX shares_resource_idx ON shares(user_id, kind, resource_id);
     CREATE INDEX shares_audience_idx ON shares(user_id, audience) WHERE revoked_at IS NULL;
     CREATE INDEX shares_addressee_idx ON shares(addressee_id) WHERE addressee_id IS NOT NULL;
+    CREATE TABLE deck_feedback (
+      id TEXT PRIMARY KEY,
+      share_token TEXT NOT NULL REFERENCES shares(token) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      deck_id TEXT NOT NULL,
+      author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      author_name TEXT NOT NULL,
+      comment TEXT NOT NULL DEFAULT '',
+      bracket_suggestion INTEGER,
+      suggestions JSONB NOT NULL,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE INDEX deck_feedback_deck_idx ON deck_feedback(owner_user_id, deck_id);
+    CREATE INDEX deck_feedback_token_idx ON deck_feedback(share_token);
     CREATE TABLE game_nights (
       id TEXT PRIMARY KEY,
       token TEXT NOT NULL UNIQUE,
@@ -324,6 +340,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/game-results', gameResultsRouter);
   app.use('/api/combos', combosRouter);
   app.use('/api/shares', sharesRouter);
+  app.use('/api/feedback', feedbackRouter);
   app.use('/api/offline', offlineRouter);
   app.use('/api/scanner', scannerRouter);
   app.use('/api/friends', friendsRouter);

@@ -118,6 +118,75 @@ body:has(.playtest-page) .modal-backdrop {
   border-color: var(--err-border) !important;
 }
 
+/* Resistance toggle — pressed state reads like the accented turn chip so an
+   armed opponent is visible at a glance. */
+.playtest-actionbar button.playtest-actionbar__resistance.is-active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Resistance event banner ─────────────────────────────────────────── */
+/*  Opponent announcement ("Opponent casts Counterspell — …"). Fixed near the
+ *  top of the board, centered, non-blocking: it floats over the battlefield
+ *  below the action bar and never intercepts drags outside its own box. */
+
+.playtest-resistance-banner {
+  position: fixed;
+  top: calc(var(--safe-top) + 6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 902;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(92vw, 34rem);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.playtest-resistance-banner__message {
+  min-width: 0;
+}
+
+.playtest-resistance-banner__dismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: 1;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.playtest-resistance-banner__dismiss:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-resistance-banner__dismiss:hover {
+    color: var(--text-primary);
+    background: var(--accent-light);
+  }
+}
+
+@media (pointer: coarse) {
+  .playtest-resistance-banner__dismiss {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .playtest-main {
   display: flex;
   flex: 1;
@@ -351,6 +420,36 @@ body:has(.playtest-page) .modal-backdrop {
   padding: 1px var(--space-1);
   border-radius: 3px;
   border: 1px solid rgba(255, 212, 96, 0.5);
+}
+
+/* Stickers stack at the top so they never collide with counters (bottom).
+ * pointer-events: none keeps the overlay from stealing card drags — removal
+ * happens from the context menu, not the badge. */
+.playtest-card__stickers {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  right: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.playtest-card__sticker {
+  max-width: 100%;
+  background: rgba(255, 249, 235, 0.92);
+  color: #2b2b2b;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 1px var(--space-1);
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Zone viewer (layered on the shared card-picker sheet) ─────────────── */
@@ -631,6 +730,96 @@ body:has(.playtest-page) .modal-backdrop {
   color: var(--accent);
 }
 
+.playtest-ctx-sticker-add {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.65rem;
+}
+
+/* Shown in place of the add row once the reducer's 8-per-card cap is hit. */
+.playtest-ctx-sticker-limit {
+  padding: 0.15rem 0.65rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.playtest-ctx-sticker-add input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  padding: 0.15rem var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.playtest-ctx-sticker-add input:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.playtest-ctx-sticker-add button,
+.playtest-ctx-sticker button {
+  padding: 0.15rem var(--space-2);
+  min-width: 1.6rem;
+  text-align: center;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.playtest-ctx-sticker-add button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.playtest-ctx-sticker-add button:focus-visible,
+.playtest-ctx-sticker button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .playtest-ctx-sticker-add button:enabled:hover,
+  .playtest-ctx-sticker button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
+}
+
+.playtest-ctx-sticker-add button:enabled:active,
+.playtest-ctx-sticker button:active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.playtest-ctx-sticker {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.65rem;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.playtest-ctx-sticker span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Larger touch targets for the bottom-sheet variant. */
 .playtest-ctx-sheet .playtest-ctx-action {
   padding: 0.6rem var(--space-3);
@@ -640,6 +829,16 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-ctx-sheet .playtest-ctx-counter button {
   padding: 0.4rem 0.85rem;
   min-width: 2.5rem;
+}
+
+.playtest-ctx-sheet .playtest-ctx-sticker button,
+.playtest-ctx-sheet .playtest-ctx-sticker-add button {
+  padding: 0.4rem 0.85rem;
+}
+
+.playtest-ctx-sheet .playtest-ctx-sticker-add input {
+  padding: 0.4rem var(--space-2);
+  font-size: var(--text-base);
 }
 
 /* ── Mobile zones panel (used under 1024px) ──────────────────────────── */

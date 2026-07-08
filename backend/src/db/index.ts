@@ -246,6 +246,25 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS shares_audience_idx ON shares(user_id, audience) WHERE revoked_at IS NULL;
     CREATE INDEX IF NOT EXISTS shares_addressee_idx ON shares(addressee_id) WHERE addressee_id IS NOT NULL;
 
+    -- Feedback responses submitted against kind='feedback' shares. Owner/deck
+    -- are denormalized off the share so the owner's per-deck listing survives
+    -- token revocation. Suggestions are a JSONB array updated as a unit.
+    CREATE TABLE IF NOT EXISTS deck_feedback (
+      id TEXT PRIMARY KEY,
+      share_token TEXT NOT NULL REFERENCES shares(token) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      deck_id TEXT NOT NULL,
+      author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      author_name TEXT NOT NULL,
+      comment TEXT NOT NULL DEFAULT '',
+      bracket_suggestion INTEGER,
+      suggestions JSONB NOT NULL,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS deck_feedback_deck_idx ON deck_feedback(owner_user_id, deck_id);
+    CREATE INDEX IF NOT EXISTS deck_feedback_token_idx ON deck_feedback(share_token);
+
     CREATE TABLE IF NOT EXISTS game_nights (
       id TEXT PRIMARY KEY,
       token TEXT NOT NULL UNIQUE,

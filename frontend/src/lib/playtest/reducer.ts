@@ -10,6 +10,8 @@ import type {
 
 const DEFAULT_OPENING_HAND = 7;
 const MAX_UNDO_STACK = 50;
+const MAX_STICKERS_PER_CARD = 8;
+const MAX_STICKER_LENGTH = 30;
 const ZONES: Zone[] = ['library', 'hand', 'graveyard', 'exile', 'command'];
 
 function emptyZones(): Record<Zone, PlaytestCard[]> {
@@ -46,7 +48,11 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
       exile: state.zones.exile.slice(),
       command: state.zones.command.slice(),
     },
-    battlefield: state.battlefield.map((b) => ({ ...b, counters: { ...b.counters } })),
+    battlefield: state.battlefield.map((b) => ({
+      ...b,
+      counters: { ...b.counters },
+      stickers: [...b.stickers],
+    })),
     rngSeed: state.rngSeed,
     turn: state.turn,
   };
@@ -177,6 +183,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
             tapped: action.tapped ?? false,
             faceDown: action.faceDown ?? false,
             counters: {},
+            stickers: [],
             x: action.x,
             y: action.y,
           };
@@ -222,6 +229,28 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       });
       return withHistory(state, next);
     }
+    case 'ADD_STICKER': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const text = action.text.trim().slice(0, MAX_STICKER_LENGTH);
+      if (!text) return state;
+      if (state.battlefield[idx].stickers.length >= MAX_STICKERS_PER_CARD) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) =>
+        i === idx ? { ...b, stickers: [...b.stickers, text] } : b
+      );
+      return withHistory(state, next);
+    }
+    case 'REMOVE_STICKER': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      if (action.index < 0 || action.index >= state.battlefield[idx].stickers.length) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) =>
+        i === idx ? { ...b, stickers: b.stickers.filter((_, si) => si !== action.index) } : b
+      );
+      return withHistory(state, next);
+    }
     case 'CREATE_TOKEN': {
       const next = snapshot(state);
       next.battlefield = next.battlefield.concat({
@@ -229,6 +258,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         tapped: false,
         faceDown: false,
         counters: {},
+        stickers: [],
         x: action.x,
         y: action.y,
       });

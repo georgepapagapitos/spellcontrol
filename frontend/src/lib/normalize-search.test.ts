@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeForSearch, matchesSearch } from './normalize-search';
+import { normalizeForSearch, matchesSearch, normalizeScryfallQuery } from './normalize-search';
 
 describe('normalizeForSearch', () => {
   it('lowercases', () => {
@@ -67,5 +67,92 @@ describe('matchesSearch', () => {
   it('treats an empty query as matching everything', () => {
     expect(matchesSearch('Sol Ring', '')).toBe(true);
     expect(matchesSearch('Sol Ring', '   ')).toBe(true);
+  });
+});
+
+describe('normalizeScryfallQuery', () => {
+  it('removes the mobile-keyboard space after an operator colon', () => {
+    expect(normalizeScryfallQuery('t: vampire')).toBe('t:vampire');
+    expect(normalizeScryfallQuery('type: dragon')).toBe('type:dragon');
+    expect(normalizeScryfallQuery('otag: removal')).toBe('otag:removal');
+  });
+
+  it('collapses ALL immediate whitespace after the colon, not just one space', () => {
+    expect(normalizeScryfallQuery('t:   vampire')).toBe('t:vampire');
+    expect(normalizeScryfallQuery('t:\t vampire')).toBe('t:vampire');
+  });
+
+  it('leaves an already-tight query untouched', () => {
+    expect(normalizeScryfallQuery('t:vampire cmc<4')).toBe('t:vampire cmc<4');
+    expect(normalizeScryfallQuery('o:landfall c:g')).toBe('o:landfall c:g');
+  });
+
+  it('matches operators case-insensitively, preserving the typed case', () => {
+    expect(normalizeScryfallQuery('T: Vampire')).toBe('T:Vampire');
+    expect(normalizeScryfallQuery('ID: esper')).toBe('ID:esper');
+  });
+
+  it('fixes multiple operators in one query', () => {
+    expect(normalizeScryfallQuery('t: elf c: g cmc: 2')).toBe('t:elf c:g cmc:2');
+  });
+
+  it('does not alter text inside double quotes', () => {
+    expect(normalizeScryfallQuery('o:"draw a card"')).toBe('o:"draw a card"');
+    expect(normalizeScryfallQuery('name:"t: weird"')).toBe('name:"t: weird"');
+    expect(normalizeScryfallQuery('"t: weird" t: elf')).toBe('"t: weird" t:elf');
+  });
+
+  it('collapses the space before a quoted term', () => {
+    expect(normalizeScryfallQuery('o: "draw a card"')).toBe('o:"draw a card"');
+  });
+
+  it('leaves a bare colon in a card name alone (word not an operator)', () => {
+    expect(normalizeScryfallQuery('Circle of Protection: Red')).toBe('Circle of Protection: Red');
+    expect(normalizeScryfallQuery('blah: something')).toBe('blah: something');
+  });
+
+  it('only fires when the colon directly follows the operator at a word boundary', () => {
+    // "xt:" — "t" is mid-word, so this is not an operator.
+    expect(normalizeScryfallQuery('xt: y')).toBe('xt: y');
+    // Non-ASCII word chars break the word before the colon.
+    expect(normalizeScryfallQuery('Ratonhnhaké:ton')).toBe('Ratonhnhaké:ton');
+  });
+
+  it('handles negation and parens as boundaries', () => {
+    expect(normalizeScryfallQuery('-t: land')).toBe('-t:land');
+    expect(normalizeScryfallQuery('(t: elf OR t: goblin)')).toBe('(t:elf OR t:goblin)');
+  });
+
+  it('leaves a trailing operator with no term alone', () => {
+    expect(normalizeScryfallQuery('t: ')).toBe('t: ');
+    expect(normalizeScryfallQuery('t:')).toBe('t:');
+  });
+
+  it('passes through empty and plain-name queries unchanged', () => {
+    expect(normalizeScryfallQuery('')).toBe('');
+    expect(normalizeScryfallQuery('Sol Ring')).toBe('Sol Ring');
+    expect(normalizeScryfallQuery('Borborygmos, Enraged')).toBe('Borborygmos, Enraged');
+  });
+
+  it('collapses spaces around comparison operators too', () => {
+    expect(normalizeScryfallQuery('mv >= 6')).toBe('mv>=6');
+    expect(normalizeScryfallQuery('mv >=6')).toBe('mv>=6');
+    expect(normalizeScryfallQuery('mv>= 6')).toBe('mv>=6');
+    expect(normalizeScryfallQuery('pow <= 2')).toBe('pow<=2');
+    expect(normalizeScryfallQuery('cmc < 4')).toBe('cmc<4');
+    expect(normalizeScryfallQuery('year = 2020')).toBe('year=2020');
+    expect(normalizeScryfallQuery('tou != 3')).toBe('tou!=3');
+  });
+
+  it('collapses a keyboard space before the colon as well', () => {
+    expect(normalizeScryfallQuery('t : vampire')).toBe('t:vampire');
+  });
+
+  it('leaves comparison-like text alone for non-operator words', () => {
+    expect(normalizeScryfallQuery('blah >= 6')).toBe('blah >= 6');
+  });
+
+  it('is idempotent on comparison forms', () => {
+    expect(normalizeScryfallQuery(normalizeScryfallQuery('mv >= 6'))).toBe('mv>=6');
   });
 });

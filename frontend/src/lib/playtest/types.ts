@@ -25,6 +25,8 @@ export interface BattlefieldCard {
   card: PlaytestCard;
   tapped: boolean;
   counters: Record<string, number>;
+  /** Free-text labels stuck on the card (e.g. "flying", "6/6"). */
+  stickers: string[];
   x: number;
   y: number;
   faceDown: boolean;
@@ -56,6 +58,8 @@ export type PlaytestAction =
   | { type: 'TAP'; cardId: string; tapped?: boolean }
   | { type: 'UNTAP_ALL' }
   | { type: 'SET_COUNTER'; cardId: string; counter: string; delta: number }
+  | { type: 'ADD_STICKER'; cardId: string; text: string }
+  | { type: 'REMOVE_STICKER'; cardId: string; index: number }
   | { type: 'CREATE_TOKEN'; card: PlaytestCard; x: number; y: number }
   | { type: 'FLIP_FACE'; cardId: string }
   | { type: 'NEXT_TURN' }

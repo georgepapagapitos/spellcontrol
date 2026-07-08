@@ -102,7 +102,7 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
           .from(userBinders)
           .where(and(eq(userBinders.userId, share.userId), isNull(userBinders.deletedAt)))
       : [],
-    kind === 'deck'
+    kind === 'deck' || kind === 'feedback'
       ? db
           .select({ data: userDecks.data })
           .from(userDecks)

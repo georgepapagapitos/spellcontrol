@@ -286,6 +286,113 @@ describe('SET_COUNTER', () => {
   });
 });
 
+describe('ADD_STICKER / REMOVE_STICKER', () => {
+  function withCard() {
+    let s = init(10, 1, 3);
+    const id = s.zones.hand[0].id;
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+    return { s, id };
+  }
+
+  it('initializes battlefield entries and tokens with no stickers', () => {
+    const { s } = withCard();
+    expect(s.battlefield[0].stickers).toEqual([]);
+    const withToken = applyAction(s, {
+      type: 'CREATE_TOKEN',
+      card: { id: 'tok', name: 'Treasure' },
+      x: 0,
+      y: 0,
+    });
+    expect(withToken.battlefield[1].stickers).toEqual([]);
+  });
+
+  it('adds a sticker', () => {
+    const base = withCard();
+    const { id } = base;
+    let s = base.s;
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'flying' });
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: '6/6' });
+    expect(s.battlefield[0].stickers).toEqual(['flying', '6/6']);
+  });
+
+  it('trims sticker text and ignores empty/whitespace-only input', () => {
+    const base = withCard();
+    const { id } = base;
+    let s = base.s;
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: '  flying  ' });
+    expect(s.battlefield[0].stickers).toEqual(['flying']);
+    const next = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: '   ' });
+    expect(next).toBe(s);
+  });
+
+  it('caps sticker text at 30 characters', () => {
+    const base = withCard();
+    const { id } = base;
+    const long = 'x'.repeat(50);
+    const s = applyAction(base.s, { type: 'ADD_STICKER', cardId: id, text: long });
+    expect(s.battlefield[0].stickers[0]).toBe('x'.repeat(30));
+  });
+
+  it('ignores stickers beyond the 8-per-card cap', () => {
+    const base = withCard();
+    const { id } = base;
+    let s = base.s;
+    for (let i = 0; i < 10; i++) {
+      s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: `s${i}` });
+    }
+    expect(s.battlefield[0].stickers).toHaveLength(8);
+    expect(s.battlefield[0].stickers[7]).toBe('s7');
+  });
+
+  it('removes a sticker by index', () => {
+    const base = withCard();
+    const { id } = base;
+    let s = base.s;
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'a' });
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'b' });
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'c' });
+    s = applyAction(s, { type: 'REMOVE_STICKER', cardId: id, index: 1 });
+    expect(s.battlefield[0].stickers).toEqual(['a', 'c']);
+  });
+
+  it('is a no-op for unknown cards or out-of-range indexes', () => {
+    const base = withCard();
+    const { s, id } = base;
+    expect(applyAction(s, { type: 'ADD_STICKER', cardId: 'nope', text: 'x' })).toBe(s);
+    expect(applyAction(s, { type: 'REMOVE_STICKER', cardId: 'nope', index: 0 })).toBe(s);
+    expect(applyAction(s, { type: 'REMOVE_STICKER', cardId: id, index: 0 })).toBe(s);
+    const one = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'x' });
+    expect(applyAction(one, { type: 'REMOVE_STICKER', cardId: id, index: 1 })).toBe(one);
+    expect(applyAction(one, { type: 'REMOVE_STICKER', cardId: id, index: -1 })).toBe(one);
+  });
+
+  it('undo restores prior stickers', () => {
+    const base = withCard();
+    const { id } = base;
+    let s = base.s;
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'a' });
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'b' });
+    s = applyAction(s, { type: 'UNDO' });
+    expect(s.battlefield[0].stickers).toEqual(['a']);
+    s = applyAction(s, { type: 'REMOVE_STICKER', cardId: id, index: 0 });
+    expect(s.battlefield[0].stickers).toEqual([]);
+    s = applyAction(s, { type: 'UNDO' });
+    expect(s.battlefield[0].stickers).toEqual(['a']);
+  });
+
+  it('snapshots do not alias sticker arrays', () => {
+    const base = withCard();
+    const { id } = base;
+    let s = base.s;
+    s = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'a' });
+    const next = applyAction(s, { type: 'ADD_STICKER', cardId: id, text: 'b' });
+    // Mutating the new state's array must not leak into the snapshot in past.
+    next.battlefield[0].stickers.push('evil');
+    expect(next.past[0].battlefield[0].stickers).toEqual(['a']);
+    expect(s.battlefield[0].stickers).toEqual(['a']);
+  });
+});
+
 describe('CREATE_TOKEN', () => {
   it('adds a token directly onto the battlefield and forces isToken=true', () => {
     const s = init(10, 1, 0);

@@ -9,6 +9,7 @@ import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { SharedListView } from '../components/shared/SharedListView';
 import { SharedCubeView } from '../components/shared/SharedCubeView';
 import { SharedShell } from '../components/shared/SharedShell';
+import { DeckFeedbackView } from '../components/shared/DeckFeedbackView';
 import { BrandMark } from '../components/shared/BrandMark';
 import { CopyDeckButton } from '../components/shared/CopyDeckButton';
 import { CopyCubeButton } from '../components/shared/CopyCubeButton';
@@ -140,6 +141,13 @@ function SharedViewInner({ token }: { token: string }) {
     return (
       <SharedShell action={<CopyDeckButton data={payload.data} variant="bar" />}>
         <SharedDeckView data={payload.data} />
+      </SharedShell>
+    );
+  }
+  if (payload.kind === 'feedback') {
+    return (
+      <SharedShell>
+        <DeckFeedbackView data={payload.data} token={token} />
       </SharedShell>
     );
   }

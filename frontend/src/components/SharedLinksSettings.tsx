@@ -15,6 +15,7 @@ const KIND_LABELS: Record<ShareKind, string> = {
   binder: 'Binder',
   list: 'List',
   cube: 'Cube',
+  feedback: 'Deck feedback',
 };
 
 interface ResolvedLabel {
@@ -70,7 +71,7 @@ export function SharedLinksSettings() {
 
   const resolveLabel = (s: ShareRow): ResolvedLabel => {
     if (s.kind === 'collection') return { name: 'Your collection', deleted: false };
-    if (s.kind === 'deck') {
+    if (s.kind === 'deck' || s.kind === 'feedback') {
       const d = decks.find((x) => x.id === s.resourceId);
       return d ? { name: d.name, deleted: false } : { name: 'Deleted deck', deleted: true };
     }

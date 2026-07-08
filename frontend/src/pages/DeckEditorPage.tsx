@@ -88,6 +88,7 @@ import {
 } from '../lib/allocations';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
+import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
 import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
@@ -186,6 +187,7 @@ export function DeckEditorPage() {
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
+  const toggleCardTag = useDecksStore((s) => s.toggleCardTag);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
   const pushToast = useToastsStore((s) => s.push);
 
@@ -286,6 +288,8 @@ export function DeckEditorPage() {
   // Hoisted so the mobile action sheet can open Export without rendering
   // a duplicate button. Passed to DeckDisplay as a controlled prop pair.
   const [exportOpen, setExportOpen] = useState(false);
+  // Feedback Tool: mint/copy the suggestion link + review submitted responses.
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
   // The deck editor is a set of page-top distinct views (Deck · Stats · Power ·
@@ -1965,6 +1969,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
@@ -1972,6 +1977,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
@@ -2180,6 +2186,7 @@ export function DeckEditorPage() {
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
+            onFeedback={() => setFeedbackOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
             onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
@@ -2206,6 +2213,7 @@ export function DeckEditorPage() {
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
+            onFeedback={() => setFeedbackOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
@@ -2254,6 +2262,7 @@ export function DeckEditorPage() {
             onMoveToMainboard={handleMoveToMainboard}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
+            onToggleCardTag={(slotId, tag) => toggleCardTag(deck.id, slotId, tag)}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={
               formatConfig?.hasCommander
@@ -2786,6 +2795,10 @@ export function DeckEditorPage() {
         />
       )}
 
+      {feedbackOpen && deck && (
+        <DeckFeedbackSheet deck={deck} onClose={() => setFeedbackOpen(false)} />
+      )}
+
       {showSharedCopies && deck && (
         <SharedCopiesSheet
           deckName={deck.name}
@@ -2867,6 +2880,7 @@ function DeckEditorOverflowMenu({
   onDuplicate,
   onDelete,
   onExport,
+  onFeedback,
   onPlaytest,
   onTokens,
   onPullList,
@@ -2878,6 +2892,8 @@ function DeckEditorOverflowMenu({
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
+  /** Opens the Feedback Tool sheet (mint link + review responses). */
+  onFeedback: () => void;
   onPlaytest?: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
@@ -3013,6 +3029,17 @@ function DeckEditorOverflowMenu({
               }}
             >
               Export
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onFeedback();
+              }}
+            >
+              Get feedback
             </button>
             <button
               type="button"

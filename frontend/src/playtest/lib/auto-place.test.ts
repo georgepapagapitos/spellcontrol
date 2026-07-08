@@ -7,7 +7,7 @@ function card(id: string, overrides: Partial<PlaytestCard> = {}): PlaytestCard {
 }
 
 function bf(c: PlaytestCard, x = 0, y = 0): BattlefieldCard {
-  return { card: c, tapped: false, faceDown: false, counters: {}, x, y };
+  return { card: c, tapped: false, faceDown: false, counters: {}, stickers: [], x, y };
 }
 
 describe('rowForCard', () => {

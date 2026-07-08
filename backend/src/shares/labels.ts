@@ -9,6 +9,7 @@ export interface ShareRef {
 /** kind → the per-entity table whose `data->>'name'` is the resource's title. */
 const TABLE_FOR_KIND: Record<string, string> = {
   deck: 'user_decks',
+  feedback: 'user_decks',
   list: 'user_lists',
   binder: 'user_binders',
   cube: 'user_cubes',

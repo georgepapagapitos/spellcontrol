@@ -109,12 +109,19 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
       url,
     };
   }
-  if (share.kind === 'deck') {
+  if (share.kind === 'deck' || share.kind === 'feedback') {
     const deck = asRecord(findDeckById(data.decks, share.resourceId));
     if (!deck) return null;
     const name = asString(deck.name) ?? 'Untitled deck';
     const format = asString(deck.format) ?? 'Magic';
     const cards = Array.isArray(deck.cards) ? deck.cards.length : 0;
+    if (share.kind === 'feedback') {
+      return {
+        title: `${name} — feedback wanted`,
+        description: `${ownerUsername} is asking for advice on this ${format} deck (${plural(cards, 'card', 'cards')}). Suggest adds and cuts on ${SITE_NAME}.`,
+        url,
+      };
+    }
     return {
       title: `${name} — shared by ${ownerUsername}`,
       description: `A ${format} deck (${plural(cards, 'card', 'cards')}) shared by ${ownerUsername} on ${SITE_NAME}.`,
