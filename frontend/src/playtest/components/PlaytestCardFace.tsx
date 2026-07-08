@@ -19,6 +19,7 @@ export const PlaytestCardFace = forwardRef<HTMLDivElement, Props>(function Playt
   const tapped = bf?.tapped ?? false;
   const faceDown = bf?.faceDown ?? false;
   const counters = bf?.counters ?? {};
+  const stickers = bf?.stickers ?? [];
 
   return (
     <div
@@ -34,6 +35,15 @@ export const PlaytestCardFace = forwardRef<HTMLDivElement, Props>(function Playt
         <img src={card.imageUrl} alt={card.name} draggable={false} />
       ) : (
         <div className="playtest-card__placeholder">{card.name}</div>
+      )}
+      {stickers.length > 0 && (
+        <div className="playtest-card__stickers">
+          {stickers.map((s, i) => (
+            <span key={`${i}-${s}`} className="playtest-card__sticker" title={s}>
+              {s}
+            </span>
+          ))}
+        </div>
       )}
       {Object.entries(counters).length > 0 && (
         <div className="playtest-card__counters">

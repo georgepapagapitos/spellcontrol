@@ -10,11 +10,14 @@ interface Props {
   x: number;
   y: number;
   cardName: string;
+  stickers: string[];
   variant?: 'floating' | 'sheet';
   onClose(): void;
   onTap(): void;
   onAddCounter(kind: string): void;
   onRemoveCounter(kind: string): void;
+  onAddSticker(text: string): void;
+  onRemoveSticker(index: number): void;
   onFlip(): void;
   onMoveTo(zone: Zone): void;
 }
@@ -27,16 +30,20 @@ export function CardContextMenu({
   x,
   y,
   cardName,
+  stickers,
   variant = 'floating',
   onClose,
   onTap,
   onAddCounter,
   onRemoveCounter,
+  onAddSticker,
+  onRemoveSticker,
   onFlip,
   onMoveTo,
 }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [clamped, setClamped] = useState<{ left: number; top: number } | null>(null);
+  const [stickerText, setStickerText] = useState('');
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
 
   useLockBodyScroll();
@@ -54,6 +61,13 @@ export function CardContextMenu({
     const top = Math.max(MENU_MARGIN, Math.min(y, vh - rect.height - MENU_MARGIN));
     setClamped({ left, top });
   }, [x, y, variant]);
+
+  function submitSticker() {
+    const text = stickerText.trim();
+    if (!text) return;
+    onAddSticker(text);
+    setStickerText('');
+  }
 
   // Action list — identical markup in both variants; only the surrounding
   // chrome differs (a cursor-anchored popover vs. the shared bottom sheet).
@@ -75,6 +89,42 @@ export function CardContextMenu({
             </button>
             <button type="button" onClick={() => onAddCounter(k)} aria-label={`add ${k}`}>
               +
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="playtest-ctx-group">
+        <div className="playtest-ctx-heading">Stickers</div>
+        <div className="playtest-ctx-sticker-add">
+          <input
+            type="text"
+            value={stickerText}
+            onChange={(e) => setStickerText(e.target.value)}
+            placeholder="Add sticker (e.g. flying)"
+            maxLength={30}
+            aria-label="Sticker text"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitSticker();
+            }}
+          />
+          <button
+            type="button"
+            disabled={!stickerText.trim()}
+            onClick={submitSticker}
+            aria-label="add sticker"
+          >
+            Add
+          </button>
+        </div>
+        {stickers.map((s, i) => (
+          <div key={`${i}-${s}`} className="playtest-ctx-sticker">
+            <span>{s}</span>
+            <button
+              type="button"
+              onClick={() => onRemoveSticker(i)}
+              aria-label={`remove sticker ${s}`}
+            >
+              ×
             </button>
           </div>
         ))}

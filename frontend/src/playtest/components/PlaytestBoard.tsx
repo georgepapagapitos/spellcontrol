@@ -318,6 +318,7 @@ export function PlaytestBoard({ state }: Props) {
           x={ctx.x}
           y={ctx.y}
           cardName={ctxCard.card.name}
+          stickers={ctxCard.stickers}
           variant={isNarrow ? 'sheet' : 'floating'}
           onClose={() => setCtx(null)}
           onTap={() => {
@@ -333,6 +334,10 @@ export function PlaytestBoard({ state }: Props) {
           }
           onRemoveCounter={(k) =>
             dispatch({ type: 'SET_COUNTER', cardId: ctx.cardId, counter: k, delta: -1 })
+          }
+          onAddSticker={(text) => dispatch({ type: 'ADD_STICKER', cardId: ctx.cardId, text })}
+          onRemoveSticker={(index) =>
+            dispatch({ type: 'REMOVE_STICKER', cardId: ctx.cardId, index })
           }
           onMoveTo={(zone) => {
             dispatch({ type: 'MOVE_TO_ZONE', cardId: ctx.cardId, to: zone });
