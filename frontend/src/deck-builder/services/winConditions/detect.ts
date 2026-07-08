@@ -22,6 +22,9 @@ export interface DetectedComboForWinCon {
 export interface WinConditionInput {
   cards: CardLike[];
   commander: CardLike | null;
+  /** Partner commander — like `commander`, excluded from assembly sets (it
+   *  starts in the command zone, never the library). */
+  partnerCommander?: CardLike | null;
   combosInDeck: DetectedComboForWinCon[];
   deckSynergy: DeckSynergy;
   /** Format string — "commander" gates voltron/commander-damage path. */
@@ -59,6 +62,23 @@ function isAltWin(oracle: string, name: string): boolean {
   if (override === true) return true;
   if (override === false) return false;
   return YOU_WIN_RE.test(oracle) || EACH_OPP_LOSES_RE.test(oracle);
+}
+
+// ── Tutor scan (assembly-clock wildcards) ────────────────────────────────────
+
+/**
+ * A non-land tutor fetches a missing win-path piece, so the assembly clock
+ * counts it as a wildcard. Only the first search clause is inspected, and
+ * land-only tutors (Rampant Growth, fetchlands) are excluded — they can't
+ * find a combo piece.
+ */
+// ponytail: type-narrow tutors (Mystical, Stoneforge) count at full weight;
+// scope them to matching-type pieces if the clock reads too optimistic.
+const LAND_TARGET_RE = /\bland\b|\bplains\b|\bisland\b|\bswamp\b|\bmountain\b|\bforest\b|\bgate\b/;
+
+function isTutor(oracle: string): boolean {
+  const clause = oracle.match(/search(?:es)? your library for ([^.;]*)/);
+  return clause !== null && !LAND_TARGET_RE.test(clause[1]);
 }
 
 /**
@@ -206,9 +226,19 @@ const COMBAT_MIN_CREATURES = 15;
  * qualifies, returns `noClearWinCondition`.
  */
 export function detectWinConditions(input: WinConditionInput): WinConditionAnalysis {
-  const { cards, commander, combosInDeck, deckSynergy, format } = input;
+  const { cards, commander, partnerCommander, combosInDeck, deckSynergy, format } = input;
   const isCommander = format.toLowerCase().includes('commander') || format === 'edh';
   const investedSet = new Set(deckSynergy.invested);
+
+  // Command-zone cards never need drawing — excluded from every assembly set.
+  const commandZone = new Set(
+    [commander?.name, partnerCommander?.name].filter((n): n is string => Boolean(n))
+  );
+  // "Online" for a strategic plan = the same critical mass the detector itself
+  // required to call it a plan (see strategicQualifies / the poison gate).
+  const strategicAssembly = (names: string[], need: number) => [
+    { names, need: Math.min(need, names.length) },
+  ];
 
   const candidates: WinCondition[] = [];
 
@@ -244,6 +274,11 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${comboWin.length} complete ${suffixes[dominant] ?? 'combo'} in the deck (e.g. ${marquee.slice(0, 2).join(' + ')})`,
       evidence: allCards.slice(0, 8),
       score: 5 + comboWin.length * 3,
+      // Assembled = every library piece of any ONE complete combo drawn.
+      assembly: comboWin.map((c) => {
+        const names = c.cards.filter((n) => !commandZone.has(n));
+        return { names, need: names.length };
+      }),
     });
   }
 
@@ -260,6 +295,8 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${altWinCards.length} alternate win-condition card${altWinCards.length === 1 ? '' : 's'}`,
       evidence: altWinCards,
       score: 4 + altWinCards.length * 2,
+      // Each alt-win card is a standalone win button — any one suffices.
+      assembly: [{ names: altWinCards, need: 1 }],
     });
   }
 
@@ -278,6 +315,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${millCards.length} mill card${millCards.length === 1 ? '' : 's'} targeting opponents`,
       evidence: millCards.slice(0, 8),
       score: millCards.length + (millInvested ? INVESTED_BONUS : 0),
+      assembly: strategicAssembly(millCards, STRATEGIC_MIN_CARDS),
     });
   }
 
@@ -305,6 +343,8 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${poisonCards.length} infect/toxic/poison card${poisonCards.length === 1 ? '' : 's'}`,
       evidence: poisonCards.slice(0, 8),
       score: poisonCards.length + (poisonInvested ? INVESTED_BONUS : 0),
+      // Matches the ≥2 qualification gate above — poison needs less mass.
+      assembly: strategicAssembly(poisonCards, 2),
     });
   }
 
@@ -333,6 +373,9 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${tokenCards.length} token maker${tokenCards.length === 1 ? '' : 's'}${anthemCards.length > 0 ? `, ${anthemCards.length} anthem${anthemCards.length === 1 ? '' : 's'}` : ''}`,
       evidence: allEvidence.slice(0, 8),
       score: goWideCount + (goWideInvested ? INVESTED_BONUS : 0),
+      // ponytail: flat count over producers+anthems; require-a-payoff-drawn if
+      // this reads too optimistic for anthem-light lists.
+      assembly: strategicAssembly(allEvidence, STRATEGIC_MIN_CARDS),
     });
   }
 
@@ -360,6 +403,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
         aristoEvidence.length +
         (aristoInvested ? INVESTED_BONUS : 0) +
         (investedSet.has('lifegain') ? 1 : 0),
+      assembly: strategicAssembly(aristoEvidence, STRATEGIC_MIN_CARDS),
     });
   }
 
@@ -377,6 +421,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
       summary: `${burnCards.length} direct-damage spell${burnCards.length === 1 ? '' : 's'}`,
       evidence: burnCards.slice(0, 8),
       score: burnCards.length + (burnInvested ? INVESTED_BONUS : 0),
+      assembly: strategicAssembly(burnCards, STRATEGIC_MIN_CARDS),
     });
   }
 
@@ -410,6 +455,8 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
         summary: `${equipCards.length} equipment${auraCards.length > 0 ? `, ${auraCards.length} aura${auraCards.length === 1 ? '' : 's'}` : ''}${cmdEvasion ? ' — commander has evasion' : ''}`,
         evidence: allEvidence.slice(0, 8),
         score: voltronScore,
+        // Two pieces of gear on the (always-available) commander = suited up.
+        assembly: strategicAssembly(allEvidence, 2),
       });
     }
   }
@@ -436,8 +483,11 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
   // here is a genuine path; rank by score (commitment) descending.
   candidates.sort((a, b) => b.score - a.score);
 
+  // Assembly-clock wildcards — scanned regardless of which paths qualified.
+  const tutors = cards.filter((c) => isTutor(parseCard(c).oracle)).map((c) => c.name);
+
   if (candidates.length === 0) {
-    return { primary: null, secondary: [], noClearWinCondition: true };
+    return { primary: null, secondary: [], noClearWinCondition: true, tutors };
   }
 
   const [primary, ...rest] = candidates;
@@ -445,6 +495,7 @@ export function detectWinConditions(input: WinConditionInput): WinConditionAnaly
     primary,
     secondary: rest,
     noClearWinCondition: false,
+    tutors,
   };
 }
 

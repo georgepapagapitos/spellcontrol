@@ -477,6 +477,8 @@ export function DeckEditorPage() {
   // Flat card list for EnginePanel's tappable axis drill-through — mainboard only
   // (commanders don't form a typical synergy axis row).
   const deckCards = useMemo(() => (deck ? deck.cards.map((c) => c.card) : []), [deck]);
+  // Library names (one per physical copy) for WinConditionPanel's assembly clock.
+  const deckLibraryNames = useMemo(() => deckCards.map((c) => c.name), [deckCards]);
   // Full axis summaries (card names + reasons) for the EnginePanel annotation layer.
   const axisSummaries = useMemo(
     () => (deck?.synergyAnalysis ? analyzeDeckSynergy(deckCards).axes : undefined),
@@ -2420,7 +2422,7 @@ export function DeckEditorPage() {
             }
             winConditionSlot={
               formatConfig?.hasCommander && deck.winConditions ? (
-                <WinConditionPanel analysis={deck.winConditions} />
+                <WinConditionPanel analysis={deck.winConditions} libraryNames={deckLibraryNames} />
               ) : undefined
             }
           />

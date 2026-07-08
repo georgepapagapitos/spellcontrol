@@ -32,6 +32,7 @@ import {
   ChevronUp,
   Dices,
   Hand,
+  Hourglass,
   Mountain,
   Play,
   Plus,
@@ -46,9 +47,16 @@ import { scryfallToEnrichedCard } from '../../lib/scryfall-to-enriched';
 import { getCardRole } from '@/deck-builder/services/tagger/client';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
 import { COLOR_INFO } from '../../lib/colors';
-import { isKeepableHand, simulateOpeningHands, type SimResult } from '../../lib/opening-hand-sim';
+import {
+  isKeepableHand,
+  simulateAssemblyClock,
+  simulateOpeningHands,
+  type SimResult,
+} from '../../lib/opening-hand-sim';
 import { cardCmc, isLand, toSimCard } from '../../lib/hand-classify';
 import { CardPreview } from '../CardPreview';
+import { InfoTip } from '../InfoTip';
+import { assemblyClockTip } from './WinConditionPanel';
 
 export interface DeckTestHandPanelHandle {
   reveal(): void;
@@ -186,6 +194,20 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
     // The library reduced to simulator inputs. Recomputed when tagger data
     // arrives so ramp classification (which drives keep verdicts) is correct.
     const simLibrary = useMemo(() => library.map(toSimCard), [library, taggerReady]);
+
+    // Assembly clock — "typically online by turn N" for the primary win path
+    // (E75). Null hides the line: non-commander decks, analyses persisted
+    // before the assembly field, or paths with no discrete assembly (combat).
+    const primaryWinCon = deck?.winConditions?.primary ?? null;
+    const winConTutors = deck?.winConditions?.tutors;
+    const assemblyClock = useMemo(() => {
+      if (!primaryWinCon?.assembly?.length || library.length === 0) return null;
+      return simulateAssemblyClock(
+        library.map((c) => c.name),
+        primaryWinCon.assembly,
+        { iterations: 1000, wildcards: winConTutors }
+      );
+    }, [library, primaryWinCon, winConTutors]);
 
     const [hand, setHand] = useState<HandSlot[]>([]);
     const [pile, setPile] = useState<ScryfallCard[]>([]);
@@ -545,6 +567,21 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                       Lands per opening hand across {sim.iterations.toLocaleString()} simulated
                       draws · avg <strong>{sim.avgLands.toFixed(2)}</strong>
                     </p>
+                    {assemblyClock && primaryWinCon && (
+                      <p className="deck-test-hand-assembly">
+                        <Hourglass width={12} height={12} aria-hidden />
+                        <span>
+                          {primaryWinCon.label} typically online by turn{' '}
+                          <strong>{assemblyClock.typicalTurn}</strong> · 90% of games by turn{' '}
+                          {assemblyClock.p90Turn}
+                        </span>
+                        <InfoTip
+                          label="the assembly clock"
+                          className="deck-test-hand-assembly-tip"
+                          text={assemblyClockTip()}
+                        />
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -555,7 +592,10 @@ export const DeckTestHandPanel = forwardRef<DeckTestHandPanelHandle, Props>(
                     ? `Simulated ${sim.iterations.toLocaleString()} opening hands. ` +
                       `${Math.round(sim.keepableRate * 100)} percent keepable, ` +
                       `${Math.round(sim.keepableWithinMulligansRate * 100)} percent after a mulligan. ` +
-                      `Average ${sim.avgLands.toFixed(1)} lands.`
+                      `Average ${sim.avgLands.toFixed(1)} lands.` +
+                      (assemblyClock && primaryWinCon
+                        ? ` ${primaryWinCon.label} typically online by turn ${assemblyClock.typicalTurn}, 90 percent of games by turn ${assemblyClock.p90Turn}.`
+                        : '')
                     : ''}
                 </p>
               </section>
