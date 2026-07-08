@@ -324,10 +324,22 @@
   z-index: var(--z-overlay);
 }
 
+/* Every sheet on this shell dims the page BY CONSTRUCTION: the scrim lives on
+   the root itself, wrapped in :where() (zero specificity) so a scoped root
+   class that deliberately wants a stronger dim (.pull-list-root,
+   .deck-tokens-root → var(--overlay)) wins regardless of import order. This
+   omission shipped as a per-sheet bug FOUR audits running (E95 #1048, E99,
+   WelcomeDigest, then six latent bare-root sheets) before being fixed here at
+   the shell; no-unscrimmed-sheet-roots.test.ts asserts this rule stays. */
+:where(.card-picker-root) {
+  background: var(--overlay-sheet);
+}
+
+/* Click-to-close hit area some sheets render as a child; the dim itself comes
+   from the root rule above (a background here would double-stack the alpha). */
 .card-picker-backdrop {
   position: absolute;
   inset: 0;
-  background: var(--overlay-sheet);
 }
 
 .card-picker-sheet {

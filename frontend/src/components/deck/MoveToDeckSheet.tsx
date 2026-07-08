@@ -1,8 +1,9 @@
-import { type JSX, useId, useState } from 'react';
+import { type JSX, useCallback, useId, useState } from 'react';
 import { X, ChevronLeft } from 'lucide-react';
 import './MoveToDeckSheet.css';
 import { useLockBodyScroll } from '../../lib/use-lock-body-scroll';
 import { useEscapeKey } from '../../lib/use-escape-key';
+import { useSheetExit } from '../../lib/use-sheet-exit';
 import { ColorPip } from '../shared/ManaSymbol';
 import { effectiveDeckColors } from '@/lib/deck-validation';
 import { useDecksStore, type Deck } from '@/store/decks';
@@ -60,7 +61,22 @@ export function MoveToDeckSheet({
   const [replacement, setReplacement] = useState<{ name: string; card: ScryfallCard } | null>(null);
 
   useLockBodyScroll();
-  useEscapeKey(onCancel);
+
+  // Below 1024px this is a bottom sheet with a slide-up entry, so the
+  // dismiss paths (backdrop, Escape, ✕) play the symmetric
+  // `binder-sheet-slide-out` before unmount. On desktop it's a centered
+  // panel with `animation: none` — exits stay instant there. The confirm
+  // action is a parent-owned callback (it acts, then the parent unmounts
+  // the sheet), so it isn't routed through the hook.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onCancel,
+    'binder-sheet-slide-out'
+  );
+  const dismiss = useCallback(() => {
+    if (window.matchMedia('(min-width: 1024px)').matches) onCancel();
+    else beginClose();
+  }, [beginClose, onCancel]);
+  useEscapeKey(dismiss);
 
   const others = decks.filter((d) => d.id !== currentDeck.id);
   const target = targetId ? (others.find((d) => d.id === targetId) ?? null) : null;
@@ -77,16 +93,17 @@ export function MoveToDeckSheet({
       className="card-picker-root move-deck-root"
       onClick={(e) => {
         e.stopPropagation();
-        onCancel();
+        dismiss();
       }}
       role="presentation"
     >
       <div
-        className="card-picker-sheet move-deck-sheet"
+        className={`card-picker-sheet move-deck-sheet${isClosing ? ' is-closing' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
+        onAnimationEnd={onAnimationEnd}
       >
         <div className="card-picker-handle" aria-hidden />
         <header className="move-deck-head">
@@ -113,7 +130,7 @@ export function MoveToDeckSheet({
               {target ? null : ' out of this deck'}
             </p>
           </div>
-          <button type="button" className="move-deck-close" onClick={onCancel} aria-label="Cancel">
+          <button type="button" className="move-deck-close" onClick={dismiss} aria-label="Cancel">
             <X width={18} height={18} strokeWidth={2} aria-hidden />
           </button>
         </header>

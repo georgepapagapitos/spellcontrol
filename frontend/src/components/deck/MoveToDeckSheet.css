@@ -3,14 +3,6 @@
    adds the header, the deck-list rows, and the outcome phase. Theme vars +
    --text-* scale only; see STYLE_GUIDE.md. */
 
-/* The shell's scrim normally comes from a .card-picker-backdrop child; this
-   sheet closes on root click instead, so the root carries the scrim itself —
-   without it the deck view bleeds through undimmed (same ruling as
-   .between-decks-sheet-root, E95). */
-.move-deck-root {
-  background: var(--overlay-sheet);
-}
-
 .move-deck-head {
   display: flex;
   align-items: flex-start;

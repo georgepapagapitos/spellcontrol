@@ -90,13 +90,6 @@
 
 /* ── Sheet (card-picker shell — see MoveToDeckSheet for the same pattern) ── */
 
-/* The shell's scrim normally comes from a .card-picker-backdrop child; this
-   sheet closes on root click instead, so the root carries the scrim itself —
-   without it the busy index grid bleeds through undimmed. */
-.between-decks-sheet-root {
-  background: var(--overlay-sheet);
-}
-
 .between-decks-sheet-head {
   display: flex;
   align-items: flex-start;

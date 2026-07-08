@@ -2,15 +2,6 @@
    shared card-picker sheet shell; this file adds the header, the contested-card
    rows, and the footer. Theme vars + --text-* scale only; see STYLE_GUIDE.md. */
 
-/* The shell's scrim normally comes from a .card-picker-backdrop child; this
-   sheet closes on root click instead, so the root carries the scrim itself —
-   without it the deck view bleeds through undimmed (same ruling as
-   .between-decks-sheet-root / .move-deck-root, E95). Caught by
-   no-unscrimmed-sheet-roots.test.ts, which flagged this file was missing it. */
-.shared-copies-root {
-  background: var(--overlay-sheet);
-}
-
 .shared-copies-head {
   display: flex;
   align-items: flex-start;

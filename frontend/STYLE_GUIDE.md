@@ -354,19 +354,21 @@ it rides the existing trailing auto-margins — don't add a competing
   shared **card-picker** pattern: `.card-picker-root` + `.card-picker-sheet` —
   a **bottom sheet on mobile, centered modal ≥1024px**. Dismiss via backdrop
   tap, a close button, and `Esc`.
-- **Every card-picker sheet must dim the page behind it.** The scrim comes from
-  one of exactly two places: a `.card-picker-backdrop` child (the shell's
-  default), or — for sheets that close on root click and render no backdrop
-  div — `background: var(--overlay-sheet)` on the sheet's **scoped root class**
-  (`.between-decks-sheet-root`, `.move-deck-root`, `.welcome-digest-sheet-root`,
-  `.shared-copies-root`). Never put a background on the shared `.card-picker-root`
-  shell: consumers that do render the backdrop child would double-stack scrims.
-  (Settled by E95 #1048, re-applied E99, shipped a third time on WelcomeDigest —
-  now **guard-tested**: `src/lib/no-unscrimmed-sheet-roots.test.ts` source-scans
-  every `card-picker-root <scoped-class>` consumer and fails if the scoped class
-  neither renders `.card-picker-backdrop` nor sets this background anywhere in
-  the app's CSS. A new sheet that fails this rule is now caught in CI, not
-  rediscovered in review a fourth time.)
+- **Every card-picker sheet dims the page behind it — by construction.** The
+  scrim lives on the shell itself: `:where(.card-picker-root) { background:
+var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
+  shell needs **no scrim code at all**; `.card-picker-backdrop` (the
+  click-to-close child some sheets render) carries no background of its own, so
+  nothing double-stacks. To dim **harder** than the default, set the stronger
+  token on your scoped root class (`.pull-list-root`, `.deck-tokens-root` →
+  `var(--overlay)`) — the shell rule is zero-specificity via `:where()`, so any
+  scoped rule wins regardless of import order. (History: the old ruling put the
+  scrim on each sheet's scoped root class, and that per-sheet obligation shipped
+  missing on E95 #1048, again on E99, a third time on WelcomeDigest #1113, and
+  audit of the pattern then found **eight more** latent unscrimmed sheets — so
+  #1114 moved the scrim to the shell where it can't be forgotten.
+  `src/lib/no-unscrimmed-sheet-roots.test.ts` pins the shell rule and the
+  backdrop's background-free invariant.)
 - **Destructive confirmations go through the shared `<Modal>`, never
   `window.confirm()`.** The native dialog can't be themed, freezes the event
   loop, loses focus on dismiss, and renders inconsistently in Capacitor
@@ -557,16 +559,16 @@ dismissal while work is in flight) rather than re-implementing the backdrop.
 
 ### Tokens (styles/tokens.css)
 
-| Token             | Value                             | Use                                   |
-| ----------------- | --------------------------------- | ------------------------------------- |
-| `--motion-fast`   | 120ms                             | hovers, presses, popover enter        |
-| `--motion-base`   | 200ms                             | fades, drawer exits, toast leave      |
-| `--motion-gentle` | 320ms                             | sheet exits, emphasis one-shots       |
-| `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only)   |
-| `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move       |
-| `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel            |
-| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, numeric pops     |
-| `linear`          |                                   | spinners, progress, confetti          |
+| Token             | Value                             | Use                                 |
+| ----------------- | --------------------------------- | ----------------------------------- |
+| `--motion-fast`   | 120ms                             | hovers, presses, popover enter      |
+| `--motion-base`   | 200ms                             | fades, drawer exits, toast leave    |
+| `--motion-gentle` | 320ms                             | sheet exits, emphasis one-shots     |
+| `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only) |
+| `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move     |
+| `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel          |
+| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, numeric pops   |
+| `linear`          |                                   | spinners, progress, confetti        |
 
 Don't invent a new bezier — if none of these reads right, that's a
 STYLE_GUIDE discussion, not an inline constant.

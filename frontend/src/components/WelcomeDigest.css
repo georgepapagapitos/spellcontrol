@@ -105,14 +105,6 @@
 
 /* ── Sheet ─────────────────────────────────────────────────────────────── */
 
-/* The shell's scrim normally comes from a .card-picker-backdrop child; this
-   sheet closes on root click instead, so the root carries the scrim itself —
-   without it the collection page bleeds through undimmed (same ruling as
-   .between-decks-sheet-root, E95/E99). */
-.welcome-digest-sheet-root {
-  background: var(--overlay-sheet);
-}
-
 .welcome-digest-sheet-head {
   display: flex;
   align-items: flex-start;
