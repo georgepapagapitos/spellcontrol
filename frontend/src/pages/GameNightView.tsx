@@ -166,7 +166,7 @@ function NightBody({
   username: string | null;
   onPayload: (p: PublicGameNight) => void;
 }) {
-  const { night, rsvps, myRsvp, options } = payload;
+  const { night, rsvps, myRsvp, options, canRsvp } = payload;
   const cancelled = night.cancelledAt !== null;
   const polling = options.length > 0;
   const when = useMemo(
@@ -284,7 +284,19 @@ function NightBody({
         )}
       </dl>
 
-      {!cancelled && polling && (
+      {!cancelled && !canRsvp && (
+        <section className="game-night-reply" aria-label="Invite only">
+          <h2 className="game-night-section-title">
+            {polling ? 'Which times can you make?' : 'Can you make it?'}
+          </h2>
+          <p className="game-night-invite-only-note" role="status">
+            This night is invite-only — ask {night.hostUsername} for an invite to reply.
+          </p>
+          {polling && <NightPoll options={options} />}
+        </section>
+      )}
+
+      {!cancelled && canRsvp && polling && (
         <section className="game-night-reply" aria-label="Vote on a date">
           <h2 className="game-night-section-title">
             {myRsvp ? 'Your votes — change them any time' : 'Which times can you make?'}
@@ -306,7 +318,7 @@ function NightBody({
         </section>
       )}
 
-      {!cancelled && !polling && (
+      {!cancelled && canRsvp && !polling && (
         <section className="game-night-reply" aria-label="Your reply">
           <h2 className="game-night-section-title">
             {myRsvp ? 'Your reply — change it any time' : 'Can you make it?'}

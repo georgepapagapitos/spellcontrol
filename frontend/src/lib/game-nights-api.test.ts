@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   cancelGameNight,
   createGameNight,
+  deleteGameNight,
   endGameNightSeries,
   fetchPublicGameNight,
   GameNightNotFoundError,
@@ -10,6 +11,8 @@ import {
   listGameNights,
   lockGameNight,
   openGameNightPoll,
+  removeGameNightInvite,
+  removeGameNightRsvp,
   resolveGameNightSeries,
   rsvpGameNight,
   suggestGameNightOption,
@@ -74,6 +77,44 @@ describe('listGameNights / updateGameNight / cancelGameNight', () => {
     await expect(cancelGameNight('n1')).resolves.toBeUndefined();
     fetchMock.mockResolvedValue(jsonResponse({ error: 'Game night not found.' }, 404));
     await expect(cancelGameNight('n2')).rejects.toThrow('Game night not found.');
+  });
+});
+
+describe('host controls: delete night, remove attendee, un-invite', () => {
+  it('deleteGameNight DELETEs with ?hard=1 and treats 204 as success', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(deleteGameNight('n1')).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1?hard=1');
+    expect(init.method).toBe('DELETE');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'Game night not found.' }, 404));
+    await expect(deleteGameNight('n2')).rejects.toThrow('Game night not found.');
+  });
+
+  it('removeGameNightRsvp DELETEs the rsvp and surfaces errors', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(removeGameNightRsvp('n1', 'r9')).resolves.toBeUndefined();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1/rsvps/r9');
+    expect(init.method).toBe('DELETE');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'RSVP not found.' }, 404));
+    await expect(removeGameNightRsvp('n1', 'r9')).rejects.toThrow('RSVP not found.');
+  });
+
+  it('removeGameNightInvite DELETEs by username and surfaces errors', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await expect(removeGameNightInvite('n1', 'sam')).resolves.toBeUndefined();
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/game-nights/n1/invites/sam');
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'Invite not found.' }, 404));
+    await expect(removeGameNightInvite('n1', 'sam')).rejects.toThrow('Invite not found.');
+  });
+
+  it('createGameNight passes inviteOnly through', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ night: NIGHT }, 201));
+    await createGameNight({ title: 'x', startsAt: 1, inviteOnly: true });
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body).inviteOnly).toBe(true);
   });
 });
 
