@@ -508,6 +508,74 @@ describe('applyBracketConvergence', () => {
     vi.mocked(getCardRole).mockReturnValue(null); // restore the file-level default for later tests
   });
 
+  // E128 (E122/E123 follow-up, pick/cut symmetry): pickCut's priorityFor must
+  // weigh ownership the SAME way cardPicking.ts's priorityWithBoosts does at
+  // pick time, or an owned card that only made the pick-time cut because of
+  // that boost gets evicted right back out by UP-convergence.
+  describe('E128: owned-preference symmetry in pickCut (UP-convergence)', () => {
+    function twoCandidateUpState(): GenerationState {
+      const state = underTargetState();
+      state.categories.synergy = [scryfallCard('GenericOwned'), scryfallCard('GenericUnowned')];
+      state.usedNames = new Set(['GenericOwned', 'GenericUnowned']);
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            edhrecCard('Pool GC', 95),
+            // Owned card has the LOWER raw priority (15) by less than
+            // OWNED_PRIORITY_BOOST=40 — a near-tie the boost should flip.
+            edhrecCard('GenericOwned', 15),
+            edhrecCard('GenericUnowned', 20),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      return state;
+    }
+
+    function twoCandidateMap(): Map<string, ScryfallCard> {
+      const map = new Map<string, ScryfallCard>();
+      map.set('Pool GC', scryfallCard('Pool GC'));
+      map.set('GenericOwned', scryfallCard('GenericOwned'));
+      map.set('GenericUnowned', scryfallCard('GenericUnowned'));
+      return map;
+    }
+
+    it('cuts the unowned card instead of the raw-lowest-priority owned one under prefer', () => {
+      const state = twoCandidateUpState();
+      state.cfg.collectionStrategy = 'prefer';
+      state.context.collectionNames = new Set(['GenericOwned']);
+
+      const result = applyBracketConvergence(state, {
+        scryfallCardMap: twoCandidateMap(),
+        detectedCombos: undefined,
+        mustIncludeNames: new Set(),
+      });
+
+      expect(result.applied).toBeGreaterThanOrEqual(1);
+      expect(state.usedNames.has('Pool GC')).toBe(true); // the GC got added
+      expect(state.usedNames.has('GenericOwned')).toBe(true); // shielded by the owned boost
+      expect(state.usedNames.has('GenericUnowned')).toBe(false); // cut instead
+    });
+
+    it('no-collection / strategy off: cuts the raw-lowest-priority card as before (byte-identical)', () => {
+      const state = twoCandidateUpState();
+      // collectionStrategy stays 'full' (underTargetState default) and no
+      // collectionNames is set — strategy='prefer' is required for any
+      // boost, so this must cut the raw-lowest-priority card exactly as it
+      // did before this PR.
+
+      const result = applyBracketConvergence(state, {
+        scryfallCardMap: twoCandidateMap(),
+        detectedCombos: undefined,
+        mustIncludeNames: new Set(),
+      });
+
+      expect(result.applied).toBeGreaterThanOrEqual(1);
+      expect(state.usedNames.has('Pool GC')).toBe(true);
+      expect(state.usedNames.has('GenericOwned')).toBe(false); // cut: lowest raw priority
+      expect(state.usedNames.has('GenericUnowned')).toBe(true);
+    });
+  });
+
   // ── budget gate (E79) ───────────────────────────────────────────────────────
 
   it('skips a filler that exceeds the budget cap, picking a cheaper legal one instead', () => {

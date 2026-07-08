@@ -285,6 +285,9 @@ export const gameNights = pgTable(
     cancelledAt: bigint('cancelled_at', { mode: 'number' }),
     /** Recurring series this night is an occurrence of (E125); NULL = one-off. */
     seriesId: text('series_id').references(() => gameNightSeries.id, { onDelete: 'set null' }),
+    /** Invite-only: the link shows the night, but only people already in
+     *  (host, invited friends, existing RSVP credential) can reply. */
+    inviteOnly: boolean('invite_only').notNull().default(false),
   },
   (t) => ({
     hostIdx: index('game_nights_host_idx').on(t.hostUserId),

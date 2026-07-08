@@ -3,6 +3,7 @@ import type {
   CoherenceRepair,
   DeckCategory,
   DetectedCombo,
+  EDHRECCard,
   MaxRarity,
   ScryfallCard,
 } from '@/deck-builder/types';
@@ -25,7 +26,12 @@ import {
   isOwnedRarityExempt,
   fitsColorIdentity,
 } from '../deckFilters';
-import { calculateCardPriority } from '../cardPicking';
+import {
+  calculateCardPriority,
+  isHighSynergyCard,
+  OWNED_PRIORITY_BOOST,
+  OWNED_PRIORITY_BOOST_THEME_TIER,
+} from '../cardPicking';
 import { qualifiedPayoffMismatch } from '../nonbo';
 import type { BudgetTracker } from '../budgetTracker';
 import type { BracketGuard } from '../bracketGuard';
@@ -142,6 +148,31 @@ export async function applyCoherenceRepair(
   // post-convergence deckScorePhase reads, available here without running it.
   const inclusionMap: Record<string, number> = {};
   for (const c of pool) inclusionMap[c.name] = c.inclusion ?? 0;
+
+  // Pool entries by name, for weakestCut's theme-tier lookup below.
+  const poolByName = new Map<string, EDHRECCard>();
+  for (const c of pool) poolByName.set(c.name, c);
+
+  // E128 (E122/E123 follow-up, pick/cut symmetry): weakestCut below picks
+  // the lowest raw EDHREC inclusion with ZERO ownership term — the same gap
+  // phaseRoleSurplusRebalance.ts / phaseLandSqueezeReconcile.ts already
+  // closed for their own eviction scoring — an owned card that only made
+  // the pick-time cut via cardPicking.ts's priorityWithBoosts owned boost
+  // looked like the weakest candidate here purely for being low-inclusion,
+  // and got evicted right back out. Reuses the exact cardPicking.ts
+  // constants (no new tunables); this sort's scale is raw inclusion
+  // (≈0-100), not calculateCardPriority's (~0-250+) the constants were
+  // sized for, so a 40/60pt shield here is a strong one BY DESIGN — an
+  // owned card yields the cut slot only when every unowned candidate is
+  // high-inclusion. Mirrors the donor gating verbatim, so no-collection/
+  // 'full' generation is byte-for-byte unchanged.
+  const preferOwned = state.cfg.collectionStrategy === 'prefer';
+  const ownedBoostFor = (name: string, isThemeTier: boolean): number =>
+    preferOwned && collectionNames?.has(name)
+      ? isThemeTier
+        ? OWNED_PRIORITY_BOOST_THEME_TIER
+        : OWNED_PRIORITY_BOOST
+      : 0;
 
   const current = nonLands();
   const liftedByMap: Record<string, string[]> = {};
@@ -285,7 +316,10 @@ export async function applyCoherenceRepair(
       if (cat === 'lands') continue;
       for (const card of cards) {
         if (exclude.has(card.name) || isProtected(card)) continue;
-        const incl = inclusionMap[card.name] ?? 0;
+        const pooled = poolByName.get(card.name);
+        const incl =
+          (inclusionMap[card.name] ?? 0) +
+          ownedBoostFor(card.name, !!pooled && isHighSynergyCard(pooled));
         if (!best || incl < best.incl) best = { card, category: cat, incl };
       }
     }

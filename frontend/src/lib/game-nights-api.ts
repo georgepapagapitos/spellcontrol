@@ -9,6 +9,8 @@ import { isNativePlatform } from './platform';
 export type RsvpStatus = 'going' | 'maybe' | 'declined';
 
 export interface NightRsvp {
+  /** Removal handle, present only in the host's own view of their night. */
+  id?: string;
   displayName: string;
   status: RsvpStatus;
   isHost: boolean;
@@ -52,6 +54,8 @@ export interface GameNight {
   notes: string | null;
   createdAt: number;
   cancelledAt: number | null;
+  /** Only people already in (host, invitees, existing RSVPs) can reply. */
+  inviteOnly: boolean;
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
@@ -74,6 +78,8 @@ export interface PublicGameNight {
     location: string | null;
     notes: string | null;
     cancelledAt: number | null;
+    /** Only people already in (host, invitees, existing RSVPs) can reply. */
+    inviteOnly: boolean;
     hostUsername: string;
     series: NightSeries | null;
   };
@@ -82,6 +88,8 @@ export interface PublicGameNight {
   myRsvp: { id: string; displayName: string; status: RsvpStatus } | null;
   /** Candidate date slots while polling; empty once a date is locked in. */
   options: NightOption[];
+  /** Whether THIS caller may reply — false on an invite-only night they're not in. */
+  canRsvp: boolean;
 }
 
 export class GameNightNotFoundError extends Error {
@@ -112,6 +120,8 @@ export interface GameNightInput {
   inviteUserIds?: string[];
   /** Repeat weekly (E125): the next occurrence materializes as the date passes. */
   repeatsWeekly?: boolean;
+  /** Invite-only: the link shows details, but only people you invite can reply. */
+  inviteOnly?: boolean;
 }
 
 export async function createGameNight(input: GameNightInput): Promise<GameNight> {
@@ -161,6 +171,41 @@ export async function cancelGameNight(id: string): Promise<void> {
   });
   if (!res.ok && res.status !== 204) {
     throw new Error(await readError(res, "Couldn't cancel the game night."));
+  }
+}
+
+/** Host only: delete a night outright — gone from every list, the link 404s. */
+export async function deleteGameNight(id: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/game-nights/${encodeURIComponent(id)}?hard=1`), {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't delete the game night."));
+  }
+}
+
+/** Host only: remove an attendee's RSVP (and their pending invite with it). */
+export async function removeGameNightRsvp(nightId: string, rsvpId: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(`/api/game-nights/${encodeURIComponent(nightId)}/rsvps/${encodeURIComponent(rsvpId)}`),
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't remove them from the night."));
+  }
+}
+
+/** Host only: un-invite a friend who hasn't replied yet. */
+export async function removeGameNightInvite(nightId: string, username: string): Promise<void> {
+  const res = await fetch(
+    apiUrl(
+      `/api/game-nights/${encodeURIComponent(nightId)}/invites/${encodeURIComponent(username)}`
+    ),
+    { method: 'DELETE', credentials: 'include' }
+  );
+  if (!res.ok && res.status !== 204) {
+    throw new Error(await readError(res, "Couldn't remove the invite."));
   }
 }
 
