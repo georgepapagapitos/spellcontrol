@@ -4,15 +4,9 @@
   padding: var(--space-4);
 }
 
-.cube-page-head h1 {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-lg);
-  color: var(--text-primary);
-}
+/* Header type comes from the shared .binder-hero family (binder-hero.css);
+   only the sub line's measure cap is local. */
 .cube-page-sub {
-  margin: 0 0 var(--space-3);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
   max-width: 60ch;
 }
 

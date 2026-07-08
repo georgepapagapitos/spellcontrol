@@ -543,6 +543,14 @@ STYLE_GUIDE discussion, not an inline constant.
 6. **Feedback micro** — press = scale(0.97) `--motion-fast`; value change =
    `--ease-pop` one-shot ≤320ms; skeleton shimmer 1.4s; spinner 0.8s linear
    (use the shared `spin` / `skeleton-shimmer` keyframes — don't redeclare).
+7. **Staggered entrance (panels & index cards)** — every cascade goes through
+   `usePanelCascade(key)` + `panelCascadeClass(i, animating)` (the shared
+   `panel-cascade-in` keyframe: 8px rise + fade, 40ms steps, capped at 6
+   slots; reduced-motion gated). Key it to a computation identity (the
+   analysis bento) or a page-scoped once-per-session key (`'decks-index:cascade'`,
+   `'binders-index:cascade'`) — and pass the key **only when the list is
+   non-empty**, or an empty first visit consumes the key with nothing to show.
+   Don't hand-roll a bespoke list stagger.
 
 ### Live values
 

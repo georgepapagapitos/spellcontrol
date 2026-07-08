@@ -10,6 +10,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { Link } from 'react-router-dom';
@@ -165,6 +166,12 @@ export function BindersIndexPage() {
       return cmp * dirMul;
     });
   }, [materialized, sortField, sortDir, debouncedSearch]);
+
+  // One-shot entrance cascade for the binder cards — same primitive (and
+  // once-per-session consumed registry) as the analysis bento panels. Keyed
+  // only when there's something to animate, so an empty first visit doesn't
+  // burn the key.
+  const cascade = usePanelCascade(sorted.length > 0 ? 'binders-index:cascade' : null);
 
   const handleDelete = useCallback(
     async (id: string, name: string) => {
@@ -443,6 +450,10 @@ export function BindersIndexPage() {
                   key={b.def.id}
                   className={`binders-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
                     selected ? ' bulk-selected' : ''
+                  }${
+                    panelCascadeClass(idx, cascade.animating)
+                      ? ` ${panelCascadeClass(idx, cascade.animating)}`
+                      : ''
                   }`}
                   style={{ ['--binder-color' as string]: b.def.color }}
                   {...selectInteraction(sel.selectMode, selected, () => sel.toggle(b.def.id))}

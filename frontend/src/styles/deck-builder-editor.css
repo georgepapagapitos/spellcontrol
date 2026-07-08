@@ -44,6 +44,7 @@
 }
 
 .deck-editor-hero {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -52,6 +53,52 @@
   border-left: 3px solid var(--accent);
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* ── Commander presence (≥600px) ──────────────────────────────────────────
+   The commander's art_crop rides behind the title as a right-anchored
+   backdrop, fading to the page background toward the text so the name/meta
+   keep their contrast in both themes (the gradient starts from var(--bg),
+   which tracks the active theme). Hidden on phones: there the title spans
+   the full row and art behind text would cost legibility. */
+.deck-editor-hero-artwrap {
+  display: none;
+}
+
+@media (min-width: 600px) {
+  .deck-editor-hero-artwrap {
+    display: block;
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(24rem, 55%);
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    pointer-events: none;
+  }
+
+  .deck-editor-hero-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+  }
+
+  .deck-editor-hero-art-fade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      var(--bg) 0%,
+      color-mix(in srgb, var(--bg) 45%, transparent) 45%,
+      transparent 100%
+    );
+  }
+
+  /* Title/meta paint above the backdrop. */
+  .deck-editor-hero > :not(.deck-editor-hero-artwrap) {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 /* Inline hero editor: opened by clicking the deck title. Holds the

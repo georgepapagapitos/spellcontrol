@@ -156,7 +156,8 @@
   background: var(--surface-raised);
   color: var(--text-secondary);
   font-size: var(--text-xs);
-  font-family: var(--font-sans);
+  /* No font-family: the intended `--font-sans` token never existed, so this
+     always inherited the body serif — keep what actually shipped. */
   transition:
     background var(--motion-fast),
     color var(--motion-fast);
