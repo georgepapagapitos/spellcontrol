@@ -5,7 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   cancelGameNight,
   createGameNight,
@@ -31,7 +31,9 @@ import { CalendarPlus, ChevronDown, ChevronRight } from 'lucide-react';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../../lib/calendar-links';
 import { mapsSearchUrl, searchPlaces } from '../../lib/place-search';
 import { listFriends, sendFriendRequest, type Friend } from '../../lib/friends-client';
+import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, gameFormatLabel } from '../../lib/game-formats';
 import { useAuth } from '../../store/auth';
+import { usePlayStore } from '../../store/play';
 import { toast } from '../../store/toasts';
 import { Modal } from '../Modal';
 import { OverflowMenu } from '../OverflowMenu';
@@ -259,6 +261,8 @@ function NightCard({
   onDelete: () => void;
   refresh: () => Promise<void>;
 }) {
+  const navigate = useNavigate();
+  const seedGameSetup = usePlayStore((s) => s.seedGameSetup);
   const [busy, setBusy] = useState<RsvpStatus | null>(null);
   const [pendingLock, setPendingLock] = useState<NightOption | null>(null);
   const [pendingStopRepeat, setPendingStopRepeat] = useState(false);
@@ -267,6 +271,7 @@ function NightCard({
   const cancelled = night.cancelledAt !== null;
   const polling = night.options.length > 0;
   const weekly = night.series !== null && night.series.endedAt === null;
+  const formatLabel = gameFormatLabel(night.format);
   const when = new Date(night.startsAt).toLocaleString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -277,6 +282,21 @@ function NightCard({
   const going = night.rsvps.filter((r) => r.status === 'going').length;
   const maybe = night.rsvps.filter((r) => r.status === 'maybe').length;
   const tally = [`${going} going`, maybe > 0 ? `${maybe} maybe` : null].filter(Boolean).join(' · ');
+
+  // Host payoff: seed the local setup with the going roster + this night's
+  // format, then jump to Play → Local to review and start. Caps the roster at
+  // the local setup's player limit — a game night can outgrow it.
+  function startGame() {
+    const names = night.rsvps.filter((r) => r.status === 'going').map((r) => r.displayName);
+    const seeded = names.slice(0, MAX_LOCAL_PLAYERS);
+    seedGameSetup(seeded, night.format);
+    if (names.length > seeded.length) {
+      toast.show({
+        message: `Added the first ${MAX_LOCAL_PLAYERS} players — add the rest from the seat list.`,
+      });
+    }
+    navigate('/play?tab=local');
+  }
 
   async function reply(status: RsvpStatus) {
     if (busy) return;
@@ -350,6 +370,7 @@ function NightCard({
     <li className={`game-night-card${cancelled ? ' is-cancelled' : ''}`}>
       <div className="game-night-card-head">
         <h3 className="game-night-card-title">{night.title}</h3>
+        {formatLabel && <span className="game-night-format-pill">{formatLabel}</span>}
         {weekly && <span className="game-night-weekly-pill">Weekly</span>}
         {night.inviteOnly && <span className="game-night-invite-pill">Invite only</span>}
         {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
@@ -470,6 +491,16 @@ function NightCard({
               },
             ]}
           />
+        )}
+        {night.isHost && !cancelled && !polling && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            aria-label={`Start a game for ${night.title}`}
+            onClick={startGame}
+          >
+            Start game
+          </button>
         )}
       </div>
 
@@ -808,6 +839,7 @@ function NightDialog({
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [inviteOnly, setInviteOnly] = useState(night?.inviteOnly ?? false);
   const [optionInputs, setOptionInputs] = useState<string[]>(['', '']);
+  const [format, setFormat] = useState(night?.format ?? '');
   const [location, setLocation] = useState(night?.location ?? '');
   const [placeOptions, setPlaceOptions] = useState<string[]>([]);
   const [placeOpen, setPlaceOpen] = useState(false);
@@ -987,6 +1019,7 @@ function NightDialog({
           ...(pollingEdit ? {} : { startsAt }),
           location: location.trim(),
           notes: notes.trim(),
+          format,
           inviteOnly,
           addInviteUserIds: inviteIds,
         });
@@ -998,6 +1031,7 @@ function NightDialog({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           location: location.trim() || undefined,
           notes: notes.trim() || undefined,
+          format: format || undefined,
           inviteUserIds: inviteIds,
           inviteOnly,
           ...(repeatWeekly ? { repeatsWeekly: true } : {}),
@@ -1135,6 +1169,18 @@ function NightDialog({
             />
           </label>
         )}
+
+        <label className="game-night-dialog-field">
+          <span>Format (optional)</span>
+          <select value={format} onChange={(e) => setFormat(e.target.value)}>
+            <option value="">Undecided</option>
+            {FORMAT_OPTIONS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {/* Combobox (SetFilterPicker pattern): typed text ALWAYS stands as-is;
             suggestions are real places from the geocoder, shown exactly as

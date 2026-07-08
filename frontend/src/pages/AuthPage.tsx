@@ -104,11 +104,18 @@ export default function AuthPage() {
         : await registerAction(username.trim(), password);
     setSubmitting(false);
     if (ok) {
-      // Confirm the promotion in a toast so users see the result, not just our
-      // pre-submit promise. Only fires when there was local data to merge.
+      // Confirm the outcome in a toast so users see the result, not just our
+      // pre-submit promise — the merge count when local data was promoted,
+      // otherwise a plain acknowledgment (previously the common zero-cards
+      // case navigated away with no feedback at all).
       if (cardsToMerge > 0) {
         toast.show({
           message: `${cardsToMerge.toLocaleString()} ${cardsToMerge === 1 ? 'card' : 'cards'} added to your account.`,
+          tone: 'success',
+        });
+      } else {
+        toast.show({
+          message: mode === 'login' ? `Signed in as ${username.trim()}` : 'Account created',
           tone: 'success',
         });
       }

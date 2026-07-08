@@ -19,22 +19,10 @@ import { StackedBar } from '../components/shared/MeterBar';
 import { FriendsLeaderboard } from '../components/play/FriendsLeaderboard';
 import { GameNightsTab, pendingInviteCount, useGameNights } from '../components/play/GameNights';
 import { aggregateMatchupRecords } from '../lib/matchup-records';
+import { FORMAT_OPTIONS, MAX_LOCAL_PLAYERS, MIN_LOCAL_PLAYERS } from '../lib/game-formats';
 import type { GameFormat, GamePlayer, GameRecord } from '../lib/game-state';
 
 type Tab = 'local' | 'online' | 'nights' | 'history';
-
-const FORMAT_OPTIONS: { value: GameFormat; label: string; defaultLife: number; cmdDmg: boolean }[] =
-  [
-    { value: 'commander', label: 'Commander', defaultLife: 40, cmdDmg: true },
-    { value: 'brawl', label: 'Brawl', defaultLife: 25, cmdDmg: false },
-    { value: 'standard', label: 'Standard', defaultLife: 20, cmdDmg: false },
-    { value: 'modern', label: 'Modern', defaultLife: 20, cmdDmg: false },
-    { value: 'pioneer', label: 'Pioneer', defaultLife: 20, cmdDmg: false },
-    { value: 'legacy', label: 'Legacy', defaultLife: 20, cmdDmg: false },
-    { value: 'vintage', label: 'Vintage', defaultLife: 20, cmdDmg: false },
-    { value: 'pauper', label: 'Pauper', defaultLife: 20, cmdDmg: false },
-    { value: 'casual', label: 'Casual', defaultLife: 20, cmdDmg: false },
-  ];
 
 export function PlayPage() {
   const [params, setParams] = useSearchParams();
@@ -318,9 +306,6 @@ export function PlayPage() {
 
 // ── Local setup ─────────────────────────────────────────────────────────────
 
-const MIN_LOCAL_PLAYERS = 2;
-const MAX_LOCAL_PLAYERS = 6;
-
 function LocalSetup({
   decks,
   onStart,
@@ -330,14 +315,31 @@ function LocalSetup({
   onStart: (setup: LocalGameSetup) => void;
   hasActive: boolean;
 }) {
-  const [format, setFormat] = useState<GameFormat>('commander');
+  // A game night's "Start game" captures a one-shot seed (players + format) in
+  // the store before navigating here. Read it once at mount — via a lazy
+  // useState initializer rather than an effect, so seeding the form's initial
+  // values never needs a setState call inside a useEffect body — then clear it
+  // so switching tabs and back doesn't reseed over the user's edits.
+  const [seed] = useState(() => usePlayStore.getState().gameNightSeed);
+  useEffect(() => {
+    if (seed) usePlayStore.getState().clearGameSeed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [format, setFormat] = useState<GameFormat>(seed?.format ?? 'commander');
   const formatCfg = FORMAT_OPTIONS.find((f) => f.value === format) ?? FORMAT_OPTIONS[0];
   const [startingLife, setStartingLife] = useState<number>(formatCfg.defaultLife);
   const [commanderDamageEnabled, setCmdDmg] = useState<boolean>(formatCfg.cmdDmg);
   const [poisonEnabled, setPoison] = useState<boolean>(false);
-  const [count, setCount] = useState<number>(MIN_LOCAL_PLAYERS);
+  const [count, setCount] = useState<number>(() =>
+    seed && seed.players.length > 0
+      ? Math.max(MIN_LOCAL_PLAYERS, Math.min(seed.players.length, MAX_LOCAL_PLAYERS))
+      : MIN_LOCAL_PLAYERS
+  );
   const [players, setPlayers] = useState<LocalGameSetup['players']>(() =>
-    Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) => blankPlayer(`Player ${i + 1}`))
+    Array.from({ length: MAX_LOCAL_PLAYERS }, (_, i) =>
+      blankPlayer(seed?.players[i] ?? `Player ${i + 1}`)
+    )
   );
 
   function applyFormat(next: GameFormat) {

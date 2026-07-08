@@ -12,6 +12,7 @@ import {
   type RsvpStatus,
 } from '../lib/game-nights-api';
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../lib/calendar-links';
+import { gameFormatLabel } from '../lib/game-formats';
 import { mapsSearchUrl } from '../lib/place-search';
 import { useAuth } from '../store/auth';
 import { SharedShell } from '../components/shared/SharedShell';
@@ -269,6 +270,12 @@ function NightBody({
           <div className="game-night-fact">
             <dt>Repeats</dt>
             <dd>Weekly</dd>
+          </div>
+        )}
+        {night.format && (
+          <div className="game-night-fact">
+            <dt>Format</dt>
+            <dd>{gameFormatLabel(night.format)}</dd>
           </div>
         )}
         {night.location && (

@@ -21,4 +21,10 @@ describe('buildMotes', () => {
     expect(Math.min(...angles)).toBeLessThan(20);
     expect(Math.max(...angles)).toBeGreaterThan(320);
   });
+
+  it('scales mote travel for the compact variant', () => {
+    const full = buildMotes(['G']);
+    const compact = buildMotes(['G'], 0.6);
+    compact.forEach((m, i) => expect(m.dist).toBeCloseTo(full[i].dist * 0.6));
+  });
 });
