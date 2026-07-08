@@ -560,11 +560,19 @@ dismissal while work is in flight) rather than re-implementing the backdrop.
 | `--motion-drawer` | 500ms                             | full-screen sheet rise (entry only)   |
 | `--ease-out-soft` | cubic-bezier(0.2, 0.9, 0.3, 1)    | default for every entrance/move       |
 | `--ease-drawer`   | cubic-bezier(0.32, 0.72, 0, 1)    | full-distance sheet travel            |
-| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, celebration only |
+| `--ease-pop`      | cubic-bezier(0.2, 0.9, 0.25, 1.4) | overshoot: counters, numeric pops     |
 | `linear`          |                                   | spinners, progress, confetti          |
 
 Don't invent a new bezier — if none of these reads right, that's a
 STYLE_GUIDE discussion, not an inline constant.
+
+**`--ease-pop`'s overshoot is scoped to numeric/counter pops** (a value tick,
+a badge count bump) — a spring read that suits a number jumping. This is a
+**documented decision, not an oversight**: `SealBurst` (§ Completion moments)
+deliberately uses `--ease-out-soft` instead. A stamped seal settles into place;
+it doesn't spring. Don't "fix" SealBurst to use `--ease-pop` for consistency
+with the celebration-only half of this row's `Use` column — the two
+celebration surfaces have different physical characters on purpose.
 
 ### Canonical patterns
 
@@ -1129,7 +1137,14 @@ and is grandfathered; don't copy it).
   from incomplete to full-size-and-legal. Never on mount of an
   already-complete state, and **once per subject per app-open** (a
   module-level consumed set, mirroring `consumedRevealKeys`). Re-crossing the
-  boundary in the same session doesn't replay.
+  boundary in the same session doesn't replay. **The canonical pattern is a
+  module-level `Set` keyed by the subject's id, checked-and-added around the
+  `fire()` call** — see `celebratedDeckComplete` in
+  `components/deck/DeckDisplay.tsx` and `celebratedBinderCleared` in
+  `components/BinderDriftBanner.tsx`. Prose alone let a second call site
+  (the binder-cleared moment) ship without the guard, gated only by a
+  component-local ref that replays on every clear within a session — a new
+  call site should copy one of these two, not reinvent the guard.
 - **The seal is decorative and silent; the surface carries the words.** Every
   moment pairs with a real announcement element — the import success banner,
   the deck-complete toast, the binder "All caught up" status row — so
@@ -1140,6 +1155,18 @@ and is grandfathered; don't copy it).
 - **Anti-pattern — celebration inflation.** Low-stakes actions (copy link,
   add one card, cut a card) get a toast at most. If everything celebrates,
   nothing does; the seal marks _completed effort_, not activity.
+- **Timing precedent.** `SealBurst`'s bloom (mark/flare/ring) plays over
+  **~1000ms** with `--ease-out-soft`; `useSealMoment()` holds the compact
+  portal mounted for a **1250ms** total lifetime (the extra ~250ms lets the
+  bloom settle before unmount). The next celebration-adjacent surface — a new
+  completion moment, a variant bloom — should snap to these two numbers
+  rather than inventing its own; see `SealBurst.css` and the `MOMENT_MS`
+  constant in `components/shared/SealMoment.tsx`.
+- **Brass-gold duplication.** `#f0c368` (the seal's brass) is hardcoded in
+  both `components/shared/BrandMark.tsx` (the clasp seal) and `SealBurst.css`
+  (the flare/ring/mark glow) rather than a shared token — they must be kept in
+  sync by hand if the brass hue ever changes. Token consolidation is tracked
+  separately; don't fix it as a drive-by in an unrelated PR.
 
 ## Card row information hierarchy
 

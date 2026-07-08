@@ -21,6 +21,12 @@ import { InfoTip } from './InfoTip';
 import { formatRelativeTime } from '../lib/format-time';
 import { toast } from '../store/toasts';
 
+/** Binder ids whose drift-cleared moment already played this app-open —
+ *  mirrors `celebratedDeckComplete` in DeckDisplay.tsx's module-level-Set
+ *  pattern, so drift reappearing and re-clearing in the same session (a
+ *  price refresh, a second import) doesn't replay the seal. */
+const celebratedBinderCleared = new Set<string>();
+
 const DRIFT_TIP = (
   <>
     <p className="info-tip-lead">
@@ -93,16 +99,20 @@ export function BinderDriftBanner({ binder }: Props) {
   const clearedTimer = useRef<number | undefined>(undefined);
   const prevHadDrift = useRef(false);
   const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
+  const binderId = binder.def.id;
   useLayoutEffect(() => {
     const has = !drift.neverReviewed && hasDrift(drift);
     if (prevHadDrift.current && !has) {
       setJustCleared(true);
-      fireSealMoment();
+      if (!celebratedBinderCleared.has(binderId)) {
+        celebratedBinderCleared.add(binderId);
+        fireSealMoment();
+      }
       window.clearTimeout(clearedTimer.current);
       clearedTimer.current = window.setTimeout(() => setJustCleared(false), 2600);
     }
     prevHadDrift.current = has;
-  }, [drift, fireSealMoment]);
+  }, [drift, fireSealMoment, binderId]);
   useEffect(() => () => window.clearTimeout(clearedTimer.current), []);
 
   // Auto-baseline on first view. Effect deps include `binder.def.id` so
@@ -133,8 +143,6 @@ export function BinderDriftBanner({ binder }: Props) {
       </div>
     );
   }
-
-  const binderId = binder.def.id;
 
   const handleAcknowledgeRemoved = (row: ReviewQueueRow) => {
     acknowledgeBinderCard(binderId, row.key, 'removed');
