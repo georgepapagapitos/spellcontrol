@@ -138,4 +138,17 @@ describe('RadialTagMenu', () => {
     expect(onToggle).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('closes on scroll — the fixed-position ring is stale over a moved list', () => {
+    const { onToggle, onClose } = renderMenu();
+    fireEvent.scroll(window);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it('closes on resize', () => {
+    const { onClose } = renderMenu();
+    fireEvent.resize(window);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

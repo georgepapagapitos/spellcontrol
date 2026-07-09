@@ -193,6 +193,21 @@ export function RadialTagMenu({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Scroll/resize staleness: the ring is fixed-position over a row that just
+  // moved (or a viewport that just changed) under it — dismiss, mirroring the
+  // hover-peek's rule. Capture-phase catches inner scroll containers too. The
+  // opening press can't trip this: the trigger and chips are touch-action:
+  // none, so the gesture never scrolls.
+  useEffect(() => {
+    const dismiss = (): void => onCloseRef.current();
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+    };
+  }, []);
+
   return createPortal(
     <div ref={panelRef} className="radial-tag-menu" role="menu" aria-label="Card tags">
       <span

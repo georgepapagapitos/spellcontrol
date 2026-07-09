@@ -1595,8 +1595,10 @@ export function DeckDisplay({
   // Pressing a row's tag button while its menu is already open closes it
   // (toggle) instead of re-anchoring.
   const openTagMenu = onToggleCardTag
-    ? (anchor: { x: number; y: number }, slotId: string, trigger: HTMLElement | null) =>
-        setTagMenu((cur) => (cur && cur.slotId === slotId ? null : { anchor, slotId, trigger }))
+    ? (anchor: { x: number; y: number }, slotId: string, trigger: HTMLElement | null) => {
+        hoverPeek.clear(); // the radial supersedes the transient peek
+        setTagMenu((cur) => (cur && cur.slotId === slotId ? null : { anchor, slotId, trigger }));
+      }
     : undefined;
   // Live lookup (not a snapshot) so click-mode toggles repaint the menu chips.
   const tagMenuActiveTags = useMemo(() => {
@@ -1984,8 +1986,12 @@ export function DeckDisplay({
         )}
 
         {/* Desktop-only floating hover-peek: a transient card-art preview in the
-            gutter beside the list while hovering a row. No-op on touch/native. */}
+            gutter beside the list while hovering a row. No-op on touch/native.
+            Suppressed while the radial tag menu is open — its wrapper is
+            pointer-events: none, so row hovers still fire underneath and would
+            float card art around the ring mid-pick. */}
         {hoverPeek.peek &&
+          !tagMenu &&
           (() => {
             // A printing sub-row carries its own art (data-peek-img); use it so
             // each expanded printing peeks its real card. Otherwise resolve the
