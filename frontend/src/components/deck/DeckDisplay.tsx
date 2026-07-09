@@ -321,8 +321,9 @@ export interface DeckDisplayProps {
   /** Editing callback. When provided, each row gets a remove option in its menu. */
   onRemoveCard?: (slotId: string) => void;
   onRemoveSideboardCard?: (slotId: string) => void;
-  onMoveToSideboard?: (slotId: string) => void;
-  onMoveToMainboard?: (slotId: string) => void;
+  /** Move one or more copies of a stacked row across zones, as one undo entry. */
+  onMoveToSideboard?: (slotIds: string[]) => void;
+  onMoveToMainboard?: (slotIds: string[]) => void;
   /**
    * Editing callback for click-to-edit qty. When provided, the qty cell
    * becomes a clickable target that swaps to a numeric input on click;
@@ -2851,8 +2852,8 @@ function CategorySection({
   /** Active tag filter — rows not carrying it render dimmed. */
   tagFilter?: string | null;
   legalityBySlot?: Map<string, LegalityIssue>;
-  onMoveToSideboard?: (slotId: string) => void;
-  onMoveToMainboard?: (slotId: string) => void;
+  onMoveToSideboard?: (slotIds: string[]) => void;
+  onMoveToMainboard?: (slotIds: string[]) => void;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
@@ -2907,13 +2908,7 @@ function CategorySection({
             tagFilter={tagFilter}
             legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
             onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
-            moveLabel={
-              onMoveToSideboard
-                ? 'Move to sideboard'
-                : onMoveToMainboard
-                  ? 'Move to mainboard'
-                  : undefined
-            }
+            moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
             onMakeCommander={entry.leaving ? undefined : onMakeCommander}
             canMakeCommander={canMakeCommander}
             onMakePartner={entry.leaving ? undefined : onMakePartner}
@@ -2948,7 +2943,7 @@ function DeckCardRow({
   tagFilter,
   legalityIssue,
   onMoveToZone,
-  moveLabel,
+  moveZone,
   onMakeCommander,
   canMakeCommander,
   onMakePartner,
@@ -2981,8 +2976,10 @@ function DeckCardRow({
   /** Active tag filter — this row dims when it doesn't carry the tag. */
   tagFilter?: string | null;
   legalityIssue?: LegalityIssue;
-  onMoveToZone?: (slotId: string) => void;
-  moveLabel?: string;
+  /** Move the given copies to the other zone. One copy, or the row's whole stack. */
+  onMoveToZone?: (slotIds: string[]) => void;
+  /** The destination zone — names the move menu items. */
+  moveZone?: 'sideboard' | 'mainboard';
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
@@ -3371,19 +3368,35 @@ function DeckCardRow({
                   Remove all {row.qty} copies
                 </button>
               )}
-              {onMoveToZone && moveLabel && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="deck-row-menu-item"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    close();
-                    onMoveToZone(row.slotIds[0]);
-                  }}
-                >
-                  {moveLabel}
-                </button>
+              {onMoveToZone && moveZone && row.slotIds.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="deck-row-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      close();
+                      onMoveToZone([row.slotIds[0]]);
+                    }}
+                  >
+                    {row.qty > 1 ? `Move one copy to ${moveZone}` : `Move to ${moveZone}`}
+                  </button>
+                  {row.qty > 1 && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="deck-row-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        close();
+                        onMoveToZone(row.slotIds);
+                      }}
+                    >
+                      Move all {row.qty} copies to {moveZone}
+                    </button>
+                  )}
+                </>
               )}
               {onUseOwnCopy && row.claimedElsewhereQty > 0 && row.slotIds.length > 0 && (
                 <button

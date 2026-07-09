@@ -1618,18 +1618,28 @@ export function DeckEditorPage() {
     });
   };
 
-  const handleMoveToSideboard = (slotId: string) => {
-    const name = deck.cards.find((c) => c.slotId === slotId)?.card.name ?? 'card';
-    recordEdit(deck.id, `move ${name} to sideboard`, () =>
-      moveBetweenZones(deck.id, slotId, 'main')
-    );
+  // Both zone moves take the row's slot ids — one copy, or its whole stack. The
+  // loop sits inside a single recordEdit so "move all 4" is one undo entry.
+  const handleMoveToSideboard = (slotIds: string[]) => {
+    const name = deck.cards.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
+    const label =
+      slotIds.length === 1
+        ? `move ${name} to sideboard`
+        : `move ${slotIds.length} × ${name} to sideboard`;
+    recordEdit(deck.id, label, () => {
+      for (const slotId of slotIds) moveBetweenZones(deck.id, slotId, 'main');
+    });
   };
 
-  const handleMoveToMainboard = (slotId: string) => {
-    const name = deck.sideboard.find((c) => c.slotId === slotId)?.card.name ?? 'card';
-    recordEdit(deck.id, `move ${name} to mainboard`, () =>
-      moveBetweenZones(deck.id, slotId, 'side')
-    );
+  const handleMoveToMainboard = (slotIds: string[]) => {
+    const name = deck.sideboard.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
+    const label =
+      slotIds.length === 1
+        ? `move ${name} to mainboard`
+        : `move ${slotIds.length} × ${name} to mainboard`;
+    recordEdit(deck.id, label, () => {
+      for (const slotId of slotIds) moveBetweenZones(deck.id, slotId, 'side');
+    });
   };
 
   const handleMakeCommanderClick = (slotId: string, card: ScryfallCard) => {
