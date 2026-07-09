@@ -100,6 +100,12 @@ describe('Legend (context-aware symbol key)', () => {
       expect(screen.getByText(word)).toBeTruthy();
     }
     expect(document.querySelector('.deck-row-role-badge.deck-row-role-mana-rock')).toBeTruthy();
+    // "Your tags" — the real tag-chip sample plus the tags-vs-badges footnote.
+    expect(document.querySelector('.deck-row-tag-chip')).toBeTruthy();
+    expect(screen.getByText('Wincon')).toBeTruthy();
+    expect(
+      screen.getByText(/Role badges are detected automatically; tags are yours/)
+    ).toBeTruthy();
     expect(screen.getByText('✦')).toBeTruthy();
     expect(screen.getByText('Synergizes with your commander')).toBeTruthy();
     expect(screen.getByText('unowned')).toBeTruthy();

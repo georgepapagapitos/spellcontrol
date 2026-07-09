@@ -361,6 +361,91 @@ describe('analyzeDeck — roles (tagger-driven)', () => {
   });
 });
 
+describe('analyzeDeck — user card tags', () => {
+  it('counts a mapped tag toward the role when the tagger misses the card', async () => {
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({ ramp: ['Sol Ring'] });
+    const mainboard = [
+      slot(makeCard({ name: 'Sol Ring', type_line: 'Artifact' })),
+      { ...slot(makeCard({ name: 'Pet Rock', type_line: 'Artifact' })), tags: ['Ramp'] },
+    ];
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      true
+    );
+    const ramp = result.roles.find((r) => r.key === 'ramp')!;
+    expect(ramp.count).toBe(2);
+    expect(ramp.taggedCount).toBe(1);
+    expect(ramp.contributingSlotIds).toHaveLength(2);
+  });
+
+  it('does not double-count a card whose tag agrees with the tagger', async () => {
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({ ramp: ['Sol Ring'] });
+    const mainboard = [
+      { ...slot(makeCard({ name: 'Sol Ring', type_line: 'Artifact' })), tags: ['Ramp'] },
+    ];
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      true
+    );
+    const ramp = result.roles.find((r) => r.key === 'ramp')!;
+    expect(ramp.count).toBe(1);
+    expect(ramp.taggedCount).toBe(0);
+  });
+
+  it('folds Interaction into removal and never counts a slot twice', async () => {
+    const { analyzeDeck } = await loadDeckAnalysis();
+    const mainboard = [
+      {
+        ...slot(makeCard({ name: 'Some Instant', type_line: 'Instant' })),
+        tags: ['Interaction', 'Removal'],
+      },
+    ];
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      false
+    );
+    const removal = result.roles.find((r) => r.key === 'removal')!;
+    expect(removal.count).toBe(1);
+    expect(removal.taggedCount).toBe(1);
+  });
+
+  it('counts user tags even before the tagger is ready', async () => {
+    const { analyzeDeck } = await loadDeckAnalysis();
+    const mainboard = [
+      { ...slot(makeCard({ name: 'Card', type_line: 'Sorcery' })), tags: ['Draw'] },
+    ];
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      false
+    );
+    const draw = result.roles.find((r) => r.key === 'cardDraw')!;
+    expect(draw.count).toBe(1);
+    expect(draw.taggedCount).toBe(1);
+  });
+
+  it('ignores intent-only tags (Wincon/Synergy/Setup/Payoff) and tags on lands', async () => {
+    const { analyzeDeck } = await loadDeckAnalysis();
+    const mainboard = [
+      {
+        ...slot(makeCard({ name: 'Combo Piece', type_line: 'Enchantment' })),
+        tags: ['Wincon', 'Synergy', 'Setup', 'Payoff'],
+      },
+      {
+        ...slot(makeCard({ name: 'Forest', type_line: 'Basic Land — Forest' })),
+        tags: ['Ramp'],
+      },
+    ];
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      false
+    );
+    for (const key of ['ramp', 'cardDraw', 'removal', 'boardwipe'] as const) {
+      expect(result.roles.find((r) => r.key === key)!.count).toBe(0);
+    }
+    expect(result.roles.find((r) => r.key === 'lands')!.count).toBe(1);
+  });
+});
+
 describe('getRoleDeficits + classifyCandidate', () => {
   it('returns deficient roles in severity order (largest deficit first), excluding lands', async () => {
     const { analyzeDeck, getRoleDeficits } = await loadDeckAnalysis();

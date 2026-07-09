@@ -247,6 +247,14 @@ function RoleRow({ role }: { role: RoleHealth }) {
       <header className="deck-analysis-role-header">
         <Icon width={14} height={14} aria-hidden />
         <span className="deck-analysis-role-label">{role.label}</span>
+        {role.taggedCount > 0 && (
+          <span
+            className="deck-analysis-role-tagged"
+            title={`${role.taggedCount} counted from your card tags`}
+          >
+            +{role.taggedCount} tagged
+          </span>
+        )}
         <span className="deck-analysis-role-count" aria-label={`${role.count} cards`}>
           {role.count}
           <span className="deck-analysis-role-target">

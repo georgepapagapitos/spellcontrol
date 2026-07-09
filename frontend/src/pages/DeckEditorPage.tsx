@@ -2428,7 +2428,11 @@ export function DeckEditorPage() {
                       format={deck.format}
                       commander={deck.commander}
                       partnerCommander={deck.partnerCommander}
-                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
+                      mainboard={deck.cards.map((c) => ({
+                        slotId: c.slotId,
+                        card: c.card,
+                        tags: c.tags,
+                      }))}
                       onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                     />
                   }
