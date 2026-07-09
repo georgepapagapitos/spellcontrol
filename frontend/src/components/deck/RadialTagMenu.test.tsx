@@ -101,4 +101,41 @@ describe('RadialTagMenu', () => {
     fireEvent.pointerDown(screen.getByRole('menuitemcheckbox', { name: 'Ramp' }));
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('press → drag past the dead zone → release commits the sector and closes (swipe)', () => {
+    const { onToggle, onClose } = renderMenu();
+    // 80px straight up from the press: past the 24px dead zone, 12 o'clock.
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 220, buttons: 1 });
+    fireEvent.pointerUp(window, { clientX: 300, clientY: 220 });
+    expect(onToggle).toHaveBeenCalledExactlyOnceWith('Ramp');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a motionless tap parks the menu open even when the ring center is clamped away from the press', () => {
+    // Press near the right viewport edge (where every row's tag button sits):
+    // the ring center clamps ~100px left of the finger, so measured from the
+    // CENTER this release sits deep in the 3 o'clock sector. It must read as
+    // a tap (park open), not a swipe-commit.
+    const { onToggle, onClose } = renderMenu({ anchor: { x: 1000, y: 300 } });
+    fireEvent.pointerUp(window, { clientX: 1000, clientY: 300 });
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('tap micro-jitter under the dead-zone radius does not arm a swipe-commit', () => {
+    const { onToggle, onClose } = renderMenu({ anchor: { x: 1000, y: 300 } });
+    fireEvent.pointerMove(window, { clientX: 1005, clientY: 302, buttons: 1 });
+    fireEvent.pointerUp(window, { clientX: 1005, clientY: 302 });
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('an armed swipe released back in the ring center parks open instead of committing', () => {
+    const { onToggle, onClose } = renderMenu();
+    fireEvent.pointerMove(window, { clientX: 300, clientY: 220, buttons: 1 });
+    fireEvent.pointerMove(window, { clientX: 302, clientY: 295, buttons: 1 });
+    fireEvent.pointerUp(window, { clientX: 302, clientY: 295 });
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
