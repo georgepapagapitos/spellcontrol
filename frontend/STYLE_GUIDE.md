@@ -352,6 +352,31 @@ right-anchor it, make it the **last** flex child after the view-mode toggle so
 it rides the existing trailing auto-margins — don't add a competing
 `margin-left: auto` (multiple autos split the free space and break the grouping).
 
+## Charts (line / trend)
+
+First instance: the Breakdown drawer's Value section (`components/ValueTrend.tsx`).
+Any future line/trend chart follows the same specs (horizontal bars stay on
+`MeterBar`/`StackedBar` — this section is for plotted charts):
+
+- **Marks:** 2px line, round join/cap, in `--accent`; area wash under it at
+  ~10% opacity; current/hovered point is a ≥8px dot (r=4) with a **2px
+  `--surface` ring** so it reads where it crosses the line.
+- **Chrome is recessive:** gridlines are 1px solid `--border` hairlines at a
+  few _clean_ values (1/2/2.5/5×10ᵏ steps), never dashed. One axis only —
+  never a dual-axis chart.
+- **Text wears text tokens, never the series color.** Tick/axis labels in
+  `--text-muted`, endpoint label in `--text-secondary`, `tabular-nums` for
+  tick columns. Label selectively (endpoint, extremes) — never every point.
+- **Hover/readout layer is part of the deliverable:** crosshair snaps to the
+  nearest data x (the reader aims at a date, not a 2px line), one tooltip
+  with the **value strong, label secondary**; same readout on keyboard
+  (arrow keys step points, Escape clears) and `role="status"` so it's
+  announced. `touch-action: pan-y` so scrubbing doesn't eat page scroll.
+- **A single series gets no legend** — the section title names it. ≥2 series
+  need a legend before a second color is added.
+- **No trend, no chart:** with fewer than two points the section renders
+  nothing (insight-strip rule) — never an empty-state chart.
+
 ## Overlays
 
 - **Multi-destination exports/shares are one labelled menu trigger**, never
@@ -1064,7 +1089,8 @@ stat-tile delta convention:
   polyline, line in the accent at reduced opacity with the latest point as a
   solid accent dot, `aria-hidden` with the delta text (plus an `.sr-only`
   prefix) as the accessible content. Render nothing below two data points —
-  no empty state. Reference: `components/ValuePulse.tsx`.
+  no empty state. A full plotted chart instead follows § Charts (line /
+  trend); reference: `components/ValueTrend.tsx`.
 
 ## Radar / polar charts
 
