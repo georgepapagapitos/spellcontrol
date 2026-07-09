@@ -8,6 +8,7 @@ import { getColorKey, COLOR_INFO } from '../lib/colors';
 import { getCardType, TYPE_ORDER } from '../lib/card-types';
 import { ColorPip, ManaSymbol, TypeIcon } from './shared/ManaSymbol';
 import { MeterBar, StackedBar } from './shared/MeterBar';
+import { ValueTrend } from './ValueTrend';
 
 const COLOR_BUCKETS: Array<{ key: string; label: string; color: string }> = [
   { key: 'W', label: 'White', color: COLOR_INFO.W.pip },
@@ -183,6 +184,8 @@ function StatsDrawer({ cards, onClose }: { cards: EnrichedCard[]; onClose: () =>
         </header>
 
         <div className="stats-drawer-body">
+          <ValueTrend />
+
           <section className="breakdown-card" aria-label="Cards by color">
             <h3 className="breakdown-title">Colors</h3>
             <ul className="breakdown-list">
