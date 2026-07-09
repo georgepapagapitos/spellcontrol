@@ -1786,6 +1786,25 @@ export function DeckDisplay({
                     Clear
                   </button>
                 )}
+                <InfoTip
+                  label="card tags"
+                  wide
+                  text={
+                    <>
+                      <p className="info-tip-lead">
+                        Tags are yours — press and hold a row&rsquo;s tag button, then swipe (or
+                        click) to mark what a card does in this deck.
+                      </p>
+                      <ul className="info-tip-list">
+                        <li>Tap a chip to spotlight those cards; tap it again to clear.</li>
+                        <li>
+                          Ramp, Draw, Removal, and Interaction tags also count toward role health in
+                          Analysis — tag what the automatic role badges miss.
+                        </li>
+                      </ul>
+                    </>
+                  }
+                />
               </div>
             )}
 

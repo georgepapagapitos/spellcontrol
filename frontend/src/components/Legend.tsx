@@ -216,6 +216,16 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
             ))}
             <div className="legend-footnote">Full list: Show → "What do the role badges mean?"</div>
           </Section>
+          <Section title="Your tags">
+            <Entry
+              glyph={<span className="deck-row-tag-chip">Wincon</span>}
+              word="A tag you applied — press and hold a row's tag button, then swipe"
+            />
+            <div className="legend-footnote">
+              Role badges are detected automatically; tags are yours. Ramp / Draw / Removal /
+              Interaction tags also count toward role health in Analysis.
+            </div>
+          </Section>
           <Section title="Markers">
             <Entry
               glyph={

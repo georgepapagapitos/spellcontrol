@@ -250,7 +250,7 @@ const toInput = (deck: Deck) => ({
   format: deck.format,
   commander: deck.commander,
   partnerCommander: deck.partnerCommander,
-  mainboard: deck.cards.map((s) => ({ slotId: s.slotId, card: s.card })),
+  mainboard: deck.cards.map((s) => ({ slotId: s.slotId, card: s.card, tags: s.tags })),
 });
 
 /** Stat-delta over the existing `analyzeDeck` engine. `taggerReady` gates roles. */
