@@ -1089,7 +1089,8 @@ stat-tile delta convention:
   polyline, line in the accent at reduced opacity with the latest point as a
   solid accent dot, `aria-hidden` with the delta text (plus an `.sr-only`
   prefix) as the accessible content. Render nothing below two data points —
-  no empty state. Reference: `components/ValuePulse.tsx`.
+  no empty state. A full plotted chart instead follows § Charts (line /
+  trend); reference: `components/ValueTrend.tsx`.
 
 ## Radar / polar charts
 
