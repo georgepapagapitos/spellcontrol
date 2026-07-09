@@ -17,7 +17,11 @@ export interface RadialTagMenuProps {
 const SECTOR_COUNT = DECK_CARD_TAGS.length;
 /** Distance from center to each sector chip's center. */
 const RING_RADIUS = 84;
-/** Release inside this radius keeps the menu open (click mode). */
+/**
+ * Center dead zone of the sector hit-test, and the swipe threshold: the
+ * opening press must travel this far from the press point before its release
+ * commits a sector. Release before that parks the menu open (click mode).
+ */
 const DEAD_ZONE_RADIUS = 24;
 /** Half-extent of the ring incl. the widest chip — for viewport clamping. */
 const CLAMP_X = RING_RADIUS + 56;
@@ -35,12 +39,20 @@ function clampedCenter(anchor: { x: number; y: number }): { x: number; y: number
  * Radial quick-pick for per-card functional tags: the 8 palette tags arranged
  * in a circle around the opening point. Two interaction modes in one gesture:
  *
- * - Swipe: the opening pointerdown is still held → pointermove highlights the
- *   sector under the pointer (angle-only via sectorForPoint, so targets are
- *   generous) and release toggles it and closes. Release in the center dead
- *   zone instead keeps the menu open.
- * - Click: with the menu parked open, clicking sectors toggles them without
- *   closing (apply several in one visit); clicking outside or Escape closes.
+ * - Swipe: the opening pointerdown is still held AND has traveled past the
+ *   dead-zone radius from the press point → pointermove highlights the sector
+ *   under the pointer (angle-only via sectorForPoint, relative to the ring
+ *   center, so targets are generous) and release toggles it and closes.
+ *   Dragging back into the ring's center dead zone cancels the commit.
+ * - Click: a plain tap (never left the dead zone around the press point)
+ *   parks the menu open; clicking sectors then toggles them without closing
+ *   (apply several in one visit); clicking outside or Escape closes.
+ *
+ * Swipe intent is measured from the PRESS POINT, not the ring center: near a
+ * viewport edge the center clamps on-screen, up to ~100px away from the
+ * finger — measured from the center, a motionless tap read as a swipe-commit
+ * on whichever sector faced the press point (it silently toggled Interaction
+ * from the right edge, where every row's tag button lives).
  *
  * Keyboard: arrows move a roving highlight around the circle, Enter/Space
  * toggles it, Escape closes. Items are role=menuitemcheckbox with aria-checked.
@@ -64,6 +76,11 @@ export function RadialTagMenu({
   // 'drag' while the opening press may still be held; 'click' once it has
   // released in the dead zone (or a fresh press proves the gesture is over).
   const gestureRef = useRef<'drag' | 'click'>('drag');
+  // True once the opening press has left the dead zone around the press
+  // point — only then does its release commit a sector.
+  const swipedRef = useRef(false);
+  // The unclamped press point; `center` below may clamp away from it.
+  const pressRef = useRef(anchor);
 
   // Latest-callback refs so the window listeners never go stale (the caller
   // passes inline arrows).
@@ -95,6 +112,14 @@ export function RadialTagMenu({
       // buttons === 0 → the opening press already ended (we missed the up,
       // e.g. it happened before mount finished) — stop treating moves as drag.
       if (e.buttons === 0) return;
+      // Not a swipe until the pointer leaves the dead zone around the PRESS
+      // POINT — tap micro-jitter must not arm a commit (the clamped center
+      // can sit far from the finger, where jitter is instantly "in a sector").
+      if (!swipedRef.current) {
+        const p = pressRef.current;
+        if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < DEAD_ZONE_RADIUS) return;
+        swipedRef.current = true;
+      }
       setHotSector(sectorAt(e));
     };
 
@@ -102,12 +127,14 @@ export function RadialTagMenu({
       if (gestureRef.current !== 'drag') return;
       gestureRef.current = 'click';
       setHotSector(null);
+      // A plain tap (never armed the swipe): park open in click mode.
+      if (!swipedRef.current) return;
       const sector = sectorAt(e);
       if (sector !== null) {
         onToggleRef.current(DECK_CARD_TAGS[sector]);
         onCloseRef.current();
       }
-      // Dead-zone release: park open in click mode.
+      // Swiped back into the ring's center dead zone: park open instead.
     };
 
     const onPointerDown = (e: PointerEvent): void => {
