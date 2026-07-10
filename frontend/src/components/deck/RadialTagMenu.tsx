@@ -81,6 +81,12 @@ export function RadialTagMenu({
   const swipedRef = useRef(false);
   // The unclamped press point; `center` below may clamp away from it.
   const pressRef = useRef(anchor);
+  // True right after the opening press releases: the browser synthesizes a
+  // click at the release point, and the edge-clamped ring can mount a chip
+  // exactly there — that echo click toggled a tag the user never chose. A
+  // deliberate chip click always starts with its own fresh pointerdown
+  // (which clears this), so a flagged click is an echo to ignore.
+  const ghostClickRef = useRef(false);
 
   // Latest-callback refs so the window listeners never go stale (the caller
   // passes inline arrows).
@@ -127,6 +133,8 @@ export function RadialTagMenu({
       if (gestureRef.current !== 'drag') return;
       gestureRef.current = 'click';
       setHotSector(null);
+      // This release will echo as a synthesized click — see ghostClickRef.
+      ghostClickRef.current = true;
       // A plain tap (never armed the swipe): park open in click mode.
       if (!swipedRef.current) return;
       const sector = sectorAt(e);
@@ -138,6 +146,8 @@ export function RadialTagMenu({
     };
 
     const onPointerDown = (e: PointerEvent): void => {
+      // A fresh press means any click that follows is deliberate.
+      ghostClickRef.current = false;
       if (gestureRef.current === 'drag') {
         // A fresh press while we still assumed the opening one was live means
         // the menu was opened without a pointer (keyboard) — its release must
@@ -243,6 +253,13 @@ export function RadialTagMenu({
               // applied in one visit. stopPropagation keeps the click off
               // whatever sits under the portal.
               e.stopPropagation();
+              // The opening tap's echo click (no fresh pointerdown before
+              // it) can land on the chip the clamped ring mounted under the
+              // finger — ignore it; only deliberate clicks toggle.
+              if (ghostClickRef.current) {
+                ghostClickRef.current = false;
+                return;
+              }
               onToggle(tag);
             }}
           >
