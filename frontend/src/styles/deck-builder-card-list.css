@@ -744,11 +744,15 @@
 
 /* Coarse pointers get the full 44px floor (STYLE_GUIDE touch-target rule) —
    doubly important here since touch-action: none means a mis-tap can't even
-   fall back to scrolling. */
+   fall back to scrolling. Negative block margin gives the hit box its 44px
+   without inflating the row height — without it every deck-list row balloons
+   from ~28px to ~48px on touch devices (same idiom as the game-night card
+   overflow-menu trigger). */
 @media (pointer: coarse) {
   .deck-row-tag-btn {
     width: 44px;
     height: 44px;
+    margin-block: calc((var(--space-5) - 44px) / 2);
   }
 }
 
