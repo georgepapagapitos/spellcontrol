@@ -151,4 +151,28 @@ describe('RadialTagMenu', () => {
     fireEvent.resize(window);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("the opening tap's echo click on the chip under the release point does not toggle", () => {
+    // Edge-clamped anchor: the ring center sits ~100px left of the press, so
+    // the 3 o'clock chip (Interaction) mounts at the release point. The tap's
+    // release parks the menu open — then the browser synthesizes a click at
+    // that same point, targeting the chip. It must be ignored (no fresh
+    // pointerdown preceded it), not toggle a tag the user never chose.
+    const { onToggle, onClose } = renderMenu({ anchor: { x: 1000, y: 300 } });
+    fireEvent.pointerUp(window, { clientX: 1000, clientY: 300 });
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Interaction' }));
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('a deliberate chip click (fresh press) after the opening tap still toggles', () => {
+    const { onToggle, onClose } = renderMenu({ anchor: { x: 1000, y: 300 } });
+    fireEvent.pointerUp(window, { clientX: 1000, clientY: 300 });
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Interaction' })); // echo
+    const chip = screen.getByRole('menuitemcheckbox', { name: 'Draw' });
+    fireEvent.pointerDown(chip);
+    fireEvent.click(chip);
+    expect(onToggle).toHaveBeenCalledExactlyOnceWith('Draw');
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
