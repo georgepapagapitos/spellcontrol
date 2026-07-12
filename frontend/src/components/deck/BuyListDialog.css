@@ -1,0 +1,125 @@
+/* BuyListDialog — the missing-cards buy list (cart icon beside the missing
+   stat). Mirrors the Export dialog's header/actions anatomy. */
+.buy-list-dialog {
+  max-width: 440px;
+  width: 100%;
+  max-height: calc(var(--vh-safe) - 6rem);
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem var(--space-5);
+  gap: var(--space-3);
+}
+
+.buy-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.buy-list-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.buy-list-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.buy-list-close:focus-visible {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .buy-list-close:hover {
+    color: var(--text-primary);
+    background: var(--surface-raised);
+  }
+}
+@media (pointer: coarse) {
+  .buy-list-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.buy-list-meta {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.buy-list-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.buy-list-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0.4rem var(--space-3);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.buy-list-row + .buy-list-row {
+  border-top: 0.5px solid var(--border);
+}
+
+.buy-list-row-qty {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.buy-list-row-name {
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.buy-list-row-price {
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+.buy-list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.buy-list-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+}

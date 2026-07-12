@@ -15,6 +15,7 @@ import {
   MoreVertical,
   Pencil,
   Search,
+  ShoppingCart,
   Trash2,
   X,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ import { InfoTip } from '../InfoTip';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
+import { BuyListDialog } from './BuyListDialog';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
@@ -1471,6 +1473,9 @@ export function DeckDisplay({
   // (their boolean wins). Otherwise fall back to internal state — keeps
   // simple callers ergonomic and avoids any setState-in-effect dance.
   const [internalExportOpen, setInternalExportOpen] = useState(false);
+  // Buy-list dialog for the missing cards — opened from the cart icon beside
+  // the missing stat (tapping the stat itself still opens the carousel).
+  const [buyListOpen, setBuyListOpen] = useState(false);
   const isControlled = exportOpenProp !== undefined && onExportOpenChange !== undefined;
   const exportOpen = isControlled ? exportOpenProp : internalExportOpen;
   const setExportOpen = (next: boolean) => {
@@ -1680,22 +1685,32 @@ export function DeckDisplay({
               )}
               {missing.count > 0 &&
                 (missingTally.length > 0 ? (
-                  <button
-                    type="button"
-                    className="deck-stat deck-stat-missing deck-stat-btn"
-                    onClick={() =>
-                      void statCarousel.open(
-                        tallyToEntries(missingTally),
-                        missingTally[0]?.name ?? ''
-                      )
-                    }
-                    aria-label={`Show the ${missing.count} missing cards (buy list)`}
-                  >
-                    <span className="deck-stat-value">{missing.count}</span>
-                    <span className="deck-stat-label">
-                      missing ({formatMoney(missing.price, { currency })})
-                    </span>
-                  </button>
+                  <span className="deck-stat-missing-group">
+                    <button
+                      type="button"
+                      className="deck-stat deck-stat-missing deck-stat-btn"
+                      onClick={() =>
+                        void statCarousel.open(
+                          tallyToEntries(missingTally),
+                          missingTally[0]?.name ?? ''
+                        )
+                      }
+                      aria-label={`Show the ${missing.count} missing cards (buy list)`}
+                    >
+                      <span className="deck-stat-value">{missing.count}</span>
+                      <span className="deck-stat-label">
+                        missing ({formatMoney(missing.price, { currency })})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="deck-stat-buy-btn"
+                      onClick={() => setBuyListOpen(true)}
+                      aria-label={`Open the buy list for the ${missing.count} missing cards`}
+                    >
+                      <ShoppingCart width={15} height={15} strokeWidth={2} aria-hidden />
+                    </button>
+                  </span>
                 ) : (
                   <span className="deck-stat deck-stat-missing">
                     <span className="deck-stat-value">{missing.count}</span>
@@ -2067,6 +2082,14 @@ export function DeckDisplay({
               }
               return acts;
             }}
+          />
+        )}
+        {buyListOpen && (
+          <BuyListDialog
+            tally={missingTally}
+            currency={currency}
+            title={title}
+            onClose={() => setBuyListOpen(false)}
           />
         )}
         {exportOpen && (
