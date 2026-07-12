@@ -2124,28 +2124,34 @@ export function DeckEditorPage() {
               {deck.name}
             </button>
           )}
+          {/* \u00A0 glues each label to its value ("Bracket 2", "100 cards") and
+              each · to the segment before it, so the line only wraps between
+              segments — never leaving an orphaned "2" or a line-leading "·". */}
           <p className="binder-hero-meta">
             {formatConfig && <span className="deck-format-badge">{formatConfig.label}</span>}
             {deck.commander && (
               <>
-                {formatConfig ? ' · ' : ''}
+                {formatConfig ? '\u00A0· ' : ''}
                 {deck.commander.name}
                 {/* Read-only pairing summary; add/change/remove lives in the
                     deck grid's Commander section (see onEditPartner). */}
-                {deck.partnerCommander && ` + ${deck.partnerCommander.name}`}
+                {deck.partnerCommander && ` +\u00A0${deck.partnerCommander.name}`}
               </>
             )}
             {/* Desktop-only totals chip — hidden on tablet/mobile via
                 .deck-hero-totals to keep the meta line short there. */}
             <span className="deck-hero-totals">
-              {' · '}
-              {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} ·{' '}
+              {'\u00A0· '}
+              {heroTotals.count}
+              {'\u00A0'}
+              {heroTotals.count === 1 ? 'card' : 'cards'}
+              {'\u00A0· '}
               {formatMoney(heroTotals.value)}
-              {heroTotals.sideboard > 0 && ` · +${heroTotals.sideboard} maybe`}
+              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0maybe`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
             {bracketValue != null && (
-              <span className="deck-hero-bracket">{` · Bracket ${bracketValue}`}</span>
+              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
             )}
           </p>
         </div>
