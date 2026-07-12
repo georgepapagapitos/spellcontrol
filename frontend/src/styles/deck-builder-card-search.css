@@ -35,9 +35,13 @@
   height: 85dvh;
 }
 
+/* Desktop workbench (E126): the default 480px picker modal is too cramped for
+   a power search with badges + art thumbs — widen it (test-hand precedent:
+   the shared shell already takes per-sheet width overrides ≥1024px). */
 @media (min-width: 1024px) {
   .deck-add-sheet {
-    height: 70vh;
+    height: 74vh;
+    width: min(92vw, 760px);
   }
 }
 
@@ -285,6 +289,101 @@
   color: var(--text-muted);
   margin: 0;
   padding: 0 0.1rem;
+}
+
+/* Toolbar row under the search pill: keyboard hint · syntax ⓘ · sort. */
+.card-search-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.card-search-toolbar .card-search-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-search-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex: none;
+}
+
+.card-search-sort select {
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.3rem;
+}
+
+@media (pointer: coarse) {
+  .card-search-sort select {
+    min-height: 36px;
+  }
+}
+
+/* Row art thumbnail (art_crop, ≈1.37 aspect) — decorative scannability aid.
+   Rows opt in via .has-thumb so other pickers sharing .card-search-row keep
+   their original grid. */
+.card-search-row.has-thumb {
+  grid-template-columns: 1.6rem 2.6rem minmax(0, 1fr) auto;
+}
+
+.card-search-row.has-thumb .card-search-meta {
+  grid-column: 3 / -1;
+}
+
+.card-search-thumb {
+  width: 2.6rem;
+  height: 1.9rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.card-search-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* otag: snapshot status (loading / failed) — a non-blocking note above results. */
+.card-search-tag-note {
+  font-size: var(--text-xs);
+  color: var(--warn-text);
+  margin: 0;
+  padding: 0 0.1rem 0.2rem;
+}
+
+/* Zero-result escape hatches — jump to another source keeping the query. */
+.card-search-empty-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.card-search-empty-wrap .card-search-empty {
+  padding-bottom: var(--space-1);
+}
+
+.card-search-empty-wrap .btn {
+  margin-left: var(--space-1);
+}
+
+.card-search-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .card-search-indeck {

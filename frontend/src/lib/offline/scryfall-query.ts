@@ -11,6 +11,10 @@ import type { SlimCard } from './types';
  *   - `t:<word>` or `type:<word>` → type_line includes (case-insensitive)
  *   - `o:"..."` or `oracle:"..."` → oracle_text includes
  *   - `keyword:<word>` → keywords contains
+ *   - `otag:<tag>` / `oracletag:` / `function:` → oracle tags contains (only when
+ *     the card list is decorated with tags or a `tagsFor` lookup is supplied —
+ *     undecorated cards degrade to match-anything, like unknown clauses)
+ *   - `r:<rarity>` or `rarity:<rarity>` → rarity equals
  *   - `f:<format>` → legalities[format] === 'legal'
  *   - `banned:<format>` → legalities[format] === 'banned'
  *   - `id<=WUBRG` / `id=WUBRG` / `id:WUBRG` → color_identity subset / equals
@@ -29,6 +33,8 @@ type Clause =
   | { kind: 'type'; value: string; neg: boolean }
   | { kind: 'oracle'; value: string; neg: boolean }
   | { kind: 'keyword'; value: string; neg: boolean }
+  | { kind: 'otag'; value: string; neg: boolean }
+  | { kind: 'rarity'; value: string; neg: boolean }
   | { kind: 'format'; value: string; neg: boolean }
   | { kind: 'banned'; value: string; neg: boolean }
   | { kind: 'identity'; op: 'eq' | 'subset'; value: string; neg: boolean }
@@ -121,6 +127,13 @@ function classify(rawTok: string): Clause {
       return { kind: 'oracle', value: value.toLowerCase(), neg };
     case 'keyword':
       return { kind: 'keyword', value: value.toLowerCase(), neg };
+    case 'otag':
+    case 'oracletag':
+    case 'function':
+      return { kind: 'otag', value: value.toLowerCase(), neg };
+    case 'r':
+    case 'rarity':
+      return { kind: 'rarity', value: value.toLowerCase(), neg };
     case 'f':
     case 'format':
     case 'legal':
@@ -176,12 +189,58 @@ function stripQuotes(s: string): string {
 
 const WUBRG = ['W', 'U', 'B', 'R', 'G'] as const;
 
-function matchClause(card: SlimCard, c: Clause): boolean {
-  const positive = matchPositive(card, c);
+/**
+ * Structural subset of {@link SlimCard} the matcher reads — lets other card
+ * shapes (e.g. the collection's EnrichedCard, adapted in lib/deck-add-search)
+ * run the same query engine without carrying the full slim payload.
+ */
+export interface QueryCard {
+  name: string;
+  cmc: number;
+  typeLine: string;
+  oracleText?: string;
+  colors: string[];
+  colorIdentity: string[];
+  keywords?: string[];
+  legalities: Record<string, string>;
+  layout?: string;
+  rarity?: string;
+  isGameChanger?: boolean;
+  /** Oracle tags (kebab keys) — supply via decoration or {@link MatchOpts.tagsFor}. */
+  tags?: string[];
+}
+
+export interface MatchOpts {
+  /** Lazy oracle-tag lookup for `otag:` clauses when cards aren't decorated. */
+  tagsFor?: (name: string) => string[];
+}
+
+/** True when any clause reads oracle tags — gate for loading the tag snapshot. */
+export function queryUsesOtag(query: ParsedQuery): boolean {
+  return query.groups.some((g) => g.some((c) => c.kind === 'otag'));
+}
+
+// Scryfall's single-letter rarity shorthand (r:m ≡ r:mythic).
+const RARITY_ALIAS: Record<string, string> = {
+  c: 'common',
+  u: 'uncommon',
+  r: 'rare',
+  m: 'mythic',
+  s: 'special',
+  b: 'bonus',
+};
+
+function matchClause(card: QueryCard, c: Clause, opts?: MatchOpts): boolean {
+  // Degrade-to-ignored must ignore negation too: with no tag/rarity data in
+  // hand, `otag:x` AND `-otag:x` are both no-ops (the UI reports the clause
+  // as "ignored" — negating the degrade would instead zero all results).
+  if (c.kind === 'otag' && (card.tags ?? opts?.tagsFor?.(card.name)) === undefined) return true;
+  if (c.kind === 'rarity' && card.rarity === undefined) return true;
+  const positive = matchPositive(card, c, opts);
   return c.neg ? !positive : positive;
 }
 
-function matchPositive(card: SlimCard, c: Clause): boolean {
+function matchPositive(card: QueryCard, c: Clause, opts?: MatchOpts): boolean {
   switch (c.kind) {
     case 'type':
       return card.typeLine.toLowerCase().includes(c.value);
@@ -189,6 +248,17 @@ function matchPositive(card: SlimCard, c: Clause): boolean {
       return (card.oracleText ?? '').toLowerCase().includes(c.value);
     case 'keyword':
       return card.keywords?.some((k) => k.toLowerCase() === c.value) ?? false;
+    case 'otag': {
+      const tags = card.tags ?? opts?.tagsFor?.(card.name);
+      // No tag data in hand (snapshot not loaded / undecorated list): degrade
+      // to match-anything like an unknown clause rather than zeroing results.
+      if (tags === undefined) return true;
+      return tags.some((t) => t.toLowerCase() === c.value);
+    }
+    case 'rarity':
+      // Older slim payloads lack rarity — degrade to match-anything.
+      if (card.rarity === undefined) return true;
+      return card.rarity.toLowerCase() === (RARITY_ALIAS[c.value] ?? c.value);
     case 'format':
       return card.legalities[c.value] === 'legal';
     case 'banned':
@@ -252,7 +322,7 @@ function parseColorWord(word: string): Set<string> {
   return out;
 }
 
-function matchIs(card: SlimCard, value: string): boolean {
+function matchIs(card: QueryCard, value: string): boolean {
   switch (value) {
     case 'commander':
       // Legendary creature OR legendary planeswalker that says "can be your commander"
@@ -286,12 +356,12 @@ function matchIs(card: SlimCard, value: string): boolean {
   }
 }
 
-export function matchesQuery(card: SlimCard, query: ParsedQuery): boolean {
+export function matchesQuery(card: QueryCard, query: ParsedQuery, opts?: MatchOpts): boolean {
   if (query.groups.length === 0) return true;
   for (const group of query.groups) {
     let ok = true;
     for (const clause of group) {
-      if (!matchClause(card, clause)) {
+      if (!matchClause(card, clause, opts)) {
         ok = false;
         break;
       }
@@ -301,11 +371,15 @@ export function matchesQuery(card: SlimCard, query: ParsedQuery): boolean {
   return false;
 }
 
-export function filterCards(cards: Iterable<SlimCard>, query: string): SlimCard[] {
+export function filterCards(
+  cards: Iterable<SlimCard>,
+  query: string,
+  opts?: MatchOpts
+): SlimCard[] {
   const parsed = parseQuery(query);
   const out: SlimCard[] = [];
   for (const card of cards) {
-    if (matchesQuery(card, parsed)) out.push(card);
+    if (matchesQuery(card, parsed, opts)) out.push(card);
   }
   return out;
 }
