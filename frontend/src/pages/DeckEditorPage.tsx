@@ -77,6 +77,7 @@ import {
   buildAllocationMap,
   pickCollectionCopy,
   classifyPrintingAvailability,
+  bindableFinishesByPrinting,
   findStealableCopy,
   planCardAdd,
   listContestedCards,
@@ -101,6 +102,7 @@ import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtil
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -584,6 +586,17 @@ export function DeckEditorPage() {
     (printing: ScryfallCard): ChangeOwnership =>
       classifyPrintingAvailability(printing.id, collectionCards, printingAllocationMap, deck?.id),
     [collectionCards, printingAllocationMap, deck?.id]
+  );
+  // Owned finishes per printing (one pass over the collection) so the picker
+  // can show what you physically have — and constrain the finish choice —
+  // instead of offering every finish Scryfall says exists.
+  const ownedFinishesByPrinting = useMemo(
+    () => bindableFinishesByPrinting(collectionCards, printingAllocationMap, deck?.id),
+    [collectionCards, printingAllocationMap, deck?.id]
+  );
+  const resolveOwnedFinishes = useCallback(
+    (printing: ScryfallCard): Finish[] => ownedFinishesByPrinting.get(printing.id) ?? [],
+    [ownedFinishesByPrinting]
   );
 
   // Which binder(s) each collection copy lives in — mirrors how the
@@ -1903,7 +1916,16 @@ export function DeckEditorPage() {
     }
     const bindings = new Map<string, string | null>();
     for (const slot of slotsForName) {
-      const copy = pickCollectionCopy(newCard.name, collectionCards, allocations, newCard.id);
+      // The chosen finish rides along as a preference: owning both finishes of
+      // the picked printing binds the one the user asked for (foil stays foil)
+      // instead of the ranking's non-foil default.
+      const copy = pickCollectionCopy(
+        newCard.name,
+        collectionCards,
+        allocations,
+        newCard.id,
+        selection.finish
+      );
       // pickCollectionCopy falls back to any free copy of the name; the slot now
       // shows newCard, so only keep a copy that is actually the chosen printing.
       if (copy && copy.scryfallId === newCard.id) {
@@ -2650,8 +2672,14 @@ export function DeckEditorPage() {
         <CardEditDialog
           cardName={editingSlot.card.name}
           currentScryfallId={editingSlot.card.id}
-          currentFinish="nonfoil"
+          // The slot's real finish is whatever physical copy it's bound to —
+          // an unbound slot has no finish, so it reads as non-foil.
+          currentFinish={(() => {
+            const copyId = deck.cards.find((c) => c.slotId === editingSlot.slotId)?.allocatedCopyId;
+            return (copyId && collectionById?.get(copyId)?.finish) || 'nonfoil';
+          })()}
           resolveAvailability={resolveAvailability}
+          resolveOwnedFinishes={resolveOwnedFinishes}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingSlot(null)}
         />

@@ -3,13 +3,11 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
 import type { ChangeOwnership } from '../lib/deck-change';
-import type { Condition } from '../types';
+import type { Condition, Finish } from '../types';
 import { Modal } from './Modal';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from './PrintingPicker';
-
-type Finish = 'nonfoil' | 'foil' | 'etched';
 
 /** True when a printing's availability means the user owns at least one copy. */
 function isOwnedAvailability(a: ChangeOwnership): boolean {
@@ -84,6 +82,14 @@ interface Props {
    */
   resolveAvailability?: (printing: ScryfallCard) => ChangeOwnership;
   /**
+   * Which finishes of a printing the user owns and can bind here (deck-editor
+   * picker). Drives the owned dot on the finish buttons + NF/F/E tags, makes
+   * selecting an owned printing default to a finish you own, and — with
+   * "Owned only" on — restricts the finish choice to owned finishes. Omit
+   * where finish is free inventory input (collection/binder edits).
+   */
+  resolveOwnedFinishes?: (printing: ScryfallCard) => Finish[];
+  /**
    * Current per-copy details. Presence enables the condition/language
    * editors (collection/binder inventory edits); omit for deck-slot and
    * list-entry callers where those fields don't apply.
@@ -131,6 +137,7 @@ export function CardEditDialog({
   quantity,
   singleCopy,
   resolveAvailability,
+  resolveOwnedFinishes,
   details,
   onConfirm,
   onCancel,
@@ -246,16 +253,34 @@ export function CardEditDialog({
     );
   }, [selectedCard]);
 
-  // When the selected printing changes, reset the finish if the current
-  // choice isn't offered. Compare-prev-during-render keeps this synchronous
-  // without an extra render pass (effect-based version triggers the
-  // react-hooks/set-state-in-effect lint rule).
-  const [prevFinishesKey, setPrevFinishesKey] = useState(availableFinishes.join(','));
-  const finishesKey = availableFinishes.join(',');
+  // Finishes of the selected printing the user owns and can bind (empty when
+  // the caller doesn't resolve ownership, e.g. collection/binder edits).
+  const ownedFinishes = useMemo<Finish[]>(
+    () => (selectedCard && resolveOwnedFinishes ? resolveOwnedFinishes(selectedCard) : []),
+    [selectedCard, resolveOwnedFinishes]
+  );
+  // With "Owned only" on, the finish choice narrows to what you physically
+  // have of this printing — no phantom Foil for a copy that isn't in the
+  // binder. Without owned copies (or with the filter off) every printed
+  // finish stays offered.
+  const ownedOffered = availableFinishes.filter((f) => ownedFinishes.includes(f));
+  const offeredFinishes = ownedOnly && ownedOffered.length > 0 ? ownedOffered : availableFinishes;
+
+  // When the selected printing (or the offered-finish set) changes, re-derive
+  // the finish: picking a printing you own defaults to a finish you own of it;
+  // otherwise only reset when the current choice is no longer offered.
+  // Compare-prev-during-render keeps this synchronous without an extra render
+  // pass (effect-based version triggers the react-hooks/set-state-in-effect
+  // lint rule).
+  const finishesKey = `${selectedId}|${offeredFinishes.join(',')}`;
+  const [prevFinishesKey, setPrevFinishesKey] = useState(finishesKey);
   if (prevFinishesKey !== finishesKey) {
+    const printingChanged = prevFinishesKey.split('|')[0] !== selectedId;
     setPrevFinishesKey(finishesKey);
-    if (availableFinishes.length > 0 && !availableFinishes.includes(selectedFinish)) {
-      setSelectedFinish(availableFinishes[0]);
+    if (printingChanged && ownedOffered.length > 0 && !ownedOffered.includes(selectedFinish)) {
+      setSelectedFinish(ownedOffered[0]);
+    } else if (offeredFinishes.length > 0 && !offeredFinishes.includes(selectedFinish)) {
+      setSelectedFinish(offeredFinishes[0]);
     }
   }
 
@@ -338,19 +363,27 @@ export function CardEditDialog({
                 </div>
               )}
 
-              {availableFinishes.length > 1 && (
+              {offeredFinishes.length > 1 && (
                 <div className="card-edit-finishes" role="group" aria-label="Finish">
-                  {availableFinishes.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      className={`card-edit-finish-btn${selectedFinish === f ? ' is-active' : ''}`}
-                      onClick={() => setSelectedFinish(f)}
-                      aria-pressed={selectedFinish === f}
-                    >
-                      {f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched'}
-                    </button>
-                  ))}
+                  {offeredFinishes.map((f) => {
+                    const label = f === 'nonfoil' ? 'Non-foil' : f === 'foil' ? 'Foil' : 'Etched';
+                    const owned = ownedFinishes.includes(f);
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        className={`card-edit-finish-btn${selectedFinish === f ? ' is-active' : ''}${owned ? ' is-owned' : ''}`}
+                        onClick={() => setSelectedFinish(f)}
+                        aria-pressed={selectedFinish === f}
+                        aria-label={owned ? `${label} — you own this finish` : label}
+                      >
+                        {label}
+                        {owned && (
+                          <span className="card-edit-finish-owned-dot" aria-hidden="true" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -490,6 +523,7 @@ export function CardEditDialog({
                         availability && availability !== 'unowned'
                           ? AVAILABILITY_BADGE[availability]
                           : null;
+                      const rowOwnedFinishes = resolveOwnedFinishes?.(card) ?? [];
                       return (
                         <button
                           key={card.id}
@@ -500,14 +534,18 @@ export function CardEditDialog({
                         >
                           <span className="card-edit-printing-num">#{card.collector_number}</span>
                           <span className="card-edit-printing-finishes">
-                            {finishes.map((f) => (
-                              <span
-                                key={f}
-                                className={`card-edit-finish-tag card-edit-finish-tag--${f}`}
-                              >
-                                {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
-                              </span>
-                            ))}
+                            {finishes.map((f) => {
+                              const owned = rowOwnedFinishes.includes(f as Finish);
+                              return (
+                                <span
+                                  key={f}
+                                  className={`card-edit-finish-tag card-edit-finish-tag--${f}${owned ? ' is-owned' : ''}`}
+                                >
+                                  {f === 'nonfoil' ? 'NF' : f === 'foil' ? 'F' : 'E'}
+                                  {owned && <span className="sr-only"> (owned)</span>}
+                                </span>
+                              );
+                            })}
                           </span>
                           <span className="card-edit-printing-rarity">{card.rarity}</span>
                           <span className="card-edit-printing-price">
