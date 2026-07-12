@@ -217,6 +217,8 @@ vi.mock('../deck-builder/services/deckBuilder/costAnalyzer', () => ({
 }));
 vi.mock('../lib/deck-analysis', () => ({
   classifyCandidate: () => 'neutral',
+  // Land-count advice memo — empty roles ⇒ no advice, keeps the hero quiet.
+  analyzeDeck: () => ({ roles: [] }),
 }));
 vi.mock('../lib/intelligent-cuts', () => ({
   rankReplacementCuts: () => [],

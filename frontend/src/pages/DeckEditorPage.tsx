@@ -63,7 +63,8 @@ import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
-import { classifyCandidate } from '../lib/deck-analysis';
+import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
+import { useTaggerReady } from '../lib/use-tagger-ready';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
@@ -686,6 +687,27 @@ export function DeckEditorPage() {
     bracketOverride: deck?.bracketOverride,
   });
 
+  const taggerReady = useTaggerReady();
+
+  // Curve-derived land-count advice for the hero — the lands RoleHealth from
+  // the same analyzeDeck the Analysis panel renders, so badge and hero agree
+  // on both the number and when it applies (Karsten gate lives in there).
+  const landAdvice = useMemo(() => {
+    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return undefined;
+    const lands = analyzeDeck(
+      {
+        format: deck.format,
+        commander: deck.commander,
+        partnerCommander: deck.partnerCommander,
+        mainboard: deck.cards,
+      },
+      taggerReady
+    ).roles.find((r) => r.key === 'lands');
+    return lands?.suggested != null
+      ? { count: lands.count, suggested: lands.suggested }
+      : undefined;
+  }, [deck, taggerReady]);
+
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos. Manual decks don't carry
   // roleCounts (set only at generation), so derive them from the tagger.
@@ -708,8 +730,9 @@ export function DeckEditorPage() {
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
       ownedOnly,
+      landAdvice,
     });
-  }, [deck, comboData.data, ownedNames, ownedOnly]);
+  }, [deck, comboData.data, ownedNames, ownedOnly, landAdvice]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
