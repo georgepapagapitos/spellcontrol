@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { useCubeStore, type SavedCube } from '../store/cube';
-import type { EnrichedCard } from '../types';
+import type { EnrichedCard, Finish } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ChangeOwnership } from './deck-change';
 
@@ -290,15 +290,20 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
  *      exact printing exists, restrict candidates to that printing. This is a
  *      hard filter, not a tiebreaker — a deck slot's printing is treated as
  *      meaningful intent rather than a hint.
- *   3. Non-foil over foil (foils are usually display copies).
- *   4. Cheapest purchasePrice (so the deck claims the budget copy first;
+ *   3. If `preferredFinish` is given and at least one candidate has that
+ *      finish, restrict to it — same hard-filter semantics as the printing:
+ *      an explicit foil pick in the edit-printing dialog is deliberate intent,
+ *      not a hint the default ranking may overrule.
+ *   4. Non-foil over foil (foils are usually display copies).
+ *   5. Cheapest purchasePrice (so the deck claims the budget copy first;
  *      premium copies stay free for the user).
  */
 export function pickCollectionCopy(
   cardName: string,
   collection: EnrichedCard[],
   allocated: Map<string, AllocationInfo>,
-  preferredScryfallId?: string
+  preferredScryfallId?: string,
+  preferredFinish?: Finish
 ): EnrichedCard | null {
   const free = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
   if (free.length === 0) return null;
@@ -311,8 +316,47 @@ export function pickCollectionCopy(
     const printingMatches = free.filter((c) => c.scryfallId === preferredScryfallId);
     if (printingMatches.length > 0) candidates = printingMatches;
   }
+  if (preferredFinish) {
+    const finishMatches = candidates.filter((c) => c.finish === preferredFinish);
+    if (finishMatches.length > 0) candidates = finishMatches;
+  }
   candidates.sort(compareCopyPreference);
   return candidates[0];
+}
+
+/** Stable display order for finish lists — matches the dialog's button order. */
+const FINISH_ORDER: readonly Finish[] = ['nonfoil', 'foil', 'etched'];
+
+/**
+ * Per-printing (scryfallId) finishes the user owns AND can bind to a slot in
+ * `currentDeckId` (free, or already claimed by this deck — same "in THIS deck
+ * = free" rule as {@link classifyPrintingAvailability}). One pass over the
+ * collection so the edit-printing dialog can resolve every listed printing by
+ * lookup. Printings with no bindable copy have no entry.
+ */
+export function bindableFinishesByPrinting(
+  collection: EnrichedCard[],
+  allocations: Map<string, AllocationInfo>,
+  currentDeckId?: string
+): Map<string, Finish[]> {
+  const sets = new Map<string, Set<Finish>>();
+  for (const c of collection) {
+    const claim = allocations.get(c.copyId);
+    if (claim && claim.deckId !== currentDeckId) continue;
+    let s = sets.get(c.scryfallId);
+    if (!s) {
+      s = new Set<Finish>();
+      sets.set(c.scryfallId, s);
+    }
+    s.add(c.finish);
+  }
+  const out = new Map<string, Finish[]>();
+  for (const [id, s] of sets)
+    out.set(
+      id,
+      FINISH_ORDER.filter((f) => s.has(f))
+    );
+  return out;
 }
 
 /**
