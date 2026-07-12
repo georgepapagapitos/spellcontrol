@@ -24,9 +24,6 @@ export interface RoleHealth {
   message: string;
   /** Slot ids contributing to this count, in deck order. */
   contributingSlotIds: string[];
-  /** How many of `count` came only from the user's own card tags (cards the
-   *  tagger missed). 0 when the tagger and the user's tags agree. */
-  taggedCount: number;
 }
 
 export interface CurveBucket {
@@ -65,9 +62,7 @@ export interface DeckAnalysisInput {
   format: DeckFormat;
   commander: ScryfallCard | null;
   partnerCommander: ScryfallCard | null;
-  /** `tags` = the user's functional tags on the slot (deck-card-tags.ts
-   *  palette). Mapped tags count toward role health — see TAG_TO_ROLE. */
-  mainboard: { slotId: string; card: ScryfallCard; tags?: string[] }[];
+  mainboard: { slotId: string; card: ScryfallCard }[];
 }
 
 export interface DeckAnalysisResult {
@@ -248,25 +243,9 @@ function buildColorIdentityCheck(input: DeckAnalysisInput): ColorIdentityCheck {
 }
 
 /**
- * User tags (deck-card-tags.ts palette) that map onto analysis roles.
- * Additive only: a tag fills a role the tagger missed for that card; it never
- * removes an auto-detected role. Interaction folds into removal alongside the
- * tagger's own counterspell/bounce subtypes. Wincon/Synergy/Setup/Payoff are
- * deck-plan intent with no role analog, so they don't count here.
- */
-const TAG_TO_ROLE: Record<string, RoleKey> = {
-  Ramp: 'ramp',
-  Draw: 'cardDraw',
-  Removal: 'removal',
-  Interaction: 'removal',
-};
-
-/**
  * Compute deck role health using the tagger. Each non-land card is counted
  * once per role it matches (so a "Beast Within"-style ramp+removal hybrid
- * shows up in both buckets). Lands get their own dedicated count. The user's
- * own card tags also count (via TAG_TO_ROLE) — they're the user's read of the
- * card, so they apply even before the tagger loads.
+ * shows up in both buckets). Lands get their own dedicated count.
  */
 function buildRoles(input: DeckAnalysisInput, taggerReady: boolean): RoleHealth[] {
   const targets = getRoleTargets(input.format);
@@ -277,30 +256,14 @@ function buildRoles(input: DeckAnalysisInput, taggerReady: boolean): RoleHealth[
     removal: [],
     boardwipe: [],
   };
-  const taggedByRole: Record<RoleKey | 'lands', number> = {
-    lands: 0,
-    ramp: 0,
-    cardDraw: 0,
-    removal: 0,
-    boardwipe: 0,
-  };
-  for (const { slotId, card, tags } of input.mainboard) {
+  for (const { slotId, card } of input.mainboard) {
     if (isLand(card)) {
       slotsByRole.lands.push(slotId);
       continue;
     }
-    const autoRoles = taggerReady ? getAllCardRoles(card.name) : [];
-    for (const role of autoRoles) {
+    if (!taggerReady) continue;
+    for (const role of getAllCardRoles(card.name)) {
       slotsByRole[role].push(slotId);
-    }
-    const taggedRoles = new Set<RoleKey>();
-    for (const tag of tags ?? []) {
-      const mapped = TAG_TO_ROLE[tag];
-      if (mapped && !autoRoles.includes(mapped)) taggedRoles.add(mapped);
-    }
-    for (const role of taggedRoles) {
-      slotsByRole[role].push(slotId);
-      taggedByRole[role] += 1;
     }
   }
   const order: (RoleKey | 'lands')[] = ['lands', 'ramp', 'cardDraw', 'removal', 'boardwipe'];
@@ -316,7 +279,6 @@ function buildRoles(input: DeckAnalysisInput, taggerReady: boolean): RoleHealth[
       status: statusFor(count, range),
       message: messageFor(key, count, range),
       contributingSlotIds,
-      taggedCount: taggedByRole[key],
     };
   });
 }

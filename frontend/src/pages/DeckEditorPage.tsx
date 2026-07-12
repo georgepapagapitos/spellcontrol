@@ -187,7 +187,6 @@ export function DeckEditorPage() {
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
-  const toggleCardTag = useDecksStore((s) => s.toggleCardTag);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
   const pushToast = useToastsStore((s) => s.push);
 
@@ -1979,7 +1978,6 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
-    tags: c.tags,
   }));
 
   const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
@@ -1987,7 +1985,6 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
-    tags: c.tags,
   }));
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
@@ -2272,7 +2269,6 @@ export function DeckEditorPage() {
             onMoveToMainboard={handleMoveToMainboard}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
-            onToggleCardTag={(slotId, tag) => toggleCardTag(deck.id, slotId, tag)}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={
               formatConfig?.hasCommander
@@ -2428,11 +2424,7 @@ export function DeckEditorPage() {
                       format={deck.format}
                       commander={deck.commander}
                       partnerCommander={deck.partnerCommander}
-                      mainboard={deck.cards.map((c) => ({
-                        slotId: c.slotId,
-                        card: c.card,
-                        tags: c.tags,
-                      }))}
+                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                       onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                     />
                   }
