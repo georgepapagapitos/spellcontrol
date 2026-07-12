@@ -27,15 +27,18 @@ interface Props {
   /** Deck title — names the downloaded file. */
   title: string;
   onClose: () => void;
+  /** Tap a row → preview that card (the parent closes this dialog, opens the
+   *  carousel there, and reopens the dialog when the carousel closes). */
+  onPickCard: (name: string) => void;
 }
 
 /**
- * "Buy list" dialog for a deck's missing cards — opened from the cart icon
- * beside the missing stat. Lists qty × name with line prices, and offers the
- * three acquisition paths: open the whole list in TCGPlayer Mass Entry, copy
- * the plain-text list, or download it as a .txt.
+ * "Buy list" dialog for a deck's missing cards — the missing stat's
+ * drill-down. Lists qty × name with line prices (rows tap through to the card
+ * carousel), and offers the three acquisition paths: open the whole list in
+ * TCGPlayer Mass Entry, copy the plain-text list, or download it as a .txt.
  */
-export function BuyListDialog({ tally, currency, title, onClose }: Props) {
+export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: Props) {
   const [copied, setCopied] = useState(false);
   const text = useMemo(() => buyListText(tally), [tally]);
   const rows = useMemo(
@@ -84,10 +87,17 @@ export function BuyListDialog({ tally, currency, title, onClose }: Props) {
       </p>
       <ul className="buy-list-rows">
         {rows.map((r) => (
-          <li key={r.name} className="buy-list-row">
-            <span className="buy-list-row-qty">{r.count}×</span>
-            <span className="buy-list-row-name">{r.name}</span>
-            <span className="buy-list-row-price">{formatMoney(r.price, { currency })}</span>
+          <li key={r.name}>
+            <button
+              type="button"
+              className="buy-list-row"
+              onClick={() => onPickCard(r.name)}
+              aria-label={`Preview ${r.name}`}
+            >
+              <span className="buy-list-row-qty">{r.count}×</span>
+              <span className="buy-list-row-name">{r.name}</span>
+              <span className="buy-list-row-price">{formatMoney(r.price, { currency })}</span>
+            </button>
           </li>
         ))}
       </ul>
