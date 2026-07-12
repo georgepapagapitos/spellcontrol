@@ -15,7 +15,6 @@ import {
   useCardTagsReady,
 } from '../../lib/card-tags';
 import { imageFromCard, useCardThumb } from '../../lib/card-thumbs';
-import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
 import { InfoTip } from '../InfoTip';
 import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '../../lib/api';
@@ -131,14 +130,15 @@ const SYNTAX_TIP = (
   </>
 );
 
-/** Small art-crop thumbnail for a result row. Uses the row's own image URL when
- *  in hand, else resolves via the batched CDN thumb hook. Decorative only. */
+/** Portrait mini-card thumbnail for a result row — the full card image, not an
+ *  art crop, so the card is recognizable at a glance. Uses the row's own image
+ *  URL when in hand, else resolves via the batched CDN thumb hook. Decorative. */
 function RowThumb({ name, image }: { name: string; image?: string }) {
   const fetched = useCardThumb(image ? undefined : name, 'normal');
   const url = image ?? fetched;
   return (
     <span className="card-search-thumb" aria-hidden>
-      {url && <img src={scryfallArtCrop(url)} alt="" loading="lazy" />}
+      {url && <img src={url} alt="" loading="lazy" />}
     </span>
   );
 }
