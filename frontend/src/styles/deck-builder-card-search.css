@@ -330,20 +330,28 @@
   }
 }
 
-/* Row art thumbnail (art_crop, ≈1.37 aspect) — decorative scannability aid.
-   Rows opt in via .has-thumb so other pickers sharing .card-search-row keep
-   their original grid. */
+/* Row card thumbnail — a portrait MINI CARD (full card image, ≈0.72 aspect),
+   not an art crop, so the card is recognizable at a glance. It spans both grid
+   rows (name + meta), setting the row height; the + button spans too so it
+   stays vertically centered. Rows opt in via .has-thumb so other pickers
+   sharing .card-search-row keep their original grid. */
 .card-search-row.has-thumb {
-  grid-template-columns: 1.6rem 2.6rem minmax(0, 1fr) auto;
+  grid-template-columns: 1.6rem 2.45rem minmax(0, 1fr) auto;
 }
 
 .card-search-row.has-thumb .card-search-meta {
   grid-column: 3 / -1;
 }
 
+.card-search-row.has-thumb .card-search-add,
 .card-search-thumb {
-  width: 2.6rem;
-  height: 1.9rem;
+  grid-row: span 2;
+  align-self: center;
+}
+
+.card-search-thumb {
+  width: 2.45rem;
+  height: 3.4rem;
   border-radius: var(--radius);
   background: var(--surface-raised);
   overflow: hidden;
