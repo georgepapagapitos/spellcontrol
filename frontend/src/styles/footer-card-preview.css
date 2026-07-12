@@ -553,10 +553,18 @@
      boundary that can override backface-visibility in some browsers, which
      ends up showing the mirrored front face when the flipper is at 180°. */
   clip-path: inset(0 round 14px);
+  /* Promote each face to its own compositing layer. The clip-path keeps the
+     faces out of the compositor, and Chrome then ignores backface-visibility
+     WHILE the flipper's transform is animating — the outgoing face paints
+     mirrored (text backwards) for a few frames past the 90° midpoint. With
+     the faces layerized, backface culling happens on the GPU and holds
+     through the whole rotation. */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .card-preview-face-back {
-  transform: rotateY(180deg);
+  transform: rotateY(180deg) translateZ(0);
 }
 
 .card-preview-flip-row {
