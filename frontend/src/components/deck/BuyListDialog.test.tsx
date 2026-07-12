@@ -34,14 +34,36 @@ describe('BuyListDialog', () => {
   it('renders rows with line prices, the total, and the TCGPlayer link', () => {
     const tally = [mk('Sol Ring', 2, '3.20'), mk('Counterspell', 1)];
     const { container, getByText } = render(
-      <BuyListDialog tally={tally} currency="USD" title="Test deck" onClose={() => {}} />
+      <BuyListDialog
+        tally={tally}
+        currency="USD"
+        title="Test deck"
+        onClose={() => {}}
+        onPickCard={() => {}}
+      />
     );
     // 2 × $3.20 line total; priceless card renders $0.00 and doesn't poison the sum.
     expect(getByText('$6.40')).toBeTruthy();
     expect(getByText('3 cards missing · $6.40')).toBeTruthy();
-    expect(container.querySelectorAll('.buy-list-row')).toHaveLength(2);
+    expect(container.querySelectorAll('button.buy-list-row')).toHaveLength(2);
     const link = container.querySelector('a.btn-primary')!;
     expect(link.getAttribute('href')).toBe(tcgplayerMassEntryUrl(tally));
     expect(link.getAttribute('target')).toBe('_blank');
+  });
+
+  it('hands the tapped row back through onPickCard', () => {
+    const picked: string[] = [];
+    const { container } = render(
+      <BuyListDialog
+        tally={[mk('Sol Ring', 1, '3.20'), mk('Counterspell', 1)]}
+        currency="USD"
+        title="Test deck"
+        onClose={() => {}}
+        onPickCard={(name) => picked.push(name)}
+      />
+    );
+    const rows = container.querySelectorAll<HTMLButtonElement>('button.buy-list-row');
+    rows[1].click();
+    expect(picked).toEqual(['Counterspell']);
   });
 });

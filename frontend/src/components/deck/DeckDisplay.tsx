@@ -15,7 +15,6 @@ import {
   MoreVertical,
   Pencil,
   Search,
-  ShoppingCart,
   Trash2,
   X,
 } from 'lucide-react';
@@ -1473,9 +1472,12 @@ export function DeckDisplay({
   // (their boolean wins). Otherwise fall back to internal state — keeps
   // simple callers ergonomic and avoids any setState-in-effect dance.
   const [internalExportOpen, setInternalExportOpen] = useState(false);
-  // Buy-list dialog for the missing cards — opened from the cart icon beside
-  // the missing stat (tapping the stat itself still opens the carousel).
+  // Buy-list dialog for the missing cards — the missing stat's drill-down.
+  // Tapping a row swaps the dialog for the card carousel at that card;
+  // `buyListReturn` re-opens the dialog when that carousel closes, so the
+  // carousel reads as a preview layer over the list rather than a dead end.
   const [buyListOpen, setBuyListOpen] = useState(false);
+  const buyListReturn = useRef(false);
   const isControlled = exportOpenProp !== undefined && onExportOpenChange !== undefined;
   const exportOpen = isControlled ? exportOpenProp : internalExportOpen;
   const setExportOpen = (next: boolean) => {
@@ -1564,9 +1566,21 @@ export function DeckDisplay({
     if (i !== undefined) setPreviewIndex(i);
   };
 
-  // Tap a headline stat (cards / value / missing) to drill into the cards behind
-  // it — the same carousel pattern as the analysis-tab drill-downs.
+  // Tap a headline stat (cards / value) to drill into the cards behind it —
+  // the same carousel pattern as the analysis-tab drill-downs. The missing
+  // stat opens the buy-list dialog instead; its rows hand off to this
+  // carousel one card at a time.
   const statCarousel = useCardCarousel(title);
+  // Reopen the buy list when a carousel it spawned closes (the dialog and the
+  // carousel never stack — Modal and CardPreview both grab Escape globally, so
+  // layering them would close both on one keypress).
+  const statCarouselOpen = statCarousel.preview !== null;
+  useEffect(() => {
+    if (!statCarouselOpen && buyListReturn.current) {
+      buyListReturn.current = false;
+      setBuyListOpen(true);
+    }
+  }, [statCarouselOpen]);
 
   // ── Role filter (pill bar) ──────────────────────────────────────────────
   // View-local transient lens over the automatic role classification (the
@@ -1685,32 +1699,17 @@ export function DeckDisplay({
               )}
               {missing.count > 0 &&
                 (missingTally.length > 0 ? (
-                  <span className="deck-stat-missing-group">
-                    <button
-                      type="button"
-                      className="deck-stat deck-stat-missing deck-stat-btn"
-                      onClick={() =>
-                        void statCarousel.open(
-                          tallyToEntries(missingTally),
-                          missingTally[0]?.name ?? ''
-                        )
-                      }
-                      aria-label={`Show the ${missing.count} missing cards (buy list)`}
-                    >
-                      <span className="deck-stat-value">{missing.count}</span>
-                      <span className="deck-stat-label">
-                        missing ({formatMoney(missing.price, { currency })})
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="deck-stat-buy-btn"
-                      onClick={() => setBuyListOpen(true)}
-                      aria-label={`Open the buy list for the ${missing.count} missing cards`}
-                    >
-                      <ShoppingCart width={15} height={15} strokeWidth={2} aria-hidden />
-                    </button>
-                  </span>
+                  <button
+                    type="button"
+                    className="deck-stat deck-stat-missing deck-stat-btn"
+                    onClick={() => setBuyListOpen(true)}
+                    aria-label={`Open the buy list for the ${missing.count} missing cards`}
+                  >
+                    <span className="deck-stat-value">{missing.count}</span>
+                    <span className="deck-stat-label">
+                      missing ({formatMoney(missing.price, { currency })})
+                    </span>
+                  </button>
                 ) : (
                   <span className="deck-stat deck-stat-missing">
                     <span className="deck-stat-value">{missing.count}</span>
@@ -2090,6 +2089,11 @@ export function DeckDisplay({
             currency={currency}
             title={title}
             onClose={() => setBuyListOpen(false)}
+            onPickCard={(name) => {
+              setBuyListOpen(false);
+              buyListReturn.current = true;
+              void statCarousel.open(tallyToEntries(missingTally), name);
+            }}
           />
         )}
         {exportOpen && (

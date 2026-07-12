@@ -261,47 +261,6 @@
   color: var(--warn-text, #b85c00);
 }
 
-/* Missing stat + its buy-list cart icon, kept as one flex pair so the strip's
-   baseline alignment still comes from the stat value. */
-.deck-stat-missing-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-/* Cart icon → BuyListDialog. Visually small so the strip stays a quiet metric
-   row; on touch the hit area grows to 44px via padding + negative margin so
-   the row height doesn't inflate. */
-.deck-stat-buy-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem;
-  margin: -0.3rem 0;
-  border: 0;
-  background: none;
-  border-radius: var(--radius);
-  color: var(--warn-text, #b85c00);
-  cursor: pointer;
-  transition: color var(--motion-fast) ease;
-}
-
-.deck-stat-buy-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-@media (hover: hover) and (pointer: fine) {
-  .deck-stat-buy-btn:hover {
-    color: var(--accent);
-  }
-}
-@media (pointer: coarse) {
-  .deck-stat-buy-btn {
-    padding: calc((44px - 15px) / 2);
-    margin: calc((15px - 44px) / 2) 0;
-  }
-}
-
 .deck-stats-caret {
   display: inline-flex;
   align-items: center;
