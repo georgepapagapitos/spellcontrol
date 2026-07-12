@@ -3,6 +3,7 @@ import {
   buildAllocationMap,
   dedupeDeckAllocations,
   pickCollectionCopy,
+  bindableFinishesByPrinting,
   classifyAllocation,
   classifyPrintingAvailability,
   findSuboptimalPrintings,
@@ -335,6 +336,89 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
     });
     const nonFoil = card({ copyId: 'b', scryfallId: 'sf-NEO', foil: false, purchasePrice: 5 });
     expect(pickCollectionCopy('Sol Ring', [foil, nonFoil], allocated)?.copyId).toBe('b');
+  });
+});
+
+describe('pickCollectionCopy with preferredFinish', () => {
+  const allocated = new Map<string, AllocationInfo>();
+
+  it('binds the foil copy when the user explicitly picked foil and owns both finishes', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 1 });
+    const foilCopy = card({
+      copyId: 'b',
+      scryfallId: 'sf-ONE',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 5,
+    });
+    expect(
+      pickCollectionCopy('Sol Ring', [nonFoil, foilCopy], allocated, 'sf-ONE', 'foil')?.copyId
+    ).toBe('b');
+  });
+
+  it('falls back to the default ranking when the preferred finish is not owned', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 1 });
+    expect(pickCollectionCopy('Sol Ring', [nonFoil], allocated, 'sf-ONE', 'foil')?.copyId).toBe(
+      'a'
+    );
+  });
+
+  it('applies the finish filter within the preferred printing, not across printings', () => {
+    // A foil of the WRONG printing must not beat a non-foil of the chosen one.
+    const prefNonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 5 });
+    const otherFoil = card({
+      copyId: 'b',
+      scryfallId: 'sf-NEO',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 1,
+    });
+    expect(
+      pickCollectionCopy('Sol Ring', [prefNonFoil, otherFoil], allocated, 'sf-ONE', 'foil')?.copyId
+    ).toBe('a');
+  });
+
+  it('without a printing preference, picks the finish match by name', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 1 });
+    const foilCopy = card({
+      copyId: 'b',
+      scryfallId: 'sf-NEO',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 5,
+    });
+    expect(
+      pickCollectionCopy('Sol Ring', [nonFoil, foilCopy], allocated, undefined, 'foil')?.copyId
+    ).toBe('b');
+  });
+});
+
+describe('bindableFinishesByPrinting', () => {
+  it('maps each printing to the finishes of its free copies, in display order', () => {
+    const collection = [
+      card({ copyId: 'a', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+      card({ copyId: 'b', scryfallId: 'sf-ONE', finish: 'nonfoil' }),
+      card({ copyId: 'c', scryfallId: 'sf-NEO', finish: 'etched', foil: true }),
+    ];
+    const map = bindableFinishesByPrinting(collection, new Map());
+    expect(map.get('sf-ONE')).toEqual(['nonfoil', 'foil']);
+    expect(map.get('sf-NEO')).toEqual(['etched']);
+    expect(map.get('sf-XYZ')).toBeUndefined();
+  });
+
+  it('excludes copies claimed by another deck but keeps copies claimed by the current deck', () => {
+    const collection = [
+      card({ copyId: 'mine', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+      card({ copyId: 'theirs', scryfallId: 'sf-ONE', finish: 'nonfoil' }),
+    ];
+    const allocations = new Map<string, AllocationInfo>([
+      ['mine', makeDeckAllocationInfo('d1', 'Mine', '#000', 'Sol Ring')],
+      ['theirs', makeDeckAllocationInfo('d2', 'Theirs', '#000', 'Sol Ring')],
+    ]);
+    expect(bindableFinishesByPrinting(collection, allocations, 'd1').get('sf-ONE')).toEqual([
+      'foil',
+    ]);
+    expect(bindableFinishesByPrinting(collection, allocations).get('sf-ONE')).toBeUndefined();
   });
 });
 

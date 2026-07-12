@@ -195,6 +195,7 @@ vi.mock('../lib/use-undo-redo-keyboard', () => ({
 vi.mock('../lib/allocations', () => ({
   buildAllocationMap: () => new Map(),
   pickCollectionCopy: () => null,
+  bindableFinishesByPrinting: () => new Map(),
   findStealableCopy: () => null,
   useCollectionByCopyId: () => new Map(),
 }));

@@ -929,6 +929,24 @@
   color: var(--cube-color);
 }
 
+/* Owned-finish signals (deck-editor picker): an NF/F/E tag gets a success ring
+   when you own that finish of the printing, and the matching finish button
+   carries a dot — "which finishes do I actually have?" is answered before
+   saving, not after the slot binds. */
+.card-edit-finish-tag.is-owned {
+  box-shadow: 0 0 0 1.5px var(--success);
+}
+
+.card-edit-finish-owned-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  vertical-align: middle;
+}
+
 /* Header cluster: printing count + the "Owned only" filter chip sit together on
    the left, the set-filter search stays on the right. */
 .card-edit-sets-header-left {
