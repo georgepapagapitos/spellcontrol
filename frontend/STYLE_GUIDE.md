@@ -733,6 +733,15 @@ fails CI on any other `*-shimmer` keyframe.
   card images (qty/set badges on grid tiles) use `--art-scrim` /
   `--art-scrim-text`, not inline `rgba`. Card art is theme-invariant, so these
   tokens are deliberately not themed; using them anywhere else is a smell.
+- **Never trust card art for text contrast.** Anywhere theme-colored text can
+  overlap an art backdrop (deck-editor hero, any future art-backed header), the
+  scrim under the text's reachable zone must **hold a floor** — a gradient that
+  fades to fully `transparent` where text can land will fail AA on bright crops.
+  Ruling from the deck hero: horizontal fade keeps ≥30% `--bg` at its weakest
+  point plus a bottom-up band under the meta line, and small/secondary text over
+  art steps up one token (`--text-muted` → `--text-secondary`). If a floor + one
+  token step still isn't enough for a surface, use a blur material
+  (`backdrop-filter` panel), not a third gradient tune.
 - **Game-canonical colors** (counter gold, etc.) live in the `--mtg-*` block
   (`--mtg-counter-gold`) and are not themed — never hard-code a game-surface hex.
 - **Mana identity palette — one set of WUBRG colors.** Color-identity fills (the
