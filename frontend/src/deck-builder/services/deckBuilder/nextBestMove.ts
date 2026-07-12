@@ -66,6 +66,10 @@ export interface NextBestMoveInput {
    *  advice; an unowned-only combo completion is dropped) so the hero never
    *  tells you to go buy a card while you've asked to see owned moves only. */
   ownedOnly?: boolean;
+  /** Curve-derived land-count advice — the lands RoleHealth from
+   *  lib/deck-analysis when its Karsten suggestion applied (commander deck,
+   *  tagger ready, stable nonland sample). Absent → no land-count move. */
+  landAdvice?: { count: number; suggested: number };
 }
 
 /** Display labels for the functional roles (mirrors planScore's ROLE_LABELS). */
@@ -205,6 +209,32 @@ export function buildNextBestMoves(input: NextBestMoveInput): NextBestMove[] {
       detail: `Your deck has ${cardCount} cards, ${short} under the ${deckTarget}-card target. Fill the remaining ${short === 1 ? 'slot' : 'slots'} to complete the deck.`,
       navigateTo: 'deck',
     });
+  }
+
+  // ── Tier 2: mana base — land count vs the deck's own curve ──────────────
+  // `suggested` is Karsten's formula computed from the real deck (see
+  // lib/deck-analysis). Within ±1 is healthy; only a 2+ land gap earns a
+  // hero slot so a one-land quibble never displaces a sharper move.
+  if (input.landAdvice) {
+    const { count, suggested } = input.landAdvice;
+    const delta = suggested - count;
+    if (delta >= 2) {
+      moves.push({
+        id: 'land-count',
+        tier: 2,
+        title: `Add ${delta} lands`,
+        detail: `${count} lands is light for this curve — it wants ~${suggested}. Add ${delta} lands (basics are fine) to hit your land drops.`,
+        navigateTo: 'stats',
+      });
+    } else if (delta <= -2) {
+      moves.push({
+        id: 'land-count',
+        tier: 2,
+        title: `Trim ${-delta} lands`,
+        detail: `${count} lands is heavy for this curve — ~${suggested} is enough. Swap ${-delta} lands for spells to cut flood draws.`,
+        navigateTo: 'stats',
+      });
+    }
   }
 
   // ── Tier 2: quality — weakest non-partial sub-score < 75 ────────────────

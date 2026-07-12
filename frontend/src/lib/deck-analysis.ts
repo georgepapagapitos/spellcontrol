@@ -7,7 +7,9 @@
  */
 
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
+import { Archetype } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
+import { computeAutoLandCount } from '@/deck-builder/services/deckBuilder/targetCounts';
 import { getCardRole, getAllCardRoles, type RoleKey } from '@/deck-builder/services/tagger/client';
 
 export type RoleStatus = 'low' | 'ok' | 'high';
@@ -24,6 +26,12 @@ export interface RoleHealth {
   message: string;
   /** Slot ids contributing to this count, in deck order. */
   contributingSlotIds: string[];
+  /** Lands row only: the curve-derived suggested land count (Karsten's
+   *  formula — the same model the generator's auto land count uses — fed
+   *  the deck's REAL nonland average MV and ramp count). Present only when
+   *  computable: commander-like format, tagger loaded, and a stable nonland
+   *  sample; the static format band applies otherwise. */
+  suggested?: number;
 }
 
 export interface CurveBucket {
@@ -122,6 +130,31 @@ function statusFor(count: number, range: [number, number]): RoleStatus {
   if (count < range[0]) return 'low';
   if (count > range[1]) return 'high';
   return 'ok';
+}
+
+/** Nonland cards needed before the curve average is stable enough to trust
+ *  Karsten's formula — below this the static format band applies (a mid-build
+ *  deck's average MV swings too hard per card to coach a precise count). */
+const MIN_LAND_SUGGESTION_SAMPLE = 40;
+
+/** Lands-row copy when the curve-derived (Karsten) suggestion applies.
+ *  Deltas are stated against the suggestion itself so the advice matches the
+ *  Next-Best-Move hero ("Add 3" here means the same 3 there). */
+function landsMessageFor(
+  count: number,
+  range: [number, number],
+  suggested: number,
+  avgCmc: number,
+  rampCount: number
+): string {
+  const basis = `avg MV ${avgCmc.toFixed(1)}, ${rampCount} ramp`;
+  if (count < range[0]) {
+    return `Add ${suggested - count} to reach the ~${suggested} this deck's curve suggests (${basis}).`;
+  }
+  if (count > range[1]) {
+    return `${count - suggested} over the ~${suggested} this deck's curve suggests (${basis}). Consider swapping for spells.`;
+  }
+  return `In range of the ~${suggested} this deck's curve suggests (${basis}).`;
 }
 
 function messageFor(role: string, count: number, range: [number, number]): string {
@@ -247,7 +280,11 @@ function buildColorIdentityCheck(input: DeckAnalysisInput): ColorIdentityCheck {
  * once per role it matches (so a "Beast Within"-style ramp+removal hybrid
  * shows up in both buckets). Lands get their own dedicated count.
  */
-function buildRoles(input: DeckAnalysisInput, taggerReady: boolean): RoleHealth[] {
+function buildRoles(
+  input: DeckAnalysisInput,
+  taggerReady: boolean,
+  curve: CurveAnalysis
+): RoleHealth[] {
   const targets = getRoleTargets(input.format);
   const slotsByRole: Record<RoleKey | 'lands', string[]> = {
     lands: [],
@@ -266,10 +303,41 @@ function buildRoles(input: DeckAnalysisInput, taggerReady: boolean): RoleHealth[
       slotsByRole[role].push(slotId);
     }
   }
+  // Curve-derived land suggestion: Karsten's formula (shared with the
+  // generator's auto land count) fed the REAL deck — actual nonland average
+  // MV and actual ramp count — instead of the generator's pre-build EDHREC
+  // estimates. Gated on tagger readiness (ramp count needs it) and a stable
+  // nonland sample; the wide static format band covers the rest.
+  const cfg = DECK_FORMAT_CONFIGS[input.format];
+  const isCommanderLike = cfg.hasCommander && cfg.mainboardSize >= 99;
+  const nonlandSample = curve.buckets.reduce((n, b) => n + b.count, 0);
+  const suggestedLands =
+    isCommanderLike && taggerReady && nonlandSample >= MIN_LAND_SUGGESTION_SAMPLE
+      ? computeAutoLandCount(Archetype.GOODSTUFF, slotsByRole.ramp.length, curve.averageCmc)
+      : null;
   const order: (RoleKey | 'lands')[] = ['lands', 'ramp', 'cardDraw', 'removal', 'boardwipe'];
   return order.map((key) => {
     const contributingSlotIds = slotsByRole[key];
     const count = contributingSlotIds.length;
+    if (key === 'lands' && suggestedLands != null) {
+      const range: [number, number] = [suggestedLands - 1, suggestedLands + 1];
+      return {
+        key,
+        label: ROLE_LABELS[key],
+        count,
+        range,
+        status: statusFor(count, range),
+        message: landsMessageFor(
+          count,
+          range,
+          suggestedLands,
+          curve.averageCmc,
+          slotsByRole.ramp.length
+        ),
+        contributingSlotIds,
+        suggested: suggestedLands,
+      };
+    }
     const range = targets[key];
     return {
       key,
@@ -287,13 +355,14 @@ export function analyzeDeck(input: DeckAnalysisInput, taggerReady: boolean): Dec
   const cards = input.mainboard.map((m) => m.card);
   const cfg = DECK_FORMAT_CONFIGS[input.format];
   const expectedSize = cfg.mainboardSize;
+  const curve = buildCurve(cards);
   return {
     totalNonCommander: cards.length,
     expectedSize,
     sizeDelta: cards.length - expectedSize,
     types: buildTypes(cards),
-    curve: buildCurve(cards),
-    roles: buildRoles(input, taggerReady),
+    curve,
+    roles: buildRoles(input, taggerReady, curve),
     colorIdentity: buildColorIdentityCheck(input),
     taggerReady,
   };
