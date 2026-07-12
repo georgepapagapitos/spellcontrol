@@ -1858,51 +1858,61 @@ export function DeckEditorPage() {
     const newCard = selection.card;
     const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
 
-    // If the chosen printing is owned but every copy is committed elsewhere, don't
-    // silently leave the slot unbound — offer to pull a copy in from its donor
-    // (Move), or trade this slot's current copy back to the donor (Swap), so the
-    // deck actually gets the physical card. Nothing moves without the explicit
-    // choice; the reallocation itself happens in handleMovePrintingConfirm.
-    const availability = resolveAvailability(newCard);
-    if (availability === 'in-other-deck' || availability === 'in-cube') {
-      const donor = findStealableCopy(
-        newCard.name,
-        collectionCards,
-        decks,
-        deck.id,
-        newCard.id,
-        savedCubes
-      );
-      if (donor) {
-        const editSlot = deck.cards.find((c) => c.slotId === editingSlot.slotId);
-        // Swap needs a reciprocal owned copy this slot can hand back — and a
-        // mainboard deck donor whose slot we can rewrite. A copy bound to a
-        // printing other than the slot's own (a suboptimal binding) has no clean
-        // ScryfallCard to send, so require the slot to hold its own printing.
-        const displaced = editSlot?.allocatedCopyId
-          ? collectionCards.find((c) => c.copyId === editSlot.allocatedCopyId)
-          : undefined;
-        const canSwap =
-          donor.donorKind === 'deck' &&
-          donor.donorZone === 'main' &&
-          !!displaced &&
-          displaced.scryfallId === editSlot!.card.id;
-        setMovePrompt({
-          editSlotId: editingSlot.slotId,
-          newCard,
-          chosenSetName: newCard.set_name ?? newCard.set?.toUpperCase() ?? 'this',
-          donor,
-          swap: canSwap
-            ? {
-                returnCopyId: displaced!.copyId,
-                returnCard: editSlot!.card,
-                returnSetName: editSlot!.card.set_name ?? displaced!.setCode,
-              }
-            : null,
-        });
-        setEditingSlot(null);
-        return;
-      }
+    // If the chosen printing — or the chosen FINISH of it (a foil pick while
+    // only the foil is committed) — is owned but every such copy is committed
+    // elsewhere, don't silently bind a lesser copy or leave the slot unbound:
+    // offer to pull the exact copy in from its donor (Move), or trade this
+    // slot's current copy back to the donor (Swap). Nothing moves without the
+    // explicit choice; the reallocation itself happens in
+    // handleMovePrintingConfirm. findStealableCopy scopes its "a free copy
+    // exists" bail-out to these preferences, so it returns null whenever the
+    // normal binding below can satisfy the pick.
+    const donor = findStealableCopy(
+      newCard.name,
+      collectionCards,
+      decks,
+      deck.id,
+      newCard.id,
+      savedCubes,
+      selection.finish
+    );
+    const donorCopy = donor ? collectionCards.find((c) => c.copyId === donor.copyId) : undefined;
+    // Only prompt when the pull delivers the printing the user picked — the
+    // finder's fallback can surface a different-printing copy, but a deck
+    // lists an unowned printing freely (no prompt, slot just goes unbound).
+    if (donor && donorCopy?.scryfallId === newCard.id) {
+      const editSlot = deck.cards.find((c) => c.slotId === editingSlot.slotId);
+      // Swap needs a reciprocal owned copy this slot can hand back — and a
+      // mainboard deck donor whose slot we can rewrite. A copy bound to a
+      // printing other than the slot's own (a suboptimal binding) has no clean
+      // ScryfallCard to send, so require the slot to hold its own printing.
+      const displaced = editSlot?.allocatedCopyId
+        ? collectionCards.find((c) => c.copyId === editSlot.allocatedCopyId)
+        : undefined;
+      const canSwap =
+        donor.donorKind === 'deck' &&
+        donor.donorZone === 'main' &&
+        !!displaced &&
+        displaced.scryfallId === editSlot!.card.id;
+      // Name the finish in the prompt when the pulled copy is a premium one,
+      // so "your foil <set> copy is in <deck>" reads as the reason for the ask.
+      const finishPrefix =
+        donorCopy.finish === 'foil' ? 'foil ' : donorCopy.finish === 'etched' ? 'etched ' : '';
+      setMovePrompt({
+        editSlotId: editingSlot.slotId,
+        newCard,
+        chosenSetName: `${finishPrefix}${newCard.set_name ?? newCard.set?.toUpperCase() ?? 'this'}`,
+        donor,
+        swap: canSwap
+          ? {
+              returnCopyId: displaced!.copyId,
+              returnCard: editSlot!.card,
+              returnSetName: editSlot!.card.set_name ?? displaced!.setCode,
+            }
+          : null,
+      });
+      setEditingSlot(null);
+      return;
     }
 
     // Bind each rebound slot to a free owned copy of the NEW printing so picking
