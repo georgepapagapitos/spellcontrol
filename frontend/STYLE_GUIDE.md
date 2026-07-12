@@ -148,13 +148,6 @@ pill; a compact toolbar picker/disclosure carrying the toolbar-pill signature
 (`--surface`/`--surface-raised` bg + `0.5px --border-strong`) is a pill. When the
 name and the role disagree, the role wins (the names predate this rule).
 
-**Documented exception — radial-menu sectors.** `.radial-tag-menu-item`
-(the deck editor's quick-tag radial) is actionable yet keeps `999px`: the
-sectors are chips arranged on a circle, and a rect doesn't sit naturally on
-ring geometry. This exception is geometry-driven only — it is not precedent
-for pill-shaping any other actionable chip (filter chips stay rects, e.g.
-`.collection-filter-chip`, `.deck-tag-bar-chip`).
-
 **Segmented controls split container vs option.** The wrapper
 (`div[role="radiogroup"]`, e.g. `.binder-mode-toggle`) is a **container** →
 `var(--radius-lg)`. Its inner option buttons are **rects** (`var(--radius)`)

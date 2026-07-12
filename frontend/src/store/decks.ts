@@ -24,7 +24,6 @@ import {
   type AllocationInfo,
 } from '../lib/allocations';
 import { createIndexedDbStorage } from '../lib/idb-storage';
-import { MAX_CARD_TAGS } from '../lib/deck-card-tags';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from './../lib/preset-colors';
@@ -57,10 +56,9 @@ export interface DeckCard {
   /** Unix ms timestamp when this slot was added. Absent on cards added before this field existed. */
   addedAt?: number;
   /**
-   * Functional tags ('Ramp', 'Draw', …) applied via the deck editor's radial
-   * quick-pick (see lib/deck-card-tags). Capped at MAX_CARD_TAGS; the key is
-   * deleted (never left as `[]`) when the last tag is removed, so untagged
-   * slots stay shape-identical to pre-feature slots.
+   * Legacy: user card tags from the retired radial-tagging feature. Nothing
+   * reads or writes this anymore, but synced decks from older builds still
+   * carry it — keep it typed so those rows round-trip untouched.
    */
   tags?: string[];
 }
@@ -258,14 +256,6 @@ interface DecksState {
   addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
-
-  /**
-   * Toggle a functional tag on a deck slot — mainboard or sideboard. Adding
-   * dedupes and is ignored past MAX_CARD_TAGS; removing the last tag deletes
-   * the `tags` key. A no-op (unknown deck/slot, or an ignored over-cap add)
-   * leaves the deck object untouched — no `updatedAt` bump, no sync write.
-   */
-  toggleCardTag(deckId: string, slotId: string, tag: string): void;
 
   /**
    * Atomic mainboard swap: remove the slot `outSlotId` and add `inCard` in a
@@ -480,38 +470,6 @@ export const useDecksStore = create<DecksState>()(
                 })
               : d
           ),
-        })),
-
-      toggleCardTag: (deckId, slotId, tag) =>
-        set((s) => ({
-          decks: s.decks.map((d) => {
-            if (d.id !== deckId) return d;
-            let changed = false;
-            const toggleSlot = (c: DeckCard): DeckCard => {
-              if (c.slotId !== slotId) return c;
-              const current = c.tags ?? [];
-              if (current.includes(tag)) {
-                changed = true;
-                const next = current.filter((t) => t !== tag);
-                if (next.length === 0) {
-                  // Delete the key rather than persisting `[]` — untagged slots
-                  // stay shape-identical to slots that predate tagging.
-                  const { tags: _cleared, ...rest } = c;
-                  void _cleared;
-                  return rest;
-                }
-                return { ...c, tags: next };
-              }
-              if (current.length >= MAX_CARD_TAGS) return c;
-              changed = true;
-              return { ...c, tags: [...current, tag] };
-            };
-            const cards = d.cards.map(toggleSlot);
-            const sideboard = d.sideboard.map(toggleSlot);
-            // Only touch (updatedAt bump → sync write) when a tag actually
-            // flipped — mirrors how the other mutators avoid phantom edits.
-            return changed ? touch({ ...d, cards, sideboard }) : d;
-          }),
         })),
 
       swapCard: (deckId, outSlotId, inCard, allocatedCopyId = null) => {
