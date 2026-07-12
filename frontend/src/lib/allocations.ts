@@ -643,16 +643,23 @@ function locateCopyInDeck(
  * Returns `null` (no steal — caller should bind a free copy or add as proxy)
  * when:
  *  - the user owns no copies of the card,
- *  - at least one owned copy is free (unallocated),
- *  - every owned copy is already allocated to `excludeDeckId` itself.
+ *  - at least one owned copy matching the preferences is free (unallocated),
+ *  - every such copy is already allocated to `excludeDeckId` itself.
  *
  * Otherwise returns the best copy to pull — held by another deck OR a physical
  * cube — ranked with the same non-foil → cheapest preference as
- * {@link pickCollectionCopy} (honoring `preferredScryfallId` for non-basics) —
- * plus where it currently lives so the donor outcome can be applied. A cube
- * donor is always a leave-gap release (a 540-card cube just loses one slot); a
- * deck donor lets the caller pick leave-gap / replace / remove. Either way the
- * pull is a conscious per-card choice — this function only surfaces it.
+ * {@link pickCollectionCopy} — plus where it currently lives so the donor
+ * outcome can be applied. A cube donor is always a leave-gap release (a
+ * 540-card cube just loses one slot); a deck donor lets the caller pick
+ * leave-gap / replace / remove. Either way the pull is a conscious per-card
+ * choice — this function only surfaces it.
+ *
+ * `preferredScryfallId` / `preferredFinish` cascade as hard filters (mirroring
+ * pickCollectionCopy, basics included — special-art basics are a real choice)
+ * BEFORE the free-copy bail-out, so the bail-out is preference-scoped: a free
+ * copy of some other printing/finish doesn't hide that the copy the user
+ * actually asked for is committed elsewhere. Each falls back a level when the
+ * preference isn't owned at all.
  */
 export function findStealableCopy(
   cardName: string,
@@ -660,33 +667,36 @@ export function findStealableCopy(
   decks: Deck[],
   excludeDeckId: string,
   preferredScryfallId?: string,
-  physicalCubes?: SavedCube[]
+  physicalCubes?: SavedCube[],
+  preferredFinish?: Finish
 ): StealableCopy | null {
-  const owned = collection.filter((c) => c.name === cardName);
+  let owned = collection.filter((c) => c.name === cardName);
   if (owned.length === 0) return null;
 
+  if (preferredScryfallId) {
+    const printingMatches = owned.filter((c) => c.scryfallId === preferredScryfallId);
+    if (printingMatches.length > 0) owned = printingMatches;
+  }
+  if (preferredFinish) {
+    const finishMatches = owned.filter((c) => c.finish === preferredFinish);
+    if (finishMatches.length > 0) owned = finishMatches;
+  }
+
   const allocations = buildAllocationMap(decks, physicalCubes);
-  // A free copy exists → no steal needed; the normal allocator handles it.
+  // A free copy (of the preferred kind) exists → no steal needed; the normal
+  // allocator binds it.
   if (owned.some((c) => !allocations.has(c.copyId))) return null;
 
   // Stealable = held by a DECK other than the one we're adding to, OR by a
   // physical cube (cube copies are now consciously pullable as a leave-gap —
   // the move still requires the explicit per-card choice in the UI).
-  let stealable = owned.filter((c) => {
+  const stealable = owned.filter((c) => {
     const info = allocations.get(c.copyId);
     if (!info) return false;
     if (info.ownerKind === 'cube') return true;
     return info.deckId !== excludeDeckId;
   });
   if (stealable.length === 0) return null;
-
-  // Honor an exact-printing preference as a hard filter (basics included —
-  // special-art basics are a real choice), mirroring pickCollectionCopy; fall
-  // back to all stealable copies otherwise.
-  if (preferredScryfallId) {
-    const printingMatches = stealable.filter((c) => c.scryfallId === preferredScryfallId);
-    if (printingMatches.length > 0) stealable = printingMatches;
-  }
 
   const best = [...stealable].sort(compareCopyPreference)[0];
   const info = allocations.get(best.copyId)!;
