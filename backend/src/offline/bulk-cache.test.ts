@@ -269,6 +269,23 @@ describe('bulk-cache slimCard filtering', () => {
     expect(bulk.cardCount).toBe(1);
   });
 
+  it('streams a multi-card bulk into valid JSON with correct separators and byte accounting', async () => {
+    // Pins the streamed stringify+gzip tail (the OOM fix): the 1-card cases
+    // never emit a comma, so a separator bug would ship malformed JSON.
+    mockScryfallFetch([
+      { ...DEFAULT_BULK_CARD, id: 's-1', oracle_id: 'o-1', name: 'Sol Ring' },
+      { ...DEFAULT_BULK_CARD, id: 's-2', oracle_id: 'o-2', name: 'Arcane Signet' },
+      { ...DEFAULT_BULK_CARD, id: 's-3', oracle_id: 'o-3', name: 'Cultivate' },
+    ]);
+    const bulk = await getOracleBulk();
+    const raw = gunzipSync(bulk.gzipped);
+    const slims = JSON.parse(raw.toString('utf8')) as Array<{ name: string }>;
+    expect(slims.map((s) => s.name)).toEqual(['Sol Ring', 'Arcane Signet', 'Cultivate']);
+    expect(bulk.cardCount).toBe(3);
+    expect(bulk.rawBytes).toBe(raw.byteLength);
+    expect(bulk.gzippedBytes).toBe(bulk.gzipped.byteLength);
+  });
+
   it('carries rarity through to the slim payload', async () => {
     mockScryfallFetch([
       { ...DEFAULT_BULK_CARD, id: 's-real', oracle_id: 'o-real', name: 'Beast Whisperer' },

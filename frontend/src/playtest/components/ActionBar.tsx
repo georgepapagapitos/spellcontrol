@@ -16,9 +16,12 @@ interface Props {
   onScry(): void;
   onCreateToken(): void;
   onOpenStats(): void;
+  onOpenLog(): void;
   onToggleResistance(): void;
   canUndo: boolean;
   resistanceOn: boolean;
+  /** Show a small dot on the Log button — a Resistance event landed since it was last opened. */
+  hasUnreadLog: boolean;
 }
 
 export function ActionBar({
@@ -35,9 +38,11 @@ export function ActionBar({
   onScry,
   onCreateToken,
   onOpenStats,
+  onOpenLog,
   onToggleResistance,
   canUndo,
   resistanceOn,
+  hasUnreadLog,
 }: Props) {
   // Secondary actions, folded into a shared OverflowMenu on narrow viewports.
   // OverflowMenuItem has no toggle affordance, so Resistance's on/off state is
@@ -56,6 +61,15 @@ export function ActionBar({
       <span className="playtest-actionbar__turn">Turn {turn}</span>
       <button type="button" onClick={onOpenStats} className="playtest-actionbar__stats">
         Stats
+      </button>
+      <button
+        type="button"
+        onClick={onOpenLog}
+        className="playtest-actionbar__log"
+        aria-label={hasUnreadLog ? 'Log — new opponent events' : 'Log'}
+      >
+        Log
+        {hasUnreadLog && <span className="playtest-actionbar__log-dot" aria-hidden />}
       </button>
       <button type="button" onClick={onDraw} disabled={libraryCount === 0} title="Draw (D)">
         Draw

@@ -1,0 +1,62 @@
+/* ── PlaytestLogSheet — co-located styles ────────────────────────────────── */
+
+@media (min-width: 1024px) {
+  .playtest-log-sheet {
+    width: 600px;
+  }
+}
+
+.playtest-log-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.playtest-log-empty {
+  padding: var(--space-5) 0;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.playtest-log-turn__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.playtest-log-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.playtest-log-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* The opponent's line — reads distinctly from the player's own actions. */
+.playtest-log-entry--resistance {
+  border-left: 2px solid var(--accent);
+  padding-left: var(--space-2);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.playtest-log-entry__icon {
+  flex-shrink: 0;
+}
