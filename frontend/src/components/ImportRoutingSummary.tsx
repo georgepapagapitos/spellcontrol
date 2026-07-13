@@ -4,22 +4,23 @@ import type { ImportRoutingSummary as Summary } from '../lib/import-routing';
 
 interface Props {
   summary: Summary;
-  onDismiss: () => void;
 }
 
 /**
- * Renders right after a successful import to answer "where did my cards go?"
- * — one row per destination binder. Each row is a navigation link that opens
- * the binder with that tab active.
+ * Renders inside the post-import review surface (E130) to answer "where did
+ * my cards go?" — one row per destination binder, each a navigation link
+ * that opens the binder with that tab active. Just the header line + row
+ * list: the host (`UploadPanel`'s `.import-review` container) owns the box
+ * chrome and the single overall dismiss.
  *
  * Cards that matched no binder (the Uncategorized remainder) are intentionally
  * not shown — falling through just means "still in your collection, unrouted",
- * a no-op default not worth surfacing (E11). So the panel is hidden entirely
+ * a no-op default not worth surfacing (E11). So the section is hidden entirely
  * when nothing matched a real binder (or for binder-mode imports that pin every
- * card to a single new binder) — the existing success banner already confirms
- * the import landed.
+ * card to a single new binder) — the review surface's success line already
+ * confirms the import landed.
  */
-export function ImportRoutingSummary({ summary, onDismiss }: Props) {
+export function ImportRoutingSummary({ summary }: Props) {
   const navigate = useNavigate();
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
 
@@ -31,7 +32,7 @@ export function ImportRoutingSummary({ summary, onDismiss }: Props) {
   };
 
   return (
-    <div className="import-routing">
+    <>
       <div className="import-routing-header">
         <span>
           <strong>
@@ -39,9 +40,6 @@ export function ImportRoutingSummary({ summary, onDismiss }: Props) {
           </strong>{' '}
           to:
         </span>
-        <button type="button" className="banner-dismiss" onClick={onDismiss} aria-label="Dismiss">
-          ×
-        </button>
       </div>
       <ul className="import-routing-list">
         {summary.entries.map((entry) => (
@@ -64,6 +62,6 @@ export function ImportRoutingSummary({ summary, onDismiss }: Props) {
           </li>
         ))}
       </ul>
-    </div>
+    </>
   );
 }
