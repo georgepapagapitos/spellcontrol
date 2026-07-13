@@ -118,13 +118,23 @@ body:has(.playtest-page) .modal-backdrop {
   border-color: var(--err-border) !important;
 }
 
-/* Resistance toggle — pressed state reads like the accented turn chip so an
-   armed opponent is visible at a glance. */
+/* Resistance entry — armed state reads like the accented turn chip so the
+   current difficulty is visible at a glance without opening the picker. */
 .playtest-actionbar button.playtest-actionbar__resistance.is-active {
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
+}
+
+.playtest-actionbar__resistance-badge {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  font-size: var(--text-xs);
+  font-weight: 500;
 }
 
 /* Log entry point — unread dot fires when a Resistance event landed since
