@@ -23,7 +23,7 @@ import { classifyInclusion } from '@/lib/inclusion-label';
  *  rate-limited API host). */
 function Thumb({ url }: { url: string | undefined }): JSX.Element {
   return url ? (
-    <img src={url} alt="" loading="lazy" />
+    <img src={url} alt="" loading="lazy" draggable={false} />
   ) : (
     <span className="deck-card-row-art-ph" aria-hidden />
   );

@@ -402,6 +402,66 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and scroll-lock come for free (see § Motion).
 
+### Card art peek — hover + touch long-press (E129)
+
+Any `[data-peek-name]` row (deck list rows, the Coach feed's `DeckCardRow`,
+per-printing sub-rows) gets a transient floating card-art preview through
+**one shared component and CSS file** (`DeckHoverPeek.tsx`/`.css`) with two
+input gestures:
+
+- **Desktop hover** (`useDeckHoverPeek`) — capability-gated to
+  `(hover: hover) and (pointer: fine)`, cursor- or row-anchored. Unchanged by
+  this section; documented above under § Info tooltips' "reveal model" note.
+- **Touch long-press** (`useTouchPeek`, `frontend/src/lib/use-touch-peek.ts`)
+  — 500ms stationary hold (the same `useLongPress` primitive the playtest
+  opening hand uses for its own preview gesture) opens the same box; release,
+  a second touch, or ~6px of movement (scroll intent) dismisses it. **Tap
+  still opens the full `CardPreview`** — long-press is a glance, not a
+  replacement, and the two never combine into a double-action: a fired
+  long-press swallows the tap that would otherwise follow release.
+
+Both hooks are **delegated on the same list/feed container** (spread
+`listHandlers` — `hoverPeek.listHandlers` and `touchPeek.listHandlers`
+side by side, no per-row hook instance), so one wiring covers every nested
+`[data-peek-name]` row including ones several components down (e.g.
+`SubstituteOptions` inside `CoachFeed`).
+
+Rulings settled while building this:
+
+- **The touch variant never gates on viewport width.** Desktop's row-anchor
+  hover mode needs `minViewport` (a phone has no gutter to float beside), but
+  touch has nowhere else to go on a narrow screen either — `computePeekPlacement`
+  already clamps the box into whatever room exists, so it's fine for the peek
+  to overlap the row on a phone. It's a transient glance, not a layout.
+- **Touch anchors off the pressed element's rect, never the finger position.**
+  A card centered under the touch point would sit under the thumb that
+  triggered it; row-anchor placement (same math as desktop's `anchor: 'row'`)
+  keeps it visible.
+- **The touch variant shows a loading shimmer, then a "no art" glyph** —
+  never nothing. A long-press is a deliberate hold, so it earns feedback
+  immediately, unlike a fleeting mouse-over (hover mode still renders nothing
+  until the art is in hand). `useCardThumb`/Row image fields don't distinguish
+  "still resolving" from "genuine miss", so this is a ~1.5s grace window, not
+  a real settled signal.
+- **Don't trust `(hover: hover)` alone to gate a touch feature.** Samsung
+  devices report `hover: hover` on a touch-only screen, so the CSS
+  belt-and-suspenders rule that hides the hover box on coarse pointers
+  explicitly exempts the touch variant's class rather than relying on the
+  inverse media query to select it in.
+- **Row/thumbnail controls with their own tap semantics** (qty-edit, kebab
+  menu, remove, the printings-toggle) are excluded from arming the gesture at
+  all — `useTouchPeek` checks `closest('button, a, input, [role="menu"],
+  [role="menuitem"]')` before starting the timer, so they're completely
+  unaffected rather than merely "usually fine".
+- **`-webkit-touch-callout: none` + `user-select: none` scoped to
+  `[data-peek-name]`** (not global) suppress the native image-save/text-select
+  long-press callout on the elements this gesture actually touches — the
+  `.capacitor` global reset already covers the packaged app, this closes the
+  gap for mobile web.
+- **A fired long-press `preventDefault`s its terminating touchend**, so a
+  hybrid pointer+touch device's synthetic compat mouse events can't chain
+  into the desktop hover-peek right as the touch one closes (no double-peek).
+
 ## Index-page insight strips (UX-334)
 
 An insight/advisor engine surfaced on an index page (readiness, coaching,
