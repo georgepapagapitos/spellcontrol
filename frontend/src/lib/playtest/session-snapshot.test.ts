@@ -5,6 +5,7 @@ import {
   fingerprintDeck,
   isResumeWorthy,
   loadPlaytestSnapshot,
+  migrateSnapshotState,
   savePlaytestSnapshot,
   type PlaytestSnapshot,
 } from './session-snapshot';
@@ -19,6 +20,12 @@ function baseState(
     rngSeed: 42,
     turn: 1,
     commanderTax: {},
+    life: 20,
+    opponents: [{ life: 20, commanderDamage: 0 }],
+    startingLife: 20,
+    startingOpponentLife: 20,
+    commanderDamageThreshold: 21,
+    tableDefeatedTurn: null,
     ...overrides,
   };
 }
@@ -148,5 +155,96 @@ describe('pruning to the most recent decks', () => {
     expect(loadPlaytestSnapshot('deck-b', 'b')).toBeNull();
     expect(loadPlaytestSnapshot('deck-c', 'c')).not.toBeNull();
     expect(loadPlaytestSnapshot('deck-d', 'd')).not.toBeNull();
+  });
+});
+
+describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
+  it('loads a pre-E138 snapshot (no life/opponents at all) without crashing', () => {
+    // Simulates a real localStorage blob written before E138 shipped.
+    const legacy = {
+      fingerprint: '100:60',
+      savedAt: Date.now(),
+      phase: 'playing',
+      mulliganCount: 0,
+      resistance: false,
+      resistanceState: null,
+      state: {
+        zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+        battlefield: [],
+        rngSeed: 42,
+        turn: 3,
+      },
+    };
+    localStorage.setItem('spellcontrol:playtest:deck-1', JSON.stringify(legacy));
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.state).not.toHaveProperty('life');
+  });
+
+  it('rejects a snapshot whose life field is present but malformed', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify(baseSnapshot({ state: { ...baseState(), life: 'a lot' as never } }))
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
+  });
+
+  it('rejects a snapshot whose opponents field is present but not an array', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify(baseSnapshot({ state: { ...baseState(), opponents: 'nope' as never } }))
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
+  });
+
+  describe('migrateSnapshotState', () => {
+    it('passes a state that already has life fields through unchanged', () => {
+      const state = baseState();
+      expect(migrateSnapshotState(state, { format: 'commander' })).toBe(state);
+    });
+
+    it('backfills commander defaults (40 life, 3 opponents, 21 threshold) when format is commander-family', () => {
+      const legacy = {
+        zones: baseState().zones,
+        battlefield: [],
+        rngSeed: 1,
+        turn: 1,
+      } as unknown as Omit<PlaytestState, 'past'>;
+      const migrated = migrateSnapshotState(legacy, { format: 'commander' });
+      expect(migrated.life).toBe(40);
+      expect(migrated.opponents).toEqual([
+        { life: 40, commanderDamage: 0 },
+        { life: 40, commanderDamage: 0 },
+        { life: 40, commanderDamage: 0 },
+      ]);
+      expect(migrated.commanderDamageThreshold).toBe(21);
+      expect(migrated.tableDefeatedTurn).toBeNull();
+    });
+
+    it('backfills paupercommander defaults (30 life, 16 threshold)', () => {
+      const legacy = {
+        zones: baseState().zones,
+        battlefield: [],
+        rngSeed: 1,
+        turn: 1,
+      } as unknown as Omit<PlaytestState, 'past'>;
+      const migrated = migrateSnapshotState(legacy, { format: 'paupercommander' });
+      expect(migrated.life).toBe(30);
+      expect(migrated.opponents).toHaveLength(3);
+      expect(migrated.commanderDamageThreshold).toBe(16);
+    });
+
+    it('falls back to the generic 1v1/20-life config when there is no deck', () => {
+      const legacy = {
+        zones: baseState().zones,
+        battlefield: [],
+        rngSeed: 1,
+        turn: 1,
+      } as unknown as Omit<PlaytestState, 'past'>;
+      const migrated = migrateSnapshotState(legacy, undefined);
+      expect(migrated.life).toBe(20);
+      expect(migrated.opponents).toEqual([{ life: 20, commanderDamage: 0 }]);
+      expect(migrated.commanderDamageThreshold).toBe(21);
+    });
   });
 });

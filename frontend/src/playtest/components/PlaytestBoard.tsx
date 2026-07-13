@@ -34,6 +34,8 @@ import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
 import { resolveTokenArt } from '../lib/token-art';
 import { commanderTaxAmount } from '../lib/zones';
+import { LifeStrip } from './LifeStrip';
+import { useSealMoment } from '@/components/shared/SealMoment';
 
 interface Props {
   state: PlaytestState;
@@ -95,6 +97,7 @@ export function PlaytestBoard({ state }: Props) {
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [lifePanelOpen, setLifePanelOpen] = useState(false);
   // Banner dismissal is tracked by event id so a new opponent response (even
   // with an identical message) re-shows and re-announces the banner.
   const [dismissedResistanceId, setDismissedResistanceId] = useState<number | null>(null);
@@ -217,6 +220,7 @@ export function PlaytestBoard({ state }: Props) {
     showStats ||
     showLog ||
     showDice ||
+    lifePanelOpen ||
     Boolean(confirmDialog);
 
   // Scry/peek has no reducer action of its own (it's just the library viewer
@@ -250,6 +254,31 @@ export function PlaytestBoard({ state }: Props) {
     setPrevEventId(lastEventId);
     if (lastEventId !== undefined) setResistanceIntro(false);
   }
+
+  // Table-defeated moment (E138): the goldfish payoff — every opponent flips
+  // to defeated. Fires only on the false→true transition observed while
+  // mounted (a `prev === null` first render, e.g. resuming an
+  // already-defeated snapshot, never fires) — mirrors DeckDisplay's
+  // deck-complete guard. RESET clears `tableDefeatedTurn` back to null, so a
+  // fresh game can legitimately earn the celebration again.
+  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
+  const tableDefeatedTurn = state.tableDefeatedTurn;
+  const [showTableDefeatedBanner, setShowTableDefeatedBanner] = useState(false);
+  const prevTableDefeatedRef = useRef<number | null>(tableDefeatedTurn);
+  useEffect(() => {
+    if (prevTableDefeatedRef.current === null && tableDefeatedTurn !== null) {
+      setShowTableDefeatedBanner(true);
+      haptics.eliminate();
+      const colors = [
+        ...new Set([
+          ...(deck?.commander?.color_identity ?? []),
+          ...(deck?.partnerCommander?.color_identity ?? []),
+        ]),
+      ];
+      fireSealMoment(colors);
+    }
+    prevTableDefeatedRef.current = tableDefeatedTurn;
+  }, [tableDefeatedTurn, deck, fireSealMoment]);
 
   // Desktop keyboard shortcuts (Moxfield parity): D draw, N next turn, U untap
   // all, Z / Ctrl+Z undo. Ignored while typing or while any sheet/modal/context
@@ -326,7 +355,28 @@ export function PlaytestBoard({ state }: Props) {
         resistanceOn={resistanceOn}
         hasUnreadLog={hasUnreadLog}
       />
-      {lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId ? (
+      <LifeStrip
+        life={state.life}
+        opponents={state.opponents}
+        commanderDamageThreshold={state.commanderDamageThreshold}
+        isNarrow={isNarrow}
+        onAdjustLife={(player, delta) => {
+          haptics.tap();
+          dispatch({ type: 'ADJUST_LIFE', player, delta });
+        }}
+        onAdjustCommanderDamage={(opponent, delta) => {
+          haptics.tap();
+          dispatch({ type: 'ADJUST_COMMANDER_DAMAGE', opponent, delta });
+        }}
+        onOpenChange={setLifePanelOpen}
+      />
+      {showTableDefeatedBanner ? (
+        <ResistanceBanner
+          key={`table-defeated-${tableDefeatedTurn}`}
+          message={`Table defeated — turn ${tableDefeatedTurn}`}
+          onDismiss={() => setShowTableDefeatedBanner(false)}
+        />
+      ) : lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId ? (
         <ResistanceBanner
           key={lastResistanceEvent.id}
           message={lastResistanceEvent.message}
@@ -341,6 +391,7 @@ export function PlaytestBoard({ state }: Props) {
           />
         )
       )}
+      {sealMoment}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}

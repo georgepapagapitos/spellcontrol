@@ -166,6 +166,21 @@
   font-size: var(--text-sm);
 }
 
+/* E128 dense pick-list thumb sizing (matches .feedback-row-thumb). */
+.deck-feedback-thumb {
+  flex-shrink: 0;
+  width: 1.8rem;
+  height: 2.5rem;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--surface-raised);
+}
+
+.deck-feedback-thumb--ph {
+  display: inline-block;
+  border: 0.5px solid var(--border);
+}
+
 .deck-feedback-kind {
   flex-shrink: 0;
   width: 34px;
