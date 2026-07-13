@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useConfirm } from '@/lib/use-confirm';
 import {
   DndContext,
@@ -197,12 +197,76 @@ export function PlaytestBoard({ state }: Props) {
 
   const ctxCard = ctx ? state.battlefield.find((b) => b.card.id === ctx.cardId) : null;
 
+  const canUndo = state.past.length > 0;
+  const anySheetOpen =
+    phase !== 'playing' ||
+    viewer !== null ||
+    ctx !== null ||
+    tokenCreator ||
+    showStats ||
+    Boolean(confirmDialog);
+
+  // Resistance's only explanation used to be a hover `title` on the toggle —
+  // invisible on touch. Reuse the existing opponent-announcement banner to
+  // show a one-time explanation when Resistance is switched on; a real
+  // opponent event (which shares the same single-slot banner below) takes
+  // over from it. Derived during render (not an effect) per React's
+  // "adjusting state when a prop changes" pattern.
+  const [resistanceIntro, setResistanceIntro] = useState(false);
+  const [prevResistanceOn, setPrevResistanceOn] = useState(resistanceOn);
+  if (resistanceOn !== prevResistanceOn) {
+    setPrevResistanceOn(resistanceOn);
+    setResistanceIntro(resistanceOn);
+  }
+  const lastEventId = lastResistanceEvent?.id;
+  const [prevEventId, setPrevEventId] = useState(lastEventId);
+  if (lastEventId !== prevEventId) {
+    setPrevEventId(lastEventId);
+    if (lastEventId !== undefined) setResistanceIntro(false);
+  }
+
+  // Desktop keyboard shortcuts (Moxfield parity): D draw, N next turn, U untap
+  // all, Z / Ctrl+Z undo. Ignored while typing or while any sheet/modal/context
+  // menu is open; harmless if it never fires on touch.
+  useEffect(() => {
+    function isTypingTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false;
+      return (
+        target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+      );
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (anySheetOpen || isTypingTarget(e.target)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        if (canUndo) dispatch({ type: 'UNDO' });
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (key === 'd') {
+        if (state.zones.library.length === 0) return;
+        e.preventDefault();
+        dispatch({ type: 'DRAW', n: 1 });
+      } else if (key === 'n') {
+        e.preventDefault();
+        dispatch({ type: 'NEXT_TURN' });
+      } else if (key === 'u') {
+        e.preventDefault();
+        dispatch({ type: 'UNTAP_ALL' });
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [anySheetOpen, canUndo, dispatch, state.zones.library.length]);
+
   return (
     <div className={`playtest-board${isNarrow ? ' playtest-board--narrow' : ''}`}>
       <ActionBar
         turn={state.turn}
         libraryCount={state.zones.library.length}
-        canUndo={state.past.length > 0}
+        isNarrow={isNarrow}
+        canUndo={canUndo}
         onDraw={() => {
           haptics.tap();
           dispatch({ type: 'DRAW', n: 1 });
@@ -233,12 +297,20 @@ export function PlaytestBoard({ state }: Props) {
         onToggleResistance={toggleResistance}
         resistanceOn={resistanceOn}
       />
-      {lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId && (
+      {lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId ? (
         <ResistanceBanner
           key={lastResistanceEvent.id}
           message={lastResistanceEvent.message}
           onDismiss={() => setDismissedResistanceId(lastResistanceEvent.id)}
         />
+      ) : (
+        resistanceIntro && (
+          <ResistanceBanner
+            key="resistance-intro"
+            message="Resistance on — expect occasional counters, removal, and a board wipe."
+            onDismiss={() => setResistanceIntro(false)}
+          />
+        )
       )}
       <DndContext
         sensors={sensors}
