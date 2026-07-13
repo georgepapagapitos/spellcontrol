@@ -466,6 +466,53 @@
   font-weight: 600;
 }
 
+/* ── Variety reroll (Card priority group) ────────────────────────────── */
+.deck-customizer-variety {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.deck-customizer-variety-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.deck-customizer-reroll-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem var(--space-3);
+  min-height: 2.75rem; /* 44px touch floor */
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.deck-customizer-reroll-btn:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-customizer-reroll-btn:hover {
+    border-color: var(--accent);
+    outline: none;
+  }
+}
+
 /* ── Pill-button option grid (radios) ────────────────────────────────── */
 .option-grid {
   display: grid;

@@ -28,6 +28,9 @@ interface PrefillState {
   sourceDeckId?: string;
   /** Format of the source deck — a PDH regenerate must stay PDH. */
   format?: DeckFormat;
+  /** Variety roll the source deck was built with — restoring it makes
+   *  Regenerate reproduce the same build; absent clears any lingering roll. */
+  varietySeed?: number;
 }
 
 export function DeckNewPage() {
@@ -106,6 +109,9 @@ export function DeckNewPage() {
         targetBracket: prefill.targetBracket as 'all' | 1 | 2 | 3 | 4 | 5,
         landCount: prefill.landCount,
         collectionMode: prefill.collectionMode,
+        // Explicitly undefined for pre-feature decks: a lingering roll from an
+        // unrelated session must not leak into this regenerate.
+        varietySeed: prefill.varietySeed,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

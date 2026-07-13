@@ -1,6 +1,7 @@
 // EDHREC card-pool selection: priority scoring and the two prefetched-map
 // pickers (flat + curve-aware). Extracted verbatim from deckGenerator.ts.
 import { logger } from '@/lib/logger';
+import { mulberry32 } from '@/lib/playtest/rng';
 import type { ScryfallCard, EDHRECCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { hasCurveRoom } from './curveUtils';
@@ -276,6 +277,34 @@ export const OWNED_PRIORITY_BOOST = 40;
 // outright. This is a SEPARATE constant, not a raised OWNED_PRIORITY_BOOST,
 // so the filler tier's existing near-tie sizing is untouched.
 export const OWNED_PRIORITY_BOOST_THEME_TIER = 60;
+
+// Variety reroll (varietySeed): a deterministic per-(roll, card) jitter in
+// [0, VARIETY_JITTER_MAX) folded into the type-pass boost maps. Sized off the
+// measured priority landscape above: adjacent same-tier candidates sit 2-30
+// points apart while genuine quality tiers start around 60-80+, so a reroll
+// reorders close calls but can never drag a niche pick over a real staple.
+// No roll (undefined) returns an empty map — the signature build stays
+// byte-identical by construction.
+export const VARIETY_JITTER_MAX = 30;
+
+export function computeVarietyJitterBoosts(
+  names: string[],
+  seed: number | undefined
+): Map<string, number> {
+  const boosts = new Map<string, number>();
+  if (seed === undefined) return boosts;
+  for (const name of names) {
+    // FNV-1a over the name, mixed with the roll, feeding one mulberry32 draw:
+    // stable for a given (roll, card) across passes, pools, and devices.
+    let h = (2166136261 ^ seed) >>> 0;
+    for (let i = 0; i < name.length; i++) {
+      h ^= name.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    boosts.set(name, mulberry32(h >>> 0)() * VARIETY_JITTER_MAX);
+  }
+  return boosts;
+}
 
 function priorityWithBoosts(
   card: EDHRECCard,
