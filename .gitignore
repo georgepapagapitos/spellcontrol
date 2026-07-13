@@ -15,6 +15,11 @@ build/
 backend/data/*.db
 backend/data/*.db-shm
 backend/data/*.db-wal
+# Stray runtime SQLite files at the backend root (e.g. a script run with a
+# relative DB_PATH) — never source, keep them out of git status noise.
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
 backend/data/offline-oracle.*
 backend/data/scryfall-bulk.meta.json
 backend/dist/
