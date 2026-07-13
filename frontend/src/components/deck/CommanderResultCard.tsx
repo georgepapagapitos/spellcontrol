@@ -41,7 +41,9 @@ export function CommanderResultCard({
 }: Props) {
   // Only resolve by name when we don't already have art — keeps the by-name
   // path (full ScryfallCards) off the network entirely.
-  const resolved = useCardThumb(imageUrl ? undefined : name, 'small');
+  // E127: 'normal' (not 'small') — a commander pick is a decision context,
+  // matching CardSearchPanel's add-cards row thumb resolution.
+  const resolved = useCardThumb(imageUrl ? undefined : name, 'normal');
   const art = imageUrl ?? resolved;
   return (
     <button
