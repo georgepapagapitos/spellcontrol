@@ -109,3 +109,57 @@ describe('CardEditDialog owned-finish awareness', () => {
     );
   });
 });
+
+describe('CardEditDialog mixed condition/language (E131)', () => {
+  beforeEach(() => {
+    fetchPrintingsMock.mockReset();
+    fetchPrintingsMock.mockResolvedValue([current]);
+  });
+
+  function renderMixedDialog(onConfirm = vi.fn()) {
+    render(
+      <CardEditDialog
+        cardName="Sol Ring"
+        currentScryfallId="sf-a"
+        currentFinish="nonfoil"
+        quantity={4}
+        details={{ condition: 'nm', language: 'en' }}
+        mixedDetails={{ condition: '3 NM, 1 HP' }}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    return onConfirm;
+  }
+
+  it("shows a Mixed placeholder for the non-uniform field instead of pre-filling one copy's value", async () => {
+    renderMixedDialog();
+    expect(await screen.findByText('Mixed (3 NM, 1 HP)')).toBeTruthy();
+  });
+
+  it('bumping quantity alone leaves the mixed field untouched (no per-copy overwrite signaled)', async () => {
+    const onConfirm = renderMixedDialog();
+    await screen.findByText('Mixed (3 NM, 1 HP)');
+    fireEvent.click(screen.getByRole('button', { name: 'Increase quantity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const { details } = onConfirm.mock.calls[0][0];
+    expect(details.conditionTouched).toBe(false);
+    expect(details.condition).toBeUndefined();
+  });
+
+  it('explicitly picking a value for the mixed field marks it touched and sends the value', async () => {
+    const onConfirm = renderMixedDialog();
+    await screen.findByText('Mixed (3 NM, 1 HP)');
+    fireEvent.click(screen.getByRole('button', { name: /Condition/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Heavily Played' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({ condition: 'hp', conditionTouched: true }),
+      })
+    );
+  });
+});

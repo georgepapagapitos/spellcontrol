@@ -6,7 +6,7 @@ import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
-import { buildEditedCards, isNoOpCardEdit } from '../lib/edit-card';
+import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
 import { SortPopover } from './SortPopover';
@@ -166,6 +166,13 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
       (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
     ).length;
   }, [editingCard, allCards]);
+  // Only meaningful for a grouped (stacked) edit — a single-copy edit is
+  // trivially uniform. Mirrors the exact scryfallId+finish match
+  // buildEditedCards edits by.
+  const editingMixedDetails = useMemo(() => {
+    if (!editingCard || editingSingle) return undefined;
+    return stackDetailMix(stackCopies(allCards, editingCard));
+  }, [editingCard, editingSingle, allCards]);
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
@@ -378,6 +385,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,
           }}
+          mixedDetails={editingMixedDetails}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />

@@ -55,11 +55,17 @@ export interface PrintingSelection {
   finish: Finish;
   quantity?: number;
   /**
-   * Present only when the dialog ran with the `details` prop. Missing keys
-   * mean the user cleared (or never set) that field — appliers should
-   * overwrite, not merge.
+   * Present only when the dialog ran with the `details` prop. Missing
+   * condition/language/flag keys mean the user cleared (or never set) that
+   * field — appliers should overwrite, not merge.
+   *
+   * `conditionTouched`/`languageTouched` are only ever sent `false` — and only
+   * when the corresponding `mixedDetails` field was set — meaning the user
+   * left that field at its "Mixed" placeholder. Absent (or `true`) tells the
+   * applier to write the field across the whole stack, same as before mixed
+   * detection existed.
    */
-  details?: CardDetails;
+  details?: CardDetails & { conditionTouched?: boolean; languageTouched?: boolean };
 }
 
 interface Props {
@@ -92,12 +98,28 @@ interface Props {
   /**
    * Current per-copy details. Presence enables the condition/language
    * editors (collection/binder inventory edits); omit for deck-slot and
-   * list-entry callers where those fields don't apply.
+   * list-entry callers where those fields don't apply. When the stack being
+   * edited is grouped, this is the *representative* (first-seen) copy's
+   * values — see `mixedDetails` for when that representative value would be
+   * misleading to pre-fill.
    */
   details?: CardDetails;
+  /**
+   * Set only for a grouped stack whose condition and/or language actually
+   * disagree across copies (e.g. `{ condition: '3 NM, 1 HP' }`). A field
+   * present here renders as a "Mixed (…)" placeholder instead of pre-filling
+   * `details`'s value, and is left untouched — preserving each copy's own
+   * value — unless the user actively picks something. Omit (or leave a key
+   * out) for a uniform stack or a single-copy edit; behavior there is
+   * unchanged from before mixed detection existed.
+   */
+  mixedDetails?: { condition?: string; language?: string };
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
+
+/** Sentinel select value for a mixed field the user hasn't touched yet — never a real condition/language code, so it matches no option and the trigger falls back to the "Mixed (…)" placeholder. */
+const MIXED = '__mixed__';
 
 function frontImage(card: ScryfallCard): string | undefined {
   return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
@@ -139,6 +161,7 @@ export function CardEditDialog({
   resolveAvailability,
   resolveOwnedFinishes,
   details,
+  mixedDetails,
   onConfirm,
   onCancel,
 }: Props) {
@@ -154,8 +177,18 @@ export function CardEditDialog({
   const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFinish);
   const [qty, setQty] = useState(quantity ?? 1);
   // '' = "not set" (mirrors CONDITION_OPTIONS / LANGUAGE_OPTIONS sentinels).
-  const [condition, setCondition] = useState<string>(details?.condition ?? '');
-  const [language, setLanguage] = useState<string>(details?.language ?? '');
+  // A mixed field starts at the MIXED sentinel instead of the representative
+  // copy's value — silently pre-filling one copy's condition/language across
+  // a stack that disagrees is exactly the homogenization this prop exists to
+  // prevent.
+  const conditionMixed = !!mixedDetails?.condition;
+  const languageMixed = !!mixedDetails?.language;
+  const [condition, setCondition] = useState<string>(
+    conditionMixed ? MIXED : (details?.condition ?? '')
+  );
+  const [language, setLanguage] = useState<string>(
+    languageMixed ? MIXED : (details?.language ?? '')
+  );
   const [flags, setFlags] = useState<Record<CardFlag, boolean>>({
     altered: details?.altered ?? false,
     proxy: details?.proxy ?? false,
@@ -284,13 +317,24 @@ export function CardEditDialog({
     }
   }
 
+  // For a mixed field there's no single "original" value to diff against —
+  // any move off the MIXED placeholder (including explicitly picking "not
+  // set") is itself the meaningful change. A uniform field keeps the old
+  // diff-against-`details` check untouched.
+  const conditionChanged = conditionMixed
+    ? condition !== MIXED
+    : condition !== (details?.condition ?? '');
+  const languageChanged = languageMixed
+    ? language !== MIXED
+    : language !== (details?.language ?? '');
+
   const isDirty =
     selectedId !== currentScryfallId ||
     selectedFinish !== currentFinish ||
     (quantity !== undefined && qty !== quantity) ||
     (details !== undefined &&
-      (condition !== (details.condition ?? '') ||
-        language !== (details.language ?? '') ||
+      (conditionChanged ||
+        languageChanged ||
         FLAG_OPTIONS.some(({ key }) => flags[key] !== (details[key] ?? false))));
 
   const handleConfirm = () => {
@@ -302,11 +346,16 @@ export function CardEditDialog({
       ...(details !== undefined
         ? {
             details: {
-              ...(condition ? { condition: condition as Condition } : {}),
-              ...(language ? { language } : {}),
+              ...(condition && condition !== MIXED ? { condition: condition as Condition } : {}),
+              ...(language && language !== MIXED ? { language } : {}),
               ...(flags.altered ? { altered: true } : {}),
               ...(flags.proxy ? { proxy: true } : {}),
               ...(flags.misprint ? { misprint: true } : {}),
+              // Only ever sent when the field is mixed — a uniform field omits
+              // these keys entirely, so buildEditedCards' `?? true` default
+              // keeps its always-write behavior byte-identical to before.
+              ...(conditionMixed ? { conditionTouched: conditionChanged } : {}),
+              ...(languageMixed ? { languageTouched: languageChanged } : {}),
             },
           }
         : {}),
@@ -395,6 +444,7 @@ export function CardEditDialog({
                     options={CONDITION_OPTIONS}
                     onChange={setCondition}
                     className="card-edit-details-select"
+                    placeholder={conditionMixed ? `Mixed (${mixedDetails?.condition})` : undefined}
                   />
                   <SelectMenu
                     label="Language"
@@ -402,6 +452,7 @@ export function CardEditDialog({
                     options={LANGUAGE_OPTIONS}
                     onChange={setLanguage}
                     className="card-edit-details-select"
+                    placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
                   />
                   <div className="card-edit-finishes" role="group" aria-label="Card flags">
                     {FLAG_OPTIONS.map(({ key, label }) => (

@@ -3,6 +3,44 @@ import type { EnrichedCard } from '../types';
 import type { PrintingSelection } from '../components/CardEditDialog';
 
 /**
+ * Copies in the same printing+finish stack as `card` — the exact set an edit's
+ * quantity/condition/language change applies to inside `buildEditedCards`.
+ * Exported so callers can inspect the stack (e.g. detect mixed condition/
+ * language) *before* the user opens the edit dialog, using the same matching
+ * rule the edit itself will use.
+ */
+export function stackCopies(
+  allCards: EnrichedCard[],
+  card: Pick<EnrichedCard, 'scryfallId' | 'finish'>
+): EnrichedCard[] {
+  return allCards.filter((c) => c.scryfallId === card.scryfallId && c.finish === card.finish);
+}
+
+/** Human summary of a non-uniform field across a stack, e.g. "3 NM, 1 HP" — `undefined` when every copy agrees (nothing to flag). */
+function mixedSummary(values: (string | undefined)[]): string | undefined {
+  const counts = new Map<string, number>();
+  for (const v of values) {
+    const label = v ? v.toUpperCase() : 'Not set';
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return counts.size > 1
+    ? [...counts.entries()].map(([label, n]) => `${n} ${label}`).join(', ')
+    : undefined;
+}
+
+/**
+ * Which per-copy fields disagree across a printing+finish stack, summarized
+ * for display. Feeds CardEditDialog's `mixedDetails` prop — when a key is
+ * present here, the dialog must not silently bulk-apply that field.
+ */
+export function stackDetailMix(copies: EnrichedCard[]): { condition?: string; language?: string } {
+  return {
+    condition: mixedSummary(copies.map((c) => c.condition)),
+    language: mixedSummary(copies.map((c) => c.language)),
+  };
+}
+
+/**
  * Best available USD price for a printing, biased by finish. Foil rows prefer
  * `usd_foil`, then etched, then plain; nonfoil rows the reverse. Returns 0 when
  * no positive, finite price is present.
@@ -33,6 +71,11 @@ export function pickPrice(card: ScryfallCard, foil: boolean): number {
  * its siblings on the old printing are untouched. This is how a stack of
  * identical printings gets split into different printings. Quantity is ignored
  * in this mode (you're editing exactly one copy).
+ *
+ * Grouped stacks with non-uniform condition/language (see `stackDetailMix`)
+ * are handled by the *Touched flags on `selection.details` — see the comment
+ * above that block. A quantity-only change on a mixed stack still adds/drops
+ * copies here without rewriting the surviving copies' own condition/language.
  */
 export function buildEditedCards(
   editingCard: EnrichedCard,
@@ -73,9 +116,19 @@ export function buildEditedCards(
   // Per-copy details, only when the dialog ran in details mode. Assigning the
   // (possibly undefined) values overwrites on spread, so clearing a condition
   // in the dialog actually clears it on the copies.
+  //
+  // condition/language are gated by *Touched: on a uniform stack the dialog
+  // never sends these flags, so `?? true` keeps the old unconditional-write
+  // behavior byte-identical. On a MIXED stack the dialog sends `false` while
+  // the user hasn't touched that field — omitting the key here (rather than
+  // assigning `undefined`) means the spread below leaves each existing copy's
+  // own value alone, instead of homogenizing the whole stack to one value the
+  // user never chose.
   if (selection.details) {
-    cardFields.condition = selection.details.condition;
-    cardFields.language = selection.details.language;
+    const conditionTouched = selection.details.conditionTouched ?? true;
+    const languageTouched = selection.details.languageTouched ?? true;
+    if (conditionTouched) cardFields.condition = selection.details.condition;
+    if (languageTouched) cardFields.language = selection.details.language;
     cardFields.altered = selection.details.altered;
     cardFields.proxy = selection.details.proxy;
     cardFields.misprint = selection.details.misprint;
@@ -91,9 +144,7 @@ export function buildEditedCards(
 
   // Existing copies of this printing/finish — updated in place, copyId kept so
   // deck allocations stay intact.
-  const existing = allCards.filter(
-    (c) => c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish
-  );
+  const existing = stackCopies(allCards, editingCard);
   const targetQty = selection.quantity ?? existing.length;
   const others = allCards.filter(
     (c) => !(c.scryfallId === editingCard.scryfallId && c.finish === editingCard.finish)

@@ -83,7 +83,7 @@ import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
 import { RarityBadge } from './shared/RarityBadge';
-import { buildEditedCards, isNoOpCardEdit } from '../lib/edit-card';
+import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
 import {
   compileExpression,
   compileFilter,
@@ -1097,6 +1097,14 @@ export function CardListTable({
       (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
     ).length;
   }, [editingCard, cards]);
+  // Only meaningful for a grouped (stacked) edit — a single-copy edit is
+  // trivially uniform. Mirrors the exact scryfallId+finish match
+  // buildEditedCards edits by, so "mixed" here means buildEditedCards would
+  // otherwise touch more than one distinct condition/language.
+  const editingMixedDetails = useMemo(() => {
+    if (!editingCard || editingSingle) return undefined;
+    return stackDetailMix(stackCopies(allCards, editingCard));
+  }, [editingCard, editingSingle, allCards]);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const lists = useCollectionStore((s) => s.lists);
@@ -2326,6 +2334,7 @@ export function CardListTable({
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,
           }}
+          mixedDetails={editingMixedDetails}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
