@@ -5,6 +5,7 @@ import './BrewRunningDeck.css';
 import { MeterBar } from '@/components/shared/MeterBar';
 import { buildManaData } from '@/lib/build-mana-data';
 import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useCardThumb } from '@/lib/card-thumbs';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { useBrewStore } from '@/deck-builder/store/brew';
 import { flattenAccepted } from '@/deck-builder/services/deckBuilder/brewSlots';
@@ -41,6 +42,22 @@ function useResolvedAccepted(commander: ScryfallCard | null) {
   }, [names.join('|')]);
 
   return useMemo(() => buildManaData(cards, commander, null), [cards, commander]);
+}
+
+/** Small portrait art thumb for a pick row — the tactile "physical card" cue
+ *  the meters-only panel lacked (E128). Resolves via the batched CDN thumb
+ *  hook (never the rate-limited API host); decorative, since the row's own
+ *  name text already carries the accessible label. Renders a neutral
+ *  placeholder box while the thumb resolves or on a resolve miss, matching
+ *  the established `RowThumb`/`Thumb` pattern (CardSearchPanel/DeckCardRow) —
+ *  no error state beyond that placeholder. */
+function PickThumb({ name }: { name: string }): JSX.Element {
+  const url = useCardThumb(name, 'small');
+  return (
+    <span className="brew-running-item-thumb" aria-hidden>
+      {url && <img src={url} alt="" loading="lazy" />}
+    </span>
+  );
 }
 
 function RunningDeckBody({ commander }: BrewRunningDeckProps): JSX.Element {
@@ -97,8 +114,11 @@ function RunningDeckBody({ commander }: BrewRunningDeckProps): JSX.Element {
             {slots.map((slot) =>
               (accepted[slot.key] ?? []).map((c) => (
                 <li key={`${slot.key}:${c.name}`} className="brew-running-item">
-                  <span className="brew-running-item-slot">{slot.label}</span>
-                  <span className="brew-running-item-name">{c.name}</span>
+                  <PickThumb name={c.name} />
+                  <span className="brew-running-item-body">
+                    <span className="brew-running-item-slot">{slot.label}</span>
+                    <span className="brew-running-item-name">{c.name}</span>
+                  </span>
                   <button
                     type="button"
                     className="brew-running-item-remove"
