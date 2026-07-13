@@ -1,9 +1,11 @@
-import { describe, it, expect } from 'vitest';
+// @vitest-environment happy-dom
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   computeHandStats,
   computeBattlefieldStats,
   computeDeckStats,
   toHandSimCards,
+  medianActualKillTurn,
 } from './playtest-stats';
 import type { PlaytestCard, BattlefieldCard, PlaytestState } from './playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -334,5 +336,71 @@ describe('toHandSimCards', () => {
     const result = toHandSimCards(hand, lookup);
     expect(result[0]?.isLand).toBe(true);
     expect(result[0]?.colors).toEqual(['G']);
+  });
+});
+
+// ── medianActualKillTurn ──────────────────────────────────────────────────────
+
+describe('medianActualKillTurn', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns null when the key is absent (E141 not landed / no history yet)', () => {
+    expect(medianActualKillTurn('deck-1')).toBeNull();
+  });
+
+  it('returns null when the value is not valid JSON', () => {
+    localStorage.setItem('spellcontrol:playtest-history:deck-1', '{nope');
+    expect(medianActualKillTurn('deck-1')).toBeNull();
+  });
+
+  it('returns null when the value parses but is not an array', () => {
+    localStorage.setItem('spellcontrol:playtest-history:deck-1', '{"tableDefeatedTurn": 9}');
+    expect(medianActualKillTurn('deck-1')).toBeNull();
+  });
+
+  it('returns null when entries have no recognizable turn field', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([{ notes: 'gg' }, { life: 0 }])
+    );
+    expect(medianActualKillTurn('deck-1')).toBeNull();
+  });
+
+  it('computes the median from tableDefeatedTurn entries', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([
+        { tableDefeatedTurn: 7 },
+        { tableDefeatedTurn: 9 },
+        { tableDefeatedTurn: 11 },
+      ])
+    );
+    expect(medianActualKillTurn('deck-1')).toBe(9);
+  });
+
+  it('averages the two middle values for an even count', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([{ tableDefeatedTurn: 6 }, { tableDefeatedTurn: 10 }])
+    );
+    expect(medianActualKillTurn('deck-1')).toBe(8);
+  });
+
+  it('ignores non-positive or non-numeric turn values', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([{ tableDefeatedTurn: 0 }, { tableDefeatedTurn: 'nope' }, { turn: 5 }])
+    );
+    expect(medianActualKillTurn('deck-1')).toBe(5);
+  });
+
+  it('scopes history reads to the given deck id', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([{ tableDefeatedTurn: 7 }])
+    );
+    expect(medianActualKillTurn('deck-2')).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './PlaytestStatsSheet.css';
+import { Hourglass, Loader2 } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
@@ -11,16 +12,26 @@ import {
   computeBattlefieldStats,
   computeDeckStats,
   toHandSimCards,
+  medianActualKillTurn,
 } from '@/lib/playtest-stats';
-import { isKeepableHand, simulateOpeningHands } from '@/lib/opening-hand-sim';
+import {
+  isKeepableHand,
+  simulateAssemblyClock,
+  simulateLandDropCurve,
+  simulateOpeningHands,
+  type AssemblyClockResult,
+  type LandDropCurveResult,
+} from '@/lib/opening-hand-sim';
 import { toSimCard } from '@/lib/hand-classify';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
 import { Tabs, type TabItem } from '@/components/Tabs';
+import { InfoTip } from '@/components/InfoTip';
+import { assemblyClockTip } from '@/components/deck/WinConditionPanel';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type StatsTab = 'hand' | 'battlefield' | 'deck';
+type StatsTab = 'hand' | 'battlefield' | 'deck' | 'simulate';
 
 interface Props {
   state: PlaytestState;
@@ -36,6 +47,7 @@ const TABS: Array<TabItem<StatsTab>> = [
   { id: 'hand', label: 'Hand' },
   { id: 'battlefield', label: 'Battlefield' },
   { id: 'deck', label: 'Session' },
+  { id: 'simulate', label: 'Simulate' },
 ];
 
 const CMC_LABELS = ['0', '1', '2', '3', '4', '5', '6', '7+'];
@@ -410,6 +422,266 @@ function DeckStatsSection({
   );
 }
 
+interface SimBatch {
+  /** Deck identity + shape this batch was computed for — see the invalidation
+   *  check below. */
+  key: string;
+  iterations: number;
+  /** Pre-mulligan keepable rate ("Opener"), then cumulative keep rate allowing
+   *  1 and 2 mulligans respectively — the "83% keep by mull 1" distribution. */
+  keepMull0: number;
+  keepMull1: number;
+  keepMull2: number;
+  avgLands: number;
+  screwRate: number;
+  floodRate: number;
+  landHistogram: number[];
+  curve: LandDropCurveResult;
+  clock: AssemblyClockResult | null;
+}
+
+/** Run the full batch: opener odds (incl. mulligan-to-keep distribution),
+ *  land-drop curve, and the assembly clock for the deck's detected win path.
+ *  Fixed seed per call → same button press twice gives the same numbers. */
+function runSimBatch(deck: Deck, key: string): SimBatch {
+  const simCards = deck.cards.map((slot) => toSimCard(slot.card));
+  const mull1 = simulateOpeningHands(simCards, { iterations: 1000, seed: 42, mulliganDepth: 1 });
+  const mull2 = simulateOpeningHands(simCards, { iterations: 1000, seed: 42, mulliganDepth: 2 });
+  const curve = simulateLandDropCurve(simCards, { iterations: 1000, seed: 42 });
+
+  const primary = deck.winConditions?.primary ?? null;
+  const libraryNames = deck.cards.map((c) => c.card.name);
+  const clock =
+    primary?.assembly?.length && libraryNames.length > 0
+      ? simulateAssemblyClock(libraryNames, primary.assembly, {
+          iterations: 1000,
+          seed: 42,
+          wildcards: deck.winConditions?.tutors,
+        })
+      : null;
+
+  return {
+    key,
+    iterations: mull2.iterations,
+    keepMull0: mull2.keepableRate,
+    keepMull1: mull1.keepableWithinMulligansRate,
+    keepMull2: mull2.keepableWithinMulligansRate,
+    avgLands: mull2.avgLands,
+    screwRate: mull2.screwRate,
+    floodRate: mull2.floodRate,
+    landHistogram: mull2.landHistogram,
+    curve,
+    clock,
+  };
+}
+
+function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | undefined }) {
+  const deckKey = deck ? `${deck.id}:${deck.cards.length}` : null;
+  const [batch, setBatch] = useState<SimBatch | null>(null);
+  const [running, setRunning] = useState(false);
+
+  // Invalidate a stale run the moment the decklist changes (render-phase
+  // reset, mirrors DeckTestHandPanel's dealKey pattern) — a cached batch never
+  // silently carries over onto a different decklist; the button must be
+  // pressed again for the new one.
+  if (batch && batch.key !== deckKey) setBatch(null);
+
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const handleSimulate = () => {
+    if (!deck || !deckKey) return;
+    setRunning(true);
+    if (rafRef.current != null) window.cancelAnimationFrame(rafRef.current);
+    // Defer one frame so the button's "Simulating…" label paints before the
+    // (brief, synchronous) batch occupies the main thread — measured ~50ms for
+    // three 1,000-iteration runs against a 99-card deck, well under one frame
+    // budget even on phones.
+    rafRef.current = window.requestAnimationFrame(() => {
+      setBatch(runSimBatch(deck, deckKey));
+      setRunning(false);
+      rafRef.current = null;
+    });
+  };
+
+  if (!deck) {
+    return <p className="playtest-stats-empty">Deck data unavailable.</p>;
+  }
+  if (deck.cards.length < 7) {
+    return <p className="playtest-stats-empty">Deck must have at least 7 cards to simulate.</p>;
+  }
+
+  const actualMedianTurn = medianActualKillTurn(deck.id);
+  const maxLandBucket = batch ? Math.max(...batch.landHistogram, 1) : 1;
+
+  return (
+    <div className="playtest-stats-rows">
+      <p className="playtest-stats-sim-note">
+        Runs this deck's opener, land-drop, and assembly-clock models 1,000 times each — the
+        goldfishing reps you'd otherwise draw by hand.
+      </p>
+      <button type="button" className="btn" onClick={handleSimulate} disabled={running}>
+        {running && <Loader2 className="playtest-stats-sim-spinner" aria-hidden />}
+        {running ? 'Simulating…' : batch ? 'Re-run simulation' : 'Simulate 1,000 games'}
+      </button>
+
+      {batch && (
+        <>
+          <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
+            Opener odds ({batch.iterations.toLocaleString()} hands)
+          </p>
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Keepable</span>
+            <span className="playtest-stats-row__value">{Math.round(batch.keepMull0 * 100)}%</span>
+            <MeterBar
+              value={batch.keepMull0 * 100}
+              max={100}
+              color="var(--accent)"
+              className="playtest-stats-row__bar"
+            />
+          </div>
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Keep by mull 1</span>
+            <span className="playtest-stats-row__value">{Math.round(batch.keepMull1 * 100)}%</span>
+            <MeterBar
+              value={batch.keepMull1 * 100}
+              max={100}
+              color="var(--accent)"
+              className="playtest-stats-row__bar"
+            />
+          </div>
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Keep by mull 2</span>
+            <span className="playtest-stats-row__value">{Math.round(batch.keepMull2 * 100)}%</span>
+            <MeterBar
+              value={batch.keepMull2 * 100}
+              max={100}
+              color="var(--accent)"
+              className="playtest-stats-row__bar"
+            />
+          </div>
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Screw risk</span>
+            <span className="playtest-stats-row__value">{Math.round(batch.screwRate * 100)}%</span>
+            <MeterBar
+              value={batch.screwRate * 100}
+              max={100}
+              color="var(--warn-text, #f0a000)"
+              className="playtest-stats-row__bar"
+            />
+          </div>
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Flood risk</span>
+            <span className="playtest-stats-row__value">{Math.round(batch.floodRate * 100)}%</span>
+            <MeterBar
+              value={batch.floodRate * 100}
+              max={100}
+              color="var(--warn-text, #f0a000)"
+              className="playtest-stats-row__bar"
+            />
+          </div>
+
+          <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
+            Opening-hand land count
+          </p>
+          <div className="playtest-stats-histogram" aria-label="Land count distribution">
+            {batch.landHistogram.map((count, lands) =>
+              count > 0 ? (
+                <div key={lands} className="playtest-stats-histogram__row">
+                  <span className="playtest-stats-histogram__bucket" aria-hidden>
+                    {lands}
+                  </span>
+                  <MeterBar
+                    value={count}
+                    max={maxLandBucket}
+                    color="var(--mtg-g)"
+                    className="playtest-stats-histogram__bar"
+                  />
+                  <span className="playtest-stats-histogram__count">
+                    {Math.round((count / batch.iterations) * 100)}%
+                  </span>
+                </div>
+              ) : null
+            )}
+          </div>
+          <p className="playtest-stats-sim-note">
+            Avg {batch.avgLands.toFixed(2)} lands in the opener.
+          </p>
+
+          <p className="playtest-stats-section-title" style={{ marginTop: 'var(--space-3)' }}>
+            On-curve odds, turns 1–5
+          </p>
+          <div className="playtest-stats-histogram" aria-label="Land-drop curve">
+            {batch.curve.onCurveRate.slice(1).map((rate, i) => (
+              <div key={i} className="playtest-stats-histogram__row">
+                <span className="playtest-stats-histogram__bucket" aria-hidden>
+                  T{i + 1}
+                </span>
+                <MeterBar
+                  value={rate * 100}
+                  max={100}
+                  color="var(--mtg-g)"
+                  className="playtest-stats-histogram__bar"
+                />
+                <span className="playtest-stats-histogram__count">{Math.round(rate * 100)}%</span>
+              </div>
+            ))}
+          </div>
+          <p className="playtest-stats-sim-note">
+            Draw-per-turn model: no mana curve of the spells themselves, just whether cumulative
+            lands drawn kept pace with the turn count.
+          </p>
+
+          <div className="playtest-stats-sim">
+            <p className="playtest-stats-sim-title">Assembly clock</p>
+            {batch.clock ? (
+              <>
+                <p className="playtest-stats-row" style={{ flexWrap: 'wrap' }}>
+                  <Hourglass width={13} height={13} aria-hidden />
+                  <span>
+                    Predicted: win condition online ~turn <strong>{batch.clock.typicalTurn}</strong>{' '}
+                    (median) / <strong>{batch.clock.p90Turn}</strong> (p90)
+                  </span>
+                  <InfoTip
+                    label="the assembly clock"
+                    className="playtest-stats-sim-tip"
+                    text={assemblyClockTip()}
+                  />
+                </p>
+                {(state.tableDefeatedTurn !== null || actualMedianTurn !== null) && (
+                  <div className="playtest-stats-row" style={{ alignItems: 'flex-start' }}>
+                    <span className="playtest-stats-row__label">Predicted vs actual</span>
+                    <span style={{ flex: 1, textAlign: 'left' }}>
+                      Predicted ~T{batch.clock.typicalTurn}
+                      {state.tableDefeatedTurn !== null
+                        ? ` · this game T${state.tableDefeatedTurn}`
+                        : ''}
+                      {actualMedianTurn !== null ? ` · median actual T${actualMedianTurn}` : ''}
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="playtest-stats-sim-note">
+                No win conditions detected — predictions unavailable.
+              </p>
+            )}
+          </div>
+
+          <p className="playtest-stats-sim-note">
+            These are draw simulations, not full games — no opponent plays, no interaction, no
+            combat. Real games usually move faster than the raw draw math.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onClose }: Props) {
@@ -460,6 +732,15 @@ export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onC
           {activeTab === 'deck' && (
             <div role="tabpanel" id="playtest-stats-panel-deck" aria-labelledby="sc-tab-deck">
               <DeckStatsSection state={state} deck={deck} mulliganCount={mulliganCount} />
+            </div>
+          )}
+          {activeTab === 'simulate' && (
+            <div
+              role="tabpanel"
+              id="playtest-stats-panel-simulate"
+              aria-labelledby="sc-tab-simulate"
+            >
+              <SimulateSection state={state} deck={deck} />
             </div>
           )}
         </div>

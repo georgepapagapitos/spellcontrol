@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isKeepableHand,
   simulateAssemblyClock,
+  simulateLandDropCurve,
   simulateOpeningHands,
   type SimCard,
 } from './opening-hand-sim';
@@ -162,6 +163,44 @@ describe('simulateOpeningHands', () => {
       { iterations: 40, seed: 6 }
     );
     expect(r.landColorByCount[7]).toEqual({ C: 280 });
+  });
+});
+
+describe('simulateLandDropCurve', () => {
+  it('is deterministic for a fixed seed', () => {
+    const lib = library(38, 60);
+    const a = simulateLandDropCurve(lib, { iterations: 200, seed: 42 });
+    const b = simulateLandDropCurve(lib, { iterations: 200, seed: 42 });
+    expect(a).toEqual(b);
+  });
+
+  it('reports 100% on curve every turn for an all-land library', () => {
+    const r = simulateLandDropCurve(library(99, 0), { iterations: 50, seed: 1 });
+    expect(r.onCurveRate.slice(1)).toEqual([1, 1, 1, 1, 1]);
+  });
+
+  it('reports 0% on curve every turn for a landless library', () => {
+    const r = simulateLandDropCurve(library(0, 99), { iterations: 50, seed: 1 });
+    expect(r.onCurveRate.slice(1)).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  it('reports every rate within [0, 1]', () => {
+    const r = simulateLandDropCurve(library(38, 60), { iterations: 300, seed: 7 });
+    for (const rate of r.onCurveRate) {
+      expect(rate).toBeGreaterThanOrEqual(0);
+      expect(rate).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('respects a custom maxTurn', () => {
+    const r = simulateLandDropCurve(library(38, 60), { iterations: 50, seed: 2, maxTurn: 3 });
+    expect(r.onCurveRate).toHaveLength(4); // index 0 unused + turns 1..3
+    expect(r.maxTurn).toBe(3);
+  });
+
+  it('returns a zeroed result when the library is smaller than a hand', () => {
+    const r = simulateLandDropCurve(library(2, 2), { iterations: 50, seed: 1 });
+    expect(r.onCurveRate.slice(1).every((n) => n === 0)).toBe(true);
   });
 });
 

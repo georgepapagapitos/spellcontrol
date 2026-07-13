@@ -230,3 +230,24 @@
   border-top: 0.5px solid var(--border);
   margin: 0;
 }
+
+/* ── Simulate tab ─────────────────────────────────────────────────────────── */
+
+.playtest-stats-sim-spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: var(--space-1);
+  /* Shared `spin` keyframe (defined once in feedback-spinner.css) — see
+     motion-tokens.test.ts, which fails a new per-component clone. */
+  animation: spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playtest-stats-sim-spinner {
+    animation: none;
+  }
+}
+
+.playtest-stats-sim-tip {
+  margin-left: auto;
+}
