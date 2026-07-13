@@ -77,7 +77,11 @@ const defaultCustomization: Customization = {
   ignoreOwnedBudget: false,
   ignoreOwnedRarity: false,
   collectionMode: false,
-  collectionStrategy: 'full',
+  // Free copies by default — a physical deck can't share cards with another
+  // physical deck. With no allocated decks 'available' === 'full', so this
+  // only changes behavior for users it protects; "Only my cards" remains an
+  // explicit opt-up for planned disassembly.
+  collectionStrategy: 'available',
   collectionOwnedPercent: 75,
   arenaOnly: loadArenaOnly(),
   scryfallQuery: '',

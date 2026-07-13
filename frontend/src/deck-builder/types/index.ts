@@ -605,6 +605,11 @@ export interface BuildReport {
   roleExcesses?: Array<{ role: string; have: number; want: number }>;
   /** Cards that are owned but all copies are committed to other decks. */
   claimedConflicts?: number;
+  /** Owned, identity-legal names "Available only" excluded from the pool
+   *  because every copy is committed to another deck/cube (basics exempt —
+   *  the land top-up supplies them regardless). Mirror of claimedConflicts;
+   *  undefined when 0 or under other strategies. */
+  committedExcluded?: number;
   /** "Hidden synergy" suggestions from EDHREC lift data — never added to the
    *  deck, surfaced only in the build report. See LiftPackagePick. */
   packagePicks?: LiftPackagePick[];

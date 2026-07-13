@@ -6,6 +6,7 @@ import type { EnrichedCard } from '../types';
 import {
   buildAvailableCollection,
   buildBasicPrintingAvailability,
+  countCommittedExcluded,
   planBasicPrintings,
   type BasicPrintingAvail,
 } from './collection-availability';
@@ -97,6 +98,42 @@ describe('buildAvailableCollection', () => {
     );
     expect([...available.names]).toEqual(['Free Card']);
     expect(available.counts.has('Cubed Card')).toBe(false);
+  });
+});
+
+describe('countCommittedExcluded', () => {
+  const identity = ['G', 'U'];
+  const withIdentity = (card: EnrichedCard, colorIdentity: string[]): EnrichedCard => ({
+    ...card,
+    colorIdentity,
+  });
+
+  it('counts an in-identity name once even across multiple committed copies', () => {
+    const collection = [
+      withIdentity(owned('Committed Card', 'c1'), ['G']),
+      withIdentity(owned('Committed Card', 'c2'), ['G']),
+    ];
+    expect(countCommittedExcluded(collection, new Set(), identity)).toBe(1);
+  });
+
+  it('skips names that still have a free copy', () => {
+    const collection = [withIdentity(owned('Partly Free', 'c1'), ['G'])];
+    expect(countCommittedExcluded(collection, new Set(['Partly Free']), identity)).toBe(0);
+  });
+
+  it('skips names outside the commander color identity', () => {
+    const collection = [withIdentity(owned('Off Color', 'c1'), ['R'])];
+    expect(countCommittedExcluded(collection, new Set(), identity)).toBe(0);
+  });
+
+  it('counts colorless cards (they fit any identity)', () => {
+    const collection = [withIdentity(owned('Sol Ring', 'c1'), [])];
+    expect(countCommittedExcluded(collection, new Set(), identity)).toBe(1);
+  });
+
+  it('skips basic lands — the land top-up supplies basics regardless of ownership', () => {
+    const collection = [withIdentity(owned('Forest', 'c1'), ['G'])];
+    expect(countCommittedExcluded(collection, new Set(), identity)).toBe(0);
   });
 });
 

@@ -21,7 +21,8 @@ export function saveGeneratedDeck(
   selectedThemes: ThemeResult[],
   existingDecks: ReturnType<typeof useDecksStore.getState>['decks'],
   collection: ReturnType<typeof useCollectionStore.getState>['cards'],
-  createDeck: ReturnType<typeof useDecksStore.getState>['createDeck']
+  createDeck: ReturnType<typeof useDecksStore.getState>['createDeck'],
+  committedExcluded?: number
 ): string {
   // Build a running allocation map so we never claim the same physical
   // copy twice within a single deck (e.g. when the deck contains
@@ -68,6 +69,7 @@ export function saveGeneratedDeck(
     customization,
     collectionNames,
     claimedConflicts: claimedConflicts > 0 ? claimedConflicts : undefined,
+    committedExcluded,
     selectedThemes,
   });
 
