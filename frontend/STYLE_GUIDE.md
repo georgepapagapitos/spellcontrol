@@ -428,6 +428,42 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
   should be near-identical to what an inline surface would have shown, just
   gated behind one tap instead of always-on real estate.
 
+## Import review surface (E130)
+
+A multi-outcome operation (an import that can simultaneously succeed, route
+cards, withhold rows for a few different reasons, and need a repair) gets
+**one review card, not one banner per outcome.** The pre-E130 `UploadPanel`
+stacked up to four separately-bordered banners (success, binder-routing,
+fetch-errors, unresolved-names) after a single import — reference
+implementation is `components/UploadPanel.tsx`'s `.import-review` container
+and `UnresolvedNameRow`:
+
+- **One container** (`.import-review`, `--radius-lg`, `--surface` bg) with a
+  single header: a small-caps title that reads `Import needs a look` if
+  anything is still actionable (fetch errors to retry, names to fix) or
+  `Import summary` when everything resolved cleanly — `lib/import-review.ts`
+  `importReviewHeadline()` is the pure decision. Only fetch-errors and
+  unresolved-names escalate the headline; malformed/skipped/clamped rows are
+  informational only (nothing left to do), so they don't.
+- **Sections, not boxes.** Each bucket (routing rows, fetch errors, malformed
+  rows, unresolved names) is a `.import-review-section` divided by a hairline
+  top border, not its own bordered card — that's what actually kills the
+  banner-stack, re-boxing each bucket individually would just rebuild it one
+  level in.
+- **One dismiss for the informational part only.** The header's × clears the
+  success line + routing rows (purely narrative — "here's what just
+  happened"). Fetch errors keep their own Retry with no dismiss, and
+  unresolved names keep their own per-row repair — a summary dismiss must
+  never be able to silently drop a bucket that still needs Retry or Fix
+  (this is the E72 contract: fetchErrors is a retryable outage bucket, never
+  something a UI affordance quietly loses).
+- **Inline repair, not a new lookup.** An actionable per-item fix (the
+  unresolved-name row's "Fix") reuses the app's existing search/autocomplete
+  machinery (`InlineCardSearch`) rather than a bespoke picker — expand in
+  place, prefill the query with the item's own text (doubling as the manual-
+  search fallback if suggestions miss), collapse into a resolved state once
+  the fix lands. Don't open a second overlay for a fix that fits inline.
+
 ## Public shared views (/s/:token)
 
 Public shared views wrap their content in `components/shared/SharedShell.tsx` — **not** the app

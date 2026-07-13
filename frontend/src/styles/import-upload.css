@@ -84,6 +84,132 @@
   }
 }
 
+/* ── Import review surface (E130) ────────────────────────────────────────
+   Single post-import container: the success line, "where did my cards go?"
+   routing rows, and every fidelity bucket (fetch errors / malformed rows /
+   unresolved names) in one card instead of up to four separately-bordered
+   banners stacked on top of each other. See STYLE_GUIDE § Import review
+   surface. */
+.import-review {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem var(--space-4);
+  margin-bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.import-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.import-review-title {
+  font-family: var(--font-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.import-review-line {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.import-review-section {
+  padding-top: var(--space-2);
+  border-top: 0.5px solid var(--border);
+}
+
+.import-review-section--routing {
+  font-family: var(--font-mono);
+  color: var(--accent-hover);
+}
+
+.import-review-section--warn {
+  color: var(--warn-text);
+}
+
+.unresolved-repair-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.unresolved-repair-row {
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+}
+
+.unresolved-repair-row--resolved {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.unresolved-repair-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.unresolved-repair-name {
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unresolved-repair-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .unresolved-repair-toggle {
+    min-height: 44px;
+  }
+}
+
+.unresolved-repair-resolved-note {
+  font-size: var(--text-sm);
+  color: var(--accent-hover);
+}
+
+.unresolved-repair-search {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.unresolved-repair-input {
+  width: 100%;
+}
+
 /* ── Unified import panel ──────────────────────────────────────────────── */
 .import-grid {
   display: grid;
