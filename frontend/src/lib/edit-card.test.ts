@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { pickPrice, buildEditedCards, isNoOpCardEdit } from './edit-card';
+import {
+  pickPrice,
+  buildEditedCards,
+  isNoOpCardEdit,
+  stackCopies,
+  stackDetailMix,
+} from './edit-card';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
 import type { PrintingSelection } from '../components/CardEditDialog';
@@ -53,6 +59,43 @@ const enriched = (over: Partial<EnrichedCard>): EnrichedCard =>
 
 const selection = (over: Partial<PrintingSelection>): PrintingSelection =>
   ({ card: sc({ usd: '2.00' }), finish: 'nonfoil', ...over }) as PrintingSelection;
+
+describe('stackDetailMix', () => {
+  it('reports no mixed fields when the stack is uniform', () => {
+    const copies = [
+      enriched({ copyId: 'a', condition: 'nm', language: 'en' }),
+      enriched({ copyId: 'b', condition: 'nm', language: 'en' }),
+    ];
+    expect(stackDetailMix(copies)).toEqual({ condition: undefined, language: undefined });
+  });
+
+  it('summarizes a non-uniform field with per-value counts, leaving an agreeing field out', () => {
+    const copies = [
+      enriched({ copyId: 'a', condition: 'nm', language: 'en' }),
+      enriched({ copyId: 'b', condition: 'nm', language: 'en' }),
+      enriched({ copyId: 'c', condition: 'nm', language: 'en' }),
+      enriched({ copyId: 'd', condition: 'hp', language: 'en' }),
+    ];
+    expect(stackDetailMix(copies)).toEqual({ condition: '3 NM, 1 HP', language: undefined });
+  });
+
+  it('treats an unset condition/language as its own bucket', () => {
+    const copies = [
+      enriched({ copyId: 'a', condition: 'nm' }),
+      enriched({ copyId: 'b', condition: undefined }),
+    ];
+    expect(stackDetailMix(copies).condition).toBe('1 NM, 1 Not set');
+  });
+});
+
+describe('stackCopies', () => {
+  it('matches on scryfallId + finish, the same key buildEditedCards edits by', () => {
+    const a = enriched({ copyId: 'a', scryfallId: 'old', finish: 'nonfoil' });
+    const b = enriched({ copyId: 'b', scryfallId: 'old', finish: 'foil' });
+    const c = enriched({ copyId: 'c', scryfallId: 'other', finish: 'nonfoil' });
+    expect(stackCopies([a, b, c], a)).toEqual([a]);
+  });
+});
 
 describe('buildEditedCards', () => {
   it('updates the matching copy in place, preserving copyId, and leaves others untouched', () => {
@@ -139,6 +182,48 @@ describe('buildEditedCards', () => {
     const editing = enriched({ copyId: 'copy-a', proxy: true });
     const next = buildEditedCards(editing, selection({}), [editing]);
     expect(next[0].proxy).toBe(true);
+  });
+
+  it('uniform stack: condition/language are always applied regardless of touched flags (byte-identical pre-mixed-detection behavior)', () => {
+    const a = enriched({ copyId: 'a', condition: 'nm', language: 'en' });
+    const b = enriched({ copyId: 'b', condition: 'nm', language: 'en' });
+    const next = buildEditedCards(a, selection({ details: { condition: 'lp', language: 'ja' } }), [
+      a,
+      b,
+    ]);
+    expect(next.every((c) => c.condition === 'lp' && c.language === 'ja')).toBe(true);
+  });
+
+  it('mixed stack + quantity bump: surviving copies keep their own condition/language when the field is untouched', () => {
+    const a = enriched({ copyId: 'a', condition: 'nm', language: 'en' });
+    const b = enriched({ copyId: 'b', condition: 'hp', language: 'en' });
+    const next = buildEditedCards(
+      a,
+      selection({
+        quantity: 3,
+        details: { conditionTouched: false, languageTouched: false },
+      }),
+      [a, b]
+    );
+
+    expect(next).toHaveLength(3);
+    expect(next.find((c) => c.copyId === 'a')?.condition).toBe('nm');
+    expect(next.find((c) => c.copyId === 'b')?.condition).toBe('hp');
+    // The fresh copy has no prior identity to preserve — it inherits the
+    // representative (editingCard) copy's own condition, same as any other add.
+    const fresh = next.find((c) => c.copyId !== 'a' && c.copyId !== 'b');
+    expect(fresh?.condition).toBe('nm');
+  });
+
+  it('mixed stack + explicit condition change: every copy gets the new value', () => {
+    const a = enriched({ copyId: 'a', condition: 'nm' });
+    const b = enriched({ copyId: 'b', condition: 'hp' });
+    const next = buildEditedCards(
+      a,
+      selection({ details: { condition: 'lp', conditionTouched: true } }),
+      [a, b]
+    );
+    expect(next.every((c) => c.condition === 'lp')).toBe(true);
   });
 
   it('single-copy mode re-points only the given copy, splitting a printing stack', () => {

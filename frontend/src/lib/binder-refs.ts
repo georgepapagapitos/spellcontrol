@@ -27,6 +27,16 @@ import { printingFinishKey } from './collection-mutations';
  * intent) but contributes no copyId, so a later re-import restores it instead
  * of losing it forever.
  *
+ * Granularity is deliberately printing+finish, NOT +condition/+language (E131
+ * audit). A re-import can therefore rebind a pin to a different condition or
+ * language copy of the same printing+finish than the one originally pinned.
+ * This is intentional, mirroring the collection table's own stacking key
+ * (`printingFinishKey`): collectors who don't care about condition/language
+ * splits shouldn't see their binder pins fragment across them, and a re-import
+ * has no reliable way to match the exact physical copy anyway (fresh copyIds
+ * every time). If per-copy-detail-aware rebinding is ever wanted, it's a
+ * follow-up to widen this key — not a bug in the current one.
+ *
  * Mutator model: the KEY list is the source of truth. Both the reconcile pass
  * (collection change) and every mutator (pin/unpin/exclude/reorder) edit the
  * key list and re-derive ids from it via `resolveRefs`. A mutator never

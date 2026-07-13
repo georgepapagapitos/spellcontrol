@@ -15,7 +15,7 @@ import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { buildEditedCards, isNoOpCardEdit } from '../lib/edit-card';
+import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
 import type { SectionTabInput } from '../lib/binder-spreads';
 import { BinderDriftBanner } from './BinderDriftBanner';
@@ -168,6 +168,13 @@ function SectionList({
       (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
     ).length;
   }, [editingCard, allCards]);
+  // Only meaningful for a grouped (stacked) edit — an ungrouped (!qtyByCopyId)
+  // edit is a single physical copy, trivially uniform. Mirrors the exact
+  // scryfallId+finish match buildEditedCards edits by.
+  const editingMixedDetails = useMemo(() => {
+    if (!editingCard || !qtyByCopyId) return undefined;
+    return stackDetailMix(stackCopies(allCards, editingCard));
+  }, [editingCard, qtyByCopyId, allCards]);
 
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
@@ -438,6 +445,7 @@ function SectionList({
             proxy: editingCard.proxy,
             misprint: editingCard.misprint,
           }}
+          mixedDetails={editingMixedDetails}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingCard(null)}
         />
