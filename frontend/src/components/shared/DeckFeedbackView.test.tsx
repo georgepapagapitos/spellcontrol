@@ -53,14 +53,33 @@ describe('DeckFeedbackView', () => {
     expect(screen.getByText('Counterspell')).toBeTruthy();
   });
 
-  it('toggles a cut suggestion on card tap and reflects it in the submit count', () => {
+  it('shows the commander for context without a cut affordance', () => {
     renderView();
-    const row = screen.getByRole('button', { name: /Sol Ring/ });
-    fireEvent.click(row);
-    expect(row.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Commander')).toBeTruthy();
+    expect(screen.getByText('Edric, Spymaster of Trest')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Suggest cutting Edric/ })).toBeNull();
+  });
+
+  it('toggles a cut via the scissors and reflects it in the tally + submit count', () => {
+    renderView();
+    const cutBtn = screen.getByRole('button', { name: 'Suggest cutting Sol Ring' });
+    fireEvent.click(cutBtn);
+    expect(cutBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('1 cut')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Review & send/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Send feedback \(1 suggestion\)/ })).toBeTruthy();
-    fireEvent.click(row);
-    expect(row.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo cut suggestion for Sol Ring' }));
+    expect(cutBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByText('1 cut')).toBeNull();
+  });
+
+  it('offers the same scissors toggle in list view', () => {
+    renderView();
+    fireEvent.click(screen.getByRole('button', { name: 'List view' }));
+    const cutBtn = screen.getByRole('button', { name: 'Suggest cutting Counterspell' });
+    fireEvent.click(cutBtn);
+    expect(cutBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByText('Suggested cut')).toBeTruthy();
   });
 
   it('requires a name (when signed out) plus content before submitting', () => {
@@ -68,7 +87,7 @@ describe('DeckFeedbackView', () => {
     const submit = screen.getByRole('button', { name: /Send feedback/ });
     expect((submit as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: /Sol Ring/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest cutting Sol Ring' }));
     expect((submit as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.change(screen.getByPlaceholderText(/So the owner knows/), {
@@ -80,7 +99,7 @@ describe('DeckFeedbackView', () => {
   it('submits cuts, bracket, and comment, then shows the sent state', async () => {
     submitFeedback.mockResolvedValue({ id: 'fb-1' });
     renderView();
-    fireEvent.click(screen.getByRole('button', { name: /Sol Ring/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest cutting Sol Ring' }));
     fireEvent.change(screen.getByPlaceholderText(/So the owner knows/), {
       target: { value: 'Reviewer' },
     });
@@ -110,12 +129,15 @@ describe('DeckFeedbackView', () => {
   it('surfaces a submit failure without losing the form', async () => {
     submitFeedback.mockRejectedValue(new Error('Feedback link not found.'));
     renderView();
-    fireEvent.click(screen.getByRole('button', { name: /Counterspell/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest cutting Counterspell' }));
     fireEvent.change(screen.getByPlaceholderText(/So the owner knows/), {
       target: { value: 'Reviewer' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Send feedback \(1 suggestion\)/ }));
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('not found'));
-    expect(screen.getByRole('button', { name: /Counterspell/ })).toBeTruthy();
+    // The pending cut survives the failure (button reads as its toggled state).
+    expect(
+      screen.getByRole('button', { name: 'Undo cut suggestion for Counterspell' })
+    ).toBeTruthy();
   });
 });

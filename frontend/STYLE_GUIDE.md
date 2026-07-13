@@ -546,6 +546,23 @@ dead end (the authRequired state's sign-in CTA is the reference). Other rulings:
 silently cut off at 320px); mana costs render via the `ManaCost` primitive (never
 raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
+### Feedback view (suggestion-mode deck share)
+
+The feedback view is **card-forward like every other card surface** (grid of
+`SharedCardTile` art default, list with E128-sized thumbs as the alternate) —
+never a text-only checklist: a reviewer can't judge a cut without reading the
+card. Interaction ruling: **tap = read** (opens the `CardPreview` carousel,
+same as SharedDeckView) and the destructive-ish intent is an **explicit
+scissors toggle** — an overlay button on tiles (bottom-right; qty badge owns
+bottom-left, the "Cut" state chip owns top-left) and a trailing 44px button on
+list rows, both `aria-pressed`. The carousel offers the same toggle via
+`getActions` so judging and marking happen in one place. Commanders render for
+context but are not cuttable. Pending work stays visible via the sticky
+`.feedback-tally` pill (sticky bottom, `--z-dropdown`, safe-area offset) that
+scrolls to the submit form — on a 100-card deck the form is otherwise a full
+page-height away. The tally renders **only when suggestions exist** (insight
+surfaces never displace content).
+
 ## Info tooltips
 
 When a label needs a plain-language explainer for a concept not everyone knows
