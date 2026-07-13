@@ -3,10 +3,14 @@ import type { PlaytestCard } from '@/lib/playtest';
 import {
   createResistanceState,
   resistanceRespond,
+  RESISTANCE_PRESETS,
+  type ResistanceConfig,
   type ResistanceEvent,
   type ResistanceResponse,
   type ResistanceState,
 } from './resistance';
+
+const STANDARD = RESISTANCE_PRESETS.standard;
 
 function card(id: string, overrides: Partial<PlaytestCard> = {}): PlaytestCard {
   return { id, name: `Card ${id}`, ...overrides };
@@ -24,15 +28,21 @@ function board(cards: PlaytestCard[]) {
 
 const emptyBoard = board([]);
 
-/** Run a fixed event sequence, collecting (response | null) per step. */
+/** Run a fixed event sequence under `config`, collecting (response | null) per step. */
 function run(
   seed: number,
-  events: Array<{ event: ResistanceEvent; battlefield?: PlaytestCard[] }>
+  events: Array<{ event: ResistanceEvent; battlefield?: PlaytestCard[] }>,
+  config: ResistanceConfig = STANDARD
 ): Array<ResistanceResponse | null> {
   let state = createResistanceState(seed);
   const out: Array<ResistanceResponse | null> = [];
   for (const { event, battlefield } of events) {
-    const r = resistanceRespond(state, event, battlefield ? board(battlefield) : emptyBoard);
+    const r = resistanceRespond(
+      state,
+      event,
+      battlefield ? board(battlefield) : emptyBoard,
+      config
+    );
     state = r.state;
     out.push(r.response);
   }
@@ -40,9 +50,9 @@ function run(
 }
 
 describe('createResistanceState', () => {
-  it('starts with the wipe available and no response spent', () => {
+  it('starts with no wipes/responses spent', () => {
     const s = createResistanceState(123);
-    expect(s).toEqual({ seed: 123, wipeUsed: false, respondedThisTurn: false });
+    expect(s).toEqual({ seed: 123, wipesUsed: 0, responsesThisTurn: 0 });
   });
 
   it('coerces the seed to a uint32 and randomizes when omitted', () => {
@@ -52,18 +62,21 @@ describe('createResistanceState', () => {
 });
 
 describe('resistanceRespond — determinism', () => {
-  it('same seed and event sequence produce the same responses', () => {
+  it('same seed, event sequence, and config produce the same responses', () => {
     const events = Array.from({ length: 20 }, (_, i) =>
       i % 3 === 2
         ? { event: { kind: 'turnStart', turn: i } as ResistanceEvent }
         : { event: { kind: 'played', card: bigThreat } as ResistanceEvent }
     );
     expect(run(77, events)).toEqual(run(77, events));
+    expect(run(77, events, RESISTANCE_PRESETS.ruthless)).toEqual(
+      run(77, events, RESISTANCE_PRESETS.ruthless)
+    );
   });
 
   it('every call that rolls advances the seed', () => {
     const s0 = createResistanceState(5);
-    const r1 = resistanceRespond(s0, { kind: 'played', card: bigThreat }, emptyBoard);
+    const r1 = resistanceRespond(s0, { kind: 'played', card: bigThreat }, emptyBoard, STANDARD);
     expect(r1.state.seed).not.toBe(s0.seed);
   });
 });
@@ -75,7 +88,8 @@ describe('resistanceRespond — played events', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'played', card: land },
-        emptyBoard
+        emptyBoard,
+        STANDARD
       );
       expect(response).toBeNull();
     }
@@ -87,7 +101,8 @@ describe('resistanceRespond — played events', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'played', card: token },
-        emptyBoard
+        emptyBoard,
+        STANDARD
       );
       expect(response).toBeNull();
     }
@@ -97,18 +112,28 @@ describe('resistanceRespond — played events', () => {
     // Find a seed whose first play draws a response, then keep playing.
     for (let seed = 1; seed <= 2000; seed++) {
       let state = createResistanceState(seed);
-      const first = resistanceRespond(state, { kind: 'played', card: bigThreat }, emptyBoard);
+      const first = resistanceRespond(
+        state,
+        { kind: 'played', card: bigThreat },
+        emptyBoard,
+        STANDARD
+      );
       if (!first.response) continue;
       state = first.state;
       // Same turn: no further responses no matter how many plays follow.
       for (let i = 0; i < 10; i++) {
-        const again = resistanceRespond(state, { kind: 'played', card: bigThreat }, emptyBoard);
+        const again = resistanceRespond(
+          state,
+          { kind: 'played', card: bigThreat },
+          emptyBoard,
+          STANDARD
+        );
         expect(again.response).toBeNull();
         state = again.state;
       }
       // New turn: the opponent may respond again (budget reset observable).
-      const reset = resistanceRespond(state, { kind: 'turnStart', turn: 2 }, emptyBoard);
-      expect(reset.state.respondedThisTurn).toBe(false);
+      const reset = resistanceRespond(state, { kind: 'turnStart', turn: 2 }, emptyBoard, STANDARD);
+      expect(reset.state.responsesThisTurn).toBe(0);
       return;
     }
     throw new Error('no seed in 1..2000 produced a response to a high threat');
@@ -119,7 +144,8 @@ describe('resistanceRespond — played events', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'played', card: bigThreat },
-        emptyBoard
+        emptyBoard,
+        STANDARD
       );
       if (!response) continue;
       expect(response.targetIds).toEqual([bigThreat.id]);
@@ -134,7 +160,8 @@ describe('resistanceRespond — played events', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'played', card: bigThreat },
-        emptyBoard
+        emptyBoard,
+        STANDARD
       );
       if (response) seen.set(response.effect, response);
     }
@@ -159,13 +186,18 @@ describe('resistanceRespond — played events', () => {
         resistanceRespond(
           createResistanceState(seed),
           { kind: 'played', card: bigThreat },
-          emptyBoard
+          emptyBoard,
+          STANDARD
         ).response
       )
         high++;
       if (
-        resistanceRespond(createResistanceState(seed), { kind: 'played', card: cheap }, emptyBoard)
-          .response
+        resistanceRespond(
+          createResistanceState(seed),
+          { kind: 'played', card: cheap },
+          emptyBoard,
+          STANDARD
+        ).response
       )
         low++;
     }
@@ -182,7 +214,8 @@ describe('resistanceRespond — played events', () => {
       responded = !!resistanceRespond(
         createResistanceState(seed),
         { kind: 'played', card: unknown },
-        emptyBoard
+        emptyBoard,
+        STANDARD
       ).response;
     }
     expect(responded).toBe(true);
@@ -194,12 +227,13 @@ describe('resistanceRespond — turnStart / board wipe', () => {
     card(`p${i}`, { name: `Permanent ${i}`, typeLine: 'Creature — Human', manaValue: 3 })
   );
 
-  function findWipeSeed(): number {
+  function findWipeSeed(config: ResistanceConfig = STANDARD): number {
     for (let seed = 1; seed <= 2000; seed++) {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'turnStart', turn: 2 },
-        board(permanents)
+        board(permanents),
+        config
       );
       if (response?.effect === 'wipe') return seed;
     }
@@ -212,7 +246,8 @@ describe('resistanceRespond — turnStart / board wipe', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'turnStart', turn: 2 },
-        board(four)
+        board(four),
+        STANDARD
       );
       expect(response).toBeNull();
     }
@@ -229,7 +264,8 @@ describe('resistanceRespond — turnStart / board wipe', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'turnStart', turn: 2 },
-        board(mixed)
+        board(mixed),
+        STANDARD
       );
       expect(response).toBeNull();
     }
@@ -238,39 +274,57 @@ describe('resistanceRespond — turnStart / board wipe', () => {
     const { response } = resistanceRespond(
       createResistanceState(seed),
       { kind: 'turnStart', turn: 2 },
-      board([...permanents, card('land2', { typeLine: 'Land — Island' })])
+      board([...permanents, card('land2', { typeLine: 'Land — Island' })]),
+      STANDARD
     );
     expect(response?.effect).toBe('wipe');
     expect(response?.targetIds.sort()).toEqual(permanents.map((p) => p.id).sort());
   });
 
-  it('wipes at most once per game and announces without a card name', () => {
+  it('wipes at most `wipesPerGame` times and announces without a card name', () => {
     const seed = findWipeSeed();
     let state: ResistanceState = createResistanceState(seed);
-    const first = resistanceRespond(state, { kind: 'turnStart', turn: 2 }, board(permanents));
+    const first = resistanceRespond(
+      state,
+      { kind: 'turnStart', turn: 2 },
+      board(permanents),
+      STANDARD
+    );
     expect(first.response?.effect).toBe('wipe');
     expect(first.response?.message).toBe(
       `Opponent casts ${first.response?.spellName} — the board is wiped`
     );
-    expect(first.state.wipeUsed).toBe(true);
-    // Every later turnStart, regardless of board size, never wipes again.
+    expect(first.state.wipesUsed).toBe(1);
+    // Every later turnStart, regardless of board size, never wipes again
+    // (standard's budget is 1).
     state = first.state;
     for (let turn = 3; turn <= 30; turn++) {
-      const later = resistanceRespond(state, { kind: 'turnStart', turn }, board(permanents));
+      const later = resistanceRespond(
+        state,
+        { kind: 'turnStart', turn },
+        board(permanents),
+        STANDARD
+      );
       expect(later.response).toBeNull();
       state = later.state;
     }
   });
 
-  it('a wipe spends the one response for that turn', () => {
+  it('a wipe spends the turn budget', () => {
     const seed = findWipeSeed();
     const wiped = resistanceRespond(
       createResistanceState(seed),
       { kind: 'turnStart', turn: 2 },
-      board(permanents)
+      board(permanents),
+      STANDARD
     );
-    expect(wiped.state.respondedThisTurn).toBe(true);
-    const play = resistanceRespond(wiped.state, { kind: 'played', card: bigThreat }, emptyBoard);
+    expect(wiped.state.responsesThisTurn).toBe(1);
+    const play = resistanceRespond(
+      wiped.state,
+      { kind: 'played', card: bigThreat },
+      emptyBoard,
+      STANDARD
+    );
     expect(play.response).toBeNull();
   });
 
@@ -280,16 +334,104 @@ describe('resistanceRespond — turnStart / board wipe', () => {
       const played = resistanceRespond(
         createResistanceState(seed),
         { kind: 'played', card: bigThreat },
-        emptyBoard
+        emptyBoard,
+        STANDARD
       ).response;
       if (played) effects.add(played.effect);
       const wiped = resistanceRespond(
         createResistanceState(seed),
         { kind: 'turnStart', turn: 2 },
-        board(permanents)
+        board(permanents),
+        STANDARD
       ).response;
       if (wiped) effects.add(wiped.effect);
     }
     expect([...effects].sort()).toEqual(['bounce', 'counter', 'destroy', 'wipe']);
+  });
+
+  it('ruthless allows a second wipe once the first is spent', () => {
+    const config = RESISTANCE_PRESETS.ruthless;
+    const seed = findWipeSeed(config);
+    let state = createResistanceState(seed);
+    const first = resistanceRespond(
+      state,
+      { kind: 'turnStart', turn: 2 },
+      board(permanents),
+      config
+    );
+    expect(first.response?.effect).toBe('wipe');
+    expect(first.state.wipesUsed).toBe(1);
+    state = first.state;
+
+    // Keep advancing turns until a second wipe fires, or fail within a bound.
+    let secondWiped = false;
+    for (let turn = 3; turn <= 5000 && !secondWiped; turn++) {
+      const r = resistanceRespond(state, { kind: 'turnStart', turn }, board(permanents), config);
+      state = r.state;
+      if (r.response?.effect === 'wipe') secondWiped = true;
+    }
+    expect(secondWiped).toBe(true);
+    expect(state.wipesUsed).toBe(2);
+
+    // The budget (2) is now exhausted — no third wipe, ever.
+    for (let turn = 5001; turn <= 5100; turn++) {
+      const r = resistanceRespond(state, { kind: 'turnStart', turn }, board(permanents), config);
+      expect(r.response?.effect).not.toBe('wipe');
+      state = r.state;
+    }
+  });
+});
+
+describe('preset behavior differences', () => {
+  it('standard preset is byte-for-byte the legacy hardcoded constants', () => {
+    expect(STANDARD).toEqual({
+      responseChance: { high: 0.45, medium: 0.3, low: 0.12 },
+      counterShare: 0.5,
+      destroyShare: 0.35,
+      wipeChance: 0.25,
+      wipeMinPermanents: 5,
+      wipesPerGame: 1,
+      maxResponsesPerTurn: 1,
+    });
+  });
+
+  it('casual responds less often than standard, which responds less often than ruthless', () => {
+    function responseRate(config: ResistanceConfig, threat: PlaytestCard, seeds: number): number {
+      let hits = 0;
+      for (let seed = 1; seed <= seeds; seed++) {
+        if (
+          resistanceRespond(
+            createResistanceState(seed),
+            { kind: 'played', card: threat },
+            emptyBoard,
+            config
+          ).response
+        )
+          hits++;
+      }
+      return hits / seeds;
+    }
+    const casual = responseRate(RESISTANCE_PRESETS.casual, bigThreat, 2000);
+    const standard = responseRate(RESISTANCE_PRESETS.standard, bigThreat, 2000);
+    const ruthless = responseRate(RESISTANCE_PRESETS.ruthless, bigThreat, 2000);
+    expect(casual).toBeLessThan(standard);
+    expect(standard).toBeLessThan(ruthless);
+  });
+
+  it("ruthless's maxResponsesPerTurn allows two responses in the same turn", () => {
+    const config = RESISTANCE_PRESETS.ruthless;
+    const threats = [bigThreat, { ...bigThreat, id: 'threat-2' }, { ...bigThreat, id: 'threat-3' }];
+    for (let seed = 1; seed <= 2000; seed++) {
+      let state = createResistanceState(seed);
+      let hits = 0;
+      for (const t of threats) {
+        const r = resistanceRespond(state, { kind: 'played', card: t }, emptyBoard, config);
+        state = r.state;
+        if (r.response) hits++;
+      }
+      if (hits === 2) return; // found a seed with two responses in one turn — budget honored
+      expect(hits).toBeLessThanOrEqual(config.maxResponsesPerTurn);
+    }
+    throw new Error('no seed in 1..2000 produced two ruthless responses in one turn');
   });
 });

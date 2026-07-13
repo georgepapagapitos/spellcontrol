@@ -17,7 +17,11 @@
 import { playtestLifeConfig } from './life-config';
 import type { PlaytestState } from './types';
 import type { GameLogEntry } from './game-log';
-import type { ResistanceState } from '@/playtest/lib/resistance';
+import {
+  RESISTANCE_LEVELS,
+  type ResistanceLevel,
+  type ResistanceState,
+} from '@/playtest/lib/resistance';
 import type { Deck } from '@/store/decks';
 
 /** Mirrors `PlaytestPhase` in `@/playtest/store` (kept local to avoid a cycle). */
@@ -29,7 +33,9 @@ export interface PlaytestSnapshot {
   savedAt: number;
   phase: PlaytestSnapshotPhase;
   mulliganCount: number;
-  resistance: boolean;
+  /** E142: difficulty level. A snapshot saved before this field existed carries a
+   *  legacy `resistance: boolean` instead — see `normalizeResistanceLevel`. */
+  resistanceLevel: ResistanceLevel;
   resistanceState: ResistanceState | null;
   /** Reducer state minus `past` (the undo stack — too big, not persisted). */
   state: Omit<PlaytestState, 'past'>;
@@ -62,7 +68,6 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
     typeof s.savedAt !== 'number' ||
     typeof s.phase !== 'string' ||
     typeof s.mulliganCount !== 'number' ||
-    typeof s.resistance !== 'boolean' ||
     !s.state ||
     typeof s.state !== 'object'
   ) {
@@ -114,6 +119,21 @@ export function migrateSnapshotState(
   };
 }
 
+/**
+ * E142: a snapshot saved before difficulty presets shipped carries a legacy
+ * `resistance: boolean` instead of `resistanceLevel`. Maps `true` → the old
+ * always-on behavior (`'standard'`, byte-identical to the removed constants)
+ * and `false`/absent → `'off'`. A snapshot that already has a valid
+ * `resistanceLevel` passes through unchanged.
+ */
+function normalizeResistanceLevel(v: unknown): ResistanceLevel {
+  const raw = v as { resistanceLevel?: unknown; resistance?: unknown };
+  if (RESISTANCE_LEVELS.includes(raw.resistanceLevel as ResistanceLevel)) {
+    return raw.resistanceLevel as ResistanceLevel;
+  }
+  return raw.resistance === true ? 'standard' : 'off';
+}
+
 function readIndex(): string[] {
   try {
     const raw = localStorage.getItem(INDEX_KEY);
@@ -163,7 +183,12 @@ export function loadPlaytestSnapshot(deckId: string, fingerprint: string): Playt
       return null;
     }
     // Snapshots saved before E140 have no `gameLog` — load them with an empty one.
-    return { ...parsed, gameLog: Array.isArray(parsed.gameLog) ? parsed.gameLog : [] };
+    // Snapshots saved before E142 have `resistance: boolean` instead of a level.
+    return {
+      ...parsed,
+      gameLog: Array.isArray(parsed.gameLog) ? parsed.gameLog : [],
+      resistanceLevel: normalizeResistanceLevel(parsed),
+    };
   } catch {
     clearPlaytestSnapshot(deckId);
     return null;

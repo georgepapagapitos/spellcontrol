@@ -32,6 +32,8 @@ import { DiceRoller } from './DiceRoller';
 import { PlaytestStatsSheet } from './PlaytestStatsSheet';
 import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
+import { ResistancePicker } from './ResistancePicker';
+import { RESISTANCE_LEVEL_ANNOUNCE } from '../lib/resistance';
 import { resolveTokenArt } from '../lib/token-art';
 import { commanderTaxAmount } from '../lib/zones';
 import { LifeStrip } from './LifeStrip';
@@ -57,8 +59,8 @@ export function PlaytestBoard({ state }: Props) {
   const keepOpeningHand = usePlaytestStore((s) => s.keepOpeningHand);
   const mulliganOpeningHand = usePlaytestStore((s) => s.mulliganOpeningHand);
   const finalizeBottom = usePlaytestStore((s) => s.finalizeBottom);
-  const resistanceOn = usePlaytestStore((s) => s.resistance);
-  const toggleResistance = usePlaytestStore((s) => s.toggleResistance);
+  const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
+  const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
   const gameLog = usePlaytestStore((s) => s.gameLog);
   const logScryPeek = usePlaytestStore((s) => s.logScryPeek);
@@ -96,6 +98,7 @@ export function PlaytestBoard({ state }: Props) {
   // dot; not persisted, a soft nice-to-have that resets on remount.
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
+  const [showResistancePicker, setShowResistancePicker] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [lifePanelOpen, setLifePanelOpen] = useState(false);
   // Banner dismissal is tracked by event id so a new opponent response (even
@@ -220,6 +223,7 @@ export function PlaytestBoard({ state }: Props) {
     showStats ||
     showLog ||
     showDice ||
+    showResistancePicker ||
     lifePanelOpen ||
     Boolean(confirmDialog);
 
@@ -238,15 +242,15 @@ export function PlaytestBoard({ state }: Props) {
 
   // Resistance's only explanation used to be a hover `title` on the toggle —
   // invisible on touch. Reuse the existing opponent-announcement banner to
-  // show a one-time explanation when Resistance is switched on; a real
-  // opponent event (which shares the same single-slot banner below) takes
-  // over from it. Derived during render (not an effect) per React's
-  // "adjusting state when a prop changes" pattern.
+  // show a one-time explanation naming the picked level; a real opponent
+  // event (which shares the same single-slot banner below) takes over from
+  // it. Derived during render (not an effect) per React's "adjusting state
+  // when a prop changes" pattern.
   const [resistanceIntro, setResistanceIntro] = useState(false);
-  const [prevResistanceOn, setPrevResistanceOn] = useState(resistanceOn);
-  if (resistanceOn !== prevResistanceOn) {
-    setPrevResistanceOn(resistanceOn);
-    setResistanceIntro(resistanceOn);
+  const [prevResistanceLevel, setPrevResistanceLevel] = useState(resistanceLevel);
+  if (resistanceLevel !== prevResistanceLevel) {
+    setPrevResistanceLevel(resistanceLevel);
+    setResistanceIntro(resistanceLevel !== 'off');
   }
   const lastEventId = lastResistanceEvent?.id;
   const [prevEventId, setPrevEventId] = useState(lastEventId);
@@ -351,8 +355,8 @@ export function PlaytestBoard({ state }: Props) {
         onOpenStats={() => setShowStats(true)}
         onOpenLog={handleOpenLog}
         onOpenDice={() => setShowDice(true)}
-        onToggleResistance={toggleResistance}
-        resistanceOn={resistanceOn}
+        onOpenResistance={() => setShowResistancePicker(true)}
+        resistanceLevel={resistanceLevel}
         hasUnreadLog={hasUnreadLog}
       />
       <LifeStrip
@@ -383,10 +387,11 @@ export function PlaytestBoard({ state }: Props) {
           onDismiss={() => setDismissedResistanceId(lastResistanceEvent.id)}
         />
       ) : (
-        resistanceIntro && (
+        resistanceIntro &&
+        resistanceLevel !== 'off' && (
           <ResistanceBanner
             key="resistance-intro"
-            message="Resistance on — expect occasional counters, removal, and a board wipe."
+            message={RESISTANCE_LEVEL_ANNOUNCE[resistanceLevel]}
             onDismiss={() => setResistanceIntro(false)}
           />
         )
@@ -547,6 +552,14 @@ export function PlaytestBoard({ state }: Props) {
       )}
 
       {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
+
+      {showResistancePicker && (
+        <ResistancePicker
+          level={resistanceLevel}
+          onSelect={setResistanceLevel}
+          onClose={() => setShowResistancePicker(false)}
+        />
+      )}
 
       {phase !== 'playing' && (
         <OpeningHandSheet
