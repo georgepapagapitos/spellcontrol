@@ -3,7 +3,7 @@ import './PlaytestStatsSheet.css';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
-import type { PlaytestState } from '@/lib/playtest';
+import { isOpponentDefeated, type PlaytestState } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
 import {
@@ -262,8 +262,47 @@ function DeckStatsSection({
     return simulateOpeningHands(simCards, { iterations: 500, seed: 42 });
   }, [deck?.id, deck?.cards.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const defeatedCount = state.opponents.filter((o) =>
+    isOpponentDefeated(o, state.commanderDamageThreshold)
+  ).length;
+
   return (
     <div className="playtest-stats-rows">
+      {/* Life / commander damage (E138) — the goldfish payoff: what turn do I win. */}
+      <div className="playtest-stats-row">
+        <span className="playtest-stats-row__label">You</span>
+        <span className="playtest-stats-row__value">{state.life} life</span>
+      </div>
+      {state.opponents.map((o, i) => (
+        <div key={i} className="playtest-stats-row">
+          <span className="playtest-stats-row__label">
+            {state.opponents.length > 1 ? `Opponent ${i + 1}` : 'Opponent'}
+          </span>
+          <span className="playtest-stats-row__value">
+            {o.life} life
+            {o.commanderDamage > 0 ? ` · ${o.commanderDamage} cmdr dmg` : ''}
+            {isOpponentDefeated(o, state.commanderDamageThreshold) ? ' · defeated' : ''}
+          </span>
+        </div>
+      ))}
+      {state.opponents.length > 1 && (
+        <div className="playtest-stats-row">
+          <span className="playtest-stats-row__label">Defeated</span>
+          <span className="playtest-stats-row__value">
+            {defeatedCount} / {state.opponents.length}
+          </span>
+        </div>
+      )}
+      {state.tableDefeatedTurn !== null && (
+        <div className="playtest-stats-row">
+          <span className="playtest-stats-row__label">Table defeated</span>
+          <span className="playtest-stats-verdict playtest-stats-verdict--keep">
+            Turn {state.tableDefeatedTurn}
+          </span>
+        </div>
+      )}
+      <hr className="playtest-stats-divider" />
+
       {/* Session info */}
       <div className="playtest-stats-row">
         <span className="playtest-stats-row__label">Turn</span>

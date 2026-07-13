@@ -40,6 +40,14 @@ export interface BattlefieldCard {
   showBackFace?: boolean;
 }
 
+/** One virtual opponent's damage bookkeeping. `commanderDamage` is damage
+ *  dealt by *your* commander specifically — the alternate 21-damage kill
+ *  condition, tracked separately from general life loss. */
+export interface OpponentLife {
+  life: number;
+  commanderDamage: number;
+}
+
 export interface PlaytestState {
   zones: Record<Zone, PlaytestCard[]>;
   battlefield: BattlefieldCard[];
@@ -50,6 +58,24 @@ export interface PlaytestState {
    *  moves command → battlefield, never decremented (undo restores it via the
    *  normal snapshot mechanism). */
   commanderTax: Record<string, number>;
+  /** Your life total. */
+  life: number;
+  /** N virtual opponents (E138) — no opponent board/rules engine, just
+   *  damage bookkeeping so a goldfish session can answer "what turn do I win." */
+  opponents: OpponentLife[];
+  /** Starting values, remembered so RESET can restore them (format-aware —
+   *  see `playtestLifeConfig`). Every format table entry currently has
+   *  starting life equal for you and opponents, but both are kept in case a
+   *  future caller diverges them. */
+  startingLife: number;
+  startingOpponentLife: number;
+  /** Commander damage at/above this is lethal (21 normal, 16 for PDH). */
+  commanderDamageThreshold: number;
+  /** Turn number on which the last opponent flipped to defeated, or null if
+   *  the table hasn't been swept yet. Recorded (not derived) because
+   *  "defeated" itself is recomputed live — see `isOpponentDefeated` — but
+   *  the turn it *first* happened on isn't recoverable after the fact. */
+  tableDefeatedTurn: number | null;
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -86,11 +112,20 @@ export type PlaytestAction =
     }
   | { type: 'NEXT_TURN' }
   | { type: 'RESET' }
-  | { type: 'UNDO' };
+  | { type: 'UNDO' }
+  /** `player: 'self'` adjusts your life; a number adjusts `opponents[n]`'s life. */
+  | { type: 'ADJUST_LIFE'; player: 'self' | number; delta: number }
+  | { type: 'ADJUST_COMMANDER_DAMAGE'; opponent: number; delta: number };
 
 export interface PlaytestInit {
   library: PlaytestCard[];
   command?: PlaytestCard[];
   seed?: number;
   openingHandSize?: number;
+  /** Format-aware life/opponent setup — see `playtestLifeConfig`. All optional
+   *  so existing callers (tests, ad-hoc inits) default to a 1v1 20-life game. */
+  life?: number;
+  opponentCount?: number;
+  opponentLife?: number;
+  commanderDamageThreshold?: number;
 }

@@ -9,6 +9,7 @@ import {
 import { appendLogEntries, buildLogEntries, type GameLogEntry } from '@/lib/playtest/game-log';
 import {
   fingerprintDeck,
+  migrateSnapshotState,
   savePlaytestSnapshot,
   type PlaytestSnapshot,
 } from '@/lib/playtest/session-snapshot';
@@ -105,12 +106,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     });
   },
   hydrate(deckId, snapshot) {
+    // Older snapshots (pre-E138) have no life/opponents fields — backfill
+    // format-aware defaults rather than crash the reducer on undefined life.
+    const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
+    const migrated = migrateSnapshotState(snapshot.state, deck);
     set({
       deckId,
       // `commanderTax` postdates the original snapshot shape (E139) — backfill
       // so a pre-existing localStorage session from before that change doesn't
       // crash the reducer the first time a commander leaves the command zone.
-      state: { ...snapshot.state, commanderTax: snapshot.state.commanderTax ?? {}, past: [] },
+      // `migrated` already backfills the E138 life/opponents fields.
+      state: { ...migrated, commanderTax: migrated.commanderTax ?? {}, past: [] },
       phase: snapshot.phase,
       mulliganCount: snapshot.mulliganCount,
       resistance: snapshot.resistance,

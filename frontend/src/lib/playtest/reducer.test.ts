@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyAction, createPlaytestState } from './reducer';
+import { isOpponentDefeated } from './life-config';
 import type { PlaytestCard, PlaytestState } from './types';
 
 function card(id: string, overrides: Partial<PlaytestCard> = {}): PlaytestCard {
@@ -664,5 +665,175 @@ describe('card conservation', () => {
     s = applyAction(s, { type: 'SHUFFLE_LIBRARY' });
     s = applyAction(s, { type: 'NEXT_TURN' });
     expect(allCardIds(s)).toEqual(initialIds);
+  });
+});
+
+describe('life & opponents (E138)', () => {
+  it('defaults to a 1v1, 20-life game when no life config is given', () => {
+    const s = init();
+    expect(s.life).toBe(20);
+    expect(s.opponents).toEqual([{ life: 20, commanderDamage: 0 }]);
+    expect(s.startingLife).toBe(20);
+    expect(s.startingOpponentLife).toBe(20);
+    expect(s.commanderDamageThreshold).toBe(21);
+    expect(s.tableDefeatedTurn).toBeNull();
+  });
+
+  it('honors a custom life config (commander multiplayer shape)', () => {
+    const s = createPlaytestState({
+      library: deck(20),
+      seed: 1,
+      life: 40,
+      opponentCount: 3,
+      opponentLife: 40,
+      commanderDamageThreshold: 21,
+    });
+    expect(s.life).toBe(40);
+    expect(s.opponents).toEqual([
+      { life: 40, commanderDamage: 0 },
+      { life: 40, commanderDamage: 0 },
+      { life: 40, commanderDamage: 0 },
+    ]);
+  });
+
+  describe('ADJUST_LIFE', () => {
+    it('adjusts your own life', () => {
+      let s = init();
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 'self', delta: -5 });
+      expect(s.life).toBe(15);
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 'self', delta: 3 });
+      expect(s.life).toBe(18);
+    });
+
+    it('life has no floor — it can go negative (bookkeeping, not a game over)', () => {
+      let s = init();
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 'self', delta: -25 });
+      expect(s.life).toBe(-5);
+    });
+
+    it('adjusts a specific opponent by index, leaving the others untouched', () => {
+      let s = createPlaytestState({
+        library: deck(20),
+        seed: 1,
+        opponentCount: 3,
+        opponentLife: 40,
+      });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 1, delta: -10 });
+      expect(s.opponents.map((o) => o.life)).toEqual([40, 30, 40]);
+    });
+
+    it('is a no-op for an out-of-range opponent index', () => {
+      const s = init();
+      const next = applyAction(s, { type: 'ADJUST_LIFE', player: 5, delta: -1 });
+      expect(next).toBe(s);
+      const negative = applyAction(s, { type: 'ADJUST_LIFE', player: -1, delta: -1 });
+      expect(negative).toBe(s);
+    });
+
+    it('is a no-op for a zero delta (no history entry pushed)', () => {
+      const s = init();
+      expect(applyAction(s, { type: 'ADJUST_LIFE', player: 'self', delta: 0 })).toBe(s);
+    });
+  });
+
+  describe('ADJUST_COMMANDER_DAMAGE', () => {
+    it('accumulates commander damage on the targeted opponent', () => {
+      let s = init();
+      s = applyAction(s, { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 6 });
+      s = applyAction(s, { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 6 });
+      expect(s.opponents[0].commanderDamage).toBe(12);
+    });
+
+    it('clamps at 0 — healing past zero does not go negative', () => {
+      let s = init();
+      s = applyAction(s, { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 4 });
+      s = applyAction(s, { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: -10 });
+      expect(s.opponents[0].commanderDamage).toBe(0);
+    });
+
+    it('is a no-op for an out-of-range opponent index', () => {
+      const s = init();
+      expect(applyAction(s, { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 3, delta: 1 })).toBe(s);
+    });
+  });
+
+  describe('defeat derivation + table-defeated turn', () => {
+    it('isOpponentDefeated is true at life <= 0 or commander damage >= threshold', () => {
+      expect(isOpponentDefeated({ life: 0, commanderDamage: 0 }, 21)).toBe(true);
+      expect(isOpponentDefeated({ life: -3, commanderDamage: 0 }, 21)).toBe(true);
+      expect(isOpponentDefeated({ life: 40, commanderDamage: 21 }, 21)).toBe(true);
+      expect(isOpponentDefeated({ life: 1, commanderDamage: 20 }, 21)).toBe(false);
+    });
+
+    it('un-defeats on healing — it is derived live, never sticky per-opponent', () => {
+      let s = createPlaytestState({
+        library: deck(20),
+        seed: 1,
+        opponentCount: 1,
+        opponentLife: 5,
+      });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 0, delta: -5 });
+      expect(isOpponentDefeated(s.opponents[0], s.commanderDamageThreshold)).toBe(true);
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 0, delta: 1 });
+      expect(isOpponentDefeated(s.opponents[0], s.commanderDamageThreshold)).toBe(false);
+    });
+
+    it('records tableDefeatedTurn only once every opponent is defeated, and it sticks', () => {
+      let s = createPlaytestState({
+        library: deck(20),
+        seed: 1,
+        opponentCount: 2,
+        opponentLife: 5,
+      });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 0, delta: -5 });
+      expect(s.tableDefeatedTurn).toBeNull(); // only one of two opponents down
+      s = applyAction(s, { type: 'NEXT_TURN' });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 1, delta: -5 });
+      expect(s.tableDefeatedTurn).toBe(s.turn);
+      const turnRecorded = s.tableDefeatedTurn;
+      // Healing an opponent back up doesn't un-record the milestone.
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 1, delta: 5 });
+      expect(s.tableDefeatedTurn).toBe(turnRecorded);
+    });
+
+    it('RESET clears tableDefeatedTurn and restores starting life for you and every opponent', () => {
+      let s = createPlaytestState({
+        library: deck(20),
+        seed: 1,
+        life: 40,
+        opponentCount: 2,
+        opponentLife: 5,
+      });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 'self', delta: -30 });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 0, delta: -5 });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 1, delta: -5 });
+      expect(s.tableDefeatedTurn).not.toBeNull();
+      s = applyAction(s, { type: 'RESET' });
+      expect(s.life).toBe(40);
+      expect(s.opponents).toEqual([
+        { life: 5, commanderDamage: 0 },
+        { life: 5, commanderDamage: 0 },
+      ]);
+      expect(s.tableDefeatedTurn).toBeNull();
+    });
+  });
+
+  describe('undo', () => {
+    it('rolls back life, commander damage, and tableDefeatedTurn together with everything else', () => {
+      let s = createPlaytestState({
+        library: deck(20),
+        seed: 1,
+        opponentCount: 1,
+        opponentLife: 5,
+      });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 'self', delta: -3 });
+      s = applyAction(s, { type: 'ADJUST_LIFE', player: 0, delta: -5 });
+      expect(s.tableDefeatedTurn).not.toBeNull();
+      s = applyAction(s, { type: 'UNDO' });
+      expect(s.opponents[0].life).toBe(5);
+      expect(s.tableDefeatedTurn).toBeNull();
+      s = applyAction(s, { type: 'UNDO' });
+      expect(s.life).toBe(20);
+    });
   });
 });

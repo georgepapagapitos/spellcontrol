@@ -14,6 +14,7 @@
  * surviving a reload/resume is an accepted tradeoff.
  */
 
+import { playtestLifeConfig } from './life-config';
 import type { PlaytestState } from './types';
 import type { GameLogEntry } from './game-log';
 import type { ResistanceState } from '@/playtest/lib/resistance';
@@ -68,13 +69,49 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
     return false;
   }
   const state = s.state as Record<string, unknown>;
-  return (
-    typeof state.turn === 'number' &&
-    typeof state.rngSeed === 'number' &&
-    Array.isArray(state.battlefield) &&
-    !!state.zones &&
-    typeof state.zones === 'object'
-  );
+  if (
+    typeof state.turn !== 'number' ||
+    typeof state.rngSeed !== 'number' ||
+    !Array.isArray(state.battlefield) ||
+    !state.zones ||
+    typeof state.zones !== 'object'
+  ) {
+    return false;
+  }
+  // Life fields (E138) are optional here — an OLDER snapshot predates them
+  // entirely and gets backfilled by `migrateSnapshotState` below. But if
+  // present at all, they must be well-formed (a half-corrupt shape is
+  // rejected outright rather than fed to the reducer).
+  if (state.life !== undefined && typeof state.life !== 'number') return false;
+  if (state.opponents !== undefined && !Array.isArray(state.opponents)) return false;
+  return true;
+}
+
+/**
+ * Backfills the life/opponents fields (E138) onto a snapshot's state that
+ * predates them, using the same format-aware defaults a fresh game would get.
+ * A snapshot that already has them (the common case) passes through
+ * unchanged. Never throws — worst case a snapshot that's missing `deck`
+ * context falls back to the generic 1v1/20-life config.
+ */
+export function migrateSnapshotState(
+  state: Omit<PlaytestState, 'past'>,
+  deck: Pick<Deck, 'format'> | undefined
+): Omit<PlaytestState, 'past'> {
+  if (typeof state.life === 'number' && Array.isArray(state.opponents)) return state;
+  const cfg = playtestLifeConfig(deck?.format);
+  return {
+    ...state,
+    life: cfg.life,
+    opponents: Array.from({ length: cfg.opponentCount }, () => ({
+      life: cfg.opponentLife,
+      commanderDamage: 0,
+    })),
+    startingLife: cfg.life,
+    startingOpponentLife: cfg.opponentLife,
+    commanderDamageThreshold: cfg.commanderDamageThreshold,
+    tableDefeatedTurn: null,
+  };
 }
 
 function readIndex(): string[] {
