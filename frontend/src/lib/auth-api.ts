@@ -40,6 +40,19 @@ export interface SyncDeletion {
   id: string;
 }
 
+/**
+ * Card-only reject-stale check (E129): asserts the client's believed live
+ * copyIds for a (scryfallId, finish) printing group, so the server can detect
+ * a concurrent add/remove for that SAME group before applying this batch's
+ * upserts/deletions for it. See routes/sync.ts for the server-side semantics.
+ */
+export interface SyncCardGroupCheck {
+  scryfallId: string;
+  finish: string;
+  /** Sorted copyIds the client believes are currently live for this group. */
+  baseline: string[];
+}
+
 export interface SyncPushResult {
   applied: Array<{
     kind: SyncKind;
@@ -48,10 +61,12 @@ export interface SyncPushResult {
     deletedAt: number | null;
   }>;
   conflicts?: Array<{
-    kind: 'deck';
+    kind: 'deck' | 'card';
     id: string;
     serverRev: number;
     serverData: unknown;
+    /** Card-only; the row's owning import so a restore doesn't lose it. */
+    importId?: string;
   }>;
   cursor: number;
 }
@@ -275,6 +290,7 @@ export async function pullSync(
 export async function pushSync(input: {
   upserts: SyncUpsert[];
   deletions: SyncDeletion[];
+  cardGroupChecks?: SyncCardGroupCheck[];
 }): Promise<SyncPushResult> {
   const res = await authedFetch('/api/sync', {
     method: 'POST',

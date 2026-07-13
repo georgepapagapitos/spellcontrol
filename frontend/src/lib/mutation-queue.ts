@@ -20,6 +20,20 @@ const DB_NAME = 'spellcontrol-sync-queue';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending';
 
+/**
+ * Card-only: the (scryfallId, finish) printing group a mutation belongs to,
+ * set only when the mutation is a cardinality change (a brand-new copy
+ * joining an already-owned group, or a copy being removed) — see the E129
+ * reject-stale check in sync.ts's persistKind/buildOutbound. Baked in at
+ * enqueue time because it's an immutable identity fact (a copyId's printing
+ * never changes), unlike the mutable baseline buildOutbound re-derives at
+ * send time.
+ */
+export interface CardGroup {
+  scryfallId: string;
+  finish: string;
+}
+
 export type Mutation =
   | {
       op: 'upsert';
@@ -28,8 +42,9 @@ export type Mutation =
       data: unknown;
       importId?: string;
       clientRev?: number;
+      cardGroup?: CardGroup;
     }
-  | { op: 'delete'; kind: EntityKind; id: string };
+  | { op: 'delete'; kind: EntityKind; id: string; cardGroup?: CardGroup };
 
 export interface QueuedMutation {
   /** Auto-assigned by IDB. Strictly increasing. */
