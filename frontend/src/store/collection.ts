@@ -652,6 +652,10 @@ export const useCollectionStore = create<CollectionState>()(
           }
         } catch (err) {
           logger.warn('[store] Failed to persist after deleteImports:', err);
+          set({
+            error:
+              "Cards removed in memory but couldn't be saved locally. They will reappear if you refresh the page.",
+          });
         }
         if (removedCount > 0) {
           toast.show({
@@ -690,6 +694,10 @@ export const useCollectionStore = create<CollectionState>()(
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
           logger.warn('[store] Failed to persist after replaceAllCards:', err);
+          set({
+            error:
+              "Change saved in memory but couldn't be saved locally. It will be lost if you refresh the page.",
+          });
         }
       },
 
@@ -707,6 +715,10 @@ export const useCollectionStore = create<CollectionState>()(
           await saveCollection(buildStored({ ...get() }));
         } catch (err) {
           logger.warn('[store] Failed to persist after addCard:', err);
+          set({
+            error:
+              "Card added in memory but couldn't be saved locally. It will be lost if you refresh the page.",
+          });
         }
         return rows.map((r) => r.copyId);
       },
@@ -969,6 +981,10 @@ export const useCollectionStore = create<CollectionState>()(
           await clearCollection();
         } catch (err) {
           logger.warn('[store] Failed to clear cache:', err);
+          set({
+            error:
+              "Collection cleared in memory but couldn't be cleared locally. It may reappear if you refresh the page.",
+          });
         }
         // Offer one-shot undo of this hard-to-reverse wipe.
         if (snapshotHasContent(snap)) {
@@ -1080,6 +1096,10 @@ export const useCollectionStore = create<CollectionState>()(
           }
         } catch (err) {
           logger.warn('[store] Failed to persist restored collection:', err);
+          set({
+            error:
+              "Undo applied in memory but couldn't be saved locally. It will be lost if you refresh the page.",
+          });
         }
       },
 

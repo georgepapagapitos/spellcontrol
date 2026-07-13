@@ -19,6 +19,7 @@ import { useDecksStore } from './decks';
 import { useToastsStore } from './toasts';
 import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
 import { _resetForTests as resetPriceCache } from '../lib/card-prices';
+import { captureCollectionSnapshot } from '../lib/collection-snapshot';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 
 function enriched(
@@ -289,6 +290,17 @@ describe('updateCard / replaceAllCards / addCard', () => {
     expect(saveCollection).toHaveBeenCalled();
   });
 
+  it('replaceAllCards sets an honest error when the local save fails', async () => {
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    vi.mocked(saveCollection).mockRejectedValueOnce(new Error('quota exceeded'));
+
+    await useCollectionStore
+      .getState()
+      .replaceAllCards([enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 5 })]);
+
+    expect(useCollectionStore.getState().error).toMatch(/couldn't be saved locally/);
+  });
+
   it('addCard appends a fresh copy from a Scryfall card and returns its copyId', async () => {
     const [copyId] = await useCollectionStore.getState().addCard(
       {
@@ -326,6 +338,22 @@ describe('updateCard / replaceAllCards / addCard', () => {
     const rows = useCollectionStore.getState().cards.filter((c) => ids.includes(c.copyId));
     expect(rows).toHaveLength(4);
     expect(rows.every((c) => c.condition === 'lp' && c.language === 'ja')).toBe(true);
+  });
+
+  it('addCard sets an honest error when the local save fails', async () => {
+    vi.mocked(saveCollection).mockRejectedValueOnce(new Error('quota exceeded'));
+
+    await useCollectionStore.getState().addCard({
+      id: 'sfZ',
+      name: 'Test',
+      set: 'tst',
+      set_name: 'Test Set',
+      collector_number: '3',
+      rarity: 'common',
+      oracle_id: 'o3',
+    } as never);
+
+    expect(useCollectionStore.getState().error).toMatch(/couldn't be saved locally/);
   });
 });
 
@@ -1374,6 +1402,24 @@ describe('destructive-op undo', () => {
       expect(remapAllocations.mock.calls[0][0].map((c: { copyId: string }) => c.copyId)).toEqual([
         'a',
       ]);
+    });
+
+    it('restoreCollectionSnapshot (the Undo path itself) sets an honest error when the save fails', async () => {
+      const restored = [enriched({ copyId: 'a', scryfallId: 'sfA', importId: 'imp1' })];
+      useCollectionStore.setState({
+        cards: restored,
+        importHistory: [{ id: 'imp1', name: 'm', count: 1, format: '', addedAt: 1 }],
+      });
+      const snap = captureCollectionSnapshot(useCollectionStore.getState());
+      useCollectionStore.setState({ cards: [], importHistory: [] });
+      vi.mocked(saveCollection).mockRejectedValueOnce(new Error('quota exceeded'));
+
+      await useCollectionStore.getState().restoreCollectionSnapshot(snap);
+
+      // The restore itself still applied in memory…
+      expect(useCollectionStore.getState().cards.map((c) => c.copyId)).toEqual(['a']);
+      // …but the user is told it didn't durably persist.
+      expect(useCollectionStore.getState().error).toMatch(/couldn't be saved locally/);
     });
   });
 
