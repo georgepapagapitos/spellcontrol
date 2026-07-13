@@ -29,6 +29,7 @@ export function CollectionHubLayout() {
   const cardsActive = pathname === '/collection';
   const bindersActive = pathname.startsWith('/collection/binders');
   const listsActive = pathname.startsWith('/collection/lists');
+  const setsActive = pathname.startsWith('/collection/sets');
   const cubeActive = pathname.startsWith('/collection/cube');
 
   return (
@@ -69,6 +70,13 @@ export function CollectionHubLayout() {
               {formatCount(listCount)}
             </span>
           )}
+        </Link>
+        <Link
+          to="/collection/sets"
+          className={setsActive ? 'site-nav-link active' : 'site-nav-link'}
+          aria-current={setsActive ? 'page' : undefined}
+        >
+          <span>Sets</span>
         </Link>
         <Link
           to="/collection/cube"
