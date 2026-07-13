@@ -28,7 +28,9 @@ function deck(): PublicDeck {
       { card: { id: 'p1', oracle_id: 'o1', name: 'Sol Ring', type_line: 'Artifact' } },
       { card: { id: 'p2', oracle_id: 'o2', name: 'Counterspell', type_line: 'Instant' } },
     ],
-    sideboard: [],
+    sideboard: [
+      { card: { id: 'p3', oracle_id: 'o3', name: 'Rhystic Study', type_line: 'Enchantment' } },
+    ],
     color: '#7aa6c2',
   };
 }
@@ -58,6 +60,13 @@ describe('DeckFeedbackView', () => {
     expect(screen.getByText('Commander')).toBeTruthy();
     expect(screen.getByText('Edric, Spymaster of Trest')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Suggest cutting Edric/ })).toBeNull();
+  });
+
+  it('shows the sideboard for context without a cut affordance', () => {
+    renderView();
+    expect(screen.getByText('Sideboard (1)')).toBeTruthy();
+    expect(screen.getByText('Rhystic Study')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Suggest cutting Rhystic Study/ })).toBeNull();
   });
 
   it('toggles a cut via the scissors and reflects it in the tally + submit count', () => {
