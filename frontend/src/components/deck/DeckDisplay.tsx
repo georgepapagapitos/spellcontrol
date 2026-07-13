@@ -80,15 +80,21 @@ import { useTaggerReady } from '@/lib/use-tagger-ready';
  * - A basic land → `undefined` too; the generator excludes basics from the
  *   map by design (they're never scored as a "card" by EDHREC), so absence
  *   there isn't a signal either.
+ * - A command-zone row → `undefined`; inclusion % is measured *relative to*
+ *   the commander, so the concept doesn't apply to the commander/partner
+ *   themselves (they'd otherwise read "Off-meta", which is absurd — they ARE
+ *   the meta the map is keyed against).
  * - Otherwise, a card missing from a present map is real "no signal" and
  *   normalizes to `0` so it renders "Off-meta" instead of going blank.
  */
 function resolveInclusionPct(
   cardInclusionMap: Record<string, number> | undefined,
-  name: string
+  row: Pick<Row, 'name' | 'legalitySlotKey'>
 ): number | undefined {
-  if (!cardInclusionMap || BASIC_LAND_NAMES.has(name)) return undefined;
-  return cardInclusionMap[name] ?? 0;
+  const isCommandZone =
+    row.legalitySlotKey === COMMANDER_SLOT_ID || row.legalitySlotKey === PARTNER_COMMANDER_SLOT_ID;
+  if (!cardInclusionMap || isCommandZone || BASIC_LAND_NAMES.has(row.name)) return undefined;
+  return cardInclusionMap[row.name] ?? 0;
 }
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
@@ -1994,7 +2000,7 @@ export function DeckDisplay({
                   isPartner={r.isPartner}
                   isCommander={!r.isPartner && commander?.name === r.name}
                   synergies={synergyByName?.get(r.name)}
-                  inclusionPct={resolveInclusionPct(cardInclusionMap, r.name)}
+                  inclusionPct={resolveInclusionPct(cardInclusionMap, r)}
                   legality={
                     (r.legalitySlotKey ?? r.slotIds[0])
                       ? legalityBySlot.get(r.legalitySlotKey ?? r.slotIds[0])
@@ -2918,7 +2924,7 @@ function CategorySection({
             onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
             onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
             synergyReasons={synergyByName?.get(entry.item.card.name)}
-            inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item.card.name)}
+            inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
             provenanceReason={cardProvenance?.[entry.item.card.name]}
             entering={entry.entering}
             leaving={entry.leaving}
