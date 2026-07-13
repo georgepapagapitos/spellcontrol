@@ -13,6 +13,15 @@ import {
   savePlaytestSnapshot,
   type PlaytestSnapshot,
 } from '@/lib/playtest/session-snapshot';
+import {
+  buildLandNameSet,
+  computeSessionAggregates,
+  deriveSessionRecord,
+  isMeaningfulSession,
+  type PlaytestSessionRecord,
+  type SessionAggregates,
+} from '@/lib/playtest/session-record';
+import { appendSessionRecord } from '@/lib/playtest/session-history';
 import { useDecksStore } from '@/store/decks';
 import {
   applyResistance,
@@ -27,6 +36,36 @@ import {
 
 function configFor(level: ResistanceLevel): ResistanceConfig | null {
   return level === 'off' ? null : RESISTANCE_PRESETS[level];
+}
+
+/**
+ * Derives + persists a `PlaytestSessionRecord` (E141) for `deckId`'s history,
+ * if the session was meaningfully played — a no-op (returns null) otherwise.
+ * Exported so `PlaytestPage` can call it for the one trigger the store can't
+ * see itself: a resume-worthy localStorage snapshot the player declines in
+ * favor of "Start fresh" (the store never loads that state into `state`).
+ */
+export function tryRecordSession(
+  deckId: string | null,
+  state: Omit<PlaytestState, 'past'> | null,
+  gameLog: readonly GameLogEntry[],
+  mulliganCount: number,
+  resistance: boolean
+): { record: PlaytestSessionRecord; aggregates: SessionAggregates } | null {
+  if (!deckId || !state || !isMeaningfulSession(state)) return null;
+  const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
+  const landNames = buildLandNameSet(deck);
+  const record = deriveSessionRecord({
+    deckId,
+    log: gameLog,
+    state,
+    mulliganCount,
+    resistance,
+    deckSize: deck ? deck.cards.length : null,
+    isLandName: (name) => landNames.has(name),
+  });
+  const updated = appendSessionRecord(deckId, record);
+  return { record, aggregates: computeSessionAggregates(updated) };
 }
 
 /**
@@ -69,6 +108,17 @@ interface PlaytestStore {
    * since those start a genuinely different session.
    */
   gameLog: GameLogEntry[];
+  /** Whether the live session's table-defeat has already been captured into
+   *  history (E141) — prevents a later RESET/teardown from double-recording
+   *  the same completed game. Reset on init/hydrate/RESET. */
+  sessionRecordedForDefeat: boolean;
+  /** Most recently captured session record (defeat, Reset, or replaced-by-init),
+   *  for the end-of-session summary. Null once a fresh session starts with
+   *  nothing yet to report. */
+  lastSessionRecord: PlaytestSessionRecord | null;
+  /** Aggregates snapshot at the moment `lastSessionRecord` was captured, for
+   *  the summary's "vs your average" line. */
+  lastSessionAggregates: SessionAggregates | null;
   init(deckId: string, init: PlaytestInit): void;
   /** Restore a previously-saved session in place of `init` (E137 resume). */
   hydrate(deckId: string, snapshot: PlaytestSnapshot): void;
@@ -107,7 +157,23 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   lastResistanceEvent: null,
   resistanceEventSeq: 0,
   gameLog: [],
+  sessionRecordedForDefeat: false,
+  lastSessionRecord: null,
+  lastSessionAggregates: null,
   init(deckId, init) {
+    // A live, meaningfully-played game being replaced by a fresh one (e.g.
+    // navigating straight to a different deck's playtest) is itself a session
+    // boundary (E141) — capture it before it's overwritten, same as RESET.
+    const prev = get();
+    const captured = prev.sessionRecordedForDefeat
+      ? null
+      : tryRecordSession(
+          prev.deckId,
+          prev.state,
+          prev.gameLog,
+          prev.mulliganCount,
+          prev.resistanceLevel !== 'off'
+        );
     set({
       deckId,
       state: createPlaytestState(init),
@@ -119,6 +185,9 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
       gameLog: [],
+      sessionRecordedForDefeat: false,
+      lastSessionRecord: captured?.record ?? null,
+      lastSessionAggregates: captured?.aggregates ?? null,
     });
   },
   hydrate(deckId, snapshot) {
@@ -140,6 +209,9 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
+      sessionRecordedForDefeat: false,
+      lastSessionRecord: null,
+      lastSessionAggregates: null,
       gameLog: snapshot.gameLog ?? [],
     });
   },
@@ -152,7 +224,12 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     // itself is NOT cleared — a "Game reset" entry marks the boundary instead,
     // so the journal covers the whole session, resets included.
     if (action.type === 'RESET') {
-      const { resistanceLevel, gameLog } = get();
+      const { resistanceLevel, gameLog, deckId, mulliganCount, sessionRecordedForDefeat } = get();
+      // A meaningfully-played game ending in Reset (rather than a table
+      // defeat, which already captured it) is E141's other session boundary.
+      const captured = sessionRecordedForDefeat
+        ? null
+        : tryRecordSession(deckId, current, gameLog, mulliganCount, resistanceLevel !== 'off');
       set({
         state: next,
         phase: 'opening',
@@ -160,6 +237,11 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         resistanceState: resistanceLevel !== 'off' ? createResistanceState(next.rngSeed) : null,
         resistancePast: [],
         lastResistanceEvent: null,
+        sessionRecordedForDefeat: false,
+        ...(captured && {
+          lastSessionRecord: captured.record,
+          lastSessionAggregates: captured.aggregates,
+        }),
         gameLog: appendLogEntries(gameLog, [
           { turn: next.turn, kind: 'reset', text: 'Game reset' },
         ]),
@@ -190,7 +272,23 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       return;
     }
     const entries = buildLogEntries(current, action, next);
-    const { resistanceLevel, resistanceState, resistancePast, gameLog } = get();
+    const { resistanceLevel, resistanceState, resistancePast, gameLog, deckId, mulliganCount } =
+      get();
+    const resistanceOn = resistanceLevel !== 'off';
+    // Table defeat (E138) transitioning null -> a turn number is a session
+    // boundary in its own right (E141) — capture it the moment it happens
+    // rather than waiting for a later Reset, which may never come if the
+    // player keeps goldfishing post-victory. `sessionRecordedForDefeat` keeps
+    // a later Reset/teardown from double-recording the same completed game.
+    const wasUndefeated = current.tableDefeatedTurn === null;
+    function captureDefeatTransition(
+      finalState: PlaytestState,
+      finalLog: readonly GameLogEntry[]
+    ): { record: PlaytestSessionRecord; aggregates: SessionAggregates } | null {
+      if (get().sessionRecordedForDefeat) return null;
+      if (!wasUndefeated || finalState.tableDefeatedTurn === null) return null;
+      return tryRecordSession(deckId, finalState, finalLog, mulliganCount, resistanceOn);
+    }
     const config = configFor(resistanceLevel);
     if (config && resistanceState) {
       const result = applyResistance(resistanceState, current, next, action, config);
@@ -217,11 +315,18 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
               { turn: result.state.turn, kind: 'resistance' as const, text: result.message },
             ]
           : entries;
+      const newLog = appendLogEntries(gameLog, allEntries);
+      const defeatCapture = captureDefeatTransition(result.state, newLog);
       set({
         state: result.state,
         resistanceState: result.resistanceState,
         resistancePast: [...pairs, ...resistancePast].slice(0, result.state.past.length),
-        gameLog: appendLogEntries(gameLog, allEntries),
+        gameLog: newLog,
+        ...(defeatCapture && {
+          sessionRecordedForDefeat: true,
+          lastSessionRecord: defeatCapture.record,
+          lastSessionAggregates: defeatCapture.aggregates,
+        }),
         ...(result.message !== null && {
           lastResistanceEvent: { id: seq, message: result.message },
           resistanceEventSeq: seq,
@@ -229,7 +334,17 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       });
       return;
     }
-    set({ state: next, gameLog: appendLogEntries(gameLog, entries) });
+    const newLog = appendLogEntries(gameLog, entries);
+    const defeatCapture = captureDefeatTransition(next, newLog);
+    set({
+      state: next,
+      gameLog: newLog,
+      ...(defeatCapture && {
+        sessionRecordedForDefeat: true,
+        lastSessionRecord: defeatCapture.record,
+        lastSessionAggregates: defeatCapture.aggregates,
+      }),
+    });
   },
   logScryPeek() {
     const { state, gameLog } = get();
@@ -320,6 +435,19 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     });
   },
   teardown() {
+    // Navigating away mid-game (no Reset, no table defeat) is the most common
+    // real way a casual session actually ends — capture it here too (E141) so
+    // it isn't lost. Side-effect only: the summary UI is unmounting anyway.
+    const prev = get();
+    if (!prev.sessionRecordedForDefeat) {
+      tryRecordSession(
+        prev.deckId,
+        prev.state,
+        prev.gameLog,
+        prev.mulliganCount,
+        prev.resistanceLevel !== 'off'
+      );
+    }
     set({
       state: null,
       deckId: null,
@@ -331,6 +459,9 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
       gameLog: [],
+      sessionRecordedForDefeat: false,
+      lastSessionRecord: null,
+      lastSessionAggregates: null,
     });
   },
 }));

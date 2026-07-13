@@ -23,6 +23,8 @@ import {
   type LandDropCurveResult,
 } from '@/lib/opening-hand-sim';
 import { toSimCard } from '@/lib/hand-classify';
+import { loadSessionHistory } from '@/lib/playtest/session-history';
+import { computeSessionAggregates, MIN_SESSIONS_FOR_STATS } from '@/lib/playtest/session-record';
 import { MeterBar, StackedBar } from '@/components/shared/MeterBar';
 import { ColorPip, TypeIcon } from '@/components/shared/ManaSymbol';
 import { Tabs, type TabItem } from '@/components/Tabs';
@@ -31,7 +33,7 @@ import { assemblyClockTip } from '@/components/deck/WinConditionPanel';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type StatsTab = 'hand' | 'battlefield' | 'deck' | 'simulate';
+type StatsTab = 'hand' | 'battlefield' | 'deck' | 'simulate' | 'history';
 
 interface Props {
   state: PlaytestState;
@@ -48,6 +50,7 @@ const TABS: Array<TabItem<StatsTab>> = [
   { id: 'battlefield', label: 'Battlefield' },
   { id: 'deck', label: 'Session' },
   { id: 'simulate', label: 'Simulate' },
+  { id: 'history', label: 'History' },
 ];
 
 const CMC_LABELS = ['0', '1', '2', '3', '4', '5', '6', '7+'];
@@ -682,6 +685,137 @@ function SimulateSection({ state, deck }: { state: PlaytestState; deck: Deck | u
   );
 }
 
+/**
+ * Cross-session deck analytics (E141) — aggregates over every recorded
+ * `PlaytestSessionRecord` for this deck (device-local history, capped at 50
+ * sessions). Sample-size honest: rate/median stats stay hidden below
+ * `MIN_SESSIONS_FOR_STATS` sessions rather than implying a trend from 1-2 games.
+ */
+function HistorySection({ deck }: { deck: Deck | undefined }) {
+  // Keyed on deck id only (not the whole deck object) — history only needs to
+  // reload when the viewed deck changes, not on every unrelated deck edit.
+  const records = useMemo(() => (deck ? loadSessionHistory(deck.id) : []), [deck?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const aggregates = useMemo(() => computeSessionAggregates(records), [records]);
+
+  if (records.length === 0) {
+    return <p className="playtest-stats-empty">Finish a game to start your deck's track record.</p>;
+  }
+
+  const hasEnoughForRates = aggregates.sessionsPlayed >= MIN_SESSIONS_FOR_STATS;
+  const totalKillTurnSamples = aggregates.killTurnHistogram.reduce((sum, b) => sum + b.count, 0);
+  const maxHistogramCount = Math.max(1, ...aggregates.killTurnHistogram.map((b) => b.count));
+  const sessionsToGo = MIN_SESSIONS_FOR_STATS - aggregates.sessionsPlayed;
+
+  return (
+    <div className="playtest-stats-rows">
+      <div className="playtest-stats-row">
+        <span className="playtest-stats-row__label">Sessions played</span>
+        <span className="playtest-stats-row__value">{aggregates.sessionsPlayed}</span>
+      </div>
+
+      {aggregates.bestKillTurn !== null && (
+        <div className="playtest-stats-row">
+          <span className="playtest-stats-row__label">Best kill</span>
+          <span className="playtest-stats-verdict playtest-stats-verdict--keep">
+            Turn {aggregates.bestKillTurn}
+          </span>
+        </div>
+      )}
+
+      {!hasEnoughForRates ? (
+        <p className="playtest-stats-sim-note">
+          Play {sessionsToGo} more game{sessionsToGo === 1 ? '' : 's'} to unlock rate stats.
+        </p>
+      ) : (
+        <>
+          {aggregates.medianKillTurn !== null && (
+            <div className="playtest-stats-row">
+              <span className="playtest-stats-row__label">Median kill</span>
+              <span className="playtest-stats-row__value">Turn {aggregates.medianKillTurn}</span>
+            </div>
+          )}
+
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Kill rate</span>
+            <span className="playtest-stats-row__value">
+              {Math.round(aggregates.killRate * 100)}%
+            </span>
+            <MeterBar
+              value={aggregates.killRate * 100}
+              max={100}
+              color="var(--mtg-g)"
+              className="playtest-stats-row__bar"
+            />
+          </div>
+
+          <div className="playtest-stats-row">
+            <span className="playtest-stats-row__label">Avg mulligans</span>
+            <span className="playtest-stats-row__value">{aggregates.avgMulligans.toFixed(1)}</span>
+          </div>
+
+          {aggregates.landDropMissRate !== null && (
+            <div className="playtest-stats-row">
+              <span className="playtest-stats-row__label">Land-drop miss rate</span>
+              <span className="playtest-stats-row__value">
+                {Math.round(aggregates.landDropMissRate * 100)}%
+              </span>
+              <MeterBar
+                value={aggregates.landDropMissRate * 100}
+                max={100}
+                color="var(--warn-text, #f0a000)"
+                className="playtest-stats-row__bar"
+              />
+            </div>
+          )}
+
+          {aggregates.wipeSurvivalRate !== null && (
+            <div className="playtest-stats-row">
+              <span className="playtest-stats-row__label">Wipes survived</span>
+              <span className="playtest-stats-row__value">
+                {Math.round(aggregates.wipeSurvivalRate * 100)}%
+              </span>
+              <MeterBar
+                value={aggregates.wipeSurvivalRate * 100}
+                max={100}
+                color="var(--accent)"
+                className="playtest-stats-row__bar"
+              />
+            </div>
+          )}
+
+          {totalKillTurnSamples >= 5 && (
+            <>
+              <p className="playtest-stats-section-title" style={{ marginTop: '0.5rem' }}>
+                Kill-turn distribution
+              </p>
+              <div className="playtest-stats-histogram" aria-label="Kill turn distribution">
+                {aggregates.killTurnHistogram.map((bucket) => (
+                  <div key={bucket.turn} className="playtest-stats-histogram__row">
+                    <span className="playtest-stats-histogram__bucket" aria-hidden>
+                      T{bucket.turn}
+                    </span>
+                    <MeterBar
+                      value={bucket.count}
+                      max={maxHistogramCount}
+                      color="var(--accent)"
+                      className="playtest-stats-histogram__bar"
+                    />
+                    <span className="playtest-stats-histogram__count">{bucket.count}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="playtest-stats-sim-note">
+                Based on {totalKillTurnSamples} recorded kill{totalKillTurnSamples === 1 ? '' : 's'}
+                .
+              </p>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onClose }: Props) {
@@ -741,6 +875,11 @@ export function PlaytestStatsSheet({ state, deck, cardLookup, mulliganCount, onC
               aria-labelledby="sc-tab-simulate"
             >
               <SimulateSection state={state} deck={deck} />
+            </div>
+          )}
+          {activeTab === 'history' && (
+            <div role="tabpanel" id="playtest-stats-panel-history" aria-labelledby="sc-tab-history">
+              <HistorySection deck={deck} />
             </div>
           )}
         </div>

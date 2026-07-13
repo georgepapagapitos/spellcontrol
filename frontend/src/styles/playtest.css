@@ -214,6 +214,85 @@ body:has(.playtest-page) .modal-backdrop {
   }
 }
 
+/* ── Session summary (E141) ──────────────────────────────────────────── */
+/*  End-of-session recap ("Turn 8 kill · 1 mulligan · …"), shown on RESET or
+ *  a table defeat. Sits above the opening-hand sheet (--z-overlay, 1100) so
+ *  a RESET — which flips phase back to 'opening' and mounts that sheet — never
+ *  hides it; the player should see the recap of the game that just ended
+ *  before diving into the next one. */
+
+.playtest-session-summary {
+  position: fixed;
+  top: calc(var(--safe-top) + 6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: calc(var(--z-overlay) + 60);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: min(92vw, 34rem);
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  color: var(--text-primary);
+}
+
+.playtest-session-summary__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.playtest-session-summary__title {
+  font-weight: 600;
+}
+
+.playtest-session-summary__line {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.playtest-session-summary__avg {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.playtest-session-summary__dismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: 1;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.playtest-session-summary__dismiss:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-session-summary__dismiss:hover {
+    color: var(--text-primary);
+    background: var(--accent-light);
+  }
+}
+
+@media (pointer: coarse) {
+  .playtest-session-summary__dismiss {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .playtest-main {
   display: flex;
   flex: 1;
