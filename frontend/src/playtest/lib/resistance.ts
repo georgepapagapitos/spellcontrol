@@ -11,7 +11,7 @@ import { isPlaytestLand } from './zones';
  * "Resistance" mode — a tiny simulated opponent for the solo playtester
  * (BlueprintMTG-inspired). It watches the player's plays and turn passes and
  * occasionally responds with popular interaction (counter / spot removal /
- * bounce / one board wipe per game), announced with an iconic real card name.
+ * bounce / board wipes), announced with an iconic real card name.
  *
  * Kept deliberately OUT of the game-state reducer: this module only *decides*;
  * effects are expressed as ordinary reducer actions (MOVE_TO_ZONE), so every
@@ -19,15 +19,16 @@ import { isPlaytestLand } from './zones';
  *
  * All randomness runs through mulberry32/nextSeed, mirroring the reducer's
  * rngSeed discipline — every roll advances the seed carried in
- * `ResistanceState`, so a given seed always produces the same responses.
+ * `ResistanceState`, so a given seed + config always produces the same
+ * responses (E142: intensity is a `ResistanceConfig`, not a module constant).
  */
 
 export interface ResistanceState {
   seed: number;
-  /** The board wipe is once per game. */
-  wipeUsed: boolean;
-  /** At most one response per player turn; reset on turnStart. */
-  respondedThisTurn: boolean;
+  /** How many board wipes this game has used so far (budget: config.wipesPerGame). */
+  wipesUsed: number;
+  /** Responses spent this player turn (budget: config.maxResponsesPerTurn); reset on turnStart. */
+  responsesThisTurn: number;
 }
 
 export type ResistanceEvent =
@@ -41,20 +42,77 @@ export interface ResistanceResponse {
   targetIds: string[];
 }
 
-/* ── Decision model (documented constants — tune here) ─────────────────── */
+export interface ResistanceConfig {
+  /** Response chance by threat level of the played card. */
+  responseChance: { high: number; medium: number; low: number };
+  /** Cumulative effect split among a response: counter, then destroy, then bounce (remainder). */
+  counterShare: number;
+  destroyShare: number;
+  /** Board wipe: checked at every eligible turn start until the game's wipe budget is spent. */
+  wipeChance: number;
+  wipeMinPermanents: number;
+  wipesPerGame: number;
+  maxResponsesPerTurn: number;
+}
 
-/** Response chance by threat level of the played card. */
-const RESPONSE_CHANCE = { high: 0.45, medium: 0.3, low: 0.12 } as const;
+export const RESISTANCE_LEVELS = ['off', 'casual', 'standard', 'ruthless'] as const;
+export type ResistanceLevel = (typeof RESISTANCE_LEVELS)[number];
 
-/** Given a response, cumulative effect split: counter 50%, destroy 35%, bounce 15%. */
-const COUNTER_SHARE = 0.5;
-const DESTROY_SHARE = 0.35;
+/** Difficulty presets — tune here. `standard` is the original, unchanged model. */
+export const RESISTANCE_PRESETS: Record<Exclude<ResistanceLevel, 'off'>, ResistanceConfig> = {
+  casual: {
+    responseChance: { high: 0.225, medium: 0.15, low: 0.06 },
+    counterShare: 0.5,
+    destroyShare: 0.35,
+    wipeChance: 0.15,
+    wipeMinPermanents: 5,
+    wipesPerGame: 1,
+    maxResponsesPerTurn: 1,
+  },
+  standard: {
+    responseChance: { high: 0.45, medium: 0.3, low: 0.12 },
+    counterShare: 0.5,
+    destroyShare: 0.35,
+    wipeChance: 0.25,
+    wipeMinPermanents: 5,
+    wipesPerGame: 1,
+    maxResponsesPerTurn: 1,
+  },
+  ruthless: {
+    responseChance: { high: 0.9, medium: 0.6, low: 0.25 },
+    counterShare: 0.5,
+    destroyShare: 0.35,
+    wipeChance: 0.4,
+    wipeMinPermanents: 5,
+    wipesPerGame: 2,
+    maxResponsesPerTurn: 2,
+  },
+};
 
-/** Board wipe: once per game, checked at each turn start. */
-const WIPE_CHANCE = 0.25;
-const WIPE_MIN_PERMANENTS = 5;
+export const RESISTANCE_LEVEL_LABEL: Record<ResistanceLevel, string> = {
+  off: 'Off',
+  casual: 'Casual',
+  standard: 'Standard',
+  ruthless: 'Ruthless',
+};
 
-/** Iconic real cards, one picked seeded-randomly per response. */
+/** One-line, plain-language description for the level picker. */
+export const RESISTANCE_LEVEL_DESCRIPTION: Record<ResistanceLevel, string> = {
+  off: 'No simulated opponent.',
+  casual: 'Light pressure — occasional interaction, a rare wipe.',
+  standard: 'Assume they usually have an answer. The classic experience.',
+  ruthless: 'They always have the answer. 2 wipes per game.',
+};
+
+/** Banner/log announcement fired when a level is picked. */
+export const RESISTANCE_LEVEL_ANNOUNCE: Record<ResistanceLevel, string> = {
+  off: 'Resistance: Off',
+  casual: 'Resistance: Casual — occasional interaction, a rare wipe',
+  standard: 'Resistance: Standard — expect occasional counters, removal, and a board wipe',
+  ruthless: 'Resistance: Ruthless — expect counters, removal, and up to 2 board wipes',
+};
+
+/* ── Iconic real cards, one picked seeded-randomly per response ─────────── */
 const SPELLS: Record<ResistanceResponse['effect'], readonly string[]> = {
   counter: ['Counterspell', 'Negate', 'Swan Song', "An Offer You Can't Refuse"],
   destroy: ['Swords to Plowshares', 'Doom Blade', 'Beast Within', 'Chaos Warp'],
@@ -100,13 +158,35 @@ function isWipeTarget(card: PlaytestCard): boolean {
   return !isPlaytestLand(card.typeLine) && !card.isToken;
 }
 
+/* ── Device-local preference: last non-off level picked ─────────────────── */
+const LAST_LEVEL_KEY = 'spellcontrol:playtest:resistance-level';
+
+/** The last non-off level the player picked on this device (defaults to 'standard'). */
+export function loadLastResistanceLevel(): Exclude<ResistanceLevel, 'off'> {
+  try {
+    const raw = localStorage.getItem(LAST_LEVEL_KEY);
+    return raw === 'casual' || raw === 'standard' || raw === 'ruthless' ? raw : 'standard';
+  } catch {
+    return 'standard';
+  }
+}
+
+export function saveLastResistanceLevel(level: ResistanceLevel): void {
+  if (level === 'off') return;
+  try {
+    localStorage.setItem(LAST_LEVEL_KEY, level);
+  } catch {
+    /* best-effort — storage unavailable/full */
+  }
+}
+
 /* ── Public API ────────────────────────────────────────────────────────── */
 
 export function createResistanceState(seed?: number): ResistanceState {
   return {
     seed: (seed ?? Math.floor(Math.random() * 0xffffffff)) >>> 0,
-    wipeUsed: false,
-    respondedThisTurn: false,
+    wipesUsed: 0,
+    responsesThisTurn: 0,
   };
 }
 
@@ -117,21 +197,27 @@ export function createResistanceState(seed?: number): ResistanceState {
 export function resistanceRespond(
   state: ResistanceState,
   event: ResistanceEvent,
-  board: { battlefield: ReadonlyArray<{ card: PlaytestCard }> }
+  board: { battlefield: ReadonlyArray<{ card: PlaytestCard }> },
+  config: ResistanceConfig
 ): { state: ResistanceState; response: ResistanceResponse | null } {
   if (event.kind === 'turnStart') {
-    // New player turn: the "one response per turn" budget resets, and the
-    // opponent sizes up the board for its one-per-game wipe.
-    let next: ResistanceState = { ...state, respondedThisTurn: false };
+    // New player turn: the per-turn response budget resets, and the
+    // opponent sizes up the board for a wipe (budgeted per game).
+    let next: ResistanceState = { ...state, responsesThisTurn: 0 };
     const targetIds = board.battlefield.filter((b) => isWipeTarget(b.card)).map((b) => b.card.id);
-    if (next.wipeUsed || targetIds.length < WIPE_MIN_PERMANENTS) {
+    if (next.wipesUsed >= config.wipesPerGame || targetIds.length < config.wipeMinPermanents) {
       return { state: next, response: null };
     }
     const chance = roll(next.seed);
     next = { ...next, seed: chance.seed };
-    if (chance.value >= WIPE_CHANCE) return { state: next, response: null };
+    if (chance.value >= config.wipeChance) return { state: next, response: null };
     const spell = pick(SPELLS.wipe, next.seed);
-    next = { ...next, seed: spell.seed, wipeUsed: true, respondedThisTurn: true };
+    next = {
+      ...next,
+      seed: spell.seed,
+      wipesUsed: next.wipesUsed + 1,
+      responsesThisTurn: next.responsesThisTurn + 1,
+    };
     return {
       state: next,
       response: {
@@ -145,22 +231,22 @@ export function resistanceRespond(
 
   // 'played' — a card the player just put onto the battlefield.
   const { card } = event;
-  if (state.respondedThisTurn) return { state, response: null };
+  if (state.responsesThisTurn >= config.maxResponsesPerTurn) return { state, response: null };
   if (isPlaytestLand(card.typeLine) || card.isToken) return { state, response: null };
 
   const chance = roll(state.seed);
   let next: ResistanceState = { ...state, seed: chance.seed };
-  if (chance.value >= RESPONSE_CHANCE[threatOf(card)]) return { state: next, response: null };
+  if (chance.value >= config.responseChance[threatOf(card)]) return { state: next, response: null };
 
   const effectRoll = roll(next.seed);
   const effect: ResistanceResponse['effect'] =
-    effectRoll.value < COUNTER_SHARE
+    effectRoll.value < config.counterShare
       ? 'counter'
-      : effectRoll.value < COUNTER_SHARE + DESTROY_SHARE
+      : effectRoll.value < config.counterShare + config.destroyShare
         ? 'destroy'
         : 'bounce';
   const spell = pick(SPELLS[effect], effectRoll.seed);
-  next = { ...next, seed: spell.seed, respondedThisTurn: true };
+  next = { ...next, seed: spell.seed, responsesThisTurn: next.responsesThisTurn + 1 };
   return {
     state: next,
     response: {
@@ -185,7 +271,8 @@ export function applyResistance(
   resistanceState: ResistanceState,
   prev: PlaytestState,
   next: PlaytestState,
-  action: PlaytestAction
+  action: PlaytestAction,
+  config: ResistanceConfig
 ): { state: PlaytestState; resistanceState: ResistanceState; message: string | null } {
   let event: ResistanceEvent | null = null;
   if (action.type === 'MOVE_TO_BATTLEFIELD') {
@@ -200,7 +287,12 @@ export function applyResistance(
   }
   if (!event) return { state: next, resistanceState, message: null };
 
-  const result = resistanceRespond(resistanceState, event, { battlefield: next.battlefield });
+  const result = resistanceRespond(
+    resistanceState,
+    event,
+    { battlefield: next.battlefield },
+    config
+  );
   if (!result.response) return { state: next, resistanceState: result.state, message: null };
 
   const { effect, targetIds, message } = result.response;

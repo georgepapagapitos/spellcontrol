@@ -7,9 +7,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlaytestCard, PlaytestState } from '@/lib/playtest';
 import { usePlaytestStore, flushPendingPlaytestSnapshot } from './store';
-import { createResistanceState, resistanceRespond } from './lib/resistance';
+import { createResistanceState, resistanceRespond, RESISTANCE_PRESETS } from './lib/resistance';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
+
+const STANDARD = RESISTANCE_PRESETS.standard;
 
 // The decks-store sync subscriber (E133) fire-and-forgets a dynamic
 // `import('../lib/sync')` on every `decks` change; mock it the same way
@@ -51,7 +53,8 @@ function threatLibrary(n = 12): PlaytestCard[] {
 
 /**
  * Find a resistance seed whose first roll against a big threat produces the
- * given effect — programmatic, so the test carries no brittle magic numbers.
+ * given effect (under the standard preset) — programmatic, so the test
+ * carries no brittle magic numbers.
  */
 function findSeedFor(effect: 'counter' | 'bounce'): number {
   const probe: PlaytestCard = { id: 'probe', ...threatTemplate };
@@ -59,7 +62,8 @@ function findSeedFor(effect: 'counter' | 'bounce'): number {
     const { response } = resistanceRespond(
       createResistanceState(seed),
       { kind: 'played', card: probe },
-      { battlefield: [] }
+      { battlefield: [] },
+      STANDARD
     );
     if (response?.effect === effect) return seed;
   }
@@ -75,24 +79,48 @@ beforeEach(() => {
 });
 
 describe('playtest store — resistance mode', () => {
-  it('toggles on with a seeded opponent and off clean', () => {
+  it('sets a level with a seeded opponent, and off clears clean', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    expect(store().resistance).toBe(false);
+    expect(store().resistanceLevel).toBe('off');
 
-    store().toggleResistance();
-    expect(store().resistance).toBe(true);
+    store().setResistanceLevel('standard');
+    expect(store().resistanceLevel).toBe('standard');
     // Seeded from the deterministic game rngSeed, not wall clock.
     expect(store().resistanceState).toEqual(createResistanceState(store().state!.rngSeed));
 
-    store().toggleResistance();
-    expect(store().resistance).toBe(false);
+    store().setResistanceLevel('off');
+    expect(store().resistanceLevel).toBe('off');
     expect(store().resistanceState).toBeNull();
     expect(store().lastResistanceEvent).toBeNull();
   });
 
+  it('switching directly between two armed levels re-arms a fresh opponent', () => {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().setResistanceLevel('casual');
+    usePlaytestStore.setState({
+      resistanceState: { seed: 999, wipesUsed: 1, responsesThisTurn: 1 },
+    });
+
+    store().setResistanceLevel('ruthless');
+    expect(store().resistanceLevel).toBe('ruthless');
+    expect(store().resistanceState).toEqual(createResistanceState(store().state!.rngSeed));
+  });
+
+  it('remembers the last non-off level picked as a device preference', async () => {
+    const { saveLastResistanceLevel, loadLastResistanceLevel } = await import('./lib/resistance');
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().setResistanceLevel('ruthless');
+    expect(loadLastResistanceLevel()).toBe('ruthless');
+    // Turning off doesn't clobber the remembered preference.
+    store().setResistanceLevel('off');
+    expect(loadLastResistanceLevel()).toBe('ruthless');
+    saveLastResistanceLevel('casual');
+    expect(loadLastResistanceLevel()).toBe('casual');
+  });
+
   it('counters a threatening play: card goes to graveyard and the banner event fires', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     // Pin the opponent to a seed known (found programmatically) to counter.
     usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
 
@@ -107,12 +135,12 @@ describe('playtest store — resistance mode', () => {
       message: expect.stringContaining(`${played.name} is countered`),
     });
     expect(store().lastResistanceEvent!.message).toMatch(/^Opponent casts /);
-    expect(store().resistanceState!.respondedThisTurn).toBe(true);
+    expect(store().resistanceState!.responsesThisTurn).toBe(1);
   });
 
   it('bounces return the card to hand', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('bounce')) });
 
     const played = store().state!.zones.hand[0];
@@ -128,14 +156,14 @@ describe('playtest store — resistance mode', () => {
 
   it('the opponent response is undoable per-move', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     const pinned = createResistanceState(findSeedFor('counter'));
     usePlaytestStore.setState({ resistanceState: pinned });
 
     const played = store().state!.zones.hand[0];
     store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: played.id, x: 10, y: 10 });
     expect(store().state!.zones.graveyard).toHaveLength(1);
-    expect(store().resistanceState!.respondedThisTurn).toBe(true);
+    expect(store().resistanceState!.responsesThisTurn).toBe(1);
 
     // First undo reverses the opponent's graveyard move (card back on board)
     // AND rewinds the response bookkeeping — visually no response happened,
@@ -155,7 +183,7 @@ describe('playtest store — resistance mode', () => {
 
   it('fully undoing the board wipe re-arms it; a partial undo does not', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     // Battlefield of 5 wipe targets, and a seed whose turn-start roll wipes.
     const board = threatLibrary(5).map((card, i) => ({
       card: { ...card, id: `bf-${i}` },
@@ -171,7 +199,8 @@ describe('playtest store — resistance mode', () => {
       const { response } = resistanceRespond(
         createResistanceState(seed),
         { kind: 'turnStart', turn: 2 },
-        { battlefield: board }
+        { battlefield: board },
+        STANDARD
       );
       if (response?.effect === 'wipe') wipeSeed = seed;
     }
@@ -183,22 +212,22 @@ describe('playtest store — resistance mode', () => {
 
     store().dispatch({ type: 'NEXT_TURN' });
     expect(store().state!.battlefield).toHaveLength(0);
-    expect(store().resistanceState!.wipeUsed).toBe(true);
+    expect(store().resistanceState!.wipesUsed).toBe(1);
 
     // Undo one wiped permanent: the wipe stays spent (no free claw-back).
     store().dispatch({ type: 'UNDO' });
     expect(store().state!.battlefield).toHaveLength(1);
-    expect(store().resistanceState!.wipeUsed).toBe(true);
+    expect(store().resistanceState!.wipesUsed).toBe(1);
 
     // Undo the remaining four moves: board fully restored, wipe re-armed.
     for (let i = 0; i < 4; i++) store().dispatch({ type: 'UNDO' });
     expect(store().state!.battlefield).toHaveLength(5);
-    expect(store().resistanceState!.wipeUsed).toBe(false);
+    expect(store().resistanceState!.wipesUsed).toBe(0);
   });
 
   it('a dismissed banner id from a previous game never swallows the next announcement', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
     const first = store().state!.zones.hand[0];
     store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: first.id, x: 5, y: 5 });
@@ -225,7 +254,7 @@ describe('playtest store — resistance mode', () => {
 
   it('non-play actions (draw, tap) never trigger responses', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
 
     store().dispatch({ type: 'DRAW', n: 1 });
@@ -236,7 +265,7 @@ describe('playtest store — resistance mode', () => {
 
   it('event ids increment so identical messages still re-announce', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
 
     let fired = 0;
     // Identical cards, so repeated counters produce identical messages.
@@ -256,16 +285,16 @@ describe('playtest store — resistance mode', () => {
 
   it('RESET re-arms the opponent (fresh state, wipe available again)', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     usePlaytestStore.setState({
-      resistanceState: { seed: 9, wipeUsed: true, respondedThisTurn: true },
+      resistanceState: { seed: 9, wipesUsed: 1, responsesThisTurn: 1 },
       lastResistanceEvent: { id: 3, message: 'old' },
     });
 
     store().dispatch({ type: 'RESET' });
-    expect(store().resistance).toBe(true);
+    expect(store().resistanceLevel).toBe('standard');
     expect(store().resistanceState).toEqual(createResistanceState(store().state!.rngSeed));
-    expect(store().resistanceState!.wipeUsed).toBe(false);
+    expect(store().resistanceState!.wipesUsed).toBe(0);
     expect(store().lastResistanceEvent).toBeNull();
   });
 });
@@ -277,7 +306,7 @@ describe('hydrate (E137 resume)', () => {
       savedAt: 0,
       phase: 'playing',
       mulliganCount: 2,
-      resistance: true,
+      resistanceLevel: 'standard',
       resistanceState: createResistanceState(5),
       state: {
         zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
@@ -298,7 +327,7 @@ describe('hydrate (E137 resume)', () => {
     expect(store().deckId).toBe('deck-9');
     expect(store().phase).toBe('playing');
     expect(store().mulliganCount).toBe(2);
-    expect(store().resistance).toBe(true);
+    expect(store().resistanceLevel).toBe('standard');
     expect(store().resistanceState).toEqual(createResistanceState(5));
     expect(store().state?.turn).toBe(4);
     // The undo stack and per-entry opponent bookkeeping don't survive a
@@ -311,7 +340,7 @@ describe('hydrate (E137 resume)', () => {
   });
 });
 
-describe('game log (E140)', () => {
+describe('game log (E140 + E142)', () => {
   it('records structured entries for reducer actions dispatched through the store', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().dispatch({ type: 'NEXT_TURN' });
@@ -341,19 +370,33 @@ describe('game log (E140)', () => {
     expect(store().gameLog).toEqual([]);
   });
 
+  it('setResistanceLevel appends a level-change entry naming the new level', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().setResistanceLevel('ruthless');
+    expect(store().gameLog).toHaveLength(1);
+    expect(store().gameLog[0].kind).toBe('resistance');
+    expect(store().gameLog[0].text).toContain('Ruthless');
+
+    store().setResistanceLevel('off');
+    expect(store().gameLog).toHaveLength(2);
+    expect(store().gameLog[1].text).toContain('Off');
+  });
+
   it('logs both the play and the opponent response, in order, when Resistance fires', () => {
     store().init('deck-1', { library: threatLibrary(), seed: 42 });
-    store().toggleResistance();
+    store().setResistanceLevel('standard');
     usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
     const played = store().state!.zones.hand[0];
     store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: played.id, x: 10, y: 10 });
 
     const log = store().gameLog;
-    expect(log).toHaveLength(2);
-    expect(log[0].kind).toBe('play');
-    expect(log[1].kind).toBe('resistance');
+    // [0] the "Resistance: Standard" level-change entry, [1] the play, [2] the response.
+    expect(log).toHaveLength(3);
+    expect(log[0].kind).toBe('resistance');
+    expect(log[1].kind).toBe('play');
+    expect(log[2].kind).toBe('resistance');
     // The log entry is the banner message verbatim — same durable record.
-    expect(log[1].text).toBe(store().lastResistanceEvent!.message);
+    expect(log[2].text).toBe(store().lastResistanceEvent!.message);
   });
 
   it('logScryPeek appends a scry entry at the current turn', () => {
@@ -413,7 +456,7 @@ describe('game log (E140)', () => {
       savedAt: 0,
       phase: 'playing',
       mulliganCount: 0,
-      resistance: false,
+      resistanceLevel: 'off',
       resistanceState: null,
       state: legacyState,
       gameLog: [],
@@ -431,7 +474,7 @@ describe('game log (E140)', () => {
       savedAt: 0,
       phase: 'playing',
       mulliganCount: 0,
-      resistance: false,
+      resistanceLevel: 'off',
       resistanceState: null,
       // Simulates a real pre-E138/E140 localStorage blob: no life fields,
       // no gameLog at all.
@@ -525,6 +568,16 @@ describe('device-local session persistence (E137)', () => {
 
     const snap = loadPlaytestSnapshot('deck-1', '100:0');
     expect(snap?.gameLog).toEqual([{ seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins' }]);
+  });
+
+  it('persists the resistance level alongside the rest of the snapshot', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().setResistanceLevel('ruthless');
+    store().dispatch({ type: 'NEXT_TURN' });
+    flushPendingPlaytestSnapshot();
+
+    const snap = loadPlaytestSnapshot('deck-1', '100:0');
+    expect(snap?.resistanceLevel).toBe('ruthless');
   });
 
   it('teardown leaves a previously-written snapshot in place', () => {
