@@ -169,8 +169,8 @@ body:has(.playtest-page) .modal-backdrop {
 }
 
 .playtest-resistance-banner__dismiss:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -356,6 +356,13 @@ body:has(.playtest-page) .modal-backdrop {
 
 .playtest-card:active {
   cursor: grabbing;
+}
+
+/* a11y: keyboard focus for the battlefield/hand card itself (role="button",
+ * Enter/Space activates). Always-dark surface — white ring per STYLE_GUIDE. */
+.playtest-card:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 /* The moving copy rendered inside <DragOverlay>. */
@@ -545,7 +552,8 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-zone-card__action:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
-  outline: none;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .playtest-zone-card__action:hover {
@@ -595,7 +603,8 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-token-presets button:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
-  outline: none;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .playtest-token-presets button:hover {
@@ -663,7 +672,8 @@ body:has(.playtest-page) .modal-backdrop {
 
 .playtest-ctx-action:focus-visible {
   background: var(--surface-raised);
-  outline: none;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .playtest-ctx-action:hover {
@@ -720,7 +730,8 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-ctx-counter button:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
-  outline: none;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .playtest-ctx-counter button:hover {
@@ -763,7 +774,8 @@ body:has(.playtest-page) .modal-backdrop {
 
 .playtest-ctx-sticker-add input:focus-visible {
   border-color: var(--accent);
-  outline: none;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 .playtest-ctx-sticker-add button,
@@ -791,7 +803,8 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-ctx-sticker button:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
-  outline: none;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .playtest-ctx-sticker-add button:enabled:hover,
@@ -1236,22 +1249,23 @@ body:has(.playtest-page) .modal-backdrop {
   gap: var(--space-2);
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+ * Always-dark board/playtest surface — white ring per STYLE_GUIDE, not --accent. */
 .playtest-actionbar button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 .playtest-opening-back:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 .playtest-opening-card:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 .playtest-pile:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 
 /* a11y (UX-cohesion): 44px touch targets on coarse pointers (tablet is the

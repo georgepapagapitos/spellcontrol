@@ -54,6 +54,11 @@ export const PlaytestCardView = memo(function PlaytestCardView({
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const activate = () => {
+    if (onLongPress && longPress.consumedClick()) return;
+    onClick?.(card.id);
+  };
+
   return (
     <PlaytestCardFace
       ref={setNodeRef}
@@ -63,9 +68,14 @@ export const PlaytestCardView = memo(function PlaytestCardView({
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => {
-        if (onLongPress && longPress.consumedClick()) return;
-        onClick?.(card.id);
+      onClick={activate}
+      onKeyDown={(e) => {
+        // Same activation as a click — overrides dnd-kit's own keyboard-sensor
+        // onKeyDown (an undiscoverable, arrow-key drag with no visual
+        // affordance) with the far more useful "tap/play this card" a11y path.
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        activate();
       }}
       onContextMenu={onContextMenu ? (e) => onContextMenu(card.id, e) : undefined}
       onTouchStart={onLongPress ? longPress.onTouchStart : undefined}
