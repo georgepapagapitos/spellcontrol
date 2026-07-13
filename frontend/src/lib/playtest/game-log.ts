@@ -22,7 +22,8 @@ export type LogEntryKind =
   | 'tap-all'
   | 'resistance'
   | 'undo'
-  | 'reset';
+  | 'reset'
+  | 'life';
 
 export interface GameLogEntry {
   /** Monotonic within a session — always ascending in log order. */
@@ -43,6 +44,10 @@ const ZONE_LABEL: Record<Zone, string> = {
   exile: 'exile',
   command: 'command zone',
 };
+
+function opponentLabel(count: number, i: number): string {
+  return count > 1 ? `Opponent ${i + 1}` : 'Opponent';
+}
 
 function locate(
   state: PlaytestState,
@@ -143,6 +148,33 @@ export function buildLogEntries(
 
     case 'UNTAP_ALL':
       return [{ turn, kind: 'tap-all', text: 'Untapped all permanents' }];
+
+    case 'ADJUST_LIFE': {
+      if (next === current) return []; // no-op (zero delta or bad index)
+      if (action.player === 'self') {
+        return [{ turn, kind: 'life', text: `Your life: ${current.life} → ${next.life}` }];
+      }
+      const label = opponentLabel(current.opponents.length, action.player);
+      return [
+        {
+          turn,
+          kind: 'life',
+          text: `${label} life: ${current.opponents[action.player].life} → ${next.opponents[action.player].life}`,
+        },
+      ];
+    }
+
+    case 'ADJUST_COMMANDER_DAMAGE': {
+      if (next === current) return []; // no-op
+      const label = opponentLabel(current.opponents.length, action.opponent);
+      return [
+        {
+          turn,
+          kind: 'life',
+          text: `${label} commander damage: ${current.opponents[action.opponent].commanderDamage} → ${next.opponents[action.opponent].commanderDamage}`,
+        },
+      ];
+    }
 
     default:
       return [];

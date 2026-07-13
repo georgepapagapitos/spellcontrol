@@ -424,7 +424,7 @@ describe('game log (E140)', () => {
     expect(store().state?.turn).toBe(1);
   });
 
-  it('backfills life/opponents (E138) when resuming a pre-E138 snapshot', () => {
+  it('backfills life/opponents (E138) when resuming a pre-E138 (and pre-E140) snapshot', () => {
     useDecksStore.setState({ decks: [makeDeck({ id: 'deck-10', format: 'paupercommander' })] });
     store().hydrate('deck-10', {
       fingerprint: '1:1',
@@ -433,7 +433,8 @@ describe('game log (E140)', () => {
       mulliganCount: 0,
       resistance: false,
       resistanceState: null,
-      // Simulates a real pre-E138 localStorage blob: no life fields at all.
+      // Simulates a real pre-E138/E140 localStorage blob: no life fields,
+      // no gameLog at all.
       state: {
         zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
         battlefield: [],
@@ -455,6 +456,7 @@ describe('game log (E140)', () => {
     expect(store().state?.tableDefeatedTurn).toBeNull();
     // commanderTax (E139) also backfills on this same legacy path.
     expect(store().state?.commanderTax).toEqual({});
+    expect(store().gameLog).toEqual([]);
   });
 });
 

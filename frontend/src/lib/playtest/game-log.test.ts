@@ -201,6 +201,55 @@ describe('buildLogEntries', () => {
       expect(buildLogEntries(withToken, action, next)).toEqual([]);
     }
   });
+
+  describe('life (E138)', () => {
+    it('logs your own life change', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'ADJUST_LIFE', player: 'self', delta: -5 } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([
+        { turn: 1, kind: 'life', text: 'Your life: 20 → 15' },
+      ]);
+    });
+
+    it('logs an opponent life change, labeled by index when there are several', () => {
+      const s = createPlaytestState({
+        library: deck(5),
+        seed: 1,
+        openingHandSize: 0,
+        opponentCount: 2,
+        opponentLife: 40,
+      });
+      const action = { type: 'ADJUST_LIFE', player: 1, delta: -10 } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([
+        { turn: 1, kind: 'life', text: 'Opponent 2 life: 40 → 30' },
+      ]);
+    });
+
+    it('does not log a no-op life adjustment (out-of-range index)', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'ADJUST_LIFE', player: 5, delta: -1 } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([]);
+    });
+
+    it('logs commander damage, singular "Opponent" label with only one', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 0, delta: 6 } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([
+        { turn: 1, kind: 'life', text: 'Opponent commander damage: 0 → 6' },
+      ]);
+    });
+
+    it('does not log a no-op commander damage adjustment (out-of-range index)', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'ADJUST_COMMANDER_DAMAGE', opponent: 5, delta: 1 } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([]);
+    });
+  });
 });
 
 describe('appendLogEntries', () => {
