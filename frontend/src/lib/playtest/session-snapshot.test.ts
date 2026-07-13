@@ -36,7 +36,7 @@ function baseSnapshot(overrides: Partial<PlaytestSnapshot> = {}): PlaytestSnapsh
     savedAt: Date.now(),
     phase: 'playing',
     mulliganCount: 0,
-    resistance: false,
+    resistanceLevel: 'off',
     resistanceState: null,
     state: baseState({ turn: 3 }),
     gameLog: [],
@@ -130,6 +130,35 @@ describe('save/load round-trip', () => {
   });
 });
 
+describe('E142 resistanceLevel — backward compat with pre-E142 boolean snapshots', () => {
+  it('round-trips a snapshot that already carries resistanceLevel', () => {
+    const snap = baseSnapshot({ resistanceLevel: 'ruthless' });
+    savePlaytestSnapshot('deck-1', snap);
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.resistanceLevel).toBe('ruthless');
+  });
+
+  it('maps a legacy `resistance: true` to the standard preset', () => {
+    const { resistanceLevel: _level, ...legacy } = baseSnapshot();
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify({ ...legacy, resistance: true })
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.resistanceLevel).toBe('standard');
+  });
+
+  it('maps a legacy `resistance: false` (or missing) to off', () => {
+    const { resistanceLevel: _level, ...legacy } = baseSnapshot();
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify({ ...legacy, resistance: false })
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.resistanceLevel).toBe('off');
+
+    localStorage.setItem('spellcontrol:playtest:deck-1', JSON.stringify(legacy));
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.resistanceLevel).toBe('off');
+  });
+});
+
 describe('pruning to the most recent decks', () => {
   it('keeps only the 3 most recently-saved decks', () => {
     savePlaytestSnapshot('deck-a', baseSnapshot({ fingerprint: 'a' }));
@@ -179,6 +208,9 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
     const loaded = loadPlaytestSnapshot('deck-1', '100:60');
     expect(loaded).not.toBeNull();
     expect(loaded?.state).not.toHaveProperty('life');
+    // Pre-E142 snapshots have no `resistanceLevel` at all — normalized from
+    // the legacy boolean.
+    expect(loaded?.resistanceLevel).toBe('off');
   });
 
   it('rejects a snapshot whose life field is present but malformed', () => {
