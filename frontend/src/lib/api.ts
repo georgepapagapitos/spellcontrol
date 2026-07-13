@@ -225,11 +225,13 @@ export async function importRows(rows: FetchErrorRow[]): Promise<UploadResponse>
   throw lastErr;
 }
 
-interface SetSummary {
+export interface SetSummary {
   code: string;
   name: string;
   iconSvgUri: string;
   releasedAt: string;
+  /** Cards in the set per Scryfall (0 = unknown on older cached backends). */
+  cardCount?: number;
 }
 export type SetMap = Record<string, SetSummary>;
 
@@ -264,6 +266,29 @@ export function useSetMap(): SetMap | undefined {
     };
   }, []);
   return map;
+}
+
+const setCardsPromises = new Map<string, Promise<ScryfallCard[]>>();
+
+/**
+ * Every printing in one set, collector-number order (cached per page-load).
+ * Backed by `/api/sets/:code/cards`; the server pages through Scryfall, so a
+ * cold large set can take a while — the shared 120s timeout covers it.
+ */
+export function getSetCards(code: string): Promise<ScryfallCard[]> {
+  const key = code.toLowerCase();
+  let p = setCardsPromises.get(key);
+  if (!p) {
+    p = fetchWithTimeout(`/api/sets/${encodeURIComponent(key)}/cards`, { method: 'GET' })
+      .then((r) => handleResponse<{ cards: ScryfallCard[] }>(r))
+      .then((j) => j.cards)
+      .catch((err) => {
+        setCardsPromises.delete(key);
+        throw err;
+      });
+    setCardsPromises.set(key, p);
+  }
+  return p;
 }
 
 /** Import a deck from pasted text. Returns ScryfallCard objects grouped by section. */
