@@ -30,6 +30,15 @@ export interface TargetCountsResult {
 // deckGenerator.ts's landCountNote copy).
 export const DEFAULT_LAND_COUNT = 37;
 
+// E128: floor for the land count this engine will actually generate.
+// DeckCustomizer's "Total lands" slider already enforces min={32} for every
+// interactive build, so this only guards auto/programmatic callers that
+// bypass the slider (a clamp regression here is exactly what produced the
+// "5-land Commander deck" hazard the validator gate now also catches
+// end-to-end). Matches the slider's own floor — not a second, different
+// number to keep in sync.
+const MIN_LAND_COUNT = 32;
+
 /** True when landCount/nonBasicLandCount are both still at the store defaults
  *  — the only signal available that the user hasn't customized lands (no
  *  dirty flag is threaded through generation context). */
@@ -197,7 +206,7 @@ export function calculateTargetCounts(
 
   // Respect the user's land count — clamp only to sane absolute bounds
   const landCount = Math.min(
-    Math.max(1, landCountOverride ?? customization.landCount),
+    Math.max(MIN_LAND_COUNT, landCountOverride ?? customization.landCount),
     deckCards - 1
   );
   const nonLandBudgetLandCount = Math.min(
