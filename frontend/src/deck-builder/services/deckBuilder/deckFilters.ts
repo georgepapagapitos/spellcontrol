@@ -3,12 +3,14 @@
 // deckGenerator.ts so they can be unit-tested in isolation.
 import type { ScryfallCard, MaxRarity, CollectionStrategy } from '@/deck-builder/types';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
+import { fitsColorIdentity as fitsColorIdentitySet } from '@/lib/deck-validation';
 
-// Check if a card's color identity fits within the commander's color identity
+// Check if a card's color identity fits within the commander's color identity.
+// Thin array-signature wrapper — the actual rule lives in lib/deck-validation.ts
+// (the more general home, shared with the post-save legality gate) so
+// generation-time filtering and validation can't drift apart (E128).
 export function fitsColorIdentity(card: ScryfallCard, commanderColors: string[]): boolean {
-  const cardColors = card.color_identity || [];
-  // Every color in the card's identity must be in the commander's identity
-  return cardColors.every((color) => commanderColors.includes(color));
+  return fitsColorIdentitySet(card, new Set(commanderColors));
 }
 
 // Check if a card exceeds the max price limit

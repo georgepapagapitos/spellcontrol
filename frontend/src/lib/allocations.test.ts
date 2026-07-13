@@ -85,6 +85,42 @@ describe('buildAllocationMap', () => {
     });
     expect(buildAllocationMap([d]).size).toBe(0);
   });
+
+  it('reports a double-claim to onCollision (E133 prod-visibility hook) without changing map contents', () => {
+    const d1 = deck({
+      id: 'd1',
+      name: 'A',
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const d2 = deck({
+      id: 'd2',
+      name: 'B',
+      cards: [{ slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const collisions: { copyId: string; prior: AllocationInfo; next: AllocationInfo }[] = [];
+    const map = buildAllocationMap([d1, d2], undefined, (c) => collisions.push(c));
+    expect(map.size).toBe(1); // last write wins, same as before this param existed
+    expect(map.get('shared')?.deckName).toBe('B');
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0]).toMatchObject({
+      copyId: 'shared',
+      prior: { deckName: 'A' },
+      next: { deckName: 'B' },
+    });
+  });
+
+  it('omitting onCollision behaves exactly as before (no throw, same map)', () => {
+    const d1 = deck({
+      id: 'd1',
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const d2 = deck({
+      id: 'd2',
+      cards: [{ slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    expect(() => buildAllocationMap([d1, d2])).not.toThrow();
+    expect(buildAllocationMap([d1, d2]).size).toBe(1);
+  });
 });
 
 describe('dedupeDeckAllocations', () => {
