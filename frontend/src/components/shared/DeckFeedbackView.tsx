@@ -98,7 +98,8 @@ export function DeckFeedbackView({ data, token }: Props) {
     limit: 12,
   });
 
-  // Commanders (context, not cuttable) + mainboard stacked into one row per
+  // Commanders + sideboard (context, not cuttable — cut suggestions only
+  // apply against the mainboard) + mainboard stacked into one row per
   // oracle identity (basics, etc.), grouped by type bucket.
   const base = useMemo(() => {
     const commanders = [data.commander, data.partnerCommander]
@@ -118,11 +119,21 @@ export function DeckFeedbackView({ data, token }: Props) {
       key: bucket as string,
       items: Array.from(byBucket.get(bucket)?.values() ?? []),
     }));
-    return { commanders, buckets };
-  }, [data.cards, data.commander, data.partnerCommander]);
+    const sideboardStacks = new Map<string, ReviewItem>();
+    for (const slot of data.sideboard) {
+      const item = itemFromPc(deckCardToPublicCard(slot));
+      const existing = sideboardStacks.get(item.key);
+      if (existing) existing.quantity += 1;
+      else sideboardStacks.set(item.key, item);
+    }
+    return { commanders, buckets, sideboard: Array.from(sideboardStacks.values()) };
+  }, [data.cards, data.commander, data.partnerCommander, data.sideboard]);
 
   const allCards = useMemo(
-    () => [...base.commanders, ...base.buckets.flatMap((b) => b.items)].map((it) => it.pc),
+    () =>
+      [...base.commanders, ...base.buckets.flatMap((b) => b.items), ...base.sideboard].map(
+        (it) => it.pc
+      ),
     [base]
   );
 
@@ -154,6 +165,13 @@ export function DeckFeedbackView({ data, token }: Props) {
           items,
         };
       }),
+      {
+        key: 'sideboard',
+        heading: `Sideboard (${base.sideboard.reduce((n, it) => n + it.quantity, 0)})`,
+        carouselLabel: 'Sideboard',
+        cuttable: false,
+        items: base.sideboard.filter((it) => matches(it.pc)),
+      },
     ].filter((s) => s.items.length > 0);
     const lengths = raw.map((s) => s.items.length);
     return raw.map((s, i) => ({ ...s, start: lengths.slice(0, i).reduce((a, b) => a + b, 0) }));
