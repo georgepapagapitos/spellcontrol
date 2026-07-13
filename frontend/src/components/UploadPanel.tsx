@@ -7,7 +7,11 @@ import { importFile, importRows, importText, type ImportProgressCallback } from 
 import type { FetchErrorRow, UploadResponse } from '../types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
-import { findPriorImports } from '../lib/reimport';
+import {
+  findPriorImports,
+  findContentReimportMatch,
+  type ContentReimportMatch,
+} from '../lib/reimport';
 import type { ImportHistoryEntry } from '../lib/local-cards';
 import { summarizeImportRouting } from '../lib/import-routing';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
@@ -38,6 +42,20 @@ interface PendingImport {
   preview?: string;
   /** True for sample-set imports — flagged in history so users can find & delete them. */
   isSample?: boolean;
+}
+
+/**
+ * A 'merge' import whose parsed content looks like a probable re-import of a
+ * prior one (see findContentReimportMatch). Parsing already happened — we
+ * pause here rather than re-fetch, so the gate can resolve straight to a
+ * commit either way.
+ */
+interface PendingReimportGate {
+  p: PendingImport;
+  binderName?: string;
+  parsedFiles?: { file: File; result: UploadResponse }[];
+  singleResult?: UploadResponse;
+  match: ContentReimportMatch;
 }
 
 interface ImportProgressState {
@@ -81,6 +99,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
    *  starts a new import or dismisses the panel. */
   const [recentImportIds, setRecentImportIds] = useState<Set<string>>(new Set());
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [pendingReimportGate, setPendingReimportGate] = useState<PendingReimportGate | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
   const [confirmingDeleteImports, setConfirmingDeleteImports] = useState(false);
@@ -175,7 +194,142 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setPendingImport(p);
   }
 
-  async function runImport(p: PendingImport, mode: ImportMode, binderName?: string) {
+  /**
+   * Commits an already-parsed staged-file batch. Split out of runImport so
+   * the reimport gate can pause AFTER parsing (we need the parsed cards to
+   * check content overlap) but BEFORE anything is written to the store.
+   */
+  async function commitFiles(
+    parsedFiles: { file: File; result: UploadResponse }[],
+    mode: ImportMode,
+    p: PendingImport,
+    binderName?: string
+  ) {
+    // Sequential batch: one history entry per file. For 'replace' the
+    // first file wipes the collection and the rest append, so the net
+    // result is the union of every file rather than just the last.
+    const newImportIds = new Set<string>();
+    let totalCards = 0;
+    let totalUnresolved = 0;
+    let totalSkippedUnowned = 0;
+    let totalClamped = 0;
+    const allFetchErrors: FetchErrorRow[] = [];
+    const allMalformedRows: string[] = [];
+    for (let i = 0; i < parsedFiles.length; i++) {
+      const { file, result } = parsedFiles[i];
+      const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
+      const id = await importCards(result, file.name, fileMode, {
+        isSample: p.isSample,
+        binderName,
+      });
+      newImportIds.add(id);
+      totalCards += result.cards.length;
+      totalUnresolved += result.unresolvedNames.length;
+      totalSkippedUnowned += result.skippedUnownedRows;
+      totalClamped += result.clampedRows;
+      allFetchErrors.push(...result.fetchErrors);
+      allMalformedRows.push(...result.malformedRows);
+    }
+    // importCards stamps each file's own fetchErrors, so after the loop the
+    // store only holds the last file's — restore the whole batch's bucket
+    // so every withheld row stays retryable.
+    if (allFetchErrors.length > 0) {
+      useCollectionStore.setState({ fetchErrors: allFetchErrors });
+    }
+    setMalformedRows(allMalformedRows);
+    const parts: string[] = [
+      `Imported ${totalCards.toLocaleString()} cards from ${parsedFiles.length} files`,
+    ];
+    if (totalUnresolved > 0) parts.push(`${totalUnresolved} unresolved`);
+    if (allFetchErrors.length > 0) {
+      parts.push(`${allFetchErrors.length} couldn't be fetched — retry below`);
+    }
+    if (allMalformedRows.length > 0) {
+      parts.push(`${allMalformedRows.length} rows couldn't be read`);
+    }
+    if (totalSkippedUnowned > 0) {
+      parts.push(`${totalSkippedUnowned} unowned rows skipped`);
+    }
+    if (totalClamped > 0) {
+      parts.push(`${totalClamped} rows over the copy limit — capped`);
+    }
+    if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
+    setSuccessMsg(parts.join(' · '));
+    setStagedFiles([]);
+    setStageNote(null);
+    setRecentImportIds(newImportIds);
+    haptics.success();
+    fireSealMoment();
+  }
+
+  /** Commits an already-parsed paste/scan/retry result. Sibling of commitFiles. */
+  async function commitSingle(
+    result: UploadResponse,
+    mode: ImportMode,
+    p: PendingImport,
+    binderName?: string
+  ) {
+    const id = await importCards(result, p.label, mode, {
+      isSample: p.isSample,
+      binderName,
+    });
+    setMalformedRows(result.malformedRows);
+    const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
+    if (result.scryfallHits > 0) {
+      parts.push(`${result.scryfallHits.toLocaleString()} matched`);
+    }
+    if (result.unresolvedNames.length > 0) {
+      parts.push(`${result.unresolvedNames.length} unresolved`);
+    }
+    if (result.fetchErrors.length > 0) {
+      parts.push(`${result.fetchErrors.length} couldn't be fetched — retry below`);
+    }
+    if (result.malformedRows.length > 0) {
+      parts.push(`${result.malformedRows.length} rows couldn't be read`);
+    }
+    if (result.skippedUnownedRows > 0) {
+      parts.push(
+        `${result.skippedUnownedRows} unowned row${result.skippedUnownedRows !== 1 ? 's' : ''} skipped`
+      );
+    }
+    if (result.clampedRows > 0) {
+      parts.push(
+        `${result.clampedRows} row${result.clampedRows !== 1 ? 's' : ''} over the copy limit — capped`
+      );
+    }
+    if (mode === 'binder' && binderName) {
+      parts.push(`binder "${binderName}" created`);
+    }
+    setSuccessMsg(parts.join(' · '));
+    if (p.label === 'pasted-list') setPasteText('');
+    setRecentImportIds(new Set([id]));
+    haptics.success();
+    fireSealMoment();
+  }
+
+  /**
+   * Replacing a non-empty collection is destructive (Undo toast is the
+   * second net, not the first) — confirm before it runs. An empty collection
+   * has nothing to lose, so no nag.
+   */
+  async function confirmReplaceCollection(): Promise<boolean> {
+    if (cards.length === 0) return true;
+    return confirm({
+      title: 'Replace your collection?',
+      body: `This replaces your ${cards.length.toLocaleString()} card${
+        cards.length === 1 ? '' : 's'
+      } with this file's contents. You can undo it right after.`,
+      confirmLabel: 'Replace',
+      danger: true,
+    });
+  }
+
+  async function runImport(
+    p: PendingImport,
+    mode: ImportMode,
+    binderName?: string,
+    skipReimportGate = false
+  ) {
     setPendingImport(null);
     setLoading(true);
     setError(null);
@@ -186,19 +340,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setMalformedRows([]);
     setShowMalformed(false);
     setImportProgress(null);
-    const newImportIds = new Set<string>();
     try {
       if (p.files) {
-        // Sequential batch: one history entry per file. For 'replace' the
-        // first file wipes the collection and the rest append, so the net
-        // result is the union of every file rather than just the last.
         const totalFiles = p.files.length;
-        let totalCards = 0;
-        let totalUnresolved = 0;
-        let totalSkippedUnowned = 0;
-        let totalClamped = 0;
-        const allFetchErrors: FetchErrorRow[] = [];
-        const allMalformedRows: string[] = [];
+        const parsedFiles: { file: File; result: UploadResponse }[] = [];
         for (let i = 0; i < p.files.length; i++) {
           const file = p.files[i];
           const result = await importFile(file, (prog) =>
@@ -210,95 +355,63 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
               totalFiles,
             })
           );
-          const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
-          const id = await importCards(result, file.name, fileMode, {
-            isSample: p.isSample,
-            binderName,
-          });
-          newImportIds.add(id);
-          totalCards += result.cards.length;
-          totalUnresolved += result.unresolvedNames.length;
-          totalSkippedUnowned += result.skippedUnownedRows;
-          totalClamped += result.clampedRows;
-          allFetchErrors.push(...result.fetchErrors);
-          allMalformedRows.push(...result.malformedRows);
+          parsedFiles.push({ file, result });
         }
-        // importCards stamps each file's own fetchErrors, so after the loop the
-        // store only holds the last file's — restore the whole batch's bucket
-        // so every withheld row stays retryable.
-        if (allFetchErrors.length > 0) {
-          useCollectionStore.setState({ fetchErrors: allFetchErrors });
+        if (mode === 'merge' && !skipReimportGate) {
+          const match = findContentReimportMatch(
+            parsedFiles.flatMap((f) => f.result.cards),
+            importHistory,
+            rawCards
+          );
+          if (match) {
+            setPendingReimportGate({ p, binderName, parsedFiles, match });
+            return;
+          }
         }
-        setMalformedRows(allMalformedRows);
-        const parts: string[] = [
-          `Imported ${totalCards.toLocaleString()} cards from ${p.files.length} files`,
-        ];
-        if (totalUnresolved > 0) parts.push(`${totalUnresolved} unresolved`);
-        if (allFetchErrors.length > 0) {
-          parts.push(`${allFetchErrors.length} couldn't be fetched — retry below`);
-        }
-        if (allMalformedRows.length > 0) {
-          parts.push(`${allMalformedRows.length} rows couldn't be read`);
-        }
-        if (totalSkippedUnowned > 0) {
-          parts.push(`${totalSkippedUnowned} unowned rows skipped`);
-        }
-        if (totalClamped > 0) {
-          parts.push(`${totalClamped} rows over the copy limit — capped`);
-        }
-        if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
-        setSuccessMsg(parts.join(' · '));
-        setStagedFiles([]);
-        setStageNote(null);
-        setRecentImportIds(newImportIds);
-        haptics.success();
-        fireSealMoment();
+        await commitFiles(parsedFiles, mode, p, binderName);
         return;
       }
 
       const result = await p.fn!((prog) =>
         setImportProgress({ chunkIndex: prog.chunkIndex, totalChunks: prog.totalChunks })
       );
-      const id = await importCards(result, p.label, mode, {
-        isSample: p.isSample,
-        binderName,
-      });
-      newImportIds.add(id);
-      setMalformedRows(result.malformedRows);
-      const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
-      if (result.scryfallHits > 0) {
-        parts.push(`${result.scryfallHits.toLocaleString()} matched`);
+      if (mode === 'merge' && !skipReimportGate) {
+        const match = findContentReimportMatch(result.cards, importHistory, rawCards);
+        if (match) {
+          setPendingReimportGate({ p, binderName, singleResult: result, match });
+          return;
+        }
       }
-      if (result.unresolvedNames.length > 0) {
-        parts.push(`${result.unresolvedNames.length} unresolved`);
-      }
-      if (result.fetchErrors.length > 0) {
-        parts.push(`${result.fetchErrors.length} couldn't be fetched — retry below`);
-      }
-      if (result.malformedRows.length > 0) {
-        parts.push(`${result.malformedRows.length} rows couldn't be read`);
-      }
-      if (result.skippedUnownedRows > 0) {
-        parts.push(
-          `${result.skippedUnownedRows} unowned row${result.skippedUnownedRows !== 1 ? 's' : ''} skipped`
-        );
-      }
-      if (result.clampedRows > 0) {
-        parts.push(
-          `${result.clampedRows} row${result.clampedRows !== 1 ? 's' : ''} over the copy limit — capped`
-        );
-      }
-      if (mode === 'binder' && binderName) {
-        parts.push(`binder "${binderName}" created`);
-      }
-      setSuccessMsg(parts.join(' · '));
-      if (p.label === 'pasted-list') setPasteText('');
-      setRecentImportIds(newImportIds);
-      haptics.success();
-      fireSealMoment();
+      await commitSingle(result, mode, p, binderName);
     } catch (err) {
       const fallback = "Couldn't read that file. Double-check the format and try again.";
       setError(err instanceof Error ? err.message : fallback);
+    } finally {
+      setLoading(false);
+      setImportProgress(null);
+    }
+  }
+
+  /** Resolves the reimport gate: Replace (confirmed), Merge anyway, or Cancel. */
+  async function resolveReimportGate(choice: 'replace' | 'merge' | 'cancel') {
+    const gate = pendingReimportGate;
+    if (!gate) return;
+    setPendingReimportGate(null);
+    if (choice === 'cancel') return;
+    if (choice === 'replace') {
+      const ok = await confirmReplaceCollection();
+      if (!ok) return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      if (gate.parsedFiles) {
+        await commitFiles(gate.parsedFiles, choice, gate.p, gate.binderName);
+      } else if (gate.singleResult) {
+        await commitSingle(gate.singleResult, choice, gate.p, gate.binderName);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't complete the import.");
     } finally {
       setLoading(false);
       setImportProgress(null);
@@ -320,7 +433,11 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         label: 'retried-cards',
         preview: `${copies} card${copies === 1 ? '' : 's'}`,
       },
-      'merge'
+      'merge',
+      undefined,
+      // Retrying withheld rows from the import that's already in the store —
+      // not a fresh re-import — so it never needs the reimport gate.
+      true
     );
   };
 
@@ -797,8 +914,23 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             pendingImport.files ? pendingImport.files.map((f) => f.name) : [pendingImport.label],
             importHistory
           )}
-          onPick={(mode, binderName) => runImport(pendingImport, mode, binderName)}
+          onPick={async (mode, binderName) => {
+            if (mode === 'replace') {
+              const ok = await confirmReplaceCollection();
+              if (!ok) return;
+            }
+            void runImport(pendingImport, mode, binderName);
+          }}
           onCancel={() => setPendingImport(null)}
+        />
+      )}
+
+      {pendingReimportGate && (
+        <ReimportGateDialog
+          match={pendingReimportGate.match}
+          onReplace={() => void resolveReimportGate('replace')}
+          onMergeAnyway={() => void resolveReimportGate('merge')}
+          onCancel={() => void resolveReimportGate('cancel')}
         />
       )}
 
@@ -993,6 +1125,59 @@ function ImportModeDialog({
       <div className="choice-dialog-actions">
         <button type="button" className="upload-action" onClick={onCancel}>
           Cancel
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+interface ReimportGateDialogProps {
+  match: ContentReimportMatch;
+  onReplace: () => void;
+  onMergeAnyway: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * Hard stop for a merge-mode import whose parsed content overlaps a prior
+ * import above findContentReimportMatch's threshold — strong enough evidence
+ * that this is a duplicate of cards already owned, not just a filename
+ * coincidence. Merge stays one click away ("Merge anyway"); it just can't
+ * happen by accident anymore.
+ */
+function ReimportGateDialog({
+  match,
+  onReplace,
+  onMergeAnyway,
+  onCancel,
+}: ReimportGateDialogProps) {
+  const { entry } = match;
+  return (
+    <Modal onClose={onCancel} labelledBy="reimport-gate-title">
+      <h2 id="reimport-gate-title" className="choice-dialog-title">
+        This looks like a re-import
+      </h2>
+      <p className="choice-dialog-warning" role="alert">
+        These cards closely match an import you already made —{' '}
+        <strong>{prettyImportName(entry.name, entry.format)}</strong> (
+        {entry.count.toLocaleString()} cards, {formatRelative(entry.addedAt)}). Merging will add a{' '}
+        <strong>second copy of every card</strong>. To refresh it instead, choose{' '}
+        <strong>Replace</strong>.
+      </p>
+      <div className="choice-dialog-actions">
+        <button type="button" className="upload-action" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="upload-action" onClick={onMergeAnyway}>
+          Merge anyway
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary upload-action-danger"
+          onClick={onReplace}
+          autoFocus
+        >
+          Replace instead
         </button>
       </div>
     </Modal>
