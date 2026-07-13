@@ -15,6 +15,7 @@
  */
 
 import type { PlaytestState } from './types';
+import type { GameLogEntry } from './game-log';
 import type { ResistanceState } from '@/playtest/lib/resistance';
 import type { Deck } from '@/store/decks';
 
@@ -31,6 +32,9 @@ export interface PlaytestSnapshot {
   resistanceState: ResistanceState | null;
   /** Reducer state minus `past` (the undo stack — too big, not persisted). */
   state: Omit<PlaytestState, 'past'>;
+  /** Event journal (E140). Optional on the wire — a snapshot saved before this
+   *  field existed loads with an empty log rather than failing validation. */
+  gameLog: GameLogEntry[];
 }
 
 const KEY_PREFIX = 'spellcontrol:playtest:';
@@ -121,7 +125,8 @@ export function loadPlaytestSnapshot(deckId: string, fingerprint: string): Playt
       clearPlaytestSnapshot(deckId);
       return null;
     }
-    return parsed;
+    // Snapshots saved before E140 have no `gameLog` — load them with an empty one.
+    return { ...parsed, gameLog: Array.isArray(parsed.gameLog) ? parsed.gameLog : [] };
   } catch {
     clearPlaytestSnapshot(deckId);
     return null;

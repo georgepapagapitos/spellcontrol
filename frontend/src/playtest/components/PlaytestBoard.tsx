@@ -29,6 +29,7 @@ import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { TokenCreator } from './TokenCreator';
 import { PlaytestStatsSheet } from './PlaytestStatsSheet';
+import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
 
 interface Props {
@@ -54,6 +55,8 @@ export function PlaytestBoard({ state }: Props) {
   const resistanceOn = usePlaytestStore((s) => s.resistance);
   const toggleResistance = usePlaytestStore((s) => s.toggleResistance);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
+  const gameLog = usePlaytestStore((s) => s.gameLog);
+  const logScryPeek = usePlaytestStore((s) => s.logScryPeek);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
   const deck = useDecksStore((s) =>
     playtestDeckId ? s.decks.find((d) => d.id === playtestDeckId) : undefined
@@ -83,6 +86,10 @@ export function PlaytestBoard({ state }: Props) {
   const [ctx, setCtx] = useState<ContextState>(null);
   const [tokenCreator, setTokenCreator] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showLog, setShowLog] = useState(false);
+  // Highest resistance-entry seq seen so far — drives the ActionBar's unread
+  // dot; not persisted, a soft nice-to-have that resets on remount.
+  const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   // Banner dismissal is tracked by event id so a new opponent response (even
   // with an identical message) re-shows and re-announces the banner.
@@ -204,7 +211,21 @@ export function PlaytestBoard({ state }: Props) {
     ctx !== null ||
     tokenCreator ||
     showStats ||
+    showLog ||
     Boolean(confirmDialog);
+
+  // Scry/peek has no reducer action of its own (it's just the library viewer
+  // opened with a topN) — log it explicitly alongside opening the viewer.
+  function handleScry() {
+    logScryPeek();
+    setViewer({ zone: 'library', topN: 3 });
+  }
+
+  const hasUnreadLog = gameLog.some((e) => e.kind === 'resistance' && e.seq > lastSeenLogSeq);
+  function handleOpenLog() {
+    setLastSeenLogSeq(gameLog.at(-1)?.seq ?? 0);
+    setShowLog(true);
+  }
 
   // Resistance's only explanation used to be a hover `title` on the toggle —
   // invisible on touch. Reuse the existing opponent-announcement banner to
@@ -291,11 +312,13 @@ export function PlaytestBoard({ state }: Props) {
           });
           if (ok) dispatch({ type: 'RESET' });
         }}
-        onScry={() => setViewer({ zone: 'library', topN: 3 })}
+        onScry={handleScry}
         onCreateToken={() => setTokenCreator(true)}
         onOpenStats={() => setShowStats(true)}
+        onOpenLog={handleOpenLog}
         onToggleResistance={toggleResistance}
         resistanceOn={resistanceOn}
+        hasUnreadLog={hasUnreadLog}
       />
       {lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId ? (
         <ResistanceBanner
@@ -375,7 +398,7 @@ export function PlaytestBoard({ state }: Props) {
           zones={state.zones}
           onOpenZone={(zone) => setViewer({ zone })}
           onShuffleLibrary={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
-          onScry={() => setViewer({ zone: 'library', topN: 3 })}
+          onScry={handleScry}
         />
       )}
 
@@ -475,6 +498,8 @@ export function PlaytestBoard({ state }: Props) {
           onClose={() => setShowStats(false)}
         />
       )}
+
+      {showLog && <PlaytestLogSheet log={gameLog} onClose={() => setShowLog(false)} />}
 
       {confirmDialog}
     </div>
