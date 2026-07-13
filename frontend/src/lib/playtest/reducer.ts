@@ -1,6 +1,8 @@
 import { mulberry32, nextSeed, shuffle } from './rng';
+import { isOpponentDefeated } from './life-config';
 import type {
   BattlefieldCard,
+  OpponentLife,
   PlaytestAction,
   PlaytestCard,
   PlaytestInit,
@@ -24,6 +26,9 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
   const handSize = Math.min(init.openingHandSize ?? DEFAULT_OPENING_HAND, shuffled.length);
   const hand = shuffled.slice(0, handSize);
   const library = shuffled.slice(handSize);
+  const life = init.life ?? 20;
+  const opponentLife = init.opponentLife ?? life;
+  const opponentCount = init.opponentCount ?? 1;
   return {
     zones: {
       ...emptyZones(),
@@ -35,6 +40,15 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     rngSeed: nextSeed(seed),
     turn: 1,
     commanderTax: {},
+    life,
+    opponents: Array.from({ length: opponentCount }, () => ({
+      life: opponentLife,
+      commanderDamage: 0,
+    })),
+    startingLife: life,
+    startingOpponentLife: opponentLife,
+    commanderDamageThreshold: init.commanderDamageThreshold ?? 21,
+    tableDefeatedTurn: null,
     past: [],
   };
 }
@@ -57,7 +71,27 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     rngSeed: state.rngSeed,
     turn: state.turn,
     commanderTax: { ...state.commanderTax },
+    life: state.life,
+    opponents: state.opponents.slice(),
+    startingLife: state.startingLife,
+    startingOpponentLife: state.startingOpponentLife,
+    commanderDamageThreshold: state.commanderDamageThreshold,
+    tableDefeatedTurn: state.tableDefeatedTurn,
   };
+}
+
+/** Sticky: once the table is swept, further defeats/heals don't move the
+ *  recorded turn. Only fires the first time every opponent is defeated. */
+function deriveTableDefeatedTurn(
+  turn: number,
+  priorTableDefeatedTurn: number | null,
+  opponents: readonly OpponentLife[],
+  commanderDamageThreshold: number
+): number | null {
+  if (priorTableDefeatedTurn !== null) return priorTableDefeatedTurn;
+  if (opponents.length === 0) return null;
+  const allDefeated = opponents.every((o) => isOpponentDefeated(o, commanderDamageThreshold));
+  return allDefeated ? turn : null;
 }
 
 function withHistory(prev: PlaytestState, next: Omit<PlaytestState, 'past'>): PlaytestState {
@@ -125,6 +159,15 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         turn: 1,
         // A new game: tax paid in the last game doesn't carry over.
         commanderTax: {},
+        life: state.startingLife,
+        opponents: state.opponents.map(() => ({
+          life: state.startingOpponentLife,
+          commanderDamage: 0,
+        })),
+        startingLife: state.startingLife,
+        startingOpponentLife: state.startingOpponentLife,
+        commanderDamageThreshold: state.commanderDamageThreshold,
+        tableDefeatedTurn: null,
         past: [],
       };
     }
@@ -328,6 +371,45 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         next.zones.library = next.zones.library.slice(1);
         next.zones.hand = next.zones.hand.concat(state.zones.library[0]);
       }
+      return withHistory(state, next);
+    }
+    case 'ADJUST_LIFE': {
+      if (action.delta === 0) return state;
+      if (action.player === 'self') {
+        const next = snapshot(state);
+        next.life = state.life + action.delta;
+        return withHistory(state, next);
+      }
+      const idx = action.player;
+      if (!Number.isInteger(idx) || idx < 0 || idx >= state.opponents.length) return state;
+      const next = snapshot(state);
+      next.opponents = next.opponents.map((o, i) =>
+        i === idx ? { ...o, life: o.life + action.delta } : o
+      );
+      next.tableDefeatedTurn = deriveTableDefeatedTurn(
+        state.turn,
+        state.tableDefeatedTurn,
+        next.opponents,
+        state.commanderDamageThreshold
+      );
+      return withHistory(state, next);
+    }
+    case 'ADJUST_COMMANDER_DAMAGE': {
+      if (action.delta === 0) return state;
+      const idx = action.opponent;
+      if (!Number.isInteger(idx) || idx < 0 || idx >= state.opponents.length) return state;
+      const next = snapshot(state);
+      // Commander damage never goes negative — healing it out just means "no
+      // damage yet," not a debt.
+      next.opponents = next.opponents.map((o, i) =>
+        i === idx ? { ...o, commanderDamage: Math.max(0, o.commanderDamage + action.delta) } : o
+      );
+      next.tableDefeatedTurn = deriveTableDefeatedTurn(
+        state.turn,
+        state.tableDefeatedTurn,
+        next.opponents,
+        state.commanderDamageThreshold
+      );
       return withHistory(state, next);
     }
   }

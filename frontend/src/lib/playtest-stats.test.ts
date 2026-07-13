@@ -58,6 +58,12 @@ function makeMinimalState(overrides: Partial<PlaytestState> = {}): PlaytestState
     rngSeed: 1,
     turn: 1,
     commanderTax: {},
+    life: 40,
+    opponents: [{ life: 40, commanderDamage: 0 }],
+    startingLife: 40,
+    startingOpponentLife: 40,
+    commanderDamageThreshold: 21,
+    tableDefeatedTurn: null,
     past: [],
     ...overrides,
   };

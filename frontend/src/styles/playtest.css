@@ -1323,3 +1323,185 @@ body:has(.playtest-page) .modal-backdrop {
     min-height: 44px;
   }
 }
+
+/* ── Life strip (E138) ──────────────────────────────────────────────────── */
+/*  One compact row: you + N virtual opponents. Never displaces the
+ *  battlefield — chips are small, the strip scrolls itself if it can't fit
+ *  (3 opponents + you on a narrow phone) rather than wrapping/growing. */
+
+.playtest-life-strip {
+  display: flex;
+  gap: 6px;
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 0.5px solid var(--border);
+  background: var(--surface);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.playtest-life-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 0;
+  min-width: 4.5rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 9px;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-life-chip:hover {
+    border-color: var(--accent);
+  }
+}
+
+.playtest-life-chip:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .playtest-life-chip {
+    min-height: 44px;
+  }
+}
+
+.playtest-life-chip__label {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playtest-life-chip__life {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.playtest-life-chip--opponent.is-defeated {
+  opacity: 0.55;
+  border-color: var(--err-border);
+}
+
+.playtest-life-chip--opponent.is-defeated .playtest-life-chip__life {
+  text-decoration: line-through;
+}
+
+.playtest-life-chip__cmdr {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--err-text);
+  background: color-mix(in srgb, var(--err-text) 16%, transparent);
+  border-radius: var(--radius);
+  padding: 1px 5px;
+}
+
+.playtest-life-chip__skull {
+  font-size: var(--text-xs);
+}
+
+/* ── Life adjust panel (popover/sheet content) ───────────────────────────── */
+
+.playtest-life-panel-floating {
+  position: fixed;
+  z-index: 1100;
+  min-width: 15rem;
+  max-width: calc(100vw - 1rem);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-tooltip);
+  padding: var(--space-3);
+}
+
+.playtest-life-panel-floating .playtest-life-panel__title {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.playtest-life-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.playtest-life-panel-sheet .playtest-life-panel {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.playtest-life-panel__cmdr {
+  border-top: 0.5px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.playtest-life-panel__cmdr-note {
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.playtest-life-panel__defeated {
+  margin: 0;
+  color: var(--err-text);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.playtest-life-panel__stepper-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-1);
+}
+
+.playtest-life-panel__stepper-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.playtest-life-panel__value {
+  min-width: 2.5rem;
+  text-align: center;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.playtest-life-panel__step {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  min-width: 2.75rem;
+  padding: 6px 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-life-panel__step:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.playtest-life-panel__step:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .playtest-life-panel__step {
+    min-height: 44px;
+  }
+}
