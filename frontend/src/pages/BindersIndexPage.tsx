@@ -20,6 +20,7 @@ import { useAllocations } from '../lib/allocations';
 import { materializeBinders } from '../lib/materialize';
 import { diffMembershipByDefs } from '../lib/binder-moves';
 import { computeDrift } from '../lib/binder-drift';
+import { binderCoverArt } from '../lib/binder-cover';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { formatMoney } from '../lib/format-money';
 import { useSetMap } from '../lib/api';
@@ -124,6 +125,14 @@ export function BindersIndexPage() {
     }
     return counts;
   }, [materialized, cards, importHistory]);
+
+  // Cover art per binder — an explicit cover card if the user set one, else
+  // the most valuable card (see lib/binder-cover.ts). Keyed off `materialized`
+  // so search keystrokes don't re-scan every binder's cards.
+  const coverArts = useMemo(
+    () => new Map(materialized.map((b) => [b.def.id, binderCoverArt(b)])),
+    [materialized]
+  );
 
   const { sortField, sortDir, toggleSort } = useStoredSort<BinderSortField>(
     'binders-index-sort',
@@ -445,6 +454,7 @@ export function BindersIndexPage() {
           <ul className={`binders-index-list is-${view}`}>
             {sorted.map((b, idx) => {
               const selected = sel.selected.has(b.def.id);
+              const art = coverArts.get(b.def.id);
               return (
                 <li
                   key={b.def.id}
@@ -460,6 +470,17 @@ export function BindersIndexPage() {
                 >
                   {sel.selectMode && <SelectCheck checked={selected} />}
                   <Link to={`/collection/binders/${b.def.id}`} className="binders-index-card-link">
+                    {view !== 'compact' && art && (
+                      /* Cover art — user-chosen card, else the binder's most
+                         valuable card. Mirrors the decks-index commander art. */
+                      <img className="binders-index-card-art" src={art} alt="" aria-hidden="true" />
+                    )}
+                    {view === 'grid' && !art && (
+                      /* Coverless grid tiles (empty binder / no imaged cards)
+                         get a solid band of the binder color — a plain binder
+                         cover — so tiles in a row stay uniform. */
+                      <span className="binders-index-card-banner" aria-hidden />
+                    )}
                     <div className="binders-index-card-body">
                       <div className="binders-index-card-name">{b.def.name}</div>
                       <div className="binders-index-card-meta">
