@@ -661,6 +661,204 @@ describe('card price stripping (prices are device-local, never synced)', () => {
   });
 });
 
+describe('card printing-group reject-stale (E129)', () => {
+  // Card rows are per-copy; quantity is derived row cardinality for a
+  // (scryfallId, finish) group. These cover the client side of the cross-
+  // device drift fix: tagging cardinality-changing mutations, sending a
+  // fresh baseline at send time, and converging when the server bounces one.
+  beforeEach(() => mockIsNative.mockReturnValue(true)); // durable queue is native-only
+
+  it('tags a new copy joining an already-owned printing (candidate for the check)', async () => {
+    await estore.putMany('card', [
+      {
+        id: 'c-1',
+        data: { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        deletedAt: null,
+      },
+    ]);
+    await persistCardsState([
+      { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+      { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    const batch = await queue.peekBatch(10);
+    // c-1 is byte-identical to what's already in IDB → skipped (E38); only
+    // the new c-2 is enqueued, tagged with its printing group.
+    expect(batch).toHaveLength(1);
+    expect(batch[0].m).toMatchObject({
+      op: 'upsert',
+      id: 'c-2',
+      cardGroup: { scryfallId: 'S', finish: 'nonfoil' },
+    });
+  });
+
+  it('does not tag a brand-new printing with no pre-existing owned copy (bulk import stays cheap)', async () => {
+    await persistCardsState([
+      { copyId: 'c-1', scryfallId: 'NEW', finish: 'nonfoil' },
+      { copyId: 'c-2', scryfallId: 'NEW', finish: 'nonfoil' },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    const batch = await queue.peekBatch(10);
+    expect(batch).toHaveLength(2);
+    for (const b of batch) {
+      expect((b.m as { cardGroup?: unknown }).cardGroup).toBeUndefined();
+    }
+  });
+
+  it('tags a delete with its printing group (the row is hard-deleted locally before send time)', async () => {
+    await estore.putMany('card', [
+      {
+        id: 'c-1',
+        data: { copyId: 'c-1', scryfallId: 'S', finish: 'foil' },
+        rev: 5,
+        deletedAt: null,
+      },
+    ]);
+    await persistCardsState([] as Array<{ copyId: string; importId?: string }>); // drops c-1
+    const batch = await queue.peekBatch(10);
+    expect(batch[0].m).toMatchObject({
+      op: 'delete',
+      kind: 'card',
+      id: 'c-1',
+      cardGroup: { scryfallId: 'S', finish: 'foil' },
+    });
+  });
+
+  it('sends a cardGroupChecks baseline re-derived from live IDB at send time', async () => {
+    await estore.putMany('card', [
+      {
+        id: 'c-1',
+        data: { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+      {
+        id: 'c-2',
+        data: { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+    ]);
+    await persistCardsState([
+      { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+      { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+      { copyId: 'c-3', scryfallId: 'S', finish: 'nonfoil' }, // new add joining the owned group
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'card', id: 'c-3', rev: 6, deletedAt: null }],
+      cursor: 6,
+    });
+    await startSync('user-1');
+    const body = mockPush.mock.calls[0][0] as {
+      cardGroupChecks?: Array<{ scryfallId: string; finish: string; baseline: string[] }>;
+    };
+    // c-3 itself (rev 0, unconfirmed) is excluded from its own baseline — only
+    // the two already-confirmed copies are asserted.
+    expect(body.cardGroupChecks).toEqual([
+      { scryfallId: 'S', finish: 'nonfoil', baseline: ['c-1', 'c-2'] },
+    ]);
+  });
+
+  it('sends no cardGroupChecks when the batch has no cardinality-changing card op (back-compat)', async () => {
+    await queue.enqueue({ op: 'upsert', kind: 'binder', id: 'b-1', data: { id: 'b-1' } });
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'binder', id: 'b-1', rev: 1, deletedAt: null }],
+      cursor: 1,
+    });
+    await startSync('user-1');
+    const body = mockPush.mock.calls[0][0] as { cardGroupChecks?: unknown };
+    expect(body.cardGroupChecks).toBeUndefined();
+  });
+
+  it('a pre-E129 queued mutation (no cardGroup tag) still pushes with no cardGroupChecks', async () => {
+    // Simulates a mutation queued by a pre-E129 client build still sitting in
+    // the durable queue across an app upgrade — the old shape must behave
+    // exactly as before: unconditional LWW, no check sent.
+    await queue.enqueue({
+      op: 'upsert',
+      kind: 'card',
+      id: 'c-1',
+      data: { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [{ kind: 'card', id: 'c-1', rev: 1, deletedAt: null }],
+      cursor: 1,
+    });
+    await startSync('user-1');
+    const body = mockPush.mock.calls[0][0] as { cardGroupChecks?: unknown };
+    expect(body.cardGroupChecks).toBeUndefined();
+  });
+
+  it('converges on a rejected add: tombstones the optimistic local row, queue not wedged', async () => {
+    await estore.putMany('card', [
+      {
+        id: 'c-1',
+        data: { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+        rev: 5,
+        syncedRev: 5,
+        deletedAt: null,
+      },
+    ]);
+    await persistCardsState([
+      { copyId: 'c-1', scryfallId: 'S', finish: 'nonfoil' },
+      { copyId: 'c-new', scryfallId: 'S', finish: 'nonfoil' },
+    ] as unknown as Array<{ copyId: string; importId?: string }>);
+    // Server: another device already grew the group, so c-new's implied baseline
+    // no longer matches — rejected, HTTP 200 (never a 409).
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [{ kind: 'card', id: 'c-new', serverRev: 0, serverData: null }],
+      cursor: 0,
+    });
+    await startSync('user-1');
+    // The rejected optimistic add is tombstoned locally (server never had it) —
+    // it must not linger as a phantom extra copy.
+    const row = await estore.getById('card', 'c-new');
+    expect(row?.data).toBeNull();
+    expect(row?.deletedAt).toEqual(expect.any(Number));
+    // HTTP 200 acks the batch — the queue drains, it is never wedged on a
+    // rejected op (a poison-message hazard this design avoids by construction).
+    expect(await queue.size()).toBe(0);
+  });
+
+  it('converges on a rejected delete: restores the server row + importId, toasts a card-specific message', async () => {
+    const { useToastsStore } = await import('../store/toasts');
+    useToastsStore.getState().clear();
+    await queue.enqueue({
+      op: 'delete',
+      kind: 'card',
+      id: 'c-2',
+      cardGroup: { scryfallId: 'S', finish: 'nonfoil' },
+    });
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        {
+          kind: 'card',
+          id: 'c-2',
+          serverRev: 9,
+          serverData: { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+          importId: 'imp-1',
+        },
+      ],
+      cursor: 9,
+    });
+    await startSync('user-1');
+    const row = await estore.getById('card', 'c-2');
+    expect(row).toMatchObject({
+      data: { copyId: 'c-2', scryfallId: 'S', finish: 'nonfoil' },
+      rev: 9,
+      syncedRev: 9,
+      deletedAt: null,
+      importId: 'imp-1',
+    });
+    expect(await queue.size()).toBe(0); // acked, not wedged
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts.some((t) => /card quantity changed/i.test(t.message))).toBe(true);
+  });
+});
+
 describe('legibility signals', () => {
   it('getPendingCount reflects the durable queue depth', async () => {
     mockIsNative.mockReturnValue(true); // durable queue is native-only

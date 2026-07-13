@@ -61,15 +61,27 @@ async function push(
       clientRev?: number;
     }>;
     deletions?: Array<{ kind: string; id: string }>;
+    cardGroupChecks?: Array<{ scryfallId: string; finish: string; baseline: string[] }>;
   }
 ) {
   const res = await request(app).post('/api/sync').set('Cookie', cookie).send(body);
   expect(res.status).toBe(200);
   return res.body as {
     applied: Array<{ kind: string; id: string; rev: number; deletedAt: number | null }>;
-    conflicts: Array<{ kind: 'deck'; id: string; serverRev: number; serverData: unknown }>;
+    conflicts: Array<{
+      kind: 'deck' | 'card';
+      id: string;
+      serverRev: number;
+      serverData: unknown;
+      importId?: string;
+    }>;
     cursor: number;
   };
+}
+
+/** Card row shape used by the E129 tests below — enough for a group check. */
+function cardRow(copyId: string, scryfallId: string, finish = 'nonfoil') {
+  return { kind: 'card', id: copyId, data: { copyId, scryfallId, finish }, importId: 'imp-1' };
 }
 
 describe('auth', () => {
@@ -286,6 +298,137 @@ describe('deck reject-stale (optimistic concurrency)', () => {
       .post('/api/sync')
       .set('Cookie', cookie)
       .send({ upserts: [{ kind: 'deck', id: 'd-1', data: {}, clientRev: 'nope' }] });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('card printing-group reject-stale (E129)', () => {
+  // Card rows are per-copy (one row per copyId); quantity is derived row
+  // cardinality for a (scryfallId, finish) group. These cover the audit's
+  // exact drift scenario: two devices add/remove DIFFERENT copyIds from a
+  // stale shared baseline, which the server would otherwise silently union
+  // to a total matching neither device's intent.
+  const SCRYFALL_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+  it('rejects the second device when a two-device quantity race is checked, instead of silently unioning', async () => {
+    const cookie = await registerAndGetCookie('card_group_race');
+    // Shared baseline: both devices last saw 3 copies of the same printing.
+    const seed = await push(cookie, {
+      upserts: [
+        cardRow('c-1', SCRYFALL_ID),
+        cardRow('c-2', SCRYFALL_ID),
+        cardRow('c-3', SCRYFALL_ID),
+      ],
+    });
+    expect(seed.applied).toHaveLength(3);
+    const baseline = ['c-1', 'c-2', 'c-3'];
+
+    // Device A: sets quantity 3 -> 5 (adds 2 copies), asserting the baseline.
+    const a = await push(cookie, {
+      upserts: [cardRow('c-4', SCRYFALL_ID), cardRow('c-5', SCRYFALL_ID)],
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline }],
+    });
+    expect(a.conflicts).toEqual([]);
+    expect(a.applied).toHaveLength(2);
+
+    // Device B: sets quantity 3 -> 4 (adds 1 copy) from the SAME stale
+    // baseline — it pushes after A but doesn't know A already landed.
+    const b = await push(cookie, {
+      upserts: [cardRow('c-6', SCRYFALL_ID)],
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline }],
+    });
+    // B's baseline no longer matches the live group (A already grew it to 5)
+    // — rejected as a conflict, never silently unioned to 6.
+    expect(b.applied).toEqual([]);
+    expect(b.conflicts).toHaveLength(1);
+    expect(b.conflicts[0]).toMatchObject({
+      kind: 'card',
+      id: 'c-6',
+      serverRev: 0,
+      serverData: null,
+    });
+
+    // Final state matches a deterministic winner (A, who pushed first) — not
+    // a union matching neither device's intent (6, or 7 per the audit's own
+    // repro numbers).
+    const view = await pull(cookie);
+    const live = view.rows.filter(
+      (r) =>
+        r.kind === 'card' &&
+        r.deletedAt == null &&
+        (r.data as { scryfallId: string }).scryfallId === SCRYFALL_ID
+    );
+    expect(live.map((r) => r.id).sort()).toEqual(['c-1', 'c-2', 'c-3', 'c-4', 'c-5']);
+  });
+
+  it('applies normally when the asserted baseline still matches (no concurrent change)', async () => {
+    const cookie = await registerAndGetCookie('card_group_ok');
+    await push(cookie, { upserts: [cardRow('c-1', SCRYFALL_ID), cardRow('c-2', SCRYFALL_ID)] });
+    const res = await push(cookie, {
+      upserts: [cardRow('c-3', SCRYFALL_ID)],
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline: ['c-1', 'c-2'] }],
+    });
+    expect(res.conflicts).toEqual([]);
+    expect(res.applied).toHaveLength(1);
+  });
+
+  it('rejects a delete whose group changed elsewhere and leaves the server row untouched', async () => {
+    const cookie = await registerAndGetCookie('card_group_delete_race');
+    await push(cookie, { upserts: [cardRow('c-1', SCRYFALL_ID), cardRow('c-2', SCRYFALL_ID)] });
+    // Another device adds a third copy this device doesn't know about yet.
+    await push(cookie, { upserts: [cardRow('c-3', SCRYFALL_ID)] });
+
+    // This device still believes the group is just {c-1, c-2} and tries to
+    // delete c-2 (its intended quantity: 2 -> 1).
+    const del = await push(cookie, {
+      deletions: [{ kind: 'card', id: 'c-2' }],
+      cardGroupChecks: [{ scryfallId: SCRYFALL_ID, finish: 'nonfoil', baseline: ['c-1', 'c-2'] }],
+    });
+    expect(del.applied).toEqual([]);
+    expect(del.conflicts).toHaveLength(1);
+    expect(del.conflicts[0]).toMatchObject({ kind: 'card', id: 'c-2', importId: 'imp-1' });
+    expect((del.conflicts[0].serverData as { copyId: string }).copyId).toBe('c-2');
+
+    // c-2 is still live server-side — the delete never landed.
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
+    expect(live.map((r) => r.id).sort()).toEqual(['c-1', 'c-2', 'c-3']);
+  });
+
+  it('absent cardGroupChecks keeps unconditional last-write-wins (back-compat)', async () => {
+    // An old client (or any push that opts out) never sends cardGroupChecks —
+    // both devices' additions land unconditionally, reproducing the pre-E129
+    // union exactly as before. Documents the behavior this PR does NOT change
+    // for non-participating clients — mixed-version rollout stays safe.
+    const cookie = await registerAndGetCookie('card_group_no_check');
+    await push(cookie, {
+      upserts: [
+        cardRow('c-1', SCRYFALL_ID),
+        cardRow('c-2', SCRYFALL_ID),
+        cardRow('c-3', SCRYFALL_ID),
+      ],
+    });
+    const a = await push(cookie, {
+      upserts: [cardRow('c-4', SCRYFALL_ID), cardRow('c-5', SCRYFALL_ID)],
+    });
+    expect(a.conflicts).toEqual([]);
+    const b = await push(cookie, { upserts: [cardRow('c-6', SCRYFALL_ID)] });
+    expect(b.conflicts).toEqual([]);
+
+    const view = await pull(cookie);
+    const live = view.rows.filter((r) => r.kind === 'card' && r.deletedAt == null);
+    // The union — 6, matching neither device's intended 5 or 4 — is exactly
+    // the E129 audit's bug, deliberately preserved for clients that don't
+    // opt in by sending cardGroupChecks.
+    expect(live).toHaveLength(6);
+  });
+
+  it('rejects malformed cardGroupChecks', async () => {
+    const cookie = await registerAndGetCookie('card_group_bad');
+    const res = await request(app)
+      .post('/api/sync')
+      .set('Cookie', cookie)
+      .send({ cardGroupChecks: [{ scryfallId: '', finish: 'nonfoil', baseline: [] }] });
     expect(res.status).toBe(400);
   });
 });

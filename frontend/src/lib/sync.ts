@@ -8,6 +8,7 @@ import {
   type SyncRow,
   type SyncUpsert,
   type SyncDeletion,
+  type SyncCardGroupCheck,
   type SyncPushResult,
 } from './auth-api';
 import * as queue from './mutation-queue';
@@ -47,6 +48,20 @@ function stripCardPrice<T extends { purchasePrice?: number; pricedAt?: number }>
 function baseRevFor(row: estore.StoredRow | undefined): number {
   if (!row) return 0;
   return row.syncedRev ?? (row.rev > 0 ? row.rev : 0);
+}
+
+/**
+ * Card-only (E129): a row's printing+finish identity, used to detect a
+ * cross-device cardinality change (add/delete) for the same printing before
+ * committing it — see buildOutbound. `finish` defaults to 'nonfoil' for the
+ * rare pre-finish-field row.
+ */
+function cardGroupIdentity(data: unknown): queue.CardGroup | undefined {
+  const d = data as { scryfallId?: string; finish?: string } | null;
+  return d?.scryfallId ? { scryfallId: d.scryfallId, finish: d.finish ?? 'nonfoil' } : undefined;
+}
+function cardGroupKeyStr(g: queue.CardGroup): string {
+  return `${g.scryfallId}::${g.finish}`;
 }
 
 /**
@@ -108,6 +123,17 @@ function seedCardPrices(cards: ReadonlyArray<EnrichedCardish>): void {
  * baseVersion, no 409. Last-write-wins per row for every kind except decks:
  * when clientRev > 0 the server may reject a stale deck write and return it
  * as a conflict in-band; the client re-applies the server version locally.
+ *
+ * Cards get a narrower version of the same idea (E129): a card row's own
+ * `rev` is still unconditional LWW (single-field edits never conflict), but
+ * quantity is row CARDINALITY — one row per copy — so two devices adding/
+ * removing different copyIds of the same printing from a stale shared count
+ * never collide per-row and the server would otherwise silently union to a
+ * total neither device intended. `cardGroupChecks` on the push body asserts
+ * the client's believed live copyIds for a (scryfallId, finish) group; if the
+ * server's actual live set has since changed, every upsert/deletion touching
+ * that group in the batch is rejected together and reported via the same
+ * `conflicts[]` channel as decks (HTTP 200, never 409).
  */
 
 const CURSOR_KEY = 'spellcontrol-sync-cursor';
@@ -461,6 +487,25 @@ async function persistKind<T>(
   const localById = new Map(local.map((r) => [r.id, r]));
   const desiredIds = new Set(rows.map(getId));
 
+  // Card-only (E129): confirmed (server-known) member count per printing+finish
+  // group, computed once so a brand-new copyId only gets tagged for the
+  // reject-stale check below when it's joining an ALREADY-owned group. A
+  // first-time bulk import creates thousands of brand-new groups with zero
+  // pre-existing members — none of those need (or can cheaply afford) the
+  // server round-trip a check costs, and skipping them keeps import perf
+  // unchanged.
+  let groupConfirmedCounts: Map<string, number> | undefined;
+  if (kind === 'card') {
+    groupConfirmedCounts = new Map();
+    for (const row of local) {
+      if (baseRevFor(row) <= 0) continue;
+      const g = cardGroupIdentity(row.data);
+      if (!g) continue;
+      const k = cardGroupKeyStr(g);
+      groupConfirmedCounts.set(k, (groupConfirmedCounts.get(k) ?? 0) + 1);
+    }
+  }
+
   // ponytail: O(kind-size) JSON.stringify per call to detect changes — fine at
   // realistic collection sizes (one diff per user action, no network); hash the
   // rows if a profiler ever flags it. Identical stringify ⟹ identical content,
@@ -486,6 +531,14 @@ async function persistKind<T>(
       deletedAt: null,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
     });
+    // A brand-new copyId joining an already-owned printing+finish group is a
+    // cardinality change — tag it so buildOutbound verifies the group's live
+    // membership against the server before this add lands (E129).
+    let cardGroup: queue.CardGroup | undefined;
+    if (kind === 'card' && existing == null) {
+      const g = cardGroupIdentity(r);
+      if (g && (groupConfirmedCounts?.get(cardGroupKeyStr(g)) ?? 0) > 0) cardGroup = g;
+    }
     muts.push({
       op: 'upsert',
       kind,
@@ -493,6 +546,7 @@ async function persistKind<T>(
       data: r,
       ...(kind === 'card' && getImportId ? { importId: getImportId(r) } : {}),
       ...(kind === 'deck' && syncedRev > 0 ? { clientRev: syncedRev } : {}),
+      ...(cardGroup ? { cardGroup } : {}),
     });
   }
   if (changedRows.length > 0) await estore.putMany(kind, changedRows);
@@ -500,7 +554,13 @@ async function persistKind<T>(
   const toDelete: string[] = [];
   for (const id of localById.keys()) if (!desiredIds.has(id)) toDelete.push(id);
   if (toDelete.length > 0) await estore.deleteMany(kind, toDelete);
-  for (const id of toDelete) muts.push({ op: 'delete', kind, id });
+  for (const id of toDelete) {
+    // Removing a copy is always a cardinality change; read its group from the
+    // pre-delete local row (estore.deleteMany hard-deletes, so this is our
+    // last chance to know which printing it belonged to — E129).
+    const cardGroup = kind === 'card' ? cardGroupIdentity(localById.get(id)?.data) : undefined;
+    muts.push({ op: 'delete', kind, id, ...(cardGroup ? { cardGroup } : {}) });
+  }
 
   if (muts.length > 0) {
     if (shouldQueueLocally()) {
@@ -690,13 +750,37 @@ async function pull(): Promise<void> {
 }
 
 /**
- * Reflect a /api/sync push response onto local state: adopt any deck conflicts
- * the server reported (reject-stale — keep the server version, drop ours, toast),
- * then stamp the canonical server revs onto our just-written local rows so a
- * later pull re-delivering them is an idempotent no-op. Returns the highest
- * server rev seen (used only as a cross-tab broadcast hint — never as a pull
- * cursor; see the note in push()). Shared by the native queue drain (push) and
- * the web write-through path (webPush).
+ * Word the reject-stale toast for whatever mix of kinds got bounced: decks
+ * (per-deck optimistic concurrency) and/or cards (E129's printing-group
+ * check). Kept generic so a future reject-stale kind doesn't need a new
+ * branch here.
+ */
+function describeConflicts(conflicts: NonNullable<SyncPushResult['conflicts']>): string {
+  const deckCount = conflicts.filter((c) => c.kind === 'deck').length;
+  const cardCount = conflicts.filter((c) => c.kind === 'card').length;
+  if (cardCount > 0 && deckCount === 0) {
+    return cardCount === 1
+      ? 'A card quantity changed on another device. Kept the server version.'
+      : 'Card quantities changed on another device. Kept the server versions.';
+  }
+  if (deckCount > 0 && cardCount === 0) {
+    return deckCount === 1
+      ? 'Deck changed on another device. Kept the server version.'
+      : `${deckCount} decks changed on another device. Kept the server versions.`;
+  }
+  return 'Some changes were overwritten by another device. Kept the server version.';
+}
+
+/**
+ * Reflect a /api/sync push response onto local state: adopt any conflicts
+ * the server reported (reject-stale — keep the server version, drop ours,
+ * toast) for decks (per-row optimistic concurrency) and cards (E129's
+ * printing-group cardinality check), then stamp the canonical server revs
+ * onto our just-written local rows so a later pull re-delivering them is an
+ * idempotent no-op. Returns the highest server rev seen (used only as a
+ * cross-tab broadcast hint — never as a pull cursor; see the note in push()).
+ * Shared by the native queue drain (push) and the web write-through path
+ * (webPush).
  */
 async function applyPushResult(result: SyncPushResult): Promise<number> {
   let hint = 0;
@@ -708,15 +792,10 @@ async function applyPushResult(result: SyncPushResult): Promise<number> {
         data: c.serverData,
         rev: c.serverRev,
         deletedAt: c.serverData == null ? Date.now() : null,
+        ...(c.importId !== undefined ? { importId: c.importId } : {}),
       }))
     );
-    toast.show({
-      message:
-        result.conflicts.length === 1
-          ? 'Deck changed on another device. Kept the server version.'
-          : `${result.conflicts.length} decks changed on another device. Kept the server versions.`,
-      tone: 'info',
-    });
+    toast.show({ message: describeConflicts(result.conflicts), tone: 'info' });
     for (const c of result.conflicts) {
       if (c.serverRev > hint) hint = c.serverRev;
     }
@@ -753,12 +832,22 @@ async function applyPushResult(result: SyncPushResult): Promise<number> {
  * all on one device. Reading the freshly-stamped `syncedRev` here keeps each
  * dependent push chained to the rev our own prior push produced. A genuine
  * cross-device conflict still trips: that base never got stamped forward locally.
+ *
+ * `cardGroupChecks` (E129) gets the same send-time re-derivation treatment,
+ * for the same reason: a mutation's `cardGroup` tag (baked at enqueue time)
+ * only says WHICH printing it belongs to, never the group's baseline — that's
+ * always read fresh from local IDB here, so a chained same-device edit to the
+ * same printing asserts against this device's latest confirmed view instead
+ * of a value that would already be stale by the time it's sent.
  */
-async function buildOutbound(
-  muts: queue.Mutation[]
-): Promise<{ upserts: SyncUpsert[]; deletions: SyncDeletion[] }> {
+async function buildOutbound(muts: queue.Mutation[]): Promise<{
+  upserts: SyncUpsert[];
+  deletions: SyncDeletion[];
+  cardGroupChecks?: SyncCardGroupCheck[];
+}> {
   const upserts: SyncUpsert[] = [];
   const deletions: SyncDeletion[] = [];
+  const candidateGroups = new Map<string, queue.CardGroup>();
   for (const m of muts) {
     if (m.op === 'upsert') {
       const upsert: SyncUpsert = {
@@ -771,12 +860,41 @@ async function buildOutbound(
         const rev = baseRevFor(await estore.getById('deck', m.id));
         if (rev > 0) upsert.clientRev = rev;
       }
+      if (m.kind === 'card' && m.cardGroup) {
+        candidateGroups.set(cardGroupKeyStr(m.cardGroup), m.cardGroup);
+      }
       upserts.push(upsert);
     } else {
+      if (m.kind === 'card' && m.cardGroup) {
+        candidateGroups.set(cardGroupKeyStr(m.cardGroup), m.cardGroup);
+      }
       deletions.push({ kind: m.kind, id: m.id });
     }
   }
-  return { upserts, deletions };
+
+  let cardGroupChecks: SyncCardGroupCheck[] | undefined;
+  if (candidateGroups.size > 0) {
+    const liveCards = await estore.getAllLive('card');
+    const checks: SyncCardGroupCheck[] = [];
+    for (const g of candidateGroups.values()) {
+      const key = cardGroupKeyStr(g);
+      const baseline = liveCards
+        .filter((row) => {
+          const identity = cardGroupIdentity(row.data);
+          return baseRevFor(row) > 0 && identity != null && cardGroupKeyStr(identity) === key;
+        })
+        .map((row) => row.id)
+        .sort();
+      // An empty baseline means the group has no confirmed members yet (a
+      // first-time add) — nothing for the server to compare against, so skip
+      // sending a check for it at all (it can only ever match trivially).
+      if (baseline.length > 0)
+        checks.push({ scryfallId: g.scryfallId, finish: g.finish, baseline });
+    }
+    if (checks.length > 0) cardGroupChecks = checks;
+  }
+
+  return { upserts, deletions, cardGroupChecks };
 }
 
 /**
@@ -822,8 +940,8 @@ async function webPushInner(
   try {
     for (let start = 0; start < muts.length; start += WEB_PUSH_CHUNK) {
       const slice = muts.slice(start, start + WEB_PUSH_CHUNK);
-      const { upserts, deletions } = await buildOutbound(slice);
-      const result = await pushSync({ upserts, deletions });
+      const { upserts, deletions, cardGroupChecks } = await buildOutbound(slice);
+      const result = await pushSync({ upserts, deletions, cardGroupChecks });
       committed = start + slice.length;
       const hint = await applyPushResult(result);
       broadcastCursor(hint);
@@ -878,9 +996,9 @@ async function push(): Promise<void> {
       const batch = await queue.peekBatch(500);
       if (batch.length === 0) break;
 
-      const { upserts, deletions } = await buildOutbound(batch.map((b) => b.m));
+      const { upserts, deletions, cardGroupChecks } = await buildOutbound(batch.map((b) => b.m));
 
-      const result = await pushSync({ upserts, deletions });
+      const result = await pushSync({ upserts, deletions, cardGroupChecks });
       const hint = await applyPushResult(result);
       if (hint > serverRevHint) serverRevHint = hint;
 

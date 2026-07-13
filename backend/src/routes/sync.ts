@@ -13,7 +13,8 @@ export const syncRouter: Router = Router();
  *
  *   POST /api/sync
  *     body { upserts: [{ kind, id, data, importId?, clientRev? }],
- *            deletions: [{ kind, id }] }
+ *            deletions: [{ kind, id }],
+ *            cardGroupChecks?: [{ scryfallId, finish, baseline: copyId[] }] }
  *     → { applied, conflicts, cursor }
  *
  * Every user-data row carries its own monotonic `rev` (from `user_data_rev_seq`)
@@ -29,6 +30,20 @@ export const syncRouter: Router = Router();
  * Deleting an import cascades to all `user_cards` rows with that `import_id`
  * inside the same transaction — each cascaded card gets its own tombstone row
  * with a fresh `rev`, so peers see the cards disappear too.
+ *
+ * Cards get a narrower reject-stale of their own (E129): a card row's `rev`
+ * is still unconditional LWW, but quantity is row CARDINALITY (one row per
+ * copy), so two devices adding/removing different copyIds of the same
+ * printing from a stale shared count never collide per-row — the server
+ * would otherwise silently union to a total neither device intended. The
+ * optional `cardGroupChecks` on the POST body assert the client's believed
+ * live copyIds for a (scryfallId, finish) group; if the group's actual live
+ * set no longer matches, every upsert/deletion in this batch touching that
+ * group is rejected together and reported via the SAME `conflicts[]` shape
+ * as decks (kind: 'card'), so the client's existing conflict-apply path
+ * handles it with no new code. Absent/empty `cardGroupChecks` (old clients,
+ * or a batch with no cardinality-changing card op) skips this entirely —
+ * unconditional last-write-wins, byte-identical to before E129.
  */
 
 const DEFAULT_PAGE_LIMIT = 2000;
@@ -103,6 +118,46 @@ function parseUpserts(raw: unknown): { value: UpsertOp[] } | { error: string } {
     });
   }
   return { value: out };
+}
+
+/** E129: a client's asserted baseline for one (scryfallId, finish) printing group. */
+interface CardGroupCheck {
+  scryfallId: string;
+  finish: string;
+  baseline: string[];
+}
+
+const MAX_GROUP_CHECKS = 500;
+
+function parseCardGroupChecks(raw: unknown): { value: CardGroupCheck[] } | { error: string } {
+  if (raw == null) return { value: [] };
+  if (!Array.isArray(raw)) return { error: 'cardGroupChecks must be an array.' };
+  if (raw.length > MAX_GROUP_CHECKS)
+    return { error: `Too many cardGroupChecks; max ${MAX_GROUP_CHECKS} per request.` };
+  const out: CardGroupCheck[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const r = raw[i] as Record<string, unknown> | null;
+    if (!r || typeof r !== 'object') return { error: `cardGroupChecks[${i}] must be an object.` };
+    if (typeof r.scryfallId !== 'string' || r.scryfallId.length === 0)
+      return { error: `cardGroupChecks[${i}].scryfallId must be a non-empty string.` };
+    if (typeof r.finish !== 'string' || r.finish.length === 0)
+      return { error: `cardGroupChecks[${i}].finish must be a non-empty string.` };
+    if (!Array.isArray(r.baseline) || r.baseline.some((x) => typeof x !== 'string'))
+      return { error: `cardGroupChecks[${i}].baseline must be an array of strings.` };
+    out.push({ scryfallId: r.scryfallId, finish: r.finish, baseline: r.baseline as string[] });
+  }
+  return { value: out };
+}
+
+/** Delimiter is safe: scryfallId is a UUID and finish is one of a small enum, neither contains it. */
+function cardGroupKey(scryfallId: string, finish: string): string {
+  return `${scryfallId}::${finish}`;
+}
+
+/** A card row's own (scryfallId, finish) group key, read off its stored JSON data. */
+function cardGroupOfData(data: unknown): string | undefined {
+  const d = data as { scryfallId?: string; finish?: string } | null;
+  return d?.scryfallId ? cardGroupKey(d.scryfallId, d.finish ?? 'nonfoil') : undefined;
 }
 
 function parseDeletions(raw: unknown): { value: DeletionOp[] } | { error: string } {
@@ -212,12 +267,18 @@ syncRouter.get('/', requireAuth, async (req: Request, res: Response) => {
  */
 syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id;
-  const body = req.body as { upserts?: unknown; deletions?: unknown };
+  const body = req.body as {
+    upserts?: unknown;
+    deletions?: unknown;
+    cardGroupChecks?: unknown;
+  };
 
   const upserts = parseUpserts(body.upserts);
   if ('error' in upserts) return res.status(400).json({ error: upserts.error });
   const deletions = parseDeletions(body.deletions);
   if ('error' in deletions) return res.status(400).json({ error: deletions.error });
+  const cardGroupChecks = parseCardGroupChecks(body.cardGroupChecks);
+  if ('error' in cardGroupChecks) return res.status(400).json({ error: cardGroupChecks.error });
 
   if (upserts.value.length + deletions.value.length > MAX_BATCH_SIZE) {
     return res.status(413).json({
@@ -227,7 +288,14 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
 
   const now = Date.now();
   const applied: AppliedRow[] = [];
-  const conflicts: Array<{ kind: 'deck'; id: string; serverRev: number; serverData: unknown }> = [];
+  const conflicts: Array<{
+    kind: 'deck' | 'card';
+    id: string;
+    serverRev: number;
+    serverData: unknown;
+    /** Card-only; the row's owning import so the client's restore doesn't lose it. */
+    importId?: string;
+  }> = [];
   const client = await getPool().connect();
   // A failed ROLLBACK leaves the connection in an aborted-transaction state;
   // pass it to release() so pg destroys it instead of recycling a poisoned
@@ -235,6 +303,53 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   let rollbackFailed: Error | undefined;
   try {
     await client.query('BEGIN');
+
+    // ── E129: card printing-group reject-stale check. Runs BEFORE any of this
+    //    transaction's own writes, so it reflects the pre-batch server state.
+    //    Absent/empty cardGroupChecks (old clients, or a batch with no
+    //    cardinality-changing card op) leaves staleGroups empty and every
+    //    branch below is a no-op — unconditional LWW, unchanged. ──
+    const staleGroups = new Set<string>();
+    for (const chk of cardGroupChecks.value) {
+      const { rows: liveRows } = await client.query<{ id: string }>(
+        `SELECT id FROM user_cards
+         WHERE user_id = $1 AND deleted_at IS NULL
+           AND data->>'scryfallId' = $2 AND COALESCE(data->>'finish', 'nonfoil') = $3`,
+        [userId, chk.scryfallId, chk.finish]
+      );
+      const liveIds = liveRows.map((r) => r.id).sort();
+      const baseline = [...chk.baseline].sort();
+      const same =
+        liveIds.length === baseline.length && liveIds.every((id, i) => id === baseline[i]);
+      if (!same) staleGroups.add(cardGroupKey(chk.scryfallId, chk.finish));
+    }
+
+    // Current server state for every card id this batch touches — needed only
+    // when a group turned out stale, both to identify which specific
+    // upserts/deletions belong to it (a deletion carries no data of its own to
+    // derive a group from) and to hand the client back what to self-heal to.
+    let staleCardServerRows = new Map<string, { data: unknown; rev: number; importId: string }>();
+    if (staleGroups.size > 0) {
+      const touchedCardIds = [
+        ...upserts.value.filter((u) => u.kind === 'card').map((u) => u.id),
+        ...deletions.value.filter((d) => d.kind === 'card').map((d) => d.id),
+      ];
+      if (touchedCardIds.length > 0) {
+        const { rows: current } = await client.query<{
+          id: string;
+          data: unknown;
+          rev: string;
+          import_id: string;
+        }>(
+          `SELECT id, data, rev, import_id FROM user_cards
+           WHERE user_id = $1 AND id = ANY($2::text[]) AND deleted_at IS NULL`,
+          [userId, touchedCardIds]
+        );
+        staleCardServerRows = new Map(
+          current.map((r) => [r.id, { data: r.data, rev: Number(r.rev), importId: r.import_id }])
+        );
+      }
+    }
 
     // Allocate every rev this request needs in ONE sequence round-trip. The
     // old code called nextval() once per row inside the loop, so a 2000-row
@@ -265,6 +380,20 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
           clientRev: u.clientRev ?? 0,
         });
         continue;
+      }
+      if (u.kind === 'card' && staleGroups.size > 0) {
+        const gk = cardGroupOfData(u.data);
+        if (gk && staleGroups.has(gk)) {
+          const server = staleCardServerRows.get(u.id);
+          conflicts.push({
+            kind: 'card',
+            id: u.id,
+            serverRev: server?.rev ?? 0,
+            serverData: server?.data ?? null,
+            ...(server ? { importId: server.importId } : {}),
+          });
+          continue; // rejected: group changed elsewhere — don't apply, rev r goes unused
+        }
       }
       const bucket = upsertByKind.get(u.kind) ?? new Map();
       upsertByKind.set(u.kind, bucket);
@@ -358,6 +487,20 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
     const delByKind = new Map<Kind, Map<string, number>>();
     for (const d of deletions.value) {
       const r = revs[ri++];
+      if (d.kind === 'card' && staleGroups.size > 0) {
+        const server = staleCardServerRows.get(d.id);
+        const gk = server ? cardGroupOfData(server.data) : undefined;
+        if (server && gk && staleGroups.has(gk)) {
+          conflicts.push({
+            kind: 'card',
+            id: d.id,
+            serverRev: server.rev,
+            serverData: server.data,
+            importId: server.importId,
+          });
+          continue; // rejected: group changed elsewhere — leave this row alone
+        }
+      }
       const bucket = delByKind.get(d.kind) ?? new Map();
       delByKind.set(d.kind, bucket);
       bucket.set(d.id, r);
@@ -441,11 +584,15 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   }
 
   const cursor = applied.reduce((mx, a) => Math.max(mx, a.rev), 0);
+  // Rejected ops (conflicts) can now come from either upserts or deletions
+  // (E129 card-group check, not just the deck path), so back out cascade
+  // count from the total submitted minus whatever wasn't applied.
+  const cascaded =
+    applied.length - (upserts.value.length + deletions.value.length - conflicts.length);
   logger.debug(
     `[sync] POST.ok user=${userId} upserts=${upserts.value.length} ` +
       `deletions=${deletions.value.length} conflicts=${conflicts.length} ` +
-      `cascaded=${applied.length - (upserts.value.length - conflicts.length) - deletions.value.length} ` +
-      `cursor=${cursor}`
+      `cascaded=${cascaded} cursor=${cursor}`
   );
   res.json({ applied, conflicts, cursor });
 });
