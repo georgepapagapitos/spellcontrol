@@ -285,6 +285,12 @@ describe('hydrate (E137 resume)', () => {
         rngSeed: 5,
         turn: 4,
         commanderTax: {},
+        life: 40,
+        opponents: [{ life: 40, commanderDamage: 0 }],
+        startingLife: 40,
+        startingOpponentLife: 40,
+        commanderDamageThreshold: 21,
+        tableDefeatedTurn: null,
       },
       gameLog: [{ seq: 1, turn: 3, kind: 'draw', text: 'Drew 1 card' }],
     });
@@ -416,6 +422,41 @@ describe('game log (E140)', () => {
     expect(store().state?.commanderTax).toEqual({});
     // The rest of the legacy state still comes through untouched.
     expect(store().state?.turn).toBe(1);
+  });
+
+  it('backfills life/opponents (E138) when resuming a pre-E138 (and pre-E140) snapshot', () => {
+    useDecksStore.setState({ decks: [makeDeck({ id: 'deck-10', format: 'paupercommander' })] });
+    store().hydrate('deck-10', {
+      fingerprint: '1:1',
+      savedAt: 0,
+      phase: 'playing',
+      mulliganCount: 0,
+      resistance: false,
+      resistanceState: null,
+      // Simulates a real pre-E138/E140 localStorage blob: no life fields,
+      // no gameLog at all.
+      state: {
+        zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+        battlefield: [],
+        rngSeed: 5,
+        turn: 4,
+      } as unknown as Omit<import('@/lib/playtest').PlaytestState, 'past'>,
+      gameLog: [],
+    });
+
+    // Format-aware defaults, not the generic 20-life fallback — the deck's
+    // format was consulted during migration.
+    expect(store().state?.life).toBe(30);
+    expect(store().state?.opponents).toEqual([
+      { life: 30, commanderDamage: 0 },
+      { life: 30, commanderDamage: 0 },
+      { life: 30, commanderDamage: 0 },
+    ]);
+    expect(store().state?.commanderDamageThreshold).toBe(16);
+    expect(store().state?.tableDefeatedTurn).toBeNull();
+    // commanderTax (E139) also backfills on this same legacy path.
+    expect(store().state?.commanderTax).toEqual({});
+    expect(store().gameLog).toEqual([]);
   });
 });
 

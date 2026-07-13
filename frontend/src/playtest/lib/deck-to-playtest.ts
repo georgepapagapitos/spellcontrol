@@ -1,6 +1,7 @@
 import type { Deck, DeckCard } from '@/store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { PlaytestCard, PlaytestInit } from '@/lib/playtest';
+import { playtestLifeConfig } from '@/lib/playtest';
 import { imageFromCard } from '@/lib/card-thumbs';
 import { getCardBackFaceUrl, isDoubleFacedCard } from '@/deck-builder/services/scryfall/client';
 
@@ -43,5 +44,16 @@ export function deckToPlaytestInit(deck: Deck, opts: { seed?: number } = {}): Pl
   if (deck.partnerCommander) {
     command.push(toPlaytestCard(deck.partnerCommander, `cmd-${deck.partnerCommander.id}`));
   }
-  return { library, command, seed: opts.seed };
+  const { life, opponentCount, opponentLife, commanderDamageThreshold } = playtestLifeConfig(
+    deck.format
+  );
+  return {
+    library,
+    command,
+    seed: opts.seed,
+    life,
+    opponentCount,
+    opponentLife,
+    commanderDamageThreshold,
+  };
 }
