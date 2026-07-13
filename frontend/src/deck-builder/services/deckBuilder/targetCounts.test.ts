@@ -95,9 +95,7 @@ describe('calculateTargetCounts — fallback path (no EDHREC stats)', () => {
 
   it('floors a zero/negative land count the same way', () => {
     expect(calculateTargetCounts(makeCustomization({ landCount: 0 })).composition.lands).toBe(32);
-    expect(calculateTargetCounts(makeCustomization({ landCount: -10 })).composition.lands).toBe(
-      32
-    );
+    expect(calculateTargetCounts(makeCustomization({ landCount: -10 })).composition.lands).toBe(32);
   });
 });
 
