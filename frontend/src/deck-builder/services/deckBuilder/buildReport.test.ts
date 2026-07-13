@@ -675,6 +675,28 @@ describe('assembleBuildReport', () => {
     });
   });
 
+  describe('varietyNote (variety reroll)', () => {
+    it('discloses nothing for the default signature build', () => {
+      expect(
+        assembleBuildReport({
+          generated: makeGenerated(),
+          customization: makeCustomization(),
+          collectionNames: new Set(),
+        }).varietyNote
+      ).toBeUndefined();
+    });
+
+    it('names the roll so the build is reproducible', () => {
+      const report = assembleBuildReport({
+        generated: makeGenerated(),
+        customization: makeCustomization({ varietySeed: 3 }),
+        collectionNames: new Set(),
+      });
+      expect(report.varietyNote).toMatch(/roll #3/i);
+      expect(report.varietyNote).toMatch(/reproduces/i);
+    });
+  });
+
   describe('cardProvenance (S2 — per-card "why is this here")', () => {
     it('passes through generation-time provenance untouched when nothing was repaired', () => {
       const report = assembleBuildReport({

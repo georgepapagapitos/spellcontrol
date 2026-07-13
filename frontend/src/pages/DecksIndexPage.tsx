@@ -306,6 +306,7 @@ export function DecksIndexPage() {
           targetBracket: deck.generationContext?.targetBracket ?? 'all',
           landCount: deck.generationContext?.landCount ?? 37,
           collectionMode: deck.generationContext?.collectionMode ?? false,
+          varietySeed: deck.generationContext?.varietySeed,
         },
       },
     });

@@ -1,4 +1,4 @@
-import { Check, ChevronDown, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, Dices, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type {
   BudgetOption,
@@ -105,6 +105,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
         </CollapsibleGroup>
         <CollapsibleGroup title="Card priority" defaultOpen={false}>
           <BrewDialGroup customization={customization} update={update} />
+          <VarietyGroup customization={customization} update={update} />
         </CollapsibleGroup>
         <CollapsibleGroup title="Tempo" defaultOpen={false}>
           <TempoGroup customization={customization} update={update} />
@@ -306,6 +307,49 @@ function BrewDialGroup({ customization, update }: DeckCustomizerProps) {
         </span>
       </div>
       <p className="deck-customizer-slider-desc">{description}</p>
+    </div>
+  );
+}
+
+// Variety reroll — a reproducible "shake up close calls" lever. Each roll is
+// a seed: the same roll + settings rebuilds the same deck (see cardPicking.ts's
+// computeVarietyJitterBoosts), so variety never costs determinism.
+function VarietyGroup({ customization, update }: DeckCustomizerProps) {
+  const roll = customization.varietySeed;
+  return (
+    <div className="deck-customizer-variety">
+      <div className="deck-customizer-slider-header">
+        <span className="deck-customizer-slider-label">Variety</span>
+        <span className="deck-customizer-slider-value" aria-live="polite">
+          {roll === undefined ? 'Signature build' : `Roll #${roll}`}
+        </span>
+      </div>
+      <div className="deck-customizer-variety-actions">
+        <button
+          type="button"
+          className="deck-customizer-reroll-btn"
+          onClick={() => update({ varietySeed: (roll ?? 0) + 1 })}
+        >
+          <Dices width={16} height={16} strokeWidth={2} aria-hidden />
+          Reroll
+        </button>
+        {roll !== undefined && (
+          <button
+            type="button"
+            className="deck-customizer-group-reset"
+            onClick={() => update({ varietySeed: undefined })}
+            title="Back to the signature build — the same best deck every time"
+          >
+            <RotateCcw width={12} height={12} strokeWidth={2} aria-hidden />
+            Reset
+          </button>
+        )}
+      </div>
+      <p className="deck-customizer-slider-desc">
+        {roll === undefined
+          ? 'The signature build: these settings pick the same best deck every time. Reroll to shake up close calls between similar cards.'
+          : 'Close calls between similar cards follow this roll. The same roll rebuilds the same deck — reroll again for a fresh take.'}
+      </p>
     </div>
   );
 }

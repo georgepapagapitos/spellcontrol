@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   calculateCardPriority,
+  computeVarietyJitterBoosts,
+  VARIETY_JITTER_MAX,
   isHighSynergyCard,
   mergeWithAllNonLand,
   pickFromPrefetched,
@@ -65,6 +67,35 @@ describe('calculateCardPriority', () => {
   it('falls back to inclusion for low-synergy cards, plus a new-card boost', () => {
     expect(calculateCardPriority(ec({ synergy: 0.1, inclusion: 20 }))).toBe(20);
     expect(calculateCardPriority(ec({ synergy: 0.1, inclusion: 20, isNewCard: true }))).toBe(45);
+  });
+});
+
+describe('computeVarietyJitterBoosts — variety reroll', () => {
+  const names = ['Sol Ring', 'Arcane Signet', 'Rhystic Study', 'Cultivate', 'Swords to Plowshares'];
+
+  it('no roll (undefined seed) returns an empty map — signature builds stay byte-identical', () => {
+    expect(computeVarietyJitterBoosts(names, undefined).size).toBe(0);
+  });
+
+  it('the same roll is stable: identical values across calls and pool orderings', () => {
+    const a = computeVarietyJitterBoosts(names, 3);
+    const b = computeVarietyJitterBoosts([...names].reverse(), 3);
+    for (const name of names) expect(a.get(name)).toBe(b.get(name));
+  });
+
+  it('different rolls jitter differently — at least one card moves', () => {
+    const roll1 = computeVarietyJitterBoosts(names, 1);
+    const roll2 = computeVarietyJitterBoosts(names, 2);
+    expect(names.some((n) => roll1.get(n) !== roll2.get(n))).toBe(true);
+  });
+
+  it('jitter stays inside [0, VARIETY_JITTER_MAX) — close calls flip, real quality tiers never do', () => {
+    for (const seed of [1, 2, 7, 100]) {
+      for (const v of computeVarietyJitterBoosts(names, seed).values()) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThan(VARIETY_JITTER_MAX);
+      }
+    }
   });
 });
 
