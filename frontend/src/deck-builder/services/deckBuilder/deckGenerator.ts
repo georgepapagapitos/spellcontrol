@@ -82,6 +82,7 @@ import { BracketGuard, bracketCeilings, ceilingsAreOpen } from './bracketGuard';
 import {
   mergeWithAllNonLand,
   calculateCardPriority,
+  computeVarietyJitterBoosts,
   isHighSynergyCard,
   PRICE_SANITY_RATIO,
   PRICE_SANITY_INCLUSION_BAND,
@@ -2320,6 +2321,15 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         isExtraCombatPiece
       );
       applyBoost(extraCombat, 'Extra-combat synergy pick');
+      // Variety reroll: deterministic per-(roll, card) near-tie jitter. Empty
+      // map when no roll is active — signature builds stay byte-identical.
+      // Folded WITHOUT a provenance label: every pool card gets some jitter,
+      // and a reroll nudges close calls — it is never the "why" of a pick.
+      const jitter = computeVarietyJitterBoosts(
+        pool.map((c) => c.name),
+        state.cfg.varietySeed
+      );
+      for (const [name, b] of jitter) boosts.set(name, (boosts.get(name) ?? 0) + b);
       return boosts;
     };
 

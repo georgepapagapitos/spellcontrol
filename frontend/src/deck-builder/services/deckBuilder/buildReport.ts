@@ -138,6 +138,13 @@ export function assembleBuildReport(input: {
       'Brew dial leaned toward staples — raw EDHREC play-rate was weighted over theme-synergy fit.';
   }
 
+  // Variety reroll disclosure — undefined for the default signature build.
+  // Names the roll so the build is reproducible: the same roll + settings
+  // regenerates this exact deck.
+  if (customization.varietySeed !== undefined) {
+    report.varietyNote = `Variety roll #${customization.varietySeed} — close calls between similar picks were shaken up. Rebuilding with this same roll reproduces this exact deck.`;
+  }
+
   // Archetype-aware land count auto-tune disclosure (undefined when the user
   // set land count explicitly, or the default 37 was already the right call).
   if (generated.landCountNote) report.landCountNote = generated.landCountNote;

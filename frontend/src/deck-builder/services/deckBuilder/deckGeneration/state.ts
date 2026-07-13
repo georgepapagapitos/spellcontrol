@@ -88,6 +88,9 @@ export interface GenerationConfig {
   /** Staples <-> Brew dial (0..1, 0.5 default/no-op) — see cardPicking.ts's
    *  calculateCardPriority for the multiplier math it drives. */
   brewLevel: number;
+  /** Variety reroll (undefined = signature build/no-op) — see cardPicking.ts's
+   *  computeVarietyJitterBoosts for the near-tie jitter it drives. */
+  varietySeed: number | undefined;
 }
 
 export interface GenerationState {
@@ -183,6 +186,7 @@ export function createState(context: GenerationContext): GenerationState {
     selectedThemesWithSlugs:
       context.selectedThemes?.filter((t) => t.isSelected && t.source === 'edhrec' && t.slug) || [],
     brewLevel: customization.brewLevel ?? 0.5,
+    varietySeed: customization.varietySeed,
   };
 
   return {

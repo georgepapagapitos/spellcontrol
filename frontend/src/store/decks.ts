@@ -86,6 +86,9 @@ export interface Deck {
     generationMode?: string;
     /** Mode-specific descriptor (art motif slug, or "year<=YYYY"). */
     generationModeDetail?: string;
+    /** Variety roll the deck was built with — absent = signature build.
+     *  Carried into the Regenerate prefill so the same roll reproduces. */
+    varietySeed?: number;
   } | null;
   /**
    * Optional generator-derived stats. Only present on freshly generated decks

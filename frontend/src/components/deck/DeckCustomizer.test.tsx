@@ -183,6 +183,42 @@ describe('DeckCustomizer — Staples <-> Brew dial', () => {
   });
 });
 
+describe('DeckCustomizer — Variety reroll', () => {
+  function openCardPriority() {
+    fireEvent.click(screen.getByText('Card priority'));
+  }
+
+  it('shows the signature build state with no roll active, and no Reset', () => {
+    render(<DeckCustomizer customization={baseCustomization()} update={vi.fn()} />);
+    openCardPriority();
+    expect(screen.getByText('Signature build')).toBeTruthy();
+    expect(screen.getByText(/same best deck every time/)).toBeTruthy();
+    expect(screen.queryByText(/Back to the signature build/)).toBeNull();
+  });
+
+  it('Reroll starts at roll 1 from the signature build', () => {
+    const update = vi.fn();
+    render(<DeckCustomizer customization={baseCustomization()} update={update} />);
+    openCardPriority();
+    fireEvent.click(screen.getByText('Reroll'));
+    expect(update).toHaveBeenCalledWith({ varietySeed: 1 });
+  });
+
+  it('shows the active roll, bumps it on Reroll, and Reset clears it', () => {
+    const update = vi.fn();
+    render(
+      <DeckCustomizer customization={baseCustomization({ varietySeed: 4 })} update={update} />
+    );
+    openCardPriority();
+    expect(screen.getByText('Roll #4')).toBeTruthy();
+    expect(screen.getByText(/same roll rebuilds the same deck/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Reroll'));
+    expect(update).toHaveBeenCalledWith({ varietySeed: 5 });
+    fireEvent.click(screen.getByTitle(/Back to the signature build/));
+    expect(update).toHaveBeenCalledWith({ varietySeed: undefined });
+  });
+});
+
 describe('DeckCustomizer — Target Bracket (Exhibition expectations)', () => {
   it('shows no bracket-1 helper text for any other bracket', () => {
     render(

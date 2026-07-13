@@ -579,6 +579,10 @@ export interface BuildReport {
    *  names which direction the user leaned so the report never leaves a
    *  reweighted pick pool unexplained. Undefined at the default. */
   brewDialNote?: string;
+  /** Disclosure when a variety roll (varietySeed) shook up near-tie picks —
+   *  names the roll number so the build is reproducible. Undefined for the
+   *  default signature build. */
+  varietyNote?: string;
   builtFromCollection: boolean;
   collectionStrategy?: CollectionStrategy;
   /** % of the mainboard that came from the user's collection. */
@@ -944,6 +948,11 @@ export interface Customization {
   // 1 = Brew (damp inclusion, amplify synergy/theme-fit/hidden-synergy lift).
   // See cardPicking.ts's calculateCardPriority for the multiplier math.
   brewLevel: number;
+  // Variety reroll: absent = the signature build (generation is byte-identical
+  // for the same settings + data). Roll #N deterministically jitters near-tie
+  // pick priorities — the same roll rebuilds the same deck, a new roll shakes
+  // up close calls. See cardPicking.ts's computeVarietyJitterBoosts.
+  varietySeed?: number;
 }
 
 // Store state
