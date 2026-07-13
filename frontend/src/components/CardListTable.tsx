@@ -83,7 +83,7 @@ import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
 import { RarityBadge } from './shared/RarityBadge';
-import { buildEditedCards } from '../lib/edit-card';
+import { buildEditedCards, isNoOpCardEdit } from '../lib/edit-card';
 import {
   compileExpression,
   compileFilter,
@@ -1131,16 +1131,29 @@ export function CardListTable({
     [groupPrintings, allocations, allocationsByPrinting]
   );
 
+  const pushToast = useToastsStore((s) => s.push);
+
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingCard) return;
     // Single-copy edit re-points just this one copy, leaving siblings on the old
     // printing — that's how a stack of identical printings gets split.
     const copyId = editingSingle ? editingCard.copyId : undefined;
+    if (isNoOpCardEdit(editingCard, selection, editingQty, copyId)) {
+      setEditingCard(null);
+      return;
+    }
+    const prevCards = allCards;
+    const cardName = editingCard.name;
     replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
+    pushToast({
+      message: `Updated ${cardName}.`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => replaceAllCards(prevCards),
+    });
     setEditingCard(null);
   };
 
-  const pushToast = useToastsStore((s) => s.push);
   const allocatedCopyIds = useMemo(() => new Set(allocations.keys()), [allocations]);
   // For stacked rows (qty > 1, grouped view), the user picks how many to drop.
   const [deletingRow, setDeletingRow] = useState<{

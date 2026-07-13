@@ -15,12 +15,13 @@ import { CardPreview } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
-import { buildEditedCards } from '../lib/edit-card';
+import { buildEditedCards, isNoOpCardEdit } from '../lib/edit-card';
 import { BinderPagePreview } from './BinderPagePreview';
 import type { SectionTabInput } from '../lib/binder-spreads';
 import { BinderDriftBanner } from './BinderDriftBanner';
 import { Legend } from './Legend';
 import { useAllocations } from '../lib/allocations';
+import { useToastsStore } from '../store/toasts';
 
 /** Maximum pages rendered inline per section before the "+N more" expander. */
 export const SECTION_PAGE_CAP = 3;
@@ -160,6 +161,7 @@ function SectionList({
   const allocations = useAllocations();
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
+  const pushToast = useToastsStore((s) => s.push);
   const editingQty = useMemo(() => {
     if (!editingCard) return 0;
     return allCards.filter(
@@ -172,7 +174,19 @@ function SectionList({
     // Ungrouped: each row is one physical copy — edit just that copy so a stack
     // of identical printings can be split into different printings.
     const copyId = qtyByCopyId ? undefined : editingCard.copyId;
+    if (isNoOpCardEdit(editingCard, selection, editingQty, copyId)) {
+      setEditingCard(null);
+      return;
+    }
+    const prevCards = allCards;
+    const cardName = editingCard.name;
     replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
+    pushToast({
+      message: `Updated ${cardName}.`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => replaceAllCards(prevCards),
+    });
     setEditingCard(null);
   };
 

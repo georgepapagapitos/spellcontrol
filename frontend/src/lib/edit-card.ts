@@ -116,3 +116,42 @@ export function buildEditedCards(
 
   return [...others, ...updated, ...added];
 }
+
+/**
+ * Whether a confirmed edit selection is identical to the card's current
+ * printing/finish/quantity/details — i.e. there's nothing to apply or undo.
+ * CardEditDialog already disables its Confirm button while unchanged, so this
+ * is a defensive second check at the call sites that decide whether to fire
+ * an Undo toast: it must never appear for a confirm that changed nothing.
+ */
+export function isNoOpCardEdit(
+  editingCard: EnrichedCard,
+  selection: PrintingSelection,
+  existingQty: number,
+  copyId?: string
+): boolean {
+  const currentFinish = editingCard.finish ?? (editingCard.foil ? 'foil' : 'nonfoil');
+  if (selection.card.id !== editingCard.scryfallId || selection.finish !== currentFinish) {
+    return false;
+  }
+  if (
+    copyId === undefined &&
+    selection.quantity !== undefined &&
+    selection.quantity !== existingQty
+  ) {
+    return false;
+  }
+  if (selection.details) {
+    const d = selection.details;
+    if (
+      (d.condition ?? undefined) !== editingCard.condition ||
+      (d.language ?? undefined) !== editingCard.language ||
+      (d.altered ?? false) !== (editingCard.altered ?? false) ||
+      (d.proxy ?? false) !== (editingCard.proxy ?? false) ||
+      (d.misprint ?? false) !== (editingCard.misprint ?? false)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
