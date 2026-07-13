@@ -6,8 +6,9 @@ import { CardPreview } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
-import { buildEditedCards } from '../lib/edit-card';
+import { buildEditedCards, isNoOpCardEdit } from '../lib/edit-card';
 import { useCollectionStore } from '../store/collection';
+import { useToastsStore } from '../store/toasts';
 import { SortPopover } from './SortPopover';
 import { Legend } from './Legend';
 import { BinderPagePreview } from './BinderPagePreview';
@@ -49,6 +50,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   const allCards = useCollectionStore((s) => s.cards);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
+  const pushToast = useToastsStore((s) => s.push);
   const sortEditable = binder.def.mode !== 'manual' && !binder.def.manualOrder?.length;
   const allocations = useAllocations();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -158,21 +160,33 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
     });
   };
 
-  const handleEditConfirm = (selection: PrintingSelection) => {
-    if (!editingCard) return;
-    // Single-copy edit re-points just this one copy, leaving siblings on the old
-    // printing — that's how a stack of identical printings gets split.
-    const copyId = editingSingle ? editingCard.copyId : undefined;
-    replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
-    setEditingCard(null);
-  };
-
   const editingQty = useMemo(() => {
     if (!editingCard) return 0;
     return allCards.filter(
       (c) => c.scryfallId === editingCard.scryfallId && c.foil === editingCard.foil
     ).length;
   }, [editingCard, allCards]);
+
+  const handleEditConfirm = (selection: PrintingSelection) => {
+    if (!editingCard) return;
+    // Single-copy edit re-points just this one copy, leaving siblings on the old
+    // printing — that's how a stack of identical printings gets split.
+    const copyId = editingSingle ? editingCard.copyId : undefined;
+    if (isNoOpCardEdit(editingCard, selection, editingQty, copyId)) {
+      setEditingCard(null);
+      return;
+    }
+    const prevCards = allCards;
+    const cardName = editingCard.name;
+    replaceAllCards(buildEditedCards(editingCard, selection, allCards, copyId));
+    pushToast({
+      message: `Updated ${cardName}.`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => replaceAllCards(prevCards),
+    });
+    setEditingCard(null);
+  };
 
   // Map each visible row to its index in the flat preview array.
   const previewIndexFor = useMemo(() => {
