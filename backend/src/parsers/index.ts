@@ -15,7 +15,7 @@ import { parseTextList } from './text';
  */
 export function parseImport(text: string): ParseResult {
   if (!text.trim()) {
-    return { rows: [], format: 'plain', unparsedLines: [] };
+    return { rows: [], format: 'plain', unparsedLines: [], skippedUnownedRows: 0 };
   }
 
   if (looksLikeManabox(text)) {

@@ -166,6 +166,8 @@ export interface DeckImportResponse {
   unresolvedNames: string[];
   /** Names skipped because Scryfall couldn't be reached (outage / rate limit) — retryable, not typos. */
   fetchErrors: string[];
+  /** Raw lines the parser couldn't turn into a row at all — never resolved, never counted. */
+  malformedRows: string[];
   detectedFormat: string;
   cardCount: number;
 }
@@ -183,6 +185,17 @@ export interface UploadResponse {
    * (quantity/printing/finish intact) by POSTing them back as `{ rows }`.
    */
   fetchErrors: import('./parsers/types').ImportRow[];
+  /**
+   * Raw lines the parser couldn't turn into a row at all (e.g. a CSV line with
+   * no name column, or a column count that doesn't match the header). These
+   * never became an ImportRow — distinct from unresolvedNames, which parsed
+   * fine but Scryfall didn't recognize.
+   */
+  malformedRows: string[];
+  /** Rows with an explicit quantity of 0 (wishlist/tradelist-only entries) that were skipped rather than imported as 1 copy. */
+  skippedUnownedRows: number;
+  /** Rows whose quantity exceeded the per-row cap and was clamped down to it. */
+  clampedRows: number;
   /** Which parser handled the input. */
   detectedFormat: string;
 }

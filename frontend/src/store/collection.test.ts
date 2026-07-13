@@ -48,6 +48,9 @@ function uploadResponse(cards: EnrichedCard[]): UploadResponse {
     scryfallMisses: 0,
     unresolvedNames: [],
     fetchErrors: [],
+    malformedRows: [],
+    skippedUnownedRows: 0,
+    clampedRows: 0,
     detectedFormat: 'plain',
   };
 }

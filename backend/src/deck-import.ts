@@ -20,11 +20,9 @@ export interface DeckSections {
  * endpoint and the MTGJSON product path, which both build the same section row
  * arrays and need identical resolution semantics.
  *
- * Two-pass resolution: first try with each row's full info (scryfallId, or
- * name+set+collector). For any row that didn't resolve AND originally had a
- * collectorNumber, retry without it — some exports use collector numbers
- * Scryfall doesn't recognize for the exact printing, so falling back to
- * name+set still produces a card.
+ * The collector-number retry (some exports use a collector number Scryfall
+ * doesn't recognize for the exact printing) lives in {@link resolveCards}
+ * itself, so every caller gets it.
  */
 export async function resolveDeckRows(
   commanderRows: ImportRow[],
@@ -34,36 +32,14 @@ export async function resolveDeckRows(
 ): Promise<DeckSections> {
   const allRows = [...commanderRows, ...companionRows, ...deckRows];
   const expanded = expandByQuantity(allRows);
-  const firstPass = await resolveCards(expanded, cache);
-  const resolved = firstPass.resolved;
-
-  const retryIdxs: number[] = [];
-  resolved.forEach((card, i) => {
-    if (!card && expanded[i].collectorNumber) retryIdxs.push(i);
-  });
-  let retryErrors: string[] = [];
-  if (retryIdxs.length > 0) {
-    const retryRows = retryIdxs.map((i) => ({ ...expanded[i], collectorNumber: undefined }));
-    const retry = await resolveCards(retryRows, cache);
-    retryIdxs.forEach((origIdx, j) => {
-      if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
-    });
-    retryErrors = retry.fetchErrorNames;
-  }
-
-  // Outage-vs-miss: a still-unresolved name counts as a fetch error (retryable)
-  // when its FINAL resolution attempt never reached Scryfall. Retried rows take
-  // their verdict from the retry pass; everything else from the first pass.
-  const retriedNames = new Set(retryIdxs.map((i) => expanded[i].name).filter(Boolean));
-  const fetchFailedNames = new Set(firstPass.fetchErrorNames.filter((n) => !retriedNames.has(n)));
-  for (const n of retryErrors) fetchFailedNames.add(n);
+  const { resolved, fetchErrorNames } = await resolveCards(expanded, cache);
 
   return sliceResolvedDeckImport(
     commanderRows,
     companionRows,
     deckRows,
     resolved,
-    fetchFailedNames
+    new Set(fetchErrorNames)
   );
 }
 

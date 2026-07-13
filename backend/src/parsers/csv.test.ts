@@ -148,6 +148,58 @@ describe('parseCsvAuto', () => {
     expect(r.condition).toBe('nm');
     expect(r.language).toBe('en');
   });
+
+  // E127: realistic multi-row exports with the nasty cases bundled together —
+  // a split-card name, a foil printing, condition/language columns, a genuine
+  // qty-0 wishlist row, and a malformed row. Every input row must be
+  // accounted for as either imported, skipped-unowned, or malformed — no
+  // silent drops.
+  it('accounts for every row in a realistic multi-row Moxfield export', () => {
+    const header =
+      'Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,' +
+      'Collector Number,Alter,Photo,Purchase Price';
+    const rows = [
+      '1,0,Sol Ring,Commander Masters,Near Mint,English,,,2024-01-01,472,False,,1.50',
+      '1,0,Fire // Ice,Apocalypse,Lightly Played,English,foil,,2024-01-01,90,False,,3.00',
+      // Tradelist-only entry — not owned, must be skipped rather than imported as 1 copy.
+      '0,3,Mox Diamond,Stronghold,Near Mint,English,,,2024-01-01,12,False,,45.00',
+      // Malformed: no name.
+      ',0,,Kaladesh,Near Mint,English,,,2024-01-01,,False,,',
+    ];
+    const out = parseCsvAuto(`${header}\n${rows.join('\n')}`, 'moxfield');
+
+    expect(out.rows.map((r) => r.name)).toEqual(['Sol Ring', 'Fire // Ice']);
+    expect(out.rows[1]).toMatchObject({
+      finish: 'foil',
+      condition: 'lp',
+      collectorNumber: '90',
+    });
+    expect(out.skippedUnownedRows).toBe(1);
+    expect(out.unparsedLines).toHaveLength(1);
+    // Zero silent drops: every data row is imported, skipped-unowned, or malformed.
+    expect(out.rows.length + out.skippedUnownedRows + out.unparsedLines.length).toBe(rows.length);
+  });
+
+  it('accounts for every row in a realistic multi-row Deckbox export', () => {
+    const header =
+      'Count,Tradelist Count,Name,Edition,Card Number,Condition,Language,Foil,Signed,' +
+      'Altered Art,Misprint,My Price,Tags';
+    const rows = [
+      '2,0,Sol Ring,Commander Masters,472,Near Mint,English,,False,False,False,1.50,',
+      '1,0,Fire // Ice,Apocalypse,90,Lightly Played,English,foil,False,False,False,3.00,',
+      // Tradelist-only entry — not owned.
+      '0,4,Mox Diamond,Stronghold,12,Near Mint,English,,False,False,False,45.00,',
+      // Malformed: no name.
+      ',0,,Kaladesh,,Near Mint,English,,False,False,False,,',
+    ];
+    const out = parseCsvAuto(`${header}\n${rows.join('\n')}`, 'deckbox');
+
+    expect(out.rows.map((r) => r.name)).toEqual(['Sol Ring', 'Fire // Ice']);
+    expect(out.rows[1]).toMatchObject({ finish: 'foil', condition: 'lp' });
+    expect(out.skippedUnownedRows).toBe(1);
+    expect(out.unparsedLines).toHaveLength(1);
+    expect(out.rows.length + out.skippedUnownedRows + out.unparsedLines.length).toBe(rows.length);
+  });
 });
 
 describe('parseCondition', () => {
