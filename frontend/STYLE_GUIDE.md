@@ -1397,6 +1397,28 @@ add-cards row (2.45rem × 3.4rem, `CardSearchPanel`) and well below the 66px
   remove`), not a flex line, since the thumb sets the row height and the
   name/slot pair now stacks vertically in the middle column.
 
+### Default view posture is card-forward (E127)
+
+Every surface with a persisted list/grid view toggle (collection, deck
+mainboard) **defaults to grid/visual for a user who has never chosen** — list
+and compact stay fully intact, one click away, and any explicit prior choice
+(including a pre-E127 install that had never touched the toggle and so has no
+stored key) still wins forever. The mechanism is exactly the existing
+`localStorage` read used by `CardListTable`'s `readStoredCollectionView()` and
+`DeckDisplay`'s `readStoredViewMode()`: only the **absence** of a stored key
+falls through to the new default; any persisted value — set only by an
+explicit toggle click, never by a mount-time effect — is honored unchanged.
+Don't build a separate "has the user ever opened this view" flag; the
+presence of the key already encodes that.
+
+**Decision-context art reads as a card, not an icon.** A surface where the
+user is choosing between several cards (not just scanning a list they already
+own) resolves art at `useCardThumb`'s `'normal'` size, matching
+`CardSearchPanel`'s add-cards row thumb — never `'small'`, which is reserved
+for genuinely dense, already-decided lists (the guided-brew pick list, E128
+above). `CommanderResultCard` (by-name search, by-playstyle browse, EDHREC
+top-N, the guided build's playstyle list) is the reference.
+
 ---
 
 ## Deck analysis tabs — first-impression states

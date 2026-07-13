@@ -154,7 +154,10 @@ function readStoredCollectionView(): ViewMode {
   } catch {
     /* ignore */
   }
-  return 'list';
+  // No explicit choice on record (E127) — default posture is card-forward
+  // grid. Only fires when nothing was ever persisted; an explicit list/
+  // compact choice above always wins.
+  return 'grid';
 }
 
 function readStoredGridSize(): GridSize {

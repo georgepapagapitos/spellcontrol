@@ -256,7 +256,7 @@ function readStoredGridSize(): DeckGridSize {
 const DEFAULT_SHOW_PREFS: ShowPrefs = { price: true, roles: true, mana: true };
 
 function readStoredViewMode(): DeckViewMode {
-  if (typeof window === 'undefined') return 'list';
+  if (typeof window === 'undefined') return 'grid';
   try {
     const v = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
     if (v === 'list' || v === 'grid') return v;
@@ -266,7 +266,10 @@ function readStoredViewMode(): DeckViewMode {
   } catch {
     /* ignore */
   }
-  return 'list';
+  // No explicit choice on record (E127) — default posture is card-forward
+  // grid (list ships with zero card art). An explicit persisted 'list'
+  // above always wins.
+  return 'grid';
 }
 
 function readStoredShowPrefs(): ShowPrefs {

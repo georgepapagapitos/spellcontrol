@@ -854,7 +854,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
             <li key={card.id}>
               <CommanderResultCard
                 name={card.name}
-                imageUrl={card.image_uris?.small ?? card.card_faces?.[0]?.image_uris?.small}
+                imageUrl={card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal}
                 colors={card.color_identity}
                 typeLine={card.type_line}
                 readiness={readiness.get(card.name.toLowerCase())}
@@ -868,7 +868,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
             <li key={card.scryfallId}>
               <CommanderResultCard
                 name={card.name}
-                imageUrl={card.imageSmall}
+                imageUrl={card.imageNormal}
                 colors={card.colorIdentity ?? card.colors ?? []}
                 typeLine={card.typeLine ?? (pdh ? 'Creature' : 'Legendary Creature')}
                 readiness={readiness.get(card.name.toLowerCase())}
