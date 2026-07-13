@@ -73,13 +73,23 @@ export function assembleBuildReport(input: {
   customization: Customization;
   collectionNames: Set<string>;
   claimedConflicts?: number;
+  /** Owned, identity-legal names "Available only" excluded because every copy
+   *  is committed elsewhere — the mirror of claimedConflicts. */
+  committedExcluded?: number;
   /** The deck's selected themes, for the archetype-note's "your X theme
    *  pick" / multi-theme disclosure. Undefined for non-theme generators
    *  (e.g. oracle-role, art-theme) — the note still discloses the archetype
    *  itself, just without a theme name. */
   selectedThemes?: ThemeResult[];
 }): BuildReport {
-  const { generated, customization, collectionNames, claimedConflicts, selectedThemes } = input;
+  const {
+    generated,
+    customization,
+    collectionNames,
+    claimedConflicts,
+    committedExcluded,
+    selectedThemes,
+  } = input;
 
   const builtFromCollection = generated.builtFromCollection ?? customization.collectionMode;
   const collectionStrategy = customization.collectionStrategy;
@@ -283,6 +293,9 @@ export function assembleBuildReport(input: {
   // Coaching: cards that are owned but all copies are committed to other decks.
   if (claimedConflicts != null && claimedConflicts > 0) {
     report.claimedConflicts = claimedConflicts;
+  }
+  if (committedExcluded != null && committedExcluded > 0) {
+    report.committedExcluded = committedExcluded;
   }
 
   // Manabase self-explanation: sources built vs castability-weighted targets.
