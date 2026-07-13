@@ -9,6 +9,7 @@ import { NextBestMove as NextBestMoveComponent } from './NextBestMove';
 import { VerdictBadge } from './VerdictBadge';
 import { InfoTip } from '../InfoTip';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
+import { useTouchPeek } from '@/lib/use-touch-peek';
 import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { classifyInclusion } from '@/lib/inclusion-label';
@@ -215,6 +216,12 @@ export function CoachFeed({
   // Full-size peek art resolved via CDN (cached + batched, never the
   // rate-limited API image host).
   const peekUrl = useCardThumb(hoverPeek.peek?.name, 'normal');
+  // Touch parity (E129): long-press a row for the same glance. Covers every
+  // `DeckCardRow` nested inside `.coach-feed` (including `SubstituteOptions`
+  // a few components down) via one delegated container gesture — see
+  // `useTouchPeek`'s coexistence contract.
+  const touchPeek = useTouchPeek();
+  const touchPeekUrl = useCardThumb(touchPeek.peek?.name, 'normal');
 
   // Derive the active filter chip from the deep-link prop (tuneFocusLane).
   // The lazy initializer covers the mount case (arriving from another tab),
@@ -633,7 +640,7 @@ export function CoachFeed({
   );
 
   return (
-    <div className="coach-feed" {...hoverPeek.listHandlers}>
+    <div className="coach-feed" {...hoverPeek.listHandlers} {...touchPeek.listHandlers}>
       {/* Next best move headline — always at top when data is available */}
       {(nextBestMoves.length > 0 || combosLoading) && (
         <NextBestMoveComponent
@@ -882,6 +889,23 @@ export function CoachFeed({
             left={hoverPeek.peek.left}
             top={hoverPeek.peek.top}
             width={hoverPeek.peek.width}
+          />,
+          document.body
+        )}
+
+      {/* Touch long-press peek (E129) — unlike the hover peek above, renders
+          as soon as the gesture fires (not gated on the art already being
+          resolved): `variant="touch"` shows a loading shimmer / "no art"
+          fallback itself instead of nothing, since a deliberate hold
+          deserves visible feedback. */}
+      {touchPeek.peek &&
+        createPortal(
+          <DeckHoverPeek
+            variant="touch"
+            imageUrl={touchPeekUrl}
+            left={touchPeek.peek.left}
+            top={touchPeek.peek.top}
+            width={touchPeek.peek.width}
           />,
           document.body
         )}

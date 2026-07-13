@@ -1,6 +1,6 @@
 import { useDraggable } from '@dnd-kit/core';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
-import { useLongPress } from '../hooks/use-long-press';
+import { useLongPress } from '@/lib/use-long-press';
 import { PlaytestCardFace } from './PlaytestCardFace';
 
 interface Props {

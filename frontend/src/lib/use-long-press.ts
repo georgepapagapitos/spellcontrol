@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef } from 'react';
 
 interface Options {
   delayMs?: number;
-  toleranceMs?: number;
   onLongPress(clientX: number, clientY: number): void;
+  /** Called when a pending (or already-fired) press is cancelled by movement
+   *  past the 6px slop — e.g. the gesture turned out to be a scroll. Lets a
+   *  consumer that shows something eagerly on fire (a touch peek) tear it
+   *  down; not called on a plain release before the delay elapses (that's
+   *  just a tap). Optional — playtest's drag/reorder callers don't need it. */
+  onCancelByMove?(): void;
 }
 
 /**
@@ -11,8 +16,12 @@ interface Options {
  * alongside dnd-kit's listeners — long-press fires after `delayMs` of stationary
  * touch; any movement >6px or release cancels it. `consumedClick` indicates the
  * next click should be suppressed (because the long-press handled it).
+ *
+ * Generalized off the playtest opening-hand card (drag/reorder + preview) for
+ * reuse by the deck/collection touch card-art peek (E129) — same primitive,
+ * different consumer.
  */
-export function useLongPress({ delayMs = 500, onLongPress }: Options) {
+export function useLongPress({ delayMs = 500, onLongPress, onCancelByMove }: Options) {
   const timer = useRef<number | null>(null);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
@@ -49,9 +58,12 @@ export function useLongPress({ delayMs = 500, onLongPress }: Options) {
       const t = e.touches[0];
       const dx = t.clientX - startPos.current.x;
       const dy = t.clientY - startPos.current.y;
-      if (Math.hypot(dx, dy) > 6) cancel();
+      if (Math.hypot(dx, dy) > 6) {
+        cancel();
+        onCancelByMove?.();
+      }
     },
-    [cancel]
+    [cancel, onCancelByMove]
   );
 
   const onTouchEnd = useCallback(() => {

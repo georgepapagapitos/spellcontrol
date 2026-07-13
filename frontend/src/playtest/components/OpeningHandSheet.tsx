@@ -24,7 +24,7 @@ import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { isKeepableHand } from '@/lib/opening-hand-sim';
 import { isLand, toSimCard } from '@/lib/hand-classify';
 import { CardPreview } from '@/components/CardPreview';
-import { useLongPress } from '../hooks/use-long-press';
+import { useLongPress } from '@/lib/use-long-press';
 import type { PlaytestPhase } from '../store';
 
 interface Props {

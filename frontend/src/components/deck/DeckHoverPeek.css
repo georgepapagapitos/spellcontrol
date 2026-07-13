@@ -1,9 +1,24 @@
-/* Desktop-only hover-peek: the full card art floated into the gutter beside the
-   hovered deck row. Positioned by JS (fixed, viewport coords); this file owns
-   the look. Non-interactive — the row's click→sheet stays the real action.
+/* Hover-peek (desktop) + touch peek (E129): the full card art floated beside
+   the hovered/long-pressed row. Positioned by JS (fixed, viewport coords);
+   this file owns the look for both variants — see DeckHoverPeek.tsx. The
+   base box below applies to both: an `<img>` directly for hover, a wrapping
+   `<div class="…-touch">` for touch (which needs a loading/fallback child).
+   Non-interactive — the row's click/tap→sheet stays the real action.
 
    Co-located with DeckHoverPeek.tsx per the deck-component CSS convention (not
    the central deck-builder-* stylesheets). */
+
+/* Any element carrying the peek trigger attribute — a deck/coach row or a
+   printing sub-row — gets the touch treatment: no native long-press
+   image-save/text-selection callout competing with our own long-press
+   gesture, and no accidental text selection on what's really a button.
+   Scoped to the attribute (not global) per the E129 coexistence audit. */
+[data-peek-name] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .deck-card-hover-peek {
   position: fixed;
   /* Above the deck list + its row menus (--z-menu 80, --z-panel 100), but below
@@ -39,10 +54,13 @@
   }
 }
 
-/* Belt-and-suspenders: the JS capability gate already prevents the peek from
-   ever mounting on touch / coarse pointers, but pin it shut in CSS too. */
+/* Belt-and-suspenders: the JS capability gate already prevents the HOVER
+   variant from ever mounting on touch / coarse pointers, but pin it shut in
+   CSS too. The touch variant is exempt — it's built FOR coarse/no-hover
+   pointers (and Samsung devices report `hover: hover` on touch, so this
+   query alone can't be trusted to distinguish the two — see E129). */
 @media (hover: none), (pointer: coarse) {
-  .deck-card-hover-peek {
+  .deck-card-hover-peek:not(.deck-card-hover-peek-touch) {
     display: none;
   }
 }
@@ -51,4 +69,46 @@
   .deck-card-hover-peek {
     animation: none;
   }
+  .deck-card-hover-peek-loading {
+    animation: none;
+  }
+}
+
+/* Touch variant (E129): a wrapping div (the hover variant is a bare `<img>`)
+   so it can hold a loading shimmer or a "no art" fallback instead of
+   rendering nothing while a long-press's art is still resolving. */
+.deck-card-hover-peek-touch {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deck-card-hover-peek-touch img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.deck-card-hover-peek-loading {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    100deg,
+    var(--surface-raised) 30%,
+    var(--surface-raised) 50%,
+    var(--surface-raised) 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.deck-card-hover-peek-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
 }

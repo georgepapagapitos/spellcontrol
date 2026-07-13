@@ -55,6 +55,7 @@ import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
 import { BuyListDialog } from './BuyListDialog';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
+import { useTouchPeek } from '@/lib/use-touch-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import { FoilBadge } from '../FoilBadge';
@@ -1560,8 +1561,14 @@ export function DeckDisplay({
   // the peek and use the row's own thumbnail + click→carousel. No-op on
   // touch/native regardless.
   const hoverPeek = useDeckHoverPeek({ anchor: 'row', minViewport: 1024 });
+  // Touch parity (E129): long-press a row for the same glance, at any
+  // viewport width (there's no gutter-width gate — a phone has no gutter at
+  // all, and `computePeekPlacement` already clamps into whatever room
+  // exists). See `useTouchPeek` for the full gesture-coexistence contract.
+  const touchPeek = useTouchPeek();
   const openPreview = (rowName: string) => {
     hoverPeek.clear(); // the carousel supersedes the transient peek
+    touchPeek.clear();
     const i = flat.indexByName.get(rowName);
     if (i !== undefined) setPreviewIndex(i);
   };
@@ -1795,7 +1802,11 @@ export function DeckDisplay({
             <div className="deck-display-body">
               <div className="deck-display-main">
                 {viewMode === 'list' && (
-                  <div className="deck-card-list" {...hoverPeek.listHandlers}>
+                  <div
+                    className="deck-card-list"
+                    {...hoverPeek.listHandlers}
+                    {...touchPeek.listHandlers}
+                  >
                     {visibleGroups.map((g) => (
                       <CategorySection
                         key={g.title}
@@ -1970,6 +1981,25 @@ export function DeckDisplay({
                 top={hoverPeek.peek.top}
                 width={hoverPeek.peek.width}
               />
+            );
+          })()}
+
+        {/* Touch long-press peek (E129) — same art resolution as the hover
+            peek above; portaled to <body> so it can't get trapped by a
+            `container-type`/transform ancestor. */}
+        {touchPeek.peek &&
+          (() => {
+            const i = flat.indexByName.get(touchPeek.peek.name);
+            const card = i !== undefined ? flat.cards[i] : undefined;
+            return createPortal(
+              <DeckHoverPeek
+                variant="touch"
+                imageUrl={touchPeek.peek.img || card?.imageLarge || card?.imageNormal}
+                left={touchPeek.peek.left}
+                top={touchPeek.peek.top}
+                width={touchPeek.peek.width}
+              />,
+              document.body
             );
           })()}
 
