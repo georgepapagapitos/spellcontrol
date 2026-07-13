@@ -180,6 +180,74 @@ export function simulateOpeningHands(
   };
 }
 
+// ── Land-drop curve — "on curve" probability per turn ────────────────────────
+
+export interface LandDropCurveOptions {
+  /** Runs to simulate. Default 1000. */
+  iterations?: number;
+  /** Cards in the opening hand. Default 7. */
+  handSize?: number;
+  /** Mulligans allowed before settling for the current hand (same policy as
+   *  `simulateOpeningHands`). Default 2. */
+  mulliganDepth?: number;
+  /** Highest turn to report. Default 5. */
+  maxTurn?: number;
+  /** Seed for the PRNG. Omit for a fresh random run; pass a fixed value in tests. */
+  seed?: number;
+}
+
+export interface LandDropCurveResult {
+  iterations: number;
+  maxTurn: number;
+  /**
+   * Fraction of games with a land available for every turn 1..N — i.e. total
+   * lands seen (kept hand + one draw per turn) is >= N. 1-indexed; index 0 is
+   * unused. Draw-per-turn only: it does not know which spells are in hand, so
+   * it can't tell a land drop was skipped by choice.
+   */
+  onCurveRate: number[];
+}
+
+/**
+ * Estimate turn-by-turn "did you have a land to play" odds: keep a hand via
+ * the same mulligan policy as `simulateOpeningHands`, then draw one card per
+ * turn and check whether cumulative lands seen has kept pace with the turn
+ * count. No mana curve of the spells themselves is modeled — this is purely
+ * "how often does the deck's land ratio keep you on curve."
+ */
+export function simulateLandDropCurve(
+  library: readonly SimCard[],
+  opts: LandDropCurveOptions = {}
+): LandDropCurveResult {
+  const iterations = Math.max(1, Math.floor(opts.iterations ?? 1000));
+  const handSize = Math.max(1, Math.floor(opts.handSize ?? 7));
+  const mulliganDepth = Math.max(0, Math.floor(opts.mulliganDepth ?? 2));
+  const maxTurn = Math.max(1, Math.floor(opts.maxTurn ?? 5));
+  const rand = mulberry32(opts.seed ?? (Math.random() * 0xffffffff) >>> 0);
+
+  const onCurveCount = new Array<number>(maxTurn + 1).fill(0);
+  const drawable = library.length >= handSize;
+
+  for (let i = 0; i < iterations && drawable; i++) {
+    let order = shuffle(library, rand);
+    let hand = order.slice(0, handSize);
+    for (let m = 0; m < mulliganDepth && !isKeepableHand(hand); m++) {
+      order = shuffle(library, rand);
+      hand = order.slice(0, handSize);
+    }
+
+    let landsSoFar = hand.reduce((n, c) => n + (c.isLand ? 1 : 0), 0);
+    for (let turn = 1; turn <= maxTurn; turn++) {
+      const drawIndex = handSize + turn - 1;
+      if (drawIndex < order.length && order[drawIndex].isLand) landsSoFar += 1;
+      if (landsSoFar >= turn) onCurveCount[turn] += 1;
+    }
+  }
+
+  const denom = drawable ? iterations : 1;
+  return { iterations, maxTurn, onCurveRate: onCurveCount.map((n) => n / denom) };
+}
+
 // ── Assembly clock — "typically online by turn N" ───────────────────────────
 
 export interface AssemblyClockOptions {

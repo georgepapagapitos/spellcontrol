@@ -12,6 +12,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { toSimCard as scryToSimCard, isLand } from './hand-classify';
 import { isPlaytestLand } from '@/playtest/lib/zones';
 import { classifyTypeLine } from './build-mana-data';
+import { readLocalStorage } from './local-storage';
 
 // ── Output types ──────────────────────────────────────────────────────────────
 
@@ -194,4 +195,42 @@ export function computeDeckStats(
     battlefieldCount,
     cardsDrawn,
   };
+}
+
+/**
+ * Median actual table-kill turn from another feature's local session history,
+ * if one exists — for "predicted vs actual" alongside the assembly clock.
+ *
+ * E141 (playtest history) may land in parallel and isn't a dependency here, so
+ * this feature-detects its `spellcontrol:playtest-history:<deckId>` localStorage
+ * key defensively: any entry shape, any missing/malformed data, or the key
+ * simply not existing yet all resolve to `null` (caller renders nothing).
+ */
+export function medianActualKillTurn(deckId: string): number | null {
+  const KNOWN_TURN_FIELDS = ['tableDefeatedTurn', 'defeatedTurn', 'killTurn', 'turn'];
+  const turns = readLocalStorage<number[]>(
+    `spellcontrol:playtest-history:${deckId}`,
+    (raw) => {
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const out: number[] = [];
+      for (const entry of parsed) {
+        if (entry === null || typeof entry !== 'object') continue;
+        const rec = entry as Record<string, unknown>;
+        for (const field of KNOWN_TURN_FIELDS) {
+          const v = rec[field];
+          if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+            out.push(v);
+            break;
+          }
+        }
+      }
+      return out;
+    },
+    []
+  );
+  if (turns.length === 0) return null;
+  const sorted = [...turns].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
