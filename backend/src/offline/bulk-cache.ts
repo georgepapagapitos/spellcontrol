@@ -1,9 +1,10 @@
 import { logger } from '../logger';
 import { createHash } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { createGzip } from 'node:zlib';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Writable } from 'node:stream';
+import { pipeline as streamPipeline } from 'node:stream/promises';
 import streamArray from 'stream-json/streamers/stream-array.js';
 import type { SlimCard, SlimTokenRef } from './types';
 import { SCRYFALL_USER_AGENT } from '../scryfall';
@@ -305,26 +306,56 @@ async function buildPayload(): Promise<BulkPayload> {
   // one `{ key, value }` per top-level array element.
   const pipeline = nodeStream.pipe(streamArray.withParserAsStream());
 
-  const slims: SlimCard[] = [];
-  for await (const entry of pipeline) {
-    const card = (entry as { value: ScryfallBulkCard }).value;
-    const s = slimCard(card, gameChangerNames);
-    if (s) slims.push(s);
+  // The tail is streamed too: each slim card is stringified, hashed, and
+  // gzipped one at a time, so we never hold the slims array, the full JSON
+  // string, or the raw Buffer (each a 50-200MB copy — stacked on the scanner
+  // matcher's embeddings + the SQLite cache they OOM-killed the 1GB Fly VM,
+  // which is how the v5 rebuild crash-looped prod for 6 days). Only the
+  // ~15-25MB gzipped output stays in memory. The emitted bytes are exactly
+  // JSON.stringify(slims), so the sha1 version is unchanged for equal data.
+  const hash = createHash('sha1');
+  let cardCount = 0;
+  let rawBytes = 0;
+
+  async function* jsonPieces(): AsyncGenerator<string> {
+    const emit = (piece: string): string => {
+      hash.update(piece);
+      rawBytes += Buffer.byteLength(piece);
+      return piece;
+    };
+    let first = true;
+    yield emit('[');
+    for await (const entry of pipeline) {
+      const card = (entry as { value: ScryfallBulkCard }).value;
+      const s = slimCard(card, gameChangerNames);
+      if (!s) continue;
+      cardCount++;
+      const piece = emit((first ? '' : ',') + JSON.stringify(s));
+      first = false;
+      yield piece;
+    }
+    yield emit(']');
   }
 
-  const json = JSON.stringify(slims);
-  const raw = Buffer.from(json, 'utf-8');
-  const gz = gzipSync(raw);
-  const version = createHash('sha1').update(raw).digest('hex').slice(0, 16);
+  const gzChunks: Buffer[] = [];
+  const collector = new Writable({
+    write(chunk: Buffer, _enc, cb) {
+      gzChunks.push(chunk);
+      cb();
+    },
+  });
+  await streamPipeline(jsonPieces(), createGzip(), collector);
+  const gz = Buffer.concat(gzChunks);
+  const version = hash.digest('hex').slice(0, 16);
 
   logger.info(
-    `[offline] slim oracle bulk built: ${slims.length} cards, ${(raw.byteLength / 1_000_000).toFixed(1)}MB raw, ${(gz.byteLength / 1_000_000).toFixed(1)}MB gzipped`
+    `[offline] slim oracle bulk built: ${cardCount} cards, ${(rawBytes / 1_000_000).toFixed(1)}MB raw, ${(gz.byteLength / 1_000_000).toFixed(1)}MB gzipped`
   );
 
   const payload: BulkPayload = {
     version,
-    cardCount: slims.length,
-    rawBytes: raw.byteLength,
+    cardCount,
+    rawBytes,
     gzippedBytes: gz.byteLength,
     updatedAt: Date.parse(updatedAt) || Date.now(),
     gzipped: gz,

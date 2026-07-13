@@ -36,7 +36,13 @@ primary_region = "ord"
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
-  memory_mb = 1024
+  # 2048: the offline oracle-bulk rebuild OOM-killed the 1GB VM (exit 137) —
+  # scanner-matcher embeddings + SQLite cache + the build spike exceed 1GB.
+  # The build tail is streamed now (bulk-cache.ts), but 2GB keeps headroom for
+  # the daily refresh running alongside a warm server. Matches the manual
+  # `flyctl scale memory 2048` applied 2026-07-13 — deploys would otherwise
+  # revert it to this file's value.
+  memory_mb = 2048
 
 [mounts]
   source = "spellcontrol_data"
