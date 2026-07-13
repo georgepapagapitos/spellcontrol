@@ -1,8 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useDecksStore, type Deck, type DeckCard } from './decks';
 import { buildAllocationMap } from '../lib/allocations';
+import { setApplyingServer } from '../lib/applying-server';
 import type { EnrichedCard } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
+
+// The centralized-heal/sync subscriber (E133) fire-and-forgets a dynamic
+// `import('../lib/sync').then(sync => sync.persistDecksState(...))` on every
+// decks change it decides to push. Mock it so those tests can assert a push
+// actually happened, instead of relying on the real module (which imports
+// Capacitor/network code irrelevant here) resolving or its errors being
+// silently swallowed by the subscriber's `.catch(() => {})`.
+const persistDecksState = vi.fn().mockResolvedValue(undefined);
+vi.mock('../lib/sync', () => ({
+  persistDecksState: (...args: unknown[]) => persistDecksState(...args),
+}));
+
+// Flushes both the microtask queue AND the mocked dynamic `import('../lib/sync')`'s
+// own `.then()` continuation, which resolves on a later microtask tick than
+// the import call itself — a macrotask boundary reliably drains all of it.
+const flush = () => new Promise((r) => setTimeout(r, 0));
 
 function enriched(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
   return {
@@ -54,8 +71,14 @@ function baseDeck(overrides: Partial<Deck> = {}): Deck {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  setApplyingServer(false);
   useDecksStore.setState({ decks: [], hydrated: true });
+  // The reset above triggers the subscriber's own (fire-and-forget) push.
+  // Flush it out BEFORE clearing the mock — otherwise that pending call
+  // resolves mid-test and pollutes the next test's call count.
+  await flush();
+  persistDecksState.mockClear();
 });
 
 describe('remapAllocations', () => {
@@ -846,6 +869,116 @@ describe('allocation invariants', () => {
         expect(snapshotAllocs(), `step ${step}: remap not idempotent`).toEqual(before);
       }
     }
+  });
+});
+
+/**
+ * E133: the centralized subscriber (bottom of decks.ts) is the single
+ * chokepoint that self-heals ANY write to `decks` containing a cross-deck
+ * double-claim — not just `remapAllocations`. These drive the store the way
+ * the bypass paths from the audit actually do: a raw `setState` (mirrors
+ * sync.ts's rehydrateStoresFromIdb), and `replaceDeck` (deck-history
+ * undo/redo, and the cross-deck-move undo path in DeckEditorPage both replay
+ * whole-deck snapshots through it).
+ */
+describe('centralized allocation self-heal subscriber', () => {
+  it('self-heals a double-claim introduced by a raw setState, deterministically, without looping', async () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({ id: 'd1', name: 'A', cards: [slot('Sol Ring', 'shared', 'sf-1')] }),
+        baseDeck({ id: 'd2', name: 'B', cards: [slot('Sol Ring', 'shared', 'sf-1')] }),
+      ],
+    });
+
+    // The heal itself is synchronous (no applyingServer guard in the way).
+    const [d1, d2] = useDecksStore.getState().decks;
+    // First deck in array order wins; mirrors dedupeDeckAllocations' contract.
+    expect(d1.cards[0].allocatedCopyId).toBe('shared');
+    expect(d2.cards[0].allocatedCopyId).toBeNull();
+
+    await flush();
+    // The heal is a real local correction, so it gets pushed exactly once —
+    // not zero, and critically not more (which would indicate a heal loop).
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+    expect(persistDecksState).toHaveBeenCalledWith(useDecksStore.getState().decks);
+
+    // A second, unrelated no-op setState (identical decks reference) must not
+    // re-trigger a push — proves the reference-stability guard actually gates.
+    const stable = useDecksStore.getState().decks;
+    useDecksStore.setState({ decks: stable });
+    await flush();
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+
+  it('self-heals a double-claim replayed by replaceDeck (undo/redo + cross-deck-move-undo path)', async () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({ id: 'd1', name: 'A', cards: [slot('Sol Ring', 'a1', 'sf-1')] }),
+        baseDeck({ id: 'd2', name: 'B', cards: [slot('Sol Ring', null, 'sf-1')] }),
+      ],
+    });
+    await flush();
+    persistDecksState.mockClear();
+
+    // Simulate an undo that replays a STALE snapshot of d2 — one that still
+    // points at the copy d1 currently holds (e.g. a cross-deck move's
+    // recipient snapshot predating the move, or a deck-history redo replaying
+    // an old command). replaceDeck is exactly what deck-history.ts's
+    // undo()/redo() and DeckEditorPage's executeReallocation undo call.
+    const staleSnapshot = baseDeck({
+      id: 'd2',
+      name: 'B',
+      cards: [slot('Sol Ring', 'a1', 'sf-1')],
+    });
+    useDecksStore.getState().replaceDeck('d2', staleSnapshot);
+
+    const [d1, d2] = useDecksStore.getState().decks;
+    const claims = [d1.cards[0].allocatedCopyId, d2.cards[0].allocatedCopyId].filter(Boolean);
+    expect(new Set(claims).size).toBe(claims.length); // no copyId claimed twice
+    expect(claims).toContain('a1'); // the claim survives on exactly one side
+
+    await flush();
+    expect(persistDecksState).toHaveBeenCalled(); // the correction propagates
+  });
+
+  it('defers the heal-and-push until the applyingServer guard clears, then pushes (simulated sync-rehydrate race)', async () => {
+    // Mirrors lib/sync.ts's rehydrateStoresFromIdb: two independent per-row
+    // LWW deck blobs arrive via a single setState wrapped in
+    // setApplyingServer(true)/(false), and can disagree about who owns a copy.
+    setApplyingServer(true);
+    useDecksStore.setState({
+      decks: [
+        baseDeck({ id: 'd1', name: 'A', cards: [slot('Sol Ring', 'shared', 'sf-1')] }),
+        baseDeck({ id: 'd2', name: 'B', cards: [slot('Sol Ring', 'shared', 'sf-1')] }),
+      ],
+    });
+
+    // While the guard is still up, the heal is deferred (not applied inline) —
+    // pushing it now would be indistinguishable from re-pushing server data.
+    const [d1Before, d2Before] = useDecksStore.getState().decks;
+    expect([d1Before.cards[0].allocatedCopyId, d2Before.cards[0].allocatedCopyId]).toEqual([
+      'shared',
+      'shared',
+    ]);
+    expect(persistDecksState).not.toHaveBeenCalled();
+
+    // rehydrateStoresFromIdb's finally clears the guard synchronously, right
+    // after its setState returns — before this test's queued microtask heal runs.
+    setApplyingServer(false);
+
+    // Flush microtasks (the deferred heal + its own re-entrant push) via a
+    // macrotask boundary, same as awaiting the real rehydrate would.
+    await flush();
+
+    const [d1After, d2After] = useDecksStore.getState().decks;
+    const claims = [d1After.cards[0].allocatedCopyId, d2After.cards[0].allocatedCopyId].filter(
+      Boolean
+    );
+    expect(claims).toEqual(['shared']); // healed to exactly one claim
+    // The correction is genuinely local, so — unlike ordinary server-applied
+    // state — it IS pushed once the guard drops.
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+    expect(persistDecksState).toHaveBeenCalledWith(useDecksStore.getState().decks);
   });
 });
 

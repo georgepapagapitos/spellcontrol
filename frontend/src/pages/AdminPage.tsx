@@ -50,7 +50,16 @@ export function AdminPage() {
     return m;
   }, [cards]);
 
-  const allocationMap = useMemo(() => buildAllocationMap(decks), [decks]);
+  // doubleClaimCount comes from buildAllocationMap's own collision callback
+  // (E133) rather than a separate scan — prod-visible where before this
+  // invariant was only checkable via a dev-only console warning.
+  const { allocationMap, doubleClaimCount } = useMemo(() => {
+    let collisions = 0;
+    const map = buildAllocationMap(decks, undefined, () => {
+      collisions++;
+    });
+    return { allocationMap: map, doubleClaimCount: collisions };
+  }, [decks]);
 
   // Slots bound to a wrong printing when the preferred printing is owned.
   // Single highest-signal allocation bug class — every other audit (orphan,
@@ -268,6 +277,15 @@ export function AdminPage() {
               <tr>
                 <th>
                   Deck slots:{' '}
+                  <span className={doubleClaimCount ? 'admin-err' : ''}>double-claimed</span> (same
+                  physical copy bound to &gt;1 slot — self-heals automatically; a nonzero count here
+                  means it's happening faster than the heal)
+                </th>
+                <td className={doubleClaimCount ? 'admin-err' : ''}>{doubleClaimCount}</td>
+              </tr>
+              <tr>
+                <th>
+                  Deck slots:{' '}
                   <span className={fixableCount ? 'admin-err' : ''}>suboptimal printing</span> (a
                   free copy of the preferred printing exists → remap can rebind)
                 </th>
@@ -283,10 +301,10 @@ export function AdminPage() {
               </tr>
             </tbody>
           </table>
-          {(overview.orphan > 0 || overview.nameMismatch > 0) && (
+          {(overview.orphan > 0 || overview.nameMismatch > 0 || doubleClaimCount > 0) && (
             <p className="admin-warn">
-              Found {overview.orphan} orphan and {overview.nameMismatch} name-mismatched
-              allocations. Open the Decks tab to find them.
+              Found {overview.orphan} orphan, {overview.nameMismatch} name-mismatched, and{' '}
+              {doubleClaimCount} double-claimed allocation(s). Open the Decks tab to find them.
             </p>
           )}
           {fixableCount > 0 && (
