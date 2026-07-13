@@ -62,6 +62,32 @@ export function isPlayableCard(card: ScryfallCard): boolean {
   return !card.layout || !NON_PLAYABLE_LAYOUTS.has(card.layout);
 }
 
+/**
+ * Resolve token art for a playtest token by its display name (e.g. "Soldier"
+ * out of a preset like "Soldier 1/1"). Token layouts are excluded from
+ * `isPlayableCard` everywhere else in this module — tokens are exactly what's
+ * wanted here, so this deliberately bypasses the repository/playable-filter
+ * and hits the live Scryfall search directly. Offline mode has no token data
+ * in the slim bundle, so it short-circuits rather than firing a guaranteed-miss
+ * request. Returns null on no-match/offline/network failure — callers keep
+ * their existing text-box placeholder either way.
+ */
+export async function searchTokenArt(displayName: string): Promise<string | null> {
+  if (offlineActive()) return null;
+  const searchName = displayName.replace(/\s*\d+\/\d+.*$/, '').trim();
+  if (!searchName) return null;
+  try {
+    const query = encodeURIComponent(`t:token ${searchName}`);
+    const response = await scryfallFetch<ScryfallSearchResponse>(
+      `/cards/search?q=${query}&unique=cards`
+    );
+    const first = response.data[0];
+    return first ? getCardImageUrl(first, 'normal') : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Return a shallow copy with deck-generation flags stripped so cached objects stay clean. */
 function freshCopy(card: ScryfallCard): ScryfallCard {
   const {

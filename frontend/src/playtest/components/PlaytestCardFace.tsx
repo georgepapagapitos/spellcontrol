@@ -1,4 +1,4 @@
-import { forwardRef, memo, useState } from 'react';
+import { forwardRef, memo, useEffect, useState } from 'react';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
@@ -23,10 +23,15 @@ export const PlaytestCardFace = memo(
     const faceDown = bf?.faceDown ?? false;
     const counters = bf?.counters ?? {};
     const stickers = bf?.stickers ?? [];
+    // Transform is independent of face-down: a transformed card can also be
+    // turned face-down, in which case the back-of-card art still wins below.
+    const src = bf?.showBackFace && card.backImageUrl ? card.backImageUrl : card.imageUrl;
     // A broken/slow image degrades to the same text placeholder used for
     // cards with no imageUrl at all — never a broken-image glyph. Resets
-    // whenever the underlying image changes (e.g. a new card lands here).
+    // whenever the underlying image changes (e.g. a new card lands here, or a
+    // transform swaps which face's art is showing).
     const [imgError, setImgError] = useState(false);
+    useEffect(() => setImgError(false), [src]);
 
     return (
       <div
@@ -38,9 +43,9 @@ export const PlaytestCardFace = memo(
       >
         {faceDown ? (
           <div className="playtest-card__back" aria-label="Face-down card" />
-        ) : card.imageUrl && !imgError ? (
+        ) : src && !imgError ? (
           <img
-            src={card.imageUrl}
+            src={src}
             alt={card.name}
             draggable={false}
             loading="lazy"

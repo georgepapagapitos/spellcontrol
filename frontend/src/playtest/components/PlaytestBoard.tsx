@@ -28,9 +28,12 @@ import { MobileZonesPanel } from './MobileZonesPanel';
 import { OpeningHandSheet } from './OpeningHandSheet';
 import { PlaytestCardFace } from './PlaytestCardFace';
 import { TokenCreator } from './TokenCreator';
+import { DiceRoller } from './DiceRoller';
 import { PlaytestStatsSheet } from './PlaytestStatsSheet';
 import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
+import { resolveTokenArt } from '../lib/token-art';
+import { commanderTaxAmount } from '../lib/zones';
 
 interface Props {
   state: PlaytestState;
@@ -90,6 +93,7 @@ export function PlaytestBoard({ state }: Props) {
   // Highest resistance-entry seq seen so far — drives the ActionBar's unread
   // dot; not persisted, a soft nice-to-have that resets on remount.
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
+  const [showDice, setShowDice] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   // Banner dismissal is tracked by event id so a new opponent response (even
   // with an identical message) re-shows and re-announces the banner.
@@ -212,6 +216,7 @@ export function PlaytestBoard({ state }: Props) {
     tokenCreator ||
     showStats ||
     showLog ||
+    showDice ||
     Boolean(confirmDialog);
 
   // Scry/peek has no reducer action of its own (it's just the library viewer
@@ -316,6 +321,7 @@ export function PlaytestBoard({ state }: Props) {
         onCreateToken={() => setTokenCreator(true)}
         onOpenStats={() => setShowStats(true)}
         onOpenLog={handleOpenLog}
+        onOpenDice={() => setShowDice(true)}
         onToggleResistance={toggleResistance}
         resistanceOn={resistanceOn}
         hasUnreadLog={hasUnreadLog}
@@ -374,6 +380,7 @@ export function PlaytestBoard({ state }: Props) {
                 zone="command"
                 label="Command"
                 cards={state.zones.command}
+                commanderTax={state.commanderTax}
                 onClick={() => setViewer({ zone: 'command' })}
               />
             </aside>
@@ -396,6 +403,7 @@ export function PlaytestBoard({ state }: Props) {
       {isNarrow && (
         <MobileZonesPanel
           zones={state.zones}
+          commanderTax={state.commanderTax}
           onOpenZone={(zone) => setViewer({ zone })}
           onShuffleLibrary={() => dispatch({ type: 'SHUFFLE_LIBRARY' })}
           onScry={handleScry}
@@ -435,6 +443,8 @@ export function PlaytestBoard({ state }: Props) {
           y={ctx.y}
           cardName={ctxCard.card.name}
           stickers={ctxCard.stickers}
+          tax={commanderTaxAmount(state.commanderTax, ctxCard.card.id)}
+          canTransform={Boolean(ctxCard.card.backImageUrl)}
           variant={isNarrow ? 'sheet' : 'floating'}
           onClose={() => setCtx(null)}
           onTap={() => {
@@ -443,6 +453,10 @@ export function PlaytestBoard({ state }: Props) {
           }}
           onFlip={() => {
             dispatch({ type: 'FLIP_FACE', cardId: ctx.cardId });
+            setCtx(null);
+          }}
+          onTransform={() => {
+            dispatch({ type: 'TRANSFORM', cardId: ctx.cardId });
             setCtx(null);
           }}
           onAddCounter={(k) =>
@@ -471,9 +485,17 @@ export function PlaytestBoard({ state }: Props) {
             const { x, y } = placeOnBattlefield(tokenCard);
             dispatch({ type: 'CREATE_TOKEN', card: tokenCard, x, y });
             setTokenCreator(false);
+            // Never block token creation on the network — the text-box
+            // placeholder renders immediately above; art swaps in when (if)
+            // it resolves.
+            void resolveTokenArt(name).then((imageUrl) => {
+              if (imageUrl) dispatch({ type: 'SET_CARD_IMAGE', cardId: id, imageUrl });
+            });
           }}
         />
       )}
+
+      {showDice && <DiceRoller onClose={() => setShowDice(false)} />}
 
       {phase !== 'playing' && (
         <OpeningHandSheet
