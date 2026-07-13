@@ -1,4 +1,10 @@
-import { BookOpen, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Image as ImageIcon,
+  ImageOff,
+} from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useCollectionStore } from '../store/collection';
 import type {
@@ -11,7 +17,7 @@ import type {
 } from '../types';
 import { SortPopover } from './SortPopover';
 import { PageGrid } from './PageGrid';
-import { CardPreview } from './CardPreview';
+import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardPreviewContext } from './CardPreviewContext';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
@@ -47,6 +53,7 @@ export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, sho
   const setActiveTab = useCollectionStore((s) => s.setActiveTab);
   const setEditingBinder = useCollectionStore((s) => s.setEditingBinder);
   const updateBinder = useCollectionStore((s) => s.updateBinder);
+  const pushToast = useToastsStore((s) => s.push);
 
   // The Uncategorized bucket is no longer a tab in this view — it lives in the
   // Collection page filter. Migrate any legacy persisted activeTab to the first
@@ -86,6 +93,36 @@ export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, sho
   // no search-free set was supplied (e.g. no query active).
   const driftActive = driftBinders?.find((b) => b.def.id === activeTab) ?? active;
 
+  // "Set cover" / "Remove cover" in the card preview's icon bar — the explicit
+  // override for the index tile's cover art (lib/binder-cover.ts). Only offered
+  // for cards that actually have art to show.
+  const coverActions = (card: EnrichedCard | undefined): CardPreviewAction[] => {
+    if (!card?.imageNormal) return [];
+    const isCover = active.def.coverScryfallId === card.scryfallId;
+    return [
+      {
+        key: 'cover',
+        label: isCover ? 'Remove cover' : 'Set cover',
+        icon: isCover ? (
+          <ImageOff width={18} height={18} strokeWidth={2} aria-hidden />
+        ) : (
+          <ImageIcon width={18} height={18} strokeWidth={2} aria-hidden />
+        ),
+        onClick: () => {
+          updateBinder(active.def.id, {
+            coverScryfallId: isCover ? undefined : card.scryfallId,
+          });
+          pushToast({
+            message: isCover
+              ? 'Cover follows the most valuable card again.'
+              : `${card.name} is now this binder's cover.`,
+            tone: 'success',
+          });
+        },
+      },
+    ];
+  };
+
   return (
     <>
       <BinderDriftBanner binder={driftActive} />
@@ -104,6 +141,7 @@ export function BinderView({ binders, driftBinders, viewToggle, qtyByCopyId, sho
         viewToggle={viewToggle}
         qtyByCopyId={qtyByCopyId}
         showImages={showImages}
+        getCardActions={coverActions}
       />
     </>
   );
@@ -124,6 +162,7 @@ function SectionList({
   viewToggle,
   qtyByCopyId,
   showImages,
+  getCardActions,
 }: {
   viewKey: string;
   binderName: string;
@@ -139,6 +178,8 @@ function SectionList({
   viewToggle?: React.ReactNode;
   qtyByCopyId?: Map<string, number>;
   showImages?: boolean;
+  /** Extra per-card actions (e.g. "Set cover") for the card-preview icon bar. */
+  getCardActions?: (card: EnrichedCard | undefined) => CardPreviewAction[];
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -405,6 +446,7 @@ function SectionList({
             const c = preview.cards[i];
             return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
           }}
+          getActions={getCardActions ? (i) => getCardActions(preview.cards[i]) : undefined}
           onIndexChange={(i) => setPreview((p) => (p ? { ...p, index: i } : p))}
           onClose={() => setPreview(null)}
           onEdit={(c) => {
@@ -424,6 +466,7 @@ function SectionList({
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}
           sectionTabs={sectionTabs}
+          getCardActions={getCardActions}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);

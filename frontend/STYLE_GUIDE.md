@@ -1436,6 +1436,33 @@ for genuinely dense, already-decided lists (the guided-brew pick list, E128
 above). `CommanderResultCard` (by-name search, by-playstyle browse, EDHREC
 top-N, the guided build's playstyle list) is the reference.
 
+### Index tiles wear cover art (E132)
+
+An index of **containers** (decks, binders) gives every grid tile a cover: a
+full-width art banner on top (`clamp(7rem, 22vw, 10rem)` tall, `object-fit:
+cover; object-position: center top` so the focal subject survives the crop),
+name/meta below. The two index grids share this geometry so they read as one
+family — `.decks-index-card-art` and `.binders-index-card-art` are the
+references. Rules:
+
+- **Every grid tile gets a banner**, art or not — coverless tiles show a solid
+  band of the container's identity color (a "plain binder cover"), same
+  height, so rows stay uniform. List rows show a small thumb (or nothing when
+  coverless — the colored left border still carries identity); compact rows
+  never show art.
+- **The cover is derived, user-overridable.** Decks use the commander's art;
+  binders use the **most valuable card** (price, ties toward the lower EDHREC
+  rank — `lib/binder-cover.ts`), overridable per card via "Set cover" /
+  "Remove cover" in the card preview's icon bar inside that binder. The
+  override is stored as a **Scryfall printing id** on the def (durable across
+  the copyId regeneration every import causes) and silently falls back to
+  automatic when the card leaves the binder.
+- **Art always derives from the stored `imageNormal` via `scryfallArtCrop`**
+  — never trust a persisted `art_crop` (the offline slim bundle fakes it, see
+  #843) and never hit `api.scryfall.com?format=image`.
+- Covers are **decorative**: `alt=""` + `aria-hidden`; the tile's name text is
+  the accessible label.
+
 ---
 
 ## Deck analysis tabs — first-impression states
