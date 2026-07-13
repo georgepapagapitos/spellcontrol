@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isPoolTooThin, MIN_HEALTHY_POOL_DECKS, MIN_HEALTHY_POOL_CARDS } from './client';
+import {
+  isPoolTooThin,
+  parseEdhrecResponse,
+  MIN_HEALTHY_POOL_DECKS,
+  MIN_HEALTHY_POOL_CARDS,
+} from './client';
 import type { EDHRECCard, EDHRECCommanderData } from '@/deck-builder/types';
 
 // E93: isPoolTooThin gates the fallback ladder — these fixtures are the exact
@@ -69,5 +74,80 @@ describe('isPoolTooThin', () => {
     expect(isPoolTooThin(pool(MIN_HEALTHY_POOL_DECKS - 1, MIN_HEALTHY_POOL_CARDS))).toBe(true);
     expect(isPoolTooThin(pool(MIN_HEALTHY_POOL_DECKS, MIN_HEALTHY_POOL_CARDS - 1))).toBe(true);
     expect(isPoolTooThin(pool(MIN_HEALTHY_POOL_DECKS, MIN_HEALTHY_POOL_CARDS))).toBe(false);
+  });
+});
+
+describe('parseEdhrecResponse — 2026-07 schema drift', () => {
+  // Modeled on the live json.edhrec.com response of 2026-07-12: no top-level
+  // num_decks_avg (deck count moved to container.json_dict.card.num_decks) and
+  // cardviews carry num_decks (+ potential_decks) instead of inclusion. A
+  // parser reading only the old fields sees numDecks=0 → EVERY generation
+  // silently falls back to no-EDHREC targets (the broken-panel incident).
+  const newSchema = {
+    creature: 24,
+    instant: 10,
+    sorcery: 8,
+    artifact: 9,
+    enchantment: 7,
+    land: 35,
+    basic: 12,
+    nonbasic: 23,
+    panels: { mana_curve: { '1': 8, '2': 12, '3': 14 }, taglinks: [] },
+    container: {
+      json_dict: {
+        card: { name: 'Atraxa, Praetors’ Voice', num_decks: 42495 },
+        cardlists: [
+          {
+            tag: 'topcards',
+            header: 'Top Cards',
+            cardviews: [
+              {
+                name: 'The Serpent Society',
+                sanitized: 'the-serpent-society',
+                num_decks: 75,
+                potential_decks: 3668,
+                synergy: 0.008,
+              },
+            ],
+          },
+        ],
+      },
+    },
+  };
+
+  it('reads the commander deck count from container.json_dict.card.num_decks', () => {
+    const data = parseEdhrecResponse(newSchema, 'atraxa-praetors-voice');
+    expect(data.stats.numDecks).toBe(42495);
+  });
+
+  it('derives card inclusion % from num_decks when the old inclusion field is absent', () => {
+    const data = parseEdhrecResponse(newSchema, 'atraxa-praetors-voice');
+    const card = data.cardlists.allNonLand.find((c) => c.name === 'The Serpent Society')!;
+    expect(card.inclusion).toBeCloseTo((75 / 3668) * 100, 5);
+    expect(card.num_decks).toBe(75);
+  });
+
+  it('still honors the old schema (inclusion + num_decks_avg) unchanged', () => {
+    const old = {
+      ...newSchema,
+      num_decks_avg: 1234,
+      container: {
+        json_dict: {
+          card: { name: 'X' },
+          cardlists: [
+            {
+              tag: 'topcards',
+              header: 'Top Cards',
+              cardviews: [
+                { name: 'Old Card', sanitized: 'old-card', inclusion: 50, potential_decks: 100 },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const data = parseEdhrecResponse(old, 'x');
+    expect(data.stats.numDecks).toBe(1234);
+    expect(data.cardlists.allNonLand.find((c) => c.name === 'Old Card')!.inclusion).toBe(50);
   });
 });

@@ -361,91 +361,6 @@ describe('analyzeDeck — roles (tagger-driven)', () => {
   });
 });
 
-describe('analyzeDeck — user card tags', () => {
-  it('counts a mapped tag toward the role when the tagger misses the card', async () => {
-    const { analyzeDeck } = await loadDeckAnalysisWithTags({ ramp: ['Sol Ring'] });
-    const mainboard = [
-      slot(makeCard({ name: 'Sol Ring', type_line: 'Artifact' })),
-      { ...slot(makeCard({ name: 'Pet Rock', type_line: 'Artifact' })), tags: ['Ramp'] },
-    ];
-    const result = analyzeDeck(
-      { format: 'commander', commander: null, partnerCommander: null, mainboard },
-      true
-    );
-    const ramp = result.roles.find((r) => r.key === 'ramp')!;
-    expect(ramp.count).toBe(2);
-    expect(ramp.taggedCount).toBe(1);
-    expect(ramp.contributingSlotIds).toHaveLength(2);
-  });
-
-  it('does not double-count a card whose tag agrees with the tagger', async () => {
-    const { analyzeDeck } = await loadDeckAnalysisWithTags({ ramp: ['Sol Ring'] });
-    const mainboard = [
-      { ...slot(makeCard({ name: 'Sol Ring', type_line: 'Artifact' })), tags: ['Ramp'] },
-    ];
-    const result = analyzeDeck(
-      { format: 'commander', commander: null, partnerCommander: null, mainboard },
-      true
-    );
-    const ramp = result.roles.find((r) => r.key === 'ramp')!;
-    expect(ramp.count).toBe(1);
-    expect(ramp.taggedCount).toBe(0);
-  });
-
-  it('folds Interaction into removal and never counts a slot twice', async () => {
-    const { analyzeDeck } = await loadDeckAnalysis();
-    const mainboard = [
-      {
-        ...slot(makeCard({ name: 'Some Instant', type_line: 'Instant' })),
-        tags: ['Interaction', 'Removal'],
-      },
-    ];
-    const result = analyzeDeck(
-      { format: 'commander', commander: null, partnerCommander: null, mainboard },
-      false
-    );
-    const removal = result.roles.find((r) => r.key === 'removal')!;
-    expect(removal.count).toBe(1);
-    expect(removal.taggedCount).toBe(1);
-  });
-
-  it('counts user tags even before the tagger is ready', async () => {
-    const { analyzeDeck } = await loadDeckAnalysis();
-    const mainboard = [
-      { ...slot(makeCard({ name: 'Card', type_line: 'Sorcery' })), tags: ['Draw'] },
-    ];
-    const result = analyzeDeck(
-      { format: 'commander', commander: null, partnerCommander: null, mainboard },
-      false
-    );
-    const draw = result.roles.find((r) => r.key === 'cardDraw')!;
-    expect(draw.count).toBe(1);
-    expect(draw.taggedCount).toBe(1);
-  });
-
-  it('ignores intent-only tags (Wincon/Synergy/Setup/Payoff) and tags on lands', async () => {
-    const { analyzeDeck } = await loadDeckAnalysis();
-    const mainboard = [
-      {
-        ...slot(makeCard({ name: 'Combo Piece', type_line: 'Enchantment' })),
-        tags: ['Wincon', 'Synergy', 'Setup', 'Payoff'],
-      },
-      {
-        ...slot(makeCard({ name: 'Forest', type_line: 'Basic Land — Forest' })),
-        tags: ['Ramp'],
-      },
-    ];
-    const result = analyzeDeck(
-      { format: 'commander', commander: null, partnerCommander: null, mainboard },
-      false
-    );
-    for (const key of ['ramp', 'cardDraw', 'removal', 'boardwipe'] as const) {
-      expect(result.roles.find((r) => r.key === key)!.count).toBe(0);
-    }
-    expect(result.roles.find((r) => r.key === 'lands')!.count).toBe(1);
-  });
-});
-
 describe('getRoleDeficits + classifyCandidate', () => {
   it('returns deficient roles in severity order (largest deficit first), excluding lands', async () => {
     const { analyzeDeck, getRoleDeficits } = await loadDeckAnalysis();
@@ -470,5 +385,117 @@ describe('getRoleDeficits + classifyCandidate', () => {
     const { classifyCandidate } = await loadDeckAnalysisWithTags({ ramp: ['Sol Ring'] });
     expect(classifyCandidate('Sol Ring')).toBe('ramp');
     expect(classifyCandidate('Unknown Card')).toBeNull();
+  });
+});
+
+describe('lands health — curve-derived (Karsten) suggestion', () => {
+  /** 12 tagged ramp artifacts + 48 cmc-3 creatures (avg MV 3.0, sample 60)
+   *  → Karsten: round(31.42 + 3.13*3.0 - 0.28*12) = 37. */
+  function bigDeck(landCount: number) {
+    const rampNames = Array.from({ length: 12 }, (_, i) => `Ramp ${i}`);
+    const mainboard = [
+      ...rampNames.map((name) =>
+        slot(makeCard({ name, cmc: 3, type_line: 'Artifact', mana_cost: '{3}' }))
+      ),
+      ...Array.from({ length: 48 }, (_, i) =>
+        slot(makeCard({ name: `Creature ${i}`, cmc: 3, type_line: 'Creature — Beast' }))
+      ),
+      ...Array.from({ length: landCount }, (_, i) =>
+        slot(makeCard({ name: `Land ${i}`, cmc: 0, type_line: 'Land', mana_cost: '' }))
+      ),
+    ];
+    return { rampNames, mainboard };
+  }
+
+  it('applies a ±1 band around the Karsten count when tagger is ready and the sample is large', async () => {
+    const { rampNames, mainboard } = bigDeck(33);
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({ ramp: rampNames });
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      true
+    );
+    const lands = result.roles.find((r) => r.key === 'lands')!;
+    expect(lands.suggested).toBe(37);
+    expect(lands.range).toEqual([36, 38]);
+    expect(lands.status).toBe('low');
+    // Delta is stated against the suggestion, matching the hero move's math.
+    expect(lands.message).toContain('Add 4');
+    expect(lands.message).toContain('~37');
+    expect(lands.message).toContain('12 ramp');
+  });
+
+  it('reads ok inside the band and high above it, with suggestion-anchored copy', async () => {
+    const { rampNames, mainboard } = bigDeck(38);
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({ ramp: rampNames });
+    const ok = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      true
+    ).roles.find((r) => r.key === 'lands')!;
+    expect(ok.status).toBe('ok');
+    expect(ok.message).toContain('~37');
+
+    const { mainboard: heavy } = bigDeck(41);
+    const high = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard: heavy },
+      true
+    ).roles.find((r) => r.key === 'lands')!;
+    expect(high.status).toBe('high');
+    expect(high.message).toContain('4 over');
+  });
+
+  it('clamps the suggestion to 40 for a top-heavy zero-ramp deck', async () => {
+    const mainboard = Array.from({ length: 50 }, (_, i) =>
+      slot(makeCard({ name: `Big ${i}`, cmc: 5, type_line: 'Creature — Dragon' }))
+    );
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({});
+    const result = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      true
+    );
+    // 31.42 + 3.13*5 = 47.07 → clamped to 40.
+    expect(result.roles.find((r) => r.key === 'lands')!.suggested).toBe(40);
+  });
+
+  it('falls back to the static format band when the tagger is not ready', async () => {
+    const { mainboard } = bigDeck(33);
+    const { analyzeDeck } = await loadDeckAnalysis();
+    const lands = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      false
+    ).roles.find((r) => r.key === 'lands')!;
+    expect(lands.suggested).toBeUndefined();
+    // 33 lands sits inside the wide static band — without the tagger the
+    // Karsten tightening (which would read this deck as low) never applies.
+    expect(lands.status).toBe('ok');
+    expect(lands.message).toContain('32–42');
+  });
+
+  it('falls back to the static band when the nonland sample is too small', async () => {
+    const mainboard = [
+      ...Array.from({ length: 10 }, (_, i) =>
+        slot(makeCard({ name: `C ${i}`, cmc: 3, type_line: 'Creature' }))
+      ),
+      ...Array.from({ length: 5 }, (_, i) =>
+        slot(makeCard({ name: `L ${i}`, cmc: 0, type_line: 'Land', mana_cost: '' }))
+      ),
+    ];
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({});
+    const lands = analyzeDeck(
+      { format: 'commander', commander: null, partnerCommander: null, mainboard },
+      true
+    ).roles.find((r) => r.key === 'lands')!;
+    expect(lands.suggested).toBeUndefined();
+  });
+
+  it('never applies to 60-card formats', async () => {
+    const mainboard = Array.from({ length: 45 }, (_, i) =>
+      slot(makeCard({ name: `C ${i}`, cmc: 3, type_line: 'Creature' }))
+    );
+    const { analyzeDeck } = await loadDeckAnalysisWithTags({});
+    const lands = analyzeDeck(
+      { format: 'standard', commander: null, partnerCommander: null, mainboard },
+      true
+    ).roles.find((r) => r.key === 'lands')!;
+    expect(lands.suggested).toBeUndefined();
   });
 });

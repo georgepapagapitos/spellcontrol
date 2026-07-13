@@ -11,6 +11,9 @@ const response = (overrides: Partial<UploadResponse>): UploadResponse => ({
   scryfallMisses: 0,
   unresolvedNames: [],
   fetchErrors: [],
+  malformedRows: [],
+  skippedUnownedRows: 0,
+  clampedRows: 0,
   detectedFormat: 'manabox',
   ...overrides,
 });
@@ -53,6 +56,16 @@ describe('mergeUploadResponses', () => {
       { name: 'Sol Ring', quantity: 2 },
       { name: 'Arcane Signet' },
     ]);
+  });
+
+  it('concatenates malformedRows and sums skippedUnownedRows/clampedRows across chunks', () => {
+    const merged = mergeUploadResponses([
+      response({ malformedRows: ['bad,line'], skippedUnownedRows: 2, clampedRows: 1 }),
+      response({ malformedRows: ['other,bad,line'], skippedUnownedRows: 3, clampedRows: 0 }),
+    ]);
+    expect(merged.malformedRows).toEqual(['bad,line', 'other,bad,line']);
+    expect(merged.skippedUnownedRows).toBe(5);
+    expect(merged.clampedRows).toBe(1);
   });
 
   it('takes detectedFormat from the first chunk', () => {

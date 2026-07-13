@@ -231,6 +231,63 @@ describe('generateLands', () => {
     expect(lands.map((c) => c.name)).not.toContain('Detection Tower');
   });
 
+  it('E118: withholds merit fixing credit when the deck has no unmet color need', async () => {
+    // Equal inclusion; the tapped 2-color gate is listed FIRST (wins any tie),
+    // so only the merit boost can decide the single nonbasic slot.
+    const bgGate = sc({
+      name: 'Golgari Guildgate',
+      type_line: 'Land — Gate',
+      produced_mana: ['B', 'G'],
+      oracle_text: 'Golgari Guildgate enters the battlefield tapped.\n{T}: Add {B} or {G}.',
+    });
+    const utility = sc({
+      name: 'Grim Backwoods',
+      type_line: 'Land',
+      produced_mana: ['C'],
+      oracle_text: '{T}: Add {C}.\n{2}, {T}, Sacrifice a creature: Draw a card.',
+    });
+    const edhrecLands = ['Golgari Guildgate', 'Grim Backwoods'].map((name) => ({
+      name,
+      sanitized: name.toLowerCase(),
+      primary_type: 'Land',
+      inclusion: 50,
+      num_decks: 1000,
+    }));
+    const asMap = () =>
+      new Map([
+        ['Golgari Guildgate', bgGate],
+        ['Grim Backwoods', utility],
+      ]);
+
+    // Zero colored pips (rocks only) → no color still needs sources → the
+    // gate's 2-color fixing merit is withheld and the utility land's
+    // colorless+upside merit wins the slot.
+    const rocks = Array.from({ length: 3 }, (_, i) =>
+      sc({
+        name: `Rock ${i}`,
+        type_line: 'Artifact',
+        mana_cost: '{2}',
+        cmc: 2,
+        produced_mana: ['B', 'G'],
+        oracle_text: '{T}: Add {B} or {G}.',
+      })
+    );
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(asMap());
+    const covered = await generateLands(edhrecLands, ['B', 'G'], 2, new Set(), 1, 99, rocks);
+    expect(covered.map((c) => c.name)).toContain('Grim Backwoods');
+    expect(covered.map((c) => c.name)).not.toContain('Golgari Guildgate');
+
+    // Control: real B/G pip demand with no assured sources → both colors still
+    // need fixing → the gate's full fixing merit (+ color-demand boost) wins.
+    const pipCards = Array.from({ length: 10 }, (_, i) =>
+      sc({ name: `Creature ${i}`, mana_cost: '{B}{G}', cmc: 3 })
+    );
+    vi.mocked(getCardsByNames).mockResolvedValueOnce(asMap());
+    const needed = await generateLands(edhrecLands, ['B', 'G'], 2, new Set(), 1, 99, pipCards);
+    expect(needed.map((c) => c.name)).toContain('Golgari Guildgate');
+    expect(needed.map((c) => c.name)).not.toContain('Grim Backwoods');
+  });
+
   it('caps basic lands to available free copies in available-only mode', async () => {
     const lands = await generateLands(
       [],

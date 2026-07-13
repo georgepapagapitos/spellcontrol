@@ -152,18 +152,19 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
     .replace(/^\uFEFF/, '')
     .trim()
     .split(/\r?\n/);
-  if (lines.length < 2) return { rows: [], format, unparsedLines: [] };
+  if (lines.length < 2) return { rows: [], format, unparsedLines: [], skippedUnownedRows: 0 };
 
   const delim = detectDelimiter(lines[0]);
   const headers = splitCsvLine(lines[0], delim);
   const fieldMap = buildFieldMap(headers);
 
   if (fieldMap.name === -1) {
-    return { rows: [], format, unparsedLines: lines.slice(1) };
+    return { rows: [], format, unparsedLines: lines.slice(1), skippedUnownedRows: 0 };
   }
 
   const rows: ImportRow[] = [];
   const unparsedLines: string[] = [];
+  let skippedUnownedRows = 0;
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
@@ -178,7 +179,10 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
     // A Count/Quantity of exactly 0 marks an unowned row (Deckbox/Moxfield
     // wishlist or tradelist-only entry) — skip it rather than import 1 copy.
     const quantity = parseQuantity(vals[fieldMap.quantity]);
-    if (quantity === 0) continue;
+    if (quantity === 0) {
+      skippedUnownedRows++;
+      continue;
+    }
 
     rows.push({
       name,
@@ -204,7 +208,7 @@ export function parseCsvAuto(text: string, format: ImportFormat): ParseResult {
     });
   }
 
-  return { rows, format, unparsedLines };
+  return { rows, format, unparsedLines, skippedUnownedRows };
 }
 
 function buildFieldMap(headers: string[]): FieldMap {

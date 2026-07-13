@@ -19,7 +19,8 @@ import {
   iterateAllCards,
   readManifest,
 } from './db';
-import { matchesQuery, parseQuery } from './scryfall-query';
+import { matchesQuery, parseQuery, queryUsesOtag } from './scryfall-query';
+import { ensureCardTags, getCardTags, isCardTagsReady } from '../card-tags';
 import { slimToScryfall } from './slim-to-scryfall';
 import type { OfflineManifest, SlimCard } from './types';
 
@@ -105,9 +106,16 @@ export async function offlineSearchCards(
   const fullQuery = `${colorClause} (${rawQuery}) ${formatClause}`.trim();
 
   const parsed = parseQuery(fullQuery);
+  // `otag:` clauses need the tagger snapshot — load it once up front so tags
+  // resolve per card via lookup (without it they'd degrade to match-anything).
+  let tagsFor: ((name: string) => string[]) | undefined;
+  if (queryUsesOtag(parsed)) {
+    await ensureCardTags();
+    if (isCardTagsReady()) tagsFor = getCardTags;
+  }
   const matches: SlimCard[] = [];
   for await (const card of iterateAllCards()) {
-    if (matchesQuery(card, parsed)) matches.push(card);
+    if (matchesQuery(card, parsed, { tagsFor })) matches.push(card);
   }
 
   matches.sort(cardComparator(order));

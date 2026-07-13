@@ -1,6 +1,12 @@
 import type { EnrichedCard } from '../types';
 import { useCubeStore, type CubePickSlot } from '../store/cube';
-import { pickCollectionCopy, makeDeckAllocationInfo, type AllocationInfo } from './allocations';
+import { useDecksStore } from '../store/decks';
+import {
+  buildAllocationMap,
+  pickCollectionCopy,
+  makeDeckAllocationInfo,
+  type AllocationInfo,
+} from './allocations';
 import { printingFinishKey } from './collection-mutations';
 
 /**
@@ -26,8 +32,14 @@ export function remapCubeAllocations(newCollection: EnrichedCard[]): void {
   for (const c of newCollection) byCopyId.set(c.copyId, c);
 
   // Presence map shared across all physical cubes (kind is irrelevant here —
-  // pickCollectionCopy only checks membership).
-  const claimed = new Map<string, AllocationInfo>();
+  // pickCollectionCopy only checks membership). Seeded from the CURRENT deck
+  // allocations (`remapDeckAllocations` in store/collection.ts always runs
+  // the deck remap immediately before this) so a cube can never hand out a
+  // copyId a deck slot already claims — closes the deck↔cube double-claim
+  // hole a reimport could otherwise open (E133).
+  const claimed = new Map<string, AllocationInfo>(
+    buildAllocationMap(useDecksStore.getState().decks)
+  );
   const take = (copyId: string, cardName: string) =>
     claimed.set(copyId, makeDeckAllocationInfo('__cube_remap__', '', '', cardName));
 

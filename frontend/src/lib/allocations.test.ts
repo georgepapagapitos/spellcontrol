@@ -3,6 +3,7 @@ import {
   buildAllocationMap,
   dedupeDeckAllocations,
   pickCollectionCopy,
+  bindableFinishesByPrinting,
   classifyAllocation,
   classifyPrintingAvailability,
   findSuboptimalPrintings,
@@ -83,6 +84,42 @@ describe('buildAllocationMap', () => {
       commanderAllocatedCopyId: null,
     });
     expect(buildAllocationMap([d]).size).toBe(0);
+  });
+
+  it('reports a double-claim to onCollision (E133 prod-visibility hook) without changing map contents', () => {
+    const d1 = deck({
+      id: 'd1',
+      name: 'A',
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const d2 = deck({
+      id: 'd2',
+      name: 'B',
+      cards: [{ slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const collisions: { copyId: string; prior: AllocationInfo; next: AllocationInfo }[] = [];
+    const map = buildAllocationMap([d1, d2], undefined, (c) => collisions.push(c));
+    expect(map.size).toBe(1); // last write wins, same as before this param existed
+    expect(map.get('shared')?.deckName).toBe('B');
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0]).toMatchObject({
+      copyId: 'shared',
+      prior: { deckName: 'A' },
+      next: { deckName: 'B' },
+    });
+  });
+
+  it('omitting onCollision behaves exactly as before (no throw, same map)', () => {
+    const d1 = deck({
+      id: 'd1',
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const d2 = deck({
+      id: 'd2',
+      cards: [{ slotId: 's2', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    expect(() => buildAllocationMap([d1, d2])).not.toThrow();
+    expect(buildAllocationMap([d1, d2]).size).toBe(1);
   });
 });
 
@@ -338,6 +375,89 @@ describe('pickCollectionCopy with preferredScryfallId', () => {
   });
 });
 
+describe('pickCollectionCopy with preferredFinish', () => {
+  const allocated = new Map<string, AllocationInfo>();
+
+  it('binds the foil copy when the user explicitly picked foil and owns both finishes', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 1 });
+    const foilCopy = card({
+      copyId: 'b',
+      scryfallId: 'sf-ONE',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 5,
+    });
+    expect(
+      pickCollectionCopy('Sol Ring', [nonFoil, foilCopy], allocated, 'sf-ONE', 'foil')?.copyId
+    ).toBe('b');
+  });
+
+  it('falls back to the default ranking when the preferred finish is not owned', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 1 });
+    expect(pickCollectionCopy('Sol Ring', [nonFoil], allocated, 'sf-ONE', 'foil')?.copyId).toBe(
+      'a'
+    );
+  });
+
+  it('applies the finish filter within the preferred printing, not across printings', () => {
+    // A foil of the WRONG printing must not beat a non-foil of the chosen one.
+    const prefNonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 5 });
+    const otherFoil = card({
+      copyId: 'b',
+      scryfallId: 'sf-NEO',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 1,
+    });
+    expect(
+      pickCollectionCopy('Sol Ring', [prefNonFoil, otherFoil], allocated, 'sf-ONE', 'foil')?.copyId
+    ).toBe('a');
+  });
+
+  it('without a printing preference, picks the finish match by name', () => {
+    const nonFoil = card({ copyId: 'a', scryfallId: 'sf-ONE', foil: false, purchasePrice: 1 });
+    const foilCopy = card({
+      copyId: 'b',
+      scryfallId: 'sf-NEO',
+      foil: true,
+      finish: 'foil',
+      purchasePrice: 5,
+    });
+    expect(
+      pickCollectionCopy('Sol Ring', [nonFoil, foilCopy], allocated, undefined, 'foil')?.copyId
+    ).toBe('b');
+  });
+});
+
+describe('bindableFinishesByPrinting', () => {
+  it('maps each printing to the finishes of its free copies, in display order', () => {
+    const collection = [
+      card({ copyId: 'a', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+      card({ copyId: 'b', scryfallId: 'sf-ONE', finish: 'nonfoil' }),
+      card({ copyId: 'c', scryfallId: 'sf-NEO', finish: 'etched', foil: true }),
+    ];
+    const map = bindableFinishesByPrinting(collection, new Map());
+    expect(map.get('sf-ONE')).toEqual(['nonfoil', 'foil']);
+    expect(map.get('sf-NEO')).toEqual(['etched']);
+    expect(map.get('sf-XYZ')).toBeUndefined();
+  });
+
+  it('excludes copies claimed by another deck but keeps copies claimed by the current deck', () => {
+    const collection = [
+      card({ copyId: 'mine', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+      card({ copyId: 'theirs', scryfallId: 'sf-ONE', finish: 'nonfoil' }),
+    ];
+    const allocations = new Map<string, AllocationInfo>([
+      ['mine', makeDeckAllocationInfo('d1', 'Mine', '#000', 'Sol Ring')],
+      ['theirs', makeDeckAllocationInfo('d2', 'Theirs', '#000', 'Sol Ring')],
+    ]);
+    expect(bindableFinishesByPrinting(collection, allocations, 'd1').get('sf-ONE')).toEqual([
+      'foil',
+    ]);
+    expect(bindableFinishesByPrinting(collection, allocations).get('sf-ONE')).toBeUndefined();
+  });
+});
+
 describe('findSuboptimalPrintings', () => {
   function slot(name: string, scryfallId: string, allocatedCopyId: string | null): DeckCard {
     return {
@@ -574,6 +694,63 @@ describe('findStealableCopy', () => {
     const res = findStealableCopy('Sol Ring', collection, decks, 'd1');
     expect(res?.copyId).toBe('in-donor');
     expect(res?.donorDeckId).toBe('d2');
+  });
+});
+
+describe('findStealableCopy with printing/finish preferences', () => {
+  function dc(slotId: string, name: string, allocatedCopyId: string | null): DeckCard {
+    return { slotId, card: { name } as ScryfallCard, allocatedCopyId };
+  }
+  const donorDeck = () =>
+    deck({ id: 'd2', name: 'Donor', cards: [dc('slot-x', 'Sol Ring', 'committed')] });
+
+  it('steals the committed foil when the user picked foil and only the non-foil is free', () => {
+    const decks = [deck({ id: 'd1', name: 'Current' }), donorDeck()];
+    const collection = [
+      card({ copyId: 'free-nf', scryfallId: 'sf-ONE', finish: 'nonfoil' }),
+      card({ copyId: 'committed', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+    ];
+    const res = findStealableCopy('Sol Ring', collection, decks, 'd1', 'sf-ONE', undefined, 'foil');
+    expect(res?.copyId).toBe('committed');
+    expect(res?.donorDeckId).toBe('d2');
+  });
+
+  it('returns null when a free copy of the preferred finish exists', () => {
+    const decks = [deck({ id: 'd1', name: 'Current' }), donorDeck()];
+    const collection = [
+      card({ copyId: 'free-foil', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+      card({ copyId: 'committed', scryfallId: 'sf-ONE', finish: 'foil', foil: true }),
+    ];
+    expect(
+      findStealableCopy('Sol Ring', collection, decks, 'd1', 'sf-ONE', undefined, 'foil')
+    ).toBeNull();
+  });
+
+  it('returns null when the preferred finish is not owned and a free fallback copy exists', () => {
+    const decks = [deck({ id: 'd1', name: 'Current' })];
+    const collection = [card({ copyId: 'free-nf', scryfallId: 'sf-ONE', finish: 'nonfoil' })];
+    expect(
+      findStealableCopy('Sol Ring', collection, decks, 'd1', 'sf-ONE', undefined, 'foil')
+    ).toBeNull();
+  });
+
+  it('steals the fully-committed preferred printing even when another printing is free', () => {
+    // Pre-#1136 the name-level "a free copy exists" bail-out hid this donor.
+    const decks = [deck({ id: 'd1', name: 'Current' }), donorDeck()];
+    const collection = [
+      card({ copyId: 'free-other', scryfallId: 'sf-OTHER', finish: 'nonfoil' }),
+      card({ copyId: 'committed', scryfallId: 'sf-ONE', finish: 'nonfoil' }),
+    ];
+    const res = findStealableCopy('Sol Ring', collection, decks, 'd1', 'sf-ONE');
+    expect(res?.copyId).toBe('committed');
+  });
+
+  it('still bails when every preference-matching copy is in the current deck itself', () => {
+    const decks = [deck({ id: 'd1', name: 'Current', cards: [dc('s1', 'Sol Ring', 'mine')] })];
+    const collection = [card({ copyId: 'mine', scryfallId: 'sf-ONE', finish: 'foil', foil: true })];
+    expect(
+      findStealableCopy('Sol Ring', collection, decks, 'd1', 'sf-ONE', undefined, 'foil')
+    ).toBeNull();
   });
 });
 

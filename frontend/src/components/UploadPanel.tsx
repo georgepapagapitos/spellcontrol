@@ -67,6 +67,11 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
   const [showUnresolved, setShowUnresolved] = useState(false);
   const [showFetchErrors, setShowFetchErrors] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  // Raw lines the parser couldn't turn into a row at all (bad column count, no
+  // name, …) from the most recent import. Session-local like the other import
+  // banners' toggle state — cleared on the next import or Clear all.
+  const [malformedRows, setMalformedRows] = useState<string[]>([]);
+  const [showMalformed, setShowMalformed] = useState(false);
   // Completion moment — the seal blooms once when an import lands (the
   // banner + haptic carry the substance; this is the visual counterpart
   // the haptic never had).
@@ -178,6 +183,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setRecentImportIds(new Set());
     setShowUnresolved(false);
     setShowFetchErrors(false);
+    setMalformedRows([]);
+    setShowMalformed(false);
     setImportProgress(null);
     const newImportIds = new Set<string>();
     try {
@@ -188,7 +195,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         const totalFiles = p.files.length;
         let totalCards = 0;
         let totalUnresolved = 0;
+        let totalSkippedUnowned = 0;
+        let totalClamped = 0;
         const allFetchErrors: FetchErrorRow[] = [];
+        const allMalformedRows: string[] = [];
         for (let i = 0; i < p.files.length; i++) {
           const file = p.files[i];
           const result = await importFile(file, (prog) =>
@@ -208,7 +218,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           newImportIds.add(id);
           totalCards += result.cards.length;
           totalUnresolved += result.unresolvedNames.length;
+          totalSkippedUnowned += result.skippedUnownedRows;
+          totalClamped += result.clampedRows;
           allFetchErrors.push(...result.fetchErrors);
+          allMalformedRows.push(...result.malformedRows);
         }
         // importCards stamps each file's own fetchErrors, so after the loop the
         // store only holds the last file's — restore the whole batch's bucket
@@ -216,12 +229,22 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         if (allFetchErrors.length > 0) {
           useCollectionStore.setState({ fetchErrors: allFetchErrors });
         }
+        setMalformedRows(allMalformedRows);
         const parts: string[] = [
           `Imported ${totalCards.toLocaleString()} cards from ${p.files.length} files`,
         ];
         if (totalUnresolved > 0) parts.push(`${totalUnresolved} unresolved`);
         if (allFetchErrors.length > 0) {
           parts.push(`${allFetchErrors.length} couldn't be fetched — retry below`);
+        }
+        if (allMalformedRows.length > 0) {
+          parts.push(`${allMalformedRows.length} rows couldn't be read`);
+        }
+        if (totalSkippedUnowned > 0) {
+          parts.push(`${totalSkippedUnowned} unowned rows skipped`);
+        }
+        if (totalClamped > 0) {
+          parts.push(`${totalClamped} rows over the copy limit — capped`);
         }
         if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
         setSuccessMsg(parts.join(' · '));
@@ -241,6 +264,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         binderName,
       });
       newImportIds.add(id);
+      setMalformedRows(result.malformedRows);
       const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
       if (result.scryfallHits > 0) {
         parts.push(`${result.scryfallHits.toLocaleString()} matched`);
@@ -250,6 +274,19 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       }
       if (result.fetchErrors.length > 0) {
         parts.push(`${result.fetchErrors.length} couldn't be fetched — retry below`);
+      }
+      if (result.malformedRows.length > 0) {
+        parts.push(`${result.malformedRows.length} rows couldn't be read`);
+      }
+      if (result.skippedUnownedRows > 0) {
+        parts.push(
+          `${result.skippedUnownedRows} unowned row${result.skippedUnownedRows !== 1 ? 's' : ''} skipped`
+        );
+      }
+      if (result.clampedRows > 0) {
+        parts.push(
+          `${result.clampedRows} row${result.clampedRows !== 1 ? 's' : ''} over the copy limit — capped`
+        );
       }
       if (mode === 'binder' && binderName) {
         parts.push(`binder "${binderName}" created`);
@@ -297,6 +334,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     if (!ok) return;
     await clearCards();
     setShowUnresolved(false);
+    setMalformedRows([]);
+    setShowMalformed(false);
     setSuccessMsg(null);
     setSelectedHistoryIds(new Set());
   };
@@ -349,6 +388,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     setError(null);
     setSuccessMsg(null);
     setShowUnresolved(false);
+    setMalformedRows([]);
+    setShowMalformed(false);
     try {
       const text = await file.text();
       const backup = parseBackup(text);
@@ -439,6 +480,37 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
             <ul className="unresolved-list">
               {fetchErrors.map((r, i) => (
                 <li key={i}>{(r.quantity ?? 1) > 1 ? `${r.quantity}× ${r.name}` : r.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {malformedRows.length > 0 && (
+        <div className="unresolved-banner malformed-banner" role="alert">
+          <div className="unresolved-summary">
+            <span>
+              {malformedRows.length} row{malformedRows.length !== 1 ? 's' : ''} couldn't be read at
+              all — they were <strong>not</strong> imported.
+            </span>
+            <span className="fetch-error-actions">
+              <button className="btn-link" onClick={() => setShowMalformed((v) => !v)}>
+                {showMalformed ? 'Hide list' : 'Show list'}
+              </button>
+              <button
+                type="button"
+                className="banner-dismiss"
+                onClick={() => setMalformedRows([])}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+          {showMalformed && (
+            <ul className="unresolved-list">
+              {malformedRows.map((line, i) => (
+                <li key={i}>{line}</li>
               ))}
             </ul>
           )}

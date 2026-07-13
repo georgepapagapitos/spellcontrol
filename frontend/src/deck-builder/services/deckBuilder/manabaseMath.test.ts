@@ -4,6 +4,7 @@ import {
   buildManabaseSummary,
   cardColorPips,
   colorSourceCounts,
+  colorsNeedingSources,
   fetchableBasicColors,
   planBasicColorSplit,
   weightedColorDemand,
@@ -385,5 +386,48 @@ describe('buildManabaseSummary', () => {
     // …and nonlandSources/the note both reflect the real colorless base.
     expect(summary.nonlandSources).toBe(1);
     expect(summary.note).toMatch(/colorless/);
+  });
+});
+
+describe('colorsNeedingSources (E118 — deck-context fixing need)', () => {
+  const wb = new Set(['W', 'B']);
+  const wPips = (n: number) =>
+    Array.from({ length: n }, (_, i) => card({ name: `W ${i}`, mana_cost: '{W}', cmc: 3 }));
+  const bPips = (n: number) =>
+    Array.from({ length: n }, (_, i) => card({ name: `B ${i}`, mana_cost: '{B}', cmc: 3 }));
+  const bRock = (i: number) =>
+    card({
+      name: `B Rock ${i}`,
+      type_line: 'Artifact',
+      mana_cost: '{2}',
+      cmc: 2,
+      produced_mana: ['B'],
+      oracle_text: '{T}: Add {B}.',
+    });
+
+  it('keeps every demanded color when nothing is assured yet', () => {
+    const need = colorsNeedingSources([...wPips(20), ...bPips(10)], wb, 5);
+    expect([...need].sort()).toEqual(['B', 'W']);
+  });
+
+  it('drops a color whose spell sources + planned basics already exceed its bar', () => {
+    // 10 B-producing rocks push B's assured supply (10 rocks + its basics-split
+    // floor = 11) past B's coverage bar (10 pips × pacing ratio), while W
+    // (30 pips → a 2-3× higher bar, assured only 9 of the 10 planned basics)
+    // stays needed. Margins hold across the realistic pacing-ratio band.
+    const nonland = [...wPips(30), ...bPips(10), ...Array.from({ length: 10 }, (_, i) => bRock(i))];
+    const need = colorsNeedingSources(nonland, wb, 10);
+    expect(need.has('W')).toBe(true);
+    expect(need.has('B')).toBe(false);
+  });
+
+  it('never includes an identity color with zero pips', () => {
+    const need = colorsNeedingSources(wPips(20), wb, 5);
+    expect(need.has('B')).toBe(false);
+    expect(need.has('W')).toBe(true);
+  });
+
+  it('is empty for a colorless identity', () => {
+    expect(colorsNeedingSources(wPips(20), new Set(), 5).size).toBe(0);
   });
 });

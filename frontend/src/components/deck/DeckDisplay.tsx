@@ -15,7 +15,6 @@ import {
   MoreVertical,
   Pencil,
   Search,
-  Tags,
   Trash2,
   X,
 } from 'lucide-react';
@@ -53,6 +52,7 @@ import { InfoTip } from '../InfoTip';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
 import { CardPreviewContext } from '../CardPreviewContext';
 import { DeckCardPreviewMeta } from './DeckCardPreviewMeta';
+import { BuyListDialog } from './BuyListDialog';
 import { DeckHoverPeek } from './DeckHoverPeek';
 import { useDeckHoverPeek } from './use-deck-hover-peek';
 import { COLOR_INFO } from '../../lib/colors';
@@ -67,8 +67,7 @@ import {
   type AllocationStatus,
 } from '../../lib/allocations';
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
-import { DECK_CARD_TAGS, tagCounts } from '@/lib/deck-card-tags';
-import { RadialTagMenu } from './RadialTagMenu';
+import { useTaggerReady } from '@/lib/use-tagger-ready';
 
 /**
  * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
@@ -124,10 +123,27 @@ import {
   getRoleBadge,
   isMultiRole,
   multiRoleTitle,
+  rolesForCard,
   ROLE_BADGE_BY_TONE,
   ROLE_BADGE_GROUPS,
+  ROLE_TITLES,
+  type RoleKey,
 } from '../../lib/role-badges';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
+
+/**
+ * Top-level roles for the role-filter lens: the tagger's read plus the
+ * generator's enriched `deckRole` (manual decks have no `deckRole`; on
+ * generated decks it can cover a card the tagger misses — include it so the
+ * lens never dims a row whose visible badge matches the active pill).
+ */
+function cardFilterRoles(card: ScryfallCard): RoleKey[] {
+  const roles = rolesForCard(card);
+  const enriched = card.deckRole as RoleKey | undefined;
+  return enriched && enriched in ROLE_TITLES && !roles.includes(enriched)
+    ? [...roles, enriched]
+    : roles;
+}
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
@@ -267,8 +283,6 @@ export interface DeckDisplayCard {
   allocatedCopyId?: string | null;
   /** Unix ms when this slot was added. Absent on cards predating the field. */
   addedAt?: number;
-  /** Functional tags on this slot (see lib/deck-card-tags). */
-  tags?: string[];
 }
 
 export interface DeckDisplayProps {
@@ -333,13 +347,6 @@ export interface DeckDisplayProps {
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   /** When provided, each row gets an "Edit printing" option in its menu. */
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
-  /**
-   * Enables per-card functional tagging (the radial quick-pick + tag filter
-   * bar): toggle `tag` on the slot `slotId` — mainboard or sideboard. Only the
-   * owner deck editor passes this; read-only reuses of DeckDisplay leave it
-   * off and no tagging affordance renders.
-   */
-  onToggleCardTag?: (slotId: string, tag: string) => void;
   /** When provided, eligible rows get a "Make commander" option in their menu. */
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   /** Predicate that gates the "Make commander" menu item per card. */
@@ -557,8 +564,6 @@ interface Row {
   collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
-  /** Union of functional tags across this row's slots (deduped). */
-  tags: string[];
   /** True for the partner commander's synthetic row — drives the "Partner"
    *  tag that distinguishes it from the primary commander. */
   isPartner?: boolean;
@@ -702,9 +707,6 @@ function buildRows(
       existing.price += priceOf(card, currency);
       if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
       if (dc.slotId) existing.slotIds.push(dc.slotId);
-      for (const t of dc.tags ?? []) {
-        if (!existing.tags.includes(t)) existing.tags.push(t);
-      }
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -745,7 +747,6 @@ function buildRows(
       price: priceOf(card, currency),
       colorKey: colorKeyOf(card),
       addedAt: dc.addedAt ?? 0,
-      tags: dc.tags ? [...dc.tags] : [],
       slotIds: dc.slotId ? [dc.slotId] : [],
       allocatedCopyIds: dc.allocatedCopyId ? [dc.allocatedCopyId] : [],
       status,
@@ -1008,7 +1009,6 @@ export function DeckDisplay({
   onMoveToMainboard,
   onSetQty,
   onEditCard,
-  onToggleCardTag,
   onMakeCommander,
   canMakeCommander,
   onMakePartner,
@@ -1162,7 +1162,6 @@ export function DeckDisplay({
         price: priceOf(c, currency),
         colorKey: colorKeyOf(c),
         addedAt: 0,
-        tags: [],
         slotIds: [],
         allocatedCopyIds: allocatedCopyId ? [allocatedCopyId] : [],
         status,
@@ -1473,6 +1472,12 @@ export function DeckDisplay({
   // (their boolean wins). Otherwise fall back to internal state — keeps
   // simple callers ergonomic and avoids any setState-in-effect dance.
   const [internalExportOpen, setInternalExportOpen] = useState(false);
+  // Buy-list dialog for the missing cards — the missing stat's drill-down.
+  // Tapping a row swaps the dialog for the card carousel at that card;
+  // `buyListReturn` re-opens the dialog when that carousel closes, so the
+  // carousel reads as a preview layer over the list rather than a dead end.
+  const [buyListOpen, setBuyListOpen] = useState(false);
+  const buyListReturn = useRef(false);
   const isControlled = exportOpenProp !== undefined && onExportOpenChange !== undefined;
   const exportOpen = isControlled ? exportOpenProp : internalExportOpen;
   const setExportOpen = (next: boolean) => {
@@ -1561,53 +1566,45 @@ export function DeckDisplay({
     if (i !== undefined) setPreviewIndex(i);
   };
 
-  // Tap a headline stat (cards / value / missing) to drill into the cards behind
-  // it — the same carousel pattern as the analysis-tab drill-downs.
+  // Tap a headline stat (cards / value) to drill into the cards behind it —
+  // the same carousel pattern as the analysis-tab drill-downs. The missing
+  // stat opens the buy-list dialog instead; its rows hand off to this
+  // carousel one card at a time.
   const statCarousel = useCardCarousel(title);
+  // Reopen the buy list when a carousel it spawned closes (the dialog and the
+  // carousel never stack — Modal and CardPreview both grab Escape globally, so
+  // layering them would close both on one keypress).
+  const statCarouselOpen = statCarousel.preview !== null;
+  useEffect(() => {
+    if (!statCarouselOpen && buyListReturn.current) {
+      buyListReturn.current = false;
+      setBuyListOpen(true);
+    }
+  }, [statCarouselOpen]);
 
-  // ── Functional tags (radial quick-pick + filter bar) ────────────────────
-  // Both pieces of state are view-local: the filter is a transient lens, and
-  // the radial menu is anchored to a live row. `trigger` is kept so focus can
-  // return to the row's tag button when the menu closes.
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [tagMenu, setTagMenu] = useState<{
-    anchor: { x: number; y: number };
-    slotId: string;
-    trigger: HTMLElement | null;
-  } | null>(null);
-
-  const deckTagCounts = useMemo(() => tagCounts([...cards, ...sideboard]), [cards, sideboard]);
-  // Palette order first, then any out-of-palette stragglers (tolerated by
-  // tagCounts — e.g. a synced deck from a newer build), alphabetically.
-  const orderedTagCounts = useMemo(() => {
-    const inPalette = DECK_CARD_TAGS.filter((t) => deckTagCounts.has(t)).map(
-      (t) => [t, deckTagCounts.get(t)!] as const
-    );
-    const extras = [...deckTagCounts.entries()]
-      .filter(([t]) => !(DECK_CARD_TAGS as readonly string[]).includes(t))
-      .sort(([a], [b]) => a.localeCompare(b));
-    return [...inPalette, ...extras];
-  }, [deckTagCounts]);
-  // Self-healing filter: when the active tag's last chip is untagged away the
-  // filter deactivates instead of dimming the whole list.
-  const activeTagFilter = tagFilter && deckTagCounts.has(tagFilter) ? tagFilter : null;
-
-  // Pressing a row's tag button while its menu is already open closes it
-  // (toggle) instead of re-anchoring.
-  const openTagMenu = onToggleCardTag
-    ? (anchor: { x: number; y: number }, slotId: string, trigger: HTMLElement | null) => {
-        hoverPeek.clear(); // the radial supersedes the transient peek
-        setTagMenu((cur) => (cur && cur.slotId === slotId ? null : { anchor, slotId, trigger }));
+  // ── Role filter (pill bar) ──────────────────────────────────────────────
+  // View-local transient lens over the automatic role classification (the
+  // same source as the row badges). An active role keeps every row in place
+  // but dims the rest, so matching cards pop without the layout reshuffling.
+  const [roleFilter, setRoleFilter] = useState<RoleKey | null>(null);
+  const taggerReady = useTaggerReady();
+  // Slots per top-level role across mainboard + sideboard — mirrors what the
+  // lens dims. Multi-role cards count toward each role they fill.
+  const roleFilterEntries = useMemo(() => {
+    const counts: Record<RoleKey, number> = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 0 };
+    if (taggerReady) {
+      for (const dc of [...cards, ...sideboard]) {
+        for (const role of cardFilterRoles(dc.card)) counts[role] += 1;
       }
-    : undefined;
-  // Live lookup (not a snapshot) so click-mode toggles repaint the menu chips.
-  const tagMenuActiveTags = useMemo(() => {
-    if (!tagMenu) return [];
-    const slot =
-      cards.find((c) => c.slotId === tagMenu.slotId) ??
-      sideboard.find((c) => c.slotId === tagMenu.slotId);
-    return slot?.tags ?? [];
-  }, [tagMenu, cards, sideboard]);
+    }
+    return (Object.keys(ROLE_TITLES) as RoleKey[])
+      .map((key) => [key, counts[key]] as const)
+      .filter(([, count]) => count > 0);
+  }, [cards, sideboard, taggerReady]);
+  // Self-healing: if the active role's last card leaves the deck, deactivate
+  // instead of dimming the whole list.
+  const activeRoleFilter =
+    roleFilter && roleFilterEntries.some(([key]) => key === roleFilter) ? roleFilter : null;
 
   const ctxValue = useMemo(
     () => ({
@@ -1705,13 +1702,8 @@ export function DeckDisplay({
                   <button
                     type="button"
                     className="deck-stat deck-stat-missing deck-stat-btn"
-                    onClick={() =>
-                      void statCarousel.open(
-                        tallyToEntries(missingTally),
-                        missingTally[0]?.name ?? ''
-                      )
-                    }
-                    aria-label={`Show the ${missing.count} missing cards (buy list)`}
+                    onClick={() => setBuyListOpen(true)}
+                    aria-label={`Open the buy list for the ${missing.count} missing cards`}
                   >
                     <span className="deck-stat-value">{missing.count}</span>
                     <span className="deck-stat-label">
@@ -1760,67 +1752,44 @@ export function DeckDisplay({
               </div>
             )}
 
-            {/* Functional-tag bar — how the deck's roles balance, and a one-tap
-                lens: an active tag keeps every row in place but dims the rest,
-                so tagged cards pop without the layout reshuffling. */}
-            {onToggleCardTag && orderedTagCounts.length > 0 && (
-              <div className="deck-tag-bar" role="toolbar" aria-label="Functional tag filter">
-                {orderedTagCounts.map(([tag, count]) => (
+            {/* Role-filter bar — how the deck's roles balance, and a one-tap
+                lens: an active role keeps every row in place but dims the rest,
+                so matching cards pop without the layout reshuffling. */}
+            {roleFilterEntries.length > 0 && (
+              <div className="deck-role-bar" role="toolbar" aria-label="Role filter">
+                {roleFilterEntries.map(([key, count]) => (
                   <button
-                    key={tag}
+                    key={key}
                     type="button"
-                    className={`deck-tag-bar-chip${activeTagFilter === tag ? ' is-active' : ''}`}
-                    aria-pressed={activeTagFilter === tag}
-                    onClick={() => setTagFilter((cur) => (cur === tag ? null : tag))}
+                    className={`deck-role-bar-chip${activeRoleFilter === key ? ' is-active' : ''}`}
+                    aria-pressed={activeRoleFilter === key}
+                    onClick={() => setRoleFilter((cur) => (cur === key ? null : key))}
                   >
-                    {tag}
-                    <span className="deck-tag-bar-count">{count}</span>
+                    {ROLE_TITLES[key]}
+                    <span className="deck-role-bar-count">{count}</span>
                   </button>
                 ))}
-                {activeTagFilter && (
+                {activeRoleFilter && (
                   <button
                     type="button"
-                    className="deck-tag-bar-clear"
-                    onClick={() => setTagFilter(null)}
-                    aria-label={`Clear the ${activeTagFilter} tag filter`}
+                    className="deck-role-bar-clear"
+                    onClick={() => setRoleFilter(null)}
+                    aria-label={`Clear the ${ROLE_TITLES[activeRoleFilter]} role filter`}
                   >
                     <X width={12} height={12} strokeWidth={2.2} aria-hidden />
                     Clear
                   </button>
                 )}
                 <InfoTip
-                  label="card tags"
-                  wide
+                  label="role filter"
                   text={
-                    <>
-                      <p className="info-tip-lead">
-                        Tags are yours — press and hold a row&rsquo;s tag button, then swipe (or
-                        click) to mark what a card does in this deck.
-                      </p>
-                      <ul className="info-tip-list">
-                        <li>Tap a chip to spotlight those cards; tap it again to clear.</li>
-                        <li>
-                          Ramp, Draw, Removal, and Interaction tags also count toward role health in
-                          Analysis — tag what the automatic role badges miss.
-                        </li>
-                      </ul>
-                    </>
+                    <p className="info-tip-lead">
+                      Automatic role classification — the same read as the row badges. Tap a chip to
+                      spotlight those cards; tap it again to clear.
+                    </p>
                   }
                 />
               </div>
-            )}
-
-            {tagMenu && onToggleCardTag && (
-              <RadialTagMenu
-                key={tagMenu.slotId}
-                anchor={tagMenu.anchor}
-                activeTags={tagMenuActiveTags}
-                onToggle={(tag) => onToggleCardTag(tagMenu.slotId, tag)}
-                onClose={() => {
-                  tagMenu.trigger?.focus({ preventScroll: true });
-                  setTagMenu(null);
-                }}
-              />
             )}
 
             <div className="deck-display-body">
@@ -1839,8 +1808,7 @@ export function DeckDisplay({
                         onRemoveCard={onRemoveCard}
                         onSetQty={onSetQty}
                         onEditCard={onEditCard}
-                        onOpenTagMenu={openTagMenu}
-                        tagFilter={activeTagFilter}
+                        roleFilter={activeRoleFilter}
                         legalityBySlot={legalityBySlot}
                         onMoveToSideboard={
                           formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
@@ -1887,8 +1855,7 @@ export function DeckDisplay({
                             onRemoveCard={onRemoveSideboardCard}
                             onSetQty={undefined}
                             onEditCard={onEditCard}
-                            onOpenTagMenu={openTagMenu}
-                            tagFilter={activeTagFilter}
+                            roleFilter={activeRoleFilter}
                             legalityBySlot={legalityBySlot}
                             onMoveToMainboard={onMoveToMainboard}
                             onMakeCommander={onMakeCommander}
@@ -1917,6 +1884,7 @@ export function DeckDisplay({
                     legalityBySlot={legalityBySlot}
                     gridSize={effectiveGridSize}
                     showRoles={showPrefs.roles}
+                    roleFilter={activeRoleFilter}
                     synergyByName={synergyByName}
                     binderByCopyId={binderByCopyId}
                     hasPartner={!!partnerCommander}
@@ -1986,12 +1954,8 @@ export function DeckDisplay({
         )}
 
         {/* Desktop-only floating hover-peek: a transient card-art preview in the
-            gutter beside the list while hovering a row. No-op on touch/native.
-            Suppressed while the radial tag menu is open — its wrapper is
-            pointer-events: none, so row hovers still fire underneath and would
-            float card art around the ring mid-pick. */}
+            gutter beside the list while hovering a row. No-op on touch/native. */}
         {hoverPeek.peek &&
-          !tagMenu &&
           (() => {
             // A printing sub-row carries its own art (data-peek-img); use it so
             // each expanded printing peeks its real card. Otherwise resolve the
@@ -2116,6 +2080,19 @@ export function DeckDisplay({
                 });
               }
               return acts;
+            }}
+          />
+        )}
+        {buyListOpen && (
+          <BuyListDialog
+            tally={missingTally}
+            currency={currency}
+            title={title}
+            onClose={() => setBuyListOpen(false)}
+            onPickCard={(name) => {
+              setBuyListOpen(false);
+              buyListReturn.current = true;
+              void statCarousel.open(tallyToEntries(missingTally), name);
             }}
           />
         )}
@@ -2672,6 +2649,7 @@ function DeckCardGrid({
   legalityBySlot,
   gridSize,
   showRoles,
+  roleFilter,
   synergyByName,
   binderByCopyId,
   hasPartner,
@@ -2682,6 +2660,8 @@ function DeckCardGrid({
   legalityBySlot?: Map<string, LegalityIssue>;
   gridSize: DeckGridSize;
   showRoles: boolean;
+  /** Active role filter — tiles not filling it render dimmed. */
+  roleFilter?: RoleKey | null;
   synergyByName?: Map<string, string[]>;
   binderByCopyId?: Map<string, BinderInfo[]>;
   hasPartner?: boolean;
@@ -2721,8 +2701,12 @@ function DeckCardGrid({
                     }
                   }
                 }
+                const roleDimmed = !!roleFilter && !cardFilterRoles(row.card).includes(roleFilter);
                 return (
-                  <li key={row.name} className="deck-card-grid-cell">
+                  <li
+                    key={row.name}
+                    className={`deck-card-grid-cell${roleDimmed ? ' is-role-dimmed' : ''}`}
+                  >
                     <button
                       type="button"
                       className={`deck-card-grid-tile${foilTileClass(row)}`}
@@ -2842,8 +2826,7 @@ function CategorySection({
   onRemoveCard,
   onSetQty,
   onEditCard,
-  onOpenTagMenu,
-  tagFilter,
+  roleFilter,
   legalityBySlot,
   onMoveToSideboard,
   onMoveToMainboard,
@@ -2868,14 +2851,8 @@ function CategorySection({
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
-  /** Open the radial tag quick-pick for a slot, anchored at a viewport point. */
-  onOpenTagMenu?: (
-    anchor: { x: number; y: number },
-    slotId: string,
-    trigger: HTMLElement | null
-  ) => void;
-  /** Active tag filter — rows not carrying it render dimmed. */
-  tagFilter?: string | null;
+  /** Active role filter — rows not filling it render dimmed. */
+  roleFilter?: RoleKey | null;
   legalityBySlot?: Map<string, LegalityIssue>;
   onMoveToSideboard?: (slotIds: string[]) => void;
   onMoveToMainboard?: (slotIds: string[]) => void;
@@ -2929,8 +2906,7 @@ function CategorySection({
             onRemoveCard={entry.leaving ? undefined : onRemoveCard}
             onSetQty={entry.leaving ? undefined : onSetQty}
             onEditCard={entry.leaving ? undefined : onEditCard}
-            onOpenTagMenu={entry.leaving ? undefined : onOpenTagMenu}
-            tagFilter={tagFilter}
+            roleFilter={roleFilter}
             legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
             onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
             moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
@@ -2964,8 +2940,7 @@ function DeckCardRow({
   onRemoveCard,
   onSetQty,
   onEditCard,
-  onOpenTagMenu,
-  tagFilter,
+  roleFilter,
   legalityIssue,
   onMoveToZone,
   moveZone,
@@ -2992,14 +2967,8 @@ function DeckCardRow({
   onRemoveCard?: (slotId: string) => void;
   onSetQty?: (card: ScryfallCard, qty: number) => void;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
-  /** Open the radial tag quick-pick for this row's first slot. */
-  onOpenTagMenu?: (
-    anchor: { x: number; y: number },
-    slotId: string,
-    trigger: HTMLElement | null
-  ) => void;
-  /** Active tag filter — this row dims when it doesn't carry the tag. */
-  tagFilter?: string | null;
+  /** Active role filter — this row dims when it doesn't fill the role. */
+  roleFilter?: RoleKey | null;
   legalityIssue?: LegalityIssue;
   /** Move the given copies to the other zone. One copy, or the row's whole stack. */
   onMoveToZone?: (slotIds: string[]) => void;
@@ -3069,15 +3038,15 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
-  // Tag-filter lens: non-matching rows dim in place (layout preserved) so the
+  // Role-filter lens: non-matching rows dim in place (layout preserved) so the
   // matching cards pop and the eye can jump between them.
-  const tagDimmed = !!tagFilter && !row.tags.includes(tagFilter);
+  const roleDimmed = !!roleFilter && !cardFilterRoles(row.card).includes(roleFilter);
 
   const rowClass =
     `deck-row` +
     (entering ? ' is-entering' : '') +
     (leaving ? ' is-leaving' : '') +
-    (tagDimmed ? ' is-tag-dimmed' : '') +
+    (roleDimmed ? ' is-role-dimmed' : '') +
     (multiPrinting && expanded ? ' is-expanded' : '');
 
   return (
@@ -3150,15 +3119,6 @@ function DeckCardRow({
           <span className="deck-row-name-text" title={row.name}>
             {row.name}
           </span>
-          {row.tags.length > 0 && (
-            <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
-              {row.tags.map((t) => (
-                <span key={t} className="deck-row-tag-chip" title={t}>
-                  {t}
-                </span>
-              ))}
-            </span>
-          )}
           {multiPrinting && (
             <button
               type="button"
@@ -3293,38 +3253,6 @@ function DeckCardRow({
             // aligned across rows (mirrors the empty mana-cost placeholder).
             <span className="deck-row-price" aria-hidden />
           ))}
-        {onOpenTagMenu && row.slotIds.length > 0 && (
-          <button
-            type="button"
-            className="deck-row-tag-btn"
-            aria-label={`Tag ${row.name}`}
-            title={`Tag ${row.name} — press and swipe, or click a tag`}
-            aria-haspopup="menu"
-            onPointerDown={(e) => {
-              // pointerdown (not click) so press → drag toward a sector →
-              // release works as one gesture. preventDefault stops text
-              // selection / focus-scroll from riding the drag.
-              e.stopPropagation();
-              e.preventDefault();
-              onOpenTagMenu({ x: e.clientX, y: e.clientY }, row.slotIds[0], e.currentTarget);
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              // Keyboard activation (Enter/Space synthesizes a detail-0 click,
-              // with no preceding pointerdown) → open centered on the button.
-              if (e.detail === 0) {
-                const r = e.currentTarget.getBoundingClientRect();
-                onOpenTagMenu(
-                  { x: r.left + r.width / 2, y: r.top + r.height / 2 },
-                  row.slotIds[0],
-                  e.currentTarget
-                );
-              }
-            }}
-          >
-            <Tags width={14} height={14} strokeWidth={2} aria-hidden />
-          </button>
-        )}
         <ToolbarPopover
           wrapperClassName="deck-row-menu"
           triggerClassName="deck-row-menu-trigger"

@@ -16,6 +16,9 @@ function response(overrides: Partial<UploadResponse> = {}): UploadResponse {
     scryfallMisses: 0,
     unresolvedNames: [],
     fetchErrors: [],
+    malformedRows: [],
+    skippedUnownedRows: 0,
+    clampedRows: 0,
     detectedFormat: 'mtga',
     ...overrides,
   };

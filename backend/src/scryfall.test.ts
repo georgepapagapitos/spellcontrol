@@ -328,6 +328,101 @@ describe('resolveCards', () => {
     const body = JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string);
     expect(body.identifiers[0]).toEqual({ name: 'Front' });
   });
+
+  // Collector-number retry: some exports (Secret Lair drops, promos) carry a
+  // collectorNumber Scryfall doesn't recognize for the exact printing. This
+  // used to only run in the deck-import path — it's now in resolveCards
+  // itself so /api/import benefits too.
+  it('retries a collector-number row that misses, dropping the collector number', async () => {
+    const cache = fakeCache();
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ object: 'list', not_found: [], data: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          object: 'list',
+          not_found: [],
+          data: [card({ id: 'sf-plains', name: 'Plains', set: 'fdn', collector_number: '272' })],
+        })
+      );
+    const rows: ImportRow[] = [
+      {
+        name: 'Plains',
+        setCode: 'FDN',
+        collectorNumber: '999',
+        quantity: 1,
+        sourceFormat: 'manabox',
+      },
+    ];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.resolved[0]?.id).toBe('sf-plains');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse((fetchSpy.mock.calls[1][1] as RequestInit).body as string);
+    expect(retryBody.identifiers[0]).toEqual({ name: 'Plains', set: 'fdn' });
+  });
+
+  it('does not retry a miss when the row had no collectorNumber', async () => {
+    const cache = fakeCache();
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(jsonResponse({ object: 'list', not_found: [], data: [] }));
+    const rows: ImportRow[] = [{ name: 'Notacard', quantity: 1, sourceFormat: 'plain' }];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.resolved[0]).toBeUndefined();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives a retried row its outage-vs-miss verdict from the retry pass (fetch error -> genuine miss)', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockImplementation((_url, init) => {
+      const body = JSON.parse((init as RequestInit).body as string) as {
+        identifiers: Array<{ collector_number?: string }>;
+      };
+      const isFirstPass = 'collector_number' in body.identifiers[0];
+      return Promise.resolve(
+        isFirstPass
+          ? new Response('boom', { status: 500 })
+          : jsonResponse({ object: 'list', not_found: [], data: [] })
+      );
+    });
+    const rows: ImportRow[] = [
+      {
+        name: 'Plains',
+        setCode: 'FDN',
+        collectorNumber: '999',
+        quantity: 1,
+        sourceFormat: 'manabox',
+      },
+    ];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.unresolvedNames).toEqual(['Plains']);
+    expect(out.fetchErrorNames).toEqual([]);
+  });
+
+  it('keeps a retried row in fetchErrorNames when the retry also fails to fetch', async () => {
+    const cache = fakeCache();
+    vi.spyOn(global, 'fetch').mockResolvedValue(new Response('boom', { status: 500 }));
+    const rows: ImportRow[] = [
+      {
+        name: 'Plains',
+        setCode: 'FDN',
+        collectorNumber: '999',
+        quantity: 1,
+        sourceFormat: 'manabox',
+      },
+    ];
+    const promise = resolveCards(rows, cache);
+    await vi.runAllTimersAsync();
+    const out = await promise;
+    expect(out.fetchErrorNames).toEqual(['Plains']);
+    expect(out.unresolvedNames).toEqual([]);
+  });
 });
 
 describe('cardAliasKeys', () => {
