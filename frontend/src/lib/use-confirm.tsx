@@ -5,6 +5,7 @@ interface ConfirmOptions {
   title: string;
   body: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   danger?: boolean;
 }
 
@@ -29,6 +30,7 @@ export function useConfirm() {
       title={pending.title}
       body={pending.body}
       confirmLabel={pending.confirmLabel}
+      cancelLabel={pending.cancelLabel}
       danger={pending.danger}
       onConfirm={() => handleClose(true)}
       onCancel={() => handleClose(false)}

@@ -5,6 +5,9 @@ interface Props {
   title: string;
   body: string;
   confirmLabel?: string;
+  /** Defaults to "Cancel"; override for a two-option choice that isn't a veto
+   *  (e.g. "Start fresh" alongside a "Resume" confirm). */
+  cancelLabel?: string;
   danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -14,6 +17,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
   danger = false,
   onConfirm,
   onCancel,
@@ -26,7 +30,7 @@ export function ConfirmDialog({
       <p className="choice-dialog-body">{body}</p>
       <div className="choice-dialog-actions">
         <button type="button" className="btn" onClick={onCancel}>
-          Cancel
+          {cancelLabel}
         </button>
         <button
           type="button"
