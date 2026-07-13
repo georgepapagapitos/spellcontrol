@@ -16,8 +16,40 @@ import {
   buildBasicPrintingAvailability,
   type BasicPrintingAvail,
 } from './collection-availability';
+import { validateGeneratedDeck } from './deck-validation';
+import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { SubstituteCandidate } from '@/deck-builder/services/deckBuilder/substituteFinder';
-import type { ScryfallCard, EDHRECTheme, ThemeResult } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  EDHRECTheme,
+  ThemeResult,
+  GeneratedDeck,
+  DeckFormatConfig,
+} from '@/deck-builder/types';
+
+/**
+ * Hard gate a freshly generated deck before it's ever saved (E128): illegal
+ * cards, color-identity violations, over/under size, copy-limit violations,
+ * and an absurdly-low land count are all rejected here, not just flagged
+ * afterward on the saved deck's display badge. Pure and exported so it's
+ * unit-testable without mounting the store-heavy build() flow — mirrors
+ * resolveGenerationDestination below.
+ */
+export function checkGenerationGate(
+  generated: GeneratedDeck,
+  config: DeckFormatConfig
+): { ok: true } | { ok: false; message: string } {
+  const mainboard = Object.values(generated.categories).flat();
+  const issues = validateGeneratedDeck(mainboard, config, {
+    commander: generated.commander,
+    partnerCommander: generated.partnerCommander,
+  });
+  if (issues.length === 0) return { ok: true };
+  return {
+    ok: false,
+    message: `Couldn't build a legal deck: ${issues.map((i) => `${i.cardName} — ${i.detail}`).join('; ')}`,
+  };
+}
 
 interface Options {
   /** Seed themes (e.g. from a re-generate prefill). */
@@ -235,6 +267,12 @@ export function useDeckGeneration({
         collectionPool,
         onProgress: (message, percent) => setProgress({ message, percent }),
       });
+
+      const formatConfig = DECK_FORMAT_CONFIGS[customization.mtgFormat ?? 'commander'];
+      const gate = checkGenerationGate(deck, formatConfig);
+      if (!gate.ok) {
+        throw new Error(gate.message);
+      }
 
       updateCustomization({ tempBannedCards: [], tempMustIncludeCards: [] });
 

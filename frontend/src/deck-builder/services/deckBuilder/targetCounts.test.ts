@@ -83,6 +83,22 @@ describe('calculateTargetCounts — fallback path (no EDHREC stats)', () => {
     const { composition } = calculateTargetCounts(makeCustomization({ landCount: 999 }));
     expect(composition.lands).toBe(98);
   });
+
+  // E128: the DeckCustomizer slider already floors interactive input at 32
+  // (see components/deck/DeckCustomizer.tsx's RangeSlider min={32}) — this
+  // guards any auto/programmatic caller that bypasses the slider, matching
+  // the same number rather than inventing a second one.
+  it('floors an absurdly low land count to the slider minimum (32)', () => {
+    const { composition } = calculateTargetCounts(makeCustomization({ landCount: 5 }));
+    expect(composition.lands).toBe(32);
+  });
+
+  it('floors a zero/negative land count the same way', () => {
+    expect(calculateTargetCounts(makeCustomization({ landCount: 0 })).composition.lands).toBe(32);
+    expect(calculateTargetCounts(makeCustomization({ landCount: -10 })).composition.lands).toBe(
+      32
+    );
+  });
 });
 
 describe('calculateTargetCounts — EDHREC stats path', () => {
