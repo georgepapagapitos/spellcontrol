@@ -6,6 +6,7 @@ import {
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
+import { appendLogEntries, buildLogEntries, type GameLogEntry } from '@/lib/playtest/game-log';
 import {
   fingerprintDeck,
   savePlaytestSnapshot,
@@ -46,10 +47,20 @@ interface PlaytestStore {
    *  toggling, so a dismissed banner id from a prior game can't collide with
    *  (and swallow) the fresh game's first announcement. */
   resistanceEventSeq: number;
+  /**
+   * Turn-grouped event journal (E140) — a record of what happened, not
+   * replayable state. Survives RESET (a "Game reset" entry marks the
+   * boundary instead of clearing history); cleared on init/hydrate/teardown
+   * since those start a genuinely different session.
+   */
+  gameLog: GameLogEntry[];
   init(deckId: string, init: PlaytestInit): void;
   /** Restore a previously-saved session in place of `init` (E137 resume). */
   hydrate(deckId: string, snapshot: PlaytestSnapshot): void;
   dispatch(action: PlaytestAction): void;
+  /** Log a scry/peek (opening the top-of-library viewer) — not a reducer
+   *  action, so it doesn't flow through `dispatch`. */
+  logScryPeek(): void;
   toggleResistance(): void;
   /** Advance from opening → either playing (no mulligans) or mulligan-bottom. */
   keepOpeningHand(): void;
@@ -78,6 +89,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   resistancePast: [],
   lastResistanceEvent: null,
   resistanceEventSeq: 0,
+  gameLog: [],
   init(deckId, init) {
     set({
       deckId,
@@ -89,6 +101,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
+      gameLog: [],
     });
   },
   hydrate(deckId, snapshot) {
@@ -102,6 +115,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
+      gameLog: snapshot.gameLog ?? [],
     });
   },
   dispatch(action) {
@@ -109,9 +123,11 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     if (!current) return;
     const next = applyAction(current, action);
     // RESET drops us back to the opening hand flow with a fresh mulligan count
-    // (and, if Resistance is on, a fresh opponent for the fresh game).
+    // (and, if Resistance is on, a fresh opponent for the fresh game). The log
+    // itself is NOT cleared — a "Game reset" entry marks the boundary instead,
+    // so the journal covers the whole session, resets included.
     if (action.type === 'RESET') {
-      const { resistance } = get();
+      const { resistance, gameLog } = get();
       set({
         state: next,
         phase: 'opening',
@@ -119,21 +135,38 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
         resistanceState: resistance ? createResistanceState(next.rngSeed) : null,
         resistancePast: [],
         lastResistanceEvent: null,
+        gameLog: appendLogEntries(gameLog, [
+          { turn: next.turn, kind: 'reset', text: 'Game reset' },
+        ]),
       });
       return;
     }
-    const { resistance, resistanceState, resistancePast } = get();
-    if (resistance && resistanceState) {
-      if (action.type === 'UNDO') {
+    if (action.type === 'UNDO') {
+      // Undo doesn't rewind the log — it's a journal of what happened,
+      // undos included — it only appends a marker (when something was
+      // actually popped; an empty `past` makes `next` === `current`).
+      const { resistance, resistanceState, resistancePast, gameLog } = get();
+      const undid = next !== current;
+      const nextLog = undid
+        ? appendLogEntries(gameLog, [{ turn: next.turn, kind: 'undo', text: 'Undid last action' }])
+        : gameLog;
+      if (resistance && resistanceState) {
         // Rewind the opponent alongside the board: the popped entry's paired
         // snapshot (seed included) means replaying re-rolls the same response.
         set({
           state: next,
           resistanceState: resistancePast[0] ?? resistanceState,
           resistancePast: resistancePast.slice(1),
+          gameLog: nextLog,
         });
-        return;
+      } else {
+        set({ state: next, gameLog: nextLog });
       }
+      return;
+    }
+    const entries = buildLogEntries(current, action, next);
+    const { resistance, resistanceState, resistancePast, gameLog } = get();
+    if (resistance && resistanceState) {
       const result = applyResistance(resistanceState, current, next, action);
       // Pair each new history entry with its before-state bookkeeping: the
       // player's action and the opponent's first move both predate the
@@ -149,10 +182,20 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
               resistanceState,
             ];
       const seq = get().resistanceEventSeq + 1;
+      // The banner's message is the durable record verbatim — the log entry
+      // and the toast text are the same string.
+      const allEntries =
+        result.message !== null
+          ? [
+              ...entries,
+              { turn: result.state.turn, kind: 'resistance' as const, text: result.message },
+            ]
+          : entries;
       set({
         state: result.state,
         resistanceState: result.resistanceState,
         resistancePast: [...pairs, ...resistancePast].slice(0, result.state.past.length),
+        gameLog: appendLogEntries(gameLog, allEntries),
         ...(result.message !== null && {
           lastResistanceEvent: { id: seq, message: result.message },
           resistanceEventSeq: seq,
@@ -160,7 +203,16 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       });
       return;
     }
-    set({ state: next });
+    set({ state: next, gameLog: appendLogEntries(gameLog, entries) });
+  },
+  logScryPeek() {
+    const { state, gameLog } = get();
+    if (!state) return;
+    set({
+      gameLog: appendLogEntries(gameLog, [
+        { turn: state.turn, kind: 'scry', text: 'Peeked at the top of the library' },
+      ]),
+    });
   },
   toggleResistance() {
     const { resistance, state } = get();
@@ -192,10 +244,11 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     const current = get().state;
     if (!current) return;
     const next = applyAction(current, { type: 'MULLIGAN' });
-    const { resistanceState, resistancePast } = get();
+    const { resistanceState, resistancePast, gameLog } = get();
     set({
       state: next,
       mulliganCount: get().mulliganCount + 1,
+      gameLog: appendLogEntries(gameLog, buildLogEntries(current, { type: 'MULLIGAN' }, next)),
       // Keep resistancePast aligned if Resistance was toggled on pre-play.
       ...(resistanceState && {
         resistancePast: [
@@ -242,6 +295,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
+      gameLog: [],
     });
   },
 }));
@@ -257,7 +311,7 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
 const SNAPSHOT_DEBOUNCE_MS = 400;
 
 function captureSnapshot(): { deckId: string; snapshot: PlaytestSnapshot } | null {
-  const { state, deckId, phase, mulliganCount, resistance, resistanceState } =
+  const { state, deckId, phase, mulliganCount, resistance, resistanceState, gameLog } =
     usePlaytestStore.getState();
   if (!state || !deckId) return null;
   const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
@@ -272,6 +326,7 @@ function captureSnapshot(): { deckId: string; snapshot: PlaytestSnapshot } | nul
       mulliganCount,
       resistance,
       resistanceState,
+      gameLog,
       state: rest,
     },
   };

@@ -31,6 +31,7 @@ function baseSnapshot(overrides: Partial<PlaytestSnapshot> = {}): PlaytestSnapsh
     resistance: false,
     resistanceState: null,
     state: baseState({ turn: 3 }),
+    gameLog: [],
     ...overrides,
   };
 }
@@ -102,6 +103,22 @@ describe('save/load round-trip', () => {
     savePlaytestSnapshot('deck-1', baseSnapshot());
     clearPlaytestSnapshot('deck-1');
     expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
+  });
+
+  it('round-trips a populated gameLog', () => {
+    const snap = baseSnapshot({
+      gameLog: [{ seq: 1, turn: 1, kind: 'draw', text: 'Drew 1 card' }],
+    });
+    savePlaytestSnapshot('deck-1', snap);
+    expect(loadPlaytestSnapshot('deck-1', '100:60')?.gameLog).toEqual(snap.gameLog);
+  });
+
+  it('loads a pre-E140 snapshot with no gameLog field as an empty log', () => {
+    const { gameLog: _gameLog, ...withoutLog } = baseSnapshot();
+    localStorage.setItem('spellcontrol:playtest:deck-1', JSON.stringify(withoutLog));
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.gameLog).toEqual([]);
   });
 });
 

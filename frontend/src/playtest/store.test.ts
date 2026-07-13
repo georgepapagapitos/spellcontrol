@@ -285,6 +285,7 @@ describe('hydrate (E137 resume)', () => {
         rngSeed: 5,
         turn: 4,
       },
+      gameLog: [{ seq: 1, turn: 3, kind: 'draw', text: 'Drew 1 card' }],
     });
 
     expect(store().deckId).toBe('deck-9');
@@ -298,6 +299,95 @@ describe('hydrate (E137 resume)', () => {
     expect(store().state?.past).toEqual([]);
     expect(store().resistancePast).toEqual([]);
     expect(store().lastResistanceEvent).toBeNull();
+    // The game log DOES survive a resume — it's the whole point of E140.
+    expect(store().gameLog).toEqual([{ seq: 1, turn: 3, kind: 'draw', text: 'Drew 1 card' }]);
+  });
+});
+
+describe('game log (E140)', () => {
+  it('records structured entries for reducer actions dispatched through the store', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().dispatch({ type: 'NEXT_TURN' });
+    expect(store().gameLog).toEqual([{ seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins' }]);
+  });
+
+  it('RESET appends a marker entry rather than clearing the log', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().dispatch({ type: 'NEXT_TURN' });
+    store().dispatch({ type: 'RESET' });
+    expect(store().gameLog.map((e) => e.kind)).toEqual(['turn', 'reset']);
+  });
+
+  it('UNDO appends an "Undid last action" entry instead of rewinding the log', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().dispatch({ type: 'NEXT_TURN' });
+    store().dispatch({ type: 'UNDO' });
+    expect(store().gameLog.map((e) => ({ kind: e.kind, text: e.text }))).toEqual([
+      { kind: 'turn', text: 'Turn 2 begins' },
+      { kind: 'undo', text: 'Undid last action' },
+    ]);
+  });
+
+  it('an UNDO with nothing to pop logs nothing', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().dispatch({ type: 'UNDO' });
+    expect(store().gameLog).toEqual([]);
+  });
+
+  it('logs both the play and the opponent response, in order, when Resistance fires', () => {
+    store().init('deck-1', { library: threatLibrary(), seed: 42 });
+    store().toggleResistance();
+    usePlaytestStore.setState({ resistanceState: createResistanceState(findSeedFor('counter')) });
+    const played = store().state!.zones.hand[0];
+    store().dispatch({ type: 'MOVE_TO_BATTLEFIELD', cardId: played.id, x: 10, y: 10 });
+
+    const log = store().gameLog;
+    expect(log).toHaveLength(2);
+    expect(log[0].kind).toBe('play');
+    expect(log[1].kind).toBe('resistance');
+    // The log entry is the banner message verbatim — same durable record.
+    expect(log[1].text).toBe(store().lastResistanceEvent!.message);
+  });
+
+  it('logScryPeek appends a scry entry at the current turn', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().logScryPeek();
+    expect(store().gameLog).toEqual([
+      { seq: 1, turn: 1, kind: 'scry', text: 'Peeked at the top of the library' },
+    ]);
+  });
+
+  it('mulliganOpeningHand logs a mulligan entry', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().mulliganOpeningHand();
+    expect(store().gameLog).toEqual([
+      {
+        seq: 1,
+        turn: 1,
+        kind: 'mulligan',
+        text: `Mulliganed to ${store().state!.zones.hand.length}`,
+      },
+    ]);
+  });
+
+  it('caps at 500 entries, dropping the oldest', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    for (let i = 0; i < 510; i++) store().dispatch({ type: 'NEXT_TURN' });
+    expect(store().gameLog).toHaveLength(500);
+    expect(store().gameLog[0].seq).toBe(11);
+  });
+
+  it('init/hydrate/teardown all start a fresh, empty log', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().dispatch({ type: 'NEXT_TURN' });
+    expect(store().gameLog.length).toBeGreaterThan(0);
+
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    expect(store().gameLog).toEqual([]);
+
+    store().dispatch({ type: 'NEXT_TURN' });
+    store().teardown();
+    expect(store().gameLog).toEqual([]);
   });
 });
 
@@ -357,6 +447,15 @@ describe('device-local session persistence (E137)', () => {
 
     const snap = loadPlaytestSnapshot('deck-1', '100:0');
     expect(snap?.state).not.toHaveProperty('past');
+  });
+
+  it('persists the game log alongside the rest of the snapshot', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().dispatch({ type: 'NEXT_TURN' });
+    flushPendingPlaytestSnapshot();
+
+    const snap = loadPlaytestSnapshot('deck-1', '100:0');
+    expect(snap?.gameLog).toEqual([{ seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins' }]);
   });
 
   it('teardown leaves a previously-written snapshot in place', () => {

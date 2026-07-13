@@ -127,6 +127,23 @@ body:has(.playtest-page) .modal-backdrop {
   font-weight: 600;
 }
 
+/* Log entry point — unread dot fires when a Resistance event landed since
+   the log was last opened. */
+.playtest-actionbar__log {
+  position: relative;
+}
+
+.playtest-actionbar__log-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid var(--surface-raised);
+}
+
 /* ── Resistance event banner ─────────────────────────────────────────── */
 /*  Opponent announcement ("Opponent casts Counterspell — …"). Fixed near the
  *  top of the board, centered, non-blocking: it floats over the battlefield
