@@ -486,6 +486,12 @@ body:has(.playtest-page) .modal-backdrop {
   flex-direction: column;
   gap: 0.35rem;
   align-items: stretch;
+  /* The viewer can mount ~90 of these at once (a full library/graveyard).
+     content-visibility skips layout/paint for tiles scrolled out of the
+     sheet's viewport; contain-intrinsic-size keeps scrollbar sizing sane
+     before a tile's first render. */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 13rem;
 }
 
 .playtest-zone-card img {
