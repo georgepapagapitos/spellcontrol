@@ -1277,6 +1277,30 @@ with the **real components** (`TypeIcon`, `SetSymbol`, `FoilBadge`, badge
 markup) so it can't drift from the rows it explains. **Shipping a new glyph ⇒
 adding its Key entry in the same PR.**
 
+### Dense pick-list thumb (guided brew — E128)
+
+A **dense pick list** is a scrollable list of many rows (tens of cards) where
+each row is otherwise text-only — the guided-brew "Deck so far" panel
+(`BrewRunningDeck`) is the canonical example: a running list of accepted
+picks next to the curve/color meters. These lists still want the tactile
+"physical card" cue art gives (the thing meters-only panels lack), but at a
+size that keeps many rows on screen at once — smaller than the `.has-thumb`
+add-cards row (2.45rem × 3.4rem, `CardSearchPanel`) and well below the 66px
+**List** density tile.
+
+- **Size: 1.8rem × 2.5rem** (~29×40px), same card aspect ratio (0.72) as the
+  add-cards thumb, just scaled down for row density.
+- Resolved via `useCardThumb(name, 'small')` — the `'small'` Scryfall version,
+  since the render size doesn't need `'normal'`'s resolution.
+- **Decorative** (`aria-hidden`, `alt=""`) — the row's adjacent name text is
+  the accessible label, same rule as `RowThumb`/`Thumb` elsewhere.
+- **Loading/miss state:** a neutral `--surface-raised` box, no spinner/error
+  icon — matches the established thumb placeholder pattern app-wide (the box
+  never collapses to zero size, so nothing reflows when the image resolves).
+- Row layout becomes a 3-column grid (`thumb · minmax(0,1fr) name/slot stack ·
+  remove`), not a flex line, since the thumb sets the row height and the
+  name/slot pair now stacks vertically in the middle column.
+
 ---
 
 ## Deck analysis tabs — first-impression states
