@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useConfirm } from '@/lib/use-confirm';
 import {
   DndContext,
@@ -162,18 +162,23 @@ export function PlaytestBoard({ state }: Props) {
     }
   }
 
-  function handleCardClick(cardId: string) {
-    dispatch({ type: 'TAP', cardId });
-  }
+  // useCallback so these keep their identity across PlaytestBoard renders —
+  // Battlefield passes them straight through to every card's
+  // React.memo(PlaytestCardView), and a fresh identity here would defeat
+  // that memo for the whole battlefield on every dispatch.
+  const handleCardClick = useCallback(
+    (cardId: string) => dispatch({ type: 'TAP', cardId }),
+    [dispatch]
+  );
 
-  function handleCardContext(cardId: string, e: React.MouseEvent) {
+  const handleCardContext = useCallback((cardId: string, e: React.MouseEvent) => {
     e.preventDefault();
     setCtx({ cardId, x: e.clientX, y: e.clientY });
-  }
+  }, []);
 
-  function handleCardLongPress(cardId: string, x: number, y: number) {
+  const handleCardLongPress = useCallback((cardId: string, x: number, y: number) => {
     setCtx({ cardId, x, y });
-  }
+  }, []);
 
   function getBattlefieldRect() {
     return battlefieldRef.current?.getBoundingClientRect() ?? null;

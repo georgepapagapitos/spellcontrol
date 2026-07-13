@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import type { BattlefieldCard, PlaytestCard } from '@/lib/playtest';
 import { useLongPress } from '@/lib/use-long-press';
@@ -7,15 +8,19 @@ interface Props {
   card: PlaytestCard;
   bf?: BattlefieldCard;
   draggableId: string;
-  onClick?: () => void;
-  onContextMenu?: (e: React.MouseEvent) => void;
-  onLongPress?: (clientX: number, clientY: number) => void;
+  // Id-taking (rather than pre-bound) so a caller rendering many cards (e.g.
+  // Battlefield's `.map`) can pass the same stable callback to every card
+  // instead of allocating a fresh closure per card per render — that
+  // closure-per-card churn is what breaks memo below.
+  onClick?: (cardId: string) => void;
+  onContextMenu?: (cardId: string, e: React.MouseEvent) => void;
+  onLongPress?: (cardId: string, clientX: number, clientY: number) => void;
   /** When true, positions the card absolutely using bf.x/bf.y. */
   positioned?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function PlaytestCardView({
+export const PlaytestCardView = memo(function PlaytestCardView({
   card,
   bf,
   draggableId,
@@ -31,7 +36,7 @@ export function PlaytestCardView({
   });
 
   const longPress = useLongPress({
-    onLongPress: (x, y) => onLongPress?.(x, y),
+    onLongPress: (x, y) => onLongPress?.(card.id, x, y),
   });
 
   const tapped = bf?.tapped ?? false;
@@ -60,9 +65,9 @@ export function PlaytestCardView({
       {...listeners}
       onClick={() => {
         if (onLongPress && longPress.consumedClick()) return;
-        onClick?.();
+        onClick?.(card.id);
       }}
-      onContextMenu={onContextMenu}
+      onContextMenu={onContextMenu ? (e) => onContextMenu(card.id, e) : undefined}
       onTouchStart={onLongPress ? longPress.onTouchStart : undefined}
       onTouchMove={onLongPress ? longPress.onTouchMove : undefined}
       onTouchEnd={onLongPress ? longPress.onTouchEnd : undefined}
@@ -72,4 +77,4 @@ export function PlaytestCardView({
       aria-label={card.name}
     />
   );
-}
+});

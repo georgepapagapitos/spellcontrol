@@ -209,6 +209,40 @@ describe('MOVE_BF_POSITION / TAP / UNTAP_ALL / FLIP_FACE', () => {
     expect(bf?.y).toBe(400);
   });
 
+  it('brings the dragged card to the end of the array (front of the stack)', () => {
+    let s = init(10, 1, 4);
+    const [a, b, c] = s.zones.hand.map((card) => card.id);
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: a, x: 0, y: 0 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: b, x: 10, y: 10 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: c, x: 20, y: 20 });
+    expect(s.battlefield.map((bf) => bf.card.id)).toEqual([a, b, c]);
+
+    // Dragging the bottom-most card (a) should move it to the end.
+    const next = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: a, x: 5, y: 5 });
+    expect(next.battlefield.map((bf) => bf.card.id)).toEqual([b, c, a]);
+    expect(next.battlefield.find((bf) => bf.card.id === a)).toMatchObject({ x: 5, y: 5 });
+  });
+
+  it('does not reorder the battlefield on TAP', () => {
+    let s = init(10, 1, 3);
+    const [a, b] = s.zones.hand.map((card) => card.id);
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: a, x: 0, y: 0 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: b, x: 10, y: 10 });
+    const next = applyAction(s, { type: 'TAP', cardId: a });
+    expect(next.battlefield.map((bf) => bf.card.id)).toEqual([a, b]);
+  });
+
+  it('undo restores the pre-drag battlefield order', () => {
+    let s = init(10, 1, 3);
+    const [a, b] = s.zones.hand.map((card) => card.id);
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: a, x: 0, y: 0 });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: b, x: 10, y: 10 });
+    const dragged = applyAction(s, { type: 'MOVE_BF_POSITION', cardId: a, x: 5, y: 5 });
+    expect(dragged.battlefield.map((bf) => bf.card.id)).toEqual([b, a]);
+    const undone = applyAction(dragged, { type: 'UNDO' });
+    expect(undone.battlefield.map((bf) => bf.card.id)).toEqual([a, b]);
+  });
+
   it('toggles tapped when no explicit value is given', () => {
     const base = withCardOnBattlefield();
     const { id } = base;

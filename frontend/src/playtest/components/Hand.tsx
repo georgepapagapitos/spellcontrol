@@ -19,7 +19,7 @@ export function Hand({ cards, onCardClick }: Props) {
             card={c}
             draggableId={`hand:${c.id}`}
             size="sm"
-            onClick={onCardClick ? () => onCardClick(c.id, i) : undefined}
+            onClick={onCardClick ? (cardId) => onCardClick(cardId, i) : undefined}
           />
         ))}
       </div>
