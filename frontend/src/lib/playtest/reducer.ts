@@ -48,11 +48,11 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
       exile: state.zones.exile.slice(),
       command: state.zones.command.slice(),
     },
-    battlefield: state.battlefield.map((b) => ({
-      ...b,
-      counters: { ...b.counters },
-      stickers: [...b.stickers],
-    })),
+    // Shallow copy only: every action already replaces (never mutates) the
+    // bf entries it touches, so untouched cards can keep their object
+    // identity through to the rendered state — that's what lets
+    // React.memo(PlaytestCardView) skip re-rendering cards nobody touched.
+    battlefield: state.battlefield.slice(),
     rngSeed: state.rngSeed,
     turn: state.turn,
   };
@@ -194,9 +194,15 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
       if (idx < 0) return state;
       const next = snapshot(state);
-      next.battlefield = next.battlefield.map((b, i) =>
-        i === idx ? { ...b, x: action.x, y: action.y } : b
-      );
+      // A drag is the intentional "bring to front" gesture: move the moved
+      // card to the end of the array so render order (== stacking order)
+      // puts it above whatever it now overlaps. TAP does not reorder —
+      // untapping a stack shouldn't reshuffle it.
+      const bf = { ...next.battlefield[idx], x: action.x, y: action.y };
+      next.battlefield = next.battlefield
+        .slice(0, idx)
+        .concat(next.battlefield.slice(idx + 1))
+        .concat(bf);
       return withHistory(state, next);
     }
     case 'TAP': {

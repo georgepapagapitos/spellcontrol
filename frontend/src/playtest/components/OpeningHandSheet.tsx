@@ -374,6 +374,9 @@ function SortableHandCard({
     if (longPress.consumedClick()) return;
     onTap(card.id);
   };
+  // One instance per card.id (keyed in the parent .map), so this resets
+  // naturally whenever a different card occupies this slot.
+  const [imgError, setImgError] = useState(false);
   const touchHandlers = longPressEnabled
     ? {
         onTouchStart: longPress.onTouchStart,
@@ -403,8 +406,15 @@ function SortableHandCard({
       aria-label={`${card.name}${isSelected ? ` — selected, position ${selectedOrdinal}` : ''}`}
       disabled={!tappable}
     >
-      {card.imageUrl ? (
-        <img src={card.imageUrl} alt="" draggable={false} />
+      {card.imageUrl && !imgError ? (
+        <img
+          src={card.imageUrl}
+          alt=""
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgError(true)}
+        />
       ) : (
         <span className="playtest-opening-cardName">{card.name}</span>
       )}

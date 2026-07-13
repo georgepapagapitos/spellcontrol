@@ -81,26 +81,12 @@ export function ZoneViewerModal({
         ) : (
           <ul className="playtest-zone-grid">
             {visible.map((c) => (
-              <li key={c.id} className="playtest-zone-card">
-                {c.imageUrl ? (
-                  <img src={c.imageUrl} alt={c.name} draggable={false} />
-                ) : (
-                  <div className="playtest-zone-card__placeholder">{c.name}</div>
-                )}
-                <div className="playtest-zone-card__name">{c.name}</div>
-                <div className="playtest-zone-card__actions">
-                  {DESTINATIONS.filter((d) => d.key !== zone).map((d) => (
-                    <button
-                      key={d.key}
-                      type="button"
-                      onClick={() => onMove(c.id, d.key)}
-                      className="playtest-zone-card__action"
-                    >
-                      → {d.label}
-                    </button>
-                  ))}
-                </div>
-              </li>
+              <ZoneCard
+                key={c.id}
+                card={c}
+                destinations={DESTINATIONS.filter((d) => d.key !== zone)}
+                onMove={onMove}
+              />
             ))}
           </ul>
         )}
@@ -113,5 +99,51 @@ export function ZoneViewerModal({
         )}
       </div>
     </div>
+  );
+}
+
+interface ZoneCardProps {
+  card: PlaytestCard;
+  destinations: Array<{ key: Zone | 'battlefield'; label: string }>;
+  onMove(cardId: string, to: Zone | 'battlefield'): void;
+}
+
+/**
+ * One grid tile. Split out (rather than inlined in the `.map`) so each
+ * card's broken-image fallback is local state on its own instance — and so
+ * `content-visibility: auto` (set in CSS on `.playtest-zone-card`) can skip
+ * layout/paint for the ~90-card case entirely off-screen without a
+ * virtualization library.
+ */
+function ZoneCard({ card: c, destinations, onMove }: ZoneCardProps) {
+  const [imgError, setImgError] = useState(false);
+  return (
+    <li className="playtest-zone-card">
+      {c.imageUrl && !imgError ? (
+        <img
+          src={c.imageUrl}
+          alt={c.name}
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="playtest-zone-card__placeholder">{c.name}</div>
+      )}
+      <div className="playtest-zone-card__name">{c.name}</div>
+      <div className="playtest-zone-card__actions">
+        {destinations.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => onMove(c.id, d.key)}
+            className="playtest-zone-card__action"
+          >
+            → {d.label}
+          </button>
+        ))}
+      </div>
+    </li>
   );
 }

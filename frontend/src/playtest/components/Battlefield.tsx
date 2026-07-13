@@ -21,15 +21,19 @@ export function Battlefield({ cards, onCardClick, onCardContextMenu, onCardLongP
         <p className="playtest-battlefield__empty">Drag cards here to play them</p>
       )}
       {cards.map((bf) => (
+        // onClick/onContextMenu/onLongPress are passed straight through
+        // (no per-card wrapper arrow) so their identity stays stable across
+        // renders — required for React.memo(PlaytestCardView) to actually
+        // skip re-rendering cards that didn't change.
         <PlaytestCardView
           key={bf.card.id}
           card={bf.card}
           bf={bf}
           draggableId={`bf:${bf.card.id}`}
           positioned
-          onClick={() => onCardClick(bf.card.id)}
-          onContextMenu={(e) => onCardContextMenu(bf.card.id, e)}
-          onLongPress={onCardLongPress ? (x, y) => onCardLongPress(bf.card.id, x, y) : undefined}
+          onClick={onCardClick}
+          onContextMenu={onCardContextMenu}
+          onLongPress={onCardLongPress}
         />
       ))}
     </div>
