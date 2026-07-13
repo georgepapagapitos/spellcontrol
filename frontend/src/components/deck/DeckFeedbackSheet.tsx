@@ -284,6 +284,19 @@ export function DeckFeedbackSheet({ deck, onClose }: Props) {
                           : null;
                       return (
                         <li key={suggestion.id} className="deck-feedback-suggestion">
+                          {suggestion.imageUrl ? (
+                            <img
+                              src={suggestion.imageUrl}
+                              alt=""
+                              loading="lazy"
+                              className="deck-feedback-thumb"
+                            />
+                          ) : (
+                            <span
+                              className="deck-feedback-thumb deck-feedback-thumb--ph"
+                              aria-hidden
+                            />
+                          )}
                           <span
                             className={`deck-feedback-kind deck-feedback-kind--${suggestion.type}`}
                           >

@@ -25,17 +25,22 @@ type ViewKind = 'grid' | 'list';
  * present on the deck card (purchasePrice, condition, etc.) default to safe
  * placeholders.
  */
-function deckCardToPublicCard(slot: PublicDeckCard): PublicCard {
+export function deckCardToPublicCard(slot: PublicDeckCard): PublicCard {
   const c = slot.card;
   // Scryfall's card shape uses snake_case (image_uris, type_line, mana_cost).
   // EnrichedCards persisted on the owner's side use camelCase. The deck slot's
   // `card` is a ScryfallCard, so prefer snake_case fields with camelCase fallback.
-  const img = (c.image_uris ?? {}) as { small?: string; normal?: string; large?: string };
-  // Back-face fallback for transform/modal_dfc layouts is handled by Scryfall
-  // via card_faces; deck slots usually carry the front-face image_uris already.
+  // Front-face fallback for transform/modal_dfc layouts, whose top-level
+  // image_uris can be absent (the faces carry them instead).
+  const img = (c.image_uris ?? c.card_faces?.[0]?.image_uris ?? {}) as {
+    small?: string;
+    normal?: string;
+    large?: string;
+  };
   return {
     name: String(c.name ?? '(unknown)'),
     scryfallId: typeof c.id === 'string' ? c.id : '',
+    oracleId: typeof c.oracle_id === 'string' ? c.oracle_id : undefined,
     setCode: typeof c.set === 'string' ? c.set : '',
     setName: typeof c.set_name === 'string' ? c.set_name : '',
     collectorNumber: typeof c.collector_number === 'string' ? c.collector_number : '',
