@@ -17,6 +17,7 @@ interface Props {
   onCreateToken(): void;
   onOpenStats(): void;
   onOpenLog(): void;
+  onOpenDice(): void;
   onToggleResistance(): void;
   canUndo: boolean;
   resistanceOn: boolean;
@@ -39,6 +40,7 @@ export function ActionBar({
   onCreateToken,
   onOpenStats,
   onOpenLog,
+  onOpenDice,
   onToggleResistance,
   canUndo,
   resistanceOn,
@@ -52,6 +54,7 @@ export function ActionBar({
     { label: 'Mulligan', onClick: onMulligan },
     { label: 'Scry', onClick: onScry, disabled: libraryCount === 0 },
     { label: 'Create token', onClick: onCreateToken },
+    { label: 'Roll dice', onClick: onOpenDice },
     { label: `Resistance: ${resistanceOn ? 'on' : 'off'}`, onClick: onToggleResistance },
     { label: 'Reset', onClick: onReset, danger: true },
   ];
@@ -102,6 +105,9 @@ export function ActionBar({
           </button>
           <button type="button" onClick={onCreateToken}>
             Create token
+          </button>
+          <button type="button" onClick={onOpenDice}>
+            Roll
           </button>
           <button
             type="button"

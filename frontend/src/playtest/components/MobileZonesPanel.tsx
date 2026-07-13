@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { OverflowMenu, type OverflowMenuItem } from '@/components/OverflowMenu';
 import type { PlaytestCard, Zone } from '@/lib/playtest';
+import { commanderTaxAmount } from '../lib/zones';
 
 interface Props {
   zones: Record<Zone, PlaytestCard[]>;
+  commanderTax: Record<string, number>;
   onOpenZone(zone: Zone): void;
   onShuffleLibrary(): void;
   onScry(): void;
@@ -16,7 +18,13 @@ interface ZoneEntry {
   peek: 'top' | 'back';
 }
 
-export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }: Props) {
+export function MobileZonesPanel({
+  zones,
+  commanderTax,
+  onOpenZone,
+  onShuffleLibrary,
+  onScry,
+}: Props) {
   const [open, setOpen] = useState(false);
   // Per-zone map of a top-card id whose image failed, so a new top card
   // always gets a fresh chance to load (mirrors ZonePile).
@@ -45,6 +53,7 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
         <div className="playtest-zones-panel" role="region" aria-label="Other zones">
           {entries.map((e) => {
             const top = e.cards[e.cards.length - 1];
+            const tax = e.key === 'command' ? commanderTaxAmount(commanderTax, top?.id) : 0;
             // Browse and Scry dismiss the whole drawer; Shuffle keeps it open.
             const items: OverflowMenuItem[] = [
               {
@@ -72,6 +81,7 @@ export function MobileZonesPanel({ zones, onOpenZone, onShuffleLibrary, onScry }
                 <div className="playtest-zone-tile__head">
                   <span className="playtest-zone-tile__name">
                     {e.label} ({e.cards.length})
+                    {tax > 0 && <span className="playtest-zone-tile__tax"> · Tax +{tax}</span>}
                   </span>
                   <OverflowMenu
                     items={items}

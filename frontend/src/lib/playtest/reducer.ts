@@ -34,6 +34,7 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     battlefield: [],
     rngSeed: nextSeed(seed),
     turn: 1,
+    commanderTax: {},
     past: [],
   };
 }
@@ -55,6 +56,7 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     battlefield: state.battlefield.slice(),
     rngSeed: state.rngSeed,
     turn: state.turn,
+    commanderTax: { ...state.commanderTax },
   };
 }
 
@@ -121,6 +123,8 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         battlefield: [],
         rngSeed: nextSeed(state.rngSeed),
         turn: 1,
+        // A new game: tax paid in the last game doesn't carry over.
+        commanderTax: {},
         past: [],
       };
     }
@@ -168,6 +172,9 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
       const loc = locate(state, action.cardId);
       if (!loc) return state;
       const next = snapshot(state);
+      // A genuine cast from the command zone — not a battlefield reposition —
+      // is what accrues commander tax (MTG rule 903.10).
+      const fromCommand = loc.source === 'zone' && loc.zone === 'command';
       const plucked = pluck(next, loc);
       // If already on the battlefield, treat as a reposition + optional state update.
       const bfCard: BattlefieldCard = plucked.bf
@@ -182,12 +189,19 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
             card: plucked.card,
             tapped: action.tapped ?? false,
             faceDown: action.faceDown ?? false,
+            showBackFace: false,
             counters: {},
             stickers: [],
             x: action.x,
             y: action.y,
           };
       next.battlefield = next.battlefield.concat(bfCard);
+      if (fromCommand) {
+        next.commanderTax = {
+          ...next.commanderTax,
+          [action.cardId]: (next.commanderTax[action.cardId] ?? 0) + 1,
+        };
+      }
       return withHistory(state, next);
     }
     case 'MOVE_BF_POSITION': {
@@ -263,6 +277,7 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         card: { ...action.card, isToken: true },
         tapped: false,
         faceDown: false,
+        showBackFace: false,
         counters: {},
         stickers: [],
         x: action.x,
@@ -278,6 +293,32 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         i === idx ? { ...b, faceDown: !b.faceDown } : b
       );
       return withHistory(state, next);
+    }
+    case 'TRANSFORM': {
+      const idx = state.battlefield.findIndex((b) => b.card.id === action.cardId);
+      if (idx < 0) return state;
+      const next = snapshot(state);
+      next.battlefield = next.battlefield.map((b, i) =>
+        i === idx ? { ...b, showBackFace: !b.showBackFace } : b
+      );
+      return withHistory(state, next);
+    }
+    case 'SET_CARD_IMAGE': {
+      const loc = locate(state, action.cardId);
+      if (!loc) return state;
+      // Cosmetic-only patch — deliberately bypasses snapshot/withHistory so a
+      // later Undo can never revert a card back to its placeholder text box.
+      if (loc.source === 'zone' && loc.zone) {
+        const zoneKey = loc.zone;
+        const zone = state.zones[zoneKey].map((c, i) =>
+          i === loc.index ? { ...c, imageUrl: action.imageUrl } : c
+        );
+        return { ...state, zones: { ...state.zones, [zoneKey]: zone } };
+      }
+      const battlefield = state.battlefield.map((b, i) =>
+        i === loc.index ? { ...b, card: { ...b.card, imageUrl: action.imageUrl } } : b
+      );
+      return { ...state, battlefield };
     }
     case 'NEXT_TURN': {
       const next = snapshot(state);

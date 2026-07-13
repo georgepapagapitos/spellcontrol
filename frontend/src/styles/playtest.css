@@ -285,6 +285,7 @@ body:has(.playtest-page) .modal-backdrop {
 }
 
 .playtest-pile__stack {
+  position: relative;
   width: 70px;
   height: 96px;
   border-radius: var(--radius);
@@ -323,6 +324,23 @@ body:has(.playtest-page) .modal-backdrop {
 .playtest-pile__count {
   font-weight: 700;
   font-size: var(--text-sm);
+}
+
+/* Commander tax badge — overlaid on the command pile's card stack, shown
+ * only once a commander has left the command zone at least once. */
+.playtest-pile__tax {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  right: 2px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--mtg-counter-gold);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+  pointer-events: none;
 }
 
 .playtest-hand {
@@ -703,6 +721,13 @@ body:has(.playtest-page) .modal-backdrop {
   background: var(--accent-light);
 }
 
+.playtest-ctx-tax {
+  padding: 0.15rem 0.65rem 0.4rem;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--mtg-counter-gold);
+}
+
 .playtest-ctx-group {
   margin-top: 0.4rem;
   padding-top: 0.4rem;
@@ -944,6 +969,11 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.playtest-zone-tile__tax {
+  color: var(--mtg-counter-gold);
+  font-weight: 700;
 }
 
 .playtest-zone-tile__kebab {

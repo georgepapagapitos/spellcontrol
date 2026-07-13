@@ -18,6 +18,7 @@ function baseState(
     battlefield: [],
     rngSeed: 42,
     turn: 1,
+    commanderTax: {},
     ...overrides,
   };
 }

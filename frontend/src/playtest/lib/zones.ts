@@ -22,3 +22,13 @@ export const MOVE_DESTINATIONS: Array<{ key: Zone; label: string }> = [
   { key: 'library', label: 'Library (bottom)' },
   { key: 'command', label: 'Command' },
 ];
+
+/** Current commander tax for a card (MTG rule 903.10: +2 generic per prior
+ *  cast from the command zone). 0 for a card that's never been cast, or with
+ *  no id to look up. */
+export function commanderTaxAmount(
+  commanderTax: Record<string, number>,
+  cardId: string | undefined
+): number {
+  return cardId ? (commanderTax[cardId] ?? 0) * 2 : 0;
+}

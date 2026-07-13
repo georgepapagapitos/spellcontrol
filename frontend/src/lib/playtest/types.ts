@@ -16,6 +16,11 @@ export interface PlaytestCard {
   oracleId?: string;
   scryfallId?: string;
   imageUrl?: string;
+  /** Back-face art for a genuine two-faced card (transform/MDFC), resolved once
+   *  at deck-to-playtest time. Presence of this field is also how the UI knows
+   *  a card is real-DFC-eligible for the "Transform" context-menu action —
+   *  tokens and single-faced cards never have one. */
+  backImageUrl?: string;
   manaValue?: number;
   typeLine?: string;
   isToken?: boolean;
@@ -30,6 +35,9 @@ export interface BattlefieldCard {
   x: number;
   y: number;
   faceDown: boolean;
+  /** Which face's art is showing for a two-faced card. Independent of
+   *  `faceDown` — a transformed card can also be turned face-down. */
+  showBackFace?: boolean;
 }
 
 export interface PlaytestState {
@@ -37,6 +45,11 @@ export interface PlaytestState {
   battlefield: BattlefieldCard[];
   rngSeed: number;
   turn: number;
+  /** Casts-from-command count per commander card id (keyed by `PlaytestCard.id`).
+   *  Display tax is `count * 2` (MTG rule 903.10); incremented only when a card
+   *  moves command → battlefield, never decremented (undo restores it via the
+   *  normal snapshot mechanism). */
+  commanderTax: Record<string, number>;
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -62,6 +75,15 @@ export type PlaytestAction =
   | { type: 'REMOVE_STICKER'; cardId: string; index: number }
   | { type: 'CREATE_TOKEN'; card: PlaytestCard; x: number; y: number }
   | { type: 'FLIP_FACE'; cardId: string }
+  | { type: 'TRANSFORM'; cardId: string }
+  | {
+      /** Cosmetic-only art arriving after the fact (async token-art
+       *  resolution) — not a player action, so the reducer never pushes it
+       *  onto the undo stack. */
+      type: 'SET_CARD_IMAGE';
+      cardId: string;
+      imageUrl: string;
+    }
   | { type: 'NEXT_TURN' }
   | { type: 'RESET' }
   | { type: 'UNDO' };

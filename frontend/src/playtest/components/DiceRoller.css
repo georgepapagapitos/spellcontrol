@@ -1,0 +1,76 @@
+/* ── Dice / coin roller — co-located styles ──────────────────────────────
+ * Layered on the shared card-picker-root / card-picker-sheet primitive
+ * (global.css handles the bottom-sheet ↔ centered-modal swap + safe-area). */
+
+.playtest-dice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.playtest-dice-grid button {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  color: var(--text-primary);
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  min-height: 44px;
+  transition:
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.playtest-dice-grid button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-dice-grid button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    outline: none;
+  }
+}
+
+.playtest-dice-grid button:active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.playtest-dice-result {
+  margin: 0 var(--space-4) var(--space-2);
+  padding: var(--space-3);
+  text-align: center;
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+}
+
+.playtest-dice-history {
+  margin: 0 var(--space-4) var(--space-2);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.playtest-dice-history li {
+  padding: 2px var(--space-2);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+}

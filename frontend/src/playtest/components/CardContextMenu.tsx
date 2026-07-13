@@ -11,6 +11,10 @@ interface Props {
   y: number;
   cardName: string;
   stickers: string[];
+  /** Current commander tax (already ×2, e.g. 4 for "Tax: +4"); 0/undefined hides the line. */
+  tax?: number;
+  /** Only true two-faced cards (transform/MDFC) offer Transform. */
+  canTransform?: boolean;
   variant?: 'floating' | 'sheet';
   onClose(): void;
   onTap(): void;
@@ -19,6 +23,7 @@ interface Props {
   onAddSticker(text: string): void;
   onRemoveSticker(index: number): void;
   onFlip(): void;
+  onTransform(): void;
   onMoveTo(zone: Zone): void;
 }
 
@@ -31,6 +36,8 @@ export function CardContextMenu({
   y,
   cardName,
   stickers,
+  tax,
+  canTransform = false,
   variant = 'floating',
   onClose,
   onTap,
@@ -39,6 +46,7 @@ export function CardContextMenu({
   onAddSticker,
   onRemoveSticker,
   onFlip,
+  onTransform,
   onMoveTo,
 }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -73,12 +81,18 @@ export function CardContextMenu({
   // chrome differs (a cursor-anchored popover vs. the shared bottom sheet).
   const items = (
     <>
+      {Boolean(tax) && <div className="playtest-ctx-tax">Tax: +{tax}</div>}
       <button type="button" className="playtest-ctx-action" onClick={onTap}>
         Tap / Untap
       </button>
       <button type="button" className="playtest-ctx-action" onClick={onFlip}>
         Flip face
       </button>
+      {canTransform && (
+        <button type="button" className="playtest-ctx-action" onClick={onTransform}>
+          Transform
+        </button>
+      )}
       <div className="playtest-ctx-group">
         <div className="playtest-ctx-heading">Counters</div>
         {COUNTER_KINDS.map((k) => (

@@ -5,7 +5,7 @@
 // `typeof window !== 'undefined'` — actually installs itself for the
 // session-persistence tests below.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaytestCard } from '@/lib/playtest';
+import type { PlaytestCard, PlaytestState } from '@/lib/playtest';
 import { usePlaytestStore, flushPendingPlaytestSnapshot } from './store';
 import { createResistanceState, resistanceRespond } from './lib/resistance';
 import { useDecksStore, type Deck } from '@/store/decks';
@@ -284,6 +284,7 @@ describe('hydrate (E137 resume)', () => {
         battlefield: [],
         rngSeed: 5,
         turn: 4,
+        commanderTax: {},
       },
       gameLog: [{ seq: 1, turn: 3, kind: 'draw', text: 'Drew 1 card' }],
     });
@@ -388,6 +389,32 @@ describe('game log (E140)', () => {
     store().dispatch({ type: 'NEXT_TURN' });
     store().teardown();
     expect(store().gameLog).toEqual([]);
+  });
+
+  it('backfills commanderTax when restoring a pre-E139 snapshot that lacks it', () => {
+    // Simulates real localStorage bytes written before commander tax existed
+    // — `as` bypasses the (now-required) field the same way JSON.parse'd data
+    // would, since it carries no static type of its own.
+    const legacyState = {
+      zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+      battlefield: [],
+      rngSeed: 5,
+      turn: 1,
+    } as unknown as Omit<PlaytestState, 'past'>;
+
+    store().hydrate('deck-legacy', {
+      fingerprint: '1:1',
+      savedAt: 0,
+      phase: 'playing',
+      mulliganCount: 0,
+      resistance: false,
+      resistanceState: null,
+      state: legacyState,
+    });
+
+    expect(store().state?.commanderTax).toEqual({});
+    // The rest of the legacy state still comes through untouched.
+    expect(store().state?.turn).toBe(1);
   });
 });
 

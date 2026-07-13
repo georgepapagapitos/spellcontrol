@@ -57,6 +57,7 @@ function makeMinimalState(overrides: Partial<PlaytestState> = {}): PlaytestState
     battlefield: [],
     rngSeed: 1,
     turn: 1,
+    commanderTax: {},
     past: [],
     ...overrides,
   };

@@ -107,7 +107,10 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
   hydrate(deckId, snapshot) {
     set({
       deckId,
-      state: { ...snapshot.state, past: [] },
+      // `commanderTax` postdates the original snapshot shape (E139) — backfill
+      // so a pre-existing localStorage session from before that change doesn't
+      // crash the reducer the first time a commander leaves the command zone.
+      state: { ...snapshot.state, commanderTax: snapshot.state.commanderTax ?? {}, past: [] },
       phase: snapshot.phase,
       mulliganCount: snapshot.mulliganCount,
       resistance: snapshot.resistance,

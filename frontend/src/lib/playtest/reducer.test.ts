@@ -193,6 +193,135 @@ describe('MOVE_TO_BATTLEFIELD', () => {
   });
 });
 
+describe('commander tax', () => {
+  function withCommander() {
+    let s = init(10, 1, 3);
+    const cmdr = card('cmdr', { name: 'Atraxa' });
+    s = { ...s, zones: { ...s.zones, command: [cmdr] } };
+    return s;
+  }
+
+  it('starts at 0 (untaxed) for a fresh commander', () => {
+    const s = withCommander();
+    expect(s.commanderTax.cmdr).toBeUndefined();
+  });
+
+  it('increments only on a cast from the command zone', () => {
+    let s = withCommander();
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmdr', x: 0, y: 0 });
+    expect(s.commanderTax.cmdr).toBe(1);
+
+    // Repositioning the already-battlefield commander is not a new cast.
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmdr', x: 10, y: 10 });
+    expect(s.commanderTax.cmdr).toBe(1);
+  });
+
+  it('accrues across command → battlefield → command → battlefield cycles', () => {
+    let s = withCommander();
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmdr', x: 0, y: 0 });
+    s = applyAction(s, { type: 'MOVE_TO_ZONE', cardId: 'cmdr', to: 'command' });
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmdr', x: 0, y: 0 });
+    expect(s.commanderTax.cmdr).toBe(2);
+  });
+
+  it('does not tax an ordinary (non-command-zone) card entering the battlefield', () => {
+    const s = init(10, 1, 3);
+    const target = s.zones.hand[0].id;
+    const next = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: target, x: 0, y: 0 });
+    expect(next.commanderTax[target]).toBeUndefined();
+  });
+
+  it('undo restores the pre-cast tax count', () => {
+    let s = withCommander();
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmdr', x: 0, y: 0 });
+    expect(s.commanderTax.cmdr).toBe(1);
+    s = applyAction(s, { type: 'UNDO' });
+    expect(s.commanderTax.cmdr).toBeUndefined();
+  });
+
+  it('is reset by RESET (a new game owes no tax)', () => {
+    let s = withCommander();
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: 'cmdr', x: 0, y: 0 });
+    s = applyAction(s, { type: 'RESET' });
+    expect(s.commanderTax).toEqual({});
+  });
+});
+
+describe('TRANSFORM', () => {
+  it('toggles showBackFace, independent of faceDown', () => {
+    let s = init(10, 1, 3);
+    const id = s.zones.hand[0].id;
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+    s = applyAction(s, { type: 'TRANSFORM', cardId: id });
+    expect(s.battlefield[0].showBackFace).toBe(true);
+    expect(s.battlefield[0].faceDown).toBe(false);
+
+    // Both can coexist: transforming a face-down card doesn't un-flip it.
+    s = applyAction(s, { type: 'FLIP_FACE', cardId: id });
+    expect(s.battlefield[0].showBackFace).toBe(true);
+    expect(s.battlefield[0].faceDown).toBe(true);
+
+    s = applyAction(s, { type: 'TRANSFORM', cardId: id });
+    expect(s.battlefield[0].showBackFace).toBe(false);
+    expect(s.battlefield[0].faceDown).toBe(true);
+  });
+
+  it('is a no-op for an unknown card id', () => {
+    let s = init(10, 1, 3);
+    const id = s.zones.hand[0].id;
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+    const next = applyAction(s, { type: 'TRANSFORM', cardId: 'nope' });
+    expect(next).toBe(s);
+  });
+
+  it('undo restores the prior face', () => {
+    let s = init(10, 1, 3);
+    const id = s.zones.hand[0].id;
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+    s = applyAction(s, { type: 'TRANSFORM', cardId: id });
+    s = applyAction(s, { type: 'UNDO' });
+    expect(s.battlefield[0].showBackFace).toBe(false);
+  });
+});
+
+describe('SET_CARD_IMAGE', () => {
+  it('patches imageUrl on a battlefield card without touching undo history', () => {
+    let s = init(10, 1, 3);
+    const id = s.zones.hand[0].id;
+    s = applyAction(s, { type: 'MOVE_TO_BATTLEFIELD', cardId: id, x: 0, y: 0 });
+    const pastLength = s.past.length;
+    const next = applyAction(s, {
+      type: 'SET_CARD_IMAGE',
+      cardId: id,
+      imageUrl: 'https://x/y.jpg',
+    });
+    expect(next.battlefield[0].card.imageUrl).toBe('https://x/y.jpg');
+    expect(next.past.length).toBe(pastLength);
+    // Undo skips right past the image patch — it was never pushed.
+    const undone = applyAction(next, { type: 'UNDO' });
+    expect(undone.battlefield).toHaveLength(0);
+  });
+
+  it('patches a card sitting in a zone (e.g. a token moved to command)', () => {
+    let s = init(10, 1, 0);
+    const token: PlaytestCard = { id: 'tok1', name: 'Goblin', isToken: true };
+    s = applyAction(s, { type: 'CREATE_TOKEN', card: token, x: 0, y: 0 });
+    s = applyAction(s, { type: 'MOVE_TO_ZONE', cardId: 'tok1', to: 'command' });
+    const next = applyAction(s, {
+      type: 'SET_CARD_IMAGE',
+      cardId: 'tok1',
+      imageUrl: 'https://x/y.jpg',
+    });
+    expect(next.zones.command.find((c) => c.id === 'tok1')?.imageUrl).toBe('https://x/y.jpg');
+  });
+
+  it('is a no-op for an unknown card id', () => {
+    const s = init(10, 1, 3);
+    const next = applyAction(s, { type: 'SET_CARD_IMAGE', cardId: 'nope', imageUrl: 'x' });
+    expect(next).toBe(s);
+  });
+});
+
 describe('MOVE_BF_POSITION / TAP / UNTAP_ALL / FLIP_FACE', () => {
   function withCardOnBattlefield() {
     let s = init(10, 1, 3);

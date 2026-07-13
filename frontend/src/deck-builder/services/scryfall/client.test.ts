@@ -25,6 +25,7 @@ import {
   getOwnedPrinting,
   getCardByNameResilient,
   searchCards,
+  searchTokenArt,
   commanderSearchIdentity,
 } from './client';
 
@@ -85,6 +86,78 @@ describe('isPlayableCard', () => {
     for (const layout of ['transform', 'modal_dfc', 'split', 'flip', 'adventure', 'meld']) {
       expect(isPlayableCard(makeCard({ layout }))).toBe(true);
     }
+  });
+});
+
+describe('searchTokenArt (E139 playtest token art)', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('strips a "N/N [keywords]" suffix and searches t:token by base name', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [makeCard({ layout: 'token' })] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const url = await searchTokenArt('Soldier 1/1');
+
+    expect(url).toBeTruthy();
+    const requestedUrl = String(fetchMock.mock.calls[0][0]);
+    expect(decodeURIComponent(requestedUrl)).toContain('t:token Soldier');
+    expect(decodeURIComponent(requestedUrl)).not.toContain('1/1');
+  });
+
+  it('resolves image_uris.normal from the first match', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            makeCard({
+              layout: 'token',
+              image_uris: { normal: 'https://cards.scryfall.io/normal/treasure.jpg' } as never,
+            }),
+          ],
+        }),
+      })
+    );
+
+    expect(await searchTokenArt('Treasure')).toBe('https://cards.scryfall.io/normal/treasure.jpg');
+  });
+
+  it('returns null when the search has no results', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [] }) })
+    );
+    expect(await searchTokenArt('Some Made Up Token')).toBeNull();
+  });
+
+  it('returns null (never throws) on a network failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Server Error' })
+    );
+    expect(await searchTokenArt('Clue')).toBeNull();
+  });
+
+  it('short-circuits with no network call when the offline bundle is active', async () => {
+    gate.offline = true;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await searchTokenArt('Food')).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns null for a blank display name', async () => {
+    expect(await searchTokenArt('   ')).toBeNull();
   });
 });
 
