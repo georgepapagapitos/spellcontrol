@@ -642,11 +642,14 @@ export const useDecksStore = create<DecksState>()(
             updates.set(deck.id, {
               commanderAllocatedCopyId: deck.commanderAllocatedCopyId,
               partnerCommanderAllocatedCopyId: deck.partnerCommanderAllocatedCopyId,
-              cards: deck.cards.map((c) => ({
+              // `?? []` guards a partial/malformed persisted deck row (this now
+              // also runs from sync.ts's rehydrate, which reads back whatever
+              // shape actually landed in IDB) — must not crash on a missing array.
+              cards: (deck.cards ?? []).map((c) => ({
                 slotId: c.slotId,
                 allocatedCopyId: c.allocatedCopyId,
               })),
-              sideboard: deck.sideboard.map((c) => ({
+              sideboard: (deck.sideboard ?? []).map((c) => ({
                 slotId: c.slotId,
                 allocatedCopyId: c.allocatedCopyId,
               })),
@@ -681,7 +684,7 @@ export const useDecksStore = create<DecksState>()(
                 },
               });
             }
-            for (const c of deck.cards) {
+            for (const c of deck.cards ?? []) {
               const slotId = c.slotId;
               slots.push({
                 deckId: deck.id,
@@ -839,18 +842,22 @@ export const useDecksStore = create<DecksState>()(
             const cardsChanged =
               u.commanderAllocatedCopyId !== deck.commanderAllocatedCopyId ||
               u.partnerCommanderAllocatedCopyId !== deck.partnerCommanderAllocatedCopyId ||
-              deck.cards.some((c, i) => u.cards[i]?.allocatedCopyId !== c.allocatedCopyId) ||
-              deck.sideboard.some((c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId);
+              (deck.cards ?? []).some(
+                (c, i) => u.cards[i]?.allocatedCopyId !== c.allocatedCopyId
+              ) ||
+              (deck.sideboard ?? []).some(
+                (c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId
+              );
             if (!cardsChanged) return deck;
             return touch({
               ...deck,
               commanderAllocatedCopyId: u.commanderAllocatedCopyId,
               partnerCommanderAllocatedCopyId: u.partnerCommanderAllocatedCopyId,
-              cards: deck.cards.map((c, i) => ({
+              cards: (deck.cards ?? []).map((c, i) => ({
                 ...c,
                 allocatedCopyId: u.cards[i].allocatedCopyId,
               })),
-              sideboard: deck.sideboard.map((c, i) => ({
+              sideboard: (deck.sideboard ?? []).map((c, i) => ({
                 ...c,
                 allocatedCopyId: u.sideboard[i].allocatedCopyId,
               })),
@@ -871,12 +878,15 @@ export const useDecksStore = create<DecksState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hydrated = true;
-          // Self-heal a persisted cross-deck double-claim from a prior session
-          // (introduced by a manual allocation mutation or generated-deck save,
-          // which — unlike collection replace — never ran the remap). Pure and
-          // collection-independent, so it is safe here even though the
-          // collection store hydrates separately.
-          state.decks = dedupeDeckAllocations(state.decks).decks;
+          // NOTE (E133): a self-heal used to run here too, but this hook is
+          // dead weight — `partialize: () => ({})` below means nothing ever
+          // writes to this legacy zustand-persist IDB anymore, and
+          // `deleteLegacyDatabasesOnce()` (lib/sync.ts, called before every
+          // boot's rehydrate) deletes the underlying `spellcontrol-decks` DB,
+          // so `state.decks` here is always whatever the empty persisted blob
+          // resolves to. Healing now happens once, centrally, in the
+          // subscriber below — which also covers this path the moment
+          // sync.ts's rehydrateStoresFromIdb sets real decks onto the store.
         }
       },
       // Synced data lives in entity-store now and is rehydrated by `lib/sync.ts`.
@@ -979,11 +989,47 @@ export function selectDeck(id: string | undefined): (state: DecksState) => Deck 
 }
 
 /**
- * Sync subscriber: every in-memory change to the decks array flows through
- * the per-row sync layer. See store/collection.ts for the broader pattern.
+ * Centralized allocation self-heal + sync subscriber (E133). EVERY write to
+ * the decks array — a manual mutation, `remapAllocations`, deck-history
+ * undo/redo replay (`replaceDeck`), the cross-deck-move undo path, delete-deck
+ * undo, or a cross-device sync rehydrate (`rehydrateStoresFromIdb` in
+ * lib/sync.ts, which sets two independent per-row LWW deck blobs onto the
+ * store with no cross-deck dedupe) — funnels through zustand's `setState`,
+ * so this one subscriber is the single chokepoint that enforces "no copyId is
+ * claimed by two deck slots" by construction, instead of every call site
+ * running `dedupeDeckAllocations` for itself. It's pure and reference-stable
+ * (returns the SAME `decks` array when nothing was contested), so re-running
+ * it after its own heal is a no-op and this cannot loop.
+ *
+ * applyingServer reasoning: a heal is a genuine LOCAL correction (not
+ * server-sourced data we're just mirroring), so unlike a normal server-applied
+ * change it SHOULD be pushed back — otherwise the fix never reaches the
+ * device that still has the stale double-claim, and it keeps resurrecting.
+ * But this subscriber fires *synchronously inside* `rehydrateStoresFromIdb`'s
+ * `setState` call, before `setApplyingServer(false)` runs in its `finally`
+ * (which only happens once that `setState` call returns) — so healing
+ * synchronously here would see `isApplyingServer()` still true and the push
+ * below would wrongly treat it as server data to skip. Deferring one
+ * microtask sidesteps that: the `finally` is synchronous and runs before any
+ * microtask can, so by the time the deferred heal's own `setState` fires,
+ * the guard is down and it falls through to the normal push path.
  */
 useDecksStore.subscribe((state, prev) => {
   if (state.decks === prev.decks) return;
+
+  const { decks: healed, changed } = dedupeDeckAllocations(state.decks);
+  if (changed) {
+    if (isApplyingServer()) {
+      queueMicrotask(() => {
+        const resolved = dedupeDeckAllocations(useDecksStore.getState().decks);
+        if (resolved.changed) useDecksStore.setState({ decks: resolved.decks });
+      });
+    } else {
+      useDecksStore.setState({ decks: healed });
+    }
+    return;
+  }
+
   // Synchronous guards — see store/collection.ts for why the async-import check
   // was too late and let pulled state re-persist.
   if (isApplyingServer()) return;

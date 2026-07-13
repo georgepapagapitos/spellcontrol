@@ -128,20 +128,32 @@ function cubeClaim(cube: SavedCube, cardName: string): AllocationInfo {
  * the binder UI, and the deck editor to grey out / badge copies that aren't
  * free. Pass `physicalCubes` (the raw saved-cube list — non-physical cubes are
  * filtered out here) to fold cube claims in; omit it for deck-only behavior.
+ *
+ * `onCollision` is called synchronously for every double-claim found (the
+ * later claimant losing to the earlier one in map iteration order — the map
+ * itself just keeps the last write). This is prod-visible reporting, unlike
+ * the dev-only `logger.warn` below: AdminPage uses it to surface a live
+ * double-claim counter instead of the invariant only being checkable via a
+ * dev console. In steady state this never fires — dedupeDeckAllocations
+ * (below) is the chokepoint that prevents a double-claim from persisting.
  */
 export function buildAllocationMap(
   decks: Deck[],
-  physicalCubes?: SavedCube[]
+  physicalCubes?: SavedCube[],
+  onCollision?: (collision: { copyId: string; prior: AllocationInfo; next: AllocationInfo }) => void
 ): Map<string, AllocationInfo> {
   const m = new Map<string, AllocationInfo>();
   const isDev =
     typeof import.meta !== 'undefined' && (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
   const claim = (copyId: string, info: AllocationInfo) => {
-    if (isDev && m.has(copyId)) {
-      const prior = m.get(copyId)!;
-      logger.warn(
-        `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" and "${info.cardName}" in "${info.deckName}"`
-      );
+    const prior = m.get(copyId);
+    if (prior) {
+      if (isDev) {
+        logger.warn(
+          `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" and "${info.cardName}" in "${info.deckName}"`
+        );
+      }
+      onCollision?.({ copyId, prior, next: info });
     }
     m.set(copyId, info);
   };
@@ -264,7 +276,11 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
   const out = decks.map((deck) => {
     const cmd = claimOne(deck.commanderAllocatedCopyId);
     const partner = claimOne(deck.partnerCommanderAllocatedCopyId);
-    const cards = claimSlots(deck.cards);
+    // `?? []` on both: this now runs on every decks-store write (E133's
+    // centralized subscriber), including sync-rehydrated rows whose shape a
+    // test fixture or a stale/partial persisted blob might not fully match —
+    // must not crash the app over a missing array field.
+    const cards = claimSlots(deck.cards ?? []);
     const sideboard = claimSlots(deck.sideboard ?? []);
     const deckChanged = cmd.changed || partner.changed || cards.changed || sideboard.changed;
     if (!deckChanged) return deck;
