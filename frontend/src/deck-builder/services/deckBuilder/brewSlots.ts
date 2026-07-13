@@ -211,6 +211,16 @@ export function buildBrewSlotPlan(opts: BuildBrewSlotPlanOptions): BrewSlotDef[]
  * full non-land pool. Reuses the generator's own priority formula
  * (`calculateCardPriority` + the owned-card tie-break) — Brew mode doesn't
  * re-score cards, it just narrows the pool to one slot at a time.
+ *
+ * `collectionNames` is caller-defined and never filtered here — this
+ * function only ever boosts, never excludes, so it stays correct whichever
+ * ownership set the caller passes. The brew page passes free-copy names
+ * (`buildAvailableCollection(...).names`, same helper the one-shot
+ * generator's "Available only" strategy uses) rather than all-owned-any
+ * names, so a card whose every copy is already claimed by another deck no
+ * longer out-ranks a genuinely free one — without hard-excluding it from the
+ * hand (brew stays a browse/discovery mode; the per-row ownership badge
+ * elsewhere is the allocation-aware source of truth for display).
  */
 export function pickBrewCandidates(
   pool: readonly EDHRECCard[],

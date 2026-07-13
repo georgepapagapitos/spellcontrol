@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickPrice, buildEditedCards } from './edit-card';
+import { pickPrice, buildEditedCards, isNoOpCardEdit } from './edit-card';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
 import type { PrintingSelection } from '../components/CardEditDialog';
@@ -151,5 +151,61 @@ describe('buildEditedCards', () => {
     expect(next.find((c) => c.copyId === 'a')?.scryfallId).toBe('sc1'); // split off
     expect(next.find((c) => c.copyId === 'a')?.setCode).toBe('C21');
     expect(next.find((c) => c.copyId === 'b')?.scryfallId).toBe('old'); // sibling untouched
+  });
+});
+
+describe('isNoOpCardEdit', () => {
+  it('is true when the selection is identical to the card (same printing/finish/qty, no details)', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
+    const same = selection({ card: sc({ usd: '2.00' }), finish: 'nonfoil', quantity: 3 });
+    expect(isNoOpCardEdit(editing, same, 3)).toBe(true);
+  });
+
+  it('is false when the printing changed', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'old', finish: 'nonfoil' });
+    const changed = selection({ finish: 'nonfoil' }); // sc() id is 'sc1' !== 'old'
+    expect(isNoOpCardEdit(editing, changed, 1)).toBe(false);
+  });
+
+  it('is false when the finish changed', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
+    const changed = selection({ finish: 'foil' });
+    expect(isNoOpCardEdit(editing, changed, 1)).toBe(false);
+  });
+
+  it('is false when quantity changed (whole-stack edit)', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
+    const changed = selection({ finish: 'nonfoil', quantity: 4 });
+    expect(isNoOpCardEdit(editing, changed, 3)).toBe(false);
+  });
+
+  it('ignores quantity in single-copy mode (copyId given)', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
+    const changed = selection({ finish: 'nonfoil', quantity: 5 });
+    expect(isNoOpCardEdit(editing, changed, 3, 'copy-a')).toBe(true);
+  });
+
+  it('is false when details (condition/language/flags) changed', () => {
+    const editing = enriched({ copyId: 'copy-a', scryfallId: 'sc1', finish: 'nonfoil' });
+    expect(
+      isNoOpCardEdit(editing, selection({ finish: 'nonfoil', details: { condition: 'lp' } }), 1)
+    ).toBe(false);
+  });
+
+  it('is true when details are given but match the card exactly', () => {
+    const editing = enriched({
+      copyId: 'copy-a',
+      scryfallId: 'sc1',
+      finish: 'nonfoil',
+      condition: 'nm',
+      language: 'en',
+    });
+    expect(
+      isNoOpCardEdit(
+        editing,
+        selection({ finish: 'nonfoil', details: { condition: 'nm', language: 'en' } }),
+        1
+      )
+    ).toBe(true);
   });
 });

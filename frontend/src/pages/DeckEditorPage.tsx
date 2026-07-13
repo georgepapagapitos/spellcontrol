@@ -63,7 +63,8 @@ import { useEdhrecComboOverlay } from '@/lib/edhrec-combo-overlay';
 import { CardFitPanel } from '../components/deck/CardFitPanel';
 import { SwapThisCard } from '../components/deck/SwapThisCard';
 import { SimilarCardsStrip } from '../components/deck/SimilarCardsStrip';
-import { classifyCandidate } from '../lib/deck-analysis';
+import { classifyCandidate, analyzeDeck } from '../lib/deck-analysis';
+import { useTaggerReady } from '../lib/use-tagger-ready';
 import { loadTaggerData, hasTaggerData } from '@/deck-builder/services/tagger/client';
 import { computeRoleCounts } from '@/deck-builder/services/deckBuilder/commanderDeckAnalysis';
 import { useDeckCombos } from '../lib/use-deck-combos';
@@ -77,6 +78,7 @@ import {
   buildAllocationMap,
   pickCollectionCopy,
   classifyPrintingAvailability,
+  bindableFinishesByPrinting,
   findStealableCopy,
   planCardAdd,
   listContestedCards,
@@ -101,6 +103,7 @@ import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtil
 import { PartnerCommanderSelector } from '../components/deck/PartnerCommanderSelector';
 import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { Finish } from '../types';
 import { computeLandUpgrades } from '@/deck-builder/services/deckBuilder/landUpgrades';
 import { useSearchCards } from '@/lib/use-search-cards';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
@@ -187,7 +190,6 @@ export function DeckEditorPage() {
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
-  const toggleCardTag = useDecksStore((s) => s.toggleCardTag);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
   const pushToast = useToastsStore((s) => s.push);
 
@@ -586,6 +588,17 @@ export function DeckEditorPage() {
       classifyPrintingAvailability(printing.id, collectionCards, printingAllocationMap, deck?.id),
     [collectionCards, printingAllocationMap, deck?.id]
   );
+  // Owned finishes per printing (one pass over the collection) so the picker
+  // can show what you physically have — and constrain the finish choice —
+  // instead of offering every finish Scryfall says exists.
+  const ownedFinishesByPrinting = useMemo(
+    () => bindableFinishesByPrinting(collectionCards, printingAllocationMap, deck?.id),
+    [collectionCards, printingAllocationMap, deck?.id]
+  );
+  const resolveOwnedFinishes = useCallback(
+    (printing: ScryfallCard): Finish[] => ownedFinishesByPrinting.get(printing.id) ?? [],
+    [ownedFinishesByPrinting]
+  );
 
   // Which binder(s) each collection copy lives in — mirrors how the
   // collection table derives `binders` per row (materialize, then map by
@@ -674,6 +687,27 @@ export function DeckEditorPage() {
     bracketOverride: deck?.bracketOverride,
   });
 
+  const taggerReady = useTaggerReady();
+
+  // Curve-derived land-count advice for the hero — the lands RoleHealth from
+  // the same analyzeDeck the Analysis panel renders, so badge and hero agree
+  // on both the number and when it applies (Karsten gate lives in there).
+  const landAdvice = useMemo(() => {
+    if (!deck || !DECK_FORMAT_CONFIGS[deck.format].hasCommander) return undefined;
+    const lands = analyzeDeck(
+      {
+        format: deck.format,
+        commander: deck.commander,
+        partnerCommander: deck.partnerCommander,
+        mainboard: deck.cards,
+      },
+      taggerReady
+    ).roles.find((r) => r.key === 'lands');
+    return lands?.suggested != null
+      ? { count: lands.count, suggested: lands.suggested }
+      : undefined;
+  }, [deck, taggerReady]);
+
   // "Next best move" — the single highest-leverage change, derived from the
   // live PlanScore + role gaps + near-miss combos. Manual decks don't carry
   // roleCounts (set only at generation), so derive them from the tagger.
@@ -696,8 +730,9 @@ export function DeckEditorPage() {
       winConditions: deck.winConditions,
       bracketFitHasMoves: (deck.bracketFit?.moves.length ?? 0) > 0,
       ownedOnly,
+      landAdvice,
     });
-  }, [deck, comboData.data, ownedNames, ownedOnly]);
+  }, [deck, comboData.data, ownedNames, ownedOnly, landAdvice]);
 
   // UX-310: whether the async commander-deck analysis is still in its first
   // run. `gradeBracketSignature` is only set after a successful analysis
@@ -1846,51 +1881,61 @@ export function DeckEditorPage() {
     const newCard = selection.card;
     const slotsForName = deck.cards.filter((c) => c.card.name === editingSlot.card.name);
 
-    // If the chosen printing is owned but every copy is committed elsewhere, don't
-    // silently leave the slot unbound — offer to pull a copy in from its donor
-    // (Move), or trade this slot's current copy back to the donor (Swap), so the
-    // deck actually gets the physical card. Nothing moves without the explicit
-    // choice; the reallocation itself happens in handleMovePrintingConfirm.
-    const availability = resolveAvailability(newCard);
-    if (availability === 'in-other-deck' || availability === 'in-cube') {
-      const donor = findStealableCopy(
-        newCard.name,
-        collectionCards,
-        decks,
-        deck.id,
-        newCard.id,
-        savedCubes
-      );
-      if (donor) {
-        const editSlot = deck.cards.find((c) => c.slotId === editingSlot.slotId);
-        // Swap needs a reciprocal owned copy this slot can hand back — and a
-        // mainboard deck donor whose slot we can rewrite. A copy bound to a
-        // printing other than the slot's own (a suboptimal binding) has no clean
-        // ScryfallCard to send, so require the slot to hold its own printing.
-        const displaced = editSlot?.allocatedCopyId
-          ? collectionCards.find((c) => c.copyId === editSlot.allocatedCopyId)
-          : undefined;
-        const canSwap =
-          donor.donorKind === 'deck' &&
-          donor.donorZone === 'main' &&
-          !!displaced &&
-          displaced.scryfallId === editSlot!.card.id;
-        setMovePrompt({
-          editSlotId: editingSlot.slotId,
-          newCard,
-          chosenSetName: newCard.set_name ?? newCard.set?.toUpperCase() ?? 'this',
-          donor,
-          swap: canSwap
-            ? {
-                returnCopyId: displaced!.copyId,
-                returnCard: editSlot!.card,
-                returnSetName: editSlot!.card.set_name ?? displaced!.setCode,
-              }
-            : null,
-        });
-        setEditingSlot(null);
-        return;
-      }
+    // If the chosen printing — or the chosen FINISH of it (a foil pick while
+    // only the foil is committed) — is owned but every such copy is committed
+    // elsewhere, don't silently bind a lesser copy or leave the slot unbound:
+    // offer to pull the exact copy in from its donor (Move), or trade this
+    // slot's current copy back to the donor (Swap). Nothing moves without the
+    // explicit choice; the reallocation itself happens in
+    // handleMovePrintingConfirm. findStealableCopy scopes its "a free copy
+    // exists" bail-out to these preferences, so it returns null whenever the
+    // normal binding below can satisfy the pick.
+    const donor = findStealableCopy(
+      newCard.name,
+      collectionCards,
+      decks,
+      deck.id,
+      newCard.id,
+      savedCubes,
+      selection.finish
+    );
+    const donorCopy = donor ? collectionCards.find((c) => c.copyId === donor.copyId) : undefined;
+    // Only prompt when the pull delivers the printing the user picked — the
+    // finder's fallback can surface a different-printing copy, but a deck
+    // lists an unowned printing freely (no prompt, slot just goes unbound).
+    if (donor && donorCopy?.scryfallId === newCard.id) {
+      const editSlot = deck.cards.find((c) => c.slotId === editingSlot.slotId);
+      // Swap needs a reciprocal owned copy this slot can hand back — and a
+      // mainboard deck donor whose slot we can rewrite. A copy bound to a
+      // printing other than the slot's own (a suboptimal binding) has no clean
+      // ScryfallCard to send, so require the slot to hold its own printing.
+      const displaced = editSlot?.allocatedCopyId
+        ? collectionCards.find((c) => c.copyId === editSlot.allocatedCopyId)
+        : undefined;
+      const canSwap =
+        donor.donorKind === 'deck' &&
+        donor.donorZone === 'main' &&
+        !!displaced &&
+        displaced.scryfallId === editSlot!.card.id;
+      // Name the finish in the prompt when the pulled copy is a premium one,
+      // so "your foil <set> copy is in <deck>" reads as the reason for the ask.
+      const finishPrefix =
+        donorCopy.finish === 'foil' ? 'foil ' : donorCopy.finish === 'etched' ? 'etched ' : '';
+      setMovePrompt({
+        editSlotId: editingSlot.slotId,
+        newCard,
+        chosenSetName: `${finishPrefix}${newCard.set_name ?? newCard.set?.toUpperCase() ?? 'this'}`,
+        donor,
+        swap: canSwap
+          ? {
+              returnCopyId: displaced!.copyId,
+              returnCard: editSlot!.card,
+              returnSetName: editSlot!.card.set_name ?? displaced!.setCode,
+            }
+          : null,
+      });
+      setEditingSlot(null);
+      return;
     }
 
     // Bind each rebound slot to a free owned copy of the NEW printing so picking
@@ -1904,7 +1949,16 @@ export function DeckEditorPage() {
     }
     const bindings = new Map<string, string | null>();
     for (const slot of slotsForName) {
-      const copy = pickCollectionCopy(newCard.name, collectionCards, allocations, newCard.id);
+      // The chosen finish rides along as a preference: owning both finishes of
+      // the picked printing binds the one the user asked for (foil stays foil)
+      // instead of the ranking's non-foil default.
+      const copy = pickCollectionCopy(
+        newCard.name,
+        collectionCards,
+        allocations,
+        newCard.id,
+        selection.finish
+      );
       // pickCollectionCopy falls back to any free copy of the name; the slot now
       // shows newCard, so only keep a copy that is actually the chosen printing.
       if (copy && copy.scryfallId === newCard.id) {
@@ -1979,7 +2033,6 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
-    tags: c.tags,
   }));
 
   const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
@@ -1987,7 +2040,6 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
-    tags: c.tags,
   }));
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
@@ -2095,28 +2147,34 @@ export function DeckEditorPage() {
               {deck.name}
             </button>
           )}
+          {/* \u00A0 glues each label to its value ("Bracket 2", "100 cards") and
+              each · to the segment before it, so the line only wraps between
+              segments — never leaving an orphaned "2" or a line-leading "·". */}
           <p className="binder-hero-meta">
             {formatConfig && <span className="deck-format-badge">{formatConfig.label}</span>}
             {deck.commander && (
               <>
-                {formatConfig ? ' · ' : ''}
+                {formatConfig ? '\u00A0· ' : ''}
                 {deck.commander.name}
                 {/* Read-only pairing summary; add/change/remove lives in the
                     deck grid's Commander section (see onEditPartner). */}
-                {deck.partnerCommander && ` + ${deck.partnerCommander.name}`}
+                {deck.partnerCommander && ` +\u00A0${deck.partnerCommander.name}`}
               </>
             )}
             {/* Desktop-only totals chip — hidden on tablet/mobile via
                 .deck-hero-totals to keep the meta line short there. */}
             <span className="deck-hero-totals">
-              {' · '}
-              {heroTotals.count} {heroTotals.count === 1 ? 'card' : 'cards'} ·{' '}
+              {'\u00A0· '}
+              {heroTotals.count}
+              {'\u00A0'}
+              {heroTotals.count === 1 ? 'card' : 'cards'}
+              {'\u00A0· '}
               {formatMoney(heroTotals.value)}
-              {heroTotals.sideboard > 0 && ` · +${heroTotals.sideboard} maybe`}
+              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0maybe`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
             {bracketValue != null && (
-              <span className="deck-hero-bracket">{` · Bracket ${bracketValue}`}</span>
+              <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
             )}
           </p>
         </div>
@@ -2272,7 +2330,6 @@ export function DeckEditorPage() {
             onMoveToMainboard={handleMoveToMainboard}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
-            onToggleCardTag={(slotId, tag) => toggleCardTag(deck.id, slotId, tag)}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={
               formatConfig?.hasCommander
@@ -2428,11 +2485,7 @@ export function DeckEditorPage() {
                       format={deck.format}
                       commander={deck.commander}
                       partnerCommander={deck.partnerCommander}
-                      mainboard={deck.cards.map((c) => ({
-                        slotId: c.slotId,
-                        card: c.card,
-                        tags: c.tags,
-                      }))}
+                      mainboard={deck.cards.map((c) => ({ slotId: c.slotId, card: c.card }))}
                       onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                     />
                   }
@@ -2658,8 +2711,14 @@ export function DeckEditorPage() {
         <CardEditDialog
           cardName={editingSlot.card.name}
           currentScryfallId={editingSlot.card.id}
-          currentFinish="nonfoil"
+          // The slot's real finish is whatever physical copy it's bound to —
+          // an unbound slot has no finish, so it reads as non-foil.
+          currentFinish={(() => {
+            const copyId = deck.cards.find((c) => c.slotId === editingSlot.slotId)?.allocatedCopyId;
+            return (copyId && collectionById?.get(copyId)?.finish) || 'nonfoil';
+          })()}
           resolveAvailability={resolveAvailability}
+          resolveOwnedFinishes={resolveOwnedFinishes}
           onConfirm={handleEditConfirm}
           onCancel={() => setEditingSlot(null)}
         />

@@ -256,6 +256,62 @@ export function planBasicColorSplit(input: BasicSplitInput): Record<string, numb
 }
 
 /**
+ * E118 — colors that still NEED mana sources before any nonbasic land is
+ * picked, judged against the SAME per-color coverage bar buildManabaseSummary
+ * (and the editor's color-balance panel) grades the final deck by:
+ * ceil(pips × pacing ratio). "Assured" supply is what this generation run
+ * delivers regardless of which nonbasics win the pick — the deck's own
+ * rocks/dorks (spell sources) plus the planned basics, split by residual
+ * demand exactly as the real basics fill will split them.
+ *
+ * Consumed by landGenerator's merit boost: landPowerScore stays deck-AGNOSTIC
+ * by design (it must rate a brand-new land with zero popularity), so its
+ * fixing credit can't see that a color is already covered — in the E116 ship
+ * gate a tapped 2-color gate out-ranked an untapped colorless utility land
+ * on fixing merit in a deck whose sources for both colors were already over
+ * target (the Grim Backwoods → Golgari Guildgate case, board E118). Passing
+ * this reduced set as the merit call's identity makes fixing credit count
+ * only colors still short of the bar; when every demanded color still needs
+ * sources (the common case) the set equals the full identity and the boost
+ * is byte-identical to before.
+ *
+ * Conservative on purpose: a color is dropped only when assured supply
+ * STRICTLY exceeds its bar, and the bar here skips buildManabaseSummary's
+ * feasibility cap-down (unknowable pre-pick; a higher bar only keeps more
+ * colors credited).
+ */
+export function colorsNeedingSources(
+  nonLandCards: ScryfallCard[],
+  identity: ReadonlySet<string>,
+  plannedBasics: number
+): Set<string> {
+  const pips = rawColorPips(nonLandCards);
+  const spellSources = colorSourceCounts(nonLandCards, identity);
+  const curve: Record<number, number> = {};
+  for (const card of nonLandCards) {
+    const mv = Math.round(card.cmc ?? 0);
+    curve[mv] = (curve[mv] ?? 0) + 1;
+  }
+  const thresholds = shortfallThresholdsForCurve(curve);
+  const eligible = [...identity].filter((c) => (WUBRG as readonly string[]).includes(c));
+  const basicSplit = planBasicColorSplit({
+    nonLandCards,
+    pickedLands: [],
+    identity,
+    colors: eligible,
+    basicsNeeded: plannedBasics,
+  });
+  const need = new Set<string>();
+  for (const c of eligible as ManaColor[]) {
+    if (pips[c] <= 0) continue; // undemanded → no fixing credit to withhold
+    const target = Math.ceil(pips[c] * thresholds.ratio);
+    const assured = spellSources[c] + (basicSplit[c] ?? 0);
+    if (assured <= target) need.add(c);
+  }
+  return need;
+}
+
+/**
  * Every flagged index gets at least 1, redistributed from whichever index
  * currently holds the most — the total never changes, just who holds it.
  * Two uses: (1) every color with real pip demand gets >= 1 basic, even when

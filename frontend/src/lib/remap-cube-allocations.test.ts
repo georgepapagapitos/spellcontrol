@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { remapCubeAllocations } from './remap-cube-allocations';
 import { useCubeStore, type SavedCube, type CubePickSlot } from '../store/cube';
+import { useDecksStore, type Deck } from '../store/decks';
 import { setApplyingServer } from './applying-server';
 import type { EnrichedCard } from '../types';
 
@@ -50,12 +51,36 @@ function currentPicks(): CubePickSlot[] {
   return useCubeStore.getState().saved[0].picks;
 }
 
+function deck(overrides: Partial<Deck> = {}): Deck {
+  return {
+    id: 'd1',
+    name: 'Test Deck',
+    source: 'manual',
+    format: 'commander',
+    commander: null,
+    partnerCommander: null,
+    commanderAllocatedCopyId: null,
+    partnerCommanderAllocatedCopyId: null,
+    cards: [],
+    sideboard: [],
+    generationContext: null,
+    color: '#7a8a70',
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  };
+}
+
 describe('remapCubeAllocations', () => {
   // Suppress the sync subscriber's dynamic import while we mutate the store.
-  beforeEach(() => setApplyingServer(true));
+  beforeEach(() => {
+    setApplyingServer(true);
+    useDecksStore.setState({ decks: [] });
+  });
   afterEach(() => {
     setApplyingServer(false);
     useCubeStore.setState({ saved: [] });
+    useDecksStore.setState({ decks: [] });
   });
 
   it('preserves a still-valid binding', () => {
@@ -103,5 +128,32 @@ describe('remapCubeAllocations', () => {
     const b = saved.find((c) => c.id === 'B')!;
     expect(a.picks[0].allocatedCopyId).toBe('keep');
     expect(b.picks[0].allocatedCopyId).toBeNull();
+  });
+
+  it('does not let a cube claim a copyId a deck already holds (E133 deck↔cube collision)', () => {
+    // A deck currently claims the collection's only Sol Ring — this is what
+    // store/collection.ts's remapCollectionDependents guarantees has already
+    // happened by the time remapCubeAllocations runs (decks remap first).
+    useDecksStore.setState({
+      decks: [
+        deck({
+          id: 'd1',
+          name: 'Deck',
+          cards: [
+            {
+              slotId: 's1',
+              card: { name: 'Sol Ring', id: 'sf-1' } as never,
+              allocatedCopyId: 'shared',
+            },
+          ],
+        }),
+      ],
+    });
+    // The cube's stored binding is stale (points at a copyId that no longer
+    // exists) — without the deck-claim seed, phase B would happily hand it
+    // the deck's copy since nothing else claims it from the cube's own view.
+    setCubes([savedCube([slot('Sol Ring', 'gone', 'sf-1:nonfoil')])]);
+    remapCubeAllocations([card({ copyId: 'shared', scryfallId: 'sf-1' })]);
+    expect(currentPicks()[0].allocatedCopyId).toBeNull(); // cube could not steal the deck's copy
   });
 });

@@ -6,8 +6,16 @@ import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
-import { normalizeForSearch } from '../../lib/normalize-search';
 import { classifyInclusion } from '../../lib/inclusion-label';
+import { buildCollectionSearch, compareResults, type AddSort } from '../../lib/deck-add-search';
+import {
+  ensureCardTags,
+  getCardTags,
+  useCardTagsError,
+  useCardTagsReady,
+} from '../../lib/card-tags';
+import { imageFromCard, useCardThumb } from '../../lib/card-thumbs';
+import { InfoTip } from '../InfoTip';
 import { useToastsStore } from '../../store/toasts';
 import { useSetMap } from '../../lib/api';
 import { fetchTypeSuggestions } from '../../lib/scryfall-catalog';
@@ -101,6 +109,60 @@ const COLOR_FILTERS: Array<{ key: string; label: string }> = [
 ];
 const RARITIES = ['mythic', 'rare', 'uncommon', 'common'] as const;
 
+// One explainer for the query language every tab's search box understands.
+const SYNTAX_TIP = (
+  <>
+    <p className="info-tip-lead">Search by name, rules text, or Scryfall-style filters:</p>
+    <ul className="info-tip-list">
+      <li>
+        <code>o:draw</code> rules text · <code>t:instant</code> type
+      </li>
+      <li>
+        <code>otag:removal</code> oracle tag · <code>r:rare</code> rarity
+      </li>
+      <li>
+        <code>cmc&lt;=2</code> mana value · <code>c:UG</code> colors
+      </li>
+      <li>
+        <code>-t:land</code> excludes · <code>OR</code> combines
+      </li>
+    </ul>
+  </>
+);
+
+/** Portrait mini-card thumbnail for a result row — the full card image, not an
+ *  art crop, so the card is recognizable at a glance. Uses the row's own image
+ *  URL when in hand, else resolves via the batched CDN thumb hook. Decorative. */
+function RowThumb({ name, image }: { name: string; image?: string }) {
+  const fetched = useCardThumb(image ? undefined : name, 'normal');
+  const url = image ?? fetched;
+  return (
+    <span className="card-search-thumb" aria-hidden>
+      {url && <img src={url} alt="" loading="lazy" />}
+    </span>
+  );
+}
+
+/** Per-row EDHREC/combo signal — shown on every tab when known for this
+ *  commander (gap analysis), never blocking when unknown. */
+function FitSignal({ gap, produces }: { gap?: GapAnalysisCard; produces?: string }) {
+  const info = gap ? classifyInclusion(gap.inclusion) : null;
+  return (
+    <>
+      {info?.kind === 'pct' && <> · {info.pct}% EDHREC</>}
+      {gap?.roleLabel && <> · {gap.roleLabel}</>}
+      {produces !== undefined && (
+        <>
+          {' · '}
+          <span className="card-search-combo">
+            {produces ? `Completes: ${produces}` : 'Completes a combo'}
+          </span>
+        </>
+      )}
+    </>
+  );
+}
+
 export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function CardSearchPanel(
   {
     deckId,
@@ -117,8 +179,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   },
   ref
 ) {
-  const [mode, setMode] = useState<Mode>('collection');
+  // Open smart: commander decks land on Suggestions ("here's what fits") so
+  // the panel never opens blank; typing or switching tabs takes over from there.
+  const [mode, setMode] = useState<Mode>(() => (enableSuggestions ? 'suggestions' : 'collection'));
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<AddSort>('default');
   const [announce, setAnnounce] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(0);
@@ -198,6 +263,25 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const compiledLayout = useMemo(() => compileExpression(layoutExpr), [layoutExpr]);
   const compiledTreatment = useMemo(() => compileExpression(treatmentExpr), [treatmentExpr]);
   const compiledBorder = useMemo(() => compileExpression(borderExpr), [borderExpr]);
+  // EDHREC gap analysis + one-away combos, indexed by lowercased name so every
+  // tab can badge results with deck-fit intelligence (not just Suggestions).
+  const gapByName = useMemo(() => {
+    const m = new Map<string, GapAnalysisCard>();
+    for (const g of suggestions ?? []) m.set(g.name.toLowerCase(), g);
+    return m;
+  }, [suggestions]);
+  const comboProducesByName = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const match of oneAwayCombos ?? []) {
+      if (match.missingOracleIds.length !== 1) continue;
+      const card = match.combo.cards.find((c) => c.oracleId === match.missingOracleIds[0]);
+      if (!card) continue;
+      const key = card.cardName.toLowerCase();
+      if (!m.has(key)) m.set(key, match.combo.produces.join(' + '));
+    }
+    return m;
+  }, [oneAwayCombos]);
+
   // The two result lists publish their currently-visible cards here so the
   // panel-level "Enter to add the first result" handler is independent of
   // which tab is active.
@@ -218,11 +302,12 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     inputRef.current?.focus();
   }, []);
 
-  // Resetting the active row when query/tab changes keeps "Enter adds the
-  // top result" predictable.
-  const [prevQueryMode, setPrevQueryMode] = useState({ query, mode });
-  if (prevQueryMode.query !== query || prevQueryMode.mode !== mode) {
-    setPrevQueryMode({ query, mode });
+  // Resetting the active row when query/tab/sort changes keeps "Enter adds
+  // the top result" predictable — a re-sort re-labels every index, so a stale
+  // activeIndex would point Enter at a different card than the one highlighted.
+  const [prevQueryMode, setPrevQueryMode] = useState({ query, mode, sort });
+  if (prevQueryMode.query !== query || prevQueryMode.mode !== mode || prevQueryMode.sort !== sort) {
+    setPrevQueryMode({ query, mode, sort });
     setActiveIndex(0);
   }
 
@@ -348,9 +433,24 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
           ) : undefined
         }
       />
-      <p className="card-search-hint" aria-hidden>
-        ↑ ↓ to navigate · Enter to add · Esc to close
-      </p>
+      <div className="card-search-toolbar">
+        <p className="card-search-hint" aria-hidden>
+          ↑ ↓ to navigate · Enter to add · Esc to close
+        </p>
+        <InfoTip label="search syntax" text={SYNTAX_TIP} wide />
+        {activeMode !== 'suggestions' && (
+          <label className="card-search-sort">
+            Sort
+            <select value={sort} onChange={(e) => setSort(e.target.value as AddSort)}>
+              <option value="default">Best match</option>
+              <option value="name">Name</option>
+              <option value="edhrec">EDHREC</option>
+              <option value="cmc">Mana value</option>
+              <option value="price">Price</option>
+            </select>
+          </label>
+        )}
+      </div>
 
       <div
         className="card-search-tabpanel"
@@ -385,6 +485,11 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             compiledBorder={compiledBorder}
             colorFilter={colorFilter}
             setFilter={setFilter}
+            gapByName={gapByName}
+            comboProducesByName={comboProducesByName}
+            sort={sort}
+            enforceCommander={!!enableSuggestions}
+            onSearchScryfall={() => setMode('scryfall')}
           />
         ) : activeMode === 'suggestions' ? (
           <SuggestionsResults
@@ -406,6 +511,8 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             oneAwayCombos={oneAwayCombos}
             ownershipFor={ownershipFor ?? ALL_UNOWNED}
             pending={suggestionsPending}
+            onSearchCollection={() => setMode('collection')}
+            onSearchScryfall={() => setMode('scryfall')}
           />
         ) : (
           <ScryfallResults
@@ -423,6 +530,10 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
               addCurrentRef.current = addAt;
               setVisibleCount(cards.length);
             }}
+            gapByName={gapByName}
+            comboProducesByName={comboProducesByName}
+            sort={sort}
+            ownershipFor={ownershipFor}
           />
         )}
       </div>
@@ -447,7 +558,20 @@ interface ResultsProps {
   publishVisible: (cards: ScryfallCard[], addAt: (index: number) => Promise<void> | void) => void;
 }
 
-interface CollectionResultsProps extends ResultsProps {
+/** Deck-fit intelligence shared by the Collection and Scryfall tabs. */
+interface FitProps {
+  gapByName: Map<string, GapAnalysisCard>;
+  comboProducesByName: Map<string, string>;
+  sort: AddSort;
+}
+
+interface CollectionResultsProps extends ResultsProps, FitProps {
+  /** Commander deck: enforce color identity + commander legality. A deck with
+   *  no commander concept (60-card formats) skips both gates — an empty
+   *  `colorIdentity` there means "unrestricted", not "colorless commander". */
+  enforceCommander: boolean;
+  /** Jump to the Scryfall tab keeping the query (zero-result escape hatch). */
+  onSearchScryfall: () => void;
   // Optional pre-compiled chip expressions + the color/set sets.
   // CollectionResults applies them to the substring/CI-filtered list.
   // Absent for the Scryfall tab — only the Collection tab routes them in.
@@ -487,6 +611,11 @@ function CollectionResults({
   compiledBorder,
   colorFilter,
   setFilter,
+  gapByName,
+  comboProducesByName,
+  sort,
+  enforceCommander,
+  onSearchScryfall,
 }: CollectionResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const pushToast = useToastsStore((s) => s.push);
@@ -494,16 +623,29 @@ function CollectionResults({
   const savedCubes = useCubeStore((s) => s.saved);
   const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
 
+  // `otag:` needs the tagger snapshot — load it only when the query asks, and
+  // surface loading/failed states instead of silently matching everything.
+  const wantsTags = /\b(otag|oracletag|function)[:=]/i.test(query);
+  const tagsReady = useCardTagsReady(wantsTags);
+  const tagsError = useCardTagsError();
+
+  const search = useMemo(
+    () => buildCollectionSearch(query, tagsReady ? getCardTags : undefined),
+    [query, tagsReady]
+  );
+
   const filtered = useMemo(() => {
-    const nq = normalizeForSearch(query);
     const seenNames = new Set<string>();
-    const out: EnrichedCard[] = [];
+    const out: Array<{ card: EnrichedCard; nameHit: boolean }> = [];
     for (const c of collection) {
       const ci = c.colorIdentity ?? [];
-      if (!ci.every((k) => colorIdentity.includes(k))) continue;
-      const legality = c.legalities?.commander;
-      if (legality && legality !== 'legal' && legality !== 'restricted') continue;
-      if (nq && !normalizeForSearch(c.name).includes(nq)) continue;
+      if (enforceCommander) {
+        if (!ci.every((k) => colorIdentity.includes(k))) continue;
+        const legality = c.legalities?.commander;
+        if (legality && legality !== 'legal' && legality !== 'restricted') continue;
+      }
+      const m = search.match(c);
+      if (!m.hit) continue;
 
       // User-authored chip-expression filters from the filter dialog.
       // Color filter additionally narrows the commander-CI-constrained
@@ -538,14 +680,28 @@ function CollectionResults({
 
       if (seenNames.has(c.name)) continue;
       seenNames.add(c.name);
-      out.push(c);
+      out.push({ card: c, nameHit: m.nameHit });
     }
-    out.sort((a, b) => a.name.localeCompare(b.name));
-    return out.slice(0, 200);
+    const keyed = out.map(({ card, nameHit }) => ({
+      card,
+      key: {
+        name: card.name,
+        nameHit,
+        cmc: card.cmc,
+        price: card.purchasePrice > 0 ? card.purchasePrice : undefined,
+        inclusion: gapByName.get(card.name.toLowerCase())?.inclusion,
+        edhrecRank: card.edhrecRank,
+      },
+    }));
+    keyed.sort((a, b) => compareResults(a.key, b.key, sort));
+    return keyed.map((k) => k.card).slice(0, 200);
   }, [
     collection,
     colorIdentity,
-    query,
+    enforceCommander,
+    search,
+    sort,
+    gapByName,
     compiledSupertype,
     compiledTypes,
     compiledSubtype,
@@ -601,62 +757,99 @@ function CollectionResults({
       </p>
     );
   }
+
+  // otag: status — non-blocking notes above the results.
+  const tagNote =
+    wantsTags && tagsError ? (
+      <p className="card-search-tag-note" role="status">
+        Card-tag data unavailable — otag: filters are ignored.{' '}
+        <button type="button" className="card-search-fit" onClick={() => void ensureCardTags()}>
+          Retry
+        </button>
+      </p>
+    ) : wantsTags && !tagsReady ? (
+      <p className="card-search-tag-note" role="status">
+        Loading card tags…
+      </p>
+    ) : null;
+
   if (filtered.length === 0) {
-    return <p className="card-search-empty">No matches in your collection.</p>;
+    return (
+      <>
+        {tagNote}
+        <div className="card-search-empty-wrap">
+          <p className="card-search-empty">No matches in your collection.</p>
+          {query.trim().length >= 2 && (
+            <button type="button" className="btn btn-sm" onClick={onSearchScryfall}>
+              Search all of Scryfall instead
+            </button>
+          )}
+        </div>
+      </>
+    );
   }
 
   return (
-    <ul className="card-search-results" id="card-search-results" role="listbox">
-      {filtered.map((c, i) => {
-        const ownedCount = collection.filter((x) => x.name === c.name).length;
-        const inDeck = existingCardCounts.get(c.name) ?? 0;
-        const active = i === activeIndex;
-        return (
-          <li
-            key={c.scryfallId}
-            id={`card-search-result-${i}`}
-            role="option"
-            aria-selected={active}
-            className={`card-search-row${active ? ' active' : ''}`}
-            onMouseEnter={() => onActiveChange(i)}
-          >
-            <button
-              type="button"
-              className="card-search-add"
-              aria-label={inDeck > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
-              onClick={() => addAtIndex(i)}
+    <>
+      {tagNote}
+      <ul className="card-search-results" id="card-search-results" role="listbox">
+        {filtered.map((c, i) => {
+          const ownedCount = collection.filter((x) => x.name === c.name).length;
+          const inDeck = existingCardCounts.get(c.name) ?? 0;
+          const active = i === activeIndex;
+          const nameKey = c.name.toLowerCase();
+          return (
+            <li
+              key={c.scryfallId}
+              id={`card-search-result-${i}`}
+              role="option"
+              aria-selected={active}
+              className={`card-search-row has-thumb${active ? ' active' : ''}`}
+              onMouseEnter={() => onActiveChange(i)}
             >
-              +
-            </button>
-            <span className="card-search-name">{c.name}</span>
-            {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
-            <span className="card-search-meta">
-              owned {ownedCount}
-              {inDeck > 0 && (
-                <>
-                  {' · '}
-                  <span className="card-search-indeck">in deck × {inDeck}</span>
-                </>
-              )}
-              {onPreviewFit && (
-                <>
-                  {' · '}
-                  <button
-                    type="button"
-                    className="card-search-fit"
-                    aria-label={`Preview how ${c.name} fits`}
-                    title="Preview fit before adding"
-                    onClick={() => void previewFitAt(i)}
-                  >
-                    Fit?
-                  </button>
-                </>
-              )}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+              <button
+                type="button"
+                className="card-search-add"
+                aria-label={inDeck > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
+                onClick={() => addAtIndex(i)}
+              >
+                +
+              </button>
+              <RowThumb name={c.name} image={c.imageNormal} />
+              <span className="card-search-name">{c.name}</span>
+              {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
+              <span className="card-search-meta">
+                owned {ownedCount}
+                {inDeck > 0 && (
+                  <>
+                    {' · '}
+                    <span className="card-search-indeck">in deck × {inDeck}</span>
+                  </>
+                )}
+                <FitSignal
+                  gap={gapByName.get(nameKey)}
+                  produces={comboProducesByName.get(nameKey)}
+                />
+                {onPreviewFit && (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      className="card-search-fit"
+                      aria-label={`Preview how ${c.name} fits`}
+                      title="Preview fit before adding"
+                      onClick={() => void previewFitAt(i)}
+                    >
+                      Fit?
+                    </button>
+                  </>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
@@ -668,6 +861,9 @@ interface SuggestionsResultsProps extends ResultsProps {
   ownershipFor: (name: string) => ChangeOwnership;
   /** Commander-deck analysis still on its first run. */
   pending?: boolean;
+  /** Jump to another tab keeping the query (zero-result escape hatches). */
+  onSearchCollection: () => void;
+  onSearchScryfall: () => void;
 }
 
 // Availability badge copy/tone per ownership state. "owned" = a free copy you
@@ -697,6 +893,8 @@ function SuggestionsResults({
   oneAwayCombos,
   ownershipFor,
   pending,
+  onSearchCollection,
+  onSearchScryfall,
 }: SuggestionsResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const pushToast = useToastsStore((s) => s.push);
@@ -768,11 +966,23 @@ function SuggestionsResults({
   const total = counts.owned + counts.inOtherDeck + counts.inCube + counts.unowned;
   if (total === 0) {
     return (
-      <p className="card-search-empty">
-        {query
-          ? 'No suggestions match your filter.'
-          : 'No suggestions right now — your deck already runs the staples for this commander.'}
-      </p>
+      <div className="card-search-empty-wrap">
+        <p className="card-search-empty">
+          {query
+            ? 'No suggestions match your filter.'
+            : 'No suggestions right now — your deck already runs the staples for this commander.'}
+        </p>
+        {query.trim().length >= 2 && (
+          <div className="card-search-empty-actions">
+            <button type="button" className="btn btn-sm" onClick={onSearchCollection}>
+              Search your collection
+            </button>
+            <button type="button" className="btn btn-sm" onClick={onSearchScryfall}>
+              Search all of Scryfall
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -795,7 +1005,7 @@ function SuggestionsResults({
         id={`card-search-result-${i}`}
         role="option"
         aria-selected={active}
-        className={`card-search-row${active ? ' active' : ''}`}
+        className={`card-search-row has-thumb${active ? ' active' : ''}`}
         onMouseEnter={() => onActiveChange(i)}
       >
         <button
@@ -806,6 +1016,7 @@ function SuggestionsResults({
         >
           +
         </button>
+        <RowThumb name={row.name} image={row.imageUrl} />
         <span className="card-search-name">{row.name}</span>
         <span className="card-search-meta">
           <span className={badge.className}>{badgeLabel}</span>
@@ -888,6 +1099,11 @@ function SuggestionsResults({
 }
 
 // ── Scryfall results ─────────────────────────────────────────────────────
+interface ScryfallResultsProps extends ResultsProps, FitProps {
+  /** Live tri-state ownership lookup (the deck page's `ownershipFor`). */
+  ownershipFor?: (name: string) => ChangeOwnership;
+}
+
 function ScryfallResults({
   deckId: _deckId,
   colorIdentity,
@@ -899,7 +1115,11 @@ function ScryfallResults({
   onPreviewFit,
   onAnnounce,
   publishVisible,
-}: ResultsProps) {
+  gapByName,
+  comboProducesByName,
+  sort,
+  ownershipFor,
+}: ScryfallResultsProps) {
   const collection = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const savedCubes = useCubeStore((s) => s.saved);
@@ -912,6 +1132,15 @@ function ScryfallResults({
 
   const allocations = useMemo(() => buildAllocationMap(decks, savedCubes), [decks, savedCubes]);
   const ownedNames = useMemo(() => new Set(collection.map((c) => c.name)), [collection]);
+
+  // Tri-state ownership with a plain owned/unowned fallback when the page
+  // didn't supply a lookup.
+  const ownershipOf = (name: string): keyof typeof OWNERSHIP_BADGE => {
+    const o = ownershipFor?.(name);
+    if (o === 'owned' || o === 'in-other-deck' || o === 'in-cube') return o;
+    if (o === 'unowned') return 'unowned';
+    return ownedNames.has(name) ? 'owned' : 'unowned';
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -953,8 +1182,26 @@ function ScryfallResults({
     };
   }, [query, colorIdentity]);
 
+  // Client-side re-sort of the fetched page; 'default' keeps the server's
+  // relevance order.
+  const display = useMemo(() => {
+    if (sort === 'default') return results;
+    const keyed = results.map((c) => ({
+      c,
+      key: {
+        name: c.name,
+        cmc: c.cmc,
+        price: c.prices?.usd ? parseFloat(c.prices.usd) : undefined,
+        inclusion: gapByName.get(c.name.toLowerCase())?.inclusion,
+        edhrecRank: c.edhrec_rank,
+      },
+    }));
+    keyed.sort((a, b) => compareResults(a.key, b.key, sort));
+    return keyed.map((k) => k.c);
+  }, [results, sort, gapByName]);
+
   const addAtIndex = (index: number) => {
-    const c = results[index];
+    const c = display[index];
     if (!c) return;
     const owned = ownedNames.has(c.name);
     const claim = owned ? pickCollectionCopy(c.name, collection, allocations, c.id) : null;
@@ -969,9 +1216,9 @@ function ScryfallResults({
   };
 
   useEffect(() => {
-    publishVisible(results, addAtIndex);
+    publishVisible(display, addAtIndex);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results]);
+  }, [display]);
 
   if (query.trim().length < 2) {
     return <p className="card-search-empty">Type at least two characters to search Scryfall.</p>;
@@ -982,24 +1229,25 @@ function ScryfallResults({
   if (error) {
     return <p className="card-search-empty card-search-error">{error}</p>;
   }
-  if (results.length === 0) {
+  if (display.length === 0) {
     return <p className="card-search-empty">No matches.</p>;
   }
 
   return (
     <ul className="card-search-results" id="card-search-results" role="listbox">
-      {results.map((c, i) => {
+      {display.map((c, i) => {
         const inDeck = existingCardCounts.get(c.name) ?? 0;
-        const owned = ownedNames.has(c.name);
         const active = i === activeIndex;
         const offColor = isOffColor(c.color_identity, colorIdentity);
+        const badge = OWNERSHIP_BADGE[ownershipOf(c.name)];
+        const nameKey = c.name.toLowerCase();
         return (
           <li
             key={c.id}
             id={`card-search-result-${i}`}
             role="option"
             aria-selected={active}
-            className={`card-search-row${active ? ' active' : ''}${offColor ? ' is-off-color' : ''}`}
+            className={`card-search-row has-thumb${active ? ' active' : ''}${offColor ? ' is-off-color' : ''}`}
             onMouseEnter={() => onActiveChange(i)}
           >
             <button
@@ -1016,6 +1264,7 @@ function ScryfallResults({
             >
               +
             </button>
+            <RowThumb name={c.name} image={imageFromCard(c, 'normal')} />
             <span className="card-search-name">{c.name}</span>
             {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
             <span className="card-search-meta">
@@ -1027,13 +1276,14 @@ function ScryfallResults({
                   Off-color
                 </span>
               )}
-              {owned ? 'owned' : 'not owned'}
+              <span className={badge.className}>{badge.label}</span>
               {inDeck > 0 && (
                 <>
                   {' · '}
                   <span className="card-search-indeck">in deck × {inDeck}</span>
                 </>
               )}
+              <FitSignal gap={gapByName.get(nameKey)} produces={comboProducesByName.get(nameKey)} />
               {onPreviewFit && (
                 <>
                   {' · '}

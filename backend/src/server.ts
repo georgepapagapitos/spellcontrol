@@ -319,6 +319,9 @@ app.get('/api/products/:fileName', productLimiter, async (req: Request, res: Res
       cards: sections.cards,
       unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
       fetchErrors: dedupePreservingOrder(sections.fetchErrorNames),
+      // MTGJSON decklists have no raw-text parse step, so there's no concept
+      // of a malformed line here.
+      malformedRows: [],
       // Precons carry a commander zone → default the import dialog to Commander.
       detectedFormat: commanderRows.length > 0 ? 'commander' : '',
       cardCount:
@@ -440,6 +443,12 @@ app.post(
     try {
       let rows: ImportRow[];
       let detectedFormat: string;
+      // Rows a parser couldn't turn into an ImportRow at all (bad column count,
+      // no name, etc) and rows dropped for being an explicit qty-0 wishlist
+      // entry. Empty for the JSON-rows retry path — those rows already parsed
+      // successfully the first time around.
+      let malformedRows: string[] = [];
+      let skippedUnownedRows = 0;
       const bodyRows = readImportRows(req);
       if (bodyRows) {
         rows = bodyRows;
@@ -454,6 +463,8 @@ app.post(
         const parseResult = parseImport(text);
         rows = parseResult.rows;
         detectedFormat = parseResult.format;
+        malformedRows = parseResult.unparsedLines;
+        skippedUnownedRows = parseResult.skippedUnownedRows;
       }
       if (rows.length === 0) {
         return res.status(400).json({
@@ -478,6 +489,7 @@ app.post(
       let hits = 0;
       let misses = 0;
       let total = 0;
+      let clampedRows = 0;
       const cards: EnrichedCard[] = [];
       rows.forEach((row, i) => {
         const sCard = resolved[i];
@@ -485,7 +497,9 @@ app.post(
           fetchErrorRows.push(row);
           return;
         }
-        const qty = Math.min(MAX_QTY_PER_ROW, Math.max(1, row.quantity || 1));
+        const rawQty = Math.max(1, row.quantity || 1);
+        if (rawQty > MAX_QTY_PER_ROW) clampedRows++;
+        const qty = Math.min(MAX_QTY_PER_ROW, rawQty);
         for (let q = 0; q < qty; q++) {
           if (total >= MAX_TOTAL_CARDS) {
             throw new ImportTooLargeError(
@@ -507,6 +521,9 @@ app.post(
         scryfallMisses: misses,
         unresolvedNames: dedupePreservingOrder(unresolvedNames),
         fetchErrors: fetchErrorRows,
+        malformedRows,
+        skippedUnownedRows,
+        clampedRows,
         detectedFormat,
       };
 
@@ -573,6 +590,7 @@ app.post(
         cards: sections.cards,
         unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
         fetchErrors: dedupePreservingOrder(sections.fetchErrorNames),
+        malformedRows: parseResult.unparsedLines,
         detectedFormat: parseResult.format,
         cardCount:
           sections.cards.length + (sections.commander ? 1 : 0) + (sections.companion ? 1 : 0),

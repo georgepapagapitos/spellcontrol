@@ -28,7 +28,12 @@ import { BudgetTracker } from './budgetTracker';
 import { pickFromPrefetched } from './cardPicking';
 import { fillWithScryfall, type FillHardGates } from './scryfallFill';
 import { constrainsToCollection, notInCollection } from './deckFilters';
-import { planBasicColorSplit, weightedColorDemand, WUBRG } from './manabaseMath';
+import {
+  planBasicColorSplit,
+  weightedColorDemand,
+  colorsNeedingSources,
+  WUBRG,
+} from './manabaseMath';
 import { producedManaColors } from '@/lib/mana-sources';
 import { landPowerScore } from './landPower';
 
@@ -286,9 +291,19 @@ export async function generateLands(
     // manabase with MDFCs at the cost of high-inclusion untapped duals (observed
     // in the E116 A/B on Sythis). Merit's unique job is the lands those boosts
     // DON'T cover — plain fixers, especially new ones.
+    //
+    // E118 (deck-context fixing need): the merit call's identity is reduced to
+    // the colors still short of the coverage bar once spell sources + planned
+    // basics are counted (see colorsNeedingSources). Fixing credit for an
+    // already-over-target color is surplus — it let a tapped 2-color gate
+    // out-rank an untapped utility land in the E116 gate (Grim Backwoods
+    // case). When every demanded color still needs sources, meritIdentity
+    // equals the full identity and this is byte-identical to before.
+    // landPowerScore itself stays deck-agnostic; only this call site narrows.
+    const meritIdentity = colorsNeedingSources(nonLandCards, identitySet, basicCount);
     for (const [name, card] of landCardMap) {
       if (isChannelLand(card) || isMdfcLand(card)) continue;
-      const merit = landPowerScore(card, identitySet);
+      const merit = landPowerScore(card, meritIdentity);
       if (merit > 0) {
         const boost = Math.round((LAND_POWER_BOOST_MAX * merit) / 100);
         landPenalties.set(name, (landPenalties.get(name) ?? 0) + boost);

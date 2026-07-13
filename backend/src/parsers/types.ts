@@ -64,4 +64,10 @@ export interface ParseResult {
   format: ImportFormat;
   /** Lines/rows that couldn't be parsed at all (malformed). Resolution failures handled later. */
   unparsedLines: string[];
+  /**
+   * Rows with an explicit quantity of 0 (a Deckbox/Moxfield wishlist or
+   * tradelist-only entry) that were intentionally excluded rather than
+   * imported as 1 copy. Not malformed — just unowned.
+   */
+  skippedUnownedRows: number;
 }

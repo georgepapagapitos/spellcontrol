@@ -159,6 +159,12 @@ export interface UploadResponse {
   unresolvedNames: string[];
   /** Rows withheld because the card service was unreachable — retryable, NOT imported. */
   fetchErrors: FetchErrorRow[];
+  /** Raw lines the parser couldn't turn into a row at all — never resolved, never counted. */
+  malformedRows: string[];
+  /** Rows with an explicit quantity of 0 (wishlist/tradelist-only entries) skipped rather than imported as 1 copy. */
+  skippedUnownedRows: number;
+  /** Rows whose quantity exceeded the per-row cap and was clamped down to it. */
+  clampedRows: number;
   detectedFormat: string;
 }
 

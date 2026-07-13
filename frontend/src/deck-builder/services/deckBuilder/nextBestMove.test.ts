@@ -415,4 +415,37 @@ describe('buildNextBestMoves', () => {
     expect(moves[0].id).toBe('no-win-condition');
     expect(moves[0].tier).toBe(1);
   });
+
+  describe('land-count move (curve-derived advice)', () => {
+    it('suggests adding lands when 2+ under the Karsten suggestion', () => {
+      const moves = buildNextBestMoves(base({ landAdvice: { count: 33, suggested: 37 } }));
+      expect(moves).toHaveLength(1);
+      expect(moves[0].id).toBe('land-count');
+      expect(moves[0].tier).toBe(2);
+      expect(moves[0].title).toBe('Add 4 lands');
+      expect(moves[0].detail).toContain('~37');
+      expect(moves[0].navigateTo).toBe('stats');
+    });
+
+    it('suggests trimming lands when 2+ over the suggestion', () => {
+      const moves = buildNextBestMoves(base({ landAdvice: { count: 40, suggested: 37 } }));
+      expect(moves).toHaveLength(1);
+      expect(moves[0].title).toBe('Trim 3 lands');
+      expect(moves[0].detail).toContain('flood');
+    });
+
+    it('stays quiet within ±1 of the suggestion and when advice is absent', () => {
+      expect(buildNextBestMoves(base({ landAdvice: { count: 36, suggested: 37 } }))).toEqual([]);
+      expect(buildNextBestMoves(base({ landAdvice: { count: 38, suggested: 37 } }))).toEqual([]);
+      expect(buildNextBestMoves(base())).toEqual([]);
+    });
+
+    it('sorts after tier-1 structural moves', () => {
+      const moves = buildNextBestMoves(
+        base({ cardCount: 101, deckTarget: 99, landAdvice: { count: 40, suggested: 37 } })
+      );
+      expect(moves[0].id).toBe('size-over');
+      expect(moves[1].id).toBe('land-count');
+    });
+  });
 });

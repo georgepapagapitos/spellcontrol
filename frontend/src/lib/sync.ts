@@ -15,7 +15,9 @@ import * as estore from './entity-store';
 import type { EntityKind } from './entity-store';
 import { applyPrices, setPrices, priceKey } from './card-prices';
 import { fetchOracleIds } from './api/combos';
+import { remapCubeAllocations } from './remap-cube-allocations';
 import { toast } from '../store/toasts';
+import type { EnrichedCard } from '../types';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
@@ -1240,6 +1242,25 @@ async function rehydrateStoresFromIdb(): Promise<void> {
     >[0]);
   } finally {
     setApplyingServer(false);
+  }
+
+  // Release allocatedCopyId pointers orphaned by the collection/decks state
+  // just applied above (E133) — without this, a stale pointer sits until the
+  // next LOCAL collection mutation happens to trigger the same remap via
+  // store/collection.ts's remapCollectionDependents. Runs after the
+  // applyingServer guard has cleared (not inside the try/finally above) so
+  // any release this performs is a genuine local correction that gets pushed
+  // like any other decks-store write — same reasoning as the cross-deck
+  // double-claim self-heal in store/decks.ts's subscriber. Mirrors
+  // remapDeckAllocations's own decks-then-cubes ordering (store/collection.ts)
+  // so a cube can't claim a copy a deck just reclaimed.
+  if (deckData.length > 0) {
+    // Same structural cast as the setState calls above: cardData's static
+    // type is narrowed by applyPrices's generic to the price-relevant fields
+    // only, but the underlying objects are full EnrichedCard rows.
+    const cardsForRemap = cardData as unknown as EnrichedCard[];
+    useDecksStore.getState().remapAllocations(cardsForRemap);
+    remapCubeAllocations(cardsForRemap);
   }
 }
 

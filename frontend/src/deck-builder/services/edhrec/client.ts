@@ -159,7 +159,9 @@ interface RawEDHRECResponse {
   container?: {
     json_dict?: {
       cardlists?: RawCardList[];
-      card?: { name: string };
+      // 2026-07 schema drift: the commander's own deck count moved here
+      // (top-level num_decks_avg no longer ships).
+      card?: { name: string; num_decks?: number };
     };
   };
 }
@@ -283,8 +285,10 @@ async function backfillColorIdentities(
  * @param tagHint - Optional tag from the cardlist to help determine primary_type
  */
 function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
-  // Calculate inclusion as percentage (EDHREC returns deck count)
-  const inclusionCount = raw.inclusion || 0;
+  // Calculate inclusion as percentage (EDHREC returns deck count).
+  // 2026-07 schema drift: cardviews stopped shipping `inclusion`; `num_decks`
+  // is the same deck count under the new name — accept either.
+  const inclusionCount = raw.inclusion ?? raw.num_decks ?? 0;
   const potentialDecks = raw.potential_decks || 1;
   const inclusionPercent = potentialDecks > 0 ? (inclusionCount / potentialDecks) * 100 : 0;
 
@@ -358,7 +362,11 @@ function parseManaCurve(rawCurve?: Record<string, number>): Record<number, numbe
 function parseEdhrecStats(response: RawEDHRECResponse): EDHRECCommanderStats {
   return {
     avgPrice: response.avg_price || 0,
-    numDecks: response.num_decks_avg || 0,
+    // 2026-07 schema drift: num_decks_avg stopped shipping; the commander's
+    // deck count now lives at container.json_dict.card.num_decks. A zero here
+    // makes EVERY generation silently fall back to no-EDHREC targets (the
+    // "numDecks=0 or missing" fallback), so accept both locations.
+    numDecks: response.num_decks_avg || response.container?.json_dict?.card?.num_decks || 0,
     deckSize: response.deck_size || 81, // Default to 81 if missing
     manaCurve: parseManaCurve(response.panels?.mana_curve),
     typeDistribution: {
@@ -395,7 +403,10 @@ function getPartnerSlugs(commander1: string, commander2: string): [string, strin
  * Parse a raw EDHREC response into structured commander data.
  * Shared by both single-commander and partner-commander fetches.
  */
-function parseEdhrecResponse(response: RawEDHRECResponse, cacheKey: string): EDHRECCommanderData {
+export function parseEdhrecResponse(
+  response: RawEDHRECResponse,
+  cacheKey: string
+): EDHRECCommanderData {
   // Parse themes from taglinks
   const rawTaglinks = response.panels?.taglinks || [];
   const themes: EDHRECTheme[] = rawTaglinks.map((t) => ({
@@ -487,11 +498,14 @@ function parseCardlists(response: RawEDHRECResponse): EDHRECCommanderData['cardl
         knownTypes.set(rawCard.name, impliedType);
       }
 
-      // Skip if we've seen this card with higher inclusion
+      // Skip if we've seen this card with higher inclusion (deck count comes
+      // as `inclusion` pre-2026-07, `num_decks` after the schema drift)
       const existing = seenCards.get(rawCard.name);
       const potentialDecks = rawCard.potential_decks || 1;
       const inclusionPercent =
-        potentialDecks > 0 ? ((rawCard.inclusion || 0) / potentialDecks) * 100 : 0;
+        potentialDecks > 0
+          ? ((rawCard.inclusion ?? rawCard.num_decks ?? 0) / potentialDecks) * 100
+          : 0;
 
       if (existing && existing.inclusion >= inclusionPercent) {
         continue;

@@ -6,6 +6,9 @@ import {
   deckColorIdentity,
   validateDeck,
   validateDeckSize,
+  validateGeneratedDeckUnderSize,
+  validateGeneratedLandFloor,
+  validateGeneratedDeck,
   effectiveDeckColors,
   deckColorFrequency,
   countFlaggedCards,
@@ -358,6 +361,129 @@ describe('validateDeckSize', () => {
 
   it('returns plural message when multiple cards over', () => {
     expect(validateDeckSize(102, commander)).toBe('3 cards over the Commander limit (99)');
+  });
+});
+
+describe('validateGeneratedDeckUnderSize', () => {
+  const commander = DECK_FORMAT_CONFIGS.commander;
+
+  it('returns null when mainboard meets the size', () => {
+    expect(validateGeneratedDeckUnderSize(99, commander)).toBeNull();
+  });
+
+  it("returns null when mainboard is over the size (that is validateDeckSize's job)", () => {
+    expect(validateGeneratedDeckUnderSize(102, commander)).toBeNull();
+  });
+
+  it('flags a generated deck that landed short, singular', () => {
+    expect(validateGeneratedDeckUnderSize(98, commander)).toBe(
+      '1 card short of the Commander size (99)'
+    );
+  });
+
+  it('flags a generated deck that landed short, plural', () => {
+    expect(validateGeneratedDeckUnderSize(90, commander)).toBe(
+      '9 cards short of the Commander size (99)'
+    );
+  });
+});
+
+describe('validateGeneratedLandFloor', () => {
+  const commander = DECK_FORMAT_CONFIGS.commander;
+  const standard = DECK_FORMAT_CONFIGS.standard;
+
+  it('rejects an absurdly low land count in a 99-card singleton deck', () => {
+    expect(validateGeneratedLandFloor(5, commander)).toBe(
+      'Only 5 lands — below the 25-land floor for a 99-card singleton deck'
+    );
+  });
+
+  it('accepts a land count at or above the floor', () => {
+    expect(validateGeneratedLandFloor(25, commander)).toBeNull();
+    expect(validateGeneratedLandFloor(37, commander)).toBeNull();
+  });
+
+  it('scales the floor proportionally for a smaller singleton mainboard', () => {
+    const brawl = DECK_FORMAT_CONFIGS.brawl; // mainboardSize 59
+    expect(validateGeneratedLandFloor(14, brawl)).toBe(
+      'Only 14 lands — below the 15-land floor for a 59-card singleton deck'
+    );
+    expect(validateGeneratedLandFloor(15, brawl)).toBeNull();
+  });
+
+  it('does not apply to non-singleton (4-of constructed) formats', () => {
+    expect(validateGeneratedLandFloor(1, standard)).toBeNull();
+  });
+});
+
+describe('validateGeneratedDeck', () => {
+  const commander = DECK_FORMAT_CONFIGS.commander;
+  const cmdr = card({ name: 'Talrand', color_identity: ['U'] });
+
+  function legalMainboard(count: number, landCount: number): ScryfallCard[] {
+    const lands = Array.from({ length: landCount }, (_, i) =>
+      card({ name: `Land ${i}`, type_line: 'Land', color_identity: [] })
+    );
+    const spells = Array.from({ length: count - landCount }, (_, i) =>
+      card({ name: `Spell ${i}`, type_line: 'Instant', color_identity: ['U'] })
+    );
+    return [...lands, ...spells];
+  }
+
+  it('passes a valid generated deck through untouched (no issues)', () => {
+    const mainboard = legalMainboard(99, 37);
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues).toEqual([]);
+  });
+
+  it('rejects an illegal card', () => {
+    const mainboard = legalMainboard(99, 37);
+    mainboard[0] = card({
+      name: 'Banned Card',
+      type_line: 'Instant',
+      color_identity: ['U'],
+      legalities: { commander: 'banned' },
+    });
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues.some((i) => i.issue === 'not-legal' && i.cardName === 'Banned Card')).toBe(true);
+  });
+
+  it('rejects a color-identity violation', () => {
+    const mainboard = legalMainboard(99, 37);
+    mainboard[0] = card({ name: 'Off Color', type_line: 'Instant', color_identity: ['R'] });
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues.some((i) => i.issue === 'color-identity' && i.cardName === 'Off Color')).toBe(
+      true
+    );
+  });
+
+  it('rejects a copy-limit violation in a singleton format', () => {
+    const mainboard = legalMainboard(99, 37);
+    const dupe = card({ name: 'Sol Ring', type_line: 'Artifact', color_identity: [] });
+    mainboard[0] = dupe;
+    mainboard[1] = dupe;
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues.some((i) => i.issue === 'over-copy-limit' && i.cardName === 'Sol Ring')).toBe(
+      true
+    );
+  });
+
+  it('rejects an over-size mainboard', () => {
+    const mainboard = legalMainboard(105, 37);
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues.some((i) => i.issue === 'over-size')).toBe(true);
+  });
+
+  it('rejects an under-size mainboard', () => {
+    const mainboard = legalMainboard(80, 30);
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues.some((i) => i.issue === 'under-size')).toBe(true);
+  });
+
+  it('rejects a near-landless mainboard (the land-floor gate)', () => {
+    const mainboard = legalMainboard(99, 5);
+    const issues = validateGeneratedDeck(mainboard, commander, { commander: cmdr });
+    expect(issues.some((i) => i.issue === 'land-floor')).toBe(true);
   });
 });
 

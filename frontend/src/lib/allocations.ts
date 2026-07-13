@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { useCubeStore, type SavedCube } from '../store/cube';
-import type { EnrichedCard } from '../types';
+import type { EnrichedCard, Finish } from '../types';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { ChangeOwnership } from './deck-change';
 
@@ -128,20 +128,32 @@ function cubeClaim(cube: SavedCube, cardName: string): AllocationInfo {
  * the binder UI, and the deck editor to grey out / badge copies that aren't
  * free. Pass `physicalCubes` (the raw saved-cube list — non-physical cubes are
  * filtered out here) to fold cube claims in; omit it for deck-only behavior.
+ *
+ * `onCollision` is called synchronously for every double-claim found (the
+ * later claimant losing to the earlier one in map iteration order — the map
+ * itself just keeps the last write). This is prod-visible reporting, unlike
+ * the dev-only `logger.warn` below: AdminPage uses it to surface a live
+ * double-claim counter instead of the invariant only being checkable via a
+ * dev console. In steady state this never fires — dedupeDeckAllocations
+ * (below) is the chokepoint that prevents a double-claim from persisting.
  */
 export function buildAllocationMap(
   decks: Deck[],
-  physicalCubes?: SavedCube[]
+  physicalCubes?: SavedCube[],
+  onCollision?: (collision: { copyId: string; prior: AllocationInfo; next: AllocationInfo }) => void
 ): Map<string, AllocationInfo> {
   const m = new Map<string, AllocationInfo>();
   const isDev =
     typeof import.meta !== 'undefined' && (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
   const claim = (copyId: string, info: AllocationInfo) => {
-    if (isDev && m.has(copyId)) {
-      const prior = m.get(copyId)!;
-      logger.warn(
-        `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" and "${info.cardName}" in "${info.deckName}"`
-      );
+    const prior = m.get(copyId);
+    if (prior) {
+      if (isDev) {
+        logger.warn(
+          `[allocations] copyId ${copyId} double-claimed: "${prior.cardName}" in "${prior.deckName}" and "${info.cardName}" in "${info.deckName}"`
+        );
+      }
+      onCollision?.({ copyId, prior, next: info });
     }
     m.set(copyId, info);
   };
@@ -264,7 +276,11 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
   const out = decks.map((deck) => {
     const cmd = claimOne(deck.commanderAllocatedCopyId);
     const partner = claimOne(deck.partnerCommanderAllocatedCopyId);
-    const cards = claimSlots(deck.cards);
+    // `?? []` on both: this now runs on every decks-store write (E133's
+    // centralized subscriber), including sync-rehydrated rows whose shape a
+    // test fixture or a stale/partial persisted blob might not fully match —
+    // must not crash the app over a missing array field.
+    const cards = claimSlots(deck.cards ?? []);
     const sideboard = claimSlots(deck.sideboard ?? []);
     const deckChanged = cmd.changed || partner.changed || cards.changed || sideboard.changed;
     if (!deckChanged) return deck;
@@ -290,15 +306,20 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
  *      exact printing exists, restrict candidates to that printing. This is a
  *      hard filter, not a tiebreaker — a deck slot's printing is treated as
  *      meaningful intent rather than a hint.
- *   3. Non-foil over foil (foils are usually display copies).
- *   4. Cheapest purchasePrice (so the deck claims the budget copy first;
+ *   3. If `preferredFinish` is given and at least one candidate has that
+ *      finish, restrict to it — same hard-filter semantics as the printing:
+ *      an explicit foil pick in the edit-printing dialog is deliberate intent,
+ *      not a hint the default ranking may overrule.
+ *   4. Non-foil over foil (foils are usually display copies).
+ *   5. Cheapest purchasePrice (so the deck claims the budget copy first;
  *      premium copies stay free for the user).
  */
 export function pickCollectionCopy(
   cardName: string,
   collection: EnrichedCard[],
   allocated: Map<string, AllocationInfo>,
-  preferredScryfallId?: string
+  preferredScryfallId?: string,
+  preferredFinish?: Finish
 ): EnrichedCard | null {
   const free = collection.filter((c) => c.name === cardName && !allocated.has(c.copyId));
   if (free.length === 0) return null;
@@ -311,8 +332,47 @@ export function pickCollectionCopy(
     const printingMatches = free.filter((c) => c.scryfallId === preferredScryfallId);
     if (printingMatches.length > 0) candidates = printingMatches;
   }
+  if (preferredFinish) {
+    const finishMatches = candidates.filter((c) => c.finish === preferredFinish);
+    if (finishMatches.length > 0) candidates = finishMatches;
+  }
   candidates.sort(compareCopyPreference);
   return candidates[0];
+}
+
+/** Stable display order for finish lists — matches the dialog's button order. */
+const FINISH_ORDER: readonly Finish[] = ['nonfoil', 'foil', 'etched'];
+
+/**
+ * Per-printing (scryfallId) finishes the user owns AND can bind to a slot in
+ * `currentDeckId` (free, or already claimed by this deck — same "in THIS deck
+ * = free" rule as {@link classifyPrintingAvailability}). One pass over the
+ * collection so the edit-printing dialog can resolve every listed printing by
+ * lookup. Printings with no bindable copy have no entry.
+ */
+export function bindableFinishesByPrinting(
+  collection: EnrichedCard[],
+  allocations: Map<string, AllocationInfo>,
+  currentDeckId?: string
+): Map<string, Finish[]> {
+  const sets = new Map<string, Set<Finish>>();
+  for (const c of collection) {
+    const claim = allocations.get(c.copyId);
+    if (claim && claim.deckId !== currentDeckId) continue;
+    let s = sets.get(c.scryfallId);
+    if (!s) {
+      s = new Set<Finish>();
+      sets.set(c.scryfallId, s);
+    }
+    s.add(c.finish);
+  }
+  const out = new Map<string, Finish[]>();
+  for (const [id, s] of sets)
+    out.set(
+      id,
+      FINISH_ORDER.filter((f) => s.has(f))
+    );
+  return out;
 }
 
 /**
@@ -599,16 +659,23 @@ function locateCopyInDeck(
  * Returns `null` (no steal — caller should bind a free copy or add as proxy)
  * when:
  *  - the user owns no copies of the card,
- *  - at least one owned copy is free (unallocated),
- *  - every owned copy is already allocated to `excludeDeckId` itself.
+ *  - at least one owned copy matching the preferences is free (unallocated),
+ *  - every such copy is already allocated to `excludeDeckId` itself.
  *
  * Otherwise returns the best copy to pull — held by another deck OR a physical
  * cube — ranked with the same non-foil → cheapest preference as
- * {@link pickCollectionCopy} (honoring `preferredScryfallId` for non-basics) —
- * plus where it currently lives so the donor outcome can be applied. A cube
- * donor is always a leave-gap release (a 540-card cube just loses one slot); a
- * deck donor lets the caller pick leave-gap / replace / remove. Either way the
- * pull is a conscious per-card choice — this function only surfaces it.
+ * {@link pickCollectionCopy} — plus where it currently lives so the donor
+ * outcome can be applied. A cube donor is always a leave-gap release (a
+ * 540-card cube just loses one slot); a deck donor lets the caller pick
+ * leave-gap / replace / remove. Either way the pull is a conscious per-card
+ * choice — this function only surfaces it.
+ *
+ * `preferredScryfallId` / `preferredFinish` cascade as hard filters (mirroring
+ * pickCollectionCopy, basics included — special-art basics are a real choice)
+ * BEFORE the free-copy bail-out, so the bail-out is preference-scoped: a free
+ * copy of some other printing/finish doesn't hide that the copy the user
+ * actually asked for is committed elsewhere. Each falls back a level when the
+ * preference isn't owned at all.
  */
 export function findStealableCopy(
   cardName: string,
@@ -616,33 +683,36 @@ export function findStealableCopy(
   decks: Deck[],
   excludeDeckId: string,
   preferredScryfallId?: string,
-  physicalCubes?: SavedCube[]
+  physicalCubes?: SavedCube[],
+  preferredFinish?: Finish
 ): StealableCopy | null {
-  const owned = collection.filter((c) => c.name === cardName);
+  let owned = collection.filter((c) => c.name === cardName);
   if (owned.length === 0) return null;
 
+  if (preferredScryfallId) {
+    const printingMatches = owned.filter((c) => c.scryfallId === preferredScryfallId);
+    if (printingMatches.length > 0) owned = printingMatches;
+  }
+  if (preferredFinish) {
+    const finishMatches = owned.filter((c) => c.finish === preferredFinish);
+    if (finishMatches.length > 0) owned = finishMatches;
+  }
+
   const allocations = buildAllocationMap(decks, physicalCubes);
-  // A free copy exists → no steal needed; the normal allocator handles it.
+  // A free copy (of the preferred kind) exists → no steal needed; the normal
+  // allocator binds it.
   if (owned.some((c) => !allocations.has(c.copyId))) return null;
 
   // Stealable = held by a DECK other than the one we're adding to, OR by a
   // physical cube (cube copies are now consciously pullable as a leave-gap —
   // the move still requires the explicit per-card choice in the UI).
-  let stealable = owned.filter((c) => {
+  const stealable = owned.filter((c) => {
     const info = allocations.get(c.copyId);
     if (!info) return false;
     if (info.ownerKind === 'cube') return true;
     return info.deckId !== excludeDeckId;
   });
   if (stealable.length === 0) return null;
-
-  // Honor an exact-printing preference as a hard filter (basics included —
-  // special-art basics are a real choice), mirroring pickCollectionCopy; fall
-  // back to all stealable copies otherwise.
-  if (preferredScryfallId) {
-    const printingMatches = stealable.filter((c) => c.scryfallId === preferredScryfallId);
-    if (printingMatches.length > 0) stealable = printingMatches;
-  }
 
   const best = [...stealable].sort(compareCopyPreference)[0];
   const info = allocations.get(best.copyId)!;

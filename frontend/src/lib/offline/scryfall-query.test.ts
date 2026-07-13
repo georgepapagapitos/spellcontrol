@@ -53,6 +53,18 @@ describe('parseQuery', () => {
     expect(q.groups[0]).toHaveLength(1);
     expect(q.groups[0][0]).toMatchObject({ kind: 'type', value: 'creature' });
   });
+
+  it('parses otag/oracletag/function as oracle-tag clauses', () => {
+    for (const key of ['otag', 'oracletag', 'function']) {
+      const q = parseQuery(`${key}:removal`);
+      expect(q.groups[0][0]).toMatchObject({ kind: 'otag', value: 'removal' });
+    }
+  });
+
+  it('parses r:/rarity: clauses', () => {
+    expect(parseQuery('r:mythic').groups[0][0]).toMatchObject({ kind: 'rarity', value: 'mythic' });
+    expect(parseQuery('rarity:rare').groups[0][0]).toMatchObject({ kind: 'rarity', value: 'rare' });
+  });
 });
 
 describe('matchesQuery', () => {
@@ -130,6 +142,37 @@ describe('matchesQuery', () => {
   it('exact name matches case-insensitively', () => {
     expect(matchesQuery(mkCard(), parseQuery('!"test card"'))).toBe(true);
     expect(matchesQuery(mkCard(), parseQuery('!"other card"'))).toBe(false);
+  });
+
+  it('otag: matches decorated tags or a tagsFor lookup, exactly', () => {
+    const parsed = parseQuery('otag:mana-rock');
+    expect(matchesQuery({ ...mkCard(), tags: ['mana-rock', 'ramp'] }, parsed)).toBe(true);
+    expect(matchesQuery({ ...mkCard(), tags: ['ramp'] }, parsed)).toBe(false);
+    const tagsFor = (name: string) => (name === 'Test Card' ? ['mana-rock'] : []);
+    expect(matchesQuery(mkCard(), parsed, { tagsFor })).toBe(true);
+  });
+
+  it('otag: degrades to match-anything when no tag data is in hand', () => {
+    expect(matchesQuery(mkCard(), parseQuery('otag:ramp t:creature'))).toBe(true);
+  });
+
+  it('-otag: is ALSO a no-op when no tag data is in hand (never zeroes results)', () => {
+    expect(matchesQuery(mkCard(), parseQuery('-otag:ramp t:creature'))).toBe(true);
+  });
+
+  it('-otag: excludes tagged cards once tag data is present', () => {
+    const parsed = parseQuery('-otag:ramp');
+    expect(matchesQuery({ ...mkCard(), tags: ['ramp'] }, parsed)).toBe(false);
+    expect(matchesQuery({ ...mkCard(), tags: [] }, parsed)).toBe(true);
+  });
+
+  it('rarity matches exactly, honors single-letter shorthand, degrades when absent', () => {
+    expect(matchesQuery(mkCard({ rarity: 'mythic' }), parseQuery('r:mythic'))).toBe(true);
+    expect(matchesQuery(mkCard({ rarity: 'mythic' }), parseQuery('r:m'))).toBe(true);
+    expect(matchesQuery(mkCard({ rarity: 'common' }), parseQuery('r:mythic'))).toBe(false);
+    expect(matchesQuery(mkCard({ rarity: undefined }), parseQuery('r:mythic'))).toBe(true);
+    // Negated form is equally a no-op when rarity is absent.
+    expect(matchesQuery(mkCard({ rarity: undefined }), parseQuery('-r:mythic'))).toBe(true);
   });
 });
 
