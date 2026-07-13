@@ -1,19 +1,9 @@
 /* feedback-spinner.css — split from global.css (#refactor).
    Post-import "where did my cards go?" panel + full-page hydration spinner / page-loader. Contains @keyframes spin (read by motion-tokens.test.ts). */
 
-/* Post-import "where did my cards go?" panel — matches the success-banner
-   visual family (accent-light fill, accent border) but with a row list
-   underneath so users can jump to the binder each batch landed in. */
-.import-routing {
-  background: var(--accent-light);
-  border: 0.5px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  margin-bottom: var(--space-3);
-  font-family: var(--font-mono);
-  color: var(--accent-hover);
-}
-
+/* Post-import "where did my cards go?" rows — embedded in the import
+   review surface's routing section (see `.import-review-section--routing`
+   in import-upload.css for the font/color it inherits from). */
 .import-routing-header {
   display: flex;
   align-items: center;

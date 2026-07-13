@@ -2,16 +2,6 @@
    Shared form controls + status banners: unresolved banner, config/sort panel fields, themed number stepper, base input/select/textarea element styles. */
 
 /* ── Unresolved banner ──────────────────────────────────────────────────── */
-.unresolved-banner {
-  background: var(--warn-bg);
-  border: 0.5px solid var(--warn-border);
-  border-radius: var(--radius);
-  padding: 0.7rem var(--space-4);
-  margin-bottom: var(--space-3);
-  font-size: var(--text-base);
-  color: var(--warn-text);
-}
-
 .unresolved-summary {
   display: flex;
   align-items: center;

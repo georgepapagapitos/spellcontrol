@@ -182,6 +182,7 @@ export function BuildReportPanel({
     roleGaps,
     roleExcesses,
     claimedConflicts,
+    committedExcluded,
     generationMode,
     generationModeDetail,
     generationNote,
@@ -653,6 +654,14 @@ export function BuildReportPanel({
               skips cards already committed elsewhere.
             </>
           )}
+        </p>
+      )}
+
+      {committedExcluded != null && committedExcluded > 0 && collectionStrategy === 'available' && (
+        <p className="build-report-conflict-note">
+          Skipped <strong>{committedExcluded}</strong> card
+          {committedExcluded === 1 ? '' : 's'} in these colors you own — every copy is committed to
+          another deck. Switch collection mode to “Only my cards” to include them.
         </p>
       )}
 

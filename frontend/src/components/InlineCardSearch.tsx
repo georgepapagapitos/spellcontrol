@@ -31,6 +31,15 @@ interface Props {
    * language pickers and the remove-last-added undo).
    */
   onAdd?: (card: ScryfallCard, finish?: Finish) => Promise<void> | void;
+  /**
+   * Fired after ANY successful add — quick-add or a specific printing —
+   * regardless of whether `onAdd` was passed. Doesn't replace the default
+   * collection-add behavior (`onAdd` does that); it's a side-channel for a
+   * host that needs to react to "a card just landed" without owning the add
+   * itself, e.g. the import-review unresolved-name repair row collapsing
+   * once its search produces a match.
+   */
+  onAdded?: (card: ScryfallCard, finish?: Finish) => void;
 }
 
 const RESULT_LIMIT = 60;
@@ -57,7 +66,7 @@ function cardImage(card: ScryfallCard): string | undefined {
  * mis-tap never needs a trip back to the collection table. All network
  * goes through the shared rate-limited, cached client.
  */
-export function InlineCardSearch({ query, view = 'list', onClose, onAdd }: Props) {
+export function InlineCardSearch({ query, view = 'list', onClose, onAdd, onAdded }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
   const replaceAllCards = useCollectionStore((s) => s.replaceAllCards);
   const collection = useCollectionStore((s) => s.cards);
@@ -121,6 +130,7 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd }: Props
     } else {
       confirm(card.id, await addCard(card));
     }
+    onAdded?.(card);
   };
 
   const addPrinting = async (
@@ -135,6 +145,7 @@ export function InlineCardSearch({ query, view = 'list', onClose, onAdd }: Props
     } else {
       confirm(card.id, await addCard(printing, finish, extras));
     }
+    onAdded?.(printing, finish);
   };
 
   // Remove the most recently added copy of this result (collection mode).

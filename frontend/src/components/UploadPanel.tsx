@@ -1,10 +1,11 @@
-import { Camera, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { Suspense, lazy, useMemo, useRef, useState } from 'react';
+import { Camera, ChevronDown, ChevronRight, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Suspense, lazy, useId, useMemo, useRef, useState } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
 import { importFile, importRows, importText, type ImportProgressCallback } from '../lib/api';
-import type { FetchErrorRow, UploadResponse } from '../types';
+import type { UploadResponse } from '../types';
+import type { ScryfallCard } from '@/deck-builder/types';
 import { parseBackup } from '../lib/backup';
 import { useConfirm } from '../lib/use-confirm';
 import {
@@ -14,6 +15,11 @@ import {
 } from '../lib/reimport';
 import type { ImportHistoryEntry } from '../lib/local-cards';
 import { summarizeImportRouting } from '../lib/import-routing';
+import {
+  mergeImportResults,
+  removeUnresolvedName,
+  importReviewHeadline,
+} from '../lib/import-review';
 import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { Modal } from './Modal';
 import { useCanScan } from '../lib/use-can-scan';
@@ -23,6 +29,8 @@ const CardScanner = lazy(() => import('./CardScanner').then((m) => ({ default: m
 import { ProgressBar } from './ProgressBar';
 import { StagedFileList } from './StagedFileList';
 import { ImportRoutingSummary } from './ImportRoutingSummary';
+import { InlineCardSearch } from './InlineCardSearch';
+import { InfoTip } from './InfoTip';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
 import { isNativePlatform } from '../lib/platform';
@@ -30,6 +38,34 @@ import { pickNativeFiles } from '../lib/native-file-picker';
 
 const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 const JSON_MIME_TYPES = ['application/json'];
+
+// Per-format column/line examples for the import-source InfoTip (E130 —
+// discoverability for the 5 bare text links, which named the tools but
+// never showed what their export actually looks like).
+const IMPORT_FORMAT_EXAMPLES = (
+  <>
+    <p className="info-tip-lead">
+      Every export is auto-detected from its columns — no need to pick a format:
+    </p>
+    <ul className="info-tip-list">
+      <li>
+        <strong>ManaBox</strong> CSV: <code>Name, Set code, Quantity, Foil, Scryfall ID</code>
+      </li>
+      <li>
+        <strong>Archidekt / Deckbox</strong> CSV: <code>Quantity, Name, Edition, Condition</code>
+      </li>
+      <li>
+        <strong>Moxfield</strong> CSV: <code>Count, Tradelist Count, Name, Edition</code>
+      </li>
+      <li>
+        <strong>MTGA</strong>: one card per line, e.g. <code>4 Arcane Signet (KHM) 331</code>
+      </li>
+      <li>
+        <strong>Plain text</strong>: one card per line, e.g. <code>4 Arcane Signet</code>
+      </li>
+    </ul>
+  </>
+);
 
 interface PendingImport {
   /** Runs the actual import call. Omitted for staged-file batches. */
@@ -131,6 +167,21 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     [recentImportIds, cards, binders]
   );
 
+  // Single review/summary surface (E130): one container covers the
+  // success line, routing rows, and every fidelity bucket (fetch errors /
+  // malformed rows / unresolved names) instead of up to four stacked
+  // banners. Shown whenever any of those has something to say.
+  const showImportReview =
+    !!successMsg ||
+    routingSummary.entries.length > 0 ||
+    fetchErrors.length > 0 ||
+    malformedRows.length > 0 ||
+    (hasCollection && unresolvedNames.length > 0);
+  const reviewHeadline = importReviewHeadline({
+    fetchErrorCount: fetchErrors.length,
+    unresolvedCount: hasCollection ? unresolvedNames.length : 0,
+  });
+
   const handlePickFile = async () => {
     if (isLoading) return;
     if (isNativePlatform()) {
@@ -209,12 +260,6 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     // first file wipes the collection and the rest append, so the net
     // result is the union of every file rather than just the last.
     const newImportIds = new Set<string>();
-    let totalCards = 0;
-    let totalUnresolved = 0;
-    let totalSkippedUnowned = 0;
-    let totalClamped = 0;
-    const allFetchErrors: FetchErrorRow[] = [];
-    const allMalformedRows: string[] = [];
     for (let i = 0; i < parsedFiles.length; i++) {
       const { file, result } = parsedFiles[i];
       const fileMode: ImportMode = mode === 'replace' && i > 0 ? 'merge' : mode;
@@ -223,13 +268,10 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         binderName,
       });
       newImportIds.add(id);
-      totalCards += result.cards.length;
-      totalUnresolved += result.unresolvedNames.length;
-      totalSkippedUnowned += result.skippedUnownedRows;
-      totalClamped += result.clampedRows;
-      allFetchErrors.push(...result.fetchErrors);
-      allMalformedRows.push(...result.malformedRows);
     }
+    const totals = mergeImportResults(parsedFiles.map((f) => f.result));
+    const allFetchErrors = parsedFiles.flatMap((f) => f.result.fetchErrors);
+    const allMalformedRows = parsedFiles.flatMap((f) => f.result.malformedRows);
     // importCards stamps each file's own fetchErrors, so after the loop the
     // store only holds the last file's — restore the whole batch's bucket
     // so every withheld row stays retryable.
@@ -238,20 +280,20 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     }
     setMalformedRows(allMalformedRows);
     const parts: string[] = [
-      `Imported ${totalCards.toLocaleString()} cards from ${parsedFiles.length} files`,
+      `Imported ${totals.cardsImported.toLocaleString()} cards from ${parsedFiles.length} files`,
     ];
-    if (totalUnresolved > 0) parts.push(`${totalUnresolved} unresolved`);
+    if (totals.unresolvedCount > 0) parts.push(`${totals.unresolvedCount} unresolved`);
     if (allFetchErrors.length > 0) {
       parts.push(`${allFetchErrors.length} couldn't be fetched — retry below`);
     }
     if (allMalformedRows.length > 0) {
       parts.push(`${allMalformedRows.length} rows couldn't be read`);
     }
-    if (totalSkippedUnowned > 0) {
-      parts.push(`${totalSkippedUnowned} unowned rows skipped`);
+    if (totals.skippedUnownedCount > 0) {
+      parts.push(`${totals.skippedUnownedCount} unowned rows skipped`);
     }
-    if (totalClamped > 0) {
-      parts.push(`${totalClamped} rows over the copy limit — capped`);
+    if (totals.clampedCount > 0) {
+      parts.push(`${totals.clampedCount} rows over the copy limit — capped`);
     }
     if (mode === 'binder' && binderName) parts.push(`binder "${binderName}" created`);
     setSuccessMsg(parts.join(' · '));
@@ -441,6 +483,33 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     );
   };
 
+  /**
+   * Clears the informational part of the review surface (the success
+   * sentence + "where did my cards go?" routing rows). Actionable buckets
+   * (fetch errors, malformed rows, unresolved names) keep their own
+   * dismiss/repair affordances — this never drops data a Retry or Fix
+   * still needs (E72 contract: fetchErrors stays a retryable outage
+   * bucket, not something a summary dismiss can silently lose).
+   */
+  const handleDismissReviewSummary = () => {
+    setSuccessMsg(null);
+    setRecentImportIds(new Set());
+  };
+
+  /**
+   * Inline repair (E130): the user matched an unresolved name to a real
+   * Scryfall card via the review surface's per-name search and it was
+   * added to the collection (InlineCardSearch's own addCard path) — drop
+   * the name from the withheld-names bucket so the row shows as fixed.
+   * Reads the store's live unresolvedNames rather than the closed-over
+   * value so two repairs landing close together can't clobber each other.
+   */
+  const handleNameRepaired = (name: string) => {
+    useCollectionStore.setState((s) => ({
+      unresolvedNames: removeUnresolvedName(s.unresolvedNames, name),
+    }));
+  };
+
   const handleClearAll = async () => {
     const ok = await confirm({
       title: 'Clear your collection?',
@@ -551,106 +620,117 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         </div>
       )}
       {sealMoment}
-      {successMsg && !error && (
-        <div className="success-banner" role="status">
-          <span>{successMsg}</span>
-          <button
-            type="button"
-            className="banner-dismiss"
-            onClick={() => setSuccessMsg(null)}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {!error && routingSummary.entries.length > 0 && (
-        <ImportRoutingSummary
-          summary={routingSummary}
-          onDismiss={() => setRecentImportIds(new Set())}
-        />
-      )}
-
-      {fetchErrors.length > 0 && (
-        <div className="unresolved-banner fetch-error-banner" role="alert">
-          <div className="unresolved-summary">
-            <span>
-              {fetchErrors.length} card{fetchErrors.length !== 1 ? 's' : ''} couldn't be fetched —
-              the card service was unreachable. They were <strong>not</strong> imported.
-            </span>
-            <span className="fetch-error-actions">
-              <button className="btn-link" onClick={() => setShowFetchErrors((v) => !v)}>
-                {showFetchErrors ? 'Hide list' : 'Show list'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleRetryFetchErrors}
-                disabled={isLoading}
-              >
-                Retry
-              </button>
-            </span>
-          </div>
-          {showFetchErrors && (
-            <ul className="unresolved-list">
-              {fetchErrors.map((r, i) => (
-                <li key={i}>{(r.quantity ?? 1) > 1 ? `${r.quantity}× ${r.name}` : r.name}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {malformedRows.length > 0 && (
-        <div className="unresolved-banner malformed-banner" role="alert">
-          <div className="unresolved-summary">
-            <span>
-              {malformedRows.length} row{malformedRows.length !== 1 ? 's' : ''} couldn't be read at
-              all — they were <strong>not</strong> imported.
-            </span>
-            <span className="fetch-error-actions">
-              <button className="btn-link" onClick={() => setShowMalformed((v) => !v)}>
-                {showMalformed ? 'Hide list' : 'Show list'}
-              </button>
+      {!error && showImportReview && (
+        <div className="import-review" role="status" aria-live="polite">
+          <div className="import-review-header">
+            <span className="import-review-title">{reviewHeadline}</span>
+            {(successMsg || routingSummary.entries.length > 0) && (
               <button
                 type="button"
                 className="banner-dismiss"
-                onClick={() => setMalformedRows([])}
-                aria-label="Dismiss"
+                onClick={handleDismissReviewSummary}
+                aria-label="Dismiss import summary"
               >
                 ×
               </button>
-            </span>
+            )}
           </div>
-          {showMalformed && (
-            <ul className="unresolved-list">
-              {malformedRows.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
-      {hasCollection && unresolvedNames.length > 0 && (
-        <div className="unresolved-banner">
-          <div className="unresolved-summary">
-            <span>
-              {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} couldn't be
-              matched to Scryfall data. These cards will appear without images or metadata.
-            </span>
-            <button className="btn-link" onClick={() => setShowUnresolved((v) => !v)}>
-              {showUnresolved ? 'Hide list' : 'Show list'}
-            </button>
-          </div>
-          {showUnresolved && (
-            <ul className="unresolved-list">
-              {unresolvedNames.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
+          {successMsg && <p className="import-review-line">{successMsg}</p>}
+
+          {routingSummary.entries.length > 0 && (
+            <div className="import-review-section import-review-section--routing">
+              <ImportRoutingSummary summary={routingSummary} />
+            </div>
+          )}
+
+          {fetchErrors.length > 0 && (
+            <div className="import-review-section import-review-section--warn" role="alert">
+              <div className="unresolved-summary">
+                <span>
+                  {fetchErrors.length} card{fetchErrors.length !== 1 ? 's' : ''} couldn't be fetched
+                  — the card service was unreachable. They were <strong>not</strong> imported.
+                </span>
+                <span className="fetch-error-actions">
+                  <button className="btn-link" onClick={() => setShowFetchErrors((v) => !v)}>
+                    {showFetchErrors ? 'Hide list' : 'Show list'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleRetryFetchErrors}
+                    disabled={isLoading}
+                  >
+                    Retry
+                  </button>
+                </span>
+              </div>
+              {showFetchErrors && (
+                <ul className="unresolved-list">
+                  {fetchErrors.map((r, i) => (
+                    <li key={i}>{(r.quantity ?? 1) > 1 ? `${r.quantity}× ${r.name}` : r.name}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {malformedRows.length > 0 && (
+            <div className="import-review-section import-review-section--warn" role="alert">
+              <div className="unresolved-summary">
+                <span>
+                  {malformedRows.length} row{malformedRows.length !== 1 ? 's' : ''} couldn't be read
+                  at all — they were <strong>not</strong> imported.
+                </span>
+                <span className="fetch-error-actions">
+                  <button className="btn-link" onClick={() => setShowMalformed((v) => !v)}>
+                    {showMalformed ? 'Hide list' : 'Show list'}
+                  </button>
+                  <button
+                    type="button"
+                    className="banner-dismiss"
+                    onClick={() => setMalformedRows([])}
+                    aria-label="Dismiss"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              {showMalformed && (
+                <ul className="unresolved-list">
+                  {malformedRows.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {hasCollection && unresolvedNames.length > 0 && (
+            <div className="import-review-section import-review-section--warn">
+              <div className="unresolved-summary">
+                <span>
+                  {unresolvedNames.length} card{unresolvedNames.length !== 1 ? 's' : ''} couldn't be
+                  matched to Scryfall data. Fix them inline below, or leave them — they'll stay in
+                  your collection without images or metadata.
+                </span>
+                <button className="btn-link" onClick={() => setShowUnresolved((v) => !v)}>
+                  {showUnresolved ? 'Hide list' : 'Show list'}
+                </button>
+              </div>
+              {showUnresolved && (
+                <ul className="unresolved-repair-list">
+                  {unresolvedNames.map((n) => (
+                    <UnresolvedNameRow
+                      key={n}
+                      name={n}
+                      disabled={isLoading}
+                      onResolved={handleNameRepaired}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -759,7 +839,13 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 rel="noopener noreferrer"
               >
                 MTGA
-              </a>
+              </a>{' '}
+              <InfoTip
+                label="supported import formats"
+                ariaLabel="What do these import formats look like?"
+                text={IMPORT_FORMAT_EXAMPLES}
+                wide
+              />
             </span>
             {stagedFiles.length > 0 ? (
               <button className="btn btn-primary" onClick={handleImportStaged} disabled={isLoading}>
@@ -942,6 +1028,89 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
         />
       )}
     </div>
+  );
+}
+
+interface UnresolvedNameRowProps {
+  /** The name Scryfall couldn't match, verbatim from the import. */
+  name: string;
+  disabled?: boolean;
+  /** Called once a Scryfall match for this name has been added to the collection. */
+  onResolved: (name: string) => void;
+}
+
+/**
+ * One row of the review surface's unresolved-names section (E130). Repair
+ * is inline: "Fix" expands a search pre-filled with the withheld name —
+ * reusing InlineCardSearch (the same Scryfall search/autocomplete + add
+ * machinery quick-add and the collection search panel use) rather than a
+ * bespoke lookup. The prefilled text doubles as the manual-search fallback
+ * — the user can edit it if the suggestions for the literal withheld text
+ * don't include the right card. `compact` view keeps the row list light
+ * for what's usually a handful of typos, not a full result grid.
+ */
+function UnresolvedNameRow({ name, disabled, onResolved }: UnresolvedNameRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState(name);
+  const [resolvedAs, setResolvedAs] = useState<string | null>(null);
+  const inputId = useId();
+
+  if (resolvedAs) {
+    return (
+      <li className="unresolved-repair-row unresolved-repair-row--resolved">
+        <span className="unresolved-repair-name">{name}</span>
+        <span className="unresolved-repair-resolved-note">→ added “{resolvedAs}”</span>
+      </li>
+    );
+  }
+
+  return (
+    <li className="unresolved-repair-row">
+      <div className="unresolved-repair-row-head">
+        <span className="unresolved-repair-name" title={name}>
+          {name}
+        </span>
+        <button
+          type="button"
+          className="btn-link unresolved-repair-toggle"
+          onClick={() => setExpanded((v) => !v)}
+          disabled={disabled}
+          aria-expanded={expanded}
+        >
+          {expanded ? (
+            <ChevronDown width={12} height={12} strokeWidth={2} aria-hidden />
+          ) : (
+            <ChevronRight width={12} height={12} strokeWidth={2} aria-hidden />
+          )}
+          Fix
+        </button>
+      </div>
+      {expanded && (
+        <div className="unresolved-repair-search">
+          <label className="visually-hidden" htmlFor={inputId}>
+            {`Search Scryfall to fix "${name}"`}
+          </label>
+          <input
+            id={inputId}
+            type="text"
+            className="unresolved-repair-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search card name…"
+            disabled={disabled}
+            autoFocus
+          />
+          <InlineCardSearch
+            query={query}
+            view="compact"
+            onAdded={(card: ScryfallCard) => {
+              setResolvedAs(card.name);
+              onResolved(name);
+            }}
+          />
+        </div>
+      )}
+    </li>
   );
 }
 

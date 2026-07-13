@@ -18,6 +18,12 @@ beforeEach(() => {
   useDeckBuilderStore.setState(initialState, true);
 });
 
+describe('useDeckBuilderStore — defaults', () => {
+  it('defaults collectionStrategy to free copies (available), not owned-any', () => {
+    expect(store().customization.collectionStrategy).toBe('available');
+  });
+});
+
 describe('useDeckBuilderStore — commander selection', () => {
   it('setCommander derives the combined color identity and resets theme state', () => {
     store().setEdhrecThemes([{ name: 'tokens', count: 1 } as never]);
