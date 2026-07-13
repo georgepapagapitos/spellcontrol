@@ -121,6 +121,42 @@ describe('DeckDisplay per-card pick provenance (S2)', () => {
   });
 });
 
+// Inclusion % is measured relative to the commander, so the concept doesn't
+// apply to the command zone itself: the commander must never wear an
+// "Off-meta" chip (its name is never a key in its own inclusion map).
+describe('DeckDisplay commander inclusion chip', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('mtg-decks-view-mode', 'list');
+  });
+
+  it('never renders an inclusion/Off-meta chip on the commander row', () => {
+    const commander = creature({
+      id: 'cmd-1',
+      oracle_id: 'cmd-o-1',
+      name: 'Test Commander',
+      type_line: 'Legendary Creature — Human',
+    });
+    const card = creature({ id: 'sf-20', name: 'Staple Pick' });
+
+    const { container } = render(
+      <MemoryRouter>
+        <DeckDisplay
+          title="Test deck"
+          commander={commander}
+          cards={[{ slotId: 'slot-1', card }]}
+          cardInclusionMap={{ 'Staple Pick': 40 }}
+        />
+      </MemoryRouter>
+    );
+
+    const chips = container.querySelectorAll('.deck-row-inclusion');
+    expect(chips).toHaveLength(1);
+    expect(chips[0].textContent).toBe('40%');
+    expect(container.querySelector('.deck-row-inclusion.is-offmeta')).toBeNull();
+  });
+});
+
 // E120: alt-generator modes (oracle-role/art-theme/historical/PDH — Scryfall-
 // driven, no EDHREC data) can record a provenance reason for a card that has
 // neither a synergy pill (no commander ability profile match) nor an

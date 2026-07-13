@@ -34,7 +34,7 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
-    "onnxruntime-node": "^1.26.0",
+    "onnxruntime-node": "^1.27.0",
     "pg": "^8.22.0",
     "sharp": "^0.35.3",
     "stream-json": "^3.5.0"
