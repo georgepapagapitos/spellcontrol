@@ -1,7 +1,42 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+// @vitest-environment happy-dom
+//
+// happy-dom (not the suite default `node`) so the module-level pagehide/
+// visibilitychange + debounced-snapshot wiring in `store.ts` — gated on
+// `typeof window !== 'undefined'` — actually installs itself for the
+// session-persistence tests below.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlaytestCard } from '@/lib/playtest';
-import { usePlaytestStore } from './store';
+import { usePlaytestStore, flushPendingPlaytestSnapshot } from './store';
 import { createResistanceState, resistanceRespond } from './lib/resistance';
+import { useDecksStore, type Deck } from '@/store/decks';
+import { loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
+
+// The decks-store sync subscriber (E133) fire-and-forgets a dynamic
+// `import('../lib/sync')` on every `decks` change; mock it the same way
+// `store/decks.test.ts` does so seeding a deck here can't touch the network.
+vi.mock('@/lib/sync', () => ({
+  persistDecksState: vi.fn().mockResolvedValue(undefined),
+}));
+
+function makeDeck(overrides: Partial<Deck> = {}): Deck {
+  return {
+    id: 'deck-1',
+    name: 'Deck',
+    format: 'commander',
+    source: 'manual',
+    commander: null,
+    partnerCommander: null,
+    commanderAllocatedCopyId: null,
+    partnerCommanderAllocatedCopyId: null,
+    cards: [],
+    sideboard: [],
+    generationContext: null,
+    color: '#888888',
+    createdAt: 0,
+    updatedAt: 100,
+    ...overrides,
+  } as Deck;
+}
 
 const threatTemplate = {
   name: 'Ulamog, the Ceaseless Hunger',
@@ -232,5 +267,105 @@ describe('playtest store — resistance mode', () => {
     expect(store().resistanceState).toEqual(createResistanceState(store().state!.rngSeed));
     expect(store().resistanceState!.wipeUsed).toBe(false);
     expect(store().lastResistanceEvent).toBeNull();
+  });
+});
+
+describe('hydrate (E137 resume)', () => {
+  it('restores a saved session, resetting the undo stack and opponent history', () => {
+    store().hydrate('deck-9', {
+      fingerprint: '1:1',
+      savedAt: 0,
+      phase: 'playing',
+      mulliganCount: 2,
+      resistance: true,
+      resistanceState: createResistanceState(5),
+      state: {
+        zones: { library: [], hand: [], graveyard: [], exile: [], command: [] },
+        battlefield: [],
+        rngSeed: 5,
+        turn: 4,
+      },
+    });
+
+    expect(store().deckId).toBe('deck-9');
+    expect(store().phase).toBe('playing');
+    expect(store().mulliganCount).toBe(2);
+    expect(store().resistance).toBe(true);
+    expect(store().resistanceState).toEqual(createResistanceState(5));
+    expect(store().state?.turn).toBe(4);
+    // The undo stack and per-entry opponent bookkeeping don't survive a
+    // snapshot (too big to persist) — restore starts them clean.
+    expect(store().state?.past).toEqual([]);
+    expect(store().resistancePast).toEqual([]);
+    expect(store().lastResistanceEvent).toBeNull();
+  });
+});
+
+describe('device-local session persistence (E137)', () => {
+  beforeEach(() => {
+    flushPendingPlaytestSnapshot(); // drain anything a prior test left pending
+    localStorage.clear();
+    useDecksStore.setState({ decks: [makeDeck()], hydrated: true });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('debounces the localStorage write after a dispatch, stamped with the deck fingerprint', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().dispatch({ type: 'NEXT_TURN' });
+
+    // Not written yet — still inside the debounce window.
+    expect(loadPlaytestSnapshot('deck-1', '100:0')).toBeNull();
+
+    vi.advanceTimersByTime(500);
+
+    const snap = loadPlaytestSnapshot('deck-1', '100:0');
+    expect(snap).not.toBeNull();
+    expect(snap?.state.turn).toBe(2);
+    expect(snap?.phase).toBe('opening');
+  });
+
+  it('coalesces a burst of dispatches into a single write of the latest state', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().dispatch({ type: 'NEXT_TURN' });
+    vi.advanceTimersByTime(100);
+    store().dispatch({ type: 'NEXT_TURN' });
+    vi.advanceTimersByTime(100);
+    store().dispatch({ type: 'NEXT_TURN' });
+
+    expect(loadPlaytestSnapshot('deck-1', '100:0')).toBeNull();
+    vi.advanceTimersByTime(500);
+    expect(loadPlaytestSnapshot('deck-1', '100:0')?.state.turn).toBe(4);
+  });
+
+  it('flushPendingPlaytestSnapshot writes immediately, e.g. on pagehide/unmount', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().dispatch({ type: 'NEXT_TURN' });
+
+    flushPendingPlaytestSnapshot();
+
+    expect(loadPlaytestSnapshot('deck-1', '100:0')).not.toBeNull();
+  });
+
+  it('does not persist the undo stack (state.past) in the saved snapshot', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().dispatch({ type: 'NEXT_TURN' });
+    flushPendingPlaytestSnapshot();
+
+    const snap = loadPlaytestSnapshot('deck-1', '100:0');
+    expect(snap?.state).not.toHaveProperty('past');
+  });
+
+  it('teardown leaves a previously-written snapshot in place', () => {
+    store().init('deck-1', { library: threatLibrary() });
+    store().dispatch({ type: 'NEXT_TURN' });
+    flushPendingPlaytestSnapshot();
+
+    store().teardown();
+
+    expect(loadPlaytestSnapshot('deck-1', '100:0')).not.toBeNull();
   });
 });

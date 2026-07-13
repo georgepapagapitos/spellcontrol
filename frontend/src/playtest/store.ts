@@ -6,6 +6,12 @@ import {
   type PlaytestInit,
   type PlaytestState,
 } from '@/lib/playtest';
+import {
+  fingerprintDeck,
+  savePlaytestSnapshot,
+  type PlaytestSnapshot,
+} from '@/lib/playtest/session-snapshot';
+import { useDecksStore } from '@/store/decks';
 import { applyResistance, createResistanceState, type ResistanceState } from './lib/resistance';
 
 /**
@@ -41,6 +47,8 @@ interface PlaytestStore {
    *  (and swallow) the fresh game's first announcement. */
   resistanceEventSeq: number;
   init(deckId: string, init: PlaytestInit): void;
+  /** Restore a previously-saved session in place of `init` (E137 resume). */
+  hydrate(deckId: string, snapshot: PlaytestSnapshot): void;
   dispatch(action: PlaytestAction): void;
   toggleResistance(): void;
   /** Advance from opening → either playing (no mulligans) or mulligan-bottom. */
@@ -78,6 +86,19 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       mulliganCount: 0,
       resistance: false,
       resistanceState: null,
+      resistancePast: [],
+      lastResistanceEvent: null,
+      resistanceEventSeq: 0,
+    });
+  },
+  hydrate(deckId, snapshot) {
+    set({
+      deckId,
+      state: { ...snapshot.state, past: [] },
+      phase: snapshot.phase,
+      mulliganCount: snapshot.mulliganCount,
+      resistance: snapshot.resistance,
+      resistanceState: snapshot.resistanceState,
       resistancePast: [],
       lastResistanceEvent: null,
       resistanceEventSeq: 0,
@@ -224,3 +245,68 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
     });
   },
 }));
+
+/* ── E137: device-local session persistence ───────────────────────────────
+ * Debounced snapshot-to-localStorage so a refresh/back-swipe/app-switch
+ * doesn't lose an in-progress game. Snapshot content is captured at the
+ * moment of each store change (so a subsequent `teardown()` — which nulls
+ * `state`/`deckId` — can never clobber the last real snapshot with nothing);
+ * only the localStorage *write* is debounced, coalescing rapid successive
+ * dispatches into one write ~`SNAPSHOT_DEBOUNCE_MS` after the burst settles.
+ */
+const SNAPSHOT_DEBOUNCE_MS = 400;
+
+function captureSnapshot(): { deckId: string; snapshot: PlaytestSnapshot } | null {
+  const { state, deckId, phase, mulliganCount, resistance, resistanceState } =
+    usePlaytestStore.getState();
+  if (!state || !deckId) return null;
+  const deck = useDecksStore.getState().decks.find((d) => d.id === deckId);
+  if (!deck) return null;
+  const { past: _past, ...rest } = state;
+  return {
+    deckId,
+    snapshot: {
+      fingerprint: fingerprintDeck(deck),
+      savedAt: Date.now(),
+      phase,
+      mulliganCount,
+      resistance,
+      resistanceState,
+      state: rest,
+    },
+  };
+}
+
+let pendingSave: { deckId: string; snapshot: PlaytestSnapshot } | null = null;
+let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Immediately writes the last-captured snapshot, if any, and clears the
+ *  pending debounce. Safe to call redundantly (e.g. from both a pagehide
+ *  listener and a component's own unmount cleanup). */
+export function flushPendingPlaytestSnapshot(): void {
+  if (snapshotTimer) {
+    clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+  }
+  if (pendingSave) {
+    savePlaytestSnapshot(pendingSave.deckId, pendingSave.snapshot);
+    pendingSave = null;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  usePlaytestStore.subscribe((curr, prev) => {
+    if (curr.state === prev.state) return;
+    const captured = captureSnapshot();
+    if (!captured) return; // e.g. teardown() — leave any prior pending save intact
+    pendingSave = captured;
+    if (snapshotTimer) clearTimeout(snapshotTimer);
+    snapshotTimer = setTimeout(flushPendingPlaytestSnapshot, SNAPSHOT_DEBOUNCE_MS);
+  });
+  // Capacitor/mobile Safari can suspend the tab before the debounce fires —
+  // flush on both signals so backgrounding never loses the last few plays.
+  window.addEventListener('pagehide', flushPendingPlaytestSnapshot);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPendingPlaytestSnapshot();
+  });
+}

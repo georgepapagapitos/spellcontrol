@@ -1,8 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDecksStore } from '@/store/decks';
+import { useConfirm } from '@/lib/use-confirm';
+import {
+  clearPlaytestSnapshot,
+  fingerprintDeck,
+  isResumeWorthy,
+  loadPlaytestSnapshot,
+  type PlaytestSnapshot,
+} from '@/lib/playtest/session-snapshot';
+import type { Deck } from '@/store/decks';
 import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
-import { usePlaytestStore } from '@/playtest/store';
+import { usePlaytestStore, flushPendingPlaytestSnapshot } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import '@/styles/playtest.css';
 
@@ -13,20 +22,59 @@ export function PlaytestPage() {
   const hydrated = useDecksStore((s) => s.hydrated);
   const state = usePlaytestStore((s) => s.state);
   const init = usePlaytestStore((s) => s.init);
+  const hydrate = usePlaytestStore((s) => s.hydrate);
   const teardown = usePlaytestStore((s) => s.teardown);
   const storeDeckId = usePlaytestStore((s) => s.deckId);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const deck = id ? decks.find((d) => d.id === id) : undefined;
+
+  // Tracks which deck id we've already asked resume-vs-fresh for, so the
+  // prompt fires once per deck visit. A ref (not state) — it only gates
+  // this effect and shouldn't itself trigger a render.
+  const checkedDeckIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
     if (!deck) return;
-    if (storeDeckId !== deck.id) {
-      init(deck.id, deckToPlaytestInit(deck));
-    }
-  }, [hydrated, deck, storeDeckId, init]);
+    if (storeDeckId === deck.id) return;
+    if (checkedDeckIdRef.current === deck.id) return; // already asked (or none to ask) this visit
+    checkedDeckIdRef.current = deck.id;
+    // Commit any still-debounced write for whatever deck was previously
+    // loaded before we touch the store for this one (route can swap decks
+    // without unmounting the page).
+    flushPendingPlaytestSnapshot();
 
-  useEffect(() => () => teardown(), [teardown]);
+    async function offerResume(forDeck: Deck, snap: PlaytestSnapshot) {
+      const resume = await confirm({
+        title: 'Resume game?',
+        body: `Turn ${snap.state.turn} is still in progress. Starting fresh discards that game.`,
+        confirmLabel: 'Resume',
+        cancelLabel: 'Start fresh',
+      });
+      if (resume) {
+        hydrate(forDeck.id, snap);
+      } else {
+        clearPlaytestSnapshot(forDeck.id);
+        init(forDeck.id, deckToPlaytestInit(forDeck));
+      }
+    }
+
+    const snapshot = loadPlaytestSnapshot(deck.id, fingerprintDeck(deck));
+    if (snapshot && isResumeWorthy(snapshot)) {
+      void offerResume(deck, snapshot);
+      return;
+    }
+    init(deck.id, deckToPlaytestInit(deck));
+  }, [hydrated, deck, storeDeckId, init, hydrate, confirm]);
+
+  useEffect(
+    () => () => {
+      flushPendingPlaytestSnapshot();
+      teardown();
+    },
+    [teardown]
+  );
 
   if (!hydrated) {
     return <div className="playtest-loading">Loading deck…</div>;
@@ -42,7 +90,12 @@ export function PlaytestPage() {
     );
   }
   if (!state) {
-    return <div className="playtest-loading">Shuffling…</div>;
+    return (
+      <>
+        <div className="playtest-loading">Shuffling…</div>
+        {confirmDialog}
+      </>
+    );
   }
 
   return (
@@ -54,6 +107,7 @@ export function PlaytestPage() {
         <h1>Playtest</h1>
       </header>
       <PlaytestBoard state={state} />
+      {confirmDialog}
     </div>
   );
 }
