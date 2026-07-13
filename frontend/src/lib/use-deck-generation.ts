@@ -14,6 +14,7 @@ import { saveGeneratedDeck } from './save-generated-deck';
 import {
   buildAvailableCollection,
   buildBasicPrintingAvailability,
+  countCommittedExcluded,
   type BasicPrintingAvail,
 } from './collection-availability';
 import { validateGeneratedDeck } from './deck-validation';
@@ -195,6 +196,7 @@ export function useDeckGeneration({
 
       let collectionNames: Set<string> | undefined;
       let collectionAvailableCounts: Map<string, number> | undefined;
+      let committedExcluded: number | undefined;
       // Per-printing breakdown of free owned basics, so generation pulls real
       // groups of the player's basic-land printings (built for any owned-aware
       // mode; based on free copies so we never stamp a printing they can't supply).
@@ -209,6 +211,8 @@ export function useDeckGeneration({
           const available = buildAvailableCollection(collectionCards, decks, savedCubes);
           collectionNames = available.names;
           collectionAvailableCounts = available.counts;
+          const excluded = countCommittedExcluded(collectionCards, available.names, colorIdentity);
+          if (excluded > 0) committedExcluded = excluded;
         } else {
           collectionNames = new Set(collectionCards.map((c) => c.name));
         }
@@ -282,7 +286,8 @@ export function useDeckGeneration({
         themesForGenerator,
         decks,
         collectionCards,
-        createDeck
+        createDeck,
+        committedExcluded
       );
       if (haptic) haptics.success();
       await beforeNavigate?.();

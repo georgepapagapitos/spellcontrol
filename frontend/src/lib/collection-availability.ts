@@ -95,3 +95,27 @@ export function buildAvailableCollection(
 
   return { names, counts };
 }
+
+/**
+ * Count distinct owned names inside the commander's color identity whose every
+ * copy is committed to another deck/cube — i.e. what "Available only" excluded
+ * from this build. Basics are skipped (generation tops basics up regardless of
+ * ownership, so a committed basic never costs the deck a card). Mirror of the
+ * claimedConflicts note for the other strategies.
+ */
+export function countCommittedExcluded(
+  collection: EnrichedCard[],
+  availableNames: Set<string>,
+  commanderIdentity: string[]
+): number {
+  const identity = new Set(commanderIdentity);
+  const counted = new Set<string>();
+  for (const card of collection) {
+    if (counted.has(card.name) || availableNames.has(card.name) || isBasicLandName(card.name)) {
+      continue;
+    }
+    if (!(card.colorIdentity ?? []).every((c) => identity.has(c))) continue;
+    counted.add(card.name);
+  }
+  return counted.size;
+}

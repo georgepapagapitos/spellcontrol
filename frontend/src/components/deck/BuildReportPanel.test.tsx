@@ -731,6 +731,49 @@ describe('claimedConflicts (E134 — proactive visibility)', () => {
   });
 });
 
+describe('committedExcluded (mirror note for "Available only" builds)', () => {
+  it('renders nothing when the field is absent or zero', () => {
+    for (const committedExcluded of [undefined, 0]) {
+      const { container, unmount } = render(
+        <BuildReportPanel
+          report={makeReport({ committedExcluded, collectionStrategy: 'available' })}
+        />
+      );
+      expect(container.querySelector('.build-report-conflict-note')).toBeNull();
+      unmount();
+    }
+  });
+
+  it('tells an "Available only" build how many owned in-color cards were skipped', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({ committedExcluded: 3, collectionStrategy: 'available' })}
+      />
+    );
+    const note = container.querySelector('.build-report-conflict-note');
+    expect(note?.textContent).toMatch(/Skipped 3 cards in these colors you own/);
+    expect(note?.textContent).toMatch(/Only my cards/);
+  });
+
+  it('singularizes for exactly one skipped card', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({ committedExcluded: 1, collectionStrategy: 'available' })}
+      />
+    );
+    expect(container.querySelector('.build-report-conflict-note')?.textContent).toMatch(
+      /Skipped 1 card in these colors/
+    );
+  });
+
+  it('never renders under other strategies even if the field is set', () => {
+    const { container } = render(
+      <BuildReportPanel report={makeReport({ committedExcluded: 3, collectionStrategy: 'full' })} />
+    );
+    expect(container.textContent).not.toMatch(/Skipped 3 cards/);
+  });
+});
+
 describe('BuildReportPanel — bracket-1 (Exhibition) expectations', () => {
   it('renders the plain aimed-vs-estimated line for any bracket other than 1', () => {
     const { container } = render(
