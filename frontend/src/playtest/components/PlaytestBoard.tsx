@@ -34,6 +34,7 @@ import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
 import { ResistancePicker } from './ResistancePicker';
 import { RESISTANCE_LEVEL_ANNOUNCE } from '../lib/resistance';
+import { PlaytestSessionSummary } from './PlaytestSessionSummary';
 import { resolveTokenArt } from '../lib/token-art';
 import { commanderTaxAmount } from '../lib/zones';
 import { LifeStrip } from './LifeStrip';
@@ -62,6 +63,8 @@ export function PlaytestBoard({ state }: Props) {
   const resistanceLevel = usePlaytestStore((s) => s.resistanceLevel);
   const setResistanceLevel = usePlaytestStore((s) => s.setResistanceLevel);
   const lastResistanceEvent = usePlaytestStore((s) => s.lastResistanceEvent);
+  const lastSessionRecord = usePlaytestStore((s) => s.lastSessionRecord);
+  const lastSessionAggregates = usePlaytestStore((s) => s.lastSessionAggregates);
   const gameLog = usePlaytestStore((s) => s.gameLog);
   const logScryPeek = usePlaytestStore((s) => s.logScryPeek);
   const playtestDeckId = usePlaytestStore((s) => s.deckId);
@@ -104,6 +107,10 @@ export function PlaytestBoard({ state }: Props) {
   // Banner dismissal is tracked by event id so a new opponent response (even
   // with an identical message) re-shows and re-announces the banner.
   const [dismissedResistanceId, setDismissedResistanceId] = useState<number | null>(null);
+  // Session-summary dismissal (E141) tracked by record id, same pattern as
+  // the resistance banner above — a new record (even an identical-looking
+  // one from a later game) re-shows.
+  const [dismissedSessionRecordId, setDismissedSessionRecordId] = useState<string | null>(null);
   const isNarrow = useNarrowViewport();
 
   // The card currently under the pointer, resolved to its data + display
@@ -374,11 +381,28 @@ export function PlaytestBoard({ state }: Props) {
         }}
         onOpenChange={setLifePanelOpen}
       />
-      {showTableDefeatedBanner ? (
+      {showTableDefeatedBanner && lastSessionRecord ? (
+        // The richer E141 recap supersedes the plain "Table defeated" line —
+        // it already names the kill turn plus mulligans/interaction survived.
+        <PlaytestSessionSummary
+          key={lastSessionRecord.id}
+          record={lastSessionRecord}
+          aggregates={lastSessionAggregates}
+          onDismiss={() => setShowTableDefeatedBanner(false)}
+        />
+      ) : showTableDefeatedBanner ? (
         <ResistanceBanner
           key={`table-defeated-${tableDefeatedTurn}`}
           message={`Table defeated — turn ${tableDefeatedTurn}`}
           onDismiss={() => setShowTableDefeatedBanner(false)}
+        />
+      ) : lastSessionRecord && lastSessionRecord.id !== dismissedSessionRecordId ? (
+        // A Reset-triggered session end (no table defeat) still gets a recap.
+        <PlaytestSessionSummary
+          key={lastSessionRecord.id}
+          record={lastSessionRecord}
+          aggregates={lastSessionAggregates}
+          onDismiss={() => setDismissedSessionRecordId(lastSessionRecord.id)}
         />
       ) : lastResistanceEvent && lastResistanceEvent.id !== dismissedResistanceId ? (
         <ResistanceBanner

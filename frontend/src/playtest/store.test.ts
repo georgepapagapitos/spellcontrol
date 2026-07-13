@@ -10,6 +10,7 @@ import { usePlaytestStore, flushPendingPlaytestSnapshot } from './store';
 import { createResistanceState, resistanceRespond, RESISTANCE_PRESETS } from './lib/resistance';
 import { useDecksStore, type Deck } from '@/store/decks';
 import { loadPlaytestSnapshot } from '@/lib/playtest/session-snapshot';
+import { loadSessionHistory } from '@/lib/playtest/session-history';
 
 const STANDARD = RESISTANCE_PRESETS.standard;
 
@@ -588,5 +589,95 @@ describe('device-local session persistence (E137)', () => {
     store().teardown();
 
     expect(loadPlaytestSnapshot('deck-1', '100:0')).not.toBeNull();
+  });
+});
+
+describe('E141 — session record capture', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useDecksStore.setState({ decks: [makeDeck()], hydrated: true });
+  });
+
+  /** Advances to turn 2 (so the session counts as meaningfully-played) then
+   *  wipes the lone opponent's life to trigger a table defeat that turn. */
+  function defeatOpponent() {
+    store().dispatch({ type: 'NEXT_TURN' });
+    store().dispatch({ type: 'ADJUST_LIFE', player: 0, delta: -100 });
+  }
+
+  it('records a session on RESET once the game was meaningfully played', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    store().dispatch({ type: 'NEXT_TURN' });
+    store().dispatch({ type: 'RESET' });
+
+    expect(store().lastSessionRecord).not.toBeNull();
+    expect(loadSessionHistory('deck-1')).toHaveLength(1);
+  });
+
+  it('does not record on RESET when nothing happened (turn 1, empty board)', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    store().dispatch({ type: 'RESET' });
+
+    expect(store().lastSessionRecord).toBeNull();
+    expect(loadSessionHistory('deck-1')).toEqual([]);
+  });
+
+  it('auto-captures a session the moment the table is defeated, with the kill turn', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    defeatOpponent();
+
+    expect(store().lastSessionRecord?.killTurn).toBe(2);
+    expect(loadSessionHistory('deck-1')).toHaveLength(1);
+  });
+
+  it('does not double-record when RESET follows an already-captured table defeat', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    defeatOpponent();
+    store().dispatch({ type: 'RESET' });
+
+    expect(loadSessionHistory('deck-1')).toHaveLength(1);
+  });
+
+  it('captures the abandoned session when init() replaces a live, meaningfully-played game', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    store().dispatch({ type: 'NEXT_TURN' });
+
+    store().init('deck-1', { library: threatLibrary(3), seed: 2 });
+
+    expect(loadSessionHistory('deck-1')).toHaveLength(1);
+    expect(store().lastSessionRecord).not.toBeNull();
+    // The new session starts with a clean slate.
+    expect(store().gameLog).toEqual([]);
+  });
+
+  it('does not record on init() when the replaced game was never meaningfully played', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    store().init('deck-1', { library: threatLibrary(3), seed: 2 });
+
+    expect(loadSessionHistory('deck-1')).toEqual([]);
+  });
+
+  it('captures a meaningfully-played, not-yet-recorded session on teardown', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    store().dispatch({ type: 'NEXT_TURN' });
+    store().teardown();
+
+    expect(loadSessionHistory('deck-1')).toHaveLength(1);
+  });
+
+  it('does not double-record on teardown after an already-captured table defeat', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    defeatOpponent();
+    store().teardown();
+
+    expect(loadSessionHistory('deck-1')).toHaveLength(1);
+  });
+
+  it('exposes lastSessionAggregates alongside the record, reflecting the updated history', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 1 });
+    defeatOpponent();
+
+    expect(store().lastSessionAggregates?.sessionsPlayed).toBe(1);
+    expect(store().lastSessionAggregates?.bestKillTurn).toBe(2);
   });
 });

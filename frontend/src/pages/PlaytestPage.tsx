@@ -11,7 +11,7 @@ import {
 } from '@/lib/playtest/session-snapshot';
 import type { Deck } from '@/store/decks';
 import { deckToPlaytestInit } from '@/playtest/lib/deck-to-playtest';
-import { usePlaytestStore, flushPendingPlaytestSnapshot } from '@/playtest/store';
+import { usePlaytestStore, flushPendingPlaytestSnapshot, tryRecordSession } from '@/playtest/store';
 import { PlaytestBoard } from '@/playtest/components/PlaytestBoard';
 import '@/styles/playtest.css';
 
@@ -55,6 +55,16 @@ export function PlaytestPage() {
       if (resume) {
         hydrate(forDeck.id, snap);
       } else {
+        // Declining a resume-worthy snapshot in favor of "Start fresh" is a
+        // session boundary the live store never saw (it never loaded this
+        // state) — capture it into the deck's history (E141) before discarding.
+        tryRecordSession(
+          forDeck.id,
+          snap.state,
+          snap.gameLog ?? [],
+          snap.mulliganCount,
+          snap.resistanceLevel !== 'off'
+        );
         clearPlaytestSnapshot(forDeck.id);
         init(forDeck.id, deckToPlaytestInit(forDeck));
       }
