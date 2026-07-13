@@ -1903,3 +1903,29 @@ pages+spine fraction budget (touching `--spread-page-frac` / `--spread-spine-fra
 or extend the slide's flex-basis explicitly (like the `--tabbed` modifier above).
 Never let content push the pages' computed height past the track — the
 exact-fraction contract is what eliminates height overflow at every viewport.
+
+## Checklist grids — owned vs missing (E131)
+
+A "checklist" grid renders a fixed universe of printings (a set's card list)
+where the user owns some and lacks the rest — first used by the Sets tab
+(`pages/SetsPage.tsx`).
+
+- **Reuse the `.collection-grid-item` tile family** (aspect ratio, radius,
+  focus ring, `RarityBadge`, corner chips) — a checklist tile is still a
+  printing tile and keeps the printing-identity floor (collector number in a
+  `.collection-grid-set`-style corner chip).
+- **Missing = ghost, not absent.** Unowned cards stay in place, desaturated
+  and dimmed (`grayscale + opacity` on the image), with a scrim "Missing"
+  chip. Hover (hover-gated) partially restores the art as an invitation.
+  Never drop missing cards from the default view — the gaps ARE the feature.
+- **Completion numbers never round up:** a partial set displays at most 99%
+  (`completionPct` in `lib/set-completion.ts`); 100% is reserved for a truly
+  complete set and is the only state that uses `--brand-seal-gold` (bar fill,
+  check icon). Crossing to 100% while mounted fires the seal (standard
+  once-per-subject rules in "Completion moments").
+- **Ownership filter is the ImportCube pattern:** `Tabs variant="scrollable"`
+  with All / Owned / Missing + counts; each filter's empty state says
+  something real ("You own every card in <set>").
+- Big checklists (Secret Lair ~2600 tiles) stay un-virtualized: tiles carry
+  `content-visibility: auto` + `contain-intrinsic-size` instead of a JS
+  windowing dependency.

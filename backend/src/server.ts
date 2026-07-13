@@ -39,7 +39,7 @@ import {
 import { runScryfallBulkIngest } from './scryfall-bulk';
 import { errorMessage } from './error-utils';
 import { dedupePreservingOrder } from './utils';
-import { getSetMap } from './sets';
+import { getSetMap, getSetCards, SetNotFoundError } from './sets';
 import { parseImport } from './parsers';
 import type { ImportRow, ImportFormat, Finish, Condition } from './parsers/types';
 import { resolveDeckRows } from './deck-import';
@@ -269,6 +269,25 @@ app.get('/api/sets', async (_req: Request, res: Response) => {
   } catch (err) {
     logger.error('[sets] fetch failed:', err);
     res.status(502).json({ error: 'Failed to fetch set list from Scryfall.' });
+  }
+});
+
+/** Full card list of one set (every printing), for the set-completion checklist. */
+app.get('/api/sets/:code/cards', async (req: Request, res: Response) => {
+  const code = String(req.params.code || '').toLowerCase();
+  if (!/^[a-z0-9]{2,10}$/.test(code)) {
+    return res.status(400).json({ error: 'Invalid set code.' });
+  }
+  try {
+    const cards = await getSetCards(code);
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.json({ cards });
+  } catch (err) {
+    if (err instanceof SetNotFoundError) {
+      return res.status(404).json({ error: `No cards found for set "${code}".` });
+    }
+    logger.error('[sets] set cards fetch failed:', err);
+    res.status(502).json({ error: 'Failed to fetch set cards from Scryfall.' });
   }
 });
 
