@@ -694,6 +694,43 @@ describe('BuildReportPanel', () => {
   });
 });
 
+describe('claimedConflicts (E134 — proactive visibility)', () => {
+  it('renders nothing when there are no conflicts', () => {
+    const { container } = render(<BuildReportPanel report={makeReport({ claimedConflicts: 0 })} />);
+    expect(container.querySelector('.build-report-conflict-note')).toBeNull();
+  });
+
+  it('renders the conflict note and suggests switching to "Available only" for a full/partial/prefer build', () => {
+    const { container } = render(
+      <BuildReportPanel report={makeReport({ claimedConflicts: 2, collectionStrategy: 'full' })} />
+    );
+    const note = container.querySelector('.build-report-conflict-note');
+    expect(note?.textContent).toMatch(/2 cards you own are committed to other decks/);
+    expect(note?.textContent).toMatch(/Available only/);
+  });
+
+  it('singularizes the count for exactly one conflict', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({ claimedConflicts: 1, collectionStrategy: 'partial' })}
+      />
+    );
+    const note = container.querySelector('.build-report-conflict-note');
+    expect(note?.textContent).toMatch(/1 card you own is committed to other decks/);
+  });
+
+  it('omits the strategy suggestion when already building with "Available only"', () => {
+    const { container } = render(
+      <BuildReportPanel
+        report={makeReport({ claimedConflicts: 2, collectionStrategy: 'available' })}
+      />
+    );
+    const note = container.querySelector('.build-report-conflict-note');
+    expect(note?.textContent).toMatch(/committed to other decks/);
+    expect(note?.textContent).not.toMatch(/Available only/);
+  });
+});
+
 describe('BuildReportPanel — bracket-1 (Exhibition) expectations', () => {
   it('renders the plain aimed-vs-estimated line for any bracket other than 1', () => {
     const { container } = render(

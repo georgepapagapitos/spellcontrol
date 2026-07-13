@@ -646,6 +646,13 @@ export function BuildReportPanel({
           {claimedConflicts} card{claimedConflicts === 1 ? ' you own is' : 's you own are'}{' '}
           committed to other decks — open “Review shared cards” to pull a copy in (you choose what
           the other deck does), or swap in free alternatives.
+          {collectionStrategy !== 'available' && (
+            <>
+              {' '}
+              Building again? Switch collection mode to “Available only — free copies” so generation
+              skips cards already committed elsewhere.
+            </>
+          )}
         </p>
       )}
 

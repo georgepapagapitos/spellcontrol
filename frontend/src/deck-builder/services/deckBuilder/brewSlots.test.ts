@@ -80,6 +80,28 @@ describe('pickBrewCandidates', () => {
     expect(owned?.isOwned).toBe(true);
   });
 
+  it('boosts only names present in the passed-in ownership set — free-copy-aware by construction', () => {
+    // pickBrewCandidates never re-derives ownership itself; it trusts
+    // whatever set the caller passes. The brew page passes free-copy names
+    // (buildAvailableCollection(...).names), so a card that's nominally
+    // owned but has every copy claimed by another deck is simply absent from
+    // that set here — same as if it were unowned — and a genuinely free
+    // card with slightly lower raw inclusion now outranks it.
+    const claimedElsewhere = card({ name: 'Claimed Rock', inclusion: 50 });
+    const genuinelyFree = card({ name: 'Free Rock', inclusion: 48 });
+    const results = pickBrewCandidates(
+      [claimedElsewhere, genuinelyFree],
+      'flex',
+      new Set(),
+      new Set(['Free Rock']), // "Claimed Rock" deliberately absent
+      2
+    );
+    expect(results[0].name).toBe('Free Rock');
+    expect(results[0].isOwned).toBe(true);
+    expect(results[1].name).toBe('Claimed Rock');
+    expect(results[1].isOwned).toBe(false);
+  });
+
   it('respects the requested hand size', () => {
     // Untagged, non-game-changer, non-synergy cards fall into 'flex'.
     const bigPool = Array.from({ length: 20 }, (_, i) => card({ name: `Rock ${i}`, inclusion: i }));

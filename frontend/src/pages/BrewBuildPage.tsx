@@ -9,7 +9,9 @@ import { ThemePicker } from '../components/deck/ThemePicker';
 import { useDeckGeneration } from '../lib/use-deck-generation';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
+import { useCubeStore } from '../store/cube';
 import { saveGeneratedDeck } from '../lib/save-generated-deck';
+import { buildAvailableCollection } from '../lib/collection-availability';
 import { getDeckFormatConfig } from '@/deck-builder/lib/constants/archetypes';
 import { routeCardByType } from '@/deck-builder/services/deckBuilder/categorize';
 import { calculateStats } from '@/deck-builder/services/deckBuilder/deckStats';
@@ -81,6 +83,20 @@ export function BrewBuildPage(): JSX.Element {
   const collectionCards = useCollectionStore((s) => s.cards);
   const decks = useDecksStore((s) => s.decks);
   const createDeck = useDecksStore((s) => s.createDeck);
+  const savedCubes = useCubeStore((s) => s.saved);
+
+  // Free-copy names only (excludes copies claimed by another deck/cube via
+  // buildAllocationMap) — mirrors the one-shot generator's 'available'
+  // strategy (use-deck-generation.ts). Brew mode has no strategy picker of
+  // its own; this feeds the ranking-only OWNED_PRIORITY_BOOST in
+  // pickBrewCandidates (brewSlots.ts) so a fully-claimed card no longer
+  // outranks a genuinely free one. It does NOT exclude claimed cards from
+  // the hand — brew stays a browse/discovery mode, and the row's ownership
+  // badge (useBrewOwnership) already tells the allocation-aware truth.
+  const availableCollectionNames = useMemo(
+    () => buildAvailableCollection(collectionCards, decks, savedCubes).names,
+    [collectionCards, decks, savedCubes]
+  );
 
   const active = useBrewStore((s) => s.active);
   const phase = useBrewStore((s) => s.phase);
@@ -110,8 +126,7 @@ export function BrewBuildPage(): JSX.Element {
       const edhrecData = d.themeSlug
         ? await fetchCommanderThemeData(d.commanderName, d.themeSlug)
         : await fetchCommanderData(d.commanderName);
-      const collectionNames = new Set(collectionCards.map((c) => c.name));
-      resumeFromDraft(d, edhrecData, collectionNames);
+      resumeFromDraft(d, edhrecData, availableCollectionNames);
     } finally {
       setResuming(false);
       setDraft(null);
@@ -121,7 +136,6 @@ export function BrewBuildPage(): JSX.Element {
   async function startBrewing() {
     if (!commander) return;
     const formatConfig = getDeckFormatConfig(customization.deckFormat);
-    const collectionNames = new Set(collectionCards.map((c) => c.name));
     const themeLabel = selectedThemes.length ? selectedThemes.map((t) => t.name).join(' + ') : null;
     await start({
       commander,
@@ -131,7 +145,7 @@ export function BrewBuildPage(): JSX.Element {
       deckFormatSize: formatConfig.mainboardSize,
       landCountTarget: customization.landCount,
       nonBasicLandTarget: customization.nonBasicLandCount,
-      collectionNames,
+      collectionNames: availableCollectionNames,
     });
   }
 
