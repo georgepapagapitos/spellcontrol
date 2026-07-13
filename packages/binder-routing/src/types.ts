@@ -243,6 +243,10 @@ export interface BinderDef {
    */
   pageBreakDepth?: number;
   lastReviewedSnapshot?: BinderReviewSnapshot;
+  /** Scryfall printing id of the user-chosen cover card. Undefined = automatic
+   *  cover (most valuable card). Routing/materialize never read it — it's
+   *  mirrored here so the two BinderDef definitions stay in lockstep. */
+  coverScryfallId?: string;
   createdAt: number;
   updatedAt: number;
 }

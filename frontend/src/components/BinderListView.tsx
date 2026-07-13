@@ -1,8 +1,14 @@
-import { BookOpen, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Image as ImageIcon,
+  ImageOff,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import type { EnrichedCard, MaterializedBinder } from '../types';
 import { CardRowMenu } from './CardRowMenu';
-import { CardPreview } from './CardPreview';
+import { CardPreview, type CardPreviewAction } from './CardPreview';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { ColorPip } from './shared/ManaSymbol';
 import { CardRow } from './shared/CardRow';
@@ -65,6 +71,36 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
   };
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [pagesStartIndex, setPagesStartIndex] = useState<number | null>(null);
+
+  // "Set cover" / "Remove cover" in the card preview's icon bar — the explicit
+  // override for the index tile's cover art (lib/binder-cover.ts). Only offered
+  // for cards that actually have art to show. Mirrors BinderView.
+  const coverActions = (card: EnrichedCard | undefined): CardPreviewAction[] => {
+    if (!card?.imageNormal) return [];
+    const isCover = binder.def.coverScryfallId === card.scryfallId;
+    return [
+      {
+        key: 'cover',
+        label: isCover ? 'Remove cover' : 'Set cover',
+        icon: isCover ? (
+          <ImageOff width={18} height={18} strokeWidth={2} aria-hidden />
+        ) : (
+          <ImageIcon width={18} height={18} strokeWidth={2} aria-hidden />
+        ),
+        onClick: () => {
+          updateBinder(binder.def.id, {
+            coverScryfallId: isCover ? undefined : card.scryfallId,
+          });
+          pushToast({
+            message: isCover
+              ? 'Cover follows the most valuable card again.'
+              : `${card.name} is now this binder's cover.`,
+            tone: 'success',
+          });
+        },
+      },
+    ];
+  };
 
   /**
    * Deck allocations for a row. Ungrouped rows stand for exactly one
@@ -362,6 +398,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
             const c = flat.cards[i];
             return c ? (qtyByCopyId?.get(c.copyId) ?? 1) : 1;
           }}
+          getActions={(i) => coverActions(flat.cards[i])}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
           onEdit={(c) => {
@@ -402,6 +439,7 @@ export function BinderListView({ binder, viewToggle, qtyByCopyId, density = 'det
           resolveCard={resolveCard}
           qtyByCopyId={qtyByCopyId}
           sectionTabs={sectionTabs}
+          getCardActions={coverActions}
           onClose={() => setPagesStartIndex(null)}
           onEditCard={(c) => {
             setPagesStartIndex(null);

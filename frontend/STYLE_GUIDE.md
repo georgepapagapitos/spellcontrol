@@ -546,6 +546,23 @@ dead end (the authRequired state's sign-in CTA is the reference). Other rulings:
 silently cut off at 320px); mana costs render via the `ManaCost` primitive (never
 raw `{1}{W}` text); sort headers use the shared `SortDirArrow`.
 
+### Feedback view (suggestion-mode deck share)
+
+The feedback view is **card-forward like every other card surface** (grid of
+`SharedCardTile` art default, list with E128-sized thumbs as the alternate) —
+never a text-only checklist: a reviewer can't judge a cut without reading the
+card. Interaction ruling: **tap = read** (opens the `CardPreview` carousel,
+same as SharedDeckView) and the destructive-ish intent is an **explicit
+scissors toggle** — an overlay button on tiles (bottom-right; qty badge owns
+bottom-left, the "Cut" state chip owns top-left) and a trailing 44px button on
+list rows, both `aria-pressed`. The carousel offers the same toggle via
+`getActions` so judging and marking happen in one place. Commanders render for
+context but are not cuttable. Pending work stays visible via the sticky
+`.feedback-tally` pill (sticky bottom, `--z-dropdown`, safe-area offset) that
+scrolls to the submit form — on a 100-card deck the form is otherwise a full
+page-height away. The tally renders **only when suggestions exist** (insight
+surfaces never displace content).
+
 ## Info tooltips
 
 When a label needs a plain-language explainer for a concept not everyone knows
@@ -1418,6 +1435,33 @@ own) resolves art at `useCardThumb`'s `'normal'` size, matching
 for genuinely dense, already-decided lists (the guided-brew pick list, E128
 above). `CommanderResultCard` (by-name search, by-playstyle browse, EDHREC
 top-N, the guided build's playstyle list) is the reference.
+
+### Index tiles wear cover art (E132)
+
+An index of **containers** (decks, binders) gives every grid tile a cover: a
+full-width art banner on top (`clamp(7rem, 22vw, 10rem)` tall, `object-fit:
+cover; object-position: center top` so the focal subject survives the crop),
+name/meta below. The two index grids share this geometry so they read as one
+family — `.decks-index-card-art` and `.binders-index-card-art` are the
+references. Rules:
+
+- **Every grid tile gets a banner**, art or not — coverless tiles show a solid
+  band of the container's identity color (a "plain binder cover"), same
+  height, so rows stay uniform. List rows show a small thumb (or nothing when
+  coverless — the colored left border still carries identity); compact rows
+  never show art.
+- **The cover is derived, user-overridable.** Decks use the commander's art;
+  binders use the **most valuable card** (price, ties toward the lower EDHREC
+  rank — `lib/binder-cover.ts`), overridable per card via "Set cover" /
+  "Remove cover" in the card preview's icon bar inside that binder. The
+  override is stored as a **Scryfall printing id** on the def (durable across
+  the copyId regeneration every import causes) and silently falls back to
+  automatic when the card leaves the binder.
+- **Art always derives from the stored `imageNormal` via `scryfallArtCrop`**
+  — never trust a persisted `art_crop` (the offline slim bundle fakes it, see
+  #843) and never hit `api.scryfall.com?format=image`.
+- Covers are **decorative**: `alt=""` + `aria-hidden`; the tile's name text is
+  the accessible label.
 
 ---
 

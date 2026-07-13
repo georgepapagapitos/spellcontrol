@@ -119,6 +119,48 @@
   padding: 0;
 }
 
+/* Cover art (E132) — the binder's face at index level: the user-chosen
+   cover card, else its most valuable card. Same banner geometry as
+   .decks-index-card-art so the two index grids read as one family. */
+.binders-index-list.is-grid .binders-index-card-art {
+  width: 100%;
+  height: clamp(7rem, 22vw, 10rem);
+  display: block;
+  object-fit: cover;
+  /* Anchor the crop to the top of the art so the focal subject stays in
+     frame on tall portrait sources (mirrors the decks-index ruling). */
+  object-position: center top;
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+/* Coverless grid tiles (empty binder / no imaged cards): a solid band of
+   the binder color reads as a plain binder cover, and keeps every tile in
+   a row the same height. It merges with the colored name band below into
+   one tall cover. Mirrors .decks-index-card-banner. */
+.binders-index-list.is-grid .binders-index-card-banner {
+  display: block;
+  width: 100%;
+  height: clamp(7rem, 22vw, 10rem);
+  background: var(--binder-color, var(--accent));
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+/* With a cover above it, the name band is interior — square its top
+   corners so they don't notch into the cover. */
+.binders-index-list.is-grid
+  .binders-index-card-art
+  + .binders-index-card-body
+  .binders-index-card-name,
+.binders-index-list.is-grid
+  .binders-index-card-banner
+  + .binders-index-card-body
+  .binders-index-card-name {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 /* Name is the colored header band. White text + shadow stays legible
    on any user-chosen binder color (pale gold through dark purple).
    Right padding clears the absolutely-positioned 3-dot menu. */
@@ -142,6 +184,18 @@
 .binders-index-list.is-list {
   grid-template-columns: 1fr;
   gap: var(--space-2);
+}
+
+/* List rows lead with a small cover thumb (no thumb when the binder has
+   no art — the colored left border still carries identity). Same 88×64
+   crop as the decks-index base art rule. */
+.binders-index-list.is-list .binders-index-card-art {
+  width: 88px;
+  height: 64px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  object-position: center top;
+  flex: 0 0 auto;
 }
 
 /* Compact: single-line dense rows. Name + Manual/Cap tag inline,

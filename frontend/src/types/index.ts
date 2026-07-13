@@ -520,6 +520,11 @@ export interface BinderDef {
    *  Keyed by `printingFinishKey` (durable across the copyId regeneration
    *  that happens on every re-import). Undefined = never reviewed yet. */
   lastReviewedSnapshot?: BinderReviewSnapshot;
+  /** Scryfall printing id of the user-chosen cover card ("Set cover" in the
+   *  card preview). Undefined = automatic cover: the binder's most valuable
+   *  card. The override only holds while a matching copy is still in the
+   *  binder — see `lib/binder-cover.ts`. */
+  coverScryfallId?: string;
   createdAt: number;
   updatedAt: number;
 }
