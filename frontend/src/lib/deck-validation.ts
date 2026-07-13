@@ -2,13 +2,24 @@ import type { ScryfallCard, DeckFormatConfig } from '@/deck-builder/types';
 import type { DeckCard } from '@/store/decks';
 import { BASIC_LAND_NAMES } from './allocations';
 import { isPdhCommanderEligible } from './commanders';
+import { isLand } from './hand-classify';
 
 /** Synthetic slot ids for commander-zone issues — the commanders live outside
  *  the mainboard/sideboard slot lists, so they get stable keys of their own. */
 export const COMMANDER_SLOT_ID = 'commander';
 export const PARTNER_COMMANDER_SLOT_ID = 'partner-commander';
+/** Synthetic slot ids for the whole-deck checks the generation gate adds
+ *  (validateGeneratedDeck below) — these aren't tied to a single card. */
+export const SIZE_SLOT_ID = 'size';
+export const LAND_FLOOR_SLOT_ID = 'land-floor';
 
-type LegalityIssueKind = 'not-legal' | 'over-copy-limit' | 'color-identity';
+type LegalityIssueKind =
+  | 'not-legal'
+  | 'over-copy-limit'
+  | 'color-identity'
+  | 'over-size'
+  | 'under-size'
+  | 'land-floor';
 
 export interface LegalityIssue {
   slotId: string;
@@ -212,6 +223,112 @@ export function validateDeck(
         });
       }
     }
+  }
+
+  return issues;
+}
+
+/**
+ * Under-size counterpart to validateDeckSize, for GENERATED decks only.
+ * validateDeckSize deliberately skips under-count because a partially-built
+ * MANUAL deck is normal (see its own comment) — but a freshly generated deck
+ * that landed short of the format's mainboard size is a generation bug (a
+ * filter starved the pool, a phase bailed early), not an in-progress state.
+ * Never call this from manual-edit display; it's for validateGeneratedDeck.
+ */
+export function validateGeneratedDeckUnderSize(
+  mainboardCount: number,
+  config: DeckFormatConfig
+): string | null {
+  if (mainboardCount < config.mainboardSize) {
+    const under = config.mainboardSize - mainboardCount;
+    return `${under} card${under === 1 ? '' : 's'} short of the ${config.label} size (${config.mainboardSize})`;
+  }
+  return null;
+}
+
+/**
+ * A generated singleton deck's land count is checked against a floor well
+ * BELOW the format's real manabase range (Commander runs 32-42 lands — see
+ * DECK_FORMAT_CONFIGS' landRange / the DeckCustomizer slider, min 32). This
+ * exists only to catch an actual generation bug (e.g. a land-count clamp
+ * regression producing a near-landless 100-card deck) — never to second-guess
+ * a legitimately aggressive low-land build, so it sits well under the ideal
+ * band: 25 of 99 mainboard slots (~25%) for Commander/PDH, scaled
+ * proportionally for smaller singleton formats (Brawl, Brawl-40).
+ */
+export const GENERATED_LAND_FLOOR_RATIO = 25 / 99;
+
+export function validateGeneratedLandFloor(
+  landCount: number,
+  config: DeckFormatConfig
+): string | null {
+  if (!config.isSingleton) return null; // floor only meaningful for singleton/commander-style generation
+  const floor = Math.round(config.mainboardSize * GENERATED_LAND_FLOOR_RATIO);
+  if (landCount < floor) {
+    return `Only ${landCount} land${landCount === 1 ? '' : 's'} — below the ${floor}-land floor for a ${config.mainboardSize}-card singleton deck`;
+  }
+  return null;
+}
+
+/**
+ * Hard validation gate for a freshly GENERATED deck, run once before it's
+ * ever saved (see use-deck-generation.ts). Wraps the display-facing
+ * validateDeck (legality / color-identity / copy-limit) and validateDeckSize
+ * (over-size) with the two checks that only make sense in a generation
+ * context — under-size and the land floor — so generation-time failures are
+ * caught before createDeck ever runs, not just flagged afterward on the
+ * saved deck's display badge.
+ *
+ * Companions are NOT modeled anywhere in this codebase (no companion
+ * legality concept exists in ScryfallCard/DeckFormatConfig) — deliberately
+ * out of scope here too, not an oversight.
+ */
+export function validateGeneratedDeck(
+  mainboardCards: ScryfallCard[],
+  config: DeckFormatConfig,
+  options: {
+    commander?: ScryfallCard | null;
+    partnerCommander?: ScryfallCard | null;
+  } = {}
+): LegalityIssue[] {
+  const asDeckCards: DeckCard[] = mainboardCards.map((card, i) => ({
+    slotId: `gen-${i}`,
+    card,
+    allocatedCopyId: null,
+  }));
+
+  const issues = validateDeck(asDeckCards, [], config, options);
+
+  const overSize = validateDeckSize(mainboardCards.length, config);
+  if (overSize) {
+    issues.push({
+      slotId: SIZE_SLOT_ID,
+      cardName: config.label,
+      issue: 'over-size',
+      detail: overSize,
+    });
+  }
+
+  const underSize = validateGeneratedDeckUnderSize(mainboardCards.length, config);
+  if (underSize) {
+    issues.push({
+      slotId: SIZE_SLOT_ID,
+      cardName: config.label,
+      issue: 'under-size',
+      detail: underSize,
+    });
+  }
+
+  const landCount = mainboardCards.filter(isLand).length;
+  const landFloor = validateGeneratedLandFloor(landCount, config);
+  if (landFloor) {
+    issues.push({
+      slotId: LAND_FLOOR_SLOT_ID,
+      cardName: config.label,
+      issue: 'land-floor',
+      detail: landFloor,
+    });
   }
 
   return issues;
