@@ -97,7 +97,7 @@ export function parseTextList(text: string): ParseResult {
     unparsedLines.push(raw);
   }
 
-  return { rows, format: usedMtga ? 'mtga' : 'plain', unparsedLines };
+  return { rows, format: usedMtga ? 'mtga' : 'plain', unparsedLines, skippedUnownedRows: 0 };
 }
 
 function cleanName(raw: string): { name: string; finish?: Finish } {

@@ -100,4 +100,29 @@ describe('parseManabox', () => {
     const out = parseManabox(`${HEADER}\n\n${row}`);
     expect(out.rows).toHaveLength(1);
   });
+
+  // E127: a realistic multi-row export with the nasty cases bundled together —
+  // a split-card name, a foil/etched printing, condition + language columns,
+  // and a genuinely malformed line. Every input row must be accounted for as
+  // either an imported row or an unparsed (malformed) line — no silent drops.
+  it('accounts for every row in a realistic multi-row ManaBox export', () => {
+    const rows = [
+      // Normal nonfoil card, full metadata.
+      'Sol Ring\tCMR\tCommander Legends\t472\tnormal\tNM\tEN\t1\tabc-1\tCommander\tCard\tuncommon\t1.50\tUSD\t\t',
+      // Split-card name, foil, different condition/language.
+      'Fire // Ice\tAPC\tApocalypse\t90\tfoil\tlightly_played\tja\t2\tabc-2\tModern\tCard\tuncommon\t3.00\tUSD\t\t',
+      // Etched finish.
+      'Ranger of Eos\tCMR\tCommander Legends\t718\tetched\tNM\tEN\t1\tabc-3\tCommander\tCard\trare\t2.25\tUSD\t\t',
+      // Malformed: far too few columns to be a real row.
+      'Sol Ring\tCMR',
+    ];
+    const out = parseManabox(`${HEADER}\n${rows.join('\n')}`);
+
+    expect(out.rows.map((r) => r.name)).toEqual(['Sol Ring', 'Fire // Ice', 'Ranger of Eos']);
+    expect(out.rows[1]).toMatchObject({ finish: 'foil', condition: 'lp', language: 'ja' });
+    expect(out.rows[2].finish).toBe('etched');
+    expect(out.unparsedLines).toEqual([rows[3]]);
+    // Zero silent drops: every data row is either imported or reported malformed.
+    expect(out.rows.length + out.unparsedLines.length).toBe(rows.length);
+  });
 });

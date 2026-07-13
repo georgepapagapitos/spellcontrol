@@ -27,7 +27,8 @@ export function parseManabox(text: string): ParseResult {
     .replace(/^\uFEFF/, '')
     .trim()
     .split(/\r?\n/);
-  if (lines.length < 2) return { rows: [], format: 'manabox', unparsedLines: [] };
+  if (lines.length < 2)
+    return { rows: [], format: 'manabox', unparsedLines: [], skippedUnownedRows: 0 };
 
   const headers = splitLine(lines[0], '\t');
   const numCols = headers.length;
@@ -115,7 +116,7 @@ export function parseManabox(text: string): ParseResult {
     });
   }
 
-  return { rows, format: 'manabox', unparsedLines };
+  return { rows, format: 'manabox', unparsedLines, skippedUnownedRows: 0 };
 }
 
 function parseManaboxFinish(raw: string | undefined): Finish {

@@ -108,6 +108,43 @@ export interface LookupResult {
  * a single resolved card back to every row that produced that identifier.
  */
 export async function resolveCards(rows: ImportRow[], cache: ScryfallCache): Promise<LookupResult> {
+  const firstPass = await resolveCardsOnce(rows, cache);
+  const resolved = firstPass.resolved;
+
+  // Some exports carry a collectorNumber Scryfall doesn't recognize for the
+  // exact printing (Secret-Lair-style drops, promo variants) — retry those
+  // rows by name+set alone, dropping the collector number. This retry used to
+  // live only in the deck-import path (resolveDeckRows); centralizing it here
+  // means every caller of resolveCards — including /api/import — gets it.
+  const retryIdxs: number[] = [];
+  resolved.forEach((card, i) => {
+    if (!card && rows[i].collectorNumber) retryIdxs.push(i);
+  });
+  if (retryIdxs.length === 0) return firstPass;
+
+  const retryRows = retryIdxs.map((i) => ({ ...rows[i], collectorNumber: undefined }));
+  const retry = await resolveCardsOnce(retryRows, cache);
+  retryIdxs.forEach((origIdx, j) => {
+    if (retry.resolved[j]) resolved[origIdx] = retry.resolved[j];
+  });
+
+  // A retried row takes its outage-vs-miss verdict from the retry pass;
+  // everything else keeps the first pass's verdict.
+  const retriedNames = new Set(retryIdxs.map((i) => rows[i].name).filter(Boolean));
+  const unresolvedNames = firstPass.unresolvedNames.filter((n) => !retriedNames.has(n));
+  const fetchErrorNames = firstPass.fetchErrorNames.filter((n) => !retriedNames.has(n));
+  retryIdxs.forEach((origIdx) => {
+    if (resolved[origIdx]) return;
+    const name = rows[origIdx].name;
+    if (!name) return;
+    (retry.fetchErrorNames.includes(name) ? fetchErrorNames : unresolvedNames).push(name);
+  });
+
+  return { resolved, unresolvedNames, fetchErrorNames };
+}
+
+/** Single-pass resolution — no collector-number retry. See {@link resolveCards}. */
+async function resolveCardsOnce(rows: ImportRow[], cache: ScryfallCache): Promise<LookupResult> {
   const resolved: Array<ScryfallCard | undefined> = new Array(rows.length).fill(undefined);
 
   // Step 1: build the identifier each row needs, and group rows by identifier key.

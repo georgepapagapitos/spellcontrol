@@ -3,6 +3,8 @@ import type { ImportRow } from './parsers/types';
 import type { ScryfallCard } from './types';
 
 // Mock the Scryfall resolver so resolveDeckRows can be tested without network.
+// The collector-number retry now lives inside resolveCards itself (scryfall.ts,
+// covered by scryfall.test.ts) — resolveDeckRows just calls it once and slices.
 const resolveCards = vi.fn();
 vi.mock('./scryfall', () => ({ resolveCards: (...a: unknown[]) => resolveCards(...a) }));
 
@@ -38,26 +40,7 @@ describe('resolveDeckRows', () => {
     expect(resolveCards).toHaveBeenCalledTimes(1);
   });
 
-  it('retries collector-number rows that miss, dropping the collector number', async () => {
-    // First pass: the collector-number row fails to resolve.
-    resolveCards.mockResolvedValueOnce(pass([undefined], ['Plains']));
-    // Second pass (without collectorNumber): it resolves.
-    resolveCards.mockResolvedValueOnce(pass([card('Plains')]));
-
-    const sections = await resolveDeckRows(
-      [],
-      [],
-      [row('Plains', { collectorNumber: '999' })],
-      fakeCache
-    );
-    expect(sections.cards.map((c) => c.name)).toEqual(['Plains']);
-    expect(resolveCards).toHaveBeenCalledTimes(2);
-    // The retry row had its collectorNumber stripped.
-    const retryRows = resolveCards.mock.calls[1][0] as ImportRow[];
-    expect(retryRows[0].collectorNumber).toBeUndefined();
-  });
-
-  // E72 regression: outage vs genuine miss must survive the two-pass slicing.
+  // E72 regression: outage vs genuine miss must survive the slicing.
   it('routes outage rows to fetchErrorNames and misses to unresolvedNames', async () => {
     resolveCards.mockResolvedValueOnce(
       pass([card('Zada'), undefined, undefined], ['Notacard'], ['Sol Ring'])
@@ -70,35 +53,5 @@ describe('resolveDeckRows', () => {
     );
     expect(sections.fetchErrorNames).toEqual(['Sol Ring']);
     expect(sections.unresolvedNames).toEqual(['Notacard']);
-  });
-
-  it('takes a retried row’s verdict from the retry pass (fetch error → genuine miss)', async () => {
-    // First pass: the collector-number row’s batch never reached Scryfall.
-    resolveCards.mockResolvedValueOnce(pass([undefined], [], ['Plains']));
-    // Retry (without collectorNumber) DID reach Scryfall — genuinely not found.
-    resolveCards.mockResolvedValueOnce(pass([undefined], ['Plains']));
-
-    const sections = await resolveDeckRows(
-      [],
-      [],
-      [row('Plains', { collectorNumber: '999' })],
-      fakeCache
-    );
-    expect(sections.unresolvedNames).toEqual(['Plains']);
-    expect(sections.fetchErrorNames).toEqual([]);
-  });
-
-  it('keeps a retried row in fetchErrorNames when the retry also fails to fetch', async () => {
-    resolveCards.mockResolvedValueOnce(pass([undefined], ['Plains']));
-    resolveCards.mockResolvedValueOnce(pass([undefined], [], ['Plains']));
-
-    const sections = await resolveDeckRows(
-      [],
-      [],
-      [row('Plains', { collectorNumber: '999' })],
-      fakeCache
-    );
-    expect(sections.fetchErrorNames).toEqual(['Plains']);
-    expect(sections.unresolvedNames).toEqual([]);
   });
 });

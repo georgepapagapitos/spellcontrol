@@ -86,9 +86,15 @@ async function postImportChunk(text: string): Promise<UploadResponse> {
   });
   const data = await handleResponse<UploadResponse>(response);
   // Deploy-skew guard: a native app can run against a backend that predates
-  // the fetchErrors field (Fly deploys lag main) — normalize so `.length`
-  // reads never see undefined.
-  return { ...data, fetchErrors: data.fetchErrors ?? [] };
+  // the fetchErrors/malformedRows/skippedUnownedRows/clampedRows fields (Fly
+  // deploys lag main) — normalize so `.length`/arithmetic never see undefined.
+  return {
+    ...data,
+    fetchErrors: data.fetchErrors ?? [],
+    malformedRows: data.malformedRows ?? [],
+    skippedUnownedRows: data.skippedUnownedRows ?? 0,
+    clampedRows: data.clampedRows ?? 0,
+  };
 }
 
 async function postImportChunkWithRetry(text: string): Promise<UploadResponse> {
@@ -199,7 +205,13 @@ export async function importRows(rows: FetchErrorRow[]): Promise<UploadResponse>
         body: JSON.stringify({ rows }),
       });
       const data = await handleResponse<UploadResponse>(response);
-      return { ...data, fetchErrors: data.fetchErrors ?? [] };
+      return {
+        ...data,
+        fetchErrors: data.fetchErrors ?? [],
+        malformedRows: data.malformedRows ?? [],
+        skippedUnownedRows: data.skippedUnownedRows ?? 0,
+        clampedRows: data.clampedRows ?? 0,
+      };
     } catch (err) {
       lastErr = err;
       if (
