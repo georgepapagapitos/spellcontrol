@@ -1,5 +1,12 @@
-.deck-feedback-sheet {
-  max-width: 560px;
+/* Below 1024px the card-picker shell's full-width bottom sheet applies
+   untouched (a bare max-width here left it clamped-but-left-anchored on
+   tablets). On desktop, widen the centered dialog past the shell's 480px
+   so the share URL and Accept/Reject rows breathe — same pattern as
+   .between-decks-sheet. */
+@media (min-width: 1024px) {
+  .deck-feedback-sheet {
+    width: min(560px, calc(100vw - 2 * var(--space-6)));
+  }
 }
 
 .deck-feedback-eyebrow {
