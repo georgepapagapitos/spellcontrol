@@ -410,6 +410,7 @@ describe('game log (E140)', () => {
       resistance: false,
       resistanceState: null,
       state: legacyState,
+      gameLog: [],
     });
 
     expect(store().state?.commanderTax).toEqual({});
