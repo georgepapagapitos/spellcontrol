@@ -9,6 +9,7 @@ import {
 } from './playtest-stats';
 import type { PlaytestCard, BattlefieldCard, PlaytestState } from './playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { PlaytestSessionRecord } from './playtest/session-record';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -402,5 +403,59 @@ describe('medianActualKillTurn', () => {
       JSON.stringify([{ tableDefeatedTurn: 7 }])
     );
     expect(medianActualKillTurn('deck-2')).toBeNull();
+  });
+
+  // E141's real record shape uses `killTurn` (third in KNOWN_TURN_FIELDS) and
+  // `turns` (plural) rather than `turn` — this pins the actual cross-feature
+  // contract, not just a plausible-looking fixture.
+  function makeSessionRecord(
+    overrides: Partial<PlaytestSessionRecord> = {}
+  ): PlaytestSessionRecord {
+    return {
+      id: 'r',
+      deckId: 'deck-1',
+      endedAt: 0,
+      turns: 5,
+      mulligans: 0,
+      killTurn: null,
+      opponentCount: 1,
+      opponentsDefeated: 0,
+      resistance: false,
+      resistanceCounters: 0,
+      resistanceRemovals: 0,
+      resistanceBounces: 0,
+      resistanceWipesSurvived: 0,
+      landDropsHit: 0,
+      landDropsMissed: 0,
+      landDropTurnsChecked: 0,
+      cardsDrawn: null,
+      ...overrides,
+    };
+  }
+
+  it('reads real E141 PlaytestSessionRecord entries via the killTurn field', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([
+        makeSessionRecord({ id: 'r1', killTurn: 6 }),
+        makeSessionRecord({ id: 'r2', killTurn: 8 }),
+        makeSessionRecord({ id: 'r3', killTurn: 10 }),
+      ])
+    );
+    expect(medianActualKillTurn('deck-1')).toBe(8);
+  });
+
+  it('skips no-kill E141 records instead of misreading their `turns` field as a kill', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest-history:deck-1',
+      JSON.stringify([
+        makeSessionRecord({ id: 'r1', killTurn: null, turns: 5 }),
+        makeSessionRecord({ id: 'r2', killTurn: 9 }),
+      ])
+    );
+    // Only the real kill counts — the no-kill record's `turns: 5` must not
+    // leak in via the generic `turn` fallback field (E141 records have no
+    // `turn` field at all, only the plural `turns`).
+    expect(medianActualKillTurn('deck-1')).toBe(9);
   });
 });
