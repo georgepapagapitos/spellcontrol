@@ -174,6 +174,15 @@ button is an \*\*accent-fill rect with a leading lucide icon at `width/height={1
 (`.synergy-picks-title`, `.engine-suggestion-group-label`, …) joins it; a plain
 sans-bold heading reads as off-family.
 
+**Collapsed disclosure groups show their current setting in the header** — a
+muted, right-aligned, ellipsizing value summary (`.deck-customizer-group-summary`
+in the deck-gen customizer is the reference) rendered only while closed, so a
+non-default setting is never invisible ("Budget · $50 deck", "Salt · Unsalted").
+Related ruling: **identity-level controls don't collapse.** A control that
+changes *what kind of result* the user gets (target bracket, Staples ↔ Brew)
+stays always-open; collapsibles are for constraints and advanced tuning. Don't
+bury an objective-function dial in a closed group with an opaque title.
+
 ## Icon scale
 
 App-wide `lucide-react` usage has ranged 11–18px / 1.6–3 stroke width with no

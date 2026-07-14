@@ -48,6 +48,8 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
       comboCount: 1,
       tempoAutoDetect: true,
       saltTolerance: 2,
+      brewLevel: 0.5,
+      varietySeed: undefined,
       scryfallQuery: '',
       mustIncludeCards: [],
       bannedCards: [],
@@ -75,6 +77,7 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
 
       <div className="deck-customizer-body">
         <BracketGroup customization={customization} update={update} />
+        <BrewGroup customization={customization} update={update} />
         <CollectionGroup customization={customization} update={update} />
 
         <div className="deck-customizer-group">
@@ -97,23 +100,38 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
           </div>
         </div>
 
-        <CollapsibleGroup title="Budget" defaultOpen={false}>
+        <CollapsibleGroup title="Budget" defaultOpen={false} summary={budgetSummary(customization)}>
           <BudgetGroup customization={customization} update={update} />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Card pool" defaultOpen={false}>
+        <CollapsibleGroup
+          title="Card pool"
+          defaultOpen={false}
+          summary={poolSummary(customization)}
+        >
           <PoolGroup customization={customization} update={update} />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Card priority" defaultOpen={false}>
-          <BrewDialGroup customization={customization} update={update} />
+        <CollapsibleGroup
+          title="Variety"
+          defaultOpen={false}
+          summary={varietySummary(customization)}
+        >
           <VarietyGroup customization={customization} update={update} />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Tempo" defaultOpen={false}>
+        <CollapsibleGroup title="Tempo" defaultOpen={false} summary={tempoSummary(customization)}>
           <TempoGroup customization={customization} update={update} />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Salt" defaultOpen={false}>
+        <CollapsibleGroup
+          title="Salt"
+          defaultOpen={false}
+          summary={SALT_LABELS[customization.saltTolerance ?? 2]}
+        >
           <SaltGroup customization={customization} update={update} />
         </CollapsibleGroup>
-        <CollapsibleGroup title="Scryfall filter" defaultOpen={false}>
+        <CollapsibleGroup
+          title="Scryfall filter"
+          defaultOpen={false}
+          summary={customization.scryfallQuery.trim() || 'None'}
+        >
           <ScryfallGroup customization={customization} update={update} />
         </CollapsibleGroup>
         <CollapsibleGroup
@@ -187,9 +205,60 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
   );
 }
 
+const SALT_LABELS = ['Unsalted', 'Low', 'Any', 'Extra'];
+
+const PACING_LABELS: Record<Pacing, string> = {
+  'aggressive-early': 'Aggressive',
+  'fast-tempo': 'Fast',
+  balanced: 'Balanced',
+  midrange: 'Midrange',
+  'late-game': 'Late game',
+};
+
+// ── Collapsed-header summaries — the group's current setting at a glance ──
+function budgetSummary(c: Customization): string {
+  const parts = [
+    c.deckBudget != null ? `$${c.deckBudget} deck` : null,
+    c.maxCardPrice != null ? `$${c.maxCardPrice} card` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'No limits';
+}
+
+function poolSummary(c: Customization): string {
+  const gc = c.gameChangerLimit;
+  const parts = [
+    c.budgetOption === 'budget'
+      ? 'Budget picks'
+      : c.budgetOption === 'expensive'
+        ? 'Premium picks'
+        : null,
+    c.maxRarity ? `${c.maxRarity[0].toUpperCase()}${c.maxRarity.slice(1)} max` : null,
+    gc === 'none'
+      ? 'No game changers'
+      : typeof gc === 'number'
+        ? `Up to ${gc} game changers`
+        : null,
+    c.comboCount === 0
+      ? 'No combos'
+      : c.comboCount === 2
+        ? 'Extra combos'
+        : c.comboCount === 3
+          ? 'Many combos'
+          : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'Any card';
+}
+
+function varietySummary(c: Customization): string {
+  return c.varietySeed === undefined ? 'Signature build' : `Roll #${c.varietySeed}`;
+}
+
+function tempoSummary(c: Customization): string {
+  return c.tempoAutoDetect ? 'Auto-detect' : PACING_LABELS[c.tempoPacing];
+}
+
 function SaltGroup({ customization, update }: DeckCustomizerProps) {
   const value = (customization.saltTolerance ?? 2) as number;
-  const SALT_LABELS = ['Unsalted', 'Low', 'Any', 'Extra'];
   const SALT_DESCRIPTIONS: Record<number, string> = {
     0: 'Strict filter — exclude EDHREC salt > 0.75 (pillow-fort friendly)',
     1: 'Moderate filter — exclude EDHREC salt > 2.0 (no Armageddon, no Cyclonic Rift)',
@@ -271,42 +340,46 @@ const BREW_DESCRIPTIONS: Record<BrewStop, string> = {
   0.75: 'Mostly deep cuts, keeping the strongest staples.',
 };
 
-function BrewDialGroup({ customization, update }: DeckCustomizerProps) {
+function BrewGroup({ customization, update }: DeckCustomizerProps) {
   const value = (customization.brewLevel ?? 0.5) as BrewStop;
   const label = BREW_LABELS[value] ?? BREW_LABELS[0.5];
   const description = BREW_DESCRIPTIONS[value] ?? BREW_DESCRIPTIONS[0.5];
   return (
-    <div className="deck-customizer-slider">
-      <div className="deck-customizer-slider-header">
-        <span className="deck-customizer-slider-label">Staples ↔ Brew</span>
+    <div className="deck-customizer-group">
+      <div className="deck-customizer-group-header">
+        <h3 className="deck-customizer-group-title">Staples ↔ Brew</h3>
         <span className="deck-customizer-slider-value">{label}</span>
       </div>
-      <input
-        type="range"
-        className="deck-customizer-range"
-        min={0}
-        max={1}
-        step={0.25}
-        value={value}
-        aria-label="Staples to Brew dial — how much to favor EDHREC's most-played cards over off-meta theme fits"
-        aria-valuetext={label}
-        onChange={(e) => update({ brewLevel: Number(e.target.value) })}
-        style={{
-          ['--range-progress' as string]: `${value * 100}%`,
-        }}
-      />
-      <div className="deck-customizer-slider-anchors">
-        <span className="deck-customizer-slider-anchor" data-align="start">
-          <span className="deck-customizer-slider-anchor-label">Staples</span>
-        </span>
-        <span className="deck-customizer-slider-anchor" data-align="center">
-          <span className="deck-customizer-slider-anchor-label">Balanced</span>
-        </span>
-        <span className="deck-customizer-slider-anchor" data-align="end">
-          <span className="deck-customizer-slider-anchor-label">Brew</span>
-        </span>
+      <div className="deck-customizer-group-body">
+        <div className="deck-customizer-slider">
+          <input
+            type="range"
+            className="deck-customizer-range"
+            min={0}
+            max={1}
+            step={0.25}
+            value={value}
+            aria-label="Staples to Brew dial — how much to favor EDHREC's most-played cards over off-meta theme fits"
+            aria-valuetext={label}
+            onChange={(e) => update({ brewLevel: Number(e.target.value) })}
+            style={{
+              ['--range-progress' as string]: `${value * 100}%`,
+            }}
+          />
+          <div className="deck-customizer-slider-anchors">
+            <span className="deck-customizer-slider-anchor" data-align="start">
+              <span className="deck-customizer-slider-anchor-label">Staples</span>
+            </span>
+            <span className="deck-customizer-slider-anchor" data-align="center">
+              <span className="deck-customizer-slider-anchor-label">Balanced</span>
+            </span>
+            <span className="deck-customizer-slider-anchor" data-align="end">
+              <span className="deck-customizer-slider-anchor-label">Brew</span>
+            </span>
+          </div>
+          <p className="deck-customizer-slider-desc">{description}</p>
+        </div>
       </div>
-      <p className="deck-customizer-slider-desc">{description}</p>
     </div>
   );
 }
@@ -319,8 +392,11 @@ function VarietyGroup({ customization, update }: DeckCustomizerProps) {
   return (
     <div className="deck-customizer-variety">
       <div className="deck-customizer-slider-header">
-        <span className="deck-customizer-slider-label">Variety</span>
-        <span className="deck-customizer-slider-value" aria-live="polite">
+        <span
+          className="deck-customizer-slider-value"
+          style={{ marginLeft: 'auto' }}
+          aria-live="polite"
+        >
           {roll === undefined ? 'Signature build' : `Roll #${roll}`}
         </span>
       </div>
@@ -447,11 +523,14 @@ function CollapsibleGroup({
   title,
   defaultOpen,
   count,
+  summary,
   children,
 }: {
   title: string;
   defaultOpen?: boolean;
   count?: number;
+  /** Current setting, shown muted in the header while the group is closed. */
+  summary?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
@@ -473,6 +552,7 @@ function CollapsibleGroup({
             </span>
           )}
         </span>
+        {!open && summary && <span className="deck-customizer-group-summary">{summary}</span>}
         <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
       </button>
       {open && <div className="deck-customizer-group-body">{children}</div>}
@@ -713,13 +793,10 @@ function GameChangerOptions({
 
 // ── Tempo ─────────────────────────────────────────────────────────────────
 function TempoGroup({ customization, update }: DeckCustomizerProps) {
-  const pacings: { value: Pacing; label: string }[] = [
-    { value: 'aggressive-early', label: 'Aggressive' },
-    { value: 'fast-tempo', label: 'Fast' },
-    { value: 'balanced', label: 'Balanced' },
-    { value: 'midrange', label: 'Midrange' },
-    { value: 'late-game', label: 'Late game' },
-  ];
+  const pacings = (Object.entries(PACING_LABELS) as [Pacing, string][]).map(([value, label]) => ({
+    value,
+    label,
+  }));
   return (
     <>
       <p

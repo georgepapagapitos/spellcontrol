@@ -192,6 +192,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   width: 100%;
   background: transparent;
   border: 0;
@@ -200,6 +201,17 @@
   cursor: pointer;
   color: var(--text-primary);
   text-align: left;
+}
+
+/* Current-setting summary, shown while the group is closed */
+.deck-customizer-group-summary {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 
 .deck-customizer-group-toggle-title {
@@ -226,6 +238,7 @@
 }
 
 .deck-customizer-group-toggle svg {
+  flex-shrink: 0;
   color: var(--text-muted);
   transition: transform var(--motion-fast) ease;
 }
