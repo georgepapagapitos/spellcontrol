@@ -326,6 +326,10 @@ export function CardPreview({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // The preview is always the topmost overlay; capture + stop so a host
+        // sheet's document-level Escape listener can't also fire and dismiss
+        // both layers on one press.
+        e.stopPropagation();
         beginClose();
         return;
       }
@@ -336,8 +340,8 @@ export function CardPreview({
       const slide = slideRefs.current[next];
       slide?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [beginClose, selected, cards.length]);
 
   const { isDragging, axisLockRef, touchHandlers } = useSwipeDownDismiss({

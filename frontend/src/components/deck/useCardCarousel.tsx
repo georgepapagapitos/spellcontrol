@@ -4,7 +4,7 @@ import { scryfallToEnrichedCard } from '@/lib/scryfall-to-enriched';
 import { useCollectionStore } from '@/store/collection';
 import type { EnrichedCard, Finish } from '@/types';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { CardPreview } from '@/components/CardPreview';
+import { CardPreview, type CardPreviewAction } from '@/components/CardPreview';
 
 /**
  * Best owned "shimmer" finish for a card the player has in their collection.
@@ -149,8 +149,15 @@ const ENRICH_RADIUS = 2;
  * near-instantly and we never burst the rate-limited API with a whole lane of
  * image requests. One source of truth for the pattern that used to be
  * copy-pasted into each deck-analysis panel.
+ *
+ * `getActions` (optional) puts buttons in the preview's icon bar — keyed by
+ * the *entry* the carousel opened with, not a live row index, so a host list
+ * that reshuffles under an open preview can't retarget an action.
  */
-export function useCardCarousel(binderName: string): CardCarousel {
+export function useCardCarousel(
+  binderName: string,
+  getActions?: (entry: CarouselEntry, i: number) => CardPreviewAction[]
+): CardCarousel {
   const [cards, setCards] = useState<EnrichedCard[] | null>(null);
   const [labels, setLabels] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
@@ -243,6 +250,14 @@ export function useCardCarousel(binderName: string): CardCarousel {
         sectionLabels={labels}
         pageNumbers={cards.map(() => 0)}
         totalPages={1}
+        getActions={
+          getActions
+            ? (i) => {
+                const entry = entriesRef.current[i];
+                return entry ? getActions(entry, i) : [];
+              }
+            : undefined
+        }
         onIndexChange={handleIndexChange}
         onClose={close}
       />
