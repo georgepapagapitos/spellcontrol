@@ -1,10 +1,14 @@
 import './DeckSizePrompt.css';
-import { type JSX, useCallback, useState } from 'react';
+import { type JSX, useCallback, useMemo, useState } from 'react';
+import { ArrowLeftRight, Plus } from 'lucide-react';
 import { useLockBodyScroll } from '@/lib/use-lock-body-scroll';
 import { useEscapeKey } from '@/lib/use-escape-key';
 import { useSheetExit } from '@/lib/use-sheet-exit';
+import { useCardThumb } from '@/lib/card-thumbs';
 import { WhyBreakdown } from './WhyBreakdown';
 import type { WhyFactor } from '@/lib/why-factors';
+import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
+import type { CardPreviewAction } from '../CardPreview';
 
 export interface SizePromptOption {
   /** Stable key (slotId for cuts, name for adds). */
@@ -33,6 +37,13 @@ export interface DeckSizePromptProps {
   subtitle: string;
   /** Per-row action verb ("Replace" / "Add"). */
   actionVerb: string;
+  /**
+   * The card on the other side of the trade — the one being added (replace-
+   * when-full) or the one just cut (refill). Rendered as a tappable chip under
+   * the subtitle and seeded as the preview carousel's first slide, so any
+   * candidate can be compared against it with a swipe.
+   */
+  subject?: { name: string; label: string };
   /** Suggested options (role-matched first). */
   options: SizePromptOption[];
   /** Full fallback list, revealed by "Show all" (e.g. every deck card to cut). */
@@ -44,17 +55,39 @@ export interface DeckSizePromptProps {
   onClose: () => void;
 }
 
+/** Portrait mini-card thumbnail (CDN-resolved by name) — same recognizable
+ *  full-card treatment as the add-panel rows, never an art crop. */
+function Thumb({ name }: { name: string }): JSX.Element {
+  const url = useCardThumb(name, 'normal');
+  return (
+    <span className="deck-size-prompt-thumb" aria-hidden>
+      {url && <img src={url} alt="" loading="lazy" />}
+    </span>
+  );
+}
+
 function OptionRow({
   option,
   verb,
   busy,
+  onPreview,
 }: {
   option: SizePromptOption;
   verb: string;
   busy?: boolean;
+  onPreview: () => void;
 }): JSX.Element {
   return (
     <li className="deck-size-prompt-row">
+      <button
+        type="button"
+        className="deck-size-prompt-peek"
+        aria-label={`Preview ${option.name}`}
+        title="Preview card"
+        onClick={onPreview}
+      >
+        <Thumb name={option.name} />
+      </button>
       <span className="deck-size-prompt-card">
         <span className="deck-size-prompt-name">{option.name}</span>
         <span className="deck-size-prompt-meta">
@@ -89,6 +122,7 @@ export function DeckSizePrompt({
   title,
   subtitle,
   actionVerb,
+  subject,
   options,
   moreOptions,
   footer,
@@ -97,6 +131,56 @@ export function DeckSizePrompt({
 }: DeckSizePromptProps): JSX.Element {
   const [showAll, setShowAll] = useState(false);
   useLockBodyScroll();
+
+  // Tap any card's art to open the preview carousel over what's on screen —
+  // the subject (incoming/cut card) leads, then the visible candidates, so
+  // swiping IS the side-by-side comparison. The icon bar carries the row's
+  // Replace/Add action; the subject slide gets none (nothing to act on).
+  const visibleOptions = useMemo(
+    () => (showAll && moreOptions ? [...options, ...moreOptions] : options),
+    [showAll, moreOptions, options]
+  );
+  const previewEntries = useMemo<CarouselEntry[]>(() => {
+    const out: CarouselEntry[] = [];
+    const seen = new Set<string>();
+    if (subject) {
+      out.push({ name: subject.name, label: subject.label });
+      seen.add(subject.name.toLowerCase());
+    }
+    for (const o of visibleOptions) {
+      const key = o.name.toLowerCase();
+      if (seen.has(key)) continue; // moreOptions repeats the suggested rows
+      seen.add(key);
+      out.push({ name: o.name, label: [o.roleLabel, o.hint].filter(Boolean).join(' · ') });
+    }
+    return out;
+  }, [subject, visibleOptions]);
+  const pickByName = useMemo(() => {
+    const m = new Map<string, () => void>();
+    for (const o of visibleOptions) {
+      if (!m.has(o.name.toLowerCase())) m.set(o.name.toLowerCase(), o.onPick);
+    }
+    return m;
+  }, [visibleOptions]);
+  const carousel = useCardCarousel(title, (entry): CardPreviewAction[] => {
+    const pick = pickByName.get(entry.name.toLowerCase());
+    if (!pick) return [];
+    return [
+      {
+        key: 'pick',
+        icon:
+          actionVerb === 'Add' ? (
+            <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+          ) : (
+            <ArrowLeftRight width={18} height={18} strokeWidth={2.2} aria-hidden />
+          ),
+        label: actionVerb,
+        onClick: () => {
+          if (!busy) pick();
+        },
+      },
+    ];
+  });
 
   // Below 1024px this is a bottom sheet with a slide-up entry, so the
   // dismiss paths the prompt owns (backdrop, Escape) play the symmetric
@@ -132,12 +216,33 @@ export function DeckSizePrompt({
         <div className="card-picker-header">
           <p className="deck-size-prompt-title">{title}</p>
           <p className="deck-size-prompt-subtitle">{subtitle}</p>
+          {subject && (
+            <button
+              type="button"
+              className="deck-size-prompt-subject"
+              aria-label={`Preview ${subject.name}`}
+              title="Preview card"
+              onClick={() => carousel.open(previewEntries, subject.name)}
+            >
+              <Thumb name={subject.name} />
+              <span className="deck-size-prompt-subject-text">
+                <span className="deck-size-prompt-name">{subject.name}</span>
+                <span className="deck-size-prompt-hint">{subject.label}</span>
+              </span>
+            </button>
+          )}
         </div>
 
         {options.length > 0 ? (
           <ul className="deck-size-prompt-list" role="list">
             {options.map((o) => (
-              <OptionRow key={o.key} option={o} verb={actionVerb} busy={busy} />
+              <OptionRow
+                key={o.key}
+                option={o}
+                verb={actionVerb}
+                busy={busy}
+                onPreview={() => carousel.open(previewEntries, o.name)}
+              />
             ))}
           </ul>
         ) : (
@@ -149,7 +254,13 @@ export function DeckSizePrompt({
             {showAll ? (
               <ul className="deck-size-prompt-list" role="list">
                 {moreOptions.map((o) => (
-                  <OptionRow key={o.key} option={o} verb={actionVerb} busy={busy} />
+                  <OptionRow
+                    key={o.key}
+                    option={o}
+                    verb={actionVerb}
+                    busy={busy}
+                    onPreview={() => carousel.open(previewEntries, o.name)}
+                  />
                 ))}
               </ul>
             ) : (

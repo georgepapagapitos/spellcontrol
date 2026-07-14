@@ -71,4 +71,17 @@ describe('DeckSizePrompt', () => {
       true
     );
   });
+
+  it('renders a preview trigger per option row', () => {
+    renderPrompt();
+    expect(screen.getByRole('button', { name: 'Preview Mind Stone' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Preview Hedron Archive' })).toBeTruthy();
+  });
+
+  it('renders the subject as a tappable preview chip', () => {
+    renderPrompt({ subject: { name: 'Smothering Tithe', label: "The card you're adding" } });
+    const chip = screen.getByRole('button', { name: 'Preview Smothering Tithe' });
+    expect(chip).toBeTruthy();
+    expect(screen.getByText("The card you're adding")).toBeTruthy();
+  });
 });
