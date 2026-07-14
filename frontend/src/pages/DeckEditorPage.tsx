@@ -2820,6 +2820,7 @@ export function DeckEditorPage() {
               : `Make room for ${pendingAdd} — cut a weak card?`
           }
           actionVerb="Replace"
+          subject={{ name: pendingAdd, label: "The card you're adding" }}
           options={replaceOptions.suggested}
           moreOptions={replaceOptions.all}
           footer={[
@@ -2837,6 +2838,7 @@ export function DeckEditorPage() {
           title={`Cut ${refillAfterCut.name}`}
           subtitle="Add a replacement to keep your deck at its limit?"
           actionVerb="Add"
+          subject={{ name: refillAfterCut.name, label: 'The card you cut' }}
           options={refillOptions}
           footer={[{ label: 'Leave it', onClick: () => setRefillAfterCut(null), primary: true }]}
           onClose={() => setRefillAfterCut(null)}

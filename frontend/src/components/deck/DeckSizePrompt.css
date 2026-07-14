@@ -37,6 +37,68 @@
   border-radius: var(--radius);
 }
 
+/* Portrait mini-card thumb (add-panel treatment) — inside the row's preview
+   trigger, and in the subject chip. */
+.deck-size-prompt-thumb {
+  display: block;
+  width: 2.45rem;
+  height: 3.4rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  flex: none;
+}
+
+.deck-size-prompt-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The row's preview trigger — tapping the mini card opens the card carousel. */
+.deck-size-prompt-peek {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  flex: none;
+  border-radius: var(--radius);
+}
+
+.deck-size-prompt-peek:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The incoming/cut card the candidates trade against — a tappable chip under
+   the subtitle that opens the same carousel at that card. */
+.deck-size-prompt-subject {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: var(--space-2);
+  padding: 0.35rem 0.55rem;
+  width: 100%;
+  text-align: left;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.deck-size-prompt-subject:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-size-prompt-subject-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
 .deck-size-prompt-card {
   flex: 1 1 auto;
   min-width: 0;
