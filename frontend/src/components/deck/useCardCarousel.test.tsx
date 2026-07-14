@@ -20,14 +20,25 @@ vi.mock('@/deck-builder/services/scryfall/client', () => ({
 const mockResolve = vi.mocked(getCardByNameResilient);
 const mockOwnedPrinting = vi.mocked(getOwnedPrinting);
 
-// Capture the cards/index CardPreview is handed so we can assert what the hook
-// produced without depending on the real (DOM-heavy) preview component.
+// Capture the cards/index/getActions CardPreview is handed so we can assert
+// what the hook produced without depending on the real (DOM-heavy) preview.
+type WiredGetActions = ((i: number) => unknown[]) | undefined;
 const previewCards = vi.fn<(cards: EnrichedCard[]) => void>();
 const previewIndex = vi.fn<(index: number) => void>();
+const previewGetActions = vi.fn<(getActions: WiredGetActions) => void>();
 vi.mock('@/components/CardPreview', () => ({
-  CardPreview: ({ cards, index }: { cards: EnrichedCard[]; index: number }) => {
+  CardPreview: ({
+    cards,
+    index,
+    getActions,
+  }: {
+    cards: EnrichedCard[];
+    index: number;
+    getActions?: (i: number) => unknown[];
+  }) => {
     previewCards(cards);
     previewIndex(index);
+    previewGetActions(getActions);
     return null;
   },
 }));
@@ -54,6 +65,7 @@ beforeEach(() => {
   useToastsStore.getState().clear();
   previewCards.mockClear();
   previewIndex.mockClear();
+  previewGetActions.mockClear();
   mockResolve.mockReset();
   mockOwnedPrinting.mockReset();
 });
@@ -211,6 +223,40 @@ describe('useCardCarousel instant open', () => {
     });
     await waitFor(() => expect(mockResolve).toHaveBeenCalledWith('Sol Ring'));
     expect(mockOwnedPrinting).not.toHaveBeenCalled();
+  });
+});
+
+describe('useCardCarousel actions', () => {
+  it('keys getActions by the entry the carousel opened with, not a live row index', () => {
+    const getActions = vi.fn((entry: CarouselEntry) => [
+      { key: 'add', icon: null, label: `Add ${entry.name}`, onClick: () => {} },
+    ]);
+    const { result } = renderHook(() => useCardCarousel('Test Binder', getActions));
+    act(() => {
+      result.current.open(
+        [
+          { name: 'Sol Ring', label: 'a' },
+          { name: 'Counterspell', label: 'b' },
+        ],
+        'Sol Ring'
+      );
+    });
+    render(result.current.preview);
+    const wired = previewGetActions.mock.calls.at(-1)![0];
+    expect(wired).toBeDefined();
+    expect(wired!(1)).toMatchObject([{ key: 'add', label: 'Add Counterspell' }]);
+    expect(getActions).toHaveBeenCalledWith(expect.objectContaining({ name: 'Counterspell' }), 1);
+    // Out-of-range slide (defensive) → an empty icon bar, not a crash.
+    expect(wired!(9)).toEqual([]);
+  });
+
+  it('passes no getActions through when the hook was given none', () => {
+    const { result } = renderHook(() => useCardCarousel('Test Binder'));
+    act(() => {
+      result.current.open([{ name: 'Sol Ring', label: 'a' }], 'Sol Ring');
+    });
+    render(result.current.preview);
+    expect(previewGetActions.mock.calls.at(-1)![0]).toBeUndefined();
   });
 });
 

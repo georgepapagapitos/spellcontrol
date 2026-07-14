@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { Check, Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -41,6 +42,8 @@ import {
   type SuggestionRow,
   type SuggestionFilter,
 } from '../../lib/deck-suggestions';
+import { useCardCarousel, type CarouselEntry } from './useCardCarousel';
+import type { CardPreviewAction } from '../CardPreview';
 
 function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolean {
   if (commanderCI.length === 0) return false;
@@ -132,15 +135,59 @@ const SYNTAX_TIP = (
 
 /** Portrait mini-card thumbnail for a result row — the full card image, not an
  *  art crop, so the card is recognizable at a glance. Uses the row's own image
- *  URL when in hand, else resolves via the batched CDN thumb hook. Decorative. */
-function RowThumb({ name, image }: { name: string; image?: string }) {
+ *  URL when in hand, else resolves via the batched CDN thumb hook. Also the
+ *  row's preview trigger: tapping it opens the card carousel over the results,
+ *  so a card can be read in full before deciding to add it. */
+function RowThumb({
+  name,
+  image,
+  onPreview,
+}: {
+  name: string;
+  image?: string;
+  onPreview: () => void;
+}) {
   const fetched = useCardThumb(image ? undefined : name, 'normal');
   const url = image ?? fetched;
   return (
-    <span className="card-search-thumb" aria-hidden>
+    <button
+      type="button"
+      className="card-search-thumb"
+      aria-label={`Preview ${name}`}
+      title="Preview card"
+      onClick={onPreview}
+    >
       {url && <img src={url} alt="" loading="lazy" />}
-    </span>
+    </button>
   );
+}
+
+/** Shared preview carousel for the three result tabs. The preview's icon bar
+ *  carries one Add action mirroring the row's + button, its label tracking the
+ *  live in-deck count so an add confirms itself in place. Actions are keyed by
+ *  the entry (name/card) the carousel opened with, never a live row index — a
+ *  list that reshuffles under an open preview (a just-added suggestion drops
+ *  out of its list) must not retarget the button. */
+function useAddPreviewCarousel(
+  existingCardCounts: Map<string, number>,
+  addByEntry: (entry: CarouselEntry) => void | Promise<void>
+) {
+  return useCardCarousel('Add cards', (entry): CardPreviewAction[] => {
+    const inDeck = existingCardCounts.get(entry.name) ?? 0;
+    return [
+      {
+        key: 'add',
+        icon:
+          inDeck > 0 ? (
+            <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
+          ) : (
+            <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+          ),
+        label: inDeck > 0 ? `In deck ×${inDeck}` : 'Add',
+        onClick: () => void addByEntry(entry),
+      },
+    ];
+  });
 }
 
 /** Per-row EDHREC/combo signal — shown on every tab when known for this
@@ -715,18 +762,33 @@ function CollectionResults({
     setFilter,
   ]);
 
-  const addAtIndex = async (index: number) => {
-    const c = filtered[index];
-    if (!c) return;
-    const full = await getCardByNameResilient(c.name);
+  const addByName = async (name: string, preferPrintingId?: string) => {
+    const full = await getCardByNameResilient(name);
     if (!full) {
-      pushToast({ message: `Couldn't load ${c.name} — try again`, tone: 'error' });
+      pushToast({ message: `Couldn't load ${name} — try again`, tone: 'error' });
       return;
     }
-    const claim = pickCollectionCopy(c.name, collection, allocations, c.scryfallId);
+    const claim = pickCollectionCopy(name, collection, allocations, preferPrintingId ?? full.id);
     onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
-    onAnnounce(`Added ${c.name}`);
+    onAnnounce(`Added ${name}`);
   };
+
+  const addAtIndex = (index: number) => {
+    const c = filtered[index];
+    if (c) return addByName(c.name, c.scryfallId);
+  };
+
+  const carousel = useAddPreviewCarousel(existingCardCounts, (entry) => addByName(entry.name));
+  // Carousel entries mirror `filtered` 1:1; the context line under the art
+  // shows how many copies are owned (the row's leading fact).
+  const previewEntries = useMemo<CarouselEntry[]>(() => {
+    const ownedCounts = new Map<string, number>();
+    for (const c of collection) ownedCounts.set(c.name, (ownedCounts.get(c.name) ?? 0) + 1);
+    return filtered.map((c) => ({
+      name: c.name,
+      label: `Owned ×${ownedCounts.get(c.name) ?? 0}`,
+    }));
+  }, [filtered, collection]);
 
   // Collection rows carry only thin metadata, so resolve the full card before
   // handing it to the fit-preview (it needs oracle text for synergy axes).
@@ -815,7 +877,11 @@ function CollectionResults({
               >
                 +
               </button>
-              <RowThumb name={c.name} image={c.imageNormal} />
+              <RowThumb
+                name={c.name}
+                image={c.imageNormal}
+                onPreview={() => carousel.open(previewEntries, c.name)}
+              />
               <span className="card-search-name">{c.name}</span>
               {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
               <span className="card-search-meta">
@@ -849,6 +915,7 @@ function CollectionResults({
           );
         })}
       </ul>
+      {carousel.preview}
     </>
   );
 }
@@ -925,18 +992,40 @@ function SuggestionsResults({
 
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
-  const addAtIndex = async (index: number) => {
-    const row = rows[index];
-    if (!row) return;
-    const full = await getCardByNameResilient(row.name);
+  const addByName = async (name: string) => {
+    const full = await getCardByNameResilient(name);
     if (!full) {
-      pushToast({ message: `Couldn't load ${row.name} — try again`, tone: 'error' });
+      pushToast({ message: `Couldn't load ${name} — try again`, tone: 'error' });
       return;
     }
-    const claim = pickCollectionCopy(row.name, collection, allocations, full.id);
+    const claim = pickCollectionCopy(name, collection, allocations, full.id);
     onAdd({ card: full, allocatedCopyId: claim?.copyId ?? null });
-    onAnnounce(`Added ${row.name}`);
+    onAnnounce(`Added ${name}`);
   };
+
+  const addAtIndex = (index: number) => {
+    const row = rows[index];
+    if (row) return addByName(row.name);
+  };
+
+  const carousel = useAddPreviewCarousel(existingCardCounts, (entry) => addByName(entry.name));
+  // Context line under the art: why this card surfaced (EDHREC % / role, or
+  // the combo it completes).
+  const previewEntries = useMemo<CarouselEntry[]>(
+    () =>
+      rows.map((row) => {
+        if (row.kind === 'combo') {
+          return {
+            name: row.name,
+            label: row.produces ? `Completes: ${row.produces}` : 'Completes a combo',
+          };
+        }
+        const info = classifyInclusion(row.inclusion);
+        const pct = info.kind === 'pct' ? `In ${info.pct}% of decks` : 'Off-meta';
+        return { name: row.name, label: row.roleLabel ? `${pct} · ${row.roleLabel}` : pct };
+      }),
+    [rows]
+  );
 
   const previewFitAt = async (index: number) => {
     const row = rows[index];
@@ -966,23 +1055,28 @@ function SuggestionsResults({
   const total = counts.owned + counts.inOtherDeck + counts.inCube + counts.unowned;
   if (total === 0) {
     return (
-      <div className="card-search-empty-wrap">
-        <p className="card-search-empty">
-          {query
-            ? 'No suggestions match your filter.'
-            : 'No suggestions right now — your deck already runs the staples for this commander.'}
-        </p>
-        {query.trim().length >= 2 && (
-          <div className="card-search-empty-actions">
-            <button type="button" className="btn btn-sm" onClick={onSearchCollection}>
-              Search your collection
-            </button>
-            <button type="button" className="btn btn-sm" onClick={onSearchScryfall}>
-              Search all of Scryfall
-            </button>
-          </div>
-        )}
-      </div>
+      <>
+        <div className="card-search-empty-wrap">
+          <p className="card-search-empty">
+            {query
+              ? 'No suggestions match your filter.'
+              : 'No suggestions right now — your deck already runs the staples for this commander.'}
+          </p>
+          {query.trim().length >= 2 && (
+            <div className="card-search-empty-actions">
+              <button type="button" className="btn btn-sm" onClick={onSearchCollection}>
+                Search your collection
+              </button>
+              <button type="button" className="btn btn-sm" onClick={onSearchScryfall}>
+                Search all of Scryfall
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Adding the last suggestion from an open preview empties the list —
+            keep the preview mounted so it can close on its own terms. */}
+        {carousel.preview}
+      </>
     );
   }
 
@@ -1016,7 +1110,11 @@ function SuggestionsResults({
         >
           +
         </button>
-        <RowThumb name={row.name} image={row.imageUrl} />
+        <RowThumb
+          name={row.name}
+          image={row.imageUrl}
+          onPreview={() => carousel.open(previewEntries, row.name)}
+        />
         <span className="card-search-name">{row.name}</span>
         <span className="card-search-meta">
           <span className={badge.className}>{badgeLabel}</span>
@@ -1094,6 +1192,7 @@ function SuggestionsResults({
           {combos.map((row, i) => renderRow(row, staples.length + i))}
         </ul>
       )}
+      {carousel.preview}
     </>
   );
 }
@@ -1200,9 +1299,7 @@ function ScryfallResults({
     return keyed.map((k) => k.c);
   }, [results, sort, gapByName]);
 
-  const addAtIndex = (index: number) => {
-    const c = display[index];
-    if (!c) return;
+  const addCard = (c: ScryfallCard) => {
     const owned = ownedNames.has(c.name);
     const claim = owned ? pickCollectionCopy(c.name, collection, allocations, c.id) : null;
     onAdd({ card: c, allocatedCopyId: claim?.copyId ?? null });
@@ -1214,6 +1311,22 @@ function ScryfallResults({
       });
     }
   };
+
+  const addAtIndex = (index: number) => {
+    const c = display[index];
+    if (c) addCard(c);
+  };
+
+  const carousel = useAddPreviewCarousel(existingCardCounts, (entry) => {
+    if (entry.card) addCard(entry.card);
+  });
+  // Full cards are already in hand, so every slide enriches instantly; the
+  // context line carries the ownership badge the row leads with.
+  const previewEntries: CarouselEntry[] = display.map((c) => ({
+    name: c.name,
+    label: OWNERSHIP_BADGE[ownershipOf(c.name)].label,
+    card: c,
+  }));
 
   useEffect(() => {
     publishVisible(display, addAtIndex);
@@ -1234,74 +1347,84 @@ function ScryfallResults({
   }
 
   return (
-    <ul className="card-search-results" id="card-search-results" role="listbox">
-      {display.map((c, i) => {
-        const inDeck = existingCardCounts.get(c.name) ?? 0;
-        const active = i === activeIndex;
-        const offColor = isOffColor(c.color_identity, colorIdentity);
-        const badge = OWNERSHIP_BADGE[ownershipOf(c.name)];
-        const nameKey = c.name.toLowerCase();
-        return (
-          <li
-            key={c.id}
-            id={`card-search-result-${i}`}
-            role="option"
-            aria-selected={active}
-            className={`card-search-row has-thumb${active ? ' active' : ''}${offColor ? ' is-off-color' : ''}`}
-            onMouseEnter={() => onActiveChange(i)}
-          >
-            <button
-              type="button"
-              className="card-search-add"
-              aria-label={
-                offColor
-                  ? `Add ${c.name} (off-color)`
-                  : inDeck > 0
-                    ? `Add another ${c.name}`
-                    : `Add ${c.name}`
-              }
-              onClick={() => addAtIndex(i)}
+    <>
+      <ul className="card-search-results" id="card-search-results" role="listbox">
+        {display.map((c, i) => {
+          const inDeck = existingCardCounts.get(c.name) ?? 0;
+          const active = i === activeIndex;
+          const offColor = isOffColor(c.color_identity, colorIdentity);
+          const badge = OWNERSHIP_BADGE[ownershipOf(c.name)];
+          const nameKey = c.name.toLowerCase();
+          return (
+            <li
+              key={c.id}
+              id={`card-search-result-${i}`}
+              role="option"
+              aria-selected={active}
+              className={`card-search-row has-thumb${active ? ' active' : ''}${offColor ? ' is-off-color' : ''}`}
+              onMouseEnter={() => onActiveChange(i)}
             >
-              +
-            </button>
-            <RowThumb name={c.name} image={imageFromCard(c, 'normal')} />
-            <span className="card-search-name">{c.name}</span>
-            {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
-            <span className="card-search-meta">
-              {offColor && (
-                <span
-                  className="card-search-badge card-search-badge--warn"
-                  title="Outside your commander's color identity"
-                >
-                  Off-color
-                </span>
-              )}
-              <span className={badge.className}>{badge.label}</span>
-              {inDeck > 0 && (
-                <>
-                  {' · '}
-                  <span className="card-search-indeck">in deck × {inDeck}</span>
-                </>
-              )}
-              <FitSignal gap={gapByName.get(nameKey)} produces={comboProducesByName.get(nameKey)} />
-              {onPreviewFit && (
-                <>
-                  {' · '}
-                  <button
-                    type="button"
-                    className="card-search-fit"
-                    aria-label={`Preview how ${c.name} fits`}
-                    title="Preview fit before adding"
-                    onClick={() => onPreviewFit(c)}
+              <button
+                type="button"
+                className="card-search-add"
+                aria-label={
+                  offColor
+                    ? `Add ${c.name} (off-color)`
+                    : inDeck > 0
+                      ? `Add another ${c.name}`
+                      : `Add ${c.name}`
+                }
+                onClick={() => addAtIndex(i)}
+              >
+                +
+              </button>
+              <RowThumb
+                name={c.name}
+                image={imageFromCard(c, 'normal')}
+                onPreview={() => carousel.open(previewEntries, c.name)}
+              />
+              <span className="card-search-name">{c.name}</span>
+              {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
+              <span className="card-search-meta">
+                {offColor && (
+                  <span
+                    className="card-search-badge card-search-badge--warn"
+                    title="Outside your commander's color identity"
                   >
-                    Fit?
-                  </button>
-                </>
-              )}
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+                    Off-color
+                  </span>
+                )}
+                <span className={badge.className}>{badge.label}</span>
+                {inDeck > 0 && (
+                  <>
+                    {' · '}
+                    <span className="card-search-indeck">in deck × {inDeck}</span>
+                  </>
+                )}
+                <FitSignal
+                  gap={gapByName.get(nameKey)}
+                  produces={comboProducesByName.get(nameKey)}
+                />
+                {onPreviewFit && (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      className="card-search-fit"
+                      aria-label={`Preview how ${c.name} fits`}
+                      title="Preview fit before adding"
+                      onClick={() => onPreviewFit(c)}
+                    >
+                      Fit?
+                    </button>
+                  </>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {carousel.preview}
+    </>
   );
 }
