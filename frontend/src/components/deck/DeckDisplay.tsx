@@ -23,7 +23,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type { ScryfallCard, DeckFormat, ThemeResult, BuildReport } from '@/deck-builder/types';
-import { buildManaData, classifyType, tallyNames, type TypeGroup } from '@/lib/build-mana-data';
+import {
+  buildManaData,
+  classifyType,
+  tallyNames,
+  TYPE_GROUP_PLURAL,
+  type TypeGroup,
+} from '@/lib/build-mana-data';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import {
   validateDeck as runValidation,
@@ -110,6 +116,8 @@ import { BracketVerdictStrip } from './BracketVerdictStrip';
 import type { LaneId } from '@/lib/deck-change';
 import { useCardCarousel, tallyToEntries, type CarouselEntry } from './useCardCarousel';
 import { BuildReportPanel } from './BuildReportPanel';
+import { NewArrivalsSheet } from './NewArrivalsSheet';
+import type { ArrivalsByType } from '@/lib/new-arrivals';
 import type { ComboMatch } from '@/types/combos';
 import { type DeckManaData } from './deck-mana-types';
 import { DeckCurvePhases } from './DeckCurvePhases';
@@ -492,6 +500,19 @@ export interface DeckDisplayProps {
   /** Stronger owned lands the merit-based engine found → the Mana base
    *  "Re-analyze lands" CTA on the Stats tab. */
   landUpgradeCount?: number;
+  /**
+   * Per-category "new arrivals" (E140) — collection cards acquired since the
+   * deck was last updated/reviewed, bucketed by classifyType and ranked. The
+   * page computes this (see `lib/new-arrivals.ts`) so DeckDisplay just renders
+   * the "✦ N new" header chip per section and the review sheet on tap.
+   * Omitted (e.g. read-only/shared views) → no chip anywhere.
+   */
+  arrivalsByType?: ArrivalsByType;
+  /** Exact-case in-deck names → count (mainboard + sideboard) — feeds the
+   *  open sheet's live "Added" row state. */
+  existingCardCounts?: ReadonlyMap<string, number>;
+  /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
+  onMarkArrivalsReviewed?: () => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -969,6 +990,33 @@ function groupByType(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
   return ordered;
 }
 
+// New-arrivals header chip (E140) — one renderer shared by the list view's
+// CategorySection headerAction slot and the grid view's DeckCardGrid section
+// header (a sibling component, not nested, so this can't be a closure).
+// Renders nothing when the bucket has no arrivals — never an empty affordance.
+function renderArrivalsChip(
+  bucket: TypeGroup,
+  arrivalsByType: ArrivalsByType | undefined,
+  onOpen: (bucket: TypeGroup) => void
+): React.ReactNode {
+  const count = arrivalsByType?.[bucket]?.length ?? 0;
+  if (count === 0) return null;
+  const label = TYPE_GROUP_PLURAL[bucket];
+  return (
+    <button
+      type="button"
+      className="deck-arrivals-chip"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(bucket);
+      }}
+      aria-label={`${count} new card${count === 1 ? '' : 's'} in your collection for ${label} — review`}
+    >
+      <span aria-hidden>✦</span> {count} new
+    </button>
+  );
+}
+
 // Filter by search query and sort each group's rows. Used for both
 // mainboard (visibleGroups) and sideboard (visibleSideboardGroups).
 function applyFilterSort(
@@ -1051,9 +1099,14 @@ export function DeckDisplay({
   oneAwayCombos,
   ownedOracleIds,
   landUpgradeCount,
+  arrivalsByType,
+  existingCardCounts,
+  onMarkArrivalsReviewed,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = 'USD';
+  // New-arrivals review (E140): which category's sheet is open, if any.
+  const [openArrivalsBucket, setOpenArrivalsBucket] = useState<TypeGroup | null>(null);
   const [sort, setSort] = useState<SortMode>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const onToggleSort = (m: SortMode) => {
@@ -1582,6 +1635,12 @@ export function DeckDisplay({
     if (i !== undefined) setPreviewIndex(i);
   };
 
+  // New-arrivals header chip (E140) — shared renderer used by both the list
+  // view's CategorySection headerAction slot (below) and the grid view's own
+  // section header (DeckCardGrid, a sibling component — see renderArrivalsChip).
+  const arrivalsChip = (bucket: TypeGroup) =>
+    renderArrivalsChip(bucket, arrivalsByType, setOpenArrivalsBucket);
+
   // Tap a headline stat (cards / value) to drill into the cards behind it —
   // the same carousel pattern as the analysis-tab drill-downs. The missing
   // stat opens the buy-list dialog instead; its rows hand off to this
@@ -1841,12 +1900,14 @@ export function DeckDisplay({
                         onReleaseCopy={onReleaseCopy}
                         onUseOwnCopy={onUseOwnCopy}
                         headerAction={
-                          g.icon === 'ms-commander' && onEditPartner ? (
+                          g.icon === 'commander' && onEditPartner ? (
                             <PartnerHeaderButton
                               hasPartner={!!partnerCommander}
                               onClick={onEditPartner}
                             />
-                          ) : undefined
+                          ) : g.icon === 'commander' ? undefined : (
+                            arrivalsChip(g.title as TypeGroup)
+                          )
                         }
                         synergyByName={synergyByName}
                         cardInclusionMap={cardInclusionMap}
@@ -1909,6 +1970,8 @@ export function DeckDisplay({
                     binderByCopyId={binderByCopyId}
                     hasPartner={!!partnerCommander}
                     onEditPartner={onEditPartner}
+                    arrivalsByType={arrivalsByType}
+                    onOpenArrivals={setOpenArrivalsBucket}
                   />
                 )}
                 {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
@@ -2133,6 +2196,17 @@ export function DeckDisplay({
               buyListReturn.current = true;
               void statCarousel.open(tallyToEntries(missingTally), name);
             }}
+          />
+        )}
+        {openArrivalsBucket && (
+          <NewArrivalsSheet
+            bucket={openArrivalsBucket}
+            rows={arrivalsByType?.[openArrivalsBucket] ?? []}
+            onClose={() => setOpenArrivalsBucket(null)}
+            onMarkReviewed={() => onMarkArrivalsReviewed?.()}
+            onAddCard={onAddSuggestedCard}
+            addingCardNames={addingSuggestedCardNames}
+            existingCardCounts={existingCardCounts}
           />
         )}
         {exportOpen && (
@@ -2693,6 +2767,8 @@ function DeckCardGrid({
   binderByCopyId,
   hasPartner,
   onEditPartner,
+  arrivalsByType,
+  onOpenArrivals,
 }: {
   groups: { title: string; icon: string; rows: Row[] }[];
   onRowClick: (name: string) => void;
@@ -2705,6 +2781,8 @@ function DeckCardGrid({
   binderByCopyId?: Map<string, BinderInfo[]>;
   hasPartner?: boolean;
   onEditPartner?: () => void;
+  arrivalsByType?: ArrivalsByType;
+  onOpenArrivals?: (bucket: TypeGroup) => void;
 }) {
   return (
     <div className="deck-card-grid-sections">
@@ -2720,8 +2798,11 @@ function DeckCardGrid({
               <h3 className="deck-section-title">
                 {g.title} <span className="deck-section-count">({count})</span>
               </h3>
-              {g.icon === 'ms-commander' && onEditPartner && (
+              {g.icon === 'commander' && onEditPartner ? (
                 <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
+              ) : g.icon === 'commander' ? null : (
+                onOpenArrivals &&
+                renderArrivalsChip(g.title as TypeGroup, arrivalsByType, onOpenArrivals)
               )}
             </header>
             <ul className={`deck-card-grid grid-${gridSize}`}>
