@@ -347,8 +347,22 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
 // Guardianship's and Force of Negation's exact live wording (verified
 // against Scryfall) — so both silently fell through this branch. Widened to
 // `counter target(?: noncreature)? spell`; only widens matches, never narrows.
+//
+// E137 fix: branch 7's `in` alternative was un-anchored to the phasing verb,
+// so ANY sentence containing both "phase" and a bare "in" nearby matched —
+// "there is an additional combat phase followed by an additional main
+// phase" (Aggravated Assault, World at War, Seize the Day), "during your
+// main phase, you gain 2 life" (Sphinx's Insight), "your first main phase,
+// add four mana IN any combination" (Cosmic Crucible), "the first combat
+// phase of the turn" (Karlach, Fury of Avernus) all wrongly tripped this and
+// granted trim immunity. Requiring `out`/`in` immediately follow the
+// phasing verb (`phas(?:es?|ing|ed)\s+(?:out|in)\b`) fixes all six while
+// still matching Teferi's Protection ("permanents you control phase out" /
+// "They phase in before you untap") and Reality Ripple ("phases out" /
+// "phases in") — verified against real Scryfall oracle text. The
+// long-range "along with you" alternative is unaffected/kept as-is.
 const PROTECTION_EVIDENCE =
-  /(permanents?|creatures?) you control[^.]*?(have|gains?)[^.]*?(hexproof|shroud|indestructible)|equipped (creature|permanent)[^.]*?(has|have)[^.]*?(hexproof|shroud|indestructible)|target (creature|permanent)[^.]*?gains? (hexproof|shroud|indestructible|protection from)|without paying (its|this spell.?s) mana cost[\s\S]*?(counter target(?: noncreature)? spell|choose new targets)|choose new targets for target spell or ability|(spells? you control|target spell)[^.]*?can'?t be countered|phas(?:e|ing)[^.]*?(?:along with you|out|in)|can'?t lose the game/i;
+  /(permanents?|creatures?) you control[^.]*?(have|gains?)[^.]*?(hexproof|shroud|indestructible)|equipped (creature|permanent)[^.]*?(has|have)[^.]*?(hexproof|shroud|indestructible)|target (creature|permanent)[^.]*?gains? (hexproof|shroud|indestructible|protection from)|without paying (its|this spell.?s) mana cost[\s\S]*?(counter target(?: noncreature)? spell|choose new targets)|choose new targets for target spell or ability|(spells? you control|target spell)[^.]*?can'?t be countered|phas(?:es?|ing|ed)\s+(?:out|in)\b|phas(?:e|ing)[^.]*?along with you|can'?t lose the game/i;
 
 /**
  * Positive-evidence protection/free-interaction classifier (E87-new Slice A).
@@ -388,7 +402,19 @@ export function isProtectionPiece(card: {
 // ("...for A SPELL"), As Foretold/Fist of Suns/Omniscience/Aluren ("...for
 // spells you cast"/"spells from your hand"), which grant the discount to
 // spells OTHER than themselves (enablers, not free-interaction spells).
-const ALT_COST_REFLEXIVE = /rather than pay (?:this spell'?s|its) mana cost/i;
+//
+// E137 fix: "free" means zero mana, but this branch didn't check what the
+// alt cost actually WAS — Baleful Mastery ("pay {1}{B} rather than pay this
+// spell's mana cost") and Admiral's Order ("pay {U} rather than pay this
+// spell's mana cost") both still cost real mana and wrongly flagged as
+// free. The negative lookbehind rejects a mana-symbol token (other than
+// {0}) immediately before "rather than pay" — Ravenous Trap/Mindbreak Trap
+// ("pay {0} rather than pay...") stay free, Baleful Mastery/Admiral's
+// Order/Runeflare Trap ({1}{B}/{U}/{R}) are excluded, and non-mana
+// alt-costs (sacrifice/life/exile-a-card — Unmask, Force of Will, ...) are
+// untouched since no mana token precedes "rather than pay" there at all.
+const ALT_COST_REFLEXIVE =
+  /(?<!\{(?!0\})[^}]*\}\s)rather than pay (?:this spell'?s|its) mana cost/i;
 
 // Branch B — commander-gated free cast: Deadly Rollick, Deflecting Swat,
 // Fierce Guardianship, Flawless Maneuver all share this exact live wording.
@@ -430,11 +456,32 @@ const ALT_COST_EVIDENCE = new RegExp(
 //                                    ("puts all the cards from their
 //                                    graveyard on the bottom of their
 //                                    library")
-//  - "target player/opponent ... reveals/discards" → Grief ("target
-//                                    opponent reveals their hand ...
-//                                    discards that card")
+//
+// E137 fix — the contract is interaction = counterspell / threat removal /
+// protection, not discard/graveyard-hate/player-burn. Three narrowings, all
+// verified against real Scryfall oracle text:
+//  - Dropped the "target player/opponent ... reveals/discards" branch
+//    outright — its only real cards, Grief ("target opponent reveals their
+//    hand ... discards that card") and Unmask (same shape), are pure
+//    targeted discard, not interaction with a threat.
+//  - "puts...library" narrowed from `(?:it|them|all the cards)` to
+//    `(?:it|them)` — drops the "all the cards" arm, which existed only for
+//    Endurance's graveyard-hate ("puts all the cards from their graveyard
+//    on the bottom of their library"); Subtlety's genuine spell-tuck ("puts
+//    it on the top or bottom of their library") still matches via "it".
+//  - "exile target" gets a same-sentence negative lookahead against
+//    "graveyard" — Ravenous Trap ("Exile target player's graveyard") no
+//    longer trips the bare phrase; Deadly Rollick/Baleful Mastery ("exile
+//    target creature or planeswalker") are untouched.
+//  - The damage branch gets a same-position negative lookahead against
+//    "target player" — Runeflare Trap ("deals damage to target player")
+//    is excluded; Fury ("deals 4 damage ... among any number of target
+//    creatures and/or planeswalkers") is untouched.
+//  - Added "exile ... target spell(s)" as its own branch — Mindbreak Trap
+//    ("Exile any number of target spells") is genuine free interaction
+//    (counterspell-adjacent) but was missing evidence entirely (known FN).
 const INTERACTION_EVIDENCE =
-  /counter target|destroy target|exile target|exile up to [^.]*?target|gain control of target|choose new targets|change the target|deals? [^.]*?damage[^.]*?target|puts? (?:it|them|all the cards)[^.]*?library|target (?:player|opponent)[^.]*?(?:reveals|discards)/i;
+  /counter target|destroy target|exile target(?![^.]*?graveyard)|exile up to [^.]*?target|exile[^.]*?target spells?\b|gain control of target|choose new targets|change the target|deals? [^.]*?damage[^.]*?target(?!\s+player\b)|puts? (?:it|them)[^.]*?library/i;
 
 /**
  * Positive-evidence free-interaction classifier (iter-10 Slice A). Pure
@@ -509,6 +556,39 @@ export function isFreeInteraction(card: {
 const UNTAP_PRODUCER =
   /\buntap (?:up to (?:one|two|three|four|x|\d+) |another )?target (?:artifact|creature|land|permanent)|\buntap all (?:nonland )?(?:permanents|creatures|artifacts|lands) you control|\buntap them\b/i;
 
+// E137 fix (measured 55% precision) — two exclusion classes, both verified
+// against real Scryfall oracle text:
+//  (a) Threaten-style untap+steal — Spinal Embrace ("Untap target creature
+//      you don't control and gain control of it") and Overtaker ("Untap
+//      target creature and gain control of it until end of turn") untap an
+//      OPPONENT's creature as incidental setup for stealing it; the untap
+//      isn't an engine, it's a Threaten effect. A same-sentence "gain
+//      control of" co-occurrence catches both regardless of activated-
+//      ability shape (Overtaker has a real `{cost}, {T}:` activation, so a
+//      repeatability heuristic alone wouldn't exclude it).
+const UNTAP_STEAL_EXCLUSION = /\buntap[^.]*?\bgain control of\b/i;
+
+//  (b) One-shot riders bolted onto an unrelated card — Pestermite ("When
+//      this creature enters, you may tap or untap target permanent"),
+//      Granite Witness ("When this creature is turned face up, you may tap
+//      or untap target creature"), Rally to Battle ("Creatures you control
+//      get +1/+3 until end of turn. Untap them."), and Molten Note ("...
+//      Untap all creatures you control.") are textually identical in shape
+//      to genuine untap engines (Kiora's Follower, Dramatic Reversal) — the
+//      difference is "is untapping this card's whole purpose or an ETB/
+//      combat-trick afterthought," which isn't reliably regex-detectable
+//      (Dramatic Reversal's ENTIRE text is a bare "Untap all nonland
+//      permanents you control." with no repeatable-ability marker either,
+//      so a marker-presence heuristic would wrongly exclude it too). A
+//      curated exclusion — same shape as EXTRA_COMBAT_CURATED_NAMES above —
+//      is the honest minimal fix for this specific FP class.
+const UNTAP_ONE_SHOT_RIDER_NAMES: ReadonlySet<string> = new Set([
+  'Pestermite',
+  'Granite Witness',
+  'Rally to Battle',
+  'Molten Note',
+]);
+
 /**
  * Positive-evidence untap-producer classifier (E89, iter-7 Slice E). Pure
  * oracle-text check, independent of `RoleKey`/`getCardRole` — see
@@ -521,13 +601,15 @@ export function isUntapProducer(card: {
   oracle_text?: string;
   card_faces?: Array<{ oracle_text?: string }>;
 }): boolean {
+  if (UNTAP_ONE_SHOT_RIDER_NAMES.has(card.name)) return false;
   const text = (
     card.oracle_text ??
     card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
     ''
   ).trim();
   if (!text) return false;
-  return UNTAP_PRODUCER.test(text);
+  if (!UNTAP_PRODUCER.test(text)) return false;
+  return !UNTAP_STEAL_EXCLUSION.test(text);
 }
 
 // Blink/flicker producers (iter-8 Slice B) — same shape as isUntapProducer: a
@@ -559,18 +641,55 @@ export function isUntapProducer(card: {
 const BLINK_PRODUCER =
   /\bexile\b[\s\S]{0,80}?\breturn (?:it|that card|those cards|them) to the battlefield\b/i;
 
+// E137 fix (measured 55% precision) — two exclusion classes, both verified
+// against real Scryfall oracle text:
+//  (a) Saga/Class self-transform reminder text — every transforming Saga's
+//      chapter III reads "Exile this Saga, then return it to the
+//      battlefield transformed under your control" verbatim (The Modern
+//      Age, Era of Enlightenment, Azusa's Many Journeys, Boseiju Reaches
+//      Skyward, Befriending the Moths all confirmed identical wording) —
+//      this trips BLINK_PRODUCER's exile/return-to-battlefield shape but is
+//      a one-time self-transform, not a return-for-ETB-value blink. Real
+//      blink return clauses never say "transformed" there, so that single
+//      word is a clean, generalizable exclusion.
+const SAGA_TRANSFORM_EXCLUSION =
+  /\breturn (?:it|that card|those cards|them) to the battlefield transformed\b/i;
+
+//  (b) One-shot self-saves and opponent-permanent tempo/O-Ring removal —
+//      Anurid Brushhopper ("Exile this creature. Return it to the
+//      battlefield under its owner's control...") and Cosmic Intervention
+//      (same shape, as a death-replacement effect) only ever target their
+//      OWN permanent to dodge removal — a one-shot save, not a return-for-
+//      value blink engine. Vizier of Deferment ("you may exile target
+//      creature if it attacked or blocked this turn...") is combat-
+//      conditioned tempo removal of a creature that just attacked/blocked,
+//      the same O-Ring/tempo idiom as Koya, Death from Above (which is
+//      already excluded by BLINK_PRODUCER's own {0,80}-char return-clause
+//      gap — verified, no change needed there). None of these three are
+//      textually distinguishable from genuine blink (Essence Flux, Flicker
+//      of Fate, ...) by the pronoun/return-clause shape alone — same
+//      curated shape as EXTRA_COMBAT_CURATED_NAMES / UNTAP_ONE_SHOT_RIDER_NAMES
+//      above.
+const BLINK_CURATED_EXCLUSION_NAMES: ReadonlySet<string> = new Set([
+  'Anurid Brushhopper',
+  'Cosmic Intervention',
+  'Vizier of Deferment',
+]);
+
 export function isBlinkProducer(card: {
   name: string;
   oracle_text?: string;
   card_faces?: Array<{ oracle_text?: string }>;
 }): boolean {
+  if (BLINK_CURATED_EXCLUSION_NAMES.has(card.name)) return false;
   const text = (
     card.oracle_text ??
     card.card_faces?.map((f) => f.oracle_text ?? '').join(' ') ??
     ''
   ).trim();
   if (!text) return false;
-  return BLINK_PRODUCER.test(text);
+  if (!BLINK_PRODUCER.test(text)) return false;
+  return !SAGA_TRANSFORM_EXCLUSION.test(text);
 }
 
 // Exile-matters (impulse draw) producers (iter-8 Slice B) — same shape again:

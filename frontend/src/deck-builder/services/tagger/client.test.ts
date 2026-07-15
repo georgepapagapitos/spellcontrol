@@ -679,6 +679,62 @@ describe('isProtectionPiece', () => {
     ).toBe(true);
   });
 
+  // E137 fix: the phasing branch's `in` alternative was un-anchored to the
+  // phasing verb — any sentence mentioning "phase" and a bare "in" nearby
+  // (including "in" as a bare substring, e.g. inside "win") tripped it. Real
+  // oracle text below, verified live against Scryfall.
+  it("phasing evidence, live oracle text (Teferi's Protection — E137 anchor fix)", () => {
+    expect(
+      isProtectionPiece({
+        name: "Teferi's Protection",
+        oracle_text:
+          "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before you untap during your untap step.)\nExile Teferi's Protection.",
+      })
+    ).toBe(true);
+  });
+
+  it('phasing evidence, live oracle text (Reality Ripple — E137 anchor fix)', () => {
+    expect(
+      isProtectionPiece({
+        name: 'Reality Ripple',
+        oracle_text:
+          "Target artifact, creature, or land phases out. (While it's phased out, it's treated as though it doesn't exist. It phases in before its controller untaps during their next untap step.)",
+      })
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      'Aggravated Assault',
+      '{3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase. Activate only as a sorcery.',
+    ],
+    [
+      'Karlach, Fury of Avernus',
+      "Whenever you attack, if it's the first combat phase of the turn, untap all attacking creatures. They gain first strike until end of turn. After this phase, there is an additional combat phase.\nChoose a Background (You can have a Background as a second commander.)",
+    ],
+    [
+      'World at War',
+      "After the second main phase this turn, there's an additional combat phase followed by an additional main phase. At the beginning of that combat, untap all creatures that attacked this turn.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+    ],
+    [
+      'Seize the Day',
+      'Untap target creature. After this main phase, there is an additional combat phase followed by an additional main phase.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    ],
+    [
+      "Sphinx's Insight",
+      'Draw two cards.\nAddendum — If you cast this spell during your main phase, you gain 2 life.',
+    ],
+    [
+      'Cosmic Crucible',
+      'At the beginning of your first main phase, add four mana in any combination of colors.\nWhenever you cast a noncreature spell, you may copy it. You may choose new targets for the copy. Do this only once each turn. (A copy of a permanent spell becomes a token.)',
+    ],
+  ])(
+    'does NOT match "additional combat/main phase" text as phasing (%s — E137 anchor-fix false-positive guard)',
+    (name, oracle_text) => {
+      expect(isProtectionPiece({ name, oracle_text })).toBe(false);
+    }
+  );
+
   it("does NOT match a bare self can't-be-countered clause (Supreme Verdict — false-positive guard)", () => {
     // The exact failure mode this class must avoid: Supreme Verdict's own
     // "this spell can't be countered" self-protection is NOT a grant to the
@@ -824,6 +880,76 @@ describe('isUntapProducer', () => {
       })
     ).toBe(true);
   });
+
+  // E137 fix (measured 55% precision) — regression guards for the MUST-keep
+  // list not already covered above, plus the two new exclusion classes. All
+  // oracle text verified live against Scryfall.
+  it.each([
+    ['Ley Druid', '{T}: Untap target land.'],
+    [
+      'Mind Over Matter',
+      'Discard a card: You may tap or untap target artifact, creature, or land.',
+    ],
+    [
+      'Teferi, Temporal Archmage',
+      '+1: Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.\n−1: Untap up to four target permanents.\n−10: You get an emblem with "You may activate loyalty abilities of planeswalkers you control on any player\'s turn any time you could cast an instant."\nTeferi, Temporal Archmage can be your commander.',
+    ],
+    [
+      'Clever Conjurer',
+      'Mage Hand — {T}: Untap target permanent not named Clever Conjurer. Activate only as a sorcery.',
+    ],
+    [
+      'Samut, Voice of Dissent',
+      '{W}, {T}: Untap another target creature.\nFlash\nDouble strike, vigilance, haste\nOther creatures you control have haste.',
+    ],
+    [
+      'Stone-Seeder Hierophant',
+      'Landfall — Whenever a land you control enters, untap this creature.\n{T}: Untap target land.',
+    ],
+    [
+      'Unstoppable Plan',
+      'At the beginning of your end step, untap all nonland permanents you control.',
+    ],
+  ])('E137 regression guard — MUST keep matching: %s', (name, oracle_text) => {
+    expect(isUntapProducer({ name, oracle_text })).toBe(true);
+  });
+
+  it.each([
+    [
+      'Spinal Embrace',
+      "Cast this spell only during combat.\nUntap target creature you don't control and gain control of it. It gains haste until end of turn. At the beginning of the next end step, sacrifice it. If you do, you gain life equal to its toughness.",
+    ],
+    [
+      'Overtaker',
+      '{3}{U}, {T}, Discard a card: Untap target creature and gain control of it until end of turn. That creature gains haste until end of turn.',
+    ],
+  ])(
+    'does NOT match Threaten-style untap-and-steal an OPPONENT creature (%s — E137 fix)',
+    (name, oracle_text) => {
+      expect(isUntapProducer({ name, oracle_text })).toBe(false);
+    }
+  );
+
+  it.each([
+    [
+      'Pestermite',
+      'Flash\nFlying\nWhen this creature enters, you may tap or untap target permanent.',
+    ],
+    [
+      'Granite Witness',
+      'Flying, vigilance\nDisguise {W/U}{W/U} (You may cast this card face down for {3} as a 2/2 creature with ward {2}. Turn it face up any time for its disguise cost.)\nWhen this creature is turned face up, you may tap or untap target creature.',
+    ],
+    ['Rally to Battle', 'Creatures you control get +1/+3 until end of turn. Untap them.'],
+    [
+      'Molten Note',
+      'Molten Note deals damage to target creature equal to the amount of mana spent to cast this spell. Untap all creatures you control.\nFlashback {6}{R}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    ],
+  ])(
+    'does NOT match a one-shot ETB/combat-trick untap rider bolted onto an unrelated card (%s — E137 fix)',
+    (name, oracle_text) => {
+      expect(isUntapProducer({ name, oracle_text })).toBe(false);
+    }
+  );
 
   it('does NOT match the tap-down idiom (Frost Titan)', () => {
     expect(
@@ -1067,6 +1193,109 @@ describe('isBlinkProducer', () => {
       })
     ).toBe(true);
   });
+
+  // E137 fix (measured 55% precision) — regression guards for the MUST-keep
+  // list not already covered above, plus the two new exclusion classes. All
+  // oracle text verified live against Scryfall.
+  it.each([
+    [
+      'Essence Flux',
+      "Exile target creature you control, then return that card to the battlefield under its owner's control. If it's a Spirit, put a +1/+1 counter on it.",
+    ],
+    [
+      "Illusionist's Stratagem",
+      "Exile up to two target creatures you control, then return those cards to the battlefield under their owner's control.\nDraw a card.",
+    ],
+    [
+      "Teferi's Time Twist",
+      "Exile target permanent you control. Return that card to the battlefield under its owner's control at the beginning of the next end step. If it enters as a creature, it enters with an additional +1/+1 counter on it.",
+    ],
+    [
+      'Venser, the Sojourner',
+      '+2: Exile target permanent you own. Return it to the battlefield under your control at the beginning of the next end step.\n−1: Creatures can\'t be blocked this turn.\n−8: You get an emblem with "Whenever you cast a spell, exile target permanent."',
+    ],
+    [
+      "Nahiri's Resolve",
+      "Creatures you control get +1/+0 and have haste.\nAt the beginning of your end step, exile any number of nontoken artifacts and/or creatures you control. Return those cards to the battlefield under their owner's control at the beginning of your next upkeep.",
+    ],
+    [
+      "Justiciar's Portal",
+      "Exile target creature you control, then return that card to the battlefield under its owner's control. It gains first strike until end of turn.",
+    ],
+    [
+      'Silver Surfer, Cosmic Voyager',
+      "Flash\nFlying\nWhen Silver Surfer enters, exile any number of other target permanents you control. Return those cards to the battlefield under their owner's control at the beginning of the next end step. If a land enters this way, it enters tapped.",
+    ],
+    [
+      'Flicker of Fate',
+      "Exile target creature or enchantment, then return it to the battlefield under its owner's control.",
+    ],
+  ])('E137 regression guard — MUST keep matching: %s', (name, oracle_text) => {
+    expect(isBlinkProducer({ name, oracle_text })).toBe(true);
+  });
+
+  it.each([
+    [
+      'The Modern Age',
+      '(As this Saga enters and after your draw step, add a lore counter.)\nI, II — Draw a card, then discard a card.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.',
+    ],
+    [
+      'Era of Enlightenment',
+      '(As this Saga enters and after your draw step, add a lore counter.)\nI — Scry 2.\nII — You gain 2 life.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.',
+    ],
+    [
+      "Azusa's Many Journeys",
+      '(As this Saga enters and after your draw step, add a lore counter.)\nI — You may play an additional land this turn.\nII — You gain 3 life.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.',
+    ],
+    [
+      'Boseiju Reaches Skyward',
+      '(As this Saga enters and after your draw step, add a lore counter.)\nI — Search your library for up to two basic Forest cards, reveal them, put them into your hand, then shuffle.\nII — Put up to one target land card from your graveyard on top of your library.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.',
+    ],
+    [
+      'Befriending the Moths',
+      '(As this Saga enters and after your draw step, add a lore counter.)\nI, II — Target creature you control gets +1/+1 and gains flying until end of turn.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.',
+    ],
+  ])(
+    'does NOT match Saga/Class self-transform reminder text (%s — E137 fix)',
+    (name, oracle_text) => {
+      expect(isBlinkProducer({ name, oracle_text })).toBe(false);
+    }
+  );
+
+  it.each([
+    [
+      'Anurid Brushhopper',
+      "Discard two cards: Exile this creature. Return it to the battlefield under its owner's control at the beginning of the next end step.",
+    ],
+    [
+      'Cosmic Intervention',
+      "If a permanent you control would be put into a graveyard from the battlefield this turn, exile it instead. Return it to the battlefield under its owner's control at the beginning of the next end step.\nForetell {1}{W} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
+    ],
+    [
+      'Vizier of Deferment',
+      "Flash\nWhen this creature enters, you may exile target creature if it attacked or blocked this turn. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+    ],
+  ])(
+    'does NOT match a one-shot self-save or combat-conditioned tempo removal (%s — E137 fix)',
+    (name, oracle_text) => {
+      expect(isBlinkProducer({ name, oracle_text })).toBe(false);
+    }
+  );
+
+  it(
+    'does NOT match opponent-permanent O-Ring/tempo removal (Koya, Death from Above — already ' +
+      'excluded by the existing {0,80}-char return-clause gap, no code change needed; kept as a ' +
+      'regression lock)',
+    () => {
+      expect(
+        isBlinkProducer({
+          name: 'Koya, Death from Above',
+          oracle_text:
+            "Flying\nWhen Koya enters, exile up to one other target creature. At the beginning of the next end step, you may pay {3}{B}. If you don't, return that card to the battlefield under its owner's control.",
+        })
+      ).toBe(false);
+    }
+  );
 
   it('does NOT match the O-Ring shape whose return object is a noun phrase, not a pronoun (Fiend Hunter)', () => {
     expect(
@@ -1719,16 +1948,68 @@ describe('isFreeInteraction', () => {
       'Subtlety',
       'Flash. Flying. When this creature enters, choose up to one target creature spell or planeswalker spell. Its owner puts it on their choice of the top or bottom of their library. Evoke—Exile a blue card from your hand.',
     ],
-    [
-      'Endurance',
-      'Flash. Reach. When this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order. Evoke—Exile a green card from your hand.',
-    ],
-    [
-      'Grief',
-      'Menace. When this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card. Evoke—Exile a black card from your hand.',
-    ],
   ])('Bucket D — Evoke cycle: %s', (name, oracle_text) => {
     expect(isFreeInteraction({ name, oracle_text })).toBe(true);
+  });
+
+  // E137 fix — the contract is interaction = counterspell / threat removal /
+  // protection, not discard/graveyard-hate/player-burn. Endurance and Grief
+  // were previously (wrongly) asserted true in "Bucket D" above — evoke gets
+  // them free, but their payoff is pure graveyard hate / targeted discard,
+  // not interaction with a threat. Unmask is the same discard shape via a
+  // reflexive alt-cost instead of evoke. Ravenous Trap is graveyard hate via
+  // a free (pay {0}) alt cost. Runeflare Trap burns a player, not a threat.
+  // Baleful Mastery / Admiral's Order pay real mana ({1}{B} / {U}) for their
+  // alt cost, so "free" never applied to them in the first place. All real
+  // oracle text, verified live against Scryfall.
+  it.each([
+    [
+      'Grief',
+      'Menace\nWhen this creature enters, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nEvoke—Exile a black card from your hand.',
+      'discard-only payoff, not interaction with a threat',
+    ],
+    [
+      'Unmask',
+      "You may exile a black card from your hand rather than pay this spell's mana cost.\nTarget player reveals their hand. You choose a nonland card from it. That player discards that card.",
+      'discard-only payoff, not interaction with a threat',
+    ],
+    [
+      'Ravenous Trap',
+      "If an opponent had three or more cards put into their graveyard from anywhere this turn, you may pay {0} rather than pay this spell's mana cost.\nExile target player's graveyard.",
+      'graveyard-hate-only payoff, not interaction with a threat',
+    ],
+    [
+      'Endurance',
+      'Flash\nReach\nWhen this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order.\nEvoke—Exile a green card from your hand.',
+      'graveyard-hate-only payoff, not interaction with a threat',
+    ],
+    [
+      'Runeflare Trap',
+      "If an opponent drew three or more cards this turn, you may pay {R} rather than pay this spell's mana cost.\nRuneflare Trap deals damage to target player equal to the number of cards in that player's hand.",
+      'player-burn-only payoff (and the {R} alt cost is not free either)',
+    ],
+    [
+      'Baleful Mastery',
+      "You may pay {1}{B} rather than pay this spell's mana cost.\nIf the {1}{B} cost was paid, an opponent draws a card.\nExile target creature or planeswalker.",
+      'alt cost is {1}{B}, not free',
+    ],
+    [
+      "Admiral's Order",
+      "Raid — If you attacked this turn, you may pay {U} rather than pay this spell's mana cost.\nCounter target spell.",
+      'alt cost is {U}, not free',
+    ],
+  ])('does NOT match — %s: %s (E137 fix)', (name, oracle_text) => {
+    expect(isFreeInteraction({ name, oracle_text })).toBe(false);
+  });
+
+  it('Bucket F — Mindbreak Trap: free (pay {0}) alt cost, "exile ... target spells" payoff (E137 fix — known FN)', () => {
+    expect(
+      isFreeInteraction({
+        name: 'Mindbreak Trap',
+        oracle_text:
+          "If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.\nExile any number of target spells.",
+      })
+    ).toBe(true);
   });
 
   it.each([
