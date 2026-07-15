@@ -145,13 +145,13 @@ interface Props {
 }
 
 const PRELOAD_RADIUS = 2;
-// Turn cycles (degrees) for single-faced layouts printed sideways. Split
-// includes DSK Rooms, whose halves read at *opposite* 90s — hence the
-// three-stop cycle; aftermath's bottom half reads at one of them. Kamigawa
-// flip cards read upside down, so they just toggle 180.
+// Turn toggles (degrees) for single-faced layouts printed sideways — one turn
+// to read, one turn back upright. Split halves (incl. DSK Rooms) all read at
+// the same clockwise 90; aftermath's bottom half reads counterclockwise;
+// Kamigawa flip cards read upside down.
 const TURN_CYCLE: Record<string, readonly number[]> = {
-  split: [0, 90, -90],
-  aftermath: [0, 90, -90],
+  split: [0, 90],
+  aftermath: [0, -90],
   flip: [0, 180],
 };
 // Window of cards that get a *rich* slide (the 3D-transformed, box-shadowed
