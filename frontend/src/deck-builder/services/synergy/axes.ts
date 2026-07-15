@@ -111,10 +111,16 @@ const counters: SynergyAxis = {
   },
 };
 
+// Devour/Casualty/Bargain reminder text (the actual "sacrifice …" wording) is
+// parenthetical and gets stripped by `stripReminder`, so these keyword outlets
+// are only detectable by keyword, not oracle text.
+const SAC_KEYWORD_OUTLETS = ['devour', 'casualty', 'bargain'];
+
 const sacrifice: SynergyAxis = {
   key: 'sacrifice',
   label: 'Sacrifice / aristocrats',
   producer(card) {
+    if (SAC_KEYWORD_OUTLETS.some((k) => has(card, k))) return 'sacrifice outlet (keyword)';
     // A sac OUTLET — imperative "Sacrifice a creature" you activate — NOT a
     // "Whenever you sacrifice" trigger (that's the payoff below).
     return sacrificeSignals(card.oracle).outlet ? 'sacrifice outlet' : null;
