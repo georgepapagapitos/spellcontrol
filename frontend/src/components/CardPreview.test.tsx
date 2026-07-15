@@ -105,14 +105,21 @@ describe('CardPreview printing identity (T36)', () => {
 });
 
 describe('CardPreview turn (sideways layouts)', () => {
-  it('cycles a split card upright → right → left → upright', () => {
+  it('toggles a split card right and back upright', () => {
     renderPreview(mk({ layout: 'split' }));
     const frame = screen.getByTestId('card-image-frame');
     expect(frame.getAttribute('data-turn')).toBe('0');
 
-    const btn = screen.getByRole('button', { name: 'Turn right to read' });
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByRole('button', { name: 'Turn right to read' }));
     expect(frame.getAttribute('data-turn')).toBe('90');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turn upright' }));
+    expect(frame.getAttribute('data-turn')).toBe('0');
+  });
+
+  it('toggles an aftermath card left and back upright', () => {
+    renderPreview(mk({ layout: 'aftermath' }));
+    const frame = screen.getByTestId('card-image-frame');
 
     fireEvent.click(screen.getByRole('button', { name: 'Turn left to read' }));
     expect(frame.getAttribute('data-turn')).toBe('-90');
