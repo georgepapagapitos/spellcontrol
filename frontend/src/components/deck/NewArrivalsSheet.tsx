@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Plus, X } from 'lucide-react';
 import { useSheetExit } from '@/lib/use-sheet-exit';
@@ -12,9 +12,8 @@ interface Props {
   bucket: TypeGroup;
   rows: ArrivalRow[];
   onClose: () => void;
-  /** Stamp deck.lastArrivalReviewAt (silent). Fired once, on unmount, so every
-   *  dismiss path (✕ / backdrop / Escape) — which all route through onClose
-   *  and unmount this component — is covered by one code path. */
+  /** Stamp deck.lastArrivalReviewAt (silent). Fired once, from the real close
+   *  path (✕ / backdrop / Escape all route through beginClose -> this). */
   onMarkReviewed: () => void;
   /** Add-by-name — reuses the same handler as the Coach/Build Report lanes. */
   onAddCard?: (name: string) => void;
@@ -44,16 +43,21 @@ export function NewArrivalsSheet({
   // empty this list out from under an already-open sheet.
   const [frozenRows] = useState(rows);
 
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, [
+  // Guard so a StrictMode/HMR remount (or a double-fired exit trigger) can't
+  // stamp the review twice.
+  const reviewedRef = useRef(false);
+  const onCloseAndReview = useCallback(() => {
+    if (!reviewedRef.current) {
+      reviewedRef.current = true;
+      onMarkReviewed();
+    }
+    onClose();
+  }, [onMarkReviewed, onClose]);
+
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onCloseAndReview, [
     'sheet-fall',
     'modal-panel-out',
   ]);
-
-  const onMarkReviewedRef = useRef(onMarkReviewed);
-  useEffect(() => {
-    onMarkReviewedRef.current = onMarkReviewed;
-  });
-  useEffect(() => () => onMarkReviewedRef.current(), []);
 
   // Minimal focus management (mirrors what a dialog needs beyond BuildReportSheet's
   // plain role/aria-modal): move focus in on open, restore it on close.

@@ -205,6 +205,20 @@ describe('computeNewArrivals', () => {
     expect(result.Artifact?.[0]).toMatchObject({ name: 'Sol Ring', qty: 3 });
   });
 
+  it('counts every owned copy toward qty even when only some printings are newly acquired', () => {
+    const result = computeNewArrivals(
+      baseInput({
+        collectionCards: [
+          candidate({ name: 'Sol Ring', typeLine: 'Artifact', updatedAt: BASE_TIME - 1000 }),
+          candidate({ name: 'Sol Ring', typeLine: 'Artifact', updatedAt: BASE_TIME - 1000 }),
+          candidate({ name: 'Sol Ring', typeLine: 'Artifact', updatedAt: BASE_TIME + 1000 }),
+        ],
+      })
+    );
+    expect(result.Artifact).toHaveLength(1);
+    expect(result.Artifact?.[0]).toMatchObject({ name: 'Sol Ring', qty: 3 });
+  });
+
   it('buckets by classifyType so counts match the deck panels', () => {
     const result = computeNewArrivals(
       baseInput({

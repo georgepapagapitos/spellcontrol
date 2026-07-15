@@ -348,6 +348,14 @@
   margin-bottom: 0.45rem;
 }
 
+/* Icon + title + (subtotal) + (headerAction) can be 4 children (both the
+   price subtotal and the new-arrivals chip showing at once). Grid
+   auto-placement would otherwise drop the 4th into row 2's first (icon-sized)
+   column, widening it — force it onto its own full-width row instead. */
+.deck-section-header > :nth-child(4) {
+  grid-column: 1 / -1;
+}
+
 .deck-section-icon {
   color: var(--accent);
   font-size: var(--text-lg);

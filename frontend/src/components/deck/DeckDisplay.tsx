@@ -1900,12 +1900,12 @@ export function DeckDisplay({
                         onReleaseCopy={onReleaseCopy}
                         onUseOwnCopy={onUseOwnCopy}
                         headerAction={
-                          g.icon === 'ms-commander' && onEditPartner ? (
+                          g.icon === 'commander' && onEditPartner ? (
                             <PartnerHeaderButton
                               hasPartner={!!partnerCommander}
                               onClick={onEditPartner}
                             />
-                          ) : g.icon === 'ms-commander' ? undefined : (
+                          ) : g.icon === 'commander' ? undefined : (
                             arrivalsChip(g.title as TypeGroup)
                           )
                         }
@@ -2798,9 +2798,9 @@ function DeckCardGrid({
               <h3 className="deck-section-title">
                 {g.title} <span className="deck-section-count">({count})</span>
               </h3>
-              {g.icon === 'ms-commander' && onEditPartner ? (
+              {g.icon === 'commander' && onEditPartner ? (
                 <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
-              ) : g.icon === 'ms-commander' ? null : (
+              ) : g.icon === 'commander' ? null : (
                 onOpenArrivals &&
                 renderArrivalsChip(g.title as TypeGroup, arrivalsByType, onOpenArrivals)
               )}

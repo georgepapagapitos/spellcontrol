@@ -185,15 +185,17 @@ export function computeNewArrivals(input: NewArrivalsInput): ArrivalsByType {
     else deckByBucket.set(bucket, [c]);
   }
 
-  // Group owned copies by name -> qty + latest acquisition + a representative
-  // candidate (for the sheet's thumbnail/mana-cost render).
+  // Group EVERY eligible (non-basic, not-in-deck, color-legal) owned copy by
+  // name -> total qty + latest acquisition + a representative candidate (for
+  // the sheet's thumbnail/mana-cost render). A card is flagged as a new
+  // arrival by its newest printing, but qty reflects the true owned total —
+  // not just the printings that individually postdate windowStart.
   const byName = new Map<string, { rep: ArrivalCandidateCard; qty: number; acquiredAt: number }>();
   for (const card of input.collectionCards) {
     if (BASIC_LAND_NAMES.has(card.name)) continue;
     if (inDeckNames.has(card.name.toLowerCase())) continue;
-    const at = acquiredAt(card, input.addedAtByImportId);
-    if (at <= windowStart) continue;
     if (!fitsColorIdentity(asIdentityCard(card.colorIdentity), identity)) continue;
+    const at = acquiredAt(card, input.addedAtByImportId);
     const existing = byName.get(card.name);
     if (existing) {
       existing.qty += 1;
@@ -205,6 +207,7 @@ export function computeNewArrivals(input: NewArrivalsInput): ArrivalsByType {
 
   const result: ArrivalsByType = {};
   for (const [name, entry] of byName) {
+    if (entry.acquiredAt <= windowStart) continue;
     const bucket = bucketOf(entry.rep);
     const score = scoreCandidate(entry.rep, deckByBucket.get(bucket) ?? []);
     const row: ArrivalRow = { name, card: entry.rep, qty: entry.qty, score };

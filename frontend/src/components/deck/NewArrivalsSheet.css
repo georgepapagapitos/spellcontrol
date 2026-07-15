@@ -147,10 +147,26 @@
   display: block;
 }
 
+/* Same shimmer treatment as .deck-card-row-art-ph (DeckCardRow.css) — the
+   single shared skeleton-shimmer keyframe, so a thumb that hasn't resolved
+   yet reads as "loading" rather than "no art". */
 .new-arrivals-row-thumb-ph {
   display: block;
   width: 100%;
   height: 100%;
+  background: var(--surface-raised);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .new-arrivals-row-thumb-ph {
+    background: linear-gradient(
+      100deg,
+      var(--surface-raised) 30%,
+      var(--surface-raised) 50%,
+      var(--surface-raised) 70%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
 }
 
 .new-arrivals-row-meta {
