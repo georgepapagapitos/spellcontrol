@@ -71,6 +71,20 @@
   outline-offset: 2px;
 }
 
+/* Coarse pointers: widen the 39px-wide trigger's hit box into the row gap and
+   the (inert) card text beside it, up to the 44px touch guideline. */
+@media (pointer: coarse) {
+  .deck-size-prompt-peek {
+    position: relative;
+  }
+
+  .deck-size-prompt-peek::after {
+    content: '';
+    position: absolute;
+    inset: 0 -10px 0 -6px;
+  }
+}
+
 /* The incoming/cut card the candidates trade against — a tappable chip under
    the subtitle that opens the same carousel at that card. */
 .deck-size-prompt-subject {
