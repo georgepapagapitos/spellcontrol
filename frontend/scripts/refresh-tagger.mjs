@@ -6,7 +6,7 @@
 //
 // Pass --force to re-fetch unconditionally.
 
-import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,12 +20,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'tagger-tags.json');
 
 async function ageDays(path) {
+  // Age from the snapshot's own generatedAt, NOT file mtime: the file is
+  // git-tracked, so checkout / Docker COPY resets mtime and the mtime check
+  // reads "fresh" in every clean build — prod shipped a 72-day-old snapshot
+  // that way while the S3 blob was current.
   try {
-    const s = await stat(path);
-    return (Date.now() - s.mtimeMs) / 86_400_000;
+    const generatedAt = new Date(JSON.parse(await readFile(path, 'utf8')).generatedAt).getTime();
+    if (Number.isFinite(generatedAt)) return (Date.now() - generatedAt) / 86_400_000;
   } catch {
-    return Infinity;
+    // unreadable/unparseable → treat as missing and refetch
   }
+  return Infinity;
 }
 
 const age = await ageDays(dest);
