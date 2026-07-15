@@ -416,7 +416,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever this creature or another nontoken creature you control dies, you may create a 0/1 colorless Eldrazi Spawn creature token. It has "Sacrifice this token: Add {C}."',
-    expect: { producers: ['tokens'], payoffs: ['sacrifice'] },
+    expect: { producers: ['tokens', 'sacrifice'], payoffs: ['sacrifice'] },
   },
   {
     name: 'Bitterblossom',
@@ -446,7 +446,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Sacrifice this creature: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.',
-    expect: { producers: ['landfall'], payoffs: [] },
+    expect: { producers: ['landfall', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Lotus Cobra',
@@ -720,7 +720,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Other enchantments you control have shroud. (They can't be the targets of spells or abilities.)\n{1}, Sacrifice this enchantment: Search your library for an enchantment card, reveal it, then shuffle and put that card on top.",
-    expect: { producers: ['enchantress'], payoffs: [] },
+    expect: { producers: ['enchantress', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Birds of Paradise',
@@ -1577,7 +1577,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Sacrifice this creature: You gain life equal to the life you've lost this turn. (Damage causes loss of life.)",
-    expect: { producers: ['lifegain'], payoffs: [] },
+    expect: { producers: ['lifegain', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Chrome Host Seedshark',
@@ -1609,7 +1609,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       '{T}: Put a charge counter on target artifact.\nSacrifice this creature: Put two charge counters on target artifact.',
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: ['sacrifice'], payoffs: [] },
   },
   {
     name: 'Crested Sunmare',
@@ -1890,7 +1890,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Goad', 'Treasure'],
     oracle_text:
       'Whenever you cast a historic spell, create a Treasure token. This ability triggers only once each turn. (Artifacts, legendaries, and Sagas are historic.)\n{T}, Sacrifice a Treasure: Goad target creature. (Until your next turn, that creature attacks each combat if able and attacks a player other than you if able.)',
-    expect: { producers: ['artifacts'], payoffs: [] },
+    expect: { producers: ['artifacts', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Grafted Exoskeleton',
@@ -2359,7 +2359,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Land',
     keywords: [],
     oracle_text: '{T}: Add {C}.\n{4}, {T}, Sacrifice this land: You become the monarch.',
-    expect: { producers: ['monarch'], payoffs: [] },
+    expect: { producers: ['monarch', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Toxic Deluge',
@@ -2445,7 +2445,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Proliferate', 'Compleated'],
     oracle_text:
       'Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n\u22122: Target creature becomes a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color" and loses all other card types and abilities.\n\u22129: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.',
-    expect: { producers: ['superfriends'], payoffs: [] },
+    expect: { producers: ['superfriends', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Wall of Reverence',
@@ -2477,7 +2477,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When this artifact enters, you gain 3 life and get {E}{E}{E} (three energy counters).\n{2}{G}, Sacrifice this artifact: You gain 3 life and get {E}{E}{E}.',
-    expect: { producers: ['energy', 'lifegain'], payoffs: [] },
+    expect: { producers: ['energy', 'lifegain', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'World Shaper',
@@ -2541,7 +2541,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Mill'],
     oracle_text:
       '{T}: Target player mills a card. (They put the top card of their library into their graveyard.)\n{5}, {T}, Sacrifice this artifact: Return target card from your graveyard to your hand.',
-    expect: { producers: ['mill'], payoffs: ['graveyard'] },
+    expect: { producers: ['mill', 'sacrifice'], payoffs: ['graveyard'] },
   },
   {
     name: 'Comeuppance',
@@ -2692,7 +2692,7 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "{W}, Sacrifice this enchantment: Exile target creature that's attacking you or a planeswalker you control.",
-    expect: { producers: [], payoffs: [] },
+    expect: { producers: ['sacrifice'], payoffs: [] },
   },
   {
     name: 'Sun Droplet',
@@ -2717,5 +2717,346 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       "Whenever another creature you control enters, you gain life equal to that creature's toughness.\n{1}{G}{W}, {T}: Populate. (Create a token that's a copy of a creature token you control.)",
     expect: { producers: ['lifegain'], payoffs: ['blink', 'tokens'] },
+  },
+  // ── E138: sacrifice-axis producer rebuild — new/updated shapes ────────────
+  {
+    name: 'Arbiter of Woe',
+    type_line: 'Creature — Demon',
+    keywords: ['Flying'],
+    oracle_text:
+      'As an additional cost to cast this spell, sacrifice a creature.\nFlying\nWhen this creature enters, each opponent discards a card and loses 2 life. You draw a card and gain 2 life.',
+    expect: { producers: ['discard', 'lifegain'], payoffs: [] },
+  },
+  {
+    name: 'Aura Fracture',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text: 'Sacrifice a land: Destroy target enchantment.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Bog Glider',
+    type_line: 'Creature — Human Mercenary',
+    keywords: ['Flying'],
+    oracle_text:
+      'Flying\n{T}, Sacrifice a land: Search your library for a Mercenary permanent card with mana value 2 or less, put it onto the battlefield, then shuffle.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Call the Scions',
+    type_line: 'Sorcery',
+    keywords: ['Devoid'],
+    oracle_text:
+      'Devoid (This card has no color.)\nCreate two 1/1 colorless Eldrazi Scion creature tokens. They have "Sacrifice this token: Add {C}."',
+    expect: { producers: ['sacrifice', 'tokens'], payoffs: [] },
+  },
+  {
+    name: 'Chronomancer',
+    type_line: 'Artifact Creature — Necron Wizard',
+    keywords: ['Flying', 'Atomic Transmutation', 'Unearth'],
+    oracle_text:
+      'Flying\nAtomic Transmutation — {1}, {T}, Sacrifice another artifact: Draw a card.\nUnearth {2}{B} ({2}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)',
+    expect: { producers: ['sacrifice'], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Delraich',
+    type_line: 'Creature — Horror',
+    keywords: ['Trample'],
+    oracle_text:
+      "You may sacrifice three black creatures rather than pay this spell's mana cost.\nTrample",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Distended Mindbender',
+    type_line: 'Creature — Eldrazi Insect',
+    keywords: ['Emerge'],
+    oracle_text:
+      "Emerge {5}{B}{B} (You may cast this spell by sacrificing a creature and paying the emerge cost reduced by that creature's mana value.)\nWhen you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.",
+    expect: { producers: ['discard'], payoffs: [] },
+  },
+  {
+    name: 'Diversion Unit',
+    type_line: 'Artifact Creature — Robot',
+    keywords: ['Flying'],
+    oracle_text:
+      'Flying\n{U}, Sacrifice this creature: Counter target instant or sorcery spell unless its controller pays {3}.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Dread Return',
+    type_line: 'Sorcery',
+    keywords: ['Flashback'],
+    oracle_text:
+      'Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Fandaniel, Telophoroi Ascian',
+    type_line: 'Legendary Creature — Elder Wizard',
+    keywords: ['Surveil'],
+    oracle_text:
+      "Whenever you cast an instant or sorcery spell, surveil 1.\nAt the beginning of your end step, each opponent may sacrifice a nontoken creature of their choice. Each opponent who doesn't loses 2 life for each instant and sorcery card in your graveyard.",
+    expect: { producers: ['graveyard'], payoffs: ['spellslinger'] },
+  },
+  {
+    name: 'Fault Riders',
+    type_line: 'Creature — Human Soldier',
+    keywords: [],
+    oracle_text:
+      'Sacrifice a land: This creature gets +2/+0 and gains first strike until end of turn. Activate only once each turn.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Floating Shield',
+    type_line: 'Enchantment — Aura',
+    keywords: ['Enchant'],
+    oracle_text:
+      "Enchant creature\nAs this Aura enters, choose a color.\nEnchanted creature has protection from the chosen color. This effect doesn't remove this Aura.\nSacrifice this Aura: Target creature gains protection from the chosen color until end of turn.",
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Gaius van Baelsar',
+    type_line: 'Legendary Creature — Human Soldier',
+    keywords: [],
+    oracle_text:
+      'When Gaius van Baelsar enters, choose one —\n• Each player sacrifices a creature token of their choice.\n• Each player sacrifices a nontoken creature of their choice.\n• Each player sacrifices an enchantment of their choice.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Gift of Doom',
+    type_line: 'Enchantment — Aura',
+    keywords: ['Morph', 'Enchant'],
+    oracle_text:
+      'Enchant creature\nEnchanted creature has deathtouch and indestructible.\nMorph—Sacrifice another creature. (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)\nAs this Aura is turned face up, you may attach it to a creature.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Gilded Goose',
+    type_line: 'Creature — Bird',
+    keywords: ['Flying', 'Food'],
+    oracle_text:
+      'Flying\nWhen this creature enters, create a Food token. (It\'s an artifact with "{2}, {T}, Sacrifice this token: You gain 3 life.")\n{1}{G}, {T}: Create a Food token.\n{T}, Sacrifice a Food: Add one mana of any color.',
+    expect: { producers: ['artifacts', 'sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Goblin Soothsayer',
+    type_line: 'Creature — Goblin Shaman',
+    keywords: [],
+    oracle_text: '{R}, {T}, Sacrifice a Goblin: Red creatures get +1/+1 until end of turn.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Heart of Yavimaya',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      "If this land would enter, sacrifice a Forest instead. If you do, put this land onto the battlefield. If you don't, put it into its owner's graveyard.\n{T}: Add {G}.\n{T}: Target creature gets +1/+1 until end of turn.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Horror of Horrors',
+    type_line: 'Enchantment',
+    keywords: ['Heal', 'Regenerate'],
+    oracle_text:
+      'Sacrifice a Swamp: Regenerate target black creature. (The next time that creature would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Illicit Shipment',
+    type_line: 'Sorcery',
+    keywords: ['Casualty'],
+    oracle_text:
+      'Casualty 3 (As you cast this spell, you may sacrifice a creature with power 3 or greater. When you do, copy this spell.)\nSearch your library for a card, put it into your hand, then shuffle.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: "Kazuul's Fury",
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      "As an additional cost to cast this spell, sacrifice a creature.\nKazuul's Fury deals damage equal to the sacrificed creature's power to any target.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Krark-Clan Ironworks',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text: 'Sacrifice an artifact: Add {C}{C}.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Krenko, Baron of Tin Street',
+    type_line: 'Legendary Creature — Goblin',
+    keywords: ['Haste'],
+    oracle_text:
+      'Haste\n{T}, Sacrifice an artifact: Put a +1/+1 counter on each Goblin you control.\nWhenever an artifact is put into a graveyard from the battlefield, you may pay {R}. If you do, create a 1/1 red Goblin creature token. It gains haste until end of turn.',
+    expect: { producers: ['counters', 'sacrifice', 'tokens'], payoffs: ['artifacts'] },
+  },
+  {
+    name: "Life's Legacy",
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text:
+      "As an additional cost to cast this spell, sacrifice a creature.\nDraw cards equal to the sacrificed creature's power.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Mana Vortex',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      "When you cast this spell, counter it unless you sacrifice a land.\nAt the beginning of each player's upkeep, that player sacrifices a land of their choice.\nWhen there are no lands on the battlefield, sacrifice this enchantment.",
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Olivia, Opulent Outlaw',
+    type_line: 'Legendary Creature — Vampire Assassin',
+    keywords: ['Flying', 'Lifelink', 'Treasure'],
+    oracle_text:
+      'Flying, lifelink\nWhenever one or more outlaws you control deal combat damage to a player, create a Treasure token. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are outlaws.)\n{3}, Sacrifice two Treasures: Put two +1/+1 counters on each creature you control. Activate only as a sorcery.',
+    expect: { producers: ['artifacts', 'counters', 'lifegain', 'sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Plumb the Forbidden',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way.\nYou draw a card and lose 1 life.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Polygraph Orb',
+    type_line: 'Artifact',
+    keywords: ['Collect evidence'],
+    oracle_text:
+      'When this artifact enters, look at the top four cards of your library. Put two of them into your hand and the rest into your graveyard. You lose 2 life.\n{2}, {T}, Collect evidence 3: Each opponent loses 3 life unless they discard a card or sacrifice a creature. (To collect evidence 3, exile cards with total mana value 3 or greater from your graveyard.)',
+    expect: { producers: ['discard', 'graveyard'], payoffs: [] },
+  },
+  {
+    name: 'Predator Dragon',
+    type_line: 'Creature — Dragon',
+    keywords: ['Flying', 'Haste', 'Devour'],
+    oracle_text:
+      'Flying, haste\nDevour 2 (As this creature enters, you may sacrifice any number of creatures. It enters with twice that many +1/+1 counters on it.)',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Ravenous Rotbelly',
+    type_line: 'Creature — Zombie Horror',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, you may sacrifice up to three Zombies. When you sacrifice one or more Zombies this way, each opponent sacrifices that many creatures of their choice.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Realm-Scorcher Hellkite',
+    type_line: 'Creature — Dragon',
+    keywords: ['Flying', 'Haste', 'Bargain'],
+    oracle_text:
+      'Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nFlying, haste\nWhen this creature enters, if it was bargained, add four mana in any combination of colors.\n{1}{R}: This creature deals 1 damage to any target.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Return of the Mole Man',
+    type_line: 'Enchantment',
+    keywords: ['Mill', 'Landfall'],
+    oracle_text:
+      'Landfall — Whenever a land you control enters, you may mill two cards.\n{5}{G}, Sacrifice this enchantment: Create X 1/1 green Minion creature tokens named Moloid, where X is the number of permanent cards in your graveyard. The tokens have "Whenever this token attacks, you may mill a card." Activate only as a sorcery.',
+    expect: { producers: ['graveyard', 'sacrifice', 'tokens'], payoffs: ['landfall'] },
+  },
+  {
+    name: 'Ribtruss Roaster',
+    type_line: 'Creature — Troll Druid',
+    keywords: ['Devour'],
+    oracle_text:
+      'Devour 1 (As this creature enters, you may sacrifice any number of creatures. This creature enters with that many +1/+1 counters on it.)\nAt the beginning of your end step, create a number of 1/1 black and green Pest creature tokens equal to the number of +1/+1 counters on this creature. They have "When this token dies, you gain 1 life."',
+    expect: { producers: ['counters', 'lifegain', 'sacrifice', 'tokens'], payoffs: [] },
+  },
+  {
+    name: 'Rush of Dread',
+    type_line: 'Sorcery',
+    keywords: ['Spree'],
+    oracle_text:
+      'Spree (Choose one or more additional costs.)\n+ {1} — Target opponent sacrifices half the creatures they control of their choice, rounded up.\n+ {2} — Target opponent discards half the cards in their hand, rounded up.\n+ {2} — Target opponent loses half their life, rounded up.',
+    expect: { producers: ['discard'], payoffs: [] },
+  },
+  {
+    name: 'Scrap Compactor',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      '{3}, {T}, Sacrifice this artifact: It deals 3 damage to target creature.\n{6}, {T}, Sacrifice this artifact: Destroy target creature or Vehicle.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Seaside Haven',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text: '{T}: Add {C}.\n{W}{U}, {T}, Sacrifice a Bird: Draw a card.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Seasinger',
+    type_line: 'Creature — Merfolk',
+    keywords: [],
+    oracle_text:
+      'When you control no Islands, sacrifice this creature.\nYou may choose not to untap this creature during your untap step.\n{T}: Gain control of target creature whose controller controls an Island for as long as you control this creature and this creature remains tapped.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Seething Pathblazer',
+    type_line: 'Creature — Elemental Warrior',
+    keywords: [],
+    oracle_text:
+      'Sacrifice an Elemental: This creature gets +2/+0 and gains first strike until end of turn.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'She-Hulk, Jennifer Walters',
+    type_line: 'Legendary Creature — Gamma Berserker Hero',
+    keywords: ['Trample'],
+    oracle_text:
+      "Trample (This creature can deal excess combat damage to the player she's attacking.)\n{2}{R}, Sacrifice a land: Draw a card and put a +1/+1 counter on She-Hulk.",
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Springjack Pasture',
+    type_line: 'Land',
+    keywords: [],
+    oracle_text:
+      '{T}: Add {C}.\n{4}, {T}: Create a 0/1 white Goat creature token.\n{T}, Sacrifice X Goats: Add X mana of any one color. You gain X life.',
+    expect: { producers: ['lifegain', 'sacrifice', 'tokens'], payoffs: [] },
+  },
+  {
+    name: 'Sprouting Goblin',
+    type_line: 'Creature — Goblin Druid',
+    keywords: ['Kicker'],
+    oracle_text:
+      'Kicker {G} (You may pay an additional {G} as you cast this spell.)\nWhen this creature enters, if it was kicked, search your library for a land card with a basic land type, reveal it, put it into your hand, then shuffle.\n{R}, {T}, Sacrifice a land: Draw a card.',
+    expect: { producers: ['sacrifice'], payoffs: [] },
+  },
+  {
+    name: 'Task Mage Assembly',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'When there are no creatures on the battlefield, sacrifice this enchantment.\n{2}: This enchantment deals 1 damage to target creature. Any player may activate this ability but only as a sorcery.',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Touch of Moonglove',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'Target creature you control gets +1/+0 and gains deathtouch until end of turn. Whenever a creature dealt damage by that creature dies this turn, its controller loses 2 life. (Any amount of damage a creature with deathtouch deals to a creature is enough to destroy it.)',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Voice of Resurgence',
+    type_line: 'Creature — Elemental',
+    keywords: [],
+    oracle_text:
+      'Whenever an opponent casts a spell during your turn and when this creature dies, create a green and white Elemental creature token with "This token\'s power and toughness are each equal to the number of creatures you control."',
+    expect: { producers: ['tokens'], payoffs: ['tokens'] },
   },
 ];

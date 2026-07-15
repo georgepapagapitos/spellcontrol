@@ -158,8 +158,44 @@ export interface SacrificeSignals {
   rewards: boolean;
 }
 
-const SAC_OUTLET_RE =
-  /sacrifice (?:a|an|another|one or more|two|three|x) (?:other )?(?:creatures?|permanents?|artifacts?|tokens?)/;
+// Bare imperative "Sacrifice <quantifier> <object>:" is an activated-ability
+// COST — the colon is the tell (MtG always templates cost:effect this way), and
+// the missing "s" on "sacrifice" (vs. third-person "sacrifices") means the
+// implicit subject is always the ability's own controller, so no opponent-
+// subject clause can ever match here. The object is intentionally unrestricted
+// (not just creature/permanent/artifact/token) — lands, Treasures, Birds,
+// Goblins, "this creature/artifact/enchantment/Aura/token" self-sac, and
+// multi-word objects ("two other artifacts and/or creatures") all template the
+// same way.
+const SAC_OUTLET_COST_RE =
+  /\bsacrifice (?:a|an|another|one or more|two|three|four|five|x|this|these) (?:other )?[^:]*:/;
+// Bare, unconditional "sacrifice a creature" as a recurring triggered effect
+// (no colon cost) — e.g. "At the beginning of your upkeep, sacrifice a
+// creature." (Smothering Abomination). Kept to the original narrow noun list —
+// broadening this (unlike the colon-cost form above) risks catching the
+// conditional/opponent-subject phrasings excluded below, since there's no
+// colon boundary to lean on.
+const SAC_OUTLET_SIMPLE_RE =
+  /\bsacrifice (?:a|an|another|one or more|two|three|x) (?:other )?(?:creatures?|permanents?|artifacts?|tokens?)\b/;
+// "You may sacrifice <fodder>" as a triggered/optional effect (no colon cost) —
+// tribal-flexible fodder consumption you choose to operate (Ravenous Rotbelly).
+const SAC_OUTLET_VOLUNTARY_RE =
+  /\byou may sacrifice (?:a|an|another|one or more|up to [a-z0-9]+|two|three|four|five|x)\b/;
+// Cast-time / alternate-cost sacrifice is a one-shot casting tax that consumes
+// fodder, not a repeatable outlet (Dread Return's flashback, Life's Legacy,
+// Kazuul's Fury, Arbiter of Woe, Plumb the Forbidden, Delraich's "rather than
+// pay…", Emerge/Morph alt-costs — including the em-dash "Flashback—Sacrifice …"
+// / "Morph—Sacrifice …" templating). Never counts as outlet OR payoff.
+const SAC_ALT_COST_RE =
+  /as an additional cost to cast this spell|rather than pay(?:ing)?|\b(?:flashback|morph|emerge|ninjutsu)—/;
+// "Unless … sacrifice" is always a conditional tax/punisher gating the
+// sacrifice itself, never a controller-operated outlet — covers cast-
+// resolution riders (Mana Vortex's "counter it unless you sacrifice a land")
+// and opponent-subject "unless they discard … or sacrifice …" (Polygraph Orb).
+// Positional (unless must precede sacrifice) so it doesn't catch an unrelated
+// "unless" later in the same clause's effect text (Diversion Unit: "Sacrifice
+// this creature: Counter … unless its controller pays {3}").
+const SAC_CONDITIONAL_RE = /\bunless\b[^.]*\bsacrifice\b/;
 // "Whenever you/a player/another … sacrifices" — a sacrifice payoff. Deliberately
 // NOT the bare "whenever an opponent sacrifices" (Tergrid), which is a punisher
 // keyed on opponents, not your aristocrats engine.
@@ -167,10 +203,11 @@ const SAC_REWARD_RE =
   /whenever (?:you|a player|another)[^.]*\bsacrifices?\b|whenever[^.]*\bis sacrificed\b/;
 
 /**
- * Separate a sac OUTLET (imperative "Sacrifice a creature" you activate) from a
- * payoff that triggers when a sacrifice happens ("Whenever you sacrifice …").
- * Mirrors `discardSignals`: a "Whenever you sacrifice" trigger is a payoff and
- * must not be mistaken for an outlet (Prowling Geistcatcher, Smothering Abomination).
+ * Separate a sac OUTLET (imperative "Sacrifice a creature" you activate, or a
+ * voluntary "you may sacrifice" trigger you operate) from a payoff that
+ * triggers when a sacrifice happens ("Whenever you sacrifice …"). Mirrors
+ * `discardSignals`: a "Whenever you sacrifice" trigger is a payoff and must not
+ * be mistaken for an outlet (Prowling Geistcatcher, Smothering Abomination).
  */
 export function sacrificeSignals(oracle: string): SacrificeSignals {
   let outlet = false;
@@ -180,7 +217,13 @@ export function sacrificeSignals(oracle: string): SacrificeSignals {
       rewards = true;
       continue;
     }
-    if (SAC_OUTLET_RE.test(clause)) outlet = true;
+    if (SAC_ALT_COST_RE.test(clause) || SAC_CONDITIONAL_RE.test(clause)) continue;
+    if (
+      SAC_OUTLET_COST_RE.test(clause) ||
+      SAC_OUTLET_SIMPLE_RE.test(clause) ||
+      SAC_OUTLET_VOLUNTARY_RE.test(clause)
+    )
+      outlet = true;
   }
   return { outlet, rewards };
 }
@@ -345,11 +388,19 @@ export function millSignals(oracle: string): MillSignals {
  * — those are removal/attrition punishers, not your sacrifice engine — unless the
  * same clause also covers creatures you control (Death Tyrant). Same-clause
  * scoping also tightens the old oracle-wide "creature mentioned anywhere" branch.
+ * Also excludes the "bite" combat-trick template ("whenever a creature dealt
+ * damage by ~ dies this turn, its controller loses …", Touch of Moonglove) — the
+ * reward is opponent-facing life loss, not aristocrats value, regardless of
+ * whose creature actually dies — and self-death-only triggers ("when this
+ * creature dies", Voice of Resurgence) — a card that only reacts to its OWN
+ * death is recursive resilience/value, not a deck-scale sacrifice payoff.
  */
 export function paysOffCreatureDeath(oracle: string): boolean {
   for (const clause of splitClauses(oracle)) {
     if (!/\bdies\b/.test(clause) || !/\bcreature/.test(clause)) continue;
     if (!/\bwhenever\b/.test(clause)) continue;
+    if (/dealt damage by[^.]*dies this turn/.test(clause)) continue;
+    if (/\bthis (?:creature|permanent) dies\b/.test(clause)) continue;
     const opponentOnly =
       /creatures? an opponent controls? dies|creatures? your opponents control[^.]*dies/.test(
         clause
