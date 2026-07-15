@@ -30,6 +30,21 @@ const CLASSIFY_PRIORITY = [
 ] as const;
 export type TypeGroup = (typeof CLASSIFY_PRIORITY)[number];
 
+/** Plural display label for a TypeGroup ("Land" → "Lands") — the deck section
+ *  headers stay singular ("Land (12)"), but the new-arrivals chip/sheet reads
+ *  naturally pluralized ("New arrivals — Lands"). One shared map so both
+ *  surfaces agree. */
+export const TYPE_GROUP_PLURAL: Record<TypeGroup, string> = {
+  Planeswalker: 'Planeswalkers',
+  Creature: 'Creatures',
+  Artifact: 'Artifacts',
+  Enchantment: 'Enchantments',
+  Instant: 'Instants',
+  Sorcery: 'Sorceries',
+  Battle: 'Battles',
+  Land: 'Lands',
+};
+
 function effectiveTypeLine(card: ScryfallCard): string {
   return card.type_line || card.card_faces?.[0]?.type_line || '';
 }

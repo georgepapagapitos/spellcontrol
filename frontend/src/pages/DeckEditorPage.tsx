@@ -95,6 +95,7 @@ import { MovePrintingPrompt } from '../components/deck/MovePrintingPrompt';
 import { MoveToDeckSheet } from '../components/deck/MoveToDeckSheet';
 import { BuildReportSheet } from '../components/deck/BuildReportSheet';
 import { isBuildReportSeen } from '../lib/build-report-seen';
+import { computeNewArrivals, type ArrivalsByType } from '../lib/new-arrivals';
 import { BackLink } from '../components/BackLink';
 import { ColorPicker } from '../components/ColorPicker';
 import { Modal } from '../components/Modal';
@@ -168,6 +169,7 @@ export function DeckEditorPage() {
   const location = useLocation();
   const deck = useDecksStore((s) => s.decks.find((d) => d.id === id) ?? null);
   const updateDeck = useDecksStore((s) => s.updateDeck);
+  const markArrivalsReviewed = useDecksStore((s) => s.markArrivalsReviewed);
   const renameDeck = useDecksStore((s) => s.renameDeck);
   const deleteDeck = useDecksStore((s) => s.deleteDeck);
   const addCard = useDecksStore((s) => s.addCard);
@@ -184,6 +186,7 @@ export function DeckEditorPage() {
   const savedCubes = useCubeStore((s) => s.saved);
   const rawCollectionCards = useCollectionStore((s) => s.cards);
   const binderDefs = useCollectionStore((s) => s.binders);
+  const importHistory = useCollectionStore((s) => s.importHistory);
   // Decorate with oracle tags so the per-card binder badge respects tag rules
   // (no-op unless a binder uses one).
   const collectionCards = useCardsWithTags(rawCollectionCards, bindersUseTags(binderDefs));
@@ -233,6 +236,53 @@ export function DeckEditorPage() {
   useRegisterShortcuts('Deck editor', DECK_EDITOR_SHORTCUTS);
 
   const collectionById = useCollectionByCopyId();
+
+  // New arrivals (E140) — importId -> import batch's addedAt, for the
+  // acquired-at resolution (see lib/new-arrivals.ts). Mirrors CardListTable's
+  // dateAdded sort context.
+  const addedAtByImportId = useMemo(
+    () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
+    [importHistory]
+  );
+  // Individually-named so the memo below depends on each field, not the whole
+  // `deck` reference — a silent derived write (bracket/gap analysis, which
+  // recomputes often) replaces `deck` wholesale without touching cards/
+  // commander/updatedAt/lastArrivalReviewAt, and re-running the (pricier,
+  // similarity-scoring) arrivals computation on every one of those would be
+  // exactly the "re-runs per render" cost the memo below exists to avoid.
+  const arrivalsCommander = deck?.commander ?? null;
+  const arrivalsPartnerCommander = deck?.partnerCommander ?? null;
+  const arrivalsMainCards = deck?.cards;
+  const arrivalsSideCards = deck?.sideboard;
+  const arrivalsDeckUpdatedAt = deck?.updatedAt;
+  const arrivalsLastReviewAt = deck?.lastArrivalReviewAt;
+  // Keyed on deck identity/updatedAt/lastArrivalReviewAt + the collection
+  // reference, so this does NOT re-run per keystroke/render on a large
+  // collection — only when the deck's cards/commander actually changed
+  // (always bumps updatedAt), the review was dismissed, or the collection did.
+  const arrivalsByType = useMemo<ArrivalsByType>(() => {
+    if (arrivalsDeckUpdatedAt == null || !arrivalsMainCards || !collectionById) return {};
+    return computeNewArrivals({
+      commander: arrivalsCommander,
+      partnerCommander: arrivalsPartnerCommander,
+      cards: arrivalsMainCards,
+      sideboard: arrivalsSideCards,
+      deckUpdatedAt: arrivalsDeckUpdatedAt,
+      lastArrivalReviewAt: arrivalsLastReviewAt,
+      collectionCards: Array.from(collectionById.values()),
+      addedAtByImportId,
+    });
+  }, [
+    arrivalsCommander,
+    arrivalsPartnerCommander,
+    arrivalsMainCards,
+    arrivalsSideCards,
+    arrivalsDeckUpdatedAt,
+    arrivalsLastReviewAt,
+    collectionById,
+    addedAtByImportId,
+  ]);
+
   const [editingSlot, setEditingSlot] = useState<{ slotId: string; card: ScryfallCard } | null>(
     null
   );
@@ -2367,6 +2417,9 @@ export function DeckEditorPage() {
             oneAwayCombos={comboData.data?.oneAway}
             ownedOracleIds={ownedOracleIdSet}
             landUpgradeCount={landUpgrades.length}
+            arrivalsByType={arrivalsByType}
+            existingCardCounts={existingCardCounts}
+            onMarkArrivalsReviewed={() => markArrivalsReviewed(deck.id)}
             cardInclusionMap={deck.cardInclusionMap}
             rampSubtypeCounts={deck.rampSubtypeCounts}
             removalSubtypeCounts={deck.removalSubtypeCounts}

@@ -194,6 +194,12 @@ export interface Deck {
   color: string;
   createdAt: number;
   updatedAt: number;
+  /**
+   * When the "new arrivals" review (E140) was last dismissed for this deck.
+   * Together with `updatedAt`, the later of the two is the window start for
+   * "acquired since" — see `lib/new-arrivals.ts`. Absent = never reviewed.
+   */
+  lastArrivalReviewAt?: number;
 }
 
 /**
@@ -247,6 +253,14 @@ interface DecksState {
    * doesn't mark it "edited just now".
    */
   updateDeck(id: string, updates: Partial<Omit<Deck, 'id' | 'createdAt'>>, silent?: boolean): void;
+  /**
+   * Stamp `lastArrivalReviewAt` = now (silent — closing the review sheet is
+   * not a card edit, so it must not bump `updatedAt`). Unlike the derived
+   * analysis writes in use-commander-bracket-analysis.ts, this DOES sync
+   * normally: dismissing the review is a genuine user action, and should
+   * clear the "✦ N new" badge on every device, not just this one.
+   */
+  markArrivalsReviewed(id: string): void;
   renameDeck(id: string, name: string): void;
   deleteDeck(id: string): void;
   /** Delete a set of decks in one shot (bulk-select), with a single undo toast. */
@@ -363,6 +377,11 @@ export const useDecksStore = create<DecksState>()(
           decks: s.decks.map((d) =>
             d.id === id ? (silent ? { ...d, ...updates } : touch({ ...d, ...updates })) : d
           ),
+        })),
+
+      markArrivalsReviewed: (id) =>
+        set((s) => ({
+          decks: s.decks.map((d) => (d.id === id ? { ...d, lastArrivalReviewAt: Date.now() } : d)),
         })),
 
       renameDeck: (id, name) =>

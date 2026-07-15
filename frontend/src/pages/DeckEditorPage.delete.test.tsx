@@ -110,8 +110,8 @@ vi.mock('../store/deck-history', () => ({
 }));
 
 vi.mock('../store/collection', () => ({
-  useCollectionStore: (sel: (s: { cards: []; binders: [] }) => unknown) =>
-    sel({ cards: [], binders: [] }),
+  useCollectionStore: (sel: (s: { cards: []; binders: []; importHistory: [] }) => unknown) =>
+    sel({ cards: [], binders: [], importHistory: [] }),
 }));
 
 vi.mock('../store/toasts', () => ({
