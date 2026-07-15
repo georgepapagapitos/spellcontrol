@@ -139,4 +139,28 @@ describe('CardPreview turn (sideways layouts)', () => {
     renderPreview(mk({ layout: 'normal' }));
     expect(screen.queryByRole('button', { name: /^Turn/ })).toBeNull();
   });
+
+  it('turns only the current slide — not other copies of the same printing', () => {
+    // Two copies share a scryfallId; per-slide state must not bleed across.
+    render(
+      <MemoryRouter>
+        <CardPreview
+          cards={[
+            mk({ layout: 'split', copyId: 'copy-1' }),
+            mk({ layout: 'split', copyId: 'copy-2' }),
+          ]}
+          index={0}
+          binderName=""
+          sectionLabels={['', '']}
+          pageNumbers={[0, 0]}
+          totalPages={0}
+          onIndexChange={() => {}}
+          onClose={() => {}}
+        />
+      </MemoryRouter>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Turn right to read' }));
+    const turns = screen.getAllByTestId('card-image-frame').map((f) => f.getAttribute('data-turn'));
+    expect(turns).toEqual(['90', '0']);
+  });
 });
