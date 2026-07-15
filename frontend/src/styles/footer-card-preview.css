@@ -540,6 +540,22 @@
   transform: rotateY(180deg);
 }
 
+/* Turn (split/room/aftermath/flip layouts): rotate in place inside the fixed
+   488/680 frame. scale(0.7176) = 488/680, so the sideways long edge exactly
+   fits the frame width — the carousel and panel never reflow. 180° keeps the
+   portrait footprint, so no scale. */
+.card-preview-flipper.is-turned-cw {
+  transform: rotate(90deg) scale(0.7176);
+}
+
+.card-preview-flipper.is-turned-ccw {
+  transform: rotate(-90deg) scale(0.7176);
+}
+
+.card-preview-flipper.is-turned-around {
+  transform: rotate(180deg);
+}
+
 .card-preview-face {
   position: absolute;
   inset: 0;

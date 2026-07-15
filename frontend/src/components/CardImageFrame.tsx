@@ -16,6 +16,12 @@ interface Props {
   /** Show the back face (transform/DFC cards). */
   flipped: boolean;
   /**
+   * Rotation in degrees for single-faced sideways layouts (split/room/
+   * aftermath: ±90, Kamigawa flip: 180). 0/undefined renders upright.
+   * Mutually exclusive with `flipped` — these layouts never have a back image.
+   */
+  turn?: number;
+  /**
    * Carousel windowing defers the heavy 3D frame contents until a slide is
    * within the mount radius. Standalone surfaces leave this true.
    */
@@ -44,6 +50,7 @@ export function CardImageFrame({
   card,
   active = true,
   flipped,
+  turn = 0,
   mounted = true,
   imgLoaded,
   imgErrored,
@@ -62,7 +69,17 @@ export function CardImageFrame({
   return (
     <div className={`card-preview-image-frame${foilClass}`} ref={holoRef}>
       {mounted && (
-        <div className={`card-preview-flipper${flipped ? ' is-flipped' : ''}`}>
+        <div
+          className={`card-preview-flipper${flipped ? ' is-flipped' : ''}${
+            turn === 90
+              ? ' is-turned-cw'
+              : turn === -90
+                ? ' is-turned-ccw'
+                : turn === 180
+                  ? ' is-turned-around'
+                  : ''
+          }`}
+        >
           <div className="card-preview-face card-preview-face-front">
             {card.imageNormal && !imgErrored ? (
               <>
