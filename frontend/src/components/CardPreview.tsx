@@ -8,6 +8,7 @@ import {
   Notebook,
   Pencil,
   RefreshCw,
+  RotateCw,
 } from 'lucide-react';
 import {
   type ReactNode,
@@ -144,6 +145,15 @@ interface Props {
 }
 
 const PRELOAD_RADIUS = 2;
+// Turn cycles (degrees) for single-faced layouts printed sideways. Split
+// includes DSK Rooms, whose halves read at *opposite* 90s — hence the
+// three-stop cycle; aftermath's bottom half reads at one of them. Kamigawa
+// flip cards read upside down, so they just toggle 180.
+const TURN_CYCLE: Record<string, readonly number[]> = {
+  split: [0, 90, -90],
+  aftermath: [0, 90, -90],
+  flip: [0, 180],
+};
 // Window of cards that get a *rich* slide (the 3D-transformed, box-shadowed
 // image frame). Every card still gets a bare placeholder div so the scroll
 // track keeps its full width and native scroll-snap is unaffected — but only
@@ -195,6 +205,10 @@ export function CardPreview({
   }, []);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
   const [flipped, setFlipped] = useState<Record<string, boolean>>({});
+  // Rotation (degrees) per card for single-faced sideways layouts. Split/room
+  // halves read at opposite 90s, so those cycle upright → right → left; old
+  // Kamigawa flip cards just toggle 180.
+  const [turned, setTurned] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -427,6 +441,7 @@ export function CardPreview({
               card={c}
               active={i === selected}
               flipped={!!flipped[c.scryfallId]}
+              turn={turned[c.scryfallId] ?? 0}
               mounted={mounted.has(c.scryfallId)}
               imgLoaded={!!imgLoaded[c.scryfallId]}
               imgErrored={!!imgErrors[c.scryfallId]}
@@ -439,11 +454,24 @@ export function CardPreview({
         );
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cards, mounted, selected, imgErrors, imgLoaded, flipped]
+    [cards, mounted, selected, imgErrors, imgLoaded, flipped, turned]
   );
 
   if (!cards[selected]) return null;
   const current = cards[selected];
+
+  const turnCycle = current.layout ? TURN_CYCLE[current.layout] : undefined;
+  const turnAngle = turned[current.scryfallId] ?? 0;
+  // indexOf(-1) + 1 === 0, so an unknown angle safely resets to the cycle start.
+  const nextTurn = turnCycle ? turnCycle[(turnCycle.indexOf(turnAngle) + 1) % turnCycle.length] : 0;
+  const nextTurnLabel =
+    nextTurn === 0
+      ? 'Turn upright'
+      : nextTurn === 180
+        ? 'Turn upside down'
+        : nextTurn === 90
+          ? 'Turn right to read'
+          : 'Turn left to read';
 
   // Portaled to <body>: this is a `position: fixed; inset: 0` full-screen modal.
   // When dropped inside an ancestor that establishes a containing block for
@@ -546,6 +574,18 @@ export function CardPreview({
             >
               <RefreshCw width={20} height={20} strokeWidth={2} aria-hidden />
               <span>Flip</span>
+            </button>
+          )}
+          {turnCycle && (
+            <button
+              type="button"
+              className="card-preview-flip-btn"
+              onClick={() => setTurned((prev) => ({ ...prev, [current.scryfallId]: nextTurn }))}
+              aria-label={nextTurnLabel}
+              title={nextTurnLabel}
+            >
+              <RotateCw width={20} height={20} strokeWidth={2} aria-hidden />
+              <span>Turn</span>
             </button>
           )}
           {onEdit && (
