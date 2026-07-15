@@ -11,7 +11,7 @@
 // fall back to FALLBACK_URL if discovery fails. Set RULES_SOURCE_URL to pin a
 // specific release without touching the network discovery.
 
-import { stat, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -42,12 +42,18 @@ const here = dirname(fileURLToPath(import.meta.url));
 const dest = resolve(here, '..', 'public', 'comprehensive-rules.json');
 
 async function ageDays(path) {
+  // Age from the bundle's own meta.fetchedAt, NOT file mtime: the file is
+  // git-tracked, so checkout / Docker COPY resets mtime and the mtime check
+  // reads "fresh" in every clean build — prod shipped the April CR while the
+  // June one was out (same bug as tagger-tags.json, fixed in #1181). Bundles
+  // written before the stamp existed have no fetchedAt → refetch once.
   try {
-    const s = await stat(path);
-    return (Date.now() - s.mtimeMs) / 86_400_000;
+    const fetchedAt = new Date(JSON.parse(await readFile(path, 'utf8')).meta?.fetchedAt).getTime();
+    if (Number.isFinite(fetchedAt)) return (Date.now() - fetchedAt) / 86_400_000;
   } catch {
-    return Infinity;
+    // unreadable/unparseable → treat as missing and refetch
   }
+  return Infinity;
 }
 
 const age = await ageDays(dest);
@@ -157,5 +163,11 @@ function parse(raw, source) {
   }
   flush();
 
-  return { meta: { effective, source }, sections, rules, glossary, keywords };
+  return {
+    meta: { effective, source, fetchedAt: new Date().toISOString() },
+    sections,
+    rules,
+    glossary,
+    keywords,
+  };
 }

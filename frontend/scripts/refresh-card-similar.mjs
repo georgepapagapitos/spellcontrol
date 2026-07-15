@@ -16,7 +16,7 @@
 // (mirrors tagger-tags.json). NOT wired into predev/prebuild — it scrapes
 // hundreds of EDHREC pages, too heavy for every build.
 
-import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,11 +27,16 @@ const CAP = 2500; // index size ceiling (popular-first; bounds scrape + file siz
 const force = process.argv.includes('--force');
 
 async function ageDays(path) {
+  // Age from the index's own generatedAt, NOT file mtime: the file is
+  // git-tracked, so checkout resets mtime and the check reads "fresh" on any
+  // clean clone (same bug class as tagger-tags.json #1181 / refresh-rules).
   try {
-    return (Date.now() - (await stat(path)).mtimeMs) / 86_400_000;
+    const generatedAt = new Date(JSON.parse(await readFile(path, 'utf8')).generatedAt).getTime();
+    if (Number.isFinite(generatedAt)) return (Date.now() - generatedAt) / 86_400_000;
   } catch {
-    return Infinity;
+    // unreadable/unparseable → treat as missing and refetch
   }
+  return Infinity;
 }
 
 const age = await ageDays(DEST);
