@@ -204,11 +204,14 @@ export function CardPreview({
     setImgLoaded((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
   }, []);
   const [setMap, setSetMap] = useState<SetMap | null>(null);
-  const [flipped, setFlipped] = useState<Record<string, boolean>>({});
-  // Rotation (degrees) per card for single-faced sideways layouts. Split/room
+  // Flip/turn are keyed by slide INDEX, not scryfallId — the same printing can
+  // appear in multiple slides (and some surfaces synthesize cards without an
+  // id), and a shared key would flip/turn every copy at once.
+  const [flipped, setFlipped] = useState<Record<number, boolean>>({});
+  // Rotation (degrees) per slide for single-faced sideways layouts. Split/room
   // halves read at opposite 90s, so those cycle upright → right → left; old
   // Kamigawa flip cards just toggle 180.
-  const [turned, setTurned] = useState<Record<string, number>>({});
+  const [turned, setTurned] = useState<Record<number, number>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -440,8 +443,8 @@ export function CardPreview({
             <CardImageFrame
               card={c}
               active={i === selected}
-              flipped={!!flipped[c.scryfallId]}
-              turn={turned[c.scryfallId] ?? 0}
+              flipped={!!flipped[i]}
+              turn={turned[i] ?? 0}
               mounted={mounted.has(c.scryfallId)}
               imgLoaded={!!imgLoaded[c.scryfallId]}
               imgErrored={!!imgErrors[c.scryfallId]}
@@ -461,7 +464,7 @@ export function CardPreview({
   const current = cards[selected];
 
   const turnCycle = current.layout ? TURN_CYCLE[current.layout] : undefined;
-  const turnAngle = turned[current.scryfallId] ?? 0;
+  const turnAngle = turned[selected] ?? 0;
   // indexOf(-1) + 1 === 0, so an unknown angle safely resets to the cycle start.
   const nextTurn = turnCycle ? turnCycle[(turnCycle.indexOf(turnAngle) + 1) % turnCycle.length] : 0;
   const nextTurnLabel =
@@ -566,11 +569,11 @@ export function CardPreview({
               onClick={() =>
                 setFlipped((prev) => ({
                   ...prev,
-                  [current.scryfallId]: !prev[current.scryfallId],
+                  [selected]: !prev[selected],
                 }))
               }
-              aria-label={flipped[current.scryfallId] ? 'Show front face' : 'Show back face'}
-              title={flipped[current.scryfallId] ? 'Show front face' : 'Show back face'}
+              aria-label={flipped[selected] ? 'Show front face' : 'Show back face'}
+              title={flipped[selected] ? 'Show front face' : 'Show back face'}
             >
               <RefreshCw width={20} height={20} strokeWidth={2} aria-hidden />
               <span>Flip</span>
@@ -580,7 +583,7 @@ export function CardPreview({
             <button
               type="button"
               className="card-preview-flip-btn"
-              onClick={() => setTurned((prev) => ({ ...prev, [current.scryfallId]: nextTurn }))}
+              onClick={() => setTurned((prev) => ({ ...prev, [selected]: nextTurn }))}
               aria-label={nextTurnLabel}
               title={nextTurnLabel}
             >
