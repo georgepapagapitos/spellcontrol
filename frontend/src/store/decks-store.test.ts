@@ -115,6 +115,17 @@ describe('useDecksStore — update / rename / delete', () => {
     expect(d.updatedAt).toBe(before);
   });
 
+  it('markArrivalsReviewed stamps lastArrivalReviewAt without bumping updatedAt', () => {
+    const id = store().createDeck({ source: 'manual', commander: null });
+    store().createDeck({ name: 'Other', source: 'manual', commander: null });
+    const before = store().decks.find((d) => d.id === id)!.updatedAt;
+    store().markArrivalsReviewed(id);
+    const d = store().decks.find((x) => x.id === id)!;
+    expect(d.lastArrivalReviewAt).toBeGreaterThan(0);
+    expect(d.updatedAt).toBe(before);
+    expect(store().decks.find((x) => x.id !== id)?.lastArrivalReviewAt).toBeUndefined();
+  });
+
   it('updateDeck leaves other decks untouched', () => {
     const a = store().createDeck({ name: 'A', source: 'manual', commander: null });
     store().createDeck({ name: 'B', source: 'manual', commander: null });
