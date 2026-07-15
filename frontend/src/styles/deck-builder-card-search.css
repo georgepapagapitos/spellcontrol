@@ -357,7 +357,7 @@
   border: 0;
   border-radius: var(--radius);
   background: var(--surface-raised);
-  overflow: hidden;
+  position: relative;
   cursor: pointer;
 }
 
@@ -366,11 +366,26 @@
   outline-offset: 2px;
 }
 
+/* The img rounds its own corners (instead of the button clipping via
+   overflow: hidden) so the coarse-pointer hit-area expansion below isn't
+   clipped away with it. */
 .card-search-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: var(--radius);
+}
+
+/* Coarse pointers: the 39px-wide thumb sits ~6px from the + add button, so
+   widen its hit box toward the (inert) card name only — never left toward
+   the +, where a stretched target would turn mis-taps into accidental adds. */
+@media (pointer: coarse) {
+  .card-search-thumb::after {
+    content: '';
+    position: absolute;
+    inset: 0 -10px 0 0;
+  }
 }
 
 /* otag: snapshot status (loading / failed) — a non-blocking note above results. */
