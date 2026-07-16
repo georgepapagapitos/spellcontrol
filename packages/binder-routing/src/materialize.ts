@@ -11,13 +11,19 @@ import type {
   SortField,
   UncategorizedBucket,
 } from './types.js';
-import { compileFilterGroups, cardMatchesAnyGroup, cardMatchesCompiled } from './rules.js';
+import {
+  compileFilterGroups,
+  cardMatchesAnyGroup,
+  cardMatchesCompiled,
+  PRICE_STICKINESS_MARGIN,
+} from './rules.js';
 import { ALL_SECTION, getSectionMeta, type SectionMeta } from './sections.js';
 import {
   sortCards,
   buildQtyByPrintingKey,
   getImplicitTiebreakers,
   getDisplaySorts,
+  printingFinishKey,
 } from './sorting.js';
 
 export interface MaterializeOptions {
@@ -80,6 +86,8 @@ export function materializeBinders(
   // excludes a copyId must never claim it — the card falls through to the
   // next matching binder (or uncategorized) instead of vanishing into limbo.
   const excludedSets = orderedDefs.map((d) => new Set(d.excludedCopyIds ?? []));
+  // Per-binder reviewed-membership keys, for the sticky price-retention pass.
+  const snapshotKeySets = orderedDefs.map((d) => new Set(d.lastReviewedSnapshot?.keys ?? []));
   const defsById = new Map(orderedDefs.map((d) => [d.id, d]));
   const allocated = opts.allocatedCopyIds ?? EMPTY_SET;
 
@@ -111,6 +119,32 @@ export function materializeBinders(
       buckets.get(claimedBy)?.push(card);
       continue;
     }
+    // Sticky price retention: a card the user confirmed in a binder (its key
+    // is in that binder's lastReviewedSnapshot) that now fails the binder's
+    // rules ONLY by a within-margin price miss stays put — even when an
+    // earlier binder matches it exactly. Without this, a card priced near a
+    // priceMin/priceMax boundary flaps between binders (and churns the review
+    // queue) on every daily price refresh. A snapshot binder that still
+    // matches exactly is left to normal routing below, so first-match-wins
+    // precedence and "rule edits re-route immediately" are unchanged.
+    const cardKey = printingFinishKey(card);
+    let stuck = false;
+    for (let i = 0; i < orderedDefs.length; i++) {
+      const def = orderedDefs[i];
+      if (def.mode === 'manual') continue;
+      if (!snapshotKeySets[i].has(cardKey)) continue;
+      if (excludedSets[i].has(card.copyId)) continue; // exclusion is explicit intent
+      if (cardMatchesAnyGroup(card, compiledGroups[i])) break; // exact match → normal routing
+      if (!cardMatchesAnyGroup(card, compiledGroups[i], PRICE_STICKINESS_MARGIN)) continue;
+      // Same swallow rule as pins/routing for deck-allocated copies.
+      if (!isSwallowedByBinder(isAllocated, def)) {
+        buckets.get(def.id)!.push(card);
+      }
+      stuck = true;
+      break;
+    }
+    if (stuck) continue;
+
     let matched = false;
     let swallowed = false;
     for (let i = 0; i < orderedDefs.length; i++) {

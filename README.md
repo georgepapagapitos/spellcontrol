@@ -221,6 +221,7 @@ All `/api/*` endpoints sit behind helmet and per-endpoint rate limiters.
 - Scryfall bulk ingest flush size — `FLUSH_AT` in [backend/src/scryfall-bulk.ts](backend/src/scryfall-bulk.ts)
 - Rate limits — `importLimiter` and `priceLimiter` in [backend/src/server.ts](backend/src/server.ts)
 - Default sorts for new binders — `NEW_BINDER_DEFAULT_SORTS` in [frontend/src/lib/sorting.ts](frontend/src/lib/sorting.ts)
+- Sticky price margin (reviewed cards don't leave a binder for a within-margin price wobble) — `PRICE_STICKINESS_MARGIN` in [packages/binder-routing/src/rules.ts](packages/binder-routing/src/rules.ts)
 - Default EDHREC top-N — `DEFAULT_EDHREC_TOP_N` in [frontend/src/components/BinderEditor.tsx](frontend/src/components/BinderEditor.tsx)
 - Backend port — `PORT` env var (default `3737`)
 - SQLite location — `DB_PATH` env var (default `backend/data/scryfall-cache.db`; the Docker image mounts a `spellcontrol-data` volume at `/data`)

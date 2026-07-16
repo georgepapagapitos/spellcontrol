@@ -92,19 +92,41 @@ export function compileFilter(filter: BinderFilter): CompiledFilter {
 }
 
 /**
+ * Fractional slack applied to priceMin/priceMax when re-testing a reviewed
+ * card that just fell off its binder's price bound — see materializeBinders'
+ * sticky-retention pass. A card leaves its reviewed binder only when its
+ * price moves decisively (>5%) past the boundary, so boundary-priced cards
+ * don't flap between binders on daily price-refresh wobble.
+ */
+export const PRICE_STICKINESS_MARGIN = 0.05;
+
+/**
  * Returns true iff the card matches the compiled filter.
  * All filter fields AND together; absent fields impose no constraint.
+ * `priceSlack` widens priceMin/priceMax by that fraction (sticky retention
+ * only); every other field always matches exactly.
  */
-export function cardMatchesCompiled(card: EnrichedCard, f: CompiledFilter): boolean {
+export function cardMatchesCompiled(
+  card: EnrichedCard,
+  f: CompiledFilter,
+  priceSlack = 0
+): boolean {
   if (f.legalities && !legalityMatchesExpression(card.legalities, f.legalities)) return false;
 
   if (f.rarities && !exactMatchesExpression(card.rarity, f.rarities)) return false;
 
   // Price: purchasePrice <= 0 means no price recorded — exclude from any price-bounded filter,
-  // mirroring the collection predicate in CardListTable.tsx.
-  if (f.priceMin !== undefined && (card.purchasePrice <= 0 || card.purchasePrice < f.priceMin))
+  // mirroring the collection predicate in CardListTable.tsx. No-price is never
+  // rescued by priceSlack: losing the price entirely isn't a wobble.
+  if (
+    f.priceMin !== undefined &&
+    (card.purchasePrice <= 0 || card.purchasePrice < f.priceMin * (1 - priceSlack))
+  )
     return false;
-  if (f.priceMax !== undefined && (card.purchasePrice <= 0 || card.purchasePrice > f.priceMax))
+  if (
+    f.priceMax !== undefined &&
+    (card.purchasePrice <= 0 || card.purchasePrice > f.priceMax * (1 + priceSlack))
+  )
     return false;
 
   if (f.colors) {
@@ -193,9 +215,13 @@ export function compileFilterGroups(groups: BinderFilterGroup[]): CompiledFilter
  * OR semantics across compiled groups. Empty list (shouldn't happen — binders
  * always have ≥1 group) conservatively matches nothing.
  */
-export function cardMatchesAnyGroup(card: EnrichedCard, compiled: CompiledFilter[]): boolean {
+export function cardMatchesAnyGroup(
+  card: EnrichedCard,
+  compiled: CompiledFilter[],
+  priceSlack = 0
+): boolean {
   for (let i = 0; i < compiled.length; i++) {
-    if (cardMatchesCompiled(card, compiled[i])) return true;
+    if (cardMatchesCompiled(card, compiled[i], priceSlack)) return true;
   }
   return false;
 }

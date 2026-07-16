@@ -24,6 +24,9 @@ export interface NextBinderMatchOptions {
  *   match and always wins regardless of position.
  * - otherwise, the first binder (excluding manual/excluded/copy-excluded)
  *   whose compiled `filterGroups` match the card wins.
+ * - materialize.ts's sticky price retention (snapshot-based within-margin
+ *   hold) is deliberately NOT mirrored: this predicts where the card would
+ *   file *fresh*, and fresh routing uses the exact rule bounds.
  *
  * Returns `null` if no binder would claim the card (it would land in
  * Uncategorized).
