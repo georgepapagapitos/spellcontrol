@@ -82,6 +82,17 @@ describe('buildTradeRadar', () => {
     expect(buildTradeRadar(lists, friend)[0].targetPrice).toBeUndefined();
   });
 
+  it('carries the currency of the winning target price', () => {
+    const friend = [friendCard({ name: 'Sol Ring', oracleId: 'o-sol' })];
+    const lists = [
+      list('A', [entry({ name: 'Sol Ring', oracleId: 'o-sol', targetPrice: 8 })]),
+      list('B', [entry({ name: 'Sol Ring', oracleId: 'o-sol', targetPrice: 5, currency: 'EUR' })]),
+    ];
+    const m = buildTradeRadar(lists, friend)[0];
+    expect(m.targetPrice).toBe(5);
+    expect(m.currency).toBe('EUR');
+  });
+
   it('sorts matches by name and handles empty inputs', () => {
     const friend = [
       friendCard({ name: 'Zur the Enchanter', oracleId: 'o-zur' }),

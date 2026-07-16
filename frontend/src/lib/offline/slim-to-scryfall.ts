@@ -56,7 +56,7 @@ export function slimToScryfall(s: SlimCard): ScryfallCard {
       usd: s.usdPrice ?? null,
       usd_foil: null,
       usd_etched: null,
-      eur: null,
+      eur: s.eurPrice ?? null,
       eur_foil: null,
       tix: null,
     },

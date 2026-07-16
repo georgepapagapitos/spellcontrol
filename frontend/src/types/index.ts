@@ -126,6 +126,12 @@ export interface ListEntry {
   note?: string;
   /** Optional per-entry target price (display only; no automation). */
   targetPrice?: number;
+  /**
+   * Currency `targetPrice` was entered in. Absent = USD (entries predating
+   * EUR support). Rendered as-entered for every viewer — never converted —
+   * so a €5 target reads "€5" to a USD-display friend, not a relabeled "$5".
+   */
+  currency?: 'USD' | 'EUR';
 }
 
 /**

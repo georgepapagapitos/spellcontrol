@@ -81,6 +81,8 @@ export interface PublicListEntry {
   note?: string;
   /** Owner's target price. v1 includes by design. */
   targetPrice?: number;
+  /** Currency the target price was entered in; absent = USD. */
+  currency?: 'USD' | 'EUR';
 }
 
 export interface PublicList {
@@ -329,6 +331,7 @@ export function projectList(ownerUsername: string, listRaw: unknown): PublicList
       quantity: asNumber(e.quantity) ?? 1,
       note: asString(e.note),
       targetPrice: asNumber(e.targetPrice),
+      currency: e.currency === 'EUR' ? 'EUR' : e.currency === 'USD' ? 'USD' : undefined,
     });
   }
   return {

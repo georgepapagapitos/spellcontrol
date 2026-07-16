@@ -31,11 +31,23 @@ import {
 /** Printing-agnostic identity for grouping copies of the same card. */
 export const cardKey = (card: ScryfallCard): string => card.oracle_id || card.name;
 
-/** USD price for a single copy from its own Scryfall snapshot; 0 when unpriced. */
-export function cardUsd(card: ScryfallCard): number {
-  const raw = card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched;
+/**
+ * Price for a single copy from its own Scryfall snapshot, in the given
+ * currency; 0 when unpriced. Same missing-price semantics as DeckDisplay's
+ * priceOf: a card with no EUR price contributes 0 under EUR — no cross-currency
+ * fallback, a total never mixes $ and € amounts.
+ */
+export function cardPrice(card: ScryfallCard, currency: 'USD' | 'EUR' = 'USD'): number {
+  const p = card.prices;
+  const raw =
+    currency === 'EUR' ? (p?.eur ?? p?.eur_foil) : (p?.usd ?? p?.usd_foil ?? p?.usd_etched);
   const n = raw == null ? NaN : Number(raw);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Back-compat alias: the USD pick. */
+export function cardUsd(card: ScryfallCard): number {
+  return cardPrice(card, 'USD');
 }
 
 /** A card present in a deck, with how many copies and whether it's a commander. */
@@ -121,11 +133,12 @@ export interface PriceDiff {
   delta: number;
 }
 
-/** Total USD per deck (all copies incl. commanders) and the B − A delta. */
-export function diffDeckPrice(a: Deck, b: Deck): PriceDiff {
+/** Total per deck (all copies incl. commanders) and the B − A delta, in the
+ *  given display currency. */
+export function diffDeckPrice(a: Deck, b: Deck, currency: 'USD' | 'EUR' = 'USD'): PriceDiff {
   const total = (deck: Deck) => {
     let sum = 0;
-    for (const { card, qty } of countCards(deck).values()) sum += cardUsd(card) * qty;
+    for (const { card, qty } of countCards(deck).values()) sum += cardPrice(card, currency) * qty;
     return sum;
   };
   const aTotal = total(a);
@@ -275,11 +288,16 @@ export interface DeckDiff {
 }
 
 /** Full A → B comparison across every dimension. The one call the UI needs. */
-export function diffDecks(a: Deck, b: Deck, taggerReady: boolean): DeckDiff {
+export function diffDecks(
+  a: Deck,
+  b: Deck,
+  taggerReady: boolean,
+  currency: 'USD' | 'EUR' = 'USD'
+): DeckDiff {
   return {
     cards: diffDeckCards(a, b),
     stats: diffDeckStats(a, b, taggerReady),
-    price: diffDeckPrice(a, b),
+    price: diffDeckPrice(a, b, currency),
     bracket: diffDeckBracket(a, b),
   };
 }

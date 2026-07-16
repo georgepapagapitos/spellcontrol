@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Box, FolderOpen, Layers, ListChecks } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
+import { formatMoney } from '../lib/format-money';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
 import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
@@ -252,7 +253,12 @@ function RadarCardTile({ match }: { match: TradeRadarMatch }) {
       ? `${match.listNames[0]} +${match.listNames.length - 1}`
       : match.listNames[0],
   ];
-  if (match.targetPrice !== undefined) subParts.push(`$${match.targetPrice.toFixed(2)} target`);
+  // Target prices render in the currency they were ENTERED in (never converted
+  // or relabeled to the viewer's display currency) — see ListEntry.currency.
+  if (match.targetPrice !== undefined)
+    subParts.push(
+      `${formatMoney(match.targetPrice, { currency: match.currency ?? 'USD' })} target`
+    );
   const sub = subParts.join(' · ');
   return (
     <li className="friend-hub-radar-card">

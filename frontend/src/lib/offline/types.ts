@@ -49,6 +49,8 @@ export interface SlimCard {
   imageLarge?: string;
   faces?: SlimCardFace[];
   usdPrice?: string;
+  /** Cardmarket EUR price (for the EUR display-currency setting). */
+  eurPrice?: string;
   isGameChanger?: boolean;
   /** Tokens/emblems this card creates (from Scryfall `all_parts`). Omitted when none. */
   tokens?: SlimTokenRef[];
