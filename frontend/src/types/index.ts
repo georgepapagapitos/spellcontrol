@@ -139,6 +139,13 @@ export interface ListDef {
   order: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * When set, this is a **dynamic list**: membership is computed live from the
+   * collection with the binder rule engine (OR of groups), `entries` stays
+   * empty, and the manual add/edit/share flows don't apply. Same shape as a
+   * binder's `filterGroups`, cleaned via `cleanFilter` on save.
+   */
+  rule?: BinderFilterGroup[];
 }
 
 /**

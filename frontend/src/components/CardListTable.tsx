@@ -1831,7 +1831,8 @@ export function CardListTable({
       {saveToListOpen && (
         <SaveToListDialog
           cardCount={saveToListCards.length}
-          lists={lists}
+          // Dynamic (rule-driven) lists can't take manual entries.
+          lists={lists.filter((l) => !l.rule)}
           onSubmit={handleSaveToList}
           onCancel={() => setSaveToListOpen(false)}
         />

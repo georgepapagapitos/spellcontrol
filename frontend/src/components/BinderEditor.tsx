@@ -1276,7 +1276,9 @@ export function BinderEditor() {
  * meaning is in the fieldset semantics). A single "+ Add OR group" button
  * follows the list.
  */
-function FilterGroupList({
+// Exported for reuse by the dynamic-list rule editor (ListRuleEditor) — the
+// group list is pure rule-editing UI with no binder-specific chrome.
+export function FilterGroupList({
   groups,
   cards,
   keepPrintingsTogether,

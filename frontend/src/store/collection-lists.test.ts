@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useCollectionStore } from './collection';
 import { useDecksStore } from './decks';
 import { clearCollection, loadCollection } from '../lib/local-cards';
@@ -45,6 +45,25 @@ describe('list CRUD', () => {
     expect(lists).toHaveLength(1);
     expect(lists[0]).toMatchObject({ id, name: 'Wants', order: 0 });
     expect(lists[0].entries).toEqual([]);
+  });
+
+  it('creates a dynamic list with a rule and updates it via setListRule', async () => {
+    const rule = [{ filter: { nameContains: 'sol' } }];
+    const id = useCollectionStore.getState().createList('Commanders', []);
+    expect(useCollectionStore.getState().lists[0].rule).toEqual([]);
+    useCollectionStore.getState().setListRule(id, rule);
+    const list = useCollectionStore.getState().lists[0];
+    expect(list.rule).toEqual(rule);
+    expect(list.entries).toEqual([]);
+    // setListRule persists fire-and-forget (like renameList) — poll until the
+    // rule lands in the cache so the assertion isn't racing the IDB write.
+    await vi.waitFor(async () => {
+      const stored = await loadCollection();
+      expect(stored?.lists?.[0].rule).toEqual(rule);
+    });
+    // Static lists stay rule-less.
+    useCollectionStore.getState().createList('Wants');
+    expect(useCollectionStore.getState().lists[1].rule).toBeUndefined();
   });
 
   it('renames, reorders, deletes', () => {
