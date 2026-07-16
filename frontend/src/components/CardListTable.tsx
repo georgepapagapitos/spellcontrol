@@ -169,7 +169,17 @@ function readStoredGridSize(): GridSize {
   }
   return '1x';
 }
-type SortKey = 'name' | 'set' | 'rarity' | 'price' | 'qty' | 'cmc' | 'release' | 'added' | 'edited';
+type SortKey =
+  | 'name'
+  | 'set'
+  | 'rarity'
+  | 'price'
+  | 'edhrec'
+  | 'qty'
+  | 'cmc'
+  | 'release'
+  | 'added'
+  | 'edited';
 
 const ROW_HEIGHT_LIST = 66;
 const ROW_HEIGHT_COMPACT = 32;
@@ -192,6 +202,7 @@ const SORT_FIELDS: Array<{ key: SortKey; label: string; defaultDir: 'asc' | 'des
   { key: 'name', label: 'Name', defaultDir: 'asc' },
   { key: 'cmc', label: 'Mana value', defaultDir: 'asc' },
   { key: 'price', label: 'Price', defaultDir: 'desc' },
+  { key: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
   { key: 'qty', label: 'Quantity', defaultDir: 'desc' },
   { key: 'rarity', label: 'Rarity', defaultDir: 'asc' },
   { key: 'set', label: 'Set', defaultDir: 'asc' },
@@ -205,6 +216,7 @@ const SORT_KEY_TO_FIELD: Record<SortKey, SortField> = {
   set: 'setName',
   rarity: 'rarity',
   price: 'price',
+  edhrec: 'edhrec',
   qty: 'quantity',
   cmc: 'cmc',
   release: 'setReleaseDate',

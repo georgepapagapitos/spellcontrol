@@ -57,6 +57,7 @@ const LIST_SORTS: Array<{ value: SortField; label: string; defaultDir: SortDir }
   { value: 'cmc', label: 'Mana value', defaultDir: 'asc' },
   { value: 'rarity', label: 'Rarity', defaultDir: 'asc' },
   { value: 'price', label: 'Price', defaultDir: 'desc' },
+  { value: 'edhrec', label: 'EDHREC rank', defaultDir: 'asc' },
   { value: 'quantity', label: 'Quantity', defaultDir: 'desc' },
   { value: 'setName', label: 'Set', defaultDir: 'asc' },
 ];
