@@ -1,16 +1,23 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, CheckCircle2, Plus } from 'lucide-react';
 import './SetsPage.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { getSetCards, useSetMap } from '../lib/api';
 import {
+  SET_SORT_LABEL,
   completionPct,
   computeSetProgress,
+  expandSldDrops,
   overlaySetOwnership,
+  sortSetRows,
   type SetGridRow,
+  type SetProgress,
+  type SetSortKey,
 } from '../lib/set-completion';
+import { SLD_CODE, SLD_UNASSIGNED, dropsForNumber, useSldDrops } from '../lib/sld-drops';
+import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
@@ -33,12 +40,36 @@ function releaseYear(releasedAt: string): string {
   return releasedAt ? releasedAt.slice(0, 4) : '';
 }
 
+const SORT_OPTIONS: SelectOption<SetSortKey>[] = (
+  Object.entries(SET_SORT_LABEL) as [SetSortKey, string][]
+).map(([value, label]) => ({ value, label }));
+
+const SORT_STORAGE_KEY = 'sets-sort';
+
+function loadSort(): SetSortKey {
+  const saved = localStorage.getItem(SORT_STORAGE_KEY);
+  return saved && saved in SET_SORT_LABEL ? (saved as SetSortKey) : 'release';
+}
+
+/** Hub link for a progress row — drop rows deep-link into the SLD checklist. */
+function setRowLink(s: SetProgress): string {
+  const base = `/collection/sets/${s.code.toLowerCase()}`;
+  return s.drop ? `${base}?drop=${encodeURIComponent(s.drop)}` : base;
+}
+
 function SetsIndex() {
   const cards = useCollectionStore((s) => s.cards);
   const setMap = useSetMap();
+  const sldIndex = useSldDrops();
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SetSortKey>(loadSort);
 
-  const progress = useMemo(() => computeSetProgress(cards, setMap), [cards, setMap]);
+  const progress = useMemo(() => {
+    const rows = computeSetProgress(cards, setMap);
+    // While the drop map loads (undefined) or when it's unavailable (null),
+    // keep today's single flat SLD row rather than blocking the hub.
+    return sortSetRows(sldIndex ? expandSldDrops(rows, cards, sldIndex) : rows, sort);
+  }, [cards, setMap, sldIndex, sort]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return progress;
@@ -46,6 +77,7 @@ function SetsIndex() {
       (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
     );
   }, [progress, query]);
+  const setCount = useMemo(() => new Set(progress.map((s) => s.code)).size, [progress]);
   const completeCount = useMemo(() => progress.filter((s) => s.pct === 100).length, [progress]);
 
   return (
@@ -55,7 +87,7 @@ function SetsIndex() {
         <p className="binder-hero-meta sets-page-sub">
           {progress.length === 0
             ? 'Track how much of each Magic set you own.'
-            : `${progress.length} ${progress.length === 1 ? 'set' : 'sets'} in your collection` +
+            : `${setCount} ${setCount === 1 ? 'set' : 'sets'} in your collection` +
               (completeCount > 0 ? ` · ${completeCount} complete` : '')}
         </p>
       </header>
@@ -69,14 +101,27 @@ function SetsIndex() {
         </div>
       ) : (
         <>
-          <input
-            type="search"
-            className="sets-search"
-            placeholder="Filter sets…"
-            aria-label="Filter sets by name or code"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="sets-toolbar">
+            <input
+              type="search"
+              className="sets-search"
+              placeholder="Filter sets…"
+              aria-label="Filter sets by name or code"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <SelectMenu
+              label="Sort"
+              ariaLabel="Sort sets"
+              value={sort}
+              options={SORT_OPTIONS}
+              onChange={(s) => {
+                setSort(s);
+                localStorage.setItem(SORT_STORAGE_KEY, s);
+              }}
+              className="sets-sort-menu"
+            />
+          </div>
           {shown.length === 0 ? (
             <p className="sets-empty" role="status">
               No sets match “{query.trim()}”.
@@ -86,9 +131,9 @@ function SetsIndex() {
               {shown.map((s) => {
                 const complete = s.pct === 100;
                 return (
-                  <li key={s.code}>
+                  <li key={s.drop ? `${s.code}:${s.drop}` : s.code}>
                     <Link
-                      to={`/collection/sets/${s.code.toLowerCase()}`}
+                      to={setRowLink(s)}
                       className={`sets-row${complete ? ' is-complete' : ''}`}
                       aria-label={
                         s.total > 0
@@ -157,6 +202,13 @@ function SetDetail({ code }: { code: string }) {
   const addCard = useCollectionStore((s) => s.addCard);
   const pushToast = useToastsStore((s) => s.push);
 
+  // Secret Lair drop filter (E140): `?drop=<name>` narrows the flat SLD
+  // checklist to one drop (or the unassigned remainder). Inert for other sets.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isSld = upper === SLD_CODE;
+  const sldIndex = useSldDrops();
+  const dropParam = isSld ? searchParams.get('drop') : null;
+
   // Result is keyed by code+attempt; a key mismatch (new set / retry) reads
   // as loading, so the effect never has to set state synchronously.
   const [attempt, setAttempt] = useState(0);
@@ -189,31 +241,73 @@ function SetDetail({ code }: { code: string }) {
   }, [code, fetchKey]);
   const state: FetchState = result && result.key === fetchKey ? result.state : LOADING;
 
-  const rows = useMemo(
+  const allRows = useMemo(
     () => (state.status === 'done' ? overlaySetOwnership(state.cards, collection, upper) : []),
     [state, collection, upper]
   );
+  const rows = useMemo(() => {
+    if (!dropParam || !sldIndex) return allRows;
+    if (dropParam === SLD_UNASSIGNED) {
+      return allRows.filter(
+        (r) => dropsForNumber(sldIndex, r.card.collector_number ?? '').length === 0
+      );
+    }
+    return allRows.filter((r) =>
+      dropsForNumber(sldIndex, r.card.collector_number ?? '').some((d) => d.name === dropParam)
+    );
+  }, [allRows, dropParam, sldIndex]);
   const ownedCount = useMemo(() => rows.filter((r) => r.qty > 0).length, [rows]);
   const pct = completionPct(ownedCount, rows.length);
   const setName = meta?.name || upper;
+  /** What this checklist is: the drop when filtered, else the set. */
+  const displayName =
+    dropParam && dropParam !== SLD_UNASSIGNED
+      ? dropParam
+      : dropParam === SLD_UNASSIGNED
+        ? 'Secret Lair · unassigned'
+        : setName;
+  const dropOptions = useMemo<SelectOption<string>[]>(
+    () =>
+      sldIndex
+        ? [
+            { value: '', label: 'All drops' },
+            ...sldIndex.drops.map((d) => ({ value: d.name, label: d.name })),
+            { value: SLD_UNASSIGNED, label: 'Unassigned' },
+          ]
+        : [],
+    [sldIndex]
+  );
+  const dropReleasedAt =
+    (dropParam &&
+      dropParam !== SLD_UNASSIGNED &&
+      sldIndex?.drops.find((d) => d.name === dropParam)?.releasedAt) ||
+    '';
 
   // Seal moment on an observed <100% → 100% transition (never on mount of an
   // already-complete set), once per set per app-open.
   const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
   const prevPct = useRef<number | null>(null);
+  const prevSealKey = useRef<string>('');
+  const sealKey = dropParam ? `${upper}:${dropParam}` : upper;
   useLayoutEffect(() => {
+    // Switching drops swaps the whole checklist — never read the old drop's
+    // pct as "before" for the new one.
+    if (prevSealKey.current !== sealKey) {
+      prevSealKey.current = sealKey;
+      prevPct.current = null;
+    }
     if (rows.length > 0 && prevPct.current !== null && prevPct.current < 100 && pct === 100) {
-      if (!celebratedSetComplete.has(upper)) {
-        celebratedSetComplete.add(upper);
+      if (!celebratedSetComplete.has(sealKey)) {
+        celebratedSetComplete.add(sealKey);
         fireSealMoment();
         pushToast({
-          message: `${setName} complete — all ${rows.length} cards collected!`,
+          message: `${displayName} complete — all ${rows.length} cards collected!`,
           tone: 'success',
         });
       }
     }
     prevPct.current = rows.length > 0 ? pct : null;
-  }, [pct, rows.length, upper, setName, fireSealMoment, pushToast]);
+  }, [pct, rows.length, sealKey, displayName, fireSealMoment, pushToast]);
 
   const [filter, setFilter] = useState<OwnFilter>('all');
   const filtered = useMemo(
@@ -254,18 +348,40 @@ function SetDetail({ code }: { code: string }) {
           {meta?.iconSvgUri && (
             <img src={meta.iconSvgUri} alt="" aria-hidden className="sets-detail-icon" />
           )}
-          {setName}
+          {displayName}
         </h1>
         <p className="binder-hero-meta sets-page-sub">
           <span className="sets-row-code">{upper}</span>
-          {meta?.releasedAt && <span> · released {meta.releasedAt}</span>}
+          {dropParam ? (
+            <span> · Secret Lair drop{dropReleasedAt ? ` · released ${dropReleasedAt}` : ''}</span>
+          ) : (
+            meta?.releasedAt && <span> · released {meta.releasedAt}</span>
+          )}
         </p>
       </header>
+
+      {isSld && sldIndex && (
+        <div className="sets-drop-picker">
+          <SelectMenu
+            label="Drop"
+            ariaLabel="Filter by Secret Lair drop"
+            searchable
+            searchPlaceholder="Search drops…"
+            value={dropParam ?? ''}
+            options={dropOptions}
+            onChange={(v) => {
+              setSearchParams(v ? { drop: v } : {}, { replace: true });
+              setPreviewIndex(null);
+            }}
+            className="sets-drop-picker-menu"
+          />
+        </div>
+      )}
 
       {state.status === 'loading' && (
         <div aria-busy="true">
           <p className="sets-status" role="status">
-            Loading the {setName} checklist…
+            Loading the {displayName} checklist…
           </p>
           <div className="set-grid" aria-hidden>
             {Array.from({ length: 12 }, (_, i) => (
@@ -329,10 +445,10 @@ function SetDetail({ code }: { code: string }) {
           {filtered.length === 0 ? (
             <p className="sets-status" role="status">
               {filter === 'missing'
-                ? `You own every card in ${setName}.`
+                ? `You own every card in ${displayName}.`
                 : filter === 'owned'
-                  ? `Nothing from ${setName} yet — tap a card to add it.`
-                  : `Scryfall lists no cards for ${setName}.`}
+                  ? `Nothing from ${displayName} yet — tap a card to add it.`
+                  : `Scryfall lists no cards for ${displayName}.`}
             </p>
           ) : (
             <div className="set-grid">

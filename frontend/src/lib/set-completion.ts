@@ -1,6 +1,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
 import type { SetMap } from './api';
+import { SLD_CODE, SLD_UNASSIGNED, dropsForNumber, type SldDropsIndex } from './sld-drops';
 
 /**
  * Set-completion math (E131). Ownership is printing-keyed: you "have" a
@@ -18,6 +19,11 @@ export interface SetProgress {
   total: number;
   /** 0–100. Only ever 100 when owned covers the whole set. */
   pct: number;
+  /**
+   * Set only on Secret Lair drop rows (see {@link expandSldDrops}): the drop
+   * name, or {@link SLD_UNASSIGNED} for owned SLD cards not in the drop map.
+   */
+  drop?: string;
 }
 
 /** Display percent that never rounds up to a false 100%. */
@@ -69,6 +75,97 @@ export function computeSetProgress(
     (a, b) => (b.releasedAt || '').localeCompare(a.releasedAt || '') || a.name.localeCompare(b.name)
   );
   return rows;
+}
+
+/**
+ * Split the flat "Secret Lair Drop" row into one row per drop the collection
+ * touches, so the hub tracks completion per drop the way secretlayer.org
+ * identifies them. Non-SLD rows pass through untouched. Owned numbers not in
+ * the drop map collapse into one trailing "unassigned" row (total unknown →
+ * no %), so no owned card is silently unrepresented. A number sold in more
+ * than one drop counts toward each — we can't know which product it came from.
+ */
+export function expandSldDrops(
+  rows: SetProgress[],
+  cards: EnrichedCard[],
+  index: SldDropsIndex
+): SetProgress[] {
+  const sldRow = rows.find((r) => r.code === SLD_CODE);
+  if (!sldRow) return rows;
+
+  const ownedNumbers = new Set<string>();
+  for (const c of cards) {
+    if (c.setCode?.toUpperCase() === SLD_CODE && c.collectorNumber) {
+      ownedNumbers.add(c.collectorNumber);
+    }
+  }
+
+  const ownedByDrop = new Map<string, number>();
+  let unassigned = 0;
+  for (const number of ownedNumbers) {
+    const drops = dropsForNumber(index, number);
+    if (drops.length === 0) {
+      unassigned++;
+      continue;
+    }
+    for (const drop of drops) {
+      ownedByDrop.set(drop.name, (ownedByDrop.get(drop.name) ?? 0) + 1);
+    }
+  }
+
+  const dropRows: SetProgress[] = index.drops
+    .filter((d) => (ownedByDrop.get(d.name) ?? 0) > 0)
+    .map((d) => {
+      const owned = Math.min(ownedByDrop.get(d.name) ?? 0, d.numbers.length);
+      return {
+        code: SLD_CODE,
+        name: d.name,
+        iconSvgUri: sldRow.iconSvgUri,
+        releasedAt: d.releasedAt,
+        owned,
+        total: d.numbers.length,
+        pct: completionPct(owned, d.numbers.length),
+        drop: d.name,
+      };
+    });
+  if (unassigned > 0) {
+    dropRows.push({
+      code: SLD_CODE,
+      name: 'Secret Lair · unassigned',
+      iconSvgUri: sldRow.iconSvgUri,
+      releasedAt: sldRow.releasedAt,
+      owned: unassigned,
+      total: 0,
+      pct: 0,
+      drop: SLD_UNASSIGNED,
+    });
+  }
+
+  return [...rows.filter((r) => r.code !== SLD_CODE), ...dropRows];
+}
+
+export type SetSortKey = 'release' | 'pct' | 'name' | 'total' | 'owned';
+
+export const SET_SORT_LABEL: Record<SetSortKey, string> = {
+  release: 'Newest',
+  pct: 'Completion',
+  name: 'Name',
+  total: 'Total cards',
+  owned: 'Owned cards',
+};
+
+/** Sort a copy of the hub rows. Every key tie-breaks by name for stability. */
+export function sortSetRows(rows: SetProgress[], sort: SetSortKey): SetProgress[] {
+  const byName = (a: SetProgress, b: SetProgress) => a.name.localeCompare(b.name);
+  const cmp: Record<SetSortKey, (a: SetProgress, b: SetProgress) => number> = {
+    release: (a, b) => (b.releasedAt || '').localeCompare(a.releasedAt || '') || byName(a, b),
+    // Unknown totals (pct 0, total 0) sink below real percentages.
+    pct: (a, b) => b.pct - a.pct || b.total - a.total || byName(a, b),
+    name: byName,
+    total: (a, b) => b.total - a.total || byName(a, b),
+    owned: (a, b) => b.owned - a.owned || byName(a, b),
+  };
+  return [...rows].sort(cmp[sort]);
 }
 
 export interface SetGridRow {
