@@ -199,6 +199,60 @@ export function compareCollectorNumbers(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
+// ── Card → sets search (the hub's "which sets is this card in?") ────────────
+
+export interface CardSetMatch {
+  /** Display name (first-seen casing from the collection). */
+  name: string;
+  /** Owned printings, one entry per distinct set + collector number. */
+  printings: Array<{ setCode: string; collectorNumber: string; qty: number }>;
+}
+
+/** Card-name search needs this many characters before it fires (noise floor). */
+export const CARD_SEARCH_MIN_CHARS = 3;
+
+/**
+ * Search the collection by card name and group the hits into "which sets do
+ * I own this card in". A printing is a distinct set + collector number
+ * (finish-agnostic, like all set-completion math); `qty` totals the physical
+ * copies of it. Groups whose name *starts with* the query rank before
+ * substring matches, then alphabetical. Returns at most `maxCards` groups
+ * plus the ungated match count so the UI can say "+k more".
+ */
+export function searchCollectionCardSets(
+  cards: EnrichedCard[],
+  query: string,
+  maxCards = 6
+): { matches: CardSetMatch[]; total: number } {
+  const q = query.trim().toLowerCase();
+  if (q.length < CARD_SEARCH_MIN_CHARS) return { matches: [], total: 0 };
+
+  const groups = new Map<string, CardSetMatch>();
+  for (const c of cards) {
+    if (!c.name || !c.setCode || !c.name.toLowerCase().includes(q)) continue;
+    const key = c.name.toLowerCase();
+    let group = groups.get(key);
+    if (!group) {
+      group = { name: c.name, printings: [] };
+      groups.set(key, group);
+    }
+    const setCode = c.setCode.toUpperCase();
+    const collectorNumber = c.collectorNumber || '';
+    const printing = group.printings.find(
+      (p) => p.setCode === setCode && p.collectorNumber === collectorNumber
+    );
+    if (printing) printing.qty += 1;
+    else group.printings.push({ setCode, collectorNumber, qty: 1 });
+  }
+
+  const all = [...groups.values()].sort((a, b) => {
+    const pa = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+    const pb = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+    return pa - pb || a.name.localeCompare(b.name);
+  });
+  return { matches: all.slice(0, maxCards), total: all.length };
+}
+
 /** Overlay collection ownership onto a set's full card list, checklist order. */
 export function overlaySetOwnership(
   setCards: ScryfallCard[],
