@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
   BinderDef,
+  BinderFilterGroup,
   BinderInput,
   BinderReviewSnapshot,
   Condition,
@@ -241,7 +242,10 @@ interface CollectionState {
   seedManualOrder: (binderId: string, currentCardIds: string[]) => void;
 
   // List actions
-  createList: (name: string) => string;
+  /** Pass `rule` to create a dynamic list (rule-driven, no manual entries). */
+  createList: (name: string, rule?: BinderFilterGroup[]) => string;
+  /** Replace a dynamic list's rule groups (already cleaned via cleanFilter). */
+  setListRule: (id: string, rule: BinderFilterGroup[]) => void;
   renameList: (id: string, name: string) => void;
   reorderLists: (orderedIds: string[]) => void;
   deleteList: (id: string) => void;
@@ -1258,7 +1262,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       // List actions
-      createList: (name) => {
+      createList: (name, rule) => {
         const id =
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
@@ -1272,10 +1276,17 @@ export const useCollectionStore = create<CollectionState>()(
           order: lists.length,
           createdAt: now,
           updatedAt: now,
+          ...(rule ? { rule } : {}),
         };
         set({ lists: [...lists, def] });
         void persistListsOnly(get().lists);
         return id;
+      },
+      setListRule: (id, rule) => {
+        set({
+          lists: get().lists.map((l) => (l.id === id ? { ...l, rule, updatedAt: Date.now() } : l)),
+        });
+        void persistListsOnly(get().lists);
       },
       renameList: (id, name) => {
         set({

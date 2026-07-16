@@ -1,4 +1,12 @@
-import { AlignJustify, List as ListIconLucide, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
+import {
+  AlignJustify,
+  List as ListIconLucide,
+  Pencil,
+  Plus,
+  Share2,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
@@ -22,6 +30,9 @@ import { useSelection } from '../lib/use-selection';
 import { ListEntriesView } from '../components/ListEntriesView';
 import { ShareDialog } from '../components/ShareDialog';
 import { NameInputDialog } from '../components/NameInputDialog';
+import { dynamicListCount } from '../lib/dynamic-list';
+import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
+import type { ListDef } from '../types';
 
 type ListSortField = 'order' | 'name' | 'entries';
 type SortDir = 'asc' | 'desc';
@@ -44,6 +55,7 @@ const SORT_DEFAULT_DIR: Record<ListSortField, SortDir> = {
 
 export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
+  const cards = useCollectionStore((s) => s.cards);
   const createList = useCollectionStore((s) => s.createList);
   const renameList = useCollectionStore((s) => s.renameList);
   const deleteList = useCollectionStore((s) => s.deleteList);
@@ -54,9 +66,10 @@ export function ListsPage() {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
   const [shareList, setShareList] = useState<{ id: string; name: string } | null>(null);
-  // Drives the create/rename name dialogs. `rename` carries the target list.
+  // Drives the create/rename name dialogs. `rename` carries the target list;
+  // `dynamic` creates a rule-driven list (the rule editor opens on arrival).
   const [nameDialog, setNameDialog] = useState<
-    { mode: 'create' } | { mode: 'rename'; id: string; current: string } | null
+    { mode: 'create'; dynamic?: boolean } | { mode: 'rename'; id: string; current: string } | null
   >(null);
 
   const { sortField, sortDir, toggleSort } = useStoredSort<ListSortField>(
@@ -72,6 +85,21 @@ export function ListsPage() {
     'list'
   );
 
+  // Live match counts for dynamic lists — the index tile and the entry-count
+  // sort should reflect what the rule matches right now, not the (always
+  // empty) stored entries. Tag-decorate only when some rule needs it.
+  const anyRuleUsesTags = useMemo(
+    () => lists.some((l) => l.rule && groupsUseTags(l.rule)),
+    [lists]
+  );
+  const taggedCards = useCardsWithTags(cards, anyRuleUsesTags);
+  const dynamicCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of lists) if (l.rule) m.set(l.id, dynamicListCount(taggedCards, l.rule));
+    return m;
+  }, [lists, taggedCards]);
+  const listSize = (l: ListDef) => (l.rule ? (dynamicCounts.get(l.id) ?? 0) : l.entries.length);
+
   const sorted = useMemo(() => {
     const dirMul = sortDir === 'asc' ? 1 : -1;
     const q = debouncedSearch.trim().toLowerCase();
@@ -86,13 +114,15 @@ export function ListsPage() {
           cmp = a.name.localeCompare(b.name);
           break;
         case 'entries':
-          cmp = a.entries.length - b.entries.length;
+          cmp =
+            (a.rule ? (dynamicCounts.get(a.id) ?? 0) : a.entries.length) -
+            (b.rule ? (dynamicCounts.get(b.id) ?? 0) : b.entries.length);
           break;
       }
       if (cmp === 0) cmp = a.order - b.order;
       return cmp * dirMul;
     });
-  }, [lists, sortField, sortDir, debouncedSearch]);
+  }, [lists, sortField, sortDir, debouncedSearch, dynamicCounts]);
 
   const activeList = useMemo(
     () => (routeId ? lists.find((l) => l.id === routeId) : undefined),
@@ -116,6 +146,7 @@ export function ListsPage() {
   }, [routeId, prefetchKey]);
 
   const handleCreate = () => setNameDialog({ mode: 'create' });
+  const handleCreateDynamic = () => setNameDialog({ mode: 'create', dynamic: true });
 
   const handleRename = (id: string, current: string) =>
     setNameDialog({ mode: 'rename', id, current });
@@ -123,7 +154,9 @@ export function ListsPage() {
   const submitName = (name: string) => {
     if (!nameDialog) return;
     if (nameDialog.mode === 'create') {
-      const id = createList(name);
+      // A dynamic list starts with an empty rule; the detail view auto-opens
+      // the rule editor so creation flows straight into defining the rule.
+      const id = createList(name, nameDialog.dynamic ? [] : undefined);
       navigate(`/collection/lists/${id}`);
     } else {
       renameList(nameDialog.id, name);
@@ -198,6 +231,10 @@ export function ListsPage() {
           </p>
         </div>
         <div className="binders-index-actions">
+          <button type="button" className="pill-btn" onClick={handleCreateDynamic}>
+            <SlidersHorizontal width={14} height={14} strokeWidth={1.8} aria-hidden />
+            <span>New dynamic list</span>
+          </button>
           <button type="button" className="pill-btn pill-btn-primary" onClick={handleCreate}>
             <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
             <span>New list</span>
@@ -261,11 +298,16 @@ export function ListsPage() {
           <p className="empty-state-tagline">No lists yet.</p>
           <p className="empty-state-hint">
             Create a list to track cards you don’t own yet — a wishlist, buylist, deck plan, or
-            trade pile. Lists never affect your collection, binders, or decks.
+            trade pile. Or make a dynamic list: a rule over your collection (say, every eligible
+            commander you own) that stays current as cards come in. Lists never affect your
+            collection, binders, or decks.
           </p>
           <div className="empty-state-actions">
             <button type="button" className="btn btn-primary" onClick={handleCreate}>
               Create your first list
+            </button>
+            <button type="button" className="btn" onClick={handleCreateDynamic}>
+              New dynamic list
             </button>
           </div>
         </div>
@@ -315,8 +357,17 @@ export function ListsPage() {
                       <div className="binders-index-card-name">{l.name}</div>
                       <div className="binders-index-card-meta">
                         <span className="binders-index-card-cards">
-                          {l.entries.length.toLocaleString()}{' '}
-                          {l.entries.length === 1 ? 'entry' : 'entries'}
+                          {l.rule ? (
+                            <>
+                              {listSize(l).toLocaleString()} {listSize(l) === 1 ? 'card' : 'cards'}
+                              {' · dynamic'}
+                            </>
+                          ) : (
+                            <>
+                              {l.entries.length.toLocaleString()}{' '}
+                              {l.entries.length === 1 ? 'entry' : 'entries'}
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -327,11 +378,18 @@ export function ListsPage() {
                     ariaLabel={`Actions for ${l.name}`}
                     items={[
                       { label: 'Rename', icon: Pencil, onClick: () => handleRename(l.id, l.name) },
-                      {
-                        label: 'Share',
-                        icon: Share2,
-                        onClick: () => setShareList({ id: l.id, name: l.name }),
-                      },
+                      // Shares project a list's stored entries; a dynamic
+                      // list's membership lives client-side, so sharing one
+                      // would publish an empty list.
+                      ...(l.rule
+                        ? []
+                        : [
+                            {
+                              label: 'Share',
+                              icon: Share2,
+                              onClick: () => setShareList({ id: l.id, name: l.name }),
+                            },
+                          ]),
                       {
                         label: 'Delete',
                         icon: Trash2,
@@ -370,9 +428,19 @@ export function ListsPage() {
       )}
       {nameDialog && (
         <NameInputDialog
-          title={nameDialog.mode === 'create' ? 'New list' : 'Rename list'}
+          title={
+            nameDialog.mode === 'rename'
+              ? 'Rename list'
+              : nameDialog.dynamic
+                ? 'New dynamic list'
+                : 'New list'
+          }
           label="List name"
-          placeholder="e.g. Wishlist, Trade pile"
+          placeholder={
+            nameDialog.mode === 'create' && nameDialog.dynamic
+              ? 'e.g. Commanders I own'
+              : 'e.g. Wishlist, Trade pile'
+          }
           initialValue={nameDialog.mode === 'rename' ? nameDialog.current : ''}
           confirmLabel={nameDialog.mode === 'create' ? 'Create list' : 'Rename'}
           onSubmit={submitName}

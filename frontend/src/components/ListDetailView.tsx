@@ -94,6 +94,9 @@ interface Props {
    *  instead of double-resolving the same names. */
   rows: EnrichedListRow[];
   loading: boolean;
+  /** Dynamic (rule-driven) list: rows are owned collection copies, so the
+   *  manual affordances (per-row menu, owned badge, Scryfall add) hide. */
+  dynamic?: boolean;
 }
 
 /** Placeholder rows shown while entries resolve to card data — count mirrors
@@ -134,14 +137,19 @@ function SkeletonGrid({ count }: { count: number }) {
  *  (never the rate-limited Scryfall API directly). Clicking opens the preview. */
 function ListEntryGridCell({
   name,
+  imageUrl,
   qty,
   onActivate,
 }: {
   name: string;
+  /** The row card's own art (exact printing) — the name-keyed thumb is only a
+   *  fallback, since it resolves to Scryfall's default printing. */
+  imageUrl?: string;
   qty: number;
   onActivate: () => void;
 }) {
-  const url = useCardThumb(name, 'normal');
+  const thumb = useCardThumb(imageUrl ? undefined : name, 'normal');
+  const url = imageUrl ?? thumb;
   return (
     <div
       role="button"
@@ -179,7 +187,7 @@ function ListEntryGridCell({
  * binder, finish, price, group-printings) are simply not wired and the dialog
  * hides those sections. Per-row actions live in an overflow menu.
  */
-export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
+export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = false }: Props) {
   const removeListEntry = useCollectionStore((s) => s.removeListEntry);
   const moveListEntryToCollection = useCollectionStore((s) => s.moveListEntryToCollection);
   const updateListEntry = useCollectionStore((s) => s.updateListEntry);
@@ -591,7 +599,11 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
       ) : sorted.length === 0 ? (
         <div className="empty-state">
           <p className="empty-state-tagline">
-            {rows.length === 0 ? 'No cards in this list yet.' : 'No cards match your filters.'}
+            {rows.length > 0
+              ? 'No cards match your filters.'
+              : dynamic
+                ? 'Nothing in your collection matches this list’s rule yet — new imports that match will appear here automatically.'
+                : 'No cards in this list yet.'}
           </p>
           {rows.length > 0 && (
             <button type="button" className="btn-link" onClick={clearAll}>
@@ -605,6 +617,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
             <ListEntryGridCell
               key={r.card.copyId}
               name={r.card.name}
+              imageUrl={r.card.imageNormal}
               qty={r.entry.quantity}
               onActivate={() => setPreviewIndex(i)}
             />
@@ -624,14 +637,15 @@ export function ListDetailView({ list, rows: enrichedRows, loading }: Props) {
               allocations={[]}
               onActivate={() => setPreviewIndex(i)}
               isLastRow={i === sorted.length - 1}
-              menu={rowMenu(r.entry)}
-              ownedBadge={ownedBadge(r.entry)}
+              menu={dynamic ? undefined : rowMenu(r.entry)}
+              ownedBadge={dynamic ? undefined : ownedBadge(r.entry)}
             />
           ))}
         </div>
       )}
 
-      {search.trim().length >= 2 &&
+      {!dynamic &&
+        search.trim().length >= 2 &&
         (scryfallOpen ? (
           <InlineCardSearch
             query={search.trim()}

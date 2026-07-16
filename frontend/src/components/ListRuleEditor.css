@@ -1,0 +1,18 @@
+/* Rule editor for dynamic lists — card-picker sheet shell with a wider
+   desktop panel (filter-group rows breathe better than at the picker's
+   480px) and a footer that seats the live match count left of the actions. */
+
+@media (min-width: 1024px) {
+  .list-rule-editor-sheet {
+    width: min(640px, 92vw);
+  }
+}
+
+.list-rule-editor-footer {
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.list-rule-editor-count {
+  margin-right: auto;
+}
