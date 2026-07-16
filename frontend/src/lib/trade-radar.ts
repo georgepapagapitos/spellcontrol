@@ -11,6 +11,8 @@ export interface TradeRadarMatch {
   listNames: string[];
   /** Lowest target price set on any matching entry, if any entry has one. */
   targetPrice?: number;
+  /** Currency of the winning `targetPrice`, as entered; absent = USD. */
+  currency?: 'USD' | 'EUR';
 }
 
 /**
@@ -49,6 +51,7 @@ export function buildTradeRadar(lists: ListDef[], friendCards: FriendCard[]): Tr
           (existing.targetPrice === undefined || entry.targetPrice < existing.targetPrice)
         ) {
           existing.targetPrice = entry.targetPrice;
+          existing.currency = entry.currency;
         }
       } else {
         matches.set(key, {
@@ -56,6 +59,7 @@ export function buildTradeRadar(lists: ListDef[], friendCards: FriendCard[]): Tr
           quantity: qty,
           listNames: [list.name],
           targetPrice: entry.targetPrice,
+          currency: entry.targetPrice !== undefined ? entry.currency : undefined,
         });
       }
     }

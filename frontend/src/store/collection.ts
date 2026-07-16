@@ -282,6 +282,8 @@ interface CollectionState {
       quantity: number;
       note: string;
       targetPrice: number;
+      /** Set alongside targetPrice (from the active display currency). */
+      currency: 'USD' | 'EUR';
       scryfallId: string;
       setCode: string;
       collectorNumber: string;

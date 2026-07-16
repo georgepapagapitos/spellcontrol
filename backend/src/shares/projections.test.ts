@@ -173,6 +173,19 @@ describe('projectList', () => {
     expect(out?.entries[0].targetPrice).toBe(100);
     expect(out?.entries[0].finish).toBe('foil');
   });
+
+  it('keeps a valid target-price currency and drops garbage values', () => {
+    const out = projectList('alice', {
+      id: 'l1',
+      name: 'Wants',
+      entries: [
+        { name: 'A', scryfallId: 'a', quantity: 1, targetPrice: 5, currency: 'EUR' },
+        { name: 'B', scryfallId: 'b', quantity: 1, targetPrice: 5, currency: 'GBP' },
+      ],
+    });
+    expect(out?.entries[0].currency).toBe('EUR');
+    expect(out?.entries[1].currency).toBeUndefined();
+  });
 });
 
 describe('projectDeck', () => {

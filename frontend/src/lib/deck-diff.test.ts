@@ -12,6 +12,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '@/store/decks';
 import {
   cardKey,
+  cardPrice,
   cardUsd,
   diffDeckBracket,
   diffDeckCards,
@@ -84,6 +85,15 @@ describe('cardUsd', () => {
     expect(cardUsd(makeCard({ prices: { usd_etched: '3' } }))).toBe(3);
     expect(cardUsd(makeCard({ prices: {} }))).toBe(0);
     expect(cardUsd(makeCard({ prices: { usd: 'n/a' } }))).toBe(0);
+  });
+});
+
+describe('cardPrice (EUR)', () => {
+  it('reads eur then eur_foil, never falling back across currencies', () => {
+    expect(cardPrice(makeCard({ prices: { eur: '2.10', usd: '9' } }), 'EUR')).toBe(2.1);
+    expect(cardPrice(makeCard({ prices: { eur: null, eur_foil: '4' } }), 'EUR')).toBe(4);
+    // No EUR price → honest 0, even when a USD price exists.
+    expect(cardPrice(makeCard({ prices: { usd: '9' } }), 'EUR')).toBe(0);
   });
 });
 

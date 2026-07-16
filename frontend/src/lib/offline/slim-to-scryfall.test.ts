@@ -22,6 +22,7 @@ describe('slimToScryfall', () => {
       rarity: 'rare',
       imageNormal: 'https://example/normal.jpg',
       usdPrice: '1.23',
+      eurPrice: '1.05',
     };
     const card = slimToScryfall(slim);
     expect(card.id).toBe('scry-abc');
@@ -30,6 +31,7 @@ describe('slimToScryfall', () => {
     expect(card.cmc).toBe(4);
     expect(card.legalities.commander).toBe('legal');
     expect(card.prices.usd).toBe('1.23');
+    expect(card.prices.eur).toBe('1.05');
     expect(card.image_uris?.normal).toBe('https://example/normal.jpg');
     expect(card.rarity).toBe('rare');
   });

@@ -74,6 +74,8 @@ export interface PublicListEntry {
   quantity: number;
   note?: string;
   targetPrice?: number;
+  /** Currency the target price was entered in; absent = USD. */
+  currency?: 'USD' | 'EUR';
 }
 
 export interface PublicList {

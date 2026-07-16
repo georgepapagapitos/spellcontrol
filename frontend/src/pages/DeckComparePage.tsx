@@ -11,9 +11,13 @@ import { MeterBar } from '../components/shared/MeterBar';
 import { InfoTip } from '../components/InfoTip';
 import { diffDecks, type CardDelta } from '@/lib/deck-diff';
 import { buildManaData } from '@/lib/build-mana-data';
+import { useCurrency } from '@/lib/currency';
+import { formatMoney } from '@/lib/format-money';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
 
-const usd = (n: number) => `$${n.toFixed(2)}`;
+// Totals are computed by diffDecks in the active display currency, and
+// formatMoney's default is that same currency — number and symbol agree.
+const money = (n: number) => formatMoney(n);
 
 /** Flat card list (commanders + mainboard) — the shape buildManaData/analyzeDeck want. */
 const allCardsOf = (deck: Deck): ScryfallCard[] => {
@@ -110,7 +114,7 @@ function DiffStatChip({
   decimals?: number;
   format?: 'usd';
 }) {
-  const fmt = (n: number) => (format === 'usd' ? usd(n) : n.toFixed(decimals));
+  const fmt = (n: number) => (format === 'usd' ? money(n) : n.toFixed(decimals));
   const delta = b - a;
   const dir = delta > 0 ? 'increased' : delta < 0 ? 'decreased' : 'unchanged';
   const toneCls = delta > 0 ? 'is-added' : delta < 0 ? 'is-removed' : '';
@@ -177,6 +181,7 @@ export function DeckComparePage() {
   const decks = useDecksStore((s) => s.decks);
   const hydrated = useDecksStore((s) => s.hydrated);
   const taggerReady = useTaggerReady();
+  const currency = useCurrency();
 
   const aId = searchParams.get('a') ?? '';
   const bId = searchParams.get('b') ?? '';
@@ -211,8 +216,8 @@ export function DeckComparePage() {
     );
 
   const diff = useMemo(
-    () => (deckA && deckB ? diffDecks(deckA, deckB, taggerReady) : null),
-    [deckA, deckB, taggerReady]
+    () => (deckA && deckB ? diffDecks(deckA, deckB, taggerReady, currency) : null),
+    [deckA, deckB, taggerReady, currency]
   );
   const manaA = useMemo(
     () =>
@@ -489,7 +494,7 @@ export function DeckComparePage() {
                 <div className="deck-compare-price-panel">
                   <div className="deck-compare-price-col">
                     <span className="deck-compare-price-name">{deckA.name}</span>
-                    <span className="deck-compare-price-amount">{usd(diff.price.aTotal)}</span>
+                    <span className="deck-compare-price-amount">{money(diff.price.aTotal)}</span>
                     <MeterBar
                       value={diff.price.aTotal}
                       max={Math.max(diff.price.aTotal, diff.price.bTotal, 1)}
@@ -497,7 +502,7 @@ export function DeckComparePage() {
                   </div>
                   <div className="deck-compare-price-col">
                     <span className="deck-compare-price-name">{deckB.name}</span>
-                    <span className="deck-compare-price-amount">{usd(diff.price.bTotal)}</span>
+                    <span className="deck-compare-price-amount">{money(diff.price.bTotal)}</span>
                     <MeterBar
                       value={diff.price.bTotal}
                       max={Math.max(diff.price.aTotal, diff.price.bTotal, 1)}
@@ -509,7 +514,7 @@ export function DeckComparePage() {
                 >
                   {diff.price.delta === 0
                     ? 'Same total price'
-                    : `${deckB.name} costs ${usd(Math.abs(diff.price.delta))} ${diff.price.delta > 0 ? 'more' : 'less'} than ${deckA.name}`}
+                    : `${deckB.name} costs ${money(Math.abs(diff.price.delta))} ${diff.price.delta > 0 ? 'more' : 'less'} than ${deckA.name}`}
                 </p>
               </section>
             </>

@@ -50,6 +50,8 @@ interface ScryfallBulkCard {
     usd?: string | null;
     usd_foil?: string | null;
     usd_etched?: string | null;
+    eur?: string | null;
+    eur_foil?: string | null;
   };
   /** Related-card relationships — tokens, meld parts, combo pieces, etc. */
   all_parts?: Array<{ component?: string; name?: string; type_line?: string }>;
@@ -68,8 +70,10 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
  *       deck token checklist.
  *   5 — populate `isGameChanger` (was permanently undefined) so the offline
  *       `is:gamechanger` search operator returns results (E108).
+ *   6 — carry `eurPrice` (Cardmarket) for the EUR display-currency setting,
+ *       so offline-inflated cards have an EUR price too (E141).
  */
-const BUILDER_VERSION = 5;
+const BUILDER_VERSION = 6;
 
 const SCRYFALL_SEARCH_URL = 'https://api.scryfall.com/cards/search';
 
@@ -277,6 +281,7 @@ function slimCard(card: ScryfallBulkCard, gameChangerNames: ReadonlySet<string>)
       imageLarge: f.image_uris?.large,
     })),
     usdPrice: card.prices?.usd ?? card.prices?.usd_foil ?? card.prices?.usd_etched ?? undefined,
+    eurPrice: card.prices?.eur ?? card.prices?.eur_foil ?? undefined,
     isGameChanger: gameChangerNames.has(card.name) || undefined,
     tokens: tokensFromParts(card.all_parts),
   };
