@@ -2,7 +2,6 @@ import {
   AlignJustify,
   Bookmark,
   Captions,
-  CaptionsOff,
   Check,
   CheckSquare,
   ChevronDown,
@@ -85,6 +84,8 @@ import { fetchTypeSuggestions } from '../lib/scryfall-catalog';
 import { parseTypeLine, SUPERTYPES, TYPES } from '../lib/card-types';
 import { CardRow } from './shared/CardRow';
 import { RarityBadge } from './shared/RarityBadge';
+import { SetSymbol } from './shared/SetSymbol';
+import { ToolbarPopover } from './shared/ToolbarPopover';
 import { buildEditedCards, isNoOpCardEdit, stackCopies, stackDetailMix } from '../lib/edit-card';
 import {
   compileExpression,
@@ -172,24 +173,45 @@ function readStoredGridSize(): GridSize {
   return '1x';
 }
 
-// Grid caption — a one-line detail under each card (the "Details" toggle),
-// mirroring the decks "Show" prefs: persisted per device, default on. The
-// caption echoes the active sort key's value (dates for the date sorts,
-// EDHREC rank for that sort, otherwise the card's price) so any ordering
-// reads at a glance in grid view.
-const GRID_CAPTION_KEY = 'mtg-collection-grid-caption';
-// Rendered caption line height (px) — keep in sync with
+// Grid captions — detail lines under each card, per-line toggleable from the
+// "Details" toolbar popover (mirroring the decks "Show" prefs): persisted per
+// device, default on. `sortValue` echoes the active sort key's value (dates
+// for the date sorts, EDHREC rank for that sort, otherwise the card's price);
+// `set` is the collector-app set line — rarity-tinted keyrune symbol + set
+// code · collector number.
+interface GridCaptionPrefs {
+  sortValue: boolean;
+  set: boolean;
+}
+const GRID_CAPTION_PREFS_KEY = 'mtg-collection-grid-caption-prefs';
+// Pre-details boolean key (PR #1203) — read once for migration, then unused.
+const GRID_CAPTION_LEGACY_KEY = 'mtg-collection-grid-caption';
+const DEFAULT_GRID_CAPTION_PREFS: GridCaptionPrefs = { sortValue: true, set: true };
+const GRID_CAPTION_LABEL: Record<keyof GridCaptionPrefs, string> = {
+  sortValue: 'Price / sort value',
+  set: 'Set & rarity',
+};
+// Rendered height (px) of ONE caption line — keep in sync with
 // .collection-grid-caption in styles/collection.css. Folded into the grid
 // virtualizer's row-height estimate, which is measureElement-free, so an
 // estimate/CSS mismatch shows up as scroll drift.
 const GRID_CAPTION_H = 20;
 
-function readStoredGridCaption(): boolean {
+function readStoredGridCaptionPrefs(): GridCaptionPrefs {
   try {
-    return localStorage.getItem(GRID_CAPTION_KEY) !== '0';
+    const raw = localStorage.getItem(GRID_CAPTION_PREFS_KEY);
+    if (raw) {
+      return { ...DEFAULT_GRID_CAPTION_PREFS, ...(JSON.parse(raw) as Partial<GridCaptionPrefs>) };
+    }
+    // Migrate the legacy all-or-nothing toggle: an explicit "off" carries over
+    // as everything off; "on"/absent falls through to the defaults.
+    if (localStorage.getItem(GRID_CAPTION_LEGACY_KEY) === '0') {
+      return { sortValue: false, set: false };
+    }
   } catch {
-    return true;
+    /* ignore */
   }
+  return DEFAULT_GRID_CAPTION_PREFS;
 }
 type SortKey =
   | 'name'
@@ -427,15 +449,20 @@ export function CardListTable({
     return () => mql.removeEventListener('change', update);
   }, []);
   const effectiveGridSize: GridSize = isNarrow && gridSize === '3x' ? '2x' : gridSize;
-  const [showGridCaption, setShowGridCaptionRaw] = useState<boolean>(readStoredGridCaption);
-  const setShowGridCaption = (next: boolean) => {
-    setShowGridCaptionRaw(next);
+  const [gridCaptionPrefs, setGridCaptionPrefsRaw] = useState<GridCaptionPrefs>(
+    readStoredGridCaptionPrefs
+  );
+  const setGridCaptionPrefs = (next: GridCaptionPrefs) => {
+    setGridCaptionPrefsRaw(next);
     try {
-      localStorage.setItem(GRID_CAPTION_KEY, next ? '1' : '0');
+      localStorage.setItem(GRID_CAPTION_PREFS_KEY, JSON.stringify(next));
+      localStorage.removeItem(GRID_CAPTION_LEGACY_KEY);
     } catch {
       /* ignore */
     }
   };
+  // Rendered caption lines per tile — scales the virtualizer row estimate.
+  const gridCaptionLines = (gridCaptionPrefs.sortValue ? 1 : 0) + (gridCaptionPrefs.set ? 1 : 0);
   const [binderExpr, setBinderExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -1001,9 +1028,9 @@ export function CardListTable({
       if (!gridContainerRef.current) return 250;
       const w = gridContainerRef.current.clientWidth;
       const colWidth = (w - GRID_GAP * (gridCols - 1)) / gridCols;
-      return colWidth * (680 / 488) + (showGridCaption ? GRID_CAPTION_H : 0) + GRID_GAP;
+      return colWidth * (680 / 488) + GRID_CAPTION_H * gridCaptionLines + GRID_GAP;
     },
-    [gridCols, gridLayout, showGridCaption]
+    [gridCols, gridLayout, gridCaptionLines]
   );
 
   useLayoutEffect(() => {
@@ -1062,7 +1089,7 @@ export function CardListTable({
   useEffect(() => {
     gridVirtualizer.measure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showGridCaption]);
+  }, [gridCaptionLines]);
 
   // Fallback pin line (px) for the active-section trigger, used only until the
   // sticky controls' bottom has been measured. Roughly one header's height.
@@ -1997,24 +2024,33 @@ export function CardListTable({
             />
           )}
           {view === 'grid' && (
-            <button
-              type="button"
-              className="toolbar-pill"
-              aria-pressed={showGridCaption}
-              onClick={() => setShowGridCaption(!showGridCaption)}
-              title={
-                showGridCaption
-                  ? 'Hide the detail line under each card'
-                  : 'Show a detail line under each card (price, or the active sort value)'
-              }
+            <ToolbarPopover
+              label="Details"
+              icon={<Captions width={14} height={14} strokeWidth={2} aria-hidden />}
             >
-              {showGridCaption ? (
-                <Captions width={14} height={14} strokeWidth={2} aria-hidden />
-              ) : (
-                <CaptionsOff width={14} height={14} strokeWidth={2} aria-hidden />
+              {() => (
+                <ul className="toolbar-popover-list" role="menu" aria-label="Card details">
+                  {(Object.keys(GRID_CAPTION_LABEL) as (keyof GridCaptionPrefs)[]).map((k) => (
+                    <li key={k}>
+                      <button
+                        type="button"
+                        role="menuitemcheckbox"
+                        aria-checked={gridCaptionPrefs[k]}
+                        className={`toolbar-popover-item${gridCaptionPrefs[k] ? ' active' : ''}`}
+                        onClick={() =>
+                          setGridCaptionPrefs({ ...gridCaptionPrefs, [k]: !gridCaptionPrefs[k] })
+                        }
+                      >
+                        <span className="toolbar-popover-check" aria-hidden>
+                          {gridCaptionPrefs[k] ? '✓' : ''}
+                        </span>
+                        {GRID_CAPTION_LABEL[k]}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               )}
-              <span>Details</span>
-            </button>
+            </ToolbarPopover>
           )}
           <ViewModeToggle<ViewMode>
             ariaLabel="Collection view mode"
@@ -2233,7 +2269,12 @@ export function CardListTable({
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   const selected = selectedRowKeys.has(r.key);
-                  const caption = showGridCaption ? captionFor(r) : null;
+                  const caption = gridCaptionPrefs.sortValue ? captionFor(r) : null;
+                  const setLabel = gridCaptionPrefs.set
+                    ? `${r.card.setCode.toUpperCase()}${
+                        r.card.collectorNumber ? ` · ${r.card.collectorNumber}` : ''
+                      }`
+                    : null;
                   return (
                     <div key={r.key} className="collection-grid-cell">
                       <div
@@ -2253,7 +2294,9 @@ export function CardListTable({
                         }}
                         aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}${
                           caption && caption !== '—' ? `, ${caption}` : ''
-                        }${selectMode ? (selected ? ', selected' : ', not selected') : ''}`}
+                        }${setLabel ? `, ${setLabel}` : ''}${
+                          selectMode ? (selected ? ', selected' : ', not selected') : ''
+                        }`}
                       >
                         {selectMode && (
                           <span
@@ -2327,6 +2370,15 @@ export function CardListTable({
                       {caption !== null && (
                         <div className="collection-grid-caption" aria-hidden="true">
                           {caption}
+                        </div>
+                      )}
+                      {setLabel !== null && (
+                        <div
+                          className="collection-grid-caption collection-grid-caption--set"
+                          aria-hidden="true"
+                        >
+                          <SetSymbol setCode={r.card.setCode} rarity={r.card.rarity} />
+                          <span className="collection-grid-caption-set-label">{setLabel}</span>
                         </div>
                       )}
                     </div>
