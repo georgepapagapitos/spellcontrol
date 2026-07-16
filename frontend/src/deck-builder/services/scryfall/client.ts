@@ -432,6 +432,53 @@ export async function getOwnedPrinting(scryfallId: string, name: string): Promis
 }
 
 /**
+ * Batch-resolve exact printings by Scryfall id via /cards/collection (75 per
+ * request). Returns a map keyed by id; unknown/non-playable ids are simply
+ * absent — callers fall back to name resolution for those. Live-only, like
+ * `getCardById`: offline has no by-printing index, so this returns an empty
+ * map and callers degrade to the name path.
+ */
+export async function getCardsByIds(ids: string[]): Promise<Map<string, ScryfallCard>> {
+  const result = new Map<string, ScryfallCard>();
+  if (ids.length === 0 || offlineActive()) return result;
+
+  const uncached: string[] = [];
+  for (const id of ids) {
+    const cached = cardCache.get(id);
+    if (cached) result.set(id, freshCopy(cached));
+    else uncached.push(id);
+  }
+
+  for (let i = 0; i < uncached.length; i += COLLECTION_BATCH_SIZE) {
+    const batch = uncached.slice(i, i + COLLECTION_BATCH_SIZE);
+    await rateLimiter.acquire();
+    try {
+      const response = await fetch(`${BASE_URL}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ identifiers: batch.map((id) => ({ id })) }),
+      });
+      if (response.ok) {
+        const data = (await response.json()) as { data: ScryfallCard[] };
+        for (const card of data.data) {
+          if (!isPlayableCard(card) || !card.id) continue;
+          cardCache.set(card.id, card);
+          result.set(card.id, freshCopy(card));
+        }
+      } else if (response.status === 429) {
+        logger.warn('[Scryfall] Rate limited on id-collection fetch, backing off...');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        i -= COLLECTION_BATCH_SIZE;
+        continue;
+      }
+    } catch (err) {
+      logger.warn('[Scryfall] Id-collection batch failed:', err);
+    }
+  }
+  return result;
+}
+
+/**
  * Fetch a single card by name with proper rate limiting.
  * Returns null if not found instead of throwing.
  */
