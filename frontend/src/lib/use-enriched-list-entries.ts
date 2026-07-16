@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { getCardsByNames } from '@/deck-builder/services/scryfall/client';
+import { getCardsByIds, getCardsByNames } from '@/deck-builder/services/scryfall/client';
 import { scryfallToEnrichedCard } from './scryfall-to-enriched';
 import type { EnrichedCard, ListEntry } from '../types';
 
@@ -29,62 +29,95 @@ function skeleton(entry: ListEntry): EnrichedCard {
   };
 }
 
+interface Resolved {
+  key: string;
+  byId: Map<string, ScryfallCard>;
+  byName: Map<string, ScryfallCard>;
+}
+
 /**
  * Resolve a list's printing-reference entries into full EnrichedCards so the
  * list view can filter/sort by type/color/cmc/rarity/oracle like the
- * collection. Entries store only printing identity, so we batch-resolve their
- * names through the cached card client (offline-capable, the same path as
- * useDeckTokens), enrich with the entry's finish, then overlay the entry's
- * exact printing identity + a stable copyId (= entry.id, for preview keys).
- *
- * Oracle-level fields (cmc/type/colors/oracleText/legalities) are
- * printing-agnostic so name resolution is sufficient for filtering; rarity and
- * art reflect the name-resolved default printing — same as the list's existing
- * name-keyed thumbnails. Returns loading=true until the batch resolves.
+ * collection. Entries store exact printing identity, so we batch-resolve their
+ * Scryfall ids first (`getCardsByIds`) — art, rarity, finishes, and price then
+ * reflect the printing the user actually owns. Entries whose id doesn't
+ * resolve (offline — no by-printing index — or stale/withdrawn printings) fall
+ * back to name resolution through the cached card client, with the entry's
+ * printing identity overlaid so at least set/collector/finish stay accurate.
+ * Returns loading=true until the batch resolves.
  */
 export function useEnrichedListEntries(entries: ListEntry[]): {
   rows: EnrichedListRow[];
   loading: boolean;
 } {
+  const ids = useMemo(
+    () => [...new Set(entries.map((e) => e.scryfallId).filter(Boolean))].sort(),
+    [entries]
+  );
   const names = useMemo(
     () =>
       [...new Set(entries.map((e) => e.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
     [entries]
   );
-  const key = names.join('|');
+  const key = [...ids, ...names].join('|');
 
-  // Resolved cards tagged with the name-set key they were resolved for, so a
+  // Resolved cards tagged with the identity key they were resolved for, so a
   // stale resolution from a previous list is never applied.
-  const [resolved, setResolved] = useState<{ key: string; cards: Map<string, ScryfallCard> }>({
+  const [resolved, setResolved] = useState<Resolved>({
     key: '',
-    cards: new Map(),
+    byId: new Map(),
+    byName: new Map(),
   });
 
   useEffect(() => {
     // Empty list → nothing to resolve; the initial state's empty key already
     // matches key === '', so `ready` is true and rows resolve to [].
-    if (names.length === 0) return;
+    if (ids.length === 0 && names.length === 0) return;
     let cancelled = false;
     void (async () => {
-      try {
-        const cards = await getCardsByNames(names);
-        if (!cancelled) setResolved({ key, cards });
-      } catch {
-        // Offline/network miss — fall back to skeletons rather than erroring.
-        if (!cancelled) setResolved({ key, cards: new Map() });
+      // getCardsByIds swallows batch failures internally (partial map); the
+      // catch here is belt-and-braces so an id-path error still degrades to
+      // the name path instead of erroring the view.
+      const byId = await getCardsByIds(ids).catch(() => new Map<string, ScryfallCard>());
+      const missingNames = [
+        ...new Set(
+          entries
+            .filter((e) => !e.scryfallId || !byId.has(e.scryfallId))
+            .map((e) => e.name)
+            .filter(Boolean)
+        ),
+      ];
+      let byName = new Map<string, ScryfallCard>();
+      if (missingNames.length > 0) {
+        try {
+          byName = await getCardsByNames(missingNames);
+        } catch {
+          // Offline/network miss — fall back to skeletons rather than erroring.
+        }
       }
+      if (!cancelled) setResolved({ key, byId, byName });
     })();
     return () => {
       cancelled = true;
     };
-  }, [key, names]);
+  }, [key, ids, names, entries]);
 
   const ready = resolved.key === key;
 
   const rows = useMemo<EnrichedListRow[]>(() => {
     if (!ready) return [];
     return entries.map((entry) => {
-      const sc = resolved.cards.get(entry.name);
+      const exact = entry.scryfallId ? resolved.byId.get(entry.scryfallId) : undefined;
+      if (exact) {
+        // Exact printing resolved — every field (art/rarity/finishes/price)
+        // already belongs to the owned printing; just pin the stable copyId.
+        const base = scryfallToEnrichedCard(exact, entry.finish);
+        return {
+          entry,
+          card: { ...base, copyId: entry.id, oracleId: entry.oracleId ?? base.oracleId },
+        };
+      }
+      const sc = resolved.byName.get(entry.name);
       const base = sc ? scryfallToEnrichedCard(sc, entry.finish) : skeleton(entry);
       // Overlay the entry's exact printing identity; keep the resolved card's
       // oracle-level fields (cmc/type/colors/text/tags) for filtering.
@@ -105,7 +138,7 @@ export function useEnrichedListEntries(entries: ListEntry[]): {
       };
       return { entry, card };
     });
-  }, [ready, entries, resolved.cards]);
+  }, [ready, entries, resolved]);
 
-  return { rows, loading: names.length > 0 && !ready };
+  return { rows, loading: !ready && (ids.length > 0 || names.length > 0) };
 }
