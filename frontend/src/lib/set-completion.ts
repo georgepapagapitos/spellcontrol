@@ -1,7 +1,13 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
 import type { SetMap } from './api';
-import { SLD_CODE, SLD_UNASSIGNED, dropsForNumber, type SldDropsIndex } from './sld-drops';
+import {
+  SLD_CODE,
+  SLD_UNASSIGNED,
+  baseCollectorNumber,
+  dropsForNumber,
+  type SldDropsIndex,
+} from './sld-drops';
 
 /**
  * Set-completion math (E131). Ownership is printing-keyed: you "have" a
@@ -98,7 +104,11 @@ export function computeSldDropProgress(
     }
   }
 
-  const ownedByDrop = new Map<string, number>();
+  // Owned checklist slots per drop. A slot is a MAP number, not a raw owned
+  // number: suffixed variant printings ("1627★" rainbow foil) resolve to their
+  // base slot, so owning both the base and the variant of one card counts the
+  // slot once instead of inflating progress.
+  const slotsByDrop = new Map<string, Set<string>>();
   let unassigned = 0;
   for (const number of ownedNumbers) {
     const drops = dropsForNumber(index, number);
@@ -106,15 +116,21 @@ export function computeSldDropProgress(
       unassigned++;
       continue;
     }
+    const slot = index.byNumber.has(number) ? number : baseCollectorNumber(number);
     for (const drop of drops) {
-      ownedByDrop.set(drop.name, (ownedByDrop.get(drop.name) ?? 0) + 1);
+      let slots = slotsByDrop.get(drop.name);
+      if (!slots) {
+        slots = new Set();
+        slotsByDrop.set(drop.name, slots);
+      }
+      slots.add(slot);
     }
   }
 
   const dropRows: SetProgress[] = index.drops
-    .filter((d) => (ownedByDrop.get(d.name) ?? 0) > 0)
+    .filter((d) => (slotsByDrop.get(d.name)?.size ?? 0) > 0)
     .map((d) => {
-      const owned = Math.min(ownedByDrop.get(d.name) ?? 0, d.numbers.length);
+      const owned = Math.min(slotsByDrop.get(d.name)?.size ?? 0, d.numbers.length);
       return {
         code: SLD_CODE,
         name: d.name,

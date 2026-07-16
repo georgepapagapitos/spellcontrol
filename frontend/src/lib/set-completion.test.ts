@@ -187,6 +187,13 @@ describe('computeSldDropProgress', () => {
     expect(rows.find((r) => r.drop === 'OMG KITTIES')).toMatchObject({ owned: 1 });
   });
 
+  it('counts a base printing and its suffixed variant as ONE owned slot', () => {
+    // Owning both #92 and rainbow-foil #92★ is one checklist slot filled, not
+    // two — otherwise progress inflates ("2/3" for one card plus its variant).
+    const rows = computeSldDropProgress([owned('SLD', '92'), owned('SLD', '92★')], SLD_INDEX);
+    expect(rows.find((r) => r.drop === 'OMG KITTIES')).toMatchObject({ owned: 1, total: 3 });
+  });
+
   it('collects unmapped numbers into one unassigned row with unknown total', () => {
     const rows = computeSldDropProgress(
       [owned('SLD', '9999'), owned('SLD', '92')],
