@@ -13,6 +13,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuildReport } from '@/deck-builder/types';
 
+// Stub the thumbnail network leaf so the nested DeckCardRows don't reach out
+// (avoids the post-teardown fetch flake).
+vi.mock('@/lib/card-thumbs', () => ({ useCardThumb: () => undefined }));
+
 // ── Store stubs ─────────────────────────────────────────────────────────────
 const mockDeleteDeck = vi.fn();
 const mockDeck = {

@@ -2,10 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   areAllGroupsEmpty,
   cardMatchesAnyGroup,
+  cardMatchesCompiled,
   cardMatchesFilter,
   compileFilter,
   compileFilterGroups,
   isFilterEmpty,
+  PRICE_STICKINESS_MARGIN,
 } from './rules.js';
 import type { EnrichedCard, BinderFilter, ChipExpression } from './types.js';
 
@@ -640,5 +642,42 @@ describe('scryfallQuery (snapshot-resolved oracle ids)', () => {
   it('isFilterEmpty is false when a query is authored', () => {
     expect(isFilterEmpty(filter)).toBe(false);
     expect(isFilterEmpty({ scryfallQuery: { query: '  ', oracleIds: [] } })).toBe(true);
+  });
+});
+
+describe('priceSlack (sticky price margin)', () => {
+  const min10 = compileFilter({ priceMin: 10 });
+  const max10 = compileFilter({ priceMax: 10 });
+
+  it('default (no slack) keeps exact bounds', () => {
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 9.99 }), min10)).toBe(false);
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 10.01 }), max10)).toBe(false);
+  });
+
+  it('slack widens priceMin downward and priceMax upward', () => {
+    const m = PRICE_STICKINESS_MARGIN;
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 9.6 }), min10, m)).toBe(true);
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 9.4 }), min10, m)).toBe(false);
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 10.4 }), max10, m)).toBe(true);
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 10.6 }), max10, m)).toBe(false);
+  });
+
+  it('slack never rescues a card with no price recorded', () => {
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 0 }), min10, 1)).toBe(false);
+    expect(cardMatchesCompiled(makeCard({ purchasePrice: 0 }), max10, 1)).toBe(false);
+  });
+
+  it('slack does not relax non-price fields', () => {
+    const typed = compileFilter({ priceMin: 10, typeTokenChips: chip('Creature') });
+    const card = makeCard({ purchasePrice: 9.6, typeLine: 'Instant' });
+    expect(cardMatchesCompiled(card, typed, PRICE_STICKINESS_MARGIN)).toBe(false);
+  });
+
+  it('cardMatchesAnyGroup forwards slack', () => {
+    const groups = compileFilterGroups([{ filter: { priceMin: 10 } }]);
+    expect(cardMatchesAnyGroup(makeCard({ purchasePrice: 9.6 }), groups)).toBe(false);
+    expect(
+      cardMatchesAnyGroup(makeCard({ purchasePrice: 9.6 }), groups, PRICE_STICKINESS_MARGIN)
+    ).toBe(true);
   });
 });

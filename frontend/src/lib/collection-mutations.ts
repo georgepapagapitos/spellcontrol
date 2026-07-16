@@ -1,13 +1,14 @@
+import { printingFinishKey } from '@spellcontrol/binder-routing';
 import type { EnrichedCard } from '../types';
 
 /**
  * Stable key for a printing + finish — the same grouping the collection table
- * uses to roll duplicate copies into one row. `finish` may be absent on older
- * data, so fall back to the foil flag.
+ * uses to roll duplicate copies into one row. Canonical implementation lives
+ * in the routing package (materializeBinders' sticky price retention reads
+ * `lastReviewedSnapshot.keys` captured with it); re-exported here so the two
+ * can't drift.
  */
-export function printingFinishKey(c: Pick<EnrichedCard, 'scryfallId' | 'finish' | 'foil'>): string {
-  return `${c.scryfallId}:${c.finish ?? (c.foil ? 'foil' : 'nonfoil')}`;
-}
+export { printingFinishKey };
 
 export interface RemoveCopiesResult {
   /** The collection with the chosen copies removed. */

@@ -125,6 +125,22 @@ export function printingKey(card: EnrichedCard): string {
   return `${card.scryfallId}|${getFinishKey(card)}`;
 }
 
+/**
+ * Durable per-(printing, finish) identity key. Matches the frontend's
+ * historical `printingFinishKey` byte-for-byte (colon separator, raw stored
+ * finish with foil fallback) because persisted BinderDef fields —
+ * `lastReviewedSnapshot.keys`, `pinnedKeys`, `manualKeys` — were captured
+ * with it. Distinct from `printingKey` above (pipe + coerced finish), which
+ * only groups in-memory for sorting and never persists.
+ */
+export function printingFinishKey(c: {
+  scryfallId: string;
+  finish?: string;
+  foil?: boolean;
+}): string {
+  return `${c.scryfallId}:${c.finish ?? (c.foil ? 'foil' : 'nonfoil')}`;
+}
+
 /** Build a count of physical copies per printing key. */
 export function buildQtyByPrintingKey(cards: EnrichedCard[]): Map<string, number> {
   const m = new Map<string, number>();

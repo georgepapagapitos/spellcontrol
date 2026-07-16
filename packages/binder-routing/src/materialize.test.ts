@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { materializeBinders } from './materialize.js';
+import { printingFinishKey } from './sorting.js';
 import type { EnrichedCard, BinderDef, BinderFilter, BinderFilterGroup } from './types.js';
 
 function makeCard(overrides: Partial<EnrichedCard> = {}): EnrichedCard {
@@ -1073,5 +1074,111 @@ describe('pageBreakDepth', () => {
     expect(r0[0].sections).toHaveLength(r1[0].sections.length);
     expect(totalPagesOf(r0[0])).toBe(totalPagesOf(r1[0]));
     expect(allSectionPageNums(r0[0])).toEqual(allSectionPageNums(r1[0]));
+  });
+});
+
+describe('sticky price retention', () => {
+  const snapOf = (...cards: EnrichedCard[]) => ({
+    at: 1,
+    keys: cards.map((c) => printingFinishKey(c)),
+    cardSnapshots: {},
+  });
+
+  it('keeps a reviewed card whose price fell within the margin of priceMin', () => {
+    const card = makeCard({ purchasePrice: 9.6 });
+    const binder = makeBinder({ filter: { priceMin: 10 }, lastReviewedSnapshot: snapOf(card) });
+    const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].totalCards).toBe(1);
+    expect(uncategorized.totalCards).toBe(0);
+  });
+
+  it('releases a reviewed card whose price moved decisively past the margin', () => {
+    const card = makeCard({ purchasePrice: 9.4 });
+    const binder = makeBinder({ filter: { priceMin: 10 }, lastReviewedSnapshot: snapOf(card) });
+    const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].totalCards).toBe(0);
+    expect(uncategorized.totalCards).toBe(1);
+  });
+
+  it('does not retain a card that was never reviewed into the binder', () => {
+    const card = makeCard({ purchasePrice: 9.6 });
+    const other = makeCard({ purchasePrice: 20 });
+    const binder = makeBinder({ filter: { priceMin: 10 }, lastReviewedSnapshot: snapOf(other) });
+    const { binders, uncategorized } = materializeBinders([card, other], [binder], defaultOpts);
+    expect(binders[0].totalCards).toBe(1); // just `other`
+    expect(uncategorized.totalCards).toBe(1);
+  });
+
+  it('sticky claim beats an earlier binder that now matches exactly (upward wobble)', () => {
+    const card = makeCard({ purchasePrice: 10.2 });
+    const high = makeBinder({ position: 0, filter: { priceMin: 10 } });
+    const low = makeBinder({
+      position: 1,
+      filter: { priceMax: 10 },
+      lastReviewedSnapshot: snapOf(card),
+    });
+    const { binders } = materializeBinders([card], [high, low], defaultOpts);
+    expect(binders[0].totalCards).toBe(0);
+    expect(binders[1].totalCards).toBe(1);
+  });
+
+  it('a snapshot binder that still matches exactly defers to first-match-wins (rule edits re-route)', () => {
+    const card = makeCard({ purchasePrice: 5 });
+    const catchAll = makeBinder({ position: 0 }); // empty filter matches everything
+    const low = makeBinder({
+      position: 1,
+      filter: { priceMax: 10 },
+      lastReviewedSnapshot: snapOf(card),
+    });
+    const { binders } = materializeBinders([card], [catchAll, low], defaultOpts);
+    expect(binders[0].totalCards).toBe(1);
+    expect(binders[1].totalCards).toBe(0);
+  });
+
+  it('an excluded copy is never sticky-retained', () => {
+    const card = makeCard({ purchasePrice: 9.6 });
+    const binder = makeBinder({
+      filter: { priceMin: 10 },
+      lastReviewedSnapshot: snapOf(card),
+      excludedCopyIds: [card.copyId],
+    });
+    const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].totalCards).toBe(0);
+    expect(uncategorized.totalCards).toBe(1);
+  });
+
+  it('a card with no price recorded is never sticky-retained', () => {
+    const card = makeCard({ purchasePrice: 0 });
+    const binder = makeBinder({ filter: { priceMin: 10 }, lastReviewedSnapshot: snapOf(card) });
+    const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].totalCards).toBe(0);
+    expect(uncategorized.totalCards).toBe(1);
+  });
+
+  it('a manual-mode binder never sticky-claims', () => {
+    const card = makeCard({ purchasePrice: 9.6 });
+    const binder = makeBinder({
+      mode: 'manual',
+      filter: { priceMin: 10 },
+      lastReviewedSnapshot: snapOf(card),
+    });
+    const { binders, uncategorized } = materializeBinders([card], [binder], defaultOpts);
+    expect(binders[0].totalCards).toBe(0);
+    expect(uncategorized.totalCards).toBe(1);
+  });
+
+  it('a sticky-claimed deck-allocated copy is swallowed by hideDeckAllocated=false', () => {
+    const card = makeCard({ purchasePrice: 9.6 });
+    const binder = makeBinder({
+      filter: { priceMin: 10 },
+      lastReviewedSnapshot: snapOf(card),
+      hideDeckAllocated: false,
+    });
+    const { binders, uncategorized } = materializeBinders([card], [binder], {
+      ...defaultOpts,
+      allocatedCopyIds: new Set([card.copyId]),
+    });
+    expect(binders[0].totalCards).toBe(0);
+    expect(uncategorized.totalCards).toBe(0); // swallowed, not uncategorized
   });
 });
