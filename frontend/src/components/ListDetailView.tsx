@@ -62,7 +62,14 @@ const LIST_SORTS: Array<{ value: SortField; label: string; defaultDir: SortDir }
 ];
 const DEFAULT_DIR = new Map(LIST_SORTS.map((s) => [s.value, s.defaultDir]));
 
+// Richest → sparsest (grid, list, compact) — the canonical view-toggle order
+// every card surface uses (collection, search, binder, shared views).
 const VIEW_OPTIONS = [
+  {
+    value: 'grid' as const,
+    label: 'Grid view',
+    icon: <LayoutGrid width={15} height={15} aria-hidden />,
+  },
   {
     value: 'list' as const,
     label: 'List view',
@@ -72,11 +79,6 @@ const VIEW_OPTIONS = [
     value: 'compact' as const,
     label: 'Compact view',
     icon: <AlignJustify width={15} height={15} aria-hidden />,
-  },
-  {
-    value: 'grid' as const,
-    label: 'Grid view',
-    icon: <LayoutGrid width={15} height={15} aria-hidden />,
   },
 ];
 
