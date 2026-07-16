@@ -1229,10 +1229,12 @@ i.ss.set-symbol--mythic {
   min-width: 0;
 }
 
-/* The "Details" line under a grid card (price, or the active sort value).
-   Exactly one fixed-height line: the grid virtualizer is measureElement-free
-   and adds GRID_CAPTION_H (20px) per row in CardListTable.tsx — if the
-   rendered height drifts from that, scrolling drifts with it. */
+/* The "Details" lines under a grid card — price/sort value, and the set
+   line (rarity-tinted keyrune symbol + set code · collector number). Each
+   enabled line is exactly this fixed height: the grid virtualizer is
+   measureElement-free and adds GRID_CAPTION_H (20px) per enabled line in
+   CardListTable.tsx — if the rendered height drifts from that, scrolling
+   drifts with it. */
 .collection-grid-caption {
   height: 20px;
   padding-top: var(--space-1);
@@ -1242,6 +1244,23 @@ i.ss.set-symbol--mythic {
   color: var(--text-secondary);
   text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collection-grid-caption--set {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.collection-grid-caption--set .set-symbol {
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.collection-grid-caption-set-label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
