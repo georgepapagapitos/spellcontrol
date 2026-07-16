@@ -1437,6 +1437,15 @@ explicit toggle click, never by a mount-time effect — is honored unchanged.
 Don't build a separate "has the user ever opened this view" flag; the
 presence of the key already encodes that.
 
+### View-mode toggle option order: richest → sparsest
+
+The options inside a `ViewModeToggle` always run **most visual → most dense**:
+grid (or its surface-native equivalent — binder `pages`, cube `gallery`) →
+list → compact. Collection, search, product search, binder, and the shared
+views all follow it; the list detail view drifted (`list/compact/grid`) and
+was corrected to match. Order is independent of the *default*: a surface may
+default to `list` (lists do) while still presenting grid first.
+
 **Decision-context art reads as a card, not an icon.** A surface where the
 user is choosing between several cards (not just scanning a list they already
 own) resolves art at `useCardThumb`'s `'normal'` size, matching
