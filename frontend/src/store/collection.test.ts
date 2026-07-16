@@ -19,6 +19,7 @@ import { useDecksStore } from './decks';
 import { useToastsStore } from './toasts';
 import { saveCollection, loadCollection, clearCollection } from '../lib/local-cards';
 import { _resetForTests as resetPriceCache } from '../lib/card-prices';
+import { useCurrencyStore } from '../lib/currency';
 import { captureCollectionSnapshot } from '../lib/collection-snapshot';
 import type { BinderDef, BinderInput, EnrichedCard, UploadResponse } from '../types';
 
@@ -423,6 +424,63 @@ describe('refreshPrices', () => {
     const byId = Object.fromEntries(useCollectionStore.getState().cards.map((c) => [c.copyId, c]));
     expect(byId.nf.purchasePrice).toBe(2);
     expect(byId.fo.purchasePrice).toBe(9);
+  });
+
+  it('stores the EUR side of the server response and stamps it when EUR is active', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        prices: {
+          sf1: {
+            usd: 2,
+            usdFoil: 0,
+            usdEtched: 0,
+            eur: 1.7,
+            eurFoil: 0,
+            eurEtched: 0,
+            pricedAt: 7000,
+          },
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 0 })],
+    });
+    useCurrencyStore.getState().setCurrency('EUR');
+    try {
+      await useCollectionStore.getState().refreshPrices();
+      expect(useCollectionStore.getState().cards[0].purchasePrice).toBe(1.7);
+      // The cached entry keeps BOTH currencies — reapply flips values in place.
+      useCurrencyStore.getState().setCurrency('USD');
+      useCollectionStore.getState().reapplyCardPrices();
+      expect(useCollectionStore.getState().cards[0].purchasePrice).toBe(2);
+    } finally {
+      useCurrencyStore.getState().setCurrency('USD');
+    }
+  });
+
+  it('reapplyCardPrices marks a pre-EUR cache entry as unpriced under EUR (stale → backfill)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ prices: { sf1: { usd: 2, pricedAt: 7000 } } }), // pre-EUR server shape
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 0 })],
+    });
+    await useCollectionStore.getState().refreshPrices();
+    expect(useCollectionStore.getState().cards[0].purchasePrice).toBe(2);
+
+    useCurrencyStore.getState().setCurrency('EUR');
+    try {
+      useCollectionStore.getState().reapplyCardPrices();
+      const c = useCollectionStore.getState().cards[0];
+      expect(c.purchasePrice).toBe(0);
+      expect(c.pricedAt).toBeUndefined(); // counts as maximally stale
+    } finally {
+      useCurrencyStore.getState().setCurrency('USD');
+    }
   });
 
   it('falls back to every unique collection id when called with no args', async () => {

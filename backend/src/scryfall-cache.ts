@@ -38,6 +38,22 @@ export function pickUsdForFinish(card: ScryfallCard, finish?: string): number {
       : finish === 'foil'
         ? [p.usd_foil, p.usd_etched, p.usd]
         : [p.usd, p.usd_etched, p.usd_foil];
+  return firstPositive(order);
+}
+
+/**
+ * Finish-aware EUR (Cardmarket) price. Scryfall has no `eur_etched`, so etched
+ * shares the foil-first ordering. Returns 0 when Scryfall has no EUR price.
+ */
+export function pickEurForFinish(card: ScryfallCard, finish?: string): number {
+  const p = card.prices;
+  if (!p) return 0;
+  const order =
+    finish === 'etched' || finish === 'foil' ? [p.eur_foil, p.eur] : [p.eur, p.eur_foil];
+  return firstPositive(order);
+}
+
+function firstPositive(order: Array<string | null | undefined>): number {
   for (const raw of order) {
     if (!raw) continue;
     const n = Number(raw);

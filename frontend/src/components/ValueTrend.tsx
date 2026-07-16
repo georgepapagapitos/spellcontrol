@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useCurrency } from '../lib/currency';
 import { formatMoney } from '../lib/format-money';
 import {
   computeValueDelta,
@@ -192,6 +193,8 @@ function TrendChart({ points }: { points: ValuePoint[] }) {
 export function ValueTrend() {
   // "today" is captured with the load (not at render) so render stays pure.
   const [data, setData] = useState<{ points: ValuePoint[]; today: string } | null>(null);
+  // getValueHistory filters to the active display currency — reload on switch.
+  const currency = useCurrency();
 
   useEffect(() => {
     let stale = false;
@@ -205,7 +208,7 @@ export function ValueTrend() {
     return () => {
       stale = true;
     };
-  }, []);
+  }, [currency]);
 
   const points = data?.points ?? [];
   const delta = computeValueDelta(points);

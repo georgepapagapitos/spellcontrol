@@ -9,8 +9,15 @@
  * regardless of device locale (and matches the strings tests assert on).
  */
 
+import { getCurrency } from './currency';
+
 export interface FormatMoneyOptions {
-  /** ISO 4217 currency code. Defaults to USD; EUR is the other code in use. */
+  /**
+   * ISO 4217 currency code. Defaults to the app-wide display currency
+   * (Settings → Price currency). Pass explicitly only when the amount is
+   * pinned to a currency regardless of the viewer's setting — e.g. shared-view
+   * projections, whose server-stamped numbers are always USD.
+   */
   currency?: string;
   /** Round to whole units and drop cents — `$12,482` (hero tallies). */
   wholeDollars?: boolean;
@@ -51,7 +58,7 @@ export function formatMoney(
   value: number | null | undefined,
   opts: FormatMoneyOptions = {}
 ): string {
-  const { currency = 'USD', wholeDollars = false, zeroAsDash = false } = opts;
+  const { currency = getCurrency(), wholeDollars = false, zeroAsDash = false } = opts;
   if (value == null || Number.isNaN(value)) return '—';
   if (value === 0 && zeroAsDash) return '—';
   return getFormatter(currency, wholeDollars).format(value);

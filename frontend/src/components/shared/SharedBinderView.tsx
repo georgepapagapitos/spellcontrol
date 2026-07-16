@@ -76,7 +76,11 @@ export function SharedBinderView({ data }: Props) {
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {data.totalCards.toLocaleString()} cards
-          {data.totalValue > 0 ? ` · ~${formatMoney(data.totalValue, { wholeDollars: true })}` : ''}
+          {data.totalValue > 0
+            ? // Shared projections are server-stamped USD — pin the symbol so an
+              // EUR viewer isn't shown a $ amount relabeled as €.
+              ` · ~${formatMoney(data.totalValue, { wholeDollars: true, currency: 'USD' })}`
+            : ''}
         </p>
       </header>
 

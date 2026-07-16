@@ -78,7 +78,8 @@ export function SharedCollectionView({ data }: Props) {
         <h1 className="shared-view-title">Collection</h1>
         <p className="shared-view-subtitle">
           {totalCards.toLocaleString()} {totalCards === 1 ? 'card' : 'cards'} ·{' '}
-          {formatMoney(totalValue, { wholeDollars: true })}
+          {/* Shared projections are server-stamped USD — pin the symbol. */}
+          {formatMoney(totalValue, { wholeDollars: true, currency: 'USD' })}
         </p>
       </header>
 

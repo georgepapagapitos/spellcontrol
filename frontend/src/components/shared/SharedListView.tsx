@@ -153,7 +153,10 @@ function ListRow({ entry: e }: { entry: PublicListEntry }) {
         {e.setCode.toUpperCase()} {e.collectorNumber}
       </td>
       <td data-label="Finish">{e.finish}</td>
-      <td data-label="Target">{e.targetPrice != null ? formatMoney(e.targetPrice) : ''}</td>
+      {/* Shared projections are server-stamped USD — pin the symbol. */}
+      <td data-label="Target">
+        {e.targetPrice != null ? formatMoney(e.targetPrice, { currency: 'USD' }) : ''}
+      </td>
       <td data-label="Note">{e.note ?? ''}</td>
     </tr>
   );

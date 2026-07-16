@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { useCurrencyStore } from './currency';
 import { formatMoney } from './format-money';
 
 describe('formatMoney', () => {
@@ -83,6 +84,16 @@ describe('formatMoney', () => {
 
     it('defaults to USD', () => {
       expect(formatMoney(5)).toBe('$5.00');
+    });
+
+    it('defaults to the app-wide display currency when set', () => {
+      useCurrencyStore.getState().setCurrency('EUR');
+      try {
+        expect(formatMoney(5)).toBe('€5.00');
+        expect(formatMoney(5, { currency: 'USD' })).toBe('$5.00'); // explicit pin wins
+      } finally {
+        useCurrencyStore.getState().setCurrency('USD');
+      }
     });
   });
 

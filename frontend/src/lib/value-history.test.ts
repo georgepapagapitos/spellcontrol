@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
+import { useCurrencyStore } from './currency';
 import {
   clearValueHistory,
   computeValueDelta,
@@ -38,11 +39,26 @@ describe('formatDayKey', () => {
 });
 
 describe('recordValueSnapshot / getValueHistory', () => {
-  it('records a point keyed by its local day', async () => {
+  it('records a point keyed by its local day, stamped with the active currency', async () => {
     await recordValueSnapshot(120.5, atDay(0));
     expect(await getValueHistory()).toEqual([
-      { day: dayKey(atDay(0)), value: 120.5, at: atDay(0) },
+      { day: dayKey(atDay(0)), value: 120.5, at: atDay(0), currency: 'USD' },
     ]);
+  });
+
+  it('filters points to the active currency — a $ trend and a € trend never mix', async () => {
+    await recordValueSnapshot(100, atDay(0)); // USD point
+    useCurrencyStore.getState().setCurrency('EUR');
+    try {
+      await recordValueSnapshot(85, atDay(1)); // EUR point
+      expect((await getValueHistory()).map((p) => p.value)).toEqual([85]);
+      // Switching back restores the USD trend (points are kept, not dropped) —
+      // an untagged pre-feature point counts as USD.
+      useCurrencyStore.getState().setCurrency('USD');
+      expect((await getValueHistory()).map((p) => p.value)).toEqual([100]);
+    } finally {
+      useCurrencyStore.getState().setCurrency('USD');
+    }
   });
 
   it('upserts within a day — the last snapshot of the day wins', async () => {

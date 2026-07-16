@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applyPrices,
   getPrice,
@@ -8,6 +8,7 @@ import {
   setPrices,
   _resetForTests,
 } from './card-prices';
+import { useCurrencyStore } from './currency';
 
 beforeEach(() => {
   localStorage.clear();
@@ -55,6 +56,53 @@ describe('card-prices', () => {
     setPrices({ s1: { usd: 5, pricedAt: 1 } });
     const cards = [{ scryfallId: 's1', purchasePrice: 5, pricedAt: 1 }];
     expect(applyPrices(cards)).toBe(cards);
+  });
+
+  describe('display currency (EUR)', () => {
+    beforeEach(() => {
+      useCurrencyStore.getState().setCurrency('EUR');
+    });
+    afterEach(() => {
+      useCurrencyStore.getState().setCurrency('USD');
+    });
+
+    it('applyPrices stamps the EUR price when EUR is active', () => {
+      setPrices({ s1: { usd: 9.99, eur: 8.4, pricedAt: 42 } });
+      const out = applyPrices<{ scryfallId: string; purchasePrice?: number; pricedAt?: number }>([
+        { scryfallId: 's1', purchasePrice: 0 },
+      ]);
+      expect(out[0].purchasePrice).toBe(8.4);
+      expect(out[0].pricedAt).toBe(42);
+    });
+
+    it('treats a pre-EUR cache entry (no eur field) as never priced so it re-fetches', () => {
+      setPrices({ s1: { usd: 9.99, pricedAt: 42 } });
+      const out = applyPrices([{ scryfallId: 's1', purchasePrice: 9.99, pricedAt: 42 }]);
+      expect(out[0].purchasePrice).toBe(0);
+      expect(out[0].pricedAt).toBeUndefined(); // maximally stale → refresh backfills
+    });
+
+    it('a fetched-but-unpriced EUR entry (eur: 0) stays an honest €0, not stale', () => {
+      setPrices({ s1: { usd: 9.99, eur: 0, pricedAt: 42 } });
+      const out = applyPrices<{ scryfallId: string; purchasePrice?: number; pricedAt?: number }>([
+        { scryfallId: 's1', purchasePrice: 0 },
+      ]);
+      expect(out[0].purchasePrice).toBe(0);
+      expect(out[0].pricedAt).toBe(42);
+    });
+
+    it('switching back to USD re-reads the USD side of the same entry', () => {
+      setPrices({ s1: { usd: 9.99, eur: 8.4, pricedAt: 42 } });
+      useCurrencyStore.getState().setCurrency('USD');
+      const out = applyPrices([{ scryfallId: 's1', purchasePrice: 0 }]);
+      expect(out[0].purchasePrice).toBe(9.99);
+    });
+
+    it('setPrices detects an eur-only change as a real update', () => {
+      setPrices({ s1: { usd: 5, pricedAt: 1 } });
+      setPrices({ s1: { usd: 5, eur: 4.2, pricedAt: 1 } });
+      expect(getPrice('s1')).toEqual({ usd: 5, eur: 4.2, pricedAt: 1 });
+    });
   });
 
   describe('finish-aware pricing', () => {

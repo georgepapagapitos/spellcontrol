@@ -153,7 +153,8 @@ export function CardRow({
               —
             </span>
           ) : (
-            formatMoney(card.purchasePrice * qty)
+            // Shared projections are server-stamped USD — pin the symbol.
+            formatMoney(card.purchasePrice * qty, { currency: 'USD' })
           )}
         </div>
       </div>

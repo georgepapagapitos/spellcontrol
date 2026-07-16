@@ -25,7 +25,8 @@ import {
   type ImportHistoryEntry,
   type StoredCollection,
 } from '../lib/local-cards';
-import { applyPrices, setPrices, priceKey } from '../lib/card-prices';
+import { applyPrices, getPrice, setPrices, priceKey, type PriceEntry } from '../lib/card-prices';
+import { getCurrency } from '../lib/currency';
 import { buildBackup, type Backup } from '../lib/backup';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { fetchWithAbortTimeout } from '../lib/fetch-utils';
@@ -175,6 +176,13 @@ interface CollectionState {
    * retry window. Throttle is device-local (localStorage), never synced.
    */
   autoRefreshStalePrices: () => Promise<void>;
+  /**
+   * Re-stamps every card's price from the device cache in the ACTIVE display
+   * currency. Called after a currency switch so the UI flips instantly from
+   * cached values; cards whose cache entry predates EUR support come back
+   * unpriced (stale) and get backfilled by a follow-up refreshPrices().
+   */
+  reapplyCardPrices: () => void;
   /**
    * Updates a single card in the collection by copyId. Replaces any provided
    * fields on the matching EnrichedCard, persists to IndexedDB, and preserves
@@ -756,23 +764,42 @@ export const useCollectionStore = create<CollectionState>()(
           // The server returns a price per FINISH for each printing (foil and
           // non-foil of the same printing differ); each value is already
           // fallback-resolved server-side. `usdFoil`/`usdEtched` are absent from
-          // a pre-finish server — those cards just degrade to the non-foil price.
+          // a pre-finish server — those cards just degrade to the non-foil
+          // price. `eur*` are absent from a pre-EUR server — those entries stay
+          // eur-less, which an EUR viewer counts as stale (see PriceEntry).
           type FinishPrices = Record<
             string,
-            { usd: number; usdFoil?: number; usdEtched?: number; pricedAt: number }
+            {
+              usd: number;
+              usdFoil?: number;
+              usdEtched?: number;
+              eur?: number;
+              eurFoil?: number;
+              eurEtched?: number;
+              pricedAt: number;
+            }
           >;
           // Fan a printing's per-finish prices out to finish-keyed cache entries.
-          // Only positive values are written — a $0 finish (Scryfall has none)
-          // stays unkeyed so the card keeps counting as stale rather than
-          // freezing at $0.
-          const fanOut = (src: FinishPrices): Record<string, { usd: number; pricedAt: number }> => {
-            const e: Record<string, { usd: number; pricedAt: number }> = {};
+          // A finish with no price in EITHER currency stays unkeyed so the card
+          // keeps counting as stale rather than freezing at $0. A finish priced
+          // in only one currency IS written (the other currency shows an honest
+          // dash and retries on the next daily staleness pass).
+          const fanOut = (src: FinishPrices): Record<string, PriceEntry> => {
+            const e: Record<string, PriceEntry> = {};
+            const put = (
+              key: string,
+              usd: number | undefined,
+              eur: number | undefined,
+              at: number
+            ) => {
+              if (!(usd ?? 0) && !(eur ?? 0)) return;
+              e[key] = { usd: usd ?? 0, pricedAt: at };
+              if (eur !== undefined) e[key].eur = eur;
+            };
             for (const [id, p] of Object.entries(src)) {
-              if (p.usd > 0) e[priceKey(id, 'nonfoil')] = { usd: p.usd, pricedAt: p.pricedAt };
-              if (p.usdFoil && p.usdFoil > 0)
-                e[priceKey(id, 'foil')] = { usd: p.usdFoil, pricedAt: p.pricedAt };
-              if (p.usdEtched && p.usdEtched > 0)
-                e[priceKey(id, 'etched')] = { usd: p.usdEtched, pricedAt: p.pricedAt };
+              put(priceKey(id, 'nonfoil'), p.usd, p.eur, p.pricedAt);
+              put(priceKey(id, 'foil'), p.usdFoil, p.eurFoil, p.pricedAt);
+              put(priceKey(id, 'etched'), p.usdEtched, p.eurEtched, p.pricedAt);
             }
             return e;
           };
@@ -856,16 +883,24 @@ export const useCollectionStore = create<CollectionState>()(
           const entries = fanOut(prices);
           // For requested copies the server returned no price for, carry over a
           // POSITIVE last-known value (keyed by their own finish) with a fresh
-          // pricedAt so a transient server miss doesn't flash $0. A copy whose
-          // current price is $0 (never priced, or the server cache was cold when
-          // this device last refreshed) is deliberately left UNSEEDED: stamping
-          // it fresh would mark it "not stale" and freeze it at $0 forever, so
-          // it must stay stale and get retried on the next refresh.
+          // pricedAt so a transient server miss doesn't flash $0. Prefer the
+          // prior cache entry (it keeps BOTH currencies); a card with no entry
+          // at all falls back to its carried legacy row price, which predates
+          // EUR support and is therefore a USD number — never write it under
+          // EUR. A copy whose current price is $0 (never priced, or the server
+          // cache was cold when this device last refreshed) is deliberately
+          // left UNSEEDED: stamping it fresh would mark it "not stale" and
+          // freeze it at $0 forever, so it must stay stale and get retried on
+          // the next refresh.
           for (const c of get().cards) {
             const id = c.scryfallId;
             if (!id || !requested.has(id)) continue;
             const key = priceKey(id, c.finish);
-            if (!(key in entries) && (c.purchasePrice ?? 0) > 0) {
+            if (key in entries) continue;
+            const prev = getPrice(id, c.finish);
+            if (prev && (prev.usd > 0 || (prev.eur ?? 0) > 0)) {
+              entries[key] = { ...prev, pricedAt: now };
+            } else if (!prev && (c.purchasePrice ?? 0) > 0 && getCurrency() === 'USD') {
               entries[key] = { usd: c.purchasePrice as number, pricedAt: now };
             }
           }
@@ -918,6 +953,10 @@ export const useCollectionStore = create<CollectionState>()(
         } finally {
           set({ isRefreshingPrices: false, priceRefreshProgress: null });
         }
+      },
+
+      reapplyCardPrices: () => {
+        set({ cards: applyPrices(get().cards) });
       },
 
       autoRefreshStalePrices: async () => {

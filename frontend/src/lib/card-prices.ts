@@ -17,11 +17,20 @@
  * the reference data already lives. See [[project_offline_vs_sync_caches]].
  */
 
+import { getCurrency } from './currency';
+
 const LS_KEY = 'spellcontrol:card-prices';
 
 export interface PriceEntry {
   /** USD market price; 0 when Scryfall has no price for this printing+finish. */
   usd: number;
+  /**
+   * EUR (Cardmarket) market price. `undefined` means the entry predates EUR
+   * support and hasn't been re-fetched yet — an EUR viewer treats such a card
+   * as never priced so the stale-refresh machinery backfills it. `0` means
+   * fetched and Scryfall has no EUR price (an honest dash).
+   */
+  eur?: number;
   /** Epoch ms when this entry was last sourced/checked. */
   pricedAt: number;
 }
@@ -65,7 +74,7 @@ export function setPrices(entries: Record<string, PriceEntry>): void {
   let changed = false;
   for (const [id, e] of Object.entries(entries)) {
     const cur = cache.get(id);
-    if (cur && cur.usd === e.usd && cur.pricedAt === e.pricedAt) continue; // no-op
+    if (cur && cur.usd === e.usd && cur.eur === e.eur && cur.pricedAt === e.pricedAt) continue; // no-op
     cache.set(id, e);
     changed = true;
   }
@@ -88,15 +97,18 @@ export function _resetForTests(): void {
 
 /**
  * Return cards with `purchasePrice`/`pricedAt` filled from the device-local
- * cache. The synced card row carries NO price, so this is what gives an
- * in-memory card a usable price for display / sort / routing. The lookup is
- * FINISH-AWARE (a foil reads the foil price):
+ * cache, in the app-wide display currency. The synced card row carries NO
+ * price, so this is what gives an in-memory card a usable price for display /
+ * sort / routing. The lookup is FINISH-AWARE (a foil reads the foil price):
  *   - exact finish hit (`scryfallId:finish` for foil/etched) → use it;
  *   - else the bare-`scryfallId` non-foil entry (legacy cache, or a foil whose
  *     finish-specific price hasn't been refreshed yet) → use it as a stopgap;
  *   - else the card's own carried price (legacy synced row from before prices
  *     moved off-row) → keep it;
  *   - otherwise → 0 (Scryfall has no current price → honest $0).
+ * With EUR active, an entry that predates EUR support (no `eur` field) is
+ * treated as never priced — `pricedAt` comes back undefined so the
+ * stale-refresh machinery re-fetches it rather than freezing it at €0.
  * `purchasePrice` is ALWAYS a number on the way out, so reducers/formatters
  * never see `undefined`/`NaN`. A new array is returned only when something
  * changed, so a no-op merge keeps the reference and downstream `useMemo`s skip.
@@ -105,17 +117,28 @@ export function applyPrices<
   T extends { scryfallId: string; finish?: string; purchasePrice?: number; pricedAt?: number },
 >(cards: T[]): T[] {
   loadPrices();
+  const wantEur = getCurrency() === 'EUR';
   let mutated = false;
   const out = cards.map((c) => {
     // Exact finish, then the bare non-foil entry as a transitional fallback.
     const e =
       cache.get(priceKey(c.scryfallId, c.finish)) ??
       (c.finish && c.finish !== 'nonfoil' ? cache.get(c.scryfallId) : undefined);
-    const usd = e ? e.usd : (c.purchasePrice ?? 0);
-    const pricedAt = e ? e.pricedAt : c.pricedAt;
-    if (c.purchasePrice === usd && c.pricedAt === pricedAt) return c;
+    let price: number;
+    let pricedAt: number | undefined;
+    if (!e) {
+      price = c.purchasePrice ?? 0;
+      pricedAt = c.pricedAt;
+    } else if (wantEur && e.eur === undefined) {
+      price = 0;
+      pricedAt = undefined;
+    } else {
+      price = wantEur ? (e.eur as number) : e.usd;
+      pricedAt = e.pricedAt;
+    }
+    if (c.purchasePrice === price && c.pricedAt === pricedAt) return c;
     mutated = true;
-    return { ...c, purchasePrice: usd, pricedAt };
+    return { ...c, purchasePrice: price, pricedAt };
   });
   return mutated ? out : cards;
 }

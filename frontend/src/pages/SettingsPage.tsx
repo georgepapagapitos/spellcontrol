@@ -11,6 +11,7 @@ import { toast } from '../store/toasts';
 import { buildBackup, downloadBackup } from '../lib/backup';
 import { Modal } from '../components/Modal';
 import { formatPricedDate, newestPricedAt } from '../lib/price-freshness';
+import { useCurrencyStore, type Currency } from '../lib/currency';
 import {
   fetchIdentities,
   googleLinkUrl,
@@ -44,6 +45,9 @@ export function SettingsPage() {
   const pricesUpdated = useMemo(() => formatPricedDate(newestPricedAt(cards)), [cards]);
   const isRefreshingPrices = useCollectionStore((s) => s.isRefreshingPrices);
   const refreshPrices = useCollectionStore((s) => s.refreshPrices);
+  const reapplyCardPrices = useCollectionStore((s) => s.reapplyCardPrices);
+  const currency = useCurrencyStore((s) => s.currency);
+  const setCurrency = useCurrencyStore((s) => s.setCurrency);
   const buildBackupSnapshot = useCollectionStore((s) => s.buildBackupSnapshot);
 
   const decks = useDecksStore((s) => s.decks);
@@ -176,6 +180,24 @@ export function SettingsPage() {
       setWipeStep(0);
     } finally {
       setWipeBusy(false);
+    }
+  }
+
+  function handleCurrencyChange(next: Currency) {
+    if (next === currency) return;
+    setCurrency(next);
+    // Flip the whole UI instantly from cached values in the new currency…
+    reapplyCardPrices();
+    // …then backfill anything the device hasn't fetched in that currency yet
+    // (cache entries from before EUR support come back unpriced). Tracked so
+    // the global progress pill shows why numbers are filling in.
+    if (useCollectionStore.getState().cards.some((c) => !c.pricedAt)) {
+      refreshPrices(undefined, { track: true }).catch((err: unknown) => {
+        toast.show({
+          message: err instanceof Error ? err.message : "Couldn't refresh prices.",
+          tone: 'error',
+        });
+      });
     }
   }
 
@@ -468,9 +490,32 @@ export function SettingsPage() {
 
             <div className="settings-row">
               <div className="settings-row-text">
+                <div className="settings-row-value">Price currency</div>
+                <div className="settings-row-hint">
+                  Show card prices and collection value in USD (TCGplayer) or EUR (Cardmarket).
+                </div>
+              </div>
+              <fieldset className="settings-currency-toggle" aria-label="Price currency">
+                {(['USD', 'EUR'] as const).map((c) => (
+                  <label key={c} className="settings-currency-option">
+                    <input
+                      type="radio"
+                      name="price-currency"
+                      value={c}
+                      checked={currency === c}
+                      onChange={() => handleCurrencyChange(c)}
+                    />
+                    <span>{c === 'USD' ? '$ USD' : '€ EUR'}</span>
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+
+            <div className="settings-row">
+              <div className="settings-row-text">
                 <div className="settings-row-value">Refresh card prices</div>
                 <div className="settings-row-hint">
-                  Re-fetch USD prices from Scryfall for every card in your collection.
+                  Re-fetch {currency} prices from Scryfall for every card in your collection.
                   {pricesUpdated && ` Last updated ${pricesUpdated}.`}
                 </div>
               </div>
