@@ -8,6 +8,7 @@ import type {
   DeckFormat,
   GapAnalysisCard,
   BuildReport,
+  Archetype,
 } from '@/deck-builder/types';
 import type { BracketEstimation } from '@/deck-builder/services/deckBuilder/bracketEstimator';
 import type { BracketFitPlan } from '@/deck-builder/services/deckBuilder/bracketFit';
@@ -163,6 +164,13 @@ export interface Deck {
    * kept and shown as a secondary reference. `null`/absent means "use auto".
    */
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
+  /**
+   * User-pinned archetype for the identity headline. When set it wins over
+   * both the persisted generation archetype (`buildReport.archetype`) and the
+   * live oracle-text derivation — the escape hatch for a misread commander
+   * (e.g. a typal deck labeled Voltron). `null`/absent means "use auto".
+   */
+  archetypeOverride?: Archetype | null;
   /**
    * Bracket Fit coaching plan — concrete card moves to reach the user's target
    * bracket. Computed (and kept live) by useCommanderBracketAnalysis only when

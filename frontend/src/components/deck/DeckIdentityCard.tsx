@@ -14,6 +14,9 @@ import { COLOR_INFO } from '../../lib/colors';
 import { ColorPip } from '../shared/ManaSymbol';
 import { useCardThumb } from '@/lib/card-thumbs';
 import { InfoTip } from '@/components/InfoTip';
+import { SelectMenu, type SelectOption } from '@/components/SelectMenu';
+import type { Archetype } from '@/deck-builder/types';
+import { ARCHETYPE_LABEL } from '@/deck-builder/services/deckBuilder/strategyVocabulary';
 import { avgCmcBandWord } from './DeckCurvePhases';
 import type { DeckIdentity } from '@/deck-builder/services/deckBuilder/deckIdentity';
 import { buildIdentityLine } from '@/lib/deck-identity-line';
@@ -48,6 +51,10 @@ export interface DeckIdentityCardProps {
   manaCurve: Record<number, number>;
   /** The live-computed deck identity from deriveDeckIdentity(). null for non-commander decks. */
   identity: DeckIdentity | null;
+  /** User-pinned archetype; null/absent = auto. Already folded into `identity` upstream. */
+  archetypeOverride?: Archetype | null;
+  /** Set/clear the manual archetype override. When absent the label is read-only. */
+  onSetArchetypeOverride?: (archetype: Archetype | null) => void;
   /** Mana analysis average CMC - used for sparkline band word. */
   averageCmc: number;
   /** Deep-link handler for shortfall buttons → Tune lane. */
@@ -254,6 +261,8 @@ export function DeckIdentityCard({
   planScore,
   manaCurve,
   identity,
+  archetypeOverride,
+  onSetArchetypeOverride,
   averageCmc,
   onNavigate,
   cards = [],
@@ -316,6 +325,19 @@ export function DeckIdentityCard({
     bracket: analysisPending ? undefined : bracket,
     validation,
   });
+
+  // Archetype override picker — "Auto" plus the full archetype vocabulary,
+  // alphabetized. Every option shares the identity line's own text as its
+  // trigger label, so the closed control reads exactly like the plain segment
+  // it replaces (the effective archetype always matches `identity`, which has
+  // the override folded in upstream).
+  const archetypeSegText = identitySegments[0]?.text ?? '';
+  const archetypeOptions: SelectOption<string>[] = [
+    { value: '', label: 'Auto', triggerLabel: archetypeSegText },
+    ...Object.entries(ARCHETYPE_LABEL)
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([value, label]) => ({ value, label, triggerLabel: archetypeSegText })),
+  ];
 
   return (
     <section className="deck-identity-card" aria-label="Deck identity">
@@ -384,6 +406,14 @@ export function DeckIdentityCard({
                 </span>
               ) : seg.kind === 'validation' ? (
                 <span className={`deck-identity-card-identity-val is-${seg.tone}`}>{seg.text}</span>
+              ) : identity && onSetArchetypeOverride ? (
+                <SelectMenu
+                  ariaLabel="Change deck archetype"
+                  className="deck-identity-card-archetype-menu"
+                  value={archetypeOverride ?? ''}
+                  options={archetypeOptions}
+                  onChange={(v) => onSetArchetypeOverride(v === '' ? null : (v as Archetype))}
+                />
               ) : (
                 <span>{seg.text}</span>
               )}

@@ -2429,6 +2429,8 @@ export function DeckEditorPage() {
             deckCardsByName={deckCardsByName}
             bracketOverride={deck.bracketOverride}
             onSetBracketOverride={(b) => updateDeck(deck.id, { bracketOverride: b })}
+            archetypeOverride={deck.archetypeOverride}
+            onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
             deckGrade={deck.deckGrade}
             planScore={deck.planScore}
             averageSalt={deck.averageSalt}

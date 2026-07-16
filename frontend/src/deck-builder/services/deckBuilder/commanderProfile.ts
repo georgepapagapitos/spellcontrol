@@ -675,8 +675,12 @@ export function buildCommanderProfile(
       // vote to a couple of incidental weight-2 oracle-text detectors
       // (e.g. extra-combat) just because they total the same as voltron's old
       // flat weight of 2. Capped so it can't run away on a keyword-heavy but
-      // otherwise unfocused commander.
-      archWeight: Math.min(4, 2 + Math.max(0, voltronHits.length - 2)),
+      // otherwise unfocused commander. Conversely, a power-only hit (zero
+      // evasion/protection keywords — e.g. a vanilla-statted 4-power typal
+      // commander like High Perfect Morcant) is the weakest evidence this
+      // branch accepts and must not tie a genuine signal like tribal, so it
+      // votes at weight 1 and only wins when nothing else fired.
+      archWeight: voltronHits.length ? Math.min(4, 2 + Math.max(0, voltronHits.length - 2)) : 1,
     });
   }
 

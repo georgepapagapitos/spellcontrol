@@ -179,6 +179,26 @@ describe('buildCommanderProfile', () => {
     expect(profile.primaryArchetype).toBe(Archetype.VOLTRON);
   });
 
+  it('does not let a power-only voltron vote beat tribal (Morcant-shaped regression guard)', () => {
+    // Zero evasion/protection keywords, power 4, typal ETB trigger. The
+    // power-only voltron branch still fires (weight 1) but must lose to the
+    // tribal signal (weight 2) instead of tying it and winning on precedence.
+    const profile = buildCommanderProfile(
+      makeCard({
+        name: 'High Perfect Morcant',
+        type_line: 'Legendary Creature — Elf Noble',
+        oracle_text:
+          'Whenever High Perfect Morcant or another Elf you control enters, each opponent blights 1.',
+        power: '4',
+        toughness: '4',
+        keywords: [],
+      })
+    );
+    const voltronAbility = profile.abilities.find((a) => a.keyword === 'voltron');
+    expect(voltronAbility?.archWeight).toBe(1);
+    expect(profile.primaryArchetype).toBe(Archetype.TRIBAL);
+  });
+
   it('keeps the 2-keyword-hit voltron weight at the historical baseline of 2', () => {
     const profile = buildCommanderProfile(
       makeCard({
