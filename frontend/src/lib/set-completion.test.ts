@@ -8,6 +8,7 @@ import {
   compareCollectorNumbers,
   computeSldDropProgress,
   overlaySetOwnership,
+  searchCollectionCardSets,
   sortSetRows,
   type SetProgress,
 } from './set-completion';
@@ -254,5 +255,48 @@ describe('sortSetRows', () => {
     const input = [a, b, c];
     sortSetRows(input, 'name');
     expect(input.map((r) => r.code)).toEqual(['A', 'B', 'C']);
+  });
+});
+
+describe('searchCollectionCardSets', () => {
+  const collection = [
+    owned('SLD', '92', { name: 'Swords to Plowshares' }),
+    owned('SLD', '92', { name: 'Swords to Plowshares', finish: 'foil', foil: true }),
+    owned('LEA', '161', { name: 'Swords to Plowshares' }),
+    owned('ONE', '1', { name: 'Sword of Forge and Frontier' }),
+    owned('LEA', '48', { name: 'Plateau' }),
+  ];
+
+  it('needs at least 3 characters', () => {
+    expect(searchCollectionCardSets(collection, 'sw')).toEqual({ matches: [], total: 0 });
+    expect(searchCollectionCardSets(collection, '  ').total).toBe(0);
+  });
+
+  it('groups matches by card name with one printing per set + collector number', () => {
+    const { matches, total } = searchCollectionCardSets(collection, 'swords');
+    expect(total).toBe(1);
+    expect(matches[0].name).toBe('Swords to Plowshares');
+    // Two copies of SLD #92 (foil + nonfoil) collapse to one printing, qty 2.
+    expect(matches[0].printings).toEqual([
+      { setCode: 'SLD', collectorNumber: '92', qty: 2 },
+      { setCode: 'LEA', collectorNumber: '161', qty: 1 },
+    ]);
+  });
+
+  it('ranks prefix matches before substring matches, then alphabetical', () => {
+    const { matches } = searchCollectionCardSets(collection, 'swo');
+    expect(matches.map((m) => m.name)).toEqual([
+      'Sword of Forge and Frontier',
+      'Swords to Plowshares',
+    ]);
+  });
+
+  it('is case-insensitive and caps results while reporting the true total', () => {
+    const many = Array.from({ length: 9 }, (_, i) =>
+      owned('ONE', String(i), { name: `Swordfish ${i}` })
+    );
+    const { matches, total } = searchCollectionCardSets(many, 'SWORDFISH', 6);
+    expect(matches).toHaveLength(6);
+    expect(total).toBe(9);
   });
 });
