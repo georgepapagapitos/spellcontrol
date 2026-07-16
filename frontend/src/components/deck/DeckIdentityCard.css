@@ -165,6 +165,57 @@
   color: var(--err-text);
 }
 
+/* Archetype segment as an edit-in-place picker: strip the pill chrome so the
+   closed trigger reads like the plain text segment it replaces, with a dotted
+   underline + chevron as the editability affordance. */
+.deck-identity-card-archetype-menu {
+  display: inline-flex;
+}
+
+.deck-identity-card-archetype-menu .toolbar-pill {
+  height: auto;
+  padding: 0;
+  gap: 0.2rem;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--text-muted);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-identity-card-archetype-menu .toolbar-pill:hover {
+    color: var(--text-primary);
+    text-decoration-color: currentcolor;
+  }
+}
+
+.deck-identity-card-archetype-menu .toolbar-pill.open {
+  color: var(--text-primary);
+  text-decoration-color: currentcolor;
+}
+
+/* 44px touch target via a centered ghost (STYLE_GUIDE § Responsive) — growing
+   the inline trigger itself would distort the identity line. */
+@media (pointer: coarse) {
+  .deck-identity-card-archetype-menu .toolbar-pill {
+    position: relative;
+  }
+
+  .deck-identity-card-archetype-menu .toolbar-pill::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* ── Sparkline (8 CMC buckets, vertical micro-bars) ─────────────────────── */
 
 .deck-identity-card-sparkline-wrap {

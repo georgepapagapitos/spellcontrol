@@ -2,6 +2,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DeckIdentityCard, type DeckIdentityCardProps } from './DeckIdentityCard';
+import { Archetype } from '@/deck-builder/types';
 import type {
   ValidationCheck,
   ValidationResult,
@@ -289,5 +290,57 @@ describe('DeckIdentityCard', () => {
     });
     expect(body!.hasAttribute('hidden')).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // ── Archetype override picker ────────────────────────────────────────────
+
+  const identity = { archetypeLabel: 'Voltron', pacingShort: 'Late game', themes: [] };
+
+  it('renders the archetype segment as plain text when onSetArchetypeOverride is absent', () => {
+    renderCard({ identity });
+    expect(hasText(/Late game Voltron deck/)).toBe(true);
+    expect(screen.queryByRole('button', { name: /change deck archetype/i })).toBeNull();
+  });
+
+  it('renders the picker trigger with the identity line text and sets an override on pick', () => {
+    const onSet = vi.fn();
+    renderCard({ identity, archetypeOverride: null, onSetArchetypeOverride: onSet });
+
+    const trigger = screen.getByRole('button', { name: /change deck archetype/i });
+    expect(trigger.textContent).toContain('Late game Voltron deck');
+
+    act(() => {
+      fireEvent.click(trigger);
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('option', { name: 'Tribal' }));
+    });
+    expect(onSet).toHaveBeenCalledWith(Archetype.TRIBAL);
+  });
+
+  it('clears the override back to auto when "Auto" is picked', () => {
+    const onSet = vi.fn();
+    renderCard({
+      identity: { ...identity, archetypeLabel: 'Tribal' },
+      archetypeOverride: Archetype.TRIBAL,
+      onSetArchetypeOverride: onSet,
+    });
+
+    const trigger = screen.getByRole('button', { name: /change deck archetype/i });
+    act(() => {
+      fireEvent.click(trigger);
+    });
+    expect(screen.getByRole('option', { name: 'Tribal' }).getAttribute('aria-selected')).toBe(
+      'true'
+    );
+    act(() => {
+      fireEvent.click(screen.getByRole('option', { name: 'Auto' }));
+    });
+    expect(onSet).toHaveBeenCalledWith(null);
+  });
+
+  it('does not render a picker for non-commander decks (no identity)', () => {
+    renderCard({ identity: null, onSetArchetypeOverride: vi.fn() });
+    expect(screen.queryByRole('button', { name: /change deck archetype/i })).toBeNull();
   });
 });

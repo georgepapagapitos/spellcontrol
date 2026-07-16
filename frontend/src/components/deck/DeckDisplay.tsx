@@ -22,7 +22,13 @@ import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
-import type { ScryfallCard, DeckFormat, ThemeResult, BuildReport } from '@/deck-builder/types';
+import type {
+  ScryfallCard,
+  DeckFormat,
+  ThemeResult,
+  BuildReport,
+  Archetype,
+} from '@/deck-builder/types';
 import {
   buildManaData,
   classifyType,
@@ -328,6 +334,10 @@ export interface DeckDisplayProps {
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   /** Set/clear the manual bracket override. Passing null reverts to auto. */
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
+  /** User-pinned archetype; when set it overrides the derived identity headline. */
+  archetypeOverride?: Archetype | null;
+  /** Set/clear the manual archetype override. Passing null reverts to auto. */
+  onSetArchetypeOverride?: (archetype: Archetype | null) => void;
   deckGrade?: { letter: string; headline: string };
   /** 0-100 PlanScore (strategy/roles/curve/cardFit); kept live by the analysis hook. */
   planScore?: PlanScore;
@@ -1049,6 +1059,8 @@ export function DeckDisplay({
   deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
+  archetypeOverride,
+  onSetArchetypeOverride,
   // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
   planScore,
   averageSalt,
@@ -1411,10 +1423,10 @@ export function DeckDisplay({
             profile: commanderProfile,
             selectedThemes,
             cards: allCards,
-            persistedArchetype: buildReport?.archetype,
+            persistedArchetype: archetypeOverride ?? buildReport?.archetype,
           })
         : null,
-    [commanderProfile, selectedThemes, allCards, buildReport?.archetype]
+    [commanderProfile, selectedThemes, allCards, buildReport?.archetype, archetypeOverride]
   );
 
   // "Why this card" synergy reasons, keyed by card name. Computed from the
@@ -2002,6 +2014,8 @@ export function DeckDisplay({
             deckCardsByName={deckCardsByName}
             bracketOverride={bracketOverride}
             onSetBracketOverride={onSetBracketOverride}
+            archetypeOverride={archetypeOverride}
+            onSetArchetypeOverride={onSetArchetypeOverride}
             roleCounts={roleCounts}
             roleTargets={roleTargets}
             buildReport={buildReport}
@@ -3624,6 +3638,8 @@ function DeckAnalysisView({
   deckCardsByName,
   bracketOverride,
   onSetBracketOverride,
+  archetypeOverride,
+  onSetArchetypeOverride,
   roleCounts,
   roleTargets,
   buildReport,
@@ -3663,6 +3679,8 @@ function DeckAnalysisView({
   deckCardsByName?: ReadonlyMap<string, ScryfallCard>;
   bracketOverride?: 1 | 2 | 3 | 4 | 5 | null;
   onSetBracketOverride?: (bracket: 1 | 2 | 3 | 4 | 5 | null) => void;
+  archetypeOverride?: Archetype | null;
+  onSetArchetypeOverride?: (archetype: Archetype | null) => void;
   roleCounts?: Record<string, number>;
   roleTargets?: Record<string, number>;
   buildReport?: BuildReport;
@@ -3783,6 +3801,8 @@ function DeckAnalysisView({
               planScore={planScore ?? null}
               manaCurve={manaData.manaCurve}
               identity={identity}
+              archetypeOverride={archetypeOverride}
+              onSetArchetypeOverride={onSetArchetypeOverride}
               averageCmc={manaData.averageCmc}
               onNavigate={onNavigateToTune}
               cards={allCards}
