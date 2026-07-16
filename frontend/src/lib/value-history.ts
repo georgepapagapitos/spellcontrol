@@ -1,4 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import { getCurrency } from './currency';
 
 /**
  * Device-local daily log of total collection value (E76).
@@ -16,10 +17,17 @@ import { openDB, type IDBPDatabase } from 'idb';
 export interface ValuePoint {
   /** Local-calendar-day bucket key, `YYYY-MM-DD`. */
   day: string;
-  /** Total collection market value (USD) at the last snapshot that day. */
+  /** Total collection market value at the last snapshot that day. */
   value: number;
   /** Epoch ms of the snapshot. */
   at: number;
+  /**
+   * Display currency the total was computed in. Absent on points that predate
+   * the currency setting — those are USD. A $-total and a €-total are
+   * different market snapshots (TCGplayer vs Cardmarket), so reads filter to
+   * the active currency rather than ever mixing them in one trend.
+   */
+  currency?: string;
 }
 
 export interface ValueDelta {
@@ -77,12 +85,13 @@ export function formatDayKey(day: string): string {
 
 /**
  * Upsert today's point (last write per day wins) and trim the log to the
- * newest MAX_POINTS. `at` is injectable for tests.
+ * newest MAX_POINTS. Stamped with the active display currency. `at` is
+ * injectable for tests.
  */
 export async function recordValueSnapshot(value: number, at = Date.now()): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(STORE, 'readwrite');
-  await tx.store.put({ day: dayKey(at), value, at } satisfies ValuePoint);
+  await tx.store.put({ day: dayKey(at), value, at, currency: getCurrency() } satisfies ValuePoint);
   // Day keys are YYYY-MM-DD, so IDB's ascending key order IS chronological —
   // getAllKeys()[0..excess] are the oldest points.
   const keys = await tx.store.getAllKeys();
@@ -92,10 +101,13 @@ export async function recordValueSnapshot(value: number, at = Date.now()): Promi
   await tx.done;
 }
 
-/** All points, oldest → newest. */
+/** All points in the ACTIVE display currency, oldest → newest. Points logged
+ *  under the other currency are kept in the DB (switching back restores that
+ *  trend) but never surfaced into a mixed-currency series. */
 export async function getValueHistory(): Promise<ValuePoint[]> {
   const db = await getDB();
-  return (await db.getAll(STORE)) as ValuePoint[];
+  const active = getCurrency();
+  return ((await db.getAll(STORE)) as ValuePoint[]).filter((p) => (p.currency ?? 'USD') === active);
 }
 
 export async function clearValueHistory(): Promise<void> {

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCurrency } from '@/lib/currency';
 import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type {
@@ -1116,7 +1117,7 @@ export function DeckDisplay({
   onMarkArrivalsReviewed,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
-  const currency: CurrencyCode = 'USD';
+  const currency: CurrencyCode = useCurrency();
   // New-arrivals review (E140): which category's sheet is open, if any.
   const [openArrivalsBucket, setOpenArrivalsBucket] = useState<TypeGroup | null>(null);
   const [sort, setSort] = useState<SortMode>('name');
@@ -1272,12 +1273,13 @@ export function DeckDisplay({
     collectionByCopyId,
     crossDeck,
     claimedByForName,
+    currency,
   ]);
 
   // Non-commander rows grouped by canonical type.
   const groups = useMemo(
     () => groupByType(buildRows(cards, currency, collectionByCopyId, crossDeck), commanderRows),
-    [cards, commanderRows, collectionByCopyId, crossDeck]
+    [cards, commanderRows, collectionByCopyId, crossDeck, currency]
   );
 
   // Sideboard rows grouped by canonical type.
@@ -1286,7 +1288,7 @@ export function DeckDisplay({
       sideboard.length === 0
         ? []
         : groupByType(buildRows(sideboard, currency, collectionByCopyId, crossDeck)),
-    [sideboard, collectionByCopyId, crossDeck]
+    [sideboard, collectionByCopyId, crossDeck, currency]
   );
 
   // Legality issues for the current format.

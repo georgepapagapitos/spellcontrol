@@ -1,4 +1,5 @@
 import type { BinderFilter, BinderFilterGroup, ChipExpression, ScryfallQueryRule } from '../types';
+import { currencySymbol } from './currency';
 import { isExpressionEmpty } from './rules';
 
 /**
@@ -239,13 +240,14 @@ export function deriveBinderName(input: CollectionFilterInput): string {
     if (is.length > 0) parts.push(is.join(', '));
   }
 
-  // Price
+  // Price — filters match against the display-currency price, label accordingly.
+  const sym = currencySymbol();
   if (input.priceMin !== undefined && input.priceMax !== undefined) {
-    parts.push(`$${input.priceMin}–${input.priceMax}`);
+    parts.push(`${sym}${input.priceMin}–${input.priceMax}`);
   } else if (input.priceMin !== undefined) {
-    parts.push(`$${input.priceMin}+`);
+    parts.push(`${sym}${input.priceMin}+`);
   } else if (input.priceMax !== undefined) {
-    parts.push(`≤$${input.priceMax}`);
+    parts.push(`≤${sym}${input.priceMax}`);
   }
 
   // Mana value

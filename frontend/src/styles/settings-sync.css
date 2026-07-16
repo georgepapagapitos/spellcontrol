@@ -299,6 +299,69 @@
   .settings-row .pill-btn {
     align-self: flex-end;
   }
+
+  .settings-row .settings-currency-toggle {
+    align-self: flex-end;
+  }
+}
+
+/* USD/EUR price-currency toggle — a joined radio pair. The radio input is
+   visually hidden but stretched over its label, so the whole segment is the
+   hit target and keyboard/AT semantics stay native. */
+.settings-currency-toggle {
+  display: inline-flex;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.settings-currency-option {
+  position: relative;
+  display: inline-flex;
+}
+
+.settings-currency-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.settings-currency-option span {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) 0.9rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.settings-currency-option + .settings-currency-option span {
+  border-left: 0.5px solid var(--border-strong);
+}
+
+.settings-currency-option input:checked + span {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.settings-currency-option input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .settings-currency-option input:not(:checked):hover + span {
+    color: var(--text-primary);
+  }
 }
 
 .settings-row-meta {

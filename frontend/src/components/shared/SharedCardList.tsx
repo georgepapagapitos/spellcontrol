@@ -57,7 +57,12 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
                 {it.card.setCode.toUpperCase()} {it.card.collectorNumber}
               </td>
               <td data-label="Finish">{it.card.finish}</td>
-              {showPrice && <td data-label="Price">{formatMoney(it.card.purchasePrice)}</td>}
+              {/* Shared projections are server-stamped USD — pin the symbol. */}
+              {showPrice && (
+                <td data-label="Price">
+                  {formatMoney(it.card.purchasePrice, { currency: 'USD' })}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

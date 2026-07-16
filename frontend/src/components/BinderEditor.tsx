@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
+import { currencySymbol } from '../lib/currency';
 import { useCollectionStore } from '../store/collection';
 import { mergeStagedFiles, stagedFilesNotice, stripExtension } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
@@ -1867,10 +1868,12 @@ function autoSummary(f: BinderFilter): string {
     );
   }
 
+  // Price rules match against the display-currency price — label accordingly.
+  const sym = currencySymbol();
   if (f.priceMin !== undefined && f.priceMax !== undefined)
-    parts.push(`$${f.priceMin}–${f.priceMax}`);
-  else if (f.priceMin !== undefined) parts.push(`≥ $${f.priceMin}`);
-  else if (f.priceMax !== undefined) parts.push(`≤ $${f.priceMax}`);
+    parts.push(`${sym}${f.priceMin}–${f.priceMax}`);
+  else if (f.priceMin !== undefined) parts.push(`≥ ${sym}${f.priceMin}`);
+  else if (f.priceMax !== undefined) parts.push(`≤ ${sym}${f.priceMax}`);
 
   if (f.cmcMin !== undefined && f.cmcMax !== undefined)
     parts.push(`Mana value ${f.cmcMin}–${f.cmcMax}`);

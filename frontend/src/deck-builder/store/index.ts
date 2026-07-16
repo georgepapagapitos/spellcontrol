@@ -9,13 +9,12 @@ import type {
   ThemeResult,
   DeckHistoryEntry,
 } from '@/deck-builder/types';
-import { isEuropean } from '@/deck-builder/lib/region';
+import { getCurrency, useCurrencyStore } from '@/lib/currency';
 import { swapCard } from '@/deck-builder/services/deckBuilder/cardSwap';
 
 const LS = {
   bannedCards: 'mtg-deck-builder-banned-cards',
   mustInclude: 'mtg-deck-builder-must-include-cards',
-  currency: 'mtg-deck-builder-currency',
   banLists: 'mtg-deck-builder-ban-lists',
   excludeLists: 'mtg-deck-builder-applied-exclude-lists',
   includeLists: 'mtg-deck-builder-applied-include-lists',
@@ -38,17 +37,6 @@ function saveJSON(key: string, value: unknown): void {
   } catch {
     /* ignore */
   }
-}
-function loadCurrency(): 'USD' | 'EUR' {
-  const stored = (() => {
-    try {
-      return localStorage.getItem(LS.currency);
-    } catch {
-      return null;
-    }
-  })();
-  if (stored === 'USD' || stored === 'EUR') return stored;
-  return isEuropean() ? 'EUR' : 'USD';
 }
 function loadArenaOnly(): boolean {
   try {
@@ -87,7 +75,9 @@ const defaultCustomization: Customization = {
   scryfallQuery: '',
   comboCount: 1,
   balancedRoles: true,
-  currency: loadCurrency(),
+  // Sourced from the app-wide display-currency setting (Settings → Price
+  // currency); a subscribe below keeps this mirror live.
+  currency: getCurrency(),
   appliedExcludeLists: loadJSON(LS.excludeLists, []),
   appliedIncludeLists: loadJSON(LS.includeLists, []),
   tempoAutoDetect: true,
@@ -194,12 +184,11 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
       if (updates.bannedCards !== undefined) saveJSON(LS.bannedCards, next.bannedCards);
       if (updates.mustIncludeCards !== undefined) saveJSON(LS.mustInclude, next.mustIncludeCards);
       if (updates.banLists !== undefined) saveJSON(LS.banLists, next.banLists);
+      // Currency is the app-wide setting — write through so Settings and the
+      // collection pipeline stay in agreement (the subscribe below no-ops
+      // because `next.currency` is already what we set here).
       if (updates.currency !== undefined) {
-        try {
-          localStorage.setItem(LS.currency, next.currency);
-        } catch {
-          /* ignore */
-        }
+        useCurrencyStore.getState().setCurrency(next.currency);
       }
       if (updates.appliedExcludeLists !== undefined)
         saveJSON(LS.excludeLists, next.appliedExcludeLists);
@@ -267,3 +256,13 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
       error: null,
     })),
 }));
+
+// Mirror the app-wide currency setting into customization so a switch made in
+// Settings reaches an already-initialized builder (and vice versa via
+// updateCustomization's write-through, which this no-ops on).
+useCurrencyStore.subscribe((s) => {
+  const { customization } = useDeckBuilderStore.getState();
+  if (customization.currency !== s.currency) {
+    useDeckBuilderStore.setState({ customization: { ...customization, currency: s.currency } });
+  }
+});

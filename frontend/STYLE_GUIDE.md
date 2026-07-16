@@ -228,6 +228,14 @@ a hero CTA.
   segments are forced into equal fractions regardless of available room. This bit
   both the Play sections switcher and the Auth (Sign in / Create account) toggle.
   Compliant reference call sites: DeckEditor, Friends, Cube.
+- **An exclusive-value picker is NOT a tab strip.** A segmented control that
+  picks a *setting* (USD/EUR price currency) rather than switching visible
+  views uses native radio semantics — a `fieldset` of visually-hidden
+  `<input type="radio">`s stretched over styled label spans — not `Tabs.tsx`
+  (`role=tablist` advertises panels that don't exist) and not `aria-pressed`
+  button pairs (radios give exclusivity + arrow-key group nav for free). Same
+  family as the Settings theme picker. Reference: `.settings-currency-toggle`
+  in `styles/settings-sync.css` / SettingsPage's Price currency row.
 
 ## Toolbars & action rows (responsive)
 

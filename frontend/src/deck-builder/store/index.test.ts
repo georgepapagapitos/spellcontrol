@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useDeckBuilderStore } from './index';
+import { useCurrencyStore } from '@/lib/currency';
 import type { ScryfallCard, ThemeResult } from '@/deck-builder/types';
 
 // Whole-state snapshot taken before any test mutates it — action closures
@@ -15,6 +16,7 @@ function card(overrides: Partial<ScryfallCard>): ScryfallCard {
 
 beforeEach(() => {
   localStorage.clear();
+  useCurrencyStore.getState().setCurrency('USD');
   useDeckBuilderStore.setState(initialState, true);
 });
 
@@ -92,10 +94,18 @@ describe('useDeckBuilderStore — customization persistence', () => {
     ]);
   });
 
-  it('updateCustomization persists currency and arena-only as plain strings', () => {
+  it('updateCustomization writes currency through to the app-wide setting and persists arena-only', () => {
     store().updateCustomization({ currency: 'EUR', arenaOnly: true });
-    expect(localStorage.getItem('mtg-deck-builder-currency')).toBe('EUR');
+    expect(useCurrencyStore.getState().currency).toBe('EUR');
+    expect(localStorage.getItem('spellcontrol:currency')).toBe('EUR');
     expect(localStorage.getItem('mtg-deck-builder-arena-only')).toBe('true');
+  });
+
+  it('mirrors an app-wide currency switch into customization', () => {
+    useCurrencyStore.getState().setCurrency('EUR');
+    expect(store().customization.currency).toBe('EUR');
+    useCurrencyStore.getState().setCurrency('USD');
+    expect(store().customization.currency).toBe('USD');
   });
 
   it('updateCustomization leaves unrelated fields and storage alone', () => {

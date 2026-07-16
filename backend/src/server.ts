@@ -6,7 +6,7 @@ import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import path from 'path';
 import { existsSync } from 'fs';
-import { DB_PATH, getScryfallCache, pickUsdForFinish } from './scryfall-cache';
+import { DB_PATH, getScryfallCache, pickEurForFinish, pickUsdForFinish } from './scryfall-cache';
 import { closeDb, ensureSchema } from './db';
 import { promoteAdminsAtBoot } from './admin/bootstrap';
 import { authRouter } from './routes/auth';
@@ -724,17 +724,32 @@ app.post('/api/refresh-prices', priceLimiter, async (req: Request, res: Response
     // because a single printing serves nonfoil + foil + etched copies; sending
     // all three avoids a foil silently showing the non-foil price. `usd` is the
     // non-foil baseline; a client that ignores the foil fields degrades to the
-    // old behaviour. Emit an entry if ANY finish has a price.
+    // old behaviour. EUR (Cardmarket) rides along per finish for the display
+    // currency setting — 0 means "Scryfall has no EUR price for this finish",
+    // which the client stores as fetched-but-unpriced (an honest dash), never
+    // as never-fetched. Emit an entry if ANY finish in EITHER currency has a
+    // price.
     const prices: Record<
       string,
-      { usd: number; usdFoil: number; usdEtched: number; pricedAt: number }
+      {
+        usd: number;
+        usdFoil: number;
+        usdEtched: number;
+        eur: number;
+        eurFoil: number;
+        eurEtched: number;
+        pricedAt: number;
+      }
     > = {};
     for (const card of cards) {
       const usd = pickUsdForFinish(card, 'nonfoil');
       const usdFoil = pickUsdForFinish(card, 'foil');
       const usdEtched = pickUsdForFinish(card, 'etched');
-      if (usd > 0 || usdFoil > 0 || usdEtched > 0) {
-        prices[card.id] = { usd, usdFoil, usdEtched, pricedAt: now };
+      const eur = pickEurForFinish(card, 'nonfoil');
+      const eurFoil = pickEurForFinish(card, 'foil');
+      const eurEtched = pickEurForFinish(card, 'etched');
+      if (usd > 0 || usdFoil > 0 || usdEtched > 0 || eur > 0 || eurFoil > 0 || eurEtched > 0) {
+        prices[card.id] = { usd, usdFoil, usdEtched, eur, eurFoil, eurEtched, pricedAt: now };
       }
     }
 

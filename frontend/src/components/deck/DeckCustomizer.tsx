@@ -9,6 +9,7 @@ import type {
   Pacing,
 } from '@/deck-builder/types';
 import { autocompleteCardName } from '@/deck-builder/services/scryfall/client';
+import { currencySymbol } from '@/lib/currency';
 import { SearchPill } from '../SearchPill';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
@@ -217,9 +218,10 @@ const PACING_LABELS: Record<Pacing, string> = {
 
 // ── Collapsed-header summaries — the group's current setting at a glance ──
 function budgetSummary(c: Customization): string {
+  const sym = currencySymbol(c.currency);
   const parts = [
-    c.deckBudget != null ? `$${c.deckBudget} deck` : null,
-    c.maxCardPrice != null ? `$${c.maxCardPrice} card` : null,
+    c.deckBudget != null ? `${sym}${c.deckBudget} deck` : null,
+    c.maxCardPrice != null ? `${sym}${c.maxCardPrice} card` : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : 'No limits';
 }
@@ -620,24 +622,25 @@ function SizeAndLandsGroup({ customization, update }: DeckCustomizerProps) {
 // stand-alone number field for both speed (one click for common values) and
 // affordance (presets advertise the format and approximate scale).
 function BudgetGroup({ customization, update }: DeckCustomizerProps) {
+  const sym = currencySymbol(customization.currency);
   return (
     <>
-      <Field label="Total deck budget (USD)">
+      <Field label={`Total deck budget (${customization.currency})`}>
         <PresetEditableNumber
           value={customization.deckBudget}
           presets={[null, 25, 50, 100, 200]}
-          formatPreset={(v) => (v === null ? 'None' : `$${v}`)}
-          formatCustom={(v) => `$${v}`}
+          formatPreset={(v) => (v === null ? 'None' : `${sym}${v}`)}
+          formatCustom={(v) => `${sym}${v}`}
           onChange={(n) => update({ deckBudget: n })}
           ariaLabel="Custom total deck budget"
         />
       </Field>
-      <Field label="Max card price (USD)">
+      <Field label={`Max card price (${customization.currency})`}>
         <PresetEditableNumber
           value={customization.maxCardPrice}
           presets={[null, 1, 5, 10, 25]}
-          formatPreset={(v) => (v === null ? 'None' : `$${v}`)}
-          formatCustom={(v) => `$${v}`}
+          formatPreset={(v) => (v === null ? 'None' : `${sym}${v}`)}
+          formatCustom={(v) => `${sym}${v}`}
           onChange={(n) => update({ maxCardPrice: n })}
           ariaLabel="Custom max card price"
         />

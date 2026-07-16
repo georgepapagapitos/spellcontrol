@@ -52,7 +52,7 @@ Each binder has one or more **match groups**. A card joins the binder if it matc
 - **Oracle tags** — IS / IS NOT against Scryfall's curated card tags (otags) — pick a concept like _Mana rock_ or _Removal_ from a closed list. More precise than oracle text for semantic concepts (e.g. _Mana rock_ won't mismatch "addition" the way text "add" does). Resolved offline from the bundled tagger snapshot.
 - **Commander** — Any / Is / Is not. _Is_ matches commander-eligible cards: legendary creatures, plus cards whose text says "can be your commander" (planeswalker-commanders), that are legal in the Commander format. _Is not_ matches everything else.
 - **Sets** — multi-select from sets in your collection.
-- **Price** — min / max in USD.
+- **Price** — min / max in your display currency (Settings → Price currency: USD via TCGplayer or EUR via Cardmarket).
 - **Finishes** — IS / IS NOT (nonfoil, foil, etched).
 - **Layout** — IS / IS NOT (normal, modal_dfc, adventure, etc).
 - **Name contains** — case-insensitive substring.
