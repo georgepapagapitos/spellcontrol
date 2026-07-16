@@ -6,8 +6,12 @@ import {
   completionPct,
   computeSetProgress,
   compareCollectorNumbers,
+  expandSldDrops,
   overlaySetOwnership,
+  sortSetRows,
+  type SetProgress,
 } from './set-completion';
+import { SLD_UNASSIGNED, parseSldDrops } from './sld-drops';
 
 function owned(setCode: string, collectorNumber: string, extra?: Partial<EnrichedCard>) {
   return {
@@ -120,5 +124,135 @@ describe('overlaySetOwnership', () => {
     );
     expect(rows.map((r) => r.card.collector_number)).toEqual(['2', '3', '10']);
     expect(rows.map((r) => r.qty)).toEqual([2, 0, 0]);
+  });
+});
+
+// ── Secret Lair drop expansion + hub sorting (E140) ─────────────────────────
+
+const SLD_INDEX = parseSldDrops({
+  drops: [
+    { name: 'OMG KITTIES', releasedAt: '2019-12-02', numbers: ['92', '93', '94'] },
+    { name: 'Box of Rocks', releasedAt: '2021-03-15', numbers: ['507', '511'] },
+    // A number sold in two drops (Dan Frazier-style collision).
+    { name: 'Allied Talismans', releasedAt: '2023-05-01', numbers: ['708'] },
+    { name: 'Enemy Talismans', releasedAt: '2023-05-01', numbers: ['708'] },
+  ],
+})!;
+
+function progressRow(over: Partial<SetProgress>): SetProgress {
+  return {
+    code: 'ONE',
+    name: 'Phyrexia',
+    iconSvgUri: 'one.svg',
+    releasedAt: '2023-02-03',
+    owned: 1,
+    total: 3,
+    pct: 33,
+    ...over,
+  };
+}
+
+describe('expandSldDrops', () => {
+  const sldRow = progressRow({
+    code: 'SLD',
+    name: 'Secret Lair Drop',
+    iconSvgUri: 'sld.svg',
+    releasedAt: '2019-12-02',
+    owned: 4,
+    total: 2597,
+    pct: 1,
+  });
+
+  it('passes rows through untouched when the collection has no SLD row', () => {
+    const rows = [progressRow({})];
+    expect(expandSldDrops(rows, [owned('ONE', '2')], SLD_INDEX)).toEqual(rows);
+  });
+
+  it('splits the SLD row into per-drop rows with per-drop completion', () => {
+    const cards = [owned('SLD', '92'), owned('SLD', '93'), owned('SLD', '507')];
+    const rows = expandSldDrops([progressRow({}), sldRow], cards, SLD_INDEX);
+    expect(rows.some((r) => r.code === 'SLD' && !r.drop)).toBe(false);
+    const kitties = rows.find((r) => r.drop === 'OMG KITTIES');
+    expect(kitties).toMatchObject({
+      code: 'SLD',
+      owned: 2,
+      total: 3,
+      pct: 67,
+      iconSvgUri: 'sld.svg',
+      releasedAt: '2019-12-02',
+    });
+    const rocks = rows.find((r) => r.drop === 'Box of Rocks');
+    expect(rocks).toMatchObject({ owned: 1, total: 2, pct: 50 });
+    // Drops with nothing owned don't clutter the hub.
+    expect(rows.some((r) => r.drop === 'Allied Talismans')).toBe(false);
+    // The non-SLD row survives untouched.
+    expect(rows.some((r) => r.code === 'ONE')).toBe(true);
+  });
+
+  it('counts a multi-drop number toward every drop it was sold in', () => {
+    const rows = expandSldDrops([sldRow], [owned('SLD', '708')], SLD_INDEX);
+    expect(rows.find((r) => r.drop === 'Allied Talismans')).toMatchObject({ owned: 1, total: 1 });
+    expect(rows.find((r) => r.drop === 'Enemy Talismans')).toMatchObject({ owned: 1, total: 1 });
+  });
+
+  it('matches suffixed foil variants through their base number', () => {
+    const rows = expandSldDrops([sldRow], [owned('SLD', '92★')], SLD_INDEX);
+    expect(rows.find((r) => r.drop === 'OMG KITTIES')).toMatchObject({ owned: 1 });
+  });
+
+  it('collects unmapped numbers into one unassigned row with unknown total', () => {
+    const rows = expandSldDrops([sldRow], [owned('SLD', '9999'), owned('SLD', '92')], SLD_INDEX);
+    const rest = rows.find((r) => r.drop === SLD_UNASSIGNED);
+    expect(rest).toMatchObject({ owned: 1, total: 0, pct: 0 });
+  });
+});
+
+describe('sortSetRows', () => {
+  const a = progressRow({
+    code: 'A',
+    name: 'Alpha',
+    releasedAt: '1993-08-05',
+    owned: 5,
+    total: 10,
+    pct: 50,
+  });
+  const b = progressRow({
+    code: 'B',
+    name: 'Beta',
+    releasedAt: '2023-02-03',
+    owned: 9,
+    total: 9,
+    pct: 100,
+  });
+  const c = progressRow({
+    code: 'C',
+    name: 'Ceta',
+    releasedAt: '2020-01-01',
+    owned: 7,
+    total: 100,
+    pct: 7,
+  });
+
+  it('release = newest first (the historical default)', () => {
+    expect(sortSetRows([a, b, c], 'release').map((r) => r.code)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('pct = highest completion first', () => {
+    expect(sortSetRows([a, b, c], 'pct').map((r) => r.code)).toEqual(['B', 'A', 'C']);
+  });
+
+  it('name = alphabetical', () => {
+    expect(sortSetRows([b, c, a], 'name').map((r) => r.code)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('total and owned sort descending', () => {
+    expect(sortSetRows([a, b, c], 'total').map((r) => r.code)).toEqual(['C', 'A', 'B']);
+    expect(sortSetRows([a, b, c], 'owned').map((r) => r.code)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('does not mutate its input', () => {
+    const input = [a, b, c];
+    sortSetRows(input, 'name');
+    expect(input.map((r) => r.code)).toEqual(['A', 'B', 'C']);
   });
 });

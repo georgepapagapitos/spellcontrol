@@ -12,8 +12,8 @@
     "refresh-card-similar": "node scripts/refresh-card-similar.mjs --force",
     "mine:cube-targets": "node scripts/mine-cube-targets.mjs",
     "build:shared": "npm --prefix ../packages/game-core run build && npm --prefix ../packages/binder-routing run build",
-    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs",
-    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs",
+    "predev": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs",
+    "prebuild": "npm run build:shared && node scripts/refresh-tagger.mjs && node scripts/refresh-rules.mjs && node scripts/refresh-sld-drops.mjs",
     "dev": "vite",
     "build": "tsc -p tsconfig.build.json && vite build",
     "preview": "vite preview",
@@ -25,7 +25,8 @@
     "lint:fix": "eslint . --fix",
     "lint:css": "stylelint \"src/**/*.css\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "refresh-sld-drops": "node scripts/refresh-sld-drops.mjs --force"
   },
   "dependencies": {
     "@capacitor-community/camera-preview": "^8.0.1",
@@ -76,6 +77,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.7.0",
     "happy-dom": "^20.10.6",
+    "js-yaml": "^4.3.0",
     "prettier": "^3.8.3",
     "sharp": "^0.35.1",
     "stylelint": "^17.14.0",

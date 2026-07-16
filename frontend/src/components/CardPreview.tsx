@@ -27,6 +27,7 @@ import { CardText, CardLegalities } from './CardDetails';
 import { useCardDetail } from '../lib/use-card-detail';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
+import { SLD_CODE, dropsForNumber, useSldDrops } from '../lib/sld-drops';
 import { formatMoney } from '../lib/format-money';
 import { formatPricedDate } from '../lib/price-freshness';
 import { CardImageFrame } from './CardImageFrame';
@@ -336,6 +337,7 @@ export function CardPreview({
   }, [index]);
 
   useLockBodyScroll();
+  const sldIndex = useSldDrops();
 
   // Symmetric exit: every dismiss path plays sheet-fall, then unmounts.
   const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
@@ -462,6 +464,14 @@ export function CardPreview({
 
   if (!cards[selected]) return null;
   const current = cards[selected];
+
+  // Which Secret Lair drop this printing came from (E140) — SLD cards only.
+  const sldDropLabel =
+    current.setCode?.toUpperCase() === SLD_CODE && sldIndex && current.collectorNumber
+      ? dropsForNumber(sldIndex, current.collectorNumber)
+          .map((d) => d.name)
+          .join(' / ')
+      : '';
 
   const turnCycle = current.layout ? TURN_CYCLE[current.layout] : undefined;
   const turnAngle = turned[selected] ?? 0;
@@ -851,6 +861,9 @@ export function CardPreview({
                     // Collector number completes the printing identity — it's
                     // what disambiguates two otherwise-identical rows.
                     <span className="card-preview-set-code"> · #{current.collectorNumber}</span>
+                  ) : null}
+                  {sldDropLabel ? (
+                    <span className="card-preview-set-code"> · {sldDropLabel}</span>
                   ) : null}
                 </span>
               )}
