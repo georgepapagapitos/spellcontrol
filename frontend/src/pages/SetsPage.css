@@ -11,9 +11,17 @@
   margin: 0;
 }
 
+/* Search + sort control row; wraps on narrow screens. */
+.sets-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .sets-search {
-  align-self: flex-start;
-  width: min(20rem, 100%);
+  flex: 1 1 12rem;
+  max-width: 20rem;
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
@@ -21,6 +29,29 @@
   background: var(--surface);
   color: var(--text-primary);
   font-size: var(--text-sm);
+}
+
+@media (pointer: coarse) {
+  .sets-sort-menu .toolbar-pill,
+  .sets-drop-picker-menu .toolbar-pill {
+    min-height: 44px;
+  }
+}
+
+/* Secret Lair drop filter (E140) on the SLD checklist. */
+.sets-drop-picker {
+  display: flex;
+  align-items: center;
+}
+
+.sets-drop-picker-menu .toolbar-pill {
+  max-width: 100%;
+}
+
+.sets-drop-picker-menu .toolbar-pill-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sets-empty {
