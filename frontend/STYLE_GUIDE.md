@@ -1462,6 +1462,28 @@ for genuinely dense, already-decided lists (the guided-brew pick list, E128
 above). `CommanderResultCard` (by-name search, by-playstyle browse, EDHREC
 top-N, the guided build's playstyle list) is the reference.
 
+### Grid "Details" caption — one line, sort-key echo
+
+A card grid may carry **one** fixed-height text line under each tile — never a
+multi-line name/set/price block (that's what list view is for; names are on
+the art, qty/set/rarity are already overlaid on the tile). The line **echoes
+the active sort key's value** so any ordering is legible in grid view — dates
+for the date sorts, rank for the EDHREC sort — and falls back to **price**
+(the one collector datum the art can't show) for sorts already visible on the
+card. Price is the unit price, USD-pinned like the list rows
+(`purchasePrice` is USD-sourced), with unknown (zero) rendered as `—`.
+
+It's user-dismissable: a `Details` toolbar-pill toggle (`aria-pressed`,
+icon-swap `Captions`/`CaptionsOff` — icon+label swap like Collapse all, no
+accent fill for a persistent display pref), persisted per device
+(`mtg-collection-grid-caption`), default **on**. The caption is
+`aria-hidden` display text, not a control — its value is folded into the
+tile button's `aria-label` instead. Reference: `CardListTable` grid view
+(`.collection-grid-cell` / `.collection-grid-caption`); the caption wraps
+**outside** `.collection-grid-item` because that tile class is shared with
+the Sets/binder-management grids, and its height must stay in lockstep with
+`GRID_CAPTION_H` (the grid virtualizer is measureElement-free).
+
 ### Index tiles wear cover art (E132)
 
 An index of **containers** (decks, binders) gives every grid tile a cover: a

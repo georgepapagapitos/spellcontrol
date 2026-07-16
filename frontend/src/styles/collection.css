@@ -1219,6 +1219,33 @@ i.ss.set-symbol--mythic {
   gap: 0.65rem;
 }
 
+/* Column wrapper for one grid slot: the card tile plus its optional
+   "Details" caption. Exists so the caption rides below the card without
+   touching .collection-grid-item — that class (and its aspect-ratio /
+   radius / overflow) is shared with the Sets and binder-management tiles. */
+.collection-grid-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The "Details" line under a grid card (price, or the active sort value).
+   Exactly one fixed-height line: the grid virtualizer is measureElement-free
+   and adds GRID_CAPTION_H (20px) per row in CardListTable.tsx — if the
+   rendered height drifts from that, scrolling drifts with it. */
+.collection-grid-caption {
+  height: 20px;
+  padding-top: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .collection-grid-item {
   position: relative;
   aspect-ratio: 488 / 680;
