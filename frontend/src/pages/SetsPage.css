@@ -54,6 +54,21 @@
   white-space: nowrap;
 }
 
+/* In-set "Your drops" completion list (E140 follow-up: drops live inside the
+   SLD page, not as top-level hub rows). */
+.sets-detail-drops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sets-detail-drops-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .sets-empty {
   display: flex;
   flex-direction: column;

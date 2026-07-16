@@ -9,7 +9,7 @@ import {
   SET_SORT_LABEL,
   completionPct,
   computeSetProgress,
-  expandSldDrops,
+  computeSldDropProgress,
   overlaySetOwnership,
   sortSetRows,
   type SetGridRow,
@@ -57,19 +57,67 @@ function setRowLink(s: SetProgress): string {
   return s.drop ? `${base}?drop=${encodeURIComponent(s.drop)}` : base;
 }
 
+/** One completion row — a hub set, or a Secret Lair drop inside the SLD page. */
+function SetProgressRow({ s }: { s: SetProgress }) {
+  const complete = s.pct === 100;
+  return (
+    <li>
+      <Link
+        to={setRowLink(s)}
+        className={`sets-row${complete ? ' is-complete' : ''}`}
+        aria-label={
+          s.total > 0
+            ? `${s.name}, ${s.owned} of ${s.total} cards, ${s.pct}% complete`
+            : `${s.name}, ${s.owned} cards owned`
+        }
+      >
+        {s.iconSvgUri ? (
+          <img src={s.iconSvgUri} alt="" aria-hidden className="sets-row-icon" />
+        ) : (
+          <span className="sets-row-icon sets-row-icon-ph" aria-hidden />
+        )}
+        <span className="sets-row-body">
+          <span className="sets-row-name">{s.name}</span>
+          <span className="sets-row-meta">
+            <span className="sets-row-code">{s.code}</span>
+            {releaseYear(s.releasedAt) && <span>{releaseYear(s.releasedAt)}</span>}
+            <span>
+              {s.total > 0
+                ? `${s.owned}/${s.total} cards`
+                : `${s.owned} ${s.owned === 1 ? 'card' : 'cards'}`}
+            </span>
+          </span>
+          {s.total > 0 && (
+            <MeterBar
+              value={s.owned}
+              max={s.total}
+              minPct={1.5}
+              color={complete ? 'var(--brand-seal-gold)' : undefined}
+              className="sets-row-bar"
+            />
+          )}
+        </span>
+        <span className={`sets-row-pct${complete ? ' is-complete' : ''}`}>
+          {complete && <CheckCircle2 width={16} height={16} aria-hidden strokeWidth={2.2} />}
+          {s.total > 0 ? `${s.pct}%` : '—'}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
 function SetsIndex() {
   const cards = useCollectionStore((s) => s.cards);
   const setMap = useSetMap();
-  const sldIndex = useSldDrops();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SetSortKey>(loadSort);
 
-  const progress = useMemo(() => {
-    const rows = computeSetProgress(cards, setMap);
-    // While the drop map loads (undefined) or when it's unavailable (null),
-    // keep today's single flat SLD row rather than blocking the hub.
-    return sortSetRows(sldIndex ? expandSldDrops(rows, cards, sldIndex) : rows, sort);
-  }, [cards, setMap, sldIndex, sort]);
+  // One row per set code — Secret Lair stays a single row here; its per-drop
+  // breakdown lives inside the SLD page ("Your drops"), not at the top level.
+  const progress = useMemo(
+    () => sortSetRows(computeSetProgress(cards, setMap), sort),
+    [cards, setMap, sort]
+  );
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return progress;
@@ -77,7 +125,6 @@ function SetsIndex() {
       (s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
     );
   }, [progress, query]);
-  const setCount = useMemo(() => new Set(progress.map((s) => s.code)).size, [progress]);
   const completeCount = useMemo(() => progress.filter((s) => s.pct === 100).length, [progress]);
 
   return (
@@ -87,7 +134,7 @@ function SetsIndex() {
         <p className="binder-hero-meta sets-page-sub">
           {progress.length === 0
             ? 'Track how much of each Magic set you own.'
-            : `${setCount} ${setCount === 1 ? 'set' : 'sets'} in your collection` +
+            : `${progress.length} ${progress.length === 1 ? 'set' : 'sets'} in your collection` +
               (completeCount > 0 ? ` · ${completeCount} complete` : '')}
         </p>
       </header>
@@ -128,55 +175,9 @@ function SetsIndex() {
             </p>
           ) : (
             <ul className="sets-list">
-              {shown.map((s) => {
-                const complete = s.pct === 100;
-                return (
-                  <li key={s.drop ? `${s.code}:${s.drop}` : s.code}>
-                    <Link
-                      to={setRowLink(s)}
-                      className={`sets-row${complete ? ' is-complete' : ''}`}
-                      aria-label={
-                        s.total > 0
-                          ? `${s.name}, ${s.owned} of ${s.total} cards, ${s.pct}% complete`
-                          : `${s.name}, ${s.owned} cards owned`
-                      }
-                    >
-                      {s.iconSvgUri ? (
-                        <img src={s.iconSvgUri} alt="" aria-hidden className="sets-row-icon" />
-                      ) : (
-                        <span className="sets-row-icon sets-row-icon-ph" aria-hidden />
-                      )}
-                      <span className="sets-row-body">
-                        <span className="sets-row-name">{s.name}</span>
-                        <span className="sets-row-meta">
-                          <span className="sets-row-code">{s.code}</span>
-                          {releaseYear(s.releasedAt) && <span>{releaseYear(s.releasedAt)}</span>}
-                          <span>
-                            {s.total > 0
-                              ? `${s.owned}/${s.total} cards`
-                              : `${s.owned} ${s.owned === 1 ? 'card' : 'cards'}`}
-                          </span>
-                        </span>
-                        {s.total > 0 && (
-                          <MeterBar
-                            value={s.owned}
-                            max={s.total}
-                            minPct={1.5}
-                            color={complete ? 'var(--brand-seal-gold)' : undefined}
-                            className="sets-row-bar"
-                          />
-                        )}
-                      </span>
-                      <span className={`sets-row-pct${complete ? ' is-complete' : ''}`}>
-                        {complete && (
-                          <CheckCircle2 width={16} height={16} aria-hidden strokeWidth={2.2} />
-                        )}
-                        {s.total > 0 ? `${s.pct}%` : '—'}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
+              {shown.map((s) => (
+                <SetProgressRow key={s.code} s={s} />
+              ))}
             </ul>
           )}
         </>
@@ -282,6 +283,13 @@ function SetDetail({ code }: { code: string }) {
       dropParam !== SLD_UNASSIGNED &&
       sldIndex?.drops.find((d) => d.name === dropParam)?.releasedAt) ||
     '';
+  // Per-drop completion over the owned SLD cards — the in-set "Your drops"
+  // list (collection-local; renders even while the checklist fetch is out).
+  const dropRows = useMemo(
+    () =>
+      isSld && sldIndex ? computeSldDropProgress(collection, sldIndex, meta?.iconSvgUri ?? '') : [],
+    [isSld, sldIndex, collection, meta?.iconSvgUri]
+  );
 
   // Seal moment on an observed <100% → 100% transition (never on mount of an
   // already-complete set), once per set per app-open.
@@ -376,6 +384,17 @@ function SetDetail({ code }: { code: string }) {
             className="sets-drop-picker-menu"
           />
         </div>
+      )}
+
+      {isSld && !dropParam && dropRows.length > 0 && (
+        <section className="sets-detail-drops" aria-label="Your Secret Lair drops">
+          <h2 className="sets-detail-drops-title">Your drops</h2>
+          <ul className="sets-list">
+            {dropRows.map((s) => (
+              <SetProgressRow key={s.drop} s={s} />
+            ))}
+          </ul>
+        </section>
       )}
 
       {state.status === 'loading' && (

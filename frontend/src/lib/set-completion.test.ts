@@ -6,7 +6,7 @@ import {
   completionPct,
   computeSetProgress,
   compareCollectorNumbers,
-  expandSldDrops,
+  computeSldDropProgress,
   overlaySetOwnership,
   sortSetRows,
   type SetProgress,
@@ -152,26 +152,10 @@ function progressRow(over: Partial<SetProgress>): SetProgress {
   };
 }
 
-describe('expandSldDrops', () => {
-  const sldRow = progressRow({
-    code: 'SLD',
-    name: 'Secret Lair Drop',
-    iconSvgUri: 'sld.svg',
-    releasedAt: '2019-12-02',
-    owned: 4,
-    total: 2597,
-    pct: 1,
-  });
-
-  it('passes rows through untouched when the collection has no SLD row', () => {
-    const rows = [progressRow({})];
-    expect(expandSldDrops(rows, [owned('ONE', '2')], SLD_INDEX)).toEqual(rows);
-  });
-
-  it('splits the SLD row into per-drop rows with per-drop completion', () => {
-    const cards = [owned('SLD', '92'), owned('SLD', '93'), owned('SLD', '507')];
-    const rows = expandSldDrops([progressRow({}), sldRow], cards, SLD_INDEX);
-    expect(rows.some((r) => r.code === 'SLD' && !r.drop)).toBe(false);
+describe('computeSldDropProgress', () => {
+  it('returns one completion row per drop the collection touches', () => {
+    const cards = [owned('SLD', '92'), owned('SLD', '93'), owned('SLD', '507'), owned('ONE', '2')];
+    const rows = computeSldDropProgress(cards, SLD_INDEX, 'sld.svg');
     const kitties = rows.find((r) => r.drop === 'OMG KITTIES');
     expect(kitties).toMatchObject({
       code: 'SLD',
@@ -183,27 +167,36 @@ describe('expandSldDrops', () => {
     });
     const rocks = rows.find((r) => r.drop === 'Box of Rocks');
     expect(rocks).toMatchObject({ owned: 1, total: 2, pct: 50 });
-    // Drops with nothing owned don't clutter the hub.
+    // Drops with nothing owned don't appear; non-SLD cards are ignored.
     expect(rows.some((r) => r.drop === 'Allied Talismans')).toBe(false);
-    // The non-SLD row survives untouched.
-    expect(rows.some((r) => r.code === 'ONE')).toBe(true);
+    expect(rows).toHaveLength(2);
+  });
+
+  it('returns [] when the collection has no SLD cards', () => {
+    expect(computeSldDropProgress([owned('ONE', '2')], SLD_INDEX)).toEqual([]);
   });
 
   it('counts a multi-drop number toward every drop it was sold in', () => {
-    const rows = expandSldDrops([sldRow], [owned('SLD', '708')], SLD_INDEX);
+    const rows = computeSldDropProgress([owned('SLD', '708')], SLD_INDEX);
     expect(rows.find((r) => r.drop === 'Allied Talismans')).toMatchObject({ owned: 1, total: 1 });
     expect(rows.find((r) => r.drop === 'Enemy Talismans')).toMatchObject({ owned: 1, total: 1 });
   });
 
   it('matches suffixed foil variants through their base number', () => {
-    const rows = expandSldDrops([sldRow], [owned('SLD', '92★')], SLD_INDEX);
+    const rows = computeSldDropProgress([owned('SLD', '92★')], SLD_INDEX);
     expect(rows.find((r) => r.drop === 'OMG KITTIES')).toMatchObject({ owned: 1 });
   });
 
   it('collects unmapped numbers into one unassigned row with unknown total', () => {
-    const rows = expandSldDrops([sldRow], [owned('SLD', '9999'), owned('SLD', '92')], SLD_INDEX);
+    const rows = computeSldDropProgress(
+      [owned('SLD', '9999'), owned('SLD', '92')],
+      SLD_INDEX,
+      'sld.svg'
+    );
     const rest = rows.find((r) => r.drop === SLD_UNASSIGNED);
-    expect(rest).toMatchObject({ owned: 1, total: 0, pct: 0 });
+    expect(rest).toMatchObject({ owned: 1, total: 0, pct: 0, iconSvgUri: 'sld.svg' });
+    // Unassigned trails the mapped drops.
+    expect(rows[rows.length - 1].drop).toBe(SLD_UNASSIGNED);
   });
 });
 

@@ -20,7 +20,7 @@ export interface SetProgress {
   /** 0–100. Only ever 100 when owned covers the whole set. */
   pct: number;
   /**
-   * Set only on Secret Lair drop rows (see {@link expandSldDrops}): the drop
+   * Set only on Secret Lair drop rows (see {@link computeSldDropProgress}): the drop
    * name, or {@link SLD_UNASSIGNED} for owned SLD cards not in the drop map.
    */
   drop?: string;
@@ -78,21 +78,19 @@ export function computeSetProgress(
 }
 
 /**
- * Split the flat "Secret Lair Drop" row into one row per drop the collection
- * touches, so the hub tracks completion per drop the way secretlayer.org
- * identifies them. Non-SLD rows pass through untouched. Owned numbers not in
- * the drop map collapse into one trailing "unassigned" row (total unknown →
- * no %), so no owned card is silently unrepresented. A number sold in more
- * than one drop counts toward each — we can't know which product it came from.
+ * Per-drop completion over the Secret Lair cards the collection touches —
+ * the "Your drops" list inside the SLD set page (the hub keeps its single
+ * flat SLD row; drops are set-internal detail, not top-level sets). Rows come
+ * back newest drop first. Owned numbers not in the drop map collapse into one
+ * trailing "unassigned" row (total unknown → no %), so no owned card is
+ * silently unrepresented. A number sold in more than one drop counts toward
+ * each — we can't know which product it came from.
  */
-export function expandSldDrops(
-  rows: SetProgress[],
+export function computeSldDropProgress(
   cards: EnrichedCard[],
-  index: SldDropsIndex
+  index: SldDropsIndex,
+  iconSvgUri = ''
 ): SetProgress[] {
-  const sldRow = rows.find((r) => r.code === SLD_CODE);
-  if (!sldRow) return rows;
-
   const ownedNumbers = new Set<string>();
   for (const c of cards) {
     if (c.setCode?.toUpperCase() === SLD_CODE && c.collectorNumber) {
@@ -120,7 +118,7 @@ export function expandSldDrops(
       return {
         code: SLD_CODE,
         name: d.name,
-        iconSvgUri: sldRow.iconSvgUri,
+        iconSvgUri,
         releasedAt: d.releasedAt,
         owned,
         total: d.numbers.length,
@@ -132,8 +130,8 @@ export function expandSldDrops(
     dropRows.push({
       code: SLD_CODE,
       name: 'Secret Lair · unassigned',
-      iconSvgUri: sldRow.iconSvgUri,
-      releasedAt: sldRow.releasedAt,
+      iconSvgUri,
+      releasedAt: '',
       owned: unassigned,
       total: 0,
       pct: 0,
@@ -141,7 +139,7 @@ export function expandSldDrops(
     });
   }
 
-  return [...rows.filter((r) => r.code !== SLD_CODE), ...dropRows];
+  return dropRows;
 }
 
 export type SetSortKey = 'release' | 'pct' | 'name' | 'total' | 'owned';
