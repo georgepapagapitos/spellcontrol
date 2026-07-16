@@ -1,6 +1,8 @@
 import {
   AlignJustify,
   Bookmark,
+  Captions,
+  CaptionsOff,
   Check,
   CheckSquare,
   ChevronDown,
@@ -168,6 +170,26 @@ function readStoredGridSize(): GridSize {
     /* ignore */
   }
   return '1x';
+}
+
+// Grid caption — a one-line detail under each card (the "Details" toggle),
+// mirroring the decks "Show" prefs: persisted per device, default on. The
+// caption echoes the active sort key's value (dates for the date sorts,
+// EDHREC rank for that sort, otherwise the card's price) so any ordering
+// reads at a glance in grid view.
+const GRID_CAPTION_KEY = 'mtg-collection-grid-caption';
+// Rendered caption line height (px) — keep in sync with
+// .collection-grid-caption in styles/collection.css. Folded into the grid
+// virtualizer's row-height estimate, which is measureElement-free, so an
+// estimate/CSS mismatch shows up as scroll drift.
+const GRID_CAPTION_H = 20;
+
+function readStoredGridCaption(): boolean {
+  try {
+    return localStorage.getItem(GRID_CAPTION_KEY) !== '0';
+  } catch {
+    return true;
+  }
 }
 type SortKey =
   | 'name'
@@ -405,6 +427,15 @@ export function CardListTable({
     return () => mql.removeEventListener('change', update);
   }, []);
   const effectiveGridSize: GridSize = isNarrow && gridSize === '3x' ? '2x' : gridSize;
+  const [showGridCaption, setShowGridCaptionRaw] = useState<boolean>(readStoredGridCaption);
+  const setShowGridCaption = (next: boolean) => {
+    setShowGridCaptionRaw(next);
+    try {
+      localStorage.setItem(GRID_CAPTION_KEY, next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
   const [binderExpr, setBinderExpr] = useState<ChipExpression>({
     chips: [],
     joiners: [],
@@ -769,6 +800,14 @@ export function CardListTable({
     ]
   );
 
+  // Import timestamp per importId, for the "Date added" sort (whole-import
+  // granularity; cards predating the importId field sort as oldest) and the
+  // grid caption's date-added echo.
+  const addedAtByImportId = useMemo(
+    () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
+    [importHistory]
+  );
+
   const sorted = useMemo(() => {
     const field: SortField = SORT_KEY_TO_FIELD[sortKey];
     const dir: SortDir = sortDir;
@@ -776,9 +815,6 @@ export function CardListTable({
     // "quantity" sort uses the displayed (rolled-up or per-copy) qty.
     const qtyByPrintingKey = new Map<string, number>();
     for (const r of filtered) qtyByPrintingKey.set(printingKey(r.card), r.qty);
-    // Import timestamp per importId, for the "Date added" sort (whole-import
-    // granularity; cards predating the importId field sort as oldest).
-    const addedAtByImportId = new Map(importHistory.map((e) => [e.id, e.addedAt]));
     const ctx: SortContext = { setMap, qtyByPrintingKey, addedAtByImportId };
     const sortedCards = sortCards(
       filtered.map((r) => r.card),
@@ -787,7 +823,7 @@ export function CardListTable({
     );
     const byCopyId = new Map(filtered.map((r) => [r.card.copyId, r]));
     return sortedCards.map((c) => byCopyId.get(c.copyId)!).filter(Boolean) as Row[];
-  }, [filtered, sortKey, sortDir, setMap, importHistory]);
+  }, [filtered, sortKey, sortDir, setMap, addedAtByImportId]);
 
   // "Group by" re-buckets the already-sorted rows under per-attribute section
   // headers. We stable-group `sorted` (within-group order = the user's sort) so
@@ -807,6 +843,34 @@ export function CardListTable({
     );
     return { displayRows: grouped, sectionHeaders: headers };
   }, [sorted, groupField, setMap]);
+
+  // Grid caption text — echoes the active sort key's value so any ordering is
+  // legible in grid view: dates for the date sorts, rank for the EDHREC sort,
+  // otherwise the card's price (the one collector datum the art can't show).
+  // Price is unit + pinned USD, matching the sort key and the list rows
+  // (purchasePrice is USD-sourced; see CardRow).
+  const captionDate = (t: number | undefined): string =>
+    t
+      ? new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      : '—';
+  const captionFor = (r: Row): string => {
+    switch (sortKey) {
+      case 'added':
+        return captionDate(addedAtByImportId.get(r.card.importId ?? ''));
+      case 'edited':
+        return captionDate(r.card.updatedAt ?? addedAtByImportId.get(r.card.importId ?? ''));
+      case 'release': {
+        const released = setMap?.[r.card.setCode.toUpperCase()]?.releasedAt;
+        // Parse as local midnight — a bare YYYY-MM-DD parses as UTC and can
+        // render a day early in negative-offset timezones.
+        return released ? captionDate(new Date(`${released}T00:00:00`).getTime()) : '—';
+      }
+      case 'edhrec':
+        return r.card.edhrecRank != null ? `#${r.card.edhrecRank.toLocaleString('en-US')}` : '—';
+      default:
+        return formatMoney(r.card.purchasePrice, { currency: 'USD', zeroAsDash: true });
+    }
+  };
 
   // Every section key in the current grouping, for the collapse-all/expand-all
   // toggle. Empty when ungrouped.
@@ -937,9 +1001,9 @@ export function CardListTable({
       if (!gridContainerRef.current) return 250;
       const w = gridContainerRef.current.clientWidth;
       const colWidth = (w - GRID_GAP * (gridCols - 1)) / gridCols;
-      return colWidth * (680 / 488) + GRID_GAP;
+      return colWidth * (680 / 488) + (showGridCaption ? GRID_CAPTION_H : 0) + GRID_GAP;
     },
-    [gridCols, gridLayout]
+    [gridCols, gridLayout, showGridCaption]
   );
 
   useLayoutEffect(() => {
@@ -991,6 +1055,14 @@ export function CardListTable({
     overscan: 8,
     scrollMargin,
   });
+
+  // The grid is measureElement-free (the estimate is the truth), so cached row
+  // heights must be dropped when the caption toggles or they'd drift by
+  // GRID_CAPTION_H per row.
+  useEffect(() => {
+    gridVirtualizer.measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGridCaption]);
 
   // Fallback pin line (px) for the active-section trigger, used only until the
   // sticky controls' bottom has been measured. Roughly one header's height.
@@ -1924,6 +1996,26 @@ export function CardListTable({
               }
             />
           )}
+          {view === 'grid' && (
+            <button
+              type="button"
+              className="toolbar-pill"
+              aria-pressed={showGridCaption}
+              onClick={() => setShowGridCaption(!showGridCaption)}
+              title={
+                showGridCaption
+                  ? 'Hide the detail line under each card'
+                  : 'Show a detail line under each card (price, or the active sort value)'
+              }
+            >
+              {showGridCaption ? (
+                <Captions width={14} height={14} strokeWidth={2} aria-hidden />
+              ) : (
+                <CaptionsOff width={14} height={14} strokeWidth={2} aria-hidden />
+              )}
+              <span>Details</span>
+            </button>
+          )}
           <ViewModeToggle<ViewMode>
             ariaLabel="Collection view mode"
             value={view}
@@ -2141,91 +2233,102 @@ export function CardListTable({
                   const foilStyle = classifyFoil(r.card);
                   const foilClass = foilStyle !== 'none' ? ` is-foil foil-${foilStyle}` : '';
                   const selected = selectedRowKeys.has(r.key);
+                  const caption = showGridCaption ? captionFor(r) : null;
                   return (
-                    <div
-                      key={r.key}
-                      role="button"
-                      tabIndex={0}
-                      aria-pressed={selectMode ? selected : undefined}
-                      className={`collection-grid-item grid-${effectiveGridSize}${foilClass}${
-                        selectMode ? ' is-selectable' : ''
-                      }${selected ? ' is-selected' : ''}`}
-                      onClick={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          if (selectMode) toggleRow(r.key);
-                          else setPreviewIndex(idx);
-                        }
-                      }}
-                      aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}${
-                        selectMode ? (selected ? ', selected' : ', not selected') : ''
-                      }`}
-                    >
-                      {selectMode && (
-                        <span className="collection-grid-check" data-checked={selected} aria-hidden>
-                          {selected && <Check width={14} height={14} strokeWidth={3} />}
-                        </span>
-                      )}
-                      {r.card.imageNormal ? (
-                        <img
-                          src={r.card.imageNormal}
-                          alt={r.card.name}
-                          loading="lazy"
-                          className="collection-grid-img"
-                        />
-                      ) : (
-                        <div className="collection-grid-placeholder">{r.card.name}</div>
-                      )}
-                      {r.card.foil && (
-                        <>
-                          <div className="card-preview-foil-shine" aria-hidden="true" />
-                          <div className="card-preview-foil-glare" aria-hidden="true" />
-                        </>
-                      )}
-                      <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
-                      {(r.qty > 1 ||
-                        duplicateNames.has(r.card.name) ||
-                        (surplusOnly && surplusByName.has(r.card.name))) && (
-                        <div className="collection-grid-corner">
-                          {r.qty > 1 && (
-                            <span className="collection-grid-qty">
-                              <span className="collection-grid-qty-x" aria-hidden="true">
-                                ×
+                    <div key={r.key} className="collection-grid-cell">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={selectMode ? selected : undefined}
+                        className={`collection-grid-item grid-${effectiveGridSize}${foilClass}${
+                          selectMode ? ' is-selectable' : ''
+                        }${selected ? ' is-selected' : ''}`}
+                        onClick={() => (selectMode ? toggleRow(r.key) : setPreviewIndex(idx))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            if (selectMode) toggleRow(r.key);
+                            else setPreviewIndex(idx);
+                          }
+                        }}
+                        aria-label={`${r.card.name}, quantity ${r.qty}${r.card.foil ? ', foil' : ''}${
+                          caption && caption !== '—' ? `, ${caption}` : ''
+                        }${selectMode ? (selected ? ', selected' : ', not selected') : ''}`}
+                      >
+                        {selectMode && (
+                          <span
+                            className="collection-grid-check"
+                            data-checked={selected}
+                            aria-hidden
+                          >
+                            {selected && <Check width={14} height={14} strokeWidth={3} />}
+                          </span>
+                        )}
+                        {r.card.imageNormal ? (
+                          <img
+                            src={r.card.imageNormal}
+                            alt={r.card.name}
+                            loading="lazy"
+                            className="collection-grid-img"
+                          />
+                        ) : (
+                          <div className="collection-grid-placeholder">{r.card.name}</div>
+                        )}
+                        {r.card.foil && (
+                          <>
+                            <div className="card-preview-foil-shine" aria-hidden="true" />
+                            <div className="card-preview-foil-glare" aria-hidden="true" />
+                          </>
+                        )}
+                        <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
+                        {(r.qty > 1 ||
+                          duplicateNames.has(r.card.name) ||
+                          (surplusOnly && surplusByName.has(r.card.name))) && (
+                          <div className="collection-grid-corner">
+                            {r.qty > 1 && (
+                              <span className="collection-grid-qty">
+                                <span className="collection-grid-qty-x" aria-hidden="true">
+                                  ×
+                                </span>
+                                {r.qty}
                               </span>
-                              {r.qty}
-                            </span>
-                          )}
-                          {duplicateNames.has(r.card.name) && (
-                            <span
-                              className="collection-grid-set"
-                              title={setSymbolTitle({
-                                setCode: r.card.setCode,
-                                setName:
-                                  r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
-                                collectorNumber: r.card.collectorNumber,
-                                rarity: r.card.rarity,
-                              })}
-                            >
-                              {r.card.setCode.toUpperCase()}
-                            </span>
-                          )}
-                          {surplusOnly && surplusByName.has(r.card.name) && (
-                            <span
-                              className="collection-grid-surplus"
-                              title={`${surplusByName.get(r.card.name)} unallocated ${
-                                surplusByName.get(r.card.name) === 1 ? 'copy' : 'copies'
-                              } beyond your kept copy`}
-                            >
-                              {surplusByName.get(r.card.name)} free
-                            </span>
-                          )}
+                            )}
+                            {duplicateNames.has(r.card.name) && (
+                              <span
+                                className="collection-grid-set"
+                                title={setSymbolTitle({
+                                  setCode: r.card.setCode,
+                                  setName:
+                                    r.card.setName || setMap?.[r.card.setCode.toUpperCase()]?.name,
+                                  collectorNumber: r.card.collectorNumber,
+                                  rarity: r.card.rarity,
+                                })}
+                              >
+                                {r.card.setCode.toUpperCase()}
+                              </span>
+                            )}
+                            {surplusOnly && surplusByName.has(r.card.name) && (
+                              <span
+                                className="collection-grid-surplus"
+                                title={`${surplusByName.get(r.card.name)} unallocated ${
+                                  surplusByName.get(r.card.name) === 1 ? 'copy' : 'copies'
+                                } beyond your kept copy`}
+                              >
+                                {surplusByName.get(r.card.name)} free
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div className="collection-grid-badges">
+                          <DeckBadge allocations={allocationsFor(r.card)} />
+                          <BinderBadge binders={r.binders} />
+                        </div>
+                      </div>
+                      {caption !== null && (
+                        <div className="collection-grid-caption" aria-hidden="true">
+                          {caption}
                         </div>
                       )}
-                      <div className="collection-grid-badges">
-                        <DeckBadge allocations={allocationsFor(r.card)} />
-                        <BinderBadge binders={r.binders} />
-                      </div>
                     </div>
                   );
                 })}
