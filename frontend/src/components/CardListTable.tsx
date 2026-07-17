@@ -5,8 +5,10 @@ import {
   Check,
   CheckSquare,
   ChevronDown,
+  ChevronLeft,
   ChevronsDownUp,
   ChevronsUpDown,
+  Eye,
   LayoutGrid,
   Layers,
   List as ListIconLucide,
@@ -49,7 +51,7 @@ import { useToastsStore } from '../store/toasts';
 import { useRegisterShortcuts, isTypingTarget } from '../lib/shortcut-registry';
 import { setSymbolTitle } from '../lib/set-symbols';
 import { DeckBadge } from './DeckBadge';
-import { Legend } from './Legend';
+import { Legend, LegendContent } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
@@ -183,6 +185,126 @@ const GRID_CAPTION_LABEL: Record<keyof GridCaptionPrefs, string> = {
   sortValue: 'Price / sort value',
   set: 'Set & rarity',
 };
+// Shared checkbox list for the caption prefs — rendered by the desktop
+// "Details" popover and inside the narrow-viewport "View" popover.
+function GridCaptionList({
+  prefs,
+  onChange,
+}: {
+  prefs: GridCaptionPrefs;
+  onChange: (next: GridCaptionPrefs) => void;
+}) {
+  return (
+    <ul className="toolbar-popover-list" role="menu" aria-label="Card details">
+      {(Object.keys(GRID_CAPTION_LABEL) as (keyof GridCaptionPrefs)[]).map((k) => (
+        <li key={k}>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={prefs[k]}
+            className={`toolbar-popover-item${prefs[k] ? ' active' : ''}`}
+            onClick={() => onChange({ ...prefs, [k]: !prefs[k] })}
+          >
+            <span className="toolbar-popover-check" aria-hidden>
+              {prefs[k] ? '✓' : ''}
+            </span>
+            {GRID_CAPTION_LABEL[k]}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const VIEW_MODE_OPTIONS = [
+  {
+    value: 'grid' as const,
+    label: 'Grid view',
+    icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+  },
+  {
+    value: 'list' as const,
+    label: 'List view (with thumbnails)',
+    icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+  },
+  {
+    value: 'compact' as const,
+    label: 'Compact list (text only)',
+    icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+  },
+];
+
+// Narrow-viewport "View" popover panel — consolidates the display controls
+// (layout, card size, Details captions, symbol key) that would otherwise wrap
+// the sticky toolbar onto extra rows on a phone. The symbol key opens as a
+// sub-page of the same panel (the standalone Legend popover's lifetime is tied
+// to its trigger, which unmounts with this panel). State lives here so it
+// resets whenever the popover closes.
+function ViewPopoverPanel({
+  view,
+  setView,
+  zoom,
+  zoomMax,
+  onZoomChange,
+  captionPrefs,
+  onCaptionPrefsChange,
+}: {
+  view: ViewMode;
+  setView: (v: ViewMode) => void;
+  zoom: number;
+  zoomMax: number;
+  onZoomChange: (next: number) => void;
+  captionPrefs: GridCaptionPrefs;
+  onCaptionPrefsChange: (next: GridCaptionPrefs) => void;
+}) {
+  const [keyOpen, setKeyOpen] = useState(false);
+  if (keyOpen) {
+    return (
+      <div className="view-popover-key">
+        <button
+          type="button"
+          className="toolbar-popover-item view-popover-back"
+          onClick={() => setKeyOpen(false)}
+        >
+          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <span>Back</span>
+        </button>
+        <LegendContent context="collection" />
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="view-popover-row">
+        <span className="view-popover-row-label">Layout</span>
+        <ViewModeToggle<ViewMode>
+          ariaLabel="Collection view mode"
+          value={view}
+          onChange={setView}
+          options={VIEW_MODE_OPTIONS}
+        />
+      </div>
+      {view === 'grid' && (
+        <div className="view-popover-row">
+          <span className="view-popover-row-label">Card size</span>
+          <ZoomControl zoom={zoom} max={zoomMax} onChange={onZoomChange} />
+        </div>
+      )}
+      {view === 'grid' && (
+        <div className="view-popover-section">
+          <span className="view-popover-section-title">Details</span>
+          <GridCaptionList prefs={captionPrefs} onChange={onCaptionPrefsChange} />
+        </div>
+      )}
+      <div className="view-popover-section">
+        <button type="button" className="toolbar-popover-item" onClick={() => setKeyOpen(true)}>
+          <span>Symbol key…</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
 // Rendered height (px) of ONE caption line, and the extra height the caption
 // footer plate adds below the last line — keep both in sync with
 // .collection-grid-captions / .collection-grid-caption in styles/collection.css.
@@ -1985,13 +2107,16 @@ export function CardListTable({
               aria-pressed={allCollapsed}
               onClick={toggleAllCollapsed}
               title={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
+              aria-label={allCollapsed ? 'Expand all groups' : 'Collapse all groups'}
             >
               {allCollapsed ? (
                 <ChevronsUpDown width={14} height={14} strokeWidth={2} aria-hidden />
               ) : (
                 <ChevronsDownUp width={14} height={14} strokeWidth={2} aria-hidden />
               )}
-              <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
+              {/* Icon-only on phones — the chevrons glyph + tooltip carry it,
+                  and the label is what pushed the grouped toolbar to a 2nd row. */}
+              {!isNarrow && <span>{allCollapsed ? 'Expand all' : 'Collapse all'}</span>}
             </button>
           )}
           <SelectMenu
@@ -2003,65 +2128,51 @@ export function CardListTable({
             leadingIcon={<SortDirArrow dir={sortDir} />}
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
-          {view === 'grid' && (
-            <ZoomControl
-              zoom={effectiveZoom}
-              max={isNarrow ? ZOOM_MAX_NARROW : ZOOM_MAX}
-              onChange={setGridZoom}
-            />
+          {!isNarrow && view === 'grid' && (
+            <ZoomControl zoom={effectiveZoom} max={ZOOM_MAX} onChange={setGridZoom} />
           )}
-          {view === 'grid' && (
+          {!isNarrow && view === 'grid' && (
             <ToolbarPopover
               label="Details"
               icon={<Captions width={14} height={14} strokeWidth={2} aria-hidden />}
             >
+              {() => <GridCaptionList prefs={gridCaptionPrefs} onChange={setGridCaptionPrefs} />}
+            </ToolbarPopover>
+          )}
+          {!isNarrow && (
+            <ViewModeToggle<ViewMode>
+              ariaLabel="Collection view mode"
+              value={view}
+              onChange={setView}
+              options={VIEW_MODE_OPTIONS}
+            />
+          )}
+          {!isNarrow && <Legend context="collection" align="right" variant="pill" />}
+          {/* ≤640px: the display controls above (zoom, Details, layout, key)
+              collapse into one "View" popover so the sticky toolbar stays a
+              single row — see STYLE_GUIDE "Toolbars & action rows". */}
+          {isNarrow && (
+            <ToolbarPopover
+              label="View"
+              icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+              haspopup="dialog"
+              panelRole="dialog"
+              panelAriaLabel="View options"
+              panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
+            >
               {() => (
-                <ul className="toolbar-popover-list" role="menu" aria-label="Card details">
-                  {(Object.keys(GRID_CAPTION_LABEL) as (keyof GridCaptionPrefs)[]).map((k) => (
-                    <li key={k}>
-                      <button
-                        type="button"
-                        role="menuitemcheckbox"
-                        aria-checked={gridCaptionPrefs[k]}
-                        className={`toolbar-popover-item${gridCaptionPrefs[k] ? ' active' : ''}`}
-                        onClick={() =>
-                          setGridCaptionPrefs({ ...gridCaptionPrefs, [k]: !gridCaptionPrefs[k] })
-                        }
-                      >
-                        <span className="toolbar-popover-check" aria-hidden>
-                          {gridCaptionPrefs[k] ? '✓' : ''}
-                        </span>
-                        {GRID_CAPTION_LABEL[k]}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <ViewPopoverPanel
+                  view={view}
+                  setView={setView}
+                  zoom={effectiveZoom}
+                  zoomMax={ZOOM_MAX_NARROW}
+                  onZoomChange={setGridZoom}
+                  captionPrefs={gridCaptionPrefs}
+                  onCaptionPrefsChange={setGridCaptionPrefs}
+                />
               )}
             </ToolbarPopover>
           )}
-          <ViewModeToggle<ViewMode>
-            ariaLabel="Collection view mode"
-            value={view}
-            onChange={setView}
-            options={[
-              {
-                value: 'grid',
-                label: 'Grid view',
-                icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-              {
-                value: 'list',
-                label: 'List view (with thumbnails)',
-                icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-              {
-                value: 'compact',
-                label: 'Compact list (text only)',
-                icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-            ]}
-          />
-          <Legend context="collection" align="right" variant="pill" />
         </div>
       </div>
 

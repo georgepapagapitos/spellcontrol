@@ -133,6 +133,36 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
         bottom: pos.bottom,
       }}
     >
+      <LegendContent context={context} />
+    </div>
+  );
+
+  return (
+    <div className="legend-disclosure">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={variant === 'pill' ? 'toolbar-pill' : 'legend-trigger'}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label="Show symbol key"
+        onClick={() => (pos ? setPos(null) : place())}
+      >
+        Key
+      </button>
+      {popover && createPortal(popover, document.body)}
+    </div>
+  );
+}
+
+/**
+ * The key's sections, sans positioning — also embedded in the collection
+ * toolbar's narrow-viewport "View" popover, where the key is a sub-page of
+ * the panel rather than its own floating dialog.
+ */
+export function LegendContent({ context }: { context: LegendContext }) {
+  return (
+    <>
       <Section title="Card types" grid>
         {TYPE_ORDER.map((t) => (
           <Entry key={t} glyph={<TypeIcon type={t} />} word={capitalize(t)} />
@@ -248,24 +278,7 @@ export function Legend({ context, align = 'left', variant = 'link' }: LegendProp
           </Section>
         </>
       )}
-    </div>
-  );
-
-  return (
-    <div className="legend-disclosure">
-      <button
-        ref={triggerRef}
-        type="button"
-        className={variant === 'pill' ? 'toolbar-pill' : 'legend-trigger'}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        aria-label="Show symbol key"
-        onClick={() => (pos ? setPos(null) : place())}
-      >
-        Key
-      </button>
-      {popover && createPortal(popover, document.body)}
-    </div>
+    </>
   );
 }
 

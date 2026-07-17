@@ -288,6 +288,20 @@ at 320px. If it can't shrink, it must wrap or collapse.
      by construction.
    - Keep each control compact: a `SelectMenu` shows its **current value** (icon
      - value), not a redundant static label.
+   - **Wrap is the safety net, not the phone layout.** Once a control row
+     carries enough pickers that it *always* wraps on a phone — especially a
+     **sticky** row, where every wrapped line permanently eats content space —
+     consolidate instead of wrapping: split the controls into **data controls**
+     (used while browsing: Select / Group / Sort) and **display preferences**
+     (set-and-forget: zoom, detail-line toggles, view mode, the symbol Key),
+     and collapse the display preferences into **one "View" `ToolbarPopover`
+     at `≤640px`** (labelled rows inside the panel; the Key opens as a
+     sub-page of the same panel). Desktop keeps every control visible. The
+     collection toolbar is the reference (`ViewPopoverPanel` in
+     `CardListTable.tsx`); the Decks-hero `⋮` kebab is the *action-row*
+     analogue of this rule. Contextual buttons that survive on the row (e.g.
+     Expand/Collapse all) may go icon-only on phones **only** if their glyph
+     is unambiguous and they keep `title` + `aria-label`.
 
 3. **Card action rows** — actions in the footer of a list card (the game-night
    cards are the reference). A card earns **at most ~3 visible controls**, at
