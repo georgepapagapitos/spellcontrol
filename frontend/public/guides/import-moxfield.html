@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import a Moxfield collection into SpellControl</title>
+    <meta
+      name="description"
+      content="Export your Moxfield collection as CSV and import it into SpellControl. Edition and collector number resolve exact printings; condition, language, foil, and purchase price are kept."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/import-moxfield.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Import a Moxfield collection into SpellControl" />
+    <meta
+      property="og:description"
+      content="Export your Moxfield collection CSV, then paste or drop the file. Printings, condition, language, foil, and prices come along."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/import-moxfield.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Import guides</a> › Moxfield
+      </nav>
+
+      <h1>Import a Moxfield collection</h1>
+      <p>
+        Moxfield's collection CSV carries edition codes and collector numbers, so SpellControl
+        resolves each row to its exact printing — not just the card name.
+      </p>
+
+      <h2>Export from Moxfield</h2>
+      <ol>
+        <li>On moxfield.com, open your <strong>Collection</strong> page.</li>
+        <li>Open the collection menu and choose <strong>Export</strong> (CSV).</li>
+        <li>Save the file — it downloads with all your copies, one row per printing.</li>
+      </ol>
+
+      <h2>Import into SpellControl</h2>
+      <ol>
+        <li><a href="/collection?add=list">Open SpellControl</a> — the add-cards panel opens.</li>
+        <li>Drop the CSV in, or paste its contents.</li>
+        <li>Review the resolved cards and confirm the import.</li>
+      </ol>
+      <p>The Moxfield format is auto-detected from the file's headers.</p>
+
+      <h2>What SpellControl reads from a Moxfield export</h2>
+      <ul>
+        <li><strong>Exact printing</strong> — name + edition + collector number.</li>
+        <li><strong>Quantity</strong> — the Count column.</li>
+        <li><strong>Finish</strong> — Moxfield's foil column, including etched; a blank value means
+          nonfoil.</li>
+        <li><strong>Condition</strong> — "Near Mint", "Lightly Played", and the rest map onto
+          SpellControl's condition scale.</li>
+        <li><strong>Language</strong> — full names like "Japanese" normalize to the standard
+          codes.</li>
+        <li><strong>Purchase price</strong>, kept on the card.</li>
+      </ul>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>Rows with a count of 0 — wishlist or tradelist-only entries — are skipped rather than
+          imported as one copy. The import summary tells you how many were skipped.</li>
+        <li>Moxfield <em>deck</em> exports (the Arena-style text) also import — see the
+          <a href="/guides/import-mtga.html">Arena &amp; text lists guide</a>.</li>
+      </ul>
+
+      <a class="cta" href="/collection?add=list">Open SpellControl and import</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/import-manabox.html">ManaBox</a> ·
+          <a href="/guides/import-archidekt.html">Archidekt</a> ·
+          <a href="/guides/import-deckbox.html">Deckbox</a> ·
+          <a href="/guides/import-mtga.html">Arena &amp; text lists</a> ·
+          <a href="/guides/import-csv.html">Any CSV</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Card data via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

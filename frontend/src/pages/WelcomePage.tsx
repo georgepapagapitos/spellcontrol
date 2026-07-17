@@ -176,7 +176,10 @@ export function WelcomePage() {
         </section>
 
         <footer className="welcome-footer">
-          <a href="/privacy.html">Privacy</a>
+          <nav className="welcome-footer-links" aria-label="Site links">
+            <a href="/guides/">Import guides</a>
+            <a href="/privacy.html">Privacy</a>
+          </nav>
           <p className="welcome-disclaimer">
             SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
             Content Policy. Not approved or endorsed by Wizards. Magic: The Gathering and its logos
