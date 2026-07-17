@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import any CSV or spreadsheet of Magic cards into SpellControl</title>
+    <meta
+      name="description"
+      content="Import any CSV, TSV, or spreadsheet of Magic: The Gathering cards into SpellControl — TCGplayer, Cardsphere, or your own sheet. One Name column is enough; set, condition, language, foil, and price columns are recognized automatically."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/import-csv.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Import any CSV of Magic cards into SpellControl" />
+    <meta
+      property="og:description"
+      content="One Name column is enough. Set, condition, language, foil, and price columns are recognized automatically."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/import-csv.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Import guides</a> › Any CSV
+      </nav>
+
+      <h1>Import any CSV or spreadsheet</h1>
+      <p>
+        If your collection lives in a tool without a dedicated guide — TCGplayer, Cardsphere, an
+        old tracker, or a spreadsheet you built yourself — it still imports. The only requirement
+        is a <strong>Name</strong> (or <strong>Card Name</strong>) column with one card per row.
+        Every other column is optional; SpellControl recognizes the common names automatically.
+      </p>
+
+      <h2>Columns SpellControl recognizes</h2>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Field</th>
+              <th scope="col">Accepted column names</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Card name (required)</td>
+              <td>Name, Card Name</td>
+            </tr>
+            <tr>
+              <td>Set</td>
+              <td>Set, Set Code, Edition, Edition Code, Expansion, Set Name</td>
+            </tr>
+            <tr>
+              <td>Collector number</td>
+              <td>Collector Number, Card Number, Card #</td>
+            </tr>
+            <tr>
+              <td>Quantity</td>
+              <td>Quantity, Count, Qty</td>
+            </tr>
+            <tr>
+              <td>Finish</td>
+              <td>Foil, Finish, Printing (values like foil, etched, true/false)</td>
+            </tr>
+            <tr>
+              <td>Condition</td>
+              <td>Condition, Card Condition (NM, Near Mint, LP, EX, Played, Damaged…)</td>
+            </tr>
+            <tr>
+              <td>Language</td>
+              <td>Language, Lang (full names or codes)</td>
+            </tr>
+            <tr>
+              <td>Price</td>
+              <td>Purchase Price, Price, Price (USD), Value, Unit Price</td>
+            </tr>
+            <tr>
+              <td>Exact printing</td>
+              <td>Scryfall ID</td>
+            </tr>
+            <tr>
+              <td>Folder / binder</td>
+              <td>Binder Name, Folder, Category, Tags, Collection</td>
+            </tr>
+            <tr>
+              <td>Per-copy flags</td>
+              <td>Altered, Proxy, Misprint</td>
+            </tr>
+            <tr>
+              <td>Rarity</td>
+              <td>Rarity</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Column names are case-insensitive, and column order doesn't matter.</p>
+
+      <h2>Import into SpellControl</h2>
+      <ol>
+        <li><a href="/collection?add=list">Open SpellControl</a> — the add-cards panel opens.</li>
+        <li>Drop the file in, or paste its contents (from a spreadsheet, copy the cells —
+          tab-separated paste works).</li>
+        <li>Review the resolved cards and confirm the import.</li>
+      </ol>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>Comma, tab, and semicolon delimiters are auto-detected; quoted fields (names with
+          commas) are handled.</li>
+        <li>Rows with a quantity of exactly 0 are treated as unowned (wishlist entries) and
+          skipped.</li>
+        <li>Name-only rows import fine — SpellControl picks a printing, and you can fix any
+          copy's printing afterwards. Include set and collector number to pin the exact printing
+          up front.</li>
+        <li>The folder/binder column is kept as each card's source category, so you can see where
+          a copy came from.</li>
+      </ul>
+
+      <a class="cta" href="/collection?add=list">Open SpellControl and import</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/import-manabox.html">ManaBox</a> ·
+          <a href="/guides/import-moxfield.html">Moxfield</a> ·
+          <a href="/guides/import-archidekt.html">Archidekt</a> ·
+          <a href="/guides/import-deckbox.html">Deckbox</a> ·
+          <a href="/guides/import-mtga.html">Arena &amp; text lists</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Card data via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

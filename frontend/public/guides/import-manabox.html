@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import a ManaBox collection into SpellControl</title>
+    <meta
+      name="description"
+      content="Export your ManaBox collection as CSV and import it into SpellControl. The Scryfall ID column pins exact printings; binder names, condition, language, foil, and purchase price are kept."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/import-manabox.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Import a ManaBox collection into SpellControl" />
+    <meta
+      property="og:description"
+      content="Export from ManaBox as CSV, then paste or drop the file. Exact printings via Scryfall ID; binders, condition, and prices come along."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/import-manabox.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Import guides</a> › ManaBox
+      </nav>
+
+      <h1>Import a ManaBox collection</h1>
+      <p>
+        ManaBox exports are the highest-fidelity import SpellControl accepts: every row carries a
+        Scryfall ID, so each card resolves to its exact printing with no name-matching involved.
+      </p>
+
+      <h2>Export from ManaBox</h2>
+      <ol>
+        <li>In ManaBox, open your collection — or a single binder if you only want part of it.</li>
+        <li>Tap the export/share option and choose <strong>Export → CSV</strong>.</li>
+        <li>Get the file onto the device where you'll import — share it to yourself, or open
+          SpellControl on the same phone.</li>
+      </ol>
+
+      <h2>Import into SpellControl</h2>
+      <ol>
+        <li><a href="/collection?add=list">Open SpellControl</a> — the add-cards panel opens.</li>
+        <li>Drop the exported file in, or paste its contents.</li>
+        <li>Review the resolved cards and confirm the import.</li>
+      </ol>
+      <p>
+        The format is auto-detected from the file's headers — you don't tell SpellControl it's a
+        ManaBox export.
+      </p>
+
+      <h2>What SpellControl reads from a ManaBox export</h2>
+      <ul>
+        <li><strong>Exact printing</strong> — direct Scryfall ID lookup, no guessing.</li>
+        <li><strong>Quantity</strong> per card.</li>
+        <li><strong>Finish</strong> — foil, etched, or nonfoil.</li>
+        <li><strong>Condition</strong> — ManaBox's <code>near_mint</code> /
+          <code>lightly_played</code> style values are normalized to SpellControl's condition
+          scale.</li>
+        <li><strong>Language</strong>.</li>
+        <li><strong>Purchase price</strong>, kept on the card.</li>
+        <li><strong>Binder name</strong> — kept as each card's source category, so you can still
+          see which ManaBox binder a copy came from. SpellControl's own binders are rule-based
+          (color, type, set, price, tags), so your cards re-file themselves by rules rather than
+          recreating the old folders one-to-one.</li>
+      </ul>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>CSV and TSV both work — ManaBox's tab-delimited export is fine as-is.</li>
+        <li>Importing twice adds copies; delete an import from the import history if you need to
+          undo one.</li>
+      </ul>
+
+      <a class="cta" href="/collection?add=list">Open SpellControl and import</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/import-moxfield.html">Moxfield</a> ·
+          <a href="/guides/import-archidekt.html">Archidekt</a> ·
+          <a href="/guides/import-deckbox.html">Deckbox</a> ·
+          <a href="/guides/import-mtga.html">Arena &amp; text lists</a> ·
+          <a href="/guides/import-csv.html">Any CSV</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Card data via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

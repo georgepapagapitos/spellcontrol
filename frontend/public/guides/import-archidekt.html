@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import an Archidekt collection into SpellControl</title>
+    <meta
+      name="description"
+      content="Export your Archidekt collection as CSV and import it into SpellControl. Name, edition, and quantity resolve your cards; condition codes, finish, language, and price are kept."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/import-archidekt.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Import an Archidekt collection into SpellControl" />
+    <meta
+      property="og:description"
+      content="Export your Archidekt collection CSV, then paste or drop the file. Printings, condition, finish, and prices come along."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/import-archidekt.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Import guides</a> › Archidekt
+      </nav>
+
+      <h1>Import an Archidekt collection</h1>
+      <p>
+        Archidekt's collection export is a straightforward CSV. SpellControl reads it directly —
+        the more columns you include in the export, the more per-copy detail survives the trip.
+      </p>
+
+      <h2>Export from Archidekt</h2>
+      <ol>
+        <li>On archidekt.com, open your <strong>Collection</strong>.</li>
+        <li>Choose the collection's <strong>Export</strong> option (CSV).</li>
+        <li>If the exporter lets you pick columns, include at least <strong>Name</strong>,
+          <strong>Edition</strong>, and <strong>Quantity</strong> — add Collector Number,
+          Condition, Language, Foil, and Price for full fidelity.</li>
+      </ol>
+
+      <h2>Import into SpellControl</h2>
+      <ol>
+        <li><a href="/collection?add=list">Open SpellControl</a> — the add-cards panel opens.</li>
+        <li>Drop the CSV in, or paste its contents.</li>
+        <li>Review the resolved cards and confirm the import.</li>
+      </ol>
+      <p>The format is auto-detected from the file's headers.</p>
+
+      <h2>What SpellControl reads from an Archidekt export</h2>
+      <ul>
+        <li><strong>Printing</strong> — name + edition, plus collector number when the column is
+          present.</li>
+        <li><strong>Quantity</strong> per card.</li>
+        <li><strong>Finish</strong> — foil, etched, or nonfoil.</li>
+        <li><strong>Condition</strong> — NM / LP / MP / HP / DMG codes normalize to
+          SpellControl's condition scale.</li>
+        <li><strong>Language</strong>.</li>
+        <li><strong>Price</strong>, kept on the card as its purchase price.</li>
+        <li><strong>Category or tags</strong> — kept as each card's source category.</li>
+      </ul>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>Archidekt <em>deck</em> exports in Arena text format also import — see the
+          <a href="/guides/import-mtga.html">Arena &amp; text lists guide</a>.</li>
+        <li>Rows without an edition still import; SpellControl picks a printing, and you can fix
+          any copy's printing afterwards.</li>
+      </ul>
+
+      <a class="cta" href="/collection?add=list">Open SpellControl and import</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/import-manabox.html">ManaBox</a> ·
+          <a href="/guides/import-moxfield.html">Moxfield</a> ·
+          <a href="/guides/import-deckbox.html">Deckbox</a> ·
+          <a href="/guides/import-mtga.html">Arena &amp; text lists</a> ·
+          <a href="/guides/import-csv.html">Any CSV</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Card data via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

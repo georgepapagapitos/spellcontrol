@@ -188,6 +188,12 @@
   text-align: center;
 }
 
+.welcome-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
 .welcome-footer a {
   font-size: var(--text-sm);
   color: var(--accent);

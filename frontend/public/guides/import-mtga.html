@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import an MTG Arena deck or text list into SpellControl</title>
+    <meta
+      name="description"
+      content="Paste an MTG Arena deck export or any plain text card list into SpellControl. Quantities, set codes, collector numbers, and foil markers are read; Deck/Sideboard/Commander sections are recognized."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/import-mtga.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Import an MTG Arena deck or text list into SpellControl" />
+    <meta
+      property="og:description"
+      content="Paste an Arena export or a plain list of card names — quantities, sets, and foil markers are read."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/import-mtga.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Import guides</a> › Arena &amp; text
+        lists
+      </nav>
+
+      <h1>Import an Arena deck or plain text list</h1>
+      <p>
+        Any text list of cards imports into SpellControl — an MTG Arena export, a deck list copied
+        from a deck site, or names you typed yourself. One card per line.
+      </p>
+
+      <h2>Line formats that work</h2>
+      <pre><code>1 Sol Ring (CMR) 472
+1 Sol Ring (CMR)
+4x Lightning Bolt
+Sol Ring</code></pre>
+      <ul>
+        <li>Quantity is optional — a bare name imports one copy; <code>4</code> and
+          <code>4x</code> both work.</li>
+        <li>A set code in parentheses pins the printing; adding the collector number pins it
+          exactly.</li>
+        <li><code>*FOIL*</code>, <code>[FOIL]</code>, <code>*F*</code>, <code>*ETCHED*</code>, and
+          <code>[ETCHED]</code> after a name set the finish.</li>
+        <li>Section headers — <code>Deck</code>, <code>Sideboard</code>, <code>Commander</code>,
+          <code>Companion</code>, <code>Maybeboard</code> — are recognized, and lines starting
+          with <code>//</code> or <code>#</code> are ignored as comments.</li>
+      </ul>
+
+      <h2>Export from MTG Arena</h2>
+      <ol>
+        <li>In Arena, open <strong>Decks</strong> and select a deck.</li>
+        <li>Choose <strong>Export</strong> — the list is copied to your clipboard.</li>
+        <li>Paste it into SpellControl.</li>
+      </ol>
+      <p>
+        The same works for the "export to Arena" text that deck sites like Moxfield, Archidekt,
+        and EDHREC produce.
+      </p>
+
+      <h2>Import into SpellControl</h2>
+      <ol>
+        <li><a href="/collection?add=list">Open SpellControl</a> — the add-cards panel opens.</li>
+        <li>Paste the list.</li>
+        <li>Review the resolved cards and confirm the import.</li>
+      </ol>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>Lines without a set code resolve to a printing SpellControl picks; you can change any
+          copy's printing afterwards. Add <code>(SET) number</code> to pin it up front.</li>
+        <li>Arena set codes occasionally differ from paper codes for remastered sets; spot-check
+          those few cards after import.</li>
+      </ul>
+
+      <a class="cta" href="/collection?add=list">Open SpellControl and import</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/import-manabox.html">ManaBox</a> ·
+          <a href="/guides/import-moxfield.html">Moxfield</a> ·
+          <a href="/guides/import-archidekt.html">Archidekt</a> ·
+          <a href="/guides/import-deckbox.html">Deckbox</a> ·
+          <a href="/guides/import-csv.html">Any CSV</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Card data via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

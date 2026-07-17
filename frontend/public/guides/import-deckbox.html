@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Import a Deckbox inventory into SpellControl</title>
+    <meta
+      name="description"
+      content="Export your Deckbox inventory as CSV and import it into SpellControl. Owned copies import with condition, language, foil, and price; wishlist-only rows are skipped."
+    />
+    <link rel="canonical" href="https://spellcontrol.com/guides/import-deckbox.html" />
+    <link rel="icon" type="image/svg+xml" href="/sc-icon.svg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="SpellControl" />
+    <meta property="og:title" content="Import a Deckbox inventory into SpellControl" />
+    <meta
+      property="og:description"
+      content="Export your Deckbox inventory CSV, then paste or drop the file. Condition, language, foil, and prices come along."
+    />
+    <meta property="og:url" content="https://spellcontrol.com/guides/import-deckbox.html" />
+    <meta property="og:image" content="https://spellcontrol.com/og-image.png" />
+    <link rel="stylesheet" href="/guides/guides.css" />
+  </head>
+  <body>
+    <main>
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href="/">SpellControl</a> › <a href="/guides/">Import guides</a> › Deckbox
+      </nav>
+
+      <h1>Import a Deckbox inventory</h1>
+      <p>
+        Deckbox's inventory export is a plain CSV that SpellControl reads directly. Export the
+        <em>inventory</em> (not the wishlist) — rows with a count of 0 are treated as unowned and
+        skipped.
+      </p>
+
+      <h2>Export from Deckbox</h2>
+      <ol>
+        <li>On deckbox.org, open your <strong>Inventory</strong>.</li>
+        <li>Choose <strong>Export</strong> from the inventory's tools and pick CSV.</li>
+        <li>Save the file.</li>
+      </ol>
+
+      <h2>Import into SpellControl</h2>
+      <ol>
+        <li><a href="/collection?add=list">Open SpellControl</a> — the add-cards panel opens.</li>
+        <li>Drop the CSV in, or paste its contents.</li>
+        <li>Review the resolved cards and confirm the import.</li>
+      </ol>
+      <p>The format is auto-detected from the file's headers.</p>
+
+      <h2>What SpellControl reads from a Deckbox export</h2>
+      <ul>
+        <li><strong>Printing</strong> — name + edition, plus the card number when present.</li>
+        <li><strong>Quantity</strong> — the Count column; count-0 rows (wishlist or trade-only
+          entries) are skipped rather than imported as one copy.</li>
+        <li><strong>Finish</strong> — the foil column.</li>
+        <li><strong>Condition</strong> — Deckbox's condition names, including "Good" and
+          "Played", normalize to SpellControl's NM–damaged scale.</li>
+        <li><strong>Language</strong>.</li>
+        <li><strong>Price</strong>, when a price column is present.</li>
+      </ul>
+
+      <h2>Notes</h2>
+      <ul>
+        <li>Deckbox set names sometimes differ from official set codes; SpellControl resolves by
+          name + set and picks the best match. Spot-check a few promos and special printings
+          after import — you can fix any copy's printing in the app.</li>
+      </ul>
+
+      <a class="cta" href="/collection?add=list">Open SpellControl and import</a>
+      <p class="cta-note">Free, no account required.</p>
+
+      <footer>
+        <p>
+          More guides: <a href="/guides/import-manabox.html">ManaBox</a> ·
+          <a href="/guides/import-moxfield.html">Moxfield</a> ·
+          <a href="/guides/import-archidekt.html">Archidekt</a> ·
+          <a href="/guides/import-mtga.html">Arena &amp; text lists</a> ·
+          <a href="/guides/import-csv.html">Any CSV</a>
+        </p>
+        <p>
+          SpellControl is unofficial Fan Content permitted under the Wizards of the Coast Fan
+          Content Policy. Not approved or endorsed by Wizards. Card data via Scryfall.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
