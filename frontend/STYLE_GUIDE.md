@@ -163,7 +163,7 @@ a control row (then the whole `.toolbar-pill` segmented family is `999px`, e.g.
 is not that — its options are rects.
 
 **Toolbar steppers: ends disable, never hide.** A −/+ stepper over an ordered
-range (the card-size `ZoomControl` in the collection/deck grids) renders as a
+range (the card-size `ZoomControl` in the collection/deck/list grids) renders as a
 `.toolbar-viewmode` button pair — same pill family, lucide glyphs at
 `width/height={14}`, and the coarse-pointer 2.75rem touch sizing for free. At a
 range bound the end button gets `disabled` (`.toolbar-viewmode-btn:disabled`:

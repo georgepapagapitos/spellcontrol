@@ -1423,20 +1423,21 @@
 
 .list-entries-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+
+  /* Zoom-driven min column width — ListDetailView sets both vars inline per
+     zoom step (lib/grid-zoom.ts ladders); the mobile ladder takes over
+     ≤1024px. min(…, 100%) keeps a big step from overflowing a narrow
+     container (it clamps to one full-width column instead). Same pattern as
+     .deck-card-grid / the collection grid. */
+  --card-min: var(--card-min-desktop, 150px);
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), 100%), 1fr));
   gap: 0.65rem;
   padding-bottom: var(--space-4);
 }
 
-@media (min-width: 480px) {
+@media (max-width: 1024px) {
   .list-entries-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
-}
-
-@media (min-width: 768px) {
-  .list-entries-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    --card-min: var(--card-min-mobile, 110px);
   }
 }
 
@@ -1520,6 +1521,22 @@
   opacity: 0.7;
   margin-right: 0.15em;
   font-weight: 600;
+}
+
+/* Coarse zoom buckets (grid-1x/2x/3x, from lib/grid-zoom.ts zoomBucket) scale
+   the qty pill with the card — same values as the collection grid's. */
+.list-entries-grid.grid-2x .list-entries-grid-qty {
+  font-size: var(--text-base);
+  padding: var(--space-1) 0.65rem;
+  bottom: 6px;
+  left: 6px;
+}
+
+.list-entries-grid.grid-3x .list-entries-grid-qty {
+  font-size: var(--text-lg);
+  padding: 0.3rem var(--space-3);
+  bottom: var(--space-2);
+  left: var(--space-2);
 }
 
 /* ---------- Admin panel (Settings page, role=admin only) ---------- */
