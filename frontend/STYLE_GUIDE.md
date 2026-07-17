@@ -1485,11 +1485,26 @@ device as JSON (`mtg-collection-grid-caption-prefs`, migrating the retired
 boolean `mtg-collection-grid-caption`), all lines default **on**. Captions are
 `aria-hidden` display text, not controls — their values fold into the tile
 button's `aria-label` instead. Reference: `CardListTable` grid view
-(`.collection-grid-cell` / `.collection-grid-caption[--set]`); captions wrap
-**outside** `.collection-grid-item` because that tile class is shared with
-the Sets/binder-management grids, and each line's rendered height must stay
-in lockstep with `GRID_CAPTION_H` × enabled lines (the grid virtualizer is
-measureElement-free).
+(`.collection-grid-cell` / `.collection-grid-captions` /
+`.collection-grid-caption[--set]`); captions wrap **outside**
+`.collection-grid-item` because that tile class is shared with the
+Sets/binder-management grids, and the plate's net rendered height must stay
+in lockstep with `GRID_CAPTION_H` × enabled lines + `GRID_CAPTION_PLATE_PAD`
+(the grid virtualizer is measureElement-free).
+
+**Captions attach visually, not by proximity alone.** The lines ride on a
+`--surface` **footer plate** (`.collection-grid-captions`, bottom corners
+`var(--radius)`) tucked up behind the card's bottom edge (negative
+margin + `z-index: -1` inside the cell's stacking context), so card + captions
+read as one tile and the row gap stays clearly empty — mirrors the E132
+"tiles wear their meta" posture.
+
+**A caption line suppresses the on-card overlays it duplicates.** With the
+Set & rarity line on, the tile's `RarityBadge` and the duplicate-printings
+set-code corner chip are not rendered (rarity lives in the glyph tint, set
+code in the caption); they return when the line is toggled off. Overlays
+nothing duplicates (qty, surplus, deck/binder badges) always stay. Don't show
+the same datum twice on one tile.
 
 ### Index tiles wear cover art (E132)
 
