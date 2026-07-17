@@ -1,6 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, CheckCircle2, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  List as ListIconLucide,
+  Plus,
+} from 'lucide-react';
 import './SetsPage.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
@@ -11,6 +20,7 @@ import {
   completionPct,
   computeSetProgress,
   computeSldDropProgress,
+  filterSetRows,
   overlaySetOwnership,
   searchCollectionCardSets,
   sortSetRows,
@@ -27,6 +37,7 @@ import {
   type SldDropsIndex,
 } from '../lib/sld-drops';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCollectionStore } from '../store/collection';
 import { useToastsStore } from '../store/toasts';
@@ -58,6 +69,16 @@ const SORT_STORAGE_KEY = 'sets-sort';
 function loadSort(): SetSortKey {
   const saved = localStorage.getItem(SORT_STORAGE_KEY);
   return saved && saved in SET_SORT_LABEL ? (saved as SetSortKey) : 'release';
+}
+
+// Checklist layout (grid of card images / dense list rows), persisted per
+// device like the collection view mode. Grid default per STYLE_GUIDE E127.
+type SetDetailView = 'grid' | 'list';
+
+const DETAIL_VIEW_KEY = 'sets-detail-view';
+
+function loadDetailView(): SetDetailView {
+  return localStorage.getItem(DETAIL_VIEW_KEY) === 'list' ? 'list' : 'grid';
 }
 
 /** Hub link for a progress row — drop rows deep-link into the SLD checklist. */
@@ -540,14 +561,25 @@ function SetDetail({ code }: { code: string }) {
   }, [pct, rows.length, sealKey, displayName, fireSealMoment, pushToast]);
 
   const [filter, setFilter] = useState<OwnFilter>('all');
+  const [query, setQuery] = useState('');
+  const [view, setViewRaw] = useState<SetDetailView>(loadDetailView);
+  const setView = (v: SetDetailView) => {
+    setViewRaw(v);
+    localStorage.setItem(DETAIL_VIEW_KEY, v);
+  };
+  // Search narrows the checklist first; the ownership tabs then count within
+  // the searched scope (mirrors the collection's "N of M" behavior). The
+  // completion meter above stays whole-checklist — search never distorts it.
+  const searched = useMemo(() => filterSetRows(rows, query), [rows, query]);
+  const searchedOwned = useMemo(() => searched.filter((r) => r.qty > 0).length, [searched]);
   const filtered = useMemo(
     () =>
       filter === 'owned'
-        ? rows.filter((r) => r.qty > 0)
+        ? searched.filter((r) => r.qty > 0)
         : filter === 'missing'
-          ? rows.filter((r) => r.qty === 0)
-          : rows,
-    [rows, filter]
+          ? searched.filter((r) => r.qty === 0)
+          : searched,
+    [searched, filter]
   );
 
   // Carousel over the filtered rows; missing cards are synthetic EnrichedCards
@@ -668,6 +700,37 @@ function SetDetail({ code }: { code: string }) {
             />
           </div>
 
+          <div className="sets-toolbar sets-detail-toolbar">
+            <input
+              type="search"
+              className="sets-search"
+              placeholder="Search cards…"
+              aria-label="Search this checklist by card name or collector number"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPreviewIndex(null);
+              }}
+            />
+            <ViewModeToggle<SetDetailView>
+              ariaLabel="Checklist view"
+              value={view}
+              onChange={setView}
+              options={[
+                {
+                  value: 'grid',
+                  label: 'Grid view',
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'list',
+                  label: 'List view',
+                  icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+              ]}
+            />
+          </div>
+
           <Tabs
             ariaLabel="Filter cards by ownership"
             variant="scrollable"
@@ -677,26 +740,34 @@ function SetDetail({ code }: { code: string }) {
               setPreviewIndex(null);
             }}
             tabs={[
-              { id: 'all', label: 'All', count: rows.length },
-              { id: 'owned', label: 'Owned', count: ownedCount },
-              { id: 'missing', label: 'Missing', count: rows.length - ownedCount },
+              { id: 'all', label: 'All', count: searched.length },
+              { id: 'owned', label: 'Owned', count: searchedOwned },
+              { id: 'missing', label: 'Missing', count: searched.length - searchedOwned },
             ]}
           />
 
           {filtered.length === 0 ? (
             <p className="sets-status" role="status">
-              {filter === 'missing'
-                ? `You own every card in ${displayName}.`
-                : filter === 'owned'
-                  ? `Nothing from ${displayName} yet — tap a card to add it.`
-                  : `Scryfall lists no cards for ${displayName}.`}
+              {query.trim()
+                ? `No cards in ${displayName} match “${query.trim()}”.`
+                : filter === 'missing'
+                  ? `You own every card in ${displayName}.`
+                  : filter === 'owned'
+                    ? `Nothing from ${displayName} yet — tap a card to add it.`
+                    : `Scryfall lists no cards for ${displayName}.`}
             </p>
-          ) : (
+          ) : view === 'grid' ? (
             <div className="set-grid">
               {filtered.map((r, idx) => (
                 <SetTile key={r.card.id} row={r} onOpen={() => setPreviewIndex(idx)} />
               ))}
             </div>
+          ) : (
+            <ul className="set-list">
+              {filtered.map((r, idx) => (
+                <SetListRow key={r.card.id} row={r} onOpen={() => setPreviewIndex(idx)} />
+              ))}
+            </ul>
           )}
 
           {previewIndex !== null && previewCards[previewIndex] && (
@@ -733,6 +804,42 @@ function SetDetail({ code }: { code: string }) {
         </>
       )}
     </div>
+  );
+}
+
+/** Dense checklist row — the list-view sibling of SetTile (same aria/behavior). */
+function SetListRow({ row, onOpen }: { row: SetGridRow; onOpen: () => void }) {
+  const { card, qty } = row;
+  const thumb =
+    card.image_uris?.small ||
+    card.card_faces?.[0]?.image_uris?.small ||
+    card.image_uris?.normal ||
+    card.card_faces?.[0]?.image_uris?.normal;
+  const missing = qty === 0;
+  return (
+    <li>
+      <button
+        type="button"
+        className={`set-list-row${missing ? ' is-missing' : ''}`}
+        onClick={onOpen}
+        aria-label={`${card.name}, #${card.collector_number}, ${
+          missing ? 'missing' : `owned${qty > 1 ? ` ×${qty}` : ''}`
+        }`}
+      >
+        {thumb ? (
+          <img src={thumb} alt="" aria-hidden loading="lazy" className="set-list-thumb" />
+        ) : (
+          <span className="set-list-thumb set-list-thumb-ph" aria-hidden />
+        )}
+        <span className="set-list-num">#{card.collector_number}</span>
+        <span className="set-list-name">{card.name}</span>
+        {qty > 1 && <span className="set-list-qty">×{qty}</span>}
+        {card.rarity && <RarityBadge rarity={card.rarity} />}
+        <span className={`sets-card-badge ${missing ? 'is-missing' : 'is-owned'}`}>
+          {missing ? 'Missing' : 'Owned'}
+        </span>
+      </button>
+    </li>
   );
 }
 

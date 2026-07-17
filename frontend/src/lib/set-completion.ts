@@ -8,6 +8,7 @@ import {
   dropsForNumber,
   type SldDropsIndex,
 } from './sld-drops';
+import { normalizeForSearch } from './normalize-search';
 
 /**
  * Set-completion math (E131). Ownership is printing-keyed: you "have" a
@@ -251,6 +252,22 @@ export function searchCollectionCardSets(
     return pa - pb || a.name.localeCompare(b.name);
   });
   return { matches: all.slice(0, maxCards), total: all.length };
+}
+
+/**
+ * Filter checklist rows by card name (diacritic/case-insensitive) or
+ * collector-number prefix ("12" matches #12, #120, #123a).
+ */
+export function filterSetRows(rows: SetGridRow[], query: string): SetGridRow[] {
+  const q = query.trim();
+  if (!q) return rows;
+  const nq = normalizeForSearch(q);
+  const lower = q.toLowerCase();
+  return rows.filter(
+    (r) =>
+      normalizeForSearch(r.card.name).includes(nq) ||
+      (r.card.collector_number ?? '').toLowerCase().startsWith(lower)
+  );
 }
 
 /** Overlay collection ownership onto a set's full card list, checklist order. */

@@ -7,6 +7,7 @@ import {
   computeSetProgress,
   compareCollectorNumbers,
   computeSldDropProgress,
+  filterSetRows,
   overlaySetOwnership,
   searchCollectionCardSets,
   sortSetRows,
@@ -125,6 +126,37 @@ describe('overlaySetOwnership', () => {
     );
     expect(rows.map((r) => r.card.collector_number)).toEqual(['2', '3', '10']);
     expect(rows.map((r) => r.qty)).toEqual([2, 0, 0]);
+  });
+});
+
+describe('filterSetRows', () => {
+  const rows = [
+    { card: setCard('12', 'Lightning Bolt'), qty: 1 },
+    { card: setCard('120', 'Séance'), qty: 0 },
+    { card: setCard('3', 'Counterspell'), qty: 2 },
+  ];
+
+  it('returns all rows for an empty/whitespace query', () => {
+    expect(filterSetRows(rows, '')).toEqual(rows);
+    expect(filterSetRows(rows, '   ')).toEqual(rows);
+  });
+
+  it('matches card names case-insensitively', () => {
+    expect(filterSetRows(rows, 'bolt').map((r) => r.card.name)).toEqual(['Lightning Bolt']);
+    expect(filterSetRows(rows, 'COUNTER').map((r) => r.card.name)).toEqual(['Counterspell']);
+  });
+
+  it('matches names diacritic-insensitively', () => {
+    expect(filterSetRows(rows, 'seance').map((r) => r.card.name)).toEqual(['Séance']);
+  });
+
+  it('matches collector-number prefixes', () => {
+    expect(filterSetRows(rows, '12').map((r) => r.card.collector_number)).toEqual(['12', '120']);
+    expect(filterSetRows(rows, '3').map((r) => r.card.collector_number)).toEqual(['3']);
+  });
+
+  it('returns nothing when neither name nor number matches', () => {
+    expect(filterSetRows(rows, 'zzz')).toEqual([]);
   });
 });
 
