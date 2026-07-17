@@ -1,4 +1,4 @@
-import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { GapAnalysisCard, HiddenGemRow, HiddenGemSignal } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import type { ChangeOwnership } from './deck-change';
 import { normalizeForSearch } from './normalize-search';
@@ -15,24 +15,28 @@ import { comboPayoffScore } from './combo-payoff';
 export type Ownership = 'owned' | 'in-other-deck' | 'in-cube' | 'unowned';
 
 /**
- * One row in the deck editor's "Suggestions" add-cards tab. Both kinds are
+ * One row in the deck editor's "Suggestions" add-cards tab. All kinds are
  * pure ADD recommendations derived from data already on the deck — EDHREC
- * staples the deck doesn't run yet (`staple`) and the single missing card that
- * would complete a one-away combo (`combo`). No new network/computation.
+ * staples the deck doesn't run yet (`staple`), the single missing card that
+ * would complete a one-away combo (`combo`), and underrated hidden gems with
+ * lift/similar/axis evidence (`gem`, E146). No new network/computation.
  */
 export interface SuggestionRow {
   name: string;
-  kind: 'staple' | 'combo';
+  kind: 'staple' | 'combo' | 'gem';
   ownership: Ownership;
   /** EDHREC inclusion % (staples only). */
   inclusion?: number;
   /** Functional role label, e.g. "Ramp" (staples only). */
   roleLabel?: string;
   imageUrl?: string;
-  /** EDHREC price string (staples only) — shown for `unowned` buy candidates. */
+  /** EDHREC price string (staples/gems) — shown for `unowned` buy candidates. */
   price?: string | null;
   /** What completing the combo produces, e.g. "Infinite mana" (combos only). */
   produces?: string;
+  /** Evidence behind a gem, strongest first (gems only) — the UI renders the
+   *  copy via hiddenGemSignalCopy so the fixed vocabulary lives in one place. */
+  signals?: HiddenGemSignal[];
 }
 
 /** How many actionable suggestions fall in each availability bucket (pre-filter). */
@@ -54,6 +58,8 @@ export interface SuggestionFilter {
 export interface SuggestionRows {
   staples: SuggestionRow[];
   combos: SuggestionRow[];
+  /** Underrated hidden-gem rows (E146), engine-ranked, availability-first. */
+  gems: SuggestionRow[];
   /** Totals across every bucket, ignoring `show` — drives the chip counts. */
   counts: SuggestionCounts;
 }
@@ -86,9 +92,11 @@ export function buildSuggestionRows(
     query: string;
     inDeck: Set<string>;
     show: SuggestionFilter;
+    /** Hidden-gem rows from the deck's analysis (E146). */
+    hiddenGems?: HiddenGemRow[];
   }
 ): SuggestionRows {
-  const { ownershipFor, query, inDeck, show } = opts;
+  const { ownershipFor, query, inDeck, show, hiddenGems } = opts;
   const nq = normalizeForSearch(query);
   const matchesQuery = (name: string) => !nq || normalizeForSearch(name).includes(nq);
   const ownershipOf = (name: string): Ownership => {
@@ -171,5 +179,32 @@ export function buildSuggestionRows(
     });
   }
 
-  return { staples, combos, counts };
+  // Hidden gems (E146): engine-ranked already; availability-first like
+  // staples, engine order as the tie-break. A gem that meanwhile became a
+  // staple/combo row (or entered the deck) is dropped by the shared dedupe.
+  const gems: SuggestionRow[] = [];
+  for (const g of hiddenGems ?? []) {
+    if (inDeck.has(g.name.toLowerCase())) continue;
+    if (seen.has(g.name)) continue;
+    if (!matchesQuery(g.name)) continue;
+    seen.add(g.name);
+    const ownership = ownershipOf(g.name);
+    tally(ownership);
+    if (!shown(ownership)) continue;
+    gems.push({
+      name: g.name,
+      kind: 'gem',
+      ownership,
+      price: g.price,
+      signals: g.signals,
+    });
+  }
+  const gemRank = new Map(gems.map((g, i) => [g.name, i]));
+  gems.sort((a, b) =>
+    RANK[a.ownership] !== RANK[b.ownership]
+      ? RANK[a.ownership] - RANK[b.ownership]
+      : (gemRank.get(a.name) ?? 0) - (gemRank.get(b.name) ?? 0)
+  );
+
+  return { staples, combos, gems, counts };
 }

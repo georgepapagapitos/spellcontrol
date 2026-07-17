@@ -4,6 +4,7 @@ import type {
   EDHRECCommanderData,
   DetectedCombo,
   GapAnalysisCard,
+  HiddenGemRow,
   LiftEntry,
   Pacing,
 } from '@/deck-builder/types';
@@ -42,6 +43,8 @@ import {
 import { getDynamicRoleTargets } from './roleTargets';
 import { buildCommanderProfile } from './commanderProfile';
 import { buildGapAnalysis } from './gapAnalysisBuilder';
+import { computeHiddenGems } from './hiddenGems';
+import { loadCardSimilar, getSimilarRank } from './cardSimilar';
 import { computePlanScore, type PlanScore, type StrategyEngineInput } from './planScore';
 import { buildCostPlan, type CostPlan } from './costAnalyzer';
 import { frontFaceName } from '@/lib/card-text';
@@ -403,6 +406,9 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   roleTargets?: Record<string, number>;
   /** Top EDHREC-recommended cards not already in the deck, ranked by inclusion. */
   gapAnalysis?: GapAnalysisCard[];
+  /** Underrated suggestions the inclusion ranking missed (E146) — always set
+   *  on success (empty = nothing qualified), so stale rows clear on re-analysis. */
+  hiddenGems?: HiddenGemRow[];
   /** Per-card EDHREC inclusion % keyed by card name (basics omitted). */
   cardInclusionMap?: Record<string, number>;
   /** 0-100 PlanScore (strategy/roles/curve/cardFit). Undefined if not computable. */
@@ -669,6 +675,38 @@ export async function analyzeCommanderDeck(
     // `isOwned` later against the live collection.
     const gapAnalysis = buildGapAnalysis(edhrecData, allCardNames, { liftIndex });
 
+    // Hidden gems (E146): underrated candidates the inclusion ranking above
+    // missed, vouched for by lift / similar / axis evidence. Best-effort — a
+    // failure (similar snapshot unreachable, card batch fetch down) yields an
+    // empty lane, never a failed analysis. Always an array so a re-analysis
+    // clears stale rows.
+    let hiddenGems: HiddenGemRow[] = [];
+    try {
+      await loadCardSimilar(); // soft-fails → getSimilarRank returns null
+      hiddenGems = await computeHiddenGems({
+        deckCards: params.cards,
+        commanders: [
+          params.commander,
+          ...(params.partnerCommander ? [params.partnerCommander] : []),
+        ],
+        // Same fallback the editor uses: commander identities when the caller
+        // didn't pass an explicit identity.
+        colorIdentity: params.colorIdentity ?? [
+          ...new Set([
+            ...(params.commander.color_identity ?? []),
+            ...(params.partnerCommander?.color_identity ?? []),
+          ]),
+        ],
+        edhrecData,
+        gapNames: gapAnalysis.map((g) => g.name),
+        liftIndex,
+        similarRankFor: getSimilarRank,
+        resolveCards: (names) => getCardsByNames(names),
+      });
+    } catch (err) {
+      logger.warn('[CommanderDeckAnalysis] Hidden gems skipped:', err);
+    }
+
     // PlanScore (0-100, four weighted dimensions). The curve dim needs the curve-phase
     // analysis lifted out of the grade pass; if the grade branch didn't run
     // (no curvePhases), skip — the dashboard falls back to the letter grade.
@@ -868,6 +906,7 @@ export async function analyzeCommanderDeck(
       deckGrade: gradeBracket.deckGrade,
       roleTargets,
       gapAnalysis,
+      hiddenGems,
       cardInclusionMap,
       planScore,
       optimizeSwaps,

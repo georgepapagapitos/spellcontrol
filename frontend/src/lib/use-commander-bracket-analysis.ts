@@ -167,6 +167,7 @@ export function useCommanderBracketAnalysis(args: Args): void {
                 bracketEstimation: result.bracketEstimation,
                 roleTargets: result.roleTargets,
                 gapAnalysis: result.gapAnalysis,
+                hiddenGems: result.hiddenGems,
                 cardInclusionMap: result.cardInclusionMap,
                 planScore: result.planScore,
                 optimizeSwaps: result.optimizeSwaps,

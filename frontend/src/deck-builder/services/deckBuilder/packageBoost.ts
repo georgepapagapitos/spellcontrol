@@ -83,6 +83,35 @@ function axisBoost(scarce: number, abundant: number): number {
   return Math.min(20, 10 * ((abundant - scarce) / (scarce + 1)));
 }
 
+/** One live axis a candidate would deepen on the scarcer side. */
+export interface PackageFitAxis {
+  axis: AxisKey;
+  boost: number;
+}
+
+/**
+ * The live axes whose SCARCER side this card sits on — the per-axis breakdown
+ * behind computePackageBoosts, exported so explanation surfaces (hidden gems)
+ * can name the engine instead of just summing a number.
+ */
+export function packageFitAxes(
+  card: ScryfallCard,
+  investment: ReadonlyMap<AxisKey, AxisInvestment>
+): PackageFitAxis[] {
+  const c = classified(card);
+  const out: PackageFitAxis[] = [];
+  const consider = (axis: AxisKey, side: 'producers' | 'payoffs') => {
+    const inv = investment.get(axis);
+    if (!inv || inv.producers + inv.payoffs < LIVE_MIN) return;
+    const scarce = inv[side];
+    const abundant = side === 'payoffs' ? inv.producers : inv.payoffs;
+    if (scarce < abundant) out.push({ axis, boost: axisBoost(scarce, abundant) });
+  };
+  for (const p of c.payoffs) consider(p.axis, 'payoffs');
+  for (const p of c.producers) consider(p.axis, 'producers');
+  return out;
+}
+
 /**
  * Boosts for candidates that complete a live engine's scarcer side. Returns
  * only positive entries; callers merge into the pick-phase boost map.
@@ -96,18 +125,7 @@ export function computePackageBoosts(
   for (const name of candidateNames) {
     const card = cardMap.get(name);
     if (!card) continue;
-    const c = classified(card);
-    let boost = 0;
-    for (const p of c.payoffs) {
-      const inv = investment.get(p.axis);
-      if (!inv || inv.producers + inv.payoffs < LIVE_MIN) continue;
-      if (inv.payoffs < inv.producers) boost += axisBoost(inv.payoffs, inv.producers);
-    }
-    for (const p of c.producers) {
-      const inv = investment.get(p.axis);
-      if (!inv || inv.producers + inv.payoffs < LIVE_MIN) continue;
-      if (inv.producers < inv.payoffs) boost += axisBoost(inv.producers, inv.payoffs);
-    }
+    const boost = packageFitAxes(card, investment).reduce((sum, a) => sum + a.boost, 0);
     if (boost > 0) boosts.set(name, Math.min(PACKAGE_BOOST_MAX, Math.round(boost)));
   }
   return boosts;

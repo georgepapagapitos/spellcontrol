@@ -63,6 +63,11 @@ and synergy fills, Coach fix-gaps rows); don't coin new synonyms ("synergizes
 with", "co-played with"). Combine with other evidence using the mid-dot
 separator: `Fits your deck's {tags} · Lifted by {A}, {B}`. Concrete card names
 are the point — never replace them with a count or "AI" phrasing (rule 3).
+The hidden-gems lane (E146) extends the same fixed vocabulary with
+`Plays like {X}` for a card-similar functional twin of an in-deck card and
+`Completes your {axis} engine` for scarce-side axis fit ({axis} is the synergy
+axis's display label, e.g. "Tokens / go-wide"). Same rules: verbatim reuse,
+mid-dot combining, no synonyms.
 
 **Confirm dialogs:** the title is the question ("Delete \"{name}\"?"); the body
 is a declarative consequence ending in a period ("This cannot be undone."). The
