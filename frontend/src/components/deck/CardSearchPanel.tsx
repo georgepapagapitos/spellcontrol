@@ -34,7 +34,8 @@ import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
 import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
 import type { ChipExpression, EnrichedCard } from '../../types';
-import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
+import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
 import type { ComboMatch } from '@/types/combos';
 import type { ChangeOwnership } from '../../lib/deck-change';
 import {
@@ -87,6 +88,8 @@ interface Props {
    */
   suggestions?: GapAnalysisCard[];
   oneAwayCombos?: ComboMatch[];
+  /** Underrated hidden-gem rows from the deck's analysis (E146). */
+  hiddenGems?: HiddenGemRow[];
   /** Live tri-state ownership lookup (the deck page's `ownershipFor`). */
   ownershipFor?: (name: string) => ChangeOwnership;
   enableSuggestions?: boolean;
@@ -220,6 +223,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     onClose,
     suggestions,
     oneAwayCombos,
+    hiddenGems,
     ownershipFor,
     enableSuggestions,
     suggestionsPending,
@@ -556,6 +560,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             }}
             suggestions={suggestions}
             oneAwayCombos={oneAwayCombos}
+            hiddenGems={hiddenGems}
             ownershipFor={ownershipFor ?? ALL_UNOWNED}
             pending={suggestionsPending}
             onSearchCollection={() => setMode('collection')}
@@ -924,6 +929,7 @@ function CollectionResults({
 interface SuggestionsResultsProps extends ResultsProps {
   suggestions?: GapAnalysisCard[];
   oneAwayCombos?: ComboMatch[];
+  hiddenGems?: HiddenGemRow[];
   /** Live tri-state ownership lookup (the deck page's `ownershipFor`). */
   ownershipFor: (name: string) => ChangeOwnership;
   /** Commander-deck analysis still on its first run. */
@@ -958,6 +964,7 @@ function SuggestionsResults({
   publishVisible,
   suggestions,
   oneAwayCombos,
+  hiddenGems,
   ownershipFor,
   pending,
   onSearchCollection,
@@ -982,13 +989,20 @@ function SuggestionsResults({
     [existingCardCounts]
   );
 
-  const { staples, combos, counts } = useMemo(
-    () => buildSuggestionRows(suggestions, oneAwayCombos, { ownershipFor, query, inDeck, show }),
-    [suggestions, oneAwayCombos, ownershipFor, query, inDeck, show]
+  const { staples, combos, gems, counts } = useMemo(
+    () =>
+      buildSuggestionRows(suggestions, oneAwayCombos, {
+        ownershipFor,
+        query,
+        inDeck,
+        show,
+        hiddenGems,
+      }),
+    [suggestions, oneAwayCombos, hiddenGems, ownershipFor, query, inDeck, show]
   );
 
-  // Flat order for the parent's ↑/↓/Enter handling: staples then combos.
-  const rows = useMemo(() => [...staples, ...combos], [staples, combos]);
+  // Flat order for the parent's ↑/↓/Enter handling: staples, combos, gems.
+  const rows = useMemo(() => [...staples, ...combos, ...gems], [staples, combos, gems]);
 
   // Suggestion rows carry only a name; resolve the full card on add (same as
   // the Collection tab) so the deck gets a real ScryfallCard.
@@ -1018,6 +1032,12 @@ function SuggestionsResults({
           return {
             name: row.name,
             label: row.produces ? `Completes: ${row.produces}` : 'Completes a combo',
+          };
+        }
+        if (row.kind === 'gem') {
+          return {
+            name: row.name,
+            label: row.signals?.length ? hiddenGemReason({ signals: row.signals }) : 'Hidden gem',
           };
         }
         const info = classifyInclusion(row.inclusion);
@@ -1136,6 +1156,13 @@ function SuggestionsResults({
                 </>
               )}
             </>
+          ) : row.kind === 'gem' ? (
+            <>
+              {' · '}
+              <span className="card-search-gem">
+                {row.signals?.length ? hiddenGemReason({ signals: row.signals }) : 'Hidden gem'}
+              </span>
+            </>
           ) : (
             <>
               {' · '}
@@ -1190,6 +1217,12 @@ function SuggestionsResults({
             </li>
           )}
           {combos.map((row, i) => renderRow(row, staples.length + i))}
+          {gems.length > 0 && (
+            <li className="card-search-section" role="presentation" aria-hidden="true">
+              Hidden gems
+            </li>
+          )}
+          {gems.map((row, i) => renderRow(row, staples.length + combos.length + i))}
         </ul>
       )}
       {carousel.preview}

@@ -2706,6 +2706,7 @@ export function DeckEditorPage() {
                 onClose={dismiss}
                 suggestions={deck.gapAnalysis}
                 oneAwayCombos={comboData.data?.oneAway}
+                hiddenGems={deck.hiddenGems}
                 ownershipFor={ownershipFor}
                 enableSuggestions={!!formatConfig?.hasCommander}
                 suggestionsPending={analysisState === 'pending'}
