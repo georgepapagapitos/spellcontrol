@@ -105,6 +105,24 @@ describe('grid Details captions', () => {
     const glyph = document.querySelector('.collection-grid-caption--set .set-symbol');
     expect(glyph?.className).toContain('ss-tst');
     expect(glyph?.className).toContain('set-symbol--mythic');
+    // Lines ride inside the footer plate that visually attaches them to the card.
+    expect(document.querySelectorAll('.collection-grid-captions')).toHaveLength(2);
+  });
+
+  it('set line suppresses the redundant on-card rarity badge and set chip', () => {
+    // Two printings of the same name → the corner set chip would normally show.
+    renderTable([
+      mk({ name: 'Alpha', scryfallId: 'sf-a1', setCode: 'AAA' }),
+      mk({ name: 'Alpha', scryfallId: 'sf-a2', setCode: 'BBB' }),
+    ]);
+    expect(document.querySelector('.collection-grid-rarity')).toBeNull();
+    expect(document.querySelector('.collection-grid-set')).toBeNull();
+
+    // Turning the set line off brings the on-card overlays back.
+    openDetailsMenu();
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Set & rarity' }));
+    expect(document.querySelectorAll('.collection-grid-rarity').length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.collection-grid-set').length).toBeGreaterThan(0);
   });
 
   it('renders unknown (zero) prices as a dash', () => {
