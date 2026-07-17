@@ -1,5 +1,6 @@
 import type { ListDef } from '../types';
 import type { FriendCard } from './cube/pool';
+import { isTrackingList } from './lists';
 
 /** One want-list card a friend's collection can supply. */
 export interface TradeRadarMatch {
@@ -23,6 +24,10 @@ export interface TradeRadarMatch {
  * same identity the "you own N" count uses), falling back to a
  * case-insensitive exact name match for legacy entries without one. One match
  * per distinct card, aggregated across lists; sorted by name.
+ *
+ * Tracking lists (catalogues of cards the viewer already owns) are skipped —
+ * their entries are not wants, so a friend owning the same card is not a
+ * trade opportunity.
  */
 export function buildTradeRadar(lists: ListDef[], friendCards: FriendCard[]): TradeRadarMatch[] {
   const byOracle = new Map<string, FriendCard>();
@@ -35,6 +40,7 @@ export function buildTradeRadar(lists: ListDef[], friendCards: FriendCard[]): Tr
 
   const matches = new Map<string, TradeRadarMatch>();
   for (const list of lists) {
+    if (isTrackingList(list)) continue;
     for (const entry of list.entries) {
       const hit =
         (entry.oracleId ? byOracle.get(entry.oracleId) : undefined) ??

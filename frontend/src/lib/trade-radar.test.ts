@@ -117,4 +117,16 @@ describe('buildTradeRadar', () => {
     const lists = [list('A', [entry({ name: 'Sol Ring', oracleId: 'o-sol', quantity: 0 })])];
     expect(buildTradeRadar(lists, friend)[0].quantity).toBe(1);
   });
+
+  it('skips tracking lists — owned catalogues are not wants', () => {
+    const friend = [friendCard({ name: 'Sol Ring', oracleId: 'o-sol' })];
+    const tracking: ListDef = {
+      ...list('Eligible commanders', [entry({ name: 'Sol Ring', oracleId: 'o-sol' })]),
+      kind: 'tracking',
+    };
+    expect(buildTradeRadar([tracking], friend)).toEqual([]);
+    // The same entries on a want list (explicit or default) still match.
+    const want: ListDef = { ...tracking, kind: 'want' };
+    expect(buildTradeRadar([want], friend)).toHaveLength(1);
+  });
 });

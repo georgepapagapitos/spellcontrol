@@ -13,6 +13,7 @@ import type {
   Finish,
   ListDef,
   ListEntry,
+  ListKind,
   UploadResponse,
 } from '../types';
 import { useDecksStore } from './decks';
@@ -250,10 +251,13 @@ interface CollectionState {
   seedManualOrder: (binderId: string, currentCardIds: string[]) => void;
 
   // List actions
-  /** Pass `rule` to create a dynamic list (rule-driven, no manual entries). */
-  createList: (name: string, rule?: BinderFilterGroup[]) => string;
+  /** Pass `rule` to create a dynamic list (rule-driven, no manual entries),
+   *  or `kind: 'tracking'` for a static catalogue of owned cards. */
+  createList: (name: string, rule?: BinderFilterGroup[], kind?: ListKind) => string;
   /** Replace a dynamic list's rule groups (already cleaned via cleanFilter). */
   setListRule: (id: string, rule: BinderFilterGroup[]) => void;
+  /** Switch a static list between want (acquire) and tracking (owned catalogue). */
+  setListKind: (id: string, kind: ListKind) => void;
   renameList: (id: string, name: string) => void;
   reorderLists: (orderedIds: string[]) => void;
   deleteList: (id: string) => void;
@@ -1303,7 +1307,7 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       // List actions
-      createList: (name, rule) => {
+      createList: (name, rule, kind) => {
         const id =
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
@@ -1318,6 +1322,9 @@ export const useCollectionStore = create<CollectionState>()(
           createdAt: now,
           updatedAt: now,
           ...(rule ? { rule } : {}),
+          // Absent = want (back-compat with pre-kind lists), so only store
+          // the non-default.
+          ...(kind === 'tracking' ? { kind } : {}),
         };
         set({ lists: [...lists, def] });
         void persistListsOnly(get().lists);
@@ -1326,6 +1333,20 @@ export const useCollectionStore = create<CollectionState>()(
       setListRule: (id, rule) => {
         set({
           lists: get().lists.map((l) => (l.id === id ? { ...l, rule, updatedAt: Date.now() } : l)),
+        });
+        void persistListsOnly(get().lists);
+      },
+      setListKind: (id, kind) => {
+        set({
+          lists: get().lists.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  ...(kind === 'tracking' ? { kind } : { kind: undefined }),
+                  updatedAt: Date.now(),
+                }
+              : l
+          ),
         });
         void persistListsOnly(get().lists);
       },

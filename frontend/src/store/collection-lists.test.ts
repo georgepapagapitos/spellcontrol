@@ -66,6 +66,24 @@ describe('list CRUD', () => {
     expect(useCollectionStore.getState().lists[1].rule).toBeUndefined();
   });
 
+  it('creates a tracking list and toggles kind via setListKind', async () => {
+    const id = useCollectionStore.getState().createList('Commanders', undefined, 'tracking');
+    expect(useCollectionStore.getState().lists[0].kind).toBe('tracking');
+    // Persists like the other list mutators (fire-and-forget → poll the cache).
+    await vi.waitFor(async () => {
+      const stored = await loadCollection();
+      expect(stored?.lists?.[0].kind).toBe('tracking');
+    });
+    // Back to want = the pre-kind default → the field is cleared, not stored.
+    useCollectionStore.getState().setListKind(id, 'want');
+    expect(useCollectionStore.getState().lists[0].kind).toBeUndefined();
+    useCollectionStore.getState().setListKind(id, 'tracking');
+    expect(useCollectionStore.getState().lists[0].kind).toBe('tracking');
+    // Plain createList stays kind-less (want by default).
+    useCollectionStore.getState().createList('Wants');
+    expect(useCollectionStore.getState().lists[1].kind).toBeUndefined();
+  });
+
   it('renames, reorders, deletes', () => {
     const a = useCollectionStore.getState().createList('A');
     const b = useCollectionStore.getState().createList('B');

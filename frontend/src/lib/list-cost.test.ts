@@ -44,6 +44,7 @@ describe('summarizeListCost', () => {
     expect(summarizeListCost([], [])).toEqual({
       totalCost: 0,
       unpricedCount: 0,
+      unownedEntries: 0,
       allOwned: false,
     });
   });
@@ -59,6 +60,7 @@ describe('summarizeListCost', () => {
     expect(summarizeListCost(rows, [])).toEqual({
       totalCost: 7, // 2*3 + 1*1
       unpricedCount: 0,
+      unownedEntries: 2,
       allOwned: false,
     });
   });
@@ -69,6 +71,7 @@ describe('summarizeListCost', () => {
     expect(summarizeListCost(rows, ownedCards)).toEqual({
       totalCost: 5, // 1 shortfall * $5
       unpricedCount: 0,
+      unownedEntries: 1,
       allOwned: false,
     });
   });
@@ -81,6 +84,7 @@ describe('summarizeListCost', () => {
     expect(summarizeListCost(rows, [])).toEqual({
       totalCost: 4,
       unpricedCount: 1,
+      unownedEntries: 2,
       allOwned: false,
     });
   });
@@ -91,6 +95,7 @@ describe('summarizeListCost', () => {
     expect(summarizeListCost(rows, ownedCards)).toEqual({
       totalCost: 0,
       unpricedCount: 0,
+      unownedEntries: 0,
       allOwned: true,
     });
   });

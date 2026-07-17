@@ -18,7 +18,7 @@ import { getColorKey } from '../lib/colors';
 import { cardTagLabel } from '../lib/card-tags';
 import { useCardsWithTags } from '../lib/card-tags';
 import type { EnrichedListRow } from '../lib/use-enriched-list-entries';
-import { ownedCountForEntry } from '../lib/lists';
+import { ownedCountForEntry, isTrackingList } from '../lib/lists';
 import { useCollectionStore } from '../store/collection';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
 import { SearchPill } from './SearchPill';
@@ -446,18 +446,35 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
     setEditing(null);
   };
 
+  const tracking = isTrackingList(list);
+
   // Cross-references the entry against the collection by the same
   // oracleId/name match the header cost stat uses, so the two never disagree.
+  // On a want list, unowned is the default state (no badge); on a tracking
+  // list it's the anomaly worth flagging — the card slipped out of the
+  // collection since it was catalogued.
   const ownedBadge = (entry: ListEntry) => {
     const ownedQty = ownedCountForEntry(entry, ownedCards);
-    if (ownedQty === 0) return undefined;
+    if (ownedQty === 0) {
+      return tracking ? (
+        <VerdictBadge
+          tone="warn"
+          label="Not owned"
+          title="This card isn't in your collection right now"
+        />
+      ) : undefined;
+    }
     const fullyCovered = ownedQty >= entry.quantity;
     return (
       <VerdictBadge
         verdict="owned"
         label={fullyCovered ? undefined : `Owned ×${ownedQty}`}
         title={
-          entry.quantity > 1 ? `You own ${ownedQty} of the ${entry.quantity} you want` : undefined
+          entry.quantity > 1
+            ? tracking
+              ? `You own ${ownedQty} of ${entry.quantity}`
+              : `You own ${ownedQty} of the ${entry.quantity} you want`
+            : undefined
         }
       />
     );
@@ -482,10 +499,16 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
             ]
           : []),
         { label: 'Edit printing', onClick: () => setEditing(entry) },
-        {
-          label: 'Move to collection',
-          onClick: () => void moveListEntryToCollection(list.id, entry.id),
-        },
+        // A tracking list catalogues cards already owned — "moving" one would
+        // mint a duplicate copy.
+        ...(tracking
+          ? []
+          : [
+              {
+                label: 'Move to collection',
+                onClick: () => void moveListEntryToCollection(list.id, entry.id),
+              },
+            ]),
         {
           label: 'Remove',
           onClick: () => void removeListEntry(list.id, entry.id),

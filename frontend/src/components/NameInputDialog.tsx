@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
 
 interface Props {
@@ -9,6 +9,9 @@ interface Props {
   initialValue?: string;
   confirmLabel?: string;
   placeholder?: string;
+  /** Extra form content rendered between the input and the actions
+   *  (e.g. an options radio group). Caller owns its state. */
+  children?: ReactNode;
   /** Called with the trimmed, non-empty name. */
   onSubmit: (name: string) => void;
   onCancel: () => void;
@@ -26,6 +29,7 @@ export function NameInputDialog({
   initialValue = '',
   confirmLabel = 'Save',
   placeholder,
+  children,
   onSubmit,
   onCancel,
 }: Props) {
@@ -58,6 +62,7 @@ export function NameInputDialog({
           onChange={(e) => setValue(e.target.value)}
           autoFocus
         />
+        {children}
         <div className="choice-dialog-actions">
           <button type="button" className="btn" onClick={onCancel}>
             Cancel

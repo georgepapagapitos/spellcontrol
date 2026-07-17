@@ -9,6 +9,7 @@ import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
 import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
 import { buildTradeRadar, type TradeRadarMatch } from '../lib/trade-radar';
+import { isTrackingList } from '../lib/lists';
 import { useCardThumb } from '../lib/card-thumbs';
 import { H2HSummary } from '../components/play/H2HSummary';
 import type { ShareKind } from '../lib/shared-types';
@@ -48,7 +49,8 @@ export function FriendHubPage() {
   // friend's collection — the same oracle-level fetch the cube collab pool
   // uses, so it rides the existing sharing model (no new privacy surface).
   const lists = useCollectionStore((s) => s.lists);
-  const wantsAnything = lists.some((l) => l.entries.length > 0);
+  // Tracking lists catalogue cards the viewer owns — never wants.
+  const wantsAnything = lists.some((l) => !isTrackingList(l) && l.entries.length > 0);
   const [radarAttempt, setRadarAttempt] = useState(0);
   // Keyed result: a stale key (friend switch / retry) reads as loading again,
   // so the effect never needs a synchronous reset-setState.

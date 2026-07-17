@@ -441,6 +441,32 @@
   border-color: var(--accent);
 }
 
+/* Optional radio-option block below the input (e.g. list purpose) — same
+   shape as .import-deck-batch-mode. */
+.name-input-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.name-input-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.name-input-mode input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
 /* ── Auto-link confirmation banner ─────────────────────────────────────── */
 .auto-link-banner {
   position: sticky;

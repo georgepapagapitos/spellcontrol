@@ -6,6 +6,8 @@ export interface ListCostSummary {
   totalCost: number;
   /** Count of entries with at least one unowned copy but no resolvable price — never silently $0. */
   unpricedCount: number;
+  /** Entries whose quantity isn't fully covered by owned copies (tracking lists surface this as drift). */
+  unownedEntries: number;
   /** True once every entry's quantity is already covered by owned copies (false for an empty list). */
   allOwned: boolean;
 }
@@ -23,15 +25,20 @@ export function summarizeListCost(
 ): ListCostSummary {
   let totalCost = 0;
   let unpricedCount = 0;
-  let hasUnowned = false;
+  let unownedEntries = 0;
 
   for (const { entry, card } of rows) {
     const shortfall = Math.max(0, entry.quantity - ownedCountForEntry(entry, owned));
     if (shortfall === 0) continue;
-    hasUnowned = true;
+    unownedEntries += 1;
     if (card.purchasePrice > 0) totalCost += card.purchasePrice * shortfall;
     else unpricedCount += 1;
   }
 
-  return { totalCost, unpricedCount, allOwned: rows.length > 0 && !hasUnowned };
+  return {
+    totalCost,
+    unpricedCount,
+    unownedEntries,
+    allOwned: rows.length > 0 && unownedEntries === 0,
+  };
 }
