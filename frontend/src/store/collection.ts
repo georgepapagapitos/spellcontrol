@@ -36,7 +36,7 @@ import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
 import { acknowledgeInSnapshot } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
-import { recordValueSnapshot } from '../lib/value-history';
+import { computeMovers, recordDailyMovers, recordValueSnapshot } from '../lib/value-history';
 import { logBinderMoves } from '../lib/welcome-digest';
 import { bindersUseTags, decorateWithTags, ensureCardTags } from '../lib/card-tags';
 import { buildAllocationMap } from '../lib/allocations';
@@ -947,6 +947,9 @@ export const useCollectionStore = create<CollectionState>()(
           recordValueSnapshot(afterCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0)).catch(
             () => {}
           );
+          // E133 value movers: same tick, same before/after pair the binder
+          // diff uses — per-card deltas into the device-local movers log.
+          recordDailyMovers(computeMovers(beforeCards, afterCards)).catch(() => {});
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Failed to refresh prices.';
           logger.warn('[store] refreshPrices failed:', err);

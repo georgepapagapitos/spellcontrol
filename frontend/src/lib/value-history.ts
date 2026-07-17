@@ -43,15 +43,19 @@ export interface ValueDelta {
 
 const DB_NAME = 'spellcontrol-value-history';
 const STORE = 'daily';
+const MOVERS_STORE = 'movers';
 const MAX_POINTS = 90;
+const MAX_MOVER_DAYS = 7;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
 function getDB(): Promise<IDBPDatabase> {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, 1, {
+    dbPromise = openDB(DB_NAME, 2, {
       upgrade(db) {
-        db.createObjectStore(STORE, { keyPath: 'day' });
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'day' });
+        if (!db.objectStoreNames.contains(MOVERS_STORE))
+          db.createObjectStore(MOVERS_STORE, { keyPath: 'day' });
       },
     });
   }
@@ -113,6 +117,149 @@ export async function getValueHistory(): Promise<ValuePoint[]> {
 export async function clearValueHistory(): Promise<void> {
   const db = await getDB();
   await db.clear(STORE);
+}
+
+/* ── Value movers (E133) ──────────────────────────────────────────────────
+   Which cards in THIS collection moved on the latest price refresh — the
+   per-card companion to the aggregate daily point above. Captured by diffing
+   the collection's prices before/after a refresh (prices change at most
+   daily, so refresh-to-refresh IS day-to-day), stored per local day in the
+   same device-local DB, and never synced. */
+
+/** One printing+finish whose market price moved on the latest refresh. */
+export interface CardMover {
+  scryfallId: string;
+  finish: string;
+  name: string;
+  setCode: string;
+  /** Per-copy price before/after the refresh, in `MoverRecord.currency`. */
+  before: number;
+  after: number;
+  /** Owned copies of this printing+finish (delta × copies = impact). */
+  copies: number;
+}
+
+export interface MoverRecord {
+  /** Local-calendar-day bucket key, `YYYY-MM-DD`. */
+  day: string;
+  /** Epoch ms of the refresh that produced these movers. */
+  at: number;
+  /** Display currency of the prices. Absent = USD (mirrors ValuePoint). */
+  currency?: string;
+  /** Sorted by |delta × copies| descending, capped at MAX_MOVERS. */
+  movers: CardMover[];
+}
+
+const MAX_MOVERS = 20;
+/** Ignore per-copy moves under this — daily sub-quarter wobble is noise. */
+const MIN_MOVE = 0.25;
+
+interface PricedCardLike {
+  scryfallId: string;
+  finish?: string;
+  purchasePrice?: number;
+  name: string;
+  setCode: string;
+}
+
+const moverKey = (c: PricedCardLike) => `${c.scryfallId}:${c.finish ?? 'nonfoil'}`;
+
+/**
+ * Diff a collection's per-copy prices before/after a refresh into movers.
+ * Only printings priced on BOTH sides count — a card gaining its first price
+ * (0 → x) is new data, not a market move. Pure; prices are in whatever
+ * display currency `purchasePrice` carried (the active one on both sides,
+ * since a currency switch reapplies prices outside the refresh path).
+ */
+export function computeMovers(before: PricedCardLike[], after: PricedCardLike[]): CardMover[] {
+  const prior = new Map<string, number>();
+  for (const c of before) {
+    if ((c.purchasePrice ?? 0) > 0) prior.set(moverKey(c), c.purchasePrice as number);
+  }
+  const out = new Map<string, CardMover>();
+  for (const c of after) {
+    const price = c.purchasePrice ?? 0;
+    if (price <= 0) continue;
+    const key = moverKey(c);
+    const was = prior.get(key);
+    if (was === undefined) continue;
+    const existing = out.get(key);
+    if (existing) {
+      existing.copies += 1;
+      continue;
+    }
+    if (Math.abs(price - was) < MIN_MOVE) continue;
+    out.set(key, {
+      scryfallId: c.scryfallId,
+      finish: c.finish ?? 'nonfoil',
+      name: c.name,
+      setCode: c.setCode,
+      before: was,
+      after: price,
+      copies: 1,
+    });
+  }
+  return [...out.values()]
+    .sort(
+      (a, b) =>
+        Math.abs((b.after - b.before) * b.copies) - Math.abs((a.after - a.before) * a.copies)
+    )
+    .slice(0, MAX_MOVERS);
+}
+
+/**
+ * Upsert today's movers. A later same-day refresh MERGES per key — earliest
+ * `before`, latest `after` — so a midday re-refresh can't erase the morning's
+ * real moves; an empty diff writes nothing at all. Trimmed to the newest
+ * MAX_MOVER_DAYS days. Best-effort like the snapshot: callers swallow errors.
+ */
+export async function recordDailyMovers(movers: CardMover[], at = Date.now()): Promise<void> {
+  if (movers.length === 0) return;
+  const db = await getDB();
+  const tx = db.transaction(MOVERS_STORE, 'readwrite');
+  const day = dayKey(at);
+  const currency = getCurrency();
+  const existing = (await tx.store.get(day)) as MoverRecord | undefined;
+  let merged = movers;
+  if (existing && (existing.currency ?? 'USD') === currency) {
+    const byKey = new Map(existing.movers.map((m) => [`${m.scryfallId}:${m.finish}`, m]));
+    for (const m of movers) {
+      const prev = byKey.get(`${m.scryfallId}:${m.finish}`);
+      byKey.set(`${m.scryfallId}:${m.finish}`, prev ? { ...m, before: prev.before } : m);
+    }
+    merged = [...byKey.values()]
+      .filter((m) => Math.abs(m.after - m.before) >= MIN_MOVE)
+      .sort(
+        (a, b) =>
+          Math.abs((b.after - b.before) * b.copies) - Math.abs((a.after - a.before) * a.copies)
+      )
+      .slice(0, MAX_MOVERS);
+    if (merged.length === 0) {
+      await tx.done;
+      return;
+    }
+  }
+  await tx.store.put({ day, at, currency, movers: merged } satisfies MoverRecord);
+  const keys = await tx.store.getAllKeys();
+  for (const key of keys.slice(0, Math.max(0, keys.length - MAX_MOVER_DAYS))) {
+    await tx.store.delete(key);
+  }
+  await tx.done;
+}
+
+/** Newest movers record in the ACTIVE display currency, or null. */
+export async function getLatestMovers(): Promise<MoverRecord | null> {
+  const db = await getDB();
+  const active = getCurrency();
+  const records = ((await db.getAll(MOVERS_STORE)) as MoverRecord[]).filter(
+    (r) => (r.currency ?? 'USD') === active
+  );
+  return records.length ? records[records.length - 1] : null;
+}
+
+export async function clearMovers(): Promise<void> {
+  const db = await getDB();
+  await db.clear(MOVERS_STORE);
 }
 
 /**

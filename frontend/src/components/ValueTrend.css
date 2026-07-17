@@ -117,3 +117,82 @@
   color: var(--text-muted);
   margin-top: 2px;
 }
+
+/* Value movers (E133) — per-card gainers/losers from the latest refresh.
+   Deltas are redundantly coded (arrow + sign + color, never color alone). */
+
+.value-movers {
+  margin-top: var(--space-3);
+}
+
+.value-movers-head {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value-movers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.value-movers-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+
+.value-movers-row + .value-movers-row {
+  border-top: 1px solid var(--border);
+}
+
+.value-movers-card {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.value-movers-name {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value-movers-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.value-movers-delta {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.value-movers-delta--up {
+  color: var(--success);
+}
+
+.value-movers-delta--down {
+  color: var(--err-text);
+}
+
+.value-movers-sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
