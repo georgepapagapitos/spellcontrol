@@ -135,7 +135,8 @@ Anti-patterns this rule kills:
 
 **The one labelled-pill exception below the hero: toolbar controls.** Compact
 toolbar _pickers and disclosures_ — Sort / Group / Show / the view-mode toggle /
-the symbol **Key** — use the shared `.toolbar-pill` (`999px`, `--surface` bg,
+the card-size zoom stepper (`ZoomControl`) / the symbol **Key** — use the shared
+`.toolbar-pill` (`999px`, `--surface` bg,
 `0.5px --border-strong` border), not a rect. They're neither do-something
 _actions_ (those are rects) nor static _labels_ (those are non-actionable chips)
 but a third thing — _controls_ — and the pill is their established family
@@ -160,6 +161,18 @@ unless the segmented control is a genuine _toolbar view-mode toggle_ that lives 
 a control row (then the whole `.toolbar-pill` segmented family is `999px`, e.g.
 `.pick-mode-toggle`). A radio/segmented selector inside a form or settings panel
 is not that — its options are rects.
+
+**Toolbar steppers: ends disable, never hide.** A −/+ stepper over an ordered
+range (the card-size `ZoomControl` in the collection/deck grids) renders as a
+`.toolbar-viewmode` button pair — same pill family, lucide glyphs at
+`width/height={14}`, and the coarse-pointer 2.75rem touch sizing for free. At a
+range bound the end button gets `disabled` (`.toolbar-viewmode-btn:disabled`:
+0.35 opacity, `cursor: default`; the hover rule is gated `:not(:disabled)`)
+rather than disappearing — a vanishing button reads as a layout bug and shifts
+its neighbors. Per-viewport curation belongs in the _range_ (e.g. narrow
+viewports cap the max zoom step where larger steps stop changing the layout),
+not in hiding the control. Established by the grid zoom control (#1206), which
+replaced the 1×/2×/3× preset toggle.
 
 **Action-button anatomy (deck-analysis lanes & beyond).** A labelled action
 button is an \*\*accent-fill rect with a leading lucide icon at `width/height={14}`
