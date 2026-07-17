@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useCurrency } from '@/lib/currency';
 import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
@@ -152,6 +152,15 @@ import {
   type RoleKey,
 } from '../../lib/role-badges';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
+import { ZoomControl } from '../ZoomControl';
+import {
+  ZOOM_MAX,
+  ZOOM_MAX_NARROW,
+  clampZoom,
+  readStoredZoom,
+  zoomBucket,
+  zoomMinCol,
+} from '@/lib/grid-zoom';
 
 /**
  * Top-level roles for the role-filter lens: the tagger's read plus the
@@ -245,9 +254,6 @@ function readStoredFormat(): ExportFormat {
 // indistinguishable from the regular list.
 export type DeckViewMode = 'list' | 'grid';
 
-// Card size for grid view — mirrors the collection grid's 1×/2×/3×.
-export type DeckGridSize = '1x' | '2x' | '3x';
-
 interface ShowPrefs {
   price: boolean;
   roles: boolean;
@@ -257,16 +263,6 @@ interface ShowPrefs {
 const VIEW_MODE_STORAGE_KEY = 'mtg-decks-view-mode';
 const GRID_SIZE_STORAGE_KEY = 'mtg-decks-grid-size';
 const SHOW_PREFS_STORAGE_KEY = 'mtg-decks-show-prefs';
-function readStoredGridSize(): DeckGridSize {
-  if (typeof window === 'undefined') return '1x';
-  try {
-    const v = window.localStorage.getItem(GRID_SIZE_STORAGE_KEY);
-    if (v === '1x' || v === '2x' || v === '3x') return v;
-  } catch {
-    /* ignore */
-  }
-  return '1x';
-}
 
 const DEFAULT_SHOW_PREFS: ShowPrefs = { price: true, roles: true, mana: true };
 
@@ -1133,11 +1129,11 @@ export function DeckDisplay({
   const [search, setSearch] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
-  const [gridSize, setGridSize] = useState<DeckGridSize>(() => readStoredGridSize());
+  const [gridZoom, setGridZoom] = useState(() => readStoredZoom(GRID_SIZE_STORAGE_KEY));
   const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
-  // Mirrors the collection grid: on narrow viewports 3× can't render
-  // visibly larger than 2×, so the option is hidden and a persisted 3×
-  // is clamped down for layout (without overwriting the stored value).
+  // Mirrors the collection grid: on narrow viewports the top zoom steps
+  // all render as a single full-width column, so the reachable range is
+  // capped (without overwriting the stored value).
   const [isNarrowGrid, setIsNarrowGrid] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
   );
@@ -1148,7 +1144,7 @@ export function DeckDisplay({
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
-  const effectiveGridSize: DeckGridSize = isNarrowGrid && gridSize === '3x' ? '2x' : gridSize;
+  const effectiveGridZoom = clampZoom(gridZoom, isNarrowGrid);
 
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
@@ -1166,10 +1162,10 @@ export function DeckDisplay({
       /* ignore */
     }
   };
-  const handleGridSizeChange = (s: DeckGridSize) => {
-    setGridSize(s);
+  const handleGridZoomChange = (z: number) => {
+    setGridZoom(z);
     try {
-      window.localStorage.setItem(GRID_SIZE_STORAGE_KEY, s);
+      window.localStorage.setItem(GRID_SIZE_STORAGE_KEY, String(z));
     } catch {
       /* ignore */
     }
@@ -1729,8 +1725,8 @@ export function DeckDisplay({
               onSearch={setSearch}
               viewMode={viewMode}
               onViewModeChange={handleViewModeChange}
-              gridSize={effectiveGridSize}
-              onGridSizeChange={handleGridSizeChange}
+              gridZoom={effectiveGridZoom}
+              onGridZoomChange={handleGridZoomChange}
               isNarrowGrid={isNarrowGrid}
               showPrefs={showPrefs}
               onShowPrefsChange={handleShowPrefsChange}
@@ -1977,7 +1973,7 @@ export function DeckDisplay({
                     groups={visibleGroups}
                     onRowClick={openPreview}
                     legalityBySlot={legalityBySlot}
-                    gridSize={effectiveGridSize}
+                    gridZoom={effectiveGridZoom}
                     showRoles={showPrefs.roles}
                     roleFilter={activeRoleFilter}
                     synergyByName={synergyByName}
@@ -2334,8 +2330,8 @@ interface ToolbarProps {
   onSearch: (s: string) => void;
   viewMode: DeckViewMode;
   onViewModeChange: (m: DeckViewMode) => void;
-  gridSize: DeckGridSize;
-  onGridSizeChange: (s: DeckGridSize) => void;
+  gridZoom: number;
+  onGridZoomChange: (z: number) => void;
   isNarrowGrid: boolean;
   showPrefs: ShowPrefs;
   onShowPrefsChange: (next: ShowPrefs) => void;
@@ -2451,8 +2447,8 @@ function DeckToolbar({
   onSearch,
   viewMode,
   onViewModeChange,
-  gridSize,
-  onGridSizeChange,
+  gridZoom,
+  onGridZoomChange,
   isNarrowGrid,
   showPrefs,
   onShowPrefsChange,
@@ -2518,22 +2514,10 @@ function DeckToolbar({
         <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
         {viewMode === 'grid' && (
-          <SharedViewModeToggle<DeckGridSize>
-            ariaLabel="Card size"
-            value={gridSize}
-            onChange={onGridSizeChange}
-            options={
-              isNarrowGrid
-                ? [
-                    { value: '1x', label: 'Small cards', icon: <span>1×</span> },
-                    { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
-                  ]
-                : [
-                    { value: '1x', label: 'Small cards', icon: <span>1×</span> },
-                    { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
-                    { value: '3x', label: 'Large cards', icon: <span>3×</span> },
-                  ]
-            }
+          <ZoomControl
+            zoom={gridZoom}
+            max={isNarrowGrid ? ZOOM_MAX_NARROW : ZOOM_MAX}
+            onChange={onGridZoomChange}
           />
         )}
 
@@ -2609,7 +2593,7 @@ function DeckCardGrid({
   groups,
   onRowClick,
   legalityBySlot,
-  gridSize,
+  gridZoom,
   showRoles,
   roleFilter,
   synergyByName,
@@ -2622,7 +2606,7 @@ function DeckCardGrid({
   groups: { title: string; icon: string; rows: Row[] }[];
   onRowClick: (name: string) => void;
   legalityBySlot?: Map<string, LegalityIssue>;
-  gridSize: DeckGridSize;
+  gridZoom: number;
   showRoles: boolean;
   /** Active role filter — tiles not filling it render dimmed. */
   roleFilter?: RoleKey | null;
@@ -2654,7 +2638,15 @@ function DeckCardGrid({
                 renderArrivalsChip(g.title as TypeGroup, arrivalsByType, onOpenArrivals)
               )}
             </header>
-            <ul className={`deck-card-grid grid-${gridSize}`}>
+            <ul
+              className={`deck-card-grid grid-${zoomBucket(gridZoom)}`}
+              style={
+                {
+                  '--card-min-desktop': `${zoomMinCol(gridZoom, 'desktop')}px`,
+                  '--card-min-mobile': `${zoomMinCol(gridZoom, 'mobile')}px`,
+                } as CSSProperties
+              }
+            >
               {g.rows.map((row) => {
                 const role = showRoles ? getRoleBadge(row.card) : null;
                 const synergy = synergyByName?.get(row.name);

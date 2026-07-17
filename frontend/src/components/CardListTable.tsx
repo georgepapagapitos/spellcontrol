@@ -53,6 +53,15 @@ import { Legend } from './Legend';
 import { BinderBadge, type BinderInfo } from './BinderBadge';
 import { useAllocations, computeSurplusByName, type AllocationInfo } from '../lib/allocations';
 import { ViewModeToggle } from './ViewModeToggle';
+import { ZoomControl } from './ZoomControl';
+import {
+  ZOOM_MAX,
+  ZOOM_MAX_NARROW,
+  clampZoom,
+  readStoredZoom,
+  zoomBucket,
+  zoomMinCol,
+} from '../lib/grid-zoom';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
 import { CollectionFiltersDialog } from './CollectionFiltersDialog';
@@ -131,7 +140,6 @@ interface Row {
 }
 
 type ViewMode = 'grid' | 'list' | 'compact';
-type GridSize = '1x' | '2x' | '3x';
 
 const COLLECTION_VIEW_KEY = 'mtg-collection-view-mode';
 const GRID_SIZE_KEY = 'mtg-collection-grid-size';
@@ -144,12 +152,6 @@ const COLLECTION_SHORTCUTS = [
   { keys: ['c'], description: 'Switch to compact list' },
 ];
 
-const GRID_SIZE_MIN_COL: Record<GridSize, { desktop: number; mobile: number }> = {
-  '1x': { desktop: 150, mobile: 110 },
-  '2x': { desktop: 220, mobile: 165 },
-  '3x': { desktop: 320, mobile: 240 },
-};
-
 function readStoredCollectionView(): ViewMode {
   try {
     const v = localStorage.getItem(COLLECTION_VIEW_KEY);
@@ -161,16 +163,6 @@ function readStoredCollectionView(): ViewMode {
   // grid. Only fires when nothing was ever persisted; an explicit list/
   // compact choice above always wins.
   return 'grid';
-}
-
-function readStoredGridSize(): GridSize {
-  try {
-    const v = localStorage.getItem(GRID_SIZE_KEY);
-    if (v === '1x' || v === '2x' || v === '3x') return v;
-  } catch {
-    /* ignore */
-  }
-  return '1x';
 }
 
 // Grid captions — detail lines under each card, per-line toggleable from the
@@ -424,18 +416,17 @@ export function CardListTable({
       /* ignore */
     }
   };
-  const [gridSize, setGridSizeRaw] = useState<GridSize>(readStoredGridSize);
-  const setGridSize = (s: GridSize) => {
-    setGridSizeRaw(s);
+  const [gridZoom, setGridZoomRaw] = useState(() => readStoredZoom(GRID_SIZE_KEY));
+  const setGridZoom = (z: number) => {
+    setGridZoomRaw(z);
     try {
-      localStorage.setItem(GRID_SIZE_KEY, s);
+      localStorage.setItem(GRID_SIZE_KEY, String(z));
     } catch {
       /* ignore */
     }
   };
-  // On narrow viewports the document is too narrow for 3× to render
-  // visibly larger than 2×, so the option is hidden and any persisted
-  // 3× selection is clamped to 2× for layout purposes (without
+  // On narrow viewports the top zoom steps all render as a single
+  // full-width column, so the reachable range is capped (without
   // overwriting the stored preference, so it returns when the user
   // resizes back up).
   const [isNarrow, setIsNarrow] = useState(
@@ -448,7 +439,9 @@ export function CardListTable({
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
-  const effectiveGridSize: GridSize = isNarrow && gridSize === '3x' ? '2x' : gridSize;
+  const effectiveZoom = clampZoom(gridZoom, isNarrow);
+  // Coarse bucket driving the cell-chrome scaling classes (badges, qty pill).
+  const effectiveGridSize = zoomBucket(effectiveZoom);
   const [gridCaptionPrefs, setGridCaptionPrefsRaw] = useState<GridCaptionPrefs>(
     readStoredGridCaptionPrefs
   );
@@ -965,8 +958,7 @@ export function CardListTable({
     if (!el || view !== 'grid') return;
     const measure = () => {
       const w = el.clientWidth;
-      const sizeConfig = GRID_SIZE_MIN_COL[effectiveGridSize];
-      const minCol = w <= 1024 ? sizeConfig.mobile : sizeConfig.desktop;
+      const minCol = zoomMinCol(effectiveZoom, w <= 1024 ? 'mobile' : 'desktop');
       const gap = w <= 1024 ? 8 : 10;
       setGridCols(Math.max(1, Math.floor((w + gap) / (minCol + gap))));
     };
@@ -974,7 +966,7 @@ export function CardListTable({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [view, effectiveGridSize]);
+  }, [view, effectiveZoom]);
 
   // Offer Scryfall add whenever there's a real query — even with zero
   // collection matches (then the trigger is the only card/row).
@@ -2005,22 +1997,10 @@ export function CardListTable({
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
           {view === 'grid' && (
-            <ViewModeToggle<GridSize>
-              ariaLabel="Card size"
-              value={effectiveGridSize}
-              onChange={setGridSize}
-              options={
-                isNarrow
-                  ? [
-                      { value: '1x', label: 'Small cards', icon: <span>1×</span> },
-                      { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
-                    ]
-                  : [
-                      { value: '1x', label: 'Small cards', icon: <span>1×</span> },
-                      { value: '2x', label: 'Medium cards', icon: <span>2×</span> },
-                      { value: '3x', label: 'Large cards', icon: <span>3×</span> },
-                    ]
-              }
+            <ZoomControl
+              zoom={effectiveZoom}
+              max={isNarrow ? ZOOM_MAX_NARROW : ZOOM_MAX}
+              onChange={setGridZoom}
             />
           )}
           {view === 'grid' && (
