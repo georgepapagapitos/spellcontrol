@@ -183,11 +183,13 @@ const GRID_CAPTION_LABEL: Record<keyof GridCaptionPrefs, string> = {
   sortValue: 'Price / sort value',
   set: 'Set & rarity',
 };
-// Rendered height (px) of ONE caption line — keep in sync with
-// .collection-grid-caption in styles/collection.css. Folded into the grid
-// virtualizer's row-height estimate, which is measureElement-free, so an
-// estimate/CSS mismatch shows up as scroll drift.
+// Rendered height (px) of ONE caption line, and the extra height the caption
+// footer plate adds below the last line — keep both in sync with
+// .collection-grid-captions / .collection-grid-caption in styles/collection.css.
+// Folded into the grid virtualizer's row-height estimate, which is
+// measureElement-free, so an estimate/CSS mismatch shows up as scroll drift.
 const GRID_CAPTION_H = 20;
+const GRID_CAPTION_PLATE_PAD = 4;
 
 function readStoredGridCaptionPrefs(): GridCaptionPrefs {
   try {
@@ -1020,7 +1022,12 @@ export function CardListTable({
       if (!gridContainerRef.current) return 250;
       const w = gridContainerRef.current.clientWidth;
       const colWidth = (w - GRID_GAP * (gridCols - 1)) / gridCols;
-      return colWidth * (680 / 488) + GRID_CAPTION_H * gridCaptionLines + GRID_GAP;
+      return (
+        colWidth * (680 / 488) +
+        GRID_CAPTION_H * gridCaptionLines +
+        (gridCaptionLines > 0 ? GRID_CAPTION_PLATE_PAD : 0) +
+        GRID_GAP
+      );
     },
     [gridCols, gridLayout, gridCaptionLines]
   );
@@ -2303,9 +2310,14 @@ export function CardListTable({
                             <div className="card-preview-foil-glare" aria-hidden="true" />
                           </>
                         )}
-                        <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
+                        {/* The Set & rarity caption line carries rarity (glyph
+                            tint) and set code, so the on-card overlays that
+                            duplicate them are suppressed while it's shown. */}
+                        {!gridCaptionPrefs.set && (
+                          <RarityBadge rarity={r.card.rarity} className="collection-grid-rarity" />
+                        )}
                         {(r.qty > 1 ||
-                          duplicateNames.has(r.card.name) ||
+                          (!gridCaptionPrefs.set && duplicateNames.has(r.card.name)) ||
                           (surplusOnly && surplusByName.has(r.card.name))) && (
                           <div className="collection-grid-corner">
                             {r.qty > 1 && (
@@ -2316,7 +2328,7 @@ export function CardListTable({
                                 {r.qty}
                               </span>
                             )}
-                            {duplicateNames.has(r.card.name) && (
+                            {!gridCaptionPrefs.set && duplicateNames.has(r.card.name) && (
                               <span
                                 className="collection-grid-set"
                                 title={setSymbolTitle({
@@ -2347,18 +2359,17 @@ export function CardListTable({
                           <BinderBadge binders={r.binders} />
                         </div>
                       </div>
-                      {caption !== null && (
-                        <div className="collection-grid-caption" aria-hidden="true">
-                          {caption}
-                        </div>
-                      )}
-                      {setLabel !== null && (
-                        <div
-                          className="collection-grid-caption collection-grid-caption--set"
-                          aria-hidden="true"
-                        >
-                          <SetSymbol setCode={r.card.setCode} rarity={r.card.rarity} />
-                          <span className="collection-grid-caption-set-label">{setLabel}</span>
+                      {(caption !== null || setLabel !== null) && (
+                        <div className="collection-grid-captions" aria-hidden="true">
+                          {caption !== null && (
+                            <div className="collection-grid-caption">{caption}</div>
+                          )}
+                          {setLabel !== null && (
+                            <div className="collection-grid-caption collection-grid-caption--set">
+                              <SetSymbol setCode={r.card.setCode} rarity={r.card.rarity} />
+                              <span className="collection-grid-caption-set-label">{setLabel}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
