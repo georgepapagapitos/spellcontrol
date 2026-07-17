@@ -2,12 +2,17 @@ import 'fake-indexeddb/auto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useCurrencyStore } from './currency';
 import {
+  clearMovers,
   clearValueHistory,
+  computeMovers,
   computeValueDelta,
   dayKey,
   formatDayKey,
+  getLatestMovers,
   getValueHistory,
+  recordDailyMovers,
   recordValueSnapshot,
+  type CardMover,
   type ValuePoint,
 } from './value-history';
 
@@ -23,6 +28,27 @@ const point = (dayOffset: number, value: number): ValuePoint => ({
 
 afterEach(async () => {
   await clearValueHistory();
+  await clearMovers();
+});
+
+/** Minimal priced-card fixture for computeMovers. */
+const card = (scryfallId: string, price: number, finish = 'nonfoil', name = scryfallId) => ({
+  scryfallId,
+  finish,
+  purchasePrice: price,
+  name,
+  setCode: 'cmr',
+});
+
+const mover = (overrides: Partial<CardMover>): CardMover => ({
+  scryfallId: 'a',
+  finish: 'nonfoil',
+  name: 'a',
+  setCode: 'cmr',
+  before: 1,
+  after: 2,
+  copies: 1,
+  ...overrides,
 });
 
 describe('dayKey', () => {
@@ -82,6 +108,100 @@ describe('recordValueSnapshot / getValueHistory', () => {
     expect(points).toHaveLength(90);
     expect(points[0].day).toBe(dayKey(atDay(5)));
     expect(points[89].day).toBe(dayKey(atDay(94)));
+  });
+});
+
+describe('computeMovers', () => {
+  it('captures per-copy moves of at least $0.25, either direction', () => {
+    const before = [card('up', 5), card('down', 10), card('wobble', 2)];
+    const after = [card('up', 6.5), card('down', 8), card('wobble', 2.1)];
+    expect(computeMovers(before, after)).toEqual([
+      mover({ scryfallId: 'down', name: 'down', before: 10, after: 8 }),
+      mover({ scryfallId: 'up', name: 'up', before: 5, after: 6.5 }),
+    ]);
+  });
+
+  it('ignores first-time pricing (0 → x) and unpriced cards (x → 0)', () => {
+    const before = [card('new', 0), card('gone', 4)];
+    const after = [card('new', 12), card('gone', 0)];
+    expect(computeMovers(before, after)).toEqual([]);
+  });
+
+  it('aggregates copies of the same printing+finish and keys finishes apart', () => {
+    const before = [card('a', 5), card('a', 5), card('a', 20, 'foil')];
+    const after = [card('a', 6), card('a', 6), card('a', 26, 'foil')];
+    const movers = computeMovers(before, after);
+    // Foil impact $6 > nonfoil impact $2 (2 copies × $1).
+    expect(movers).toEqual([
+      mover({ scryfallId: 'a', name: 'a', finish: 'foil', before: 20, after: 26 }),
+      mover({ scryfallId: 'a', name: 'a', before: 5, after: 6, copies: 2 }),
+    ]);
+  });
+
+  it('sorts by total impact (delta × copies) and caps the list at 20', () => {
+    const before = Array.from({ length: 25 }, (_, i) => card(`c${i}`, 10));
+    const after = Array.from({ length: 25 }, (_, i) => card(`c${i}`, 10 + (i + 1) * 0.5));
+    const movers = computeMovers(before, after);
+    expect(movers).toHaveLength(20);
+    expect(movers[0].scryfallId).toBe('c24');
+  });
+});
+
+describe('recordDailyMovers / getLatestMovers', () => {
+  it('records movers stamped with day and currency; empty diffs write nothing', async () => {
+    await recordDailyMovers([], atDay(0));
+    expect(await getLatestMovers()).toBeNull();
+    await recordDailyMovers([mover({})], atDay(0));
+    expect(await getLatestMovers()).toEqual({
+      day: dayKey(atDay(0)),
+      at: atDay(0),
+      currency: 'USD',
+      movers: [mover({})],
+    });
+  });
+
+  it('merges a same-day re-refresh per key — earliest before, latest after', async () => {
+    await recordDailyMovers([mover({ before: 5, after: 6 })], atDay(0));
+    await recordDailyMovers(
+      [mover({ before: 6, after: 7 }), mover({ scryfallId: 'b', name: 'b', before: 2, after: 3 })],
+      atDay(0) + 3600000
+    );
+    const rec = await getLatestMovers();
+    expect(rec?.movers).toEqual([
+      mover({ before: 5, after: 7 }),
+      mover({ scryfallId: 'b', name: 'b', before: 2, after: 3 }),
+    ]);
+  });
+
+  it('keeps the existing record when a same-day merge cancels out to nothing', async () => {
+    await recordDailyMovers([mover({ before: 5, after: 6 })], atDay(0));
+    // The move reverts: merged before=5, after=5 → under the floor → the
+    // original record survives instead of being replaced by an empty one.
+    await recordDailyMovers([mover({ before: 6, after: 5 })], atDay(0) + 3600000);
+    expect((await getLatestMovers())?.movers).toEqual([mover({ before: 5, after: 6 })]);
+  });
+
+  it('returns the newest record in the active currency only', async () => {
+    await recordDailyMovers([mover({})], atDay(0));
+    await recordDailyMovers([mover({ before: 3, after: 4 })], atDay(1));
+    expect((await getLatestMovers())?.day).toBe(dayKey(atDay(1)));
+
+    useCurrencyStore.getState().setCurrency('EUR');
+    try {
+      expect(await getLatestMovers()).toBeNull();
+      await recordDailyMovers([mover({ scryfallId: 'e', name: 'e' })], atDay(2));
+      expect((await getLatestMovers())?.currency).toBe('EUR');
+    } finally {
+      useCurrencyStore.getState().setCurrency('USD');
+    }
+    expect((await getLatestMovers())?.day).toBe(dayKey(atDay(1)));
+  });
+
+  it('trims the movers log to the newest 7 days', async () => {
+    for (let i = 0; i < 10; i++) await recordDailyMovers([mover({})], atDay(i));
+    await recordDailyMovers([mover({})], atDay(0)); // too old — evicted slot stays evicted
+    const rec = await getLatestMovers();
+    expect(rec?.day).toBe(dayKey(atDay(9)));
   });
 });
 

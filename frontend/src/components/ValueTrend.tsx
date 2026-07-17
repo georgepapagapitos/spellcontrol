@@ -6,7 +6,9 @@ import {
   dayKey,
   daysBetween,
   formatDayKey,
+  getLatestMovers,
   getValueHistory,
+  type MoverRecord,
   type ValuePoint,
 } from '../lib/value-history';
 import './ValueTrend.css';
@@ -192,15 +194,19 @@ function TrendChart({ points }: { points: ValuePoint[] }) {
  */
 export function ValueTrend() {
   // "today" is captured with the load (not at render) so render stays pure.
-  const [data, setData] = useState<{ points: ValuePoint[]; today: string } | null>(null);
+  const [data, setData] = useState<{
+    points: ValuePoint[];
+    movers: MoverRecord | null;
+    today: string;
+  } | null>(null);
   // getValueHistory filters to the active display currency — reload on switch.
   const currency = useCurrency();
 
   useEffect(() => {
     let stale = false;
-    getValueHistory()
-      .then((history) => {
-        if (!stale) setData({ points: history, today: dayKey(Date.now()) });
+    Promise.all([getValueHistory(), getLatestMovers()])
+      .then(([history, movers]) => {
+        if (!stale) setData({ points: history, movers, today: dayKey(Date.now()) });
       })
       .catch(() => {
         // IndexedDB unavailable (private mode) — the section just stays hidden.
@@ -213,6 +219,13 @@ export function ValueTrend() {
   const points = data?.points ?? [];
   const delta = computeValueDelta(points);
   if (!data || !delta) return null;
+
+  // Movers are only "news" while fresh — an old record names its date, but a
+  // stale one (device idle for days) is noise and stays hidden.
+  const moversRecord =
+    data.movers && data.movers.movers.length > 0 && daysBetween(data.movers.day, data.today) <= 2
+      ? data.movers
+      : null;
 
   const amount = Math.round(delta.amount);
   // "this week" only when the log actually covers a recent ~week; a gappy or
@@ -245,6 +258,41 @@ export function ValueTrend() {
         {formatDayKey(latest.day)}.
       </p>
       <TrendChart points={points} />
+      {moversRecord && (
+        <div className="value-movers">
+          <h4 className="value-movers-head">
+            {moversRecord.day === data.today
+              ? "Today's movers"
+              : `Movers · ${formatDayKey(moversRecord.day)}`}
+          </h4>
+          <ul className="value-movers-list">
+            {moversRecord.movers.slice(0, 6).map((m) => {
+              const moveAmount = m.after - m.before;
+              const up = moveAmount > 0;
+              return (
+                <li key={`${m.scryfallId}:${m.finish}`} className="value-movers-row">
+                  <span className="value-movers-card">
+                    <span className="value-movers-name">{m.name}</span>
+                    <span className="value-movers-meta">
+                      {m.setCode.toUpperCase()}
+                      {m.finish === 'foil' && ' · Foil'}
+                      {m.finish === 'etched' && ' · Etched'}
+                      {m.copies > 1 && ` · ×${m.copies}`}
+                    </span>
+                  </span>
+                  <span className={`value-movers-delta value-movers-delta--${up ? 'up' : 'down'}`}>
+                    <span aria-hidden="true">{up ? '▲' : '▼'}</span>
+                    <span className="sr-only">{up ? 'up' : 'down'}</span>
+                    {up ? '+' : '−'}
+                    {formatMoney(Math.abs(moveAmount))}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="value-movers-sub">Per copy, vs the previous refresh on this device</p>
+        </div>
+      )}
     </section>
   );
 }
