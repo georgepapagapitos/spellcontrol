@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LayoutList, AlignJustify, LayoutGrid, Search } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type {
@@ -34,6 +34,17 @@ import { scryfallToEnrichedCard } from '../lib/scryfall-to-enriched';
 import { useCardThumb } from '../lib/card-thumbs';
 import { CardEditDialog, type PrintingSelection } from './CardEditDialog';
 import { VerdictBadge } from './deck/VerdictBadge';
+import { ZoomControl } from './ZoomControl';
+import {
+  ZOOM_MAX,
+  ZOOM_MAX_NARROW,
+  clampZoom,
+  readStoredZoom,
+  zoomBucket,
+  zoomMinCol,
+} from '../lib/grid-zoom';
+
+const GRID_SIZE_KEY = 'mtg-lists-grid-size';
 
 const EMPTY_EXPR: ChipExpression = { chips: [], joiners: [] };
 
@@ -122,9 +133,14 @@ function SkeletonRows({ count }: { count: number }) {
 
 /** Placeholder grid cells while entries resolve — aspect-ratio tiles so the
  *  grid doesn't collapse before real cards arrive. */
-function SkeletonGrid({ count }: { count: number }) {
+function SkeletonGrid({ count, style }: { count: number; style?: React.CSSProperties }) {
   return (
-    <div className="list-entries-grid" role="status" aria-label="Loading this list's cards">
+    <div
+      className="list-entries-grid"
+      style={style}
+      role="status"
+      aria-label="Loading this list's cards"
+    >
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
@@ -224,6 +240,33 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
   const [sortKey, setSortKey] = useState<SortField>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [view, setView] = useState<'list' | 'compact' | 'grid'>('list');
+  const [gridZoom, setGridZoomRaw] = useState(() => readStoredZoom(GRID_SIZE_KEY));
+  const setGridZoom = (z: number) => {
+    setGridZoomRaw(z);
+    try {
+      localStorage.setItem(GRID_SIZE_KEY, String(z));
+    } catch {
+      /* ignore */
+    }
+  };
+  // Mirrors the collection/deck grids: on narrow viewports the top zoom
+  // steps all render as a single full-width column, so the reachable range
+  // is capped (without overwriting the stored preference).
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia('(max-width: 640px)');
+    const update = () => setIsNarrow(mql.matches);
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const effectiveZoom = clampZoom(gridZoom, isNarrow);
+  const gridStyle = {
+    '--card-min-desktop': `${zoomMinCol(effectiveZoom, 'desktop')}px`,
+    '--card-min-mobile': `${zoomMinCol(effectiveZoom, 'mobile')}px`,
+  } as React.CSSProperties;
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState<ListEntry | null>(null);
   // Inline "Search Scryfall to add" affordance — same pattern as the
@@ -609,6 +652,13 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
           <ViewModeToggle value={view} onChange={setView} options={VIEW_OPTIONS} />
+          {view === 'grid' && (
+            <ZoomControl
+              zoom={effectiveZoom}
+              max={isNarrow ? ZOOM_MAX_NARROW : ZOOM_MAX}
+              onChange={setGridZoom}
+            />
+          )}
           {/* Lists reuses CardRow's collection glyph set (TypeIcon, FoilBadge,
               RarityBadge) — mount the Key at the trailing end of the toolbar so
               those glyphs are explained, same as collection/binder surfaces. */}
@@ -618,7 +668,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
 
       {loading ? (
         view === 'grid' ? (
-          <SkeletonGrid count={Math.min(Math.max(list.entries.length, 6), 18)} />
+          <SkeletonGrid count={Math.min(Math.max(list.entries.length, 6), 18)} style={gridStyle} />
         ) : (
           <SkeletonRows count={Math.min(Math.max(list.entries.length, 3), 10)} />
         )
@@ -638,7 +688,12 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
           )}
         </div>
       ) : view === 'grid' ? (
-        <div className="list-entries-grid" role="region" aria-label={`${list.name} cards`}>
+        <div
+          className={`list-entries-grid grid-${zoomBucket(effectiveZoom)}`}
+          style={gridStyle}
+          role="region"
+          aria-label={`${list.name} cards`}
+        >
           {sorted.map((r, i) => (
             <ListEntryGridCell
               key={r.card.copyId}
