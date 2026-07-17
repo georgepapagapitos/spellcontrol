@@ -359,10 +359,16 @@
   outline: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .toolbar-viewmode-btn:hover {
+  .toolbar-viewmode-btn:hover:not(:disabled) {
     color: var(--text-primary);
     outline: none;
   }
+}
+
+/* Zoom stepper bounds (ZoomControl) — a disabled end reads as "no further". */
+.toolbar-viewmode-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .toolbar-viewmode-btn.active {

@@ -20,36 +20,21 @@
   margin: var(--space-2) 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+
+  /* Zoom-driven min column width — DeckCardGrid sets both vars inline per
+     zoom step (lib/grid-zoom.ts ladders); the mobile ladder takes over
+     ≤1024px. min(…, 100%) keeps a big step from overflowing a narrow
+     container (it clamps to one full-width column instead). The
+     grid-1x/2x/3x classes below are coarse zoom buckets that only scale
+     cell chrome (badges), not columns. */
+  --card-min: var(--card-min-desktop, 150px);
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), 100%), 1fr));
   gap: 0.65rem;
 }
 
-/* 1×/2×/3× card sizing — mirrors the collection grid's min-column
-   widths (desktop here; narrowed on mobile below). 3× is hidden on
-   phones by the toolbar, so no phone rule needed for it. */
-.deck-card-grid.grid-1x {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-}
-
-.deck-card-grid.grid-2x {
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-}
-
-.deck-card-grid.grid-3x {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-}
-
 @media (max-width: 1024px) {
-  .deck-card-grid.grid-1x {
-    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  }
-
-  .deck-card-grid.grid-2x {
-    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  }
-
-  .deck-card-grid.grid-3x {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  .deck-card-grid {
+    --card-min: var(--card-min-mobile, 110px);
   }
 }
 
