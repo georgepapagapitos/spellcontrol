@@ -109,9 +109,11 @@ export interface EnrichedCard {
 }
 
 /**
- * One entry in a List — a reference to a card the user does NOT own. Carries a
- * concrete printing (defaults to the latest on add, editable via CardEditDialog).
- * No copyId / ownership. Inert to deck/combo logic.
+ * One entry in a List — a printing reference with no ownership link (no
+ * copyId; on a want list the card is typically unowned, on a tracking list
+ * it's cross-referenced against the collection by oracleId/name). Carries a
+ * concrete printing (defaults to the latest on add, editable via
+ * CardEditDialog). Inert to deck/combo logic.
  */
 export interface ListEntry {
   id: string;
@@ -134,9 +136,12 @@ export interface ListEntry {
   currency?: 'USD' | 'EUR';
 }
 
+/** What a manually-curated (static) list is for — see {@link ListDef.kind}. */
+export type ListKind = 'want' | 'tracking';
+
 /**
- * A user-defined list of unowned cards. Rides inside StoredCollection (synced
- * with the collection blob).
+ * A user-defined list of cards. Rides inside StoredCollection (synced with
+ * the collection blob).
  */
 export interface ListDef {
   id: string;
@@ -145,6 +150,15 @@ export interface ListDef {
   order: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Purpose of a static list. Absent = `'want'` (cards to acquire — feeds the
+   * friend-hub trade radar and the cost-to-complete stat). `'tracking'` = a
+   * hand-curated catalogue of cards the user owns (e.g. eligible commanders
+   * split across binders) — excluded from trade/acquisition surfaces.
+   * Not meaningful for dynamic lists (`rule` set), which are owned by
+   * construction.
+   */
+  kind?: ListKind;
   /**
    * When set, this is a **dynamic list**: membership is computed live from the
    * collection with the binder rule engine (OR of groups), `entries` stays

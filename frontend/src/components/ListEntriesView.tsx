@@ -6,6 +6,7 @@ import { useEnrichedListEntries } from '../lib/use-enriched-list-entries';
 import { dynamicListRows, isRuleEmpty } from '../lib/dynamic-list';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
 import { summarizeListCost } from '../lib/list-cost';
+import { isTrackingList } from '../lib/lists';
 import { formatMoney } from '../lib/format-money';
 import { useCollectionStore } from '../store/collection';
 import { ListDetailView } from './ListDetailView';
@@ -30,12 +31,17 @@ const EMPTY_RULE: NonNullable<ListDef['rule']> = [];
  * construction), "Add card" becomes "Edit rule", and the cost stat is skipped
  * — everything in a dynamic list is already owned.
  *
+ * Tracking lists (static, `kind: 'tracking'`) keep the manual flows but drop
+ * the acquisition framing: instead of a cost to complete, the header flags
+ * entries that aren't in the collection (ownership drift).
+ *
  * `useEnrichedListEntries` is called once here (not inside `ListDetailView`)
  * so the header's acquisition-cost stat and the table share one name
  * resolution pass instead of double-fetching the same cards.
  */
 export function ListEntriesView({ list }: Props) {
   const isDynamic = list.rule !== undefined;
+  const tracking = !isDynamic && isTrackingList(list);
   const rule = list.rule ?? EMPTY_RULE;
   // Auto-open the rule editor for a freshly created dynamic list (no rule
   // yet) so creation flows straight into defining what belongs here.
@@ -84,6 +90,25 @@ export function ListEntriesView({ list }: Props) {
                 <span title="This list is rule-driven — cards from your collection that match the rule appear here automatically">
                   dynamic — stays in sync with your collection
                 </span>
+              </>
+            ) : tracking ? (
+              <>
+                {' · '}
+                <span title="This list catalogues cards you own — it's never treated as a want list">
+                  tracking
+                </span>
+                {list.entries.length > 0 &&
+                  !loading &&
+                  // Ownership drift is the one stat a tracking list needs:
+                  // silence when all owned, a flag when something slipped out.
+                  !cost.allOwned && (
+                    <>
+                      {' · '}
+                      <span title="Cards on this list that aren't in your collection right now">
+                        {cost.unownedEntries.toLocaleString()} not in your collection
+                      </span>
+                    </>
+                  )}
               </>
             ) : (
               list.entries.length > 0 && (

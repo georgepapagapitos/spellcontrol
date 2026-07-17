@@ -1,6 +1,15 @@
-import type { EnrichedCard, Finish, ListEntry } from '../types';
+import type { EnrichedCard, Finish, ListDef, ListEntry } from '../types';
 
 export const MAX_LIST_NAME = 60;
+
+/**
+ * True for a static list that catalogues owned cards rather than cards to
+ * acquire. The single gate every acquisition surface (trade radar, cost to
+ * complete, move-to-collection) checks — see ListDef.kind.
+ */
+export function isTrackingList(list: Pick<ListDef, 'kind'>): boolean {
+  return list.kind === 'tracking';
+}
 
 export function clampListName(name: string): string {
   return name.trim().slice(0, MAX_LIST_NAME);

@@ -465,8 +465,9 @@ export function SettingsPage() {
                         them.
                         <br />
                         <br />
-                        <strong>Lists</strong> are manual — a named group of specific cards you
-                        curate by hand, for things like a wish list or trade targets.
+                        <strong>Lists</strong> are named groups of cards — hand-curated want lists
+                        (cards to acquire), tracking lists (cards you own, catalogued outside your
+                        binders), or dynamic lists driven by a rule like binders are.
                         <br />
                         <br />
                         The backup includes both binder rule definitions and lists.

@@ -3,6 +3,7 @@ import {
   List as ListIconLucide,
   Pencil,
   Plus,
+  Repeat,
   Share2,
   SlidersHorizontal,
   Trash2,
@@ -31,8 +32,9 @@ import { ListEntriesView } from '../components/ListEntriesView';
 import { ShareDialog } from '../components/ShareDialog';
 import { NameInputDialog } from '../components/NameInputDialog';
 import { dynamicListCount } from '../lib/dynamic-list';
+import { isTrackingList } from '../lib/lists';
 import { useCardsWithTags, groupsUseTags } from '../lib/card-tags';
-import type { ListDef } from '../types';
+import type { ListDef, ListKind } from '../types';
 
 type ListSortField = 'order' | 'name' | 'entries';
 type SortDir = 'asc' | 'desc';
@@ -57,6 +59,7 @@ export function ListsPage() {
   const lists = useCollectionStore((s) => s.lists);
   const cards = useCollectionStore((s) => s.cards);
   const createList = useCollectionStore((s) => s.createList);
+  const setListKind = useCollectionStore((s) => s.setListKind);
   const renameList = useCollectionStore((s) => s.renameList);
   const deleteList = useCollectionStore((s) => s.deleteList);
   const deleteLists = useCollectionStore((s) => s.deleteLists);
@@ -71,6 +74,9 @@ export function ListsPage() {
   const [nameDialog, setNameDialog] = useState<
     { mode: 'create'; dynamic?: boolean } | { mode: 'rename'; id: string; current: string } | null
   >(null);
+  // Purpose of the static list being created (want = acquire, tracking =
+  // catalogue of owned cards). Reset to want each time the dialog opens.
+  const [createKind, setCreateKind] = useState<ListKind>('want');
 
   const { sortField, sortDir, toggleSort } = useStoredSort<ListSortField>(
     'lists-index-sort',
@@ -145,7 +151,10 @@ export function ListsPage() {
     if (names.length) void getCardsByNames(names).catch(() => {});
   }, [routeId, prefetchKey]);
 
-  const handleCreate = () => setNameDialog({ mode: 'create' });
+  const handleCreate = () => {
+    setCreateKind('want');
+    setNameDialog({ mode: 'create' });
+  };
   const handleCreateDynamic = () => setNameDialog({ mode: 'create', dynamic: true });
 
   const handleRename = (id: string, current: string) =>
@@ -156,7 +165,11 @@ export function ListsPage() {
     if (nameDialog.mode === 'create') {
       // A dynamic list starts with an empty rule; the detail view auto-opens
       // the rule editor so creation flows straight into defining the rule.
-      const id = createList(name, nameDialog.dynamic ? [] : undefined);
+      const id = createList(
+        name,
+        nameDialog.dynamic ? [] : undefined,
+        !nameDialog.dynamic && createKind === 'tracking' ? 'tracking' : undefined
+      );
       navigate(`/collection/lists/${id}`);
     } else {
       renameList(nameDialog.id, name);
@@ -297,10 +310,10 @@ export function ListsPage() {
         <div className="empty-state">
           <p className="empty-state-tagline">No lists yet.</p>
           <p className="empty-state-hint">
-            Create a list to track cards you don’t own yet — a wishlist, buylist, deck plan, or
-            trade pile. Or make a dynamic list: a rule over your collection (say, every eligible
-            commander you own) that stays current as cards come in. Lists never affect your
-            collection, binders, or decks.
+            Create a list to curate cards by hand — a wishlist or trade pile of cards to acquire, or
+            a tracking list of cards you own, like every eligible commander across your binders. Or
+            make a dynamic list: a rule over your collection that stays current as cards come in.
+            Lists never affect your collection, binders, or decks.
           </p>
           <div className="empty-state-actions">
             <button type="button" className="btn btn-primary" onClick={handleCreate}>
@@ -366,6 +379,7 @@ export function ListsPage() {
                             <>
                               {l.entries.length.toLocaleString()}{' '}
                               {l.entries.length === 1 ? 'entry' : 'entries'}
+                              {isTrackingList(l) && ' · tracking'}
                             </>
                           )}
                         </span>
@@ -388,6 +402,14 @@ export function ListsPage() {
                               label: 'Share',
                               icon: Share2,
                               onClick: () => setShareList({ id: l.id, name: l.name }),
+                            },
+                            {
+                              label: isTrackingList(l)
+                                ? 'Change to want list'
+                                : 'Change to tracking list',
+                              icon: Repeat,
+                              onClick: () =>
+                                setListKind(l.id, isTrackingList(l) ? 'want' : 'tracking'),
                             },
                           ]),
                       {
@@ -439,13 +461,44 @@ export function ListsPage() {
           placeholder={
             nameDialog.mode === 'create' && nameDialog.dynamic
               ? 'e.g. Commanders I own'
-              : 'e.g. Wishlist, Trade pile'
+              : nameDialog.mode === 'create' && createKind === 'tracking'
+                ? 'e.g. Eligible commanders'
+                : 'e.g. Wishlist, Trade pile'
           }
           initialValue={nameDialog.mode === 'rename' ? nameDialog.current : ''}
           confirmLabel={nameDialog.mode === 'create' ? 'Create list' : 'Rename'}
           onSubmit={submitName}
           onCancel={() => setNameDialog(null)}
-        />
+        >
+          {nameDialog.mode === 'create' && !nameDialog.dynamic && (
+            <fieldset className="name-input-modes" aria-label="List purpose">
+              <label className="name-input-mode">
+                <input
+                  type="radio"
+                  name="list-kind"
+                  checked={createKind === 'want'}
+                  onChange={() => setCreateKind('want')}
+                />
+                <span>
+                  <strong>Want list</strong> — cards to acquire. Shows a cost to complete, and
+                  friends who have a card show up in your trade radar.
+                </span>
+              </label>
+              <label className="name-input-mode">
+                <input
+                  type="radio"
+                  name="list-kind"
+                  checked={createKind === 'tracking'}
+                  onChange={() => setCreateKind('tracking')}
+                />
+                <span>
+                  <strong>Tracking list</strong> — a hand-picked set of cards you own, like every
+                  eligible commander across your binders. Never treated as wants.
+                </span>
+              </label>
+            </fieldset>
+          )}
+        </NameInputDialog>
       )}
     </div>
   );
