@@ -7,6 +7,7 @@ import type {
   ThemeResult,
   DeckFormat,
   GapAnalysisCard,
+  HiddenGemRow,
   BuildReport,
   Archetype,
 } from '@/deck-builder/types';
@@ -119,6 +120,12 @@ export interface Deck {
    * not already in the deck. Recomputed live alongside the analysis.
    */
   gapAnalysis?: GapAnalysisCard[];
+  /**
+   * Underrated "hidden gems" suggestions (E146) — low/no-inclusion cards with
+   * lift/similar/axis evidence, never overlapping gapAnalysis. Recomputed live
+   * by the analysis hook, like gapAnalysis.
+   */
+  hiddenGems?: HiddenGemRow[];
   /**
    * Per-card EDHREC inclusion % (cardName → 0-100) for cards in this deck —
    * powers the "why this card" rationale on rows/preview. Recomputed live by
@@ -245,6 +252,7 @@ interface DecksState {
     bracketEstimation?: BracketEstimation;
     roleTargets?: Record<string, number>;
     gapAnalysis?: GapAnalysisCard[];
+    hiddenGems?: HiddenGemRow[];
     cardInclusionMap?: Record<string, number>;
     buildReport?: BuildReport;
     deckGrade?: { letter: string; headline: string };

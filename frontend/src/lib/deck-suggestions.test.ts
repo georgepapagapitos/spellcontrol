@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildSuggestionRows, type SuggestionFilter } from './deck-suggestions';
-import type { GapAnalysisCard } from '@/deck-builder/types';
+import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import type { ComboMatch } from '@/types/combos';
 import type { ChangeOwnership } from './deck-change';
 
@@ -58,12 +58,22 @@ const opts = (
     query: string;
     inDeck: Set<string>;
     show: SuggestionFilter;
+    hiddenGems: HiddenGemRow[];
   }> = {}
 ) => ({
   ownershipFor: o.ownershipFor ?? (() => 'unowned' as ChangeOwnership),
   query: o.query ?? '',
   inDeck: o.inDeck ?? new Set<string>(),
   show: o.show ?? ALL_ON,
+  hiddenGems: o.hiddenGems,
+});
+
+const gem = (name: string, extra: Partial<HiddenGemRow> = {}): HiddenGemRow => ({
+  name,
+  typeLine: 'Creature',
+  price: null,
+  signals: [{ kind: 'lift', names: ['Seed A', 'Seed B'] }],
+  ...extra,
 });
 
 describe('buildSuggestionRows', () => {
@@ -189,5 +199,73 @@ describe('buildSuggestionRows', () => {
     expect(staples.map((s) => s.name)).toEqual(['Sol Ring']);
     expect(combos).toHaveLength(0);
     expect(counts.unowned).toBe(1); // Sol Ring counted once, multi-missing not at all
+  });
+
+  it('returns hidden gems as their own section, carrying signals and price', () => {
+    const { gems, counts } = buildSuggestionRows(
+      [],
+      [],
+      opts({
+        hiddenGems: [gem('Mystic Remora', { price: '1.50' })],
+      })
+    );
+    expect(gems).toHaveLength(1);
+    expect(gems[0]).toMatchObject({
+      name: 'Mystic Remora',
+      kind: 'gem',
+      ownership: 'unowned',
+      price: '1.50',
+      signals: [{ kind: 'lift', names: ['Seed A', 'Seed B'] }],
+    });
+    expect(counts.unowned).toBe(1);
+  });
+
+  it('sorts gems availability-first while preserving engine order within a bucket', () => {
+    const { gems } = buildSuggestionRows(
+      [],
+      [],
+      opts({
+        hiddenGems: [gem('First Unowned'), gem('Second Unowned'), gem('Owned Gem')],
+        ownershipFor: ownership({ 'Owned Gem': 'owned' }),
+      })
+    );
+    expect(gems.map((g) => g.name)).toEqual(['Owned Gem', 'First Unowned', 'Second Unowned']);
+  });
+
+  it('drops a gem that is already in the deck, shown as a staple, or filtered out', () => {
+    const { gems, counts } = buildSuggestionRows(
+      [gap('Staple Gem', 42)],
+      [],
+      opts({
+        hiddenGems: [gem('Staple Gem'), gem('In Deck Gem'), gem('Kept Gem')],
+        inDeck: new Set(['in deck gem']),
+      })
+    );
+    expect(gems.map((g) => g.name)).toEqual(['Kept Gem']);
+    // Staple Gem counted once (as a staple); In Deck Gem not at all.
+    expect(counts.unowned).toBe(2);
+  });
+
+  it('applies the query and availability filters to gems like any other row', () => {
+    const { gems } = buildSuggestionRows(
+      [],
+      [],
+      opts({
+        hiddenGems: [gem('Mystic Remora'), gem('Blood Artist')],
+        query: 'remora',
+      })
+    );
+    expect(gems.map((g) => g.name)).toEqual(['Mystic Remora']);
+
+    const hidden = buildSuggestionRows(
+      [],
+      [],
+      opts({
+        hiddenGems: [gem('Mystic Remora')],
+        show: { ...ALL_ON, unowned: false },
+      })
+    );
+    expect(hidden.gems).toHaveLength(0);
+    expect(hidden.counts.unowned).toBe(1); // still counted for the chip
   });
 });

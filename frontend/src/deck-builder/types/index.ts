@@ -362,6 +362,36 @@ export interface GapAnalysisCard {
 }
 
 /**
+ * One evidence line behind a hidden-gem suggestion (E146). `names` carries the
+ * concrete cards/engine the copy cites: lift → up to 3 seed names, similar →
+ * the in-deck card it plays like, axis → the engine's display label.
+ */
+export interface HiddenGemSignal {
+  kind: 'lift' | 'similar' | 'axis';
+  names: string[];
+}
+
+/**
+ * An underrated-card suggestion for the editor's Suggestions tab (E146): a
+ * card EDHREC's inclusion ranking does NOT recommend for this commander (low
+ * or no inclusion on its page, never overlapping gapAnalysis), vouched for by
+ * at least one popularity-independent signal. Lean and persistable like
+ * GapAnalysisCard — names + primitives only; ownership is marked by the UI
+ * against the live collection. See services/deckBuilder/hiddenGems.ts.
+ */
+export interface HiddenGemRow {
+  name: string;
+  typeLine: string;
+  price: string | null;
+  cmc?: number;
+  /** EDHREC inclusion % when the commander page lists the card (always below
+   *  the engine's low-inclusion ceiling — that's what makes it hidden). */
+  inclusion?: number;
+  /** Evidence, strongest first (1–3 entries, one per signal kind). */
+  signals: HiddenGemSignal[];
+}
+
+/**
  * A generation-time "hidden synergy" suggestion surfaced from EDHREC card-page
  * lift data (see services/deckBuilder/deckGeneration/phaseLiftPicks.ts) — a
  * package pick the generator did NOT add to the deck, only proposed. `kind`
