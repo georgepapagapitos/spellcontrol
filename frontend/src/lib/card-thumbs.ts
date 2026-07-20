@@ -19,7 +19,7 @@ import type { ScryfallCard } from '@/deck-builder/types';
  * `getCardsByNames` call, so the network sees one batched request, not N.
  */
 
-export type ThumbVersion = 'small' | 'normal' | 'large';
+export type ThumbVersion = 'small' | 'normal' | 'large' | 'art_crop';
 
 /** Pull the requested image size off a resolved card, falling back to the front
  *  face for DFCs/MDFCs (which carry art per-face, not at the top level). */

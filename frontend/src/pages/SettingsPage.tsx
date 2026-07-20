@@ -28,6 +28,7 @@ import { SharedLinksSettings } from '../components/SharedLinksSettings';
 import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
 import { getPendingCount } from '../lib/sync';
+import { ProfileEditor } from '../components/ProfileEditor';
 
 export function SettingsPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -293,6 +294,28 @@ export function SettingsPage() {
           <p className="binder-hero-meta">Account, appearance, and data tools.</p>
         </div>
       </header>
+
+      {/* ── 0. Profile (authed only) ──────────────────────────────────────── */}
+      {username && (
+        <div role="group" aria-labelledby="settings-profile-group-title">
+          <h2 id="settings-profile-group-title" className="sr-only">
+            Profile
+          </h2>
+          <section className="settings-card" aria-labelledby="settings-profile-title">
+            <header className="settings-card-header">
+              <h2 id="settings-profile-title" className="settings-card-title">
+                Profile
+              </h2>
+              <p className="settings-card-hint">
+                Shown on your public profile and anywhere you appear to other players.
+              </p>
+            </header>
+            <div className="settings-card-body">
+              <ProfileEditor />
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* ── 1. Account ─────────────────────────────────────────────────────── */}
       <div role="group" aria-labelledby="settings-account-group-title">

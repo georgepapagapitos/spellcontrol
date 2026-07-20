@@ -240,6 +240,26 @@ export async function deleteAccount(): Promise<void> {
 }
 
 /**
+ * User-editable public-profile fields (social program W0). All nullable —
+ * `null` means "not set", never absent/undefined, so consumers can render a
+ * fixed set of fields without an extra existence check.
+ */
+export interface Profile {
+  displayName: string | null;
+  bio: string | null;
+  avatarCardId: string | null;
+  avatarCardName: string | null;
+  avatarImageUrl: string | null;
+}
+
+/** A freshly-picked avatar, pre-derived client-side (see AvatarPickerSheet). */
+export interface AvatarPatch {
+  cardId: string;
+  cardName: string;
+  imageUrl: string;
+}
+
+/**
  * Result shape for /me. `autoLinkedAt` is non-null when an external sign-in
  * was just attached to this account via a verified-email match — the
  * frontend surfaces a "was this you?" banner until it's acknowledged.
@@ -247,13 +267,39 @@ export async function deleteAccount(): Promise<void> {
 export interface MeResponse {
   user: AuthUser;
   autoLinkedAt: number | null;
+  profile: Profile;
 }
 
 export async function fetchMe(): Promise<MeResponse | null> {
   const res = await authedFetch('/api/auth/me', { method: 'GET' });
   if (res.status === 401) return null;
-  const data = await handleResponse<{ user: AuthUser; autoLinkedAt?: number | null }>(res);
-  return { user: data.user, autoLinkedAt: data.autoLinkedAt ?? null };
+  const data = await handleResponse<{
+    user: AuthUser;
+    autoLinkedAt?: number | null;
+    profile: Profile;
+  }>(res);
+  return { user: data.user, autoLinkedAt: data.autoLinkedAt ?? null, profile: data.profile };
+}
+
+/**
+ * Per-field PATCH semantics: a key absent from `patch` leaves that field
+ * unchanged server-side; `null` clears it; any other value sets it. Callers
+ * that always hold all three fields in local state (ProfileEditor) just pass
+ * the current value of each — the server treats an empty string the same as
+ * `null` (trims, then a blank result clears).
+ */
+export async function updateProfile(patch: {
+  displayName?: string | null;
+  bio?: string | null;
+  avatar?: AvatarPatch | null;
+}): Promise<Profile> {
+  const res = await authedFetch('/api/auth/profile', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  const data = await handleResponse<{ profile: Profile }>(res);
+  return data.profile;
 }
 
 /** Dismiss the auto-link banner (server-side: clears users.auto_linked_at). */
