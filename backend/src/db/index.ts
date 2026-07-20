@@ -435,5 +435,25 @@ export async function ensureSchema(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS deck_publications_slug_idx ON deck_publications(slug);
     CREATE INDEX IF NOT EXISTS deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
+
+    -- Content reports (social program W1) — the app's first moderation
+    -- surface. kind covers 'game-result' from day one (app-level validation
+    -- only, no CHECK) so a later wave reuses this table instead of a second
+    -- reporting path. target_owner_id cascades on account deletion.
+    CREATE TABLE IF NOT EXISTS content_reports (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      target_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reporter_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      reason TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      resolved_at BIGINT,
+      resolution TEXT
+    );
+    CREATE INDEX IF NOT EXISTS content_reports_unresolved_idx ON content_reports(created_at) WHERE resolved_at IS NULL;
+    CREATE INDEX IF NOT EXISTS content_reports_owner_idx ON content_reports(target_owner_id);
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_hidden_at BIGINT;
   `);
 }
