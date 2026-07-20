@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShareHeadTags, escapeHtmlAttr, injectShareHead } from './og';
+import { buildShareHeadTags, cardArtUrl, escapeHtmlAttr, injectShareHead } from './og';
 
 describe('escapeHtmlAttr', () => {
   it('escapes all HTML-sensitive characters', () => {
@@ -50,6 +50,75 @@ describe('buildShareHeadTags', () => {
     expect(out).not.toContain('<script>');
     expect(out).toContain('&quot;&gt;&lt;script&gt;');
     expect(out).toContain('O&#39;Brien &amp; sons');
+  });
+
+  it('uses meta.image for og:image and twitter:image when present, escaped', () => {
+    const out = buildShareHeadTags({
+      title: 'Atraxa Superfriends — shared by george',
+      description: 'A Commander deck shared by george on SpellControl.',
+      url: 'https://spellcontrol.com/s/abc123',
+      image: 'https://cards.scryfall.io/art_crop/atraxa.jpg?a=1&b=2',
+    });
+    expect(out).toContain(
+      '<meta property="og:image" content="https://cards.scryfall.io/art_crop/atraxa.jpg?a=1&amp;b=2"'
+    );
+    expect(out).toContain(
+      '<meta name="twitter:image" content="https://cards.scryfall.io/art_crop/atraxa.jpg?a=1&amp;b=2"'
+    );
+  });
+
+  it('falls back to the static OG image when meta.image is omitted', () => {
+    const out = buildShareHeadTags({
+      title: 'Some collection',
+      description: 'Desc',
+      url: 'https://spellcontrol.com/s/x',
+    });
+    expect(out).toContain(
+      '<meta property="og:image" content="https://spellcontrol.com/og-image.png"'
+    );
+    expect(out).toContain(
+      '<meta name="twitter:image" content="https://spellcontrol.com/og-image.png"'
+    );
+  });
+
+  it('emits an escaped og:image:alt reusing the title', () => {
+    const out = buildShareHeadTags({
+      title: `O'Brien's deck`,
+      description: 'Desc',
+      url: 'https://spellcontrol.com/s/x',
+    });
+    expect(out).toContain('<meta property="og:image:alt" content="O&#39;Brien&#39;s deck"');
+  });
+});
+
+describe('cardArtUrl', () => {
+  it('reads the direct image_uris.art_crop field', () => {
+    const url = cardArtUrl({
+      image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/a.jpg' },
+    });
+    expect(url).toBe('https://cards.scryfall.io/art_crop/a.jpg');
+  });
+
+  it('falls back to card_faces[0].image_uris.art_crop for double-faced cards', () => {
+    const url = cardArtUrl({
+      card_faces: [{ image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/front.jpg' } }],
+    });
+    expect(url).toBe('https://cards.scryfall.io/art_crop/front.jpg');
+  });
+
+  it('prefers the direct field over card_faces when both are present', () => {
+    const url = cardArtUrl({
+      image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/direct.jpg' },
+      card_faces: [{ image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/front.jpg' } }],
+    });
+    expect(url).toBe('https://cards.scryfall.io/art_crop/direct.jpg');
+  });
+
+  it('returns undefined (never throws) when neither shape yields an image', () => {
+    expect(cardArtUrl({ name: 'No Art Card' })).toBeUndefined();
+    expect(cardArtUrl(null)).toBeUndefined();
+    expect(cardArtUrl(undefined)).toBeUndefined();
+    expect(cardArtUrl('not an object')).toBeUndefined();
   });
 });
 

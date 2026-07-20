@@ -21,6 +21,8 @@ export interface ShareLandingMeta {
   title: string;
   description: string;
   url: string;
+  /** Card-art `og:image` override (art_crop URL). Absent falls back to OG_IMAGE_URL. */
+  image?: string;
 }
 
 export function escapeHtmlAttr(s: string): string {
@@ -45,7 +47,7 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
     const title = escapeHtmlAttr(meta.title);
     const description = escapeHtmlAttr(meta.description);
     const url = escapeHtmlAttr(meta.url);
-    const image = escapeHtmlAttr(OG_IMAGE_URL);
+    const image = escapeHtmlAttr(meta.image ?? OG_IMAGE_URL);
     lines.push(
       `<meta property="og:type" content="website" />`,
       `<meta property="og:site_name" content="${SITE_NAME}" />`,
@@ -53,6 +55,7 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
       `<meta property="og:description" content="${description}" />`,
       `<meta property="og:url" content="${url}" />`,
       `<meta property="og:image" content="${image}" />`,
+      `<meta property="og:image:alt" content="${title}" />`,
       `<meta name="twitter:card" content="summary" />`,
       `<meta name="twitter:title" content="${title}" />`,
       `<meta name="twitter:description" content="${description}" />`,
@@ -85,6 +88,25 @@ function plural(n: number, one: string, many: string): string {
 }
 
 /**
+ * Derive a card's art_crop URL from its raw (unknown-shaped) Scryfall data,
+ * reading the real field the way every other call site in this codebase does
+ * (`image_uris?.art_crop ?? card_faces?.[0]?.image_uris?.art_crop`) rather
+ * than deriving one from `/normal/` — that string-replace trick
+ * (`scryfallArtCrop` in the frontend) exists only for the offline slim
+ * bundle's degraded payload and would fabricate a 404 for any card that
+ * genuinely has no art_crop variant. Returns undefined (never throws) when
+ * neither shape yields an image, so callers can chain `??` freely.
+ */
+export function cardArtUrl(raw: unknown): string | undefined {
+  const card = asRecord(raw);
+  if (!card) return undefined;
+  const direct = asString(asRecord(card.image_uris)?.art_crop);
+  if (direct) return direct;
+  const face = Array.isArray(card.card_faces) ? asRecord(card.card_faces[0]) : null;
+  return asString(asRecord(face?.image_uris)?.art_crop);
+}
+
+/**
  * Cheap metadata lookup for a share token — just enough to render OG/Twitter
  * preview tags. Returns null for unknown / revoked tokens and for shares
  * whose underlying resource has been deleted (matches `GET /public/:token`'s
@@ -114,18 +136,27 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     if (!deck) return null;
     const name = asString(deck.name) ?? 'Untitled deck';
     const format = asString(deck.format) ?? 'Magic';
-    const cards = Array.isArray(deck.cards) ? deck.cards.length : 0;
+    const cardsArr = Array.isArray(deck.cards) ? deck.cards : [];
+    const cards = cardsArr.length;
+    // Commander → partner commander → first mainboard card. DeckCard wraps
+    // `card: ScryfallCard`, so the first mainboard card is `cardsArr[0]?.card`.
+    const image =
+      cardArtUrl(deck.commander) ??
+      cardArtUrl(deck.partnerCommander) ??
+      cardArtUrl(asRecord(cardsArr[0])?.card);
     if (share.kind === 'feedback') {
       return {
         title: `${name} — feedback wanted`,
         description: `${ownerUsername} is asking for advice on this ${format} deck (${plural(cards, 'card', 'cards')}). Suggest adds and cuts on ${SITE_NAME}.`,
         url,
+        image,
       };
     }
     return {
       title: `${name} — shared by ${ownerUsername}`,
       description: `A ${format} deck (${plural(cards, 'card', 'cards')}) shared by ${ownerUsername} on ${SITE_NAME}.`,
       url,
+      image,
     };
   }
   if (share.kind === 'list') {
