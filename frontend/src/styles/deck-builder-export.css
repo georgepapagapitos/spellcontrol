@@ -85,8 +85,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* flex-wrap is load-bearing at the 320px viewport floor: Download (~110px)
+   + Copy (~95px) + native-only Share… (~95px) + 2×8px gaps ≈316px, against
+   ~280–288px available inside the dialog's own horizontal padding — without
+   the wrap, the third button clips under .modal's bounds. If a 4th action
+   is ever added to this row, re-check that math before assuming it fits. */
 .export-dialog-actions {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;
