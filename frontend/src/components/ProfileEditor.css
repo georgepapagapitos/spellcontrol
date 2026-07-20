@@ -1,0 +1,113 @@
+.profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Avatar sits beside the name field until the row can't fit both, then wraps
+   above it (flex-wrap, not a hardcoded breakpoint — the strips-must-wrap
+   rule). */
+.profile-editor-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.profile-editor-avatar-trigger {
+  position: relative;
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.profile-editor-avatar-trigger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.profile-editor-avatar-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.profile-editor-avatar-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-editor-avatar-trigger:not(:disabled):hover .profile-editor-avatar-badge {
+    background: var(--accent-hover);
+  }
+}
+
+.profile-editor-name-field {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.profile-editor-field {
+  width: 100%;
+}
+
+.profile-editor-counter {
+  align-self: flex-end;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.profile-editor-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* input[type='text'] is themed globally (forms-banners.css); textarea isn't
+   in that selector list, so style it explicitly to match. */
+.profile-editor-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 6px 10px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-base);
+  outline: none;
+  resize: vertical;
+}
+
+.profile-editor-input:focus-visible,
+.profile-editor-textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.profile-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (pointer: coarse) {
+  .profile-editor-actions .btn {
+    min-height: 44px;
+  }
+}

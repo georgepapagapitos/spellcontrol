@@ -2,13 +2,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAuth } from './auth';
 import * as authApi from '../lib/auth-api';
+import type { Profile } from '../lib/auth-api';
 import * as sync from '../lib/sync';
 import { hasEverVisited } from '../lib/first-run';
 
+const EMPTY_PROFILE: Profile = {
+  displayName: null,
+  bio: null,
+  avatarCardId: null,
+  avatarCardName: null,
+  avatarImageUrl: null,
+};
+
 beforeEach(() => {
   vi.restoreAllMocks();
-  useAuth.setState({ user: null, status: 'unknown', error: null, autoLinkedAt: null });
+  useAuth.setState({
+    user: null,
+    status: 'unknown',
+    error: null,
+    autoLinkedAt: null,
+    profile: null,
+  });
   localStorage.clear();
+  // signInAs() fires a background fetchMe() after login/register/OAuth to
+  // hydrate `profile` (bootstrap() alone only covers the page-reload path —
+  // see store/auth.ts). Default to a no-op here so tests that don't care
+  // about profile don't make a real network call; tests that do override
+  // this per-test.
+  vi.spyOn(authApi, 'fetchMe').mockResolvedValue(null);
 });
 
 describe('bootstrap', () => {
@@ -16,11 +37,34 @@ describe('bootstrap', () => {
     vi.spyOn(authApi, 'fetchMe').mockResolvedValue({
       user: { id: 'u1', username: 'alice', role: 'user' },
       autoLinkedAt: null,
+      profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
     expect(useAuth.getState().status).toBe('authed');
     expect(useAuth.getState().user?.username).toBe('alice');
     expect(useAuth.getState().autoLinkedAt).toBeNull();
+  });
+
+  it('threads profile from /me into the store', async () => {
+    const profile: Profile = { ...EMPTY_PROFILE, displayName: 'Alice', bio: 'Cube nut.' };
+    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({
+      user: { id: 'u1', username: 'alice', role: 'user' },
+      autoLinkedAt: null,
+      profile,
+    });
+    await useAuth.getState().bootstrap();
+    expect(useAuth.getState().profile).toEqual(profile);
+  });
+
+  it('leaves profile null offline even with a remembered identity (never cached)', async () => {
+    localStorage.setItem(
+      'spellcontrol:auth-user',
+      JSON.stringify({ id: 'u1', username: 'alice', role: 'user' })
+    );
+    vi.spyOn(authApi, 'fetchMe').mockRejectedValue(new Error('offline'));
+    await useAuth.getState().bootstrap();
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().profile).toBeNull();
   });
 
   it('moves to guest when /me returns null', async () => {
@@ -62,6 +106,7 @@ describe('bootstrap', () => {
     vi.spyOn(authApi, 'fetchMe').mockResolvedValue({
       user: { id: 'u1', username: 'alice', role: 'user' },
       autoLinkedAt: 1700000000000,
+      profile: EMPTY_PROFILE,
     });
     await useAuth.getState().bootstrap();
     expect(useAuth.getState().autoLinkedAt).toBe(1700000000000);
@@ -96,6 +141,34 @@ describe('login / register', () => {
     expect(ok).toBe(true);
     expect(useAuth.getState().status).toBe('authed');
     expect(useAuth.getState().error).toBeNull();
+  });
+
+  it('login success hydrates profile from a background /me fetch', async () => {
+    vi.spyOn(authApi, 'login').mockResolvedValue({ id: 'u2', username: 'bob', role: 'user' });
+    const profile: Profile = { ...EMPTY_PROFILE, displayName: 'Bob' };
+    vi.spyOn(authApi, 'fetchMe').mockResolvedValue({
+      user: { id: 'u2', username: 'bob', role: 'user' },
+      autoLinkedAt: null,
+      profile,
+    });
+    await useAuth.getState().login('bob', 'correct horse battery');
+    // The background fetchMe() is fire-and-forget; flush its microtasks.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useAuth.getState().profile).toEqual(profile);
+  });
+
+  it('login success swallows a failed background profile fetch', async () => {
+    vi.spyOn(authApi, 'login').mockResolvedValue({ id: 'u2', username: 'bob', role: 'user' });
+    vi.spyOn(authApi, 'fetchMe').mockRejectedValue(new Error('offline'));
+    await expect(useAuth.getState().login('bob', 'correct horse battery')).resolves.toBe(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    // Sign-in itself still succeeded; profile just stays null (Settings will
+    // show its loading state) rather than the background fetch's rejection
+    // surfacing anywhere.
+    expect(useAuth.getState().status).toBe('authed');
+    expect(useAuth.getState().profile).toBeNull();
   });
 
   it('login failure surfaces the error and returns false', async () => {
@@ -236,13 +309,20 @@ describe('linkGoogleWithPassword', () => {
 
 describe('logout', () => {
   it('clears user and triggers sync teardown even if API fails', async () => {
-    useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });
+    useAuth.setState({
+      user: { id: 'u', username: 'eve', role: 'user' },
+      status: 'authed',
+      profile: { ...EMPTY_PROFILE, displayName: 'Eve' },
+    });
     vi.spyOn(authApi, 'logout').mockRejectedValue(new Error('offline'));
     const flushSpy = vi.spyOn(sync, 'flushSync').mockResolvedValue();
     const stopSpy = vi.spyOn(sync, 'stopSyncAndWipeLocal').mockResolvedValue();
     await useAuth.getState().logout();
     expect(useAuth.getState().status).toBe('guest');
     expect(useAuth.getState().user).toBeNull();
+    // A stale profile must not linger for the next account signed into this
+    // session (a mid-session account switch, no page reload).
+    expect(useAuth.getState().profile).toBeNull();
     expect(flushSpy).toHaveBeenCalled();
     expect(stopSpy).toHaveBeenCalled();
   });
@@ -250,7 +330,11 @@ describe('logout', () => {
 
 describe('deleteAccount', () => {
   it('signs out and wipes local state on success', async () => {
-    useAuth.setState({ user: { id: 'u', username: 'eve', role: 'user' }, status: 'authed' });
+    useAuth.setState({
+      user: { id: 'u', username: 'eve', role: 'user' },
+      status: 'authed',
+      profile: { ...EMPTY_PROFILE, displayName: 'Eve' },
+    });
     const delSpy = vi.spyOn(authApi, 'deleteAccount').mockResolvedValue();
     const flushSpy = vi.spyOn(sync, 'flushSync').mockResolvedValue();
     const stopSpy = vi.spyOn(sync, 'stopSyncAndWipeLocal').mockResolvedValue();
@@ -262,6 +346,7 @@ describe('deleteAccount', () => {
     expect(stopSpy).toHaveBeenCalled();
     expect(useAuth.getState().status).toBe('guest');
     expect(useAuth.getState().user).toBeNull();
+    expect(useAuth.getState().profile).toBeNull();
   });
 
   it('keeps the user signed in and surfaces the error when the API fails', async () => {

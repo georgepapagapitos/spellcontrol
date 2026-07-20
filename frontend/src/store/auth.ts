@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as authApi from '../lib/auth-api';
-import type { AuthUser } from '../lib/auth-api';
+import type { AuthUser, Profile } from '../lib/auth-api';
 import { flushSync, stopSyncAndWipeLocal } from '../lib/sync';
 import { markEverVisited } from '../lib/first-run';
 
@@ -44,6 +44,15 @@ interface AuthState {
    * (or unlinking) calls `acknowledgeAutoLink()` and clears this.
    */
   autoLinkedAt: number | null;
+  /**
+   * Editable public-profile fields (social program W0): display name, bio,
+   * card-art avatar. `null` until the first successful `/me` — ProfileEditor
+   * reads that as "still loading". Deliberately NOT persisted to the
+   * offline-remembered-identity localStorage cache below (`AUTH_USER_KEY`) —
+   * editing a profile is already an online-only action, like password/
+   * Google-link flows, so there's no offline fallback to preserve.
+   */
+  profile: Profile | null;
 
   /**
    * Hits /api/auth/me to discover whether the current cookie is valid. Called
@@ -96,8 +105,21 @@ export const useAuth = create<AuthState>((set, get) => {
   /** Shared success path: persist user identity, update store, mark visited. */
   function signInAs(user: AuthUser): void {
     storeUser(user);
-    set({ user, status: 'authed', error: null });
+    set({ user, status: 'authed', error: null, profile: null });
     markEverVisited();
+    // login()/register()/the Google flows don't return profile fields (only
+    // bootstrap()'s /me call does), and bootstrap() runs once at app mount —
+    // so without this, a session that signs in via the form (no reload) would
+    // leave ProfileEditor stuck showing its "loading" state forever. Best-
+    // effort and non-blocking: the sign-in itself already succeeded.
+    void authApi
+      .fetchMe()
+      .then((me) => {
+        if (me) set({ profile: me.profile });
+      })
+      .catch(() => {
+        /* ignore — Settings > Profile will just show its loading state */
+      });
   }
 
   return {
@@ -107,6 +129,7 @@ export const useAuth = create<AuthState>((set, get) => {
     status: 'unknown',
     error: null,
     autoLinkedAt: null,
+    profile: null,
 
     bootstrap: async () => {
       set({ status: 'loading' });
@@ -114,21 +137,35 @@ export const useAuth = create<AuthState>((set, get) => {
         const me = await authApi.fetchMe();
         if (me) {
           storeUser(me.user);
-          set({ user: me.user, status: 'authed', error: null, autoLinkedAt: me.autoLinkedAt });
+          set({
+            user: me.user,
+            status: 'authed',
+            error: null,
+            autoLinkedAt: me.autoLinkedAt,
+            profile: me.profile,
+          });
         } else {
           // A real 401 — the session is gone. Forget the cached identity.
           storeUser(null);
-          set({ user: null, status: 'guest', autoLinkedAt: null });
+          set({ user: null, status: 'guest', autoLinkedAt: null, profile: null });
         }
       } catch {
         // Network failure is NOT a sign-out. If we remember a signed-in identity,
         // stay authed in offline mode (local data + account preserved); the
         // cookie re-validates on the next online bootstrap. Only fall back to the
-        // login screen when there's no remembered user.
+        // login screen when there's no remembered user. Profile stays null either
+        // way — it's never cached offline, so ProfileEditor's "Reconnect to load
+        // your profile" state covers the authed-but-offline case.
         const remembered = loadStoredUser();
         if (remembered)
-          set({ user: remembered, status: 'authed', error: null, autoLinkedAt: null });
-        else set({ user: null, status: 'guest', autoLinkedAt: null });
+          set({
+            user: remembered,
+            status: 'authed',
+            error: null,
+            autoLinkedAt: null,
+            profile: null,
+          });
+        else set({ user: null, status: 'guest', autoLinkedAt: null, profile: null });
       }
     },
 
@@ -218,7 +255,7 @@ export const useAuth = create<AuthState>((set, get) => {
       }
       await stopSyncAndWipeLocal();
       storeUser(null);
-      set({ user: null, status: 'guest', error: null });
+      set({ user: null, status: 'guest', error: null, profile: null });
     },
 
     deleteAccount: async () => {
@@ -237,7 +274,7 @@ export const useAuth = create<AuthState>((set, get) => {
       // the zustand-persist + IndexedDB cache so nothing can re-push it.
       await stopSyncAndWipeLocal();
       storeUser(null);
-      set({ user: null, status: 'guest', error: null });
+      set({ user: null, status: 'guest', error: null, profile: null });
       return true;
     },
 

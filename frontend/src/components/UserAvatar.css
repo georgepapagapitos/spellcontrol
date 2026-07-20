@@ -1,0 +1,21 @@
+/* Genuinely-circular icon-only element (STYLE_GUIDE shape-language carve-out) —
+   never var(--radius-lg), always a true circle regardless of size. */
+.user-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  line-height: 1;
+  user-select: none;
+}
+
+.user-avatar-img {
+  object-fit: cover;
+  display: block;
+}
+
+.user-avatar-fallback {
+  font-weight: 600;
+}

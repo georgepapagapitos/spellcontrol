@@ -1,0 +1,176 @@
+/* Layers on the shared `.card-picker-root` / `.card-picker-sheet` shell
+   (bottom sheet on mobile → centered modal ≥1024px, auto-scrim via the
+   shell's own :where() rule). These rules only add the avatar-specific
+   header/body/grid content. */
+
+.avatar-picker-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 1.1rem 0;
+}
+
+.avatar-picker-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.avatar-picker-head-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.avatar-picker-remove {
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .avatar-picker-remove {
+    min-height: 44px;
+  }
+}
+
+.avatar-picker-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .avatar-picker-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
+}
+
+.avatar-picker-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .avatar-picker-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.avatar-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0.85rem 1.1rem var(--space-4);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.avatar-picker-empty-collection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: var(--space-4) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.avatar-picker-empty-collection p {
+  margin: 0;
+}
+
+.avatar-picker-hint {
+  margin: 0;
+  padding: 0 0.2rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.avatar-picker-error {
+  color: var(--err-text);
+}
+
+/* Fluid at every width — no viewport override; 4.5rem tiles already clear
+   the 44px touch floor structurally, and the explicit coarse-pointer rule
+   below pins that as a deliberate floor rather than an accidental one. */
+.avatar-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.avatar-picker-tile {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .avatar-picker-tile {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+.avatar-picker-tile-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-picker-tile-img-loading {
+  background: var(--surface-raised);
+}
+
+/* Overlaid caption strip (not a row below the art) — the tile itself holds
+   aspect-ratio:1, so the name has to sit over the image, not stack under it.
+   Fixed white-on-black-gradient regardless of theme: it's legibility against
+   unpredictable card art, not themed chrome. */
+.avatar-picker-tile-name {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  padding: 0.2rem 0.35rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  color: #fff;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-picker-tile.is-active {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .avatar-picker-tile:hover {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+}
