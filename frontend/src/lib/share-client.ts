@@ -1,4 +1,10 @@
-import type { PublicShareResponse, ShareAudience, ShareKind, ShareRow } from './shared-types';
+import type {
+  PublicDeck,
+  PublicShareResponse,
+  ShareAudience,
+  ShareKind,
+  ShareRow,
+} from './shared-types';
 import { apiUrl } from './api-base';
 import { isNativePlatform } from './platform';
 
@@ -168,6 +174,63 @@ export function shareUrl(token: string): string {
 export async function recordDeckCopy(slug: string): Promise<void> {
   try {
     await fetch(apiUrl(`/api/public/decks/${encodeURIComponent(slug)}/copy`), { method: 'POST' });
+  } catch {
+    // Swallowed by design — see doc comment above.
+  }
+}
+
+/** `GET /api/public/decks/:slug` response (w0-publish-public-reads) — the
+ *  published deck plus its publication metadata. `deck` is what
+ *  SharedDeckView renders; the counts live alongside it, not inside it. */
+export interface PublicDeckPage {
+  slug: string;
+  publishedAt: number;
+  updatedAt: number;
+  viewCount: number;
+  copyCount: number;
+  deck: PublicDeck;
+}
+
+/** Thrown by fetchPublicDeckPage on 404 — unknown and unpublished slugs read
+ *  identically (stealth), matching ShareNotFoundError's shape for /s/:token. */
+export class PublicDeckNotFoundError extends Error {
+  constructor() {
+    super('Deck not found.');
+    this.name = 'PublicDeckNotFoundError';
+  }
+}
+
+/**
+ * Read a published deck's public page (`GET /api/public/decks/:slug`). No
+ * auth required — once published a deck has no audience gating, unlike a
+ * /s/:token share, so this is a plain unauthenticated fetch.
+ */
+export async function fetchPublicDeckPage(slug: string): Promise<PublicDeckPage> {
+  const res = await fetch(apiUrl(`/api/public/decks/${encodeURIComponent(slug)}`));
+  if (res.status === 404) {
+    throw new PublicDeckNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(await readError(res, 'Failed to load this deck.'));
+  }
+  return (await res.json()) as PublicDeckPage;
+}
+
+/**
+ * Fire-and-forget view-counter beacon for a published deck's public page
+ * (`POST /api/public/decks/:slug/view`), mirroring recordDeckCopy's
+ * swallow-errors shape. Unlike the copy beacon, the server runs
+ * `optionalAuth` on this route specifically to exclude the deck's own owner
+ * from the count — `credentials: 'include'` sends the session cookie so
+ * that exclusion works (recordDeckCopy omits it because its endpoint has no
+ * such check to make).
+ */
+export async function recordDeckView(slug: string): Promise<void> {
+  try {
+    await fetch(apiUrl(`/api/public/decks/${encodeURIComponent(slug)}/view`), {
+      method: 'POST',
+      credentials: 'include',
+    });
   } catch {
     // Swallowed by design — see doc comment above.
   }
