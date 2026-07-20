@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { listUsers, deleteUser, type AdminUserSummary } from '../lib/admin-api';
+import { listUsers, deleteUser, clearUserProfile, type AdminUserSummary } from '../lib/admin-api';
 import { toast } from '../store/toasts';
 import { Modal } from './Modal';
 
@@ -23,6 +23,8 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<AdminUserSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pendingClear, setPendingClear] = useState<AdminUserSummary | null>(null);
+  const [clearingProfile, setClearingProfile] = useState(false);
 
   // Refreshes the list (used after mount and after a successful delete). The
   // *initial* load goes through the useEffect below directly to avoid a
@@ -77,6 +79,24 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
     }
   }
 
+  async function handleConfirmClearProfile() {
+    if (!pendingClear) return;
+    setClearingProfile(true);
+    try {
+      await clearUserProfile(pendingClear.id);
+      toast.show({ message: `Cleared ${pendingClear.username}’s profile`, tone: 'success' });
+      setPendingClear(null);
+      await refresh();
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : 'Failed to clear profile.',
+        tone: 'error',
+      });
+    } finally {
+      setClearingProfile(false);
+    }
+  }
+
   return (
     <section className="settings-card" aria-labelledby="settings-admin-title">
       <header className="settings-card-header">
@@ -103,6 +123,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               <thead>
                 <tr>
                   <th scope="col">Username</th>
+                  <th scope="col">Profile</th>
                   <th scope="col">Role</th>
                   <th scope="col">Registered</th>
                   <th scope="col">Data</th>
@@ -116,20 +137,47 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
                     <tr key={u.id}>
                       <td>{u.username}</td>
                       <td>
+                        {u.displayName ? (
+                          <span
+                            title={
+                              [u.bio, u.avatarCardName ? `Avatar: ${u.avatarCardName}` : null]
+                                .filter(Boolean)
+                                .join(' · ') || undefined
+                            }
+                          >
+                            {u.displayName}
+                          </span>
+                        ) : (
+                          <span className="settings-row-hint">—</span>
+                        )}
+                      </td>
+                      <td>
                         <span className={`admin-role-pill is-${u.role}`}>{u.role}</span>
                       </td>
                       <td>{formatDate(u.createdAt)}</td>
                       <td>{formatBytes(u.dataBytes)}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="pill-btn pill-btn-danger"
-                          disabled={isSelf}
-                          title={isSelf ? "You can't delete your own account here." : 'Delete user'}
-                          onClick={() => setPending(u)}
-                        >
-                          Delete
-                        </button>
+                        <div className="admin-row-actions">
+                          <button
+                            type="button"
+                            className="pill-btn pill-btn-danger"
+                            aria-label={`Clear profile for ${u.username}`}
+                            onClick={() => setPendingClear(u)}
+                          >
+                            Clear profile
+                          </button>
+                          <button
+                            type="button"
+                            className="pill-btn pill-btn-danger"
+                            disabled={isSelf}
+                            title={
+                              isSelf ? "You can't delete your own account here." : 'Delete user'
+                            }
+                            onClick={() => setPending(u)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -153,7 +201,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
             This permanently removes the account and all of <strong>{pending.username}</strong>
             ’s synced collection, binders, decks, and game history. This can’t be undone.
           </p>
-          <div className="choice-dialog-options admin-delete-actions">
+          <div className="choice-dialog-options admin-modal-actions">
             <button
               type="button"
               className="pill-btn"
@@ -169,6 +217,40 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               disabled={deleting}
             >
               {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {pendingClear && (
+        <Modal
+          onClose={() => !clearingProfile && setPendingClear(null)}
+          labelledBy="admin-clear-profile-title"
+          dismissable={!clearingProfile}
+        >
+          <h2 id="admin-clear-profile-title" className="choice-dialog-title">
+            Clear profile?
+          </h2>
+          <p className="choice-dialog-body">
+            This clears <strong>{pendingClear.username}</strong>’s display name, bio, and avatar.
+            They can set a new profile any time — this only removes what’s there now.
+          </p>
+          <div className="choice-dialog-options admin-modal-actions">
+            <button
+              type="button"
+              className="pill-btn"
+              onClick={() => setPendingClear(null)}
+              disabled={clearingProfile}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="pill-btn pill-btn-danger"
+              onClick={() => void handleConfirmClearProfile()}
+              disabled={clearingProfile}
+            >
+              {clearingProfile ? 'Clearing…' : 'Clear profile'}
             </button>
           </div>
         </Modal>
