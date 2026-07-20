@@ -5,6 +5,13 @@
   margin: 0;
 }
 
+/* @handle sub-line under a friend's display name — not a new column. */
+.leaderboard-friend-handle {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .leaderboard-error {
   color: var(--err-text);
 }

@@ -51,6 +51,35 @@ describe('POST /api/games', () => {
     expect(res.body.game.players).toHaveLength(1);
     expect(res.body.game.players[0].isHost).toBe(true);
   });
+
+  it('defaults the host player name to their username when no hostName is supplied', async () => {
+    const cookie = await registerAndGetCookie('games_hostname_plain');
+    const res = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    expect(res.body.game.players[0].name).toBe('games_hostname_plain');
+  });
+
+  it('prefers the host’s display name over username when set', async () => {
+    const cookie = await registerAndGetCookie('games_hostname_dn');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'Host H.' });
+    const res = await request(app).post('/api/games').set('Cookie', cookie).send({});
+    expect(res.body.game.players[0].name).toBe('Host H.');
+  });
+
+  it('an explicit hostName still wins over the display name', async () => {
+    const cookie = await registerAndGetCookie('games_hostname_override');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'Host H.' });
+    const res = await request(app)
+      .post('/api/games')
+      .set('Cookie', cookie)
+      .send({ hostName: 'Custom Name' });
+    expect(res.body.game.players[0].name).toBe('Custom Name');
+  });
 });
 
 describe('GET /api/games/:code', () => {
@@ -120,6 +149,36 @@ describe('POST /api/games/:code/join + PATCH /:code', () => {
       });
     expect(lifed.status).toBe(200);
     expect(lifed.body.game.players[0].life).toBe(35);
+  });
+
+  it('defaults a joiner’s name to their display name (falls back to username) when no name is sent', async () => {
+    const hostCookie = await registerAndGetCookie('games_joinname_host');
+    const joinerCookie = await registerAndGetCookie('games_joinname_joiner');
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joinerCookie)
+      .send({});
+    const p = joined.body.game.players.find((pl: { isHost: boolean }) => !pl.isHost);
+    expect(p.name).toBe('games_joinname_joiner');
+  });
+
+  it('prefers the joiner’s display name over username when set', async () => {
+    const hostCookie = await registerAndGetCookie('games_joinname_dn_host');
+    const joinerCookie = await registerAndGetCookie('games_joinname_dn_joiner');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', joinerCookie)
+      .send({ displayName: 'Joiner J.' });
+    const created = await request(app).post('/api/games').set('Cookie', hostCookie).send({});
+    const code = created.body.game.code as string;
+    const joined = await request(app)
+      .post(`/api/games/${code}/join`)
+      .set('Cookie', joinerCookie)
+      .send({});
+    const p = joined.body.game.players.find((pl: { isHost: boolean }) => !pl.isHost);
+    expect(p.name).toBe('Joiner J.');
   });
 
   it('returns 409 on stale baseVersion', async () => {

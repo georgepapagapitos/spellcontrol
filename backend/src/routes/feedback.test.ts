@@ -120,6 +120,22 @@ describe('POST /api/feedback/public/:token', () => {
     expect(list.body.responses[0].authorName).toBe('fb-responder');
   });
 
+  it('prefers an authed responder’s display name over username when set', async () => {
+    const { cookie: ownerCookie, token } = await makeFeedbackShare('fb-owner-dname');
+    const responder = await makeUser('fb-responder-dname');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', responder)
+      .send({ displayName: 'Responder R.' });
+    const res = await request(app)
+      .post(`/api/feedback/public/${token}`)
+      .set('Cookie', responder)
+      .send({ suggestions: [{ type: 'cut', cardName: 'Sol Ring' }] });
+    expect(res.status).toBe(201);
+    const list = await request(app).get('/api/feedback/deck/d-1').set('Cookie', ownerCookie);
+    expect(list.body.responses[0].authorName).toBe('Responder R.');
+  });
+
   it('rejects a guest submission without a name', async () => {
     const { token } = await makeFeedbackShare('fb-owner-noname');
     const res = await request(app)

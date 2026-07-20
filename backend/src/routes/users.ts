@@ -31,12 +31,14 @@ usersRouter.get('/search', requireAuth, searchLimiter, async (req: Request, res:
   const result = await pool.query<{
     id: string;
     username: string;
+    display_name: string | null;
     fwd_status: string | null;
     rev_status: string | null;
   }>(
     `SELECT
        u.id,
        u.username,
+       u.display_name,
        fwd.status AS fwd_status,
        rev.status AS rev_status
      FROM users u
@@ -64,7 +66,7 @@ usersRouter.get('/search', requireAuth, searchLimiter, async (req: Request, res:
     } else if (r.rev_status === 'pending') {
       friendStatus = 'request_received';
     }
-    return { id: r.id, username: r.username, friendStatus };
+    return { id: r.id, username: r.username, displayName: r.display_name, friendStatus };
   });
 
   res.json({ users });

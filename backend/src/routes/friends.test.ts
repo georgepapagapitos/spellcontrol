@@ -45,6 +45,19 @@ describe('POST /api/friends/requests', () => {
     expect(res.status).toBe(201);
     expect(res.body.friendStatus).toBe('request_sent');
     expect(res.body.addressee.username).toBe('fr-send-bob');
+    expect(res.body.addressee.displayName).toBeNull();
+  });
+
+  it('includes the addressee’s display name when set', async () => {
+    const alice = await makeUser('fr-dname-alice');
+    const bob = await makeUser('fr-dname-bob');
+    await request(app).patch('/api/auth/profile').set('Cookie', bob).send({ displayName: 'Bobby' });
+    const res = await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', alice)
+      .send({ username: 'fr-dname-bob' });
+    expect(res.status).toBe(201);
+    expect(res.body.addressee.displayName).toBe('Bobby');
   });
 
   it('normalizes the requested username (case-insensitive) → 201', async () => {
@@ -199,12 +212,36 @@ describe('POST /api/friends/requests/:requesterId/accept', () => {
     expect(search.status).toBe(200);
     const aliceId = search.body.users[0].id as string;
 
+    expect(search.body.users[0].displayName).toBeNull();
+
     const accept = await request(app)
       .post(`/api/friends/requests/${aliceId}/accept`)
       .set('Cookie', bob);
     expect(accept.status).toBe(200);
     expect(accept.body.friend.username).toBe('accept-alice');
+    expect(accept.body.friend.displayName).toBeNull();
     expect(typeof accept.body.friend.friendedAt).toBe('number');
+  });
+
+  it('prefers the requester’s display name when set', async () => {
+    const alice = await makeUser('accept-dn-alice');
+    const bob = await makeUser('accept-dn-bob');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', alice)
+      .send({ displayName: 'Alice A.' });
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', alice)
+      .send({ username: 'accept-dn-bob' });
+    const search = await request(app).get('/api/users/search?q=accept-dn-alice').set('Cookie', bob);
+    const aliceId = search.body.users[0].id as string;
+    expect(search.body.users[0].displayName).toBe('Alice A.');
+
+    const accept = await request(app)
+      .post(`/api/friends/requests/${aliceId}/accept`)
+      .set('Cookie', bob);
+    expect(accept.body.friend.displayName).toBe('Alice A.');
   });
 
   it('returns 404 when the pending row does not exist', async () => {
@@ -374,6 +411,7 @@ describe('GET /api/friends', () => {
     expect(aliceFriends.status).toBe(200);
     expect(aliceFriends.body.friends).toHaveLength(1);
     expect(aliceFriends.body.friends[0].username).toBe('gf-carol');
+    expect(aliceFriends.body.friends[0].displayName).toBeNull();
 
     // Carol's friends = [alice]
     const carolFriends = await request(app).get('/api/friends').set('Cookie', carol);
@@ -383,6 +421,26 @@ describe('GET /api/friends', () => {
     // Bob only has pending request, no accepted friends
     const bobFriends = await request(app).get('/api/friends').set('Cookie', bob);
     expect(bobFriends.body.friends).toHaveLength(0);
+  });
+
+  it('prefers a friend’s display name when set', async () => {
+    const alice = await makeUser('gf-dn-alice');
+    const carol = await makeUser('gf-dn-carol');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', carol)
+      .send({ displayName: 'Carol C.' });
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', alice)
+      .send({ username: 'gf-dn-carol' });
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', carol)
+      .send({ username: 'gf-dn-alice' });
+
+    const aliceFriends = await request(app).get('/api/friends').set('Cookie', alice);
+    expect(aliceFriends.body.friends[0].displayName).toBe('Carol C.');
   });
 
   it('reports per-friend unique card count (distinct oracleId, excludes deleted, 0 when empty)', async () => {
@@ -449,8 +507,26 @@ describe('GET /api/friends/requests', () => {
     expect(reqs.status).toBe(200);
     expect(reqs.body.outgoing).toHaveLength(1);
     expect(reqs.body.outgoing[0].addresseeUsername).toBe('req-split-bob');
+    expect(reqs.body.outgoing[0].addresseeDisplayName).toBeNull();
     expect(reqs.body.incoming).toHaveLength(1);
     expect(reqs.body.incoming[0].requesterUsername).toBe('req-split-carol');
+    expect(reqs.body.incoming[0].requesterDisplayName).toBeNull();
+  });
+
+  it('prefers a display name over username on both sides of a request', async () => {
+    const alice = await makeUser('req-dn-alice');
+    const carol = await makeUser('req-dn-carol');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', carol)
+      .send({ displayName: 'Carol C.' });
+    await request(app)
+      .post('/api/friends/requests')
+      .set('Cookie', carol)
+      .send({ username: 'req-dn-alice' });
+
+    const reqs = await request(app).get('/api/friends/requests').set('Cookie', alice);
+    expect(reqs.body.incoming[0].requesterDisplayName).toBe('Carol C.');
   });
 
   it('returns empty arrays when no requests exist', async () => {
@@ -567,7 +643,22 @@ describe('GET /api/friends/:friendId/collection', () => {
       .set('Cookie', alice.cookie);
     expect(res.status).toBe(200);
     expect(res.body.ownerUsername).toBe(bob.username);
+    expect(res.body.ownerDisplayName).toBeNull();
     expect(res.body.cards).toEqual([]);
+  }, 15000);
+
+  it('200 — prefers the friend’s display name when set', async () => {
+    const alice = await makeUserFull('fc-dn-alice');
+    const bob = await makeUserFull('fc-dn-bob');
+    await befriend(alice, bob);
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', bob.cookie)
+      .send({ displayName: 'Bobby' });
+    const res = await request(app)
+      .get(`/api/friends/${bob.id}/collection`)
+      .set('Cookie', alice.cookie);
+    expect(res.body.ownerDisplayName).toBe('Bobby');
   }, 15000);
 
   it('200 — dedupes multiple copies of the same oracleId to one card', async () => {
@@ -762,6 +853,7 @@ describe('GET /api/friends/:friendId/shares', () => {
       .set('Cookie', friend.cookie);
     expect(res.status).toBe(200);
     expect(res.body.ownerUsername).toBe('hub-owner');
+    expect(res.body.ownerDisplayName).toBeNull();
     const kinds = (res.body.shares as Array<{ kind: string; label: string }>).map((s) => s.kind);
     expect(kinds).toContain('deck');
     expect(kinds).toContain('collection');
@@ -771,6 +863,21 @@ describe('GET /api/friends/:friendId/shares', () => {
     expect(coll.label).toBe('Collection');
     // Exactly the two friends shares — the link share is filtered out.
     expect(res.body.shares).toHaveLength(2);
+  });
+
+  it('prefers the owner’s display name when set', async () => {
+    const owner = await makeUserFull('hub-dn-owner');
+    const friend = await makeUserFull('hub-dn-friend');
+    await befriend(owner, friend);
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', owner.cookie)
+      .send({ displayName: 'Owner O.' });
+
+    const res = await request(app)
+      .get(`/api/friends/${owner.id}/shares`)
+      .set('Cookie', friend.cookie);
+    expect(res.body.ownerDisplayName).toBe('Owner O.');
   });
 
   it('drops a friends share whose underlying resource was deleted', async () => {

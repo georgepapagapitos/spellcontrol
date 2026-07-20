@@ -25,6 +25,13 @@ import {
 } from '@spellcontrol/binder-routing';
 import { anyBinderUsesTagRules, decorateCardsWithTags } from './card-tags';
 
+/** Owner identity passed to every project* function — same shape everywhere
+ *  so a display-name preference propagates uniformly across share kinds. */
+export interface ShareOwner {
+  username: string;
+  displayName: string | null;
+}
+
 export interface PublicCard {
   name: string;
   scryfallId: string;
@@ -65,6 +72,7 @@ export interface PublicCard {
 
 export interface PublicCollection {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   uploadedAt?: number;
   cards: PublicCard[];
 }
@@ -87,6 +95,7 @@ export interface PublicListEntry {
 
 export interface PublicList {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   entries: PublicListEntry[];
@@ -101,6 +110,7 @@ export interface PublicDeckCard {
 
 export interface PublicDeck {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   format: string;
@@ -127,6 +137,7 @@ export interface PublicBinderSection {
 
 export interface PublicBinder {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   color: string;
@@ -161,6 +172,7 @@ export interface PublicCubeGap {
 
 export interface PublicCube {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   size: number;
@@ -292,7 +304,7 @@ export function projectCard(raw: unknown): PublicCard | null {
   };
 }
 
-export function projectCollection(ownerUsername: string, collection: unknown): PublicCollection {
+export function projectCollection(owner: ShareOwner, collection: unknown): PublicCollection {
   const r = asRecord(collection);
   const rawCards = r && Array.isArray(r.cards) ? r.cards : [];
   const cards: PublicCard[] = [];
@@ -301,13 +313,14 @@ export function projectCollection(ownerUsername: string, collection: unknown): P
     if (p) cards.push(p);
   }
   return {
-    ownerUsername,
+    ownerUsername: owner.username,
+    ownerDisplayName: owner.displayName,
     uploadedAt: r ? asNumber(r.uploadedAt) : undefined,
     cards,
   };
 }
 
-export function projectList(ownerUsername: string, listRaw: unknown): PublicList | null {
+export function projectList(owner: ShareOwner, listRaw: unknown): PublicList | null {
   const r = asRecord(listRaw);
   if (!r) return null;
   const id = asString(r.id);
@@ -335,7 +348,8 @@ export function projectList(ownerUsername: string, listRaw: unknown): PublicList
     });
   }
   return {
-    ownerUsername,
+    ownerUsername: owner.username,
+    ownerDisplayName: owner.displayName,
     id,
     name,
     entries,
@@ -343,7 +357,7 @@ export function projectList(ownerUsername: string, listRaw: unknown): PublicList
   };
 }
 
-export function projectDeck(ownerUsername: string, deckRaw: unknown): PublicDeck | null {
+export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | null {
   const r = asRecord(deckRaw);
   if (!r) return null;
   const id = asString(r.id);
@@ -361,7 +375,8 @@ export function projectDeck(ownerUsername: string, deckRaw: unknown): PublicDeck
     return out;
   };
   return {
-    ownerUsername,
+    ownerUsername: owner.username,
+    ownerDisplayName: owner.displayName,
     id,
     name,
     format: asString(r.format) ?? 'commander',
@@ -410,7 +425,7 @@ export function findCubeById(cubes: unknown, cubeId: string): unknown {
  * projectDeck). Picks whose nested card lacks name/oracleId are dropped rather
  * than rendered blank.
  */
-export function projectCube(ownerUsername: string, cubeRaw: unknown): PublicCube | null {
+export function projectCube(owner: ShareOwner, cubeRaw: unknown): PublicCube | null {
   const r = asRecord(cubeRaw);
   if (!r) return null;
   const id = asString(r.id);
@@ -453,7 +468,8 @@ export function projectCube(ownerUsername: string, cubeRaw: unknown): PublicCube
   }
 
   return {
-    ownerUsername,
+    ownerUsername: owner.username,
+    ownerDisplayName: owner.displayName,
     id,
     name,
     size: asNumber(r.size) ?? asNumber(cube?.size) ?? 0,
@@ -488,7 +504,7 @@ export function findBinderById(binders: unknown, binderId: string): unknown {
  * projection; revisit if it matters.
  */
 export function projectBinder(
-  ownerUsername: string,
+  owner: ShareOwner,
   binderId: string,
   collection: unknown,
   bindersRaw: unknown
@@ -529,7 +545,8 @@ export function projectBinder(
   }
 
   return {
-    ownerUsername,
+    ownerUsername: owner.username,
+    ownerDisplayName: owner.displayName,
     id: binderId,
     name: asString(target.name) ?? 'Binder',
     color: asString(target.color) ?? '#888',

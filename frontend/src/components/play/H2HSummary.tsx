@@ -1,5 +1,6 @@
 import './H2HSummary.css';
 import { StackedBar } from '../shared/MeterBar';
+import { formatIdentity } from '../../lib/display-name';
 import type { H2HResponse } from '../../lib/game-results-client';
 
 /**
@@ -9,6 +10,9 @@ import type { H2HResponse } from '../../lib/game-results-client';
  */
 export function H2HSummary({ data }: { data: H2HResponse }) {
   const { summary } = data;
+  // Prose, not a row/label — a "@handle" reads awkwardly mid-sentence, so this
+  // uses the primary name only, no secondary form.
+  const friendName = formatIdentity(data.friend).primary;
   return (
     <div className="h2h-detail">
       <div className="h2h-summary">
@@ -20,8 +24,8 @@ export function H2HSummary({ data }: { data: H2HResponse }) {
           max={summary.gamesPlayed}
         />
         <span className="h2h-summary-label">
-          You {summary.callerWins} – {summary.friendWins} {data.friend.username} over{' '}
-          {summary.gamesPlayed} game{summary.gamesPlayed === 1 ? '' : 's'}
+          You {summary.callerWins} – {summary.friendWins} {friendName} over {summary.gamesPlayed}{' '}
+          game{summary.gamesPlayed === 1 ? '' : 's'}
         </span>
       </div>
 

@@ -18,6 +18,7 @@ import {
   projectCube,
   projectDeck,
   projectList,
+  type ShareOwner,
 } from '../shares/projections';
 
 /**
@@ -169,9 +170,10 @@ sharesRouter.get('/inbox', requireAuth, async (req: Request, res: Response) => {
     created_at: string;
     sender_id: string;
     sender_username: string;
+    sender_display_name: string | null;
   }>(
     `SELECT s.token, s.kind, s.resource_id, s.created_at,
-            s.user_id AS sender_id, u.username AS sender_username
+            s.user_id AS sender_id, u.username AS sender_username, u.display_name AS sender_display_name
        FROM shares s
        JOIN users u ON u.id = s.user_id
       WHERE s.addressee_id = $1 AND s.audience = 'direct' AND s.revoked_at IS NULL
@@ -197,6 +199,7 @@ sharesRouter.get('/inbox', requireAuth, async (req: Request, res: Response) => {
       token: r.token,
       kind: r.kind,
       fromUsername: r.sender_username,
+      fromDisplayName: r.sender_display_name,
       label: labels.get(`${r.sender_id}:${r.kind}:${r.resource_id}`) ?? null,
       createdAt: Number(r.created_at),
     }))
@@ -247,7 +250,7 @@ sharesRouter.get(
     if (!ctx) {
       return res.status(404).json({ error: 'Share not found.' });
     }
-    const { share, data, ownerUsername: username } = ctx;
+    const { share, data, ownerUsername, ownerDisplayName } = ctx;
 
     if (share.audience === 'friends') {
       if (!req.user) {
@@ -269,7 +272,10 @@ sharesRouter.get(
       }
     }
 
-    return projectAndRespond(res, share, data, username);
+    return projectAndRespond(res, share, data, {
+      username: ownerUsername,
+      displayName: ownerDisplayName,
+    });
   }
 );
 
@@ -279,17 +285,17 @@ function projectAndRespond(
   res: Response,
   share: { kind: string; resourceId: string },
   data: ShareDataView,
-  username: string
+  owner: ShareOwner
 ): Response {
   if (share.kind === 'collection') {
     return res.json({
       kind: 'collection' as const,
-      data: projectCollection(username, data.collection),
+      data: projectCollection(owner, data.collection),
     });
   }
   if (share.kind === 'deck' || share.kind === 'feedback') {
     const deck = findDeckById(data.decks, share.resourceId);
-    const projected = projectDeck(username, deck);
+    const projected = projectDeck(owner, deck);
     if (!projected) {
       return res.status(404).json({ error: 'Share not found.' });
     }
@@ -299,14 +305,14 @@ function projectAndRespond(
   }
   if (share.kind === 'list') {
     const list = findListById(data.collection, share.resourceId);
-    const projected = projectList(username, list);
+    const projected = projectList(owner, list);
     if (!projected) {
       return res.status(404).json({ error: 'Share not found.' });
     }
     return res.json({ kind: 'list' as const, data: projected });
   }
   if (share.kind === 'binder') {
-    const projected = projectBinder(username, share.resourceId, data.collection, data.binders);
+    const projected = projectBinder(owner, share.resourceId, data.collection, data.binders);
     if (!projected) {
       return res.status(404).json({ error: 'Share not found.' });
     }
@@ -314,7 +320,7 @@ function projectAndRespond(
   }
   if (share.kind === 'cube') {
     const cube = findCubeById(data.cubes, share.resourceId);
-    const projected = projectCube(username, cube);
+    const projected = projectCube(owner, cube);
     if (!projected) {
       return res.status(404).json({ error: 'Share not found.' });
     }

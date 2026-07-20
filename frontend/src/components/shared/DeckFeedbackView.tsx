@@ -7,6 +7,7 @@ import { normalizeForSearch } from '../../lib/normalize-search';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { submitFeedback, type DraftSuggestion } from '../../lib/feedback-client';
 import { imageFromCard } from '../../lib/card-thumbs';
+import { formatIdentity } from '../../lib/display-name';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useAuth } from '../../store/auth';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
@@ -256,13 +257,19 @@ export function DeckFeedbackView({ data, token }: Props) {
     }
   };
 
+  const owner = formatIdentity({
+    username: data.ownerUsername,
+    displayName: data.ownerDisplayName,
+  });
+
   if (submitState.status === 'sent') {
     return (
       <main className="shared-view feedback-view">
         <div className="feedback-sent" role="status">
           <h1>Feedback sent</h1>
           <p>
-            Thanks! @{data.ownerUsername} will see your{' '}
+            {/* Prose, not a row/label — no secondary handle mid-sentence. */}
+            Thanks! {owner.primary} will see your{' '}
             {suggestionCount > 0
               ? `${suggestionCount} suggestion${suggestionCount === 1 ? '' : 's'}`
               : 'comment'}{' '}
@@ -294,7 +301,10 @@ export function DeckFeedbackView({ data, token }: Props) {
   return (
     <main className="shared-view feedback-view">
       <header className="shared-view-header">
-        <p className="shared-view-owner">@{data.ownerUsername} is asking for feedback</p>
+        <p className="shared-view-owner">
+          {owner.primary} is asking for feedback
+          {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+        </p>
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {data.format} · {mainboardCount.toLocaleString()} cards

@@ -6,6 +6,7 @@ import { toast } from '../store/toasts';
 import { Tabs } from '../components/Tabs';
 import { SearchPill } from '../components/SearchPill';
 import { formatRelativeTime } from '../lib/format-time';
+import { formatIdentity } from '../lib/display-name';
 import {
   searchUsers,
   sendFriendRequest,
@@ -158,7 +159,10 @@ export function FriendsPage() {
     try {
       if (user.friendStatus === 'none') {
         await sendFriendRequest(user.username);
-        toast.show({ message: `Friend request sent to ${user.username}.`, tone: 'success' });
+        toast.show({
+          message: `Friend request sent to ${formatIdentity(user).primary}.`,
+          tone: 'success',
+        });
         // Update search result in-place
         setSearchResults((prev) =>
           prev
@@ -167,7 +171,10 @@ export function FriendsPage() {
         );
       } else if (user.friendStatus === 'request_received') {
         await acceptRequest(user.id);
-        toast.show({ message: `You and ${user.username} are now friends.`, tone: 'success' });
+        toast.show({
+          message: `You and ${formatIdentity(user).primary} are now friends.`,
+          tone: 'success',
+        });
         setSearchResults((prev) =>
           prev ? prev.map((u) => (u.id === user.id ? { ...u, friendStatus: 'friends' } : u)) : prev
         );
@@ -187,8 +194,12 @@ export function FriendsPage() {
     setBusy(req.requesterId, true);
     try {
       await acceptRequest(req.requesterId);
+      const requester = formatIdentity({
+        username: req.requesterUsername,
+        displayName: req.requesterDisplayName,
+      });
       toast.show({
-        message: `You and ${req.requesterUsername} are now friends.`,
+        message: `You and ${requester.primary} are now friends.`,
         tone: 'success',
       });
       void loadData();
@@ -238,7 +249,10 @@ export function FriendsPage() {
     setBusy(friend.id, true);
     try {
       await removeFriend(friend.id);
-      toast.show({ message: `Removed ${friend.username} from friends.`, tone: 'info' });
+      toast.show({
+        message: `Removed ${formatIdentity(friend).primary} from friends.`,
+        tone: 'info',
+      });
       void loadData();
     } catch (err) {
       toast.show({
@@ -335,17 +349,23 @@ export function FriendsPage() {
                   user.friendStatus === 'none' || user.friendStatus === 'request_received';
                 const isPrimary =
                   user.friendStatus === 'none' || user.friendStatus === 'request_received';
+                const identity = formatIdentity(user);
                 return (
                   <li key={user.id} className="friends-search-result">
-                    <span className="friends-search-result-name" title={user.username}>
-                      {user.username}
+                    <span className="friends-search-result-name">
+                      <span className="friends-identity-text" title={identity.primary}>
+                        {identity.primary}
+                      </span>
+                      {identity.secondary && (
+                        <span className="friends-identity-handle">{identity.secondary}</span>
+                      )}
                     </span>
                     <button
                       type="button"
                       className={`friends-action-btn${isPrimary ? ' is-primary' : ''}`}
                       onClick={() => void handleSearchAction(user)}
                       disabled={!actionable || busyIds.has(user.id)}
-                      aria-label={`${label} ${user.username}`}
+                      aria-label={`${label} ${identity.primary}`}
                     >
                       {busyIds.has(user.id) ? '…' : label}
                     </button>
@@ -393,34 +413,40 @@ export function FriendsPage() {
             </div>
           ) : (
             <ul className="friends-list" aria-label="Your friends">
-              {friendsList.map((friend) => (
-                <li key={friend.id} className="friends-list-item">
-                  <div className="friends-list-info">
-                    <div className="friends-list-name" title={friend.username}>
-                      {friend.username}
+              {friendsList.map((friend) => {
+                const identity = formatIdentity(friend);
+                return (
+                  <li key={friend.id} className="friends-list-item">
+                    <div className="friends-list-info">
+                      <div className="friends-list-name" title={identity.primary}>
+                        {identity.primary}
+                      </div>
+                      {identity.secondary && (
+                        <div className="friends-identity-handle">{identity.secondary}</div>
+                      )}
+                      <div className="friends-list-since">
+                        Friends since {formatRelativeTime(friend.friendedAt)}
+                      </div>
                     </div>
-                    <div className="friends-list-since">
-                      Friends since {formatRelativeTime(friend.friendedAt)}
-                    </div>
-                  </div>
-                  <Link
-                    to={`/friends/${friend.id}`}
-                    className="friends-action-btn"
-                    aria-label={`View what ${friend.username} shared with friends`}
-                  >
-                    View shared
-                  </Link>
-                  <button
-                    type="button"
-                    className="friends-action-btn is-danger"
-                    onClick={() => void handleRemoveFriend(friend)}
-                    disabled={busyIds.has(friend.id)}
-                    aria-label={`Remove ${friend.username} from friends`}
-                  >
-                    {busyIds.has(friend.id) ? '…' : 'Remove'}
-                  </button>
-                </li>
-              ))}
+                    <Link
+                      to={`/friends/${friend.id}`}
+                      className="friends-action-btn"
+                      aria-label={`View what ${identity.primary} shared with friends`}
+                    >
+                      View shared
+                    </Link>
+                    <button
+                      type="button"
+                      className="friends-action-btn is-danger"
+                      onClick={() => void handleRemoveFriend(friend)}
+                      disabled={busyIds.has(friend.id)}
+                      aria-label={`Remove ${identity.primary} from friends`}
+                    >
+                      {busyIds.has(friend.id) ? '…' : 'Remove'}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -445,33 +471,44 @@ export function FriendsPage() {
                 <section className="friends-requests-section" aria-label="Incoming requests">
                   <h2 className="friends-requests-section-title">Incoming</h2>
                   <ul className="friends-request-list">
-                    {incomingList.map((req) => (
-                      <li key={req.requesterId} className="friends-request-item">
-                        <span className="friends-request-name" title={req.requesterUsername}>
-                          {req.requesterUsername}
-                        </span>
-                        <div className="friends-request-actions">
-                          <button
-                            type="button"
-                            className="friends-action-btn is-primary"
-                            onClick={() => void handleAccept(req)}
-                            disabled={busyIds.has(req.requesterId)}
-                            aria-label={`Accept friend request from ${req.requesterUsername}`}
-                          >
-                            {busyIds.has(req.requesterId) ? '…' : 'Accept'}
-                          </button>
-                          <button
-                            type="button"
-                            className="friends-action-btn"
-                            onClick={() => void handleDecline(req)}
-                            disabled={busyIds.has(req.requesterId)}
-                            aria-label={`Decline friend request from ${req.requesterUsername}`}
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                    {incomingList.map((req) => {
+                      const identity = formatIdentity({
+                        username: req.requesterUsername,
+                        displayName: req.requesterDisplayName,
+                      });
+                      return (
+                        <li key={req.requesterId} className="friends-request-item">
+                          <span className="friends-request-name">
+                            <span className="friends-identity-text" title={identity.primary}>
+                              {identity.primary}
+                            </span>
+                            {identity.secondary && (
+                              <span className="friends-identity-handle">{identity.secondary}</span>
+                            )}
+                          </span>
+                          <div className="friends-request-actions">
+                            <button
+                              type="button"
+                              className="friends-action-btn is-primary"
+                              onClick={() => void handleAccept(req)}
+                              disabled={busyIds.has(req.requesterId)}
+                              aria-label={`Accept friend request from ${identity.primary}`}
+                            >
+                              {busyIds.has(req.requesterId) ? '…' : 'Accept'}
+                            </button>
+                            <button
+                              type="button"
+                              className="friends-action-btn"
+                              onClick={() => void handleDecline(req)}
+                              disabled={busyIds.has(req.requesterId)}
+                              aria-label={`Decline friend request from ${identity.primary}`}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </section>
               )}
@@ -480,24 +517,35 @@ export function FriendsPage() {
                 <section className="friends-requests-section" aria-label="Outgoing requests">
                   <h2 className="friends-requests-section-title">Outgoing</h2>
                   <ul className="friends-request-list">
-                    {outgoingList.map((req) => (
-                      <li key={req.addresseeId} className="friends-request-item">
-                        <span className="friends-request-name" title={req.addresseeUsername}>
-                          {req.addresseeUsername}
-                        </span>
-                        <div className="friends-request-actions">
-                          <button
-                            type="button"
-                            className="friends-action-btn"
-                            onClick={() => void handleCancel(req)}
-                            disabled={busyIds.has(req.addresseeId)}
-                            aria-label={`Cancel friend request to ${req.addresseeUsername}`}
-                          >
-                            {busyIds.has(req.addresseeId) ? '…' : 'Cancel'}
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                    {outgoingList.map((req) => {
+                      const identity = formatIdentity({
+                        username: req.addresseeUsername,
+                        displayName: req.addresseeDisplayName,
+                      });
+                      return (
+                        <li key={req.addresseeId} className="friends-request-item">
+                          <span className="friends-request-name">
+                            <span className="friends-identity-text" title={identity.primary}>
+                              {identity.primary}
+                            </span>
+                            {identity.secondary && (
+                              <span className="friends-identity-handle">{identity.secondary}</span>
+                            )}
+                          </span>
+                          <div className="friends-request-actions">
+                            <button
+                              type="button"
+                              className="friends-action-btn"
+                              onClick={() => void handleCancel(req)}
+                              disabled={busyIds.has(req.addresseeId)}
+                              aria-label={`Cancel friend request to ${identity.primary}`}
+                            >
+                              {busyIds.has(req.addresseeId) ? '…' : 'Cancel'}
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </section>
               )}
@@ -524,24 +572,32 @@ export function FriendsPage() {
             </div>
           ) : (
             <ul className="friends-inbox-list" aria-label="Shared with you">
-              {inboxList.map((item) => (
-                <li key={item.token} className="friends-inbox-item">
-                  <div className="friends-inbox-info">
-                    <div className="friends-inbox-text">
-                      <span className="friends-inbox-from">{item.fromUsername}</span> shared a{' '}
-                      {item.kind}: <span className="friends-inbox-label">{item.label}</span>
+              {inboxList.map((item) => {
+                // Mid-sentence prose — primary name only, no secondary handle
+                // (matches H2HSummary: a "@handle" inline reads awkwardly).
+                const fromName = formatIdentity({
+                  username: item.fromUsername,
+                  displayName: item.fromDisplayName,
+                }).primary;
+                return (
+                  <li key={item.token} className="friends-inbox-item">
+                    <div className="friends-inbox-info">
+                      <div className="friends-inbox-text">
+                        <span className="friends-inbox-from">{fromName}</span> shared a {item.kind}:{' '}
+                        <span className="friends-inbox-label">{item.label}</span>
+                      </div>
+                      <div className="friends-inbox-time">{formatRelativeTime(item.createdAt)}</div>
                     </div>
-                    <div className="friends-inbox-time">{formatRelativeTime(item.createdAt)}</div>
-                  </div>
-                  <Link
-                    to={`/s/${item.token}`}
-                    className="friends-action-btn is-primary"
-                    aria-label={`View ${item.label} shared by ${item.fromUsername}`}
-                  >
-                    View
-                  </Link>
-                </li>
-              ))}
+                    <Link
+                      to={`/s/${item.token}`}
+                      className="friends-action-btn is-primary"
+                      aria-label={`View ${item.label} shared by ${fromName}`}
+                    >
+                      View
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

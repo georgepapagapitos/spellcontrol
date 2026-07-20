@@ -120,14 +120,17 @@ export function cardArtUrl(raw: unknown): string | undefined {
 export async function lookupShareLandingMeta(token: string): Promise<ShareLandingMeta | null> {
   const ctx = await loadShareContext(token);
   if (!ctx) return null;
-  const { share, ownerUsername, data } = ctx;
+  const { share, ownerUsername, ownerDisplayName, data } = ctx;
+  // Link-preview text only (still noindex per the /s/ secret-link constraint) —
+  // prefer the owner's display name, same propagation as everywhere else.
+  const owner = ownerDisplayName ?? ownerUsername;
   const url = `${ORIGIN}/s/${token}`;
 
   if (share.kind === 'collection') {
     const count = countCollectionCards(data.collection);
     return {
-      title: `${ownerUsername}'s collection — ${SITE_NAME}`,
-      description: `${plural(count, 'card', 'cards')} shared by ${ownerUsername}. ${FALLBACK_DESCRIPTION}`,
+      title: `${owner}'s collection — ${SITE_NAME}`,
+      description: `${plural(count, 'card', 'cards')} shared by ${owner}. ${FALLBACK_DESCRIPTION}`,
       url,
     };
   }
@@ -147,14 +150,14 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     if (share.kind === 'feedback') {
       return {
         title: `${name} — feedback wanted`,
-        description: `${ownerUsername} is asking for advice on this ${format} deck (${plural(cards, 'card', 'cards')}). Suggest adds and cuts on ${SITE_NAME}.`,
+        description: `${owner} is asking for advice on this ${format} deck (${plural(cards, 'card', 'cards')}). Suggest adds and cuts on ${SITE_NAME}.`,
         url,
         image,
       };
     }
     return {
-      title: `${name} — shared by ${ownerUsername}`,
-      description: `A ${format} deck (${plural(cards, 'card', 'cards')}) shared by ${ownerUsername} on ${SITE_NAME}.`,
+      title: `${name} — shared by ${owner}`,
+      description: `A ${format} deck (${plural(cards, 'card', 'cards')}) shared by ${owner} on ${SITE_NAME}.`,
       url,
       image,
     };
@@ -165,8 +168,8 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     const name = asString(list.name) ?? 'Untitled list';
     const entries = Array.isArray(list.entries) ? list.entries.length : 0;
     return {
-      title: `${name} — shared by ${ownerUsername}`,
-      description: `A list (${plural(entries, 'entry', 'entries')}) shared by ${ownerUsername} on ${SITE_NAME}.`,
+      title: `${name} — shared by ${owner}`,
+      description: `A list (${plural(entries, 'entry', 'entries')}) shared by ${owner} on ${SITE_NAME}.`,
       url,
     };
   }
@@ -175,8 +178,8 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     if (!binder) return null;
     const name = asString(binder.name) ?? 'Untitled binder';
     return {
-      title: `${name} — shared by ${ownerUsername}`,
-      description: `A binder shared by ${ownerUsername} on ${SITE_NAME}.`,
+      title: `${name} — shared by ${owner}`,
+      description: `A binder shared by ${owner} on ${SITE_NAME}.`,
       url,
     };
   }
@@ -187,8 +190,8 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
     const size = typeof cube.size === 'number' && Number.isFinite(cube.size) ? cube.size : 0;
     const sizeText = size > 0 ? `${size}-card cube` : 'cube';
     return {
-      title: `${name} — shared by ${ownerUsername}`,
-      description: `A ${sizeText} shared by ${ownerUsername} on ${SITE_NAME}.`,
+      title: `${name} — shared by ${owner}`,
+      description: `A ${sizeText} shared by ${owner} on ${SITE_NAME}.`,
       url,
     };
   }

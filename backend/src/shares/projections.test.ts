@@ -10,7 +10,11 @@ import {
   projectCube,
   projectDeck,
   projectList,
+  type ShareOwner,
 } from './projections';
+
+/** Owner with no display name set — every existing call site's baseline. */
+const ALICE: ShareOwner = { username: 'alice', displayName: null };
 
 function binderDef(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
   return {
@@ -134,13 +138,20 @@ describe('projectCard', () => {
 
 describe('projectCollection', () => {
   it('returns empty cards for null input', () => {
-    const out = projectCollection('alice', null);
+    const out = projectCollection(ALICE, null);
     expect(out.cards).toEqual([]);
     expect(out.ownerUsername).toBe('alice');
+    expect(out.ownerDisplayName).toBeNull();
+  });
+
+  it('carries a display name when the owner has one set', () => {
+    const out = projectCollection({ username: 'alice', displayName: 'Alice A.' }, null);
+    expect(out.ownerUsername).toBe('alice');
+    expect(out.ownerDisplayName).toBe('Alice A.');
   });
 
   it('skips invalid card entries instead of throwing', () => {
-    const out = projectCollection('alice', {
+    const out = projectCollection(ALICE, {
       cards: [{ name: 'Sol Ring', scryfallId: 'sr' }, 'not a card', null, { name: 'No Id' }],
     });
     expect(out.cards).toHaveLength(1);
@@ -150,12 +161,12 @@ describe('projectCollection', () => {
 
 describe('projectList', () => {
   it('returns null for malformed input', () => {
-    expect(projectList('alice', null)).toBeNull();
-    expect(projectList('alice', { name: 'no id' })).toBeNull();
+    expect(projectList(ALICE, null)).toBeNull();
+    expect(projectList(ALICE, { name: 'no id' })).toBeNull();
   });
 
   it('keeps note and targetPrice (v1 share scope)', () => {
-    const out = projectList('alice', {
+    const out = projectList(ALICE, {
       id: 'l1',
       name: 'Wants',
       entries: [
@@ -175,7 +186,7 @@ describe('projectList', () => {
   });
 
   it('keeps a valid target-price currency and drops garbage values', () => {
-    const out = projectList('alice', {
+    const out = projectList(ALICE, {
       id: 'l1',
       name: 'Wants',
       entries: [
@@ -186,16 +197,23 @@ describe('projectList', () => {
     expect(out?.entries[0].currency).toBe('EUR');
     expect(out?.entries[1].currency).toBeUndefined();
   });
+
+  it('carries a display name when the owner has one set', () => {
+    const owner = { username: 'alice', displayName: 'Alice A.' };
+    const out = projectList(owner, { id: 'l1', name: 'Wants' });
+    expect(out?.ownerUsername).toBe('alice');
+    expect(out?.ownerDisplayName).toBe('Alice A.');
+  });
 });
 
 describe('projectDeck', () => {
   it('returns null for malformed input', () => {
-    expect(projectDeck('alice', null)).toBeNull();
-    expect(projectDeck('alice', { id: 'd1' })).toBeNull();
+    expect(projectDeck(ALICE, null)).toBeNull();
+    expect(projectDeck(ALICE, { id: 'd1' })).toBeNull();
   });
 
   it('drops slotId / allocatedCopyId / tags from slots', () => {
-    const out = projectDeck('alice', {
+    const out = projectDeck(ALICE, {
       id: 'd1',
       name: 'X',
       format: 'commander',
@@ -213,6 +231,13 @@ describe('projectDeck', () => {
     // projection — the allowlist ({ card }) excludes them by construction;
     // this pins it against a future `...slot` spread refactor.
     expect('tags' in slot).toBe(false);
+  });
+
+  it('carries a display name when the owner has one set', () => {
+    const owner = { username: 'alice', displayName: 'Alice A.' };
+    const out = projectDeck(owner, { id: 'd1', name: 'X' });
+    expect(out?.ownerUsername).toBe('alice');
+    expect(out?.ownerDisplayName).toBe('Alice A.');
   });
 });
 
@@ -288,17 +313,18 @@ describe('findCubeById', () => {
 
 describe('projectCube', () => {
   it('returns null for malformed input / missing id or name', () => {
-    expect(projectCube('alice', null)).toBeNull();
-    expect(projectCube('alice', 42)).toBeNull();
-    expect(projectCube('alice', { id: 'c1' })).toBeNull();
-    expect(projectCube('alice', { name: 'no id' })).toBeNull();
+    expect(projectCube(ALICE, null)).toBeNull();
+    expect(projectCube(ALICE, 42)).toBeNull();
+    expect(projectCube(ALICE, { id: 'c1' })).toBeNull();
+    expect(projectCube(ALICE, { name: 'no id' })).toBeNull();
   });
 
   it('projects a valid saved cube faithfully', () => {
-    const out = projectCube('alice', savedCube());
+    const out = projectCube(ALICE, savedCube());
     expect(out).not.toBeNull();
     const o = out!;
     expect(o.ownerUsername).toBe('alice');
+    expect(o.ownerDisplayName).toBeNull();
     expect(o.id).toBe('cube-1');
     expect(o.name).toBe('My Pauper Cube');
     expect(o.size).toBe(360);
@@ -322,12 +348,19 @@ describe('projectCube', () => {
       { card: null, bucket: 'G', reason: 'x' },
       'not a pick'
     );
-    const out = projectCube('alice', cube);
+    const out = projectCube(ALICE, cube);
     expect(out?.cards).toHaveLength(2);
   });
 
+  it('carries a display name when the owner has one set', () => {
+    const owner = { username: 'alice', displayName: 'Alice A.' };
+    const out = projectCube(owner, savedCube());
+    expect(out?.ownerUsername).toBe('alice');
+    expect(out?.ownerDisplayName).toBe('Alice A.');
+  });
+
   it('drops malformed gaps and tolerates a missing inner cube', () => {
-    const out = projectCube('alice', { id: 'c', name: 'Empty' });
+    const out = projectCube(ALICE, { id: 'c', name: 'Empty' });
     expect(out).not.toBeNull();
     expect(out?.cards).toEqual([]);
     expect(out?.byBucket).toEqual({});
@@ -346,16 +379,17 @@ describe('projectBinder', () => {
   };
 
   it('returns null for a malformed or missing binders array', () => {
-    expect(projectBinder('alice', 'b-1', collection, null)).toBeNull();
-    expect(projectBinder('alice', 'b-1', collection, 'nope')).toBeNull();
-    expect(projectBinder('alice', 'missing', collection, [binderDef()])).toBeNull();
+    expect(projectBinder(ALICE, 'b-1', collection, null)).toBeNull();
+    expect(projectBinder(ALICE, 'b-1', collection, 'nope')).toBeNull();
+    expect(projectBinder(ALICE, 'missing', collection, [binderDef()])).toBeNull();
   });
 
   it('materializes the binder and projects only its matched cards', () => {
-    const out = projectBinder('alice', 'b-1', collection, [binderDef()]);
+    const out = projectBinder(ALICE, 'b-1', collection, [binderDef()]);
     expect(out).not.toBeNull();
     const o = out!;
     expect(o.ownerUsername).toBe('alice');
+    expect(o.ownerDisplayName).toBeNull();
     expect(o.name).toBe('Artifacts');
     expect(o.color).toBe('#c2a14a');
     expect(o.updatedAt).toBe(2);
@@ -379,13 +413,20 @@ describe('projectBinder', () => {
       position: -1,
       filterGroups: [{ filter: {} }],
     });
-    const out = projectBinder('alice', 'b-1', collection, [catchAll, binderDef()]);
+    const out = projectBinder(ALICE, 'b-1', collection, [catchAll, binderDef()]);
     expect(out?.totalCards).toBe(0);
   });
 
   it('returns an empty binder when the owner has no collection', () => {
-    const out = projectBinder('alice', 'b-1', null, [binderDef()]);
+    const out = projectBinder(ALICE, 'b-1', null, [binderDef()]);
     expect(out?.totalCards).toBe(0);
     expect(out?.sections).toEqual([]);
+  });
+
+  it('carries a display name when the owner has one set', () => {
+    const owner = { username: 'alice', displayName: 'Alice A.' };
+    const out = projectBinder(owner, 'b-1', collection, [binderDef()]);
+    expect(out?.ownerUsername).toBe('alice');
+    expect(out?.ownerDisplayName).toBe('Alice A.');
   });
 });

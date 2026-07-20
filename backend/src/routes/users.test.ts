@@ -58,6 +58,17 @@ describe('GET /api/users/search', () => {
     expect(res.status).toBe(200);
     expect(res.body.users).toHaveLength(1);
     expect(res.body.users[0].username).toBe('search-prefix-bob');
+    expect(res.body.users[0].displayName).toBeNull();
+  });
+
+  it('returns a matched user’s display name when set', async () => {
+    const alice = await makeUser('search-dname-alice');
+    const bob = await makeUser('search-dname-bob');
+    await request(app).patch('/api/auth/profile').set('Cookie', bob).send({ displayName: 'Bobby' });
+
+    const res = await request(app).get('/api/users/search?q=search-dname-b').set('Cookie', alice);
+    expect(res.status).toBe(200);
+    expect(res.body.users[0].displayName).toBe('Bobby');
   });
 
   it('excludes the caller from results', async () => {

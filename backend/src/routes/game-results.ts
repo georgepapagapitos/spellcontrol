@@ -56,6 +56,7 @@ gameResultsRouter.get(
     const result = await getPool().query<{
       friend_id: string;
       friend_username: string;
+      friend_display_name: string | null;
       games_played: string;
       caller_wins: string;
       friend_wins: string;
@@ -79,13 +80,14 @@ gameResultsRouter.get(
        )
        SELECT s.friend_id,
               u.username AS friend_username,
+              u.display_name AS friend_display_name,
               COUNT(*) AS games_played,
               COUNT(*) FILTER (WHERE s.winner_user_id = $1) AS caller_wins,
               COUNT(*) FILTER (WHERE s.winner_user_id = s.friend_id) AS friend_wins,
               MAX(s.ended_at) AS last_played_at
        FROM shared s
        JOIN users u ON u.id = s.friend_id
-       GROUP BY s.friend_id, u.username
+       GROUP BY s.friend_id, u.username, u.display_name
        ORDER BY games_played DESC, friend_username ASC`,
       [callerId, participantFilter(callerId)]
     );
@@ -94,6 +96,7 @@ gameResultsRouter.get(
       leaderboard: result.rows.map((r) => ({
         friendId: r.friend_id,
         friendUsername: r.friend_username,
+        friendDisplayName: r.friend_display_name,
         gamesPlayed: Number(r.games_played),
         callerWins: Number(r.caller_wins),
         friendWins: Number(r.friend_wins),
@@ -122,8 +125,8 @@ gameResultsRouter.get(
     }
 
     const pool = getPool();
-    const friendRow = await pool.query<{ username: string }>(
-      `SELECT username FROM users WHERE id = $1`,
+    const friendRow = await pool.query<{ username: string; display_name: string | null }>(
+      `SELECT username, display_name FROM users WHERE id = $1`,
       [friendId]
     );
     if (friendRow.rows.length === 0) {
@@ -142,7 +145,11 @@ gameResultsRouter.get(
 
     const results = rows.rows.map(toPublic);
     res.json({
-      friend: { id: friendId, username: friendRow.rows[0].username },
+      friend: {
+        id: friendId,
+        username: friendRow.rows[0].username,
+        displayName: friendRow.rows[0].display_name,
+      },
       results,
       summary: summarize(results, callerId, friendId),
     });

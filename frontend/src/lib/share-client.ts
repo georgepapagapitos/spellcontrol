@@ -16,6 +16,7 @@ export interface InboxShareRow {
   token: string;
   kind: ShareKind;
   fromUsername: string;
+  fromDisplayName: string | null;
   label: string;
   createdAt: number;
 }
@@ -105,14 +106,18 @@ export async function fetchPublicShare(token: string): Promise<PublicShareRespon
  *  the server 403s otherwise. */
 export async function getFriendShares(
   friendId: string
-): Promise<{ ownerUsername: string; shares: FriendShareRow[] }> {
+): Promise<{ ownerUsername: string; ownerDisplayName: string | null; shares: FriendShareRow[] }> {
   const res = await fetch(apiUrl(`/api/friends/${encodeURIComponent(friendId)}/shares`), {
     credentials: 'include',
   });
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to load shared content.'));
   }
-  return (await res.json()) as { ownerUsername: string; shares: FriendShareRow[] };
+  return (await res.json()) as {
+    ownerUsername: string;
+    ownerDisplayName: string | null;
+    shares: FriendShareRow[];
+  };
 }
 
 /** Shares other users have directed to the authenticated caller (their inbox). */

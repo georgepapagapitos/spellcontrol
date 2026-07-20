@@ -224,6 +224,7 @@ describe('GET /api/shares/public/:token — collection', () => {
     expect(res.status).toBe(200);
     expect(res.body.kind).toBe('collection');
     expect(res.body.data.ownerUsername).toBe('share-pub-coll');
+    expect(res.body.data.ownerDisplayName).toBeNull();
     expect(res.body.data.cards).toHaveLength(2);
     const firstCard = res.body.data.cards[0];
     expect(firstCard.name).toBe('Sol Ring');
@@ -260,6 +261,22 @@ describe('GET /api/shares/public/:token — collection', () => {
     // No Cookie header on the public read.
     const res = await request(app).get(`/api/shares/public/${token}`);
     expect(res.status).toBe(200);
+  });
+
+  it('prefers the owner’s display name when set', async () => {
+    const cookie = await makeUser('share-pub-dname');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'Share Owner' });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'collection' });
+    const token = create.body.share.token as string;
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.body.data.ownerUsername).toBe('share-pub-dname');
+    expect(res.body.data.ownerDisplayName).toBe('Share Owner');
   });
 });
 
@@ -761,12 +778,34 @@ describe('directed shares + inbox', () => {
     expect(inbox.status).toBe(200);
     expect(inbox.body.shares).toHaveLength(1);
     expect(inbox.body.shares[0].fromUsername).toBe(ownerName);
+    expect(inbox.body.shares[0].fromDisplayName).toBeNull();
     expect(inbox.body.shares[0].kind).toBe('cube');
     expect(inbox.body.shares[0].label).toBe('Sent Cube');
 
     // The sender does not see it in their own inbox.
     const senderInbox = await request(app).get('/api/shares/inbox').set('Cookie', owner);
     expect(senderInbox.body.shares).toHaveLength(0);
+  });
+
+  it('inbox prefers the sender’s display name when set', async () => {
+    const ownerName = 'inbox-dn-owner';
+    const friendName = 'inbox-dn-friend';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    await befriend(owner, ownerName, friend, friendName);
+    const friendId = await userIdByName(owner, friendName);
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', owner)
+      .send({ displayName: 'Inbox Owner' });
+
+    await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'collection', audience: 'direct', addresseeId: friendId });
+
+    const inbox = await request(app).get('/api/shares/inbox').set('Cookie', friend);
+    expect(inbox.body.shares[0].fromDisplayName).toBe('Inbox Owner');
   });
 
   it('inbox excludes revoked directed shares', async () => {

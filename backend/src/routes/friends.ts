@@ -24,6 +24,7 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
   const result = await pool.query<{
     id: string;
     username: string;
+    display_name: string | null;
     accepted_at: string;
     card_count: string;
   }>(
@@ -34,6 +35,7 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
     `SELECT
        CASE WHEN f.requester_id = $1 THEN f.addressee_id ELSE f.requester_id END AS id,
        CASE WHEN f.requester_id = $1 THEN u2.username ELSE u1.username END AS username,
+       CASE WHEN f.requester_id = $1 THEN u2.display_name ELSE u1.display_name END AS display_name,
        f.accepted_at,
        COALESCE((
          SELECT COUNT(DISTINCT uc.data->>'oracleId')
@@ -54,6 +56,7 @@ friendsRouter.get('/', requireAuth, friendReadLimiter, async (req: Request, res:
   const friends = result.rows.map((r) => ({
     id: r.id,
     username: r.username,
+    displayName: r.display_name,
     friendedAt: Number(r.accepted_at),
     cardCount: Number(r.card_count),
   }));
@@ -75,12 +78,14 @@ friendsRouter.get(
     const result = await pool.query<{
       requester_id: string;
       requester_username: string;
+      requester_display_name: string | null;
       addressee_id: string;
       addressee_username: string;
+      addressee_display_name: string | null;
       created_at: string;
     }>(
-      `SELECT f.requester_id, ur.username AS requester_username,
-              f.addressee_id, ua.username AS addressee_username,
+      `SELECT f.requester_id, ur.username AS requester_username, ur.display_name AS requester_display_name,
+              f.addressee_id, ua.username AS addressee_username, ua.display_name AS addressee_display_name,
               f.created_at
        FROM friendships f
        JOIN users ur ON ur.id = f.requester_id
@@ -96,8 +101,10 @@ friendsRouter.get(
       .map((r) => ({
         requesterId: r.requester_id,
         requesterUsername: r.requester_username,
+        requesterDisplayName: r.requester_display_name,
         addresseeId: r.addressee_id,
         addresseeUsername: r.addressee_username,
+        addresseeDisplayName: r.addressee_display_name,
         createdAt: Number(r.created_at),
       }));
 
@@ -106,8 +113,10 @@ friendsRouter.get(
       .map((r) => ({
         requesterId: r.requester_id,
         requesterUsername: r.requester_username,
+        requesterDisplayName: r.requester_display_name,
         addresseeId: r.addressee_id,
         addresseeUsername: r.addressee_username,
+        addresseeDisplayName: r.addressee_display_name,
         createdAt: Number(r.created_at),
       }));
 
@@ -136,7 +145,7 @@ friendsRouter.post(
 
     // Look up the target user
     const targetRows = await db
-      .select({ id: users.id, username: users.username })
+      .select({ id: users.id, username: users.username, displayName: users.displayName })
       .from(users)
       .where(eq(users.username, username))
       .limit(1);
@@ -185,7 +194,7 @@ friendsRouter.post(
         );
         return res.status(201).json({
           friendStatus: 'friends',
-          addressee: { id: target.id, username: target.username },
+          addressee: { id: target.id, username: target.username, displayName: target.displayName },
         });
       }
     }
@@ -213,7 +222,7 @@ friendsRouter.post(
       if (accepted.rowCount === 1) {
         return res.status(201).json({
           friendStatus: 'friends',
-          addressee: { id: target.id, username: target.username },
+          addressee: { id: target.id, username: target.username, displayName: target.displayName },
         });
       }
       // Not a pending reverse row — either our own duplicate direction
@@ -233,7 +242,7 @@ friendsRouter.post(
 
     return res.status(201).json({
       friendStatus: 'request_sent',
-      addressee: { id: target.id, username: target.username },
+      addressee: { id: target.id, username: target.username, displayName: target.displayName },
     });
   }
 );
@@ -266,7 +275,7 @@ friendsRouter.post(
     // Get the requester's username
     const db = getDb();
     const userRows = await db
-      .select({ id: users.id, username: users.username })
+      .select({ id: users.id, username: users.username, displayName: users.displayName })
       .from(users)
       .where(eq(users.id, requesterId))
       .limit(1);
@@ -280,6 +289,7 @@ friendsRouter.post(
       friend: {
         id: requester.id,
         username: requester.username,
+        displayName: requester.displayName,
         friendedAt: now,
       },
     });
@@ -353,26 +363,27 @@ interface FriendCard {
 
 interface FriendCollectionResponse {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   cards: FriendCard[];
 }
 
 /**
  * Confirms the caller is friends with friendId and returns the friend's
- * { id, username }. Returns null and writes a 403 if not friends or user
- * not found — callers must return immediately on null.
+ * { id, username, displayName }. Returns null and writes a 403 if not friends
+ * or user not found — callers must return immediately on null.
  */
 async function requireFriendship(
   res: Response,
   callerId: string,
   friendId: string
-): Promise<{ id: string; username: string } | null> {
+): Promise<{ id: string; username: string; displayName: string | null } | null> {
   if (!(await areFriends(callerId, friendId))) {
     res.status(403).json({ error: 'Not friends.' });
     return null;
   }
   const db = getDb();
   const rows = await db
-    .select({ id: users.id, username: users.username })
+    .select({ id: users.id, username: users.username, displayName: users.displayName })
     .from(users)
     .where(eq(users.id, friendId))
     .limit(1);
@@ -457,6 +468,7 @@ friendsRouter.get(
 
     const response: FriendCollectionResponse = {
       ownerUsername: target.username,
+      ownerDisplayName: target.displayName,
       cards,
     };
 
@@ -516,7 +528,7 @@ friendsRouter.get(
       // cube / list) — they'd 404 on open, so don't advertise them.
       .filter((s) => s.label !== null);
 
-    return res.json({ ownerUsername: owner.username, shares });
+    return res.json({ ownerUsername: owner.username, ownerDisplayName: owner.displayName, shares });
   }
 );
 
