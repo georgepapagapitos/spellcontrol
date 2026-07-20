@@ -102,6 +102,8 @@ describe('lookupShareLandingMeta', () => {
     expect(meta!.title).toBe("og-coll's collection — SpellControl");
     expect(meta!.description).toContain('2 cards shared by og-coll');
     expect(meta!.url).toBe(`https://spellcontrol.com/s/${token}`);
+    // Collections have no single representative card — static fallback only.
+    expect(meta!.image).toBeUndefined();
   });
 
   it('handles an empty collection (zero cards) with pluralization', async () => {
@@ -153,6 +155,79 @@ describe('lookupShareLandingMeta', () => {
     expect(meta!.title).toBe('Edric Combo — shared by og-deck');
     expect(meta!.description).toContain('A commander deck (2 cards)');
     expect(meta!.description).toContain('shared by og-deck');
+    // Commander here has no image_uris at all — must resolve gracefully to
+    // undefined, never throw. Locks in the no-crash/no-throw contract.
+    expect(meta!.image).toBeUndefined();
+  });
+
+  it("uses the commander's art_crop as og:image when present", async () => {
+    const cookie = await makeUser('og-deck-art');
+    await setSnapshot(cookie, 0, {
+      decks: [
+        {
+          id: 'd-art',
+          name: 'Atraxa Superfriends',
+          format: 'commander',
+          source: 'manual',
+          commander: {
+            id: 'atraxa',
+            name: "Atraxa, Praetors' Voice",
+            image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/atraxa.jpg' },
+          },
+          partnerCommander: null,
+          commanderAllocatedCopyId: null,
+          partnerCommanderAllocatedCopyId: null,
+          cards: [],
+          sideboard: [],
+          generationContext: null,
+          color: '#7aa6c2',
+          createdAt: 1700000000000,
+          updatedAt: 1700000000000,
+        },
+      ],
+    });
+    const token = await mintShare(cookie, 'deck', 'd-art');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).not.toBeNull();
+    expect(meta!.image).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
+  });
+
+  it("falls back to the first mainboard card's art for a non-Commander deck with no commander", async () => {
+    const cookie = await makeUser('og-deck-nocmd');
+    await setSnapshot(cookie, 0, {
+      decks: [
+        {
+          id: 'd-modern',
+          name: 'Boros Burn',
+          format: 'modern',
+          source: 'manual',
+          commander: null,
+          partnerCommander: null,
+          commanderAllocatedCopyId: null,
+          partnerCommanderAllocatedCopyId: null,
+          cards: [
+            {
+              slotId: 's1',
+              card: {
+                id: 'bolt',
+                name: 'Lightning Bolt',
+                image_uris: { art_crop: 'https://cards.scryfall.io/art_crop/bolt.jpg' },
+              },
+              allocatedCopyId: null,
+            },
+          ],
+          sideboard: [],
+          generationContext: null,
+          color: '#c23c3c',
+          createdAt: 1700000000000,
+          updatedAt: 1700000000000,
+        },
+      ],
+    });
+    const token = await mintShare(cookie, 'deck', 'd-modern');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).not.toBeNull();
+    expect(meta!.image).toBe('https://cards.scryfall.io/art_crop/bolt.jpg');
   });
 
   it('builds cube metadata with name and card count', async () => {
@@ -167,6 +242,7 @@ describe('lookupShareLandingMeta', () => {
     expect(meta).not.toBeNull();
     expect(meta!.title).toBe('Powered Vintage — shared by og-cube');
     expect(meta!.description).toContain('A 360-card cube shared by og-cube');
+    expect(meta!.image).toBeUndefined();
   });
 
   it('returns null when the deck behind a share token was deleted', async () => {
@@ -239,6 +315,7 @@ describe('lookupShareLandingMeta', () => {
     expect(meta).not.toBeNull();
     expect(meta!.title).toBe('Wishlist — shared by og-list');
     expect(meta!.description).toContain('A list (2 entries)');
+    expect(meta!.image).toBeUndefined();
   });
 
   it('returns null for a list whose id no longer exists', async () => {
@@ -283,6 +360,7 @@ describe('lookupShareLandingMeta', () => {
     expect(meta).not.toBeNull();
     expect(meta!.title).toBe('Commander Staples — shared by og-binder');
     expect(meta!.description).toContain('A binder shared by og-binder');
+    expect(meta!.image).toBeUndefined();
   });
 
   it('returns null for a binder whose id no longer exists', async () => {
