@@ -158,3 +158,17 @@ export function shareUrl(token: string): string {
   if (typeof window === 'undefined') return `/s/${token}`;
   return `${window.location.origin}/s/${token}`;
 }
+
+/**
+ * Fire-and-forget copy-counter beacon for a published deck's public page
+ * (`POST /api/public/decks/:slug/copy`, from w0-publish-public-reads). Errors
+ * are swallowed here, not left to the caller — a failed counter bump must
+ * never block or surface an error on the actual copy it rides alongside.
+ */
+export async function recordDeckCopy(slug: string): Promise<void> {
+  try {
+    await fetch(apiUrl(`/api/public/decks/${encodeURIComponent(slug)}/copy`), { method: 'POST' });
+  } catch {
+    // Swallowed by design — see doc comment above.
+  }
+}

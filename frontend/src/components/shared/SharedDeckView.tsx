@@ -4,6 +4,7 @@ import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatIdentity } from '../../lib/display-name';
+import { renderMarkdownLite } from '../../lib/markdown-lite';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { CardPreview } from '../CardPreview';
@@ -13,6 +14,7 @@ import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { CopyDeckButton } from './CopyDeckButton';
 import { DeckExportDialog } from './DeckExportDialog';
+import { ForkedFromBadge } from '../deck/ForkedFromBadge';
 import {
   buildExport,
   readStoredExportFormat,
@@ -262,6 +264,18 @@ export function SharedDeckView({ data }: Props) {
           {data.format} · {mainboardCount.toLocaleString()} cards
         </p>
       </header>
+
+      {data.primer && (
+        // renderMarkdownLite is escape-then-transform (see lib/markdown-lite.ts):
+        // the whole string is HTML-entity-escaped before any tag is generated,
+        // so the only tags it can ever emit are p/strong/em/ul/li — safe to
+        // hand straight to dangerouslySetInnerHTML.
+        <div
+          className="shared-deck-primer"
+          dangerouslySetInnerHTML={{ __html: renderMarkdownLite(data.primer) }}
+        />
+      )}
+      {data.forkedFrom && <ForkedFromBadge forkedFrom={data.forkedFrom} />}
 
       <div className="shared-toolbar">
         <SearchPill

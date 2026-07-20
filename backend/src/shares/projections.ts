@@ -123,6 +123,16 @@ export interface PublicDeck {
   averageSalt?: number;
   bracketEstimation?: unknown;
   deckGrade?: { letter: string; headline: string };
+  /** Long-form strategy notes (rendered client-side via markdown-lite). Capped
+   *  to 5000 chars on this public projection only — the owner's own local
+   *  copy has no such cap. Absent when the owner never wrote one. */
+  primer?: string;
+  /** True only when `primer` above was actually cut by the 5000-char cap —
+   *  lets a renderer distinguish "genuinely ends here" from "cut off
+   *  mid-sentence" without guessing from the raw length. */
+  primerTruncated?: boolean;
+  /** Copy lineage, stamped once at copy time — see store/decks.ts. */
+  forkedFrom?: { slug: string; ownerUsername: string; deckName: string };
   updatedAt?: number;
 }
 
@@ -357,6 +367,22 @@ export function projectList(owner: ShareOwner, listRaw: unknown): PublicList | n
   };
 }
 
+const PRIMER_MAX = 5000;
+
+/** Defensively parse a stored `forkedFrom` blob — a well-formed object needs
+ *  all three string fields; anything else (missing field, wrong type,
+ *  malformed shape) coerces to `undefined` rather than a partial object. */
+function pickForkedFrom(
+  raw: unknown
+): { slug: string; ownerUsername: string; deckName: string } | undefined {
+  const r = asRecord(raw);
+  if (!r) return undefined;
+  const slug = asString(r.slug);
+  const ownerUsername = asString(r.ownerUsername);
+  const deckName = asString(r.deckName);
+  return slug && ownerUsername && deckName ? { slug, ownerUsername, deckName } : undefined;
+}
+
 export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | null {
   const r = asRecord(deckRaw);
   if (!r) return null;
@@ -374,6 +400,8 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
     }
     return out;
   };
+  const rawPrimer = asString(r.primer);
+  const primer = rawPrimer?.slice(0, PRIMER_MAX);
   return {
     ownerUsername: owner.username,
     ownerDisplayName: owner.displayName,
@@ -394,6 +422,9 @@ export function projectDeck(owner: ShareOwner, deckRaw: unknown): PublicDeck | n
       const headline = asString(g.headline);
       return letter && headline ? { letter, headline } : undefined;
     })(),
+    primer,
+    primerTruncated: rawPrimer !== undefined && rawPrimer.length > PRIMER_MAX ? true : undefined,
+    forkedFrom: pickForkedFrom(r.forkedFrom),
     updatedAt: asNumber(r.updatedAt),
   };
 }

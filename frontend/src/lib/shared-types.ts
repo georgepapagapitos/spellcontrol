@@ -122,6 +122,13 @@ export interface PublicDeck {
   averageSalt?: number;
   bracketEstimation?: unknown;
   deckGrade?: { letter: string; headline: string };
+  /** Long-form strategy notes — render via `lib/markdown-lite.ts`. Capped to
+   *  5000 chars server-side; absent when the owner never wrote one. */
+  primer?: string;
+  /** True only when `primer` was actually cut by the server's 5000-char cap. */
+  primerTruncated?: boolean;
+  /** Copy lineage, stamped once at copy time — see store/decks.ts. */
+  forkedFrom?: { slug: string; ownerUsername: string; deckName: string };
   updatedAt?: number;
 }
 

@@ -215,6 +215,22 @@ export interface Deck {
    * "acquired since" — see `lib/new-arrivals.ts`. Absent = never reviewed.
    */
   lastArrivalReviewAt?: number;
+  /**
+   * Long-form strategy notes, rendered via `lib/markdown-lite.ts` on
+   * SharedDeckView/DeckFeedbackView (and the future `/d/` page). Edited
+   * through `DeckPrimerSheet`; absent = never written. An additive,
+   * whole-row-synced field like every other Deck field — no per-field
+   * whitelist exists for decks (see `persistKind` in lib/sync.ts).
+   */
+  primer?: string;
+  /**
+   * Copy lineage, stamped once by `copy-shared-deck.ts` at copy time and
+   * never mutated afterward — a point-in-time snapshot, not a live lookup
+   * (the origin deck may since be renamed or unpublished). Absent = not a
+   * copy of a published deck. `slug` is the `deck_publications` slug (the
+   * deck's public `/d/:slug` page), not a `/s/:token` share token.
+   */
+  forkedFrom?: { slug: string; ownerUsername: string; deckName: string };
 }
 
 /**
@@ -261,6 +277,8 @@ interface DecksState {
     averageSalt?: number;
     saltiestCards?: Array<{ name: string; salt: number }>;
     sourceProduct?: { code: string; fileName: string; name: string };
+    primer?: string;
+    forkedFrom?: Deck['forkedFrom'];
   }): string;
 
   /**
@@ -380,6 +398,12 @@ export const useDecksStore = create<DecksState>()(
           averageSalt: input.averageSalt,
           saltiestCards: input.saltiestCards,
           sourceProduct: input.sourceProduct,
+          // Conditional spread (not a bare `primer: input.primer,` like the
+          // fields above) so an omitted primer/forkedFrom leaves the deck with
+          // no such key at all, matching projectDeck's own "absent means the
+          // key isn't present" discipline for these two fields.
+          ...(input.primer !== undefined ? { primer: input.primer } : {}),
+          ...(input.forkedFrom !== undefined ? { forkedFrom: input.forkedFrom } : {}),
           color: input.color ?? pickRandomPresetColor(),
           createdAt: now,
           updatedAt: now,
