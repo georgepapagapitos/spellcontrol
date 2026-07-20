@@ -337,9 +337,6 @@ export function DeckEditorPage() {
         !isBuildReportSeen(deck?.id ?? '')
       )
   );
-  // Hoisted so the mobile action sheet can open Export without rendering
-  // a duplicate button. Passed to DeckDisplay as a controlled prop pair.
-  const [exportOpen, setExportOpen] = useState(false);
   // Feedback Tool: mint/copy the suggestion link + review submitted responses.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [addZone, setAddZone] = useState<'main' | 'side'>('main');
@@ -373,6 +370,25 @@ export function DeckEditorPage() {
     },
     [setSearchParams]
   );
+  // One-shot deep link from the decks-index overflow menu ("Export deck" →
+  // `/decks/:id?export=1`): the open flag is captured at mount via the lazy
+  // useState initialiser (mirrors CollectionPage's `?add=` pattern) so it
+  // stays true even after the param is stripped below and re-renders with an
+  // empty searchParams. Hoisted (rather than owned by DeckDisplay) so the
+  // mobile action sheet can open Export without rendering a duplicate button.
+  const [exportOpen, setExportOpen] = useState(() => searchParams.get('export') === '1');
+
+  useEffect(() => {
+    if (searchParams.get('export') === '1') {
+      // Strip the param from the URL without adding a history entry so a
+      // refresh — or a later bookmarked visit — doesn't re-open the dialog.
+      const next = new URLSearchParams(searchParams);
+      next.delete('export');
+      setSearchParams(next, { replace: true });
+    }
+    // Run only once on mount — the param value is already captured in state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [addingEngineNames, setAddingEngineNames] = useState<Set<string>>(new Set());
   // Deck-size guard prompts: a pending full-deck add awaiting a replace choice,
   // and a post-cut refill nudge (the card just cut + its role).
