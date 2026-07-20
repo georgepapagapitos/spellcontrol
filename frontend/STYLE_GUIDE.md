@@ -89,6 +89,21 @@ cardboard is where you say it is." Repeated identical action buttons in a list
 carry an aria-label qualified by the row's subject ("Moved it — Sol Ring") so
 screen-reader users can tell them apart.
 
+**Binder route headers (review queue):** every review-queue group header is a
+_move_, not a state — rendered as endpoints around a `lucide` `ArrowRight`
+(`aria-label="to"`, the WelcomeDigest route precedent): `[•source] → here` for
+incoming cards, `here → [•destination]` for outgoing. A binder endpoint is the
+**binder-identity chip** — a 10px `border-radius: 50%` dot in the binder's
+`def.color` plus its name (the same pattern as `.add-to-binder-swatch` in the
+binder-picker sheets); Uncategorized is the same chip with a **hollow dashed
+dot** (no home) in muted text. The viewed binder is always the quiet lowercase
+word **"here"** — "Keep it here" already established that vocabulary on this
+surface, and repeating the binder's own name in every group is noise. Never
+phrase these headers as state ("now in X" was the pre-route form); the queue is
+a physical work order and its headers name both ends of the move. Per-group bulk
+buttons repeat across groups, so their aria-labels carry the route
+("Added all — from Bulk", "Moved all — to High Value").
+
 **Punctuation:** complete sentences end with a period; a trailing `…` means
 either "in progress" (loading) **or** a **picker/selector action** — one that
 lets you choose an item from a list ("Move to another deck…", "Pick another
