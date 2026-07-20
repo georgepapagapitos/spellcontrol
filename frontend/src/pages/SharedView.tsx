@@ -33,7 +33,10 @@ export function SharedView() {
   return <SharedViewInner key={token} token={token} />;
 }
 
-function NotFoundView() {
+// Exported so PublicDeckPage.tsx (`w1-public-deck-page`) can reuse this
+// verbatim for /d/:slug's unpublished/unknown-slug state — same copy, same
+// behavior, no second "not found" component to drift.
+export function NotFoundView() {
   return (
     <main className="shared-view shared-view--missing">
       <h1>Link not found</h1>
