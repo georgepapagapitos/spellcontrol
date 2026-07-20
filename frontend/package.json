@@ -46,7 +46,7 @@
     "@spellcontrol/game-core": "file:../packages/game-core",
     "@tanstack/react-virtual": "^3.14.5",
     "idb": "^8.0.0",
-    "idb-keyval": "^6.2.6",
+    "idb-keyval": "^6.3.0",
     "keyrune": "^3.19.0",
     "lucide-react": "^1.21.0",
     "mana-font": "^1.18.0",
