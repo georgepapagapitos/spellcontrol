@@ -630,6 +630,39 @@
   font-size: var(--text-sm);
 }
 
+/* ── Share QR code (ShareDialog inline reveal + SharedLinksSettings modal) ── */
+
+.share-qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.share-qr-card {
+  display: flex;
+  width: 208px;
+  height: 208px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+  /* Deliberate, documented exception to "always theme vars": the QR must
+     stay black-on-white regardless of app theme, since a real camera scans
+     real-world contrast, not our dark-mode palette. Border/shadow/radius
+     above still theme normally — only the QR's own colors are fixed. */
+  background: #fff;
+}
+
+.share-qr-caption {
+  margin: 0;
+  max-width: 208px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
 /* ── Shared cube view (sectioned by color bucket) ────────────────────── */
 .shared-cube-gaps {
   list-style: none;
