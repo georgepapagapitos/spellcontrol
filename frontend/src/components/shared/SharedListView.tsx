@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { PublicList, PublicListEntry } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatMoney } from '../../lib/format-money';
+import { formatIdentity } from '../../lib/display-name';
 import { SearchPill } from '../SearchPill';
 import { SortDirArrow } from '../SortDirArrow';
 
@@ -62,10 +63,18 @@ export function SharedListView({ data }: Props) {
 
   const sortIndicator = (key: ListSortKey) => (sort === key ? <SortDirArrow dir={dir} /> : null);
 
+  const owner = formatIdentity({
+    username: data.ownerUsername,
+    displayName: data.ownerDisplayName,
+  });
+
   return (
     <main className="shared-view">
       <header className="shared-view-header">
-        <p className="shared-view-owner">Shared by @{data.ownerUsername}</p>
+        <p className="shared-view-owner">
+          Shared by {owner.primary}
+          {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+        </p>
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {totalQty.toLocaleString()} {totalQty === 1 ? 'card' : 'cards'} · {data.entries.length}{' '}

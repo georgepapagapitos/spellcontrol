@@ -5,6 +5,7 @@ import type { PublicCube } from './shared-types';
 
 const fakeCube: PublicCube = {
   ownerUsername: 'alex',
+  ownerDisplayName: null,
   id: 'cube-1',
   name: 'Pauper Cube',
   size: 360,

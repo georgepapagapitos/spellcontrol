@@ -116,6 +116,20 @@ describe('POST /api/game-nights', () => {
     ]);
   });
 
+  it('seeds the host’s auto-RSVP and hostUsername with their display name when set', async () => {
+    const host = await makeUser('gn-create-dname-host');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', host)
+      .send({ displayName: 'Host H.' });
+    const res = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'Friday commander', startsAt: IN_A_WEEK() });
+    expect(res.body.night.hostUsername).toBe('Host H.');
+    expect(res.body.night.rsvps[0].displayName).toBe('Host H.');
+  });
+
   it('keeps a valid IANA timezone and drops garbage', async () => {
     const host = await makeUser('gn-create-tz');
     const good = await request(app)
@@ -210,6 +224,26 @@ describe('POST /api/game-nights', () => {
       isHost: false,
       username: 'gn-invite-guest',
     });
+  });
+
+  it('the GET / list prefers the host’s display name (free column on the existing JOIN)', async () => {
+    const host = await makeUser('gn-list-dname-host');
+    const guest = await makeUser('gn-list-dname-guest');
+    await befriend(host, 'gn-list-dname-guest', guest, 'gn-list-dname-host');
+    const guestId = await friendIdOf(host, 'gn-list-dname-guest');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', host)
+      .send({ displayName: 'Host H.' });
+
+    const created = await request(app)
+      .post('/api/game-nights')
+      .set('Cookie', host)
+      .send({ title: 'Invite night', startsAt: IN_A_WEEK(), inviteUserIds: [guestId] });
+
+    const list = await request(app).get('/api/game-nights').set('Cookie', guest);
+    const mine = list.body.nights.find((n: { id: string }) => n.id === created.body.night.id);
+    expect(mine.hostUsername).toBe('Host H.');
   });
 });
 
@@ -403,6 +437,17 @@ describe('GET /api/game-nights/public/:token', () => {
       });
     }
   });
+
+  it('prefers the host’s display name over username (live-read, not a seeded default)', async () => {
+    const host = await makeUser('gn-public-dname-host');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', host)
+      .send({ displayName: 'Host H.' });
+    const { token } = await createNight(host);
+    const res = await request(app).get(`/api/game-nights/public/${token}`);
+    expect(res.body.night.hostUsername).toBe('Host H.');
+  });
 });
 
 describe('POST /api/game-nights/public/:token/rsvp', () => {
@@ -473,6 +518,21 @@ describe('POST /api/game-nights/public/:token/rsvp', () => {
 
     const pub = await request(app).get(`/api/game-nights/public/${token}`);
     expect(pub.body.rsvps).toHaveLength(2); // host + player, not three
+  });
+
+  it('the default RSVP name prefers the caller’s display name when set', async () => {
+    const host = await makeUser('gn-rsvp-dname-host');
+    const player = await makeUser('gn-rsvp-dname-player');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', player)
+      .send({ displayName: 'Player P.' });
+    const { token } = await createNight(host);
+    const res = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', player)
+      .send({ status: 'going' });
+    expect(res.body.rsvp.displayName).toBe('Player P.');
   });
 
   it('rejects RSVPs to a cancelled night and to a long-past night (400)', async () => {
@@ -1087,6 +1147,17 @@ describe('lookupGameNightLandingMeta', () => {
     await request(app).delete(`/api/game-nights/${id}`).set('Cookie', host);
     const meta = await lookupGameNightLandingMeta(token);
     expect(meta!.description).toContain('cancelled');
+  });
+
+  it('prefers the host’s display name in the unfurl title', async () => {
+    const host = await makeUser('gn-og-dname-host');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', host)
+      .send({ displayName: 'Host H.' });
+    const { token } = await createNight(host, { title: 'Friday commander' });
+    const meta = await lookupGameNightLandingMeta(token);
+    expect(meta!.title).toBe('Friday commander — hosted by Host H.');
   });
 });
 

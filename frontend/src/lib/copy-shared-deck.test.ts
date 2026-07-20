@@ -25,6 +25,7 @@ function makeCard(name: string, id: string) {
 
 const fakePublicDeck: PublicDeck = {
   ownerUsername: 'alex',
+  ownerDisplayName: null,
   id: 'deck-abc',
   name: 'Korvold Treasure',
   format: 'commander',

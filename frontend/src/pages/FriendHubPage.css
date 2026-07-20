@@ -32,6 +32,13 @@
   overflow-wrap: anywhere;
 }
 
+.friend-hub-handle {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
 .friend-hub-sub {
   font-size: var(--text-sm);
   color: var(--text-secondary);

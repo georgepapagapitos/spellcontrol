@@ -5,20 +5,24 @@ export type FriendStatus = 'none' | 'friends' | 'request_sent' | 'request_receiv
 export interface FriendUser {
   id: string;
   username: string;
+  displayName: string | null;
   friendStatus: FriendStatus;
 }
 
 export interface FriendRequest {
   requesterId: string;
   requesterUsername: string;
+  requesterDisplayName: string | null;
   addresseeId: string;
   addresseeUsername: string;
+  addresseeDisplayName: string | null;
   createdAt: number;
 }
 
 export interface Friend {
   id: string;
   username: string;
+  displayName: string | null;
   friendedAt: number;
   /** Unique cards (by oracle id) in the friend's collection. */
   cardCount: number;
@@ -44,9 +48,10 @@ export async function searchUsers(q: string): Promise<FriendUser[]> {
   return body.users;
 }
 
-export async function sendFriendRequest(
-  username: string
-): Promise<{ friendStatus: FriendStatus; addressee: { id: string; username: string } }> {
+export async function sendFriendRequest(username: string): Promise<{
+  friendStatus: FriendStatus;
+  addressee: { id: string; username: string; displayName: string | null };
+}> {
   const res = await fetch(apiUrl('/api/friends/requests'), {
     method: 'POST',
     credentials: 'include',
@@ -58,7 +63,7 @@ export async function sendFriendRequest(
   }
   return (await res.json()) as {
     friendStatus: FriendStatus;
-    addressee: { id: string; username: string };
+    addressee: { id: string; username: string; displayName: string | null };
   };
 }
 

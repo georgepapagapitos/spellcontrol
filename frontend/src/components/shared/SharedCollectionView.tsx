@@ -18,6 +18,7 @@ import { SelectMenu } from '../SelectMenu';
 import { SortDirArrow } from '../SortDirArrow';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { formatMoney } from '../../lib/format-money';
+import { formatIdentity } from '../../lib/display-name';
 
 interface Props {
   data: PublicCollection;
@@ -71,10 +72,18 @@ export function SharedCollectionView({ data }: Props) {
     }
   };
 
+  const owner = formatIdentity({
+    username: data.ownerUsername,
+    displayName: data.ownerDisplayName,
+  });
+
   return (
     <main className="shared-view">
       <header className="shared-view-header">
-        <p className="shared-view-owner">Shared by @{data.ownerUsername}</p>
+        <p className="shared-view-owner">
+          Shared by {owner.primary}
+          {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+        </p>
         <h1 className="shared-view-title">Collection</h1>
         <p className="shared-view-subtitle">
           {totalCards.toLocaleString()} {totalCards === 1 ? 'card' : 'cards'} ·{' '}
