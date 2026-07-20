@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { StackedBar } from '../shared/MeterBar';
+import { formatIdentity } from '../../lib/display-name';
 import { H2HSummary } from './H2HSummary';
 import {
   fetchLeaderboard,
@@ -91,10 +92,19 @@ export function FriendsLeaderboard() {
         <tbody>
           {entries.map((e) => {
             const isOpen = expanded === e.friendId;
+            const identity = formatIdentity({
+              username: e.friendUsername,
+              displayName: e.friendDisplayName,
+            });
             return (
               <Fragment key={e.friendId}>
                 <tr>
-                  <td>{e.friendUsername}</td>
+                  <td>
+                    {identity.primary}
+                    {identity.secondary && (
+                      <span className="leaderboard-friend-handle">{identity.secondary}</span>
+                    )}
+                  </td>
                   <td>{e.gamesPlayed}</td>
                   <td>{e.callerWins}</td>
                   <td>{e.friendWins}</td>

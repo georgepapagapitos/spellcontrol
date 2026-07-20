@@ -216,9 +216,26 @@ describe('GET /api/game-results/leaderboard', () => {
     expect(res.body.leaderboard).toHaveLength(1);
     const entry = res.body.leaderboard[0];
     expect(entry.friendUsername).toBe('lb-bob');
+    expect(entry.friendDisplayName).toBeNull();
     expect(entry.gamesPlayed).toBe(2);
     expect(entry.callerWins).toBe(1);
     expect(entry.friendWins).toBe(1);
+  });
+
+  it('prefers the friend’s display name when set', async () => {
+    const alice = await makeUser('lb-dn-alice');
+    const bob = await makeUser('lb-dn-bob');
+    const aliceId = await userId('lb-dn-alice');
+    const bobId = await userId('lb-dn-bob');
+    await makeFriends(aliceId, bobId);
+    await request(app).patch('/api/auth/profile').set('Cookie', bob).send({ displayName: 'Bobby' });
+    await insertResult({
+      winnerUserId: aliceId,
+      participants: [{ userId: aliceId }, { userId: bobId }],
+    });
+
+    const res = await request(app).get('/api/game-results/leaderboard').set('Cookie', alice);
+    expect(res.body.leaderboard[0].friendDisplayName).toBe('Bobby');
   });
 });
 
@@ -263,6 +280,7 @@ describe('GET /api/game-results/h2h/:friendId', () => {
     const res = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', alice);
     expect(res.status).toBe(200);
     expect(res.body.friend.username).toBe('h2h-bob');
+    expect(res.body.friend.displayName).toBeNull();
     expect(res.body.results).toHaveLength(2);
     expect(res.body.summary.gamesPlayed).toBe(2);
     expect(res.body.summary.callerWins).toBe(1);
@@ -271,5 +289,21 @@ describe('GET /api/game-results/h2h/:friendId', () => {
     expect(res.body.summary.deckMatchups).toHaveLength(1);
     expect(res.body.summary.deckMatchups[0].played).toBe(2);
     expect(res.body.summary.deckMatchups[0].callerDeckName).toBe('Atraxa');
+  });
+
+  it('prefers the friend’s display name when set', async () => {
+    const alice = await makeUser('h2h-dn-alice');
+    const bob = await makeUser('h2h-dn-bob');
+    const aliceId = await userId('h2h-dn-alice');
+    const bobId = await userId('h2h-dn-bob');
+    await makeFriends(aliceId, bobId);
+    await request(app).patch('/api/auth/profile').set('Cookie', bob).send({ displayName: 'Bobby' });
+    await insertResult({
+      winnerUserId: aliceId,
+      participants: [{ userId: aliceId }, { userId: bobId }],
+    });
+
+    const res = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', alice);
+    expect(res.body.friend.displayName).toBe('Bobby');
   });
 });

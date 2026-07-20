@@ -68,12 +68,13 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
   if (!share) return null;
 
   const userRows = await db
-    .select({ username: users.username })
+    .select({ username: users.username, displayName: users.displayName })
     .from(users)
     .where(eq(users.id, share.userId))
     .limit(1);
   if (userRows.length === 0) return null;
   const ownerUsername = userRows[0].username;
+  const ownerDisplayName = userRows[0].displayName;
 
   // Per-kind fetch: only the tables this share's projection actually reads
   // (E70 — the old six-table fan-out meant one table's transient failure
@@ -129,7 +130,7 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
 
   stampSharePrices(data.collection.cards);
 
-  const ctx: ShareContext = { share, ownerUsername, data };
+  const ctx: ShareContext = { share, ownerUsername, ownerDisplayName, data };
   shareCache.set(token, ctx);
   return ctx;
 }

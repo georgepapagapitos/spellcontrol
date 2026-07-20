@@ -4,6 +4,7 @@ import { apiUrl } from './api-base';
 export interface LeaderboardEntry {
   friendId: string;
   friendUsername: string;
+  friendDisplayName: string | null;
   gamesPlayed: number;
   callerWins: number;
   friendWins: number;
@@ -47,7 +48,7 @@ export interface DeckMatchup {
 }
 
 export interface H2HResponse {
-  friend: { id: string; username: string };
+  friend: { id: string; username: string; displayName: string | null };
   results: PublicGameResult[];
   summary: {
     gamesPlayed: number;

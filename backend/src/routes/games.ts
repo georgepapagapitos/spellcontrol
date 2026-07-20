@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { and, eq, lt } from 'drizzle-orm';
-import { requireAuth } from '../auth';
+import { requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
 import { gameSessions } from '../db/schema';
 import { persistGameResult } from '../games/persist-result';
@@ -194,7 +194,7 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
   const hostName =
     typeof body.hostName === 'string' && body.hostName.trim().length > 0
       ? body.hostName.trim().slice(0, 40)
-      : req.user!.username;
+      : await resolveDisplayLabel(req.user!.id);
 
   void sweepStale().catch((err) => logger.warn('[games] sweep failed', err));
 
@@ -302,7 +302,7 @@ gamesRouter.post('/:code/join', writeLimiter, requireAuth, async (req: Request, 
   const name =
     typeof body.name === 'string' && body.name.trim().length > 0
       ? body.name.trim().slice(0, 40)
-      : req.user!.username;
+      : await resolveDisplayLabel(req.user!.id);
 
   const db = getDb();
   const rows = await db.select().from(gameSessions).where(eq(gameSessions.code, code)).limit(1);

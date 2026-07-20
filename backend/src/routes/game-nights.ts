@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { and, eq, isNull } from 'drizzle-orm';
 import { testAwareLimiter } from '../route-utils';
-import { optionalAuth, requireAuth } from '../auth';
+import { optionalAuth, requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb, getPool } from '../db';
 import {
   gameNightInvites,
@@ -194,13 +194,14 @@ async function resolveVoterRsvp(
   const pool = getPool();
   const now = Date.now();
   if (user) {
+    const displayLabel = await resolveDisplayLabel(user.id);
     const upsert = await pool.query<{ id: string; display_name: string }>(
       `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'maybe', $5, $5)
        ON CONFLICT (night_id, user_id) WHERE user_id IS NOT NULL
        DO UPDATE SET updated_at = $5
        RETURNING id, display_name`,
-      [crypto.randomUUID(), night.id, user.id, user.username, now]
+      [crypto.randomUUID(), night.id, user.id, displayLabel, now]
     );
     const r = upsert.rows[0];
     return { rsvp: { id: r.id, displayName: r.display_name } };
@@ -427,14 +428,11 @@ async function ensureNextOccurrence(seriesId: string): Promise<void> {
       [nightId, now, latest.id]
     );
     // The host is going by definition, same as a hand-created night.
-    const host = await pool.query<{ username: string }>(
-      `SELECT username FROM users WHERE id = $1`,
-      [latest.host_user_id]
-    );
+    const hostDisplayLabel = await resolveDisplayLabel(latest.host_user_id);
     await pool.query(
       `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'going', $5, $5)`,
-      [crypto.randomUUID(), nightId, latest.host_user_id, host.rows[0].username, now]
+      [crypto.randomUUID(), nightId, latest.host_user_id, hostDisplayLabel, now]
     );
     return;
   }
@@ -733,11 +731,12 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       .values(invitees.map((userId) => ({ nightId: night.id, userId, createdAt: now })));
   }
   // The host is going by definition — keeps tallies and the attendee list honest.
+  const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
   await db.insert(gameNightRsvps).values({
     id: crypto.randomUUID(),
     nightId: night.id,
     userId: req.user!.id,
-    displayName: req.user!.username,
+    displayName: hostDisplayLabel,
     status: 'going',
     createdAt: now,
     updatedAt: now,
@@ -748,7 +747,7 @@ gameNightsRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   res.status(201).json({
     night: toNightView(
       night,
-      req.user!.username,
+      hostDisplayLabel,
       req.user!.id,
       rsvpsByNight.get(night.id) ?? [],
       awaitingByNight.get(night.id) ?? [],
@@ -799,10 +798,12 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
     invite_only: boolean;
     format: string | null;
     host_username: string;
+    host_display_name: string | null;
     series_token: string | null;
     series_ended_at: string | null;
   }>(
-    `SELECT n.*, u.username AS host_username, s.token AS series_token, s.ended_at AS series_ended_at
+    `SELECT n.*, u.username AS host_username, u.display_name AS host_display_name,
+            s.token AS series_token, s.ended_at AS series_ended_at
        FROM game_nights n
        JOIN users u ON u.id = n.host_user_id
        LEFT JOIN game_night_series s ON s.id = n.series_id
@@ -836,7 +837,7 @@ gameNightsRouter.get('/', requireAuth, async (req: Request, res: Response) => {
         inviteOnly: r.invite_only,
         format: r.format,
       },
-      r.host_username,
+      r.host_display_name ?? r.host_username,
       req.user!.id,
       rsvpsByNight.get(r.id) ?? [],
       awaitingByNight.get(r.id) ?? [],
@@ -923,11 +924,12 @@ gameNightsRouter.patch('/:id', requireAuth, async (req: Request, res: Response) 
   }
 
   const updated = { ...night, ...patch };
+  const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
   const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
   res.json({
     night: toNightView(
       updated,
-      req.user!.username,
+      hostDisplayLabel,
       req.user!.id,
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
@@ -973,11 +975,12 @@ gameNightsRouter.post('/:id/lock', requireAuth, async (req: Request, res: Respon
   await pool.query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
   await pool.query(`DELETE FROM game_night_options WHERE night_id = $1`, [id]);
 
+  const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
   const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
   res.json({
     night: toNightView(
       { ...night, startsAt },
-      req.user!.username,
+      hostDisplayLabel,
       req.user!.id,
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
@@ -1031,11 +1034,12 @@ gameNightsRouter.post('/:id/poll', requireAuth, async (req: Request, res: Respon
   const startsAt = Math.max(...cleaned);
   await getPool().query(`UPDATE game_nights SET starts_at = $2 WHERE id = $1`, [id, startsAt]);
 
+  const hostDisplayLabel = await resolveDisplayLabel(req.user!.id);
   const { rsvpsByNight, awaitingByNight, blockedByNight } = await loadNightDetails([id]);
   res.status(201).json({
     night: toNightView(
       { ...night, startsAt },
-      req.user!.username,
+      hostDisplayLabel,
       req.user!.id,
       rsvpsByNight.get(id) ?? [],
       awaitingByNight.get(id) ?? [],
@@ -1306,7 +1310,10 @@ async function findNightByToken(
       inviteOnly: r.invite_only,
       format: r.format,
     },
-    hostUsername: r.host_username,
+    // Live-read (not a seed default): every consumer of this shared lookup —
+    // the /gn/:token landing view and the OG unfurl title — prefers the
+    // host's display name, same propagation as friends/leaderboard.
+    hostUsername: await resolveDisplayLabel(r.host_user_id),
     series:
       r.series_id === null || r.series_token === null
         ? null
@@ -1435,7 +1442,7 @@ gameNightsRouter.post(
     const now = Date.now();
 
     if (req.user) {
-      const name = displayName ?? req.user.username;
+      const name = displayName ?? (await resolveDisplayLabel(req.user.id));
       const upsert = await pool.query<{ id: string }>(
         `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $6)

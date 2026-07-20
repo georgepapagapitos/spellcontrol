@@ -60,6 +60,7 @@ export interface PublicCard {
 
 export interface PublicCollection {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   uploadedAt?: number;
   cards: PublicCard[];
 }
@@ -80,6 +81,7 @@ export interface PublicListEntry {
 
 export interface PublicList {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   entries: PublicListEntry[];
@@ -108,6 +110,7 @@ export interface PublicDeckCard {
 
 export interface PublicDeck {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   format: string;
@@ -133,6 +136,7 @@ export interface PublicBinderSection {
 
 export interface PublicBinder {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   color: string;
@@ -161,6 +165,7 @@ export interface PublicCubeGap {
 
 export interface PublicCube {
   ownerUsername: string;
+  ownerDisplayName: string | null;
   id: string;
   name: string;
   size: number;

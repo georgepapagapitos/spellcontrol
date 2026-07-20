@@ -6,6 +6,7 @@ function fakeContext(label: string): ShareContext {
   return {
     share: { token: label } as unknown as ShareContext['share'],
     ownerUsername: `owner-${label}`,
+    ownerDisplayName: null,
     data: { userId: label } as unknown as ShareContext['data'],
   };
 }

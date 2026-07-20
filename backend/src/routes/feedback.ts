@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { and, count, desc, eq } from 'drizzle-orm';
-import { optionalAuth, requireAuth } from '../auth';
+import { optionalAuth, requireAuth, resolveDisplayLabel } from '../auth';
 import { getDb } from '../db';
 import { deckFeedback } from '../db/schema';
 import { areFriends } from '../friends/relations';
@@ -163,7 +163,7 @@ feedbackRouter.post(
       bracketSuggestion = b;
     }
     const authorName = req.user
-      ? (cleanString(body.authorName, NAME_MAX) ?? req.user.username)
+      ? (cleanString(body.authorName, NAME_MAX) ?? (await resolveDisplayLabel(req.user.id)))
       : cleanString(body.authorName, NAME_MAX);
     if (!authorName) {
       return res.status(400).json({ error: `Name is required (max ${NAME_MAX} characters).` });

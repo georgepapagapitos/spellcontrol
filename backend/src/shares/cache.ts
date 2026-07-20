@@ -51,6 +51,8 @@ export interface ShareDataView {
 export interface ShareContext {
   share: ShareRow;
   ownerUsername: string;
+  /** Owner's preferred display name; null = not set, fall back to ownerUsername. */
+  ownerDisplayName: string | null;
   data: ShareDataView;
 }
 

@@ -173,6 +173,15 @@
   text-transform: uppercase;
 }
 
+/* @handle secondary line under the owner's display name — natural case, not
+   shouted like the caption around it. */
+.shared-view-owner-handle {
+  display: block;
+  margin-top: 2px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .shared-view-title {
   margin: 0 0 var(--space-1);
   font-family: var(--font-serif);

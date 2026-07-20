@@ -6,6 +6,7 @@ import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { formatMoney } from '../lib/format-money';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
+import { formatIdentity } from '../lib/display-name';
 import { fetchH2H, type H2HResponse } from '../lib/game-results-client';
 import { fetchFriendCollection, type FriendCard } from '../lib/cube/pool';
 import { buildTradeRadar, type TradeRadarMatch } from '../lib/trade-radar';
@@ -40,6 +41,7 @@ export function FriendHubPage() {
   const status = useAuth((s) => s.status);
 
   const [ownerUsername, setOwnerUsername] = useState<string | null>(null);
+  const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null);
   const [shares, setShares] = useState<FriendShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [h2h, setH2h] = useState<H2HResponse | null>(null);
@@ -94,6 +96,7 @@ export function FriendHubPage() {
       .then((res) => {
         if (cancelled) return;
         setOwnerUsername(res.ownerUsername);
+        setOwnerDisplayName(res.ownerDisplayName);
         setShares(res.shares);
         setError(null);
       })
@@ -144,13 +147,23 @@ export function FriendHubPage() {
 
   const loading = shares === null;
   const sharesList = shares ?? [];
-  const heading = ownerUsername ? `@${ownerUsername}` : 'Shared with friends';
-  const who = ownerUsername ? `@${ownerUsername}` : 'this friend';
+  const identity = ownerUsername
+    ? formatIdentity({ username: ownerUsername, displayName: ownerDisplayName })
+    : null;
+  // Today's exact `@username` phrasing, reused verbatim in two spots: as the
+  // heading itself when no display name is set, or demoted to a secondary
+  // line/prose reference once one is. Either way, a user with no display name
+  // sees byte-identical output to today.
+  const handle = ownerUsername ? `@${ownerUsername}` : null;
+  const hasDisplayName = identity !== null && identity.secondary !== null;
+  const heading = hasDisplayName ? identity!.primary : (handle ?? 'Shared with friends');
+  const who = hasDisplayName ? identity!.primary : (handle ?? 'this friend');
 
   return (
     <div className="friend-hub">
       <BackLink />
       <h1 className="friend-hub-heading">{heading}</h1>
+      {hasDisplayName && <p className="friend-hub-handle">{handle}</p>}
       <p className="friend-hub-sub">Shared with friends</p>
 
       {h2hLoading ? (
@@ -222,8 +235,10 @@ export function FriendHubPage() {
         <HubSkeleton />
       ) : sharesList.length === 0 ? (
         <p className="friends-empty" role="status">
-          {ownerUsername ? `@${ownerUsername} hasn’t` : 'This person hasn’t'} shared anything with
-          friends yet.
+          {ownerUsername
+            ? `${hasDisplayName ? identity!.primary : handle} hasn’t`
+            : 'This person hasn’t'}{' '}
+          shared anything with friends yet.
         </p>
       ) : (
         KIND_ORDER.map((kind) => {

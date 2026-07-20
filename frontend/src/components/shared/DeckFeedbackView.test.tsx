@@ -19,6 +19,7 @@ vi.mock('../../lib/use-search-cards', () => ({
 function deck(): PublicDeck {
   return {
     ownerUsername: 'brewer',
+    ownerDisplayName: null,
     id: 'd-1',
     name: 'Edric Combo',
     format: 'commander',
@@ -50,9 +51,20 @@ beforeEach(() => {
 describe('DeckFeedbackView', () => {
   it('renders the deck grouped by type with a feedback header', () => {
     renderView();
-    expect(screen.getByText('@brewer is asking for feedback')).toBeTruthy();
+    // No display name set → the bare username, no @ (formatIdentity's primary).
+    expect(screen.getByText('brewer is asking for feedback')).toBeTruthy();
     expect(screen.getByText('Sol Ring')).toBeTruthy();
     expect(screen.getByText('Counterspell')).toBeTruthy();
+  });
+
+  it('prefers the owner’s display name, with @username as a secondary line', () => {
+    render(
+      <MemoryRouter>
+        <DeckFeedbackView data={{ ...deck(), ownerDisplayName: 'Bo the Brewer' }} token="tok-1" />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('Bo the Brewer is asking for feedback')).toBeTruthy();
+    expect(screen.getByText('@brewer')).toBeTruthy();
   });
 
   it('shows the commander for context without a cut affordance', () => {

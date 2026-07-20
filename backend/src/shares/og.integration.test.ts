@@ -383,4 +383,17 @@ describe('lookupShareLandingMeta', () => {
     const meta = await lookupShareLandingMeta(token);
     expect(meta).toBeNull();
   });
+
+  it('prefers the owner’s display name over username in title and description', async () => {
+    const cookie = await makeUser('og-dname');
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'OG Display Name' });
+    await setSnapshot(cookie, 0, { collection: { cards: [] } });
+    const token = await mintShare(cookie, 'collection');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta!.title).toBe("OG Display Name's collection — SpellControl");
+    expect(meta!.description).toContain('shared by OG Display Name');
+  });
 });

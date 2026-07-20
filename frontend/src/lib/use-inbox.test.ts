@@ -4,7 +4,14 @@ import { countUnseen, markInboxSeen, INBOX_LAST_SEEN_KEY } from './use-inbox';
 import type { InboxShareRow } from './share-client';
 
 function row(createdAt: number): InboxShareRow {
-  return { token: `t${createdAt}`, kind: 'deck', fromUsername: 'alice', label: 'X', createdAt };
+  return {
+    token: `t${createdAt}`,
+    kind: 'deck',
+    fromUsername: 'alice',
+    fromDisplayName: null,
+    label: 'X',
+    createdAt,
+  };
 }
 
 describe('countUnseen', () => {

@@ -3,6 +3,7 @@ import { Download, LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
+import { formatIdentity } from '../../lib/display-name';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { CardPreview } from '../CardPreview';
@@ -244,10 +245,18 @@ export function SharedDeckView({ data }: Props) {
   const mainboardCount =
     data.cards.length + (data.commander ? 1 : 0) + (data.partnerCommander ? 1 : 0);
 
+  const owner = formatIdentity({
+    username: data.ownerUsername,
+    displayName: data.ownerDisplayName,
+  });
+
   return (
     <main className="shared-view">
       <header className="shared-view-header">
-        <p className="shared-view-owner">Shared by @{data.ownerUsername}</p>
+        <p className="shared-view-owner">
+          Shared by {owner.primary}
+          {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+        </p>
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {data.format} · {mainboardCount.toLocaleString()} cards
