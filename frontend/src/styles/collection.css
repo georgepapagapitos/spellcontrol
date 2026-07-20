@@ -663,6 +663,57 @@
   justify-content: flex-end;
 }
 
+/* Narrow-viewport "View" popover (≤640px) — the display controls (layout,
+   card size, Details captions, symbol key) consolidated into one panel so
+   the sticky controls row stays a single line on phones. */
+.view-popover-panel {
+  min-width: 14rem;
+}
+
+.view-popover-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.45rem 0.6rem;
+}
+
+.view-popover-row-label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.view-popover-section {
+  border-top: 0.5px solid var(--border);
+  margin-top: 0.3rem;
+  padding-top: 0.3rem;
+}
+
+/* Same treatment as .legend-section-title so the panel's group headings and
+   the embedded key's section headings read as one family. */
+.view-popover-section-title {
+  display: block;
+  padding: 0.3rem 0.6rem 0.1rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* Symbol-key sub-page — reuses the legend's section styling inside the
+   panel; the panel itself scrolls (toolbar-popover-panel max-height). */
+.view-popover-key {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 0.3rem 0.3rem;
+}
+
+.view-popover-back {
+  color: var(--text-muted);
+}
+
 /* ── UX-301/306 additions ──────────────────────────────────────────────────
    Active-filter chip row, sticky controls row, result count, and
    selection copy count. Added for Wave-3 UX overhaul. */
