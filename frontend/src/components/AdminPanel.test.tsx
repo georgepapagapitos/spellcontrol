@@ -2,17 +2,23 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AdminPanel } from './AdminPanel';
-import type { AdminUserSummary } from '../lib/admin-api';
+import type { AdminUserSummary, AdminReportRow } from '../lib/admin-api';
 
 // AdminPanel's own network calls are mocked; Modal is real, so this is an
 // integration-style test of the confirm-gating wiring around clearUserProfile
 // (mirrors how UploadPanel.test.tsx treats Modal as real infrastructure).
 const listUsersMock = vi.fn<() => Promise<AdminUserSummary[]>>();
 const clearUserProfileMock = vi.fn<(id: string) => Promise<void>>();
+// AdminPanel also fetches the Reports section on mount — stub it to an empty
+// list so this file's own test (which only exercises the Users card) isn't
+// left with an unresolved/rejected fetch.
+const listReportsMock = vi.fn<() => Promise<AdminReportRow[]>>(() => Promise.resolve([]));
 vi.mock('../lib/admin-api', () => ({
   listUsers: () => listUsersMock(),
   deleteUser: vi.fn(),
   clearUserProfile: (id: string) => clearUserProfileMock(id),
+  listReports: () => listReportsMock(),
+  resolveReport: vi.fn(),
 }));
 
 const baseUser: AdminUserSummary = {

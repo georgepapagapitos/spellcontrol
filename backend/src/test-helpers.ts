@@ -20,6 +20,7 @@ import { usersRouter } from './routes/users';
 import { gameNightsRouter } from './routes/game-nights';
 import { publicationsRouter } from './routes/publications';
 import { publicRouter } from './routes/public';
+import { reportsRouter } from './routes/reports';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -78,7 +79,8 @@ export async function createTestEnv(): Promise<TestEnv> {
       bio TEXT,
       avatar_card_id TEXT,
       avatar_card_name TEXT,
-      avatar_image_url TEXT
+      avatar_image_url TEXT,
+      profile_hidden_at BIGINT
     );
     CREATE UNIQUE INDEX users_email_idx ON users(email);
     CREATE TABLE auth_identities (
@@ -355,6 +357,19 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);
     CREATE INDEX deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
+    CREATE TABLE content_reports (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      target_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reporter_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      reason TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      resolved_at BIGINT,
+      resolution TEXT
+    );
+    CREATE INDEX content_reports_unresolved_idx ON content_reports(created_at) WHERE resolved_at IS NULL;
+    CREATE INDEX content_reports_owner_idx ON content_reports(target_owner_id);
   `);
 
   const db = drizzle(pool, { schema });
@@ -378,6 +393,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/game-nights', gameNightsRouter);
   app.use('/api/publications', publicationsRouter);
   app.use('/api/public', publicRouter);
+  app.use('/api/reports', reportsRouter);
 
   return {
     app,
