@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { LayoutGrid, List as ListIcon } from 'lucide-react';
+import { Download, LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
@@ -11,6 +11,13 @@ import { useSharedFilters } from './use-shared-filters';
 import { SearchPill } from '../SearchPill';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { CopyDeckButton } from './CopyDeckButton';
+import { DeckExportDialog } from './DeckExportDialog';
+import {
+  buildExport,
+  readStoredExportFormat,
+  writeStoredExportFormat,
+  type ExportFormat,
+} from '../../lib/deck-export';
 import type { PublicCard } from '../../lib/shared-types';
 
 interface Props {
@@ -87,6 +94,28 @@ export function SharedDeckView({ data }: Props) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewKind>('grid');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
+  const handleExportFormatChange = (f: ExportFormat) => {
+    setExportFormat(f);
+    writeStoredExportFormat(f);
+  };
+  // No collectionByCopyId/allocated-copy ids — a guest has no personal
+  // collection lens, so printing resolution falls back to whichever
+  // printing the deck owner configured for each slot.
+  const exportText = useMemo(
+    () =>
+      buildExport(
+        {
+          commander: data.commander,
+          partner: data.partnerCommander,
+          cards: data.cards,
+          sideboard: data.sideboard,
+        },
+        exportFormat
+      ),
+    [data.commander, data.partnerCommander, data.cards, data.sideboard, exportFormat]
+  );
 
   // Facet options derive from every card in the deck (mainboard + commanders
   // + sideboard), coerced to the PublicCard shape.
@@ -283,6 +312,24 @@ export function SharedDeckView({ data }: Props) {
       ))}
 
       <CopyDeckButton data={data} variant="block" />
+      <button
+        type="button"
+        className="btn shared-copy-btn--block shared-export-btn"
+        onClick={() => setExportOpen(true)}
+      >
+        <Download width={16} height={16} strokeWidth={2} aria-hidden />
+        Export decklist
+      </button>
+
+      {exportOpen && (
+        <DeckExportDialog
+          text={exportText}
+          format={exportFormat}
+          onFormatChange={handleExportFormatChange}
+          title={data.name}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
 
       {previewIndex !== null && previewCards[previewIndex] && (
         <CardPreview

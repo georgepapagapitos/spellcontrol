@@ -1,11 +1,8 @@
 import {
-  Check,
   CircleAlert,
   ChevronDown,
   ChevronRight,
   Boxes,
-  Clipboard,
-  Download,
   Eye,
   Hand,
   Handshake,
@@ -48,6 +45,13 @@ import {
   type LegalityIssue,
 } from '../../lib/deck-validation';
 import { useSealMoment } from '../shared/SealMoment';
+import { DeckExportDialog } from '../shared/DeckExportDialog';
+import {
+  buildExport,
+  readStoredExportFormat,
+  writeStoredExportFormat,
+  type ExportFormat,
+} from '@/lib/deck-export';
 import { toast } from '../../store/toasts';
 import { haptics } from '../../lib/haptics';
 import type { DeckCard } from '../../store/decks';
@@ -59,7 +63,6 @@ import { SetSymbol } from '../shared/SetSymbol';
 import { setSymbolTitle } from '@/lib/set-symbols';
 import { typeIcon } from '../../lib/card-types';
 import { formatMoney } from '../../lib/format-money';
-import { Modal } from '../Modal';
 import { SearchPill } from '../SearchPill';
 import { InfoTip } from '../InfoTip';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
@@ -220,27 +223,6 @@ function frontFaceMana(card: ScryfallCard): string | undefined {
 }
 
 type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added';
-
-export type ExportFormat = 'mtga' | 'plain' | 'moxfield';
-
-const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
-  mtga: 'MTGA',
-  plain: 'Plaintext',
-  moxfield: 'Moxfield',
-};
-
-const EXPORT_FORMAT_STORAGE_KEY = 'mtg-decks-export-format';
-
-function readStoredFormat(): ExportFormat {
-  if (typeof window === 'undefined') return 'mtga';
-  try {
-    const v = window.localStorage.getItem(EXPORT_FORMAT_STORAGE_KEY);
-    if (v === 'mtga' || v === 'plain' || v === 'moxfield') return v;
-  } catch {
-    /* ignore */
-  }
-  return 'mtga';
-}
 
 // ── View mode + show prefs ───────────────────────────────────────────────
 // Mirrors the reference EDH builder's Sort | Show | Search | View toolbar:
@@ -1127,7 +1109,7 @@ export function DeckDisplay({
     }
   };
   const [search, setSearch] = useState('');
-  const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredFormat());
+  const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [gridZoom, setGridZoom] = useState(() => readStoredZoom(GRID_SIZE_STORAGE_KEY));
   const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
@@ -1148,11 +1130,7 @@ export function DeckDisplay({
 
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
-    try {
-      window.localStorage.setItem(EXPORT_FORMAT_STORAGE_KEY, f);
-    } catch {
-      /* ignore */
-    }
+    writeStoredExportFormat(f);
   };
   const handleViewModeChange = (m: DeckViewMode) => {
     setViewMode(m);
@@ -1521,14 +1499,16 @@ export function DeckDisplay({
   const exportText = useMemo(
     () =>
       buildExport(
-        commander,
-        partnerCommander,
-        cards,
-        exportFormat,
-        sideboard,
-        collectionByCopyId,
-        commanderAllocatedCopyId,
-        partnerCommanderAllocatedCopyId
+        {
+          commander,
+          partner: partnerCommander,
+          cards,
+          sideboard,
+          collectionByCopyId,
+          commanderAllocatedCopyId,
+          partnerAllocatedCopyId: partnerCommanderAllocatedCopyId,
+        },
+        exportFormat
       ),
     [
       commander,
@@ -1556,23 +1536,6 @@ export function DeckDisplay({
   const setExportOpen = (next: boolean) => {
     if (isControlled) onExportOpenChange(next);
     else setInternalExportOpen(next);
-  };
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(exportText);
-    } catch {
-      /* ignore */
-    }
-  };
-  const handleDownload = () => {
-    const blob = new Blob([exportText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const safeName = title.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'deck';
-    a.download = `${safeName}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   // ── Card preview wiring ──────────────────────────────────────────────
@@ -2222,101 +2185,16 @@ export function DeckDisplay({
           />
         )}
         {exportOpen && (
-          <ExportDialog
+          <DeckExportDialog
             text={exportText}
             format={exportFormat}
             onFormatChange={handleExportFormatChange}
-            onCopy={handleCopy}
-            onDownload={handleDownload}
+            title={title}
             onClose={() => setExportOpen(false)}
           />
         )}
       </div>
     </CardPreviewContext.Provider>
-  );
-}
-
-function ExportDialog({
-  text,
-  format,
-  onFormatChange,
-  onCopy,
-  onDownload,
-  onClose,
-}: {
-  text: string;
-  format: ExportFormat;
-  onFormatChange: (f: ExportFormat) => void;
-  onCopy: () => void;
-  onDownload: () => void;
-  onClose: () => void;
-}) {
-  const [copied, setCopied] = useState(false);
-  const lineCount = useMemo(() => text.split('\n').filter(Boolean).length, [text]);
-  const handleCopyClick = () => {
-    onCopy();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <Modal onClose={onClose} className="modal export-dialog" labelledBy="export-deck-title">
-      <div className="export-dialog-header">
-        <h2 id="export-deck-title" className="export-dialog-title">
-          Export deck
-        </h2>
-        <button type="button" className="export-dialog-close" aria-label="Close" onClick={onClose}>
-          <X width={18} height={18} strokeWidth={2} aria-hidden />
-        </button>
-      </div>
-      <div className="export-dialog-body">
-        <div className="export-dialog-controls">
-          <SelectMenu
-            label="Format"
-            ariaLabel="Export format"
-            value={format}
-            onChange={(v) => onFormatChange(v as ExportFormat)}
-            options={(Object.keys(EXPORT_FORMAT_LABEL) as ExportFormat[]).map((f) => ({
-              value: f,
-              label: EXPORT_FORMAT_LABEL[f],
-            }))}
-          />
-          <span className="export-dialog-meta">
-            {lineCount} {lineCount === 1 ? 'line' : 'lines'}
-          </span>
-          <div className="export-dialog-actions">
-            <button
-              type="button"
-              className="btn"
-              onClick={onDownload}
-              aria-label="Download as text file"
-            >
-              <Download width={14} height={14} strokeWidth={2} aria-hidden />
-              <span>Download</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleCopyClick}
-              aria-label="Copy to clipboard"
-            >
-              {copied ? (
-                <Check width={14} height={14} strokeWidth={2.5} aria-hidden />
-              ) : (
-                <Clipboard width={14} height={14} strokeWidth={2} aria-hidden />
-              )}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
-          </div>
-        </div>
-        <textarea
-          className="export-dialog-preview"
-          value={text}
-          readOnly
-          spellCheck={false}
-          onFocus={(e) => e.currentTarget.select()}
-        />
-      </div>
-    </Modal>
   );
 }
 
@@ -4005,156 +3883,6 @@ function RolesPanel({
 }
 
 // ── Export decklist ───────────────────────────────────────────────────────
-type PrintingFinish = 'nonfoil' | 'foil' | 'etched';
-
-interface ExportEntry {
-  name: string;
-  set: string;
-  collectorNumber: string;
-  qty: number;
-  finish: PrintingFinish;
-  language?: string;
-}
-
-function formatLine(entry: ExportEntry, format: ExportFormat): string {
-  const { name, qty, finish, language } = entry;
-  const set = entry.set.toUpperCase();
-  const num = entry.collectorNumber;
-  const lang = language && language !== 'en' ? language.toUpperCase() : '';
-  switch (format) {
-    case 'mtga': {
-      // Arena syntax doesn't carry foil; printings still distinguished by set+cn.
-      if (set && num) return `${qty} ${name} (${set}) ${num}`;
-      return `${qty} ${name}`;
-    }
-    case 'moxfield': {
-      // Moxfield: `1 Sol Ring (CMR) 472 *F*` / `*E*` for etched.
-      const finishTag = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *E*' : '';
-      if (set && num) return `${qty} ${name} (${set}) ${num}${finishTag}`;
-      if (set) return `${qty} ${name} (${set})${finishTag}`;
-      return `${qty} ${name}${finishTag}`;
-    }
-    case 'plain':
-    default: {
-      // Plain text: human-readable. Always identify printing when known.
-      const parts: string[] = [`${qty} ${name}`];
-      if (set && num) parts.push(`(${set}) ${num}`);
-      else if (set) parts.push(`(${set})`);
-      if (finish === 'foil') parts.push('[Foil]');
-      else if (finish === 'etched') parts.push('[Etched]');
-      if (lang) parts.push(`[${lang}]`);
-      return parts.join(' ');
-    }
-  }
-}
-
-function entryKey(
-  e: Pick<ExportEntry, 'name' | 'set' | 'collectorNumber' | 'finish' | 'language'>
-): string {
-  return [e.name, e.set, e.collectorNumber, e.finish, e.language ?? ''].join('|');
-}
-
-/**
- * Resolve the effective printing for a deck slot. When the slot has an
- * allocated physical copy, the copy's set/collector_number/finish/language
- * win — that's the actual card the user owns and will pull from their box.
- * The slot's stored `card` is only used as a fallback when no copy is
- * allocated (or when the lookup fails).
- */
-function resolvePrinting(
-  card: ScryfallCard,
-  allocatedCopyId: string | null | undefined,
-  collectionByCopyId?: Map<string, EnrichedCard>
-): {
-  name: string;
-  set: string;
-  collectorNumber: string;
-  finish: PrintingFinish;
-  language?: string;
-} {
-  if (allocatedCopyId && collectionByCopyId) {
-    const copy = collectionByCopyId.get(allocatedCopyId);
-    if (copy) {
-      const finish = (copy.finish ?? (copy.foil ? 'foil' : 'nonfoil')) as PrintingFinish;
-      return {
-        name: copy.name || card.name,
-        set: copy.setCode || card.set || '',
-        collectorNumber: copy.collectorNumber || card.collector_number || '',
-        finish,
-        language: copy.language,
-      };
-    }
-  }
-  return {
-    name: card.name,
-    set: card.set || '',
-    collectorNumber: card.collector_number || '',
-    finish: 'nonfoil',
-  };
-}
-
-function groupAndSort(
-  cards: DeckDisplayCard[],
-  collectionByCopyId?: Map<string, EnrichedCard>
-): ExportEntry[] {
-  const grouped = new Map<string, ExportEntry>();
-  for (const dc of cards) {
-    const printing = resolvePrinting(dc.card, dc.allocatedCopyId, collectionByCopyId);
-    const key = entryKey(printing);
-    const existing = grouped.get(key);
-    if (existing) {
-      existing.qty += 1;
-    } else {
-      grouped.set(key, { ...printing, qty: 1 });
-    }
-  }
-  return [...grouped.values()].sort((a, b) => {
-    const n = a.name.localeCompare(b.name);
-    if (n !== 0) return n;
-    const s = a.set.localeCompare(b.set);
-    if (s !== 0) return s;
-    const cn = a.collectorNumber.localeCompare(b.collectorNumber);
-    if (cn !== 0) return cn;
-    return a.finish.localeCompare(b.finish);
-  });
-}
-
-function buildExport(
-  commander: ScryfallCard | null,
-  partner: ScryfallCard | null | undefined,
-  cards: DeckDisplayCard[],
-  format: ExportFormat,
-  sideboardCards: DeckDisplayCard[] = [],
-  collectionByCopyId?: Map<string, EnrichedCard>,
-  commanderAllocatedCopyId?: string | null,
-  partnerAllocatedCopyId?: string | null
-): string {
-  const lines: string[] = [];
-  const cmdEntry = (card: ScryfallCard, copyId: string | null | undefined): ExportEntry => {
-    const printing = resolvePrinting(card, copyId ?? null, collectionByCopyId);
-    return { ...printing, qty: 1 };
-  };
-  if (format === 'mtga' && (commander || partner)) {
-    lines.push('Commander');
-    if (commander) lines.push(formatLine(cmdEntry(commander, commanderAllocatedCopyId), format));
-    if (partner) lines.push(formatLine(cmdEntry(partner, partnerAllocatedCopyId), format));
-    lines.push('');
-    lines.push('Deck');
-  } else {
-    if (commander) lines.push(formatLine(cmdEntry(commander, commanderAllocatedCopyId), format));
-    if (partner) lines.push(formatLine(cmdEntry(partner, partnerAllocatedCopyId), format));
-  }
-
-  for (const entry of groupAndSort(cards, collectionByCopyId)) {
-    lines.push(formatLine(entry, format));
-  }
-
-  if (sideboardCards.length > 0) {
-    lines.push('');
-    lines.push('Sideboard');
-    for (const entry of groupAndSort(sideboardCards, collectionByCopyId)) {
-      lines.push(formatLine(entry, format));
-    }
-  }
-  return lines.join('\n');
-}
+// Engine (formatLine/resolvePrinting/groupAndSort/buildExport) lives in
+// lib/deck-export.ts, shared with the shared-view export entry point; the
+// dialog itself is components/shared/DeckExportDialog.tsx.

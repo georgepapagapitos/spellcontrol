@@ -125,6 +125,13 @@
   margin-top: var(--space-6);
 }
 
+/* Export decklist button: reuses .shared-copy-btn--block's full-width/flex
+   sizing verbatim, but sits directly under Copy with a tight gap so the two
+   stacked buttons read as one paired group rather than two separate CTAs. */
+.shared-export-btn {
+  margin-top: var(--space-2);
+}
+
 .shared-view {
   max-width: 1200px;
   margin: 0 auto;

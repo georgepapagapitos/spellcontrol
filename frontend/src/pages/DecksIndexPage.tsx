@@ -703,6 +703,11 @@ export function DecksIndexPage() {
                           ]
                         : []),
                       { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
+                      {
+                        label: 'Export deck',
+                        icon: Download,
+                        onClick: () => navigate(`/decks/${deck.id}?export=1`),
+                      },
                       ...(decks.length >= 2
                         ? [
                             {
