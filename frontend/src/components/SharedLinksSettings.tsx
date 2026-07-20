@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Share } from '@capacitor/share';
+import { Modal } from './Modal';
+import { ShareQrCode } from './shared/ShareQrCode';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
@@ -47,6 +49,11 @@ export function SharedLinksSettings() {
   const [shares, setShares] = useState<ShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
+  // Token of the row whose QR modal is open; null when none is. A page can
+  // list many shares, so each row gets its own small modal (opened on
+  // demand) rather than an inline reveal per row, which would reflow the
+  // whole list.
+  const [qrToken, setQrToken] = useState<string | null>(null);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
   // `await`-then-setState patterns even when wrapped in a separate function.
@@ -133,102 +140,132 @@ export function SharedLinksSettings() {
 
   if (!isAuthed) return null;
 
+  const qrShare = qrToken ? (shares?.find((s) => s.token === qrToken) ?? null) : null;
+  const qrLabel = qrShare ? resolveLabel(qrShare) : null;
+
   return (
-    <section className="settings-card" aria-labelledby="settings-shares-title">
-      <header className="settings-card-header">
-        <h2 id="settings-shares-title" className="settings-card-title">
-          Share links
-        </h2>
-        <p className="settings-card-hint">
-          Public links you&apos;ve minted. Anyone with the URL can view the linked content until you
-          revoke it.
-        </p>
-      </header>
-      <div className="settings-card-body">
-        {error && (
-          <div role="alert" className="settings-row-text">
-            <div className="settings-row-hint">{error}</div>
-          </div>
-        )}
-        {shares === null && !error && (
-          <div className="settings-row-text">
-            <div className="settings-row-hint">Loading…</div>
-          </div>
-        )}
-        {shares?.length === 0 && (
-          <div className="settings-row-text">
-            <div className="settings-row-hint">
-              You haven&apos;t shared anything yet. Use the Share button on a collection, binder,
-              deck, or list to mint a public link.
+    <>
+      <section className="settings-card" aria-labelledby="settings-shares-title">
+        <header className="settings-card-header">
+          <h2 id="settings-shares-title" className="settings-card-title">
+            Share links
+          </h2>
+          <p className="settings-card-hint">
+            Public links you&apos;ve minted. Anyone with the URL can view the linked content until
+            you revoke it.
+          </p>
+        </header>
+        <div className="settings-card-body">
+          {error && (
+            <div role="alert" className="settings-row-text">
+              <div className="settings-row-hint">{error}</div>
             </div>
-          </div>
-        )}
-        {shares?.map((s) => {
-          const label = resolveLabel(s);
-          const url = shareUrl(s.token);
-          const revoking = revokingToken === s.token;
-          return (
-            <div className="settings-row settings-share-row" key={s.token}>
-              <div className="settings-row-text">
-                <div className="settings-row-value">
-                  <span className="settings-share-kind">{KIND_LABELS[s.kind]}</span>{' '}
-                  <span className={label.deleted ? 'settings-share-name--deleted' : undefined}>
-                    {label.name}
-                  </span>
-                  {s.audience === 'friends' && (
-                    <span className="settings-share-audience"> · Friends only</span>
-                  )}
-                  {s.audience === 'direct' && (
-                    <span className="settings-share-audience"> · Sent to a friend</span>
-                  )}
-                </div>
-                <div className="settings-row-hint">
-                  Shared {new Date(s.createdAt).toLocaleDateString()} ·{' '}
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="settings-share-url"
-                  >
-                    {url.replace(/^https?:\/\//, '')}
-                  </a>
-                </div>
+          )}
+          {shares === null && !error && (
+            <div className="settings-row-text">
+              <div className="settings-row-hint">Loading…</div>
+            </div>
+          )}
+          {shares?.length === 0 && (
+            <div className="settings-row-text">
+              <div className="settings-row-hint">
+                You haven&apos;t shared anything yet. Use the Share button on a collection, binder,
+                deck, or list to mint a public link.
               </div>
-              <div className="settings-share-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void handleCopy(s.token)}
-                  disabled={revoking}
-                  aria-label={`Copy ${KIND_LABELS[s.kind].toLowerCase()} share link`}
-                >
-                  Copy
-                </button>
-                {isNativePlatform() && (
+            </div>
+          )}
+          {shares?.map((s) => {
+            const label = resolveLabel(s);
+            const url = shareUrl(s.token);
+            const revoking = revokingToken === s.token;
+            return (
+              <div className="settings-row settings-share-row" key={s.token}>
+                <div className="settings-row-text">
+                  <div className="settings-row-value">
+                    <span className="settings-share-kind">{KIND_LABELS[s.kind]}</span>{' '}
+                    <span className={label.deleted ? 'settings-share-name--deleted' : undefined}>
+                      {label.name}
+                    </span>
+                    {s.audience === 'friends' && (
+                      <span className="settings-share-audience"> · Friends only</span>
+                    )}
+                    {s.audience === 'direct' && (
+                      <span className="settings-share-audience"> · Sent to a friend</span>
+                    )}
+                  </div>
+                  <div className="settings-row-hint">
+                    Shared {new Date(s.createdAt).toLocaleDateString()} ·{' '}
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="settings-share-url"
+                    >
+                      {url.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                </div>
+                <div className="settings-share-actions">
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => void handleNativeShare(s.token, label.name)}
+                    onClick={() => void handleCopy(s.token)}
                     disabled={revoking}
-                    aria-label={`Share ${KIND_LABELS[s.kind].toLowerCase()} link`}
+                    aria-label={`Copy ${KIND_LABELS[s.kind].toLowerCase()} share link`}
                   >
-                    Share…
+                    Copy
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={() => void handleRevoke(s.token)}
-                  disabled={revoking}
-                  aria-label={`Revoke ${KIND_LABELS[s.kind].toLowerCase()} share link`}
-                >
-                  {revoking ? 'Revoking…' : 'Revoke'}
-                </button>
+                  {isNativePlatform() && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => void handleNativeShare(s.token, label.name)}
+                      disabled={revoking}
+                      aria-label={`Share ${KIND_LABELS[s.kind].toLowerCase()} link`}
+                    >
+                      Share…
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setQrToken(s.token)}
+                    disabled={revoking}
+                    aria-label={`Show QR code for ${KIND_LABELS[s.kind].toLowerCase()} share link`}
+                  >
+                    QR code
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => void handleRevoke(s.token)}
+                    disabled={revoking}
+                    aria-label={`Revoke ${KIND_LABELS[s.kind].toLowerCase()} share link`}
+                  >
+                    {revoking ? 'Revoking…' : 'Revoke'}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+            );
+          })}
+        </div>
+      </section>
+      {qrShare && qrLabel && (
+        <Modal onClose={() => setQrToken(null)} labelledBy="share-qr-modal-title">
+          <h2 id="share-qr-modal-title" className="choice-dialog-title">
+            QR code — {qrLabel.name}
+          </h2>
+          <div className="share-qr-panel">
+            <ShareQrCode value={shareUrl(qrShare.token)} label={`QR code for ${qrLabel.name}`} />
+            <p className="share-qr-caption">Scan with a phone camera to open this link.</p>
+          </div>
+          <div className="choice-dialog-actions">
+            <button type="button" className="btn" onClick={() => setQrToken(null)}>
+              Done
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
