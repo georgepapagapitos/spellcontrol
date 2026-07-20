@@ -5,12 +5,15 @@ import { requireAuth } from '../auth';
 import { getPool } from '../db';
 import { extractListingFields } from '../publications/listing-fields';
 import { generateDeckSlug } from '../publications/slug';
+import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
 
 /**
  * Owner-facing publish/unpublish/status endpoints for `deck_publications` —
  * the dedicated publish-model table (not a 4th `shares.audience` value; see
- * PLAN.md §A1). Nothing here is reachable by an anonymous viewer yet
- * (w0-publish-public-reads) and nothing links to it from the app yet (W1).
+ * PLAN.md §A1). Anonymous public reads live in the sibling `routes/public.ts`
+ * (`/api/public/decks/:slug`, `/api/public/users/:username`); nothing here is
+ * reachable by an anonymous viewer, and nothing links to any of it from the
+ * app yet (W1).
  */
 export const publicationsRouter: Router = Router();
 
@@ -181,8 +184,11 @@ publicationsRouter.post(
 
 /**
  * Unpublish. 0 rows (never published, or already unpublished) -> 404, safe to
- * retry — mirrors sharesRouter.delete('/:token')'s exact pattern. Cache
- * invalidation is wired in w0-publish-public-reads once the cache exists.
+ * retry — mirrors sharesRouter.delete('/:token')'s exact pattern. On success,
+ * purges both public-read caches (publications/cache.ts) — mirrors
+ * invalidateShareContext's exact treatment of revoke — so the just-
+ * unpublished deck disappears from its own page and the owner's profile grid
+ * immediately rather than after up to 60s.
  */
 publicationsRouter.delete(
   '/decks/:deckId',
@@ -191,7 +197,7 @@ publicationsRouter.delete(
   async (req: Request, res: Response) => {
     const userId = req.user!.id;
     const deckId = req.params.deckId;
-    const result = await getPool().query(
+    const result = await getPool().query<{ slug: string }>(
       `UPDATE deck_publications SET unpublished_at = $3
          WHERE user_id = $1 AND deck_id = $2 AND unpublished_at IS NULL
        RETURNING slug`,
@@ -200,6 +206,8 @@ publicationsRouter.delete(
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'This deck is not published.' });
     }
+    invalidateDeckPublicationCache(result.rows[0].slug);
+    invalidatePublicUserCache(req.user!.username);
     res.status(204).end();
   }
 );

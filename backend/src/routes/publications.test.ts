@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { Express } from 'express';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
+import { deckPublicationCache, publicUserCache } from '../publications/cache';
 
 // Stub only the slug's random suffix so a test can force a real Postgres
 // unique-violation on `deck_publications_slug_idx`; the real slugify logic
@@ -282,6 +283,36 @@ describe('DELETE /api/publications/decks/:deckId', () => {
       .delete('/api/publications/decks/deck-owned-unpub')
       .set('Cookie', stranger);
     expect(res.status).toBe(404);
+  });
+
+  it('purges both public-read caches immediately on unpublish, not after the TTL', async () => {
+    const cookie = await makeUser('unpub-cache');
+    await setDisplayName(cookie, 'Cache Purger');
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-unpub-cache')] });
+
+    const published = await request(app)
+      .post('/api/publications/decks/deck-unpub-cache')
+      .set('Cookie', cookie);
+    expect(published.status).toBe(201);
+    const slug = published.body.publication.slug;
+
+    // Warm both caches via the public reads (routes/public.ts) before
+    // unpublishing, so the assertion below proves an actual purge rather
+    // than a coincidental cache miss.
+    const deckRead = await request(app).get(`/api/public/decks/${slug}`);
+    expect(deckRead.status).toBe(200);
+    const profileRead = await request(app).get('/api/public/users/unpub-cache');
+    expect(profileRead.status).toBe(200);
+    expect(deckPublicationCache.get(slug)).not.toBeNull();
+    expect(publicUserCache.get('unpub-cache')).not.toBeNull();
+
+    const del = await request(app)
+      .delete('/api/publications/decks/deck-unpub-cache')
+      .set('Cookie', cookie);
+    expect(del.status).toBe(204);
+
+    expect(deckPublicationCache.get(slug)).toBeNull();
+    expect(publicUserCache.get('unpub-cache')).toBeNull();
   });
 });
 

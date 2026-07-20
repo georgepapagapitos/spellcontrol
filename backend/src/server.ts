@@ -28,6 +28,7 @@ import {
   lookupGameNightSeriesLandingMeta,
 } from './routes/game-nights';
 import { publicationsRouter } from './routes/publications';
+import { publicRouter } from './routes/public';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import {
@@ -156,6 +157,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/game-nights', gameNightsRouter);
 app.use('/api/publications', publicationsRouter);
+app.use('/api/public', publicRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the

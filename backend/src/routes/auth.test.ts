@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
-import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import { createTestEnv, extractSessionCookie, setSnapshotViaSyncApi } from '../test-helpers';
 import { generateUsername } from '../auth';
 
 let app: Express;
@@ -164,6 +164,51 @@ describe('DELETE /api/auth/me', () => {
     expect(del.status).toBe(200);
     const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
     expect(me.status).toBe(401);
+  });
+
+  it('purges the public-read caches for a deleted account with a live publication', async () => {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'deleteme-pub', password: 'correct horse battery' });
+    const cookie = extractSessionCookie(reg.headers['set-cookie'])!;
+    await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'Deleting Publisher' });
+    await setSnapshotViaSyncApi(request(app), cookie, {
+      decks: [
+        {
+          id: 'deck-deleteme',
+          name: 'Doomed Deck',
+          format: 'commander',
+          source: 'manual',
+          commander: null,
+          partnerCommander: null,
+          cards: [],
+          sideboard: [],
+          color: '#888',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ],
+    });
+    const publish = await request(app)
+      .post('/api/publications/decks/deck-deleteme')
+      .set('Cookie', cookie);
+    expect(publish.status).toBe(201);
+    const slug = publish.body.publication.slug as string;
+
+    // Warm the cache first so the purge below is proven, not a coincidental miss.
+    const warm = await request(app).get(`/api/public/decks/${slug}`);
+    expect(warm.status).toBe(200);
+
+    const del = await request(app).delete('/api/auth/me').set('Cookie', cookie);
+    expect(del.status).toBe(200);
+
+    // If the cache weren't purged, this would still 200 from the stale entry
+    // for up to 60s post-deletion.
+    const after = await request(app).get(`/api/public/decks/${slug}`);
+    expect(after.status).toBe(404);
   });
 });
 
