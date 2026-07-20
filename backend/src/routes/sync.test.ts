@@ -6,10 +6,21 @@
  * as a tombstone to a peer device on its next pull, never resurrected.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+
+// Only the fire-and-forget test below overrides this (via mockRejectedValueOnce);
+// every other test in this file falls through to the real hook, unmocked.
+const { mockRefreshDeckPublications } = vi.hoisted(() => ({
+  mockRefreshDeckPublications: vi.fn(),
+}));
+vi.mock('../publications/sync-hook', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../publications/sync-hook')>();
+  mockRefreshDeckPublications.mockImplementation(actual.refreshDeckPublications);
+  return { ...actual, refreshDeckPublications: mockRefreshDeckPublications };
+});
 
 let app: Express;
 let cleanup: () => Promise<void>;
@@ -632,5 +643,33 @@ describe('cube kind', () => {
     expect(afterDelete.rows[0].id).toBe('cube-del');
     expect(afterDelete.rows[0].deletedAt).not.toBeNull();
     expect(afterDelete.rows[0].data).toBeNull();
+  });
+});
+
+describe('publications refresh hook (fire-and-forget)', () => {
+  it('still returns its normal 200 body for a deck upsert even when the hook throws', async () => {
+    const cookie = await registerAndGetCookie('sync_hook_throws');
+    const patch = await request(app)
+      .patch('/api/auth/profile')
+      .set('Cookie', cookie)
+      .send({ displayName: 'Hook Thrower' });
+    expect(patch.status).toBe(200);
+    await push(cookie, {
+      upserts: [{ kind: 'deck', id: 'deck-hook', data: { id: 'deck-hook', name: 'Hook Deck' } }],
+    });
+    const published = await request(app)
+      .post('/api/publications/decks/deck-hook')
+      .set('Cookie', cookie);
+    expect(published.status).toBe(201);
+
+    mockRefreshDeckPublications.mockRejectedValueOnce(new Error('simulated hook failure'));
+    const res = await push(cookie, {
+      upserts: [
+        { kind: 'deck', id: 'deck-hook', data: { id: 'deck-hook', name: 'Renamed Hook Deck' } },
+      ],
+    });
+    expect(res.applied).toHaveLength(1);
+    expect(res.applied[0].kind).toBe('deck');
+    expect(res.cursor).toBeGreaterThan(0);
   });
 });
