@@ -7,9 +7,14 @@ import {
   generateUsername,
   getAdminUsernames,
   hashPassword,
+  isReservedUsername,
+  isScryfallArtUrl,
+  isScryfallUuid,
   loadAuthedUser,
   loadUserById,
   MIN_PASSWORD_LENGTH,
+  normalizeBio,
+  normalizeDisplayName,
   normalizeUsername,
   readSessionCookie,
   requireAuth,
@@ -79,6 +84,9 @@ authRouter.post('/register', registerLimiter, async (req: Request, res: Response
     return res
       .status(400)
       .json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+  }
+  if (isReservedUsername(username)) {
+    return res.status(400).json({ error: 'That username is reserved.' });
   }
 
   const db = getDb();
@@ -385,6 +393,9 @@ authRouter.post('/google/complete-signup', oauthLimiter, async (req: Request, re
       error: 'Username must be 3–32 characters and use only lowercase letters, digits, _ and -.',
     });
   }
+  if (isReservedUsername(username)) {
+    return res.status(400).json({ error: 'That username is reserved.' });
+  }
   const db = getDb();
   const taken = await db
     .select({ id: users.id })
@@ -433,6 +444,9 @@ authRouter.post('/google/link-with-password', oauthLimiter, async (req: Request,
   // whether the username exists or how it authenticates.
   const failure = () => res.status(401).json({ error: 'Invalid username or password.' });
   if (!username || !password) return failure();
+  if (isReservedUsername(username)) {
+    return res.status(400).json({ error: 'That username is reserved.' });
+  }
 
   const db = getDb();
   const rows = await db
@@ -516,13 +530,139 @@ authRouter.get('/me', async (req: Request, res: Response) => {
   // Surface the pending auto-link timestamp so the frontend can render the
   // "we linked your Google account — was this you?" banner. Cleared by
   // POST /me/acknowledge-auto-link or implicitly when the user unlinks.
+  // Profile fields ride along on this same query (never the JWT — they're
+  // user-editable, so every /me reads them fresh from the DB).
   const db = getDb();
   const row = await db
-    .select({ autoLinkedAt: users.autoLinkedAt })
+    .select({
+      autoLinkedAt: users.autoLinkedAt,
+      displayName: users.displayName,
+      bio: users.bio,
+      avatarCardId: users.avatarCardId,
+      avatarCardName: users.avatarCardName,
+      avatarImageUrl: users.avatarImageUrl,
+    })
     .from(users)
     .where(eq(users.id, user.id))
     .limit(1);
-  res.json({ user, autoLinkedAt: row[0]?.autoLinkedAt ?? null });
+  res.json({
+    user,
+    autoLinkedAt: row[0]?.autoLinkedAt ?? null,
+    profile: {
+      displayName: row[0]?.displayName ?? null,
+      bio: row[0]?.bio ?? null,
+      avatarCardId: row[0]?.avatarCardId ?? null,
+      avatarCardName: row[0]?.avatarCardName ?? null,
+      avatarImageUrl: row[0]?.avatarImageUrl ?? null,
+    },
+  });
+});
+
+interface AvatarInput {
+  cardId: string;
+  cardName: string;
+  imageUrl: string;
+}
+
+function isAvatarInput(x: unknown): x is AvatarInput {
+  if (typeof x !== 'object' || x === null) return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v.cardId === 'string' && typeof v.cardName === 'string' && typeof v.imageUrl === 'string'
+  );
+}
+
+const profileLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
+
+/**
+ * Update the authed user's public-profile fields. Per-field PATCH semantics:
+ * a key absent from the body leaves that field unchanged, `null` clears it,
+ * any other value is validated then set. Never touches the JWT — profile
+ * fields are always read fresh from the DB (see GET /me).
+ */
+authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const updates: Partial<{
+    displayName: string | null;
+    bio: string | null;
+    avatarCardId: string | null;
+    avatarCardName: string | null;
+    avatarImageUrl: string | null;
+  }> = {};
+
+  if ('displayName' in body) {
+    if (body.displayName === null) {
+      updates.displayName = null;
+    } else {
+      const normalized = normalizeDisplayName(body.displayName);
+      if (normalized === undefined) {
+        return res.status(400).json({ error: 'Display name must be 40 characters or fewer.' });
+      }
+      if (normalized !== null && isReservedUsername(normalized)) {
+        return res.status(400).json({ error: "That name isn't available." });
+      }
+      updates.displayName = normalized;
+    }
+  }
+
+  if ('bio' in body) {
+    if (body.bio === null) {
+      updates.bio = null;
+    } else {
+      const normalized = normalizeBio(body.bio);
+      if (normalized === undefined) {
+        return res.status(400).json({ error: 'Bio must be 280 characters or fewer.' });
+      }
+      updates.bio = normalized;
+    }
+  }
+
+  if ('avatar' in body) {
+    if (body.avatar === null) {
+      updates.avatarCardId = null;
+      updates.avatarCardName = null;
+      updates.avatarImageUrl = null;
+    } else if (isAvatarInput(body.avatar)) {
+      const { cardId, cardName, imageUrl } = body.avatar;
+      if (!isScryfallUuid(cardId)) {
+        return res.status(400).json({ error: 'Invalid card id.' });
+      }
+      if (!isScryfallArtUrl(imageUrl)) {
+        return res.status(400).json({ error: 'Invalid avatar image.' });
+      }
+      updates.avatarCardId = cardId;
+      updates.avatarCardName = cardName.trim().slice(0, 200);
+      updates.avatarImageUrl = imageUrl;
+    } else {
+      return res.status(400).json({ error: 'Invalid avatar image.' });
+    }
+  }
+
+  const db = getDb();
+  if (Object.keys(updates).length > 0) {
+    await db.update(users).set(updates).where(eq(users.id, req.user!.id));
+  }
+
+  const rows = await db
+    .select({
+      displayName: users.displayName,
+      bio: users.bio,
+      avatarCardId: users.avatarCardId,
+      avatarCardName: users.avatarCardName,
+      avatarImageUrl: users.avatarImageUrl,
+    })
+    .from(users)
+    .where(eq(users.id, req.user!.id))
+    .limit(1);
+  res.json({
+    profile: {
+      displayName: rows[0]?.displayName ?? null,
+      bio: rows[0]?.bio ?? null,
+      avatarCardId: rows[0]?.avatarCardId ?? null,
+      avatarCardName: rows[0]?.avatarCardName ?? null,
+      avatarImageUrl: rows[0]?.avatarImageUrl ?? null,
+    },
+  });
 });
 
 authRouter.delete('/me', requireAuth, async (req: Request, res: Response) => {
