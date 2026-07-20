@@ -7,6 +7,7 @@ import {
   computeDrift,
   formatDriftReason,
   hasDrift,
+  referencedLegalityFormats,
 } from '../lib/binder-drift';
 import {
   buildReviewQueue,
@@ -34,7 +35,8 @@ const DRIFT_TIP = (
   <>
     <p className="info-tip-lead">
       <strong>Drift</strong> tracks cards moving between binders since you last physically reviewed
-      this one — rules read live prices and EDHREC rank, so filing changes on its own.
+      this one — rules read live card data (prices, EDHREC rank, format legality), so filing changes
+      on its own.
     </p>
     <ul className="info-tip-list">
       <li>
@@ -126,12 +128,18 @@ export function BinderDriftBanner({ binder }: Props) {
   // exactly once; the snapshot field then disqualifies it from re-firing.
   useEffect(() => {
     if (drift.neverReviewed && binder.totalCards > 0) {
-      markBinderReviewed(binder.def.id, captureBinderSnapshot(binder));
+      markBinderReviewed(
+        binder.def.id,
+        captureBinderSnapshot(binder, referencedLegalityFormats(binderDefs))
+      );
     }
-  }, [drift.neverReviewed, binder, markBinderReviewed]);
+  }, [drift.neverReviewed, binder, binderDefs, markBinderReviewed]);
 
   const handleMarkReviewed = () => {
-    markBinderReviewed(binder.def.id, captureBinderSnapshot(binder));
+    markBinderReviewed(
+      binder.def.id,
+      captureBinderSnapshot(binder, referencedLegalityFormats(binderDefs))
+    );
     setExpanded(false);
   };
 

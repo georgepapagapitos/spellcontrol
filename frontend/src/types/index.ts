@@ -560,12 +560,17 @@ export interface BinderDef {
  * Snapshot of a binder's membership at the moment the user marked it reviewed.
  * `keys` is the full membership set (printingFinishKey); `cardSnapshots` pins
  * the volatile per-card fields so drift attribution can say "price went 6.20→4.80"
- * instead of just "this card left".
+ * or "banned in Commander" instead of just "this card left". `legalities` holds
+ * only the formats some binder rule references (see
+ * `binder-drift.ts:referencedLegalityFormats`) — never the full per-card map.
  */
 export interface BinderReviewSnapshot {
   at: number;
   keys: string[];
-  cardSnapshots: Record<string, { price: number; edhrecRank?: number }>;
+  cardSnapshots: Record<
+    string,
+    { price: number; edhrecRank?: number; legalities?: Record<string, string> }
+  >;
 }
 
 export type BinderInput = Omit<BinderDef, 'id' | 'createdAt' | 'updatedAt'>;

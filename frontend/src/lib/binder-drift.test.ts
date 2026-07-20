@@ -5,6 +5,7 @@ import {
   computeDrift,
   formatDriftReason,
   hasDrift,
+  referencedLegalityFormats,
 } from './binder-drift';
 import { materializeBinders } from './materialize';
 import { printingFinishKey } from './collection-mutations';
@@ -493,5 +494,146 @@ describe('acknowledgeInSnapshot (E88)', () => {
     const empty = { at: Date.now(), keys: [], cardSnapshots: {} };
     const next = acknowledgeInSnapshot(empty, 'nonexistent-key', 'removed');
     expect(next).toBe(empty);
+  });
+});
+
+describe('legality drift', () => {
+  const commanderChip = { chips: [{ value: 'commander', negate: false }], joiners: [] };
+
+  it('referencedLegalityFormats collects chip formats (incl. negated) and commander-eligibility, deduped', () => {
+    const a = makeBinder({
+      filterGroups: [
+        { filter: { legalities: commanderChip } },
+        { filter: { legalities: { chips: [{ value: 'modern', negate: true }], joiners: [] } } },
+      ],
+    });
+    const b = makeBinder({ filter: { legalities: commanderChip } });
+    const c = makeBinder({ filter: { commanderEligible: true } });
+    expect(new Set(referencedLegalityFormats([a, b, c]))).toEqual(new Set(['commander', 'modern']));
+    expect(referencedLegalityFormats([makeBinder({ filter: { priceMin: 5 } })])).toEqual([]);
+  });
+
+  it('captureBinderSnapshot pins only the referenced formats; none when untracked', () => {
+    const card = makeCard({
+      scryfallId: 'lg',
+      purchasePrice: 6,
+      legalities: { commander: 'legal', modern: 'banned', standard: 'not_legal' },
+    });
+    const binder = makeBinder({ filter: { legalities: commanderChip } });
+    const mat = materializeOne([card], binder);
+
+    const snap = captureBinderSnapshot(mat, ['commander', 'modern']);
+    expect(snap.cardSnapshots[printingFinishKey(card)].legalities).toEqual({
+      commander: 'legal',
+      modern: 'banned',
+    });
+
+    const bare = captureBinderSnapshot(mat);
+    expect(bare.cardSnapshots[printingFinishKey(card)].legalities).toBeUndefined();
+  });
+
+  it('attributes a removed card to the ban, not the simultaneous price crash', () => {
+    const legal = makeCard({
+      scryfallId: 'ban',
+      name: 'Dockside Extortionist',
+      purchasePrice: 60,
+      legalities: { commander: 'legal' },
+    });
+    const def = makeBinder({ filter: { legalities: commanderChip } });
+    const snapshot = captureBinderSnapshot(
+      materializeOne([legal], def),
+      referencedLegalityFormats([def])
+    );
+    const reviewed = { ...def, lastReviewedSnapshot: snapshot };
+
+    // The ban lands: no longer Commander-legal, and the price tanks with it.
+    const banned = { ...legal, purchasePrice: 8, legalities: { commander: 'banned' } };
+    const mat = materializeOne([banned], reviewed);
+    const drift = computeDrift(mat, [banned]);
+
+    expect(drift.removed).toHaveLength(1);
+    expect(drift.removed[0].reason).toEqual({
+      kind: 'legality',
+      detail: { format: 'commander', legalityBefore: 'legal', legalityAfter: 'banned' },
+    });
+    expect(formatDriftReason(drift.removed[0].reason)).toBe('banned in Commander');
+  });
+
+  it('pre-legality snapshots fall through to price attribution (back-compat)', () => {
+    const card = makeCard({
+      scryfallId: 'old',
+      purchasePrice: 6,
+      legalities: { commander: 'legal' },
+    });
+    const def = makeBinder({ filter: { priceMin: 5 } });
+    // Captured without legality formats — the pre-tracking snapshot shape.
+    const reviewed = {
+      ...def,
+      lastReviewedSnapshot: captureBinderSnapshot(materializeOne([card], def)),
+    };
+    const cheaper = { ...card, purchasePrice: 2, legalities: { commander: 'banned' } };
+    const drift = computeDrift(materializeOne([cheaper], reviewed), [cheaper]);
+
+    expect(drift.removed[0].reason.kind).toBe('price');
+  });
+
+  it('attributes an added card to a legality change when its snapshot entry is pinned', () => {
+    const card = makeCard({
+      scryfallId: 'rot',
+      name: 'Newly Legal',
+      purchasePrice: 1,
+      legalities: { standard: 'legal' },
+    });
+    const key = printingFinishKey(card);
+    const def = makeBinder({
+      filter: { legalities: { chips: [{ value: 'standard', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: {
+        at: 1,
+        keys: [],
+        cardSnapshots: { [key]: { price: 1, legalities: { standard: 'not_legal' } } },
+      },
+    });
+    const drift = computeDrift(materializeOne([card], def), [card]);
+
+    expect(drift.added).toHaveLength(1);
+    expect(drift.added[0].reason.kind).toBe('legality');
+    expect(formatDriftReason(drift.added[0].reason)).toBe('now legal in Standard');
+  });
+
+  it('acknowledgeInSnapshot "added" pins tracked legalities for later attribution', () => {
+    const card = makeCard({
+      scryfallId: 'ack',
+      purchasePrice: 3,
+      legalities: { commander: 'legal', modern: 'legal' },
+    });
+    const empty = { at: Date.now(), keys: [], cardSnapshots: {} };
+    const next = acknowledgeInSnapshot(empty, printingFinishKey(card), 'added', card, [
+      'commander',
+    ]);
+    expect(next.cardSnapshots[printingFinishKey(card)]).toEqual({
+      price: 3,
+      legalities: { commander: 'legal' },
+    });
+
+    const bare = acknowledgeInSnapshot(empty, printingFinishKey(card), 'added', card);
+    expect(bare.cardSnapshots[printingFinishKey(card)].legalities).toBeUndefined();
+  });
+
+  it('formatDriftReason covers each legality transition', () => {
+    const r = (legalityBefore: string, legalityAfter: string, format = 'commander') => ({
+      kind: 'legality' as const,
+      detail: { format, legalityBefore, legalityAfter },
+    });
+    expect(formatDriftReason(r('legal', 'banned'))).toBe('banned in Commander');
+    expect(formatDriftReason(r('banned', 'legal'))).toBe('unbanned in Commander');
+    expect(formatDriftReason(r('legal', 'restricted', 'vintage'))).toBe('restricted in Vintage');
+    expect(formatDriftReason(r('not_legal', 'legal', 'standard'))).toBe('now legal in Standard');
+    expect(formatDriftReason(r('legal', 'not_legal', 'standard'))).toBe(
+      'no longer legal in Standard'
+    );
+    expect(formatDriftReason(r('restricted', 'suspended', 'weirdformat'))).toBe(
+      'legality changed in Weirdformat'
+    );
+    expect(formatDriftReason({ kind: 'legality' })).toBe('legality changed in format');
   });
 });
