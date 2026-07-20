@@ -46,7 +46,8 @@ import {
 } from '../oauth/google';
 import { logger } from '../logger';
 import { getDb } from '../db';
-import { authIdentities, users } from '../db/schema';
+import { authIdentities, deckPublications, users } from '../db/schema';
+import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
 
 /**
  * HTTPS deep link the native OAuth flow returns into the app. An Android
@@ -667,7 +668,23 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
 
 authRouter.delete('/me', requireAuth, async (req: Request, res: Response) => {
   const db = getDb();
-  await db.delete(users).where(eq(users.id, req.user!.id));
+  const userId = req.user!.id;
+
+  // Enumerate published slugs before the FK cascade removes them below, so
+  // the public-read caches (publications/cache.ts) can be purged too — the
+  // cascade only deletes the DB rows, it doesn't know about the in-memory
+  // caches, and those are what first makes these deck/profile pages
+  // indexable, raising the stakes on a stale-cache window post-deletion.
+  const published = await db
+    .select({ slug: deckPublications.slug })
+    .from(deckPublications)
+    .where(eq(deckPublications.userId, userId));
+
+  await db.delete(users).where(eq(users.id, userId));
+
+  for (const { slug } of published) invalidateDeckPublicationCache(slug);
+  invalidatePublicUserCache(req.user!.username);
+
   clearSessionCookie(res);
   res.json({ ok: true });
 });
