@@ -71,6 +71,15 @@ export async function ensureSchema(): Promise<void> {
     -- auto-attach via verified email. /me exposes it; the frontend banner
     -- clears it via POST /me/acknowledge-auto-link.
     ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_linked_at BIGINT;
+    -- User-editable public-profile fields (social program W0): display name,
+    -- bio, and a 3-column avatar (Scryfall print id + name + a pre-derived
+    -- art_crop URL, re-validated server-side, never reconstructed from a bare
+    -- id). Metadata-only/non-locking — every column is nullable, no default.
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_card_id TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_card_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_image_url TEXT;
     CREATE TABLE IF NOT EXISTS auth_identities (
       provider TEXT NOT NULL,
       provider_subject TEXT NOT NULL,

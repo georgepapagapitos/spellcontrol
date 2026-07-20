@@ -1,4 +1,10 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import crypto from 'crypto';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from './db/schema';
+import { setDbForTesting, closeDb } from './db';
+import { testDatabaseUrl } from './test-helpers';
 import {
   hashPassword,
   verifyPassword,
@@ -10,6 +16,12 @@ import {
   verifySignupToken,
   normalizeUsername,
   validatePassword,
+  normalizeDisplayName,
+  normalizeBio,
+  isReservedUsername,
+  isScryfallUuid,
+  isScryfallArtUrl,
+  resolveDisplayLabel,
 } from './auth';
 
 beforeAll(() => {
@@ -104,5 +116,129 @@ describe('password validation', () => {
     expect(validatePassword('short')).toBeNull();
     expect(validatePassword('a'.repeat(300))).toBeNull();
     expect(validatePassword(123 as unknown)).toBeNull();
+  });
+});
+
+describe('normalizeDisplayName', () => {
+  it('trims surrounding whitespace', () => {
+    expect(normalizeDisplayName('  Pat  ')).toBe('Pat');
+  });
+
+  it('treats empty-after-trim as a clear (null)', () => {
+    expect(normalizeDisplayName('')).toBeNull();
+    expect(normalizeDisplayName('   ')).toBeNull();
+    expect(normalizeDisplayName(null)).toBeNull();
+  });
+
+  it('rejects over the 40-char cap instead of truncating', () => {
+    expect(normalizeDisplayName('a'.repeat(40))).toBe('a'.repeat(40));
+    expect(normalizeDisplayName('a'.repeat(41))).toBeUndefined();
+  });
+
+  it('rejects non-strings', () => {
+    expect(normalizeDisplayName(42)).toBeUndefined();
+  });
+});
+
+describe('normalizeBio', () => {
+  it('trims and caps at 280 chars', () => {
+    expect(normalizeBio('  hello there  ')).toBe('hello there');
+    expect(normalizeBio('a'.repeat(280))).toBe('a'.repeat(280));
+    expect(normalizeBio('a'.repeat(281))).toBeUndefined();
+  });
+
+  it('treats empty-after-trim as a clear (null)', () => {
+    expect(normalizeBio('   ')).toBeNull();
+    expect(normalizeBio(null)).toBeNull();
+  });
+});
+
+describe('isReservedUsername', () => {
+  it('matches known reserved words case-insensitively', () => {
+    expect(isReservedUsername('admin')).toBe(true);
+    expect(isReservedUsername('ADMIN')).toBe(true);
+    expect(isReservedUsername('Support')).toBe(true);
+  });
+
+  it('does not substring-match', () => {
+    expect(isReservedUsername('uprooted')).toBe(false);
+  });
+
+  it('accepts an unreserved word', () => {
+    expect(isReservedUsername('dragonlord')).toBe(false);
+  });
+});
+
+describe('isScryfallUuid', () => {
+  it('accepts a well-formed Scryfall id', () => {
+    expect(isScryfallUuid('56ebc372-aabd-4174-a943-c7bf59e5049f')).toBe(true);
+  });
+
+  it('rejects malformed shapes and non-strings', () => {
+    expect(isScryfallUuid('not-a-uuid')).toBe(false);
+    expect(isScryfallUuid(123)).toBe(false);
+  });
+});
+
+describe('isScryfallArtUrl', () => {
+  const id = '56ebc372-aabd-4174-a943-c7bf59e5049f';
+
+  it('accepts a well-formed cards.scryfall.io https URL', () => {
+    expect(isScryfallArtUrl(`https://cards.scryfall.io/art_crop/front/5/6/${id}.jpg`)).toBe(true);
+  });
+
+  it('rejects http://', () => {
+    expect(isScryfallArtUrl(`http://cards.scryfall.io/art_crop/front/5/6/${id}.jpg`)).toBe(false);
+  });
+
+  it('rejects a lookalike host', () => {
+    expect(isScryfallArtUrl(`https://cards.scryfall.io.evil.com/${id}.jpg`)).toBe(false);
+  });
+
+  it('rejects an unrelated host', () => {
+    expect(isScryfallArtUrl('https://example.com/image.jpg')).toBe(false);
+  });
+});
+
+describe('resolveDisplayLabel', () => {
+  let pool: Pool;
+  let schemaName: string;
+
+  beforeAll(async () => {
+    schemaName = `t_${crypto.randomBytes(6).toString('hex')}`;
+    pool = new Pool({ connectionString: testDatabaseUrl(), max: 4 });
+    await pool.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
+    pool.on('connect', (client) => {
+      client.query(`SET search_path TO ${schemaName}`).catch(() => {});
+    });
+    await pool.query(`SET search_path TO ${schemaName}`);
+    await pool.query(`
+      CREATE TABLE users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        display_name TEXT,
+        created_at BIGINT NOT NULL
+      );
+    `);
+    await pool.query(
+      `INSERT INTO users (id, username, display_name, created_at) VALUES
+       ('u-with-name', 'namedbob', 'Bob T.', $1),
+       ('u-without-name', 'plainjane', NULL, $1)`,
+      [Date.now()]
+    );
+    setDbForTesting(pool, drizzle(pool, { schema }));
+  });
+
+  afterAll(async () => {
+    await pool.query(`DROP SCHEMA ${schemaName} CASCADE`);
+    await closeDb();
+  });
+
+  it('prefers displayName when set', async () => {
+    expect(await resolveDisplayLabel('u-with-name')).toBe('Bob T.');
+  });
+
+  it('falls back to username when displayName is null', async () => {
+    expect(await resolveDisplayLabel('u-without-name')).toBe('plainjane');
   });
 });

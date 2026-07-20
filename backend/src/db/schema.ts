@@ -34,6 +34,18 @@ export const users = pgTable('users', {
   // the frontend can surface a "we linked X — was this you? unlink" banner
   // until the user acknowledges it via POST /me/acknowledge-auto-link.
   autoLinkedAt: bigint('auto_linked_at', { mode: 'number' }),
+  // User-editable public-profile fields (social program W0). Never on the
+  // JWT/AuthedUser claims — same reasoning as role/requireAdmin: these change
+  // independently of login, so every read goes fresh to the DB.
+  displayName: text('display_name'),
+  bio: text('bio'),
+  // Avatar is 3 columns, never reconstructed from a bare id: a Scryfall print
+  // id, its name, and a pre-derived art_crop image URL (derived client-side
+  // at pick time, re-validated server-side against the cards.scryfall.io
+  // CDN host).
+  avatarCardId: text('avatar_card_id'),
+  avatarCardName: text('avatar_card_name'),
+  avatarImageUrl: text('avatar_image_url'),
 });
 
 /**
