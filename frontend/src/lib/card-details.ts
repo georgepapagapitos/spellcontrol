@@ -77,6 +77,14 @@ const LEGALITY_FORMATS: ReadonlyArray<readonly [string, string]> = [
   ['oathbreaker', 'Oathbreaker'],
 ];
 
+/** Display label for a Scryfall legality-format key ("commander" → "Commander").
+ *  Falls back to capitalizing unknown keys so new formats degrade readably. */
+export function legalityFormatLabel(key: string | undefined): string {
+  if (!key) return 'format';
+  const hit = LEGALITY_FORMATS.find(([k]) => k === key);
+  return hit ? hit[1] : key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 export type LegalityStatus = 'legal' | 'not_legal' | 'banned' | 'restricted';
 
 const STATUS_LABEL: Record<LegalityStatus, string> = {

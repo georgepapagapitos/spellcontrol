@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildReviewQueue,
-  formatDestination,
+  formatDestinationLabel,
   formatExcludeDestination,
+  formatSourceLabel,
+  sourceKey,
 } from './binder-review-queue';
 import { captureBinderSnapshot, computeDrift } from './binder-drift';
 import { materializeBinders } from './materialize';
+import { printingFinishKey } from './collection-mutations';
 import type { BinderDef, BinderFilter, BinderFilterGroup, EnrichedCard } from '../types';
 
 function makeCard(overrides: Partial<EnrichedCard> & { copyId: string }): EnrichedCard {
@@ -179,7 +182,7 @@ describe('buildReviewQueue', () => {
     expect(queue.removedGroups[0].rows[0].copyIds.sort()).toEqual(['c1', 'c2']);
   });
 
-  it('builds added rows from copies currently routed to this binder', () => {
+  it('builds added rows from copies currently routed to this binder, sourced from Uncategorized when no snapshot holds them', () => {
     const card = makeCard({ copyId: 'c1', name: 'Sol Ring', rarity: 'rare' });
     const rares = makeBinder({
       id: 'rares',
@@ -191,8 +194,115 @@ describe('buildReviewQueue', () => {
     expect(drift.added).toHaveLength(1);
 
     const queue = buildReviewQueue(drift, binders[0], [card], [rares]);
-    expect(queue.addedRows).toHaveLength(1);
-    expect(queue.addedRows[0].copyIds).toEqual(['c1']);
+    expect(queue.addedGroups).toHaveLength(1);
+    expect(queue.addedGroups[0].source).toEqual({ kind: 'uncategorized' });
+    expect(queue.addedGroups[0].rows).toHaveLength(1);
+    expect(queue.addedGroups[0].rows[0].copyIds).toEqual(['c1']);
+  });
+
+  it('groups an added card by the binder whose snapshot still holds it — its physical source', () => {
+    const rare = makeCard({ copyId: 'c1', name: 'Sol Ring', rarity: 'rare' });
+    // Baseline world: only catch-all `bulk` exists and the card was reviewed there.
+    const bulk = makeBinder({ id: 'bulk', name: 'Bulk', position: 1, filter: {} });
+    const { binders: baseline } = materializeBinders([rare], [bulk], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const reviewedBulk = { ...bulk, lastReviewedSnapshot: captureBinderSnapshot(baseline[0]) };
+
+    // Now: a rares binder appears ahead of bulk and claims the card.
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      position: 0,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+    });
+    const { binders: live } = materializeBinders([rare], [rares, reviewedBulk], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const raresLive = live.find((b) => b.def.id === 'rares')!;
+    const drift = computeDrift(raresLive, [rare], []);
+    expect(drift.added).toHaveLength(1);
+
+    const queue = buildReviewQueue(drift, raresLive, [rare], [rares, reviewedBulk]);
+    expect(queue.addedGroups).toHaveLength(1);
+    expect(queue.addedGroups[0].source).toEqual({
+      kind: 'binder',
+      binderId: 'bulk',
+      binderName: 'Bulk',
+    });
+  });
+
+  it('orders added groups by source binder position, uncategorized last', () => {
+    const a = makeCard({ copyId: 'a', scryfallId: 'sfa', name: 'A', rarity: 'rare' });
+    const b = makeCard({ copyId: 'b', scryfallId: 'sfb', name: 'B', rarity: 'rare' });
+    const c = makeCard({ copyId: 'c', scryfallId: 'sfc', name: 'C', rarity: 'rare' });
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      position: 0,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+    });
+    // Two holders whose snapshots still list one card each (their rules no
+    // longer match anything — only the stale snapshot ties them to the card);
+    // `c` is in nobody's snapshot → Uncategorized source.
+    const holder5 = makeBinder({
+      id: 'h5',
+      name: 'H5',
+      position: 5,
+      filter: { nameContains: 'zzz' },
+      lastReviewedSnapshot: { at: 1, keys: [printingFinishKey(a)], cardSnapshots: {} },
+    });
+    const holder2 = makeBinder({
+      id: 'h2',
+      name: 'H2',
+      position: 2,
+      filter: { nameContains: 'zzz' },
+      lastReviewedSnapshot: { at: 1, keys: [printingFinishKey(b)], cardSnapshots: {} },
+    });
+    const { binders: live } = materializeBinders([a, b, c], [rares, holder2, holder5], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const raresLive = live.find((x) => x.def.id === 'rares')!;
+    const drift = computeDrift(raresLive, [a, b, c], []);
+    expect(drift.added).toHaveLength(3);
+
+    const queue = buildReviewQueue(drift, raresLive, [a, b, c], [rares, holder2, holder5]);
+    expect(queue.addedGroups.map((g) => sourceKey(g.source))).toEqual([
+      'binder:h2',
+      'binder:h5',
+      'uncategorized',
+    ]);
+  });
+
+  it('never treats the viewed binder itself as an incoming source', () => {
+    // The viewed binder's own snapshot holding a key can't produce an added
+    // row (added = not in own snapshot), but the source scan must still skip
+    // it — a stale self-reference would render the nonsense route "here → here".
+    const rare = makeCard({ copyId: 'c1', name: 'Sol Ring', rarity: 'rare' });
+    const key = printingFinishKey(rare);
+    const rares = makeBinder({
+      id: 'rares',
+      name: 'Rares',
+      position: 0,
+      filter: { rarities: { chips: [{ value: 'rare', negate: false }], joiners: [] } },
+      lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+    });
+    // A same-position twin whose id matches the viewed binder — only a
+    // *different* binder's snapshot may claim to be the source.
+    const self = { ...rares, lastReviewedSnapshot: { at: 1, keys: [key], cardSnapshots: {} } };
+    const { binders: live } = materializeBinders([rare], [rares], {
+      globalPocketSize: 9,
+      search: '',
+    });
+    const drift = computeDrift(live[0], [rare], []);
+
+    const queue = buildReviewQueue(drift, live[0], [rare], [self]);
+    expect(queue.addedGroups[0].source).toEqual({ kind: 'uncategorized' });
   });
 
   it('orders removed groups by destination binder position, uncategorized then not-owned last', () => {
@@ -232,13 +342,17 @@ describe('buildReviewQueue', () => {
   });
 });
 
-describe('formatDestination', () => {
-  it('formats each destination kind', () => {
-    expect(formatDestination({ kind: 'binder', binderId: 'x', binderName: 'Rares' })).toBe(
-      'now in Rares'
+describe('formatDestinationLabel / formatSourceLabel', () => {
+  it('formats route phrases for each endpoint kind', () => {
+    expect(formatDestinationLabel({ kind: 'binder', binderId: 'x', binderName: 'Rares' })).toBe(
+      'to Rares'
     );
-    expect(formatDestination({ kind: 'uncategorized' })).toBe('now uncategorized');
-    expect(formatDestination({ kind: 'not-owned' })).toBe('no longer owned');
+    expect(formatDestinationLabel({ kind: 'uncategorized' })).toBe('to Uncategorized');
+    expect(formatDestinationLabel({ kind: 'not-owned' })).toBe('no longer owned');
+    expect(formatSourceLabel({ kind: 'binder', binderId: 'x', binderName: 'Bulk' })).toBe(
+      'from Bulk'
+    );
+    expect(formatSourceLabel({ kind: 'uncategorized' })).toBe('from Uncategorized');
   });
 });
 

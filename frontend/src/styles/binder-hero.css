@@ -403,9 +403,9 @@
   color: var(--text-muted);
 }
 
-/* Review queue (E88) — one group per destination (added cards; per-binder /
-   uncategorized / not-owned for removed cards), each a "pile" the user works
-   through like physically re-filing a binder. */
+/* Review queue (E88) — every group is one physical move anchored on the
+   viewed binder (`source → here` incoming, `here → destination` outgoing),
+   each a "pile" the user works through like physically re-filing a binder. */
 .binder-drift-queue-group + .binder-drift-queue-group {
   border-top: 0.5px dashed var(--accent);
   padding-top: var(--space-2);
@@ -414,6 +414,7 @@
 .binder-drift-queue-group-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-2);
 }
@@ -448,6 +449,48 @@
   display: inline-flex;
   gap: 0.2rem;
   margin-left: auto;
+}
+
+/* Route headers — the group's move rendered as endpoints around an arrow.
+   Binder endpoints reuse the binder-picker identity pattern (color dot +
+   name, cf. .add-to-binder-swatch); Uncategorized gets a hollow dashed dot
+   (no home); the viewed binder is the quiet word "here". */
+.binder-drift-route {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.binder-drift-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-primary);
+}
+
+.binder-drift-chip--none {
+  color: var(--text-muted);
+}
+
+.binder-drift-chip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.binder-drift-chip-dot--none {
+  border: 1.5px dashed var(--text-muted);
+}
+
+.binder-drift-route-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.binder-drift-route-here {
+  font-weight: 400;
 }
 
 .binder-toolbar {
