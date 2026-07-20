@@ -406,5 +406,34 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX IF NOT EXISTS game_results_ended_idx ON game_results(ended_at DESC);
+
+    -- Public deck publish state (social program W0). Dedicated table rather
+    -- than a 4th shares.audience value (see PLAN.md §A1) so the public URL
+    -- and view/copy counters survive an unpublish -> republish cycle. No FK
+    -- to user_decks (soft reference, app cascades, mirrors user_cards.import_id);
+    -- account deletion cascades via the users FK below.
+    CREATE TABLE IF NOT EXISTS deck_publications (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      deck_id TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      deck_name TEXT NOT NULL,
+      format TEXT NOT NULL,
+      commander_name TEXT,
+      commander_image_normal TEXT,
+      og_art_crop TEXT,
+      color_identity JSONB NOT NULL DEFAULT '[]',
+      bracket INTEGER,
+      card_count INTEGER NOT NULL DEFAULT 0,
+      view_count INTEGER NOT NULL DEFAULT 0,
+      copy_count INTEGER NOT NULL DEFAULT 0,
+      deck_rev BIGINT NOT NULL DEFAULT 0,
+      published_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      unpublished_at BIGINT,
+      PRIMARY KEY (user_id, deck_id)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS deck_publications_slug_idx ON deck_publications(slug);
+    CREATE INDEX IF NOT EXISTS deck_publications_public_idx
+      ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
   `);
 }
