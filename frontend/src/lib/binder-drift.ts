@@ -1,7 +1,10 @@
 import type { BinderDef, BinderReviewSnapshot, EnrichedCard, MaterializedBinder } from '../types';
+import { legalityFormatLabel } from './card-details';
 import { printingFinishKey } from './collection-mutations';
 import { formatMoney } from './format-money';
 import type { ImportHistoryEntry } from './local-cards';
+
+type CardSnapshot = BinderReviewSnapshot['cardSnapshots'][string];
 
 /**
  * Drift attribution for a single card that moved in or out of a binder since
@@ -16,6 +19,12 @@ import type { ImportHistoryEntry } from './local-cards';
  *     it without re-running rules at snapshot time, so we report the raw delta
  *     and let the user judge — "price 6.20 → 4.80" is enough signal in practice.
  *   - `edhrec`: same idea for EDHREC rank.
+ *   - `legality`: the card's status in a rule-referenced format changed between
+ *     snapshot and now (banned / unbanned / rotated / newly legal). Checked
+ *     BEFORE price — a ban usually crashes the price too, and the ban is the
+ *     root cause. Only formats some binder rule reads are pinned in the
+ *     snapshot (see `referencedLegalityFormats`), so this costs nothing for
+ *     users with no legality rules.
  *   - `imported`: the card was added by an import that happened after the
  *     snapshot was captured. Distinct from `collection` because we know
  *     *which* import brought it in, so we can show "from manabox.csv" rather
@@ -27,7 +36,7 @@ import type { ImportHistoryEntry } from './local-cards';
  *     typically the user edited the binder rules. Cheaper than full rule
  *     attribution and almost always self-evident ("I just edited this binder").
  */
-export type DriftReasonKind = 'price' | 'edhrec' | 'imported' | 'collection' | 'other';
+export type DriftReasonKind = 'price' | 'edhrec' | 'legality' | 'imported' | 'collection' | 'other';
 
 export interface DriftReason {
   kind: DriftReasonKind;
@@ -37,6 +46,11 @@ export interface DriftReason {
     priceAfter?: number;
     edhrecBefore?: number;
     edhrecAfter?: number;
+    /** For `legality` reasons: the Scryfall format key and the raw status
+     *  strings ('legal' | 'not_legal' | 'banned' | 'restricted') either side. */
+    format?: string;
+    legalityBefore?: string;
+    legalityAfter?: string;
     /** For `imported` reasons: the human-readable source label (filename or
      *  "pasted-list") and the time of the import. */
     importName?: string;
@@ -67,21 +81,61 @@ export interface DriftResult {
 }
 
 /**
+ * Formats any binder's rules actually read — the only legalities worth pinning
+ * in a review snapshot (a full per-card legality map would bloat the synced
+ * binder row with data no rule can act on). Includes negated chips (a "NOT
+ * standard" rule moves cards when Standard legality flips) and `commander`
+ * for commander-eligibility rules (`isCommanderEligible` reads Commander
+ * legality). Empty when no binder has a legality-shaped rule — the common
+ * case, which keeps snapshots byte-identical to the pre-legality shape.
+ */
+export function referencedLegalityFormats(binderDefs: BinderDef[]): string[] {
+  const formats = new Set<string>();
+  for (const def of binderDefs) {
+    for (const group of def.filterGroups) {
+      for (const chip of group.filter.legalities?.chips ?? []) formats.add(chip.value);
+      if (group.filter.commanderEligible !== undefined) formats.add('commander');
+    }
+  }
+  return [...formats];
+}
+
+/** The card's status in each tracked format, or undefined when there's nothing
+ *  to pin (no tracked formats / card has no legality data). */
+function pickLegalities(card: EnrichedCard, formats: string[]): Record<string, string> | undefined {
+  if (formats.length === 0 || !card.legalities) return undefined;
+  let out: Record<string, string> | undefined;
+  for (const f of formats) {
+    const status = card.legalities[f];
+    if (status === undefined) continue;
+    (out ??= {})[f] = status;
+  }
+  return out;
+}
+
+/**
  * Capture every card currently routed to this binder. Called when the user
  * clicks "Mark reviewed" in BinderView. We dedupe by printingFinishKey rather
  * than copyId because copyIds regenerate on every re-import; this matches the
  * approach used by `pinnedKeys` and `manualKeys` elsewhere on BinderDef.
+ * `legalityFormats` (from `referencedLegalityFormats`) selects which per-card
+ * legalities to pin for later "banned in Commander" attribution.
  */
-export function captureBinderSnapshot(binder: MaterializedBinder): BinderReviewSnapshot {
+export function captureBinderSnapshot(
+  binder: MaterializedBinder,
+  legalityFormats: string[] = []
+): BinderReviewSnapshot {
   const keys = new Set<string>();
-  const cardSnapshots: Record<string, { price: number; edhrecRank?: number }> = {};
+  const cardSnapshots: Record<string, CardSnapshot> = {};
   for (const section of binder.sections) {
     for (const card of section.cards) {
       const key = printingFinishKey(card);
       if (keys.has(key)) continue;
       keys.add(key);
-      const snap: { price: number; edhrecRank?: number } = { price: card.purchasePrice };
+      const snap: CardSnapshot = { price: card.purchasePrice };
       if (card.edhrecRank !== undefined) snap.edhrecRank = card.edhrecRank;
+      const legalities = pickLegalities(card, legalityFormats);
+      if (legalities) snap.legalities = legalities;
       cardSnapshots[key] = snap;
     }
   }
@@ -190,6 +244,8 @@ function attributeAdded(
 ): DriftReason {
   const prev = snapshot.cardSnapshots[key];
   if (prev) {
+    const legality = legalityChanged(prev, card);
+    if (legality) return legality;
     if (priceMoved(prev.price, card.purchasePrice)) {
       return {
         kind: 'price',
@@ -232,6 +288,8 @@ function attributeRemoved(
   }
   const prev = snapshot.cardSnapshots[key];
   if (!prev) return { kind: 'other' };
+  const legality = legalityChanged(prev, live);
+  if (legality) return legality;
   if (priceMoved(prev.price, live.purchasePrice)) {
     return {
       kind: 'price',
@@ -245,6 +303,28 @@ function attributeRemoved(
     };
   }
   return { kind: 'other' };
+}
+
+/**
+ * First tracked format whose pinned status differs from the live card's,
+ * as a ready-made `legality` reason. Checked before price in both attribution
+ * directions: a ban usually crashes the price in the same window, and the ban
+ * is the root cause. A format missing from the live card's data is skipped —
+ * absence isn't evidence of a change. Snapshots predating legality tracking
+ * have no `legalities` field and fall straight through (back-compat).
+ */
+function legalityChanged(prev: CardSnapshot, card: EnrichedCard): DriftReason | undefined {
+  if (!prev.legalities) return undefined;
+  for (const [format, before] of Object.entries(prev.legalities)) {
+    const after = card.legalities?.[format];
+    if (after !== undefined && after !== before) {
+      return {
+        kind: 'legality',
+        detail: { format, legalityBefore: before, legalityAfter: after },
+      };
+    }
+  }
+  return undefined;
 }
 
 function priceMoved(before: number, after: number): boolean {
@@ -276,6 +356,17 @@ export function formatDriftReason(reason: DriftReason): string {
       if (a !== undefined && b === undefined) return `EDHREC rank removed (was ${a})`;
       if (a === undefined || b === undefined) return 'EDHREC rank changed';
       return `EDHREC rank ${a} → ${b}`;
+    }
+    case 'legality': {
+      const format = legalityFormatLabel(reason.detail?.format);
+      const a = reason.detail?.legalityBefore;
+      const b = reason.detail?.legalityAfter;
+      if (b === 'banned') return `banned in ${format}`;
+      if (a === 'banned' && b === 'legal') return `unbanned in ${format}`;
+      if (b === 'restricted') return `restricted in ${format}`;
+      if (b === 'legal') return `now legal in ${format}`;
+      if (b === 'not_legal') return `no longer legal in ${format}`;
+      return `legality changed in ${format}`;
     }
     case 'imported': {
       const name = reason.detail?.importName;
@@ -315,9 +406,9 @@ export function hasSnapshot(def: BinderDef): boolean {
  *
  * - `direction: 'added'` — the card now matches the binder but wasn't in the
  *   baseline. Acknowledging means "yes, I added this" — add its key plus a
- *   snapshot of its current price/edhrecRank (mirrors `captureBinderSnapshot`'s
- *   per-key dedup: `keys` holds one entry per printingFinishKey, not per
- *   copy) so it stops showing as drift.
+ *   snapshot of its current price/edhrecRank/tracked legalities (mirrors
+ *   `captureBinderSnapshot`'s per-key dedup: `keys` holds one entry per
+ *   printingFinishKey, not per copy) so it stops showing as drift.
  * - `direction: 'removed'` — the card no longer matches but was in the
  *   baseline. Acknowledging means "yes, I removed this" — drop its key so
  *   its absence stops showing as drift. `card` is optional here: a removed
@@ -328,7 +419,8 @@ export function acknowledgeInSnapshot(
   snapshot: BinderReviewSnapshot,
   key: string,
   direction: 'added' | 'removed',
-  card?: EnrichedCard
+  card?: EnrichedCard,
+  legalityFormats: string[] = []
 ): BinderReviewSnapshot {
   if (direction === 'removed') {
     if (!snapshot.keys.includes(key)) return snapshot;
@@ -337,8 +429,10 @@ export function acknowledgeInSnapshot(
     return { ...snapshot, keys: snapshot.keys.filter((k) => k !== key), cardSnapshots };
   }
   const cardSnapshots = { ...snapshot.cardSnapshots };
-  const snap: { price: number; edhrecRank?: number } = { price: card?.purchasePrice ?? 0 };
+  const snap: CardSnapshot = { price: card?.purchasePrice ?? 0 };
   if (card?.edhrecRank !== undefined) snap.edhrecRank = card.edhrecRank;
+  const legalities = card ? pickLegalities(card, legalityFormats) : undefined;
+  if (legalities) snap.legalities = legalities;
   cardSnapshots[key] = snap;
   const keys = snapshot.keys.includes(key) ? snapshot.keys : [...snapshot.keys, key];
   return { ...snapshot, keys, cardSnapshots };

@@ -199,7 +199,10 @@ export interface BinderFilterGroup {
 export interface BinderReviewSnapshot {
   at: number;
   keys: string[];
-  cardSnapshots: Record<string, { price: number; edhrecRank?: number }>;
+  cardSnapshots: Record<
+    string,
+    { price: number; edhrecRank?: number; legalities?: Record<string, string> }
+  >;
 }
 
 export interface BinderDef {
