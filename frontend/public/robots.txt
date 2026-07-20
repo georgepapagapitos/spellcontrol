@@ -8,6 +8,10 @@
 User-agent: *
 Disallow: /s/
 
+# Game night invite links (/gn/) are the same kind of unguessable,
+# recipient-only URL as /s/ shares above — not for indexing.
+Disallow: /gn/
+
 # The OAuth callback URL is single-use, user-bound, and contains
 # short-lived state — never useful in search.
 Disallow: /oauth/callback
