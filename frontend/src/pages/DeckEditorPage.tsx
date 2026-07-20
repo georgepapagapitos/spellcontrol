@@ -30,6 +30,8 @@ import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
+import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
+import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
@@ -543,6 +545,7 @@ export function DeckEditorPage() {
   const deckTokens = useDeckTokens(deckScryCards);
   const [tokensOpen, setTokensOpen] = useState(false);
   const [pullListOpen, setPullListOpen] = useState(false);
+  const [primerOpen, setPrimerOpen] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
@@ -2243,6 +2246,7 @@ export function DeckEditorPage() {
               <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
             )}
           </p>
+          {deck.forkedFrom && <ForkedFromBadge forkedFrom={deck.forkedFrom} />}
         </div>
         <div className="deck-editor-actions">
           <button
@@ -2321,6 +2325,7 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
+            onPrimer={() => setPrimerOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
             onUndo={canUndoEdit ? () => undoEdit(deck.id) : undefined}
@@ -2348,6 +2353,7 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
+            onPrimer={() => setPrimerOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
             onPullList={hasPullSlots ? () => setPullListOpen(true) : undefined}
@@ -2769,6 +2775,7 @@ export function DeckEditorPage() {
         />
       )}
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
+      {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
       {pullListOpen && (
         <PullListSheet
           deck={deck}
@@ -3028,6 +3035,7 @@ function DeckEditorOverflowMenu({
   onDelete,
   onExport,
   onFeedback,
+  onPrimer,
   onPlaytest,
   onTokens,
   onPullList,
@@ -3041,6 +3049,8 @@ function DeckEditorOverflowMenu({
   onExport: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
+  /** Opens the primer (strategy notes) editor sheet. */
+  onPrimer: () => void;
   onPlaytest?: () => void;
   /** Present only when the deck makes tokens. */
   onTokens?: () => void;
@@ -3165,6 +3175,17 @@ function DeckEditorOverflowMenu({
               }}
             >
               Duplicate
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onPrimer();
+              }}
+            >
+              Primer
             </button>
             <button
               type="button"

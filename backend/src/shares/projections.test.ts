@@ -239,6 +239,56 @@ describe('projectDeck', () => {
     expect(out?.ownerUsername).toBe('alice');
     expect(out?.ownerDisplayName).toBe('Alice A.');
   });
+
+  it('includes primer when present, untruncated', () => {
+    const out = projectDeck(ALICE, { id: 'd1', name: 'X', primer: 'Ramp into big threats.' });
+    expect(out?.primer).toBe('Ramp into big threats.');
+    expect(out?.primerTruncated).toBeUndefined();
+  });
+
+  it('omits primer for absent, empty, or non-string values', () => {
+    expect(projectDeck(ALICE, { id: 'd1', name: 'X' })?.primer).toBeUndefined();
+    expect(projectDeck(ALICE, { id: 'd1', name: 'X', primer: '' })?.primer).toBeUndefined();
+    expect(projectDeck(ALICE, { id: 'd1', name: 'X', primer: 42 })?.primer).toBeUndefined();
+  });
+
+  it('truncates primer to exactly 5000 chars and flags primerTruncated', () => {
+    const long = 'x'.repeat(5010);
+    const out = projectDeck(ALICE, { id: 'd1', name: 'X', primer: long });
+    expect(out?.primer).toHaveLength(5000);
+    expect(out?.primer).toBe('x'.repeat(5000));
+    expect(out?.primerTruncated).toBe(true);
+  });
+
+  it('does not flag primerTruncated when primer is exactly at (or under) the cap', () => {
+    const exact = 'x'.repeat(5000);
+    const out = projectDeck(ALICE, { id: 'd1', name: 'X', primer: exact });
+    expect(out?.primer).toHaveLength(5000);
+    expect(out?.primerTruncated).toBeUndefined();
+  });
+
+  it('includes forkedFrom when well-formed', () => {
+    const out = projectDeck(ALICE, {
+      id: 'd1',
+      name: 'X',
+      forkedFrom: { slug: 'korvold-combo', ownerUsername: 'bob', deckName: 'Korvold Combo' },
+    });
+    expect(out?.forkedFrom).toEqual({
+      slug: 'korvold-combo',
+      ownerUsername: 'bob',
+      deckName: 'Korvold Combo',
+    });
+  });
+
+  it('coerces forkedFrom to undefined for a malformed object', () => {
+    expect(
+      projectDeck(ALICE, { id: 'd1', name: 'X', forkedFrom: { slug: 'only-slug' } })?.forkedFrom
+    ).toBeUndefined();
+    expect(
+      projectDeck(ALICE, { id: 'd1', name: 'X', forkedFrom: 'not-an-object' })?.forkedFrom
+    ).toBeUndefined();
+    expect(projectDeck(ALICE, { id: 'd1', name: 'X' })?.forkedFrom).toBeUndefined();
+  });
 });
 
 describe('findListById / findDeckById / findBinderById', () => {

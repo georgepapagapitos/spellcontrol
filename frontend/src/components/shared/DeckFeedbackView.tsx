@@ -8,6 +8,7 @@ import { useSearchCards } from '../../lib/use-search-cards';
 import { submitFeedback, type DraftSuggestion } from '../../lib/feedback-client';
 import { imageFromCard } from '../../lib/card-thumbs';
 import { formatIdentity } from '../../lib/display-name';
+import { renderMarkdownLite } from '../../lib/markdown-lite';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useAuth } from '../../store/auth';
 import { CardPreview, type CardPreviewAction } from '../CardPreview';
@@ -310,6 +311,17 @@ export function DeckFeedbackView({ data, token }: Props) {
           {data.format} · {mainboardCount.toLocaleString()} cards
         </p>
       </header>
+
+      {data.primer && (
+        // renderMarkdownLite is escape-then-transform (see lib/markdown-lite.ts):
+        // the whole string is HTML-entity-escaped before any tag is generated,
+        // so the only tags it can ever emit are p/strong/em/ul/li — safe to
+        // hand straight to dangerouslySetInnerHTML.
+        <div
+          className="shared-deck-primer"
+          dangerouslySetInnerHTML={{ __html: renderMarkdownLite(data.primer) }}
+        />
+      )}
 
       <p className="feedback-howto">
         Tap any card to read it in full — the scissors marks it as a suggested cut. Search below to

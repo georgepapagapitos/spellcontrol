@@ -997,3 +997,28 @@ describe('deleteDecks (bulk)', () => {
     expect(useDecksStore.getState().decks.map((d) => d.id)).toEqual(['a']);
   });
 });
+
+describe('createDeck — primer / forkedFrom', () => {
+  it('carries primer and forkedFrom from the input onto the resulting deck', () => {
+    const id = useDecksStore.getState().createDeck({
+      source: 'manual',
+      commander: null,
+      primer: 'Ramp into big threats.',
+      forkedFrom: { slug: 'korvold-combo', ownerUsername: 'alice', deckName: 'Korvold Combo' },
+    });
+    const deck = useDecksStore.getState().decks.find((d) => d.id === id)!;
+    expect(deck.primer).toBe('Ramp into big threats.');
+    expect(deck.forkedFrom).toEqual({
+      slug: 'korvold-combo',
+      ownerUsername: 'alice',
+      deckName: 'Korvold Combo',
+    });
+  });
+
+  it('omits primer and forkedFrom entirely when the input carries neither', () => {
+    const id = useDecksStore.getState().createDeck({ source: 'manual', commander: null });
+    const deck = useDecksStore.getState().decks.find((d) => d.id === id)!;
+    expect('primer' in deck).toBe(false);
+    expect('forkedFrom' in deck).toBe(false);
+  });
+});

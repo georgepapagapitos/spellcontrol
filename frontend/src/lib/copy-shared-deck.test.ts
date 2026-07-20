@@ -99,4 +99,18 @@ describe('sharedDeckToCreateInput', () => {
     expect(input).not.toHaveProperty('deckGrade');
     expect(input).not.toHaveProperty('averageSalt');
   });
+
+  it('omits forkedFrom entirely when called without a token (every pre-existing call shape)', () => {
+    const input = sharedDeckToCreateInput(fakePublicDeck);
+    expect(input).not.toHaveProperty('forkedFrom');
+  });
+
+  it('stamps forkedFrom from the token + origin deck identity when a token is given', () => {
+    const input = sharedDeckToCreateInput(fakePublicDeck, 'korvold-treasure');
+    expect(input.forkedFrom).toEqual({
+      slug: 'korvold-treasure',
+      ownerUsername: 'alex',
+      deckName: 'Korvold Treasure',
+    });
+  });
 });

@@ -1,0 +1,126 @@
+/* Layers on the shared `.card-picker-root` / `.card-picker-sheet` shell
+   (bottom sheet on mobile → centered modal ≥1024px). The shell's own
+   `:where(.card-picker-root)` rule already dims the page — no scrim class or
+   CSS of our own needed here (the default --overlay-sheet strength is fine
+   for a text-editing sheet). These rules only add the primer-specific
+   content (header / textarea / hint / counter). */
+
+@media (min-width: 1024px) {
+  /* Compound selector so this reliably outranks the shell's own
+     `.card-picker-sheet { width: 480px }` desktop rule regardless of CSS
+     import order (equal single-class specificity would fall back to source
+     order otherwise). */
+  .card-picker-sheet.deck-primer-sheet {
+    width: 560px;
+  }
+}
+
+.deck-primer-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-1) 1.1rem 0;
+}
+
+.deck-primer-sheet-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.deck-primer-sheet-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.15rem -0.4rem 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-primer-sheet-close:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
+}
+
+.deck-primer-sheet-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (pointer: coarse) {
+  .deck-primer-sheet-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.deck-primer-sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0.85rem 1.1rem var(--space-4);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.deck-primer-sheet-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.deck-primer-sheet-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 14rem;
+  padding: 0.6rem 0.7rem;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+}
+
+@media (min-width: 1024px) {
+  .deck-primer-sheet-textarea {
+    min-height: 19.5rem;
+  }
+}
+
+.deck-primer-sheet-textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deck-primer-sheet-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.deck-primer-sheet-counter {
+  align-self: flex-end;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-primer-sheet-counter--warn {
+  color: var(--warn-text);
+}
