@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { logger } from '../logger';
 import { requireAuth } from '../auth';
 import { getPool } from '../db';
+import { refreshDeckPublications } from '../publications/sync-hook';
 
 export const syncRouter: Router = Router();
 
@@ -84,7 +85,7 @@ interface DeletionOp {
   kind: Kind;
   id: string;
 }
-interface AppliedRow {
+export interface AppliedRow {
   kind: Kind;
   id: string;
   rev: number;
@@ -594,6 +595,14 @@ syncRouter.post('/', requireAuth, async (req: Request, res: Response) => {
       `deletions=${deletions.value.length} conflicts=${conflicts.length} ` +
       `cascaded=${cascaded} cursor=${cursor}`
   );
+
+  // Fire-and-forget: keeps deck_publications' denormalized listing columns in
+  // sync with any published deck this batch touched. Never awaited, so it can
+  // never add latency to or fail the client's sync response (see sync-hook.ts).
+  refreshDeckPublications(userId, applied).catch((err) =>
+    logger.warn(`[sync] publications refresh failed user=${userId}`, err)
+  );
+
   res.json({ applied, conflicts, cursor });
 });
 
