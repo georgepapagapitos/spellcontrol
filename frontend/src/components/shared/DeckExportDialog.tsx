@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Check, Clipboard, Download, X } from 'lucide-react';
+import { Share } from '@capacitor/share';
 import { Modal } from '../Modal';
 import { SelectMenu } from '../SelectMenu';
+import { isNativePlatform } from '../../lib/platform';
+import { toast } from '../../store/toasts';
 import type { ExportFormat } from '@/lib/deck-export';
 
 const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
@@ -25,11 +28,12 @@ interface Props {
 
 /**
  * Decklist export dialog: format picker (MTGA/Plaintext/Moxfield), a
- * read-only preview, and copy-to-clipboard / download-as-.txt actions.
+ * read-only preview, and copy-to-clipboard / download-as-.txt actions, plus
+ * a native OS share sheet (`Share…`) on Capacitor platforms only.
  * Shared by the deck editor, its decks-index deep link, and the public
  * shared deck view — all three just supply `text` (from `buildExport`) and
- * `title` (the deck's name); copy/download are handled internally so no
- * caller re-implements clipboard/blob logic.
+ * `title` (the deck's name); copy/download/share are handled internally so
+ * no caller re-implements clipboard/blob/share-sheet logic.
  */
 export function DeckExportDialog({ text, format, onFormatChange, title, onClose }: Props) {
   const [copied, setCopied] = useState(false);
@@ -53,6 +57,22 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
     a.download = `${safeName}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+  // Native system share sheet — parity with ShareDialog's handleNativeShare.
+  // No `url` field: this hands off the raw decklist text, not a link.
+  const handleNativeShare = async () => {
+    try {
+      await Share.share({
+        title: `${title} — decklist`,
+        text,
+        dialogTitle: 'Share decklist',
+      });
+    } catch (err) {
+      // The user cancelling the system sheet rejects with a generic error;
+      // treat anything from this call as a soft no-op rather than a toast.
+      if (err && (err as { message?: string }).message?.includes('cancel')) return;
+      toast.show({ message: "Couldn't open share sheet.", tone: 'warn' });
+    }
   };
 
   return (
@@ -103,6 +123,11 @@ export function DeckExportDialog({ text, format, onFormatChange, title, onClose 
               )}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
+            {isNativePlatform() && (
+              <button type="button" className="btn" onClick={handleNativeShare}>
+                Share…
+              </button>
+            )}
           </div>
         </div>
         <textarea
