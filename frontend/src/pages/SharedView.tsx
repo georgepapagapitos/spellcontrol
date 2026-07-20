@@ -8,7 +8,7 @@ import { SharedBinderView } from '../components/shared/SharedBinderView';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { SharedListView } from '../components/shared/SharedListView';
 import { SharedCubeView } from '../components/shared/SharedCubeView';
-import { SharedShell } from '../components/shared/SharedShell';
+import { SharedShell, NotFoundView, ErrorView } from '../components/shared/SharedShell';
 import { DeckFeedbackView } from '../components/shared/DeckFeedbackView';
 import { BrandMark } from '../components/shared/BrandMark';
 import { CopyDeckButton } from '../components/shared/CopyDeckButton';
@@ -31,18 +31,6 @@ export function SharedView() {
   }
   // Remount on token change so per-link state is fresh and the effect runs once.
   return <SharedViewInner key={token} token={token} />;
-}
-
-function NotFoundView() {
-  return (
-    <main className="shared-view shared-view--missing">
-      <h1>Link not found</h1>
-      <p>This share link is invalid or has been revoked.</p>
-      <Link to="/" className="btn btn-primary shared-copy-btn">
-        Go to SpellControl
-      </Link>
-    </main>
-  );
 }
 
 function SharedViewInner({ token }: { token: string }) {
@@ -111,13 +99,7 @@ function SharedViewInner({ token }: { token: string }) {
   if (state.status === 'error') {
     return (
       <SharedShell>
-        <main className="shared-view shared-view--error">
-          <h1>Something went wrong</h1>
-          <p>{state.message}</p>
-          <Link to="/" className="btn btn-primary shared-copy-btn">
-            Go to SpellControl
-          </Link>
-        </main>
+        <ErrorView message={state.message} />
       </SharedShell>
     );
   }

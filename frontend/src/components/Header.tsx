@@ -8,6 +8,7 @@ import { HeaderSyncIndicator } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import { useFriendRequests } from '../lib/use-friend-requests';
 import { useInbox } from '../lib/use-inbox';
+import { formatCount } from '../lib/format-count';
 import { BrandMark } from './shared/BrandMark';
 
 export function Header() {
@@ -115,10 +116,4 @@ export function Header() {
       </div>
     </header>
   );
-}
-
-function formatCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-  return `${Math.round(n / 1000)}k`;
 }

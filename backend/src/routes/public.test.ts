@@ -247,19 +247,99 @@ describe('GET /api/public/users/:username', () => {
     const res = await request(app).get('/api/public/users/pub-profile-a');
     expect(res.status).toBe(200);
     expect(res.body.username).toBe('pub-profile-a');
-    expect(res.body.memberSince).toBeTypeOf('number');
+    expect(res.body.joinedAt).toBeTypeOf('number');
+    expect(res.body.isOwner).toBe(false);
+    expect(res.body.moderationHidden).toBe(false);
     expect(res.body.deckCount).toBe(2);
     expect(res.body.decks).toHaveLength(2);
     expect(res.body.decks[0].name).toBe('Second Deck');
     expect(res.body.decks[0].commanderImage).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
   });
 
-  it('returns an empty decks array as a normal 200 for a user with no publications', async () => {
+  it('404s a user with no live publications, viewed by a stranger (blocking fix, w1-public-profile-page)', async () => {
     await makeUser('pub-profile-empty');
     const res = await request(app).get('/api/public/users/pub-profile-empty');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('User not found.');
+  });
+
+  it('200s with an empty decks array for the owner viewing their own 0-deck profile', async () => {
+    const cookie = await makeUser('pub-profile-empty-owner');
+    const res = await request(app)
+      .get('/api/public/users/pub-profile-empty-owner')
+      .set('Cookie', cookie);
     expect(res.status).toBe(200);
+    expect(res.body.isOwner).toBe(true);
+    expect(res.body.moderationHidden).toBe(false);
     expect(res.body.decks).toEqual([]);
     expect(res.body.deckCount).toBe(0);
+  });
+
+  it('200s for the owner viewing their own profile, with isOwner true', async () => {
+    const { cookie } = await publishDeck('pub-profile-owner', 'deck-profile-owner');
+    const res = await request(app).get('/api/public/users/pub-profile-owner').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.isOwner).toBe(true);
+    expect(res.body.moderationHidden).toBe(false);
+    expect(res.body.decks).toHaveLength(1);
+  });
+
+  it('shows a stranger only the still-live publications once one of three has been unpublished', async () => {
+    const cookie = await makeUser('pub-profile-mixed');
+    await setDisplayName(cookie, 'pub-profile-mixed display');
+    await setSnapshotViaSyncApi(request(app), cookie, {
+      decks: [
+        makeDeck('deck-mixed-1'),
+        makeDeck('deck-mixed-2', { name: 'Second' }),
+        makeDeck('deck-mixed-3', { name: 'Third' }),
+      ],
+    });
+    for (const id of ['deck-mixed-1', 'deck-mixed-2', 'deck-mixed-3']) {
+      const res = await request(app).post(`/api/publications/decks/${id}`).set('Cookie', cookie);
+      expect(res.status).toBe(201);
+    }
+    const unpub = await request(app)
+      .delete('/api/publications/decks/deck-mixed-3')
+      .set('Cookie', cookie);
+    expect(unpub.status).toBe(204);
+
+    const res = await request(app).get('/api/public/users/pub-profile-mixed');
+    expect(res.status).toBe(200);
+    expect(res.body.deckCount).toBe(2);
+    expect(res.body.decks).toHaveLength(2);
+    expect(res.body.decks.some((d: { name: string }) => d.name === 'Third')).toBe(false);
+  });
+
+  it('404s a moderation-hidden profile for a stranger', async () => {
+    const { userId } = await publishDeck('pub-profile-hidden', 'deck-hidden-1');
+    await pool.query(`UPDATE users SET profile_hidden_at = $2 WHERE id = $1`, [userId, Date.now()]);
+
+    const res = await request(app).get('/api/public/users/pub-profile-hidden');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('User not found.');
+  });
+
+  it('200s a moderation-hidden profile for its own owner, with moderationHidden true and an empty deck list', async () => {
+    const { cookie, userId } = await publishDeck('pub-profile-hidden-owner', 'deck-hidden-2');
+    await pool.query(`UPDATE users SET profile_hidden_at = $2 WHERE id = $1`, [userId, Date.now()]);
+
+    const res = await request(app)
+      .get('/api/public/users/pub-profile-hidden-owner')
+      .set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.isOwner).toBe(true);
+    expect(res.body.moderationHidden).toBe(true);
+    expect(res.body.decks).toEqual([]);
+  });
+
+  it('surfaces the resolved bracket (override beats estimation) through the reused deck-summary mapping', async () => {
+    await publishDeck('pub-profile-bracket', 'deck-bracket-1', {
+      bracketOverride: 4,
+      bracketEstimation: { bracket: 2 },
+    });
+    const res = await request(app).get('/api/public/users/pub-profile-bracket');
+    expect(res.status).toBe(200);
+    expect(res.body.decks[0].bracket).toBe(4);
   });
 
   it('404s an unknown username', async () => {

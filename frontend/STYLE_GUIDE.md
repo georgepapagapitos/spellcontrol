@@ -216,6 +216,18 @@ changes *what kind of result* the user gets (target bracket, Staples ↔ Brew)
 stays always-open; collapsibles are for constraints and advanced tuning. Don't
 bury an objective-function dial in a closed group with an opaque title.
 
+**Avatars are circular — the one shape exception outside the button/label
+taxonomy above.** `UserAvatar` (a person's card-art image, or a flat-colored
+initial when unset) is `border-radius: 50%`, not `--radius`/`--radius-lg`/pill.
+It's a deliberate, sanctioned exception: the pill-vs-rect rules above govern
+*actionable* and *label* elements, and an avatar is neither — it's a
+decorative person-identity glyph (`aria-hidden`, named by adjacent text), the
+same category a circular profile photo occupies industry-wide. First shipped
+in the profile editor (Settings), now also the public profile page
+(`/u/:username`) header. Don't generalize the circle to other images or
+thumbnails (card art, cover art stay rect via `--radius`/`--radius-lg`) —
+this exception is scoped to person-identity avatars only.
+
 ## Icon scale
 
 App-wide `lucide-react` usage has ranged 11–18px / 1.6–3 stroke width with no

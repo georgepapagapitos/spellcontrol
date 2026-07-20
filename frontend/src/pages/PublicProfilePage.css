@@ -1,0 +1,205 @@
+/* PublicProfilePage.css — /u/:username public profile: header (avatar +
+ * identity), deck grid, and its loading/empty/hidden states. Reuses
+ * .shared-view (page shell, shared.css) and .decks-index-card* (deck tiles,
+ * deck-builder-decks-index.css) verbatim — see STYLE_GUIDE "Public shared
+ * views". UserAvatar's circular shape is a deliberate new precedent for a
+ * public page, noted in STYLE_GUIDE's Shape language section.
+ */
+
+.public-profile-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+
+.public-profile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Three fixed-size UserAvatar instances, CSS-toggled by breakpoint — see the
+   doc comment on ResponsiveAvatar in PublicProfilePage.tsx for why this isn't
+   a single resize-driven instance. Desktop (>=1024px) is the unguarded
+   default; narrower tiers override below. */
+.public-profile-avatar {
+  flex-shrink: 0;
+  display: none;
+}
+
+.public-profile-avatar-lg {
+  display: inline-flex;
+}
+
+.public-profile-header-text {
+  min-width: 0;
+}
+
+.public-profile-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.public-profile-handle {
+  margin: 0.15rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Bio is user-authored plain text (never markdown) — preserve the line
+   breaks the author typed in the settings textarea. */
+.public-profile-bio {
+  margin: var(--space-2) 0 0;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.public-profile-joined {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.public-profile-report-btn {
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .public-profile-report-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+/* ── Moderation-hidden banner (owner-only view) ───────────────────────── */
+
+.public-profile-hidden-banner {
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.public-profile-hidden-banner p {
+  margin: 0;
+}
+
+/* ── Deck tile view/copy counts (ghost-town-thresholded) ──────────────── */
+
+.public-profile-deck-counts {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* ── Loading skeleton ──────────────────────────────────────────────────
+   Same shimmer recipe as FriendsPage's .friends-skeleton-bar — theme-aware
+   gradient over the shared skeleton-shimmer keyframe (never redeclared). */
+
+.public-profile-skeleton {
+  display: block;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.public-profile-skeleton-avatar {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.public-profile-skeleton-bar--name {
+  width: 12rem;
+  max-width: 60vw;
+  height: 1.6rem;
+  margin-bottom: var(--space-2);
+}
+
+.public-profile-skeleton-bar--handle {
+  width: 8rem;
+  max-width: 40vw;
+  height: 1rem;
+}
+
+.public-profile-skeleton-tile {
+  height: 220px;
+  overflow: hidden;
+}
+
+.public-profile-skeleton-tile .public-profile-skeleton {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-profile-skeleton {
+    animation: none;
+  }
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────
+   >=1024px (default above): horizontal row, 128px avatar.
+   601-1023px: horizontal row, 96px avatar.
+   <=600px: stacked, centered, 72px avatar, grid collapses to 1 column via
+   auto-fill running out of room (no explicit breakpoint math needed). */
+
+@media (max-width: 1023px) {
+  .public-profile-avatar-lg {
+    display: none;
+  }
+  .public-profile-avatar-md {
+    display: inline-flex;
+  }
+  .public-profile-skeleton-avatar {
+    width: 96px;
+    height: 96px;
+  }
+}
+
+@media (max-width: 600px) {
+  .public-profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  .public-profile-avatar-md {
+    display: none;
+  }
+  .public-profile-avatar-sm {
+    display: inline-flex;
+  }
+  .public-profile-header-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .public-profile-skeleton-avatar {
+    width: 72px;
+    height: 72px;
+  }
+  .public-profile-skeleton-bar--name,
+  .public-profile-skeleton-bar--handle {
+    max-width: 80vw;
+  }
+}

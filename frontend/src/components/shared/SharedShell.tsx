@@ -42,3 +42,48 @@ export function SharedShell({ children, action, ctaLabel }: Props) {
     </div>
   );
 }
+
+interface NotFoundViewProps {
+  title?: string;
+  message?: string;
+}
+
+/**
+ * Shared "nothing here" dead-end-avoider for any `SharedShell`-wrapped public
+ * page — originally `/s/:token`-only, now also used by `/u/:username`
+ * (w1-public-profile-page). Defaults preserve `/s/:token`'s original copy
+ * byte-for-byte; callers with a different subject (a hidden/unknown profile,
+ * a deck) pass their own `title`/`message`.
+ */
+export function NotFoundView({
+  title = 'Link not found',
+  message = 'This share link is invalid or has been revoked.',
+}: NotFoundViewProps) {
+  return (
+    <main className="shared-view shared-view--missing">
+      <h1>{title}</h1>
+      <p>{message}</p>
+      <Link to="/" className="btn btn-primary shared-copy-btn">
+        Go to SpellControl
+      </Link>
+    </main>
+  );
+}
+
+interface ErrorViewProps {
+  message: string;
+}
+
+/** Shared network/unexpected-error state for any `SharedShell`-wrapped public
+ *  page. Same reuse rationale as `NotFoundView` above. */
+export function ErrorView({ message }: ErrorViewProps) {
+  return (
+    <main className="shared-view shared-view--error">
+      <h1>Something went wrong</h1>
+      <p>{message}</p>
+      <Link to="/" className="btn btn-primary shared-copy-btn">
+        Go to SpellControl
+      </Link>
+    </main>
+  );
+}

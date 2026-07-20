@@ -642,6 +642,10 @@ authRouter.patch('/profile', profileLimiter, requireAuth, async (req: Request, r
   const db = getDb();
   if (Object.keys(updates).length > 0) {
     await db.update(users).set(updates).where(eq(users.id, req.user!.id));
+    // displayName/bio/avatar are now served straight off the public-profile
+    // cache (w1-public-profile-page) — without this, an edit wouldn't show
+    // up on the user's own /u/:username page for up to the cache's TTL.
+    invalidatePublicUserCache(req.user!.username);
   }
 
   const rows = await db
