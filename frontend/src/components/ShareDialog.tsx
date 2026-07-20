@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from './Modal';
+import { ShareQrCode } from './shared/ShareQrCode';
 import { createShare, revokeShare, shareUrl } from '../lib/share-client';
 import { listFriends, type Friend } from '../lib/friends-client';
 import { isNativePlatform } from '../lib/platform';
@@ -54,6 +55,10 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
   // Guests take the sign-in branch below and never reach the loading state.
   const [loading, setLoading] = useState(!isGuest);
   const [working, setWorking] = useState(false);
+  // Lives outside the `share &&` block on purpose: switching audience briefly
+  // nulls `share` while a new token mints, and this toggle should stay open
+  // (not reset) across that gap so the panel just reappears once resolved.
+  const [showQr, setShowQr] = useState(false);
 
   // A direct share can't mint until a recipient is chosen — hold off until then.
   const awaitingRecipient = audience === 'direct' && !addresseeId;
@@ -281,6 +286,24 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
               </button>
             )}
           </div>
+
+          <button
+            type="button"
+            className="btn-link"
+            style={{ alignSelf: 'flex-start' }}
+            aria-expanded={showQr}
+            aria-controls="share-qr-panel"
+            onClick={() => setShowQr((v) => !v)}
+          >
+            {showQr ? 'Hide QR code' : 'Show QR code'}
+          </button>
+          {showQr && (
+            <div className="share-qr-panel" id="share-qr-panel">
+              <ShareQrCode value={url} label={`QR code for ${resourceLabel}`} />
+              <p className="share-qr-caption">Scan with a phone camera to open this link.</p>
+            </div>
+          )}
+
           <div className="choice-dialog-actions share-dialog-actions">
             <button
               type="button"
