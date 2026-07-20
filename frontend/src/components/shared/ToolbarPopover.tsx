@@ -85,7 +85,11 @@ export function ToolbarPopover({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    const onScroll = () => {
+    const onScroll = (e: Event) => {
+      // The panel scrolls internally (max-height + overflow) — only
+      // outside scrolls dismiss it, same guard as Legend.
+      if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target))
+        return;
       setOpen(false);
     };
     document.addEventListener('mousedown', close);

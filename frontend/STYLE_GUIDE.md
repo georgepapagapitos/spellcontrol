@@ -89,6 +89,21 @@ cardboard is where you say it is." Repeated identical action buttons in a list
 carry an aria-label qualified by the row's subject ("Moved it — Sol Ring") so
 screen-reader users can tell them apart.
 
+**Binder route headers (review queue):** every review-queue group header is a
+_move_, not a state — rendered as endpoints around a `lucide` `ArrowRight`
+(`aria-label="to"`, the WelcomeDigest route precedent): `[•source] → here` for
+incoming cards, `here → [•destination]` for outgoing. A binder endpoint is the
+**binder-identity chip** — a 10px `border-radius: 50%` dot in the binder's
+`def.color` plus its name (the same pattern as `.add-to-binder-swatch` in the
+binder-picker sheets); Uncategorized is the same chip with a **hollow dashed
+dot** (no home) in muted text. The viewed binder is always the quiet lowercase
+word **"here"** — "Keep it here" already established that vocabulary on this
+surface, and repeating the binder's own name in every group is noise. Never
+phrase these headers as state ("now in X" was the pre-route form); the queue is
+a physical work order and its headers name both ends of the move. Per-group bulk
+buttons repeat across groups, so their aria-labels carry the route
+("Added all — from Bulk", "Moved all — to High Value").
+
 **Punctuation:** complete sentences end with a period; a trailing `…` means
 either "in progress" (loading) **or** a **picker/selector action** — one that
 lets you choose an item from a list ("Move to another deck…", "Pick another
@@ -163,7 +178,7 @@ a control row (then the whole `.toolbar-pill` segmented family is `999px`, e.g.
 is not that — its options are rects.
 
 **Toolbar steppers: ends disable, never hide.** A −/+ stepper over an ordered
-range (the card-size `ZoomControl` in the collection/deck grids) renders as a
+range (the card-size `ZoomControl` in the collection/deck/list grids) renders as a
 `.toolbar-viewmode` button pair — same pill family, lucide glyphs at
 `width/height={14}`, and the coarse-pointer 2.75rem touch sizing for free. At a
 range bound the end button gets `disabled` (`.toolbar-viewmode-btn:disabled`:
@@ -288,6 +303,20 @@ at 320px. If it can't shrink, it must wrap or collapse.
      by construction.
    - Keep each control compact: a `SelectMenu` shows its **current value** (icon
      - value), not a redundant static label.
+   - **Wrap is the safety net, not the phone layout.** Once a control row
+     carries enough pickers that it *always* wraps on a phone — especially a
+     **sticky** row, where every wrapped line permanently eats content space —
+     consolidate instead of wrapping: split the controls into **data controls**
+     (used while browsing: Select / Group / Sort) and **display preferences**
+     (set-and-forget: zoom, detail-line toggles, view mode, the symbol Key),
+     and collapse the display preferences into **one "View" `ToolbarPopover`
+     at `≤640px`** (labelled rows inside the panel; the Key opens as a
+     sub-page of the same panel). Desktop keeps every control visible. The
+     collection toolbar is the reference (`ViewPopoverPanel` in
+     `CardListTable.tsx`); the Decks-hero `⋮` kebab is the *action-row*
+     analogue of this rule. Contextual buttons that survive on the row (e.g.
+     Expand/Collapse all) may go icon-only on phones **only** if their glyph
+     is unambiguous and they keep `title` + `aria-label`.
 
 3. **Card action rows** — actions in the footer of a list card (the game-night
    cards are the reference). A card earns **at most ~3 visible controls**, at

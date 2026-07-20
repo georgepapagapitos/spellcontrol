@@ -34,7 +34,7 @@ import { fetchWithAbortTimeout } from '../lib/fetch-utils';
 import { SAMPLE_BINDERS, SAMPLE_IMPORT_LABEL } from '../lib/samples';
 import { compileFilterGroups, cardMatchesAnyGroup, areAllGroupsEmpty } from '../lib/rules';
 import { reconcileBinderRefs, addRef, removeRef, setOrderRefs } from '../lib/binder-refs';
-import { acknowledgeInSnapshot } from '../lib/binder-drift';
+import { acknowledgeInSnapshot, referencedLegalityFormats } from '../lib/binder-drift';
 import { computeBinderMoves, formatBinderMoveMessage, type BinderMove } from '../lib/binder-moves';
 import { computeMovers, recordDailyMovers, recordValueSnapshot } from '../lib/value-history';
 import { logBinderMoves } from '../lib/welcome-digest';
@@ -1264,7 +1264,8 @@ export const useCollectionStore = create<CollectionState>()(
                 b.lastReviewedSnapshot,
                 key,
                 direction,
-                card
+                card,
+                referencedLegalityFormats(s.binders)
               ),
               updatedAt: Date.now(),
             };

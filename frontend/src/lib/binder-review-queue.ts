@@ -27,9 +27,20 @@ export interface RemovedGroup {
   rows: ReviewQueueRow[];
 }
 
+/** Where an incoming card is physically sitting right now — the other end of
+ *  the move the group header renders (`source → here`). */
+export type AddedSource =
+  | { kind: 'binder'; binderId: string; binderName: string }
+  | { kind: 'uncategorized' };
+
+export interface AddedGroup {
+  source: AddedSource;
+  rows: ReviewQueueRow[];
+}
+
 export interface ReviewQueue {
   removedGroups: RemovedGroup[];
-  addedRows: ReviewQueueRow[];
+  addedGroups: AddedGroup[];
 }
 
 function toRow(card: DriftCard, copyIds: string[]): ReviewQueueRow {
@@ -47,20 +58,33 @@ export function destinationKey(d: RemovedDestination): string {
   return d.kind === 'binder' ? `binder:${d.binderId}` : d.kind;
 }
 
+/** Stable identity for an added group — used as its React list key. */
+export function sourceKey(s: AddedSource): string {
+  return s.kind === 'binder' ? `binder:${s.binderId}` : s.kind;
+}
+
 /**
  * Builds the review queue's row/group structure from a drift result. Pure —
  * no store reads, no mutation. The per-row `copyIds` roll up every owned copy
  * sharing that printing+finish so a bulk "Keep it here" / "Don't add" click
  * applies to all of them, not just the one representative in `DriftCard`.
  *
- * - Removed rows are grouped by where the card currently lands (computed via
- *   `nextBinderMatch`, which — after the E88 exclusion-fall-through fix —
- *   mirrors `materializeBinders` exactly): another binder, uncategorized, or
- *   "not owned" for a card that left the collection entirely (no live card
- *   to route).
- * - Added rows are a single flat group (they all belong to the viewed binder
- *   right now; the "where would it go instead" question only matters once
- *   it's excluded, which the UI answers separately at click time).
+ * Every group is one physical MOVE anchored on the viewed binder:
+ *
+ * - Removed rows are grouped by where the card now lands (`here → X`,
+ *   computed via `nextBinderMatch`, which — after the E88
+ *   exclusion-fall-through fix — mirrors `materializeBinders` exactly):
+ *   another binder, uncategorized, or "not owned" for a card that left the
+ *   collection entirely (no live card to route).
+ * - Added rows are grouped by where the cardboard sits right now (`X → here`):
+ *   the binder whose last-reviewed snapshot still holds the key is where the
+ *   user last confirmed it physically lives (that binder's own queue shows
+ *   the matching outbound row). No snapshot holds it → it was never filed
+ *   into a reviewed binder, i.e. the unsorted pile (Uncategorized).
+ *   ponytail: snapshot-holder is a per-key guess — copies of one printing
+ *   split between a reviewed binder and a fresh import all point at the
+ *   binder; the row's reason line ("newly imported from …") keeps the
+ *   provenance visible.
  */
 export function buildReviewQueue(
   drift: DriftResult,
@@ -86,6 +110,8 @@ export function buildReviewQueue(
     }
   }
 
+  const positionByBinderId = new Map(binderDefs.map((d) => [d.id, d.position]));
+
   const groupsByKey = new Map<string, RemovedGroup>();
   for (const dc of drift.removed) {
     let destination: RemovedDestination;
@@ -110,7 +136,6 @@ export function buildReviewQueue(
 
   // Order: real binders by position (physical re-filing order), then
   // uncategorized, then not-owned last (nothing to physically move).
-  const positionByBinderId = new Map(binderDefs.map((d) => [d.id, d.position]));
   const removedGroups = [...groupsByKey.values()].sort((a, b) => {
     const rank = (d: RemovedDestination) =>
       d.kind === 'binder'
@@ -121,21 +146,58 @@ export function buildReviewQueue(
     return rank(a.destination) - rank(b.destination);
   });
 
-  const addedRows = drift.added.map((dc) => toRow(dc, inBinderByKey.get(dc.key) ?? []));
+  // Snapshot holders, in position order — the physical-source lookup table
+  // for incoming cards (see doc comment above).
+  const holders = binderDefs
+    .filter((d) => d.id !== binder.def.id)
+    .sort((a, b) => a.position - b.position)
+    .flatMap((d) =>
+      d.lastReviewedSnapshot ? [{ def: d, keys: new Set(d.lastReviewedSnapshot.keys) }] : []
+    );
 
-  return { removedGroups, addedRows };
+  const addedBySource = new Map<string, AddedGroup>();
+  for (const dc of drift.added) {
+    const holder = holders.find((h) => h.keys.has(dc.key));
+    const source: AddedSource = holder
+      ? { kind: 'binder', binderId: holder.def.id, binderName: holder.def.name }
+      : { kind: 'uncategorized' };
+    const sk = sourceKey(source);
+    let group = addedBySource.get(sk);
+    if (!group) {
+      group = { source, rows: [] };
+      addedBySource.set(sk, group);
+    }
+    group.rows.push(toRow(dc, inBinderByKey.get(dc.key) ?? []));
+  }
+
+  // Same physical-walk order as removed groups: binders by position, then
+  // the unsorted pile last.
+  const addedGroups = [...addedBySource.values()].sort((a, b) => {
+    const rank = (s: AddedSource) =>
+      s.kind === 'binder' ? (positionByBinderId.get(s.binderId) ?? Infinity) : 1e9;
+    return rank(a.source) - rank(b.source);
+  });
+
+  return { removedGroups, addedGroups };
 }
 
-/** One-line label for a removed group's destination, used as the group header. */
-export function formatDestination(d: RemovedDestination): string {
+/** Short "to …" phrase for a removed group's route — bulk-action aria-labels
+ *  and anywhere the move needs to be a plain string. */
+export function formatDestinationLabel(d: RemovedDestination): string {
   switch (d.kind) {
     case 'binder':
-      return `now in ${d.binderName}`;
+      return `to ${d.binderName}`;
     case 'uncategorized':
-      return 'now uncategorized';
+      return 'to Uncategorized';
     case 'not-owned':
       return 'no longer owned';
   }
+}
+
+/** Short "from …" phrase for an added group's route — mirrors
+ *  `formatDestinationLabel`. */
+export function formatSourceLabel(s: AddedSource): string {
+  return s.kind === 'binder' ? `from ${s.binderName}` : 'from Uncategorized';
 }
 
 /**
