@@ -18,6 +18,7 @@ import { scannerRouter } from './routes/scanner';
 import { friendsRouter } from './routes/friends';
 import { usersRouter } from './routes/users';
 import { gameNightsRouter } from './routes/game-nights';
+import { publicationsRouter } from './routes/publications';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -330,6 +331,29 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX game_results_ended_idx ON game_results(ended_at DESC);
+    CREATE TABLE deck_publications (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      deck_id TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      deck_name TEXT NOT NULL,
+      format TEXT NOT NULL,
+      commander_name TEXT,
+      commander_image_normal TEXT,
+      og_art_crop TEXT,
+      color_identity JSONB NOT NULL DEFAULT '[]',
+      bracket INTEGER,
+      card_count INTEGER NOT NULL DEFAULT 0,
+      view_count INTEGER NOT NULL DEFAULT 0,
+      copy_count INTEGER NOT NULL DEFAULT 0,
+      deck_rev BIGINT NOT NULL DEFAULT 0,
+      published_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL,
+      unpublished_at BIGINT,
+      PRIMARY KEY (user_id, deck_id)
+    );
+    CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);
+    CREATE INDEX deck_publications_public_idx
+      ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
   `);
 
   const db = drizzle(pool, { schema });
@@ -351,6 +375,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/friends', friendsRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/game-nights', gameNightsRouter);
+  app.use('/api/publications', publicationsRouter);
 
   return {
     app,

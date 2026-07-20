@@ -1603,7 +1603,17 @@
   color: var(--accent);
 }
 
-.admin-delete-actions {
+/* Shared button row for the admin table's confirm modals (delete, clear
+   profile) — named generically since both destructive confirms reuse it. */
+.admin-modal-actions {
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Actions cell of a table row: the per-row buttons (Clear profile, Delete)
+   sit side by side, right-aligned to match the cell's own text-align. */
+.admin-row-actions {
+  display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
 }

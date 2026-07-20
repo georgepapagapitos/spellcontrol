@@ -543,6 +543,49 @@ export const gameResults = pgTable(
   })
 );
 
+/**
+ * Public deck publish state (social program W0). A dedicated table rather
+ * than a 4th `shares.audience` value — see PLAN.md §A1 — because reusing
+ * `shares` would rotate the public URL and reset counters on every
+ * unpublish→republish cycle. `slug` is frozen forever once minted;
+ * `viewCount`/`copyCount` survive unpublish/republish untouched. No FK to
+ * `userDecks` — only a direct FK to `users` (mirrors userCards.importId's
+ * "soft reference, app cascades" convention; deck tombstones are handled by
+ * w0-publish-sync-hook, account deletion by the FK cascade below).
+ */
+export const deckPublications = pgTable(
+  'deck_publications',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deckId: text('deck_id').notNull(),
+    slug: text('slug').notNull(),
+    deckName: text('deck_name').notNull(),
+    format: text('format').notNull(),
+    commanderName: text('commander_name'),
+    commanderImageNormal: text('commander_image_normal'),
+    /** og:image for the public /d/:slug landing — resolved via cardArtUrl at
+     *  publish time (see shares/og.ts), never a derived /normal/ -> /art_crop/
+     *  string replace (that fabricates 404s for cards with no art_crop variant). */
+    ogArtCrop: text('og_art_crop'),
+    colorIdentity: jsonb('color_identity').notNull().default([]).$type<string[]>(),
+    bracket: integer('bracket'),
+    cardCount: integer('card_count').notNull().default(0),
+    viewCount: integer('view_count').notNull().default(0),
+    copyCount: integer('copy_count').notNull().default(0),
+    deckRev: bigint('deck_rev', { mode: 'number' }).notNull().default(0),
+    publishedAt: bigint('published_at', { mode: 'number' }).notNull(),
+    updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
+    unpublishedAt: bigint('unpublished_at', { mode: 'number' }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.deckId] }),
+    slugIdx: uniqueIndex('deck_publications_slug_idx').on(t.slug),
+    publicIdx: index('deck_publications_public_idx').on(t.updatedAt),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
@@ -568,3 +611,4 @@ export type GameNightOptionRow = typeof gameNightOptions.$inferSelect;
 export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
+export type DeckPublicationRow = typeof deckPublications.$inferSelect;
