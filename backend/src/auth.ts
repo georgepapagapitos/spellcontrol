@@ -238,6 +238,74 @@ export function validatePassword(raw: unknown): string | null {
 }
 
 /**
+ * Exact-match (never substring — "root" must not flag "Uprooted"), case-
+ * insensitive blocklist checked at every username-creation choke point and
+ * on display-name save, so a future `/u/<username>` public profile route can
+ * never collide with an app route or an obviously-impersonating handle.
+ */
+export const RESERVED_IDENTIFIERS: Set<string> = new Set([
+  // App route segments (current + program-committed future ones).
+  'collection',
+  'decks',
+  'play',
+  'friends',
+  'settings',
+  'search',
+  'admin',
+  'auth',
+  'welcome',
+  'oauth',
+  'u',
+  'd',
+  's',
+  'gn',
+  'api',
+  'health',
+  'guides',
+  'home',
+  'you',
+  'discover',
+  'saved',
+  'pods',
+  // Trust/safety & impersonation-risk handles.
+  'administrator',
+  'root',
+  'system',
+  'support',
+  'help',
+  'about',
+  'contact',
+  'spellcontrol',
+  'official',
+  'staff',
+  'moderator',
+  'mod',
+  'security',
+  'abuse',
+  'legal',
+  'privacy',
+  'terms',
+  'null',
+  'undefined',
+  'public',
+  'private',
+  'static',
+  'assets',
+  'www',
+  'mail',
+  'email',
+  // Forward-looking route words a later program wave is already committed to.
+  'browse',
+  'trending',
+  'feed',
+  'profile',
+]);
+
+export function isReservedUsername(name: string): boolean {
+  return RESERVED_IDENTIFIERS.has(name.toLowerCase());
+}
+
+/**
  * Derive a unique, valid username for an SSO account from its email. The
  * email local-part is lowercased and stripped to the USERNAME_REGEX charset,
  * padded if too short, then collision-suffixed with a counter until free. The
@@ -251,6 +319,9 @@ export async function generateUsername(email: string): Promise<string> {
   for (let i = 0; i < 10_000; i++) {
     const suffix = i === 0 ? '' : String(i);
     const candidate = suffix ? base.slice(0, 32 - suffix.length) + suffix : base;
+    // A reserved local-part (e.g. admin@example.com) must never surface as
+    // the bare word — skip straight to the next numbered candidate.
+    if (RESERVED_IDENTIFIERS.has(candidate)) continue;
     const existing = await db
       .select({ id: users.id })
       .from(users)
@@ -390,4 +461,68 @@ export function verifySignupToken(token: string): SignupToken | null {
   } catch {
     return null;
   }
+}
+
+const DISPLAY_NAME_MAX = 40;
+const BIO_MAX = 280;
+const SCRYFALL_CDN_HOST = 'cards.scryfall.io';
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Trim; empty-after-trim is a *valid* "clear" (→ null). Over `max` chars is
+ * *invalid* (→ undefined) — the caller must reject with 400, never silently
+ * truncate a name or bio the user typed, matching validatePassword's
+ * existing hard-reject precedent.
+ */
+function normalizeTrimmedText(raw: unknown, max: number): string | null | undefined {
+  if (raw === null) return null;
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  if (trimmed.length > max) return undefined;
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+export function normalizeDisplayName(raw: unknown): string | null | undefined {
+  return normalizeTrimmedText(raw, DISPLAY_NAME_MAX);
+}
+
+export function normalizeBio(raw: unknown): string | null | undefined {
+  return normalizeTrimmedText(raw, BIO_MAX);
+}
+
+/** Shape-only check — a Scryfall print id is a UUID, never resolved/verified against the API. */
+export function isScryfallUuid(raw: unknown): raw is string {
+  return typeof raw === 'string' && UUID_SHAPE.test(raw);
+}
+
+/**
+ * A pre-derived avatar image URL must be genuinely Scryfall-hosted: an exact
+ * hostname match over `https://`. Exact equality also rejects a lookalike
+ * suffix host (e.g. `cards.scryfall.io.evil.com`) for free.
+ */
+export function isScryfallArtUrl(raw: unknown): raw is string {
+  if (typeof raw !== 'string') return false;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && url.hostname === SCRYFALL_CDN_HOST;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * COALESCE(display_name, username) for one user id, a single indexed lookup.
+ * Exported for the identity-propagation PR's seeded-name sites; the publish-
+ * eligibility gate does its own direct `SELECT display_name` instead of
+ * importing this, to keep that PR's coupling to this file at one line.
+ */
+export async function resolveDisplayLabel(userId: string): Promise<string> {
+  const db = getDb();
+  const rows = await db
+    .select({ username: users.username, displayName: users.displayName })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const row = rows[0];
+  return row?.displayName ?? row?.username ?? '';
 }
