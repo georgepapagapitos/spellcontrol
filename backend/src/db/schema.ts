@@ -46,6 +46,16 @@ export const users = pgTable('users', {
   avatarCardId: text('avatar_card_id'),
   avatarCardName: text('avatar_card_name'),
   avatarImageUrl: text('avatar_image_url'),
+  /**
+   * Set by an admin moderation action (social program W1, `POST
+   * /api/admin/reports/:id/resolve` with `action:'hide'` on a profile
+   * report). The resolve handler cascades this into unpublishing every one
+   * of the user's `deck_publications` rows, so hiding a profile actually
+   * takes their public decks down too — not just the hub page listing them.
+   * Nothing gates the public profile page itself on this yet; that lands
+   * with w1-public-profile-page.
+   */
+  profileHiddenAt: bigint('profile_hidden_at', { mode: 'number' }),
 });
 
 /**
@@ -586,6 +596,40 @@ export const deckPublications = pgTable(
   })
 );
 
+/**
+ * User-submitted content reports (social program W1) — the app's first
+ * moderation surface. `kind` covers `'deck' | 'profile' | 'game-result'`
+ * from day one (no DB CHECK constraint, app-level validation only in
+ * routes/reports.ts) so a later wave (`w5-game-result-share-kind`) reuses
+ * this table and `ReportDialog` verbatim instead of building a second
+ * reporting path. `targetOwnerId` is resolved server-side at submit time —
+ * never trusted from the client — and cascades on account deletion;
+ * `reporterUserId` is null for an anonymous report and goes null (rather
+ * than deleting the report) if the reporter's own account is later removed.
+ */
+export const contentReports = pgTable(
+  'content_reports',
+  {
+    id: text('id').primaryKey(),
+    kind: text('kind').notNull().$type<'deck' | 'profile' | 'game-result'>(),
+    /** deckId / target username / game session id, depending on `kind`. */
+    targetId: text('target_id').notNull(),
+    targetOwnerId: text('target_owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id').references(() => users.id, { onDelete: 'set null' }),
+    reason: text('reason').notNull(),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+    resolvedAt: bigint('resolved_at', { mode: 'number' }),
+    /** 'dismissed' | 'hidden', set together with resolvedAt. */
+    resolution: text('resolution').$type<'dismissed' | 'hidden'>(),
+  },
+  (t) => ({
+    unresolvedIdx: index('content_reports_unresolved_idx').on(t.createdAt),
+    ownerIdx: index('content_reports_owner_idx').on(t.targetOwnerId),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
@@ -612,3 +656,4 @@ export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
 export type DeckPublicationRow = typeof deckPublications.$inferSelect;
+export type ContentReportRow = typeof contentReports.$inferSelect;

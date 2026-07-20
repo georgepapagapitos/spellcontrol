@@ -1618,6 +1618,35 @@
   gap: var(--space-2);
 }
 
+/* Reports section: loading skeleton rows shown while GET /api/admin/reports
+   is in flight. Reuses the shared skeleton-shimmer keyframe from global.css —
+   do NOT redeclare it here (motion-tokens.test.ts enforces a single
+   declaration); mirrors deck-builder-skeleton.css's own shimmer-bar technique. */
+.admin-report-skeleton-bar {
+  height: 0.7rem;
+  border-radius: var(--radius);
+  background: linear-gradient(110deg, var(--border) 35%, var(--surface) 50%, var(--border) 65%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  margin-top: 0.3rem;
+}
+
+.admin-report-skeleton-bar.is-wide {
+  width: 65%;
+  margin-top: 0;
+}
+
+.admin-report-skeleton-bar.is-narrow {
+  width: 35%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-report-skeleton-bar {
+    animation: none;
+  }
+}
+
 /* ── Reduced motion: press-feedback buttons (UX-206) ─────────────────────────
    The press still snaps to scale(0.97) — positional feedback, not motion —
    but nothing eases. Explicit gate per STYLE_GUIDE (the global 0.001ms kill
