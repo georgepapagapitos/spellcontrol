@@ -55,16 +55,31 @@ vi.mock('../lib/value-history', async (importOriginal) => {
 // deterministic setup, not dependent on this file's real (empty) collection/
 // decks stores, and so the time-of-day greeting can't make an assertion
 // flaky depending on when the suite happens to run.
-const mockPickHeroCardName = vi.hoisted(() => vi.fn(() => null as string | null));
+const mockPickHeroCard = vi.hoisted(() =>
+  vi.fn(() => null as { name: string; art?: string } | null)
+);
 vi.mock('../lib/home-hero', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/home-hero')>();
-  return { ...actual, pickHeroCardName: mockPickHeroCardName, heroGreeting: () => 'Good morning' };
+  return { ...actual, pickHeroCard: mockPickHeroCard, heroGreeting: () => 'Good morning' };
 });
 
 const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
-vi.mock('../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
+vi.mock('../lib/card-thumbs', () => ({
+  useCardThumb: mockUseCardThumb,
+  imageFromCard: () => undefined,
+}));
+
+// The hero reads live sync state to distinguish "settled empty" from "still
+// settling" — pinned to idle here so the fallback branch is deterministic;
+// the settling branch flips this per-test.
+const mockSyncState = vi.hoisted(() => ({ state: 'idle' as string }));
+vi.mock('../lib/sync', () => ({
+  getSyncState: () => mockSyncState.state,
+  onSyncedChange: () => () => {},
+}));
 
 import { HomePage } from './HomePage';
+import { useCollectionStore } from '../store/collection';
 
 function renderPage() {
   return render(
@@ -78,8 +93,12 @@ beforeEach(() => {
   mockAuthState.status = 'authed';
   mockAuthState.user = { id: 'u1', username: 'georgep', role: 'user' };
   mockAuthState.profile = null;
-  mockPickHeroCardName.mockReturnValue(null);
+  mockPickHeroCard.mockReturnValue(null);
   mockUseCardThumb.mockReturnValue(undefined);
+  mockSyncState.state = 'idle';
+  // The real store boots with hydrating: true (App flips it after the IDB
+  // hydrate); settle it here so the fallback branch is reachable by default.
+  useCollectionStore.setState({ hydrating: false });
 });
 
 describe('HomePage', () => {
@@ -128,7 +147,7 @@ describe('HomePage', () => {
     });
 
     it('shows collection art + the "from your collection" caption once a hero card resolves', () => {
-      mockPickHeroCardName.mockReturnValue('Sol Ring');
+      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-fallback')).toBeNull();
@@ -138,9 +157,31 @@ describe('HomePage', () => {
       expect(screen.getByText('Sol Ring — from your collection')).toBeTruthy();
     });
 
+    it('renders the owned printing art directly, skipping name resolution', () => {
+      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring', art: 'owned-printing.jpg' });
+      const { container } = renderPage();
+      const img = container.querySelector('.home-hero-art') as HTMLImageElement | null;
+      expect(img?.getAttribute('src')).toBe('owned-printing.jpg');
+      // useCardThumb is skipped (called with undefined) when owned art is in hand.
+      expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'art_crop');
+    });
+
+    it('shows the loading shimmer, never the brand fallback, while still hydrating/syncing', () => {
+      useCollectionStore.setState({ hydrating: true });
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-fallback')).toBeNull();
+      expect(container.querySelector('.home-hero-art-loading')).toBeTruthy();
+
+      useCollectionStore.setState({ hydrating: false });
+      mockSyncState.state = 'syncing';
+      const { container: c2 } = renderPage();
+      expect(c2.querySelector('.home-hero-fallback')).toBeNull();
+      expect(c2.querySelector('.home-hero-art-loading')).toBeTruthy();
+    });
+
     it('never shows personal art for a guest, even if a hero card would otherwise resolve', () => {
       mockAuthState.status = 'guest';
-      mockPickHeroCardName.mockReturnValue('Sol Ring');
+      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-fallback')).toBeTruthy();

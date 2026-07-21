@@ -8,11 +8,13 @@ import { QuickActionsRow } from './QuickActionsRow';
 import { useAuth } from '../../store/auth';
 import { useCollectionStore } from '../../store/collection';
 import { useDecksStore } from '../../store/decks';
-import { useCardThumb } from '../../lib/card-thumbs';
+import { imageFromCard, useCardThumb } from '../../lib/card-thumbs';
+import { scryfallArtCrop } from '../../lib/offline/slim-to-scryfall';
+import { getSyncState, onSyncedChange } from '../../lib/sync';
 import { useCurrency } from '../../lib/currency';
 import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
-import { pickHeroCardName, heroGreeting } from '../../lib/home-hero';
+import { pickHeroCard, heroGreeting } from '../../lib/home-hero';
 import {
   computeValueDelta,
   dayKey,
@@ -44,7 +46,10 @@ export function HomeHero() {
   // Same acquiredAt derivation as home-signals.ts's own (private) helper:
   // import time, falling back to last-edited. Component-level, like every
   // other home card's own store-to-plain-data mapping (NewArrivalsCard
-  // builds this exact map itself too) — pickHeroCardName stays store-free.
+  // builds this exact map itself too) — pickHeroCard stays store-free. Each
+  // row also carries its OWNED printing's art crop (imageNormal →
+  // scryfallArtCrop, the binder-cover idiom, #843) so the hero shows the
+  // copy you actually have, not Scryfall's name-resolved default printing.
   const addedAtByImportId = useMemo(
     () => new Map(importHistory.map((e) => [e.id, e.addedAt])),
     [importHistory]
@@ -55,25 +60,42 @@ export function HomeHero() {
         name: c.name,
         purchasePrice: c.purchasePrice,
         acquiredAt: c.importId ? (addedAtByImportId.get(c.importId) ?? 0) : (c.updatedAt ?? 0),
+        art: c.imageNormal ? scryfallArtCrop(c.imageNormal) : undefined,
       })),
     [collectionCards, addedAtByImportId]
   );
   const heroDecks = useMemo(
-    () => decks.map((d) => ({ commanderName: d.commander?.name ?? null, updatedAt: d.updatedAt })),
+    () =>
+      decks.map((d) => ({
+        commanderName: d.commander?.name ?? null,
+        updatedAt: d.updatedAt,
+        art: d.commander ? imageFromCard(d.commander, 'art_crop') : undefined,
+      })),
     [decks]
   );
 
   // Guests never see personal art, regardless of what a local-only
   // collection might hold (local-first means a guest CAN have local cards/
   // decks) — the hero's background is never personal data for a guest.
-  const heroCardName = useMemo(
-    () => (authed ? pickHeroCardName(heroCards, heroDecks) : null),
+  const pick = useMemo(
+    () => (authed ? pickHeroCard(heroCards, heroDecks) : null),
     [authed, heroCards, heroDecks]
   );
   // art_crop, never 'normal': a full card scan cover-cropped into a wide band
-  // shows a strip of black frame/text box instead of the illustration.
-  const art = useCardThumb(heroCardName ?? undefined, 'art_crop');
-  const showFallback = !heroCardName;
+  // shows a strip of black frame/text box instead of the illustration. Name
+  // resolution only runs when the pick has no owned-printing art in hand.
+  const fetched = useCardThumb(pick && !pick.art ? pick.name : undefined, 'art_crop');
+  const art = pick ? (pick.art ?? fetched) : undefined;
+
+  // While the local IDB hydrate or a first pull on a fresh device is still
+  // in flight, an empty collection is indeterminate, not empty — show the
+  // loading shimmer, never flash the brand fallback under the search bar.
+  // Same subscribe-and-rerender idiom as SyncIndicator.
+  const hydrating = useCollectionStore((s) => s.hydrating);
+  const [, syncTick] = useState(0);
+  useEffect(() => onSyncedChange(() => syncTick((n) => n + 1)), []);
+  const settling = authed && !pick && (hydrating || getSyncState() === 'syncing');
+  const showFallback = !pick && !settling;
 
   const currency = useCurrency();
   // today is captured inside the async callback, not read via Date.now() in
@@ -197,9 +219,7 @@ export function HomeHero() {
 
       <QuickActionsRow />
 
-      {!showFallback && art && (
-        <p className="home-hero-caption">{heroCardName} — from your collection</p>
-      )}
+      {pick && art && <p className="home-hero-caption">{pick.name} — from your collection</p>}
     </header>
   );
 }
