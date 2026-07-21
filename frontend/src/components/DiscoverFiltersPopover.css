@@ -128,3 +128,18 @@
   outline-offset: 2px;
   border-radius: 50%;
 }
+
+/* Touch floor: chips sit at roughly half the 44px target (WCAG 2.5.5) — the
+   text pill's padding-block collapses to line-height alone, and the color
+   chip's 2px padding leaves it at the pip's own small size. */
+@media (pointer: coarse) {
+  .discover-filter-chip > span {
+    min-height: 44px;
+    padding-block: 0;
+  }
+
+  .discover-filter-chip--color {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

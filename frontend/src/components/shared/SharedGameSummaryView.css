@@ -58,12 +58,14 @@
 .game-summary-participant-name {
   font-weight: 600;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .game-summary-participant-deck,
 .game-summary-participant-commander {
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .game-summary-participant-life {
