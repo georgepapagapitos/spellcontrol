@@ -156,7 +156,11 @@ every theme and ground (like `--art-scrim`, tape is tape), `--font-label`
 caps, 2px corners. It's currently sanctioned **only** for the nav/hub count
 chips riding the divider-tab navigation. Don't convert other label pills to
 tape by default — extending tape to a new surface is a STYLE_GUIDE ruling,
-not a drive-by.
+not a drive-by. **On dark grounds the tape gets a pale keyline**
+(`0 0 0 1px rgb(255 255 255 / 25%)`, scoped to `.site-header` and the active
+tab's accent fill): the tape value nearly matches the leather, so without the
+ring the chip silhouette sinks and only the digits float. The tape colors
+never change — visibility comes from the edge, not from theming the tape.
 
 **No labelled button is a pill — anywhere (T53 Phase 4).** The old hero-CTA
 pill tier is retired: hero CTAs are stamped rects like every other button
