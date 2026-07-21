@@ -1884,20 +1884,34 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   card) is retired — a guest now sees the same kind of art-led landing a
   returning/authed user gets on `/home`, not a plainer marketing stand-in.
 - **Hero art must actually be visible: `art_crop` + directional scrim.**
-  Applies to every full-bleed art hero (`HomeHero`, `WelcomeHero`, and any
-  future band). Two hard rules, learned by shipping the opposite: (1) the
-  backdrop is the **`art_crop`** image version, never `'normal'`/`'large'` —
-  a full card scan cover-cropped into a wide band renders a random strip of
-  black frame and text box, not the illustration. (2) The scrim is
-  **directional, never a flat `--art-scrim` fill**: stacked
-  `--art-scrim → transparent` gradients (the DiscoverDeckTile idiom) anchored
-  to where the on-art text actually sits (left column + bottom band), leaving
-  the art's focal area nearly clear. Controls with their own backgrounds
-  (search pills, CTA/action chips) don't need scrim under them. On-scrim
-  type over the thinned zones carries `text-shadow: 0 1px 2px
-  rgba(0, 0, 0, 0.5)` (the caption's shadow) as a second legibility floor.
-  Flat `--art-scrim` coverage remains correct for small tiles/badges where
-  content genuinely spans the whole art (grid-tile qty/set badges).
+  Applies to any full-bleed art *backdrop* hero (`WelcomeHero`, and any
+  future band tall enough to justify one — a compact dashboard band is NOT;
+  see the `/home` featured-card ruling below). Two hard rules, learned by
+  shipping the opposite: (1) the backdrop is the **`art_crop`** image
+  version, never `'normal'`/`'large'` — a full card scan cover-cropped into
+  a wide band renders a random strip of black frame and text box, not the
+  illustration. (2) The scrim is **directional, never a flat `--art-scrim`
+  fill**: stacked `--art-scrim → transparent` gradients (the DiscoverDeckTile
+  idiom) anchored to where the on-art text actually sits, leaving the art's
+  focal area nearly clear. Controls with their own backgrounds (search
+  pills, CTA/action chips) don't need scrim under them. On-scrim type over
+  the thinned zones carries `text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5)` as
+  a second legibility floor. Flat `--art-scrim` coverage remains correct for
+  small tiles/badges where content genuinely spans the whole art.
+- **`/home` hero = featured-card sleeve, not a backdrop (geometry rule).**
+  A dashboard hero band is ~8:1 while card art crops are ~4:3, so a `cover`
+  backdrop discards ~85% of the illustration — no scrim tuning fixes that.
+  `HomeHero` therefore shows the day's card as an **object**: the panel
+  itself is sleeve matte (`--surface-raised` + `--shadow-card` + `--border`,
+  normal theme-token type — no scrim, no on-art text), and the card sits in
+  a right-hand sleeve frame (`aspect-ratio: 4/3`, `--border-strong` +
+  `--shadow-card`) at its full aspect, captioned by a **tape label** (T53
+  tape tier — fixed Dymo colors, `--font-label` uppercase) with a muted
+  "From your collection" line under it (the sub-line hides ≤600px). The
+  scope toggle's active pill wears `--accent`/`--on-accent` — the divider-tab
+  "accent fill on current" idiom. Don't reintroduce an art backdrop here; if
+  a future surface wants one, it takes the backdrop ruling above and a real
+  (Moxfield-scale) height.
 - **Collection-drawn hero art shows the OWNED printing.** When the pick comes
   from the user's own rows, derive art from the row's stored `imageNormal`
   via `scryfallArtCrop` (the binder-cover idiom, #843) — never name-resolve
@@ -1906,13 +1920,13 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   rows with no stored image (and for `WelcomeHero`'s hardcoded guest pool,
   where no copy is owned).
 - **The brand fallback never floats behind content, and never flashes.**
-  `HomeHero`'s empty-state grimoire is a top-right corner watermark (the one
-  zone the content stack never reaches), not a centered mark behind the
-  search bar. And it renders only for a **settled** empty collection: while
-  the IDB hydrate or a first-device sync pull is in flight
-  (`hydrating` / `getSyncState() === 'syncing'` with no pick), the hero
-  shows the loading shimmer — an indeterminate collection must not flash
-  brand chrome that art is about to replace.
+  `HomeHero`'s empty state is an **empty sleeve** — the same 4:3 frame with
+  a dashed `--border-strong` outline and the brand mark centered, no tape —
+  never a mark floating behind interactive content. And it renders only for
+  a **settled** empty collection: while the IDB hydrate or a first-device
+  sync pull is in flight (`hydrating` / `getSyncState() === 'syncing'` with
+  no pick), the frame shows the loading shimmer — an indeterminate
+  collection must not flash brand chrome that art is about to replace.
 - **Guests have no collection, so the hero art rotates a hardcoded pool.**
   Unlike `HomeHero`'s collection-derived pick, `WelcomeHero`'s backdrop
   rotates a small const list of iconic, evergreen Commander staples

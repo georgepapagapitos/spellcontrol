@@ -26,12 +26,15 @@ import {
 type SearchScope = 'mine' | 'discover';
 
 /**
- * /home's hero band (social program pass 2b — "your collection is the
- * hero"): a full-bleed art backdrop drawn from the viewer's own collection,
- * the greeting + collection value on a theme-invariant scrim, a scoped deck
- * search, and Quick Actions along the bottom edge. Guests (and a brand-new
- * empty collection) get the same layout with the brand fallback instead of
- * personal data — never a broken-looking gap where the art would be.
+ * /home's hero panel ("your collection is the hero", featured-card revision):
+ * a sleeve-matte panel (T53 material system) with the greeting/value, scoped
+ * deck search, and Quick Actions in the main column, and the day's card from
+ * the viewer's own collection displayed as an OBJECT — a full, uncropped art
+ * crop in a sleeve frame with a tape-label caption — instead of a
+ * letterboxed backdrop. (The old full-bleed backdrop cover-cropped a ~4:3
+ * illustration into an ~8:1 band, discarding most of the art; no scrim
+ * tuning fixes that geometry.) Guests and settled-empty collections get the
+ * empty sleeve with the brand mark — never personal data, never a gap.
  */
 export function HomeHero() {
   const navigate = useNavigate();
@@ -145,20 +148,7 @@ export function HomeHero() {
 
   return (
     <header className="home-hero">
-      <div className="home-hero-backdrop" aria-hidden="true">
-        {showFallback ? (
-          <span className="home-hero-fallback">
-            <BrandMark size={64} motion="idle" aria-hidden />
-          </span>
-        ) : art ? (
-          <img className="home-hero-art" src={art} alt="" aria-hidden="true" loading="lazy" />
-        ) : (
-          <span className="home-hero-art-loading" />
-        )}
-        <span className="home-hero-scrim" />
-      </div>
-
-      <div className="home-hero-content">
+      <div className="home-hero-main">
         <div className="home-hero-headline">
           {authed ? (
             <>
@@ -215,11 +205,29 @@ export function HomeHero() {
             }
           />
         </form>
+
+        <QuickActionsRow />
       </div>
 
-      <QuickActionsRow />
-
-      {pick && art && <p className="home-hero-caption">{pick.name} — from your collection</p>}
+      <figure className="home-hero-card">
+        {pick && art ? (
+          <>
+            <img className="home-hero-art" src={art} alt="" loading="lazy" />
+            <figcaption className="home-hero-caption">
+              <span className="home-hero-caption-tape" title={pick.name}>
+                {pick.name}
+              </span>
+              <span className="home-hero-caption-sub">From your collection</span>
+            </figcaption>
+          </>
+        ) : showFallback ? (
+          <span className="home-hero-fallback" aria-hidden="true">
+            <BrandMark size={48} motion="idle" aria-hidden />
+          </span>
+        ) : (
+          <span className="home-hero-art-loading" aria-hidden="true" />
+        )}
+      </figure>
     </header>
   );
 }
