@@ -34,7 +34,11 @@ vi.mock('../components/play/GameNights', () => ({
 }));
 vi.mock('../lib/value-history', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/value-history')>();
-  return { ...actual, getValueHistory: () => Promise.resolve([]), getLatestMovers: () => Promise.resolve(null) };
+  return {
+    ...actual,
+    getValueHistory: () => Promise.resolve([]),
+    getLatestMovers: () => Promise.resolve(null),
+  };
 });
 
 import { HomePage } from './HomePage';
