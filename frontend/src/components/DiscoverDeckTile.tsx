@@ -7,6 +7,8 @@ import { formatMoney } from '../lib/format-money';
 import { formatSocialCount } from '../lib/social-proof';
 import { DECK_FORMAT_CONFIGS } from '../deck-builder/lib/constants/archetypes';
 import { bracketLabel } from '../deck-builder/services/deckBuilder/bracketEstimator';
+import { LikeButton } from './LikeButton';
+import { BookmarkButton } from './BookmarkButton';
 import type { DeckFormat } from '../deck-builder/types';
 import type { DiscoverDeck } from '../lib/discover-client';
 
@@ -19,9 +21,12 @@ function formatLabel(format: string): string {
 function socialLine(deck: DiscoverDeck): string | null {
   const views = formatSocialCount(deck.viewCount);
   const copies = formatSocialCount(deck.copyCount);
-  const parts = [views && `${views} views`, copies && `${copies} copies`].filter(
-    (s): s is string => s != null
-  );
+  const likes = formatSocialCount(deck.likeCount);
+  const parts = [
+    views && `${views} views`,
+    copies && `${copies} copies`,
+    likes && `${likes} likes`,
+  ].filter((s): s is string => s != null);
   return parts.length > 0 ? parts.join(' · ') : null;
 }
 
@@ -45,6 +50,10 @@ interface Props {
   /** Percent of the deck's distinct cards the viewer already owns — null
    *  when the viewer is a guest or has an empty collection (no meter). */
   buildablePercent?: number | null;
+  /** Fired after a confirmed unbookmark (w2-likes-bookmarks). SavedDecksPage
+   *  passes this to splice the tile out of its list immediately; Discover
+   *  leaves it undefined — a like/bookmark there never removes the tile. */
+  onUnsaved?: (slug: string) => void;
 }
 
 /**
@@ -54,14 +63,15 @@ interface Props {
  * `<Link>` wrapping the tile's real visible content (art/name/badges/
  * pips/stats), and the owner attribution as a genuinely separate sibling
  * `<Link>` — never nested inside the first (nesting `<a>` inside `<a>` is
- * invalid HTML and would double-fire navigation).
+ * invalid HTML and would double-fire navigation). The Like/Bookmark corner
+ * actions (w2-likes-bookmarks) are a third sibling for the same reason.
  *
  * `view` drives the parent `<ul>`'s `is-grid`/`is-list` class — the shared
  * `.decks-index-card` family CSS handles the row-vs-tile layout, so this
  * component only branches JSX where DecksIndexPage's own grid/list split
  * already does: the no-art color-banner fallback is grid-only.
  */
-export function DiscoverDeckTile({ deck, view, buildablePercent = null }: Props) {
+export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsaved }: Props) {
   const thumb = useCardThumb(deck.commanderName ?? undefined, 'normal');
   const social = socialLine(deck);
 
@@ -119,11 +129,18 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null }: Props)
       <Link to={`/u/${deck.ownerUsername}`} className="discover-tile-owner">
         by {deck.ownerUsername}
       </Link>
-      {/* Corner action slot — populated by w2-likes-bookmarks. Intentionally
-          not rendered yet: an empty absolutely-positioned div has no visual
-          or functional effect this PR, and the sibling-of-Link position
-          (not nested inside it) already works by construction whenever
-          that PR adds it. */}
+      <div className="tile-actions">
+        <LikeButton
+          slug={deck.slug}
+          initialLiked={deck.likedByViewer}
+          initialCount={deck.likeCount}
+        />
+        <BookmarkButton
+          slug={deck.slug}
+          initialBookmarked={deck.bookmarkedByViewer}
+          onChange={onUnsaved ? (bookmarked) => !bookmarked && onUnsaved(deck.slug) : undefined}
+        />
+      </div>
     </li>
   );
 }

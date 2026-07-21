@@ -1,0 +1,7 @@
+/* SavedDecksPage.css — the page shell reuses existing classes verbatim:
+   .binder-hero, .decks-index-page, .decks-index-list.is-grid, .empty-state
+   (+ .empty-state-actions/.btn.btn-primary for the guest gate), and the
+   error/retry row (.discover-decks-error*, DiscoverDecksPage.css — both
+   pages' error state is the same shape, so it isn't redeclared here). No
+   load-more here — GET /api/discover/bookmarks has no pagination. This file
+   intentionally has no rules of its own: reuse, not new. */

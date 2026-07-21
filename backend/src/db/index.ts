@@ -450,6 +450,38 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS deck_publications_commander_prefix_idx
       ON deck_publications (lower(commander_name) text_pattern_ops) WHERE unpublished_at IS NULL;
 
+    -- Likes/bookmarks (w2-likes-bookmarks). Keyed by (user_id, slug) rather
+    -- than the original bucket spec's bare deck_id -- the public identity is
+    -- deck_publications.slug (unique, frozen forever) now that Discover
+    -- exists, and slug is what LikeButton/BookmarkButton actually have in
+    -- scope from a DiscoverDeckSummary row. deck_owner_id is denormalized
+    -- (resolved once at write time, not joined through slug on every read)
+    -- so a future "likes on decks I own" query stays a plain indexed
+    -- equality. No FK on slug -> deck_publications rows persist forever
+    -- (unpublish only flips unpublished_at), so a like/bookmark survives an
+    -- unpublish and reappears on republish with no cleanup job.
+    CREATE TABLE IF NOT EXISTS deck_likes (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      deck_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, slug)
+    );
+    CREATE INDEX IF NOT EXISTS deck_likes_owner_idx ON deck_likes (deck_owner_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS deck_bookmarks (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      deck_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, slug)
+    );
+    CREATE INDEX IF NOT EXISTS deck_bookmarks_user_idx ON deck_bookmarks (user_id, created_at DESC);
+
+    ALTER TABLE deck_publications ADD COLUMN IF NOT EXISTS like_count INTEGER NOT NULL DEFAULT 0;
+    -- Not indexed for sorting -- like_count is deliberately never a Discover
+    -- sort field in v1 (see w2-discover-listing-api's open_questions).
+
     -- Content reports (social program W1) — the app's first moderation
     -- surface. kind covers 'game-result' from day one (app-level validation
     -- only, no CHECK) so a later wave reuses this table instead of a second

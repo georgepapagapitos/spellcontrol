@@ -123,6 +123,16 @@ async function stampPublication(
   await pool.query(`UPDATE deck_publications SET ${sets.join(', ')} WHERE deck_id = $1`, params);
 }
 
+/** Deterministic bookmark ordering — mirrors stampPublication's rationale:
+ *  two bookmarks made in the same test can land in the same millisecond. */
+async function stampBookmarkTime(userId: string, slug: string, createdAt: number): Promise<void> {
+  await pool.query(`UPDATE deck_bookmarks SET created_at = $3 WHERE user_id = $1 AND slug = $2`, [
+    userId,
+    slug,
+    createdAt,
+  ]);
+}
+
 function scryfallCard(id: string, oracleId: string, usd: string): ScryfallCard {
   return {
     id,
@@ -148,8 +158,11 @@ interface DecksResponseBody {
     estimatedValueUsd: number | null;
     viewCount: number;
     copyCount: number;
+    likeCount: number;
     publishedAt: number;
     cardOracleIds: string[];
+    likedByViewer: boolean;
+    bookmarkedByViewer: boolean;
   }>;
   page: number;
   hasMore: boolean;
@@ -515,5 +528,193 @@ describe('GET /api/discover/decks/commanders', () => {
       .get('/api/discover/decks/commanders')
       .query({ q: 'x'.repeat(41) });
     expect(tooLong.status).toBe(400);
+  });
+});
+
+describe('POST/DELETE /api/discover/decks/:slug/like', () => {
+  it('is idempotent on repeat like (like_count stays 1, still 201) and unlike returns it to 0', async () => {
+    const deck = await publishDeck();
+    const likerCookie = await makeUser(uid('disc-liker'));
+
+    const first = await request(app)
+      .post(`/api/discover/decks/${deck.slug}/like`)
+      .set('Cookie', likerCookie);
+    expect(first.status).toBe(201);
+    expect(first.body.likeCount).toBe(1);
+
+    const second = await request(app)
+      .post(`/api/discover/decks/${deck.slug}/like`)
+      .set('Cookie', likerCookie);
+    expect(second.status).toBe(201);
+    expect(second.body.likeCount).toBe(1);
+
+    const unlike = await request(app)
+      .delete(`/api/discover/decks/${deck.slug}/like`)
+      .set('Cookie', likerCookie);
+    expect(unlike.status).toBe(204);
+
+    const row = await pool.query<{ like_count: number }>(
+      `SELECT like_count FROM deck_publications WHERE slug = $1`,
+      [deck.slug]
+    );
+    expect(row.rows[0].like_count).toBe(0);
+  });
+
+  it('unlike without a prior like is a clean 204 no-op', async () => {
+    const deck = await publishDeck();
+    const likerCookie = await makeUser(uid('disc-liker-noop'));
+    const res = await request(app)
+      .delete(`/api/discover/decks/${deck.slug}/like`)
+      .set('Cookie', likerCookie);
+    expect(res.status).toBe(204);
+  });
+
+  it('404s liking an unpublished or nonexistent slug — never probes existence', async () => {
+    const likerCookie = await makeUser(uid('disc-liker-404'));
+
+    const nonexistent = await request(app)
+      .post(`/api/discover/decks/${uid('disc-nonexistent-slug')}/like`)
+      .set('Cookie', likerCookie);
+    expect(nonexistent.status).toBe(404);
+
+    const deck = await publishDeck();
+    await unpublish(deck.cookie, deck.deckId);
+    const unpublishedRes = await request(app)
+      .post(`/api/discover/decks/${deck.slug}/like`)
+      .set('Cookie', likerCookie);
+    expect(unpublishedRes.status).toBe(404);
+  });
+
+  it('requires auth', async () => {
+    const deck = await publishDeck();
+    const res = await request(app).post(`/api/discover/decks/${deck.slug}/like`);
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST/DELETE /api/discover/decks/:slug/bookmark', () => {
+  it('mirrors like/unlike idempotency: repeat bookmark is a 201 no-op, unbookmark is always 204', async () => {
+    const deck = await publishDeck();
+    const saverCookie = await makeUser(uid('disc-saver'));
+
+    const first = await request(app)
+      .post(`/api/discover/decks/${deck.slug}/bookmark`)
+      .set('Cookie', saverCookie);
+    expect(first.status).toBe(201);
+
+    const second = await request(app)
+      .post(`/api/discover/decks/${deck.slug}/bookmark`)
+      .set('Cookie', saverCookie);
+    expect(second.status).toBe(201);
+
+    const unsave = await request(app)
+      .delete(`/api/discover/decks/${deck.slug}/bookmark`)
+      .set('Cookie', saverCookie);
+    expect(unsave.status).toBe(204);
+
+    const unsaveAgain = await request(app)
+      .delete(`/api/discover/decks/${deck.slug}/bookmark`)
+      .set('Cookie', saverCookie);
+    expect(unsaveAgain.status).toBe(204);
+  });
+
+  it('404s bookmarking an unpublished or nonexistent slug', async () => {
+    const saverCookie = await makeUser(uid('disc-saver-404'));
+    const res = await request(app)
+      .post(`/api/discover/decks/${uid('disc-nonexistent-bm-slug')}/bookmark`)
+      .set('Cookie', saverCookie);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/discover/bookmarks', () => {
+  it('returns the exact same field set as GET /api/discover/decks — the folded shape-parity fix', async () => {
+    const cmdr = uid('Disco Bookmark Shape Cmdr');
+    const saverCookie = await makeUser(uid('disc-shape-saver'));
+    const deck = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+    await request(app).post(`/api/discover/decks/${deck.slug}/bookmark`).set('Cookie', saverCookie);
+
+    const listingRes = await request(app).get('/api/discover/decks').query({ commander: cmdr });
+    const bookmarksRes = await request(app)
+      .get('/api/discover/bookmarks')
+      .set('Cookie', saverCookie);
+
+    expect(listingRes.status).toBe(200);
+    expect(bookmarksRes.status).toBe(200);
+    expect(listingRes.body.decks).toHaveLength(1);
+    expect(bookmarksRes.body.decks).toHaveLength(1);
+
+    const listingKeys = Object.keys(listingRes.body.decks[0]).sort();
+    const bookmarkKeys = Object.keys(bookmarksRes.body.decks[0]).sort();
+    expect(bookmarkKeys).toEqual(listingKeys);
+    expect(bookmarksRes.body.decks[0].slug).toBe(deck.slug);
+    expect(bookmarksRes.body.decks[0].bookmarkedByViewer).toBe(true);
+  });
+
+  it('orders by bookmarked-at desc, and omits (without deleting) a target that later goes private', async () => {
+    const saverCookie = await makeUser(uid('disc-bm-order-saver'));
+    const saverId = await userIdFromCookie(saverCookie);
+    const a = await publishDeck();
+    const b = await publishDeck();
+
+    await request(app).post(`/api/discover/decks/${a.slug}/bookmark`).set('Cookie', saverCookie);
+    await request(app).post(`/api/discover/decks/${b.slug}/bookmark`).set('Cookie', saverCookie);
+    await stampBookmarkTime(saverId, a.slug, 1_000);
+    await stampBookmarkTime(saverId, b.slug, 2_000);
+
+    const ordered = await request(app).get('/api/discover/bookmarks').set('Cookie', saverCookie);
+    expect(slugsOf(ordered.body)).toEqual([b.slug, a.slug]);
+
+    await unpublish(b.cookie, b.deckId);
+
+    const afterUnpublish = await request(app)
+      .get('/api/discover/bookmarks')
+      .set('Cookie', saverCookie);
+    expect(slugsOf(afterUnpublish.body)).toEqual([a.slug]);
+
+    // The bookmark row itself still exists — omitted from this read, not
+    // deleted, so a re-publish makes it reappear with no cleanup job.
+    const raw = await pool.query(`SELECT 1 FROM deck_bookmarks WHERE user_id = $1 AND slug = $2`, [
+      saverId,
+      b.slug,
+    ]);
+    expect(raw.rowCount).toBe(1);
+  });
+
+  it('requires auth', async () => {
+    const res = await request(app).get('/api/discover/bookmarks');
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('GET /api/discover/decks — likedByViewer/bookmarkedByViewer', () => {
+  it('is correct for an authed caller and both false for a guest, in one request', async () => {
+    const cmdr = uid('Disco Viewer State Cmdr');
+    const deck = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+    const viewerCookie = await makeUser(uid('disc-viewer-state'));
+    await request(app).post(`/api/discover/decks/${deck.slug}/like`).set('Cookie', viewerCookie);
+    await request(app)
+      .post(`/api/discover/decks/${deck.slug}/bookmark`)
+      .set('Cookie', viewerCookie);
+
+    const authedRes = await request(app)
+      .get('/api/discover/decks')
+      .query({ commander: cmdr })
+      .set('Cookie', viewerCookie);
+    expect(authedRes.status).toBe(200);
+    expect(authedRes.body.decks[0].likedByViewer).toBe(true);
+    expect(authedRes.body.decks[0].bookmarkedByViewer).toBe(true);
+    expect(authedRes.body.decks[0].likeCount).toBe(1);
+
+    const guestRes = await request(app).get('/api/discover/decks').query({ commander: cmdr });
+    expect(guestRes.status).toBe(200);
+    expect(guestRes.body.decks[0].likedByViewer).toBe(false);
+    expect(guestRes.body.decks[0].bookmarkedByViewer).toBe(false);
+    // Guest still sees the true public count, same as the authed viewer.
+    expect(guestRes.body.decks[0].likeCount).toBe(1);
   });
 });

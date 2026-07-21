@@ -16,9 +16,16 @@ const { mockListDiscoverDecks, mockSearchCommanders } = vi.hoisted(() => ({
   mockListDiscoverDecks: vi.fn(),
   mockSearchCommanders: vi.fn(),
 }));
+// Named-export-complete: DiscoverDeckTile now also mounts LikeButton/
+// BookmarkButton, which import the like/bookmark client fns from this same
+// module — an incomplete mock would leave them undefined.
 vi.mock('../lib/discover-client', () => ({
   listDiscoverDecks: mockListDiscoverDecks,
   searchCommanders: mockSearchCommanders,
+  likeDeck: vi.fn(),
+  unlikeDeck: vi.fn(),
+  bookmarkDeck: vi.fn(),
+  unbookmarkDeck: vi.fn(),
 }));
 
 // The tile resolves commander art via useCardThumb (a batched network fetch)
@@ -52,8 +59,11 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     estimatedValueUsd: 245,
     viewCount: 340,
     copyCount: 12,
+    likeCount: 8,
     publishedAt: Date.now(),
     cardOracleIds: [],
+    likedByViewer: false,
+    bookmarkedByViewer: false,
     ...overrides,
   };
 }

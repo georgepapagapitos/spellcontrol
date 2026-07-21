@@ -63,6 +63,7 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
     bracket: 3,
     viewCount: 0,
     copyCount: 0,
+    likeCount: 0,
     publishedAt: Date.now(),
     ...overrides,
   };
@@ -150,5 +151,68 @@ describe('hydratePublicationRows', () => {
     expect(result.cardOracleIds).toEqual([]);
     expect(result.estimatedValueUsd).toBeNull();
     expect(result.slug).toBe('slug-missing');
+  });
+
+  it('leaves likedByViewer/bookmarkedByViewer false for every row when no viewerId is passed (guest)', async () => {
+    await makeUser('hyd-user-3', 'hyd-owner-3');
+    await makeDeck('hyd-user-3', 'deck-guest', { id: 'deck-guest', name: 'Deck Guest', cards: [] });
+    const rows = [
+      listingRow({
+        userId: 'hyd-user-3',
+        deckId: 'deck-guest',
+        slug: 'slug-guest',
+        likeCount: 12,
+      }),
+    ];
+    const [result] = await hydratePublicationRows(rows);
+    expect(result.likeCount).toBe(12);
+    expect(result.likedByViewer).toBe(false);
+    expect(result.bookmarkedByViewer).toBe(false);
+  });
+
+  it('batch-checks deck_likes/deck_bookmarks for the given viewerId, scoped per row with no cross-slug bleed', async () => {
+    await makeUser('hyd-user-4', 'hyd-owner-4');
+    await makeUser('hyd-viewer-4', 'hyd-viewer-username-4');
+    await makeDeck('hyd-user-4', 'deck-liked', { id: 'deck-liked', name: 'Liked', cards: [] });
+    await makeDeck('hyd-user-4', 'deck-bookmarked', {
+      id: 'deck-bookmarked',
+      name: 'Bookmarked',
+      cards: [],
+    });
+    await makeDeck('hyd-user-4', 'deck-neither', {
+      id: 'deck-neither',
+      name: 'Neither',
+      cards: [],
+    });
+
+    await pool.query(
+      `INSERT INTO deck_likes (user_id, slug, deck_owner_id, created_at) VALUES ($1, $2, $3, $4)`,
+      ['hyd-viewer-4', 'slug-liked', 'hyd-user-4', Date.now()]
+    );
+    await pool.query(
+      `INSERT INTO deck_bookmarks (user_id, slug, deck_owner_id, created_at) VALUES ($1, $2, $3, $4)`,
+      ['hyd-viewer-4', 'slug-bookmarked', 'hyd-user-4', Date.now()]
+    );
+
+    const rows = [
+      listingRow({ userId: 'hyd-user-4', deckId: 'deck-liked', slug: 'slug-liked' }),
+      listingRow({ userId: 'hyd-user-4', deckId: 'deck-bookmarked', slug: 'slug-bookmarked' }),
+      listingRow({ userId: 'hyd-user-4', deckId: 'deck-neither', slug: 'slug-neither' }),
+    ];
+    const results = await hydratePublicationRows(rows, 'hyd-viewer-4');
+    const byslug = new Map(results.map((r) => [r.slug, r]));
+
+    expect(byslug.get('slug-liked')).toMatchObject({
+      likedByViewer: true,
+      bookmarkedByViewer: false,
+    });
+    expect(byslug.get('slug-bookmarked')).toMatchObject({
+      likedByViewer: false,
+      bookmarkedByViewer: true,
+    });
+    expect(byslug.get('slug-neither')).toMatchObject({
+      likedByViewer: false,
+      bookmarkedByViewer: false,
+    });
   });
 });
