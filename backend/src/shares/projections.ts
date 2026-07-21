@@ -23,6 +23,7 @@ import {
   type BinderDef,
   type EnrichedCard,
 } from '@spellcontrol/binder-routing';
+import type { GameEvent } from '@spellcontrol/game-core';
 import { anyBinderUsesTagRules, decorateCardsWithTags } from './card-tags';
 
 /** Owner identity passed to every project* function — same shape everywhere
@@ -585,5 +586,96 @@ export function projectBinder(
     totalCards: materialized.totalCards,
     totalValue: materialized.totalValue,
     updatedAt: asNumber(target.updatedAt),
+  };
+}
+
+/** One seat in a shared game recap — no account identity, ever (see
+ *  projectGameResult's own doc comment). */
+export interface PublicGameResultParticipant {
+  seat: number;
+  name: string;
+  deckId: string | null;
+  deckName: string | null;
+  commander: string | null;
+  colorIdentity: string[];
+  finalLife: number;
+  eliminated: boolean;
+}
+
+export interface PublicGameResultShare {
+  sessionId: string;
+  format: string;
+  startingLife: number;
+  winnerSeat: number | null;
+  participants: PublicGameResultParticipant[];
+  notableEvents: GameEvent[] | null;
+  endedAt: number;
+  durationMs: number;
+}
+
+/**
+ * Project a `game_results` row (the owner-agnostic canonical finished-game
+ * record — see shares/context.ts) to its public recap shape. Defensive
+ * parsing mirrors every other projector in this file, even though this row
+ * is backend-written rather than client-supplied JSONB.
+ *
+ * Deliberately omits `userId` AND `username` from every participant (only
+ * the in-game `name` ships) — mirrors the game-night RSVP precedent: other
+ * players didn't personally choose to publish this recap, so their account
+ * identity stays private even though their table conduct doesn't. Also
+ * omits the raw `code` (meaningless post-game). Returns null for
+ * malformed/missing data rather than throwing.
+ *
+ * Unlike every other project* function here, this takes no `ownerUsername`
+ * — the sharer's identity is attached separately by the OG/share-consuming
+ * layer (see shares/og.ts), since the participant list itself never needs it.
+ */
+export function projectGameResult(raw: unknown): PublicGameResultShare | null {
+  const r = asRecord(raw);
+  if (!r) return null;
+  const sessionId = asString(r.sessionId);
+  const format = asString(r.format);
+  const startingLife = asNumber(r.startingLife);
+  const endedAt = asNumber(r.endedAt);
+  const durationMs = asNumber(r.durationMs);
+  if (
+    !sessionId ||
+    !format ||
+    startingLife === undefined ||
+    endedAt === undefined ||
+    durationMs === undefined ||
+    !Array.isArray(r.participants)
+  ) {
+    return null;
+  }
+
+  const participants: PublicGameResultParticipant[] = [];
+  for (const rawParticipant of r.participants) {
+    const p = asRecord(rawParticipant);
+    if (!p) continue;
+    const seat = asNumber(p.seat);
+    const name = asString(p.name);
+    if (seat === undefined || !name) continue;
+    participants.push({
+      seat,
+      name,
+      deckId: asString(p.deckId) ?? null,
+      deckName: asString(p.deckName) ?? null,
+      commander: asString(p.commander) ?? null,
+      colorIdentity: asStringArray(p.colorIdentity) ?? [],
+      finalLife: asNumber(p.finalLife) ?? 0,
+      eliminated: asBool(p.eliminated) ?? false,
+    });
+  }
+
+  return {
+    sessionId,
+    format,
+    startingLife,
+    winnerSeat: typeof r.winnerSeat === 'number' ? r.winnerSeat : null,
+    participants,
+    notableEvents: Array.isArray(r.notableEvents) ? (r.notableEvents as GameEvent[]) : null,
+    endedAt,
+    durationMs,
   };
 }

@@ -63,7 +63,7 @@ async function setSnapshot(
 
 async function mintShare(
   cookie: string,
-  kind: 'collection' | 'binder' | 'deck' | 'list' | 'cube',
+  kind: 'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'game-result',
   resourceId?: string
 ): Promise<string> {
   const body: Record<string, unknown> = { kind };
@@ -103,6 +103,48 @@ async function setDisplayName(cookie: string, name: string): Promise<void> {
 async function userIdFromCookie(cookie: string): Promise<string> {
   const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
   return me.body.user.id as string;
+}
+
+/** Insert a canonical game_results row directly (bypassing a live game
+ *  session) — this file only needs the row to exist, not to simulate play. */
+async function insertGameResult(opts: {
+  sessionId: string;
+  format?: string;
+  winnerSeat?: number | null;
+  participants: Array<{ seat: number; userId: string | null; name: string }>;
+  notableEvents?: Array<Record<string, unknown>>;
+}): Promise<void> {
+  const participants = opts.participants.map((p) => ({
+    seat: p.seat,
+    userId: p.userId,
+    username: null,
+    name: p.name,
+    deckId: null,
+    deckName: null,
+    commander: null,
+    colorIdentity: [],
+    finalLife: 40,
+    eliminated: false,
+  }));
+  const winnerSeat = opts.winnerSeat ?? null;
+  const winnerUserId =
+    winnerSeat != null
+      ? (opts.participants.find((p) => p.seat === winnerSeat)?.userId ?? null)
+      : null;
+  await pool.query(
+    `INSERT INTO game_results
+       (session_id, code, format, starting_life, winner_seat, winner_user_id,
+        started_at, ended_at, duration_ms, participants, notable_events, created_at)
+     VALUES ($1, 'CODE', $2, 40, $3, $4, 1000, 2000, 1000, $5, $6, 2000)`,
+    [
+      opts.sessionId,
+      opts.format ?? 'commander',
+      winnerSeat,
+      winnerUserId,
+      JSON.stringify(participants),
+      JSON.stringify(opts.notableEvents ?? []),
+    ]
+  );
 }
 
 function makeLandingDeck(
@@ -452,6 +494,66 @@ describe('lookupShareLandingMeta', () => {
     const meta = await lookupShareLandingMeta(token);
     expect(meta!.title).toBe("OG Display Name's collection — SpellControl");
     expect(meta!.description).toContain('shared by OG Display Name');
+  });
+
+  it('builds game-result metadata crediting the winner, with player + notable-moment counts', async () => {
+    const cookie = await makeUser('og-gr-winner');
+    const userId = await userIdFromCookie(cookie);
+    await insertGameResult({
+      sessionId: 'og-gr-session-1',
+      winnerSeat: 0,
+      participants: [
+        { seat: 0, userId, name: 'Champ' },
+        { seat: 1, userId: null, name: 'Runner-up' },
+      ],
+      notableEvents: [
+        { id: 'e1', ts: 1, kind: 'eliminate', actorSeat: null, targetSeat: 1 },
+        { id: 'e2', ts: 2, kind: 'end', actorSeat: null, targetSeat: 0 },
+      ],
+    });
+    const token = await mintShare(cookie, 'game-result', 'og-gr-session-1');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).not.toBeNull();
+    expect(meta!.title).toBe('Champ wins — commander recap');
+    expect(meta!.description).toContain('A commander game with 2 players');
+    expect(meta!.description).toContain('2 notable moments');
+    expect(meta!.description).toContain('Shared by og-gr-winner on SpellControl');
+    // No image field on this kind yet (ShareLandingMeta has none on any kind
+    // today) — text-only OG, same as every other kind.
+    expect(meta!.image).toBeUndefined();
+  });
+
+  it('falls back to a winner-less title and omits the notable-moment clause for a declared-draw game', async () => {
+    const cookie = await makeUser('og-gr-draw');
+    const userId = await userIdFromCookie(cookie);
+    await insertGameResult({
+      sessionId: 'og-gr-session-2',
+      winnerSeat: null,
+      participants: [
+        { seat: 0, userId, name: 'Alice' },
+        { seat: 1, userId: null, name: 'Bob' },
+      ],
+    });
+    const token = await mintShare(cookie, 'game-result', 'og-gr-session-2');
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).not.toBeNull();
+    expect(meta!.title).toBe('commander game recap');
+    expect(meta!.description).not.toContain('notable moment');
+  });
+
+  it('falls back gracefully (null) when the game_results row behind a share token is gone', async () => {
+    const cookie = await makeUser('og-gr-missing');
+    const userId = await userIdFromCookie(cookie);
+    await insertGameResult({
+      sessionId: 'og-gr-session-3',
+      winnerSeat: 0,
+      participants: [{ seat: 0, userId, name: 'Alice' }],
+    });
+    const token = await mintShare(cookie, 'game-result', 'og-gr-session-3');
+    await pool.query(`DELETE FROM game_results WHERE session_id = $1`, ['og-gr-session-3']);
+    shareCache.clear();
+    const meta = await lookupShareLandingMeta(token);
+    expect(meta).toBeNull();
   });
 });
 

@@ -776,3 +776,16 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     mode: state.mode,
   };
 }
+
+const MAX_NOTABLE_EVENTS = 20;
+const NOTABLE_KINDS: ReadonlySet<GameEvent['kind']> = new Set(['eliminate', 'end', 'designation']);
+
+/** Categorical, deterministic filter over a finished game's log — the events
+ *  worth surfacing in a public recap. No free-text kinds (see 'note'
+ *  exclusion). Preserves chronological order; keeps the most recent
+ *  MAX_NOTABLE_EVENTS if more qualify, so a pathological game with hundreds
+ *  of eliminations/designation-flips doesn't bloat the persisted row. */
+export function selectNotableEvents(events: GameEvent[]): GameEvent[] {
+  const notable = events.filter((e) => NOTABLE_KINDS.has(e.kind));
+  return notable.length > MAX_NOTABLE_EVENTS ? notable.slice(-MAX_NOTABLE_EVENTS) : notable;
+}

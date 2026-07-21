@@ -32,6 +32,47 @@ async function userIdFromCookie(cookie: string): Promise<string> {
   return me.body.user.id as string;
 }
 
+/** Seeds a game_results row for `username` (as its sole participant) and
+ *  mints a 'game-result' share of it. Returns the sharer's cookie/id and the
+ *  share token — the token is what a game-result report's targetId is. */
+async function makeGameResultShare(
+  username: string,
+  sessionId: string
+): Promise<{ cookie: string; sharerId: string; token: string }> {
+  const cookie = await makeUser(username);
+  const sharerId = await userIdFromCookie(cookie);
+  await pool.query(
+    `INSERT INTO game_results
+       (session_id, code, format, starting_life, winner_seat, winner_user_id,
+        started_at, ended_at, duration_ms, participants, notable_events, created_at)
+     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1000, 2000, 1000, $3, '[]', 2000)`,
+    [
+      sessionId,
+      sharerId,
+      JSON.stringify([
+        {
+          seat: 0,
+          userId: sharerId,
+          username: null,
+          name: username,
+          deckId: null,
+          deckName: null,
+          commander: null,
+          colorIdentity: [],
+          finalLife: 40,
+          eliminated: false,
+        },
+      ]),
+    ]
+  );
+  const share = await request(app)
+    .post('/api/shares')
+    .set('Cookie', cookie)
+    .send({ kind: 'game-result', resourceId: sessionId });
+  expect(share.status).toBe(201);
+  return { cookie, sharerId, token: share.body.share.token as string };
+}
+
 function makeDeck(id: string): Record<string, unknown> {
   return {
     id,
@@ -180,10 +221,39 @@ describe('POST /api/reports', () => {
     expect(res.body.error).toBe('This content is no longer available.');
   });
 
-  it('404s a game-result target — no live public surface exists yet', async () => {
+  it('404s an unrecognized game-result token', async () => {
     const res = await request(app)
       .post('/api/reports')
       .send({ kind: 'game-result', targetId: 'session-1', reason: 'x' });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('This content is no longer available.');
+  });
+
+  it('resolves a game-result report’s target_owner_id to the sharer via a live share token', async () => {
+    const { token, sharerId } = await makeGameResultShare('rep-gr-sharer', 'rep-gr-session-1');
+
+    const res = await request(app)
+      .post('/api/reports')
+      .send({ kind: 'game-result', targetId: token, reason: 'Toxic table talk.' });
+    expect(res.status).toBe(201);
+
+    const row = (
+      await pool.query(
+        `SELECT target_owner_id FROM content_reports WHERE target_id = $1 AND kind = 'game-result'`,
+        [token]
+      )
+    ).rows[0];
+    expect(row.target_owner_id).toBe(sharerId);
+  });
+
+  it('returns the distinct "no longer available" response for a revoked game-result share token', async () => {
+    const { cookie, token } = await makeGameResultShare('rep-gr-revoked', 'rep-gr-session-2');
+    const revoke = await request(app).delete(`/api/shares/${token}`).set('Cookie', cookie);
+    expect(revoke.status).toBe(204);
+
+    const res = await request(app)
+      .post('/api/reports')
+      .send({ kind: 'game-result', targetId: token, reason: 'x' });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('This content is no longer available.');
   });

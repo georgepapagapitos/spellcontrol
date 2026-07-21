@@ -45,10 +45,13 @@ async function makeFriends(aId: string, bId: string): Promise<void> {
 }
 
 let resultSeq = 0;
-/** Insert a canonical result directly, for read-route tests. */
+/** Insert a canonical result directly, for read-route tests. Omitting
+ *  `notableEvents` leaves the column NULL — the same shape a legacy,
+ *  pre-migration row reads as. */
 async function insertResult(opts: {
   winnerUserId: string | null;
   participants: Array<{ userId: string | null; deckId?: string | null; deckName?: string | null }>;
+  notableEvents?: Array<Record<string, unknown>>;
 }): Promise<string> {
   const sessionId = `res-${++resultSeq}`;
   const participants = opts.participants.map((p, i) => ({
@@ -66,9 +69,14 @@ async function insertResult(opts: {
   await pool.query(
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
-        started_at, ended_at, duration_ms, participants, created_at)
-     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, 100, 99, $3, 100)`,
-    [sessionId, opts.winnerUserId, JSON.stringify(participants)]
+        started_at, ended_at, duration_ms, participants, notable_events, created_at)
+     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, 100, 99, $3, $4, 100)`,
+    [
+      sessionId,
+      opts.winnerUserId,
+      JSON.stringify(participants),
+      opts.notableEvents === undefined ? null : JSON.stringify(opts.notableEvents),
+    ]
   );
   return sessionId;
 }
@@ -305,5 +313,42 @@ describe('GET /api/game-results/h2h/:friendId', () => {
 
     const res = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', alice);
     expect(res.body.friend.displayName).toBe('Bobby');
+  });
+
+  it('carries notableEvents through for a row that has them', async () => {
+    const alice = await makeUser('h2h-notable-alice');
+    await makeUser('h2h-notable-bob');
+    const aliceId = await userId('h2h-notable-alice');
+    const bobId = await userId('h2h-notable-bob');
+    await makeFriends(aliceId, bobId);
+    const notableEvents = [
+      { id: 'e1', ts: 1, kind: 'eliminate', actorSeat: null, targetSeat: 1 },
+      { id: 'e2', ts: 2, kind: 'end', actorSeat: null, targetSeat: 0 },
+    ];
+    await insertResult({
+      winnerUserId: aliceId,
+      participants: [{ userId: aliceId }, { userId: bobId }],
+      notableEvents,
+    });
+
+    const res = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', alice);
+    expect(res.body.results[0].notableEvents).toEqual(notableEvents);
+  });
+
+  it('reads notableEvents as null for a legacy pre-migration row', async () => {
+    const alice = await makeUser('h2h-legacy-alice');
+    await makeUser('h2h-legacy-bob');
+    const aliceId = await userId('h2h-legacy-alice');
+    const bobId = await userId('h2h-legacy-bob');
+    await makeFriends(aliceId, bobId);
+    // No notableEvents passed — the column stays NULL, exactly like a row
+    // written before this migration.
+    await insertResult({
+      winnerUserId: aliceId,
+      participants: [{ userId: aliceId }, { userId: bobId }],
+    });
+
+    const res = await request(app).get(`/api/game-results/h2h/${bobId}`).set('Cookie', alice);
+    expect(res.body.results[0].notableEvents).toBeNull();
   });
 });

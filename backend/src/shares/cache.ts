@@ -46,6 +46,10 @@ export interface ShareDataView {
   binders: unknown[];
   decks: unknown[];
   cubes: unknown[];
+  /** The single `game_results` row for a kind='game-result' share; absent
+   *  (undefined) for every other kind and when the session id doesn't
+   *  resolve to a row. */
+  gameResult?: unknown;
 }
 
 export interface ShareContext {

@@ -210,6 +210,29 @@ export async function lookupShareLandingMeta(token: string): Promise<ShareLandin
       url,
     };
   }
+  if (share.kind === 'game-result') {
+    // No image field yet (ShareLandingMeta has none on any kind today) — this
+    // ships text-only OG, same as every other kind.
+    const gr = asRecord(data.gameResult);
+    if (!gr) return null;
+    const format = asString(gr.format) ?? 'Magic';
+    const winnerSeat =
+      typeof gr.winnerSeat === 'number' && Number.isFinite(gr.winnerSeat) ? gr.winnerSeat : null;
+    const participants = Array.isArray(gr.participants) ? gr.participants : [];
+    const winner =
+      winnerSeat !== null
+        ? asRecord(participants.find((p) => asRecord(p)?.seat === winnerSeat))
+        : null;
+    const winnerName = winner ? asString(winner.name) : undefined;
+    const notableEvents = Array.isArray(gr.notableEvents) ? gr.notableEvents : [];
+    const title = winnerName ? `${winnerName} wins — ${format} recap` : `${format} game recap`;
+    const description = `A ${format} game with ${plural(participants.length, 'player', 'players')}${
+      notableEvents.length > 0
+        ? `, ${plural(notableEvents.length, 'notable moment', 'notable moments')}`
+        : ''
+    }. Shared by ${owner} on ${SITE_NAME}.`;
+    return { title, description, url };
+  }
   return null;
 }
 

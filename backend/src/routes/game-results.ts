@@ -4,6 +4,7 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { areFriends } from '../friends/relations';
 import type { GameResultParticipant, PublicGameResult } from '../games/result-types';
+import type { GameEvent } from '@spellcontrol/game-core';
 
 export const gameResultsRouter: Router = Router();
 
@@ -25,6 +26,7 @@ interface ResultRow {
   ended_at: string;
   duration_ms: string;
   participants: GameResultParticipant[];
+  notable_events: GameEvent[] | null;
 }
 
 function toPublic(r: ResultRow): PublicGameResult {
@@ -39,6 +41,7 @@ function toPublic(r: ResultRow): PublicGameResult {
     endedAt: Number(r.ended_at),
     durationMs: Number(r.duration_ms),
     participants: r.participants,
+    notableEvents: r.notable_events,
   };
 }
 
@@ -135,7 +138,7 @@ gameResultsRouter.get(
 
     const rows = await pool.query<ResultRow>(
       `SELECT session_id, code, format, starting_life, winner_seat, winner_user_id,
-              started_at, ended_at, duration_ms, participants
+              started_at, ended_at, duration_ms, participants, notable_events
        FROM game_results
        WHERE participants @> $1::jsonb AND participants @> $2::jsonb
        ORDER BY ended_at DESC
