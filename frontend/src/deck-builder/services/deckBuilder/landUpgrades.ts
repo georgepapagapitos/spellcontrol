@@ -19,6 +19,7 @@
  */
 import type { ScryfallCard } from '@/deck-builder/types';
 import { landPowerScore } from './landPower';
+import { fitsColorIdentity } from '@/lib/deck-validation';
 import { producedManaColors, isManaSourceType } from '@/lib/mana-sources';
 import { weightedColorDemand, colorSourceCounts, fetchableBasicColors } from './manabaseMath';
 import { isColorShort, shortfallThresholdsForCurve } from './colorShortfall';
@@ -121,6 +122,10 @@ export function computeLandUpgrades(
   for (const c of candidateLands) {
     if (!isLand(c) || inDeckNames.has(c.name)) continue;
     if (/\bbasic\b/.test((c.type_line || '').toLowerCase())) continue; // a spare basic isn't an upgrade
+    // The card's OWN identity must fit the deck's — a UR shockland still
+    // produces usable U in a mono-U deck (so landColors passes it) but isn't
+    // Commander-legal there. The owned-collection pool arrives unfiltered.
+    if (!fitsColorIdentity(c, identity)) continue;
     const score = landPowerScore(c, identity);
     const colors = landColors(c, identity);
     if (colors.size === 0 && score === 0) continue;
