@@ -252,8 +252,8 @@
   right: 0.3rem;
   padding: 0.05rem 0.35rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.72);
-  color: #fff;
+  background: var(--art-scrim);
+  color: var(--art-scrim-text);
   font-size: var(--text-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -277,7 +277,7 @@
 .card-group-annotation .verdict-chip {
   font-size: var(--text-xs);
   padding: 0.02rem 0.28rem;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--art-scrim);
 }
 
 .card-group-name {

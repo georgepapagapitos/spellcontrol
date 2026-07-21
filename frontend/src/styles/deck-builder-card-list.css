@@ -65,7 +65,7 @@
   height: 1.15rem;
   padding: 0 0.28rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--art-scrim);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   font-family: var(--font-mono);
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */
@@ -86,7 +86,7 @@
 .deck-card-grid-badges .card-list-binder-badge {
   margin-left: 0;
   padding: 0.2rem;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--art-scrim);
   border: 1px solid color-mix(in srgb, var(--binder-color, var(--accent)) 55%, transparent);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
@@ -170,8 +170,8 @@
   position: absolute;
   top: 0.4rem;
   left: 0.4rem;
-  background: rgba(0, 0, 0, 0.7);
-  color: #fff;
+  background: var(--art-scrim);
+  color: var(--art-scrim-text);
   font-size: var(--text-xs);
   font-weight: 700;
   padding: 0.15rem 0.45rem;
@@ -188,9 +188,9 @@
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--art-scrim);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  color: #fff;
+  color: var(--art-scrim-text);
 }
 
 .deck-card-grid-missing {
@@ -201,7 +201,7 @@
   height: 0.7rem;
   border-radius: 50%;
   background: var(--err-text);
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--art-scrim-text);
 }
 
 /* Precise partial-allocation badge on grid tiles. Replaces the binary
@@ -219,7 +219,7 @@
   font-weight: 700;
   line-height: 1.1;
   text-align: center;
-  border: 1px solid #fff;
+  border: 1px solid var(--art-scrim-text);
 }
 .deck-card-grid-alloc-unowned {
   background: var(--warn-bg);
