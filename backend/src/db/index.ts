@@ -391,6 +391,25 @@ export async function ensureSchema(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS friendships_pair_idx
       ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
 
+    -- Private playgroups (pods): name + owner, owner auto-membered at creation.
+    CREATE TABLE IF NOT EXISTS pods (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS pods_owner_idx ON pods(owner_user_id);
+
+    CREATE TABLE IF NOT EXISTS pod_members (
+      pod_id TEXT NOT NULL REFERENCES pods(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status TEXT NOT NULL, -- 'invited' | 'member'
+      invited_at BIGINT NOT NULL,
+      joined_at BIGINT,
+      PRIMARY KEY (pod_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS pod_members_user_idx ON pod_members(user_id);
+
     CREATE TABLE IF NOT EXISTS game_results (
       session_id TEXT PRIMARY KEY,
       code TEXT NOT NULL,

@@ -527,6 +527,51 @@ export const friendships = pgTable(
 );
 
 /**
+ * A private playgroup of friends who play together repeatedly. Minimal
+ * identity — name + owner — with a self-membership row auto-created for the
+ * owner at creation (mirrors game-night's "the host is going by definition").
+ * Ownership never transfers: the owner deletes the pod to end it.
+ */
+export const pods = pgTable(
+  'pods',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    ownerIdx: index('pods_owner_idx').on(t.ownerUserId),
+  })
+);
+
+/**
+ * Pod membership rows, one per (pod, user). 'invited' is a pending invite
+ * (owner-sent, friend-gated); 'member' is accepted (or the owner's own
+ * auto-created row). `joinedAt` is null until an invite is accepted.
+ */
+export const podMembers = pgTable(
+  'pod_members',
+  {
+    podId: text('pod_id')
+      .notNull()
+      .references(() => pods.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().$type<'invited' | 'member'>(),
+    invitedAt: bigint('invited_at', { mode: 'number' }).notNull(),
+    joinedAt: bigint('joined_at', { mode: 'number' }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.podId, t.userId] }),
+    userIdx: index('pod_members_user_idx').on(t.userId),
+  })
+);
+
+/**
  * Canonical record of a finished *online* game, keyed by the live session id.
  * Unlike `user_games` (per-user, synced, one divergent copy each), this is a
  * single shared row every participant reads, so head-to-head and leaderboards
@@ -819,6 +864,8 @@ export type GameNightRsvpRow = typeof gameNightRsvps.$inferSelect;
 export type GameNightOptionRow = typeof gameNightOptions.$inferSelect;
 export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
+export type PodRow = typeof pods.$inferSelect;
+export type PodMemberRow = typeof podMembers.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
 export type DeckPublicationRow = typeof deckPublications.$inferSelect;
 export type DeckLikeRow = typeof deckLikes.$inferSelect;
