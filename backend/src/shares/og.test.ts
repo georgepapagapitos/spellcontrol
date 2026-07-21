@@ -89,6 +89,33 @@ describe('buildShareHeadTags', () => {
     });
     expect(out).toContain('<meta property="og:image:alt" content="O&#39;Brien&#39;s deck"');
   });
+
+  it('omits noindex and includes an escaped canonical link when indexable', () => {
+    const out = buildShareHeadTags({
+      title: 'Lands Matter — commander deck',
+      description: '99 cards — view on SpellControl.',
+      url: 'https://spellcontrol.com/d/lands-matter?ref=x&y=1',
+      indexable: true,
+    });
+    expect(out).not.toContain('noindex');
+    expect(out).toContain(
+      '<link rel="canonical" href="https://spellcontrol.com/d/lands-matter?ref=x&amp;y=1" />'
+    );
+    // OG/Twitter tags are still emitted for an indexable page.
+    expect(out).toContain('<meta property="og:title"');
+  });
+
+  it('keeps noindex-always behavior byte-identical when indexable is absent', () => {
+    const meta = {
+      title: 'Lands Matter — shared by george',
+      description: 'A Commander deck shared by george on SpellControl.',
+      url: 'https://spellcontrol.com/s/abc123',
+    };
+    expect(buildShareHeadTags(meta)).toBe(buildShareHeadTags({ ...meta, indexable: false }));
+    const out = buildShareHeadTags(meta);
+    expect(out).toContain('<meta name="robots" content="noindex,nofollow"');
+    expect(out).not.toContain('canonical');
+  });
 });
 
 describe('cardArtUrl', () => {

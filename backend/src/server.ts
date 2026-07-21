@@ -28,7 +28,11 @@ import {
   lookupGameNightSeriesLandingMeta,
 } from './routes/game-nights';
 import { publicationsRouter } from './routes/publications';
-import { publicRouter } from './routes/public';
+import {
+  publicRouter,
+  lookupPublicDeckLandingMeta,
+  lookupPublicUserLandingMeta,
+} from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
@@ -901,6 +905,8 @@ if (existsSync(SPA_DIR)) {
   // index.html, but after every /api/* route so nothing here can shadow
   // the API surface.
   app.get('/s/:token', createShareLandingHandler(SPA_DIR));
+  app.get('/d/:token', createShareLandingHandler(SPA_DIR, lookupPublicDeckLandingMeta));
+  app.get('/u/:token', createShareLandingHandler(SPA_DIR, lookupPublicUserLandingMeta));
   app.get('/gn/s/:token', createShareLandingHandler(SPA_DIR, lookupGameNightSeriesLandingMeta));
   app.get('/gn/:token', createShareLandingHandler(SPA_DIR, lookupGameNightLandingMeta));
 

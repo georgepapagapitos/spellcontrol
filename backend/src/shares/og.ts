@@ -23,6 +23,14 @@ export interface ShareLandingMeta {
   url: string;
   /** Card-art `og:image` override (art_crop URL). Absent falls back to OG_IMAGE_URL. */
   image?: string;
+  /**
+   * When true, the landing page is crawlable: the noindex meta is omitted
+   * and a `<link rel="canonical">` is emitted instead. Absent/false keeps
+   * today's noindex-always behavior — every existing lookup (share tokens,
+   * game nights) leaves this unset on purpose; only public deck/profile
+   * pages (w1-public-routes-linkability) opt in.
+   */
+  indexable?: boolean;
 }
 
 export function escapeHtmlAttr(s: string): string {
@@ -35,14 +43,18 @@ export function escapeHtmlAttr(s: string): string {
 }
 
 /**
- * The block injected into the SPA shell's <head>. Always emits a
- * `robots: noindex,nofollow` meta — even for unknown tokens — so a
+ * The block injected into the SPA shell's <head>. Emits a
+ * `robots: noindex,nofollow` meta unless `meta.indexable` is true — so a
  * crawler that hits a stale or revoked share URL never indexes the
- * generic "loading…" shell. OG/Twitter tags are added only when we
- * have a real share to describe.
+ * generic "loading…" shell, while an indexable public deck/profile page
+ * gets a `<link rel="canonical">` instead. OG/Twitter tags are added only
+ * when we have a real share to describe.
  */
 export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
-  const lines = ['<meta name="robots" content="noindex,nofollow" />'];
+  const lines: string[] = [];
+  if (!meta?.indexable) {
+    lines.push('<meta name="robots" content="noindex,nofollow" />');
+  }
   if (meta) {
     const title = escapeHtmlAttr(meta.title);
     const description = escapeHtmlAttr(meta.description);
@@ -61,6 +73,9 @@ export function buildShareHeadTags(meta: ShareLandingMeta | null): string {
       `<meta name="twitter:description" content="${description}" />`,
       `<meta name="twitter:image" content="${image}" />`
     );
+    if (meta.indexable) {
+      lines.push(`<link rel="canonical" href="${url}" />`);
+    }
   }
   return lines.join('\n    ');
 }

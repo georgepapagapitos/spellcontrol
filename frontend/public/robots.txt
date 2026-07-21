@@ -12,6 +12,14 @@ Disallow: /s/
 # recipient-only URL as /s/ shares above — not for indexing.
 Disallow: /gn/
 
+# /u/<username> and /d/<slug> — public profile and deck landing pages — are
+# intentionally NOT disallowed. Unlike /s/ and /gn/ above, these are meant
+# to be indexed: absence of a Disallow line here is already "crawlable" per
+# robots.txt semantics, so no explicit Allow: line is needed. Indexability
+# is still gated per-page (a zero-publication user or an unknown/unpublished
+# slug renders <meta name="robots" content="noindex,nofollow">, everything
+# else gets <link rel="canonical"> — see backend/src/shares/og.ts).
+
 # The OAuth callback URL is single-use, user-bound, and contains
 # short-lived state — never useful in search.
 Disallow: /oauth/callback
