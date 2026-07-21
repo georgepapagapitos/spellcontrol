@@ -7,7 +7,7 @@ import { Tabs } from './Tabs';
 import { SearchPill } from './SearchPill';
 import { formatRelativeTime } from '../lib/format-time';
 import { formatIdentity } from '../lib/display-name';
-import { prefersReducedMotion } from '../lib/use-list-flip';
+import { scrollToHeading } from '../lib/scroll-to-heading';
 import {
   searchUsers,
   sendFriendRequest,
@@ -155,14 +155,7 @@ export function FriendsManagement() {
   // "Friends" instead of silently at the top of a long Settings page.
   useEffect(() => {
     if (tab === 'friends') return;
-    const heading = document.getElementById('you-friends-group-title');
-    if (!heading) return;
-    heading.scrollIntoView({
-      block: 'start',
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    });
-    heading.tabIndex = -1;
-    heading.focus();
+    scrollToHeading('you-friends-group-title');
   }, [tab]);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
