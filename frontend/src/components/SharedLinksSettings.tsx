@@ -27,6 +27,7 @@ const KIND_LABELS: Record<ShareKind, string> = {
   list: 'List',
   cube: 'Cube',
   feedback: 'Deck feedback',
+  'game-result': 'Game recap',
 };
 
 interface ResolvedLabel {
@@ -111,6 +112,9 @@ export function SharedLinksSettings() {
 
   const resolveLabel = (s: ShareRow): ResolvedLabel => {
     if (s.kind === 'collection') return { name: 'Your collection', deleted: false };
+    // A game_results row is an immutable historical record — never deletable
+    // from the app — so, like 'collection' above, this is never "deleted".
+    if (s.kind === 'game-result') return { name: 'Game recap', deleted: false };
     if (s.kind === 'deck' || s.kind === 'feedback') {
       const d = decks.find((x) => x.id === s.resourceId);
       return d ? { name: d.name, deleted: false } : { name: 'Deleted deck', deleted: true };

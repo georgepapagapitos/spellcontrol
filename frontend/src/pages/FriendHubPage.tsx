@@ -23,6 +23,9 @@ const KIND_META: Record<ShareKind, { label: string; plural: string; Icon: typeof
   binder: { label: 'Binder', plural: 'Binders', Icon: FolderOpen },
   list: { label: 'List', plural: 'Lists', Icon: ListChecks },
   feedback: { label: 'Deck feedback', plural: 'Deck feedback', Icon: Layers },
+  // Not in KIND_ORDER (see below) — same reasoning as 'feedback': this hub
+  // browses a friend's owned resources, and a game recap isn't one.
+  'game-result': { label: 'Game recap', plural: 'Game recaps', Icon: Layers },
 };
 const KIND_ORDER: ShareKind[] = ['deck', 'collection', 'cube', 'binder', 'list'];
 

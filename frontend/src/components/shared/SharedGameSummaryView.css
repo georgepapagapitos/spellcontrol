@@ -1,0 +1,112 @@
+/* SharedGameSummaryView — public recap for a finished online game
+   (/s/:token, kind='game-result'). Narrow single-column reading width
+   (unlike the wide card-grid Shared*View pages): a participant list and a
+   plain-sentence moments list never need the base .shared-view 1200px
+   column, so this overrides just the max-width (still centered via the
+   inherited .shared-view margin: 0 auto). */
+.game-summary-view {
+  max-width: 640px;
+}
+
+.game-summary-winner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.game-summary-winner-icon {
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.game-summary-winner-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.game-summary-winner-name {
+  margin: 0;
+}
+
+.game-summary-participants {
+  list-style: none;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+}
+
+.game-summary-participant {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.game-summary-participant:first-child {
+  padding-top: 0;
+}
+
+.game-summary-participant:last-child {
+  border-bottom: none;
+}
+
+.game-summary-participant-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.game-summary-participant-deck,
+.game-summary-participant-commander {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.game-summary-participant-life {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-summary-participant-badge {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--err-bg);
+  border: 1px solid var(--err-border);
+  color: var(--err-text);
+}
+
+.game-summary-moments {
+  margin-top: var(--space-6);
+}
+
+.game-summary-moments-list {
+  margin: var(--space-3) 0 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.game-summary-report-btn {
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .game-summary-report-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

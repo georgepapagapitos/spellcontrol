@@ -1,3 +1,5 @@
+import type { GameEvent } from './game-state';
+
 /**
  * Public share payload types. Mirror backend/src/shares/projections.ts —
  * keep these in lockstep when fields change. Backend is the contract; this
@@ -5,8 +7,16 @@
  */
 
 /** 'feedback' is a deck share whose viewers can also submit suggestions —
- *  same PublicDeck payload, different viewer UI. */
-export type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback';
+ *  same PublicDeck payload, different viewer UI. 'game-result' shares a
+ *  finished online game's canonical recap — see PublicGameResultShare. */
+export type ShareKind =
+  | 'collection'
+  | 'binder'
+  | 'deck'
+  | 'list'
+  | 'cube'
+  | 'feedback'
+  | 'game-result';
 
 /** Who can open a share. 'direct' = addressed to one friend (the addressee). */
 export type ShareAudience = 'link' | 'friends' | 'direct';
@@ -185,10 +195,36 @@ export interface PublicCube {
   savedAt?: number;
 }
 
+/** One seat in a shared game recap — no account identity, ever (mirrors
+ *  backend's projectGameResult: only the in-game `name` ships, never
+ *  `userId`/`username`). */
+export interface PublicGameResultParticipant {
+  seat: number;
+  name: string;
+  deckId: string | null;
+  deckName: string | null;
+  commander: string | null;
+  colorIdentity: string[];
+  finalLife: number;
+  eliminated: boolean;
+}
+
+export interface PublicGameResultShare {
+  sessionId: string;
+  format: string;
+  startingLife: number;
+  winnerSeat: number | null;
+  participants: PublicGameResultParticipant[];
+  notableEvents: GameEvent[] | null;
+  endedAt: number;
+  durationMs: number;
+}
+
 export type PublicShareResponse =
   | { kind: 'collection'; data: PublicCollection }
   | { kind: 'binder'; data: PublicBinder }
   | { kind: 'deck'; data: PublicDeck }
   | { kind: 'feedback'; data: PublicDeck }
   | { kind: 'list'; data: PublicList }
-  | { kind: 'cube'; data: PublicCube };
+  | { kind: 'cube'; data: PublicCube }
+  | { kind: 'game-result'; data: PublicGameResultShare };

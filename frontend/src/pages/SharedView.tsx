@@ -10,6 +10,7 @@ import { SharedListView } from '../components/shared/SharedListView';
 import { SharedCubeView } from '../components/shared/SharedCubeView';
 import { SharedShell, NotFoundView, ErrorView } from '../components/shared/SharedShell';
 import { DeckFeedbackView } from '../components/shared/DeckFeedbackView';
+import { SharedGameSummaryView } from '../components/shared/SharedGameSummaryView';
 import { BrandMark } from '../components/shared/BrandMark';
 import { CopyDeckButton } from '../components/shared/CopyDeckButton';
 import { CopyCubeButton } from '../components/shared/CopyCubeButton';
@@ -137,6 +138,13 @@ function SharedViewInner({ token }: { token: string }) {
     return (
       <SharedShell action={<CopyCubeButton data={payload.data} />}>
         <SharedCubeView data={payload.data} />
+      </SharedShell>
+    );
+  }
+  if (payload.kind === 'game-result') {
+    return (
+      <SharedShell>
+        <SharedGameSummaryView data={payload.data} token={token} />
       </SharedShell>
     );
   }
