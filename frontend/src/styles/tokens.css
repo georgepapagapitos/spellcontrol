@@ -60,6 +60,10 @@
   /* ── Typography ───────────────────────────────────────────────────────── */
   --font-serif: 'Eczar', 'Georgia', serif;
   --font-mono: 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+  /* Label face (restyle T53 Phase 2) — condensed grotesque for chrome, tab,
+     and tape labels only (always uppercase + letter-spaced there); body
+     text stays --font-serif. Loaded in index.html beside Eczar/Plex. */
+  --font-label: 'Archivo Narrow', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
 
   /* Type scale — 8 steps. Use these instead of raw rem values so adjacent
      sizes don't drift apart by a single pixel and look like accidents. */
@@ -114,6 +118,18 @@
      themes.css overrides per data-scheme (light = warm ink, dark = pale).
      Fallback mirrors the light scheme (matches the color-scheme pin above). */
   --grain: rgba(88, 70, 42, 0.05);
+
+  /* App chrome (leather) — the header + mobile tab bar material (restyle
+     T53 Phase 2). Light schemes keep this theme-invariant warm leather (the
+     dark-cover-on-bright-pages binder signature); dark schemes re-derive
+     tonally from the guild's own ground in themes.css so Dimir stays navy
+     and Gruul stays scorched. Verified contrast on this leather:
+     --chrome-text 13.3:1, --chrome-text-muted 6.9:1. */
+  --chrome-bg: #211d18;
+  --chrome-surface: #2d2820;
+  --chrome-text: #ece5d4;
+  --chrome-text-muted: #b0a68f;
+  --chrome-border: #3a342c;
 
   /* ── Motion ───────────────────────────────────────────────────────────── */
   /* Motion language tokens — see STYLE_GUIDE.md § Motion for when to use

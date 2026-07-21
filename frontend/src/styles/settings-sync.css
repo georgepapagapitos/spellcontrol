@@ -12,7 +12,7 @@
   border: none;
   background: none;
   border-radius: var(--radius);
-  color: var(--text-secondary);
+  color: var(--chrome-text-muted);
   text-decoration: none;
   font-size: var(--text-sm);
   cursor: pointer;
@@ -20,21 +20,24 @@
 
 @media (hover: hover) and (pointer: fine) {
   .site-nav-settings:hover {
-    color: var(--text-primary);
-    background: var(--surface-raised);
+    color: var(--chrome-text);
+    background: var(--chrome-surface);
   }
 }
 
 /* Replace the browser's default lavender focus box (visible when focus is
-   restored to the button after closing the rules sheet) with the app's
-   accent ring — keyboard-only, intentional. */
+   restored to the button after closing the rules sheet) with a ring —
+   keyboard-only, intentional. White ring, not --accent: the header is the
+   always-dark leather chrome, where a dark guild dye can't hold a visible
+   ring (same ruling as the game board's white rings). */
 .site-nav-settings:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid rgb(255 255 255 / 70%);
   outline-offset: 2px;
 }
 
 .site-nav-settings.active {
-  color: var(--accent);
+  color: var(--chrome-text);
+  background: var(--chrome-surface);
 }
 
 @media (max-width: 1024px) {
@@ -58,7 +61,8 @@
 }
 
 .site-avatar-menu-trigger:focus-visible {
-  outline: 2px solid var(--accent);
+  /* White ring — sits on the leather chrome (see .site-nav-settings). */
+  outline: 2px solid rgb(255 255 255 / 70%);
   outline-offset: 2px;
 }
 

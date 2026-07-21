@@ -148,6 +148,16 @@ this register elsewhere, and don't flatten it here.
 | **Action buttons**          | `var(--radius)` (6px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                                 |
 | **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                      |
 | **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                         |
+| **Tape labels**             | `2px` (`.site-nav-count`)          | The Dymo-tape material label tier (T53): fixed dark tape + pale caps on **navigation chrome only** (nav/hub counts).     |
+
+**Tape labels are a scoped second label tier, not a pill replacement.** A
+tape chip is still non-actionable (the pill rule's role logic is unchanged);
+what's different is the material: fixed `#1e1c18`/`#f2ede0` tape colors on
+every theme and ground (like `--art-scrim`, tape is tape), `--font-label`
+caps, 2px corners. It's currently sanctioned **only** for the nav/hub count
+chips riding the divider-tab navigation. Don't convert other label pills to
+tape by default — extending tape to a new surface is a STYLE_GUIDE ruling,
+not a drive-by.
 
 **Hero CTAs are the one labelled-pill tier.** Outside a page hero, the only
 pill-shaped button is a genuinely **circular icon-only** one (equal
@@ -293,6 +303,46 @@ a hero CTA.
   button pairs (radios give exclusivity + arrow-key group nav for free). Same
   family as the Settings theme picker. Reference: `.settings-currency-toggle`
   in `styles/settings-sync.css` / SettingsPage's Price currency row.
+
+## App chrome — leather & divider tabs (T53)
+
+The header and mobile tab bar are the **binder's cover**, not page surfaces —
+they wear the `--chrome-*` tokens (`-bg`, `-surface`, `-text`, `-text-muted`,
+`-border`), never `--surface`/`--bg`. Light schemes pin a theme-invariant warm
+leather (the dark-cover-on-bright-pages signature); dark schemes re-derive the
+chrome tonally from the guild's own ground in `themes.css` (Dimir stays navy,
+Rakdos stays blood-black). Rulings:
+
+- **Divider-tab anatomy.** Primary navigation is a physical divider tab: the
+  current destination wears an `--accent` fill ("the guild's cover dye") with
+  `--on-accent` text, corners rounded **toward the page it attaches to** (top
+  corners in the header and hub strips; bottom corners in the mobile tab bar,
+  which hangs under the page), a 1px inset top-face highlight
+  (`rgb(255 255 255 / 14%)`) to lift the silhouette off dark grounds, and a
+  `-1px` margin over its strip's hairline so the fill merges into the page.
+  Resting tabs are quiet text (`--chrome-text-muted` on leather,
+  `--text-secondary` on the paper hub strips); hover raises
+  (`--chrome-surface` / `--surface-raised`). State is never color-only: the
+  fill pairs with `aria-current`/`.active` and ≥4.5:1 on-accent text.
+- **`--font-label` scope.** The condensed label face is for chrome, tab, and
+  tape labels ONLY — always uppercase with letter-spacing (0.05–0.12em).
+  Body/content text stays `--font-serif`; data stays `--font-mono`. Never set
+  `--font-label` on prose, headings, or form controls.
+- **Badges invert on accent fills.** An `--accent`-background badge sitting
+  inside the active tab's accent fill swaps to `--on-accent` bg + `--accent`
+  text (`.site-nav-link.active .friends-nav-link-badge`, mobile equivalent) —
+  never leave an accent-on-accent badge.
+- **Focus rings on chrome are white** (`rgb(255 255 255 / 70%)`), not
+  `--accent`: the leather is an always-dark surface, same ruling as the game
+  board's white rings. Everything else keeps the standard accent ring.
+- **Chrome-resident indicators can't trust scheme-flipped tokens.** The
+  light schemes' `--warn-text` override is a dark brown tuned for paper — on
+  leather it vanishes. A dot/glyph living permanently on chrome uses a
+  theme-invariant color (the game dot uses `--brand-seal-gold`); a
+  self-backgrounded pill (the sync indicator) is fine as-is because it paints
+  its own surface.
+- **Brand hover is brass** (`--brand-seal-gold`) on the leather — the app's
+  one metallic; don't introduce a second.
 
 ## Toolbars & action rows (responsive)
 

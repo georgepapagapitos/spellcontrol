@@ -586,9 +586,12 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: var(--warn-text);
+  /* Brass, not --warn-text: both dots live on the always-dark leather
+     chrome, where the light schemes' dark-brown warn override vanishes.
+     The seal gold is theme-invariant and reads on leather + accent fills. */
+  background: var(--brand-seal-gold);
   display: inline-block;
-  box-shadow: 0 0 6px var(--warn-text);
+  box-shadow: 0 0 6px var(--brand-seal-gold);
   animation: play-pulse 1.8s ease-in-out infinite;
 }
 
