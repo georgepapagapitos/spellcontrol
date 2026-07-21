@@ -30,9 +30,11 @@ export interface InboxShareRow {
 /**
  * Public origin the web app is hosted at. Used to build share links inside the
  * native app, where `window.location.origin` is the WebView origin
- * (`https://localhost`) and would produce a dead link.
+ * (`https://localhost`) and would produce a dead link. Exported so
+ * publications-client.ts's publicationUrl() can reuse it rather than
+ * duplicating the constant.
  */
-const WEB_ORIGIN = 'https://spellcontrol.com';
+export const WEB_ORIGIN = 'https://spellcontrol.com';
 
 async function readError(res: Response, fallback: string): Promise<string> {
   try {
