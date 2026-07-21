@@ -13,10 +13,10 @@ vi.mock('../components/AddCardsSheet', () => ({
   ),
 }));
 
-// The three bento cards each fetch on mount — stubbed so this suite stays
-// hermetic and only exercises HomePage's own composition, not each card's
-// own branching (covered by ActivityStripCard/NewFromFriendsCard/
-// DiscoverCard's own test files).
+// All eight bento cards (3 social + 5 signal) fetch or read IndexedDB on
+// mount — stubbed so this suite stays hermetic and only exercises
+// HomePage's own composition, not each card's own branching (covered by
+// each card's own test file).
 vi.mock('../lib/use-activity', () => ({
   useActivity: () => ({ count: 0, actionRequired: [], recent: [], loading: false }),
 }));
@@ -29,6 +29,13 @@ vi.mock('../lib/friends-client', () => ({
 vi.mock('../lib/discover-client', () => ({
   listDiscoverDecks: () => Promise.resolve({ decks: [], page: 1, hasMore: false }),
 }));
+vi.mock('../components/play/GameNights', () => ({
+  useGameNights: () => ({ nights: [], loading: false, error: null, refresh: vi.fn() }),
+}));
+vi.mock('../lib/value-history', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/value-history')>();
+  return { ...actual, getValueHistory: () => Promise.resolve([]), getLatestMovers: () => Promise.resolve(null) };
+});
 
 import { HomePage } from './HomePage';
 
@@ -41,12 +48,17 @@ function renderPage() {
 }
 
 describe('HomePage', () => {
-  it('renders the heading and all three social cards', () => {
+  it('renders the heading and all eight bento cards', () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Activity' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'New from friends' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Discover' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Recent decks' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Game nights' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Value movers' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'New arrivals' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Binder review' })).toBeTruthy();
     expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
   });
 
