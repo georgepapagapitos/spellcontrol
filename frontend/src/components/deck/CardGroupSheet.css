@@ -152,7 +152,9 @@
 
 .card-group-layout-btn[aria-checked='true'] {
   background: var(--accent);
-  color: var(--accent-contrast, #fff);
+  /* --accent-contrast was never defined; --on-accent is the sole token for
+     text on an accent fill (literal #fff fails AA on light-accent guilds). */
+  color: var(--on-accent);
 }
 
 .card-group-close {
