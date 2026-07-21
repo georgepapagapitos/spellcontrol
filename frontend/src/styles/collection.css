@@ -1389,7 +1389,7 @@ i.ss.set-symbol--mythic {
 
 .collection-grid-set {
   background: var(--art-scrim);
-  color: #fff;
+  color: var(--art-scrim-text);
   font-size: var(--text-xs);
   font-weight: 700;
   padding: var(--space-1) var(--space-2);
@@ -1406,7 +1406,7 @@ i.ss.set-symbol--mythic {
    styling (this shows a plain "N free" count instead). */
 .collection-grid-surplus {
   background: var(--art-scrim);
-  color: #fff;
+  color: var(--art-scrim-text);
   font-size: var(--text-xs);
   font-weight: 700;
   padding: var(--space-1) var(--space-2);
@@ -1421,7 +1421,7 @@ i.ss.set-symbol--mythic {
   bottom: 5px;
   left: 5px;
   background: var(--art-scrim);
-  color: #fff;
+  color: var(--art-scrim-text);
   font-size: var(--text-sm);
   font-weight: 800;
   padding: 0.2rem 0.55rem;

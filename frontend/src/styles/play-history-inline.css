@@ -143,9 +143,11 @@
 }
 
 .timeline-delta.is-up {
-  background: var(--ok-bg, rgba(31, 155, 92, 0.12));
-  color: var(--ok-text, #1d7a4a);
-  border-color: var(--ok-border, rgba(31, 155, 92, 0.4));
+  /* --ok-* was never defined (dead vars, fallbacks always won) — route
+     through the real scheme-aware success token instead. */
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
 }
 
 .timeline-delta.is-down {

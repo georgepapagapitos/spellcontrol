@@ -309,7 +309,7 @@ function ScryfallQueryRow({
       <span
         role="status"
         aria-live="polite"
-        style={{ fontSize: '0.78rem', color: error ? 'var(--danger)' : 'var(--text-muted)' }}
+        style={{ fontSize: '0.78rem', color: error ? 'var(--err-text)' : 'var(--text-muted)' }}
       >
         {error
           ? error
