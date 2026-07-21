@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigationType } from 'react-router-dom';
 import { Header } from './Header';
 import { MobileTabBar } from './MobileTabBar';
-import { NavFab } from './NavFab';
+import { ScanFab } from './ScanFab';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
@@ -109,10 +109,10 @@ function LayoutShell() {
           </div>
         </ScrollContainerContext.Provider>
       </main>
-      {/* Native uses a floating draggable nav FAB; web mobile keeps the
-          always-visible bottom tab bar (the more discoverable pattern for
-          the open web). */}
-      {isNativePlatform() ? <NavFab /> : <MobileTabBar />}
+      {/* Same tab bar on mobile + native. Native additionally floats a
+          Scan-only FAB on top — the one action the tab bar has no room for. */}
+      <MobileTabBar />
+      {isNativePlatform() && <ScanFab />}
       <ToastViewport />
       <RulesReferenceSheet />
       <ActivityLiveRegion />

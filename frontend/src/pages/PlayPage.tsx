@@ -1,3 +1,4 @@
+import { BookOpen } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
@@ -9,6 +10,7 @@ import {
   usePlayStore,
   type LocalGameSetup,
 } from '../store/play';
+import { useRulesReferenceStore } from '../store/rules-reference';
 import { toast } from '../store/toasts';
 import { GameBoard } from '../components/play/GameBoard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -29,6 +31,7 @@ export function PlayPage() {
   const user = useAuth((s) => s.user);
   const isGuest = useAuth((s) => s.status === 'guest');
   const decks = useDecksStore((s) => s.decks);
+  const openRules = useRulesReferenceStore((s) => s.open);
 
   const local = usePlayStore((s) => s.local);
   const online = usePlayStore((s) => s.online);
@@ -89,7 +92,17 @@ export function PlayPage() {
     <div className="play-page">
       <header className="binder-hero play-page-hero">
         <div className="play-page-hero-text">
-          <h1 className="binder-hero-name">Play</h1>
+          <div className="play-page-title-row">
+            <h1 className="binder-hero-name">Play</h1>
+            <button
+              type="button"
+              className="overflow-menu-trigger play-page-rules-btn"
+              onClick={openRules}
+              aria-label="Rules reference"
+            >
+              <BookOpen width={18} height={18} strokeWidth={2} aria-hidden />
+            </button>
+          </div>
         </div>
         <Tabs<Tab>
           ariaLabel="Play sections"

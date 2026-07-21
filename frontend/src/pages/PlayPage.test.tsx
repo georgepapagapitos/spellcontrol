@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { PlayPage } from './PlayPage';
+import { useRulesReferenceStore } from '../store/rules-reference';
 
 function renderPage(initialEntry = '/play') {
   return render(
@@ -46,5 +47,14 @@ describe('PlayPage tabs', () => {
     renderPage('/play?tab=history');
     expect(screen.getByRole('tab', { name: 'History' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('No games yet')).toBeTruthy();
+  });
+});
+
+describe('PlayPage rules button', () => {
+  it('opens the rules reference sheet', () => {
+    renderPage();
+    expect(useRulesReferenceStore.getState().isOpen).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Rules reference' }));
+    expect(useRulesReferenceStore.getState().isOpen).toBe(true);
   });
 });
