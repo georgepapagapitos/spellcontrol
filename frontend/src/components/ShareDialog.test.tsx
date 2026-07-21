@@ -52,11 +52,7 @@ import { ShareDialog } from './ShareDialog';
 // ShareDialog renders <Link> (the confirmed-public "Your profile" row, the
 // no-friends "Friends page" link, and the guest sign-in prompt) — all need a
 // Router context, mirroring this codebase's established MemoryRouter wrap.
-function renderDialog(props: {
-  resourceId?: string;
-  resourceLabel: string;
-  onClose: () => void;
-}) {
+function renderDialog(props: { resourceId?: string; resourceLabel: string; onClose: () => void }) {
   return render(
     <MemoryRouter>
       <ShareDialog kind="deck" {...props} />
