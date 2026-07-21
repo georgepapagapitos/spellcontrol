@@ -275,6 +275,23 @@
   --rarity-rare-ink-dark: #f0c040;
   --rarity-uncommon-ink-dark: #b8d0e8;
 
+  /* Foil finish treatments (E153) — one recipe each, theme-invariant like
+     the rarity palette above. The -chip pair is the FOIL/ETCHED label fill
+     (finish tags in the card editor, the tooltip/card-preview pill); the
+     tile wash is the translucent overlay marking a foil copy's art in
+     grids (.shared-tile.is-foil). holographic.css's full rainbow sweep is
+     deliberately separate (an interaction effect, not a label). */
+  --foil-chip-bg: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
+  --foil-chip-text: #1a2438;
+  --etched-chip-bg: linear-gradient(90deg, #f3d77c, #e0a85c, #c98742);
+  --etched-chip-text: #2a1f0e;
+  --foil-tile-wash: linear-gradient(
+    135deg,
+    rgba(255, 200, 240, 0.15),
+    rgba(180, 220, 255, 0.1) 35%,
+    rgba(255, 220, 180, 0.15) 70%
+  );
+
   /* ── Mana identity palette (MTG-canonical, do not retheme) ─────────────
      One palette for the five colors (+ multicolor / colorless / land),
      shared by the deck mana-base chart (DeckColorBalance) and the cube
