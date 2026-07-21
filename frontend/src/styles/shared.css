@@ -424,12 +424,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 200, 240, 0.15),
-    rgba(180, 220, 255, 0.1) 35%,
-    rgba(255, 220, 180, 0.15) 70%
-  );
+  background: var(--foil-tile-wash);
   pointer-events: none;
 }
 

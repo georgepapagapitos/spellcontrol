@@ -908,13 +908,13 @@
 }
 
 .card-edit-finish-tag--foil {
-  background: linear-gradient(90deg, #c8a8e8, #8ab4e8, #a8e8c8);
-  color: #1a2438;
+  background: var(--foil-chip-bg);
+  color: var(--foil-chip-text);
 }
 
 .card-edit-finish-tag--etched {
-  background: linear-gradient(90deg, #f3d77c, #e0a85c, #c98742);
-  color: #2a1f0e;
+  background: var(--etched-chip-bg);
+  color: var(--etched-chip-text);
 }
 
 .card-edit-printing-rarity {

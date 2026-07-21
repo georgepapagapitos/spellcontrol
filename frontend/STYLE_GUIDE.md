@@ -1160,6 +1160,13 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   the flat `--rarity-common` glyph tint). The near-black `--rarity-*-text`
   chip inks are for text ON the gradient chip fills only, and the canonical
   fills/`-to` endpoints fail AA as text on paper — don't reach for either.
+- **Foil/etched finish treatments are tokens, one recipe each (E153):**
+  `--foil-chip-bg`/`--foil-chip-text` and `--etched-chip-bg`/`--etched-chip-text`
+  for the FOIL/ETCHED label fills (card-editor finish tags, the tooltip and
+  card-preview pill), `--foil-tile-wash` for the translucent overlay marking a
+  foil copy's art in grids. Theme-invariant like the rarity palette. Don't
+  hand-roll a new foil gradient; `holographic.css`'s rainbow sweep is a
+  separate interaction effect by design, not a label recipe.
 - **Never trust card art for text contrast.** Anywhere theme-colored text can
   overlap an art backdrop (deck-editor hero, any future art-backed header), the
   scrim under the text's reachable zone must **hold a floor** — a gradient that
