@@ -368,6 +368,16 @@ Rulings for `--font-display` (restyle Phase 6):
 - **Fallback degrades to Eczar, not Georgia-bold-soup:** the stack is
   `'Sorts Mill Goudy', 'Eczar', 'Georgia', serif`, so a failed font load
   renders a lighter Eczar title and nothing else moves.
+- **The display wordmark is one voice (E156).** Everywhere "SpellControl"
+  renders at identity scale — `.site-brand` (header chrome), `.shared-brand`
+  (public brandbar), `.auth-title` — it wears `--font-display` at
+  `--text-lg`+ / weight 400. A split wordmark (two faces for the same brand
+  name) is the one wrong state; if a new surface needs the brand at identity
+  scale, copy the `.site-brand` treatment. **Micro renders are exempt and
+  stay as they are**: the welcome hero's uppercase-tracked eyebrow
+  (`.welcome-hero-wordmark`, `--text-sm`) and the deck-identity card's
+  attribution line (`--text-xs`) function as labels, and an oldstyle display
+  face dies in tiny tracked caps — don't "unify" those.
 
 ## App chrome — leather & divider tabs (T53)
 
