@@ -1,0 +1,15 @@
+/* HomePage.css — /home route */
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Composition, not a fresh selector: .home-bento rides every .deck-bento rule
+   (grid, container query, gap) verbatim — this override is the entire diff,
+   widening the bento's cap from deck-analysis's 1320px default to the app's
+   standard 1400px page width. */
+.home-bento {
+  --analysis-max: var(--page-max);
+}

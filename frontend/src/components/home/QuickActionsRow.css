@@ -1,0 +1,13 @@
+/* QuickActionsRow.css — Home's page-hero-tier Quick Actions row */
+
+.home-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (pointer: coarse) {
+  .home-quick-action {
+    min-height: 2.75rem; /* 44px touch floor */
+  }
+}
