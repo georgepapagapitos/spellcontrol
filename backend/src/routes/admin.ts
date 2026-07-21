@@ -4,6 +4,7 @@ import { requireAdmin } from '../auth';
 import { getDb, getPool } from '../db';
 import { users } from '../db/schema';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
+import { invalidateShareContext } from '../shares/context';
 
 export const adminRouter: Router = Router();
 
@@ -141,27 +142,36 @@ interface AdminReportRow {
   owner_username: string;
   reporter_username: string | null;
   deck_name: string | null;
+  game_format: string | null;
+  game_ended_at: string | null;
 }
 
 /**
  * GET /api/admin/reports
  * Unresolved content reports (social program W1), newest first, each joined
- * with a best-effort target label (deck name via user_decks, or the target
- * username itself for a profile report) and the reporter's username when
- * signed in (null -> the client shows "Anonymous").
+ * with a best-effort target label (deck name via user_decks, the target
+ * username itself for a profile report, or the game's format + date for a
+ * game-result report — joined token -> shares.resource_id -> game_results,
+ * since a game-result's target_id is the share token, not the session id)
+ * and the reporter's username when signed in (null -> the client shows
+ * "Anonymous").
  */
 adminRouter.get('/reports', requireAdmin, async (_req: Request, res: Response) => {
   const { rows } = await getPool().query<AdminReportRow>(`
     SELECT cr.id, cr.kind, cr.target_id, cr.reason, cr.created_at,
            owner.username AS owner_username,
            reporter.username AS reporter_username,
-           ud.data->>'name' AS deck_name
+           ud.data->>'name' AS deck_name,
+           gr.format AS game_format,
+           gr.ended_at AS game_ended_at
       FROM content_reports cr
       JOIN users owner ON owner.id = cr.target_owner_id
       LEFT JOIN users reporter ON reporter.id = cr.reporter_user_id
       LEFT JOIN user_decks ud
         ON ud.user_id = cr.target_owner_id AND ud.id = cr.target_id
        AND cr.kind = 'deck' AND ud.deleted_at IS NULL
+      LEFT JOIN shares sh ON sh.token = cr.target_id AND cr.kind = 'game-result'
+      LEFT JOIN game_results gr ON gr.session_id = sh.resource_id AND cr.kind = 'game-result'
      WHERE cr.resolved_at IS NULL
      ORDER BY cr.created_at DESC
   `);
@@ -170,7 +180,13 @@ adminRouter.get('/reports', requireAdmin, async (_req: Request, res: Response) =
       id: r.id,
       kind: r.kind,
       targetLabel:
-        r.kind === 'deck' ? `${r.deck_name ?? 'Deleted deck'} by ${r.owner_username}` : r.target_id,
+        r.kind === 'deck'
+          ? `${r.deck_name ?? 'Deleted deck'} by ${r.owner_username}`
+          : r.kind === 'game-result'
+            ? r.game_format
+              ? `${r.game_format} game — ${new Date(Number(r.game_ended_at)).toLocaleDateString()}`
+              : 'Deleted game'
+            : r.target_id,
       reporterUsername: r.reporter_username,
       reason: r.reason,
       createdAt: Number(r.created_at),
@@ -237,9 +253,17 @@ adminRouter.post('/reports/:id/resolve', requireAdmin, async (req: Request, res:
       );
       for (const row of cascaded.rows) invalidateDeckPublicationCache(row.slug);
       invalidatePublicUserCache(report.owner_username);
+    } else if (report.kind === 'game-result') {
+      // target_id is the share TOKEN (not the session id) — revoking exactly
+      // that token takes down the reported artifact without touching a
+      // sibling share of the same underlying game. Same two-step every
+      // existing DELETE /api/shares/:token revoke already performs.
+      await pool.query(
+        `UPDATE shares SET revoked_at = $2 WHERE token = $1 AND kind = 'game-result' AND revoked_at IS NULL`,
+        [report.target_id, now]
+      );
+      invalidateShareContext(report.target_id);
     }
-    // 'game-result' hide: no live surface exists yet — the report still
-    // resolves; there's nothing to unpublish.
   }
 
   await pool.query(`UPDATE content_reports SET resolved_at = $2, resolution = $3 WHERE id = $1`, [

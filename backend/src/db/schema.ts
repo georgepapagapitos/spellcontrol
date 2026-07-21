@@ -13,6 +13,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { GameResultParticipant } from '../games/result-types';
+import type { GameEvent } from '@spellcontrol/game-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -258,7 +259,7 @@ export const shares = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     kind: text('kind')
       .notNull()
-      .$type<'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback'>(),
+      .$type<'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback' | 'game-result'>(),
     resourceId: text('resource_id').notNull().default(''),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     revokedAt: bigint('revoked_at', { mode: 'number' }),
@@ -548,6 +549,15 @@ export const gameResults = pgTable(
     durationMs: bigint('duration_ms', { mode: 'number' }).notNull(),
     /** One object per seat; see GameResultParticipant in games/result-types.ts. */
     participants: jsonb('participants').notNull().$type<GameResultParticipant[]>(),
+    /**
+     * Notable log moments (eliminate/end/designation only — see
+     * selectNotableEvents in @spellcontrol/game-core), selected once at
+     * persist time. Nullable by design: legacy pre-migration rows read as
+     * null ("no data captured"), never coerced to [] so a summary view can
+     * tell that apart from "a genuinely quiet game" (selector ran, found
+     * nothing notable).
+     */
+    notableEvents: jsonb('notable_events').$type<GameEvent[] | null>(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   },
   (t) => ({

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
+import type { Pool } from 'pg';
 import {
   createTestEnv,
   extractSessionCookie,
@@ -9,11 +10,13 @@ import {
 } from '../test-helpers';
 
 let app: Express;
+let pool: Pool;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
+  pool = env.pool;
   cleanup = env.cleanup;
 });
 
@@ -540,6 +543,43 @@ async function befriend(
   expect(auto.body.friendStatus).toBe('friends');
 }
 
+async function userIdFromCookie(cookie: string): Promise<string> {
+  const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
+  return me.body.user.id as string;
+}
+
+/** Insert a canonical game_results row directly — game-result share tests
+ *  only need the row to exist, not a full played-out game. */
+async function insertGameResult(opts: {
+  sessionId: string;
+  participants: Array<{ seat: number; userId: string | null; name: string }>;
+}): Promise<void> {
+  const participants = opts.participants.map((p) => ({
+    seat: p.seat,
+    userId: p.userId,
+    username: null,
+    name: p.name,
+    deckId: null,
+    deckName: null,
+    commander: null,
+    colorIdentity: [],
+    finalLife: 40,
+    eliminated: false,
+  }));
+  await pool.query(
+    `INSERT INTO game_results
+       (session_id, code, format, starting_life, winner_seat, winner_user_id,
+        started_at, ended_at, duration_ms, participants, notable_events, created_at)
+     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1000, 2000, 1000, $3, $4, 2000)`,
+    [
+      opts.sessionId,
+      opts.participants[0]?.userId ?? null,
+      JSON.stringify(participants),
+      JSON.stringify([{ id: 'e1', ts: 1, kind: 'eliminate', actorSeat: null, targetSeat: 1 }]),
+    ]
+  );
+}
+
 describe('cube shares', () => {
   it('creates a cube share and projects it publicly', async () => {
     const cookie = await makeUser('cube-share-owner');
@@ -662,6 +702,123 @@ describe('friends-audience shares', () => {
     const token = create.body.share.token as string;
     const res = await request(app).get(`/api/shares/public/${token}`);
     expect(res.status).toBe(200);
+  });
+});
+
+describe('game-result shares', () => {
+  it('403s creating a share for a session the caller did not play in', async () => {
+    const cookie = await makeUser('gr-share-outsider');
+    await insertGameResult({
+      sessionId: 'gr-share-session-foreign',
+      participants: [{ seat: 0, userId: 'someone-elses-id', name: 'Someone Else' }],
+    });
+    const res = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'game-result', resourceId: 'gr-share-session-foreign' });
+    expect(res.status).toBe(403);
+  });
+
+  it('403s creating a share for an unknown session id', async () => {
+    const cookie = await makeUser('gr-share-unknown');
+    const res = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'game-result', resourceId: 'never-existed-session' });
+    expect(res.status).toBe(403);
+  });
+
+  it('201s for a participant, and the public read strips userId/username by key-absence', async () => {
+    const cookie = await makeUser('gr-share-player');
+    const userId = await userIdFromCookie(cookie);
+    await insertGameResult({
+      sessionId: 'gr-share-session-ok',
+      participants: [
+        { seat: 0, userId, name: 'Player One' },
+        { seat: 1, userId: null, name: 'Guest Two' },
+      ],
+    });
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'game-result', resourceId: 'gr-share-session-ok' });
+    expect(create.status).toBe(201);
+    const token = create.body.share.token as string;
+
+    const res = await request(app).get(`/api/shares/public/${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.kind).toBe('game-result');
+    expect(res.body.data.sessionId).toBe('gr-share-session-ok');
+    expect(res.body.data.participants).toHaveLength(2);
+    for (const p of res.body.data.participants) {
+      expect('userId' in p).toBe(false);
+      expect('username' in p).toBe(false);
+    }
+    expect(res.body.data.participants[0].name).toBe('Player One');
+  });
+
+  it('applies the friends-audience gate identically to every other kind', async () => {
+    const ownerName = 'gr-aud-owner';
+    const friendName = 'gr-aud-friend';
+    const strangerName = 'gr-aud-stranger';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    const stranger = await makeUser(strangerName);
+    await befriend(owner, ownerName, friend, friendName);
+    const ownerId = await userIdFromCookie(owner);
+    await insertGameResult({
+      sessionId: 'gr-share-session-friends',
+      participants: [{ seat: 0, userId: ownerId, name: 'Owner' }],
+    });
+
+    const create = await request(app)
+      .post('/api/shares')
+      .set('Cookie', owner)
+      .send({ kind: 'game-result', resourceId: 'gr-share-session-friends', audience: 'friends' });
+    expect(create.status).toBe(201);
+    const token = create.body.share.token as string;
+
+    expect((await request(app).get(`/api/shares/public/${token}`)).status).toBe(401);
+    expect(
+      (await request(app).get(`/api/shares/public/${token}`).set('Cookie', stranger)).status
+    ).toBe(403);
+    const friendRes = await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend);
+    expect(friendRes.status).toBe(200);
+    expect(friendRes.body.kind).toBe('game-result');
+  });
+
+  it('applies the direct-audience gate identically to every other kind', async () => {
+    const ownerName = 'gr-dir-owner';
+    const friendName = 'gr-dir-friend';
+    const otherName = 'gr-dir-other';
+    const owner = await makeUser(ownerName);
+    const friend = await makeUser(friendName);
+    const other = await makeUser(otherName);
+    await befriend(owner, ownerName, friend, friendName);
+    await befriend(owner, ownerName, other, otherName);
+    const ownerId = await userIdFromCookie(owner);
+    const friendId = await userIdByName(owner, friendName);
+    await insertGameResult({
+      sessionId: 'gr-share-session-direct',
+      participants: [{ seat: 0, userId: ownerId, name: 'Owner' }],
+    });
+
+    const create = await request(app).post('/api/shares').set('Cookie', owner).send({
+      kind: 'game-result',
+      resourceId: 'gr-share-session-direct',
+      audience: 'direct',
+      addresseeId: friendId,
+    });
+    expect(create.status).toBe(201);
+    const token = create.body.share.token as string;
+
+    expect((await request(app).get(`/api/shares/public/${token}`)).status).toBe(401);
+    expect(
+      (await request(app).get(`/api/shares/public/${token}`).set('Cookie', other)).status
+    ).toBe(404);
+    expect(
+      (await request(app).get(`/api/shares/public/${token}`).set('Cookie', friend)).status
+    ).toBe(200);
   });
 });
 

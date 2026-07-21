@@ -8,6 +8,7 @@ import {
   userBinders,
   userDecks,
   userCubes,
+  gameResults,
 } from '../db/schema';
 import { shareCache, type ShareContext, type ShareDataView } from './cache';
 import { getScryfallCache, pickUsdForFinish } from '../scryfall-cache';
@@ -84,7 +85,8 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
   // always empty. Unknown kinds fetch nothing — the projectors 404 them.
   const kind = share.kind;
   const wantCards = kind === 'collection' || kind === 'binder';
-  const [cards, lists, binders, decks, cubes] = await Promise.all([
+  const wantGameResult = kind === 'game-result';
+  const [cards, lists, binders, decks, cubes, gameResultRows] = await Promise.all([
     wantCards
       ? db
           .select({ data: userCards.data })
@@ -115,6 +117,11 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
           .from(userCubes)
           .where(and(eq(userCubes.userId, share.userId), isNull(userCubes.deletedAt)))
       : [],
+    // No userId filter — game_results has no owner column; the participant
+    // check already happened at share-creation time (see routes/shares.ts).
+    wantGameResult
+      ? db.select().from(gameResults).where(eq(gameResults.sessionId, share.resourceId)).limit(1)
+      : [],
   ]);
 
   const data: ShareDataView = {
@@ -126,6 +133,7 @@ export async function loadShareContext(token: string): Promise<ShareContext | nu
     binders: binders.map((r) => r.data).filter((d): d is unknown => d != null),
     decks: decks.map((r) => r.data).filter((d): d is unknown => d != null),
     cubes: cubes.map((r) => r.data).filter((d): d is unknown => d != null),
+    gameResult: gameResultRows[0],
   };
 
   stampSharePrices(data.collection.cards);

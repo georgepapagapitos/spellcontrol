@@ -4,6 +4,8 @@
  * them without a cycle.
  */
 
+import type { GameEvent } from '@spellcontrol/game-core';
+
 /** One seat in a finished game. `userId`/deck/commander are null for guest seats. */
 export interface GameResultParticipant {
   seat: number;
@@ -33,4 +35,9 @@ export interface PublicGameResult {
   endedAt: number;
   durationMs: number;
   participants: GameResultParticipant[];
+  /** Selected via selectNotableEvents() at persist time. Null only for rows
+   *  written before this column existed — never coerced to []; see
+   *  persist-result.ts for the "ran the selector, found nothing" vs
+   *  "pre-migration row" distinction. */
+  notableEvents: GameEvent[] | null;
 }

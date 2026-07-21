@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import { logger } from '../logger';
+import { selectNotableEvents } from './state';
 import type { GameState } from './state';
 import type { GameResultParticipant } from './result-types';
 
@@ -55,8 +56,8 @@ export async function persistGameResult(next: GameState, pool: Pool): Promise<vo
     await pool.query(
       `INSERT INTO game_results
          (session_id, code, format, starting_life, winner_seat, winner_user_id,
-          started_at, ended_at, duration_ms, participants, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          started_at, ended_at, duration_ms, participants, notable_events, created_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        ON CONFLICT (session_id) DO NOTHING`,
       [
         next.id,
@@ -69,6 +70,7 @@ export async function persistGameResult(next: GameState, pool: Pool): Promise<vo
         endedAt,
         durationMs,
         JSON.stringify(participants),
+        JSON.stringify(selectNotableEvents(next.events)),
         endedAt,
       ]
     );

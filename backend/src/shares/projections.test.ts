@@ -9,6 +9,7 @@ import {
   projectCollection,
   projectCube,
   projectDeck,
+  projectGameResult,
   projectList,
   type ShareOwner,
 } from './projections';
@@ -478,5 +479,111 @@ describe('projectBinder', () => {
     const out = projectBinder(owner, 'b-1', collection, [binderDef()]);
     expect(out?.ownerUsername).toBe('alice');
     expect(out?.ownerDisplayName).toBe('Alice A.');
+  });
+});
+
+function gameResultRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    sessionId: 'sess-1',
+    code: 'ABCD',
+    format: 'commander',
+    startingLife: 40,
+    winnerSeat: 0,
+    winnerUserId: 'user-a',
+    startedAt: 1000,
+    endedAt: 2000,
+    durationMs: 1000,
+    participants: [
+      {
+        seat: 0,
+        userId: 'user-a',
+        username: 'alice',
+        name: 'Alice',
+        deckId: 'd1',
+        deckName: 'Atraxa',
+        commander: 'Atraxa',
+        colorIdentity: ['W', 'U', 'B', 'G'],
+        finalLife: 40,
+        eliminated: false,
+      },
+      {
+        seat: 1,
+        userId: 'user-b',
+        username: 'bob',
+        name: 'Bob',
+        deckId: null,
+        deckName: null,
+        commander: null,
+        colorIdentity: [],
+        finalLife: 0,
+        eliminated: true,
+      },
+    ],
+    notableEvents: [{ id: 'e1', ts: 1, kind: 'eliminate', actorSeat: null, targetSeat: 1 }],
+    createdAt: 2000,
+    ...overrides,
+  };
+}
+
+describe('projectGameResult', () => {
+  it('returns null for malformed/missing data rather than throwing', () => {
+    expect(projectGameResult(null)).toBeNull();
+    expect(projectGameResult('not an object')).toBeNull();
+    expect(projectGameResult(42)).toBeNull();
+    expect(projectGameResult({})).toBeNull();
+    expect(projectGameResult({ sessionId: 's1', format: 'commander' })).toBeNull();
+    expect(projectGameResult({ ...gameResultRow(), participants: 'not-an-array' })).toBeNull();
+  });
+
+  it('projects a well-formed row, stripping userId/username (and the raw code) from the public shape', () => {
+    const out = projectGameResult(gameResultRow());
+    expect(out).not.toBeNull();
+    const o = out!;
+    expect(o.sessionId).toBe('sess-1');
+    expect(o.format).toBe('commander');
+    expect(o.startingLife).toBe(40);
+    expect(o.winnerSeat).toBe(0);
+    expect(o.endedAt).toBe(2000);
+    expect(o.durationMs).toBe(1000);
+    expect(o.participants).toHaveLength(2);
+    for (const p of o.participants) {
+      expect('userId' in p).toBe(false);
+      expect('username' in p).toBe(false);
+    }
+    expect(o.participants[0].name).toBe('Alice');
+    expect(o.participants[0].commander).toBe('Atraxa');
+    expect(o.participants[1].eliminated).toBe(true);
+    // The raw `code` is meaningless post-game and never appears either.
+    expect('code' in o).toBe(false);
+  });
+
+  it('passes through notableEvents, including the null case', () => {
+    const populated = projectGameResult(gameResultRow());
+    expect(populated?.notableEvents).toEqual([
+      { id: 'e1', ts: 1, kind: 'eliminate', actorSeat: null, targetSeat: 1 },
+    ]);
+
+    const nullCase = projectGameResult(gameResultRow({ notableEvents: null }));
+    expect(nullCase?.notableEvents).toBeNull();
+  });
+
+  it('drops participant entries missing seat or name instead of failing the whole projection', () => {
+    const out = projectGameResult(
+      gameResultRow({
+        participants: [
+          { seat: 0, name: 'Alice', colorIdentity: [] },
+          { name: 'No Seat' },
+          { seat: 2 },
+          'not a participant',
+        ],
+      })
+    );
+    expect(out?.participants).toHaveLength(1);
+    expect(out?.participants[0].name).toBe('Alice');
+  });
+
+  it('coerces a non-number winnerSeat to null', () => {
+    const out = projectGameResult(gameResultRow({ winnerSeat: null }));
+    expect(out?.winnerSeat).toBeNull();
   });
 });

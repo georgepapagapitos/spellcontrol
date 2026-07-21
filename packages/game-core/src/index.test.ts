@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { applyAction, createGameState, gameToRecord, makePlayer, type GameState } from './index';
+import {
+  applyAction,
+  createGameState,
+  gameToRecord,
+  makePlayer,
+  selectNotableEvents,
+  type GameEvent,
+  type GameState,
+} from './index';
 
 function lobby(players = 2, opts: Partial<Parameters<typeof createGameState>[0]> = {}) {
   return createGameState({
@@ -524,5 +532,84 @@ describe('set-designation', () => {
     });
     expect(s.designations.monarch).toBe(0);
     expect(s.designations.initiative).toBeNull();
+  });
+});
+
+function ev(kind: GameEvent['kind'], overrides: Partial<GameEvent> = {}): GameEvent {
+  return {
+    id: `evt_${Math.random().toString(36).slice(2)}`,
+    ts: 0,
+    kind,
+    actorSeat: null,
+    targetSeat: null,
+    ...overrides,
+  };
+}
+
+describe('selectNotableEvents', () => {
+  it('keeps only eliminate/end/designation, dropping every other kind', () => {
+    const events: GameEvent[] = [
+      ev('join'),
+      ev('eliminate'),
+      ev('life'),
+      ev('note', { message: 'gg' }),
+      ev('end'),
+      ev('leave'),
+      ev('designation'),
+      ev('turn'),
+      ev('set-life'),
+      ev('poison'),
+      ev('cmd-dmg'),
+      ev('revive'),
+      ev('start'),
+      ev('reset'),
+      ev('settings'),
+    ];
+    expect(selectNotableEvents(events).map((e) => e.kind)).toEqual([
+      'eliminate',
+      'end',
+      'designation',
+    ]);
+  });
+
+  it('never includes a note event, even one carrying free player-typed text', () => {
+    // HARD PRIVACY BINDING: 'note' is player-typed free text (see GameTools'
+    // announce()) with no consent from whoever it names — it must never reach
+    // a shareable payload. This is the whitelist-exclusion test for that.
+    const events: GameEvent[] = [
+      ev('note', { actorSeat: 0, message: 'Player B rage-quit' }),
+      ev('eliminate', { targetSeat: 1 }),
+    ];
+    const out = selectNotableEvents(events);
+    expect(out.some((e) => e.kind === 'note')).toBe(false);
+    expect(out).toHaveLength(1);
+    expect(out[0].kind).toBe('eliminate');
+  });
+
+  it('preserves chronological input order', () => {
+    const events: GameEvent[] = [
+      ev('designation', { ts: 1 }),
+      ev('eliminate', { ts: 2 }),
+      ev('end', { ts: 3 }),
+    ];
+    expect(selectNotableEvents(events).map((e) => e.ts)).toEqual([1, 2, 3]);
+  });
+
+  it('caps at 20, keeping the most recent 20 when more qualify', () => {
+    const events: GameEvent[] = Array.from({ length: 25 }, (_, i) =>
+      ev('eliminate', { ts: i, targetSeat: i })
+    );
+    const out = selectNotableEvents(events);
+    expect(out).toHaveLength(20);
+    expect(out.map((e) => e.targetSeat)).toEqual(Array.from({ length: 20 }, (_, i) => i + 5));
+  });
+
+  it('returns [] for empty input', () => {
+    expect(selectNotableEvents([])).toEqual([]);
+  });
+
+  it('returns [] when none of the input events are notable', () => {
+    const events: GameEvent[] = [ev('start'), ev('join'), ev('life'), ev('note')];
+    expect(selectNotableEvents(events)).toEqual([]);
   });
 });

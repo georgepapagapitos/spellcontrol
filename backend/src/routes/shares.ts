@@ -17,9 +17,11 @@ import {
   projectCollection,
   projectCube,
   projectDeck,
+  projectGameResult,
   projectList,
   type ShareOwner,
 } from '../shares/projections';
+import type { GameResultParticipant } from '../games/result-types';
 
 /**
  * Public share-link routes. Token-gated, read-only views of a user's
@@ -32,8 +34,10 @@ export const sharesRouter: Router = Router();
 const publicLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 });
 
 /** 'feedback' is a deck share that also accepts suggestion submissions —
- *  see routes/feedback.ts. Viewers get the same PublicDeck projection. */
-type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback';
+ *  see routes/feedback.ts. Viewers get the same PublicDeck projection.
+ *  'game-result' shares a finished online game's canonical record — see the
+ *  participant-only authorization check below. */
+type ShareKind = 'collection' | 'binder' | 'deck' | 'list' | 'cube' | 'feedback' | 'game-result';
 
 function isShareKind(x: unknown): x is ShareKind {
   return (
@@ -42,7 +46,8 @@ function isShareKind(x: unknown): x is ShareKind {
     x === 'deck' ||
     x === 'list' ||
     x === 'cube' ||
-    x === 'feedback'
+    x === 'feedback' ||
+    x === 'game-result'
   );
 }
 
@@ -76,7 +81,8 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   };
   if (!isShareKind(body.kind)) {
     return res.status(400).json({
-      error: "kind must be one of 'collection', 'binder', 'deck', 'list', 'cube', or 'feedback'.",
+      error:
+        "kind must be one of 'collection', 'binder', 'deck', 'list', 'cube', 'feedback', or 'game-result'.",
     });
   }
   const kind = body.kind;
@@ -85,6 +91,23 @@ sharesRouter.post('/', requireAuth, async (req: Request, res: Response) => {
   if (kind !== 'collection' && !resourceId) {
     return res.status(400).json({ error: 'resourceId is required for this kind.' });
   }
+
+  // A game-result share's resourceId is the game_results.session_id.
+  // Participant-only: checked once here at creation (never re-checked on
+  // read — a finished game's participant set can never change afterward).
+  if (kind === 'game-result') {
+    const gr = await getPool().query<{ participants: GameResultParticipant[] }>(
+      `SELECT participants FROM game_results WHERE session_id = $1`,
+      [resourceId]
+    );
+    const participants = gr.rows[0]?.participants;
+    const played =
+      Array.isArray(participants) && participants.some((p) => p.userId === req.user!.id);
+    if (!played) {
+      return res.status(403).json({ error: 'You can only share a game you played in.' });
+    }
+  }
+
   // Absent audience = 'link' so every existing client keeps minting public links.
   const audience: ShareAudience =
     body.audience === undefined ? 'link' : (body.audience as ShareAudience);
@@ -325,6 +348,13 @@ function projectAndRespond(
       return res.status(404).json({ error: 'Share not found.' });
     }
     return res.json({ kind: 'cube' as const, data: projected });
+  }
+  if (share.kind === 'game-result') {
+    const projected = projectGameResult(data.gameResult);
+    if (!projected) {
+      return res.status(404).json({ error: 'Share not found.' });
+    }
+    return res.json({ kind: 'game-result' as const, data: projected });
   }
   // Unknown kind in the DB — defensive, shouldn't happen post-validation.
   return res.status(404).json({ error: 'Share not found.' });

@@ -58,9 +58,17 @@ async function resolveTargetOwner(kind: ReportKind, targetId: string): Promise<s
     );
     return result.rows[0]?.id ?? null;
   }
-  // 'game-result': no live public surface exists yet — w5-game-result-share-kind
-  // extends this resolver when one does.
-  return null;
+  // 'game-result': targetId is the share TOKEN, not the session id — a
+  // session can have multiple coexisting shares (link/friends/direct), and
+  // the token is the only unambiguous "this exact artifact" identifier, so
+  // hiding one doesn't touch a sibling share of the same game. The owner is
+  // the sharer (accountable for having published it), mirroring 'deck'
+  // resolving to the deck's publisher.
+  const result = await pool.query<{ user_id: string }>(
+    `SELECT user_id FROM shares WHERE token = $1 AND kind = 'game-result' AND revoked_at IS NULL LIMIT 1`,
+    [targetId]
+  );
+  return result.rows[0]?.user_id ?? null;
 }
 
 /**

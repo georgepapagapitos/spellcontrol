@@ -100,6 +100,44 @@ async function seedReport(input: {
   return id;
 }
 
+/** Registers `username`, seeds a game_results row naming them the sole
+ *  participant, and returns their cookie/id/session id for game-result
+ *  report/share tests. */
+async function makeGameResult(
+  username: string,
+  sessionId: string,
+  endedAt = Date.now()
+): Promise<{ cookie: string; ownerId: string; sessionId: string }> {
+  const cookie = await registerUser(username);
+  const ownerId = await userIdFromCookie(cookie);
+  await pool.query(
+    `INSERT INTO game_results
+       (session_id, code, format, starting_life, winner_seat, winner_user_id,
+        started_at, ended_at, duration_ms, participants, notable_events, created_at)
+     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1000, $3, 1000, $4, '[]', $3)`,
+    [
+      sessionId,
+      ownerId,
+      endedAt,
+      JSON.stringify([
+        {
+          seat: 0,
+          userId: ownerId,
+          username: null,
+          name: username,
+          deckId: null,
+          deckName: null,
+          commander: null,
+          colorIdentity: [],
+          finalLife: 40,
+          eliminated: false,
+        },
+      ]),
+    ]
+  );
+  return { cookie, ownerId, sessionId };
+}
+
 describe('GET /api/admin/users', () => {
   it('401s without a session', async () => {
     const res = await request(app).get('/api/admin/users');
@@ -305,6 +343,29 @@ describe('GET /api/admin/reports', () => {
     expect(res.status).toBe(200);
     expect(res.body.reports.find((r: { id: string }) => r.id === reportId)).toBeUndefined();
   });
+
+  it('labels a game-result report with the game’s format and end date, joined via the share token', async () => {
+    const adminCookie = await registerAdmin('yusuf');
+    const endedAt = Date.UTC(2026, 0, 15);
+    const { cookie, ownerId, sessionId } = await makeGameResult(
+      'yasmin',
+      'admin-gr-session-label',
+      endedAt
+    );
+    const share = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'game-result', resourceId: sessionId });
+    expect(share.status).toBe(201);
+    const token = share.body.share.token as string;
+    await seedReport({ kind: 'game-result', targetId: token, targetOwnerId: ownerId });
+
+    const res = await request(app).get('/api/admin/reports').set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    const row = res.body.reports.find((r: { kind: string }) => r.kind === 'game-result');
+    expect(row).toBeDefined();
+    expect(row.targetLabel).toBe(`commander game — ${new Date(endedAt).toLocaleDateString()}`);
+  });
 });
 
 describe('POST /api/admin/reports/:id/resolve', () => {
@@ -434,5 +495,53 @@ describe('POST /api/admin/reports/:id/resolve', () => {
     const publicReadB = await request(app).get(`/api/public/decks/${slugB}`);
     expect(publicReadA.status).toBe(404);
     expect(publicReadB.status).toBe(404);
+  });
+
+  it('hide on a game-result report revokes exactly the reported share token, leaving a sibling share of the same game live', async () => {
+    const adminCookie = await registerAdmin('zoe');
+    const { cookie, ownerId, sessionId } = await makeGameResult('zane', 'admin-gr-session-hide');
+
+    const linkShare = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'game-result', resourceId: sessionId });
+    expect(linkShare.status).toBe(201);
+    const token1 = linkShare.body.share.token as string;
+
+    // A sibling share of the SAME game under a different audience — a
+    // distinct row/token, per the (userId, kind, resourceId, audience)
+    // idempotency key.
+    const friendsShare = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'game-result', resourceId: sessionId, audience: 'friends' });
+    expect(friendsShare.status).toBe(201);
+    const token2 = friendsShare.body.share.token as string;
+    expect(token2).not.toBe(token1);
+
+    const reportId = await seedReport({
+      kind: 'game-result',
+      targetId: token1,
+      targetOwnerId: ownerId,
+    });
+
+    const res = await request(app)
+      .post(`/api/admin/reports/${reportId}/resolve`)
+      .set('Cookie', adminCookie)
+      .send({ action: 'hide' });
+    expect(res.status).toBe(200);
+
+    const publicRead = await request(app).get(`/api/shares/public/${token1}`);
+    expect(publicRead.status).toBe(404);
+
+    const rows = await pool.query<{ token: string; revoked_at: string | null }>(
+      `SELECT token, revoked_at FROM shares WHERE token = ANY($1)`,
+      [[token1, token2]]
+    );
+    const t1 = rows.rows.find((r) => r.token === token1);
+    const t2 = rows.rows.find((r) => r.token === token2);
+    expect(t1?.revoked_at).not.toBeNull();
+    // Proves the fix targets the reported instance, not the whole game.
+    expect(t2?.revoked_at).toBeNull();
   });
 });

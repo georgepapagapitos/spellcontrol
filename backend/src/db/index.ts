@@ -406,6 +406,12 @@ export async function ensureSchema(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS game_results_participants_idx ON game_results USING GIN (participants);
     CREATE INDEX IF NOT EXISTS game_results_ended_idx ON game_results(ended_at DESC);
+    -- Notable log moments (eliminate/end/designation only), selected once at
+    -- persist time (social program w5-game-result-share-kind). Nullable by
+    -- design: legacy pre-migration rows read as null ("no data captured"),
+    -- never coerced to [] so a summary view can tell that apart from "a
+    -- genuinely quiet game" (selector ran, found nothing notable).
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS notable_events JSONB;
 
     -- Public deck publish state (social program W0). Dedicated table rather
     -- than a 4th shares.audience value (see PLAN.md §A1) so the public URL
