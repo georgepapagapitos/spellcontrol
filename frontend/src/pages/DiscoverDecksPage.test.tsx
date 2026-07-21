@@ -3,7 +3,7 @@
  * DiscoverDecksPage — the ponytail-mandated one runnable check for this
  * page's branching (skeleton -> tiles / empty / error+retry), matching the
  * app's existing convention of not exhaustively unit-testing page
- * components (see FriendsPage.test.tsx), plus the filter/sort/buildable
+ * components (see FriendsManagement.test.tsx), plus the filter/sort/buildable
  * wiring `w2-discover-filters-sort` adds.
  */
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';

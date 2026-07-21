@@ -29,8 +29,9 @@ import { resetAppCacheAndReload } from '../lib/reset-app-cache';
 import { AdminPanel } from '../components/AdminPanel';
 import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
+import { FriendsManagement } from '../components/FriendsManagement';
 
-export function SettingsPage() {
+export function YouPage() {
   const username = useAuth((s) => s.user?.username ?? null);
   const userId = useAuth((s) => s.user?.id ?? null);
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
@@ -414,6 +415,14 @@ export function SettingsPage() {
             </div>
           </section>
         )}
+      </div>
+
+      {/* ── 1b. Friends ────────────────────────────────────────────────────── */}
+      <div role="group" aria-labelledby="you-friends-group-title">
+        <h2 id="you-friends-group-title" className="settings-section-header">
+          Friends
+        </h2>
+        <FriendsManagement />
       </div>
 
       {/* ── 2. Appearance ──────────────────────────────────────────────────── */}
