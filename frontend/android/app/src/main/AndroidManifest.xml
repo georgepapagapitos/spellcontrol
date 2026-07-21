@@ -80,6 +80,55 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="spellcontrol.com" android:pathPrefix="/s/" />
             </intent-filter>
+
+            <!--
+                Public profile landing App Link: `https://spellcontrol.com/u/<username>`
+                URLs open straight to the public profile route inside the
+                installed app rather than the browser. Same Digital Asset
+                Links verification as /s/ and /oauth/callback above (one
+                assetlinks.json statement covers the whole host).
+                `parseDeepLink()` already routes /u/<username> regardless of
+                scheme, so no JS change.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="spellcontrol.com" android:pathPrefix="/u/" />
+            </intent-filter>
+
+            <!--
+                Public deck landing App Link: `https://spellcontrol.com/d/<slug>`
+                URLs open straight to the public deck route inside the
+                installed app rather than the browser. Same verification as
+                the /u/ block above.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="spellcontrol.com" android:pathPrefix="/d/" />
+            </intent-filter>
+
+            <!--
+                Custom-scheme deep links for the same two surfaces, mirroring
+                the `spellcontrol://share/<token>` block above: work without
+                domain verification, safe to ship independent of the
+                autoVerify blocks above actually completing verification.
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="spellcontrol" android:host="profile" />
+            </intent-filter>
+
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="spellcontrol" android:host="deck" />
+            </intent-filter>
         </activity>
 
         <provider

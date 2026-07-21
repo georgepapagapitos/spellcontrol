@@ -34,6 +34,42 @@ describe('parseDeepLink', () => {
     expect(parseDeepLink('https://spellcontrol.app/decks')).toBeNull();
   });
 
+  it('routes https://<domain>/u/<username> to /u/<username>', () => {
+    expect(parseDeepLink('https://spellcontrol.com/u/alice')).toBe('/u/alice');
+  });
+
+  it('routes https://<domain>/d/<slug> to /d/<slug>', () => {
+    expect(parseDeepLink('https://spellcontrol.com/d/abc123')).toBe('/d/abc123');
+  });
+
+  it('handles trailing slashes on /u/ and /d/', () => {
+    expect(parseDeepLink('https://spellcontrol.com/u/alice/')).toBe('/u/alice');
+    expect(parseDeepLink('https://spellcontrol.com/d/abc123/')).toBe('/d/abc123');
+  });
+
+  it('routes spellcontrol://profile/<username> to /u/<username>', () => {
+    expect(parseDeepLink('spellcontrol://profile/alice')).toBe('/u/alice');
+  });
+
+  it('routes spellcontrol://deck/<slug> to /d/<slug>', () => {
+    expect(parseDeepLink('spellcontrol://deck/abc123')).toBe('/d/abc123');
+  });
+
+  it('accepts the ?token=<…> query-string variant for profile and deck hosts', () => {
+    expect(parseDeepLink('spellcontrol://profile?token=alice')).toBe('/u/alice');
+    expect(parseDeepLink('spellcontrol://deck?token=abc123')).toBe('/d/abc123');
+  });
+
+  it('percent-encodes usernames and slugs with reserved characters', () => {
+    expect(parseDeepLink('spellcontrol://profile/al ice')).toBe('/u/al%20ice');
+    expect(parseDeepLink('https://spellcontrol.com/d/abc 123')).toBe('/d/abc%20123');
+  });
+
+  it('rejects bare spellcontrol://profile and spellcontrol://deck with no token', () => {
+    expect(parseDeepLink('spellcontrol://profile')).toBeNull();
+    expect(parseDeepLink('spellcontrol://deck')).toBeNull();
+  });
+
   it('returns null on garbage input', () => {
     expect(parseDeepLink('not a url')).toBeNull();
     expect(parseDeepLink('')).toBeNull();

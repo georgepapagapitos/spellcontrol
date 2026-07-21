@@ -8,22 +8,29 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import type { Express } from 'express';
+import express, { type Express } from 'express';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import type { Pool } from 'pg';
 import {
   createTestEnv,
   extractSessionCookie,
   setSnapshotViaSyncApi,
   type SnapshotShape,
 } from '../test-helpers';
+import { lookupPublicDeckLandingMeta, lookupPublicUserLandingMeta } from '../routes/public';
 import { shareCache } from './cache';
-import { lookupShareLandingMeta } from './og';
+import { createShareLandingHandler, lookupShareLandingMeta } from './og';
 
 let app: Express;
+let pool: Pool;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
+  pool = env.pool;
   cleanup = env.cleanup;
 });
 
@@ -83,6 +90,56 @@ function makeCard(name: string): Record<string, unknown> {
     importId: 'import-1',
     sourceFormat: 'manabox',
   };
+}
+
+async function setDisplayName(cookie: string, name: string): Promise<void> {
+  const res = await request(app)
+    .patch('/api/auth/profile')
+    .set('Cookie', cookie)
+    .send({ displayName: name });
+  expect(res.status).toBe(200);
+}
+
+async function userIdFromCookie(cookie: string): Promise<string> {
+  const me = await request(app).get('/api/auth/me').set('Cookie', cookie);
+  return me.body.user.id as string;
+}
+
+function makeLandingDeck(
+  id: string,
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    id,
+    name: 'Lands Matter',
+    format: 'commander',
+    source: 'manual',
+    commander: null,
+    partnerCommander: null,
+    commanderAllocatedCopyId: null,
+    partnerCommanderAllocatedCopyId: null,
+    cards: [],
+    sideboard: [],
+    generationContext: null,
+    color: '#7aa6c2',
+    createdAt: 1700000000000,
+    updatedAt: 1700000000000,
+    ...overrides,
+  };
+}
+
+/** Registers a user, sets a display name, syncs one deck, and publishes it. */
+async function publishLandingDeck(
+  username: string,
+  deckId: string,
+  overrides: Record<string, unknown> = {}
+): Promise<{ cookie: string; slug: string }> {
+  const cookie = await makeUser(username);
+  await setDisplayName(cookie, `${username} display`);
+  await setSnapshot(cookie, 0, { decks: [makeLandingDeck(deckId, overrides)] });
+  const res = await request(app).post(`/api/publications/decks/${deckId}`).set('Cookie', cookie);
+  expect(res.status).toBe(201);
+  return { cookie, slug: res.body.publication.slug as string };
 }
 
 describe('lookupShareLandingMeta', () => {
@@ -395,5 +452,105 @@ describe('lookupShareLandingMeta', () => {
     const meta = await lookupShareLandingMeta(token);
     expect(meta!.title).toBe("OG Display Name's collection — SpellControl");
     expect(meta!.description).toContain('shared by OG Display Name');
+  });
+});
+
+describe('lookupPublicDeckLandingMeta', () => {
+  it('is indexable, with the og_art_crop column as the image, for a published deck with commander art', async () => {
+    const { slug } = await publishLandingDeck('land-deck-art', 'ld-art', {
+      commander: {
+        id: 'atraxa',
+        name: "Atraxa, Praetors' Voice",
+        image_uris: {
+          normal: 'https://cards.scryfall.io/normal/atraxa.jpg',
+          art_crop: 'https://cards.scryfall.io/art_crop/atraxa.jpg',
+        },
+      },
+      cards: [{ slotId: 's1', card: { id: 'sol-ring', name: 'Sol Ring' }, allocatedCopyId: null }],
+    });
+    const meta = await lookupPublicDeckLandingMeta(slug);
+    expect(meta).not.toBeNull();
+    expect(meta!.indexable).toBe(true);
+    expect(meta!.image).toBe('https://cards.scryfall.io/art_crop/atraxa.jpg');
+    expect(meta!.title).toBe('Lands Matter — commander deck');
+    // card_count = 1 (commander) + 1 (mainboard card) = 2, per extractListingFields.
+    expect(meta!.description).toContain('2 cards');
+    expect(meta!.description).toContain('led by Atraxa');
+    expect(meta!.url).toBe(`https://spellcontrol.com/d/${slug}`);
+  });
+
+  it('omits the image field (falls back to the static OG image downstream) for a commander-less deck with no art', async () => {
+    const { slug } = await publishLandingDeck('land-deck-noart', 'ld-noart');
+    const meta = await lookupPublicDeckLandingMeta(slug);
+    expect(meta).not.toBeNull();
+    expect(meta!.image).toBeUndefined();
+    expect(meta!.indexable).toBe(true);
+    expect(meta!.description).not.toContain('led by');
+  });
+
+  it('returns null for an unpublished slug — same stealth as GET /decks/:slug', async () => {
+    const { cookie, slug } = await publishLandingDeck('land-deck-unpub', 'ld-unpub');
+    const del = await request(app).delete('/api/publications/decks/ld-unpub').set('Cookie', cookie);
+    expect(del.status).toBe(204);
+    expect(await lookupPublicDeckLandingMeta(slug)).toBeNull();
+  });
+
+  it('returns null for an unknown slug', async () => {
+    expect(await lookupPublicDeckLandingMeta('no-such-slug-at-all')).toBeNull();
+  });
+});
+
+describe('lookupPublicUserLandingMeta', () => {
+  it('is indexable for a user with at least one live publication', async () => {
+    await publishLandingDeck('land-user-live', 'lu-live');
+    const meta = await lookupPublicUserLandingMeta('land-user-live');
+    expect(meta).not.toBeNull();
+    expect(meta!.indexable).toBe(true);
+    expect(meta!.title).toBe('land-user-live display on SpellControl');
+    expect(meta!.url).toBe('https://spellcontrol.com/u/land-user-live');
+  });
+
+  it('returns null (Folded blocking fix #2) for a user with zero live publications', async () => {
+    await makeUser('land-user-empty');
+    expect(await lookupPublicUserLandingMeta('land-user-empty')).toBeNull();
+  });
+
+  it('returns null (Folded blocking fix #2) for a moderator-hidden profile even with a live publication', async () => {
+    const { cookie } = await publishLandingDeck('land-user-hidden', 'lu-hidden');
+    const userId = await userIdFromCookie(cookie);
+    await pool.query(`UPDATE users SET profile_hidden_at = $2 WHERE id = $1`, [userId, Date.now()]);
+    expect(await lookupPublicUserLandingMeta('land-user-hidden')).toBeNull();
+  });
+
+  it('returns null for an unknown username', async () => {
+    expect(await lookupPublicUserLandingMeta('no-such-user-at-all')).toBeNull();
+  });
+});
+
+describe('route registration order (server.ts contract)', () => {
+  it("the /d/:token and /u/:token landing handlers are not shadowed by express.static's SPA fallback", async () => {
+    // Mirrors server.ts's exact registration order: the dynamic landing
+    // routes registered BEFORE express.static, so a hit is always answered
+    // by createShareLandingHandler (which injects noindex/canonical into
+    // <head>) rather than falling through to the bare static index.html —
+    // the bare shell below deliberately has no such markup, so its presence
+    // in the response proves the dynamic handler ran.
+    const spaDir = mkdtempSync(path.join(tmpdir(), 'og-spa-shadow-'));
+    writeFileSync(
+      path.join(spaDir, 'index.html'),
+      '<!doctype html><html><head><title>SpellControl</title></head><body></body></html>'
+    );
+    const miniApp = express();
+    miniApp.get('/d/:token', createShareLandingHandler(spaDir, lookupPublicDeckLandingMeta));
+    miniApp.get('/u/:token', createShareLandingHandler(spaDir, lookupPublicUserLandingMeta));
+    miniApp.use(express.static(spaDir));
+
+    const deckRes = await request(miniApp).get('/d/no-such-slug-at-all');
+    expect(deckRes.status).toBe(200);
+    expect(deckRes.text).toContain('<meta name="robots" content="noindex,nofollow"');
+
+    const userRes = await request(miniApp).get('/u/no-such-user-at-all');
+    expect(userRes.status).toBe(200);
+    expect(userRes.text).toContain('<meta name="robots" content="noindex,nofollow"');
   });
 });
