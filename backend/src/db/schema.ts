@@ -7,6 +7,7 @@ import {
   jsonb,
   bigint,
   boolean,
+  date,
   primaryKey,
   index,
   uniqueIndex,
@@ -756,6 +757,34 @@ export const commanderCardInclusion = pgTable(
   })
 );
 
+/**
+ * One row per public deck per day the rollup ran (social program W4,
+ * w4-trending), holding that day's CUMULATIVE view/copy counters
+ * (`deckPublications.viewCount`/`.copyCount`, read-only here). Deltas between
+ * consecutive days drive `aggregates/trending-decks.ts`'s decayed "most
+ * copied" ranking -- a flat cumulative number can't be decayed on its own.
+ * Deliberately no FK -- same disposable-derived-data reasoning as
+ * commanderStats; rows older than SNAPSHOT_RETENTION_DAYS are pruned every
+ * rollup run. `day` is stored as `mode: 'string'` ('YYYY-MM-DD') so reads
+ * never round-trip through a JS Date (node-postgres's default DATE parsing
+ * reconstructs a local-midnight Date, which can shift a calendar day under a
+ * non-UTC client timezone) -- see trending-decks.ts for the read-side cast.
+ */
+export const deckStatSnapshots = pgTable(
+  'deck_stat_snapshots',
+  {
+    deckId: text('deck_id').notNull(),
+    userId: text('user_id').notNull(),
+    day: date('day', { mode: 'string' }).notNull(),
+    viewCount: integer('view_count').notNull().default(0),
+    copyCount: integer('copy_count').notNull().default(0),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.deckId, t.day] }),
+    dayIdx: index('deck_stat_snapshots_day_idx').on(t.day),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
@@ -788,3 +817,4 @@ export type ContentReportRow = typeof contentReports.$inferSelect;
 export type AggregateRollupRunRow = typeof aggregateRollupRuns.$inferSelect;
 export type CommanderStatsRow = typeof commanderStats.$inferSelect;
 export type CommanderCardInclusionRow = typeof commanderCardInclusion.$inferSelect;
+export type DeckStatSnapshotRow = typeof deckStatSnapshots.$inferSelect;
