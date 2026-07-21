@@ -696,7 +696,24 @@ export function DeckEditorPage() {
     return map;
   }, [collectionCards, binderDefs]);
 
-  const comboData = useDeckCombos({ deckOracleIds, ownedOracleIds, format: deck?.format });
+  const commanderColorIdentity = useMemo(() => {
+    if (!deck) return [];
+    const ci = new Set<string>();
+    for (const c of deck.commander?.color_identity ?? []) ci.add(c);
+    for (const c of deck.partnerCommander?.color_identity ?? []) ci.add(c);
+    return [...ci];
+  }, [deck]);
+  // Only commander decks carry an identity restriction — undefined disables
+  // the hook's suggestion filter (an empty array would mean "colorless").
+  const comboColorIdentity =
+    deck?.commander || deck?.partnerCommander ? commanderColorIdentity : undefined;
+
+  const comboData = useDeckCombos({
+    deckOracleIds,
+    ownedOracleIds,
+    format: deck?.format,
+    colorIdentity: comboColorIdentity,
+  });
   const comboOverlay = useEdhrecComboOverlay(deck?.commander?.name ?? null);
 
   // Count one-away combos whose missing piece the user already owns.
@@ -733,14 +750,6 @@ export function DeckEditorPage() {
   const handleViewCombos = useCallback(() => {
     combosRef.current?.reveal(comboOwnedMissingCount > 0 ? 'oneAway' : 'inDeck');
   }, [comboOwnedMissingCount]);
-
-  const commanderColorIdentity = useMemo(() => {
-    if (!deck) return [];
-    const ci = new Set<string>();
-    for (const c of deck.commander?.color_identity ?? []) ci.add(c);
-    for (const c of deck.partnerCommander?.color_identity ?? []) ci.add(c);
-    return [...ci];
-  }, [deck]);
 
   // Keep grade/bracket live for any commander deck as its cards change —
   // generated and manual alike (the user's bracketOverride layers on top).
@@ -2516,6 +2525,7 @@ export function DeckEditorPage() {
                   deckId={deck.id}
                   deckOracleIds={deckOracleIds}
                   format={deck.format}
+                  colorIdentity={comboColorIdentity}
                   onAdd={(card, allocatedCopyId) => addCard(deck.id, card, allocatedCopyId)}
                 />
               ) : undefined

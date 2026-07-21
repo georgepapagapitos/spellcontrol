@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { matchCombos } from './api/combos';
-import type { ComboMatchResponse } from '../types/combos';
+import type { ComboMatch, ComboMatchResponse } from '../types/combos';
 
 interface Args {
   /** Oracle ids of every card currently in the deck (commander + main + side). */
@@ -9,6 +9,15 @@ interface Args {
   ownedOracleIds: string[];
   /** Format used to filter combos by legality (e.g. "commander"). Optional. */
   format?: string;
+  /**
+   * The deck's color identity (WUBRG letters — the commander(s)'). When set,
+   * the suggestion buckets (`oneAway` / `almostInCollection`) drop combos whose
+   * own identity escapes it: their missing piece could never legally join the
+   * deck. `inDeck` is never filtered — a combo already assembled in the deck is
+   * a fact, not a suggestion. Omit (undefined) for formats with no identity
+   * restriction; an empty array is a colorless commander and filters strictly.
+   */
+  colorIdentity?: readonly string[];
   /** When false, the hook does nothing — useful while a panel is closed. */
   enabled?: boolean;
 }
@@ -35,6 +44,27 @@ function buildKey(deck: string[], owned: string[], format: string | undefined): 
   return [format ?? '', [...deck].sort().join(','), [...owned].sort().join(',')].join('|');
 }
 
+/**
+ * Filter the suggestion buckets to combos whose identity (Spellbook format,
+ * e.g. "wub", or "c" for colorless) fits inside the deck's identity letters.
+ * `identityKey` null = no restriction; '' = colorless commander. An unknown
+ * combo identity ('') always fits — never over-filter on missing data.
+ */
+function filterByIdentity(
+  data: ComboMatchResponse,
+  identityKey: string | null
+): ComboMatchResponse {
+  if (identityKey === null) return data;
+  const allowed = new Set(identityKey);
+  const fits = (m: ComboMatch) =>
+    [...m.combo.identity.toUpperCase()].every((ch) => ch === 'C' || allowed.has(ch));
+  return {
+    inDeck: data.inDeck,
+    oneAway: data.oneAway.filter(fits),
+    almostInCollection: data.almostInCollection.filter(fits),
+  };
+}
+
 function rememberCache(key: string, value: ComboMatchResponse): void {
   if (cache.size >= CACHE_LIMIT) {
     const oldestKey = cache.keys().next().value;
@@ -44,7 +74,14 @@ function rememberCache(key: string, value: ComboMatchResponse): void {
 }
 
 export function useDeckCombos(args: Args): State {
-  const { deckOracleIds, ownedOracleIds, format, enabled = true } = args;
+  const { deckOracleIds, ownedOracleIds, format, colorIdentity, enabled = true } = args;
+  // Stable string key so the filter memo survives an unstable array reference.
+  const identityKey = colorIdentity
+    ? [...colorIdentity]
+        .map((c) => c.toUpperCase())
+        .sort()
+        .join('')
+    : null;
 
   const key = useMemo(
     () => buildKey(deckOracleIds, ownedOracleIds, format),
@@ -108,7 +145,15 @@ export function useDeckCombos(args: Args): State {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled]);
 
-  return state;
+  // Identity filtering happens on the way out (the cache stays raw): the key
+  // above doesn't include identity, but identity is a function of the deck's
+  // commander, which is part of deckOracleIds — same key ⇒ same identity.
+  const data = useMemo(
+    () => (state.data ? filterByIdentity(state.data, identityKey) : null),
+    [state.data, identityKey]
+  );
+
+  return { ...state, data };
 }
 
-export const __testing = { cache, buildKey };
+export const __testing = { cache, buildKey, filterByIdentity };

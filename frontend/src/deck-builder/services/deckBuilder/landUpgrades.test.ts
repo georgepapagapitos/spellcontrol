@@ -53,6 +53,20 @@ describe('computeLandUpgrades', () => {
     expect(moves[0].owned).toBe(true);
   });
 
+  it('rejects a candidate whose own identity escapes the deck (off-color dual)', () => {
+    // A UR dual produces usable U in a WU deck (so the color clamp passes it),
+    // but its identity includes R — not Commander-legal here.
+    const deck = [island(), island(), blueSpell(), blueSpell()];
+    const urDual = card({
+      name: 'Steam Vents',
+      type_line: 'Land — Island Mountain',
+      produced_mana: ['U', 'R'],
+      color_identity: ['U', 'R'],
+      oracle_text: '{T}: Add {U} or {R}.',
+    });
+    expect(computeLandUpgrades(deck, WU, [urDual], new Set(['Steam Vents']))).toHaveLength(0);
+  });
+
   it('never proposes a swap that drops a color (no regression)', () => {
     // The only candidate makes red — it can't replace a Plains without losing W.
     const deck = [plains(), island(), blueSpell()];

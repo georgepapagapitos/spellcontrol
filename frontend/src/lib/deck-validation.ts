@@ -47,7 +47,7 @@ export function getMaxCopies(card: ScryfallCard, isSingleton: boolean): number {
  * Allowed is the commander(s)' combined color identity. Colorless cards
  * (empty color_identity) fit any commander.
  */
-export function fitsColorIdentity(card: ScryfallCard, allowed: Set<string>): boolean {
+export function fitsColorIdentity(card: ScryfallCard, allowed: ReadonlySet<string>): boolean {
   const ci = card.color_identity ?? [];
   for (const c of ci) {
     if (!allowed.has(c)) return false;
