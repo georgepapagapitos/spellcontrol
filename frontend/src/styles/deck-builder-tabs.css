@@ -525,12 +525,14 @@
 }
 
 .deck-combos-card-status.is-owned {
-  color: #30a46c;
+  /* Sits over always-dark card art — the scrim-tuned success, not --success
+     (whose light-theme override is tuned for pale surfaces). */
+  color: var(--art-scrim-success);
 }
 
 /* "own the missing piece" suffix on the piece-count line (one-away tab). */
 .deck-combos-piece-count-owned {
-  color: #30a46c;
+  color: var(--art-scrim-success);
   font-weight: 600;
 }
 

@@ -70,7 +70,7 @@
 }
 
 .guided-step.is-active .guided-step-num {
-  background: color-mix(in srgb, #fff 28%, transparent);
+  background: color-mix(in srgb, var(--on-accent) 28%, transparent);
 }
 
 .guided-blurb {

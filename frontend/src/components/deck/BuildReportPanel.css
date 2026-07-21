@@ -147,7 +147,8 @@
   padding: 0.4rem 0.55rem;
   font-size: var(--text-sm);
   color: var(--warn-text);
-  background: var(--warn-surface);
+  /* --warn-surface never existed (silent transparent) — the warn trio. */
+  background: var(--warn-bg);
   border: 0.5px solid var(--warn-border);
   border-radius: var(--radius);
   line-height: 1.4;

@@ -438,7 +438,8 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.2rem 0.6rem;
-  border-radius: 999px;
+  /* Actionable filter toggle = rect (role decides shape). */
+  border-radius: var(--radius);
   border: 0.5px solid var(--border);
   background: transparent;
   color: var(--text-secondary);

@@ -150,9 +150,9 @@
   gap: 10px;
   padding: var(--space-3) 14px;
   background: var(--surface-raised);
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-tooltip);
   overflow-y: auto;
 }
 
@@ -209,7 +209,7 @@
 .legend-swatch {
   width: 12px;
   height: 17px;
-  border-radius: 2px;
+  border-radius: calc(var(--radius) * 0.5);
   flex-shrink: 0;
 }
 
@@ -352,7 +352,7 @@ hr {
   align-items: center;
   gap: var(--space-2);
   background: var(--err-bg);
-  border: 0.5px solid var(--err-border);
+  border: 1px solid var(--err-border);
   color: var(--err-text);
   padding: 10px 14px;
   border-radius: var(--radius);
@@ -369,7 +369,7 @@ hr {
   align-items: center;
   gap: var(--space-2);
   background: var(--accent-light);
-  border: 0.5px solid var(--accent);
+  border: 1px solid var(--accent);
   color: var(--accent-hover);
   padding: 10px 14px;
   border-radius: var(--radius);

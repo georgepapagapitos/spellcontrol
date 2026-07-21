@@ -169,7 +169,7 @@
 
 /* Left gutter tabs: rounded outer-left corners attach to the left page edge. */
 .binder-spread-tab--left {
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
   /* Subtle left border to separate from the page — mirrors the page's own
      0.5px border style. */
   border-right: 0.5px solid rgba(255, 255, 255, 0.08);
@@ -178,7 +178,7 @@
 
 /* Right gutter tabs: rounded outer-right corners attach to the right page edge. */
 .binder-spread-tab--right {
-  border-radius: 4px 0 0 4px;
+  border-radius: var(--radius) 0 0 var(--radius);
   border-left: 0.5px solid rgba(255, 255, 255, 0.08);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.35);
 }

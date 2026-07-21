@@ -35,14 +35,14 @@
   align-items: center;
 }
 
-/* Toggle chips: 999px radius per STYLE_GUIDE "Rectangles act, pills label" —
-   these label/filter, they are pills. aria-pressed drives the active tint. */
+/* Toggle chips: rects, not pills — aria-pressed filters ACT (the role
+   decides the shape; matches .deck-role-bar-chip's explicit precedent). */
 .coach-feed-filter-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
   padding: 0.2rem 0.6rem;
-  border-radius: 999px;
+  border-radius: var(--radius);
   border: 0.5px solid var(--border);
   background: transparent;
   color: var(--text-secondary);

@@ -928,7 +928,7 @@
   justify-content: center;
   padding: 0.125rem;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--text-secondary);
   line-height: 0;
@@ -959,9 +959,10 @@
   min-width: 11rem;
   padding: var(--space-1);
   background: var(--surface);
-  border: 0.5px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-modal);
+  /* Small anchored popover = tooltip tier (parity w/ .deck-editor-overflow-panel). */
+  box-shadow: var(--shadow-tooltip);
   display: flex;
   flex-direction: column;
   /* Tall menus on a short viewport scroll rather than overflow off-screen. */

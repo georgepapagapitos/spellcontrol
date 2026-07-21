@@ -100,7 +100,7 @@
   font-size: var(--text-xs);
   font-family: var(--font-mono);
   background: var(--surface-raised);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 .spinner {

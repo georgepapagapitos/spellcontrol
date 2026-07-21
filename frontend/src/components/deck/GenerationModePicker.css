@@ -185,7 +185,8 @@
   color: var(--text-secondary);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
-  border-radius: 999px;
+  /* aria-pressed preset button = rect (role decides shape). */
+  border-radius: var(--radius);
   cursor: pointer;
   transition:
     border-color var(--motion-fast),
@@ -308,7 +309,7 @@
 }
 
 .gen-mode-preview-caption.is-empty {
-  color: var(--warn-text, #b85c00);
+  color: var(--warn-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

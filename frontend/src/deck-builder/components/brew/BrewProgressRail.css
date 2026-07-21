@@ -19,7 +19,8 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.7rem;
-  border-radius: 999px;
+  /* Labelled slot-navigator button = rect (role decides shape). */
+  border-radius: var(--radius);
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
   color: var(--text-muted);

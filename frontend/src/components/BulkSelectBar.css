@@ -10,6 +10,10 @@
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+  /* Stamped physicality while filled — matches .pill-btn-primary. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 1px 0 rgb(0 0 0 / 12%);
 }
 .bulk-select-toggle[aria-pressed='true']:focus-visible {
   background: var(--accent-hover);
@@ -49,6 +53,31 @@
 .bulk-bar .pill-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* "Done" is the bar's primary (exit) action — accent-filled to anchor the
+   row, mirroring .card-list-bulk-done on the collection bar (this class
+   was previously unstyled, leaving the two identical Done exits in
+   different tiers). */
+.bulk-bar-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 1px 0 rgb(0 0 0 / 12%);
+}
+
+.bulk-bar-done:focus-visible {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+@media (hover: hover) and (pointer: fine) {
+  .bulk-bar-done:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
 }
 
 .bulk-bar-danger:not(:disabled) {

@@ -105,6 +105,11 @@ function OptionRow({
         disabled={busy}
         aria-label={`${verb} ${option.name}`}
       >
+        {verb === 'Add' ? (
+          <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
+        ) : (
+          <ArrowLeftRight width={14} height={14} strokeWidth={1.8} aria-hidden />
+        )}
         {verb}
       </button>
     </li>
