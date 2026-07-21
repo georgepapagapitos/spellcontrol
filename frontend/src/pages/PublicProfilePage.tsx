@@ -5,7 +5,8 @@ import { UserAvatar } from '../components/UserAvatar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { ReportDialog } from '../components/shared/ReportDialog';
 import { formatIdentity } from '../lib/display-name';
-import { formatCount } from '../lib/format-count';
+import { formatSocialCount } from '../lib/social-proof';
+import { formatRelativeTime } from '../lib/format-time';
 import { fetchPublicProfile, ProfileNotFoundError } from '../lib/profile-client';
 import type { PublicProfile, PublicProfileDeck } from '../lib/profile-client';
 import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
@@ -94,12 +95,21 @@ function ProfileSkeleton() {
   );
 }
 
-function DeckMetaCounts({ deck }: { deck: PublicProfileDeck }) {
-  const parts: string[] = [];
-  if (deck.viewCount >= GHOST_TOWN_THRESHOLD) parts.push(`${formatCount(deck.viewCount)} views`);
-  if (deck.copyCount >= GHOST_TOWN_THRESHOLD) parts.push(`${formatCount(deck.copyCount)} copies`);
-  if (parts.length === 0) return null;
-  return <span className="public-profile-deck-counts">{parts.join(' · ')}</span>;
+/**
+ * On-art overlay line (tile system v2) — views/copies (ghost-town-
+ * thresholded via the shared `formatSocialCount`, same floor as
+ * `GHOST_TOWN_THRESHOLD`) plus recency. Mirrors DiscoverDeckTile's grid
+ * banner overlay so the app's two art-banner tile families read
+ * identically. Never empty — `formatRelativeTime` always returns something.
+ */
+function tileStatsLine(deck: PublicProfileDeck): string {
+  const views = formatSocialCount(deck.viewCount);
+  const copies = formatSocialCount(deck.copyCount);
+  const parts = [views && `${views} views`, copies && `${copies} copies`].filter(
+    (s): s is string => s != null
+  );
+  parts.push(formatRelativeTime(deck.publishedAt));
+  return parts.join(' · ');
 }
 
 function DeckTile({
@@ -114,30 +124,44 @@ function DeckTile({
   const colors = deck.colorIdentity.slice(0, 5);
   const cascadeCls = panelCascadeClass(index, animating);
   return (
-    <li className={`decks-index-card${cascadeCls ? ` ${cascadeCls}` : ''}`}>
+    <li className={`decks-index-card public-profile-tile${cascadeCls ? ` ${cascadeCls}` : ''}`}>
       <Link
         to={`/d/${deck.slug}`}
         className="decks-index-card-link"
         aria-label={deckTileAriaLabel(deck)}
       >
-        {deck.commanderImage ? (
-          <img
-            className="decks-index-card-art"
-            src={deck.commanderImage}
-            alt=""
-            aria-hidden="true"
-          />
-        ) : (
-          <span className="decks-index-card-banner" aria-hidden="true">
-            {colors.length > 0 && (
-              <span className="decks-index-card-banner-pips">
-                {colors.map((c) => (
-                  <ColorPip key={c} color={c} pip="lg" />
-                ))}
-              </span>
-            )}
+        <span className="public-profile-tile-banner">
+          {deck.commanderImage ? (
+            <img
+              className="decks-index-card-art"
+              src={deck.commanderImage}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+            />
+          ) : (
+            <span className="decks-index-card-banner" aria-hidden="true">
+              {colors.length > 0 && (
+                <span className="decks-index-card-banner-pips">
+                  {colors.map((c) => (
+                    <ColorPip key={c} color={c} pip="lg" />
+                  ))}
+                </span>
+              )}
+            </span>
+          )}
+          <span className="public-profile-tile-banner-stats" aria-hidden="true">
+            {tileStatsLine(deck)}
           </span>
-        )}
+        </span>
+        <span className="public-profile-tile-colorbar" aria-hidden="true">
+          {(colors.length > 0 ? colors : ['C']).map((c, i) => (
+            <span
+              key={`${c}-${i}`}
+              className={`public-profile-tile-colorbar-seg public-profile-tile-colorbar-seg--${c.toLowerCase()}`}
+            />
+          ))}
+        </span>
         <div className="decks-index-card-body">
           <div className="decks-index-card-name">
             <span>{deck.name}</span>
@@ -155,7 +179,6 @@ function DeckTile({
               <span className="deck-format-badge">Bracket {deck.bracket}</span>
             )}
           </div>
-          <DeckMetaCounts deck={deck} />
         </div>
       </Link>
     </li>

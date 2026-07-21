@@ -651,6 +651,75 @@ scrolls to the submit form — on a 100-card deck the form is otherwise a full
 page-height away. The tally renders **only when suggestions exist** (insight
 surfaces never displace content).
 
+## Discover deck tiles (art-banner, tile system v2)
+
+`DiscoverDeckTile` (Discover, SavedDecksPage) and `PublicProfilePage`'s own
+`DeckTile` both build on the shared `.decks-index-card` family
+(`deck-builder-decks-index.css`), but **grid view** layers an art-banner
+treatment on top — pass 2a of the visual-richness program, informed by
+Archidekt's home tiles and adapted to this app's identity. **List view is
+deliberately untouched**: it stays the original compact thumbnail-row design
+(current behavior), because the banner/overlay/hover chrome below assumes a
+full-width art band list rows don't have. A future view that wants this
+treatment needs its own art-banner width, not just a class toggle.
+
+**Banner**: a wrapper (`.discover-tile-banner` / the per-page equivalent)
+reserves `aspect-ratio: 16 / 9` — not a viewport-relative `clamp()` height —
+so the box holds its size before the image loads (zero CLS) regardless of
+whether the art or the fallback color banner ends up inside it. The art
+`<img>` is always `loading="lazy"` with `alt=""` (decorative; the tile's own
+aria-label carries the deck's identity). New banner-treatment rules that need
+to reliably beat the shared base rule's own specificity use the compound
+`.decks-index-card.discover-tile` (or `.public-profile-tile`) prefix — the
+same defensive pattern `DiscoverDeckTile.css`'s header comment already
+documents for import-order independence.
+
+**On-art overlay stats**: views · copies · recency, bottom-anchored over the
+banner, `aria-hidden` (decorative reinforcement — the tile's own aria-label
+carries the real numbers). Views/copies are individually thresholded exactly
+like `social-proof.ts`'s `formatSocialCount` (hidden below the public-count
+floor, never a bare zero); recency has no floor and always renders. Likes are
+intentionally absent from this line — `LikeButton` already carries that state
+via its own `aria-pressed` heart, so the banner spends its one line on
+recency instead. The scrim is `var(--art-scrim)` → transparent (never a
+per-theme token): **on-art overlays are always dark, in both themes** — the
+same reasoning as the always-dark card-preview panel (`CardDetails.css`) —
+because legibility over unpredictable art/fallback-color can't follow the
+app's light/dark swap. Pair the text color with `var(--art-scrim-text)`.
+
+**Segmented color-identity bar**: one flat `flex: 1` segment per color in
+`colorIdentity`, directly under the banner, `aria-hidden` (the aria-label
+already states the colors). Segment colors are the **exact backgrounds
+ColorPip/ManaSymbol already paint** for a solid WUBRG pip — mana-font's own
+`.ms-cost.ms-<letter>` circle fill (`node_modules/mana-font/css/mana.css`),
+not the font's separate `--ms-mana-*` custom properties (those are scoped to
+`.ms` elements for the hybrid-symbol gradient halves, not usable from an
+unrelated part of the tree, and aren't what a solid pip actually renders
+on screen): W `#f0f2c0`, U `#b5cde3`, B `#aca29a`, R `#db8664`, G `#93b483`.
+Colorless renders a single neutral segment (mana-font's own `.ms-cost` base
+gray, `#beb9b2`) instead of an empty bar — never omit the bar entirely.
+
+**Hover quick-actions** (grid + `@media (hover: hover) and (pointer: fine)`
+strictly — never on touch): an "Open" pill plus the relocated Like/Bookmark
+buttons fade in on `:hover`/`:focus-within` of the tile. "Open" is a real
+`<Link>` (so a mouse click navigates) but `aria-hidden` + `tabIndex={-1}` —
+it's a purely decorative, mouse-only reinforcement of the tile's own already
+fully-labeled main link immediately before it in the DOM, so a real focus
+stop there would just be a redundant announcement for keyboard/AT users with
+zero destination difference. On touch, Like/Bookmark stay **exactly as
+today**: always visible, never hover-gated (the `hover: hover` media query
+itself already excludes touch — no separate override needed).
+
+**Footer**: `buildablePercent`, `estimatedValueUsd`, and "no data" are mutually
+exclusive, in that priority order — never stack a price line and a buildable
+meter, and never render an empty shell when neither applies. This is the
+differentiator slot where Archidekt shows tags.
+
+**Owner attribution**: `UserAvatar` (small) + `formatIdentity(...).primary`,
+still a genuinely separate sibling `<Link>` — never nested inside the tile's
+main link (nesting `<a>` inside `<a>` is invalid HTML and would double-fire
+navigation). List view keeps the plain-text "by username" caption.
+
 ## Info tooltips
 
 When a label needs a plain-language explainer for a concept not everyone knows

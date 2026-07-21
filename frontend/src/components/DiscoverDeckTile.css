@@ -1,10 +1,100 @@
 /* DiscoverDeckTile.css — additions layered on top of the reused
-   `.decks-index-card` family (deck-builder-decks-index.css): the price/
-   social-counts row, the owner-attribution link, the hover art-zoom, and
-   the skeleton tile. Compound `.decks-index-card.discover-tile` selectors
-   are used where a rule must reliably win over the base card rule
-   regardless of CSS import order (STYLE_GUIDE: "Import order in main.tsx
-   is load-bearing" — a bare `.discover-tile` would tie on specificity). */
+   `.decks-index-card` family (deck-builder-decks-index.css): the art
+   banner + overlay stats + color bar (grid only — tile system v2), the
+   price/social-counts row + inline buildable meter (list only, unchanged
+   pre-v2 design), the owner-attribution link, the buildable-or-value
+   footer (grid only), the hover quick-actions, and the skeleton tile.
+   Compound `.decks-index-card.discover-tile` selectors are used where a
+   rule must reliably win over the base card rule regardless of CSS import
+   order (STYLE_GUIDE: "Import order in main.tsx is load-bearing" — a bare
+   `.discover-tile` would tie on specificity). */
+
+/* ── Art banner (grid only) ────────────────────────────────────────────── */
+
+/* ~16:9, aspect-ratio reserved — not the base rule's viewport-relative
+   `clamp()` height — so the box holds its size before the image has loaded
+   (zero CLS) regardless of which branch (art vs fallback color banner) ends
+   up inside it. The compound prefix beats the shared base rule's own
+   specificity (`.decks-index-list.is-grid .decks-index-card-art`) so this
+   wins regardless of import order. */
+.decks-index-card.discover-tile .discover-tile-banner {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+.decks-index-card.discover-tile .discover-tile-banner .decks-index-card-art,
+.decks-index-card.discover-tile .discover-tile-banner .decks-index-card-banner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+/* On-art overlay stats — views · copies · recency, bottom-anchored over the
+   banner. --art-scrim/--art-scrim-text (tokens.css) are deliberately
+   theme-invariant: this text sits on unpredictable art/fallback-banner
+   colors in both light and dark mode, the same reasoning as the always-dark
+   card-preview panel (CardDetails.css/CardRulings.css) — legibility here
+   can't follow the theme swap the rest of the tile does. */
+.discover-tile-banner-stats {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 1.25rem var(--space-2) var(--space-1);
+  background: linear-gradient(to top, var(--art-scrim), transparent);
+  color: var(--art-scrim-text);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Segmented color-identity bar (grid only) ─────────────────────────────
+   Directly under the banner — one equal-width flat segment per color in
+   colorIdentity, using the exact backgrounds ColorPip/ManaSymbol already
+   paint for a solid WUBRG pip (mana-font's `.ms-cost.ms-<letter>` circle
+   fill — node_modules/mana-font/css/mana.css — since ColorPip always
+   renders with the `cost` treatment). Colorless gets a single neutral
+   segment (mana-font's own `.ms-cost` base gray, which has no letter-
+   specific override either) instead of an empty bar. aria-hidden: the
+   tile's aria-label already states the color identity in text. */
+.discover-tile-colorbar {
+  display: flex;
+  height: 4px;
+}
+
+.discover-tile-colorbar-seg {
+  flex: 1;
+}
+
+.discover-tile-colorbar-seg--w {
+  background: #f0f2c0;
+}
+.discover-tile-colorbar-seg--u {
+  background: #b5cde3;
+}
+.discover-tile-colorbar-seg--b {
+  background: #aca29a;
+}
+.discover-tile-colorbar-seg--r {
+  background: #db8664;
+}
+.discover-tile-colorbar-seg--g {
+  background: #93b483;
+}
+.discover-tile-colorbar-seg--c {
+  background: #beb9b2;
+}
+
+/* ── List-only stats/buildable (unchanged pre-v2 design) ──────────────── */
 
 .discover-tile-stats {
   display: flex;
@@ -38,6 +128,24 @@
   color: var(--text-muted);
 }
 
+/* ── Grid-only footer slot ─────────────────────────────────────────────────
+   Sibling of the main Link (never nested — informational, not a duplicate
+   navigation target), so it can render below the owner line in DOM order.
+   Paired with .discover-tile-buildable above (reused verbatim for the meter
+   case) or its own value-text sibling class — mutually exclusive, and
+   omitted entirely (no row at all) when neither applies. */
+.discover-tile-footer {
+  padding: 0 0.85rem 0.7rem;
+}
+
+.discover-tile-value-footer {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Owner attribution ─────────────────────────────────────────────────── */
+
 .discover-tile-owner {
   display: block;
   padding: 0.2rem 0.85rem 0.7rem;
@@ -46,16 +154,49 @@
   text-decoration: none;
 }
 
+/* Grid only: avatar + display name replaces the plain "by username"
+   caption. List keeps the original text-only treatment (current behavior,
+   untouched — see STYLE_GUIDE "list stays a compact row"). */
+.decks-index-list.is-grid .discover-tile-owner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* Like/Bookmark corner slot (w2-likes-bookmarks) — a sibling of the tile's
    <Link>, positioned exactly like .decks-index-card-menu. The buttons
    themselves (.tile-action-btn) are styled in LikeButton.css, shared by
-   both LikeButton and BookmarkButton. */
+   both LikeButton and BookmarkButton. Grid also renders the Open pill here
+   (tile system v2) as the cluster's first child. */
 .tile-actions {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
   display: flex;
+  align-items: center;
   gap: 0.2rem;
+}
+
+/* Mouse-only "Open" pill (grid only) — `display: none` by default so it
+   never appears on touch regardless of view; only the hover-capable media
+   query below turns it on. Genuinely a `<Link>` (so a mouse click navigates
+   natively) but `aria-hidden` + `tabIndex={-1}` in the JSX: it's a purely
+   decorative, purely-mouse reinforcement of the tile's own already fully-
+   labeled main Link immediately before it in the DOM — a real focus stop
+   here would just be a redundant "Open, link" announcement for keyboard/AT
+   users with zero destination difference. */
+.discover-tile-open-pill {
+  display: none;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -95,7 +236,27 @@
     transition: transform var(--motion-base) var(--ease-out-soft);
   }
   .discover-tile:hover .decks-index-card-art {
-    transform: scale(1.05);
+    transform: scale(1.03);
+  }
+
+  /* Quick-actions reveal (grid only) — Open/Like/Bookmark fade in on
+     hover/focus-within instead of sitting on the art permanently. Touch
+     devices never match this query, so .tile-actions keeps its
+     unconditional visibility there — same as list view, always (LikeButton/
+     BookmarkButton's own touch behavior is untouched by this rule; see
+     LikeButton.css's `.decks-index-list.is-grid .tile-action-btn` contrast
+     rescope, which keys off the same ancestor chain and still applies
+     unchanged). */
+  .decks-index-list.is-grid .discover-tile .tile-actions {
+    opacity: 0;
+    transition: opacity var(--motion-fast) ease;
+  }
+  .decks-index-list.is-grid .discover-tile:hover .tile-actions,
+  .decks-index-list.is-grid .discover-tile:focus-within .tile-actions {
+    opacity: 1;
+  }
+  .decks-index-list.is-grid .discover-tile-open-pill {
+    display: inline-flex;
   }
 }
 
@@ -103,7 +264,10 @@
 .discover-tile-skeleton-art {
   display: block;
   width: 100%;
-  height: clamp(7rem, 22vw, 10rem);
+  /* Same aspect-ratio box as the real grid banner (not a clamp() height) so
+     swapping the skeleton for the real tile never jumps size — list's own
+     override below still pins an explicit 96x96 square regardless. */
+  aspect-ratio: 16 / 9;
   border-top-left-radius: calc(var(--radius-lg) - 1px);
   border-top-right-radius: calc(var(--radius-lg) - 1px);
   background: linear-gradient(
@@ -179,5 +343,9 @@
   .discover-tile-skeleton-art,
   .discover-tile-skeleton-bar {
     animation: none;
+  }
+  .discover-tile .decks-index-card-art,
+  .decks-index-list.is-grid .discover-tile .tile-actions {
+    transition: none;
   }
 }
