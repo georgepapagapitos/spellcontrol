@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   DisplayNameRequiredError,
   getPublication,
+  listMyPublications,
   publicationUrl,
   publishDeck,
   unpublishDeck,
   type Publication,
+  type OwnedPublication,
 } from './publications-client';
 import { isNativePlatform } from './platform';
 
@@ -56,6 +58,36 @@ describe('getPublication', () => {
       jsonResponse({ error: 'nope' }, { status: 500 })
     );
     await expect(getPublication('d1')).rejects.toThrow(/nope/);
+  });
+});
+
+describe('listMyPublications', () => {
+  it('GETs the caller-wide list and returns the publications array', async () => {
+    const rows: OwnedPublication[] = [
+      { deckId: 'd1', slug: 'korvold-treasure', unpublishedAt: null, viewCount: 4, copyCount: 1 },
+      { deckId: 'd2', slug: 'old-deck', unpublishedAt: 12345, viewCount: 2, copyCount: 0 },
+    ];
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ publications: rows }));
+    const out = await listMyPublications();
+    expect(out).toEqual(rows);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/publications/decks',
+      expect.objectContaining({ credentials: 'include' })
+    );
+  });
+
+  it('resolves an empty array when nothing has ever been published', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ publications: [] }));
+    expect(await listMyPublications()).toEqual([]);
+  });
+
+  it('throws with the server error on failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'nope' }, { status: 500 })
+    );
+    await expect(listMyPublications()).rejects.toThrow(/nope/);
   });
 });
 

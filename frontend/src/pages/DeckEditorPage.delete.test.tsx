@@ -126,6 +126,13 @@ vi.mock('../store/toasts', () => ({
 vi.mock('../components/deck/DeckDisplay', () => ({
   DeckDisplay: () => <div data-testid="deck-display" />,
 }));
+// The chip pulls in ShareDialog (Capacitor share sheet, friends-client,
+// auth-api…) and fetches on mount via useDeckVisibility — irrelevant to these
+// delete-flow tests and exactly the unmocked-network-leaf shape that causes
+// the post-teardown fetch flake (see project_vitest_teardown_flake).
+vi.mock('../components/deck/DeckVisibilityChip', () => ({
+  DeckVisibilityChip: () => null,
+}));
 vi.mock('../components/deck/CardSearchPanel', () => ({
   CardSearchPanel: () => <div />,
 }));

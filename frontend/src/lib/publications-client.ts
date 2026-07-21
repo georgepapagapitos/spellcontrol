@@ -37,6 +37,33 @@ export class DisplayNameRequiredError extends Error {
   }
 }
 
+/**
+ * One row of the caller's own publications list (`GET /api/publications/decks`)
+ * — deliberately thinner than `Publication` (no `url`/`publishedAt`): the
+ * visibility chip and the decks-index badge only need `deckId` +
+ * `unpublishedAt` to tell "live" from "was public" from "never published";
+ * `slug`/counts ride along for a future per-row link without another
+ * round-trip.
+ */
+export interface OwnedPublication {
+  deckId: string;
+  slug: string;
+  unpublishedAt: number | null;
+  viewCount: number;
+  copyCount: number;
+}
+
+/** All of the caller's own publications, live and unpublished alike. Always
+ *  resolves to an array — empty means "never published anything". */
+export async function listMyPublications(): Promise<OwnedPublication[]> {
+  const res = await fetch(apiUrl('/api/publications/decks'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(await readError(res, 'Failed to load your publications.'));
+  }
+  const body = (await res.json()) as { publications: OwnedPublication[] };
+  return body.publications;
+}
+
 /** Current publish status for the caller's own deck. Always resolves —
  *  `null` means "never published (or unpublished)", not an error. */
 export async function getPublication(deckId: string): Promise<Publication | null> {
