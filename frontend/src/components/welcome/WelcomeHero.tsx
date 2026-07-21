@@ -25,7 +25,9 @@ import { pickWelcomeHeroCard } from '../../lib/welcome-hero';
 export function WelcomeHero() {
   const navigate = useNavigate();
   const heroCardName = pickWelcomeHeroCard();
-  const art = useCardThumb(heroCardName, 'normal');
+  // art_crop, never 'normal' — same ruling as HomeHero: the frameless
+  // illustration, not a card scan's border cover-cropped to a dark strip.
+  const art = useCardThumb(heroCardName, 'art_crop');
   const [query, setQuery] = useState('');
 
   function handleSubmit(e: FormEvent) {

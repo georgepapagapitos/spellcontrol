@@ -1768,11 +1768,26 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
 
 - **Art-led storefront, not a centered card.** `WelcomePage` is a wide
   (`--page-max`) shell: a full-bleed art hero (`WelcomeHero`, Moxfield-hero-
-  informed — same `--art-scrim` treatment as `HomeHero`), then two live
-  public-deck rails, then the original onboarding/feature/legal content in
-  tightened form. The pre-2c design (a single `max-width: 560px` centered
+  informed — same hero-scrim treatment as `HomeHero`, next ruling), then two
+  live public-deck rails, then the original onboarding/feature/legal content
+  in tightened form. The pre-2c design (a single `max-width: 560px` centered
   card) is retired — a guest now sees the same kind of art-led landing a
   returning/authed user gets on `/home`, not a plainer marketing stand-in.
+- **Hero art must actually be visible: `art_crop` + directional scrim.**
+  Applies to every full-bleed art hero (`HomeHero`, `WelcomeHero`, and any
+  future band). Two hard rules, learned by shipping the opposite: (1) the
+  backdrop is the **`art_crop`** image version, never `'normal'`/`'large'` —
+  a full card scan cover-cropped into a wide band renders a random strip of
+  black frame and text box, not the illustration. (2) The scrim is
+  **directional, never a flat `--art-scrim` fill**: stacked
+  `--art-scrim → transparent` gradients (the DiscoverDeckTile idiom) anchored
+  to where the on-art text actually sits (left column + bottom band), leaving
+  the art's focal area nearly clear. Controls with their own backgrounds
+  (search pills, CTA/action chips) don't need scrim under them. On-scrim
+  type over the thinned zones carries `text-shadow: 0 1px 2px
+  rgba(0, 0, 0, 0.5)` (the caption's shadow) as a second legibility floor.
+  Flat `--art-scrim` coverage remains correct for small tiles/badges where
+  content genuinely spans the whole art (grid-tile qty/set badges).
 - **Guests have no collection, so the hero art rotates a hardcoded pool.**
   Unlike `HomeHero`'s collection-derived pick, `WelcomeHero`'s backdrop
   rotates a small const list of iconic, evergreen Commander staples

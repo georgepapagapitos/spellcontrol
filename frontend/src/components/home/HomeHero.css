@@ -60,16 +60,22 @@
   background: var(--surface);
 }
 
-/* Full flat coverage, not a bottom-anchored gradient like DiscoverDeckTile's
-   single caption line — this band packs a greeting, value figures, and a
-   search bar across its whole height, so every zone needs the legibility
-   floor uniformly. --art-scrim (tokens.css) is the documented theme-
-   invariant on-art exception: card art is unpredictable in both themes, so
-   this can't follow the theme swap the rest of the page does. */
+/* Directional, not flat — a uniform --art-scrim wash buried the art entirely
+   (the original sin this replaces): the point of a collection-drawn hero is
+   that you can SEE the card. Content is left/bottom-anchored, so the scrim is
+   two stacked `--art-scrim → transparent` gradients (the DiscoverDeckTile
+   idiom, STYLE_GUIDE "on-art overlays"): full strength behind the greeting/
+   value column fading right, plus a bottom band under Quick Actions and the
+   caption. The search pill and action chips carry their own backgrounds, so
+   the art can stay nearly clear top-right. --art-scrim (tokens.css) remains
+   the theme-invariant on-art exception: card art is unpredictable in both
+   themes, so this can't follow the theme swap the rest of the page does. */
 .home-hero-scrim {
   position: absolute;
   inset: 0;
-  background: var(--art-scrim);
+  background:
+    linear-gradient(to right, var(--art-scrim) 15%, transparent 90%),
+    linear-gradient(to top, var(--art-scrim), transparent 50%);
 }
 
 /* flex: 1 (not just a normal-flow block) so its own space-between can
@@ -94,12 +100,15 @@
   gap: var(--space-1);
 }
 
+/* The gradient scrim thins toward the art, so on-scrim type carries the same
+   text-shadow the caption always has as a second legibility floor. */
 .home-hero-greeting {
   margin: 0;
   font-family: var(--font-serif);
   font-size: var(--text-lg);
   font-weight: 700;
   color: var(--art-scrim-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .home-hero-value {
@@ -115,12 +124,14 @@
   font-weight: 700;
   color: var(--art-scrim-text);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .home-hero-value-delta {
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--art-scrim-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .home-hero-value-delta--up {

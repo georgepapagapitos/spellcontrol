@@ -68,16 +68,19 @@
   }
 }
 
-/* Full flat coverage (not a bottom-anchored gradient) — this band packs a
-   brand row, headline, tagline, search, and CTAs across its whole height, so
-   every zone needs the legibility floor uniformly. --art-scrim is the
-   documented theme-invariant on-art exception (STYLE_GUIDE "Color &
-   spacing"): card art is unpredictable in both themes, so this can't follow
-   the app's light/dark swap. */
+/* Directional, not flat — same ruling as HomeHero: a uniform --art-scrim
+   wash buried the art this hero exists to show. The content column is
+   left-anchored, so full scrim strength sits behind it and fades right,
+   with a bottom band for the caption; the search pill and CTAs carry their
+   own backgrounds. --art-scrim stays the documented theme-invariant on-art
+   exception (STYLE_GUIDE "Color & spacing"): card art is unpredictable in
+   both themes, so this can't follow the app's light/dark swap. */
 .welcome-hero-scrim {
   position: absolute;
   inset: 0;
-  background: var(--art-scrim);
+  background:
+    linear-gradient(to right, var(--art-scrim) 25%, transparent 100%),
+    linear-gradient(to top, var(--art-scrim), transparent 40%);
 }
 
 .welcome-hero-content {
@@ -98,6 +101,8 @@
   gap: var(--space-2);
 }
 
+/* The gradient scrim thins toward the art, so on-scrim type carries the same
+   text-shadow the caption always has as a second legibility floor. */
 .welcome-hero-wordmark {
   font-family: var(--font-serif);
   font-size: var(--text-sm);
@@ -105,6 +110,7 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--art-scrim-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .welcome-hero-headline {
@@ -115,6 +121,7 @@
   letter-spacing: -0.01em;
   line-height: 1.2;
   color: var(--art-scrim-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .welcome-hero-tagline {
@@ -123,6 +130,7 @@
   font-size: var(--text-base);
   line-height: 1.5;
   color: var(--art-scrim-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .welcome-hero-search {

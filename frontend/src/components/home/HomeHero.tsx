@@ -70,7 +70,9 @@ export function HomeHero() {
     () => (authed ? pickHeroCardName(heroCards, heroDecks) : null),
     [authed, heroCards, heroDecks]
   );
-  const art = useCardThumb(heroCardName ?? undefined, 'normal');
+  // art_crop, never 'normal': a full card scan cover-cropped into a wide band
+  // shows a strip of black frame/text box instead of the illustration.
+  const art = useCardThumb(heroCardName ?? undefined, 'art_crop');
   const showFallback = !heroCardName;
 
   const currency = useCurrency();
