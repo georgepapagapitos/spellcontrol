@@ -23,6 +23,7 @@ import AuthPage from './pages/AuthPage';
 import ChooseUsernamePage from './pages/ChooseUsernamePage';
 import { SharedView } from './pages/SharedView';
 import { PublicProfilePage } from './pages/PublicProfilePage';
+import { PublicDeckPage } from './pages/PublicDeckPage';
 import { GameNightView } from './pages/GameNightView';
 import { GameNightSeriesView } from './pages/GameNightSeriesView';
 import { WelcomePage } from './pages/WelcomePage';
@@ -201,6 +202,7 @@ export default function App() {
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
         <Route path="/u/:username" element={<PublicProfilePage />} />
+        <Route path="/d/:slug" element={<PublicDeckPage />} />
         <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         <Route
@@ -229,6 +231,7 @@ export default function App() {
       <Routes>
         <Route path="/s/:token" element={<SharedView />} />
         <Route path="/u/:username" element={<PublicProfilePage />} />
+        <Route path="/d/:slug" element={<PublicDeckPage />} />
         <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         {/* Root: the public marketing landing for first-time/logged-out

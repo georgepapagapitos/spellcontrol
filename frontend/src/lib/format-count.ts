@@ -1,8 +1,9 @@
 /**
- * Compact integer formatter for counts (cards, decks, views, copies…):
- * `999` -> `'999'`, `1500` -> `'1.5k'`, `12000` -> `'12k'`. Pure extraction of
- * Header.tsx's former private helper — zero behavior change, just made
- * reusable (and coverage-gated, since it now lives in `src/lib/**`).
+ * Compact count formatter (e.g. 1234 -> "1.2k") shared by the header's
+ * card/binder/list counts and the public deck/profile page's view/copy
+ * counters. Pure extraction of Header.tsx's original private helper, zero
+ * behavior change — Header.tsx's own inline copy is retargeted to import
+ * this in the sibling w1-public-profile-page PR, not here.
  */
 export function formatCount(n: number): string {
   if (n < 1000) return String(n);

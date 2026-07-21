@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Download, LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { PublicDeck, PublicDeckCard } from '../../lib/shared-types';
 import { deckBucketFor, DECK_BUCKET_ORDER, type DeckBucketKey } from '../../lib/shared-grouping';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatIdentity } from '../../lib/display-name';
+import { formatCount } from '../../lib/format-count';
 import { renderMarkdownLite } from '../../lib/markdown-lite';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
@@ -15,6 +17,7 @@ import { ViewModeToggle } from '../ViewModeToggle';
 import { CopyDeckButton } from './CopyDeckButton';
 import { DeckExportDialog } from './DeckExportDialog';
 import { ForkedFromBadge } from '../deck/ForkedFromBadge';
+import { ReportDialog } from './ReportDialog';
 import {
   buildExport,
   readStoredExportFormat,
@@ -23,8 +26,32 @@ import {
 } from '../../lib/deck-export';
 import type { PublicCard } from '../../lib/shared-types';
 
+// Below this, a platform count (views/copies) reads as more "ghost town" than
+// informative, so each is hidden entirely rather than shown as a tiny number
+// (social-plan ghost-town-threshold decision — see w1-public-profile-page,
+// which applies the same 5-count floor to its deck-tile grid).
+const GHOST_TOWN_COUNT_THRESHOLD = 5;
+
+/**
+ * Public-page-only metadata, present exclusively on the `/d/:slug` route
+ * (`w1-public-deck-page`) — absent on `/s/:token`, which renders this
+ * component byte-identically to before this prop existed. Turns the owner
+ * caption into a profile link, surfaces the view/copy counts, and mounts a
+ * Report action.
+ */
+interface PublicMeta {
+  /** deck_publications slug — threaded into CopyDeckButton so a copy from
+   *  this page stamps forkedFrom lineage and bumps the public copy counter. */
+  slug: string;
+  /** Deck id — ReportDialog's targetId. */
+  deckId: string;
+  viewCount: number;
+  copyCount: number;
+}
+
 interface Props {
   data: PublicDeck;
+  publicMeta?: PublicMeta;
 }
 
 type ViewKind = 'grid' | 'list';
@@ -93,11 +120,12 @@ interface DeckSection {
   start: number;
 }
 
-export function SharedDeckView({ data }: Props) {
+export function SharedDeckView({ data, publicMeta }: Props) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewKind>('grid');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const handleExportFormatChange = (f: ExportFormat) => {
     setExportFormat(f);
@@ -251,18 +279,56 @@ export function SharedDeckView({ data }: Props) {
     username: data.ownerUsername,
     displayName: data.ownerDisplayName,
   });
+  const ownerLine = (
+    <>
+      Shared by {owner.primary}
+      {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+    </>
+  );
+
+  const viewLabel =
+    publicMeta && publicMeta.viewCount >= GHOST_TOWN_COUNT_THRESHOLD
+      ? `${formatCount(publicMeta.viewCount)} views`
+      : null;
+  const copyLabel =
+    publicMeta && publicMeta.copyCount >= GHOST_TOWN_COUNT_THRESHOLD
+      ? `${formatCount(publicMeta.copyCount)} copies`
+      : null;
+  const countsText = [viewLabel, copyLabel].filter((s): s is string => s != null).join(' · ');
 
   return (
     <main className="shared-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">
-          Shared by {owner.primary}
-          {owner.secondary && <span className="shared-view-owner-handle">{owner.secondary}</span>}
+          {publicMeta ? (
+            <Link
+              to={`/u/${data.ownerUsername}`}
+              className="shared-view-owner-link"
+              aria-label={`Shared by @${data.ownerUsername} — view profile`}
+            >
+              {ownerLine}
+            </Link>
+          ) : (
+            ownerLine
+          )}
         </p>
         <h1 className="shared-view-title">{data.name}</h1>
         <p className="shared-view-subtitle">
           {data.format} · {mainboardCount.toLocaleString()} cards
         </p>
+        {publicMeta && (
+          <p className="shared-view-meta-row">
+            {countsText && `${countsText} · `}
+            <button
+              type="button"
+              className="btn-link"
+              aria-label="Report this deck"
+              onClick={() => setReportOpen(true)}
+            >
+              Report
+            </button>
+          </p>
+        )}
       </header>
 
       {data.primer && (
@@ -334,7 +400,7 @@ export function SharedDeckView({ data }: Props) {
         </section>
       ))}
 
-      <CopyDeckButton data={data} variant="block" />
+      <CopyDeckButton data={data} variant="block" slug={publicMeta?.slug} />
       <button
         type="button"
         className="btn shared-copy-btn--block shared-export-btn"
@@ -366,6 +432,14 @@ export function SharedDeckView({ data }: Props) {
           getStackQty={(i) => previewQty[i] ?? 1}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
+        />
+      )}
+
+      {reportOpen && publicMeta && (
+        <ReportDialog
+          kind="deck"
+          targetId={publicMeta.deckId}
+          onClose={() => setReportOpen(false)}
         />
       )}
     </main>

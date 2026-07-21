@@ -182,6 +182,28 @@
   letter-spacing: normal;
 }
 
+/* Owner-attribution link — public /d/:slug page only (publicMeta present).
+   Inherits the muted caption look from .shared-view-owner; only gains a
+   link affordance on hover/focus, same treatment as ForkedFromBadge's link. */
+.shared-view-owner-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shared-view-owner-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+}
+
+.shared-view-owner-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
 .shared-view-title {
   margin: 0 0 var(--space-1);
   font-family: var(--font-serif);
@@ -194,6 +216,15 @@
 .shared-view-subtitle {
   margin: 0;
   color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* View/copy counts + Report action — public /d/:slug page only. Plain
+   inline text (STYLE_GUIDE § Toolbars: short elements that wrap naturally),
+   placed after the title/subtitle in document order per the a11y ruling. */
+.shared-view-meta-row {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
   font-size: var(--text-sm);
 }
 

@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createShare,
+  fetchPublicDeckPage,
   fetchPublicShare,
   getFriendShares,
   getInbox,
   listShares,
+  PublicDeckNotFoundError,
   recordDeckCopy,
+  recordDeckView,
   revokeShare,
   ShareAuthRequiredError,
   ShareNotFoundError,
@@ -197,5 +200,60 @@ describe('recordDeckCopy', () => {
   it('swallows a non-ok response instead of throwing', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
     await expect(recordDeckCopy('no-such-slug')).resolves.toBeUndefined();
+  });
+});
+
+describe('fetchPublicDeckPage', () => {
+  it('returns the parsed publication payload', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        slug: 'korvold-treasure',
+        publishedAt: 1,
+        updatedAt: 2,
+        viewCount: 10,
+        copyCount: 3,
+        deck: { ownerUsername: 'alice', name: 'Korvold' },
+      })
+    );
+    const out = await fetchPublicDeckPage('korvold-treasure');
+    expect(out.viewCount).toBe(10);
+    expect(out.deck).toMatchObject({ ownerUsername: 'alice' });
+  });
+
+  it('throws PublicDeckNotFoundError on 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 404 }));
+    await expect(fetchPublicDeckPage('no-such-slug')).rejects.toBeInstanceOf(
+      PublicDeckNotFoundError
+    );
+  });
+
+  it('throws with the server error on another failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'rate limited' }, { status: 429 })
+    );
+    await expect(fetchPublicDeckPage('x')).rejects.toThrow(/rate limited/);
+  });
+});
+
+describe('recordDeckView', () => {
+  it('POSTs the view beacon for the given slug, with credentials for owner exclusion', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    await recordDeckView('korvold-treasure');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/public/decks/korvold-treasure/view',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    );
+  });
+
+  it('swallows a rejected fetch instead of throwing', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'));
+    await expect(recordDeckView('korvold-treasure')).resolves.toBeUndefined();
+  });
+
+  it('swallows a non-ok response instead of throwing', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404 }));
+    await expect(recordDeckView('no-such-slug')).resolves.toBeUndefined();
   });
 });
