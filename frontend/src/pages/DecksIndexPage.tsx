@@ -17,7 +17,7 @@ import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { DecksHubTabs } from '../components/DecksHubTabs';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
@@ -204,7 +204,12 @@ export function DecksIndexPage() {
     DECK_SORT_DEFAULT_DIR,
     'edited'
   );
-  const [search, setSearch] = useState('');
+  // Seeded once from ?query= (e.g. the Home hero's "My decks" search) —
+  // DecksIndexPage's own search has always been local component state, never
+  // URL-synced beyond this one initial read, so typing here doesn't rewrite
+  // the address bar the way DiscoverDecksPage's filters do.
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get('query') ?? '');
   const debouncedSearch = useDebouncedValue(search, 180);
   const [formatFilter, setFormatFilterRaw] = useState<Set<DeckFormat>>(
     () => new Set(loadFilters().formats)

@@ -52,6 +52,8 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     slug: 'atraxa-superfriends-ab12',
     name: 'Atraxa Superfriends',
     ownerUsername: 'alice',
+    ownerDisplayName: null,
+    ownerAvatarUrl: null,
     format: 'commander',
     commanderName: "Atraxa, Praetors' Voice",
     colorIdentity: ['W', 'U', 'B', 'G'],

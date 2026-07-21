@@ -9,6 +9,7 @@ import {
   dayKey,
   daysBetween,
   formatDayKey,
+  formatValueDeltaChip,
   getLatestMovers,
   getValueHistory,
   type MoverRecord,
@@ -228,19 +229,14 @@ export function ValueMoversCard() {
   // chart" — never an empty-state chart).
   const showSparkline = points.length >= 2 && delta !== null;
 
-  let heroDeltaText = '';
-  if (showSparkline && delta && data) {
-    const amount = Math.round(delta.amount);
-    const isCurrent = daysBetween(delta.latestDay, data.today) <= FRESHNESS_DAYS;
-    const period =
-      isCurrent && delta.spanDays <= 8 ? 'this week' : `since ${formatDayKey(delta.baselineDay)}`;
-    heroDeltaText =
-      amount === 0
-        ? `Steady ${period}`
-        : `${amount > 0 ? '+' : '−'}${formatMoney(Math.abs(amount), { wholeDollars: true })} ${period}`;
-  }
-  const heroDirection =
-    delta && delta.amount > 0 ? 'up' : delta && delta.amount < 0 ? 'down' : 'flat';
+  // formatValueDeltaChip is shared with the Home hero's own value chip (see
+  // its doc comment) so the two never drift out of sync — `data?.today`
+  // defaults to '' when still loading, which is safe: delta is only
+  // non-null once `data` has resolved, so formatValueDeltaChip's null-delta
+  // branch (which never reads `today`) is what actually fires until then.
+  const heroChip = formatValueDeltaChip(delta, data?.today ?? '', FRESHNESS_DAYS);
+  const heroDeltaText = showSparkline ? heroChip.text : '';
+  const heroDirection = heroChip.direction;
 
   return (
     <HomeCard

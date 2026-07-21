@@ -57,6 +57,8 @@ function listingRow(overrides: Partial<PublicationListingRow>): PublicationListi
     slug: 'hyd-deck-slug',
     name: 'Hydrate Test Deck',
     ownerUsername: 'hyd-owner',
+    ownerDisplayName: null,
+    ownerAvatarUrl: null,
     format: 'commander',
     commanderName: 'Test Commander',
     colorIdentity: ['U'],
@@ -151,6 +153,34 @@ describe('hydratePublicationRows', () => {
     expect(result.cardOracleIds).toEqual([]);
     expect(result.estimatedValueUsd).toBeNull();
     expect(result.slug).toBe('slug-missing');
+  });
+
+  it('passes ownerDisplayName/ownerAvatarUrl through untouched, including when both are null', async () => {
+    await makeUser('hyd-user-owner', 'hyd-owner-plain');
+    await makeDeck('hyd-user-owner', 'deck-owner', { id: 'deck-owner', name: 'Deck', cards: [] });
+    const rows = [
+      listingRow({
+        userId: 'hyd-user-owner',
+        deckId: 'deck-owner',
+        slug: 'slug-owner-fields',
+        ownerUsername: 'hyd-owner-plain',
+        ownerDisplayName: 'Hyd Display Name',
+        ownerAvatarUrl: 'https://cards.scryfall.io/art_crop/x.jpg',
+      }),
+    ];
+    const [result] = await hydratePublicationRows(rows);
+    expect(result.ownerDisplayName).toBe('Hyd Display Name');
+    expect(result.ownerAvatarUrl).toBe('https://cards.scryfall.io/art_crop/x.jpg');
+
+    const [unset] = await hydratePublicationRows([
+      listingRow({
+        userId: 'hyd-user-owner',
+        deckId: 'deck-owner',
+        slug: 'slug-owner-unset',
+      }),
+    ]);
+    expect(unset.ownerDisplayName).toBeNull();
+    expect(unset.ownerAvatarUrl).toBeNull();
   });
 
   it('leaves likedByViewer/bookmarkedByViewer false for every row when no viewerId is passed (guest)', async () => {

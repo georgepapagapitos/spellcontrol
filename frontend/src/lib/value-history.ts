@@ -1,5 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import { getCurrency } from './currency';
+import { formatMoney } from './format-money';
 
 /**
  * Device-local daily log of total collection value (E76).
@@ -284,4 +285,40 @@ export function computeValueDelta(points: ValuePoint[]): ValueDelta | null {
     latestDay: latest.day,
     spanDays: daysBetween(baseline.day, latest.day),
   };
+}
+
+export interface ValueDeltaChip {
+  /** Empty when there's nothing to show (`delta` is null) — callers render
+   *  nothing rather than a placeholder chip. */
+  text: string;
+  direction: 'up' | 'down' | 'flat';
+}
+
+/**
+ * Renders a `ValueDelta` into the headline chip's text + direction, per
+ * STYLE_GUIDE "Money deltas & value sparklines": "this week" only when the
+ * latest point is fresh and the span is short, otherwise the honest
+ * baseline date; a zero delta reads as "Steady", never "+$0". Shared by
+ * every surface that repeats this same headline delta (ValueMoversCard's
+ * hero figure, the Home hero's value chip) — see STYLE_GUIDE's "color every
+ * rendering of the same delta" — so they can't drift out of sync with each
+ * other over independent edits.
+ */
+export function formatValueDeltaChip(
+  delta: ValueDelta | null,
+  today: string,
+  freshnessDays = 2
+): ValueDeltaChip {
+  const direction: ValueDeltaChip['direction'] =
+    delta && delta.amount > 0 ? 'up' : delta && delta.amount < 0 ? 'down' : 'flat';
+  if (!delta) return { text: '', direction };
+  const amount = Math.round(delta.amount);
+  const isCurrent = daysBetween(delta.latestDay, today) <= freshnessDays;
+  const period =
+    isCurrent && delta.spanDays <= 8 ? 'this week' : `since ${formatDayKey(delta.baselineDay)}`;
+  const text =
+    amount === 0
+      ? `Steady ${period}`
+      : `${amount > 0 ? '+' : '−'}${formatMoney(Math.abs(amount), { wholeDollars: true })} ${period}`;
+  return { text, direction };
 }
