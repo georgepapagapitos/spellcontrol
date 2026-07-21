@@ -56,8 +56,10 @@
 /* Under the Collection hub (Binders / Lists index pages) the row pins
    beneath the sticky hub-tabs strip, not at 0 — at `top: 0` it slid OVER
    the tab strip when scrolled (same z tier, later in DOM). Mirrors
-   `.collection-hub-tabs ~ * .collection-toolbar-row`, including the -1px
-   subpixel-seam overlap. The decks index keeps `top: 0` — no tab strip. */
+   `.collection-hub-tabs ~ * .collection-toolbar-row` (and, since
+   DecksHubTabs shipped, `.collection-hub-tabs ~ * .decks-index-search-row`
+   in deck-builder-decks-index.css), including the -1px subpixel-seam
+   overlap. */
 .collection-hub-tabs ~ * .binders-index-search-row {
   top: calc(var(--hub-tabs-sticky-h) - 1px);
 }

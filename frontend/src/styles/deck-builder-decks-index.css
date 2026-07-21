@@ -73,6 +73,17 @@
   padding: var(--space-3) var(--page-gutter, var(--space-4)) 0.65rem;
 }
 
+/* Below the My Decks / Discover hub-tabs strip (DecksHubTabs), the row pins
+   beneath it, not at 0 — at `top: 0` it slides OVER the tab strip when
+   scrolled (same z tier, later in DOM). Mirrors
+   `.collection-hub-tabs ~ * .binders-index-search-row`, including the -1px
+   subpixel-seam overlap. DecksHubTabs is a sibling of `.decks-index-page`
+   (not a layout route), so this row is a descendant of that sibling, not a
+   direct sibling of the nav itself — same shape as the Collection hub. */
+.collection-hub-tabs ~ * .decks-index-search-row {
+  top: calc(var(--hub-tabs-sticky-h) - 1px);
+}
+
 @media (max-width: 600px) {
   .decks-index-search-row {
     padding: 0.35rem var(--page-gutter, var(--space-2)) 0.3rem;
