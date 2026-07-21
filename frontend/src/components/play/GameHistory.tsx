@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { GameEvent, GameState } from '../../lib/game-state';
+import { describeGameEvent } from '../../lib/game-event-text';
 import { paletteForSeat } from '../../lib/seat-palette';
 import { Tabs } from '../Tabs';
 
@@ -114,6 +115,12 @@ function Timeline({ game }: { game: GameState }) {
     return () => window.clearInterval(id);
   }, []);
 
+  const seatName = (seat: number | null | undefined): string | undefined => {
+    if (seat == null) return undefined;
+    return game.players.find((p) => p.seat === seat)?.name ?? `seat ${seat}`;
+  };
+  const describeRow = (row: TimelineRow) => describeGameEvent(row, seatName);
+
   if (rows.length === 0) {
     return <p className="game-history-empty">No events yet.</p>;
   }
@@ -122,7 +129,7 @@ function Timeline({ game }: { game: GameState }) {
     <ol className="game-history-timeline">
       {rows.map((row) => {
         const palette = row.targetSeat != null ? paletteForSeat(game.id, row.targetSeat) : null;
-        const meta = describeRow(row, game);
+        const meta = describeRow(row);
         return (
           <li key={row.key} className={`timeline-row kind-${row.kind}`}>
             <span
@@ -158,60 +165,6 @@ function Timeline({ game }: { game: GameState }) {
       })}
     </ol>
   );
-}
-
-interface RichEvent {
-  target?: string;
-  action: string;
-  delta?: number;
-  source?: string;
-}
-
-function describeRow(row: TimelineRow, game: GameState): RichEvent {
-  const seatName = (seat: number | null | undefined): string | undefined => {
-    if (seat == null) return undefined;
-    return game.players.find((p) => p.seat === seat)?.name ?? `seat ${seat}`;
-  };
-  switch (row.kind) {
-    case 'life':
-      return { target: seatName(row.targetSeat), action: 'life', delta: row.delta };
-    case 'set-life':
-      return { target: seatName(row.targetSeat), action: 'life set', delta: row.delta };
-    case 'poison':
-      return { target: seatName(row.targetSeat), action: 'poison', delta: row.delta };
-    case 'cmd-dmg':
-      return {
-        target: seatName(row.targetSeat),
-        action: 'cmd dmg',
-        delta: row.delta,
-        source: seatName(row.fromSeat),
-      };
-    case 'eliminate':
-      return {
-        target: seatName(row.targetSeat),
-        action: row.message === 'auto' ? 'eliminated (auto)' : 'eliminated',
-      };
-    case 'revive':
-      return { target: seatName(row.targetSeat), action: 'revived' };
-    case 'start':
-      return { action: 'Game started' };
-    case 'end':
-      return row.targetSeat != null
-        ? { target: seatName(row.targetSeat), action: 'wins — game ended' }
-        : { action: 'Game ended' };
-    case 'reset':
-      return { action: 'Game reset' };
-    case 'join':
-      return { action: `${row.message ?? seatName(row.targetSeat) ?? 'player'} joined` };
-    case 'leave':
-      return { action: `${row.message ?? seatName(row.targetSeat) ?? 'player'} left` };
-    case 'note':
-      return { action: row.message ?? 'note' };
-    case 'settings':
-      return { action: 'Settings changed' };
-    default:
-      return { action: row.kind };
-  }
 }
 
 // Game event granularity: shows seconds. Injectable `now` for deterministic renders.

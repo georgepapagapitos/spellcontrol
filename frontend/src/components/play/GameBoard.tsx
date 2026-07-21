@@ -50,6 +50,7 @@ import { LifeKeypad } from './LifeKeypad';
 import { GameHistory } from './GameHistory';
 import { GameTools } from './GameTools';
 import { ViewModeToggle } from '../ViewModeToggle';
+import { ShareDialog } from '../ShareDialog';
 
 interface Props {
   game: GameState;
@@ -105,6 +106,7 @@ export function GameBoard({
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Keep the screen awake while a game is in progress (real-table use: the
   // phone sits untouched between turns).
@@ -286,6 +288,16 @@ export function GameBoard({
           onUndo={onUndo}
           undoLabel={undoLabel}
           dispatch={dispatchTracked}
+          onShare={() => setShareOpen(true)}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareDialog
+          kind="game-result"
+          resourceId={game.id}
+          resourceLabel="this game"
+          onClose={() => setShareOpen(false)}
         />
       )}
     </div>
@@ -1350,6 +1362,7 @@ function GameMenu({
   onRematch,
   onUndo,
   undoLabel,
+  onShare,
 }: {
   game: GameState;
   canControlAll: boolean;
@@ -1361,6 +1374,8 @@ function GameMenu({
   onRematch?: () => void;
   onUndo: () => void;
   undoLabel: string | null;
+  /** Opens the ShareDialog for this (finished, online) game's recap. */
+  onShare: () => void;
 }) {
   const isFinished = game.status === 'finished';
   const hapticsEnabled = usePlayStore((s) => s.hapticsEnabled);
@@ -1410,6 +1425,15 @@ function GameMenu({
                       }}
                     >
                       Rematch — same players
+                    </button>
+                  )}
+                  {game.mode === 'online' && (
+                    <button
+                      type="button"
+                      className="game-menu-btn is-wide"
+                      onClick={() => onShare()}
+                    >
+                      Share recap
                     </button>
                   )}
                   {onLeave && (

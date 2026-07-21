@@ -1,4 +1,5 @@
 import { apiUrl } from './api-base';
+import type { GameEvent } from './game-state';
 
 /** One friend's shared-game W/L, as returned by GET /api/game-results/leaderboard. */
 export interface LeaderboardEntry {
@@ -35,6 +36,11 @@ export interface PublicGameResult {
   endedAt: number;
   durationMs: number;
   participants: GameResultParticipant[];
+  /** Whitelisted eliminate/end/designation events (selectNotableEvents),
+   *  null for a pre-migration row. Not yet rendered on the H2H page —
+   *  carried here so a future head-to-head notable-moments display has the
+   *  right shape without another round-trip. */
+  notableEvents: GameEvent[] | null;
 }
 
 export interface DeckMatchup {
