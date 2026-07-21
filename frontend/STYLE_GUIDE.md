@@ -1150,6 +1150,16 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   card images (qty/set badges on grid tiles) use `--art-scrim` /
   `--art-scrim-text`, not inline `rgba`. Card art is theme-invariant, so these
   tokens are deliberately not themed; using them anywhere else is a smell.
+- **Rarity as standalone text uses the ink tokens (E151), never literals or
+  the chip palette.** On a themed surface (the card tooltip):
+  `--rarity-{mythic,rare,uncommon}-ink` — deep inks on paper, auto-flipped to
+  the pale set on leather by `[data-scheme='dark']`. On an always-dark ground
+  (the card-preview panel): the fixed `--rarity-*-ink-dark` set directly (a
+  light-theme user's panel is still dark — same reasoning as `--art-scrim-*`).
+  Common takes `var(--text-secondary)` in both (neutral metadata, mirroring
+  the flat `--rarity-common` glyph tint). The near-black `--rarity-*-text`
+  chip inks are for text ON the gradient chip fills only, and the canonical
+  fills/`-to` endpoints fail AA as text on paper — don't reach for either.
 - **Never trust card art for text contrast.** Anywhere theme-colored text can
   overlap an art backdrop (deck-editor hero, any future art-backed header), the
   scrim under the text's reachable zone must **hold a floor** — a gradient that

@@ -240,6 +240,11 @@
   --chrome-text-muted: var(--text-muted);
   --chrome-border: var(--border);
 
+  /* Rarity standalone-text inks flip to the pale set on leather (E151). */
+  --rarity-mythic-ink: var(--rarity-mythic-ink-dark);
+  --rarity-rare-ink: var(--rarity-rare-ink-dark);
+  --rarity-uncommon-ink: var(--rarity-uncommon-ink-dark);
+
   /* Invert black-on-dark SVGs (e.g. set icons) so they read as light glyphs. */
   --svg-invert: 1;
 

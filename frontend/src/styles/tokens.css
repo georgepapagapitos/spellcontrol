@@ -255,6 +255,26 @@
   --rarity-rare: var(--rarity-rare-to);
   --rarity-mythic: var(--rarity-mythic-to);
 
+  /* Rarity as STANDALONE text on a surface (E151) — the near-black chip
+     inks above (--rarity-*-text) only work ON the gradient chip fills, and
+     the canonical fills fail AA as text. Two designed sets, both scripted
+     ≥4.5:1 on every ground they can sit on (restyle contrast bar):
+       -ink       theme-aware — deep inks for the paper schemes here; the
+                  [data-scheme='dark'] block in themes.css re-points them
+                  at the pale set for leather.
+       -ink-dark  the fixed pale set for always-dark grounds (the
+                  card-preview panel) — same precedent as
+                  --art-scrim-success/-err ("dark-surface-tuned hues with
+                  their own scoped names").
+     Common has no ink token: it reads as neutral metadata via
+     var(--text-secondary), mirroring --rarity-common above. */
+  --rarity-mythic-ink: #a34a08;
+  --rarity-rare-ink: #7d5c08;
+  --rarity-uncommon-ink: #4a6890;
+  --rarity-mythic-ink-dark: #ff8a3d;
+  --rarity-rare-ink-dark: #f0c040;
+  --rarity-uncommon-ink-dark: #b8d0e8;
+
   /* ── Mana identity palette (MTG-canonical, do not retheme) ─────────────
      One palette for the five colors (+ multicolor / colorless / land),
      shared by the deck mana-base chart (DeckColorBalance) and the cube

@@ -1016,17 +1016,20 @@
   text-transform: capitalize;
   font-weight: 600;
 }
+/* Always-dark panel → the fixed pale set (-ink-dark), never the themed
+   -ink vars (a light-theme user's panel is still dark). Common rides the
+   panel's white-alpha --text-secondary remap. */
 .card-preview-rarity.rarity-mythic {
-  color: #ff8a3d;
+  color: var(--rarity-mythic-ink-dark);
 }
 .card-preview-rarity.rarity-rare {
-  color: #f0c040;
+  color: var(--rarity-rare-ink-dark);
 }
 .card-preview-rarity.rarity-uncommon {
-  color: #b8d0e8;
+  color: var(--rarity-uncommon-ink-dark);
 }
 .card-preview-rarity.rarity-common {
-  color: #d8d8d8;
+  color: var(--text-secondary);
 }
 
 /* Deck role spelled out in full — the touch-friendly counterpart to the
