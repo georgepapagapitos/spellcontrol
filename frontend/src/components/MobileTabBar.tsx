@@ -3,8 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
 import { useRulesReferenceStore } from '../store/rules-reference';
 import { useAuth } from '../store/auth';
-import { useFriendRequests } from '../lib/use-friend-requests';
-import { useInbox } from '../lib/use-inbox';
+import { useActivity } from '../lib/use-activity';
 
 const ICON_PROPS = {
   className: 'mobile-tab-bar-icon',
@@ -18,9 +17,9 @@ export function MobileTabBar() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
   const openRules = useRulesReferenceStore((s) => s.open);
   const isAuthed = useAuth((s) => s.status === 'authed');
-  const pendingRequests = useFriendRequests();
-  const { count: inboxCount } = useInbox();
-  const socialCount = pendingRequests + inboxCount;
+  // One "Friends" badge covers pending requests, unseen directed shares,
+  // feedback, and likes — one endpoint, one hook, no duplicated math.
+  const { count: socialCount } = useActivity();
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
