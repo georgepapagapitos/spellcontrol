@@ -584,6 +584,9 @@ export const deckPublications = pgTable(
     cardCount: integer('card_count').notNull().default(0),
     viewCount: integer('view_count').notNull().default(0),
     copyCount: integer('copy_count').notNull().default(0),
+    /** Public thresholded count (w2-likes-bookmarks) — mutated only via
+     *  deckLikes' insert/delete routes, never written directly. */
+    likeCount: integer('like_count').notNull().default(0),
     deckRev: bigint('deck_rev', { mode: 'number' }).notNull().default(0),
     publishedAt: bigint('published_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
@@ -601,6 +604,58 @@ export const deckPublications = pgTable(
     copyCountIdx: index('deck_publications_copy_count_idx').on(t.copyCount),
     viewCountIdx: index('deck_publications_view_count_idx').on(t.viewCount),
     commanderPrefixIdx: index('deck_publications_commander_prefix_idx').on(t.commanderName),
+  })
+);
+
+/**
+ * Per-viewer like state (w2-likes-bookmarks). Keyed by `(userId, slug)` —
+ * see `deckPublications`' own doc comment for why slug, not a bare deckId:
+ * slug is the frozen-forever public identity, and it's what
+ * `LikeButton`/`BookmarkButton` actually have in scope from a
+ * `DiscoverDeckSummary` row. No FK on slug — `deckPublications` rows persist
+ * forever (unpublish only flips `unpublishedAt`), so a like survives an
+ * unpublish→republish cycle with no cleanup job. `deckOwnerId` is resolved
+ * once at write time (not joined through slug on every read) so a "likes on
+ * decks I own" query stays a plain indexed equality.
+ */
+export const deckLikes = pgTable(
+  'deck_likes',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    deckOwnerId: text('deck_owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.slug] }),
+    ownerIdx: index('deck_likes_owner_idx').on(t.deckOwnerId, t.createdAt),
+  })
+);
+
+/**
+ * Private per-viewer bookmark state — same shape and rationale as
+ * `deckLikes`, minus a counter column (bookmarks are never publicly
+ * aggregated, only read back for their own owner via `GET /api/discover/bookmarks`).
+ */
+export const deckBookmarks = pgTable(
+  'deck_bookmarks',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    deckOwnerId: text('deck_owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.slug] }),
+    userIdx: index('deck_bookmarks_user_idx').on(t.userId, t.createdAt),
   })
 );
 
@@ -664,4 +719,6 @@ export type GameNightVoteRow = typeof gameNightVotes.$inferSelect;
 export type FriendshipRow = typeof friendships.$inferSelect;
 export type GameResultRow = typeof gameResults.$inferSelect;
 export type DeckPublicationRow = typeof deckPublications.$inferSelect;
+export type DeckLikeRow = typeof deckLikes.$inferSelect;
+export type DeckBookmarkRow = typeof deckBookmarks.$inferSelect;
 export type ContentReportRow = typeof contentReports.$inferSelect;

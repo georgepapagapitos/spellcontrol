@@ -28,6 +28,18 @@
   text-decoration: none;
 }
 
+/* Like/Bookmark corner slot (w2-likes-bookmarks) — a sibling of the tile's
+   <Link>, positioned exactly like .decks-index-card-menu. The buttons
+   themselves (.tile-action-btn) are styled in LikeButton.css, shared by
+   both LikeButton and BookmarkButton. */
+.tile-actions {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  gap: 0.2rem;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .discover-tile-owner:hover {
     color: var(--accent);
