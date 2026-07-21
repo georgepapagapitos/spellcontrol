@@ -95,7 +95,7 @@ export function SavedDecksPage() {
             </p>
             <ul className="decks-index-list is-grid" aria-hidden="true">
               {Array.from({ length: DISCOVER_SKELETON_COUNT }, (_, i) => (
-                <DiscoverTileSkeleton key={i} />
+                <DiscoverTileSkeleton key={i} view="grid" />
               ))}
             </ul>
           </>
@@ -116,7 +116,7 @@ export function SavedDecksPage() {
         ) : (
           <ul className="decks-index-list is-grid" aria-label="Saved decks">
             {decks.map((deck) => (
-              <DiscoverDeckTile key={deck.slug} deck={deck} onUnsaved={handleUnsaved} />
+              <DiscoverDeckTile key={deck.slug} deck={deck} view="grid" onUnsaved={handleUnsaved} />
             ))}
           </ul>
         )}
