@@ -1,4 +1,5 @@
 import { apiUrl } from './api-base';
+import type { ShareKind } from './shared-types';
 
 export type FriendStatus = 'none' | 'friends' | 'request_sent' | 'request_received';
 
@@ -133,4 +134,33 @@ export async function listRequests(): Promise<{
     throw new Error(await readError(res, 'Failed to load friend requests.'));
   }
   return (await res.json()) as { incoming: FriendRequest[]; outgoing: FriendRequest[] };
+}
+
+/** One entry in the "new from friends" aggregated feed — a friend's newly
+ *  published deck, or a friend's friends-audience share. */
+export type FriendActivityItem =
+  | {
+      type: 'published_deck';
+      friendUsername: string;
+      deckName: string;
+      slug: string;
+      format: string;
+      occurredAt: number;
+    }
+  | {
+      type: 'shared_content';
+      friendUsername: string;
+      kind: ShareKind;
+      token: string;
+      label: string;
+      occurredAt: number;
+    };
+
+export async function getFriendsActivity(): Promise<FriendActivityItem[]> {
+  const res = await fetch(apiUrl('/api/friends/activity'), { credentials: 'include' });
+  if (!res.ok) {
+    throw new Error(await readError(res, 'Failed to load activity.'));
+  }
+  const body = (await res.json()) as { items: FriendActivityItem[] };
+  return body.items;
 }
