@@ -421,6 +421,73 @@
   pointer-events: none;
 }
 
+/* ── Ownership lens corner badges (w1-ownership-lens) ─────────────────────
+   Bottom-right cluster — the opposite corner from the qty badge
+   (.shared-tile-qty, bottom-left) — mirrors CardListTable's own
+   .collection-grid-badges corner-overlay pattern for card-art badges. The
+   wrap is a plain positioning box the same size as `.shared-tile` (a block
+   child sizes its block parent); badges render as its siblings, never nested
+   inside `.shared-tile` itself (that's a <button> here, and BinderBadge's
+   single-binder case is also a real <button> — nesting would be invalid). */
+.shared-tile-ownership-wrap {
+  position: relative;
+  display: block;
+}
+
+.shared-tile-badges {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.shared-tile-owned-dot {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--art-scrim);
+  border: 1px solid color-mix(in srgb, var(--success) 55%, transparent);
+  color: var(--success);
+  font-size: var(--text-xs);
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.shared-tile-owned-dot::before {
+  content: '✓';
+}
+
+/* BinderBadge sized down to fit the corner cluster — same treatment as the
+   collection grid's .collection-grid-badges .card-list-binder-badge. */
+.shared-tile-badges .card-list-binder-badge {
+  margin-left: 0;
+  padding: 0.22rem;
+  background: var(--art-scrim);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.shared-tile-badges svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* List-view inline ownership badges (Name cell). */
+.shared-list-owned-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
 /* ── Empty state ──────────────────────────────────────────────────────── */
 
 .shared-empty {

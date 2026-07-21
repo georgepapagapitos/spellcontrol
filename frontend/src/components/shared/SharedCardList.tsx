@@ -1,11 +1,15 @@
 import type { PublicCard } from '../../lib/shared-types';
 import { formatMoney } from '../../lib/format-money';
+import { BinderBadge } from '../BinderBadge';
+import { ownedAriaSuffix, type CardOwnership } from './SharedCardTile';
 
 export interface SharedCardListItem {
   /** Stable React key (printing+finish, or section-local index). */
   key: string;
   card: PublicCard;
   quantity: number;
+  /** Viewer's ownership of this card (w1-ownership-lens) — see SharedCardTile. */
+  ownership?: CardOwnership;
 }
 
 interface Props {
@@ -43,7 +47,7 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
               onClick={() => onPreview(i)}
               tabIndex={0}
               role="button"
-              aria-label={`Preview ${it.card.name}`}
+              aria-label={`Preview ${it.card.name}${ownedAriaSuffix(it.ownership)}`}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -52,7 +56,17 @@ export function SharedCardList({ items, onPreview, showPrice = true }: Props) {
               }}
             >
               <td data-label="Qty">{it.quantity}</td>
-              <td data-label="Name">{it.card.name}</td>
+              <td data-label="Name">
+                {it.card.name}
+                {it.ownership?.owned && (
+                  <span className="shared-list-owned-badges">
+                    <span className="shared-tile-owned-dot" aria-hidden="true" />
+                    {it.ownership.binders.length > 0 && (
+                      <BinderBadge binders={it.ownership.binders} />
+                    )}
+                  </span>
+                )}
+              </td>
               <td data-label="Set">
                 {it.card.setCode.toUpperCase()} {it.card.collectorNumber}
               </td>

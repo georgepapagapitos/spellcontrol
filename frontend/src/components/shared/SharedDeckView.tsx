@@ -7,7 +7,7 @@ import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatIdentity } from '../../lib/display-name';
 import { formatCount } from '../../lib/format-count';
 import { renderMarkdownLite } from '../../lib/markdown-lite';
-import { SharedCardTile } from './SharedCardTile';
+import { SharedCardTile, type CardOwnership } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
 import { CardPreview } from '../CardPreview';
 import { publicCardToEnriched } from '../../lib/shared-filter';
@@ -52,6 +52,9 @@ interface PublicMeta {
 interface Props {
   data: PublicDeck;
   publicMeta?: PublicMeta;
+  /** Viewer's per-card ownership (w1-ownership-lens), keyed by card name —
+   *  absent on a guest view or any page that doesn't compute a lens. */
+  ownership?: Map<string, CardOwnership>;
 }
 
 type ViewKind = 'grid' | 'list';
@@ -120,7 +123,7 @@ interface DeckSection {
   start: number;
 }
 
-export function SharedDeckView({ data, publicMeta }: Props) {
+export function SharedDeckView({ data, publicMeta, ownership }: Props) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewKind>('grid');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -382,6 +385,7 @@ export function SharedDeckView({ data, publicMeta }: Props) {
                     card={it.publicCard}
                     quantity={it.quantity}
                     onClick={() => setPreviewIndex(s.start + j)}
+                    ownership={ownership?.get(it.publicCard.name)}
                   />
                 </li>
               ))}
@@ -392,6 +396,7 @@ export function SharedDeckView({ data, publicMeta }: Props) {
                 key: `${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`,
                 card: it.publicCard,
                 quantity: it.quantity,
+                ownership: ownership?.get(it.publicCard.name),
               }))}
               onPreview={(j) => setPreviewIndex(s.start + j)}
               showPrice={false}
