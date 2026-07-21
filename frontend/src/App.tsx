@@ -34,6 +34,7 @@ import { DeckComparePage } from './pages/DeckComparePage';
 import { SearchPage } from './pages/SearchPage';
 import { FriendHubPage } from './pages/FriendHubPage';
 import { PodsIndexPage } from './pages/PodsIndexPage';
+import { PodHubPage } from './pages/PodHubPage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -291,6 +292,7 @@ export default function App() {
           <Route path="/friends" element={<Navigate to="/you" replace />} />
           <Route path="/friends/:friendId" element={<FriendHubPage />} />
           <Route path="/pods" element={<PodsIndexPage />} />
+          <Route path="/pods/:id" element={<PodHubPage />} />
           <Route path="/settings" element={<Navigate to="/you" replace />} />
           <Route
             path="/admin"

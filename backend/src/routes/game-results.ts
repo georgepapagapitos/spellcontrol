@@ -15,7 +15,10 @@ function participantFilter(userId: string): string {
   return JSON.stringify([{ userId }]);
 }
 
-interface ResultRow {
+// Exported for pod-stats.ts's toPublicForPod() — the pod hub's shared-history
+// endpoint layers a privacy projection on top of this shape/function rather
+// than re-deriving its own (see pod-stats.ts doc comment).
+export interface ResultRow {
   session_id: string;
   code: string;
   format: string;
@@ -29,7 +32,7 @@ interface ResultRow {
   notable_events: GameEvent[] | null;
 }
 
-function toPublic(r: ResultRow): PublicGameResult {
+export function toPublic(r: ResultRow): PublicGameResult {
   return {
     sessionId: r.session_id,
     code: r.code,
