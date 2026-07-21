@@ -138,15 +138,15 @@ describe('HomePage', () => {
     expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
   });
 
-  describe('hero background', () => {
-    it('shows the brand fallback (no art) for a brand-new empty collection', () => {
+  describe('hero featured card', () => {
+    it('shows the empty-sleeve brand fallback (no art) for a brand-new empty collection', () => {
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-fallback')).toBeTruthy();
       expect(container.querySelector('.home-hero-art')).toBeNull();
       expect(container.querySelector('.home-hero-caption')).toBeNull();
     });
 
-    it('shows collection art + the "from your collection" caption once a hero card resolves', () => {
+    it('shows the card art + tape-label caption once a hero card resolves', () => {
       mockPickHeroCard.mockReturnValue({ name: 'Sol Ring' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();
@@ -154,7 +154,8 @@ describe('HomePage', () => {
       const img = container.querySelector('.home-hero-art') as HTMLImageElement | null;
       expect(img?.getAttribute('src')).toBe('sol-ring.png');
       expect(img?.getAttribute('alt')).toBe('');
-      expect(screen.getByText('Sol Ring — from your collection')).toBeTruthy();
+      expect(screen.getByText('Sol Ring')).toBeTruthy();
+      expect(screen.getByText('From your collection')).toBeTruthy();
     });
 
     it('renders the owned printing art directly, skipping name resolution', () => {
