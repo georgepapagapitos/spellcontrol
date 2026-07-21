@@ -11,6 +11,13 @@ import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { BrandMark } from '../components/shared/BrandMark';
 import { NotFoundView } from '../components/shared/SharedShell';
 import { useAuth } from '../store/auth';
+import { useOwnershipLens } from '../lib/use-ownership-lens';
+import { OwnershipLensStrip } from '../components/deck/OwnershipLensStrip';
+import type { PublicDeckCard } from '../lib/shared-types';
+
+// Stable empty array — passed to useOwnershipLens before the deck has
+// loaded, so its useMemo deps don't thrash on a fresh [] literal every render.
+const EMPTY_DECK_CARDS: PublicDeckCard[] = [];
 
 function alreadyViewedThisSession(slug: string): boolean {
   try {
@@ -95,6 +102,17 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     void recordDeckView(slug);
   }, [state, slug, authUsername]);
 
+  // Hooks must run unconditionally (before the early returns below), so this
+  // computes over an empty array until the deck has loaded — cheap, and the
+  // strip is never actually rendered during the loading/notFound/error states.
+  const deckCards = state.status === 'ready' ? state.payload.deck.cards : EMPTY_DECK_CARDS;
+  const {
+    lens,
+    missingCost,
+    missingCardPrices,
+    loading: lensLoading,
+  } = useOwnershipLens(deckCards);
+
   if (state.status === 'loading') {
     return (
       <SharedShell>
@@ -129,6 +147,14 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
   const { payload } = state;
   return (
     <SharedShell>
+      <div className="shared-view ownership-lens-view-slot">
+        <OwnershipLensStrip
+          lens={lens}
+          missingCost={missingCost}
+          missingCardPrices={missingCardPrices}
+          loading={lensLoading}
+        />
+      </div>
       <SharedDeckView
         data={payload.deck}
         publicMeta={{
@@ -137,6 +163,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
           viewCount: payload.viewCount,
           copyCount: payload.copyCount,
         }}
+        ownership={lens?.perCard}
       />
     </SharedShell>
   );
