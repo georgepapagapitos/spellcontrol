@@ -9,8 +9,11 @@
  * sub-components and helpers directly.
  */
 
-import { describe, it, expect } from 'vitest';
-import type { BinderFilter } from '../types';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import type { BinderDef, BinderFilter } from '../types';
+import { useCollectionStore } from '../store/collection';
+import { BinderEditor } from './BinderEditor';
 
 // ── Pure helper imports ────────────────────────────────────────────────────
 // We test these directly to avoid having to mock the entire store.
@@ -370,5 +373,97 @@ describe('templates visibility condition', () => {
     const groupsLength: number = 2;
     const isSoleGroup = groupsLength === 1;
     expect(isSoleGroup).toBe(false);
+  });
+});
+
+// ── Tradeable binder flag (w5-tonight-trades) ──────────────────────────────
+// Renders the real BinderEditor against the real collection store (a single
+// action swapped for a spy per test) — the field-whitelist bug this guards
+// against (a BinderDef field that toggles fine in local state but silently
+// never persists) can only be caught by exercising the actual save handler,
+// not the extracted pure helpers above.
+
+describe('Tradeable binder flag', () => {
+  function makeBinderDef(overrides: Partial<BinderDef> = {}): BinderDef {
+    const now = Date.now();
+    return {
+      id: 'b1',
+      name: 'Trade box',
+      position: 0,
+      filterGroups: [{ filter: {} }],
+      sorts: [],
+      pocketSize: 9,
+      doubleSided: false,
+      fixedCapacity: null,
+      color: '#888',
+      createdAt: now,
+      updatedAt: now,
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    useCollectionStore.setState({
+      editingBinder: null,
+      editingBinderSeed: null,
+      binders: [],
+      cards: [],
+    });
+  });
+
+  /**
+   * Mounts BinderEditor CLOSED, then opens it via a separate store update —
+   * mirroring the real app's lifecycle (the editor is always mounted; opening
+   * is `editingBinder` flipping from null to an id). BinderEditor hydrates
+   * its local state from `existing` via a render-phase reset keyed off
+   * `prevIsOpen !== isOpen`, which only fires on that false→true transition —
+   * seeding `editingBinder` before the FIRST render makes prevIsOpen equal
+   * isOpen from the start, so hydration silently never runs.
+   */
+  function openEditor(binder: BinderDef, updateBinder = vi.fn()): typeof updateBinder {
+    useCollectionStore.setState({ binders: [binder], updateBinder });
+    render(<BinderEditor />);
+    act(() => {
+      useCollectionStore.setState({ editingBinder: binder.id });
+    });
+    return updateBinder;
+  }
+
+  it('toggling the checkbox calls updateBinder with tradeable: true in the payload', () => {
+    const existing = makeBinderDef({ tradeable: false });
+    const updateBinder = openEditor(existing);
+
+    fireEvent.click(screen.getByLabelText('Available to trade'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(updateBinder).toHaveBeenCalledWith(
+      existing.id,
+      expect.objectContaining({ tradeable: true })
+    );
+  });
+
+  it('an existing binder with no tradeable field renders the checkbox unchecked', () => {
+    const existing = makeBinderDef();
+    delete existing.tradeable;
+    openEditor(existing);
+
+    const checkbox = screen.getByLabelText('Available to trade') as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    expect(checkbox.indeterminate).toBe(false);
+  });
+
+  it('saving an unrelated field change preserves an existing tradeable: true', () => {
+    const existing = makeBinderDef({ tradeable: true });
+    const updateBinder = openEditor(existing);
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. Standard staples, Cube reserves...'), {
+      target: { value: 'Renamed binder' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(updateBinder).toHaveBeenCalledWith(
+      existing.id,
+      expect.objectContaining({ tradeable: true, name: 'Renamed binder' })
+    );
   });
 });

@@ -33,6 +33,7 @@ function gameNight(overrides: Partial<GameNight> & { startsAt: number }): GameNi
     hostUsername: 'host',
     isHost: false,
     myStatus: null,
+    myTradeOptIn: false,
     rsvps: [],
     awaiting: [],
     options: [],

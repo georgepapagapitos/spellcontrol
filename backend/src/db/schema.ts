@@ -454,6 +454,14 @@ export const gameNightRsvps = pgTable(
     displayName: text('display_name').notNull(),
     /** 'going' | 'maybe' | 'declined' */
     status: text('status').notNull().$type<'going' | 'maybe' | 'declined'>(),
+    /**
+     * Per-night opt-in to that night's trade board (w5-tonight-trades).
+     * Revocable, unlike the binder `tradeable` flag (a permanent owner-set
+     * fact) — this is fresh per gathering. Guest rows (userId NULL) never
+     * get set true: the write route 400s a guest's true request, since a
+     * guest has no synced lists/binders to trade from.
+     */
+    tradeOptIn: boolean('trade_opt_in').notNull().default(false),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
   },

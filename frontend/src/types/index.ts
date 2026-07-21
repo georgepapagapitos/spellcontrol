@@ -468,6 +468,14 @@ export interface BinderDef {
    */
   fixedCapacity: number | null;
   color: string;
+  /**
+   * Permanent, owner-set fact (like `doubleSided`) — this binder's cards may
+   * show up in a game night's trade board once the owner separately opts a
+   * specific night in (a fresh, revocable per-attendee choice; see
+   * `GameNight.myTradeOptIn`). Absent/false = not tradeable; setting this
+   * alone changes nothing visible to anyone.
+   */
+  tradeable?: boolean;
   /** Marks binders created via "Load samples" — purely for tagging in the UI. */
   isSample?: boolean;
   /** 'rules' (default): filterGroups drive routing; pins are exceptions.

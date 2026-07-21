@@ -20,6 +20,7 @@ import { friendsRouter } from './routes/friends';
 import { usersRouter } from './routes/users';
 import { gameNightsRouter } from './routes/game-nights';
 import { podsRouter } from './routes/pods';
+import { tonightTradesRouter } from './routes/tonight-trades';
 import { publicationsRouter } from './routes/publications';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
@@ -276,6 +277,7 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE INDEX game_night_rsvps_night_idx ON game_night_rsvps(night_id);
     CREATE UNIQUE INDEX game_night_rsvps_user_idx
       ON game_night_rsvps(night_id, user_id) WHERE user_id IS NOT NULL;
+    ALTER TABLE game_night_rsvps ADD COLUMN trade_opt_in BOOLEAN NOT NULL DEFAULT false;
     CREATE TABLE game_night_options (
       id TEXT PRIMARY KEY,
       night_id TEXT NOT NULL REFERENCES game_nights(id) ON DELETE CASCADE,
@@ -481,6 +483,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/users', usersRouter);
   app.use('/api/game-nights', gameNightsRouter);
   app.use('/api/pods', podsRouter);
+  app.use('/api/tonight-trades', tonightTradesRouter);
   app.use('/api/publications', publicationsRouter);
   app.use('/api/public', publicRouter);
   app.use('/api/reports', reportsRouter);

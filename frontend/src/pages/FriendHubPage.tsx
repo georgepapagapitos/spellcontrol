@@ -262,8 +262,11 @@ export function FriendHubPage() {
 }
 
 /** One want-list card the friend owns: thumbnail (CDN via useCardThumb, never
- *  the throttled Scryfall API), name, and which list wants it + target price. */
-function RadarCardTile({ match }: { match: TradeRadarMatch }) {
+ *  the throttled Scryfall API), name, and which list wants it + target price.
+ *  Exported for reuse by TonightTrades.tsx (w5-tonight-trades) — assumes a
+ *  list-item context (`<li>`) it doesn't provide itself, so callers wrap it
+ *  in their own `<ul>`. */
+export function RadarCardTile({ match }: { match: TradeRadarMatch }) {
   const thumb = useCardThumb(match.name, 'small');
   const subParts = [
     match.listNames.length > 1

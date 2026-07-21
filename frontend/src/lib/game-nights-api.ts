@@ -1,5 +1,7 @@
 import { apiUrl } from './api-base';
 import { isNativePlatform } from './platform';
+import type { ListDef } from '../types';
+import type { FriendCard } from './cube/pool';
 
 /**
  * Client for the game-nights API (E123): schedule a night, invite friends,
@@ -64,6 +66,10 @@ export interface GameNight {
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
+  /** Caller's own opt-in to tonight's trade board (w5-tonight-trades) — a
+   *  fresh, revocable per-night choice, distinct from a binder's permanent
+   *  `tradeable` flag. Never exposed for other attendees here. */
+  myTradeOptIn: boolean;
   rsvps: NightRsvp[];
   /** Invited friends who haven't replied yet. */
   awaiting: string[];
@@ -263,11 +269,18 @@ export async function fetchPublicGameNight(
   return (await res.json()) as PublicGameNight;
 }
 
-/** RSVP (signed in or guest). Returns the row — guests should store its id. */
+/**
+ * RSVP (signed in or guest). Returns the row — guests should store its id.
+ * `tradeOptIn` also drives the per-night trade-board opt-in checkbox
+ * (w5-tonight-trades): omit it on an unrelated status change to leave a
+ * prior opt-in untouched (the server COALESCEs a missing field, never
+ * resetting it). A guest passing `tradeOptIn: true` gets a 400 asking them
+ * to sign in — guests structurally can't participate.
+ */
 export async function rsvpGameNight(
   token: string,
-  input: { status: RsvpStatus; displayName?: string; rsvpId?: string }
-): Promise<{ id: string; displayName: string; status: RsvpStatus }> {
+  input: { status: RsvpStatus; displayName?: string; rsvpId?: string; tradeOptIn?: boolean }
+): Promise<{ id: string; displayName: string; status: RsvpStatus; tradeOptIn?: boolean }> {
   const res = await fetch(apiUrl(`/api/game-nights/public/${encodeURIComponent(token)}/rsvp`), {
     method: 'POST',
     credentials: 'include',
@@ -281,7 +294,7 @@ export async function rsvpGameNight(
     throw new Error(await readError(res, "Couldn't save your RSVP."));
   }
   const body = (await res.json()) as {
-    rsvp: { id: string; displayName: string; status: RsvpStatus };
+    rsvp: { id: string; displayName: string; status: RsvpStatus; tradeOptIn?: boolean };
   };
   return body.rsvp;
 }
@@ -389,6 +402,48 @@ export async function lockGameNight(id: string, optionId: string): Promise<GameN
   }
   const body = (await res.json()) as { night: GameNight };
   return body.night;
+}
+
+/**
+ * One opted-in attendee's data for tonight's trades (w5-tonight-trades):
+ * their non-tracking want-lists and the cards routed into their tradeable
+ * binder(s). `lists` mirrors `ListDef` but is left loosely typed here since
+ * the server treats the underlying JSONB as opaque and forwards it as-is.
+ */
+export interface TonightTradeAttendee {
+  userId: string;
+  username: string;
+  displayName: string;
+  lists: ListDef[];
+  tradeableCards: FriendCard[];
+}
+
+export class TonightTradesNotFoundError extends Error {
+  constructor() {
+    super('Game night not found.');
+    this.name = 'TonightTradesNotFoundError';
+  }
+}
+
+/**
+ * Tonight's-trades data for a night (in-app, authed, internal :id — not the
+ * public :token). 404s uniformly for an unknown night, a night the caller
+ * isn't part of, and a night the caller hasn't opted into — the caller
+ * should already know their own opt-in state, so this should be unreachable
+ * except defensively.
+ */
+export async function fetchTonightTrades(nightId: string): Promise<TonightTradeAttendee[]> {
+  const res = await fetch(apiUrl(`/api/tonight-trades/${encodeURIComponent(nightId)}`), {
+    credentials: 'include',
+  });
+  if (res.status === 404) {
+    throw new TonightTradesNotFoundError();
+  }
+  if (!res.ok) {
+    throw new Error(await readError(res, "Couldn't load tonight's trades."));
+  }
+  const body = (await res.json()) as { attendees: TonightTradeAttendee[] };
+  return body.attendees;
 }
 
 /** Public web origin — see shareUrl in share-client.ts for the native rationale. */

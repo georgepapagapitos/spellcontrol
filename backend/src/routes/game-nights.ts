@@ -476,6 +476,9 @@ interface NightView {
   hostUsername: string;
   isHost: boolean;
   myStatus: RsvpStatus | null;
+  /** Caller's own opt-in to THIS night's trade board (w5-tonight-trades).
+   *  Never exposed for other attendees here — see routes/tonight-trades.ts. */
+  myTradeOptIn: boolean;
   rsvps: RsvpView[];
   /** Invited friends who haven't responded yet (host sees who's pending). */
   awaiting: string[];
@@ -498,6 +501,7 @@ async function loadNightDetails(nightIds: string[]): Promise<{
       username: string | null;
       displayName: string;
       status: RsvpStatus;
+      tradeOptIn: boolean;
     }>
   >;
   awaitingByNight: Map<string, string[]>;
@@ -511,6 +515,7 @@ async function loadNightDetails(nightIds: string[]): Promise<{
       username: string | null;
       displayName: string;
       status: RsvpStatus;
+      tradeOptIn: boolean;
     }>
   >();
   const awaitingByNight = new Map<string, string[]>();
@@ -524,8 +529,9 @@ async function loadNightDetails(nightIds: string[]): Promise<{
     username: string | null;
     display_name: string;
     status: RsvpStatus;
+    trade_opt_in: boolean;
   }>(
-    `SELECT r.id, r.night_id, r.user_id, u.username, r.display_name, r.status
+    `SELECT r.id, r.night_id, r.user_id, u.username, r.display_name, r.status, r.trade_opt_in
        FROM game_night_rsvps r
        LEFT JOIN users u ON u.id = r.user_id
       WHERE r.night_id = ANY($1) ORDER BY r.created_at ASC`,
@@ -539,6 +545,7 @@ async function loadNightDetails(nightIds: string[]): Promise<{
       username: r.username,
       displayName: r.display_name,
       status: r.status,
+      tradeOptIn: r.trade_opt_in,
     });
     rsvpsByNight.set(r.night_id, arr);
   }
@@ -583,6 +590,7 @@ function toNightView(
     username: string | null;
     displayName: string;
     status: RsvpStatus;
+    tradeOptIn: boolean;
   }>,
   awaiting: string[],
   options: LoadedOption[],
@@ -606,6 +614,7 @@ function toNightView(
     hostUsername,
     isHost,
     myStatus: mine?.status ?? null,
+    myTradeOptIn: mine?.tradeOptIn ?? false,
     rsvps: rsvps.map((r) => ({
       // The rsvp id is the host's removal handle; for anyone else it stays
       // hidden (a guest's id is their edit credential).
@@ -1437,21 +1446,43 @@ gameNightsRouter.post(
     }
     const status = body.status;
     const displayName = cleanRequired(body.displayName, NAME_MAX);
+    // Per-night trade-board opt-in (w5-tonight-trades): null = field absent,
+    // never coerced from a truthy-but-wrong-typed value — COALESCE below
+    // then leaves an existing opt-in untouched instead of resetting it.
+    const tradeOptIn = typeof body.tradeOptIn === 'boolean' ? body.tradeOptIn : null;
+    if (!req.user && tradeOptIn === true) {
+      // Guests structurally can't participate — no synced lists/binders to
+      // trade from. false/absent is always accepted as a silent no-op.
+      return res.status(400).json({ error: "Sign in to join tonight's trades." });
+    }
 
     const pool = getPool();
     const now = Date.now();
 
     if (req.user) {
       const name = displayName ?? (await resolveDisplayLabel(req.user.id));
-      const upsert = await pool.query<{ id: string }>(
-        `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $6)
+      // trade_opt_in = COALESCE($7, existing) — NOT a bare assignment. This is
+      // the single write path for every RSVP field, so an unrelated status
+      // change (going → maybe) with no tradeOptIn in the body must never
+      // reset a prior true opt-in back to false.
+      const upsert = await pool.query<{ id: string; trade_opt_in: boolean }>(
+        `INSERT INTO game_night_rsvps (id, night_id, user_id, display_name, status, trade_opt_in, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, COALESCE($7, false), $6, $6)
          ON CONFLICT (night_id, user_id) WHERE user_id IS NOT NULL
-         DO UPDATE SET status = $5, display_name = $4, updated_at = $6
-         RETURNING id`,
-        [crypto.randomUUID(), night.id, req.user.id, name, status, now]
+         DO UPDATE SET status = $5, display_name = $4,
+                       trade_opt_in = COALESCE($7, game_night_rsvps.trade_opt_in),
+                       updated_at = $6
+         RETURNING id, trade_opt_in`,
+        [crypto.randomUUID(), night.id, req.user.id, name, status, now, tradeOptIn]
       );
-      return res.json({ rsvp: { id: upsert.rows[0].id, displayName: name, status } });
+      return res.json({
+        rsvp: {
+          id: upsert.rows[0].id,
+          displayName: name,
+          status,
+          tradeOptIn: upsert.rows[0].trade_opt_in,
+        },
+      });
     }
 
     // Guest path. Try updating their existing row first.
