@@ -1260,6 +1260,17 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   unspanned single child sits in column 1 at half width beside a dead column
   (this shipped: the Tune tab's CoachFeed). `.deck-stats-pair`'s `auto-fit`
   orphan guard collapses empty tracks; the bento grid itself does not.
+- **The bento's own column count needs a `bento-host` ancestor container
+  (E157).** An element can never match a container query against its own
+  `container-type` — the board-level `@container bento (min-width: 640px)`
+  rules only fire when an ancestor is a named container. `/home` provides one
+  (`.home-page { container: bento-host / inline-size }` + `.home-bento`
+  column rules in `HomePage.css`); the deck Stats/Tune mounts provide none,
+  so their board-level 2-col rule is currently dead and the multi-column
+  read there comes from `.deck-stats-pair` sub-grids — see board E158 before
+  "fixing" that (enabling it changes shipped deck-tab layout). A new surface
+  that mounts flat cards directly in a `.deck-bento` must bring its own
+  host container or every card renders full-width at every viewport.
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
   (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
 

@@ -24,3 +24,28 @@
   --analysis-max: var(--page-max);
   width: 100%;
 }
+
+/* The bento's board-level column rules are NAMED container queries, and an
+   element can never match a query against its own container-type — they need
+   an ANCESTOR named container, which no mount provides (E158 tracks the
+   deck-side story). Home mounts eight flat cards directly in the bento, so
+   without a host every card rendered as a full-width band at every viewport —
+   the "empty dashboard" read (E157). The page wrapper is that host; the two
+   rules mirror .deck-bento's intended 640/1040 tiers, scoped to .home-bento
+   only so deck analysis ships unchanged. Phones (<640 container) keep the
+   single-column stack. */
+.home-page {
+  container: bento-host / inline-size;
+}
+
+@container bento-host (min-width: 640px) {
+  .home-bento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container bento-host (min-width: 1040px) {
+  .home-bento {
+    gap: clamp(1.1rem, 1.6cqi, 1.85rem);
+  }
+}

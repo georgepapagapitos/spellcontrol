@@ -70,6 +70,8 @@ export function NewFromFriendsCard() {
       emptyText={
         guest ? 'Sign in to see what friends are sharing.' : 'Nothing new from friends yet.'
       }
+      viewAllHref="/you?friendsTab=friends"
+      viewAllLabel="Find friends"
     >
       <ul className="new-from-friends-list" aria-label="New from friends">
         {rows.map((item) => {

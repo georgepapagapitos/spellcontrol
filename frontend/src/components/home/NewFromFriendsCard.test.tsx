@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { FriendActivityItem } from '../../lib/friends-client';
@@ -93,7 +93,11 @@ describe('NewFromFriendsCard', () => {
     );
     renderCard();
     await waitFor(() => expect(screen.getByText(/Deck 0/)).toBeTruthy());
-    expect(screen.getAllByRole('link')).toHaveLength(3);
+    // Row links only — the card footer carries a standing "Find friends"
+    // door (E157) that renders in every state and isn't a row.
+    const list = screen.getByRole('list', { name: 'New from friends' });
+    expect(within(list).getAllByRole('link')).toHaveLength(3);
+    expect(screen.getByRole('link', { name: 'Find friends' })).toBeTruthy();
   });
 
   it('shows an error with Retry, and Retry re-fetches', async () => {
