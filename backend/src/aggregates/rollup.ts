@@ -11,6 +11,7 @@ import {
 } from '../db/schema';
 import { asRecord, asString } from '../shares/projections';
 import { buildCommanderKey } from './commander-key';
+import { snapshotDeckStats } from './trending-decks';
 
 /** Parent gate: a commander needs at least this many published decks to get
  *  a commander_stats row at all. Sub-threshold commanders simply have no row
@@ -348,6 +349,18 @@ export async function runRollup(): Promise<RollupResult> {
       .update(aggregateRollupRuns)
       .set({ finishedAt: Date.now(), commandersWritten, error: lastError })
       .where(sql`id = ${runId}`);
+  }
+
+  // Second, independent nightly concern (w4-trending): the deck-level view/copy
+  // snapshot feeding the decayed "most copied" ranking. Deliberately run after
+  // the commander-stats transaction above has already committed and reported
+  // its own outcome, in its own try/catch, so a bug in this feature can never
+  // roll back or mis-report the unrelated, already-working commander-stats write.
+  try {
+    const snapshotted = await snapshotDeckStats(startedAt);
+    logger.info(`[aggregates] snapshotted ${snapshotted} deck(s) for trending`);
+  } catch (err) {
+    logger.error('[aggregates] deck stat snapshot failed:', err);
   }
 
   return { commandersWritten, runId };

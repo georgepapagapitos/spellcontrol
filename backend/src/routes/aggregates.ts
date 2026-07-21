@@ -3,10 +3,17 @@ import { errorMessage } from '../error-utils';
 import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { requireAdmin } from '../auth';
-import { desc, gte, inArray } from 'drizzle-orm';
+import { and, desc, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { getDb } from '../db';
-import { commanderStats, commanderCardInclusion, type CommanderStatsRow } from '../db/schema';
+import {
+  commanderStats,
+  commanderCardInclusion,
+  deckPublications,
+  deckStatSnapshots,
+  type CommanderStatsRow,
+} from '../db/schema';
 import { runRollup, RISING_MIN_NEW_7D } from '../aggregates/rollup';
+import { computeDecayedTrending } from '../aggregates/trending-decks';
 
 /**
  * Read API for the commander-popularity aggregate (social program W4) —
@@ -135,6 +142,78 @@ aggregatesRouter.get('/commanders', aggregatesLimiter, async (req: Request, res:
   });
 });
 
+interface TopCopiedDeckResponse {
+  deckId: string;
+  slug: string;
+  deckName: string;
+  commanderName: string | null;
+  partnerName: string | null;
+  score: number;
+}
+
+/**
+ * Decayed "most copied" ranking (w4-trending) over deck_stat_snapshots, joined
+ * back to deck_publications for the display fields. Returns [] when there's
+ * no snapshot history yet (day 1) or nothing scores above 0 -- the route
+ * below turns that into an omitted `topCopiedDecks` key, matching the
+ * additive-field contract risingCommanders already established.
+ */
+async function loadTopCopiedDecks(): Promise<TopCopiedDeckResponse[]> {
+  const db = getDb();
+  // ::text sidesteps node-postgres's default DATE parsing (a local-midnight
+  // JS Date, which can shift a calendar day under a non-UTC client timezone)
+  // -- see deckStatSnapshots' own doc comment in db/schema.ts.
+  const snapshotRows = await db
+    .select({
+      deckId: deckStatSnapshots.deckId,
+      day: sql<string>`${deckStatSnapshots.day}::text`,
+      viewCount: deckStatSnapshots.viewCount,
+      copyCount: deckStatSnapshots.copyCount,
+    })
+    .from(deckStatSnapshots);
+  if (snapshotRows.length === 0) return [];
+
+  const trending = computeDecayedTrending(snapshotRows, Date.now());
+  if (trending.length === 0) return [];
+
+  const pubRows = await db
+    .select({
+      deckId: deckPublications.deckId,
+      slug: deckPublications.slug,
+      deckName: deckPublications.deckName,
+      commanderName: deckPublications.commanderName,
+    })
+    .from(deckPublications)
+    .where(
+      and(
+        inArray(
+          deckPublications.deckId,
+          trending.map((t) => t.deckId)
+        ),
+        isNull(deckPublications.unpublishedAt)
+      )
+    );
+  const pubByDeckId = new Map(pubRows.map((p) => [p.deckId, p]));
+
+  const out: TopCopiedDeckResponse[] = [];
+  for (const t of trending) {
+    const pub = pubByDeckId.get(t.deckId);
+    if (!pub) continue; // unpublished/deleted since its last snapshot
+    out.push({
+      deckId: t.deckId,
+      slug: pub.slug,
+      deckName: pub.deckName,
+      commanderName: pub.commanderName,
+      // deck_publications carries no partner_name column (never added
+      // upstream -- commander_name only stores the primary commander's
+      // name) -- always null until that lands as its own, separate change.
+      partnerName: null,
+      score: t.score,
+    });
+  }
+  return out;
+}
+
 aggregatesRouter.get('/trending', aggregatesLimiter, async (_req: Request, res: Response) => {
   const db = getDb();
   const rows = await db
@@ -144,10 +223,9 @@ aggregatesRouter.get('/trending', aggregatesLimiter, async (_req: Request, res: 
     .orderBy(desc(commanderStats.newLast7d), desc(commanderStats.deckCount))
     .limit(TRENDING_LIMIT);
 
+  const topCopiedDecks = await loadTopCopiedDecks();
+
   res.set('Cache-Control', CACHE_HEADER);
-  // topCopiedDecks is deliberately absent here -- added later by w4-trending
-  // as an additive field, not present-but-empty, so that PR's frontend can
-  // feature-detect via `'topCopiedDecks' in data`.
   res.json({
     risingCommanders: rows.map((r) => ({
       commanderKey: r.commanderKey,
@@ -156,6 +234,10 @@ aggregatesRouter.get('/trending', aggregatesLimiter, async (_req: Request, res: 
       deckCount: r.deckCount,
       newLast7d: r.newLast7d,
     })),
+    // Additive field: present only when non-empty, omitted entirely
+    // otherwise (so the frontend can feature-detect via `'topCopiedDecks' in
+    // data` rather than distinguishing an empty array from "not ready yet").
+    ...(topCopiedDecks.length > 0 ? { topCopiedDecks } : {}),
   });
 });
 

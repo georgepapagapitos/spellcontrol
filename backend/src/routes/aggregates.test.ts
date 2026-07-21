@@ -4,7 +4,13 @@ import type { Express } from 'express';
 import { sql } from 'drizzle-orm';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import { getDb } from '../db';
-import { commanderStats, commanderCardInclusion, userDecks, deckPublications } from '../db/schema';
+import {
+  commanderStats,
+  commanderCardInclusion,
+  userDecks,
+  deckPublications,
+  deckStatSnapshots,
+} from '../db/schema';
 
 let app: Express;
 let cleanup: () => Promise<void>;
@@ -161,6 +167,59 @@ describe('GET /api/aggregates/trending', () => {
     ]);
     expect(res.body).not.toHaveProperty('topCopiedDecks');
     expect(res.headers['cache-control']).toBe('public, max-age=3600');
+  });
+});
+
+describe('GET /api/aggregates/trending (topCopiedDecks, w4-trending)', () => {
+  it('gains topCopiedDecks once real snapshot deltas exist', async () => {
+    const reg = await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'trending_owner', password: 'correct horse battery' });
+    const ownerId = reg.body.user.id as string;
+    const db = getDb();
+    const now = Date.now();
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const dayStr = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+    await db.insert(deckPublications).values({
+      userId: ownerId,
+      deckId: 'trend-deck-1',
+      slug: 'trend-deck-1-slug',
+      deckName: 'Trend Deck One',
+      format: 'commander',
+      commanderName: 'Trend Commander',
+      colorIdentity: [],
+      cardCount: 0,
+      viewCount: 520,
+      copyCount: 42,
+      likeCount: 0,
+      deckRev: 1,
+      publishedAt: now,
+      updatedAt: now,
+      unpublishedAt: null,
+    });
+    await db.insert(deckStatSnapshots).values([
+      {
+        deckId: 'trend-deck-1',
+        userId: ownerId,
+        day: dayStr(now - DAY_MS),
+        viewCount: 500,
+        copyCount: 40,
+      },
+      { deckId: 'trend-deck-1', userId: ownerId, day: dayStr(now), viewCount: 520, copyCount: 42 },
+    ]);
+
+    const res = await request(app).get('/api/aggregates/trending');
+    expect(res.status).toBe(200);
+    expect(res.body.topCopiedDecks).toHaveLength(1);
+    expect(res.body.topCopiedDecks[0]).toMatchObject({
+      deckId: 'trend-deck-1',
+      slug: 'trend-deck-1-slug',
+      deckName: 'Trend Deck One',
+      commanderName: 'Trend Commander',
+      partnerName: null,
+    });
+    expect(res.body.topCopiedDecks[0].score).toBeGreaterThan(0);
   });
 });
 

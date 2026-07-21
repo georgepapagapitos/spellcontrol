@@ -8,7 +8,7 @@
  */
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { EnrichedCard, BinderDef } from '../types';
 import type { DiscoverDeck } from '../lib/discover-client';
 
@@ -101,6 +101,21 @@ describe('DiscoverDecksPage', () => {
     authStatus = 'guest';
     collectionCards = [];
     localStorage.clear();
+    // The page now also mounts <TrendingRail>, which does its own raw fetch
+    // (see TrendingRail.tsx) rather than going through a mockable client
+    // module -- stub it hermetically so these page-level tests (which only
+    // exercise this page's own filter/sort/fetch branching) don't depend on
+    // an unmocked network call. TrendingRail has its own dedicated test file.
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify({ risingCommanders: [] }), { status: 200 }))
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('shows a loading skeleton, then renders tiles on a resolved fetch', async () => {
