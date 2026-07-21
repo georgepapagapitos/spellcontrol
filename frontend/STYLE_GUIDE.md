@@ -1859,6 +1859,21 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   rgba(0, 0, 0, 0.5)` (the caption's shadow) as a second legibility floor.
   Flat `--art-scrim` coverage remains correct for small tiles/badges where
   content genuinely spans the whole art (grid-tile qty/set badges).
+- **Collection-drawn hero art shows the OWNED printing.** When the pick comes
+  from the user's own rows, derive art from the row's stored `imageNormal`
+  via `scryfallArtCrop` (the binder-cover idiom, #843) — never name-resolve
+  through `useCardThumb`, which returns Scryfall's *default* printing and
+  reads as "that's not my card". Name resolution is only the fallback for
+  rows with no stored image (and for `WelcomeHero`'s hardcoded guest pool,
+  where no copy is owned).
+- **The brand fallback never floats behind content, and never flashes.**
+  `HomeHero`'s empty-state grimoire is a top-right corner watermark (the one
+  zone the content stack never reaches), not a centered mark behind the
+  search bar. And it renders only for a **settled** empty collection: while
+  the IDB hydrate or a first-device sync pull is in flight
+  (`hydrating` / `getSyncState() === 'syncing'` with no pick), the hero
+  shows the loading shimmer — an indeterminate collection must not flash
+  brand chrome that art is about to replace.
 - **Guests have no collection, so the hero art rotates a hardcoded pool.**
   Unlike `HomeHero`'s collection-derived pick, `WelcomeHero`'s backdrop
   rotates a small const list of iconic, evergreen Commander staples

@@ -17,11 +17,25 @@ export interface HeroCollectionCard {
   /** Epoch ms this copy was acquired — import time, or last-edited as a
    *  fallback. Mirrors home-signals.ts's own (private) acquiredAt derivation. */
   acquiredAt: number;
+  /** Art-crop URL of the OWNED printing (derived from the row's stored
+   *  imageNormal via scryfallArtCrop, the binder-cover idiom). Absent when
+   *  the row has no stored image — the component then falls back to
+   *  name-resolution, which returns Scryfall's default printing. */
+  art?: string;
 }
 
 export interface HeroDeck {
   commanderName: string | null;
   updatedAt: number;
+  /** Art-crop URL of the deck's actual commander printing, when in hand. */
+  art?: string;
+}
+
+/** A resolved hero pick: the card's name (caption + name-resolution
+ *  fallback) and, when the caller had it, the owned printing's art URL. */
+export interface HeroPick {
+  name: string;
+  art?: string;
 }
 
 /** Epoch-day number for a `YYYY-MM-DD` key — increments once per calendar
@@ -33,45 +47,47 @@ export function epochDay(day: string): number {
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 }
 
-function pickFrom(pool: readonly string[], day: string): string | null {
+function pickFrom(pool: readonly HeroPick[], day: string): HeroPick | null {
   return pool.length > 0 ? pool[epochDay(day) % pool.length] : null;
 }
 
 /**
- * The hero background's card, by name (art itself resolves via
- * `useCardThumb`). Preference order: the collection's highest-value owned
- * cards, else its most recently acquired, else the most recently updated
- * deck's commander — each tier a small pool rotated by day key so the same
- * card doesn't hold forever. `null` means show the brand fallback (a
+ * The hero background's card. Preference order: the collection's
+ * highest-value owned cards, else its most recently acquired, else the most
+ * recently updated deck's commander — each tier a small pool rotated by day
+ * key so the same card doesn't hold forever. The pick carries the owned
+ * printing's art URL when the caller supplied one (YOUR copy, not a
+ * name-resolved default printing); `useCardThumb` is only the fallback for
+ * rows with no stored image. `null` means show the brand fallback (a
  * brand-new collection with no cards and no decks).
  *
  * No `Date.now()` default here (unlike `home-signals.ts`'s
  * `upcomingGameNights`) — the day key is cheap for a caller to compute once
  * and callers that need determinism in a render already have it in hand.
  */
-export function pickHeroCardName(
+export function pickHeroCard(
   cards: readonly HeroCollectionCard[],
   decks: readonly HeroDeck[],
   day: string = dayKey(Date.now())
-): string | null {
+): HeroPick | null {
   const priced = [...cards]
     .filter((c) => c.purchasePrice > 0)
     .sort((a, b) => b.purchasePrice - a.purchasePrice)
     .slice(0, POOL_LIMIT)
-    .map((c) => c.name);
+    .map((c) => ({ name: c.name, art: c.art }));
   if (priced.length > 0) return pickFrom(priced, day);
 
   const recent = [...cards]
     .sort((a, b) => b.acquiredAt - a.acquiredAt)
     .slice(0, POOL_LIMIT)
-    .map((c) => c.name);
+    .map((c) => ({ name: c.name, art: c.art }));
   if (recent.length > 0) return pickFrom(recent, day);
 
   const commanders = decks
     .filter((d): d is HeroDeck & { commanderName: string } => d.commanderName != null)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, POOL_LIMIT)
-    .map((d) => d.commanderName);
+    .map((d) => ({ name: d.commanderName, art: d.art }));
   return pickFrom(commanders, day);
 }
 
