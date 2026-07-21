@@ -22,6 +22,7 @@ import { publicationsRouter } from './routes/publications';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
 import { discoverRouter } from './routes/discover';
+import { activityRouter } from './routes/activity';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -421,6 +422,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/public', publicRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/discover', discoverRouter);
+  app.use('/api/activity', activityRouter);
 
   return {
     app,
