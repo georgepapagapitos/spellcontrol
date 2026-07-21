@@ -30,6 +30,15 @@ import { AdminPanel } from '../components/AdminPanel';
 import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { FriendsManagement } from '../components/FriendsManagement';
+import { scrollToHeading } from '../lib/scroll-to-heading';
+
+// Header account-menu deep link (`/you?section=…`) → the group heading to
+// scroll/focus. Values are the header menu's own vocabulary, not the heading
+// ids themselves, so a rename of one heading only needs updating here.
+const SECTION_HEADING_IDS: Record<string, string> = {
+  appearance: 'settings-appearance-group-title',
+  sharing: 'settings-sharing-group-title',
+};
 
 export function YouPage() {
   const username = useAuth((s) => s.user?.username ?? null);
@@ -76,6 +85,7 @@ export function YouPage() {
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [unlinkBusy, setUnlinkBusy] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const sectionParam = searchParams.get('section');
 
   // Fetch the user's linked sign-in methods once they're authed. Best-effort:
   // a failure leaves `identities` null, which hides the section (the Settings
@@ -125,6 +135,16 @@ export function YouPage() {
       { replace: true }
     );
   }, [searchParams, setSearchParams]);
+
+  // Deep-link arrival from the header's account menu (Settings / Shared
+  // links): scroll the matching group heading into view and focus it, same
+  // contract as FriendsManagement's `?friendsTab=` deep link. An absent or
+  // unknown `section` value is a no-op — the page just stays wherever it
+  // naturally lands.
+  useEffect(() => {
+    const id = sectionParam ? SECTION_HEADING_IDS[sectionParam] : undefined;
+    if (id) scrollToHeading(id);
+  }, [sectionParam]);
 
   // Native: clear the linking "busy" state when the system browser closes for
   // any reason (success, our close, or user cancel). No-op on web.
