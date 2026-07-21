@@ -55,6 +55,12 @@ vi.mock('../lib/auth-api', () => ({
   requestGoogleLinkIntent: vi.fn(),
   unlinkGoogle: vi.fn(),
 }));
+// Only the network call is stubbed — pendingPodInviteCount stays real (pure,
+// no side effects) so the "Pods" badge count is exercised for real.
+vi.mock('../lib/pods-client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/pods-client')>();
+  return { ...actual, listPods: vi.fn(() => Promise.resolve([])) };
+});
 vi.mock('../lib/backup', () => ({
   buildBackup: vi.fn(),
   downloadBackup: vi.fn(),
@@ -91,6 +97,7 @@ vi.mock('@capacitor/browser', () => ({
 }));
 
 import { YouPage } from './YouPage';
+import { listPods } from '../lib/pods-client';
 
 function renderYouPage(initialPath = '/') {
   return render(
@@ -110,6 +117,7 @@ afterEach(() => {
   authState.user = null;
   authState.status = 'guest';
   vi.mocked(Element.prototype.scrollIntoView).mockClear();
+  vi.mocked(listPods).mockReset().mockResolvedValue([]);
 });
 
 describe('UX-332 — Settings account card honesty copy', () => {
@@ -152,6 +160,61 @@ describe('w3-you-page — Profile carried through + Friends group inserted', () 
     expect(friendsIdx).toBeGreaterThan(-1);
     expect(friendsIdx).toBeGreaterThan(accountIdx);
     expect(friendsIdx).toBeLessThan(appearanceIdx);
+  });
+});
+
+describe('w5-pods-index-page — Pods link + badge', () => {
+  it('renders the Pods link beside the Friends heading with the pending-invite count', async () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    vi.mocked(listPods).mockResolvedValue([
+      {
+        id: 'p1',
+        name: 'Pod A',
+        ownerUserId: 'o1',
+        ownerUsername: 'oscar',
+        createdAt: 1,
+        myStatus: 'invited',
+        memberCount: 2,
+      },
+      {
+        id: 'p2',
+        name: 'Pod B',
+        ownerUserId: 'o2',
+        ownerUsername: 'oscar',
+        createdAt: 2,
+        myStatus: 'member',
+        memberCount: 3,
+      },
+    ]);
+    renderYouPage();
+
+    const link = await screen.findByRole('link', { name: /pods, 1 pending invite/i });
+    expect(link.getAttribute('href')).toBe('/pods');
+    expect(link.textContent).toContain('1');
+  });
+
+  it('shows no badge when there are no pending pod invites', async () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    vi.mocked(listPods).mockResolvedValue([
+      {
+        id: 'p2',
+        name: 'Pod B',
+        ownerUserId: 'o2',
+        ownerUsername: 'oscar',
+        createdAt: 2,
+        myStatus: 'member',
+        memberCount: 3,
+      },
+    ]);
+    renderYouPage();
+
+    await waitFor(() => expect(listPods).toHaveBeenCalled());
+    // Plain "Pods" — no aria-label override, since undefined falls back to
+    // the link's own text content as its accessible name.
+    const link = await screen.findByRole('link', { name: /^pods$/i });
+    expect(link.getAttribute('href')).toBe('/pods');
   });
 });
 

@@ -33,6 +33,7 @@ import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
 import { SearchPage } from './pages/SearchPage';
 import { FriendHubPage } from './pages/FriendHubPage';
+import { PodsIndexPage } from './pages/PodsIndexPage';
 import { useAuth } from './store/auth';
 import { useCollectionStore } from './store/collection';
 import { startSync, hydrateLocal } from './lib/sync';
@@ -289,6 +290,7 @@ export default function App() {
           <Route path="/you" element={<YouPage />} />
           <Route path="/friends" element={<Navigate to="/you" replace />} />
           <Route path="/friends/:friendId" element={<FriendHubPage />} />
+          <Route path="/pods" element={<PodsIndexPage />} />
           <Route path="/settings" element={<Navigate to="/you" replace />} />
           <Route
             path="/admin"

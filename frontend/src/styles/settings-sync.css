@@ -649,6 +649,20 @@
   font-weight: 600;
 }
 
+/* Friends group header — the "Pods" link sits beside the heading, visually
+   and structurally separated from FriendsManagement's own tablist below it
+   (never inline with the tabs, which would read as an unlabelled 4th tab). */
+.you-friends-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.you-friends-header .settings-section-header {
+  margin: 0;
+}
+
 /* About footer — legal/attribution text demoted from a full card to quiet
    fine-print below the Danger zone. No card chrome, muted color. */
 .settings-page-about {
