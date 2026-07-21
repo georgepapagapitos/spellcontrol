@@ -191,7 +191,7 @@ describe('aggregateNewArrivalDecks', () => {
       candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 2000 }),
     ];
     const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 2 }]);
+    expect(result).toEqual([{ deck, count: 2, sampleNames: ['Sol Ring'] }]);
   });
 
   it('excludes a deck with zero qualifying arrivals', () => {
@@ -207,7 +207,7 @@ describe('aggregateNewArrivalDecks', () => {
       candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 }),
     ];
     const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 1 }]);
+    expect(result).toEqual([{ deck, count: 1, sampleNames: ['Sol Ring'] }]);
   });
 
   it('counts every owned copy toward qty even when only some printings are newly acquired', () => {
@@ -218,7 +218,19 @@ describe('aggregateNewArrivalDecks', () => {
       candidate({ name: 'Sol Ring', updatedAt: BASE_TIME + 1000 }),
     ];
     const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
-    expect(result).toEqual([{ deck, count: 3 }]);
+    expect(result).toEqual([{ deck, count: 3, sampleNames: ['Sol Ring'] }]);
+  });
+
+  it('sorts sampleNames most-recently-acquired first and caps at 3', () => {
+    const deck = makeDeck({ id: 'a', updatedAt: BASE_TIME });
+    const collectionCards = [
+      candidate({ name: 'Oldest', updatedAt: BASE_TIME + 1000 }),
+      candidate({ name: 'Middle', updatedAt: BASE_TIME + 2000 }),
+      candidate({ name: 'Newest', updatedAt: BASE_TIME + 3000 }),
+      candidate({ name: 'Fourth', updatedAt: BASE_TIME + 4000 }),
+    ];
+    const result = aggregateNewArrivalDecks([deck], collectionCards, new Map());
+    expect(result).toEqual([{ deck, count: 4, sampleNames: ['Fourth', 'Newest', 'Middle'] }]);
   });
 
   it('truncates to the `limit` most-recently-updated decks', () => {

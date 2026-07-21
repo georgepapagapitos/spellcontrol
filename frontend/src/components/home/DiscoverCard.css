@@ -11,6 +11,8 @@
 
 .discover-card-link {
   display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-2);
   margin: calc(var(--space-2) * -1);
   border-radius: var(--radius);
@@ -18,6 +20,40 @@
   color: inherit;
   min-height: 44px;
   transition: background var(--motion-fast);
+}
+
+/* Small landscape banner crop — a mini `DiscoverDeckTile` art band, not the
+   portrait `.home-thumb` shape the other home cards use. */
+.discover-card-art {
+  display: block;
+  flex: none;
+  width: 3.25rem;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.discover-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.discover-card-art-ph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .discover-card-art-ph {
+    background: linear-gradient(100deg, var(--surface) 30%, var(--border) 50%, var(--surface) 70%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

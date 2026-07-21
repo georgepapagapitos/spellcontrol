@@ -141,3 +141,72 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ── Shared card-art thumbnails ("Home comes alive") ──────────────────────
+   Every thumbnail across the home cards (mover rows, recent decks, new
+   arrivals fan, discover) reuses this exact box — aspect-ratio 5/7 reserved
+   (zero CLS), one step down from the card's own --surface-raised background
+   so a still-loading skeleton stays visible against it. Mirrors
+   `.new-arrivals-row-thumb-wrap` (DeckAnalysis's NewArrivalsSheet). */
+.home-thumb {
+  display: block;
+  flex: none;
+  width: 2.5rem;
+  aspect-ratio: 5 / 7;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.home-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-thumb-skeleton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+
+/* Shimmer only under a motion preference — a static placeholder otherwise.
+   Shares the app's one skeleton-shimmer keyframe (footer-card-preview.css);
+   never redeclare it (motion-tokens.test.ts guards this). */
+@media (prefers-reduced-motion: no-preference) {
+  .home-thumb-skeleton {
+    background: linear-gradient(100deg, var(--surface) 30%, var(--border) 50%, var(--surface) 70%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+/* No-commander color fallback — deck.color fill + a centered ColorPip,
+   scaled down from DecksIndexPage's full-size `.decks-index-card-banner`. */
+.home-thumb-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--deck-color, var(--accent));
+}
+
+/* Shared micro-liveliness: a tiny tilt on hover. Pointer devices only
+   (never sticks after a tap — E68 hover-gate), and killed outright under
+   reduced motion since a rotate reads as more vestibular than a plain scale. */
+@media (hover: hover) and (pointer: fine) {
+  .card-thumb-tilt {
+    transition: transform var(--motion-fast) var(--ease-out-soft);
+  }
+
+  .card-thumb-tilt:hover {
+    transform: scale(1.06) rotate(-2deg);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+  .card-thumb-tilt:hover {
+    transform: none;
+  }
+}

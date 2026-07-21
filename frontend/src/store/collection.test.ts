@@ -1168,6 +1168,54 @@ describe('binder card customization', () => {
     useCollectionStore.getState().acknowledgeBinderCard('b1', 'sf1:nonfoil', 'removed');
     expect(useCollectionStore.getState().binders[0]).toEqual(before);
   });
+
+  it('acknowledgeBinderCard with a counterpart stamps both baselines in one mutation (one move = one confirmation)', () => {
+    const card = enriched({ copyId: 'c1', scryfallId: 'sf1', purchasePrice: 2 });
+    useCollectionStore.setState({
+      cards: [card],
+      binders: [
+        makeBinder({
+          id: 'src',
+          lastReviewedSnapshot: {
+            at: 1,
+            keys: ['sf1:nonfoil'],
+            cardSnapshots: { 'sf1:nonfoil': { price: 6 } },
+          },
+        }),
+        makeBinder({
+          id: 'dst',
+          position: 1,
+          lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} },
+        }),
+      ],
+    });
+    // "Moved it" clicked in the source binder: removed there, added in dst.
+    useCollectionStore
+      .getState()
+      .acknowledgeBinderCard('src', 'sf1:nonfoil', 'removed', card, 'dst');
+    const [src, dst] = useCollectionStore.getState().binders;
+    expect(src.lastReviewedSnapshot?.keys).toEqual([]);
+    expect(src.lastReviewedSnapshot?.cardSnapshots['sf1:nonfoil']).toBeUndefined();
+    expect(dst.lastReviewedSnapshot?.keys).toEqual(['sf1:nonfoil']);
+    expect(dst.lastReviewedSnapshot?.cardSnapshots['sf1:nonfoil']).toEqual({ price: 2 });
+  });
+
+  it('acknowledgeBinderCard skips a counterpart with no baseline, primary side still applies', () => {
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
+      binders: [
+        makeBinder({ id: 'dst', lastReviewedSnapshot: { at: 1, keys: [], cardSnapshots: {} } }),
+        makeBinder({ id: 'src', position: 1 }), // never reviewed — no snapshot to clear
+      ],
+    });
+    // "Added it" clicked in the destination: added there, removed in src (skipped).
+    useCollectionStore
+      .getState()
+      .acknowledgeBinderCard('dst', 'sf1:nonfoil', 'added', undefined, 'src');
+    const [dst, src] = useCollectionStore.getState().binders;
+    expect(dst.lastReviewedSnapshot?.keys).toEqual(['sf1:nonfoil']);
+    expect(src.lastReviewedSnapshot).toBeUndefined();
+  });
 });
 
 describe('binder CRUD', () => {
