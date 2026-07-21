@@ -20,22 +20,22 @@
      during the brief pre-theme-bootstrap window. */
   color-scheme: light;
 
-  --bg: #eaecf0;
-  --surface: #f4f6fa;
-  --surface-raised: #fafcff;
-  --border: #b8c4d8;
-  --border-strong: #8fa1bc;
+  --bg: #e7e7df;
+  --surface: #f0f0e9;
+  --surface-raised: #f8f8f2;
+  --border: #b7b8ac;
+  --border-strong: #8b8e85;
 
-  --text-primary: #1a2438;
-  --text-secondary: #4a5670;
+  --text-primary: #23283a;
+  --text-secondary: #47506a;
   /* Muted text — WCAG AA (≥4.5:1) against bg/surface/surface-raised; verified by
      themes-contrast.test.ts. Mirrors the azorius (default light) theme. */
-  --text-muted: #5b6b82;
+  --text-muted: #565e74;
 
-  --accent: #2c5d99;
-  --accent-hover: #3d72b4;
-  --accent-light: rgba(44, 93, 153, 0.16);
-  --on-accent: #fafcff;
+  --accent: #35568e;
+  --accent-hover: #46679f;
+  --accent-light: rgba(53, 86, 142, 0.16);
+  --on-accent: #f6f5ec;
 
   /* Brand constant — the grimoire clasp's brass gold. Theme-invariant (no
      theme overrides it). BrandMark.tsx mirrors it as the SEAL_GOLD const
@@ -109,6 +109,11 @@
   --art-scrim-err: #f0a8a8;
   --overlay-sheet: rgba(0, 0, 0, 0.4);
   --pip-border: rgba(255, 255, 255, 0.15);
+  /* Material texture — the paper/leather fleck color painted by the body
+     grain rule in base-layout.css. Alpha-only so --bg's hue reads through;
+     themes.css overrides per data-scheme (light = warm ink, dark = pale).
+     Fallback mirrors the light scheme (matches the color-scheme pin above). */
+  --grain: rgba(88, 70, 42, 0.05);
 
   /* ── Motion ───────────────────────────────────────────────────────────── */
   /* Motion language tokens — see STYLE_GUIDE.md § Motion for when to use
@@ -128,8 +133,10 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* ── Shape ────────────────────────────────────────────────────────────── */
-  --radius: 8px;
-  --radius-lg: 12px;
+  /* Tightened from 8px/12px in the material restyle (T53): print-era boxes
+     sit squarer; pills (999px) and circles (50%) are unchanged. */
+  --radius: 6px;
+  --radius-lg: 10px;
 
   /* ── Layout ───────────────────────────────────────────────────────────── */
   --page-max: 1400px;

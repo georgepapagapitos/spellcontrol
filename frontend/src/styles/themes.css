@@ -3,174 +3,187 @@
  * around the *vibe* of the guild rather than mechanically composing
  * its two colors. Some are light, some are dark.
  *
+ * Material language (restyle T53): every theme is built from physical
+ * binder materials rather than dashboard neutrals. Light guilds are
+ * guild-tinted PAPER (warm page surfaces, ink text, a deep "binder
+ * cover" dye as the accent). Dark guilds are dyed LEATHER (deep
+ * guild-hued grounds, aged-paper text, a foil-stamp accent). The
+ * per-scheme `--grain` token paints the paper/pebble texture (see
+ * the body rule in base-layout.css).
+ *
+ * Contrast contract: --text-muted ≥ 4.5:1 against bg/surface/surface-raised
+ * is CI-enforced (themes-contrast.test.ts). The material re-derivation
+ * additionally holds --text-secondary ≥ 4.5:1, --text-primary ≥ 6.5:1,
+ * --on-accent vs --accent ≥ 4.5:1, and accent vs surface ≥ 3:1 everywhere.
+ *
  * Only semantic UI tokens are overridden here. Mana pip colors live in
- * lib/colors.ts; rarity colors live in :root in global.css. Both are
+ * lib/colors.ts; rarity colors live in :root in tokens.css. Both are
  * MTG-canonical and intentionally never themed so card data and
  * warnings always read consistently.
  */
 
-/* ── LIGHT ─────────────────────────────────────────────────────────────── */
+/* ── LIGHT (paper) ─────────────────────────────────────────────────────── */
 
-/* Azorius — order, law, sky parchment */
+/* Azorius — law scriptorium: blue-washed paper, iron-gall ink */
 [data-theme='azorius'] {
-  --bg: #eaecf0;
-  --surface: #f4f6fa;
-  --surface-raised: #fafcff;
-  --border: #b8c4d8;
-  --border-strong: #8fa1bc;
-  --text-primary: #1a2438;
-  --text-secondary: #4a5670;
-  --text-muted: #5b6b82;
-  --accent: #2c5d99;
-  --accent-hover: #3d72b4;
-  --accent-light: color-mix(in srgb, #2c5d99 16%, transparent);
-  --on-accent: #fafcff;
+  --bg: #e7e7df;
+  --surface: #f0f0e9;
+  --surface-raised: #f8f8f2;
+  --border: #b7b8ac;
+  --border-strong: #8b8e85;
+  --text-primary: #23283a;
+  --text-secondary: #47506a;
+  --text-muted: #565e74;
+  --accent: #35568e;
+  --accent-hover: #46679f;
+  --accent-light: color-mix(in srgb, #35568e 16%, transparent);
+  --on-accent: #f6f5ec;
 }
 
-/* Boros — sunlit dawn, banners, valor */
+/* Boros — sun-baked parchment, sealing-wax red */
 [data-theme='boros'] {
-  --bg: #f4ead8;
-  --surface: #fcf4e2;
-  --surface-raised: #fff9ec;
-  --border: #d8b890;
-  --border-strong: #b8956a;
-  --text-primary: #3a1a10;
-  --text-secondary: #6a4a30;
-  --text-muted: #826444;
-  --accent: #c4381c;
-  --accent-hover: #d84e30;
-  --accent-light: color-mix(in srgb, #c4381c 14%, transparent);
-  --on-accent: #fcf4e2;
+  --bg: #f0e5cf;
+  --surface: #f7eedb;
+  --surface-raised: #fdf6e7;
+  --border: #cfae82;
+  --border-strong: #a9895c;
+  --text-primary: #3a2412;
+  --text-secondary: #6b4c2e;
+  --text-muted: #7a5d3c;
+  --accent: #b03018;
+  --accent-hover: #c44530;
+  --accent-light: color-mix(in srgb, #b03018 14%, transparent);
+  --on-accent: #fdf3e0;
 }
 
-/* Selesnya — sunlit garden, harmony, growth */
+/* Selesnya — pressed-leaf paper, deep garden cloth */
 [data-theme='selesnya'] {
-  --bg: #e8eedc;
-  --surface: #f2f6e6;
-  --surface-raised: #faf9f0;
-  --border: #b4c490;
-  --border-strong: #8aa066;
-  --text-primary: #1a2a14;
-  --text-secondary: #4a5a30;
-  --text-muted: #626f48;
-  --accent: #4a8a3a;
-  --accent-hover: #5a9d48;
-  --accent-light: color-mix(in srgb, #4a8a3a 16%, transparent);
-  --on-accent: #f2f6e6;
+  --bg: #e7ead6;
+  --surface: #f0f2e0;
+  --surface-raised: #f8f9ec;
+  --border: #b8bf94;
+  --border-strong: #8d966a;
+  --text-primary: #23301a;
+  --text-secondary: #4c5936;
+  --text-muted: #5c6945;
+  --accent: #3f7230;
+  --accent-hover: #518540;
+  --accent-light: color-mix(in srgb, #3f7230 16%, transparent);
+  --on-accent: #f4f6e6;
 }
 
-/* Simic — clean lab, kelp, fluid biomancy */
+/* Simic — tide-washed paper, deep lagoon dye */
 [data-theme='simic'] {
-  --bg: #d8eae6;
-  --surface: #e6f2ee;
-  --surface-raised: #f0f8f4;
-  --border: #a0c4bc;
-  --border-strong: #74a39a;
-  --text-primary: #0e2a26;
-  --text-secondary: #3a564f;
-  --text-muted: #566b63;
-  --accent: #1a8a6a;
-  --accent-hover: #2aa380;
-  --accent-light: color-mix(in srgb, #1a8a6a 16%, transparent);
-  --on-accent: #e6f2ee;
+  --bg: #dce8e3;
+  --surface: #e8f1ec;
+  --surface-raised: #f1f8f4;
+  --border: #a2c1b4;
+  --border-strong: #729388;
+  --text-primary: #14302b;
+  --text-secondary: #3d5852;
+  --text-muted: #4d685f;
+  --accent: #177862;
+  --accent-hover: #2b8b75;
+  --accent-light: color-mix(in srgb, #177862 16%, transparent);
+  --on-accent: #eaf5f0;
 }
 
-/* ── DARK ──────────────────────────────────────────────────────────────── */
+/* ── DARK (leather) ────────────────────────────────────────────────────── */
 
-/* Dimir — deep shadow, conspiracy, midnight */
+/* Dimir — midnight library: navy-dyed leather, steel foil */
 [data-theme='dimir'] {
-  --bg: #0c0e1c;
-  --surface: #15182a;
-  --surface-raised: #1f243a;
-  --border: #2e3550;
-  --border-strong: #455070;
-  --text-primary: #d8dce8;
-  --text-secondary: #9aa3bc;
-  --text-muted: #838ca7;
-  --accent: #6a8ad8;
-  --accent-hover: #8ba5e8;
-  --accent-light: color-mix(in srgb, #6a8ad8 18%, transparent);
-  --on-accent: #0c0e1c;
+  --bg: #10121f;
+  --surface: #191c2d;
+  --surface-raised: #232741;
+  --border: #333a58;
+  --border-strong: #4a5476;
+  --text-primary: #d9dce6;
+  --text-secondary: #9ca4ba;
+  --text-muted: #8993ab;
+  --accent: #7391da;
+  --accent-hover: #8fa8e8;
+  --accent-light: color-mix(in srgb, #7391da 18%, transparent);
+  --on-accent: #10121f;
 }
 
-/* Golgari — rotting bog, undergrowth */
+/* Golgari — bog-cured hide, moss foil */
 [data-theme='golgari'] {
-  --bg: #14180e;
-  --surface: #1d2218;
-  --surface-raised: #2a3024;
-  --border: #3c4632;
-  --border-strong: #555f44;
-  --text-primary: #d8d6c4;
-  --text-secondary: #9c9c84;
-  --text-muted: #98987e;
-  --accent: #8aa84a;
-  --accent-hover: #a5c062;
-  --accent-light: color-mix(in srgb, #8aa84a 18%, transparent);
-  --on-accent: #14180e;
+  --bg: #151a10;
+  --surface: #1f2418;
+  --surface-raised: #2b3122;
+  --border: #3f4931;
+  --border-strong: #59653f;
+  --text-primary: #d9d6bd;
+  --text-secondary: #a3a287;
+  --text-muted: #999879;
+  --accent: #93ad52;
+  --accent-hover: #abc46a;
+  --accent-light: color-mix(in srgb, #93ad52 18%, transparent);
+  --on-accent: #151a10;
 }
 
-/* Gruul — savage forest, raw fire */
+/* Gruul — fire-scorched leather, raw green */
 [data-theme='gruul'] {
-  --bg: #1c1410;
-  --surface: #2a1d16;
-  --surface-raised: #38271e;
-  --border: #503624;
-  --border-strong: #6e4e34;
-  --text-primary: #e8d8c0;
-  --text-secondary: #b09478;
-  --text-muted: #a68e7e;
-  --accent: #88c060;
-  --accent-hover: #a3d878;
-  --accent-light: color-mix(in srgb, #88c060 18%, transparent);
-  --on-accent: #1c1410;
+  --bg: #1e150f;
+  --surface: #2b1e15;
+  --surface-raised: #3a291d;
+  --border: #55392a;
+  --border-strong: #74543a;
+  --text-primary: #ead9c0;
+  --text-secondary: #b39679;
+  --text-muted: #ab9278;
+  --accent: #8fc464;
+  --accent-hover: #a8da7c;
+  --accent-light: color-mix(in srgb, #8fc464 18%, transparent);
+  --on-accent: #1e150f;
 }
 
-/* Izzet — lab at night, electric */
+/* Izzet — night lab: indigo leather, copper-hot foil */
 [data-theme='izzet'] {
-  --bg: #0a0e22;
-  --surface: #14193a;
-  --surface-raised: #1f2654;
-  --border: #303a78;
-  --border-strong: #4854a8;
-  --text-primary: #e0e6f8;
-  --text-secondary: #a0acd0;
-  --text-muted: #8791ab;
-  --accent: #ff5a3a;
-  --accent-hover: #ff7355;
-  --accent-light: color-mix(in srgb, #ff5a3a 18%, transparent);
-  --on-accent: #0a0e22;
+  --bg: #0d1024;
+  --surface: #171c3c;
+  --surface-raised: #222956;
+  --border: #343e7c;
+  --border-strong: #4b58a8;
+  --text-primary: #e2e7f8;
+  --text-secondary: #a3aed2;
+  --text-muted: #95a0c0;
+  --accent: #fa5c3a;
+  --accent-hover: #ff7758;
+  --accent-light: color-mix(in srgb, #fa5c3a 18%, transparent);
+  --on-accent: #0d1024;
 }
 
-/* Orzhov — gothic gloom, cathedral shadow, gold */
+/* Orzhov — cathedral-black hide, gold-leaf stamp */
 [data-theme='orzhov'] {
-  --bg: #14101a;
-  --surface: #1d1828;
-  --surface-raised: #281f35;
-  --border: #3a3048;
-  --border-strong: #4f405d;
-  --text-primary: #e0d8c8;
-  --text-secondary: #aaa098;
-  --text-muted: #938985;
+  --bg: #161019;
+  --surface: #201826;
+  --surface-raised: #2c2133;
+  --border: #3f3348;
+  --border-strong: #574760;
+  --text-primary: #e3dac6;
+  --text-secondary: #ada294;
+  --text-muted: #9c9287;
   --accent: #d4ad48;
-  --accent-hover: #e8c060;
+  --accent-hover: #e6c25e;
   --accent-light: color-mix(in srgb, #d4ad48 16%, transparent);
-  --on-accent: #14101a;
+  --on-accent: #161019;
 }
 
-/* Rakdos — blood cult, smoke and ash */
+/* Rakdos — blood-dyed leather, ember foil */
 [data-theme='rakdos'] {
-  --bg: #170c10;
-  --surface: #221218;
-  --surface-raised: #2e1820;
-  --border: #481a26;
-  --border-strong: #602534;
-  --text-primary: #e8d4d4;
-  --text-secondary: #b89090;
-  --text-muted: #9f7f7f;
-  --accent: #d83d3d;
-  --accent-hover: #ee5555;
-  --accent-light: color-mix(in srgb, #d83d3d 18%, transparent);
-  --on-accent: #170c10;
+  --bg: #180d0e;
+  --surface: #241214;
+  --surface-raised: #311a1c;
+  --border: #4c1f26;
+  --border-strong: #663039;
+  --text-primary: #e9d6d2;
+  --text-secondary: #b9928d;
+  --text-muted: #a68681;
+  --accent: #e2483f;
+  --accent-hover: #f1615a;
+  --accent-light: color-mix(in srgb, #e2483f 18%, transparent);
+  --on-accent: #180d0e;
 }
 
 /**
@@ -198,6 +211,10 @@
   --success: #2f7d4f;
   --info: #4a6fa5;
 
+  /* Paper grain — warm ink flecks on page surfaces (body rule in
+     base-layout.css). Alpha-only texture; the hue reads through --bg. */
+  --grain: rgba(88, 70, 42, 0.05);
+
   /* Black-on-light SVGs render as-is. */
   --svg-invert: 0;
 
@@ -209,6 +226,9 @@
 }
 
 [data-scheme='dark'] {
+  /* Pebbled-leather grain — pale flecks on the dark grounds. */
+  --grain: rgba(255, 244, 224, 0.04);
+
   /* Invert black-on-dark SVGs (e.g. set icons) so they read as light glyphs. */
   --svg-invert: 1;
 
