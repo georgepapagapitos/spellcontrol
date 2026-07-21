@@ -1760,47 +1760,74 @@ The canonical pattern (`.auth-page`, `.welcome-page`):
 - This is a real bug that has shipped twice (auth register mode; the `/` landing
   footer). Treat it as a hard constraint.
 
-## First-run welcome / landing screen (UX-331)
+## First-run welcome / landing screen (UX-331, pass 2c "welcome storefront")
 
 The first-run gate routes a fresh visitor (and crawlers) to `/` — the public
 marketing landing, which doubles as the first-run onboarding surface. It must
 follow the full-viewport scroll pattern above. Design rulings settled here:
 
-- **Three doors, two primary.** The hero presents exactly three CTAs: "Import
-  my collection", "Try sample cards", and "Sign in". Doors 1–2 are the primary
-  pair (pill-btn-primary, accent fill) because collection activation (getting
-  cards in) is the event that makes the app useful. "Sign in" is secondary
-  (default pill-btn surface) — it's present but not dominant.
-- **Hero-class surface.** The landing card is hero-class: a self-scrolling
-  centered viewport, `max-width: 560px`, brand eyebrow + serif headline
-  (`--font-serif`), pill CTAs, then a feature grid and legal footer below the
-  hero. All three doors are pill-shaped because they live in the page hero.
-- **The hero is tight; the page can be long.** Above the fold is the headline +
-  tagline + three doors. Below it the landing carries real, accurate feature
-  prose (it's the only crawlable marketing content the gated app exposes) — but
-  the page MUST scroll (see the rule above), and feature claims MUST match what
-  ships (formats, generation scope).
+- **Art-led storefront, not a centered card.** `WelcomePage` is a wide
+  (`--page-max`) shell: a full-bleed art hero (`WelcomeHero`, Moxfield-hero-
+  informed — same `--art-scrim` treatment as `HomeHero`), then two live
+  public-deck rails, then the original onboarding/feature/legal content in
+  tightened form. The pre-2c design (a single `max-width: 560px` centered
+  card) is retired — a guest now sees the same kind of art-led landing a
+  returning/authed user gets on `/home`, not a plainer marketing stand-in.
+- **Guests have no collection, so the hero art rotates a hardcoded pool.**
+  Unlike `HomeHero`'s collection-derived pick, `WelcomeHero`'s backdrop
+  rotates a small const list of iconic, evergreen Commander staples
+  (`lib/welcome-hero.ts`'s `EVERGREEN_COMMANDERS`) by the same day-key
+  rotation idiom as `home-hero.ts` (`pickWelcomeHeroCard` reuses its exported
+  `epochDay`). Never wire personal/collection data into this hero — it must
+  render identically for every guest.
+- **Hero CTAs: Import (primary) + Browse public decks (secondary).** The
+  hero's own two calls to action are `<Link>`s (not `onClick`+`navigate`
+  buttons) so cmd/ctrl/middle-click still work — "Import your collection"
+  (`/collection?add=list`, calls `markEverVisited()` on click) and "Browse
+  public decks" (`/decks/discover`, no side effect). The hero also carries a
+  single Discover-scoped search (submits to `/decks/discover?commander=…`) —
+  the one search a guest can use meaningfully, no "my decks" scope toggle
+  (there's nothing to search yet).
+- **Live rails are ghost-town-proofed — absence over an empty shell.** "Fresh
+  public decks" (`FreshDecksRail`, `listDiscoverDecks({sort:'newest'})`
+  rendered with the exact same `DiscoverDeckTile` grid `/decks/discover`
+  uses) renders **nothing** below 3 returned decks — never a near-empty grid
+  on the page a cold platform and search crawlers land on. "Trending
+  commanders" reuses `TrendingRail` as-is (it already owns its own loading/
+  error/empty states); only a trailing "View all public decks" link is new
+  around it, since none of `TrendingRail`'s own tiles link back to
+  `/decks/discover` itself.
+- **The remaining onboarding doors move below the rails, tightened.** "Try
+  sample cards" (needs this page's own async load state) and "Sign in" (no
+  side effect — a plain `<Link to="/auth">`) survive as a compact two-button
+  row below the live rails, followed by the original feature grid and legal
+  footer — additive restructure, never a content purge. The feature grid now
+  goes to 4 columns at `≥1024px` (there are exactly four blocks; the wider
+  shell fits them in one row).
 - **No exit animation.** The welcome is a one-shot surface that replaces itself
   immediately when any door is chosen. Instant replacement via React state is the
   symmetric exit — it reads as deliberate action, not a vanish.
-- **Entrance animation.** `welcome-rise`: opacity 0→1 + translateY 12px→0 over
-  `--motion-gentle` (320ms) `--ease-out-soft`. No exit needed (see above). The
-  `prefers-reduced-motion: reduce` block sets `animation: none` — not a 0.001ms
-  backstop (infinite loops don't apply here, but the reduced-motion gate still must
-  be explicit per the Motion § Reduced-motion rule).
-- **Dismissal on doors 1 & 2 only; door 3 defers to AuthPage.** "Import" and
-  "Try samples" call `markEverVisited()` immediately (the user has made their
-  activation choice). "Sign in" navigates to `/auth` without marking — the auth
-  store calls `markEverVisited()` on any auth completion, so if the user abandons
-  /auth the welcome reappears on next boot.
-- **Sample load reuses the existing path.** Door 2 calls `importText` →
-  `loadSampleBinders` exactly as BindersIndexPage does (same CSV, same store
-  action). No fork of sample data; the import appears as the normal deletable
-  "Sample: starter pack" entry in import history.
+- **Entrance animation, now on the whole shell.** `welcome-rise`: opacity 0→1
+  + translateY 12px→0 over `--motion-gentle` (320ms) `--ease-out-soft`,
+  applied to `.welcome-shell` (was `.welcome-card`). No exit needed (see
+  above). The `prefers-reduced-motion: reduce` block sets `animation: none`
+  — not a 0.001ms backstop (infinite loops don't apply here, but the
+  reduced-motion gate still must be explicit per the Motion § Reduced-motion
+  rule).
+- **Dismissal on the Import CTA & Try-samples door only; Sign-in defers to
+  AuthPage.** Both call `markEverVisited()` immediately (the user has made
+  their activation choice). "Sign in" navigates to `/auth` without marking —
+  the auth store calls `markEverVisited()` on any auth completion, so if the
+  user abandons /auth the welcome reappears on next boot.
+- **Sample load reuses the existing path.** "Try sample cards" calls
+  `importText` → `loadSampleBinders` exactly as BindersIndexPage does (same
+  CSV, same store action). No fork of sample data; the import appears as the
+  normal deletable "Sample: starter pack" entry in import history.
 - **Disabled-scope matches the interaction, not the page.** When one door runs
-  an async op, only _that_ door is `disabled`. Door 2's sample load must not
-  disable "Import" or "Sign in" — they navigate to independent routes and locking
-  them removes every exit during the wait.
+  an async op, only _that_ door is `disabled`. The sample load must not
+  disable the hero's Import CTA or Sign in — they're independent `<Link>`s
+  (no `disabled` concept at all) to independent routes, and locking them
+  removes every exit during the wait.
 - **Every step of the auth funnel carries the `BrandMark`.** AuthPage and
   ChooseUsernamePage (and any future step) open with
   `<div className="auth-brand-hero" aria-hidden="true"><BrandMark size={48} /></div>`
