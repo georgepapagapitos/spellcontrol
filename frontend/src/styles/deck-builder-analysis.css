@@ -338,6 +338,14 @@
   gap: clamp(0.85rem, 2.2cqi, var(--space-5));
   max-width: var(--analysis-max, 1320px);
   margin-inline: auto;
+  /* width: 100% is load-bearing for non-block mount contexts (Home and /pods
+     mount this inside flex COLUMNS): a cross-axis auto margin in flex cancels
+     the default stretch, dropping the item to shrink-to-fit — and inline-size
+     containment makes this element's intrinsic width ZERO by definition, so
+     the bento collapsed to a ~0-width strip (#1269). In normal block flow
+     (deck analysis) this renders byte-identically: a block already fills its
+     containing block, and max-width + auto margins still cap and center. */
+  width: 100%;
 }
 
 /* ≥640px container → two dense columns. Heroes / list-heavy panels span the

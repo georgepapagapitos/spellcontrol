@@ -236,12 +236,19 @@ interface CollectionState {
   restoreExcludedCard: (binderId: string, copyId: string) => void;
   /** Review-queue "Added it" / "Moved it": acknowledges a single drifted card into the
    *  binder's review baseline without recapturing the whole binder. No-op if
-   *  the binder has no baseline yet. See lib/binder-drift.ts:acknowledgeInSnapshot. */
+   *  the binder has no baseline yet. See lib/binder-drift.ts:acknowledgeInSnapshot.
+   *
+   *  A cross-binder move is ONE physical act, so one confirmation covers both
+   *  ends: pass `counterpartBinderId` (the other endpoint of the move the
+   *  queue header shows) and its baseline is stamped in the opposite
+   *  direction in the same mutation — the matching row disappears from that
+   *  binder's queue too, instead of demanding a second review. */
   acknowledgeBinderCard: (
     binderId: string,
     key: string,
     direction: 'added' | 'removed',
-    card?: EnrichedCard
+    card?: EnrichedCard,
+    counterpartBinderId?: string
   ) => void;
   /** Switch a binder between rules and manual mode. */
   setBinderMode: (binderId: string, mode: 'rules' | 'manual') => void;
@@ -1254,16 +1261,19 @@ export const useCollectionStore = create<CollectionState>()(
         }));
       },
 
-      acknowledgeBinderCard: (binderId, key, direction, card) => {
+      acknowledgeBinderCard: (binderId, key, direction, card, counterpartBinderId) => {
+        const opposite = direction === 'added' ? 'removed' : 'added';
         set((s) => ({
           binders: s.binders.map((b) => {
-            if (b.id !== binderId || !b.lastReviewedSnapshot) return b;
+            const dir =
+              b.id === binderId ? direction : b.id === counterpartBinderId ? opposite : undefined;
+            if (!dir || !b.lastReviewedSnapshot) return b;
             return {
               ...b,
               lastReviewedSnapshot: acknowledgeInSnapshot(
                 b.lastReviewedSnapshot,
                 key,
-                direction,
+                dir,
                 card,
                 referencedLegalityFormats(s.binders)
               ),

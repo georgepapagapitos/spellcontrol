@@ -51,6 +51,11 @@ const DRIFT_TIP = (
         <strong>Keep it here</strong> pins it back into this binder.
       </li>
       <li>
+        <strong>One move, one confirmation:</strong> a card moving between two binders shows in both
+        queues — as outgoing in one and incoming in the other. Confirming it in either binder checks
+        off the matching row in the other automatically; you never review the same move twice.
+      </li>
+      <li>
         <strong>Mark reviewed</strong> means "I've seen everything and updated my physical binder."
         It saves a new baseline in one shot — drift is then measured from this point forward.
       </li>
@@ -160,12 +165,37 @@ export function BinderDriftBanner({ binder }: Props) {
 
   const colorFor = (id: string) => binderDefs.find((d) => d.id === id)?.color ?? 'var(--accent)';
 
-  const handleAcknowledgeRemoved = (row: ReviewQueueRow) => {
-    acknowledgeBinderCard(binderId, row.key, 'removed');
+  // Cross-binder pairing: when the other end of the move is a real binder,
+  // one confirmation stamps BOTH baselines (this side + the counterpart's
+  // opposite direction), so the matching row vanishes from the other binder's
+  // queue too — the user never reviews the same physical move twice. The
+  // toast names the other binder so the cross-queue side effect is visible,
+  // not silent. Uncategorized / not-owned ends have no queue, so those acks
+  // stay single-sided and quiet (row disappearing beside the click is enough).
+  const handleAcknowledgeRemoved = (row: ReviewQueueRow, group: RemovedGroup) => {
+    const dest = group.destination;
+    const counterpart = dest.kind === 'binder' ? dest.binderId : undefined;
+    acknowledgeBinderCard(binderId, row.key, 'removed', row.representative, counterpart);
+    if (dest.kind === 'binder') {
+      toast.show({
+        message: `Moved ${row.name} to ${dest.binderName} — checked off in both binders`,
+        tone: 'success',
+      });
+    }
   };
 
-  const handleAcknowledgeAllRemoved = (rows: ReviewQueueRow[]) => {
-    for (const row of rows) acknowledgeBinderCard(binderId, row.key, 'removed');
+  const handleAcknowledgeAllRemoved = (rows: ReviewQueueRow[], group: RemovedGroup) => {
+    const dest = group.destination;
+    const counterpart = dest.kind === 'binder' ? dest.binderId : undefined;
+    for (const row of rows) {
+      acknowledgeBinderCard(binderId, row.key, 'removed', row.representative, counterpart);
+    }
+    if (dest.kind === 'binder') {
+      toast.show({
+        message: `Moved ${rows.length} cards to ${dest.binderName} — checked off in both binders`,
+        tone: 'success',
+      });
+    }
   };
 
   const handleKeepHere = (row: ReviewQueueRow) => {
@@ -179,13 +209,29 @@ export function BinderDriftBanner({ binder }: Props) {
     });
   };
 
-  const handleAcknowledgeAdded = (row: ReviewQueueRow) => {
-    acknowledgeBinderCard(binderId, row.key, 'added', row.representative);
+  const handleAcknowledgeAdded = (row: ReviewQueueRow, group: AddedGroup) => {
+    const source = group.source;
+    const counterpart = source.kind === 'binder' ? source.binderId : undefined;
+    acknowledgeBinderCard(binderId, row.key, 'added', row.representative, counterpart);
+    if (source.kind === 'binder') {
+      toast.show({
+        message: `Added ${row.name} — checked off in ${source.binderName} too`,
+        tone: 'success',
+      });
+    }
   };
 
-  const handleAcknowledgeAllAdded = (rows: ReviewQueueRow[]) => {
+  const handleAcknowledgeAllAdded = (rows: ReviewQueueRow[], group: AddedGroup) => {
+    const source = group.source;
+    const counterpart = source.kind === 'binder' ? source.binderId : undefined;
     for (const row of rows) {
-      acknowledgeBinderCard(binderId, row.key, 'added', row.representative);
+      acknowledgeBinderCard(binderId, row.key, 'added', row.representative, counterpart);
+    }
+    if (source.kind === 'binder') {
+      toast.show({
+        message: `Added ${rows.length} cards — checked off in ${source.binderName} too`,
+        tone: 'success',
+      });
     }
   };
 
@@ -309,8 +355,8 @@ function AddedGroupBlock({
 }: {
   group: AddedGroup;
   colorFor: (binderId: string) => string;
-  onAcknowledgeOne: (row: ReviewQueueRow) => void;
-  onAcknowledgeAll: (rows: ReviewQueueRow[]) => void;
+  onAcknowledgeOne: (row: ReviewQueueRow, group: AddedGroup) => void;
+  onAcknowledgeAll: (rows: ReviewQueueRow[], group: AddedGroup) => void;
   onDontAdd: (row: ReviewQueueRow) => void;
 }) {
   return (
@@ -332,7 +378,7 @@ function AddedGroupBlock({
             type="button"
             className="btn-link"
             aria-label={`Added all — ${formatSourceLabel(group.source)}`}
-            onClick={() => onAcknowledgeAll(group.rows)}
+            onClick={() => onAcknowledgeAll(group.rows, group)}
           >
             Added all
           </button>
@@ -344,9 +390,10 @@ function AddedGroupBlock({
             key={row.key}
             row={row}
             acknowledgeLabel="Added it"
+            acknowledgeRoute={formatSourceLabel(group.source)}
             primaryLabel="Don't add"
             onPrimary={() => onDontAdd(row)}
-            onAcknowledge={() => onAcknowledgeOne(row)}
+            onAcknowledge={() => onAcknowledgeOne(row, group)}
           />
         ))}
       </ul>
@@ -363,8 +410,8 @@ function RemovedGroupBlock({
 }: {
   group: RemovedGroup;
   colorFor: (binderId: string) => string;
-  onAcknowledgeOne: (row: ReviewQueueRow) => void;
-  onAcknowledgeAll: (rows: ReviewQueueRow[]) => void;
+  onAcknowledgeOne: (row: ReviewQueueRow, group: RemovedGroup) => void;
+  onAcknowledgeAll: (rows: ReviewQueueRow[], group: RemovedGroup) => void;
   onKeepHere: (row: ReviewQueueRow) => void;
 }) {
   return (
@@ -393,7 +440,7 @@ function RemovedGroupBlock({
             type="button"
             className="btn-link"
             aria-label={`Moved all — ${formatDestinationLabel(group.destination)}`}
-            onClick={() => onAcknowledgeAll(group.rows)}
+            onClick={() => onAcknowledgeAll(group.rows, group)}
           >
             Moved all
           </button>
@@ -405,9 +452,10 @@ function RemovedGroupBlock({
             key={row.key}
             row={row}
             acknowledgeLabel="Moved it"
+            acknowledgeRoute={formatDestinationLabel(group.destination)}
             primaryLabel="Keep it here"
             onPrimary={() => onKeepHere(row)}
-            onAcknowledge={() => onAcknowledgeOne(row)}
+            onAcknowledge={() => onAcknowledgeOne(row, group)}
           />
         ))}
       </ul>
@@ -418,12 +466,17 @@ function RemovedGroupBlock({
 function QueueRow({
   row,
   acknowledgeLabel,
+  acknowledgeRoute,
   primaryLabel,
   onPrimary,
   onAcknowledge,
 }: {
   row: ReviewQueueRow;
   acknowledgeLabel: string;
+  /** Route qualifier ("to Bulk Lands" / "from Trade Binder") appended to the
+   *  confirm button's aria-label so screen readers hear which binder the
+   *  paired check-off lands in — sighted users get it from the group header. */
+  acknowledgeRoute: string;
   primaryLabel: string;
   onPrimary: () => void;
   onAcknowledge: () => void;
@@ -442,7 +495,7 @@ function QueueRow({
         <button
           type="button"
           className="btn-link"
-          aria-label={`${acknowledgeLabel} — ${row.name}`}
+          aria-label={`${acknowledgeLabel} — ${row.name}, ${acknowledgeRoute}`}
           onClick={onAcknowledge}
         >
           {acknowledgeLabel}

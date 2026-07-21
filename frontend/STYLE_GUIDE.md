@@ -102,7 +102,19 @@ surface, and repeating the binder's own name in every group is noise. Never
 phrase these headers as state ("now in X" was the pre-route form); the queue is
 a physical work order and its headers name both ends of the move. Per-group bulk
 buttons repeat across groups, so their aria-labels carry the route
-("Added all — from Bulk", "Moved all — to High Value").
+("Added all — from Bulk", "Moved all — to High Value"); per-row confirm buttons
+carry it too ("Moved it — Cut Down, to Bulk"), since the paired check-off (below)
+makes the route part of what the button does, not just where it sits.
+
+**One move, one confirmation:** a cross-binder move appears in both binders'
+queues (outgoing in one, incoming in the other), but it is ONE physical act —
+confirming it in either queue also stamps the other binder's review baseline, so
+the matching row disappears there too. The cross-queue side effect is never
+silent: the confirmation shows a success toast naming the other binder ("Moved
+Cut Down to Bulk — checked off in both binders" / "Added Cut Down — checked off
+in High Value too"). Moves to/from Uncategorized or out of the collection have
+no counterpart queue: those acks stay single-sided and toast-free (the row
+vanishing beside the click is feedback enough).
 
 **Punctuation:** complete sentences end with a period; a trailing `…` means
 either "in progress" (loading) **or** a **picker/selector action** — one that
