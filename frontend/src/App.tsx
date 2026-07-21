@@ -237,14 +237,17 @@ export default function App() {
         <Route path="/gn/s/:token" element={<GameNightSeriesView />} />
         <Route path="/gn/:token" element={<GameNightView />} />
         {/* Root: the public marketing landing for first-time/logged-out
-            visitors (and search-engine crawlers — empty storage + guest auth),
-            otherwise straight into the app. Rendered outside <Layout> so the
-            landing has no app chrome. Canonical homepage URL is `/`. */}
+            visitors (and search-engine crawlers — empty storage + guest auth);
+            authed users land on /home; returning guests fall back to
+            /collection. Rendered outside <Layout> so the landing has no app
+            chrome. Canonical homepage URL is `/`. */}
         <Route
           path="/"
           element={
             status === 'guest' && !hasEverVisited() ? (
               <WelcomePage />
+            ) : status === 'authed' ? (
+              <Navigate to="/home" replace />
             ) : (
               <Navigate to="/collection" replace />
             )
@@ -256,8 +259,9 @@ export default function App() {
         <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
         <Route element={<Layout />}>
-          {/* Not the default landing yet (w3-nav-activation flips that) — reachable
-              by direct URL only until the remaining home-cards PRs land. */}
+          {/* The default landing for authed users (w3-nav-activation) — the "/"
+              and catch-all routes below send them here. Still reachable by
+              direct URL for guests, who are never auto-routed here. */}
           <Route path="/home" element={<HomePage />} />
           <Route path="/collection" element={<CollectionHubLayout />}>
             <Route index element={<CollectionPage />} />
@@ -290,7 +294,16 @@ export default function App() {
             path="/admin"
             element={isAdmin ? <AdminPage /> : <Navigate to="/collection" replace />}
           />
-          <Route path="*" element={<Navigate to="/collection" replace />} />
+          <Route
+            path="*"
+            element={
+              status === 'authed' ? (
+                <Navigate to="/home" replace />
+              ) : (
+                <Navigate to="/collection" replace />
+              )
+            }
+          />
         </Route>
       </Routes>
     </>
