@@ -210,10 +210,12 @@
 
 .binders-index-card {
   position: relative;
-  background: var(--surface);
+  /* Sleeve matte (T53) — same treatment as .decks-index-card. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-left: 4px solid var(--binder-color, var(--accent));
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   transition: border-color var(--motion-fast) ease;
 }
 
