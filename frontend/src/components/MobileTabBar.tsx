@@ -1,9 +1,9 @@
-import { BookOpen, Layers, List, Settings, Users, UserPlus } from 'lucide-react';
+import { CircleUserRound, Home, Layers, List, Search, Users } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { usePlayStore } from '../store/play';
-import { useRulesReferenceStore } from '../store/rules-reference';
 import { useAuth } from '../store/auth';
 import { useActivity } from '../lib/use-activity';
+import { UserAvatar } from './UserAvatar';
 
 const ICON_PROPS = {
   className: 'mobile-tab-bar-icon',
@@ -13,15 +13,41 @@ const ICON_PROPS = {
   'aria-hidden': true,
 } as const;
 
+/**
+ * The 5 primary destinations (Home / Collection / Decks / Play / You) shared
+ * verbatim between web mobile and native (Layout.tsx renders this on both —
+ * native additionally floats <ScanFab/> on top). A 6th, visually distinct
+ * Search icon rides along as a compact utility affordance, not a co-equal
+ * destination — see .mobile-tab-bar-search in responsive-nav.css.
+ */
 export function MobileTabBar() {
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
-  const openRules = useRulesReferenceStore((s) => s.open);
   const isAuthed = useAuth((s) => s.status === 'authed');
-  // One "Friends" badge covers pending requests, unseen directed shares,
-  // feedback, and likes — one endpoint, one hook, no duplicated math.
-  const { count: socialCount } = useActivity();
+  const user = useAuth((s) => s.user);
+  const profile = useAuth((s) => s.profile);
+  // One activity badge covers pending requests, unseen directed shares,
+  // feedback, and likes — relocated here from the old Friends tab (Friends
+  // now folds into You) since Home is the tab bar's landing destination.
+  const { count } = useActivity();
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
+      <NavLink
+        to="/home"
+        className={({ isActive }) =>
+          isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
+        }
+        aria-label={count > 0 ? `Home, ${count} notification${count === 1 ? '' : 's'}` : 'Home'}
+      >
+        <span className="mobile-tab-bar-glyph mobile-tab-bar-glyph-wrap">
+          <Home {...ICON_PROPS} />
+          {count > 0 && (
+            <span className="mobile-tab-bar-badge" aria-hidden="true">
+              {count > 9 ? '9+' : count}
+            </span>
+          )}
+        </span>
+        <span className="mobile-tab-bar-label">Home</span>
+      </NavLink>
       <NavLink
         to="/collection"
         className={({ isActive }) =>
@@ -58,45 +84,34 @@ export function MobileTabBar() {
         </span>
         <span className="mobile-tab-bar-label">Play</span>
       </NavLink>
-      <button type="button" className="mobile-tab-bar-link" onClick={openRules}>
-        <span className="mobile-tab-bar-glyph">
-          <BookOpen {...ICON_PROPS} />
-        </span>
-        <span className="mobile-tab-bar-label">Rules</span>
-      </button>
-      {isAuthed && (
-        <NavLink
-          to="/friends"
-          className={({ isActive }) =>
-            isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
-          }
-          aria-label={
-            socialCount > 0
-              ? `Friends, ${socialCount} notification${socialCount === 1 ? '' : 's'}`
-              : 'Friends'
-          }
-        >
-          <span className="mobile-tab-bar-glyph mobile-tab-bar-glyph-wrap">
-            <UserPlus {...ICON_PROPS} />
-            {socialCount > 0 && (
-              <span className="mobile-tab-bar-badge" aria-hidden="true">
-                {socialCount > 9 ? '9+' : socialCount}
-              </span>
-            )}
-          </span>
-          <span className="mobile-tab-bar-label">Friends</span>
-        </NavLink>
-      )}
       <NavLink
-        to="/settings"
+        to="/you"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
         }
+        aria-label={isAuthed ? `You, signed in as @${user?.username}` : 'You'}
       >
         <span className="mobile-tab-bar-glyph">
-          <Settings {...ICON_PROPS} />
+          {isAuthed ? (
+            <UserAvatar
+              imageUrl={profile?.avatarImageUrl}
+              name={profile?.displayName ?? user?.username ?? ''}
+              size={22}
+            />
+          ) : (
+            <CircleUserRound {...ICON_PROPS} />
+          )}
         </span>
-        <span className="mobile-tab-bar-label">Settings</span>
+        <span className="mobile-tab-bar-label">You</span>
+      </NavLink>
+      <NavLink
+        to="/search"
+        className={({ isActive }) =>
+          isActive ? 'mobile-tab-bar-search active' : 'mobile-tab-bar-search'
+        }
+        aria-label="Search"
+      >
+        <Search {...ICON_PROPS} />
       </NavLink>
     </nav>
   );

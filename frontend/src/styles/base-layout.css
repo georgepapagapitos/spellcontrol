@@ -25,7 +25,7 @@ body {
   flex-direction: column;
   height: 100dvh;
   overflow: hidden;
-  /* Containing block for the native nav FAB (components/NavFab.tsx): it is
+  /* Containing block for the native Scan FAB (components/ScanFab.tsx): it is
      position:absolute against this stable 100dvh box rather than
      position:fixed, so the URL-bar shift this layout dodges can't reach it. */
   position: relative;
@@ -68,11 +68,15 @@ body {
   }
 }
 
-/* Native has no in-flow bottom tab bar — the nav FAB floats over content.
-   Reserve room at the bottom of the scroll region so the last row of any
-   page clears the docked FAB and the system gesture strip. */
+/* Native's bottom tab bar (MobileTabBar) is in normal flow — like web
+   mobile, not floating — so it already shrinks .app-main's box via flex and
+   reserves the system gesture strip via its own height. What's still
+   floating is ScanFab, which sits just above the tab bar; reserve enough
+   room at the bottom of the scroll region so the last row of any page
+   clears it too. No var(--safe-bottom) term here — the in-flow tab bar
+   already accounts for that once. */
 .capacitor .app-main {
-  padding-bottom: calc(5rem + var(--safe-bottom));
+  padding-bottom: 5rem;
 }
 
 button {

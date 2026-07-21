@@ -35,6 +35,31 @@
   display: inline-block;
 }
 
+/* Title + Rules trigger, inline beside the hero h1 (mobile/native's only
+   Rules entry point now that the standalone MobileTabBar button is gone —
+   desktop keeps its own Header trigger too, so this is additive there). */
+.play-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.play-page-rules-btn {
+  position: relative;
+}
+
+@media (pointer: coarse) {
+  .play-page-rules-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* ── Setup forms ─────────────────────────────────────────────────────────── */
 
 .play-setup,
