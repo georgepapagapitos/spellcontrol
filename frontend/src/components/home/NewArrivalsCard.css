@@ -1,0 +1,55 @@
+/* NewArrivalsCard.css — Home's new-arrivals summary */
+
+.home-new-arrivals-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-new-arrival-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  margin: 0 calc(var(--space-2) * -1);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  text-decoration: none;
+  min-width: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-new-arrival-row:hover {
+    background: var(--surface);
+  }
+}
+
+.home-new-arrival-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .home-new-arrival-row {
+    min-height: 2.75rem; /* 44px touch floor */
+  }
+}
+
+.home-new-arrival-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.home-new-arrival-count {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

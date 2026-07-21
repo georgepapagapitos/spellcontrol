@@ -1,0 +1,14 @@
+/* BinderReviewCard.css — Home's binder-review-queue count */
+
+.home-binder-review-headline {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.home-binder-review-number {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
