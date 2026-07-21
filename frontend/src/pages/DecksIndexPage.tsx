@@ -18,6 +18,7 @@ import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
 import { Link, useNavigate } from 'react-router-dom';
+import { DecksHubTabs } from '../components/DecksHubTabs';
 import { useDecksStore } from '../store/decks';
 import { formatRelativeTime } from '../lib/format-time';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
@@ -327,431 +328,440 @@ export function DecksIndexPage() {
   };
 
   return (
-    <div className="decks-index-page">
-      <header className="binder-hero decks-index-hero">
-        <div className="decks-index-hero-text">
-          <h1 className="binder-hero-name">Decks</h1>
-          <p className="binder-hero-meta">
-            {sorted.length.toLocaleString()} {sorted.length === 1 ? 'deck' : 'decks'}
-          </p>
-        </div>
-        <div className="decks-index-actions">
-          {/* Import + Add a product are secondary: full pills on desktop/tablet,
+    <>
+      <DecksHubTabs />
+      <div className="decks-index-page">
+        <header className="binder-hero decks-index-hero">
+          <div className="decks-index-hero-text">
+            <h1 className="binder-hero-name">Decks</h1>
+            <p className="binder-hero-meta">
+              {sorted.length.toLocaleString()} {sorted.length === 1 ? 'deck' : 'decks'}
+            </p>
+          </div>
+          <div className="decks-index-actions">
+            {/* Import + Add a product are secondary: full pills on desktop/tablet,
               collapsed into the ⋮ kebab on phones so the primary "New deck"
               CTA never gets crowded off the row. */}
-          <button
-            type="button"
-            className="pill-btn decks-index-action-secondary"
-            aria-haspopup="dialog"
-            onClick={() => setShowImport(true)}
-          >
-            <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>Import deck</span>
-          </button>
-          <button
-            type="button"
-            className="pill-btn decks-index-action-secondary"
-            aria-haspopup="dialog"
-            onClick={() => setShowProductSearch(true)}
-          >
-            <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>Add a product</span>
-          </button>
-          <OverflowMenu
-            className="decks-index-actions-overflow"
-            triggerClassName="pill-btn decks-index-actions-kebab"
-            ariaLabel="More deck actions"
-            items={[
-              { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
-              { label: 'Add a product', icon: Package, onClick: () => setShowProductSearch(true) },
-            ]}
-          />
-          <Link to="/decks/new" className="pill-btn pill-btn-primary">
-            <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
-            <span>New deck</span>
-          </Link>
-        </div>
-      </header>
-
-      {decks.length > 0 && (
-        <div className="decks-index-search-row">
-          <SearchPill
-            value={search}
-            onChange={setSearch}
-            placeholder="Search decks"
-            ariaLabel="Search decks"
-            trailing={
-              <DeckFiltersPopover
-                formats={formatFilter}
-                setFormats={setFormatFilter}
-                sources={sourceFilter}
-                setSources={setSourceFilter}
-                colors={colorFilter}
-                setColors={setColorFilter}
-              />
-            }
-          />
-        </div>
-      )}
-
-      {decks.length > 0 && (
-        <div className="decks-index-sort-bar">
-          {decks.length > 1 && (
-            <SelectMenu
-              value={sortField}
-              options={DECK_SORT_OPTIONS}
-              onChange={toggleSort}
-              ariaLabel="Sort decks by"
-              closeOnSelect={false}
-              leadingIcon={<SortDirArrow dir={sortDir} />}
-              renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
-            />
-          )}
-          <ViewModeToggle<DecksViewMode>
-            ariaLabel="Decks view mode"
-            className="decks-index-viewmode"
-            value={view}
-            onChange={setView}
-            options={[
-              {
-                value: 'grid',
-                label: 'Grid view',
-                icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-              {
-                value: 'list',
-                label: 'List view',
-                icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-              {
-                value: 'compact',
-                label: 'Compact list (text only)',
-                icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
-              },
-            ]}
-          />
-          {decks.length > 1 && (
-            <SelectToggle
-              active={sel.selectMode}
-              onToggle={() => (sel.selectMode ? sel.exit() : sel.enter())}
-            />
-          )}
-        </div>
-      )}
-
-      <ReadinessSpotlight />
-      <BetweenYourDecks />
-
-      {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
-      {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}
-
-      {pendingDelete && (
-        <ConfirmDialog
-          title={`Delete "${pendingDelete.name}"?`}
-          body="This cannot be undone."
-          confirmLabel="Delete"
-          danger
-          onConfirm={confirmDelete}
-          onCancel={() => setPendingDelete(null)}
-        />
-      )}
-
-      {confirmBulkDelete && (
-        <ConfirmDialog
-          title={`Delete ${sel.selected.size} selected deck${sel.selected.size === 1 ? '' : 's'}?`}
-          body="The selected decks will be removed. You can undo from the toast."
-          confirmLabel="Delete"
-          danger
-          onConfirm={() => {
-            deleteDecks(Array.from(sel.selected));
-            setConfirmBulkDelete(false);
-            sel.exit();
-          }}
-          onCancel={() => setConfirmBulkDelete(false)}
-        />
-      )}
-
-      {confirmDeleteAll && (
-        <ConfirmDialog
-          title={`Delete all ${decks.length} decks?`}
-          body="Every deck will be permanently removed. Your collection and binders are unaffected. This cannot be undone."
-          confirmLabel="Delete all decks"
-          danger
-          onConfirm={confirmDeleteAllDecks}
-          onCancel={() => setConfirmDeleteAll(false)}
-        />
-      )}
-
-      {decks.length === 0 ? (
-        /* Three-door empty state (UX-317) — mirrors the Binders gold standard:
-           a tagline, a plain-English hint, then ALL three entry points so the
-           user knows what the page can do before they've done anything. */
-        <div className="empty-state">
-          <p className="empty-state-tagline">No decks yet.</p>
-          <p className="empty-state-hint">
-            Build a deck from scratch with the guided builder, import a list you already have, or
-            add a known product — a preconstructed deck or Secret Lair drop.
-          </p>
-          <div className="empty-state-actions decks-empty-actions">
-            <Link to="/decks/new/guided" className="btn btn-primary empty-state-action">
-              <Wand2 width={14} height={14} strokeWidth={2} aria-hidden />
-              Build a deck
-            </Link>
             <button
               type="button"
-              className="btn empty-state-action"
+              className="pill-btn decks-index-action-secondary"
+              aria-haspopup="dialog"
               onClick={() => setShowImport(true)}
             >
-              <Download width={14} height={14} strokeWidth={2} aria-hidden />
-              Import deck
+              <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
+              <span>Import deck</span>
             </button>
             <button
               type="button"
-              className="btn empty-state-action"
+              className="pill-btn decks-index-action-secondary"
+              aria-haspopup="dialog"
               onClick={() => setShowProductSearch(true)}
             >
-              <Package width={14} height={14} strokeWidth={2} aria-hidden />
-              Add a product
+              <Package width={14} height={14} strokeWidth={1.8} aria-hidden />
+              <span>Add a product</span>
             </button>
+            <OverflowMenu
+              className="decks-index-actions-overflow"
+              triggerClassName="pill-btn decks-index-actions-kebab"
+              ariaLabel="More deck actions"
+              items={[
+                { label: 'Import deck', icon: Download, onClick: () => setShowImport(true) },
+                {
+                  label: 'Add a product',
+                  icon: Package,
+                  onClick: () => setShowProductSearch(true),
+                },
+              ]}
+            />
+            <Link to="/decks/new" className="pill-btn pill-btn-primary">
+              <Plus width={14} height={14} strokeWidth={1.8} aria-hidden />
+              <span>New deck</span>
+            </Link>
           </div>
-        </div>
-      ) : sorted.length === 0 ? (
-        <div className="empty-state">
-          <p className="empty-state-tagline">
-            {debouncedSearch
-              ? `No decks match "${debouncedSearch}".`
-              : 'No decks match the current filters.'}
-          </p>
-        </div>
-      ) : (
-        <>
-          {sel.selectMode && (
-            <BulkSelectBar
-              count={sel.selected.size}
-              total={sorted.length}
-              allSelected={allSelected}
-              onToggleAll={() =>
-                allSelected ? sel.clear() : sel.selectAll(sorted.map((d) => d.id))
+        </header>
+
+        {decks.length > 0 && (
+          <div className="decks-index-search-row">
+            <SearchPill
+              value={search}
+              onChange={setSearch}
+              placeholder="Search decks"
+              ariaLabel="Search decks"
+              trailing={
+                <DeckFiltersPopover
+                  formats={formatFilter}
+                  setFormats={setFormatFilter}
+                  sources={sourceFilter}
+                  setSources={setSourceFilter}
+                  colors={colorFilter}
+                  setColors={setColorFilter}
+                />
               }
-              onClear={sel.clear}
-              onDone={sel.exit}
-              noun="deck"
-            >
+            />
+          </div>
+        )}
+
+        {decks.length > 0 && (
+          <div className="decks-index-sort-bar">
+            {decks.length > 1 && (
+              <SelectMenu
+                value={sortField}
+                options={DECK_SORT_OPTIONS}
+                onChange={toggleSort}
+                ariaLabel="Sort decks by"
+                closeOnSelect={false}
+                leadingIcon={<SortDirArrow dir={sortDir} />}
+                renderItemPrefix={(_opt, active) =>
+                  active ? <SortDirArrow dir={sortDir} /> : null
+                }
+              />
+            )}
+            <ViewModeToggle<DecksViewMode>
+              ariaLabel="Decks view mode"
+              className="decks-index-viewmode"
+              value={view}
+              onChange={setView}
+              options={[
+                {
+                  value: 'grid',
+                  label: 'Grid view',
+                  icon: <LayoutGrid width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'list',
+                  label: 'List view',
+                  icon: <ListIconLucide width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+                {
+                  value: 'compact',
+                  label: 'Compact list (text only)',
+                  icon: <AlignJustify width={14} height={14} strokeWidth={2} aria-hidden />,
+                },
+              ]}
+            />
+            {decks.length > 1 && (
+              <SelectToggle
+                active={sel.selectMode}
+                onToggle={() => (sel.selectMode ? sel.exit() : sel.enter())}
+              />
+            )}
+          </div>
+        )}
+
+        <ReadinessSpotlight />
+        <BetweenYourDecks />
+
+        {showImport && <ImportDeckDialog onClose={() => setShowImport(false)} />}
+        {showProductSearch && <ProductSearchDialog onClose={() => setShowProductSearch(false)} />}
+
+        {pendingDelete && (
+          <ConfirmDialog
+            title={`Delete "${pendingDelete.name}"?`}
+            body="This cannot be undone."
+            confirmLabel="Delete"
+            danger
+            onConfirm={confirmDelete}
+            onCancel={() => setPendingDelete(null)}
+          />
+        )}
+
+        {confirmBulkDelete && (
+          <ConfirmDialog
+            title={`Delete ${sel.selected.size} selected deck${sel.selected.size === 1 ? '' : 's'}?`}
+            body="The selected decks will be removed. You can undo from the toast."
+            confirmLabel="Delete"
+            danger
+            onConfirm={() => {
+              deleteDecks(Array.from(sel.selected));
+              setConfirmBulkDelete(false);
+              sel.exit();
+            }}
+            onCancel={() => setConfirmBulkDelete(false)}
+          />
+        )}
+
+        {confirmDeleteAll && (
+          <ConfirmDialog
+            title={`Delete all ${decks.length} decks?`}
+            body="Every deck will be permanently removed. Your collection and binders are unaffected. This cannot be undone."
+            confirmLabel="Delete all decks"
+            danger
+            onConfirm={confirmDeleteAllDecks}
+            onCancel={() => setConfirmDeleteAll(false)}
+          />
+        )}
+
+        {decks.length === 0 ? (
+          /* Three-door empty state (UX-317) — mirrors the Binders gold standard:
+           a tagline, a plain-English hint, then ALL three entry points so the
+           user knows what the page can do before they've done anything. */
+          <div className="empty-state">
+            <p className="empty-state-tagline">No decks yet.</p>
+            <p className="empty-state-hint">
+              Build a deck from scratch with the guided builder, import a list you already have, or
+              add a known product — a preconstructed deck or Secret Lair drop.
+            </p>
+            <div className="empty-state-actions decks-empty-actions">
+              <Link to="/decks/new/guided" className="btn btn-primary empty-state-action">
+                <Wand2 width={14} height={14} strokeWidth={2} aria-hidden />
+                Build a deck
+              </Link>
               <button
                 type="button"
-                className="pill-btn bulk-bar-danger"
-                disabled={sel.selected.size === 0}
-                onClick={() => setConfirmBulkDelete(true)}
+                className="btn empty-state-action"
+                onClick={() => setShowImport(true)}
               >
-                <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
-                <span>Delete selected</span>
+                <Download width={14} height={14} strokeWidth={2} aria-hidden />
+                Import deck
               </button>
-            </BulkSelectBar>
-          )}
-          <ul className={`decks-index-list is-${view}`}>
-            {sorted.map((deck, cardIndex) => {
-              const totalCards =
-                (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
-              // Heal decks whose commander was added offline before the slim
-              // inflater derived a real crop: those rows have the full-card URL
-              // baked into art_crop. The swap is a no-op for real crop URLs.
-              const rawArt =
-                deck.commander?.image_uris?.art_crop ??
-                deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
-              const art = rawArt ? scryfallArtCrop(rawArt) : rawArt;
-              const colors = effectiveDeckColors(deck);
-              // For non-commander decks sort by how often each color shows up in
-              // the cards; commander decks fall through to WUBRG order since
-              // every color in the identity is "equally used" from a pip
-              // perspective.
-              const freq =
-                deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
-              const colorIdentity = Array.from(colors).sort((a, b) => {
-                if (freq) {
-                  const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
-                  if (diff !== 0) return diff;
+              <button
+                type="button"
+                className="btn empty-state-action"
+                onClick={() => setShowProductSearch(true)}
+              >
+                <Package width={14} height={14} strokeWidth={2} aria-hidden />
+                Add a product
+              </button>
+            </div>
+          </div>
+        ) : sorted.length === 0 ? (
+          <div className="empty-state">
+            <p className="empty-state-tagline">
+              {debouncedSearch
+                ? `No decks match "${debouncedSearch}".`
+                : 'No decks match the current filters.'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {sel.selectMode && (
+              <BulkSelectBar
+                count={sel.selected.size}
+                total={sorted.length}
+                allSelected={allSelected}
+                onToggleAll={() =>
+                  allSelected ? sel.clear() : sel.selectAll(sorted.map((d) => d.id))
                 }
-                return (
-                  COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
-                  COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
-                );
-              });
-              const themes = deck.generationContext?.selectedThemes ?? [];
-              const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
-              const issues = formatCfg
-                ? validateDeck(deck.cards, deck.sideboard, formatCfg, {
-                    commander: deck.commander,
-                    partnerCommander: deck.partnerCommander,
-                  })
-                : [];
-              const flaggedCount = countFlaggedCards(issues);
-              const pull = pullCounts?.get(deck.id);
-              const selected = sel.selected.has(deck.id);
-              return (
-                <li
-                  key={deck.id}
-                  className={`decks-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
-                    selected ? ' bulk-selected' : ''
-                  }${
-                    panelCascadeClass(cardIndex, cascade.animating)
-                      ? ` ${panelCascadeClass(cardIndex, cascade.animating)}`
-                      : ''
-                  }`}
-                  /* `--deck-color` drives both the resting left-border accent
-                   and the full hover-border tint via CSS. */
-                  style={{ ['--deck-color' as string]: deck.color }}
-                  {...selectInteraction(sel.selectMode, selected, () => sel.toggle(deck.id))}
+                onClear={sel.clear}
+                onDone={sel.exit}
+                noun="deck"
+              >
+                <button
+                  type="button"
+                  className="pill-btn bulk-bar-danger"
+                  disabled={sel.selected.size === 0}
+                  onClick={() => setConfirmBulkDelete(true)}
                 >
-                  {sel.selectMode && <SelectCheck checked={selected} />}
-                  <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
-                    {view !== 'compact' && art && (
-                      <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
-                    )}
-                    {view === 'grid' && !art && (
-                      /* Fallback banner for non-commander decks (no art_crop
+                  <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
+                  <span>Delete selected</span>
+                </button>
+              </BulkSelectBar>
+            )}
+            <ul className={`decks-index-list is-${view}`}>
+              {sorted.map((deck, cardIndex) => {
+                const totalCards =
+                  (deck.commander ? 1 : 0) + (deck.partnerCommander ? 1 : 0) + deck.cards.length;
+                // Heal decks whose commander was added offline before the slim
+                // inflater derived a real crop: those rows have the full-card URL
+                // baked into art_crop. The swap is a no-op for real crop URLs.
+                const rawArt =
+                  deck.commander?.image_uris?.art_crop ??
+                  deck.commander?.card_faces?.[0]?.image_uris?.art_crop;
+                const art = rawArt ? scryfallArtCrop(rawArt) : rawArt;
+                const colors = effectiveDeckColors(deck);
+                // For non-commander decks sort by how often each color shows up in
+                // the cards; commander decks fall through to WUBRG order since
+                // every color in the identity is "equally used" from a pip
+                // perspective.
+                const freq =
+                  deck.commander || deck.partnerCommander ? null : deckColorFrequency(deck);
+                const colorIdentity = Array.from(colors).sort((a, b) => {
+                  if (freq) {
+                    const diff = (freq.get(b) ?? 0) - (freq.get(a) ?? 0);
+                    if (diff !== 0) return diff;
+                  }
+                  return (
+                    COLOR_ORDER.indexOf(a as (typeof COLOR_ORDER)[number]) -
+                    COLOR_ORDER.indexOf(b as (typeof COLOR_ORDER)[number])
+                  );
+                });
+                const themes = deck.generationContext?.selectedThemes ?? [];
+                const formatCfg = DECK_FORMAT_CONFIGS[deck.format];
+                const issues = formatCfg
+                  ? validateDeck(deck.cards, deck.sideboard, formatCfg, {
+                      commander: deck.commander,
+                      partnerCommander: deck.partnerCommander,
+                    })
+                  : [];
+                const flaggedCount = countFlaggedCards(issues);
+                const pull = pullCounts?.get(deck.id);
+                const selected = sel.selected.has(deck.id);
+                return (
+                  <li
+                    key={deck.id}
+                    className={`decks-index-card${sel.selectMode ? ' bulk-selectable' : ''}${
+                      selected ? ' bulk-selected' : ''
+                    }${
+                      panelCascadeClass(cardIndex, cascade.animating)
+                        ? ` ${panelCascadeClass(cardIndex, cascade.animating)}`
+                        : ''
+                    }`}
+                    /* `--deck-color` drives both the resting left-border accent
+                   and the full hover-border tint via CSS. */
+                    style={{ ['--deck-color' as string]: deck.color }}
+                    {...selectInteraction(sel.selectMode, selected, () => sel.toggle(deck.id))}
+                  >
+                    {sel.selectMode && <SelectCheck checked={selected} />}
+                    <Link to={`/decks/${deck.id}`} className="decks-index-card-link">
+                      {view !== 'compact' && art && (
+                        <img className="decks-index-card-art" src={art} alt="" aria-hidden="true" />
+                      )}
+                      {view === 'grid' && !art && (
+                        /* Fallback banner for non-commander decks (no art_crop
                        available). Same height as the commander art banner
                        so grid tiles stay uniform; mirrors binders grid
                        header treatment. */
-                      <span className="decks-index-card-banner" aria-hidden>
-                        {colorIdentity.length > 0 && (
-                          <span className="decks-index-card-banner-pips">
-                            {colorIdentity.map((c) => (
-                              <ColorPip key={c} color={c} pip="lg" />
-                            ))}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    <div className="decks-index-card-body">
-                      <div className="decks-index-card-name">
-                        <span>{deck.name}</span>
-                        {flaggedCount > 0 && (
-                          <span
-                            className="decks-index-card-issues"
-                            title={`${flaggedCount} card${
-                              flaggedCount === 1 ? '' : 's'
-                            } flagged in ${formatCfg?.label ?? deck.format}:\n${issues
-                              .slice(0, 5)
-                              .map((i) => `• ${i.cardName}: ${i.detail}`)
-                              .join(
-                                '\n'
-                              )}${issues.length > 5 ? `\n…and ${issues.length - 5} more` : ''}`}
-                            aria-label={`${flaggedCount} card${
-                              flaggedCount === 1 ? '' : 's'
-                            } flagged`}
-                          >
-                            <CircleAlert width={18} height={18} strokeWidth={1.6} aria-hidden />
-                          </span>
-                        )}
-                        {pull && (
-                          <span
-                            className="decks-index-card-pull"
-                            title={`${pull.pullable} of ${pull.total} cards have a free copy to pull from your binders`}
-                            aria-label={`${pull.pullable} of ${pull.total} cards pullable from your binders`}
-                          >
-                            {pull.pullable} of {pull.total} pullable
-                          </span>
-                        )}
-                      </div>
-                      <div className="decks-index-card-meta">
-                        {colorIdentity.length > 0 && (
-                          <span className="decks-index-card-pips" aria-label="Color identity">
-                            {colorIdentity.map((c) => (
-                              <ColorPip key={c} color={c} />
-                            ))}
-                          </span>
-                        )}
-                        <span className="deck-format-badge">
-                          {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
-                        </span>
-                        <span>
-                          {deck.commander
-                            ? `${deck.commander.name}${
-                                deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
-                              } · `
-                            : ''}
-                          {totalCards} cards ·{' '}
-                          {deck.source === 'generated' ? 'Generated' : 'Manual'}
-                        </span>
-                      </div>
-                      {view !== 'compact' && themes.length > 0 && (
-                        <div className="decks-index-card-themes">
-                          {themes.map((t) => (
-                            <span key={t.slug ?? t.name} className="decks-index-card-theme-chip">
-                              {t.name}
+                        <span className="decks-index-card-banner" aria-hidden>
+                          {colorIdentity.length > 0 && (
+                            <span className="decks-index-card-banner-pips">
+                              {colorIdentity.map((c) => (
+                                <ColorPip key={c} color={c} pip="lg" />
+                              ))}
                             </span>
-                          ))}
-                        </div>
+                          )}
+                        </span>
                       )}
-                      <div className="decks-index-card-time">
-                        Edited {formatRelativeTime(deck.updatedAt)}
+                      <div className="decks-index-card-body">
+                        <div className="decks-index-card-name">
+                          <span>{deck.name}</span>
+                          {flaggedCount > 0 && (
+                            <span
+                              className="decks-index-card-issues"
+                              title={`${flaggedCount} card${
+                                flaggedCount === 1 ? '' : 's'
+                              } flagged in ${formatCfg?.label ?? deck.format}:\n${issues
+                                .slice(0, 5)
+                                .map((i) => `• ${i.cardName}: ${i.detail}`)
+                                .join(
+                                  '\n'
+                                )}${issues.length > 5 ? `\n…and ${issues.length - 5} more` : ''}`}
+                              aria-label={`${flaggedCount} card${
+                                flaggedCount === 1 ? '' : 's'
+                              } flagged`}
+                            >
+                              <CircleAlert width={18} height={18} strokeWidth={1.6} aria-hidden />
+                            </span>
+                          )}
+                          {pull && (
+                            <span
+                              className="decks-index-card-pull"
+                              title={`${pull.pullable} of ${pull.total} cards have a free copy to pull from your binders`}
+                              aria-label={`${pull.pullable} of ${pull.total} cards pullable from your binders`}
+                            >
+                              {pull.pullable} of {pull.total} pullable
+                            </span>
+                          )}
+                        </div>
+                        <div className="decks-index-card-meta">
+                          {colorIdentity.length > 0 && (
+                            <span className="decks-index-card-pips" aria-label="Color identity">
+                              {colorIdentity.map((c) => (
+                                <ColorPip key={c} color={c} />
+                              ))}
+                            </span>
+                          )}
+                          <span className="deck-format-badge">
+                            {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
+                          </span>
+                          <span>
+                            {deck.commander
+                              ? `${deck.commander.name}${
+                                  deck.partnerCommander ? ` + ${deck.partnerCommander.name}` : ''
+                                } · `
+                              : ''}
+                            {totalCards} cards ·{' '}
+                            {deck.source === 'generated' ? 'Generated' : 'Manual'}
+                          </span>
+                        </div>
+                        {view !== 'compact' && themes.length > 0 && (
+                          <div className="decks-index-card-themes">
+                            {themes.map((t) => (
+                              <span key={t.slug ?? t.name} className="decks-index-card-theme-chip">
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="decks-index-card-time">
+                          Edited {formatRelativeTime(deck.updatedAt)}
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                  <OverflowMenu
-                    className="decks-index-card-menu"
-                    triggerClassName="decks-index-card-menu-btn"
-                    ariaLabel={`Actions for ${deck.name}`}
-                    items={[
-                      ...(deck.source === 'generated' && deck.commander
-                        ? [
-                            {
-                              label: 'Re-generate',
-                              icon: RefreshCw,
-                              onClick: () => handleRegenerate(deck),
-                            },
-                          ]
-                        : []),
-                      { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
-                      {
-                        label: 'Export deck',
-                        icon: Download,
-                        onClick: () => navigate(`/decks/${deck.id}?export=1`),
-                      },
-                      ...(decks.length >= 2
-                        ? [
-                            {
-                              label: 'Compare',
-                              icon: GitCompareArrows,
-                              onClick: () => navigate(`/decks/compare?a=${deck.id}`),
-                            },
-                          ]
-                        : []),
-                      {
-                        label: 'Delete',
-                        icon: Trash2,
-                        danger: true,
-                        onClick: () => handleDelete(deck),
-                      },
-                    ]}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </>
-      )}
+                    </Link>
+                    <OverflowMenu
+                      className="decks-index-card-menu"
+                      triggerClassName="decks-index-card-menu-btn"
+                      ariaLabel={`Actions for ${deck.name}`}
+                      items={[
+                        ...(deck.source === 'generated' && deck.commander
+                          ? [
+                              {
+                                label: 'Re-generate',
+                                icon: RefreshCw,
+                                onClick: () => handleRegenerate(deck),
+                              },
+                            ]
+                          : []),
+                        { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
+                        {
+                          label: 'Export deck',
+                          icon: Download,
+                          onClick: () => navigate(`/decks/${deck.id}?export=1`),
+                        },
+                        ...(decks.length >= 2
+                          ? [
+                              {
+                                label: 'Compare',
+                                icon: GitCompareArrows,
+                                onClick: () => navigate(`/decks/compare?a=${deck.id}`),
+                              },
+                            ]
+                          : []),
+                        {
+                          label: 'Delete',
+                          icon: Trash2,
+                          danger: true,
+                          onClick: () => handleDelete(deck),
+                        },
+                      ]}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
 
-      {decks.length > 1 && (
-        <div className="decks-index-danger">
-          <button
-            type="button"
-            className="btn-link decks-index-danger-btn"
-            onClick={() => setConfirmDeleteAll(true)}
-          >
-            Delete all decks
-          </button>
-        </div>
-      )}
+        {decks.length > 1 && (
+          <div className="decks-index-danger">
+            <button
+              type="button"
+              className="btn-link decks-index-danger-btn"
+              onClick={() => setConfirmDeleteAll(true)}
+            >
+              Delete all decks
+            </button>
+          </div>
+        )}
 
-      {shareDeck && (
-        <ShareDialog
-          kind="deck"
-          resourceId={shareDeck.id}
-          resourceLabel={shareDeck.name}
-          onClose={() => setShareDeck(null)}
-        />
-      )}
-    </div>
+        {shareDeck && (
+          <ShareDialog
+            kind="deck"
+            resourceId={shareDeck.id}
+            resourceLabel={shareDeck.name}
+            onClose={() => setShareDeck(null)}
+          />
+        )}
+      </div>
+    </>
   );
 }

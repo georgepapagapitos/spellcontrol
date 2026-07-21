@@ -11,6 +11,7 @@ import { BinderPage } from './pages/BinderPage';
 import { BindersIndexPage } from './pages/BindersIndexPage';
 import { ListsPage } from './pages/ListsPage';
 import { DecksIndexPage } from './pages/DecksIndexPage';
+import { DiscoverDecksPage } from './pages/DiscoverDecksPage';
 import { DeckNewPage } from './pages/DeckNewPage';
 import { GuidedBuildPage } from './pages/GuidedBuildPage';
 import { BrewBuildPage } from './pages/BrewBuildPage';
@@ -267,6 +268,7 @@ export default function App() {
           </Route>
 
           <Route path="/decks" element={<DecksIndexPage />} />
+          <Route path="/decks/discover" element={<DiscoverDecksPage />} />
           <Route path="/decks/new" element={<DeckNewPage />} />
           <Route path="/decks/new/guided" element={<GuidedBuildPage />} />
           <Route path="/decks/new/brew" element={<BrewBuildPage />} />
