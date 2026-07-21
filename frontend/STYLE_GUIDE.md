@@ -145,8 +145,8 @@ this register elsewhere, and don't flatten it here.
 | Use                         | Radius                             | For                                                                                                                      |
 | --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **Page-hero CTAs**          | `999px` pill (`.pill-btn`)         | Actions in a page hero (the `.binder-hero` row): Add cards, New deck, Share, Import deck… The deliberate hero signature. |
-| **Action buttons**          | `var(--radius)` (8px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                                 |
-| **Cards / panels / sheets** | `var(--radius-lg)` (12px)          | Container surfaces.                                                                                                      |
+| **Action buttons**          | `var(--radius)` (6px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                                 |
+| **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                      |
 | **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                         |
 
 **Hero CTAs are the one labelled-pill tier.** Outside a page hero, the only
@@ -974,6 +974,27 @@ do not declare a bespoke `@keyframes *-shimmer` clone. `motion-tokens.test.ts`
 fails CI on any other `*-shimmer` keyframe.
 
 ## Color & spacing
+
+**Material system (restyle T53).** The palette is built from physical binder
+materials, not dashboard neutrals — this is the app's differentiation from the
+Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
+
+- **Light guilds are guild-tinted paper** (warm page surfaces, ink-dark text);
+  their `--accent` is a deep "binder cover" dye. **Dark guilds are dyed
+  leather** (deep guild-hued grounds, aged-paper text); their `--accent` is a
+  foil-stamp hue. A new theme joins one of those two material families —
+  never a flat neutral gray/slate ramp.
+- **Texture is one token:** `--grain` (per `data-scheme` in `themes.css`,
+  alpha-only so `--bg` reads through) painted by the single body rule in
+  `base-layout.css` — a 5px repeating fleck field (paper tooth on light,
+  pebbled leather on dark). Don't add per-surface texture rules or image
+  assets; surfaces get their material read from the page ground showing
+  through gaps, not from re-texturing every panel.
+- **Contrast bar for palette work** (what the re-derivation shipped with, and
+  what any future tweak must re-clear): `--text-muted` ≥ 4.5:1 on
+  bg/surface/surface-raised (CI: `themes-contrast.test.ts`), plus
+  `--text-secondary` ≥ 4.5:1, `--text-primary` ≥ 6.5:1, `--on-accent` vs
+  `--accent` ≥ 4.5:1, and `--accent` vs `--surface` ≥ 3:1 (WCAG 1.4.11).
 
 - **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,
   `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--border-strong`, `--accent`,

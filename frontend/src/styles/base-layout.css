@@ -8,7 +8,14 @@ body {
 
 body {
   font-family: var(--font-serif);
-  background: var(--bg);
+  background-color: var(--bg);
+  /* Material grain (T53): a 5px repeating fleck field — paper tooth on light
+     schemes, pebbled leather on dark (--grain swaps per data-scheme in
+     themes.css). A static repeating gradient: DPI-independent, no asset,
+     cheap to paint in the Capacitor WebView. Surfaces stack their own
+     opaque backgrounds on top, so the tooth shows only on the page ground. */
+  background-image: radial-gradient(var(--grain) 1px, transparent 1px);
+  background-size: 5px 5px;
   color: var(--text-primary);
   overflow: hidden;
 }
