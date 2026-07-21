@@ -185,7 +185,7 @@
   max-height: min(90vh, 44rem);
   margin-block: auto;
   background: var(--surface);
-  border: 0.5px solid var(--border-strong);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sheet);
   display: flex;
@@ -349,6 +349,10 @@
   font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
+  /* Stamped physicality — see .btn-primary in tabs.css (T53 Phase 4). */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 1px 0 rgb(0 0 0 / 12%);
 }
 
 .collection-filters-dialog-done:focus-visible {
@@ -738,8 +742,9 @@
   padding: 0.2rem 0.6rem;
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
-  /* Non-actionable active-filter label → pill, matching its sibling filter chips. */
-  border-radius: 999px;
+  /* Actionable (embedded × clears the filter) → rect, per the Shape rule
+     this file's own block comment above cites. */
+  border-radius: var(--radius);
   font-size: var(--text-xs);
   color: var(--text-primary);
   line-height: 1.4;
@@ -1522,7 +1527,7 @@ i.ss.set-symbol--mythic {
 .collection-grid-badges .card-list-binder-badge:focus-visible {
   box-shadow:
     0 0 0 2px rgba(0, 0, 0, 0.85),
-    0 0 0 4px #fff;
+    0 0 0 4px var(--art-scrim-text);
 }
 
 .collection-grid-item.grid-2x .collection-grid-badges {
@@ -1723,7 +1728,7 @@ i.ss.set-symbol--mythic {
 .collection-list-thumb {
   width: 36px;
   height: 50px;
-  border-radius: 3px;
+  border-radius: calc(var(--radius) * 0.5);
   object-fit: cover;
   flex-shrink: 0;
   background: var(--surface);
@@ -1748,7 +1753,7 @@ i.ss.set-symbol--mythic {
 .collection-list-skeleton-thumb {
   width: 36px;
   height: 50px;
-  border-radius: 3px;
+  border-radius: calc(var(--radius) * 0.5);
   flex-shrink: 0;
   background: var(--surface);
 }
@@ -1844,7 +1849,7 @@ i.ss.set-symbol--mythic {
   justify-content: center;
   border: 2px solid var(--border);
   border-radius: 4px;
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .collection-list-check[data-checked='true'] {
@@ -1864,16 +1869,18 @@ i.ss.set-symbol--mythic {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #fff;
+  border: 2px solid var(--art-scrim-text);
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.45);
-  color: #fff;
+  color: var(--art-scrim-text);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .collection-grid-check[data-checked='true'] {
   background: var(--accent);
-  border-color: #fff;
+  /* Ring stays scrim-white (it sits over card art); the check glyph
+     inherits --art-scrim-text, legible on the accent fill in every guild. */
+  border-color: var(--art-scrim-text);
 }
 
 .collection-list-main {

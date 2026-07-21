@@ -200,6 +200,10 @@
   color: var(--on-accent);
   text-align: left;
   cursor: pointer;
+  /* Stamped physicality — see .btn-primary in tabs.css (T53 Phase 4). */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 1px 0 rgb(0 0 0 / 12%);
 }
 
 .deck-color-balance-reanalyze-text {

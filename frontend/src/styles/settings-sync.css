@@ -507,14 +507,14 @@
   height: 6px;
   margin-top: 0.4rem;
   background: var(--surface-raised);
-  border-radius: 3px;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .settings-progress > span {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--accent, #4c8df6);
+  background: var(--accent);
   transition: width var(--motion-fast) linear;
 }
 

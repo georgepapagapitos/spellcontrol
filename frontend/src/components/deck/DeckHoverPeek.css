@@ -33,9 +33,7 @@
   aspect-ratio: 488 / 680;
   height: auto;
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.45),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-tooltip);
   /* Faint plate so the box reads even in the blink before the art decodes
      (list view carries no art, so the first hover is an uncached fetch). */
   background: rgba(20, 20, 24, 0.6);

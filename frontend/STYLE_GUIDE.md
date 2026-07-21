@@ -140,12 +140,11 @@ this register elsewhere, and don't flatten it here.
 
 ## Shape language — corners
 
-**Page-hero CTAs are pills; below the hero, rectangles act and pills label.**
+**Rectangles act; pills label (plus the toolbar-control pill family).**
 
 | Use                         | Radius                             | For                                                                                                                      |
 | --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **Page-hero CTAs**          | `999px` pill (`.pill-btn`)         | Actions in a page hero (the `.binder-hero` row): Add cards, New deck, Share, Import deck… The deliberate hero signature. |
-| **Action buttons**          | `var(--radius)` (6px) rounded-rect | Any other do-something button: toolbar, dialog/sheet, panel actions, Draw/Deal/Simulate.                                 |
+| **Buttons — all of them**   | `var(--radius)` (6px) stamped rect | Every do-something button, hero CTAs included (`.pill-btn` is a historic name — T53 Phase 4 retired the 999px hero tier). |
 | **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                      |
 | **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                         |
 | **Tape labels**             | `2px` (`.site-nav-count`)          | The Dymo-tape material label tier (T53): fixed dark tape + pale caps on **navigation chrome only** (nav/hub counts).     |
@@ -159,16 +158,45 @@ chips riding the divider-tab navigation. Don't convert other label pills to
 tape by default — extending tape to a new surface is a STYLE_GUIDE ruling,
 not a drive-by.
 
-**Hero CTAs are the one labelled-pill tier.** Outside a page hero, the only
-pill-shaped button is a genuinely **circular icon-only** one (equal
-width/height, no text) — e.g. the `⋮` overflow button, the round `+` add
-button. Any other labelled button below the hero is a rect, never a pill.
+**No labelled button is a pill — anywhere (T53 Phase 4).** The old hero-CTA
+pill tier is retired: hero CTAs are stamped rects like every other button
+(`.pill-btn`/`.pill-btn-primary` keep their historic class names — the
+role-not-name ruling below covers them). The only pill-shaped *buttons* left
+are genuinely **circular icon-only** ones (equal width/height, no text — the
+`⋮` overflow, the round `+`) and the toolbar-control family in the next
+section.
+
+**Fill vs outline carries INTENT — the material pass maps onto it, never
+changes it.** The two-tier semantic is unchanged and load-bearing: an
+**accent-fill** rect is the primary/commit tier (per-card add with `Plus`,
+bulk apply with `Check`, hero primary CTA, dialog confirm); an **outline**
+rect (`--surface-raised` bg + border) is the secondary tier; danger mirrors
+the same split (red fill = destructive confirm, red-tinted outline = danger
+secondary like Sign out). T53 Phase 4 dresses each tier without moving any
+button between tiers:
+
+- Standing **fill** buttons wear the stamped pair
+  `inset 0 1px 0 rgb(255 255 255 / 14%), 0 1px 0 rgb(0 0 0 / 12%)` — the
+  active divider tab's top-face highlight, so buttons and tabs read as one
+  pressed family (reference: `.btn-primary` in `tabs.css`).
+- Standing **outline** buttons get a firm `1px --border-strong` edge (the
+  0.5px hairline read flimsy on paper). No stamp — the stamp is the fill
+  tier's signature.
+- **Compact in-row action rects** (the `DeckCardRow` `.deck-card-row-act`
+  anatomy family) stay flat by design — stamping dense list controls reads
+  as noise. Their fill-vs-outline intent rules are unchanged.
+
+When reskinning any surface: keep each button in its tier. Restyling a
+secondary as a fill (or a primary as an outline) changes what the button
+*means*, not how it looks — that's an intent inversion, not a facelift.
 
 Anti-patterns this rule kills:
 
 - The same action rendered as two shapes across breakpoints (e.g. a pill on
   mobile, a rect on desktop).
-- A non-hero text button styled as a pill — it reads as a tag.
+- Any labelled text button styled as a pill — it reads as a tag.
+- A reskin that flattens the fill/outline hierarchy (every button filled, or
+  every button outline) — the tiers are semantics, not decoration.
 
 **The one labelled-pill exception below the hero: toolbar controls.** Compact
 toolbar _pickers and disclosures_ — Sort / Group / Show / the view-mode toggle /

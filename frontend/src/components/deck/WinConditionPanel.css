@@ -96,9 +96,11 @@
   display: flex;
   max-width: 14rem;
   min-width: 0;
-  background: var(--surface-raised, var(--surface));
+  background: var(--surface-raised);
   border: 0.5px solid var(--border);
-  border-radius: 999px;
+  /* Tap-to-preview chip = actionable rect (matches .bracket-breakdown-chip-btn,
+     the documented precedent for this exact pattern). */
+  border-radius: var(--radius);
 }
 
 .win-con-evidence-button {

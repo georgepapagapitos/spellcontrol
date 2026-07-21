@@ -222,7 +222,7 @@
   /* Action buttons use the 8px rounded-rect (--radius); pills are reserved for
      non-actionable chips/badges (.deck-test-hand-chip) and round icon buttons. */
   border-radius: var(--radius);
-  border: 0.5px solid var(--border-strong);
+  border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-primary);
   font-family: inherit;
@@ -255,16 +255,22 @@
 }
 
 .deck-test-hand-action.is-primary {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  color: var(--accent);
+  /* The row's declared primary ("Deal another hand") — true fill tier, not
+     a translucent tint (intent inversion fix, T53 Phase 4), stamped. */
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 1px 0 rgb(0 0 0 / 12%);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .deck-test-hand-action.is-primary:hover:not([disabled]) {
-    background: color-mix(in srgb, var(--accent) 28%, transparent);
-    border-color: var(--accent);
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--on-accent);
   }
 }
 
@@ -322,7 +328,7 @@
 }
 
 .deck-test-hand-chip-cmc-icon {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   color: var(--text-primary);
   font-weight: 600;
   font-size: var(--text-xs);
@@ -343,12 +349,12 @@
 }
 
 .deck-test-hand-chip.is-mulligan {
-  background: color-mix(in srgb, var(--warn-text, #f0a000) 18%, transparent);
-  border-color: color-mix(in srgb, var(--warn-text, #f0a000) 45%, transparent);
+  background: color-mix(in srgb, var(--warn-text) 18%, transparent);
+  border-color: color-mix(in srgb, var(--warn-text) 45%, transparent);
 }
 
 .deck-test-hand-chip.is-mulligan strong {
-  color: var(--warn-text, #f0a000);
+  color: var(--warn-text);
 }
 
 .deck-test-hand-stat-secondary {
@@ -446,7 +452,7 @@
 }
 
 .deck-test-hand-sim-stat.is-warn strong {
-  color: var(--warn-text, #f0a000);
+  color: var(--warn-text);
 }
 
 .deck-test-hand-sim-stat-label {

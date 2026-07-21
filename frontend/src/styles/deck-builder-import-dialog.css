@@ -420,7 +420,7 @@
 .import-deck-commander-art {
   width: 48px;
   height: 67px;
-  border-radius: 4px;
+  border-radius: var(--radius);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -472,7 +472,8 @@
   padding: 2px;
   background: none;
   border: none;
-  border-radius: var(--radius);
+  /* Circular icon-only — the ⋮ kebab is the canonical round-button case. */
+  border-radius: 999px;
   color: var(--text-muted);
   cursor: pointer;
 }

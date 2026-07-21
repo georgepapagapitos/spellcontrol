@@ -39,7 +39,8 @@
   gap: 0.3rem;
   padding: 0.15rem 0.55rem;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  /* Labelled disclosure button = rect (T53 Phase 4). */
+  border-radius: var(--radius);
   background: none;
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -99,7 +100,7 @@
 .search-syntax-example {
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius);
   background: none;
   color: var(--text-primary);
   font-size: var(--text-xs);

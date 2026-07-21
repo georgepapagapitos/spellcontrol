@@ -176,7 +176,7 @@ export function AddToBinderSheet({ card, currentBinderId, onClose }: Props) {
         )}
 
         <div className="card-picker-footer">
-          <button type="button" className="btn btn-primary" onClick={() => dismiss()}>
+          <button type="button" className="btn" onClick={() => dismiss()}>
             Cancel
           </button>
         </div>

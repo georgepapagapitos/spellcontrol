@@ -115,9 +115,9 @@
   min-width: 11rem;
   max-width: calc(100vw - 2rem);
   background: var(--surface);
-  border: 0.5px solid var(--border-strong);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-tooltip);
   padding: 0.3rem;
   max-height: min(360px, calc(100dvh - 4rem));
   overflow-y: auto;
