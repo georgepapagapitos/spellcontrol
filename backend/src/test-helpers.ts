@@ -21,6 +21,7 @@ import { gameNightsRouter } from './routes/game-nights';
 import { publicationsRouter } from './routes/publications';
 import { publicRouter } from './routes/public';
 import { reportsRouter } from './routes/reports';
+import { discoverRouter } from './routes/discover';
 
 /**
  * Returns the Postgres connection string for tests. vitest.global-setup.ts
@@ -357,6 +358,14 @@ export async function createTestEnv(): Promise<TestEnv> {
     CREATE UNIQUE INDEX deck_publications_slug_idx ON deck_publications(slug);
     CREATE INDEX deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX deck_publications_published_idx
+      ON deck_publications (published_at DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX deck_publications_copy_count_idx
+      ON deck_publications (copy_count DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX deck_publications_view_count_idx
+      ON deck_publications (view_count DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX deck_publications_commander_prefix_idx
+      ON deck_publications (lower(commander_name) text_pattern_ops) WHERE unpublished_at IS NULL;
     CREATE TABLE content_reports (
       id TEXT PRIMARY KEY,
       kind TEXT NOT NULL,
@@ -394,6 +403,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/publications', publicationsRouter);
   app.use('/api/public', publicRouter);
   app.use('/api/reports', reportsRouter);
+  app.use('/api/discover', discoverRouter);
 
   return {
     app,
