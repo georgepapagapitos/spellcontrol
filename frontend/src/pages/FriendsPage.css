@@ -410,6 +410,36 @@
   color: var(--text-secondary);
 }
 
+/* ── Activity (new-from-friends) ─────────────────────────────────────────── */
+/* Structure/typography reuse .friends-inbox-* verbatim (row shape, from/label
+   text, timestamp) — only the anchor-specific resets + hover/focus are new,
+   since the whole row is now the link rather than a trailing "View" button. */
+.friends-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.friends-activity-link {
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .friends-activity-link:hover {
+    background: var(--surface);
+  }
+}
+
+.friends-activity-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 @media (max-width: 600px) {
   .friends-page {
     padding: var(--space-3);

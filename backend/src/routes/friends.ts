@@ -125,6 +125,135 @@ friendsRouter.get(
 );
 
 // ────────────────────────────────────────────────
+// GET /api/friends/activity  (new-from-friends aggregated feed)
+// ────────────────────────────────────────────────
+//
+// Merges two friends-scoped signals into one reverse-chronological feed:
+// newly-published public decks (deck_publications) and friends-audience
+// shares (shares). Both underlying queries already cap at 30; the merge
+// re-sorts and caps the combined result at 30 too.
+interface PublishedDeckActivity {
+  type: 'published_deck';
+  friendUsername: string;
+  deckName: string;
+  slug: string;
+  format: string;
+  occurredAt: number;
+}
+
+interface SharedContentActivity {
+  type: 'shared_content';
+  friendUsername: string;
+  kind: string;
+  token: string;
+  label: string;
+  occurredAt: number;
+}
+
+type FriendActivityItem = PublishedDeckActivity | SharedContentActivity;
+
+friendsRouter.get(
+  '/activity',
+  requireAuth,
+  friendReadLimiter,
+  async (req: Request, res: Response) => {
+    const callerId = req.user!.id;
+    const pool = getPool();
+
+    const friendRows = await pool.query<{ friend_id: string }>(
+      `SELECT CASE WHEN requester_id = $1 THEN addressee_id ELSE requester_id END AS friend_id
+         FROM friendships
+        WHERE (requester_id = $1 OR addressee_id = $1) AND status = 'accepted'`,
+      [callerId]
+    );
+    const friendIds = friendRows.rows.map((r) => r.friend_id);
+    if (friendIds.length === 0) {
+      return res.json({ items: [] });
+    }
+
+    const [publishedRows, sharedRows] = await Promise.all([
+      pool.query<{
+        slug: string;
+        deck_name: string;
+        format: string;
+        username: string;
+        published_at: string;
+      }>(
+        `SELECT dp.slug, dp.deck_name, dp.format, u.username, dp.published_at
+           FROM deck_publications dp JOIN users u ON u.id = dp.user_id
+          WHERE dp.user_id = ANY($1::text[]) AND dp.unpublished_at IS NULL
+          ORDER BY dp.published_at DESC LIMIT 30`,
+        [friendIds]
+      ),
+      // Joins users for username — the raw shares table has no display identity
+      // of its own (mirrors the published_deck query's own u.username join).
+      pool.query<{
+        token: string;
+        kind: string;
+        resource_id: string;
+        created_at: string;
+        user_id: string;
+        username: string;
+      }>(
+        `SELECT s.token, s.kind, s.resource_id, s.created_at, s.user_id, u.username
+           FROM shares s JOIN users u ON u.id = s.user_id
+          WHERE s.user_id = ANY($1::text[]) AND s.audience = 'friends' AND s.revoked_at IS NULL
+          ORDER BY s.created_at DESC LIMIT 30`,
+        [friendIds]
+      ),
+    ]);
+
+    const published: PublishedDeckActivity[] = publishedRows.rows.map((r) => ({
+      type: 'published_deck',
+      friendUsername: r.username,
+      deckName: r.deck_name,
+      slug: r.slug,
+      format: r.format,
+      occurredAt: Number(r.published_at),
+    }));
+
+    // resolveShareLabels is owner-scoped (one query per kind per owner), so
+    // batch refs per distinct friend and call it once per owner — not once
+    // per share.
+    const refsByOwner = new Map<string, { kind: string; resourceId: string }[]>();
+    for (const r of sharedRows.rows) {
+      const refs = refsByOwner.get(r.user_id) ?? [];
+      refs.push({ kind: r.kind, resourceId: r.resource_id });
+      refsByOwner.set(r.user_id, refs);
+    }
+    const labelEntries = await Promise.all(
+      [...refsByOwner.entries()].map(
+        async ([ownerId, refs]) => [ownerId, await resolveShareLabels(ownerId, refs)] as const
+      )
+    );
+    const labelsByOwner = new Map(labelEntries);
+
+    const shared: SharedContentActivity[] = [];
+    for (const r of sharedRows.rows) {
+      const label = labelsByOwner.get(r.user_id)?.get(`${r.kind}:${r.resource_id}`) ?? null;
+      // Revoked shares are already excluded by the query; a null label means
+      // the underlying resource was deleted since — drop it, same as
+      // GET /:friendId/shares.
+      if (label === null) continue;
+      shared.push({
+        type: 'shared_content',
+        friendUsername: r.username,
+        kind: r.kind,
+        token: r.token,
+        label,
+        occurredAt: Number(r.created_at),
+      });
+    }
+
+    const items: FriendActivityItem[] = [...published, ...shared]
+      .sort((a, b) => b.occurredAt - a.occurredAt)
+      .slice(0, 30);
+
+    return res.json({ items });
+  }
+);
+
+// ────────────────────────────────────────────────
 // POST /api/friends/requests
 // ────────────────────────────────────────────────
 friendsRouter.post(
