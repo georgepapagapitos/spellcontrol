@@ -14,7 +14,6 @@ import { swapCard } from '@/deck-builder/services/deckBuilder/cardSwap';
 
 const LS = {
   bannedCards: 'mtg-deck-builder-banned-cards',
-  mustInclude: 'mtg-deck-builder-must-include-cards',
   banLists: 'mtg-deck-builder-ban-lists',
   excludeLists: 'mtg-deck-builder-applied-exclude-lists',
   includeLists: 'mtg-deck-builder-applied-include-lists',
@@ -52,7 +51,9 @@ const defaultCustomization: Customization = {
   nonBasicLandCount: 15,
   bannedCards: loadJSON<string[]>(LS.bannedCards, []),
   banLists: loadJSON(LS.banLists, []),
-  mustIncludeCards: loadJSON<string[]>(LS.mustInclude, []),
+  // Must-includes are commander-scoped build intent, not a preference — they
+  // never persist across sessions and are cleared on commander change / reset.
+  mustIncludeCards: [],
   tempBannedCards: [],
   tempMustIncludeCards: [],
   maxCardPrice: null,
@@ -115,13 +116,20 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
   error: null,
 
   setCommander: (card) =>
-    set(() => {
+    set((state) => {
       // Changing the primary commander invalidates any chosen partner
       // (a "Partner with X" pairing, a Background, color identity, etc.),
-      // so the partner is cleared rather than carried over.
+      // so the partner is cleared rather than carried over. Must-includes are
+      // cleared too: forced picks are chosen for a specific commander, and a
+      // carried-over in-identity pick would silently warp the next deck.
       const combined = [...new Set(card?.color_identity || [])];
       return {
         commander: card,
+        customization: {
+          ...state.customization,
+          mustIncludeCards: [],
+          tempMustIncludeCards: [],
+        },
         partnerCommander: null,
         colorIdentity: combined,
         generatedDeck: null,
@@ -182,7 +190,6 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
     set((state) => {
       const next = { ...state.customization, ...updates };
       if (updates.bannedCards !== undefined) saveJSON(LS.bannedCards, next.bannedCards);
-      if (updates.mustIncludeCards !== undefined) saveJSON(LS.mustInclude, next.mustIncludeCards);
       if (updates.banLists !== undefined) saveJSON(LS.banLists, next.banLists);
       // Currency is the app-wide setting — write through so Settings and the
       // collection pipeline stay in agreement (the subscribe below no-ops
@@ -248,7 +255,14 @@ export const useDeckBuilderStore = create<AppState>((set, get) => ({
       // context, not a knob: every build surface resets to Commander and the
       // DeckNewPage format pill re-stamps PDH after its own reset. Without
       // this, a PDH visit would leak into the guided/brew Commander flows.
-      customization: { ...state.customization, mtgFormat: 'commander' },
+      // Must-includes are commander-scoped intent, not a knob — cleared here
+      // so a past build's forced picks can't leak into a fresh page mount.
+      customization: {
+        ...state.customization,
+        mtgFormat: 'commander',
+        mustIncludeCards: [],
+        tempMustIncludeCards: [],
+      },
       generatedDeck: null,
       deckHistory: [],
       isLoading: false,

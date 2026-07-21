@@ -1276,13 +1276,22 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
         continue;
       }
 
-      // Skip combo-sourced cards not in collection when using full collection mode
+      // Collection-constrained modes scope must-includes to the card pool.
+      // 'deck'-sourced picks (build-from-deck) keep their bypass — the source
+      // deck's own committed copies aren't in the 'available' pool but are
+      // legitimately part of the rebuild.
       if (
         constrainsToCollection(collectionStrategy) &&
-        mustIncludeSources.get(name) === 'combo' &&
+        mustIncludeSources.get(name) !== 'deck' &&
         notInCollection(name, context.collectionNames)
       ) {
-        logger.debug(`[DeckGen] Must-include combo card "${name}" skipped (not in collection)`);
+        logger.debug(`[DeckGen] Must-include card "${name}" skipped (not in collection)`);
+        noteSkip(
+          name,
+          collectionStrategy === 'available'
+            ? 'no free copy in your collection'
+            : 'not in your collection'
+        );
         continue;
       }
 
