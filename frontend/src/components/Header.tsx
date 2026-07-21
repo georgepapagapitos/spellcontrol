@@ -1,24 +1,30 @@
-import { BookOpen, Search, Settings } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { Link2, LogOut, Search, Settings, UserRound } from 'lucide-react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { usePlayStore } from '../store/play';
-import { useRulesReferenceStore } from '../store/rules-reference';
 import { HeaderSyncIndicator } from './SyncIndicator';
 import { useAuth } from '../store/auth';
 import { useActivity } from '../lib/use-activity';
 import { formatCount } from '../lib/format-count';
 import { BrandMark } from './shared/BrandMark';
+import { OverflowMenu } from './OverflowMenu';
+import { UserAvatar } from './UserAvatar';
 
 export function Header() {
   const cardCount = useCollectionStore((s) => s.cards.length);
   const deckCount = useDecksStore((s) => s.decks.length);
   const hasActiveGame = usePlayStore((s) => !!s.local || !!s.online);
-  const openRules = useRulesReferenceStore((s) => s.open);
   const authStatus = useAuth((s) => s.status);
   const isAuthed = authStatus === 'authed';
-  // One "Friends" badge covers pending requests, unseen directed shares,
-  // feedback, and likes — one endpoint, one hook, no duplicated math.
+  const user = useAuth((s) => s.user);
+  const profile = useAuth((s) => s.profile);
+  const logout = useAuth((s) => s.logout);
+  const navigate = useNavigate();
+  // One "Home" badge covers pending requests, unseen directed shares,
+  // feedback, and likes — one endpoint, one hook, no duplicated math. Home
+  // now carries the badge the (removed) Friends link used to, since Friends
+  // folds into the account menu / You.
   const { count: socialCount } = useActivity();
   return (
     <header className="site-header">
@@ -28,6 +34,22 @@ export function Header() {
           <span className="site-brand-text">SpellControl</span>
         </NavLink>
         <nav className="site-nav-links" aria-label="Primary">
+          <NavLink
+            to="/home"
+            className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
+            aria-label={
+              socialCount > 0
+                ? `Home, ${socialCount} notification${socialCount === 1 ? '' : 's'}`
+                : undefined
+            }
+          >
+            <span>Home</span>
+            {socialCount > 0 && (
+              <span className="friends-nav-link-badge" aria-hidden="true">
+                {socialCount}
+              </span>
+            )}
+          </NavLink>
           <NavLink
             to="/collection"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
@@ -57,24 +79,6 @@ export function Header() {
             <span>Play</span>
             {hasActiveGame && <span className="site-nav-game-dot" aria-label="game in progress" />}
           </NavLink>
-          {isAuthed && (
-            <NavLink
-              to="/friends"
-              className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
-              aria-label={
-                socialCount > 0
-                  ? `Friends, ${socialCount} notification${socialCount === 1 ? '' : 's'}`
-                  : 'Friends'
-              }
-            >
-              <span>Friends</span>
-              {socialCount > 0 && (
-                <span className="friends-nav-link-badge" aria-hidden="true">
-                  {socialCount}
-                </span>
-              )}
-            </NavLink>
-          )}
         </nav>
         <nav className="site-nav">
           {/* Non-happy sync states (offline / error / pending) surface here so
@@ -91,25 +95,38 @@ export function Header() {
             <Search width={18} height={18} strokeWidth={1.6} aria-hidden />
             <span className="site-nav-settings-label">Search</span>
           </NavLink>
-          <button
-            type="button"
-            className="site-nav-settings"
-            onClick={openRules}
-            aria-label="Rules reference"
-          >
-            <BookOpen width={18} height={18} strokeWidth={1.6} aria-hidden />
-            <span className="site-nav-settings-label">Rules</span>
-          </button>
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              isActive ? 'site-nav-settings active' : 'site-nav-settings'
-            }
-            aria-label="Settings"
-          >
-            <Settings width={18} height={18} strokeWidth={1.6} aria-hidden />
-            <span className="site-nav-settings-label">Settings</span>
-          </NavLink>
+          {isAuthed ? (
+            <OverflowMenu
+              trigger={
+                <UserAvatar
+                  imageUrl={profile?.avatarImageUrl}
+                  name={profile?.displayName ?? user?.username ?? ''}
+                  size={28}
+                />
+              }
+              triggerClassName="site-avatar-menu-trigger"
+              ariaLabel="Account menu"
+              align="right"
+              items={[
+                { label: 'Profile', icon: UserRound, onClick: () => navigate('/you') },
+                {
+                  label: 'Settings',
+                  icon: Settings,
+                  onClick: () => navigate('/you?section=appearance'),
+                },
+                {
+                  label: 'Shared links',
+                  icon: Link2,
+                  onClick: () => navigate('/you?section=sharing'),
+                },
+                { label: 'Sign out', icon: LogOut, onClick: logout },
+              ]}
+            />
+          ) : (
+            <Link to="/you" className="site-nav-settings" aria-label="Sign in">
+              Sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

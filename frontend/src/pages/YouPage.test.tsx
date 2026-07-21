@@ -6,9 +6,9 @@
  *  - UX-332: guest-state account card explains that local data merges on sign-in.
  *  - UX-335: InfoTip for "deck allocations" renders; InfoTip for "binders and lists" renders.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Minimal store mocks so YouPage can render without real stores. auth is a
 // mutable hoisted object (not a fixed factory) so the new "Profile renders
@@ -92,17 +92,24 @@ vi.mock('@capacitor/browser', () => ({
 
 import { YouPage } from './YouPage';
 
-function renderYouPage() {
+function renderYouPage(initialPath = '/') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <YouPage />
     </MemoryRouter>
   );
 }
 
+beforeAll(() => {
+  // happy-dom doesn't implement scrollIntoView; the `?section=` deep-link
+  // effect (via scrollToHeading) calls it when the param matches.
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
 afterEach(() => {
   authState.user = null;
   authState.status = 'guest';
+  vi.mocked(Element.prototype.scrollIntoView).mockClear();
 });
 
 describe('UX-332 — Settings account card honesty copy', () => {
@@ -145,5 +152,33 @@ describe('w3-you-page — Profile carried through + Friends group inserted', () 
     expect(friendsIdx).toBeGreaterThan(-1);
     expect(friendsIdx).toBeGreaterThan(accountIdx);
     expect(friendsIdx).toBeLessThan(appearanceIdx);
+  });
+});
+
+describe('w3-header-avatar-menu — ?section= deep link', () => {
+  it('scrolls and focuses the Appearance heading for ?section=appearance', async () => {
+    renderYouPage('/?section=appearance');
+    const heading = screen.getByRole('heading', { name: 'Appearance' });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('scrolls and focuses the Sharing heading for ?section=sharing', async () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    renderYouPage('/?section=sharing');
+    const heading = screen.getByRole('heading', { name: 'Sharing' });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it('is a no-op with no section param', () => {
+    renderYouPage('/');
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for an unrecognized section value', () => {
+    renderYouPage('/?section=bogus');
+    expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
   });
 });
