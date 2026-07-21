@@ -1,5 +1,5 @@
 import './FriendsPage.css';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
@@ -16,18 +16,21 @@ import {
   removeFriend,
   listFriends,
   listRequests,
+  getFriendsActivity,
   type FriendUser,
   type Friend,
   type FriendRequest,
+  type FriendActivityItem,
 } from '../lib/friends-client';
 import { useInbox, markInboxSeen } from '../lib/use-inbox';
 
-type TabId = 'friends' | 'requests' | 'inbox';
+type TabId = 'friends' | 'requests' | 'inbox' | 'activity';
 
 const TABS = [
   { id: 'friends' as TabId, label: 'Friends' },
   { id: 'requests' as TabId, label: 'Requests' },
   { id: 'inbox' as TabId, label: 'Inbox' },
+  { id: 'activity' as TabId, label: 'Activity' },
 ];
 
 // ── Add Friend row action label ───────────────────────────────────────────────
@@ -75,6 +78,22 @@ export function FriendsPage() {
   const [outgoing, setOutgoing] = useState<FriendRequest[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Activity tab: null = not yet loaded (skeleton). Fetched lazily — see
+  // handleTabChange — not on mount, and the ref keeps a re-selection from
+  // refetching once a request has been made (Retry bypasses the ref).
+  const [activity, setActivity] = useState<FriendActivityItem[] | null>(null);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const activityFetchedRef = useRef(false);
+
+  const loadActivity = useCallback(() => {
+    setActivityError(null);
+    getFriendsActivity()
+      .then((items) => setActivity(items))
+      .catch((err: unknown) => {
+        setActivityError(err instanceof Error ? err.message : 'Failed to load activity.');
+      });
+  }, []);
+
   // Busy state per-item (keyed by user/request id)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
@@ -103,10 +122,17 @@ export function FriendsPage() {
 
   // Opening the inbox tab marks it seen — clears the unseen badge here and in
   // the nav (useInbox's count drops to 0 reactively via markInboxSeen).
-  const handleTabChange = useCallback((next: TabId) => {
-    setTab(next);
-    if (next === 'inbox') markInboxSeen();
-  }, []);
+  const handleTabChange = useCallback(
+    (next: TabId) => {
+      setTab(next);
+      if (next === 'inbox') markInboxSeen();
+      if (next === 'activity' && !activityFetchedRef.current) {
+        activityFetchedRef.current = true;
+        loadActivity();
+      }
+    },
+    [loadActivity]
+  );
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
   // await-then-setState patterns even when wrapped in a separate function.
@@ -594,6 +620,63 @@ export function FriendsPage() {
                       aria-label={`View ${item.label} shared by ${fromName}`}
                     >
                       View
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Activity panel (new-from-friends) */}
+        <div
+          role="tabpanel"
+          id="friends-panel-activity"
+          aria-labelledby="sc-tab-activity"
+          hidden={tab !== 'activity'}
+          className="friends-panel"
+        >
+          {activityError ? (
+            <div className="friends-error" role="alert">
+              <span>{activityError}</span>
+              <button
+                type="button"
+                className="friends-error-retry"
+                onClick={() => void loadActivity()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : activity === null ? (
+            <FriendsSkeleton />
+          ) : activity.length === 0 ? (
+            <div className="empty-state" role="status">
+              <p className="empty-state-tagline">Nothing new from friends yet.</p>
+              <p className="empty-state-hint">
+                Add friends or check back later — this fills in as they publish decks or share with
+                you.
+              </p>
+            </div>
+          ) : (
+            <ul className="friends-activity-list" aria-label="Recent friend activity">
+              {activity.map((item) => {
+                const key =
+                  item.type === 'published_deck' ? `pub:${item.slug}` : `share:${item.token}`;
+                const to = item.type === 'published_deck' ? `/d/${item.slug}` : `/s/${item.token}`;
+                const verb = item.type === 'published_deck' ? 'published' : 'shared';
+                const target = item.type === 'published_deck' ? item.deckName : item.label;
+                return (
+                  <li key={key} className="friends-activity-item">
+                    <Link to={to} className="friends-inbox-item friends-activity-link">
+                      <div className="friends-inbox-info">
+                        <div className="friends-inbox-text">
+                          <span className="friends-inbox-from">{item.friendUsername}</span> {verb}{' '}
+                          <span className="friends-inbox-label">{target}</span>
+                        </div>
+                        <div className="friends-inbox-time">
+                          {formatRelativeTime(item.occurredAt)}
+                        </div>
+                      </div>
                     </Link>
                   </li>
                 );

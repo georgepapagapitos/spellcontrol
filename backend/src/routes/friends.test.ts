@@ -803,6 +803,34 @@ async function seedUserDeck(userId: string, id: string, name: string): Promise<v
   );
 }
 
+async function seedDeckPublication(
+  userId: string,
+  deckId: string,
+  overrides: Partial<{
+    slug: string;
+    deckName: string;
+    format: string;
+    publishedAt: number;
+    unpublishedAt: number | null;
+  }> = {}
+): Promise<void> {
+  const now = Date.now();
+  await pool.query(
+    `INSERT INTO deck_publications
+       (user_id, deck_id, slug, deck_name, format, published_at, updated_at, unpublished_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $6, $7)`,
+    [
+      userId,
+      deckId,
+      overrides.slug ?? `slug-${deckId}`,
+      overrides.deckName ?? 'Test Deck',
+      overrides.format ?? 'commander',
+      overrides.publishedAt ?? now,
+      overrides.unpublishedAt ?? null,
+    ]
+  );
+}
+
 async function createShare(
   cookie: string,
   body: Record<string, unknown>
@@ -910,5 +938,139 @@ describe('GET /api/friends/:friendId/shares', () => {
       .set('Cookie', friend.cookie);
     expect(res.status).toBe(200);
     expect(res.body.shares).toHaveLength(0);
+  });
+});
+
+// ─── GET /api/friends/activity (new-from-friends) ────────────────────────────
+
+describe('GET /api/friends/activity', () => {
+  it('rejects an unauthenticated caller (401)', async () => {
+    const res = await request(app).get('/api/friends/activity');
+    expect(res.status).toBe(401);
+  });
+
+  it('a friendless caller gets { items: [] }, no error', async () => {
+    const alice = await makeUserFull('act-lonely-alice');
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([]);
+  });
+
+  it('a friend’s newly-public deck appears with the right slug/format/name', async () => {
+    const alice = await makeUserFull('act-pub-alice');
+    const bob = await makeUserFull('act-pub-bob');
+    await befriend(alice, bob);
+    await seedUserDeck(bob.id, 'deck-pub-1', 'Boros Aggro');
+    await seedDeckPublication(bob.id, 'deck-pub-1', {
+      slug: 'boros-aggro-xy12',
+      deckName: 'Boros Aggro',
+      format: 'commander',
+    });
+
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    const item = res.body.items[0];
+    expect(item.type).toBe('published_deck');
+    expect(item.friendUsername).toBe('act-pub-bob');
+    expect(item.deckName).toBe('Boros Aggro');
+    expect(item.slug).toBe('boros-aggro-xy12');
+    expect(item.format).toBe('commander');
+    expect(typeof item.occurredAt).toBe('number');
+  });
+
+  it('a friend’s unpublished deck does not appear', async () => {
+    const alice = await makeUserFull('act-unpub-alice');
+    const bob = await makeUserFull('act-unpub-bob');
+    await befriend(alice, bob);
+    await seedUserDeck(bob.id, 'deck-unpub-1', 'Retired Deck');
+    await seedDeckPublication(bob.id, 'deck-unpub-1', { unpublishedAt: Date.now() });
+
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([]);
+  });
+
+  it('a friend’s friends-audience share appears with its resolved label, matching GET /:friendId/shares', async () => {
+    const alice = await makeUserFull('act-share-alice');
+    const bob = await makeUserFull('act-share-bob');
+    await befriend(alice, bob);
+    await seedUserDeck(bob.id, 'deck-share-1', 'Golgari Midrange');
+    await createShare(bob.cookie, {
+      kind: 'deck',
+      resourceId: 'deck-share-1',
+      audience: 'friends',
+    });
+
+    const hub = await request(app).get(`/api/friends/${bob.id}/shares`).set('Cookie', alice.cookie);
+    expect(hub.status).toBe(200);
+
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(1);
+    const item = res.body.items[0];
+    expect(item.type).toBe('shared_content');
+    expect(item.friendUsername).toBe('act-share-bob');
+    expect(item.kind).toBe('deck');
+    expect(item.label).toBe(hub.body.shares[0].label);
+    expect(item.token).toBe(hub.body.shares[0].token);
+  });
+
+  it('items from two different friends interleave correctly by recency', async () => {
+    const alice = await makeUserFull('act-inter-alice');
+    const bob = await makeUserFull('act-inter-bob');
+    const carol = await makeUserFull('act-inter-carol');
+    await befriend(alice, bob);
+    await befriend(alice, carol);
+
+    await seedUserDeck(bob.id, 'deck-inter-bob', 'Bob Deck');
+    await seedDeckPublication(bob.id, 'deck-inter-bob', {
+      slug: 'bob-deck-activity',
+      deckName: 'Bob Deck',
+      publishedAt: 1000,
+    });
+    await seedUserDeck(carol.id, 'deck-inter-carol', 'Carol Deck');
+    await seedDeckPublication(carol.id, 'deck-inter-carol', {
+      slug: 'carol-deck-activity',
+      deckName: 'Carol Deck',
+      publishedAt: 3000,
+    });
+    await createShare(bob.cookie, { kind: 'collection', audience: 'friends' });
+    // createShare has no knob for created_at — backdate directly so the merge
+    // order is deterministic instead of racing the real clock.
+    await pool.query(`UPDATE shares SET created_at = $1 WHERE user_id = $2`, [2000, bob.id]);
+
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(3);
+    const order = (res.body.items as Array<{ occurredAt: number }>).map((i) => i.occurredAt);
+    expect(order).toEqual([3000, 2000, 1000]);
+  });
+
+  it('a revoked share is dropped', async () => {
+    const alice = await makeUserFull('act-revoke-alice');
+    const bob = await makeUserFull('act-revoke-bob');
+    await befriend(alice, bob);
+    const { token } = await createShare(bob.cookie, { kind: 'collection', audience: 'friends' });
+    await request(app).delete(`/api/shares/${token}`).set('Cookie', bob.cookie);
+
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([]);
+  });
+
+  it('a share whose underlying resource was since deleted (label resolves to null) is dropped', async () => {
+    const alice = await makeUserFull('act-ghost-alice');
+    const bob = await makeUserFull('act-ghost-bob');
+    await befriend(alice, bob);
+    await createShare(bob.cookie, {
+      kind: 'deck',
+      resourceId: 'ghost-deck-activity',
+      audience: 'friends',
+    });
+
+    const res = await request(app).get('/api/friends/activity').set('Cookie', alice.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.items).toEqual([]);
   });
 });
