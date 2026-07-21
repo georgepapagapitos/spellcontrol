@@ -8,20 +8,25 @@
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// Minimal store mocks so SettingsPage can render without real stores.
+// Minimal store mocks so YouPage can render without real stores. auth is a
+// mutable hoisted object (not a fixed factory) so the new "Profile renders
+// first" case below can flip to an authed user without disturbing the
+// existing guest-state assertions, which reset it via afterEach.
+const { authState } = vi.hoisted(() => ({
+  authState: {
+    user: null as { username: string; id: string; role?: string } | null,
+    status: 'guest' as 'guest' | 'authed',
+    error: null as string | null,
+    logout: vi.fn(),
+    deleteAccount: vi.fn(),
+    acknowledgeAutoLink: vi.fn(),
+    clearError: vi.fn(),
+  },
+}));
 vi.mock('../store/auth', () => ({
-  useAuth: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      user: null,
-      status: 'guest',
-      error: null,
-      logout: vi.fn(),
-      deleteAccount: vi.fn(),
-      acknowledgeAutoLink: vi.fn(),
-      clearError: vi.fn(),
-    }),
+  useAuth: (selector: (s: Record<string, unknown>) => unknown) => selector(authState),
 }));
 vi.mock('../store/theme', () => ({
   useThemeStore: (selector: (s: Record<string, unknown>) => unknown) =>
@@ -69,6 +74,15 @@ vi.mock('../components/AdminPanel', () => ({
 vi.mock('../components/SyncIndicator', () => ({
   SyncIndicator: () => null,
 }));
+// Both have their own dedicated test files (ProfileEditor.test.tsx,
+// FriendsManagement.test.tsx) — stub them here so this file stays scoped to
+// YouPage's own structure (section order, copy, InfoTips).
+vi.mock('../components/ProfileEditor', () => ({
+  ProfileEditor: () => null,
+}));
+vi.mock('../components/FriendsManagement', () => ({
+  FriendsManagement: () => null,
+}));
 vi.mock('../lib/themes', () => ({
   THEMES: [{ id: 'default', name: 'Default', guild: 'None', swatch: ['#000', '#fff'] }],
 }));
@@ -76,19 +90,24 @@ vi.mock('@capacitor/browser', () => ({
   Browser: { addListener: vi.fn(() => Promise.resolve({ remove: vi.fn() })) },
 }));
 
-import { SettingsPage } from './SettingsPage';
+import { YouPage } from './YouPage';
 
-function renderSettings() {
+function renderYouPage() {
   return render(
     <MemoryRouter>
-      <SettingsPage />
+      <YouPage />
     </MemoryRouter>
   );
 }
 
+afterEach(() => {
+  authState.user = null;
+  authState.status = 'guest';
+});
+
 describe('UX-332 — Settings account card honesty copy', () => {
   it('explains that local data merges on sign-in when the user is not signed in', () => {
-    renderSettings();
+    renderYouPage();
     // The guest-state row should mention that local cards will be added to the account.
     expect(
       screen.getByText(/any cards on this device will be added to your account/i)
@@ -98,15 +117,33 @@ describe('UX-332 — Settings account card honesty copy', () => {
 
 describe('UX-335 — Settings InfoTips', () => {
   it('renders the allocations InfoTip trigger', () => {
-    renderSettings();
+    renderYouPage();
     // The InfoTip's aria-label is "What is deck allocations?"
     const tip = screen.getByRole('button', { name: /what is deck allocations/i });
     expect(tip).toBeTruthy();
   });
 
   it('renders the binders and lists InfoTip trigger', () => {
-    renderSettings();
+    renderYouPage();
     const tip = screen.getByRole('button', { name: /what is binders and lists/i });
     expect(tip).toBeTruthy();
+  });
+});
+
+describe('w3-you-page — Profile carried through + Friends group inserted', () => {
+  it('renders Profile first and Friends between Account and Appearance for a signed-in user', () => {
+    authState.user = { username: 'alice', id: 'u1' };
+    authState.status = 'authed';
+    const { container } = renderYouPage();
+
+    const headings = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
+    expect(headings[0]).toBe('Profile');
+
+    const friendsIdx = headings.indexOf('Friends');
+    const accountIdx = headings.lastIndexOf('Account');
+    const appearanceIdx = headings.indexOf('Appearance');
+    expect(friendsIdx).toBeGreaterThan(-1);
+    expect(friendsIdx).toBeGreaterThan(accountIdx);
+    expect(friendsIdx).toBeLessThan(appearanceIdx);
   });
 });

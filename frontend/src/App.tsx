@@ -19,7 +19,7 @@ import { GuidedBuildPage } from './pages/GuidedBuildPage';
 import { BrewBuildPage } from './pages/BrewBuildPage';
 import { DeckEditorPage } from './pages/DeckEditorPage';
 import { PlaytestPage } from './pages/PlaytestPage';
-import { SettingsPage } from './pages/SettingsPage';
+import { YouPage } from './pages/YouPage';
 import { AdminPage } from './pages/AdminPage';
 import { PlayPage } from './pages/PlayPage';
 import AuthPage from './pages/AuthPage';
@@ -31,7 +31,6 @@ import { GameNightView } from './pages/GameNightView';
 import { GameNightSeriesView } from './pages/GameNightSeriesView';
 import { WelcomePage } from './pages/WelcomePage';
 import { DeckComparePage } from './pages/DeckComparePage';
-import { FriendsPage } from './pages/FriendsPage';
 import { SearchPage } from './pages/SearchPage';
 import { FriendHubPage } from './pages/FriendHubPage';
 import { useAuth } from './store/auth';
@@ -283,9 +282,10 @@ export default function App() {
           <Route path="/decks/:id/playtest" element={<PlaytestPage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/search" element={<SearchPage />} />
-          <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/you" element={<YouPage />} />
+          <Route path="/friends" element={<Navigate to="/you" replace />} />
           <Route path="/friends/:friendId" element={<FriendHubPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings" element={<Navigate to="/you" replace />} />
           <Route
             path="/admin"
             element={isAdmin ? <AdminPage /> : <Navigate to="/collection" replace />}

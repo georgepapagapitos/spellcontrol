@@ -1,12 +1,13 @@
-import './FriendsPage.css';
+import './FriendsManagement.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
-import { Tabs } from '../components/Tabs';
-import { SearchPill } from '../components/SearchPill';
+import { Tabs } from './Tabs';
+import { SearchPill } from './SearchPill';
 import { formatRelativeTime } from '../lib/format-time';
 import { formatIdentity } from '../lib/display-name';
+import { prefersReducedMotion } from '../lib/use-list-flip';
 import {
   searchUsers,
   sendFriendRequest,
@@ -58,13 +59,17 @@ function FriendsSkeleton() {
   );
 }
 
-export function FriendsPage() {
+export function FriendsManagement() {
   const status = useAuth((s) => s.status);
   // The inbox + its unseen count come from the shared hook (same source as the
   // nav badge) — no duplicate fetch/state here.
   const { count: inboxCount, items: inbox } = useInbox();
 
-  const [tab, setTab] = useState<TabId>('friends');
+  // Active tab is derived from the URL, not local state, so a link elsewhere
+  // in the app (e.g. the home activity strip's /you?friendsTab=inbox) can
+  // switch the visible tab even when this component is already mounted.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: TabId = TABS.find((t) => t.id === searchParams.get('friendsTab'))?.id ?? 'friends';
 
   // Search
   const [query, setQuery] = useState('');
@@ -78,9 +83,10 @@ export function FriendsPage() {
   const [outgoing, setOutgoing] = useState<FriendRequest[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Activity tab: null = not yet loaded (skeleton). Fetched lazily — see
-  // handleTabChange — not on mount, and the ref keeps a re-selection from
-  // refetching once a request has been made (Retry bypasses the ref).
+  // Activity tab: null = not yet loaded (skeleton). Fetched lazily on first
+  // selection (see the tab-side-effects useEffect below), not on mount, and
+  // the ref keeps a re-selection from refetching once a request has been
+  // made (Retry bypasses the ref).
   const [activity, setActivity] = useState<FriendActivityItem[] | null>(null);
   const [activityError, setActivityError] = useState<string | null>(null);
   const activityFetchedRef = useRef(false);
@@ -120,19 +126,44 @@ export function FriendsPage() {
       });
   }, []);
 
-  // Opening the inbox tab marks it seen — clears the unseen badge here and in
-  // the nav (useInbox's count drops to 0 reactively via markInboxSeen).
   const handleTabChange = useCallback(
     (next: TabId) => {
-      setTab(next);
-      if (next === 'inbox') markInboxSeen();
-      if (next === 'activity' && !activityFetchedRef.current) {
-        activityFetchedRef.current = true;
-        loadActivity();
-      }
+      setSearchParams((p) => {
+        p.set('friendsTab', next);
+        return p;
+      });
     },
-    [loadActivity]
+    [setSearchParams]
   );
+
+  // Side effects of the resolved tab (mark inbox seen; lazy-fetch activity
+  // once). Keyed on `tab` rather than called from handleTabChange so a direct
+  // deep link (e.g. /you?friendsTab=inbox) gets the same treatment as a click
+  // — not just tab switches made after landing on the page.
+  useEffect(() => {
+    if (status !== 'authed') return;
+    if (tab === 'inbox') markInboxSeen();
+    if (tab === 'activity' && !activityFetchedRef.current) {
+      activityFetchedRef.current = true;
+      loadActivity();
+    }
+  }, [status, tab, loadActivity]);
+
+  // Deep-link arrival: scroll the Friends heading (owned by the parent YouPage
+  // group, not this component) into view and focus it, so a non-default
+  // friendsTab always lands the user — or a screen reader — announced at
+  // "Friends" instead of silently at the top of a long Settings page.
+  useEffect(() => {
+    if (tab === 'friends') return;
+    const heading = document.getElementById('you-friends-group-title');
+    if (!heading) return;
+    heading.scrollIntoView({
+      block: 'start',
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+    heading.tabIndex = -1;
+    heading.focus();
+  }, [tab]);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
   // await-then-setState patterns even when wrapped in a separate function.
@@ -293,8 +324,10 @@ export function FriendsPage() {
   // ── Guest gate ───────────────────────────────────────────────────────────────
   if (status === 'guest') {
     return (
+      // No <h1>Friends</h1> here — the parent YouPage group already renders
+      // that heading (id="you-friends-group-title"); repeating it here would
+      // read as a duplicate immediately below it and add a second page <h1>.
       <div className="friends-page">
-        <h1 className="friends-page-heading">Friends</h1>
         <div className="friends-signin-prompt">
           <p className="friends-signin-title">Sign in to connect with friends</p>
           <p className="friends-signin-body">
@@ -328,8 +361,6 @@ export function FriendsPage() {
 
   return (
     <div className="friends-page">
-      <h1 className="friends-page-heading">Friends</h1>
-
       {/* ── Add Friend search ──────────────────────────────────────────────── */}
       <section aria-label="Add a friend">
         <form className="friends-search-form" onSubmit={(e) => void handleSearch(e)}>
