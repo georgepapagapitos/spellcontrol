@@ -25,8 +25,10 @@ export interface HeroDeck {
 }
 
 /** Epoch-day number for a `YYYY-MM-DD` key — increments once per calendar
- *  day, so indexing a pool by it rotates the pick daily with no hash needed. */
-function epochDay(day: string): number {
+ *  day, so indexing a pool by it rotates the pick daily with no hash needed.
+ *  Exported for `welcome-hero.ts`'s own day-key rotation, which reuses this
+ *  exact idiom over a hardcoded pool instead of a collection-derived one. */
+export function epochDay(day: string): number {
   const [y, m, d] = day.split('-').map(Number);
   return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
 }

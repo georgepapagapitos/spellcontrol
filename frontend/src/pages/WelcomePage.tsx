@@ -1,6 +1,9 @@
 /**
- * WelcomePage — public landing page (served at `/` for first-time/logged-out
- * visitors) and first-run onboarding screen in one.
+ * WelcomePage — the public landing page (served at `/` for first-time/
+ * logged-out visitors) and first-run onboarding screen in one: the welcome
+ * storefront (pass 2c) — an art-led hero (WelcomeHero) with live public-deck
+ * rails below it, then the page's original onboarding/feature/legal content
+ * in tightened form.
  *
  * Doubles as the site's SEO landing surface: a fresh visitor (empty
  * localStorage, guest auth) and search-engine crawlers both reach this via
@@ -9,30 +12,31 @@
  * client-rendered) can't expose to crawlers. Returning guests and authed
  * users skip it (App routes them straight to /collection).
  *
- * The hero keeps the three original onboarding doors as its calls to action:
- *   1. Import my collection  → /collection?add=list  (opens AddCardsSheet)
- *   2. Try sample cards      → loads the sample pack via loadSampleBinders,
- *                              then navigates to /collection
- *   3. Sign in               → /auth (the existing AuthPage, unchanged)
+ * Onboarding doors, now split between the hero and a tightened row below the
+ * live rails:
+ *   1. Import my collection → /collection?add=list (AddCardsSheet) — the
+ *      hero's own primary CTA; WelcomeHero owns this door's handler.
+ *   2. Browse public decks  → /decks/discover — the hero's secondary CTA.
+ *   3. Try sample cards     → loads the sample pack via loadSampleBinders,
+ *      then navigates to /collection — stays here (below the rails) since it
+ *      needs this page's own async load state.
+ *   4. Sign in              → /auth (the existing AuthPage, unchanged) —
+ *      alongside door 3.
  *
- * Any door dismisses the first-run gate permanently via markEverVisited().
+ * Doors 1 and 3 dismiss the first-run gate permanently via markEverVisited();
+ * door 4 defers to AuthPage's own completion handlers, so abandoning /auth
+ * without finishing still reshows the welcome next boot.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Import,
-  FlaskConical,
-  LogIn,
-  Layers,
-  Wand2,
-  SlidersHorizontal,
-  Swords,
-} from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { FlaskConical, LogIn, Layers, Wand2, SlidersHorizontal, Swords } from 'lucide-react';
 import { useCollectionStore } from '../store/collection';
 import { importText } from '../lib/api';
 import { sampleCardsAsCsv } from '../lib/samples';
 import { markEverVisited } from '../lib/first-run';
-import { BrandMark } from '../components/shared/BrandMark';
+import { WelcomeHero } from '../components/welcome/WelcomeHero';
+import { FreshDecksRail } from '../components/welcome/FreshDecksRail';
+import { TrendingRail } from '../components/aggregates/TrendingRail';
 import './WelcomePage.css';
 
 /** Feature blocks — real prose so the page has something for search engines to
@@ -70,17 +74,7 @@ export function WelcomePage() {
   const [sampleError, setSampleError] = useState<string | null>(null);
 
   /**
-   * Door 1 — Import my collection.
-   * Deep-links to /collection?add=list which CollectionPage already handles
-   * (AddCardsSheet opens on the list tab, per #571).
-   */
-  function handleImport() {
-    markEverVisited();
-    navigate('/collection?add=list');
-  }
-
-  /**
-   * Door 2 — Try sample cards.
+   * Door 3 — Try sample cards.
    * Reuses the exact same load path as BindersIndexPage: importText (CSV) →
    * loadSampleBinders (importCards + sample binder defs). Tagged with
    * isSample = true via the store so the import shows as a normal, deletable
@@ -104,44 +98,33 @@ export function WelcomePage() {
     }
   }
 
-  /**
-   * Door 3 — Sign in.
-   * Just navigates to /auth (AuthPage is unchanged).
-   * markEverVisited is NOT called here — AuthPage / auth store actions call it
-   * when the user completes any auth choice (login / register / continue as
-   * guest), which is the correct dismissal point. We only navigate; we don't
-   * pre-dismiss so that if the user abandons /auth without making a choice, the
-   * welcome can still show on next boot.
-   */
-  function handleSignIn() {
-    navigate('/auth');
-  }
-
   return (
     <div className="welcome-page">
-      <main className="welcome-card">
-        <header className="welcome-hero">
-          <div className="welcome-brand-mark" aria-hidden="true">
-            <BrandMark size={56} motion="idle" />
-          </div>
-          <p className="welcome-brand">SpellControl</p>
-          <h1 className="welcome-headline">Plan your Magic: The Gathering collection</h1>
-          <p className="welcome-tagline">
-            Import your collection, organize it into binders, build and tune decks, and track your
-            games — all on your devices, no account required.
-          </p>
+      <div className="welcome-shell">
+        <WelcomeHero />
 
+        <FreshDecksRail />
+
+        {/* "Trending commanders" — TrendingRail mounted as-is (it already
+            renders its own title + loading/error/empty states; verified
+            guest-safe and already reachable logged-out on /decks/discover).
+            Only the trailing "View all" link is new here — TrendingRail has
+            no such link of its own since every one of ITS OWN tiles already
+            links to a real destination (a deck or the deck builder), never
+            back to /decks/discover itself. */}
+        <section className="welcome-trending" aria-label="Trending commanders">
+          <TrendingRail enabled={true} />
+          <Link to="/decks/discover" className="home-card-view-all">
+            View all public decks →
+          </Link>
+        </section>
+
+        <section className="welcome-alt-start" aria-label="Other ways to start">
           <div className="welcome-doors">
-            {/* Door 1 — primary: import */}
-            <button type="button" className="pill-btn pill-btn-primary" onClick={handleImport}>
-              <Import width={16} height={16} aria-hidden />
-              Import my collection
-            </button>
-
-            {/* Door 2 — primary: samples */}
+            {/* Door 3 — primary: samples */}
             <button
               type="button"
-              className="pill-btn pill-btn-primary"
+              className="pill-btn"
               onClick={() => void handleSamples()}
               disabled={loadingSamples}
             >
@@ -149,19 +132,20 @@ export function WelcomePage() {
               {loadingSamples ? 'Loading samples…' : 'Try sample cards'}
             </button>
 
-            {/* Door 3 — secondary: sign in */}
-            <button
-              type="button"
-              className="pill-btn welcome-door-secondary"
-              onClick={handleSignIn}
-            >
+            {/* Door 4 — secondary: sign in. markEverVisited is NOT called
+                here — AuthPage / auth store actions call it when the user
+                completes any auth choice (login / register / continue as
+                guest), which is the correct dismissal point. A plain <Link>
+                (not an onClick+navigate button) so cmd/ctrl/middle-click
+                still work, same reasoning as TrendingRail's own tiles. */}
+            <Link to="/auth" className="pill-btn welcome-door-secondary">
               <LogIn width={16} height={16} aria-hidden />
               Sign in
-            </button>
+            </Link>
           </div>
 
           {sampleError && <p className="welcome-error">{sampleError}</p>}
-        </header>
+        </section>
 
         <section className="welcome-features" aria-label="What SpellControl does">
           {FEATURES.map(({ Icon, title, body }) => (
@@ -186,7 +170,7 @@ export function WelcomePage() {
             are trademarks of Wizards of the Coast LLC. Card data and images via Scryfall.
           </p>
         </footer>
-      </main>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,241 @@
+/* WelcomeHero.css — the welcome storefront's full-bleed hero band (pass 2c).
+   Structural DNA mirrors HomeHero.css (backdrop/scrim/content flex-column
+   stack) — this is the guest/marketing counterpart: no collection-derived
+   art, no Quick Actions row, a centered content stack instead of a
+   space-between headline/search split. */
+
+.welcome-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  /* ~256-416px, scaling with viewport width up to the --page-max crossover
+     (a Moxfield-scale landing hero, not HomeHero's compact in-app band) —
+     one fluid clamp rather than a breakpoint pair, per STYLE_GUIDE's
+     "prefer a fluid rule when one property is all that's changing". */
+  min-height: clamp(16rem, 28vw, 26rem);
+  /* Bleeds to .welcome-shell's edge exactly like HomeHero bleeds past
+     .app-main's --page-gutter — cancels .welcome-page's own horizontal
+     padding (space-4 + safe-x), the only ancestor that carries it here. */
+  margin: 0 calc(-1 * (var(--space-4) + var(--safe-right))) 0
+    calc(-1 * (var(--space-4) + var(--safe-left)));
+}
+
+/* No extra safe-top handling here — .welcome-page (this page's own shell;
+   there's no <Layout>/.app-shell wrapping it) already reserves --safe-top in
+   its own padding-top, so this first-band hero is already clear of the
+   notch/status bar. Adding it again here would double the gap (the exact
+   HomeHero.css ruling, applied to this page's own shell instead of
+   .app-shell). */
+
+@media (max-width: 600px) {
+  .welcome-hero {
+    /* ~60vh, floored/ceilinged so a very short or very tall phone viewport
+       still gets a sane band instead of a sliver or a screen-filling one. */
+    min-height: clamp(13rem, 60vh, 20rem);
+  }
+}
+
+.welcome-hero-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.welcome-hero-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.welcome-hero-art-loading {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-hero-art-loading {
+    animation: none;
+  }
+}
+
+/* Full flat coverage (not a bottom-anchored gradient) — this band packs a
+   brand row, headline, tagline, search, and CTAs across its whole height, so
+   every zone needs the legibility floor uniformly. --art-scrim is the
+   documented theme-invariant on-art exception (STYLE_GUIDE "Color &
+   spacing"): card art is unpredictable in both themes, so this can't follow
+   the app's light/dark swap. */
+.welcome-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--art-scrim);
+}
+
+.welcome-hero-content {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-6) calc(var(--space-4) + var(--safe-right)) var(--space-6)
+    calc(var(--space-4) + var(--safe-left));
+}
+
+.welcome-hero-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.welcome-hero-wordmark {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--art-scrim-text);
+}
+
+.welcome-hero-headline {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--art-scrim-text);
+}
+
+.welcome-hero-tagline {
+  margin: 0;
+  max-width: 42ch;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  color: var(--art-scrim-text);
+}
+
+.welcome-hero-search {
+  display: flex;
+  max-width: 28rem;
+}
+
+.welcome-hero-search-pill {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.welcome-hero-search-submit {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .welcome-hero-search-submit:hover {
+    background: var(--accent-hover);
+  }
+}
+
+.welcome-hero-search-submit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Real 44px touch target without inflating the visible 1.6rem circle — same
+   centered-ghost technique as HomeHero's own search submit / .set-filter-chip-x. */
+@media (pointer: coarse) {
+  .welcome-hero-search-submit::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.welcome-hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+}
+
+.welcome-hero-ctas .pill-btn {
+  padding: 0.6rem 1.1rem;
+}
+
+@media (pointer: coarse) {
+  .welcome-hero-ctas .pill-btn {
+    min-height: 44px;
+  }
+}
+
+/* Secondary CTA needs its own on-scrim treatment — the shared .pill-btn
+   default (--surface / --border-strong / --text-secondary) is a themed
+   surface color that would render as a random grey box on top of card art.
+   Compound `.pill-btn.welcome-hero-cta-secondary` beats the base rule's own
+   specificity regardless of stylesheet import order — same defensive
+   pattern documented on DiscoverDeckTile.css / STYLE_GUIDE's Discover-tile
+   section. */
+.pill-btn.welcome-hero-cta-secondary {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--art-scrim-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pill-btn.welcome-hero-cta-secondary:hover {
+    background: rgba(255, 255, 255, 0.24);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: var(--art-scrim-text);
+  }
+}
+
+.pill-btn.welcome-hero-cta-secondary:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--art-scrim-text);
+  color: var(--art-scrim-text);
+  outline: 2px solid var(--art-scrim-text);
+  outline-offset: 2px;
+}
+
+/* Absolute, bottom-right credit line — decorative only, never a tap target
+   (pointer-events: none), same idiom as HomeHero's own caption. */
+.welcome-hero-caption {
+  position: absolute;
+  z-index: 1;
+  right: calc(var(--space-4) + var(--safe-right));
+  bottom: var(--space-3);
+  margin: 0;
+  padding: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--art-scrim-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}

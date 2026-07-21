@@ -1,41 +1,46 @@
-/* WelcomePage — public landing page + first-run onboarding screen.
+/* WelcomePage — the welcome storefront (pass 2c): public landing page +
+ * first-run onboarding screen.
  *
- * Hero-class surface: a centered card holding the hero (brand eyebrow, serif
- * headline, tagline, three pill CTAs), a feature grid, and a legal footer.
- * Entrance animates once (opacity + subtle translate-up) and respects
- * prefers-reduced-motion.
+ * A wide (--page-max) shell holding the full-bleed art hero (WelcomeHero.css
+ * owns `.welcome-hero*`), the live public-deck rails, a tightened
+ * secondary-doors row, a feature grid, and a legal footer. Entrance animates
+ * once (opacity + subtle translate-up) and respects prefers-reduced-motion —
+ * unchanged from the original centered-card design (STYLE_GUIDE UX-331),
+ * just applied to the wider shell.
  *
  * All tokens from global.css — no raw numeric values.
  */
 
 /* Fixed-height scroll viewport — NOT min-height. The app shell sets
    `body { overflow: hidden }` and #root has no height cap, so a min-height
-   page (this one is tall: hero + feature grid + footer) just grows past the
-   viewport into the clipped region with no way to scroll — the bottom gets
-   cut off on short screens, native, and any browser whose chrome eats height.
-   height:100dvh pins it to the viewport so its own overflow-y scrolls; the
-   card centers via `margin: auto` (NOT align/justify center, which can't
-   scroll into the overflow). Padding carries the native safe-area insets so
-   content clears the notch and home indicator. Mirrors .auth-page. */
+   page (this one is tall: hero + rails + feature grid + footer) just grows
+   past the viewport into the clipped region with no way to scroll — the
+   bottom gets cut off on short screens, native, and any browser whose chrome
+   eats height. height:100dvh pins it to the viewport so its own overflow-y
+   scrolls. Padding carries the native safe-area insets on all four sides —
+   this page renders outside <Layout>, so nothing else reserves them (mirrors
+   .auth-page; see WelcomeHero.css for why the hero itself adds none of its
+   own — this shell already covers it once). */
 .welcome-page {
   height: 100vh;
   height: 100dvh;
-  display: flex;
   overflow-y: auto;
   padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
     calc(var(--space-5) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
   background: var(--bg);
 }
 
-.welcome-card {
-  width: 100%;
-  max-width: 560px;
-  margin: auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 40px 28px 28px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
+/* The page's content column — same width cap as every other index page
+ * (--page-max via .container), centered. No horizontal padding of its own:
+ * .welcome-page's own padding is the one gutter, so WelcomeHero can bleed
+ * past this shell's edge by canceling exactly that (mirrors HomeHero
+ * canceling .app-main's --page-gutter from inside the unpadded .container). */
+.welcome-shell {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
   animation: welcome-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
 
@@ -52,53 +57,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .welcome-card {
+  .welcome-shell {
     animation: none;
   }
 }
 
-/* Hero block */
-
-.welcome-hero {
-  text-align: center;
-}
-
-.welcome-brand-mark {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 14px;
-}
-
-.welcome-brand {
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-  margin: 0 0 var(--space-3);
-}
-
-.welcome-headline {
-  font-family: var(--font-serif);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 10px;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-
-.welcome-tagline {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-  margin: 0 auto 28px;
-  max-width: 44ch;
-  line-height: 1.5;
-}
-
 /* Door group — vertical stack of pill CTAs, constrained so they don't sprawl
- * to the full card width on the wider landing layout. */
+ * to the full shell width. Only "Try sample cards" (async, needs this page's
+ * own loading state) and "Sign in" live here now — Import/Browse moved into
+ * the hero as its primary/secondary CTAs. */
 
 .welcome-doors {
   display: flex;
@@ -132,10 +99,20 @@
   font-size: var(--text-sm);
 }
 
-/* Feature grid — 1 column on phones, 2 from the small breakpoint up. */
+/* Fresh-decks rail's own header (title + View all) sits tight above its
+ * tile grid — the shell's own `gap` handles spacing before/after the whole
+ * rail relative to its neighbors. */
+.welcome-fresh-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Feature grid — 1 column on phones, 2 from the small breakpoint up, 4 from
+ * desktop (there are exactly four feature blocks — the wider shell fits
+ * them in one row instead of two). */
 
 .welcome-features {
-  margin-top: 36px;
   padding-top: var(--space-6);
   border-top: 1px solid var(--border);
   display: grid;
@@ -146,6 +123,12 @@
 @media (min-width: 480px) {
   .welcome-features {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .welcome-features {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -182,7 +165,6 @@
 /* Legal footer */
 
 .welcome-footer {
-  margin-top: var(--space-6);
   padding-top: 20px;
   border-top: 1px solid var(--border);
   text-align: center;
