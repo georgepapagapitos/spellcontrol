@@ -14,6 +14,18 @@ import { BrandMark } from '../components/shared/BrandMark';
 
 type Mode = 'login' | 'register';
 
+/**
+ * `?returnTo=` continuation (w2-likes-bookmarks): GuestActionPopover and a
+ * couple of direct guest-gates link here with the page the user was on, so
+ * a completed sign-in returns them there instead of always landing on `/`.
+ * Only a same-origin relative path is honored — `//host/evil` or an
+ * absolute URL would be an open redirect, so anything not starting with a
+ * single `/` falls back to the default.
+ */
+function safeReturnTo(raw: string | null): string {
+  return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
+}
+
 /** Google's multi-colour "G" mark, inline so the button needs no asset. */
 function GoogleMark() {
   return (
@@ -59,6 +71,7 @@ export default function AuthPage() {
   const localCardCount = useCollectionStore((s) => s.cards.length);
   const [searchParams] = useSearchParams();
   const oauthFailed = searchParams.get('error') === 'google';
+  const returnTo = safeReturnTo(searchParams.get('returnTo'));
 
   // Discover whether this deployment offers Google sign-in.
   useEffect(() => {
@@ -72,10 +85,11 @@ export default function AuthPage() {
   }, []);
 
   // Once authed — by password here, or by the Google deep link landing while
-  // this screen is open — leave the auth screen for the app.
+  // this screen is open — leave the auth screen for the app. Returns to
+  // returnTo when one was carried in (default '/' otherwise).
   useEffect(() => {
-    if (status === 'authed') navigate('/', { replace: true });
-  }, [status, navigate]);
+    if (status === 'authed') navigate(returnTo, { replace: true });
+  }, [status, navigate, returnTo]);
 
   // Native: the system browser closing (success, our own close, or a user
   // cancel) ends the "busy" state so the button is usable again.
@@ -119,7 +133,7 @@ export default function AuthPage() {
           tone: 'success',
         });
       }
-      navigate('/', { replace: true });
+      navigate(returnTo, { replace: true });
     } else if (mode === 'register') {
       setConfirm('');
     }

@@ -28,6 +28,7 @@ export interface PublicationListingRow {
   bracket: number | null;
   viewCount: number;
   copyCount: number;
+  likeCount: number;
   publishedAt: number;
 }
 
@@ -42,8 +43,13 @@ export interface DiscoverDeckSummary {
   estimatedValueUsd: number | null;
   viewCount: number;
   copyCount: number;
+  likeCount: number;
   publishedAt: number;
   cardOracleIds: string[];
+  /** Viewer's own like/bookmark state. Always false for a guest (no
+   *  viewerId passed to hydratePublicationRows) — never inferred otherwise. */
+  likedByViewer: boolean;
+  bookmarkedByViewer: boolean;
 }
 
 /**
@@ -105,7 +111,8 @@ function priceDeck(
 }
 
 export async function hydratePublicationRows(
-  rows: PublicationListingRow[]
+  rows: PublicationListingRow[],
+  viewerId?: string
 ): Promise<DiscoverDeckSummary[]> {
   if (rows.length === 0) return [];
 
@@ -140,6 +147,27 @@ export async function hydratePublicationRows(
   const cached =
     allScryfallIds.size > 0 ? getScryfallCache().getMany([...allScryfallIds]) : new Map();
 
+  // Viewer's own like/bookmark state for exactly these slugs — a guest
+  // (no viewerId) skips the queries entirely and both flags stay false for
+  // every row, per DiscoverDeckSummary's own contract.
+  let likedSlugs = new Set<string>();
+  let bookmarkedSlugs = new Set<string>();
+  if (viewerId) {
+    const slugs = rows.map((r) => r.slug);
+    const [likedResult, bookmarkedResult] = await Promise.all([
+      pool.query<{ slug: string }>(
+        `SELECT slug FROM deck_likes WHERE user_id = $1 AND slug = ANY($2)`,
+        [viewerId, slugs]
+      ),
+      pool.query<{ slug: string }>(
+        `SELECT slug FROM deck_bookmarks WHERE user_id = $1 AND slug = ANY($2)`,
+        [viewerId, slugs]
+      ),
+    ]);
+    likedSlugs = new Set(likedResult.rows.map((r) => r.slug));
+    bookmarkedSlugs = new Set(bookmarkedResult.rows.map((r) => r.slug));
+  }
+
   return projected.map(({ row, deck }) => {
     const { oracleIds, estimatedValueUsd } = deck
       ? priceDeck(deck, cached)
@@ -155,8 +183,11 @@ export async function hydratePublicationRows(
       estimatedValueUsd,
       viewCount: row.viewCount,
       copyCount: row.copyCount,
+      likeCount: row.likeCount,
       publishedAt: row.publishedAt,
       cardOracleIds: oracleIds,
+      likedByViewer: likedSlugs.has(row.slug),
+      bookmarkedByViewer: bookmarkedSlugs.has(row.slug),
     };
   });
 }

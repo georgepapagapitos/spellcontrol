@@ -349,6 +349,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       card_count INTEGER NOT NULL DEFAULT 0,
       view_count INTEGER NOT NULL DEFAULT 0,
       copy_count INTEGER NOT NULL DEFAULT 0,
+      like_count INTEGER NOT NULL DEFAULT 0,
       deck_rev BIGINT NOT NULL DEFAULT 0,
       published_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL,
@@ -366,6 +367,22 @@ export async function createTestEnv(): Promise<TestEnv> {
       ON deck_publications (view_count DESC) WHERE unpublished_at IS NULL;
     CREATE INDEX deck_publications_commander_prefix_idx
       ON deck_publications (lower(commander_name) text_pattern_ops) WHERE unpublished_at IS NULL;
+    CREATE TABLE deck_likes (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      deck_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, slug)
+    );
+    CREATE INDEX deck_likes_owner_idx ON deck_likes (deck_owner_id, created_at DESC);
+    CREATE TABLE deck_bookmarks (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      deck_owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at BIGINT NOT NULL,
+      PRIMARY KEY (user_id, slug)
+    );
+    CREATE INDEX deck_bookmarks_user_idx ON deck_bookmarks (user_id, created_at DESC);
     CREATE TABLE content_reports (
       id TEXT PRIMARY KEY,
       kind TEXT NOT NULL,
