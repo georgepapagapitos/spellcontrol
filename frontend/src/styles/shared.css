@@ -207,9 +207,9 @@
 
 .shared-view-title {
   margin: 0 0 var(--space-1);
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 400;
   /* User-authored titles can be one unbroken string — wrap, don't clip. */
   overflow-wrap: anywhere;
 }

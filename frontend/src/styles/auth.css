@@ -66,9 +66,9 @@
 /* Serif wordmark — matches the WelcomePage brand block so the two first-run
    surfaces read as siblings. */
 .auth-title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: -0.01em;
   margin: 0 0 6px;
   color: var(--text-primary);

@@ -39,9 +39,9 @@
 
 .public-profile-name {
   margin: 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 

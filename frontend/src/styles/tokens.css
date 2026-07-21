@@ -64,6 +64,13 @@
      and tape labels only (always uppercase + letter-spaced there); body
      text stays --font-serif. Loaded in index.html beside Eczar/Plex. */
   --font-label: 'Archivo Narrow', 'Avenir Next Condensed', 'Arial Narrow', sans-serif;
+  /* Display face (restyle Phase 6, E154) — vintage Goudy oldstyle for
+     HERO-TIER titles only: binder/deck hero names and page-identity titles
+     at --text-xl and up. Ships a single 400 cut — every rule using it must
+     pin font-weight: 400 or the browser synthesizes a smeared faux-bold.
+     Section titles, dialog titles, body all stay --font-serif; see
+     STYLE_GUIDE § Typography. Loaded in index.html beside the others. */
+  --font-display: 'Sorts Mill Goudy', 'Eczar', 'Georgia', serif;
 
   /* Type scale — 8 steps. Use these instead of raw rem values so adjacent
      sizes don't drift apart by a single pixel and look like accidents. */
