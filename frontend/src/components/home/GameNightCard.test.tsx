@@ -134,6 +134,26 @@ describe('GameNightCard', () => {
     expect(links.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('renders a calendar-leaf date block with the month abbreviation and day number', () => {
+    setAuth('authed');
+    const night = gameNight({
+      title: 'Draft Night',
+      startsAt: new Date(2026, 2, 5, 18, 0, 0).getTime(), // March 5, local time
+    });
+    mockUseGameNights.mockReturnValue({
+      nights: [night],
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+    const { container } = renderCard();
+    expect(screen.getByText('MAR')).toBeTruthy();
+    expect(screen.getByText('5')).toBeTruthy();
+    expect(container.querySelector('.home-game-night-leaf')?.getAttribute('aria-hidden')).toBe(
+      'true'
+    );
+  });
+
   it('applies the 3-night limit and skips cancelled/past nights (via upcomingGameNights)', () => {
     setAuth('authed');
     const now = 1_000_000;

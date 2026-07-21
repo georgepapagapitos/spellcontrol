@@ -3,11 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Layers, Share2, UserPlus } from 'lucide-react';
 import { HomeCard } from './HomeCard';
+import { UserAvatar } from '../UserAvatar';
 import { useAuth } from '../../store/auth';
 import { getFriendsActivity, type FriendActivityItem } from '../../lib/friends-client';
 import { formatRelativeTime } from '../../lib/format-time';
 
-const ROW_ICON_PROPS = { width: 14, height: 14, strokeWidth: 1.8, 'aria-hidden': true } as const;
+const ROW_ICON_PROPS = { width: 11, height: 11, strokeWidth: 2.2, 'aria-hidden': true } as const;
 
 function rowKey(item: FriendActivityItem): string {
   return item.type === 'published_deck' ? `pub:${item.slug}` : `share:${item.token}`;
@@ -83,7 +84,10 @@ export function NewFromFriendsCard() {
                 className="new-from-friends-link"
                 aria-label={`${item.friendUsername} ${verb} ${target}, ${time}`}
               >
-                <Icon {...ROW_ICON_PROPS} className="new-from-friends-icon" />
+                <span className="new-from-friends-avatar-wrap">
+                  <UserAvatar name={item.friendUsername} size={28} />
+                  <Icon {...ROW_ICON_PROPS} className="new-from-friends-badge" />
+                </span>
                 <span className="new-from-friends-text">
                   <span className="new-from-friends-name">{item.friendUsername}</span> {verb}{' '}
                   <span className="new-from-friends-target">{target}</span>

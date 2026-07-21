@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import { HomeCard } from './HomeCard';
 import { ColorPip } from '../shared/ManaSymbol';
+import { useCardThumb } from '../../lib/card-thumbs';
 import { listDiscoverDecks, type DiscoverDeck } from '../../lib/discover-client';
 
 function rowAriaLabel(deck: DiscoverDeck): string {
@@ -11,6 +12,18 @@ function rowAriaLabel(deck: DiscoverDeck): string {
   if (deck.commanderName) parts.push(deck.commanderName);
   parts.push(`by @${deck.ownerUsername}`);
   return parts.join(', ');
+}
+
+/** A small landscape art-crop banner (never the portrait `.home-thumb` shape
+ *  the other home cards use) — reads as a mini version of the full
+ *  `DiscoverDeckTile`'s art band rather than another portrait card thumb. */
+function DiscoverArt({ commanderName }: { commanderName: string | null }) {
+  const art = useCardThumb(commanderName ?? undefined, 'art_crop');
+  return (
+    <span className="discover-card-art card-thumb-tilt" aria-hidden="true">
+      {art ? <img src={art} alt="" loading="lazy" /> : <span className="discover-card-art-ph" />}
+    </span>
+  );
 }
 
 /**
@@ -68,6 +81,7 @@ export function DiscoverCard() {
               className="discover-card-link"
               aria-label={rowAriaLabel(deck)}
             >
+              <DiscoverArt commanderName={deck.commanderName} />
               <div className="discover-card-info">
                 <div className="discover-card-name-row">
                   <span className="discover-card-name">{deck.name}</span>

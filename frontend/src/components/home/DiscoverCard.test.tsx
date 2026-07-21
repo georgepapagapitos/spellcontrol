@@ -9,6 +9,9 @@ vi.mock('../../lib/discover-client', () => ({
   listDiscoverDecks: () => mockListDiscoverDecks(),
 }));
 
+const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
+vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
+
 import { DiscoverCard } from './DiscoverCard';
 
 function renderCard() {
@@ -42,6 +45,8 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
 
 beforeEach(() => {
   mockListDiscoverDecks.mockReset();
+  mockUseCardThumb.mockReset();
+  mockUseCardThumb.mockReturnValue(undefined);
 });
 
 describe('DiscoverCard', () => {
@@ -102,5 +107,29 @@ describe('DiscoverCard', () => {
     mockListDiscoverDecks.mockResolvedValueOnce({ decks: [], page: 1, hasMore: false });
     fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
     await waitFor(() => expect(screen.getByText('No public decks yet.')).toBeTruthy());
+  });
+
+  it("renders the commander's art-crop thumbnail when one resolves", async () => {
+    mockUseCardThumb.mockReturnValue('atraxa-art-crop.png');
+    mockListDiscoverDecks.mockResolvedValue({ decks: [makeDeck()], page: 1, hasMore: false });
+    const { container } = renderCard();
+    await screen.findByRole('link', { name: /Atraxa Superfriends/ });
+    expect(mockUseCardThumb).toHaveBeenCalledWith("Atraxa, Praetors' Voice", 'art_crop');
+    const img = container.querySelector('.discover-card-art img') as HTMLImageElement | null;
+    expect(img?.getAttribute('src')).toBe('atraxa-art-crop.png');
+    expect(img?.getAttribute('alt')).toBe('');
+  });
+
+  it('shows the art skeleton placeholder (never a broken img) when nothing resolves', async () => {
+    mockListDiscoverDecks.mockResolvedValue({
+      decks: [makeDeck({ commanderName: null })],
+      page: 1,
+      hasMore: false,
+    });
+    const { container } = renderCard();
+    await screen.findByRole('link', { name: /Atraxa Superfriends/ });
+    expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'art_crop');
+    expect(container.querySelector('.discover-card-art img')).toBeNull();
+    expect(container.querySelector('.discover-card-art-ph')).toBeTruthy();
   });
 });
