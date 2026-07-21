@@ -8,8 +8,9 @@
 }
 
 .deck-builder-header h1 {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
+  font-weight: 400;
   color: var(--text-primary);
   margin: 0;
 }

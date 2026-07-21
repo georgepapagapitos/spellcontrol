@@ -336,6 +336,39 @@ a hero CTA.
   family as the Settings theme picker. Reference: `.settings-currency-toggle`
   in `styles/settings-sync.css` / SettingsPage's Price currency row.
 
+## Typography — the four faces (T53/E154)
+
+| Face             | Token            | Scope                                                                                                | Never                                                     |
+| ---------------- | ---------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Eczar            | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)  | —                                                         |
+| Sorts Mill Goudy | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below) | body, chrome, section titles, dialog titles, numerals     |
+| Archivo Narrow   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                            |
+| IBM Plex Mono    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                         |
+
+Rulings for `--font-display` (restyle Phase 6):
+
+- **It marks identity, not structure.** The display face answers "what am I
+  looking at" — the page's own name. Adopters: `.binder-hero-name` (the shared
+  page-title class — Collection/Decks/Binders/Lists/Sets/Play/Pods/Settings/
+  Discover/Saved/Cube + real binder/list/set names), `.deck-editor-name`(+
+  `-input` — the pair must match or toggling edit mode flashes fonts),
+  `.deck-builder-header h1`, `.shared-view-title`, `.auth-title`,
+  `.welcome-hero-headline`, `.friends-page-heading`, `.friend-hub-heading`,
+  `.public-profile-name`, `.pod-hub-name`. Everything *functional* stays
+  `--font-serif`: dialog/sheet/modal titles (a confirm dialog is not ceremony),
+  section and lane headings, empty-state taglines, error-state titles
+  ("Link not found"), stat numerals, the `--text-lg` home greeting.
+- **Single 400 cut — always pair `font-family: var(--font-display)` with
+  `font-weight: 400`.** Sorts Mill Goudy ships no bold; a leftover 600/700
+  makes the browser synthesize a smeared faux-bold. Hierarchy comes from size
+  + face contrast (the vintage-print convention), never weight. A rename input
+  smaller than its title (`.pod-hub-name-input`, `--text-lg`) is a form
+  control and stays `--font-serif` — only a same-size editable twin of the
+  title itself (`.deck-editor-name-input`) wears the display face.
+- **Fallback degrades to Eczar, not Georgia-bold-soup:** the stack is
+  `'Sorts Mill Goudy', 'Eczar', 'Georgia', serif`, so a failed font load
+  renders a lighter Eczar title and nothing else moves.
+
 ## App chrome — leather & divider tabs (T53)
 
 The header and mobile tab bar are the **binder's cover**, not page surfaces —

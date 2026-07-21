@@ -55,8 +55,9 @@
 }
 
 .pod-hub-name {
+  font-family: var(--font-display);
   font-size: var(--text-xl);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text-primary);
   margin: 0;
   min-width: 0;
