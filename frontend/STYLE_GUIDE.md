@@ -995,6 +995,17 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   bg/surface/surface-raised (CI: `themes-contrast.test.ts`), plus
   `--text-secondary` ≥ 4.5:1, `--text-primary` ≥ 6.5:1, `--on-accent` vs
   `--accent` ≥ 4.5:1, and `--accent` vs `--surface` ≥ 3:1 (WCAG 1.4.11).
+- **Sleeve matte for index tiles.** `.decks-index-card` / `.binders-index-card`
+  sit on the page as card sleeves: `--surface-raised` bg + `--shadow-card`,
+  keeping their identity-color left border. No gloss overlays — the banner is
+  a replaced `<img>` (no pseudo-elements) and the Discover tile stacks
+  scrim/stats/hover-zoom contracts a sheen would fight; the material read
+  comes from matte + paper, not decoration.
+- **Real tables speak print.** A genuine `<table>` (`.shared-list-table`,
+  `.play-records-table`) wears the price-guide voice: `--font-label` caps
+  header over a solid `--text-secondary` ink rule, `1px dotted var(--border)`
+  row separators, `tabular-nums` cells. Div-based lists (the virtualized
+  collection list, movers) are NOT retro-fitted into this voice.
 
 - **Always theme variables**, never hard-coded colors: `--surface`, `--surface-raised`,
   `--text-primary`, `--text-secondary`, `--text-muted`, `--border`, `--border-strong`, `--accent`,

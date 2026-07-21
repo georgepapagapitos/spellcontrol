@@ -560,18 +560,26 @@
 .shared-list-table th,
 .shared-list-table td {
   padding: var(--space-2) 0.6rem;
-  border-bottom: 0.5px solid var(--border);
+  /* Print-guide rows (T53): dotted hairlines between entries, the Scrye
+     price-list voice. The header keeps a solid ink rule below it. */
+  border-bottom: 1px dotted var(--border);
   text-align: left;
   vertical-align: top;
+}
+
+.shared-list-table td {
+  font-variant-numeric: tabular-nums;
 }
 
 .shared-list-table th {
   background: var(--surface);
   color: var(--text-secondary);
+  font-family: var(--font-label);
   font-weight: 600;
   font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--text-secondary);
 }
 
 @media (hover: hover) and (pointer: fine) {

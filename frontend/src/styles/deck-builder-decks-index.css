@@ -292,10 +292,16 @@
      track. Mirrors the compact-mode guard above, extended to grid/list
      (which Discover's tiles use). */
   min-width: 0;
-  background: var(--surface);
+  /* Sleeve matte (T53 Phase 2): the tile is a card sleeve sitting on the
+     paper page — the brightest surface tier + the lightest shadow lift it
+     off the ground. Gloss overlays were deliberately skipped: the banner
+     is a replaced <img> (no pseudo-elements) and Discover tiles stack
+     scrim/stats/hover-zoom contracts a sheen would fight. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-left: 3px solid var(--deck-color, var(--accent));
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   overflow: visible;
   transition: border-color var(--motion-fast) ease;
 }
