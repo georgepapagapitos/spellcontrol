@@ -87,10 +87,22 @@ export function useActivity(): {
   count: number;
   actionRequired: FriendRequestActivityItem[];
   recent: RecentActivityItem[];
+  /** True until the first fetch settles (authed only — a guest never fetches,
+   *  so this is false immediately). Home's ActivityStripCard is the one
+   *  consumer that needs a loading signal; Header/MobileTabBar only render
+   *  the count, which just pops in once resolved. */
+  loading: boolean;
 } {
   const status = useAuth((s) => s.status);
   const [actionRequired, setActionRequired] = useState<FriendRequestActivityItem[]>([]);
   const [recent, setRecent] = useState<RecentActivityItem[]>([]);
+  // Whether the (authed-only) fetch has settled at least once this session —
+  // set only inside the promise's .finally(), never synchronously in the
+  // effect body, so react-hooks/set-state-in-effect has nothing to flag
+  // (same shape as DiscoverDecksPage's own mount-fetch effect). `loading`
+  // itself is derived below, not stored: a guest is never "loading" no
+  // matter what this flag holds.
+  const [hasFetched, setHasFetched] = useState(false);
   // null = no fetch has resolved yet this session — the announce-on-increase
   // comparison never fires against it, so mount never announces.
   const previousCountRef = useRef<number | null>(null);
@@ -118,6 +130,9 @@ export function useActivity(): {
         .catch(() => {
           /* silently ignore — badge stays at last known count, same
              convention as useInbox/useFriendRequests */
+        })
+        .finally(() => {
+          if (!cancelled) setHasFetched(true);
         });
     };
 
@@ -130,5 +145,5 @@ export function useActivity(): {
   }, [status]);
 
   const count = computeActivityCount(actionRequired, recent, readInboxLastSeen());
-  return { count, actionRequired, recent };
+  return { count, actionRequired, recent, loading: status === 'authed' && !hasFetched };
 }

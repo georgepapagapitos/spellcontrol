@@ -1,0 +1,73 @@
+/* NewFromFriendsCard.css — Home's new-from-friends rail */
+
+.new-from-friends-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.new-from-friends-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  margin: calc(var(--space-2) * -1);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  min-height: 44px;
+  transition: background var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .new-from-friends-link:hover {
+    background: var(--surface);
+  }
+}
+
+.new-from-friends-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.new-from-friends-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.new-from-friends-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.new-from-friends-name,
+.new-from-friends-target {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.new-from-friends-time {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Very small phones: the friend's name (not the deck/share label) is the
+   longest/least-important variable field, so it clips first — the
+   relative-time suffix never truncates. */
+@media (max-width: 380px) {
+  .new-from-friends-name {
+    display: inline-block;
+    max-width: 6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+}
