@@ -8,6 +8,24 @@ import { upcomingGameNights } from '../../lib/home-signals';
 import type { GameNight } from '../../lib/game-nights-api';
 import { HomeCard } from './HomeCard';
 
+const MONTH_FMT = new Intl.DateTimeFormat('en-US', { month: 'short' });
+
+/**
+ * Compact calendar-leaf date block — month abbreviation over the day number,
+ * pure CSS/tokens (no image, nothing to reserve layout for). The row's visual
+ * anchor in place of a bare text time; `formatSlot` in the row already carries
+ * the full date/time for sighted users, so this is `aria-hidden`.
+ */
+function CalendarLeaf({ at }: { at: number }) {
+  const d = new Date(at);
+  return (
+    <span className="home-game-night-leaf" aria-hidden="true">
+      <span className="home-game-night-leaf-month">{MONTH_FMT.format(d).toUpperCase()}</span>
+      <span className="home-game-night-leaf-day">{d.getDate()}</span>
+    </span>
+  );
+}
+
 /**
  * Decorative RSVP label — plain text inside the row, never a second
  * RSVP-mutation affordance. The one place that writes RSVP state is Play's
@@ -71,6 +89,7 @@ export function GameNightCard() {
               className="home-game-night-row"
               aria-label={`Open game night: ${night.title}, ${formatSlot(night.startsAt)}, ${rsvpLabel(night)}`}
             >
+              <CalendarLeaf at={night.startsAt} />
               <span className="home-game-night-title">{night.title}</span>
               <span className="home-game-night-time">{formatSlot(night.startsAt)}</span>
               <span className="home-game-night-rsvp">{rsvpLabel(night)}</span>

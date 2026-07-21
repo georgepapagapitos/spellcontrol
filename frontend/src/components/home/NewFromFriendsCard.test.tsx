@@ -105,4 +105,21 @@ describe('NewFromFriendsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
     await waitFor(() => expect(screen.getByText('Nothing new from friends yet.')).toBeTruthy());
   });
+
+  it("renders the friend's avatar as the row's visual anchor (initial-letter fallback, no photo on this feed)", async () => {
+    mockGetFriendsActivity.mockResolvedValue([
+      {
+        type: 'published_deck',
+        friendUsername: 'alice',
+        deckName: 'Atraxa Superfriends',
+        slug: 'atraxa-superfriends-ab12',
+        format: 'commander',
+        occurredAt: Date.now(),
+      },
+    ]);
+    const { container } = renderCard();
+    await screen.findByRole('link', { name: /alice published/ });
+    const avatar = container.querySelector('.user-avatar-fallback');
+    expect(avatar?.textContent).toBe('A');
+  });
 });

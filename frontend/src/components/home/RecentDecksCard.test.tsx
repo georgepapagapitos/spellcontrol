@@ -3,10 +3,17 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Deck } from '../../store/decks';
+import type { ScryfallCard } from '@/deck-builder/types';
 
 vi.mock('../../store/decks', () => ({
   useDecksStore: vi.fn(),
 }));
+
+const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
+vi.mock('../../lib/card-thumbs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/card-thumbs')>();
+  return { ...actual, useCardThumb: mockUseCardThumb };
+});
 
 import { RecentDecksCard } from './RecentDecksCard';
 import { useDecksStore } from '../../store/decks';
@@ -33,6 +40,23 @@ function makeDeck(overrides: Partial<Deck> = {}): Deck {
   } as Deck;
 }
 
+function commander(overrides: Partial<ScryfallCard> & { name: string }): ScryfallCard {
+  return {
+    id: overrides.name,
+    oracle_id: overrides.name,
+    cmc: 2,
+    type_line: 'Legendary Creature — Human',
+    color_identity: [],
+    keywords: [],
+    rarity: 'mythic',
+    set: 'tst',
+    set_name: 'Test Set',
+    prices: {},
+    legalities: { commander: 'legal' },
+    ...overrides,
+  } as ScryfallCard;
+}
+
 function setStore(decks: Deck[], hydrated = true) {
   mockUseDecksStore.mockImplementation(
     (sel: (s: { decks: Deck[]; hydrated: boolean }) => unknown) => sel({ decks, hydrated })
@@ -50,6 +74,7 @@ function renderCard() {
 describe('RecentDecksCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseCardThumb.mockReturnValue(undefined);
   });
 
   it('shows the loading skeleton while decks are not yet hydrated', () => {
@@ -112,5 +137,52 @@ describe('RecentDecksCard', () => {
     renderCard();
     const viewAll = screen.getByRole('link', { name: 'View all' });
     expect(viewAll.getAttribute('href')).toBe('/decks');
+  });
+
+  it("renders the commander's art directly from the card object with no CDN lookup", () => {
+    setStore([
+      makeDeck({
+        id: 'atraxa',
+        name: 'Atraxa Superfriends',
+        commander: commander({
+          name: "Atraxa, Praetors' Voice",
+          image_uris: {
+            small: 's.png',
+            normal: 'atraxa-normal.png',
+            large: 'l.png',
+            png: 'p.png',
+            art_crop: 'a.png',
+            border_crop: 'b.png',
+          },
+        }),
+      }),
+    ]);
+    const { container } = renderCard();
+    const img = container.querySelector('.home-thumb img') as HTMLImageElement | null;
+    expect(img?.getAttribute('src')).toBe('atraxa-normal.png');
+    expect(img?.getAttribute('alt')).toBe('');
+    expect(img?.getAttribute('loading')).toBe('lazy');
+    expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'normal');
+  });
+
+  it('falls back to the CDN thumb when the commander object carries no direct art', () => {
+    mockUseCardThumb.mockReturnValue('cdn-resolved.png');
+    setStore([
+      makeDeck({ id: 'a', name: 'A', commander: commander({ name: 'Sol Ring Commander' }) }),
+    ]);
+    const { container } = renderCard();
+    expect(mockUseCardThumb).toHaveBeenCalledWith('Sol Ring Commander', 'normal');
+    const img = container.querySelector('.home-thumb img') as HTMLImageElement | null;
+    expect(img?.getAttribute('src')).toBe('cdn-resolved.png');
+  });
+
+  it('falls back to a color-pip banner (never the CDN thumb) when the deck has no commander', () => {
+    setStore([makeDeck({ id: 'a', name: 'A', commander: null, color: '#ff0000' })]);
+    const { container } = renderCard();
+    expect(container.querySelector('.home-thumb img')).toBeNull();
+    const banner = container.querySelector('.home-thumb-banner') as HTMLElement | null;
+    expect(banner).toBeTruthy();
+    expect(banner?.style.getPropertyValue('--deck-color')).toBe('#ff0000');
+    expect(mockUseCardThumb).toHaveBeenCalledWith(undefined, 'normal');
   });
 });

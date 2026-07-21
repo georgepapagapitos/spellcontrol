@@ -121,13 +121,20 @@ export function hasNewArrivals(input: NewArrivalsInput): boolean {
   return false;
 }
 
+/** Cap on per-deck sample names fed into Home's overlapping thumb fan — a
+ *  handful is plenty of visual variety; the card itself dedupes/caps the
+ *  combined fan across decks at 5. */
+const MAX_SAMPLE_NAMES = 3;
+
 /** Same byName grouping as `computeNewArrivals`, summed to a qty instead of
- *  built into ranked `ArrivalRow`s. */
-function qualifyingArrivalQty(
+ *  built into ranked `ArrivalRow`s — plus the qualifying names themselves
+ *  (most-recently-acquired first), so Home's thumb fan has real card art to
+ *  resolve instead of just a count. */
+function qualifyingArrivals(
   deck: DeckLike,
   collectionCards: readonly ArrivalCandidateCard[],
   addedAtByImportId: ReadonlyMap<string, number>
-): number {
+): { qty: number; sampleNames: string[] } {
   const ctx = buildArrivalContext(deck);
   const byName = new Map<string, { qty: number; acquiredAt: number }>();
   for (const card of collectionCards) {
@@ -141,11 +148,15 @@ function qualifyingArrivalQty(
       byName.set(card.name, { qty: 1, acquiredAt: at });
     }
   }
-  let total = 0;
-  for (const entry of byName.values()) {
-    if (entry.acquiredAt > ctx.windowStart) total += entry.qty;
+  let qty = 0;
+  const qualifying: Array<{ name: string; acquiredAt: number }> = [];
+  for (const [name, entry] of byName) {
+    if (entry.acquiredAt <= ctx.windowStart) continue;
+    qty += entry.qty;
+    qualifying.push({ name, acquiredAt: entry.acquiredAt });
   }
-  return total;
+  qualifying.sort((a, b) => b.acquiredAt - a.acquiredAt);
+  return { qty, sampleNames: qualifying.slice(0, MAX_SAMPLE_NAMES).map((q) => q.name) };
 }
 
 /**
@@ -162,11 +173,11 @@ export function aggregateNewArrivalDecks(
   // surface arrivals on Home (unaffected inside the deck itself); raise this
   // if it ever undercounts in practice.
   limit = 20
-): Array<{ deck: Deck; count: number }> {
+): Array<{ deck: Deck; count: number; sampleNames: string[] }> {
   const recent = [...decks].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
-  const out: Array<{ deck: Deck; count: number }> = [];
+  const out: Array<{ deck: Deck; count: number; sampleNames: string[] }> = [];
   for (const deck of recent) {
-    const count = qualifyingArrivalQty(
+    const { qty, sampleNames } = qualifyingArrivals(
       {
         commander: deck.commander,
         partnerCommander: deck.partnerCommander,
@@ -178,7 +189,7 @@ export function aggregateNewArrivalDecks(
       collectionCards,
       addedAtByImportId
     );
-    if (count > 0) out.push({ deck, count });
+    if (qty > 0) out.push({ deck, count: qty, sampleNames });
   }
   return out;
 }
