@@ -152,8 +152,12 @@ select {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-md);
-  font-weight: 600;
+  /* Display wordmark (E156): the brand renders in --font-display everywhere
+     it appears at identity scale. One step up from the old --text-md/600 —
+     Goudy's single 400 cut needs the size, not synthetic weight. */
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
   letter-spacing: -0.01em;
   color: var(--chrome-text);
   text-decoration: none;
