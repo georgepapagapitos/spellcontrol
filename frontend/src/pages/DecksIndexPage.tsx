@@ -3,6 +3,7 @@ import {
   CircleAlert,
   Download,
   GitCompareArrows,
+  Globe,
   LayoutGrid,
   List as ListIconLucide,
   Package,
@@ -12,7 +13,7 @@ import {
   Trash2,
   Wand2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePanelCascade, panelCascadeClass } from '../lib/use-panel-cascade';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
@@ -57,8 +58,14 @@ import {
   countFlaggedCards,
 } from '../lib/deck-validation';
 import { ShareDialog } from '../components/ShareDialog';
+import { listMyPublications } from '../lib/publications-client';
+import { useAuth } from '../store/auth';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
+
+// Stable empty-set reference for guests/pre-bootstrap — avoids allocating a
+// fresh Set every render for a case that never has any public decks.
+const EMPTY_PUBLIC_IDS: ReadonlySet<string> = new Set();
 
 type DeckSortField = 'edited' | 'created' | 'name' | 'commander' | 'cards' | 'value';
 type SortDir = 'asc' | 'desc';
@@ -293,6 +300,31 @@ export function DecksIndexPage() {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const allSelected = sorted.length > 0 && sorted.every((d) => sel.selected.has(d.id));
   const [shareDeck, setShareDeck] = useState<Deck | null>(null);
+
+  // Which decks have a LIVE public listing, for the row/tile "Public" badge
+  // (badges the exception only — private rows stay quiet). One fetch per
+  // page mount, authed only: guests (and the pre-bootstrap 'unknown'/'loading'
+  // window) never have publications, so there's nothing to fetch for them —
+  // the effect just returns early (no reset-in-effect setState); `publicDeckIds`
+  // below derives the guest/unknown case at render time instead.
+  const authStatus = useAuth((s) => s.status);
+  const [fetchedPublicIds, setFetchedPublicIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (authStatus !== 'authed') return;
+    let cancelled = false;
+    listMyPublications()
+      .then((pubs) => {
+        if (cancelled) return;
+        setFetchedPublicIds(new Set(pubs.filter((p) => !p.unpublishedAt).map((p) => p.deckId)));
+      })
+      .catch(() => {
+        /* badge just stays off — never blocks the page on a failed fetch */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus]);
+  const publicDeckIds = authStatus === 'authed' ? fetchedPublicIds : EMPTY_PUBLIC_IDS;
 
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
@@ -678,6 +710,15 @@ export function DecksIndexPage() {
                           <span className="deck-format-badge">
                             {DECK_FORMAT_CONFIGS[deck.format]?.label ?? 'Commander'}
                           </span>
+                          {publicDeckIds.has(deck.id) && (
+                            <span
+                              className="decks-index-card-public-badge"
+                              title="Published — visible to everyone"
+                              aria-label="Public"
+                            >
+                              <Globe width={14} height={14} strokeWidth={2} aria-hidden />
+                            </span>
+                          )}
                           <span>
                             {deck.commander
                               ? `${deck.commander.name}${

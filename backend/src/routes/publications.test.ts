@@ -332,6 +332,76 @@ describe('GET /api/publications/decks/:deckId', () => {
   });
 });
 
+describe('GET /api/publications/decks (list)', () => {
+  it('rejects unauthenticated callers', async () => {
+    const res = await request(app).get('/api/publications/decks');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns an empty list for a caller who has never published', async () => {
+    const cookie = await makeUser('list-empty');
+    const res = await request(app).get('/api/publications/decks').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.publications).toEqual([]);
+  });
+
+  it('lists both live and unpublished decks, distinguished by unpublishedAt', async () => {
+    const cookie = await makeUser('list-mix');
+    await setDisplayName(cookie, 'List Mixer');
+    await setSnapshotViaSyncApi(request(app), cookie, {
+      decks: [makeDeck('deck-list-live'), makeDeck('deck-list-unpub')],
+    });
+
+    const live = await request(app)
+      .post('/api/publications/decks/deck-list-live')
+      .set('Cookie', cookie);
+    expect(live.status).toBe(201);
+
+    const unpubFirst = await request(app)
+      .post('/api/publications/decks/deck-list-unpub')
+      .set('Cookie', cookie);
+    expect(unpubFirst.status).toBe(201);
+    const unpub = await request(app)
+      .delete('/api/publications/decks/deck-list-unpub')
+      .set('Cookie', cookie);
+    expect(unpub.status).toBe(204);
+
+    const res = await request(app).get('/api/publications/decks').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.publications).toHaveLength(2);
+
+    const byDeckId = new Map<string, (typeof res.body.publications)[number]>(
+      res.body.publications.map((p: { deckId: string }) => [p.deckId, p])
+    );
+    const livePub = byDeckId.get('deck-list-live');
+    expect(livePub).toMatchObject({
+      slug: live.body.publication.slug,
+      unpublishedAt: null,
+      viewCount: 0,
+      copyCount: 0,
+    });
+    const unpubPub = byDeckId.get('deck-list-unpub');
+    expect(unpubPub).toBeTruthy();
+    expect(unpubPub!.slug).toBe(unpubFirst.body.publication.slug);
+    expect(unpubPub!.unpublishedAt).not.toBeNull();
+  });
+
+  it("never leaks another user's publications", async () => {
+    const owner = await makeUser('list-owner');
+    await setDisplayName(owner, 'List Owner');
+    await setSnapshotViaSyncApi(request(app), owner, { decks: [makeDeck('deck-list-owned')] });
+    const published = await request(app)
+      .post('/api/publications/decks/deck-list-owned')
+      .set('Cookie', owner);
+    expect(published.status).toBe(201);
+
+    const stranger = await makeUser('list-stranger');
+    const res = await request(app).get('/api/publications/decks').set('Cookie', stranger);
+    expect(res.status).toBe(200);
+    expect(res.body.publications).toEqual([]);
+  });
+});
+
 describe('publish → unpublish → republish cycle', () => {
   it('preserves the slug and counters across the whole cycle', async () => {
     const cookie = await makeUser('cycle-owner');

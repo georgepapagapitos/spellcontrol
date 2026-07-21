@@ -235,3 +235,39 @@ publicationsRouter.get(
     res.json({ publication: toPublication(result.rows[0]) });
   }
 );
+
+/**
+ * All of the caller's own publications — live AND unpublished — so a caller
+ * (the deck-editor visibility chip, the decks-index "Public" badge) can tell
+ * "was public, now isn't" apart from "never published" without a per-deck
+ * round-trip. Scoped to the caller's own userId only; another user's rows
+ * never appear here (mirrors the single-deck GET above).
+ */
+publicationsRouter.get(
+  '/decks',
+  requireAuth,
+  publishLimiter,
+  async (req: Request, res: Response) => {
+    const userId = req.user!.id;
+    const result = await getPool().query<{
+      deck_id: string;
+      slug: string;
+      unpublished_at: string | null;
+      view_count: number;
+      copy_count: number;
+    }>(
+      `SELECT deck_id, slug, unpublished_at, view_count, copy_count
+         FROM deck_publications WHERE user_id = $1`,
+      [userId]
+    );
+    res.json({
+      publications: result.rows.map((row) => ({
+        deckId: row.deck_id,
+        slug: row.slug,
+        unpublishedAt: row.unpublished_at === null ? null : Number(row.unpublished_at),
+        viewCount: row.view_count,
+        copyCount: row.copy_count,
+      })),
+    });
+  }
+);

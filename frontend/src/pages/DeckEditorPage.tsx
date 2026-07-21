@@ -33,6 +33,7 @@ import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
+import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
 import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
@@ -2263,6 +2264,7 @@ export function DeckEditorPage() {
               <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
             )}
           </p>
+          <DeckVisibilityChip deckId={deck.id} deckName={deck.name} />
           {deck.forkedFrom && <ForkedFromBadge forkedFrom={deck.forkedFrom} />}
         </div>
         <div className="deck-editor-actions">

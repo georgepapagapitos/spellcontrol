@@ -56,6 +56,26 @@
   display: none;
 }
 
+/* ── Public-listing badge (visibility-obvious) ────────────────────── */
+/* Badges the exception only: a quiet icon-only Globe on rows with a LIVE
+   deck_publications row, nothing on private ones. Sits before the
+   trailing commander/count span (not last-child) so it survives compact
+   density too — see .decks-index-list.is-compact rules in decks-index.css. */
+.decks-index-card-public-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .decks-index-card-public-badge:hover {
+    opacity: 1;
+  }
+}
+
 /* ── Legality banner ──────────────────────────────────────────────── */
 .deck-legality-banner {
   display: flex;

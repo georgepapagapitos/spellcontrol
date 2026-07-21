@@ -15,6 +15,11 @@ import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
+import { useAuth } from '../store/auth';
+import { toast } from '../store/toasts';
+import { updateProfile } from '../lib/auth-api';
+import { isOnline, onSyncedChange } from '../lib/sync';
+import { DisplayNameRequiredError, publicationUrl, publishDeck } from '../lib/publications-client';
 import type { ScryfallCard, DeckFormat, EDHRECTheme } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
@@ -79,6 +84,97 @@ export function DeckNewPage() {
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const isPdh = selectedFormat === 'paupercommander';
 
+  // ── Visibility (creation-time choice) ──────────────────────────────────
+  const isGuest = useAuth((s) => s.status === 'guest');
+  const [, forceOnlineTick] = useState(0);
+  useEffect(() => onSyncedChange(() => forceOnlineTick((n) => n + 1)), []);
+  const online = isOnline();
+  const canPublish = !isGuest && online;
+  const publicDisabledReason = isGuest
+    ? 'Sign in to publish.'
+    : !online
+      ? "You're offline — reconnect to publish."
+      : null;
+
+  const [visibility, setVisibility] = useState<'private' | 'public'>('private');
+  // Never leave Public selected-but-disabled (e.g. connectivity drops after
+  // it was chosen) — snap back to Private during render (React's "adjusting
+  // state when a value changes" pattern, not an effect: this is a guarded,
+  // terminating setState call during render, so react-hooks/set-state-in-effect
+  // doesn't apply — there's no effect here to begin with).
+  if (!canPublish && visibility === 'public') {
+    setVisibility('private');
+  }
+
+  const [publishing, setPublishing] = useState(false);
+  const [needsDisplayName, setNeedsDisplayName] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
+
+  const announcePublished = (slug: string) => {
+    toast.show({
+      message: `Published — anyone can view it at ${publicationUrl(slug)}`,
+      tone: 'success',
+    });
+  };
+
+  /** Publish a just-created deck. On display_name_required, hold off
+   *  navigating and show the same inline set-name substep ShareDialog uses;
+   *  any other failure just toasts a warning — the deck already exists, so
+   *  a failed publish never blocks getting to the editor. */
+  const publishAfterCreate = useCallback(
+    async (id: string) => {
+      setPublishing(true);
+      try {
+        const pub = await publishDeck(id);
+        announcePublished(pub.slug);
+        navigate(`/decks/${id}`);
+      } catch (err) {
+        if (err instanceof DisplayNameRequiredError) {
+          setPendingPublishId(id);
+          setNeedsDisplayName(true);
+        } else {
+          toast.show({
+            message: err instanceof Error ? err.message : 'Failed to publish deck.',
+            tone: 'warn',
+          });
+          navigate(`/decks/${id}`);
+        }
+      } finally {
+        setPublishing(false);
+      }
+    },
+    [navigate]
+  );
+
+  const handleSaveDisplayNameAndPublish = async () => {
+    const trimmed = displayNameDraft.trim();
+    if (!trimmed || !pendingPublishId || publishing) return;
+    setPublishing(true);
+    try {
+      const updated = await updateProfile({ displayName: trimmed });
+      useAuth.setState((s) => (s.profile ? { profile: { ...s.profile, ...updated } } : s));
+      const pub = await publishDeck(pendingPublishId); // exactly one retry
+      announcePublished(pub.slug);
+      navigate(`/decks/${pendingPublishId}`);
+    } catch (err) {
+      toast.show({
+        message: err instanceof Error ? err.message : "Couldn't publish the deck.",
+        tone: 'warn',
+      });
+      navigate(`/decks/${pendingPublishId}`);
+    } finally {
+      setPublishing(false);
+      setNeedsDisplayName(false);
+    }
+  };
+
+  const handleCancelDisplayName = () => {
+    // Deck stays created + private — never blocks creation.
+    setNeedsDisplayName(false);
+    if (pendingPublishId) navigate(`/decks/${pendingPublishId}`);
+  };
+
   // Keep the store's build-format in lockstep with the pill so generation and
   // the saved deck both know the format. Only PDH generates as its own format
   // today — every other commander-family pill builds the standard 100.
@@ -118,7 +214,7 @@ export function DeckNewPage() {
   }, []);
 
   // ── Start-blank ───────────────────────────────────────────────────────
-  const handleStartBlank = useCallback(() => {
+  const handleStartBlank = useCallback(async () => {
     if (formatConfig.hasCommander && !commander) return;
     const allocationMap = buildAllocationMap(decks);
     let commanderAlloc: string | null = null;
@@ -149,6 +245,10 @@ export function DeckNewPage() {
       partnerCommander: partnerCommander ?? null,
       partnerCommanderAllocatedCopyId: partnerAlloc,
     });
+    if (visibility === 'public' && canPublish) {
+      await publishAfterCreate(id);
+      return;
+    }
     navigate(`/decks/${id}`);
   }, [
     commander,
@@ -159,6 +259,9 @@ export function DeckNewPage() {
     navigate,
     selectedFormat,
     formatConfig,
+    visibility,
+    canPublish,
+    publishAfterCreate,
   ]);
 
   // Per-mode CTA copy + readiness. Art Theme can't build without a motif chosen.
@@ -186,6 +289,81 @@ export function DeckNewPage() {
   // Commander art for the takeover panel.
   const commanderArtUrl =
     commander?.image_uris?.art_crop ?? commander?.card_faces?.[0]?.image_uris?.art_crop;
+
+  // ── Visibility fieldset — shared by both manual-create action sections
+  // below (commander formats' "Start blank" and non-commander formats'
+  // "Create deck") so the same choice + ladder styling isn't duplicated.
+  // Reuses ShareDialog's own ladder classes (share-audience/-option) per the
+  // established visibility-ladder pattern, rather than inventing a new one.
+  const visibilityFieldset = (
+    <section className="deck-builder-section">
+      <h2 className="deck-builder-section-title">Visibility</h2>
+      <div className="share-audience" role="radiogroup" aria-label="Deck visibility">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={visibility === 'private'}
+          className={`share-audience-option${visibility === 'private' ? ' is-active' : ''}`}
+          onClick={() => setVisibility('private')}
+        >
+          Private
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={visibility === 'public'}
+          className={`share-audience-option${visibility === 'public' ? ' is-active' : ''}`}
+          onClick={() => setVisibility('public')}
+          disabled={!canPublish}
+        >
+          Public
+        </button>
+      </div>
+      <p className="format-pill-hint">
+        {visibility === 'public'
+          ? 'Anyone can find it at a stable link and on your profile.'
+          : 'Only you can see this deck.'}
+        {!canPublish && ` ${publicDisabledReason}`}
+      </p>
+    </section>
+  );
+
+  // Inline set-name substep — same pattern ShareDialog falls back to on a
+  // display_name_required 400 (a minimal inline field + Cancel/Save, rather
+  // than extracting a shared component: the two flows differ enough — a
+  // whole page here vs. a modal sub-step there — that lifting one out isn't
+  // cheap). Replaces the action row until resolved; the deck is already
+  // created either way, so Cancel still lands on the (private) editor.
+  const displayNameSubstep = (
+    <section className="deck-builder-section deck-builder-actions">
+      <p className="deck-builder-actions-hint">
+        Publishing shows your display name on the deck page — set one to continue.
+      </p>
+      <div className="field">
+        <label htmlFor="deck-new-display-name">Display name</label>
+        <input
+          id="deck-new-display-name"
+          type="text"
+          className="name-input-field"
+          value={displayNameDraft}
+          maxLength={40}
+          disabled={publishing}
+          onChange={(e) => setDisplayNameDraft(e.target.value)}
+        />
+      </div>
+      <button type="button" className="btn" onClick={handleCancelDisplayName} disabled={publishing}>
+        Cancel
+      </button>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => void handleSaveDisplayNameAndPublish()}
+        disabled={publishing || !displayNameDraft.trim()}
+      >
+        {publishing ? 'Saving…' : 'Save & continue'}
+      </button>
+    </section>
+  );
 
   // While generating, replace the page body with the shared takeover so the
   // build feels deliberate — identical to the guided "Build together" flow.
@@ -347,38 +525,63 @@ export function DeckNewPage() {
 
       {formatConfig.hasCommander ? (
         commander && (
-          <section className="deck-builder-section deck-builder-actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={build}
-              disabled={isBuilding || !modeReady}
-            >
-              {isBuilding ? 'Building…' : generateLabel}
-            </button>
-            <button type="button" className="btn" onClick={handleStartBlank} disabled={isBuilding}>
-              Start blank
-            </button>
-            <p className="deck-builder-actions-hint">
-              {generateHint} Start blank gives you just the commander so you can pick every card by
-              hand.
-            </p>
-            {error && <div className="error-banner deck-builder-error">{error}</div>}
-          </section>
+          <>
+            {visibilityFieldset}
+            {needsDisplayName ? (
+              displayNameSubstep
+            ) : (
+              <section className="deck-builder-section deck-builder-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={build}
+                  disabled={isBuilding || !modeReady}
+                >
+                  {isBuilding ? 'Building…' : generateLabel}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void handleStartBlank()}
+                  disabled={isBuilding || publishing}
+                >
+                  {publishing ? 'Creating…' : 'Start blank'}
+                </button>
+                <p className="deck-builder-actions-hint">
+                  {generateHint} Start blank gives you just the commander so you can pick every card
+                  by hand.
+                </p>
+                {error && <div className="error-banner deck-builder-error">{error}</div>}
+              </section>
+            )}
+          </>
         )
       ) : (
-        <section className="deck-builder-section deck-builder-actions">
-          <button type="button" className="btn btn-primary" onClick={handleStartBlank}>
-            Create deck
-          </button>
-          <p className="deck-builder-actions-hint">
-            Create an empty {formatConfig.label} deck ({formatConfig.mainboardSize}-card mainboard
-            {formatConfig.sideboardSize > 0
-              ? ` with ${formatConfig.sideboardSize}-card sideboard`
-              : ''}
-            ). Add cards manually in the editor.
-          </p>
-        </section>
+        <>
+          {visibilityFieldset}
+          {needsDisplayName ? (
+            displayNameSubstep
+          ) : (
+            <section className="deck-builder-section deck-builder-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => void handleStartBlank()}
+                disabled={publishing}
+              >
+                {publishing ? 'Creating…' : 'Create deck'}
+              </button>
+              <p className="deck-builder-actions-hint">
+                Create an empty {formatConfig.label} deck ({formatConfig.mainboardSize}-card
+                mainboard
+                {formatConfig.sideboardSize > 0
+                  ? ` with ${formatConfig.sideboardSize}-card sideboard`
+                  : ''}
+                ). Add cards manually in the editor.
+              </p>
+            </section>
+          )}
+        </>
       )}
     </div>
   );
