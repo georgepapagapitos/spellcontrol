@@ -413,6 +413,13 @@ export interface CommanderDeckAnalysisResult extends GradeBracketResult {
   cardInclusionMap?: Record<string, number>;
   /** 0-100 PlanScore (strategy/roles/curve/cardFit). Undefined if not computable. */
   planScore?: PlanScore;
+  /**
+   * EDHREC's own sample size for this commander (its `numDecks`) — already
+   * fetched here to feed planScore's byline (social W4's CommanderPopularityStat
+   * reuses it rather than re-fetching). `null` when EDHREC has no data for this
+   * commander (e.g. unreachable, or a commander it doesn't track).
+   */
+  edhrecNumDecks?: number | null;
   /** Balanced cut/add optimize suggestions (the "Optimize" surface). */
   optimizeSwaps?: OptimizeSwaps;
   /** Budget downgrade suggestions (cheaper role-equivalents). USD-canonical. */
@@ -909,6 +916,7 @@ export async function analyzeCommanderDeck(
       hiddenGems,
       cardInclusionMap,
       planScore,
+      edhrecNumDecks: edhrecData.stats?.numDecks ?? null,
       optimizeSwaps,
       costPlan,
       synergyAnalysis,

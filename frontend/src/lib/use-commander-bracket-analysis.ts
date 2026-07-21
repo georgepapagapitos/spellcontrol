@@ -170,6 +170,7 @@ export function useCommanderBracketAnalysis(args: Args): void {
                 hiddenGems: result.hiddenGems,
                 cardInclusionMap: result.cardInclusionMap,
                 planScore: result.planScore,
+                edhrecNumDecks: result.edhrecNumDecks ?? null,
                 optimizeSwaps: result.optimizeSwaps,
                 costPlan: result.costPlan,
                 synergyAnalysis: result.synergyAnalysis,

@@ -24,6 +24,7 @@ import {
 import { Tabs } from '../components/Tabs';
 import { materializeBinders } from '../lib/materialize';
 import { formatMoney } from '../lib/format-money';
+import { buildCommanderKey } from '../lib/commander-key';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
@@ -707,6 +708,13 @@ export function DeckEditorPage() {
   // the hook's suggestion filter (an empty array would mean "colorless").
   const comboColorIdentity =
     deck?.commander || deck?.partnerCommander ? commanderColorIdentity : undefined;
+
+  // Commander (+partner) key for CardSearchPanel's per-row "N on SpellControl"
+  // badge (social W4) — undefined for a no-commander deck, so the panel's
+  // fetch never fires.
+  const commanderKey = deck?.commander?.oracle_id
+    ? buildCommanderKey(deck.commander.oracle_id, deck.partnerCommander?.oracle_id)
+    : undefined;
 
   const comboData = useDeckCombos({
     deckOracleIds,
@@ -2464,6 +2472,7 @@ export function DeckEditorPage() {
             onSetArchetypeOverride={(a) => updateDeck(deck.id, { archetypeOverride: a })}
             deckGrade={deck.deckGrade}
             planScore={deck.planScore}
+            edhrecNumDecks={deck.edhrecNumDecks}
             averageSalt={deck.averageSalt}
             saltiestCards={deck.saltiestCards}
             exportOpen={exportOpen}
@@ -2742,6 +2751,7 @@ export function DeckEditorPage() {
                 ownershipFor={ownershipFor}
                 enableSuggestions={!!formatConfig?.hasCommander}
                 suggestionsPending={analysisState === 'pending'}
+                commanderKey={commanderKey}
               />
             </>
           )}

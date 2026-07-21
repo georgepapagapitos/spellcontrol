@@ -18,6 +18,14 @@ interface Props {
   onSelect: () => void;
   /** Fired on hover/focus — used to lazily load the readiness %. */
   onPeek?: () => void;
+  /**
+   * SpellControl's own platform deck count for this commander (social W4) —
+   * undefined for every call site that doesn't wire it (by-name search,
+   * add-cards flows, guided-build reuse) and for a below-threshold commander,
+   * both of which render exactly as before this prop existed. Wired today
+   * only by CommanderSearch's Top-EDHREC and Playstyle browse tiles.
+   */
+  platformDeckCount?: number;
 }
 
 /**
@@ -38,6 +46,7 @@ export function CommanderResultCard({
   disabled,
   onSelect,
   onPeek,
+  platformDeckCount,
 }: Props) {
   // Only resolve by name when we don't already have art — keeps the by-name
   // path (full ScryfallCards) off the network entirely.
@@ -64,7 +73,14 @@ export function CommanderResultCard({
       <span className="commander-result-body">
         <span className="commander-result-headline">
           <span className="commander-result-name">{selecting ? 'Loading…' : name}</span>
-          <ReadinessChip score={readiness} />
+          <span className="commander-result-trailing">
+            <ReadinessChip score={readiness} />
+            {platformDeckCount !== undefined && (
+              <span className="commander-result-platform-count">
+                {platformDeckCount.toLocaleString()} on SpellControl
+              </span>
+            )}
+          </span>
         </span>
         {colors.length > 0 && (
           <span className="commander-result-pips" aria-hidden>

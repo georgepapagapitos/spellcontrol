@@ -37,6 +37,51 @@ import { ColorPip } from '../shared/ManaSymbol';
 import { Tabs } from '../Tabs';
 import { SearchPill } from '../SearchPill';
 import { InfoTip } from '../InfoTip';
+import { buildCommanderKey } from '../../lib/commander-key';
+import { getCommanderStatsBatch, type CommanderStats } from '../../lib/aggregates-client';
+
+/**
+ * Resolves the commander-picker platform-deck-count badge (social W4) for a
+ * settled Top-EDHREC/Playstyle candidate list: looks up each visible
+ * candidate's oracle id via the already cache-backed `getCardByName`, builds
+ * each commander key, and fires ONE batch lookup — never per row. A candidate
+ * whose name fails to resolve (offline, or a name Scryfall doesn't recognize)
+ * is skipped rather than failing the whole batch.
+ *
+ * Exported and dependency-injected so it's directly unit-testable — this
+ * file has no test harness cheap enough to mount (collection store, EDHREC/
+ * Scryfall clients, localStorage, …) just to exercise this one behavior.
+ */
+export async function resolvePlatformCounts(
+  candidates: Array<{ name: string }>,
+  deps: {
+    getCardByName: (name: string) => Promise<ScryfallCard>;
+    getCommanderStatsBatch: (keys: string[]) => Promise<Map<string, CommanderStats>>;
+  }
+): Promise<Map<string, number>> {
+  const resolved = await Promise.all(
+    candidates.map(async (c) => {
+      try {
+        return await deps.getCardByName(c.name);
+      } catch {
+        return null;
+      }
+    })
+  );
+  const keyToName = new Map<string, string>();
+  resolved.forEach((card, i) => {
+    if (card) keyToName.set(buildCommanderKey(card.oracle_id), candidates[i].name);
+  });
+  if (keyToName.size === 0) return new Map();
+
+  const stats = await deps.getCommanderStatsBatch([...keyToName.keys()]);
+  const out = new Map<string, number>();
+  for (const [key, name] of keyToName) {
+    const s = stats.get(key);
+    if (s) out.set(name.toLowerCase(), s.deckCount);
+  }
+  return out;
+}
 
 interface Props {
   value: ScryfallCard | null;
@@ -228,6 +273,12 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
   const [readiness, setReadiness] = useState<Map<string, ReadinessScore | 'loading'>>(new Map());
   const readinessInflight = useRef<Set<string>>(new Set());
   const readinessDone = useRef<Set<string>>(new Set());
+  // Commander-picker platform-deck-count badges (social W4) — resolved in bulk
+  // per settled Top/Playstyle list below (never per row, never by-name, never
+  // PDH). Keyed by lowercased commander name, same convention as `readiness`.
+  // Merged rather than replaced per resolve, since the Top and Playstyle
+  // effects below share this one map and must not clobber each other's badges.
+  const [platformCounts, setPlatformCounts] = useState<Map<string, number>>(new Map());
   const ensureReadiness = useCallback(
     async (name: string): Promise<void> => {
       // Readiness scores a commander's EDHREC staples against the collection —
@@ -485,6 +536,31 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
     };
   }, [visibleTop, ensureReadiness]);
 
+  // Platform-deck-count badges for the same visible Top-EDHREC tiles (social
+  // W4) — mirrors the eager-readiness-load effect just above, but for the
+  // commander-picker "N on SpellControl" badge instead. Explicit `pdh` guard
+  // (unlike the effect above, which relies on `ensureReadiness` itself
+  // returning early): PDH's owned-mode branch still populates `visibleTop`
+  // with synthetic collection-derived entries, so an empty-array check alone
+  // wouldn't exclude it here. Cancelled on any dep change (tab switch away
+  // included, since `visibleTop`'s identity is stable while browsing Top but
+  // this still guards a slow response racing an unmount).
+  useEffect(() => {
+    if (pdh || visibleTop.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const map = await resolvePlatformCounts(visibleTop.slice(0, 12), {
+        getCardByName,
+        getCommanderStatsBatch,
+      });
+      if (cancelled) return;
+      setPlatformCounts((prev) => new Map([...prev, ...map]));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pdh, visibleTop]);
+
   // ── By-playstyle discovery ────────────────────────────────────────────
   // A second facet alongside name search: pick a playstyle (aristocrats,
   // tokens, voltron, …) and browse the commanders that do it best.
@@ -604,6 +680,26 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
       cancelled = true;
     };
   }, [activeSearchMode, playstyleResults, ensureReadiness]);
+
+  // Platform-deck-count badges for the visible playstyle tiles (social W4) —
+  // same shape as the Top-browse effect above. No explicit `pdh` guard needed:
+  // `activeSearchMode` is forced to 'name' for PDH (see activeSearchMode's own
+  // definition), so this condition already structurally excludes it.
+  useEffect(() => {
+    if (activeSearchMode !== 'playstyle' || playstyleResults.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const map = await resolvePlatformCounts(playstyleResults.slice(0, 12), {
+        getCardByName,
+        getCommanderStatsBatch,
+      });
+      if (cancelled) return;
+      setPlatformCounts((prev) => new Map([...prev, ...map]));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSearchMode, playstyleResults]);
 
   const nameResults = ownedOnly ? localResults : results;
   const nameResultKey = `${ownedOnly}|${query.trim()}|${nameResults
@@ -1011,6 +1107,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
                               void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
                             }
                             onPeek={() => void ensureReadiness(c.name)}
+                            platformDeckCount={platformCounts.get(c.name.toLowerCase())}
                           />
                         </li>
                       ))}
@@ -1094,6 +1191,7 @@ export function CommanderSearch({ value, onSelect, format = 'commander' }: Props
                             void (ownedOnly ? selectOwnedByName(c.name) : selectByName(c.name))
                           }
                           onPeek={() => void ensureReadiness(c.name)}
+                          platformDeckCount={platformCounts.get(c.name.toLowerCase())}
                         />
                       </li>
                     );

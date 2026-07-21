@@ -234,6 +234,32 @@
   white-space: nowrap;
 }
 
+/* Groups ReadinessChip + the optional platform-count badge (social W4) so
+   `.commander-result-headline`'s space-between still sees exactly 2 children
+   — a bare 3rd child would spread apart from the chip instead of sitting
+   snugly beside it. */
+.commander-result-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+/* Platform deck-count badge — matches .commander-search-item-readiness's
+   visual weight (compact pill, tabular-nums) but its own class + muted
+   count-pill color, since it isn't a readiness signal. */
+.commander-result-platform-count {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .commander-result-pips {
   display: inline-flex;
   gap: 0.12rem;
