@@ -1,0 +1,14 @@
+/* ── CommanderPopularityStat ──────────────────────────────────────────────────
+   Blended "N on SpellControl · N on EDHREC" stat line. Styled at
+   .deck-identity-card-ratio's visual weight (small, muted, tabular-nums) since
+   that's this component's first mount — see DeckIdentityCard.css. */
+
+.commander-popularity-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

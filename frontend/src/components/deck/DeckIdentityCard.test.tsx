@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DeckIdentityCard, type DeckIdentityCardProps } from './DeckIdentityCard';
 import { Archetype } from '@/deck-builder/types';
 import type {
@@ -12,6 +12,7 @@ import type {
   SubScore,
   SubScoreKey,
 } from '@/deck-builder/services/deckBuilder/planScore';
+import { getCommanderStats, type CommanderStats } from '@/lib/aggregates-client';
 
 // Stub the CDN thumb resolver. Rendering the card calls `useCardThumb(commanderName)`,
 // which schedules a fire-and-forget `getCardsByNames` fetch (card-thumbs.ts) that, with
@@ -22,6 +23,9 @@ vi.mock('@/lib/card-thumbs', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/card-thumbs')>()),
   useCardThumb: () => undefined,
 }));
+
+// Commander-popularity stat's own fetch — stubbed per-test below.
+vi.mock('@/lib/aggregates-client', () => ({ getCommanderStats: vi.fn() }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -342,5 +346,96 @@ describe('DeckIdentityCard', () => {
   it('does not render a picker for non-commander decks (no identity)', () => {
     renderCard({ identity: null, onSetArchetypeOverride: vi.fn() });
     expect(screen.queryByRole('button', { name: /change deck archetype/i })).toBeNull();
+  });
+});
+
+// ── Commander popularity stat (social W4) ────────────────────────────────────
+
+const commanderWithId = {
+  name: "Atraxa, Praetors' Voice",
+  oracle_id: 'oracle-atraxa',
+  color_identity: ['W', 'U', 'B', 'G'],
+} as unknown as DeckIdentityCardProps['commander'];
+
+const fixtureStats: CommanderStats = {
+  commanderKey: 'oracle-atraxa',
+  commanderName: "Atraxa, Praetors' Voice",
+  partnerName: null,
+  deckCount: 156,
+  avgBracket: null,
+  bracketSampleCount: 0,
+  budgetDistribution: { low: null, mid: null, high: null },
+  topCards: [],
+};
+
+describe('DeckIdentityCard — commander popularity stat', () => {
+  beforeEach(() => {
+    vi.mocked(getCommanderStats).mockReset();
+  });
+
+  it('fetches commander stats once per commanderKey change, not per re-render', async () => {
+    const mock = vi.mocked(getCommanderStats).mockResolvedValue(fixtureStats);
+    const { rerender } = renderCard({ commander: commanderWithId });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(mock).toHaveBeenCalledWith('oracle-atraxa');
+
+    // Re-render with the same commander (same oracle_id) — must not refetch.
+    rerender(<DeckIdentityCard {...base} commander={commanderWithId} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch when commander is null', async () => {
+    const mock = vi.mocked(getCommanderStats);
+    renderCard({ commander: null });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch for a paupercommander deck (no EDHREC data there either)', async () => {
+    const mock = vi.mocked(getCommanderStats);
+    renderCard({ commander: commanderWithId, format: 'paupercommander' });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mock).not.toHaveBeenCalled();
+  });
+
+  it('does not set state after unmount while a stats fetch is in flight', async () => {
+    let resolveStats: (v: CommanderStats | null) => void = () => {};
+    const pending = new Promise<CommanderStats | null>((resolve) => {
+      resolveStats = resolve;
+    });
+    vi.mocked(getCommanderStats).mockReturnValue(pending);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { unmount } = renderCard({ commander: commanderWithId });
+    unmount();
+    await act(async () => {
+      resolveStats(fixtureStats);
+      await pending;
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('renders the blended stat once both the threaded edhrecNumDecks prop and the platform count are ready', async () => {
+    vi.mocked(getCommanderStats).mockResolvedValue(fixtureStats);
+    renderCard({
+      commander: commanderWithId,
+      edhrecNumDecks: 12400,
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(hasText(/156 on SpellControl · 12,400 on EDHREC/)).toBe(true);
   });
 });

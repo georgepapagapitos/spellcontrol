@@ -8,6 +8,7 @@ import { useDecksStore } from '../../store/decks';
 import { useCubeStore } from '../../store/cube';
 import { buildAllocationMap, pickCollectionCopy } from '../../lib/allocations';
 import { classifyInclusion } from '../../lib/inclusion-label';
+import { getCommanderStats } from '../../lib/aggregates-client';
 import { buildCollectionSearch, compareResults, type AddSort } from '../../lib/deck-add-search';
 import {
   ensureCardTags,
@@ -52,6 +53,10 @@ function isOffColor(cardCI: string[] | undefined, commanderCI: string[]): boolea
   return (cardCI ?? []).some((c) => !set.has(c));
 }
 
+/** Stable empty Map for a no-commander deck's platform-count lookups (social
+ *  W4) — a shared module-level constant rather than a fresh Map per render. */
+const EMPTY_CARD_COUNTS: Map<string, number> = new Map();
+
 export interface AddCardChoice {
   card: ScryfallCard;
   /** copyId of the collection copy claimed for this slot, or null if none. */
@@ -94,6 +99,12 @@ interface Props {
   ownershipFor?: (name: string) => ChangeOwnership;
   enableSuggestions?: boolean;
   suggestionsPending?: boolean;
+  /**
+   * Commander (+partner) key for the per-row "N on SpellControl" badge
+   * (social W4) — `buildCommanderKey(commander.oracle_id, partnerCommander?.oracle_id)`.
+   * Undefined for a no-commander deck; the badge never fetches or renders.
+   */
+  commanderKey?: string;
 }
 
 type Mode = 'collection' | 'scryfall' | 'suggestions';
@@ -193,13 +204,46 @@ function useAddPreviewCarousel(
   });
 }
 
-/** Per-row EDHREC/combo signal — shown on every tab when known for this
- *  commander (gap analysis), never blocking when unknown. */
-function FitSignal({ gap, produces }: { gap?: GapAnalysisCard; produces?: string }) {
+/**
+ * Per-row EDHREC/combo signal — shown on every tab when known for this
+ * commander (gap analysis), never blocking when unknown.
+ *
+ * `platformCount` (social W4) is a *card-inclusion* count — "N SpellControl
+ * decks with this commander run this card" — deliberately not the commander's
+ * overall deckCount (a different number, shown instead by CommanderPopularityStat
+ * in DeckIdentityCard). Only rows whose card is in the commander's topCards
+ * list get one; every other row is untouched (no fragment appended).
+ *
+ * The whole fragment is wrapped in one `aria-label`'d span, mirroring the
+ * sibling convention at DeckDisplay.tsx's per-card EDHREC inclusion mount
+ * (`aria-label={\`EDHREC inclusion ${info.pct} percent\`}`) — FitSignal had no
+ * accessible name of its own before this, a pre-existing gap this closes.
+ */
+export function FitSignal({
+  gap,
+  produces,
+  platformCount,
+}: {
+  gap?: GapAnalysisCard;
+  produces?: string;
+  platformCount?: number;
+}) {
   const info = gap ? classifyInclusion(gap.inclusion) : null;
+  const ariaLabel =
+    info?.kind === 'pct'
+      ? `Included in ${info.pct}% of EDHREC decks with this commander${
+          platformCount !== undefined ? `, ${platformCount} on SpellControl` : ''
+        }`
+      : undefined;
   return (
-    <>
-      {info?.kind === 'pct' && <> · {info.pct}% EDHREC</>}
+    <span aria-label={ariaLabel}>
+      {info?.kind === 'pct' && (
+        <>
+          {' · '}
+          {info.pct}% EDHREC
+          {platformCount !== undefined && <> · {platformCount} on SpellControl</>}
+        </>
+      )}
       {gap?.roleLabel && <> · {gap.roleLabel}</>}
       {produces !== undefined && (
         <>
@@ -209,7 +253,7 @@ function FitSignal({ gap, produces }: { gap?: GapAnalysisCard; produces?: string
           </span>
         </>
       )}
-    </>
+    </span>
   );
 }
 
@@ -227,6 +271,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     ownershipFor,
     enableSuggestions,
     suggestionsPending,
+    commanderKey,
   },
   ref
 ) {
@@ -332,6 +377,30 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     }
     return m;
   }, [oneAwayCombos]);
+
+  // Per-card SpellControl inclusion counts for this commander (social W4) —
+  // one getCommanderStats(commanderKey) call per panel mount/key-change, never
+  // per row or per keystroke. Keyed by lowercased card name, same convention
+  // as gapByName/comboProducesByName above.
+  const [topCardCounts, setTopCardCounts] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    // No synchronous setState for the "no commanderKey" case — a no-commander
+    // deck derives an empty map at render time below instead, avoiding both a
+    // stale-map flash and a cascading effect-render.
+    if (!commanderKey) return;
+    let cancelled = false;
+    void (async () => {
+      const stats = await getCommanderStats(commanderKey);
+      if (cancelled) return;
+      const m = new Map<string, number>();
+      for (const c of stats?.topCards ?? []) m.set(c.cardName.toLowerCase(), c.deckCount);
+      setTopCardCounts(m);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [commanderKey]);
+  const effectiveTopCardCounts = commanderKey ? topCardCounts : EMPTY_CARD_COUNTS;
 
   // The two result lists publish their currently-visible cards here so the
   // panel-level "Enter to add the first result" handler is independent of
@@ -538,6 +607,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             setFilter={setFilter}
             gapByName={gapByName}
             comboProducesByName={comboProducesByName}
+            topCardCounts={effectiveTopCardCounts}
             sort={sort}
             enforceCommander={!!enableSuggestions}
             onSearchScryfall={() => setMode('scryfall')}
@@ -584,6 +654,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             }}
             gapByName={gapByName}
             comboProducesByName={comboProducesByName}
+            topCardCounts={effectiveTopCardCounts}
             sort={sort}
             ownershipFor={ownershipFor}
           />
@@ -614,6 +685,10 @@ interface ResultsProps {
 interface FitProps {
   gapByName: Map<string, GapAnalysisCard>;
   comboProducesByName: Map<string, string>;
+  /** Per-card SpellControl inclusion counts for the current commander (social
+   *  W4), keyed by lowercased card name — absent for a card not in the
+   *  commander's topCards list. */
+  topCardCounts: Map<string, number>;
   sort: AddSort;
 }
 
@@ -665,6 +740,7 @@ function CollectionResults({
   setFilter,
   gapByName,
   comboProducesByName,
+  topCardCounts,
   sort,
   enforceCommander,
   onSearchScryfall,
@@ -900,6 +976,7 @@ function CollectionResults({
                 <FitSignal
                   gap={gapByName.get(nameKey)}
                   produces={comboProducesByName.get(nameKey)}
+                  platformCount={topCardCounts.get(nameKey)}
                 />
                 {onPreviewFit && (
                   <>
@@ -1249,6 +1326,7 @@ function ScryfallResults({
   publishVisible,
   gapByName,
   comboProducesByName,
+  topCardCounts,
   sort,
   ownershipFor,
 }: ScryfallResultsProps) {
@@ -1437,6 +1515,7 @@ function ScryfallResults({
                 <FitSignal
                   gap={gapByName.get(nameKey)}
                   produces={comboProducesByName.get(nameKey)}
+                  platformCount={topCardCounts.get(nameKey)}
                 />
                 {onPreviewFit && (
                   <>

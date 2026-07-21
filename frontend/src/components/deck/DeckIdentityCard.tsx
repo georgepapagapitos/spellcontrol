@@ -1,9 +1,12 @@
-import { useId, useState, lazy, Suspense, type JSX } from 'react';
+import { useId, useState, useEffect, lazy, Suspense, type JSX } from 'react';
 import { useAnimatedNumber } from '@/lib/use-animated-number';
 import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import './DeckIdentityCard.css';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { SubScoreKey, PlanScore } from '@/deck-builder/services/deckBuilder/planScore';
+import { buildCommanderKey } from '@/lib/commander-key';
+import { getCommanderStats } from '@/lib/aggregates-client';
+import { CommanderPopularityStat } from './CommanderPopularityStat';
 import {
   summarizeValidation,
   type ValidationResult,
@@ -47,6 +50,13 @@ export interface DeckIdentityCardProps {
   revealKey?: string | null;
   validation: ValidationResult;
   planScore: PlanScore | null;
+  /**
+   * EDHREC's own sample size for this commander (its `numDecks`) — already
+   * fetched by the analysis hook for other purposes (planScore's byline);
+   * threaded here rather than re-fetched. Feeds CommanderPopularityStat.
+   * `null`/`undefined` reads as "unknown" (not "0 decks"), same as `0`.
+   */
+  edhrecNumDecks?: number | null;
   /** manaCurve memo from DeckDisplay (Record<0..7, number>). */
   manaCurve: Record<number, number>;
   /** The live-computed deck identity from deriveDeckIdentity(). null for non-commander decks. */
@@ -259,6 +269,7 @@ export function DeckIdentityCard({
   analysisPending,
   validation,
   planScore,
+  edhrecNumDecks: edhrecNumDecksProp,
   manaCurve,
   identity,
   archetypeOverride,
@@ -283,6 +294,42 @@ export function DeckIdentityCard({
     revealMs: 600,
     revealKey: revealKey ? `${revealKey}:build-health` : null,
   });
+
+  // Commander-popularity stat (social W4): SpellControl's own threshold-gated
+  // platform count, blended with EDHREC's numDecks (threaded in via the
+  // edhrecNumDecks prop — see below — rather than re-fetched here). Skipped
+  // entirely for a no-commander deck or PDH (no EDHREC data there either).
+  const commanderKey =
+    commander && format !== 'paupercommander'
+      ? buildCommanderKey(commander.oracle_id, partnerCommander?.oracle_id)
+      : null;
+  // Result keyed by the commanderKey it was resolved for — comparing keys at
+  // render time (below) derives both "loading" and "stale from a since-changed
+  // commander" for free, with no separate loading flag and no synchronous
+  // setState anywhere in the effect body (react-hooks/set-state-in-effect):
+  // the only setState call happens after the `await`, in the async continuation.
+  const [resolved, setResolved] = useState<{ key: string; ownCount: number | null } | null>(null);
+  useEffect(() => {
+    if (!commanderKey) return;
+    let cancelled = false;
+    void (async () => {
+      const stats = await getCommanderStats(commanderKey);
+      if (cancelled) return;
+      setResolved({ key: commanderKey, ownCount: stats?.deckCount ?? null });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [commanderKey]);
+  const effectiveOwnCount =
+    commanderKey && resolved?.key === commanderKey ? resolved.ownCount : null;
+  const effectiveStatsLoading = !!commanderKey && resolved?.key !== commanderKey;
+  // edhrecNumDecks is threaded from the parent (DeckDisplay → DeckAnalysisView),
+  // sourced from the SAME analysis-hook fetch that already computes planScore
+  // — never re-fetched here. Absent while analysis is pending (or never
+  // computed) reads as 0, which combined with the loading gate below never
+  // renders a premature/wrong number.
+  const edhrecNumDecks = edhrecNumDecksProp ?? 0;
 
   const togglePlaystyle = () => {
     if (!playstyleOpen && !playstyleEverOpened) {
@@ -420,6 +467,15 @@ export function DeckIdentityCard({
             </span>
           ))}
         </div>
+
+        {/* Commander popularity — new stat line (net-new, not beside an
+            existing EDHREC number: DeckIdentityCard shows none today). */}
+        <CommanderPopularityStat
+          edhrecNumDecks={edhrecNumDecks}
+          ownCount={effectiveOwnCount}
+          loading={analysisPending || effectiveStatsLoading}
+          variant="card"
+        />
 
         {/* Sparkline */}
         <CurveSparkline manaCurve={manaCurve} averageCmc={averageCmc} />

@@ -320,6 +320,10 @@ export interface DeckDisplayProps {
   deckGrade?: { letter: string; headline: string };
   /** 0-100 PlanScore (strategy/roles/curve/cardFit); kept live by the analysis hook. */
   planScore?: PlanScore;
+  /** EDHREC's own sample size for this commander (its `numDecks`); kept live
+   *  by the analysis hook alongside planScore. Feeds CommanderPopularityStat
+   *  (social W4) in DeckIdentityCard. */
+  edhrecNumDecks?: number | null;
   /** Mean EDHREC salt score across non-land cards (generated decks only). */
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
@@ -1042,6 +1046,7 @@ export function DeckDisplay({
   onSetArchetypeOverride,
   // deckGrade: removed from stat-strip (UX-315: one grading system; letter grades dropped)
   planScore,
+  edhrecNumDecks,
   averageSalt,
   saltiestCards,
   roleCounts,
@@ -1987,6 +1992,7 @@ export function DeckDisplay({
             averageSalt={averageSalt}
             saltiestCards={saltiestCards}
             planScore={planScore}
+            edhrecNumDecks={edhrecNumDecks}
             combosSlot={combosSlot}
             coachFeedSlot={coachFeedSlot}
             engineSlot={engineSlot}
@@ -3355,6 +3361,7 @@ function DeckAnalysisView({
   averageSalt,
   saltiestCards,
   planScore,
+  edhrecNumDecks,
   combosSlot,
   coachFeedSlot,
   engineSlot,
@@ -3396,6 +3403,9 @@ function DeckAnalysisView({
   averageSalt?: number;
   saltiestCards?: Array<{ name: string; salt: number }>;
   planScore?: PlanScore;
+  /** EDHREC's own sample size for this commander (its `numDecks`); feeds
+   *  CommanderPopularityStat (social W4) in DeckIdentityCard. */
+  edhrecNumDecks?: number | null;
   /** Folded-in panels from the page (own their data fetching). */
   combosSlot?: React.ReactNode;
   /** CoachFeed slot — replaces improveSlot/nextBestMoveSlot/costSlot/bracketFitSlot. */
@@ -3504,6 +3514,7 @@ function DeckAnalysisView({
               analysisPending={analysisState === 'pending'}
               validation={validation}
               planScore={planScore ?? null}
+              edhrecNumDecks={edhrecNumDecks ?? null}
               manaCurve={manaData.manaCurve}
               identity={identity}
               archetypeOverride={archetypeOverride}

@@ -139,6 +139,13 @@ export interface Deck {
    */
   planScore?: PlanScore;
   /**
+   * EDHREC's own sample size for this commander (its `numDecks`) — kept live
+   * by useCommanderBracketAnalysis alongside planScore. Powers the
+   * CommanderPopularityStat "N on SpellControl · N on EDHREC" stat (social
+   * W4) without a second, redundant EDHREC fetch. `null` = EDHREC has no data.
+   */
+  edhrecNumDecks?: number | null;
+  /**
    * Balanced cut/add optimize suggestions (the "Optimize" surface). Kept live
    * by useCommanderBracketAnalysis like roleTargets/gapAnalysis/planScore.
    */
