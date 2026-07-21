@@ -31,6 +31,7 @@ import { getPendingCount } from '../lib/sync';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { FriendsManagement } from '../components/FriendsManagement';
 import { scrollToHeading } from '../lib/scroll-to-heading';
+import { listPods, pendingPodInviteCount, type Pod } from '../lib/pods-client';
 
 // Header account-menu deep link (`/you?section=…`) → the group heading to
 // scroll/focus. Values are the header menu's own vocabulary, not the heading
@@ -87,6 +88,12 @@ export function YouPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const sectionParam = searchParams.get('section');
 
+  // Pods pending the caller's reply — feeds the "Pods" link's own badge only
+  // (no dependency on the unified activity feed's Home badge). Best-effort:
+  // a failure just leaves the badge off, same as the identities fetch below.
+  const [pods, setPods] = useState<Pod[] | null>(null);
+  const pendingPodInvites = pods ? pendingPodInviteCount(pods) : 0;
+
   // Fetch the user's linked sign-in methods once they're authed. Best-effort:
   // a failure leaves `identities` null, which hides the section (the Settings
   // page must never block on this).
@@ -98,6 +105,19 @@ export function YouPage() {
     fetchIdentities()
       .then((r) => {
         if (!cancelled) setIdentities(r);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [username]);
+
+  useEffect(() => {
+    if (!username) return;
+    let cancelled = false;
+    listPods()
+      .then((r) => {
+        if (!cancelled) setPods(r);
       })
       .catch(() => {});
     return () => {
@@ -439,9 +459,27 @@ export function YouPage() {
 
       {/* ── 1b. Friends ────────────────────────────────────────────────────── */}
       <div role="group" aria-labelledby="you-friends-group-title">
-        <h2 id="you-friends-group-title" className="settings-section-header">
-          Friends
-        </h2>
+        <div className="you-friends-header">
+          <h2 id="you-friends-group-title" className="settings-section-header">
+            Friends
+          </h2>
+          <Link
+            to="/pods"
+            className="site-nav-link"
+            aria-label={
+              pendingPodInvites > 0
+                ? `Pods, ${pendingPodInvites} pending invite${pendingPodInvites === 1 ? '' : 's'}`
+                : undefined
+            }
+          >
+            <span>Pods</span>
+            {pendingPodInvites > 0 && (
+              <span className="friends-nav-link-badge" aria-hidden="true">
+                {pendingPodInvites}
+              </span>
+            )}
+          </Link>
+        </div>
         <FriendsManagement />
       </div>
 

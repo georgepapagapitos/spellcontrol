@@ -1,0 +1,250 @@
+/* PodsIndexPage — /pods: your pods, pending invites, and the create flow.
+   Reuses .binder-hero (page title), .empty-state (empty state),
+   .friends-signin-prompt (guest gate), .friends-error(-retry) (load error),
+   and .deck-bento (the "Your pods" tile grid's responsive column count) —
+   this file only adds what none of those shared families already cover. */
+
+.pods-index-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.pods-index-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pods-index-section-title {
+  /* Joins the .deck-combos-title family (STYLE_GUIDE "Shape language" —
+     collapsible/section titles) so this reads as the same section-heading
+     family as the rest of the app, not an off-brand plain bold heading. */
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Invited list — always single-column full-width rows at every
+   breakpoint (STYLE_GUIDE Responsive: a list of pending replies, not a
+   grid). ──────────────────────────────────────────────────────────────── */
+.pods-invited-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pods-invited-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.pods-invited-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pods-invited-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.pods-invited-meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.pods-invited-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ── "Your pods" grid — .deck-bento (deck-builder-analysis.css) owns the
+   responsive column count (1-col below a 640px container width, 2-col
+   at/above); this file only styles the tile content shape. ─────────────── */
+.pods-index-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: border-color var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pods-index-card:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+.pods-index-card-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.pods-index-card-meta {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.pods-index-card-create {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font: inherit;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px dashed var(--border-strong);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pods-index-card-create:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-light);
+  }
+}
+
+/* ── Loading skeleton — same shimmer keyframe as .friends-skeleton
+   (footer-card-preview.css's shared `skeleton-shimmer`). ────────────────── */
+.pods-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pods-skeleton-bar {
+  display: block;
+  height: 3.5rem;
+  width: 100%;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised) 25%,
+    var(--border) 50%,
+    var(--surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pods-skeleton-bar {
+    animation: none;
+  }
+}
+
+/* ── Create-pod dialog — mirrors .game-night-dialog* (GameNights.css). ───── */
+.pods-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pods-dialog-title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.pods-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pods-dialog-field > span:first-child {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.pods-dialog-field input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.pods-dialog-counter {
+  align-self: flex-end;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.pods-dialog-invites {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.pods-dialog-invites legend {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  padding: 0 var(--space-1);
+}
+
+.pods-dialog-friend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.pods-dialog-friend-list label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.pods-dialog-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.pods-form-error {
+  margin: 0;
+  color: var(--err-text);
+  font-size: var(--text-sm);
+}
+
+.pods-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
