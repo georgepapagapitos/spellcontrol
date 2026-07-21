@@ -140,6 +140,33 @@ describe('DecksIndexPage — empty state three doors (UX-317)', () => {
   });
 });
 
+describe('DecksIndexPage — seeded search (?query=, from the Home hero)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockDecks = [];
+    mockDeleteAllDecks.mockClear();
+  });
+  afterEach(() => localStorage.clear());
+
+  it('seeds the search box from ?query= on mount', () => {
+    mockDecks = [makeDeck('a', 'Atraxa Superfriends'), makeDeck('b', 'Other Deck')];
+    render(
+      <MemoryRouter initialEntries={['/decks?query=Atraxa']}>
+        <DecksIndexPage />
+      </MemoryRouter>
+    );
+    const input = screen.getByRole('textbox', { name: 'Search decks' }) as HTMLInputElement;
+    expect(input.value).toBe('Atraxa');
+  });
+
+  it('defaults to an empty search with no ?query= param', () => {
+    mockDecks = [makeDeck('a', 'Atraxa Superfriends')];
+    renderEmpty();
+    const input = screen.getByRole('textbox', { name: 'Search decks' }) as HTMLInputElement;
+    expect(input.value).toBe('');
+  });
+});
+
 describe('DecksIndexPage — "Delete all decks" danger link (mirrors Binders)', () => {
   beforeEach(() => {
     localStorage.clear();

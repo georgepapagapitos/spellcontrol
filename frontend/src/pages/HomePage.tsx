@@ -1,5 +1,5 @@
 import './HomePage.css';
-import { QuickActionsRow } from '../components/home/QuickActionsRow';
+import { HomeHero } from '../components/home/HomeHero';
 import { ActivityStripCard } from '../components/home/ActivityStripCard';
 import { NewFromFriendsCard } from '../components/home/NewFromFriendsCard';
 import { DiscoverCard } from '../components/home/DiscoverCard';
@@ -11,17 +11,19 @@ import { BinderReviewCard } from '../components/home/BinderReviewCard';
 
 /**
  * The /home dashboard (social program W3). Reachable by direct URL only for
- * now — not yet the default landing (that flip is w3-nav-activation). Quick
- * Actions render immediately; the bento grid holds the three social cards
- * (activity/friends/discover) plus the five signal cards (decks/game
- * nights/value/arrivals/binder review) — each card reads state the app
- * already computes elsewhere, never a re-capture.
+ * now — not yet the default landing (that flip is w3-nav-activation). The
+ * hero band (HomeHero — pass 2b, "your collection is the hero") replaces the
+ * old plain `<h1>` + Quick Actions with collection art, the greeting/value,
+ * a scoped deck search, and Quick Actions along its bottom edge; the bento
+ * grid below holds the three social cards (activity/friends/discover) plus
+ * the five signal cards (decks/game nights/value/arrivals/binder review) —
+ * each card reads state the app already computes elsewhere, never a
+ * re-capture.
  */
 export function HomePage() {
   return (
     <div className="home-page">
-      <h1 className="binder-hero-name">Home</h1>
-      <QuickActionsRow />
+      <HomeHero />
       <div className="deck-bento home-bento">
         <ActivityStripCard />
         <NewFromFriendsCard />

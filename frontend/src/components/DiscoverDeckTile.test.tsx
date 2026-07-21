@@ -31,6 +31,8 @@ function makeDeck(overrides: Partial<DiscoverDeck> = {}): DiscoverDeck {
     slug: 'atraxa-superfriends-ab12',
     name: 'Atraxa Superfriends',
     ownerUsername: 'alice',
+    ownerDisplayName: null,
+    ownerAvatarUrl: null,
     format: 'commander',
     commanderName: "Atraxa, Praetors' Voice",
     colorIdentity: ['W', 'U', 'B', 'G'],
@@ -162,6 +164,26 @@ describe('DiscoverDeckTile — grid art banner', () => {
     expect(openPill).toBeTruthy();
     expect(openPill?.getAttribute('aria-hidden')).toBe('true');
     expect(openPill?.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('prefers ownerDisplayName over the bare username once set', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    renderTile({ ownerUsername: 'alice', ownerDisplayName: 'Alice Cooper' });
+    expect(screen.getByRole('link', { name: 'By Alice Cooper' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'By alice' })).toBeNull();
+  });
+
+  it('renders the real avatar image once ownerAvatarUrl is set (no longer a hardcoded null fallback)', () => {
+    useCardThumbMock.mockReturnValue(undefined);
+    const { container } = renderTile({
+      ownerUsername: 'alice',
+      ownerAvatarUrl: 'https://cards.scryfall.io/art_crop/x.jpg',
+    });
+    const img = container.querySelector(
+      '.discover-tile-owner .user-avatar-img'
+    ) as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('https://cards.scryfall.io/art_crop/x.jpg');
   });
 });
 

@@ -133,6 +133,16 @@ async function stampBookmarkTime(userId: string, slug: string, createdAt: number
   ]);
 }
 
+/** Direct-SQL stamp for the owner's avatar — PATCH /api/auth/profile
+ *  validates avatar.imageUrl as a genuine cards.scryfall.io URL, which is
+ *  more than this listing test needs to prove the JOIN/column wiring. */
+async function stampAvatar(userId: string, avatarImageUrl: string): Promise<void> {
+  await pool.query(`UPDATE users SET avatar_image_url = $2 WHERE id = $1`, [
+    userId,
+    avatarImageUrl,
+  ]);
+}
+
 function scryfallCard(id: string, oracleId: string, usd: string): ScryfallCard {
   return {
     id,
@@ -151,6 +161,8 @@ interface DecksResponseBody {
     slug: string;
     name: string;
     ownerUsername: string;
+    ownerDisplayName: string | null;
+    ownerAvatarUrl: string | null;
     format: string;
     commanderName: string | null;
     colorIdentity: string[];
@@ -452,6 +464,58 @@ describe('GET /api/discover/decks', () => {
     expect(aEntry.cardOracleIds).toEqual([aCmdrOracle]);
     expect(bEntry.estimatedValueUsd).toBe(9);
     expect(bEntry.cardOracleIds).toEqual([bCmdrOracle]);
+  });
+
+  it('carries the owner display name (JOIN users) and null avatar when unset', async () => {
+    const cmdr = uid('Disco Owner Fields Cmdr');
+    const deck = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+
+    const res = await request(app).get('/api/discover/decks').query({ commander: cmdr });
+    expect(res.status).toBe(200);
+    const entry = res.body.decks.find((d: { slug: string }) => d.slug === deck.slug)!;
+    // publishDeck() always sets a display name (publish requires one).
+    expect(entry.ownerDisplayName).toEqual(expect.stringContaining('Disco Display Name'));
+    expect(entry.ownerAvatarUrl).toBeNull();
+  });
+
+  it('carries the owner avatar image once set, with no cross-user bleed between two decks', async () => {
+    const cmdr = uid('Disco Owner Avatar Cmdr');
+    const withAvatar = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+    const withoutAvatar = await publishDeck({
+      commander: { id: uid('c'), oracle_id: uid('o'), name: cmdr, color_identity: ['U'] },
+    });
+    const avatarUserId = await userIdFromCookie(withAvatar.cookie);
+    await stampAvatar(avatarUserId, 'https://cards.scryfall.io/art_crop/front/x.jpg');
+
+    const res = await request(app).get('/api/discover/decks').query({ commander: cmdr });
+    expect(res.status).toBe(200);
+    const withAvatarEntry = res.body.decks.find(
+      (d: { slug: string }) => d.slug === withAvatar.slug
+    )!;
+    const withoutAvatarEntry = res.body.decks.find(
+      (d: { slug: string }) => d.slug === withoutAvatar.slug
+    )!;
+    expect(withAvatarEntry.ownerAvatarUrl).toBe('https://cards.scryfall.io/art_crop/front/x.jpg');
+    expect(withoutAvatarEntry.ownerAvatarUrl).toBeNull();
+  });
+
+  it('also carries owner fields on GET /api/discover/bookmarks (same LISTING_COLUMNS)', async () => {
+    const saverCookie = await makeUser(uid('disc-owner-fields-saver'));
+    const deck = await publishDeck();
+    const ownerId = await userIdFromCookie(deck.cookie);
+    await stampAvatar(ownerId, 'https://cards.scryfall.io/art_crop/front/y.jpg');
+    await request(app).post(`/api/discover/decks/${deck.slug}/bookmark`).set('Cookie', saverCookie);
+
+    const res = await request(app).get('/api/discover/bookmarks').set('Cookie', saverCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.decks[0].ownerAvatarUrl).toBe('https://cards.scryfall.io/art_crop/front/y.jpg');
+    expect(res.body.decks[0].ownerDisplayName).toEqual(
+      expect.stringContaining('Disco Display Name')
+    );
   });
 });
 

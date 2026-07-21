@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 // Stub AddCardsSheet so opening it doesn't mount the full modal stack
 // (CardScanner, UploadPanel, etc.) — mirrors CollectionPage.test.tsx.
@@ -20,9 +20,19 @@ vi.mock('../components/AddCardsSheet', () => ({
 vi.mock('../lib/use-activity', () => ({
   useActivity: () => ({ count: 0, actionRequired: [], recent: [], loading: false }),
 }));
-vi.mock('../store/auth', () => ({
-  useAuth: (selector: (s: { status: string }) => unknown) => selector({ status: 'authed' }),
+
+// Controllable per-test — mutated directly (not via mockReturnValue) since
+// useAuth's real shape is a selector-hook, not a plain mock return. Reset to
+// the authed default in beforeEach so no test leaks state into the next.
+const mockAuthState = vi.hoisted(() => ({
+  status: 'authed' as 'authed' | 'guest',
+  user: { id: 'u1', username: 'georgep', role: 'user' as const },
+  profile: null as { displayName: string | null } | null,
 }));
+vi.mock('../store/auth', () => ({
+  useAuth: (selector: (s: typeof mockAuthState) => unknown) => selector(mockAuthState),
+}));
+
 vi.mock('../lib/friends-client', () => ({
   getFriendsActivity: () => Promise.resolve([]),
 }));
@@ -41,6 +51,19 @@ vi.mock('../lib/value-history', async (importOriginal) => {
   };
 });
 
+// The hero's own pure picks — mocked so a branch (art vs fallback) is a
+// deterministic setup, not dependent on this file's real (empty) collection/
+// decks stores, and so the time-of-day greeting can't make an assertion
+// flaky depending on when the suite happens to run.
+const mockPickHeroCardName = vi.hoisted(() => vi.fn(() => null as string | null));
+vi.mock('../lib/home-hero', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/home-hero')>();
+  return { ...actual, pickHeroCardName: mockPickHeroCardName, heroGreeting: () => 'Good morning' };
+});
+
+const mockUseCardThumb = vi.hoisted(() => vi.fn(() => undefined as string | undefined));
+vi.mock('../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
+
 import { HomePage } from './HomePage';
 
 function renderPage() {
@@ -51,10 +74,18 @@ function renderPage() {
   );
 }
 
+beforeEach(() => {
+  mockAuthState.status = 'authed';
+  mockAuthState.user = { id: 'u1', username: 'georgep', role: 'user' };
+  mockAuthState.profile = null;
+  mockPickHeroCardName.mockReturnValue(null);
+  mockUseCardThumb.mockReturnValue(undefined);
+});
+
 describe('HomePage', () => {
-  it('renders the heading and all eight bento cards', () => {
+  it('renders the hero greeting and all eight bento cards', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'Good morning, georgep' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Activity' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'New from friends' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: 'Discover' })).toBeTruthy();
@@ -86,5 +117,39 @@ describe('HomePage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Import cards/i }));
     fireEvent.click(screen.getByText('Close'));
     expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
+  });
+
+  describe('hero background', () => {
+    it('shows the brand fallback (no art) for a brand-new empty collection', () => {
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-fallback')).toBeTruthy();
+      expect(container.querySelector('.home-hero-art')).toBeNull();
+      expect(container.querySelector('.home-hero-caption')).toBeNull();
+    });
+
+    it('shows collection art + the "from your collection" caption once a hero card resolves', () => {
+      mockPickHeroCardName.mockReturnValue('Sol Ring');
+      mockUseCardThumb.mockReturnValue('sol-ring.png');
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-fallback')).toBeNull();
+      const img = container.querySelector('.home-hero-art') as HTMLImageElement | null;
+      expect(img?.getAttribute('src')).toBe('sol-ring.png');
+      expect(img?.getAttribute('alt')).toBe('');
+      expect(screen.getByText('Sol Ring — from your collection')).toBeTruthy();
+    });
+
+    it('never shows personal art for a guest, even if a hero card would otherwise resolve', () => {
+      mockAuthState.status = 'guest';
+      mockPickHeroCardName.mockReturnValue('Sol Ring');
+      mockUseCardThumb.mockReturnValue('sol-ring.png');
+      const { container } = renderPage();
+      expect(container.querySelector('.home-hero-fallback')).toBeTruthy();
+      expect(container.querySelector('.home-hero-art')).toBeNull();
+      // No personal greeting/value either — same layout, generic content.
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Plan your Magic: The Gathering collection' })
+      ).toBeTruthy();
+      expect(screen.queryByText(/Good morning/)).toBeNull();
+    });
   });
 });

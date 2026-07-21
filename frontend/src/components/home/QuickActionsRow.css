@@ -11,3 +11,14 @@
     min-height: 2.75rem; /* 44px touch floor */
   }
 }
+
+/* Density directive: icon-only at ≤600px (each action keeps its aria-label,
+   set in QuickActionsRow.tsx, as the accessible name once the text hides). */
+@media (max-width: 600px) {
+  .home-quick-action span {
+    display: none;
+  }
+  .home-quick-action {
+    padding-inline: 0.6rem;
+  }
+}

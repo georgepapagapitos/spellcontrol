@@ -22,6 +22,11 @@ export interface PublicationListingRow {
   slug: string;
   name: string;
   ownerUsername: string;
+  /** Owner's editable public-profile fields (users.display_name/
+   *  avatar_image_url) — null when unset, same contract as PublicProfile's
+   *  own displayName/avatarImageUrl. */
+  ownerDisplayName: string | null;
+  ownerAvatarUrl: string | null;
   format: string;
   commanderName: string | null;
   colorIdentity: string[];
@@ -36,6 +41,8 @@ export interface DiscoverDeckSummary {
   slug: string;
   name: string;
   ownerUsername: string;
+  ownerDisplayName: string | null;
+  ownerAvatarUrl: string | null;
   format: string;
   commanderName: string | null;
   colorIdentity: string[];
@@ -176,6 +183,8 @@ export async function hydratePublicationRows(
       slug: row.slug,
       name: row.name,
       ownerUsername: row.ownerUsername,
+      ownerDisplayName: row.ownerDisplayName,
+      ownerAvatarUrl: row.ownerAvatarUrl,
       format: row.format,
       commanderName: row.commanderName,
       colorIdentity: row.colorIdentity,
