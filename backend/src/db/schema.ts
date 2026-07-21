@@ -593,6 +593,14 @@ export const deckPublications = pgTable(
     pk: primaryKey({ columns: [t.userId, t.deckId] }),
     slugIdx: uniqueIndex('deck_publications_slug_idx').on(t.slug),
     publicIdx: index('deck_publications_public_idx').on(t.updatedAt),
+    // Discover listing/sort/typeahead (w2-discover-listing-api). The partial
+    // WHERE + text_pattern_ops opclass on the commander index live only in
+    // the raw DDL below (db/index.ts) — mirrors this table's own publicIdx
+    // convention of a plain column index here.
+    publishedIdx: index('deck_publications_published_idx').on(t.publishedAt),
+    copyCountIdx: index('deck_publications_copy_count_idx').on(t.copyCount),
+    viewCountIdx: index('deck_publications_view_count_idx').on(t.viewCount),
+    commanderPrefixIdx: index('deck_publications_commander_prefix_idx').on(t.commanderName),
   })
 );
 

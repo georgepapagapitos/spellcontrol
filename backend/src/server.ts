@@ -34,6 +34,7 @@ import {
   lookupPublicUserLandingMeta,
 } from './routes/public';
 import { reportsRouter } from './routes/reports';
+import { discoverRouter } from './routes/discover';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
 import {
@@ -164,6 +165,7 @@ app.use('/api/game-nights', gameNightsRouter);
 app.use('/api/publications', publicationsRouter);
 app.use('/api/public', publicRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/discover', discoverRouter);
 
 /**
  * One-time backfill: resolve printing IDs (scryfallId) → oracle IDs from the

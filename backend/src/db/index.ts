@@ -436,6 +436,20 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS deck_publications_public_idx
       ON deck_publications(updated_at DESC) WHERE unpublished_at IS NULL;
 
+    -- Discover listing/sort/typeahead (w2-discover-listing-api). published_at
+    -- is distinct from the public_idx above (updated_at) -- published_at is
+    -- frozen at first publish, updated_at bumps on every synced edit.
+    CREATE INDEX IF NOT EXISTS deck_publications_published_idx
+      ON deck_publications (published_at DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX IF NOT EXISTS deck_publications_copy_count_idx
+      ON deck_publications (copy_count DESC) WHERE unpublished_at IS NULL;
+    CREATE INDEX IF NOT EXISTS deck_publications_view_count_idx
+      ON deck_publications (view_count DESC) WHERE unpublished_at IS NULL;
+    -- Commander typeahead. text_pattern_ops makes a lower(commander_name)
+    -- LIKE prefix scan index-eligible regardless of locale.
+    CREATE INDEX IF NOT EXISTS deck_publications_commander_prefix_idx
+      ON deck_publications (lower(commander_name) text_pattern_ops) WHERE unpublished_at IS NULL;
+
     -- Content reports (social program W1) — the app's first moderation
     -- surface. kind covers 'game-result' from day one (app-level validation
     -- only, no CHECK) so a later wave reuses this table instead of a second
