@@ -129,8 +129,10 @@ select {
 
 .site-header {
   flex: 0 0 auto;
-  background: var(--surface);
-  border-bottom: 0.5px solid var(--border);
+  /* Leather chrome (T53 Phase 2): the header is the binder's cover, not a
+     page surface — --chrome-* tokens, never --surface/--bg here. */
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
   padding: 0 var(--space-4);
   position: sticky;
   top: 0;
@@ -153,13 +155,14 @@ select {
   font-size: var(--text-md);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--accent);
+  color: var(--chrome-text);
   text-decoration: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .site-brand:hover {
-    color: var(--accent-hover);
+    /* Brass on leather — the brand's own metallic, theme-invariant. */
+    color: var(--brand-seal-gold);
   }
 }
 

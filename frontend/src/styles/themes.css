@@ -229,6 +229,17 @@
   /* Pebbled-leather grain — pale flecks on the dark grounds. */
   --grain: rgba(255, 244, 224, 0.04);
 
+  /* Leather chrome re-derived from the guild's own ground so it keeps hue
+     identity (Dimir navy-black, Rakdos blood-black) instead of the light
+     schemes' pinned warm leather. Text/muted reuse the theme's own text
+     tokens: --chrome-bg is strictly darker than --bg, so their ≥4.5:1
+     floors (themes-contrast.test.ts) hold by construction. */
+  --chrome-bg: color-mix(in srgb, var(--bg) 72%, black);
+  --chrome-surface: var(--surface);
+  --chrome-text: var(--text-primary);
+  --chrome-text-muted: var(--text-muted);
+  --chrome-border: var(--border);
+
   /* Invert black-on-dark SVGs (e.g. set icons) so they read as light glyphs. */
   --svg-invert: 1;
 
