@@ -344,6 +344,19 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 }
 
+/* Tape on DARK grounds (the leather header; the active tab's accent fill,
+   which appears in both header and hub) sinks into the ground — the tape
+   value (#1e1c18) nearly matches the leather (#211d18), so only the pale
+   digits float. Tape stays tape; the chip gains a pale keyline so its
+   silhouette reads on any dark/dye ground. Paper-hub resting tape keeps
+   the plain dark-on-paper look (already high contrast). */
+.site-header .site-nav-count,
+.site-nav-link.active .site-nav-count {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 8%),
+    0 0 0 1px rgb(255 255 255 / 25%);
+}
+
 @media (hover: hover) and (pointer: fine) {
   .site-nav-link:hover {
     background: var(--surface-raised);
