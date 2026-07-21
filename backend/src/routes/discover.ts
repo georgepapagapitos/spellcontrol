@@ -97,6 +97,8 @@ interface PublicationSqlRow {
   slug: string;
   deck_name: string;
   owner_username: string;
+  owner_display_name: string | null;
+  owner_avatar_url: string | null;
   format: string;
   commander_name: string | null;
   commander_image_normal: string | null;
@@ -116,6 +118,8 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
     slug: row.slug,
     name: row.deck_name,
     ownerUsername: row.owner_username,
+    ownerDisplayName: row.owner_display_name,
+    ownerAvatarUrl: row.owner_avatar_url,
     format: row.format,
     commanderName: row.commander_name,
     colorIdentity: row.color_identity,
@@ -131,6 +135,7 @@ function toListingRow(row: PublicationSqlRow): PublicationListingRow {
 // blocking fix, by construction: there is only one place a listing row's
 // column set is ever defined, so a bookmarks read can never drift narrower.
 const LISTING_COLUMNS = `dp.user_id, dp.deck_id, dp.slug, dp.deck_name, u.username AS owner_username,
+       u.display_name AS owner_display_name, u.avatar_image_url AS owner_avatar_url,
        dp.format, dp.commander_name, dp.commander_image_normal, dp.color_identity,
        dp.bracket, dp.card_count, dp.view_count, dp.copy_count, dp.like_count, dp.published_at`;
 

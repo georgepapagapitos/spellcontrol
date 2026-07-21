@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Dices, RotateCcw } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   BudgetOption,
   CollectionStrategy,
@@ -9,11 +9,15 @@ import type {
   Pacing,
 } from '@/deck-builder/types';
 import { autocompleteCardName } from '@/deck-builder/services/scryfall/client';
+import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { currencySymbol } from '@/lib/currency';
+import { buildAvailableCollection } from '../../lib/collection-availability';
 import { SearchPill } from '../SearchPill';
 import { useSearchCards } from '../../lib/use-search-cards';
 import { useDeckBuilderStore } from '@/deck-builder/store';
 import { useCollectionStore } from '../../store/collection';
+import { useCubeStore } from '../../store/cube';
+import { useDecksStore } from '../../store/decks';
 
 type Update = (patch: Partial<Customization>) => void;
 
@@ -25,6 +29,41 @@ interface DeckCustomizerProps {
 export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
   const suggestion = useDeckBuilderStore((s) => s.edhrecLandSuggestion);
   const setUserEditedLands = useDeckBuilderStore((s) => s.setUserEditedLands);
+
+  // When collection mode constrains the build to owned cards, the must-include
+  // picker searches that same pool instead of all of Scryfall — a pick outside
+  // the pool would only be skipped at generation time anyway.
+  const poolConstrained =
+    customization.collectionMode && constrainsToCollection(customization.collectionStrategy);
+  const collectionCardsForPool = useCollectionStore((s) => s.cards);
+  const decksForPool = useDecksStore((s) => s.decks);
+  const savedCubesForPool = useCubeStore((s) => s.saved);
+  const poolFetcher = useMemo(() => {
+    if (!poolConstrained) return undefined;
+    const names =
+      customization.collectionStrategy === 'available'
+        ? [
+            ...buildAvailableCollection(collectionCardsForPool, decksForPool, savedCubesForPool)
+              .names,
+          ]
+        : [...new Set(collectionCardsForPool.map((c) => c.name))];
+    return (q: string) => {
+      const needle = q.toLowerCase();
+      const hits = names.filter((n) => n.toLowerCase().includes(needle));
+      hits.sort((a, b) => {
+        const ap = a.toLowerCase().startsWith(needle) ? 0 : 1;
+        const bp = b.toLowerCase().startsWith(needle) ? 0 : 1;
+        return ap - bp || a.localeCompare(b);
+      });
+      return Promise.resolve(hits);
+    };
+  }, [
+    poolConstrained,
+    customization.collectionStrategy,
+    collectionCardsForPool,
+    decksForPool,
+    savedCubesForPool,
+  ]);
 
   const handleResetLands = () => {
     if (!suggestion) return;
@@ -141,9 +180,18 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
           count={customization.mustIncludeCards.length}
         >
           <CardListGroup
-            hint="These cards are forced into the deck before EDHREC suggestions are considered."
+            hint={
+              poolFetcher
+                ? `These cards are forced into the deck before EDHREC suggestions are considered. While "Build from my collection" is on, search is limited to ${
+                    customization.collectionStrategy === 'available'
+                      ? 'free copies in your collection'
+                      : 'cards you own'
+                  }.`
+                : 'These cards are forced into the deck before EDHREC suggestions are considered.'
+            }
             values={customization.mustIncludeCards}
             onChange={(next) => update({ mustIncludeCards: next })}
+            fetcher={poolFetcher}
           />
         </CollapsibleGroup>
         <CollapsibleGroup
@@ -863,15 +911,18 @@ function CardListGroup({
   hint,
   values,
   onChange,
+  fetcher,
 }: {
   hint: string;
   values: string[];
   onChange: (next: string[]) => void;
+  fetcher?: (query: string) => Promise<string[]>;
 }) {
   return (
     <>
       <p className="deck-customizer-hint">{hint}</p>
       <CardNameAutocomplete
+        fetcher={fetcher}
         onPick={(name) => {
           if (values.includes(name)) return;
           onChange([...values, name]);
@@ -900,12 +951,18 @@ function CardListGroup({
   );
 }
 
-function CardNameAutocomplete({ onPick }: { onPick: (name: string) => void }) {
+function CardNameAutocomplete({
+  onPick,
+  fetcher = autocompleteCardName,
+}: {
+  onPick: (name: string) => void;
+  fetcher?: (query: string) => Promise<string[]>;
+}) {
   const [input, setInput] = useState('');
   // Card-name autocomplete returns plain name strings, not full cards — the
   // shared search hook drives the debounce/loading/cancellation via a custom fetcher.
   const { results: suggestions, loading } = useSearchCards<string>(input, {
-    fetcher: autocompleteCardName,
+    fetcher,
     debounceMs: 200,
     limit: 8,
   });

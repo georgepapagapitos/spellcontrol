@@ -15,6 +15,9 @@ export interface DiscoverDeck {
   slug: string;
   name: string;
   ownerUsername: string;
+  /** Owner's public-profile display name/avatar — null when unset. */
+  ownerDisplayName: string | null;
+  ownerAvatarUrl: string | null;
   format: string;
   commanderName: string | null;
   colorIdentity: string[];

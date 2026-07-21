@@ -106,7 +106,10 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
   const thumb = useCardThumb(deck.commanderName ?? undefined, 'normal');
   const social = socialLine(deck);
   const isGrid = view === 'grid';
-  const ownerName = formatIdentity({ username: deck.ownerUsername }).primary;
+  const ownerName = formatIdentity({
+    username: deck.ownerUsername,
+    displayName: deck.ownerDisplayName,
+  }).primary;
 
   return (
     <li className="decks-index-card discover-tile">
@@ -200,7 +203,7 @@ export function DiscoverDeckTile({ deck, view, buildablePercent = null, onUnsave
           className="discover-tile-owner"
           aria-label={`By ${ownerName}`}
         >
-          <UserAvatar imageUrl={null} name={ownerName} size={20} />
+          <UserAvatar imageUrl={deck.ownerAvatarUrl} name={ownerName} size={20} />
           <span>{ownerName}</span>
         </Link>
       ) : (

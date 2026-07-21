@@ -49,6 +49,21 @@ describe('useDeckBuilderStore — commander selection', () => {
     expect(store().commander).toBeNull();
     expect(store().colorIdentity).toEqual([]);
   });
+
+  it('setCommander clears must-include cards (commander-scoped intent)', () => {
+    store().setCommander(card({ color_identity: ['G'] }));
+    store().updateCustomization({
+      mustIncludeCards: ['Sol Ring'],
+      tempMustIncludeCards: ['Ashnod, Flesh Mechanist'],
+      bannedCards: ['Armageddon'],
+    });
+    store().setCommander(card({ color_identity: ['U'] }));
+    const c = store().customization;
+    expect(c.mustIncludeCards).toEqual([]);
+    expect(c.tempMustIncludeCards).toEqual([]);
+    // Excluded cards are commander-agnostic preferences and survive.
+    expect(c.bannedCards).toEqual(['Armageddon']);
+  });
 });
 
 describe('useDeckBuilderStore — theme state', () => {
@@ -165,6 +180,17 @@ describe('useDeckBuilderStore — loading / error / reset', () => {
     expect(s.error).toBeNull();
     // Customization survives a reset.
     expect(s.customization.landCount).toBe(41);
+  });
+
+  it('reset clears must-include cards so a past build cannot leak into a fresh page', () => {
+    store().setCommander(card({ color_identity: ['R'] }));
+    store().updateCustomization({
+      mustIncludeCards: ['Lightning Bolt'],
+      tempMustIncludeCards: ['Sol Ring'],
+    });
+    store().reset();
+    expect(store().customization.mustIncludeCards).toEqual([]);
+    expect(store().customization.tempMustIncludeCards).toEqual([]);
   });
 });
 

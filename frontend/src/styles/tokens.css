@@ -99,6 +99,14 @@
   /* On-art overlay scrim — theme-invariant (sits on card images, not UI). */
   --art-scrim: rgba(0, 0, 0, 0.75);
   --art-scrim-text: #fff;
+  /* On-art directional accents (money-delta up/down over the scrim) — the
+     theme's own --success/--err-text are unusable here: their light-theme
+     override is tuned for PALE surfaces (see the comment above those two
+     tokens), so on the always-dark scrim they'd read as muddy in light
+     mode. These are the same fixed dark-surface-tuned hues as the :root
+     --success/--err-text values, just given their own scrim-scoped names. */
+  --art-scrim-success: #5cc488;
+  --art-scrim-err: #f0a8a8;
   --overlay-sheet: rgba(0, 0, 0, 0.4);
   --pip-border: rgba(255, 255, 255, 0.15);
 

@@ -8,11 +8,13 @@ import {
   computeValueDelta,
   dayKey,
   formatDayKey,
+  formatValueDeltaChip,
   getLatestMovers,
   getValueHistory,
   recordDailyMovers,
   recordValueSnapshot,
   type CardMover,
+  type ValueDelta,
   type ValuePoint,
 } from './value-history';
 
@@ -240,6 +242,65 @@ describe('computeValueDelta', () => {
       baselineDay: dayKey(atDay(0)),
       latestDay: dayKey(atDay(30)),
       spanDays: 30,
+    });
+  });
+});
+
+describe('formatValueDeltaChip', () => {
+  it('returns empty text and a flat direction for a null delta', () => {
+    expect(formatValueDeltaChip(null, dayKey(atDay(0)))).toEqual({ text: '', direction: 'flat' });
+  });
+
+  it('says "this week" for a current, short-span positive delta', () => {
+    const delta: ValueDelta = {
+      amount: 30,
+      baselineDay: dayKey(atDay(0)),
+      latestDay: dayKey(atDay(7)),
+      spanDays: 7,
+    };
+    expect(formatValueDeltaChip(delta, dayKey(atDay(7)))).toEqual({
+      text: '+$30 this week',
+      direction: 'up',
+    });
+  });
+
+  it('names the baseline date instead of "this week" once the latest point is stale', () => {
+    const delta: ValueDelta = {
+      amount: -12,
+      baselineDay: dayKey(atDay(0)),
+      latestDay: dayKey(atDay(7)),
+      spanDays: 7,
+    };
+    // "today" is 5 days after the latest point — past the freshness window.
+    expect(formatValueDeltaChip(delta, dayKey(atDay(12)))).toEqual({
+      text: `−$12 since ${formatDayKey(dayKey(atDay(0)))}`,
+      direction: 'down',
+    });
+  });
+
+  it('names the baseline date once the span is longer than about a week, even if current', () => {
+    const delta: ValueDelta = {
+      amount: 60,
+      baselineDay: dayKey(atDay(0)),
+      latestDay: dayKey(atDay(30)),
+      spanDays: 30,
+    };
+    expect(formatValueDeltaChip(delta, dayKey(atDay(30)))).toEqual({
+      text: `+$60 since ${formatDayKey(dayKey(atDay(0)))}`,
+      direction: 'up',
+    });
+  });
+
+  it('reads a zero delta as "Steady", never "+$0"', () => {
+    const delta: ValueDelta = {
+      amount: 0,
+      baselineDay: dayKey(atDay(0)),
+      latestDay: dayKey(atDay(7)),
+      spanDays: 7,
+    };
+    expect(formatValueDeltaChip(delta, dayKey(atDay(7)))).toEqual({
+      text: 'Steady this week',
+      direction: 'flat',
     });
   });
 });
