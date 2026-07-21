@@ -10,6 +10,7 @@ import {
   type DiscoverTileView,
 } from '../components/DiscoverDeckTile';
 import { DiscoverFiltersPopover } from '../components/DiscoverFiltersPopover';
+import { TrendingRail } from '../components/aggregates/TrendingRail';
 import { CommanderTypeahead } from '../components/CommanderTypeahead';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -226,6 +227,8 @@ export function DiscoverDecksPage() {
           <h1 className="binder-hero-name">Discover</h1>
           <p className="binder-hero-meta">Public decks from the SpellControl community.</p>
         </header>
+
+        <TrendingRail enabled={true} />
 
         <div className="discover-toolbar">
           <CommanderTypeahead

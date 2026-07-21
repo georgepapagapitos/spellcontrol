@@ -1,0 +1,81 @@
+/* TrendingRail (social program W4, w4-trending) -- mounted above Discover's
+   browse grid. Reuses .deck-bento (deck-builder-analysis.css) for the
+   two-subsection responsive stack and .commander-result-grid /
+   .commander-result-card (deck-builder-commander.css) for the tiles
+   themselves; this file only adds what neither shared family already
+   covers: rail-level spacing, the anchor reset the borrowed card class
+   never needed as a `<button>`, the deck-count chip, and the loading
+   skeleton's box shape. */
+
+.trending-rail {
+  margin-bottom: var(--space-5);
+}
+
+.trending-rail-grid {
+  gap: clamp(var(--space-4), 2.5cqi, var(--space-5));
+}
+
+.trending-rail-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.trending-rail-section-title {
+  margin: 0;
+}
+
+/* .commander-result-card was written for a <button> (no underline/link-color
+   concern); reusing it on a <Link> needs the anchor reset this app has no
+   global default for (see DiscoverDeckTile's own .decks-index-card-link). */
+.trending-rail .commander-result-card {
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+/* Plain fact chip (platform deck count) -- same pill shape as ReadinessChip's
+   accent variant, but neutral: this isn't a readiness/success signal. */
+.trending-deck-count {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .trending-rail-retry-btn {
+    min-height: 44px;
+  }
+}
+
+/* Loading tile -- matches .commander-result-card's box (art band + body
+   lines) so the grid doesn't jump when real tiles swap in. */
+.trending-tile-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.trending-tile-skeleton-art {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 3.6rem;
+  border-radius: var(--radius);
+}
+
+.trending-tile-skeleton-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
