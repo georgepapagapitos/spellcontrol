@@ -179,21 +179,28 @@ export function getSafeViewport(): SafeViewport {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Sticky site header (desktop only; display:none on mobile → height 0).
-  const headerEl = document.querySelector<HTMLElement>('.site-header');
-  const headerBottom = headerEl ? headerEl.getBoundingClientRect().bottom : 0;
-  const safeTop = Math.max(0, headerBottom);
-
-  // Mobile bottom tab bar (display:none on desktop → height 0).
-  const tabBarEl = document.querySelector<HTMLElement>('.mobile-tab-bar');
-  const tabBarHeight = tabBarEl ? tabBarEl.getBoundingClientRect().height : 0;
-
   // On-screen keyboard inset (maintained by lib/keyboard.ts) + notch
-  // safe-area insets (tokens.css resolves env() into --safe-left/right).
+  // safe-area insets (tokens.css resolves env() into --safe-left/right/top).
   const rootStyle = getComputedStyle(document.documentElement);
   const kbInset = parseFloat(rootStyle.getPropertyValue('--keyboard-inset')) || 0;
   const notchLeft = parseFloat(rootStyle.getPropertyValue('--safe-left')) || 0;
   const notchRight = parseFloat(rootStyle.getPropertyValue('--safe-right')) || 0;
+
+  // Sticky site header (desktop only; display:none on mobile → height 0) —
+  // also clamp to the notch inset (--safe-top): a landscape notch persists
+  // even where the sticky header collapses (≤1024px), so the header rect
+  // alone isn't a safe floor for top.
+  const headerEl = document.querySelector<HTMLElement>('.site-header');
+  const headerBottom = headerEl ? headerEl.getBoundingClientRect().bottom : 0;
+  const safeTop = Math.max(
+    0,
+    headerBottom,
+    parseFloat(rootStyle.getPropertyValue('--safe-top')) || 0
+  );
+
+  // Mobile bottom tab bar (display:none on desktop → height 0).
+  const tabBarEl = document.querySelector<HTMLElement>('.mobile-tab-bar');
+  const tabBarHeight = tabBarEl ? tabBarEl.getBoundingClientRect().height : 0;
 
   const safeBottom = vh - tabBarHeight - kbInset;
 

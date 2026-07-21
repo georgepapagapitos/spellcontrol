@@ -44,7 +44,7 @@
   flex: 1;
   min-width: 0;
   /* Stay at 16px+ to avoid iOS Safari auto-zooming on focus. */
-  font-size: var(--text-base);
+  font-size: var(--text-input);
   color: var(--text-primary);
 }
 

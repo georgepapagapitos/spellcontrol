@@ -122,6 +122,18 @@
   flex: 1;
 }
 
+/* This control is a react-router <Link> (renders as <a>, default
+   display:inline) — .btn has no display override anywhere in the app, so
+   min-height alone would be a no-op here; force inline-flex the same way
+   .btn-link does (forms-banners.css) so the 44px floor actually applies. */
+@media (pointer: coarse) {
+  .guest-action-popover-signin {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 .guest-action-popover-close {
   display: inline-flex;
   align-items: center;
