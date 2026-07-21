@@ -1911,7 +1911,11 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   a right-hand sleeve frame (`aspect-ratio: 4/3`, `--border-strong` +
   `--shadow-card`) at its full aspect, captioned by a **tape label** (T53
   tape tier — fixed Dymo colors, `--font-label` uppercase) with a muted
-  "From your collection" line under it (the sub-line hides ≤600px). The
+  provenance line under it that **states the pick's reason** ("One of your
+  most valuable cards" / "One of your newest arrivals" / "Your latest
+  commander" — `PICK_REASON_LABEL`; the sub-line hides ≤600px). An unlabeled
+  pick reads as random even when it isn't — the picker always knows which
+  tier won, so the caption says so. The
   scope toggle's active pill wears `--accent`/`--on-accent` — the divider-tab
   "accent fill on current" idiom. Don't reintroduce an art backdrop here; if
   a future surface wants one, it takes the backdrop ruling above and a real
