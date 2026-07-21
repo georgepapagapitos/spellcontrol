@@ -501,5 +501,54 @@ export async function ensureSchema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS content_reports_owner_idx ON content_reports(target_owner_id);
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_hidden_at BIGINT;
+
+    -- Aggregate rollup (social program W4): nightly stats over PUBLIC decks.
+    -- Reference/derived data, not user data -- safe to TRUNCATE + rebuild wholesale
+    -- every run (mirrors combos/ingest.ts). No FK to deck_publications (owned by
+    -- w0-publish) since these rows are fully derived and disposable -- a bad
+    -- rollup run self-heals on the next nightly TRUNCATE+rebuild.
+    CREATE TABLE IF NOT EXISTS aggregate_rollup_runs (
+      id TEXT PRIMARY KEY,
+      started_at BIGINT NOT NULL,
+      finished_at BIGINT,
+      commanders_written INTEGER,
+      error TEXT
+    );
+
+    -- One row per commander (or commander+partner pair) that has cleared
+    -- MIN_COMMANDER_DECKS (5) published decks. Sub-threshold commanders simply
+    -- have no row here -- "never return sub-threshold rows" is enforced at
+    -- write time, not filtered at read time.
+    --
+    -- avg_bracket / budget_*_count are independently gated (folded blocking fix,
+    -- see aggregates/rollup.ts): each is null unless ITS OWN sample size clears
+    -- its own floor, not just the parent deck_count floor.
+    CREATE TABLE IF NOT EXISTS commander_stats (
+      commander_key TEXT PRIMARY KEY,
+      commander_name TEXT NOT NULL,
+      partner_name TEXT,
+      commander_oracle_id TEXT NOT NULL,
+      partner_oracle_id TEXT,
+      deck_count INTEGER NOT NULL,
+      new_last_7d INTEGER NOT NULL DEFAULT 0,
+      avg_bracket REAL,
+      bracket_sample_count INTEGER NOT NULL DEFAULT 0,
+      budget_low_count INTEGER,
+      budget_mid_count INTEGER,
+      budget_high_count INTEGER,
+      computed_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS commander_stats_new7d_idx ON commander_stats(new_last_7d DESC);
+
+    -- Top-15 card inclusion per qualifying commander. Rebuilt wholesale each run.
+    CREATE TABLE IF NOT EXISTS commander_card_inclusion (
+      commander_key TEXT NOT NULL REFERENCES commander_stats(commander_key) ON DELETE CASCADE,
+      oracle_id TEXT NOT NULL,
+      card_name TEXT NOT NULL,
+      deck_count INTEGER NOT NULL,
+      rank INTEGER NOT NULL,
+      PRIMARY KEY (commander_key, oracle_id)
+    );
+    CREATE INDEX IF NOT EXISTS commander_card_inclusion_rank_idx ON commander_card_inclusion(commander_key, rank);
   `);
 }
