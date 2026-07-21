@@ -11,6 +11,7 @@ import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { gameResultsRouter } from './routes/game-results';
 import { combosRouter } from './routes/combos';
+import { aggregatesRouter } from './routes/aggregates';
 import { sharesRouter } from './routes/shares';
 import { feedbackRouter } from './routes/feedback';
 import { offlineRouter } from './routes/offline';
@@ -397,6 +398,39 @@ export async function createTestEnv(): Promise<TestEnv> {
     );
     CREATE INDEX content_reports_unresolved_idx ON content_reports(created_at) WHERE resolved_at IS NULL;
     CREATE INDEX content_reports_owner_idx ON content_reports(target_owner_id);
+
+    CREATE TABLE aggregate_rollup_runs (
+      id TEXT PRIMARY KEY,
+      started_at BIGINT NOT NULL,
+      finished_at BIGINT,
+      commanders_written INTEGER,
+      error TEXT
+    );
+    CREATE TABLE commander_stats (
+      commander_key TEXT PRIMARY KEY,
+      commander_name TEXT NOT NULL,
+      partner_name TEXT,
+      commander_oracle_id TEXT NOT NULL,
+      partner_oracle_id TEXT,
+      deck_count INTEGER NOT NULL,
+      new_last_7d INTEGER NOT NULL DEFAULT 0,
+      avg_bracket REAL,
+      bracket_sample_count INTEGER NOT NULL DEFAULT 0,
+      budget_low_count INTEGER,
+      budget_mid_count INTEGER,
+      budget_high_count INTEGER,
+      computed_at BIGINT NOT NULL
+    );
+    CREATE INDEX commander_stats_new7d_idx ON commander_stats(new_last_7d DESC);
+    CREATE TABLE commander_card_inclusion (
+      commander_key TEXT NOT NULL REFERENCES commander_stats(commander_key) ON DELETE CASCADE,
+      oracle_id TEXT NOT NULL,
+      card_name TEXT NOT NULL,
+      deck_count INTEGER NOT NULL,
+      rank INTEGER NOT NULL,
+      PRIMARY KEY (commander_key, oracle_id)
+    );
+    CREATE INDEX commander_card_inclusion_rank_idx ON commander_card_inclusion(commander_key, rank);
   `);
 
   const db = drizzle(pool, { schema });
@@ -411,6 +445,7 @@ export async function createTestEnv(): Promise<TestEnv> {
   app.use('/api/games', gamesRouter);
   app.use('/api/game-results', gameResultsRouter);
   app.use('/api/combos', combosRouter);
+  app.use('/api/aggregates', aggregatesRouter);
   app.use('/api/shares', sharesRouter);
   app.use('/api/feedback', feedbackRouter);
   app.use('/api/offline', offlineRouter);

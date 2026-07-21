@@ -3,6 +3,7 @@ import {
   pgTable,
   text,
   integer,
+  real,
   jsonb,
   bigint,
   boolean,
@@ -693,6 +694,68 @@ export const contentReports = pgTable(
   })
 );
 
+/**
+ * Nightly aggregate rollup bookkeeping (social program W4) — mirrors
+ * comboIngestRuns exactly. Reference/derived data over PUBLIC decks only; see
+ * aggregates/rollup.ts.
+ */
+export const aggregateRollupRuns = pgTable('aggregate_rollup_runs', {
+  id: text('id').primaryKey(),
+  startedAt: bigint('started_at', { mode: 'number' }).notNull(),
+  finishedAt: bigint('finished_at', { mode: 'number' }),
+  commandersWritten: integer('commanders_written'),
+  error: text('error'),
+});
+
+/**
+ * One row per commander (or commander+partner pair) that has cleared
+ * MIN_COMMANDER_DECKS published decks (aggregates/rollup.ts). Sub-threshold
+ * commanders simply have no row — "never return sub-threshold rows" is
+ * enforced at write time, not filtered at read time. `avgBracket` and the
+ * `budget*Count` columns carry their OWN minimum-sample gates independent of
+ * the parent `deckCount` gate (folded privacy fix) — `null` is a distinct
+ * "insufficient sample" state, never conflated with a real `0`.
+ */
+export const commanderStats = pgTable(
+  'commander_stats',
+  {
+    commanderKey: text('commander_key').primaryKey(),
+    commanderName: text('commander_name').notNull(),
+    partnerName: text('partner_name'),
+    commanderOracleId: text('commander_oracle_id').notNull(),
+    partnerOracleId: text('partner_oracle_id'),
+    deckCount: integer('deck_count').notNull(),
+    newLast7d: integer('new_last_7d').notNull().default(0),
+    avgBracket: real('avg_bracket'),
+    bracketSampleCount: integer('bracket_sample_count').notNull().default(0),
+    budgetLowCount: integer('budget_low_count'),
+    budgetMidCount: integer('budget_mid_count'),
+    budgetHighCount: integer('budget_high_count'),
+    computedAt: bigint('computed_at', { mode: 'number' }).notNull(),
+  },
+  (t) => ({
+    new7dIdx: index('commander_stats_new7d_idx').on(t.newLast7d),
+  })
+);
+
+/** Top-15 card inclusion per qualifying commander. Rebuilt wholesale each rollup run. */
+export const commanderCardInclusion = pgTable(
+  'commander_card_inclusion',
+  {
+    commanderKey: text('commander_key')
+      .notNull()
+      .references(() => commanderStats.commanderKey, { onDelete: 'cascade' }),
+    oracleId: text('oracle_id').notNull(),
+    cardName: text('card_name').notNull(),
+    deckCount: integer('deck_count').notNull(),
+    rank: integer('rank').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.commanderKey, t.oracleId] }),
+    rankIdx: index('commander_card_inclusion_rank_idx').on(t.commanderKey, t.rank),
+  })
+);
+
 export type UserRow = typeof users.$inferSelect;
 export type AuthIdentityRow = typeof authIdentities.$inferSelect;
 export type OauthHandoffCodeRow = typeof oauthHandoffCodes.$inferSelect;
@@ -722,3 +785,6 @@ export type DeckPublicationRow = typeof deckPublications.$inferSelect;
 export type DeckLikeRow = typeof deckLikes.$inferSelect;
 export type DeckBookmarkRow = typeof deckBookmarks.$inferSelect;
 export type ContentReportRow = typeof contentReports.$inferSelect;
+export type AggregateRollupRunRow = typeof aggregateRollupRuns.$inferSelect;
+export type CommanderStatsRow = typeof commanderStats.$inferSelect;
+export type CommanderCardInclusionRow = typeof commanderCardInclusion.$inferSelect;

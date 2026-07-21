@@ -15,6 +15,7 @@ import { syncRouter } from './routes/sync';
 import { gamesRouter } from './routes/games';
 import { gameResultsRouter } from './routes/game-results';
 import { combosRouter } from './routes/combos';
+import { aggregatesRouter } from './routes/aggregates';
 import { sharesRouter } from './routes/shares';
 import { feedbackRouter } from './routes/feedback';
 import { createShareLandingHandler } from './shares/og';
@@ -38,6 +39,7 @@ import { discoverRouter } from './routes/discover';
 import { activityRouter } from './routes/activity';
 import { getMatcher } from './scanner/matcher';
 import { lastSuccessfulIngestAt, runScheduledIngest } from './combos/ingest';
+import { lastSuccessfulRollupAt, runScheduledRollup } from './aggregates/rollup';
 import {
   resolveCards,
   fetchCardsByIds,
@@ -156,6 +158,7 @@ app.use('/api/sync', syncRouter);
 app.use('/api/games', gamesRouter);
 app.use('/api/game-results', gameResultsRouter);
 app.use('/api/combos', combosRouter);
+app.use('/api/aggregates', aggregatesRouter);
 app.use('/api/shares', sharesRouter);
 app.use('/api/feedback', feedbackRouter);
 app.use('/api/offline', offlineRouter);
@@ -976,6 +979,35 @@ function scheduleComboIngest(): void {
 }
 
 /**
+ * Kicks off the commander-popularity aggregate rollup (social program W4) —
+ * line-for-line mirror of scheduleComboIngest above. Skips when a successful
+ * run finished within the last 20h so a redeploy doesn't immediately
+ * recompute; the dataset is small enough that a single setInterval is
+ * sufficient — no queue or external scheduler needed.
+ */
+function scheduleAggregatesRollup(): void {
+  const TWENTY_HOURS = 20 * 60 * 60 * 1000;
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+  const tick = async () => {
+    try {
+      const lastAt = await lastSuccessfulRollupAt();
+      if (lastAt && Date.now() - lastAt < TWENTY_HOURS) {
+        logger.info('[aggregates] skipping rollup — last successful run was recent');
+      } else {
+        await runScheduledRollup();
+      }
+    } catch (err) {
+      logger.error('[aggregates] schedule tick failed:', err);
+    }
+  };
+
+  // Fire once on boot (gated by lastAt), then every 24h.
+  void tick();
+  setInterval(() => void tick(), TWENTY_FOUR_HOURS);
+}
+
+/**
  * Kicks off the Scryfall bulk-card refresh: pulls the daily `default_cards` dump
  * into the SQLite cache so imports resolve locally. Like the combo schedule it's
  * a single setInterval — the ingest's own meta-file recency guard skips a re-pull
@@ -1005,6 +1037,10 @@ async function start() {
 
   if (process.env.COMBOS_INGEST_DISABLED !== '1') {
     scheduleComboIngest();
+  }
+
+  if (process.env.AGGREGATES_ROLLUP_DISABLED !== '1') {
+    scheduleAggregatesRollup();
   }
 
   if (process.env.SCRYFALL_BULK_INGEST_DISABLED !== '1') {
