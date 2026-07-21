@@ -28,6 +28,7 @@ import {
   lookupGameNightLandingMeta,
   lookupGameNightSeriesLandingMeta,
 } from './routes/game-nights';
+import { podsRouter } from './routes/pods';
 import { publicationsRouter } from './routes/publications';
 import {
   publicRouter,
@@ -166,6 +167,7 @@ app.use('/api/scanner', scannerRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/game-nights', gameNightsRouter);
+app.use('/api/pods', podsRouter);
 app.use('/api/publications', publicationsRouter);
 app.use('/api/public', publicRouter);
 app.use('/api/reports', reportsRouter);
