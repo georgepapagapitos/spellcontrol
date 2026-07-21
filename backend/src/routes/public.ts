@@ -3,6 +3,7 @@ import { Router, type Request, type Response } from 'express';
 import { testAwareLimiter } from '../route-utils';
 import { normalizeUsername, optionalAuth } from '../auth';
 import { getPool } from '../db';
+import { ORIGIN, type ShareLandingMeta } from '../shares/og';
 import { projectDeck, type PublicDeck } from '../shares/projections';
 import {
   deckPublicationCache,
@@ -294,3 +295,74 @@ publicRouter.get(
     });
   }
 );
+
+/**
+ * Cheap OG/Twitter metadata lookup for the `/d/:slug` server-rendered
+ * landing page (w1-public-routes-linkability) — used by
+ * `createShareLandingHandler`, not by the JSON API above. Deliberately a
+ * standalone query rather than a reuse of `loadPublicDeckPage`/its cache:
+ * a crawler/unfurl-bot hit is exactly the traffic this makes newly
+ * possible at scale, so this stays a small constant-time read decoupled
+ * from the heavier deck-detail cache. `og_art_crop` is read directly — it
+ * was already resolved via `cardArtUrl` at publish time
+ * (publications/listing-fields.ts) — so there is no `/normal/`→`/art_crop/`
+ * derivation here.
+ */
+export async function lookupPublicDeckLandingMeta(slug: string): Promise<ShareLandingMeta | null> {
+  const { rows } = await getPool().query<{
+    deck_name: string;
+    format: string;
+    commander_name: string | null;
+    og_art_crop: string | null;
+    card_count: number;
+  }>(
+    `SELECT deck_name, format, commander_name, og_art_crop, card_count
+       FROM deck_publications WHERE slug = $1 AND unpublished_at IS NULL LIMIT 1`,
+    [slug]
+  );
+  const row = rows[0];
+  if (!row) return null; // unknown or unpublished slug — same stealth as GET /decks/:slug's 404
+  return {
+    title: `${row.deck_name} — ${row.format} deck`,
+    description: `${row.card_count} card${row.card_count === 1 ? '' : 's'}${
+      row.commander_name ? `, led by ${row.commander_name}` : ''
+    } — view the collection-aware breakdown on SpellControl.`,
+    url: `${ORIGIN}/d/${slug}`,
+    indexable: true,
+    image: row.og_art_crop ?? undefined,
+  };
+}
+
+/**
+ * Cheap OG/Twitter metadata lookup for the `/u/:username` server-rendered
+ * landing page. Indexable ONLY for a user with at least one live
+ * publication and no moderation hold — a zero-publication or hidden
+ * profile returns null (→ noindex), mirroring this router's own
+ * `GET /users/:username` 404-stealth semantics for the same two cases so a
+ * crawler and an anonymous browser see functionally the same signal
+ * (Folded blocking fix #2 — otherwise every registered username would be
+ * an indexable, crawlable stub the instant they sign up).
+ */
+export async function lookupPublicUserLandingMeta(
+  username: string
+): Promise<ShareLandingMeta | null> {
+  const { rows } = await getPool().query<{
+    display_name: string | null;
+    profile_hidden_at: string | null;
+    has_live: boolean;
+  }>(
+    `SELECT u.display_name, u.profile_hidden_at,
+            EXISTS(SELECT 1 FROM deck_publications dp
+                   WHERE dp.user_id = u.id AND dp.unpublished_at IS NULL) AS has_live
+       FROM users u WHERE u.username = $1`,
+    [username.toLowerCase()]
+  );
+  const row = rows[0];
+  if (!row || row.profile_hidden_at !== null || !row.has_live) return null;
+  return {
+    title: `${row.display_name ?? username} on SpellControl`,
+    description: `View ${row.display_name ?? username}'s public decks on SpellControl.`,
+    url: `${ORIGIN}/u/${username}`,
+    indexable: true,
+  };
+}

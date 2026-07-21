@@ -14,9 +14,13 @@ type Navigate = (path: string) => void;
  *
  *   spellcontrol://share/<token>            — primary custom scheme
  *   spellcontrol://share?token=<token>      — query-string variant, for hand-built links
+ *   spellcontrol://profile/<username>       — same custom-scheme pattern for public profiles
+ *   spellcontrol://deck/<slug>               — same custom-scheme pattern for public decks
  *   https://spellcontrol.app/s/<token>      — HTTPS App Link (intent filter wired but
  *                                             unverified; honored if the OS ever routes it)
  *   https://<anything>/s/<token>            — generic fallback used by tests
+ *   https://<anything>/u/<username>         — public profile landing (w1-public-routes-linkability)
+ *   https://<anything>/d/<slug>             — public deck landing (w1-public-routes-linkability)
  *
  * Exported for unit testing — the listener wiring below stays untested
  * because it's a thin shim over the plugin.
@@ -31,19 +35,30 @@ export function parseDeepLink(url: string): string | null {
 
   if (parsed.protocol === 'spellcontrol:') {
     const host = parsed.hostname || parsed.pathname.replace(/^\/+/, '').split('/')[0] || '';
-    if (host !== 'share') return null;
     // `spellcontrol://share/<token>` parses with hostname=share, pathname=/<token>.
     // `spellcontrol://share?token=<token>` parses with hostname=share, pathname=''.
     const fromPath = parsed.pathname.replace(/^\/+/, '').split('/').filter(Boolean)[0];
     const fromQuery = parsed.searchParams.get('token');
     const token = fromPath || fromQuery;
-    return token ? buildShareRoute(token) : null;
+    if (!token) return null;
+    if (host === 'share') return buildShareRoute(token);
+    if (host === 'profile') return buildProfileRoute(token);
+    if (host === 'deck') return buildDeckRoute(token);
+    return null;
   }
 
   const segments = parsed.pathname.split('/').filter(Boolean);
   const sIdx = segments.indexOf('s');
   if (sIdx !== -1 && segments[sIdx + 1]) {
     return buildShareRoute(segments[sIdx + 1]);
+  }
+  const uIdx = segments.indexOf('u');
+  if (uIdx !== -1 && segments[uIdx + 1]) {
+    return buildProfileRoute(segments[uIdx + 1]);
+  }
+  const dIdx = segments.indexOf('d');
+  if (dIdx !== -1 && segments[dIdx + 1]) {
+    return buildDeckRoute(segments[dIdx + 1]);
   }
 
   return null;
@@ -53,15 +68,24 @@ export function parseDeepLink(url: string): string | null {
 // route handler downstream re-encodes via encodeURIComponent. Splitting the
 // re-encode here keeps the segment readable in tests and avoids the
 // double-encoding hazard.
+function decodeSegment(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 function buildShareRoute(rawToken: string): string {
-  const decoded = (() => {
-    try {
-      return decodeURIComponent(rawToken);
-    } catch {
-      return rawToken;
-    }
-  })();
-  return `/s/${encodeURIComponent(decoded)}`;
+  return `/s/${encodeURIComponent(decodeSegment(rawToken))}`;
+}
+
+function buildProfileRoute(rawUsername: string): string {
+  return `/u/${encodeURIComponent(decodeSegment(rawUsername))}`;
+}
+
+function buildDeckRoute(rawSlug: string): string {
+  return `/d/${encodeURIComponent(decodeSegment(rawSlug))}`;
 }
 
 /** Result of parsing an OAuth callback deep link. */
