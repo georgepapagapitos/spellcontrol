@@ -62,6 +62,14 @@
   outline-offset: 2px;
 }
 
+/* Touch floor: the pill is a fixed 2rem (32px) tall — short of the 44px
+   target (WCAG 2.5.5). Also used by SavedDecksPage's own error retry. */
+@media (pointer: coarse) {
+  .discover-decks-error-retry {
+    min-height: 44px;
+  }
+}
+
 .discover-decks-load-more {
   display: flex;
   justify-content: center;

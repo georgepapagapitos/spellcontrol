@@ -10,8 +10,7 @@
    controls (checkbox/radio/range/file/color) out of it; textarea is included
    so the paste areas don't zoom either. */
 @media (max-width: 1024px) {
-  select,
-  textarea,
+  :where(select, textarea),
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(
       [type='color']
     ) {
@@ -382,7 +381,11 @@
    content edges, matching the search row. */
 .collection-hub-tabs {
   display: flex;
-  align-items: center;
+  /* stretch (not center): the pills fill the ≥44px sticky strip
+     (--hub-tabs-sticky-h) for a full-height tap target — each
+     .site-nav-link keeps its own inline-flex/align-items:center, so the
+     label stays vertically centered inside the taller box. */
+  align-items: stretch;
   gap: var(--space-1);
   position: sticky;
   top: 0;

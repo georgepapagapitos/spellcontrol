@@ -73,6 +73,16 @@
   }
 }
 
+/* Touch floor: the 28px circular avatar is below the 44px target on touch
+   desktops (WCAG 2.5.5) — grow the hit area without growing the visible
+   avatar. */
+@media (pointer: coarse) {
+  .site-avatar-menu-trigger {
+    padding: 0.4rem;
+    margin: -0.4rem;
+  }
+}
+
 /* Header sync indicator — compact pill showing whether the device is
    currently pushing/pulling, the last-synced timestamp (tooltip), or
    "Local only" for guests. Pure status; sign-in lives in Settings, not

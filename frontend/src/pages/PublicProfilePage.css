@@ -55,6 +55,7 @@
    breaks the author typed in the settings textarea. */
 .public-profile-bio {
   margin: var(--space-2) 0 0;
+  max-width: 68ch;
   color: var(--text-primary);
   font-size: var(--text-sm);
   line-height: 1.55;

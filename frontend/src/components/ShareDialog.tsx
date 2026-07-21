@@ -570,7 +570,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
             Going public makes "{resourceLabel}" discoverable on your profile and in search results.
             Anyone can view and copy it. You can unpublish anytime.
           </p>
-          <div className="choice-dialog-actions">
+          <div className="choice-dialog-actions share-dialog-actions">
             <button type="button" className="btn" onClick={handleCancelPublic} disabled={working}>
               Cancel
             </button>
@@ -604,7 +604,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
               onChange={(e) => setDisplayNameDraft(e.target.value)}
             />
           </div>
-          <div className="choice-dialog-actions">
+          <div className="choice-dialog-actions share-dialog-actions">
             <button type="button" className="btn" onClick={handleCancelPublic} disabled={working}>
               Cancel
             </button>

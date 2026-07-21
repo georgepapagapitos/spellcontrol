@@ -287,6 +287,11 @@
 
 .decks-index-card {
   position: relative;
+  /* Grid items default to min-width: auto (grow to fit content) — a long
+     commander/deck name would otherwise push the tile past its column
+     track. Mirrors the compact-mode guard above, extended to grid/list
+     (which Discover's tiles use). */
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--deck-color, var(--accent));

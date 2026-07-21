@@ -225,7 +225,7 @@ export function TrendingRail({ enabled }: { enabled: boolean }) {
   if (!data) return null;
 
   const rising = data.risingCommanders.slice(0, 10);
-  const topCopied = 'topCopiedDecks' in data ? (data.topCopiedDecks ?? []) : [];
+  const topCopied = ('topCopiedDecks' in data ? (data.topCopiedDecks ?? []) : []).slice(0, 10);
   const hasTopCopied = topCopied.length > 0;
 
   if (rising.length === 0 && !hasTopCopied) {

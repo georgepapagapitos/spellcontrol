@@ -171,6 +171,7 @@
   font-size: var(--text-sm);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 /* @handle secondary line under the owner's display name — natural case, not
@@ -228,11 +229,22 @@
   font-size: var(--text-sm);
 }
 
+/* Report link on shared deck views — plain inline text at this font-size
+   falls short of the 44px touch target (WCAG 2.5.5). */
+@media (pointer: coarse) {
+  .shared-view-meta-row .btn-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 /* ── Deck primer (markdown-lite rendered strategy notes) ─────────────────
    Content comes from lib/markdown-lite.ts, which only ever emits
    p/strong/em/ul/li — style exactly those five tags. */
 .shared-deck-primer {
   margin: 0 0 var(--space-4);
+  max-width: 68ch;
   padding: var(--space-3) var(--space-4);
   background: var(--surface-raised);
   border-radius: var(--radius);
@@ -679,7 +691,7 @@
 .share-dialog-url {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: max(16px, var(--text-sm));
 }
 
 .share-dialog-error {
@@ -762,6 +774,14 @@
   cursor: not-allowed;
 }
 
+/* Touch floor: the Private/Public ladder rungs are ~32px of padding + text,
+   short of the 44px target (WCAG 2.5.5). */
+@media (pointer: coarse) {
+  .share-audience-option {
+    min-height: 44px;
+  }
+}
+
 .share-recipient {
   margin: 0 0 var(--space-3);
 }
@@ -773,7 +793,7 @@
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text-primary);
-  font-size: var(--text-sm);
+  font-size: max(16px, var(--text-sm));
 }
 
 .share-recipient-select:focus-visible {

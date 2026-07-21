@@ -2,7 +2,17 @@
    .game-night-attendee-group(-title), .game-night-count, .field-checkbox,
    .empty-state(-tagline/-hint), .friend-hub-radar-strip, and RadarCardTile's
    own styling from FriendHubPage.css — only the pieces unique to this sheet
-   get new rules here. */
+   get new rules here.
+
+   ponytail: no .tonight-trades-dialog sizing rule here despite the class
+   being on the root div — this <Modal> takes no className (mirrors
+   AttendeeSheet exactly, per the component doc comment), so it defaults to
+   .choice-dialog, which already carries
+   `max-height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
+   overflow-y: auto;` (added to fix this exact class of bug). Bounding
+   .tonight-trades-dialog itself would just nest a second, redundant scroll
+   region one level in. Re-add here only if this Modal call ever passes its
+   own className and stops inheriting .choice-dialog. */
 
 .tonight-trades-optin {
   margin: 0;

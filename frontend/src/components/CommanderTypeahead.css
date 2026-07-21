@@ -26,6 +26,16 @@
   box-shadow: var(--shadow-tooltip);
 }
 
+/* Minimal short-viewport guard: on landscape phones / short popped-out
+   windows the fixed 18rem (288px) max-height can push past the viewport's
+   own height, since the list never flips above the input. A full
+   flip/portal reposition is tracked debt, not this fix. */
+@media (max-height: 480px) {
+  .commander-typeahead-results {
+    max-height: 40vh;
+  }
+}
+
 .commander-typeahead-option {
   padding: 0.35rem var(--space-2);
   border-radius: var(--radius);
