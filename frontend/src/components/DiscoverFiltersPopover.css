@@ -1,0 +1,130 @@
+/* DiscoverFiltersPopover.css — trigger/panel surface reuses the shared
+   `.filter-popover`/`.filter-popover-btn`/`.filter-popover-panel`
+   (search-controls.css), the footer reuses `.deck-filters-footer`/
+   `.deck-filters-clear` (DeckFiltersPopover's own). This file only adds the
+   fieldset layout and the native-radio/checkbox "chip" treatment — the
+   `.settings-currency-toggle` family's visually-hidden-input-over-a-styled-
+   label pattern, generalized to a wrapping flow of chips instead of a single
+   joined segment. */
+
+.discover-filters-panel {
+  width: max-content;
+  min-width: min(20rem, calc(100vw - 2rem));
+  max-width: min(24rem, calc(100vw - 2rem));
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.discover-filters-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  /* Fieldsets default to min-width: min-content (sized to the legend), which
+     can fight the panel's own width — this is the standard reset. */
+  min-width: 0;
+}
+
+.discover-filters-legend {
+  padding: 0;
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.discover-filters-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.discover-filter-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* Visually hidden, stretched over the styled span — the whole chip is the
+   hit target and keyboard/AT semantics stay native (mirrors
+   .settings-currency-option input). */
+.discover-filter-chip input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.discover-filter-chip > span {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) 0.65rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 999px;
+  transition:
+    background var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .discover-filter-chip:hover > span {
+    background: var(--accent-light);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.discover-filter-chip input:checked + span {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.discover-filter-chip input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Color chips: a circular pip treatment (mirrors .color-filter-btn) instead
+   of the text-pill look — the ColorPip <i> renders directly, no extra span. */
+.discover-filter-chip--color {
+  padding: 2px;
+}
+
+.discover-filter-chip--color .color-pip-mana {
+  opacity: 0.55;
+  transition:
+    opacity var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .discover-filter-chip--color:hover .color-pip-mana {
+    opacity: 0.85;
+  }
+}
+
+.discover-filter-chip--color input:checked + .color-pip-mana {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--accent);
+  border-radius: 50%;
+}
+
+.discover-filter-chip--color input:focus-visible + .color-pip-mana {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 50%;
+}

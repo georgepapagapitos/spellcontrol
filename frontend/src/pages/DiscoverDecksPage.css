@@ -1,8 +1,28 @@
 /* DiscoverDecksPage.css — the page shell reuses existing classes verbatim
-   (.binder-hero, .decks-index-page, .decks-index-list.is-grid, .empty-state,
-   .spinner) — see DiscoverDeckTile.css for the tile's own additions. This
-   file is only the error row and the load-more affordance, neither of
-   which exist yet as a shared utility. */
+   (.binder-hero, .decks-index-page, .decks-index-list.is-grid/is-list,
+   .empty-state, .spinner) — see DiscoverDeckTile.css for the tile's own
+   additions. This file is the toolbar row, the budget caveat, the error
+   row, and the load-more affordance — none of which exist yet as a shared
+   utility. */
+
+/* Single row per STYLE_GUIDE's "control row" rule: no single primary
+   action among the four controls, so it wraps and may shrink rather than
+   collapsing into an overflow menu. The typeahead is the only one that
+   grows (`.commander-typeahead`'s own flex-basis), which naturally pushes
+   the rest toward the trailing edge without a separate auto-margin. */
+.discover-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.discover-budget-note {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
 
 .discover-decks-error {
   display: flex;

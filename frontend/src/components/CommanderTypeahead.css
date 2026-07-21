@@ -1,0 +1,52 @@
+/* CommanderTypeahead.css — the pill chrome is the shared `.search-pill`
+   (search-controls.css); this file only adds the anchored results listbox,
+   mirrored from `.set-filter-picker`/`.set-filter-results` (collection.css) —
+   same positioning, same surface, single-select instead of chips. */
+
+.commander-typeahead {
+  position: relative;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.commander-typeahead-results {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: var(--z-popover);
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  max-height: 18rem;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-tooltip);
+}
+
+.commander-typeahead-option {
+  padding: 0.35rem var(--space-2);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commander-typeahead-option.is-highlight {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.commander-typeahead-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

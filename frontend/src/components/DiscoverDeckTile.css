@@ -20,6 +20,24 @@
   color: var(--text-secondary);
 }
 
+.discover-tile-buildable {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.discover-tile-buildable-bar {
+  flex: 1;
+  min-width: 3rem;
+}
+
+.discover-tile-buildable-label {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 .discover-tile-owner {
   display: block;
   padding: 0.2rem 0.85rem 0.7rem;
@@ -84,6 +102,31 @@
   );
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* List view: thumbnail left, body right, single row. The skeleton has no
+   `.decks-index-card-link` wrapper (unlike the real tile), so its base flex
+   rule is replicated here on the `<li>` itself; the thumbnail matches
+   `.decks-index-list.is-list .decks-index-card-art`'s 96px square so the
+   loading row doesn't jump on swap-in. */
+.discover-tile-skeleton--list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.discover-tile-skeleton--list .discover-tile-skeleton-art {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+}
+
+.discover-tile-skeleton--list .discover-tile-skeleton-body {
+  padding: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .discover-tile-skeleton-body {
