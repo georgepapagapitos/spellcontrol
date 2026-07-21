@@ -237,8 +237,14 @@ describe('DiscoverDecksPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /sort discover decks by/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Percent buildable' }));
 
-    const owners = screen.getAllByRole('link', { name: /^by /i }).map((el) => el.textContent);
-    expect(owners).toEqual(['by deck-a', 'by deck-c', 'by deck-d', 'by deck-b']);
+    // Grid's owner link (tile system v2) carries the "By <name>" text as an
+    // aria-label rather than visible textContent (the visible line is now an
+    // avatar + bare name) — assert on the accessible name, same as the other
+    // owner-link checks in this file.
+    const owners = screen
+      .getAllByRole('link', { name: /^by /i })
+      .map((el) => el.getAttribute('aria-label'));
+    expect(owners).toEqual(['By deck-a', 'By deck-c', 'By deck-d', 'By deck-b']);
 
     // Switching to the client-only buildable sort must not trigger a second
     // fetch — the server never sees `sort=buildable`.

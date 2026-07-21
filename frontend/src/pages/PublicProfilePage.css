@@ -97,13 +97,94 @@
   margin: 0;
 }
 
-/* ── Deck tile view/copy counts (ghost-town-thresholded) ──────────────── */
-
-.public-profile-deck-counts {
+/* ── Deck tile art banner (tile system v2) ────────────────────────────────
+   Mirrors DiscoverDeckTile's grid art-banner treatment (DiscoverDeckTile.css)
+   — same aspect-ratio/overlay-stats/colorbar language, kept as this page's
+   own scoped classes since it renders its own tile markup rather than
+   <DiscoverDeckTile> (a different data shape: PublicProfileDeck carries no
+   like/bookmark/buildable/estimatedValueUsd, and repeating the profile
+   owner's own name+avatar on their own grid would be redundant) — so only
+   the banner/overlay/colorbar trio applies here, not the full feature set.
+   The compound `.decks-index-card.public-profile-tile` prefix beats the
+   shared base rule's own specificity, same defensive reason as
+   DiscoverDeckTile.css's own compound selectors. */
+.decks-index-card.public-profile-tile .public-profile-tile-banner {
+  position: relative;
   display: block;
-  margin-top: 0.15rem;
-  color: var(--text-muted);
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-top-right-radius: calc(var(--radius-lg) - 1px);
+}
+
+.decks-index-card.public-profile-tile .public-profile-tile-banner .decks-index-card-art,
+.decks-index-card.public-profile-tile .public-profile-tile-banner .decks-index-card-banner {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+/* Theme-invariant on-art scrim — same always-dark-over-art rationale as the
+   card-preview panel (CardDetails.css) and DiscoverDeckTile.css's identical
+   overlay: legibility over unpredictable art can't follow the theme swap
+   the rest of the tile does. */
+.public-profile-tile-banner-stats {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 1.25rem var(--space-2) var(--space-1);
+  background: linear-gradient(to top, var(--art-scrim), transparent);
+  color: var(--art-scrim-text);
   font-size: var(--text-xs);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Segmented color-identity bar, directly under the banner — same exact
+   per-color backgrounds as DiscoverDeckTile.css's colorbar (ColorPip/
+   ManaSymbol's own solid-pip fill, mana-font's `.ms-cost.ms-<letter>`).
+   Colorless gets a single neutral segment instead of an empty bar. */
+.public-profile-tile-colorbar {
+  display: flex;
+  height: 4px;
+}
+
+.public-profile-tile-colorbar-seg {
+  flex: 1;
+}
+
+.public-profile-tile-colorbar-seg--w {
+  background: #f0f2c0;
+}
+.public-profile-tile-colorbar-seg--u {
+  background: #b5cde3;
+}
+.public-profile-tile-colorbar-seg--b {
+  background: #aca29a;
+}
+.public-profile-tile-colorbar-seg--r {
+  background: #db8664;
+}
+.public-profile-tile-colorbar-seg--g {
+  background: #93b483;
+}
+.public-profile-tile-colorbar-seg--c {
+  background: #beb9b2;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .public-profile-tile .decks-index-card-art {
+    transition: transform var(--motion-base) var(--ease-out-soft);
+  }
+  .public-profile-tile:hover .decks-index-card-art {
+    transform: scale(1.03);
+  }
 }
 
 /* ── Loading skeleton ──────────────────────────────────────────────────
@@ -157,6 +238,9 @@
 @media (prefers-reduced-motion: reduce) {
   .public-profile-skeleton {
     animation: none;
+  }
+  .public-profile-tile .decks-index-card-art {
+    transition: none;
   }
 }
 
