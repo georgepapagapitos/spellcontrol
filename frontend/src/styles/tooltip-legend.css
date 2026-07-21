@@ -41,16 +41,16 @@
   font-weight: 600;
 }
 .tooltip-rarity.rarity-mythic {
-  color: #c25a10;
+  color: var(--rarity-mythic-ink);
 }
 .tooltip-rarity.rarity-rare {
-  color: #9a7410;
+  color: var(--rarity-rare-ink);
 }
 .tooltip-rarity.rarity-uncommon {
-  color: #4a6890;
+  color: var(--rarity-uncommon-ink);
 }
 .tooltip-rarity.rarity-common {
-  color: #555;
+  color: var(--text-secondary);
 }
 
 /* Grouped-row quantity tag for the carousel meta line. Mirrors the
