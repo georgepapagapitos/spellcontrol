@@ -60,6 +60,9 @@ interface Props {
   deckOracleIds: string[];
   /** Format used to filter combos by legality (e.g. "commander"). */
   format?: string;
+  /** Deck color identity — hides one-away combos whose missing piece could
+   *  never legally join the deck (see useDeckCombos). Omit = no restriction. */
+  colorIdentity?: readonly string[];
   onAdd: (card: ScryfallCard, allocatedCopyId: string | null) => void;
   /**
    * Render without the collapsible header chrome (always-open body), for use
@@ -72,7 +75,7 @@ type Tab = 'inDeck' | 'oneAway';
 type OwnershipFilter = 'all' | 'owned' | 'notOwned';
 
 export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function DeckCombosPanel(
-  { deckId: _deckId, deckOracleIds, format, onAdd, embedded = false },
+  { deckId: _deckId, deckOracleIds, format, colorIdentity, onAdd, embedded = false },
   ref
 ) {
   const collection = useCollectionStore((s) => s.cards);
@@ -146,6 +149,7 @@ export const DeckCombosPanel = forwardRef<DeckCombosPanelHandle, Props>(function
     deckOracleIds,
     ownedOracleIds,
     format,
+    colorIdentity,
     // Fetch even when the panel is collapsed so the header summary
     // ("11 in deck · 2 one away") is accurate at a glance. The hook caches
     // results and debounces requests, so the cost on idle deck-views is
