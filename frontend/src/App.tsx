@@ -3,6 +3,7 @@ import { BrandMark } from '@/components/shared/BrandMark';
 import { useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { HomePage } from './pages/HomePage';
 import { CollectionHubLayout } from './components/CollectionHubLayout';
 import { CollectionPage } from './pages/CollectionPage';
 import { CubePage } from './pages/CubePage';
@@ -256,6 +257,9 @@ export default function App() {
         <Route path="/auth/choose-username" element={<ChooseUsernamePage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackLanding />} />
         <Route element={<Layout />}>
+          {/* Not the default landing yet (w3-nav-activation flips that) — reachable
+              by direct URL only until the remaining home-cards PRs land. */}
+          <Route path="/home" element={<HomePage />} />
           <Route path="/collection" element={<CollectionHubLayout />}>
             <Route index element={<CollectionPage />} />
             <Route path="binders" element={<BindersIndexPage />} />
