@@ -38,17 +38,31 @@ describe('pickHeroCard', () => {
     expect(pickHeroCard(cards, [], DAY_A)).toEqual({
       name: 'Roaming Throne',
       art: 'https://cards.scryfall.io/art_crop/front/x.jpg',
+      reason: 'top',
     });
   });
 
   it('leaves art undefined when the winning row has no stored image', () => {
     const cards = [card({ name: 'No Image Row', purchasePrice: 2 })];
-    expect(pickHeroCard(cards, [], DAY_A)).toEqual({ name: 'No Image Row', art: undefined });
+    expect(pickHeroCard(cards, [], DAY_A)).toEqual({
+      name: 'No Image Row',
+      art: undefined,
+      reason: 'top',
+    });
+  });
+
+  it("states the arrivals tier's reason when nothing is priced", () => {
+    const cards = [card({ name: 'Fresh Pull', purchasePrice: 0, acquiredAt: 9 })];
+    expect(pickHeroCard(cards, [], DAY_A)?.reason).toBe('recent');
   });
 
   it('carries the commander printing art on the deck-fallback tier', () => {
     const decks = [deck({ commanderName: 'Atraxa', updatedAt: 5, art: 'atraxa-art.jpg' })];
-    expect(pickHeroCard([], decks, DAY_A)).toEqual({ name: 'Atraxa', art: 'atraxa-art.jpg' });
+    expect(pickHeroCard([], decks, DAY_A)).toEqual({
+      name: 'Atraxa',
+      art: 'atraxa-art.jpg',
+      reason: 'commander',
+    });
   });
 
   it('prefers the highest-value priced card over a cheaper one', () => {

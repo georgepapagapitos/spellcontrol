@@ -14,7 +14,7 @@ import { getSyncState, onSyncedChange } from '../../lib/sync';
 import { useCurrency } from '../../lib/currency';
 import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
-import { pickHeroCard, heroGreeting } from '../../lib/home-hero';
+import { pickHeroCard, heroGreeting, type HeroPickReason } from '../../lib/home-hero';
 import {
   computeValueDelta,
   dayKey,
@@ -24,6 +24,15 @@ import {
 } from '../../lib/value-history';
 
 type SearchScope = 'mine' | 'discover';
+
+/** The caption's provenance line states WHY this card was picked — an
+ *  unlabeled pick read as random to real users ("why does it pick that
+ *  card?"), and the picker always knows its reason. */
+const PICK_REASON_LABEL: Record<HeroPickReason, string> = {
+  top: 'One of your most valuable cards',
+  recent: 'One of your newest arrivals',
+  commander: 'Your latest commander',
+};
 
 /**
  * /home's hero panel ("your collection is the hero", featured-card revision):
@@ -217,7 +226,7 @@ export function HomeHero() {
               <span className="home-hero-caption-tape" title={pick.name}>
                 {pick.name}
               </span>
-              <span className="home-hero-caption-sub">From your collection</span>
+              <span className="home-hero-caption-sub">{PICK_REASON_LABEL[pick.reason]}</span>
             </figcaption>
           </>
         ) : showFallback ? (

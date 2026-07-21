@@ -56,7 +56,7 @@ vi.mock('../lib/value-history', async (importOriginal) => {
 // decks stores, and so the time-of-day greeting can't make an assertion
 // flaky depending on when the suite happens to run.
 const mockPickHeroCard = vi.hoisted(() =>
-  vi.fn(() => null as { name: string; art?: string } | null)
+  vi.fn(() => null as { name: string; art?: string; reason: 'top' | 'recent' | 'commander' } | null)
 );
 vi.mock('../lib/home-hero', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/home-hero')>();
@@ -147,7 +147,7 @@ describe('HomePage', () => {
     });
 
     it('shows the card art + tape-label caption once a hero card resolves', () => {
-      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring' });
+      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring', reason: 'top' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-fallback')).toBeNull();
@@ -155,11 +155,15 @@ describe('HomePage', () => {
       expect(img?.getAttribute('src')).toBe('sol-ring.png');
       expect(img?.getAttribute('alt')).toBe('');
       expect(screen.getByText('Sol Ring')).toBeTruthy();
-      expect(screen.getByText('From your collection')).toBeTruthy();
+      expect(screen.getByText('One of your most valuable cards')).toBeTruthy();
     });
 
     it('renders the owned printing art directly, skipping name resolution', () => {
-      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring', art: 'owned-printing.jpg' });
+      mockPickHeroCard.mockReturnValue({
+        name: 'Sol Ring',
+        art: 'owned-printing.jpg',
+        reason: 'top',
+      });
       const { container } = renderPage();
       const img = container.querySelector('.home-hero-art') as HTMLImageElement | null;
       expect(img?.getAttribute('src')).toBe('owned-printing.jpg');
@@ -182,7 +186,7 @@ describe('HomePage', () => {
 
     it('never shows personal art for a guest, even if a hero card would otherwise resolve', () => {
       mockAuthState.status = 'guest';
-      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring' });
+      mockPickHeroCard.mockReturnValue({ name: 'Sol Ring', reason: 'top' });
       mockUseCardThumb.mockReturnValue('sol-ring.png');
       const { container } = renderPage();
       expect(container.querySelector('.home-hero-fallback')).toBeTruthy();

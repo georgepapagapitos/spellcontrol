@@ -31,11 +31,17 @@ export interface HeroDeck {
   art?: string;
 }
 
+/** Which tier won the pick — the caption states this so the choice reads as
+ *  curated, not random ("why THIS card?" was a real user reaction). */
+export type HeroPickReason = 'top' | 'recent' | 'commander';
+
 /** A resolved hero pick: the card's name (caption + name-resolution
- *  fallback) and, when the caller had it, the owned printing's art URL. */
+ *  fallback), the owned printing's art URL when the caller had it, and the
+ *  reason its tier won. */
 export interface HeroPick {
   name: string;
   art?: string;
+  reason: HeroPickReason;
 }
 
 /** Epoch-day number for a `YYYY-MM-DD` key — increments once per calendar
@@ -74,20 +80,20 @@ export function pickHeroCard(
     .filter((c) => c.purchasePrice > 0)
     .sort((a, b) => b.purchasePrice - a.purchasePrice)
     .slice(0, POOL_LIMIT)
-    .map((c) => ({ name: c.name, art: c.art }));
+    .map((c) => ({ name: c.name, art: c.art, reason: 'top' as const }));
   if (priced.length > 0) return pickFrom(priced, day);
 
   const recent = [...cards]
     .sort((a, b) => b.acquiredAt - a.acquiredAt)
     .slice(0, POOL_LIMIT)
-    .map((c) => ({ name: c.name, art: c.art }));
+    .map((c) => ({ name: c.name, art: c.art, reason: 'recent' as const }));
   if (recent.length > 0) return pickFrom(recent, day);
 
   const commanders = decks
     .filter((d): d is HeroDeck & { commanderName: string } => d.commanderName != null)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, POOL_LIMIT)
-    .map((d) => ({ name: d.commanderName, art: d.art }));
+    .map((d) => ({ name: d.commanderName, art: d.art, reason: 'commander' as const }));
   return pickFrom(commanders, day);
 }
 
