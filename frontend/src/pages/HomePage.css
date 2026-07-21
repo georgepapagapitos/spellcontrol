@@ -9,18 +9,9 @@
 /* Composition, not a fresh selector: .home-bento rides every .deck-bento rule
    (grid, container query, gap) verbatim — this override widens the bento's cap
    from deck-analysis's 1320px default to the app's standard 1400px page width.
-
-   width: 100% is load-bearing, not belt-and-suspenders: .home-page is a flex
-   COLUMN, and .deck-bento carries margin-inline: auto — a cross-axis auto
-   margin in flex cancels the default stretch, dropping the item to
-   shrink-to-fit. Combined with .deck-bento's container-type: inline-size
-   (whose size containment makes intrinsic width ZERO by definition), the
-   bento collapsed to a ~0-width centered strip. An explicit width restores
-   stretch; Layout's .container already caps the page at --page-max, so the
-   max-width/centering are harmless no-ops here. (Deck analysis is unaffected
-   — its parent is normal block flow, where auto margins center a full-width
-   block as designed.) */
+   (The flex-column collapse this page first exposed is fixed in the BASE
+   .deck-bento rule — see deck-builder-analysis.css — so /pods and any future
+   flex-context mount are covered too.) */
 .home-bento {
   --analysis-max: var(--page-max);
-  width: 100%;
 }
