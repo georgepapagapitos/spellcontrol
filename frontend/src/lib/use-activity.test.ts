@@ -102,6 +102,26 @@ describe('useActivity', () => {
     expect(getActivityMock).not.toHaveBeenCalled();
   });
 
+  it('loading is false immediately for a guest (never fetches)', () => {
+    authStatus = 'guest';
+    const { result } = renderHook(() => useActivity());
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('loading starts true when authed and flips false once the first fetch settles', async () => {
+    getActivityMock.mockResolvedValue({ actionRequired: [], recent: [] });
+    const { result } = renderHook(() => useActivity());
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+
+  it('loading flips false even when the fetch rejects', async () => {
+    getActivityMock.mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useActivity());
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+
   it('composes count from a resolved fetch', async () => {
     getActivityMock.mockResolvedValue({
       actionRequired: [friendRequest('r1')],

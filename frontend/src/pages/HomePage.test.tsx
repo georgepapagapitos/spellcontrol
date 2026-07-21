@@ -13,6 +13,23 @@ vi.mock('../components/AddCardsSheet', () => ({
   ),
 }));
 
+// The three bento cards each fetch on mount — stubbed so this suite stays
+// hermetic and only exercises HomePage's own composition, not each card's
+// own branching (covered by ActivityStripCard/NewFromFriendsCard/
+// DiscoverCard's own test files).
+vi.mock('../lib/use-activity', () => ({
+  useActivity: () => ({ count: 0, actionRequired: [], recent: [], loading: false }),
+}));
+vi.mock('../store/auth', () => ({
+  useAuth: (selector: (s: { status: string }) => unknown) => selector({ status: 'authed' }),
+}));
+vi.mock('../lib/friends-client', () => ({
+  getFriendsActivity: () => Promise.resolve([]),
+}));
+vi.mock('../lib/discover-client', () => ({
+  listDiscoverDecks: () => Promise.resolve({ decks: [], page: 1, hasMore: false }),
+}));
+
 import { HomePage } from './HomePage';
 
 function renderPage() {
@@ -24,9 +41,12 @@ function renderPage() {
 }
 
 describe('HomePage', () => {
-  it('renders the heading with no card content mounted yet', () => {
+  it('renders the heading and all three social cards', () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Activity' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'New from friends' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Discover' })).toBeTruthy();
     expect(screen.queryByTestId('add-cards-sheet')).toBeNull();
   });
 

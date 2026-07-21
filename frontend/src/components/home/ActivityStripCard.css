@@ -1,0 +1,80 @@
+/* ActivityStripCard.css — Home's notifications strip */
+
+.activity-strip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.activity-strip-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  margin: calc(var(--space-2) * -1);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  min-height: 44px;
+  transition: background var(--motion-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .activity-strip-link:hover {
+    background: var(--surface);
+  }
+}
+
+.activity-strip-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.activity-strip-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* The friend-request row is a visually distinct notification type (not a
+   share/feedback/like) — accent-tinted icon on top of its own wording and
+   icon shape keeps it from being conflated with the rows below it. */
+.activity-strip-link.is-request .activity-strip-icon {
+  color: var(--accent);
+}
+
+.activity-strip-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.activity-strip-name,
+.activity-strip-target {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.activity-strip-time {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Very small phones: the actor name (not the target label) is the
+   longest/least-important variable field, so it clips first — the
+   relative-time suffix never truncates, it's shortest and most scan-critical. */
+@media (max-width: 380px) {
+  .activity-strip-name {
+    display: inline-block;
+    max-width: 6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+}
