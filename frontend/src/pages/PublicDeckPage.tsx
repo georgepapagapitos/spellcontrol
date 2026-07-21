@@ -9,7 +9,7 @@ import {
 import { SharedShell } from '../components/shared/SharedShell';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { BrandMark } from '../components/shared/BrandMark';
-import { NotFoundView } from './SharedView';
+import { NotFoundView } from '../components/shared/SharedShell';
 import { useAuth } from '../store/auth';
 
 function alreadyViewedThisSession(slug: string): boolean {

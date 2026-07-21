@@ -15,10 +15,12 @@ import {
 /**
  * Anonymous, rate-limited, cached public reads for published decks and
  * profiles — the pages `w1-public-deck-page` / `w1-public-profile-page`
- * render against. No auth middleware gates the GETs (unlike
+ * render against. No auth middleware *gates* the GETs (unlike
  * `/api/shares/public/:token`; a published deck has no audience gating
- * once live) — `optionalAuth` runs only on the view beacon, to detect and
- * exclude the owner.
+ * once live) — `optionalAuth` runs on the view beacon and on the profile
+ * read, both to detect and exclude/include the owner (a deck's own owner
+ * doesn't bump their own view count; a profile's own owner can always see
+ * it, even hidden or empty — see the isOwner handling below).
  */
 export const publicRouter: Router = Router();
 
@@ -188,14 +190,34 @@ function toDeckSummary(row: PublicDeckSummaryRow): PublicDeckSummary {
   };
 }
 
+interface PublicUserRow {
+  id: string;
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  avatar_card_name: string | null;
+  avatar_image_url: string | null;
+  created_at: string;
+  profile_hidden_at: string | null;
+}
+
+/**
+ * Cached, viewer-agnostic read of a user's profile row + their live deck
+ * list. Deliberately does NOT decide isOwner/moderationHidden/404 here —
+ * those depend on who's asking, and this result is shared across every
+ * viewer via `publicUserCache`. The route handler below derives the
+ * per-request response from this same cached shape.
+ */
 async function loadPublicUserProfile(username: string): Promise<PublicUserProfile | null> {
   const cached = publicUserCache.get(username);
   if (cached) return cached;
 
   const pool = getPool();
   const user = (
-    await pool.query<{ id: string; username: string; created_at: string }>(
-      `SELECT id, username, created_at FROM users WHERE username = $1`,
+    await pool.query<PublicUserRow>(
+      `SELECT id, username, display_name, bio, avatar_card_name, avatar_image_url,
+              created_at, profile_hidden_at
+         FROM users WHERE username = $1`,
       [username]
     )
   ).rows[0];
@@ -218,8 +240,14 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   ]);
 
   const profile: PublicUserProfile = {
+    id: user.id,
     username: user.username,
+    displayName: user.display_name,
+    bio: user.bio,
+    avatarCardName: user.avatar_card_name,
+    avatarImageUrl: user.avatar_image_url,
     memberSince: Number(user.created_at),
+    profileHiddenAt: user.profile_hidden_at === null ? null : Number(user.profile_hidden_at),
     // True total, not decks.length — the 200 cap means those diverge for a
     // heavy publisher.
     deckCount: Number(countResult.rows[0].count),
@@ -229,10 +257,40 @@ async function loadPublicUserProfile(username: string): Promise<PublicUserProfil
   return profile;
 }
 
-publicRouter.get('/users/:username', publicReadLimiter, async (req: Request, res: Response) => {
-  const username = normalizeUsername(req.params.username);
-  if (!username) return res.status(404).json(USER_NOT_FOUND);
-  const profile = await loadPublicUserProfile(username);
-  if (!profile) return res.status(404).json(USER_NOT_FOUND);
-  res.json(profile);
-});
+/**
+ * `optionalAuth` so the owner of a profile can always see it (even hidden by
+ * moderation, or with zero live decks) while a stranger gets the same 404
+ * either way — a stranger can't distinguish "never existed" from "hidden"
+ * from "nothing published yet". Both owner-gating checks below short-circuit
+ * for `isOwner`, so the loader/cache above stays completely viewer-agnostic.
+ */
+publicRouter.get(
+  '/users/:username',
+  publicReadLimiter,
+  optionalAuth,
+  async (req: Request, res: Response) => {
+    const username = normalizeUsername(req.params.username);
+    if (!username) return res.status(404).json(USER_NOT_FOUND);
+    const profile = await loadPublicUserProfile(username);
+    if (!profile) return res.status(404).json(USER_NOT_FOUND);
+
+    const isOwner = req.user?.id === profile.id;
+    if (!isOwner && (profile.profileHiddenAt !== null || profile.decks.length === 0)) {
+      return res.status(404).json(USER_NOT_FOUND);
+    }
+
+    const moderationHidden = isOwner && profile.profileHiddenAt !== null;
+    res.json({
+      username: profile.username,
+      displayName: profile.displayName,
+      bio: profile.bio,
+      avatarCardName: profile.avatarCardName,
+      avatarImageUrl: profile.avatarImageUrl,
+      joinedAt: profile.memberSince,
+      isOwner,
+      moderationHidden,
+      deckCount: profile.deckCount,
+      decks: moderationHidden ? [] : profile.decks,
+    });
+  }
+);

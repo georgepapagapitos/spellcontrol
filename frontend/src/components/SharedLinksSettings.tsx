@@ -7,9 +7,18 @@ import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { listShares, revokeShare, shareUrl } from '../lib/share-client';
+import { fetchPublicProfile } from '../lib/profile-client';
 import { isNativePlatform } from '../lib/platform';
 import { toast } from '../store/toasts';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
+
+/** Mirrors share-client.ts's shareUrl() exactly, one path prefix over — kept
+ *  local rather than generalizing that helper for a single second call site. */
+function ownProfileUrl(username: string): string {
+  if (isNativePlatform()) return `https://spellcontrol.com/u/${username}`;
+  if (typeof window === 'undefined') return `/u/${username}`;
+  return `${window.location.origin}/u/${username}`;
+}
 
 const KIND_LABELS: Record<ShareKind, string> = {
   collection: 'Collection',
@@ -41,6 +50,7 @@ interface ResolvedLabel {
  */
 export function SharedLinksSettings() {
   const isAuthed = useAuth((s) => s.status === 'authed');
+  const username = useAuth((s) => s.user?.username);
   const decks = useDecksStore((s) => s.decks);
   const binders = useCollectionStore((s) => s.binders);
   const lists = useCollectionStore((s) => s.lists);
@@ -54,6 +64,9 @@ export function SharedLinksSettings() {
   // demand) rather than an inline reveal per row, which would reflow the
   // whole list.
   const [qrToken, setQrToken] = useState<string | null>(null);
+  // null = not yet known (row stays hidden while this resolves — no loading
+  // flash for what's an optional discoverability row, not primary content).
+  const [ownDeckCount, setOwnDeckCount] = useState<number | null>(null);
 
   // Inline .then() chain on purpose: react-hooks/set-state-in-effect flags
   // `await`-then-setState patterns even when wrapped in a separate function.
@@ -76,6 +89,26 @@ export function SharedLinksSettings() {
     };
   }, [isAuthed]);
 
+  // Own-profile discoverability row (blocking fix, w1-public-profile-page):
+  // publishing a deck previously had no in-app link to preview/copy/share the
+  // resulting /u/:username page. isOwner always 200s regardless of deck count,
+  // so a failure here is a genuine (rare) error, not a "0 decks" 404 — best
+  // effort either way, since this row is a bonus, not primary content.
+  useEffect(() => {
+    if (!isAuthed || !username) return;
+    let cancelled = false;
+    fetchPublicProfile(username)
+      .then((profile) => {
+        if (!cancelled) setOwnDeckCount(profile.deckCount);
+      })
+      .catch(() => {
+        /* best-effort — row just stays hidden */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthed, username]);
+
   const resolveLabel = (s: ShareRow): ResolvedLabel => {
     if (s.kind === 'collection') return { name: 'Your collection', deleted: false };
     if (s.kind === 'deck' || s.kind === 'feedback') {
@@ -94,8 +127,9 @@ export function SharedLinksSettings() {
     return l ? { name: l.name, deleted: false } : { name: 'Deleted list', deleted: true };
   };
 
-  const handleCopy = useCallback(async (token: string) => {
-    const url = shareUrl(token);
+  // Takes the final URL rather than a share token — reused as-is by the
+  // "Your public profile" row below, whose URL isn't a /s/:token share link.
+  const handleCopy = useCallback(async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
       toast.show({ message: 'Link copied to clipboard.', tone: 'success' });
@@ -104,8 +138,7 @@ export function SharedLinksSettings() {
     }
   }, []);
 
-  const handleNativeShare = useCallback(async (token: string, label: string) => {
-    const url = shareUrl(token);
+  const handleNativeShare = useCallback(async (url: string, label: string) => {
     try {
       await Share.share({
         title: `Share ${label}`,
@@ -142,6 +175,7 @@ export function SharedLinksSettings() {
 
   const qrShare = qrToken ? (shares?.find((s) => s.token === qrToken) ?? null) : null;
   const qrLabel = qrShare ? resolveLabel(qrShare) : null;
+  const myProfileUrl = username && ownDeckCount ? ownProfileUrl(username) : null;
 
   return (
     <>
@@ -156,6 +190,43 @@ export function SharedLinksSettings() {
           </p>
         </header>
         <div className="settings-card-body">
+          {myProfileUrl && (
+            <div className="settings-row settings-share-row">
+              <div className="settings-row-text">
+                <div className="settings-row-value">Your public profile</div>
+                <div className="settings-row-hint">
+                  <a
+                    href={myProfileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="settings-share-url"
+                  >
+                    {myProfileUrl.replace(/^https?:\/\//, '')}
+                  </a>
+                </div>
+              </div>
+              <div className="settings-share-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void handleCopy(myProfileUrl)}
+                  aria-label="Copy your public profile link"
+                >
+                  Copy
+                </button>
+                {isNativePlatform() && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => void handleNativeShare(myProfileUrl, 'Your public profile')}
+                    aria-label="Share your public profile link"
+                  >
+                    Share…
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {error && (
             <div role="alert" className="settings-row-text">
               <div className="settings-row-hint">{error}</div>
@@ -209,7 +280,7 @@ export function SharedLinksSettings() {
                   <button
                     type="button"
                     className="btn"
-                    onClick={() => void handleCopy(s.token)}
+                    onClick={() => void handleCopy(url)}
                     disabled={revoking}
                     aria-label={`Copy ${KIND_LABELS[s.kind].toLowerCase()} share link`}
                   >
@@ -219,7 +290,7 @@ export function SharedLinksSettings() {
                     <button
                       type="button"
                       className="btn"
-                      onClick={() => void handleNativeShare(s.token, label.name)}
+                      onClick={() => void handleNativeShare(url, label.name)}
                       disabled={revoking}
                       aria-label={`Share ${KIND_LABELS[s.kind].toLowerCase()} link`}
                     >

@@ -89,8 +89,14 @@ describe('LruTtlCache<PublicUserProfile>', () => {
   it('type-checks and behaves identically against a second, unrelated shape', () => {
     const cache = new LruTtlCache<PublicUserProfile>();
     const profile: PublicUserProfile = {
+      id: 'user-alice',
       username: 'alice',
+      displayName: null,
+      bio: null,
+      avatarCardName: null,
+      avatarImageUrl: null,
       memberSince: 0,
+      profileHiddenAt: null,
       deckCount: 0,
       decks: [],
     };

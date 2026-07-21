@@ -38,8 +38,19 @@ export interface PublicDeckSummary {
 }
 
 export interface PublicUserProfile {
+  /** Internal only — never echoed in the JSON response. Lets the route
+   *  compute `isOwner` (req.user?.id === id) against this viewer-agnostic
+   *  cached row without a second DB read per request. */
+  id: string;
   username: string;
+  displayName: string | null;
+  bio: string | null;
+  avatarCardName: string | null;
+  avatarImageUrl: string | null;
   memberSince: number;
+  /** Internal only, like `id` — the route derives `moderationHidden` (and
+   *  the stranger-facing 404) from this per request; never echoed as-is. */
+  profileHiddenAt: number | null;
   deckCount: number;
   decks: PublicDeckSummary[];
 }
