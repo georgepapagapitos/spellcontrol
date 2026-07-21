@@ -309,6 +309,10 @@ export async function ensureSchema(): Promise<void> {
     -- by this index and capped in the route instead.
     CREATE UNIQUE INDEX IF NOT EXISTS game_night_rsvps_user_idx
       ON game_night_rsvps(night_id, user_id) WHERE user_id IS NOT NULL;
+    -- Per-night trade-board opt-in (w5-tonight-trades); revocable, unlike the
+    -- binder tradeable flag. Default false so an existing RSVP row opts into
+    -- nothing until the attendee explicitly checks the box.
+    ALTER TABLE game_night_rsvps ADD COLUMN IF NOT EXISTS trade_opt_in BOOLEAN NOT NULL DEFAULT false;
     -- Candidate date slots while a night is polling (E124). Deleted on lock-in;
     -- a night with option rows is "polling", one without is scheduled.
     CREATE TABLE IF NOT EXISTS game_night_options (

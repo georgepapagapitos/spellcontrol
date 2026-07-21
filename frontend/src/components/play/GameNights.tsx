@@ -41,6 +41,7 @@ import { Modal } from '../Modal';
 import { OverflowMenu } from '../OverflowMenu';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { NightPoll, formatSlot } from '../NightPoll';
+import { TonightTrades } from './TonightTrades';
 import './GameNights.css';
 
 const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
@@ -274,6 +275,7 @@ function NightCard({
   const [pendingStopRepeat, setPendingStopRepeat] = useState(false);
   const [pollDialogOpen, setPollDialogOpen] = useState(false);
   const [attendeeSheetOpen, setAttendeeSheetOpen] = useState(false);
+  const [tonightTradesOpen, setTonightTradesOpen] = useState(false);
   const cancelled = night.cancelledAt !== null;
   const polling = night.options.length > 0;
   const weekly = night.series !== null && night.series.endedAt === null;
@@ -437,6 +439,25 @@ function NightCard({
         </button>
       )}
 
+      {!polling && (
+        <button
+          type="button"
+          className="game-night-card-tally-btn game-night-card-trades-btn"
+          onClick={() => setTonightTradesOpen(true)}
+          aria-haspopup="dialog"
+          aria-label={`Tonight's trades for ${night.title}`}
+        >
+          <span>Tonight's trades</span>
+          <ChevronRight
+            width={16}
+            height={16}
+            strokeWidth={2}
+            aria-hidden
+            className="game-night-card-tally-chevron"
+          />
+        </button>
+      )}
+
       {!cancelled && polling && (
         <NightPoll
           options={night.options}
@@ -566,6 +587,14 @@ function NightCard({
 
       {attendeeSheetOpen && (
         <AttendeeSheet night={night} onClose={() => setAttendeeSheetOpen(false)} />
+      )}
+
+      {tonightTradesOpen && (
+        <TonightTrades
+          night={night}
+          refresh={refresh}
+          onClose={() => setTonightTradesOpen(false)}
+        />
       )}
     </li>
   );

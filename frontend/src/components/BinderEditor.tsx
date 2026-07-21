@@ -166,6 +166,7 @@ export function BinderEditor() {
   const [nextRandomColor, setNextRandomColor] = useState(PRESET_COLORS[0].hex);
   const [pocketSize, setPocketSize] = useState<PocketSize>(9);
   const [doubleSided, setDoubleSided] = useState(false);
+  const [tradeable, setTradeable] = useState(false);
   const [fixedCapacity, setFixedCapacity] = useState<number | null>(null);
   const [showDeckAllocated, setShowDeckAllocated] = useState(true);
   const [keepPrintingsTogether, setKeepPrintingsTogether] = useState(false);
@@ -298,6 +299,7 @@ export function BinderEditor() {
         setColor(existing.color);
         setPocketSize(existing.pocketSize ?? 9);
         setDoubleSided(!!existing.doubleSided);
+        setTradeable(!!existing.tradeable);
         setFixedCapacity(existing.fixedCapacity ?? null);
         setShowDeckAllocated(existing.hideDeckAllocated !== false);
         setKeepPrintingsTogether(!!existing.keepPrintingsTogether);
@@ -318,6 +320,7 @@ export function BinderEditor() {
         setColor(nextRandomColor);
         setPocketSize(9);
         setDoubleSided(false);
+        setTradeable(false);
         setFixedCapacity(null);
         setShowDeckAllocated(true);
         setKeepPrintingsTogether(false);
@@ -561,6 +564,7 @@ export function BinderEditor() {
       hideDeckAllocated: showDeckAllocated ? undefined : false,
       sortValueOrders: Object.keys(sortValueOrders).length ? sortValueOrders : undefined,
       keepPrintingsTogether: keepPrintingsTogether || undefined,
+      tradeable: tradeable || undefined,
       sectionMode: sectionMode !== 'sort' ? sectionMode : undefined,
       pageBreakDepth: pageBreakDepth > 1 ? pageBreakDepth : undefined,
     };
@@ -784,6 +788,23 @@ export function BinderEditor() {
                       onChange={(e) => setKeepPrintingsTogether(e.target.checked)}
                     />
                     Keep all printings together
+                  </label>
+                </div>
+              </div>
+              <div className="editor-row">
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Trading</label>
+                  <label
+                    className="field-checkbox"
+                    style={{ margin: 0 }}
+                    title="Cards in this binder can show up in a game night's trade board when you opt in."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tradeable}
+                      onChange={(e) => setTradeable(e.target.checked)}
+                    />
+                    Available to trade
                   </label>
                 </div>
               </div>

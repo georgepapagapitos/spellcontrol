@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import type { Express } from 'express';
+import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
 import {
   lookupGameNightLandingMeta,
@@ -9,11 +10,13 @@ import {
 } from './game-nights';
 
 let app: Express;
+let pool: Pool;
 let cleanup: () => Promise<void>;
 
 beforeAll(async () => {
   const env = await createTestEnv();
   app = env.app;
+  pool = env.pool;
   cleanup = env.cleanup;
 });
 
@@ -549,6 +552,72 @@ describe('POST /api/game-nights/public/:token/rsvp', () => {
       .post(`/api/game-nights/public/${past.token}/rsvp`)
       .send({ status: 'going', displayName: 'Late' });
     expect(tooLate.status).toBe(400);
+  });
+});
+
+describe('per-night trade opt-in (w5-tonight-trades)', () => {
+  it('an authed attendee can opt in and it round-trips on the next GET /', async () => {
+    const host = await makeUser('gn-tradeoptin-host');
+    const { token } = await createNight(host);
+    const rsvp = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', host)
+      .send({ status: 'going', tradeOptIn: true });
+    expect(rsvp.status).toBe(200);
+    expect(rsvp.body.rsvp.tradeOptIn).toBe(true);
+
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    expect(list.body.nights[0].myTradeOptIn).toBe(true);
+  });
+
+  it('a guest RSVP with tradeOptIn:true gets a 400 sign-in message and the row stays false', async () => {
+    const host = await makeUser('gn-tradeoptin-guest-host');
+    const { token } = await createNight(host);
+    const res = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat', tradeOptIn: true });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Sign in to join tonight's trades.");
+
+    // false/absent is always accepted as a silent no-op for guests.
+    const ok = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .send({ status: 'going', displayName: 'Pat', tradeOptIn: false });
+    expect(ok.status).toBe(201);
+    const row = await pool.query<{ trade_opt_in: boolean }>(
+      `SELECT trade_opt_in FROM game_night_rsvps WHERE id = $1`,
+      [ok.body.rsvp.id]
+    );
+    expect(row.rows[0].trade_opt_in).toBe(false);
+  });
+
+  it('omitting tradeOptIn on a later unrelated status change never clobbers a prior true opt-in', async () => {
+    const host = await makeUser('gn-tradeoptin-noclobber-host');
+    const { token } = await createNight(host);
+    const first = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', host)
+      .send({ status: 'going', tradeOptIn: true });
+    expect(first.body.rsvp.tradeOptIn).toBe(true);
+
+    // Unrelated status change (going -> maybe), tradeOptIn field absent.
+    const second = await request(app)
+      .post(`/api/game-nights/public/${token}/rsvp`)
+      .set('Cookie', host)
+      .send({ status: 'maybe' });
+    expect(second.status).toBe(200);
+    expect(second.body.rsvp.tradeOptIn).toBe(true);
+
+    const row = await pool.query<{ trade_opt_in: boolean; status: string }>(
+      `SELECT trade_opt_in, status FROM game_night_rsvps WHERE id = $1`,
+      [first.body.rsvp.id]
+    );
+    expect(row.rows[0].trade_opt_in).toBe(true);
+    expect(row.rows[0].status).toBe('maybe');
+
+    const list = await request(app).get('/api/game-nights').set('Cookie', host);
+    expect(list.body.nights[0].myTradeOptIn).toBe(true);
+    expect(list.body.nights[0].myStatus).toBe('maybe');
   });
 });
 

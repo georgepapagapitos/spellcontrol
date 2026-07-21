@@ -315,6 +315,7 @@ describe('upcomingGameNights', () => {
       hostUsername: 'host',
       isHost: true,
       myStatus: null,
+      myTradeOptIn: false,
       rsvps: [],
       awaiting: [],
       options: [],

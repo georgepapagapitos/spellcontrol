@@ -1,0 +1,35 @@
+/* Tonight's trades sheet (w5-tonight-trades). Reuses .game-night-dialog,
+   .game-night-attendee-group(-title), .game-night-count, .field-checkbox,
+   .empty-state(-tagline/-hint), .friend-hub-radar-strip, and RadarCardTile's
+   own styling from FriendHubPage.css — only the pieces unique to this sheet
+   get new rules here. */
+
+.tonight-trades-optin {
+  margin: 0;
+}
+
+.tonight-trades-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Compact variant of the shared two-part empty state — the default padding
+   is sized for a full page/section, not two stacked instances inside a
+   sheet already carrying a checkbox and a second section. */
+.tonight-trades-section-empty {
+  padding: var(--space-5) var(--space-3);
+}
+
+.tonight-trades-person-group + .tonight-trades-person-group {
+  margin-top: var(--space-3);
+}
+
+.tonight-trades-person-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
