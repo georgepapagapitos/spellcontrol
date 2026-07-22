@@ -526,7 +526,16 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    color: var(--chrome-text-muted);
+    /* Containment (E159): a label can never paint outside its own cell —
+       "Collection" used to overflow a 61px cell at 360px and collide with an
+       active neighbor's fill. Positioned so the active hanging-tab ::before
+       can anchor to the cell; isolate keeps its z-index:-1 inside the cell. */
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    /* One notch up from --chrome-text-muted (E159): pure muted read as dim
+       floating glyphs on the dark leather bar in device review. */
+    color: color-mix(in srgb, var(--chrome-text) 45%, var(--chrome-text-muted));
     text-decoration: none;
     font-family: var(--font-label);
     font-size: var(--text-xs);
@@ -547,11 +556,20 @@
 
   /* The active destination wears its divider tab hanging from the page
      edge above — accent fill, corners rounded DOWNWARD (the bar sits under
-     the page, so the tab points away from it). Full-height cell fill keeps
-     the 44px+ target intact. */
+     the page, so the tab points away from it). The fill is a ::before inset
+     from the cell (E159): flush to the page edge above, a gap at the floor
+     and sides so it reads as a hanging tab rather than a full-height slab
+     riding over its neighbors' labels. The LINK stays the full cell, so the
+     44px+ touch target is untouched. */
   .mobile-tab-bar-link.active {
-    background: var(--accent);
     color: var(--on-accent);
+  }
+  .mobile-tab-bar-link.active::before {
+    content: '';
+    position: absolute;
+    inset: 0 3px 6px;
+    z-index: -1;
+    background: var(--accent);
     border-radius: 0 0 var(--radius) var(--radius);
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
   }
@@ -621,15 +639,25 @@
     align-items: center;
     justify-content: center;
     border-left: 1px solid var(--chrome-border);
-    color: var(--chrome-text-muted);
+    position: relative;
+    isolation: isolate;
+    color: color-mix(in srgb, var(--chrome-text) 45%, var(--chrome-text-muted));
     text-decoration: none;
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Same hanging-tab fill as the primary tabs (E159). */
   .mobile-tab-bar-search.active {
-    background: var(--accent);
     color: var(--on-accent);
+  }
+  .mobile-tab-bar-search.active::before {
+    content: '';
+    position: absolute;
+    inset: 0 3px 6px;
+    z-index: -1;
+    background: var(--accent);
     border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%);
   }
 }
 
@@ -692,12 +720,21 @@
   outline-offset: 2px;
 }
 
-/* E57 intake (320px sweep): at very narrow widths the uppercase tracked
-   labels crowd — COLLECTION and DECKS nearly touch. Trim the tracking one
-   step below 340px; labels keep their full words (the #1298 short-label
-   ruling stays a fallback if a future locale still crowds). */
-@media (max-width: 340px) {
-  .mobile-tab-bar-link {
-    letter-spacing: 0.02em;
+/* E159 (supersedes the #1302 ≤340px tracking trim): COLLECTION is the one
+   label wider than a 1/5 cell on narrow phones (~67px vs a 61px cell at
+   360). Rather than squeezing tracking, it swaps to its short form "Cards"
+   below 420px (the #1298 long/short span-pair ruling); every other label
+   fits at full tracking down to 320px. */
+.mobile-tab-bar-label-short {
+  display: none;
+}
+
+@media (max-width: 420px) {
+  .mobile-tab-bar-label-long {
+    display: none;
+  }
+
+  .mobile-tab-bar-label-short {
+    display: block;
   }
 }

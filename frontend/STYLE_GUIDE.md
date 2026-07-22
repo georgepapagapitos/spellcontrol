@@ -404,7 +404,17 @@ Rakdos stays blood-black). Rulings:
   which hangs under the page), a 1px inset top-face highlight
   (`rgb(255 255 255 / 14%)`) to lift the silhouette off dark grounds, and a
   `-1px` margin over its strip's hairline so the fill merges into the page.
-  Resting tabs are quiet text (`--chrome-text-muted` on leather,
+  **In the mobile tab bar the fill is an inset `::before`** (E159:
+  `inset: 0 3px 6px` — flush to the page edge above, a floor-and-sides gap
+  below) so it reads as a tab hanging into the bar, never a full-height slab
+  touching its neighbors; the link itself stays the full cell, keeping the
+  44px+ touch target. Cells are `overflow: hidden` — a tab label may never
+  paint outside its own cell (the pre-E159 "Collection" label overflowed a
+  61px cell at 360px and collided with an active neighbor's fill; it now
+  swaps to its short form "Cards" below 420px via the long/short span pair).
+  Resting tabs are quiet text (on leather, one notch above muted:
+  `color-mix(in srgb, var(--chrome-text) 45%, var(--chrome-text-muted))` —
+  pure `--chrome-text-muted` read as dim floating glyphs in device review;
   `--text-secondary` on the paper hub strips); hover raises
   (`--chrome-surface` / `--surface-raised`). State is never color-only: the
   fill pairs with `aria-current`/`.active` and ≥4.5:1 on-accent text.
