@@ -1,8 +1,11 @@
 import {
+  Bomb,
+  BookOpen,
   CircleAlert,
   ChevronDown,
   ChevronRight,
   Boxes,
+  Crosshair,
   Eye,
   Hand,
   Handshake,
@@ -12,7 +15,12 @@ import {
   MoreVertical,
   Pencil,
   Search,
+  Shapes,
+  Sparkles,
+  Sprout,
+  Tags,
   Trash2,
+  Wrench,
   X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -22,11 +30,13 @@ import { useListFlip } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type {
   ScryfallCard,
+  DeckCategory,
   DeckFormat,
   ThemeResult,
   BuildReport,
   Archetype,
 } from '@/deck-builder/types';
+import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
 import {
   buildManaData,
   classifyType,
@@ -204,6 +214,79 @@ const DISPLAY_ORDER: TypeGroup[] = [
   'Land',
 ];
 
+// ── Category grouping (E124) ────────────────────────────────────────────
+// Buckets the generator's own 8-bucket DeckCategory shape, so a generated
+// deck's shape explains itself against the targets it was built to. See
+// `groupByCategory` below.
+const CATEGORY_DISPLAY_ORDER: DeckCategory[] = [
+  'lands',
+  'ramp',
+  'cardDraw',
+  'singleRemoval',
+  'boardWipes',
+  'creatures',
+  'synergy',
+  'utility',
+];
+
+// Reuses ROLE_TITLES for the 4 role-derived buckets so the label matches the
+// row badges/legend exactly; the other 4 (type or catch-all buckets) get
+// their own title here.
+const CATEGORY_TITLES: Record<DeckCategory, string> = {
+  lands: 'Lands',
+  ramp: ROLE_TITLES.ramp,
+  cardDraw: ROLE_TITLES.cardDraw,
+  singleRemoval: ROLE_TITLES.removal,
+  boardWipes: ROLE_TITLES.boardwipe,
+  creatures: 'Creatures',
+  synergy: 'Synergy',
+  utility: 'Utility',
+};
+
+// Section-header icon per category bucket. 'lands'/'creatures' reuse the
+// mana-font type glyphs (via ManaSymbol, see SectionIcon below) — the other
+// 6 have no mana-font equivalent, so they render a small lucide glyph
+// instead (decorative, aria-hidden either way).
+const CATEGORY_ICON_COMPONENTS: Partial<
+  Record<
+    DeckCategory,
+    React.ComponentType<{
+      width?: number;
+      height?: number;
+      strokeWidth?: number;
+      'aria-hidden'?: boolean;
+      className?: string;
+    }>
+  >
+> = {
+  ramp: Sprout,
+  cardDraw: BookOpen,
+  singleRemoval: Crosshair,
+  boardWipes: Bomb,
+  synergy: Sparkles,
+  utility: Wrench,
+};
+
+// Section-header icon renderer shared by CategorySection and DeckCardGrid.
+// `icon` is a mana-font token ('land'/'creature'/'commander'/…) for
+// groupByType or a category-view lucide token for groupByCategory's 6
+// non-type buckets — CATEGORY_ICON_COMPONENTS decides which.
+function SectionIcon({ icon }: { icon: string }) {
+  const Lucide = CATEGORY_ICON_COMPONENTS[icon as DeckCategory];
+  if (Lucide) {
+    return (
+      <Lucide
+        width={14}
+        height={14}
+        strokeWidth={1.8}
+        aria-hidden
+        className="deck-section-icon-glyph"
+      />
+    );
+  }
+  return <ManaSymbol symbol={icon} />;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 type CurrencyCode = 'USD' | 'EUR';
 
@@ -277,6 +360,26 @@ function readStoredShowPrefs(): ShowPrefs {
   }
 }
 
+// ── Group-by (E124) ──────────────────────────────────────────────────────
+// Mainboard grouping lens: 'type' (canonical card type — the long-standing
+// default) or 'category' (the generator's 8-bucket DeckCategory shape, with
+// target gauges). Persisted like view mode/show prefs; default stays 'type'
+// so an existing deck's mainboard renders byte-identical until the user
+// opts in.
+export type DeckGroupBy = 'type' | 'category';
+const GROUP_BY_STORAGE_KEY = 'mtg-decks-group-by';
+
+function readStoredGroupBy(): DeckGroupBy {
+  if (typeof window === 'undefined') return 'type';
+  try {
+    const v = window.localStorage.getItem(GROUP_BY_STORAGE_KEY);
+    if (v === 'type' || v === 'category') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'type';
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────
 export interface DeckDisplayCard {
   /** Persisted slot id; when present, used for remove. Generated decks pre-save can omit this. */
@@ -331,6 +434,10 @@ export interface DeckDisplayProps {
   roleCounts?: Record<string, number>;
   /** Target role counts (balanced-roles generation); drives have/want display. */
   roleTargets?: Record<string, number>;
+  /** Target counts per DeckCategory bucket (generated decks only) — feeds the
+   *  category-view section gauges (E124). Snapshotted at generation, never
+   *  recomputed. */
+  categoryTargets?: Partial<Record<DeckCategory, number>>;
   /** Post-generation fill+flag report (set at generation only). */
   buildReport?: BuildReport;
   /**
@@ -944,7 +1051,12 @@ function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
   return sorted;
 }
 
-type TypedGroup = { title: string; icon: string; rows: Row[] };
+type TypedGroup = { title: string; icon: string; rows: Row[]; target?: number };
+
+// Buckets that never render a header gauge in category view — 'synergy' and
+// 'utility' are the generator's fill/catch-all buckets, not planned slot
+// counts, so a target there would be a made-up number, not a real gauge.
+const CATEGORY_GAUGE_EXEMPT = new Set<DeckCategory>(['synergy', 'utility']);
 
 // Shared impl for the claimedByFor closure inside buildRows and the
 // claimedByForName useCallback inside the component — identical logic.
@@ -979,6 +1091,44 @@ function groupByType(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
   for (const t of DISPLAY_ORDER) {
     const r = buckets.get(t);
     if (r && r.length > 0) ordered.push({ title: t, icon: typeIcon(t.toLowerCase()), rows: r });
+  }
+  return ordered;
+}
+
+// Group a flat Row[] by the generator's 8-bucket DeckCategory, optionally
+// prepending a commander group — same shape/contract as groupByType (used
+// for both mainboard and sideboard). A bucket with 0 rows is still included
+// when `categoryTargets` names a positive target for it (the "0/N gap" story
+// — a deck that generated 0 board wipes against a target of 3 should say so,
+// not silently omit the section); otherwise an empty bucket is dropped.
+// synergy/utility never carry a target — see CATEGORY_GAUGE_EXEMPT.
+function groupByCategory(
+  rows: Row[],
+  categoryTargets: Partial<Record<DeckCategory, number>> | undefined,
+  commanderRows?: Row[]
+): TypedGroup[] {
+  const buckets = new Map<DeckCategory, Row[]>();
+  for (const row of rows) {
+    const cat = classifyCardCategory(row.card);
+    const bucket = buckets.get(cat) ?? [];
+    bucket.push(row);
+    buckets.set(cat, bucket);
+  }
+  const ordered: TypedGroup[] = [];
+  if (commanderRows && commanderRows.length > 0) {
+    ordered.push({
+      title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
+      icon: 'commander',
+      rows: commanderRows,
+    });
+  }
+  for (const cat of CATEGORY_DISPLAY_ORDER) {
+    const rowsForCat = buckets.get(cat);
+    const target = CATEGORY_GAUGE_EXEMPT.has(cat) ? undefined : categoryTargets?.[cat];
+    if ((rowsForCat && rowsForCat.length > 0) || (target !== undefined && target > 0)) {
+      const icon = cat === 'lands' ? 'land' : cat === 'creatures' ? 'creature' : cat;
+      ordered.push({ title: CATEGORY_TITLES[cat], icon, rows: rowsForCat ?? [], target });
+    }
   }
   return ordered;
 }
@@ -1051,6 +1201,7 @@ export function DeckDisplay({
   saltiestCards,
   roleCounts,
   roleTargets,
+  categoryTargets,
   buildReport,
   cardInclusionMap,
   rampSubtypeCounts,
@@ -1116,6 +1267,7 @@ export function DeckDisplay({
   const [search, setSearch] = useState('');
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
+  const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
   const [gridZoom, setGridZoom] = useState(() => readStoredZoom(GRID_SIZE_STORAGE_KEY));
   const [showPrefs, setShowPrefs] = useState<ShowPrefs>(() => readStoredShowPrefs());
   // Mirrors the collection grid: on narrow viewports the top zoom steps
@@ -1141,6 +1293,14 @@ export function DeckDisplay({
     setViewMode(m);
     try {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, m);
+    } catch {
+      /* ignore */
+    }
+  };
+  const handleGroupByChange = (g: DeckGroupBy) => {
+    setGroupBy(g);
+    try {
+      window.localStorage.setItem(GROUP_BY_STORAGE_KEY, g);
     } catch {
       /* ignore */
     }
@@ -1255,13 +1415,39 @@ export function DeckDisplay({
     currency,
   ]);
 
-  // Non-commander rows grouped by canonical type.
-  const groups = useMemo(
-    () => groupByType(buildRows(cards, currency, collectionByCopyId, crossDeck), commanderRows),
-    [cards, commanderRows, collectionByCopyId, crossDeck, currency]
-  );
+  // Whether the bundled tagger data (role classification) has loaded —
+  // gates category-view grouping below, same source as the role-filter bar's
+  // roleFilterEntries further down. Declared here (rather than down by the
+  // role filter) so the mainboard groups memo can depend on it too.
+  const taggerReady = useTaggerReady();
 
-  // Sideboard rows grouped by canonical type.
+  // Non-commander rows grouped by the active groupBy lens. STABILITY: the
+  // dep array below deliberately excludes anything derived from
+  // useCommanderBracketAnalysis (roleTargets/bracketEstimation/planScore/…) —
+  // category buckets settle ONCE when taggerReady flips true and must never
+  // re-shuffle from a background/derived write (product hard rule). Pre-
+  // taggerReady, untagged cards fall to 'synergy'; that's fine, it's the same
+  // one-time settle as the role-filter bar's counts.
+  const groups = useMemo(() => {
+    const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
+    return groupBy === 'category'
+      ? groupByCategory(rows, categoryTargets, commanderRows)
+      : groupByType(rows, commanderRows);
+  }, [
+    cards,
+    commanderRows,
+    collectionByCopyId,
+    crossDeck,
+    currency,
+    groupBy,
+    categoryTargets,
+    taggerReady,
+  ]);
+
+  // Sideboard rows always stay type-grouped — the sideboard is a small,
+  // rarely-consulted holding list, not the shape-story surface the category
+  // gauges explain; type grouping keeps it simple and consistent regardless
+  // of the mainboard's lens.
   const sideboardGroups = useMemo(
     () =>
       sideboard.length === 0
@@ -1640,7 +1826,6 @@ export function DeckDisplay({
   // same source as the row badges). An active role keeps every row in place
   // but dims the rest, so matching cards pop without the layout reshuffling.
   const [roleFilter, setRoleFilter] = useState<RoleKey | null>(null);
-  const taggerReady = useTaggerReady();
   // Slots per top-level role across mainboard + sideboard — mirrors what the
   // lens dims. Multi-role cards count toward each role they fill.
   const roleFilterEntries = useMemo(() => {
@@ -1693,6 +1878,8 @@ export function DeckDisplay({
               onSearch={setSearch}
               viewMode={viewMode}
               onViewModeChange={handleViewModeChange}
+              groupBy={groupBy}
+              onGroupByChange={handleGroupByChange}
               gridZoom={effectiveGridZoom}
               onGridZoomChange={handleGridZoomChange}
               isNarrowGrid={isNarrowGrid}
@@ -1859,6 +2046,7 @@ export function DeckDisplay({
                         title={g.title}
                         icon={g.icon}
                         rows={g.rows}
+                        target={g.target}
                         currency={currency}
                         showPrefs={showPrefs}
                         onRowClick={openPreview}
@@ -2214,6 +2402,8 @@ interface ToolbarProps {
   onSearch: (s: string) => void;
   viewMode: DeckViewMode;
   onViewModeChange: (m: DeckViewMode) => void;
+  groupBy: DeckGroupBy;
+  onGroupByChange: (g: DeckGroupBy) => void;
   gridZoom: number;
   onGridZoomChange: (z: number) => void;
   isNarrowGrid: boolean;
@@ -2331,6 +2521,8 @@ function DeckToolbar({
   onSearch,
   viewMode,
   onViewModeChange,
+  groupBy,
+  onGroupByChange,
   gridZoom,
   onGridZoomChange,
   isNarrowGrid,
@@ -2397,6 +2589,8 @@ function DeckToolbar({
 
         <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
 
+        <DeckGroupByToggle value={groupBy} onChange={onGroupByChange} />
+
         {viewMode === 'grid' && (
           <ZoomControl
             zoom={gridZoom}
@@ -2461,6 +2655,39 @@ function DeckViewModeToggle({
   );
 }
 
+// ── Group-by segmented control (E124) ────────────────────────────────────
+// Thin wrapper around <SharedViewModeToggle />, same family as
+// DeckViewModeToggle above — 'type' (canonical card type, the long-standing
+// default) or 'category' (the generator's 8-bucket DeckCategory shape, with
+// target gauges).
+function DeckGroupByToggle({
+  value,
+  onChange,
+}: {
+  value: DeckGroupBy;
+  onChange: (g: DeckGroupBy) => void;
+}) {
+  return (
+    <SharedViewModeToggle<DeckGroupBy>
+      ariaLabel="Group cards by"
+      value={value}
+      onChange={onChange}
+      options={[
+        {
+          value: 'type',
+          label: 'Group by type',
+          icon: <Shapes width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
+          value: 'category',
+          label: 'Group by category',
+          icon: <Tags width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+      ]}
+    />
+  );
+}
+
 // ── Legality badge ──────────────────────────────────────────────────────
 // Shared by list and grid view. Theme-colored; caller sets size/position
 // via className.
@@ -2487,7 +2714,7 @@ function DeckCardGrid({
   arrivalsByType,
   onOpenArrivals,
 }: {
-  groups: { title: string; icon: string; rows: Row[] }[];
+  groups: TypedGroup[];
   onRowClick: (name: string) => void;
   legalityBySlot?: Map<string, LegalityIssue>;
   gridZoom: number;
@@ -2504,17 +2731,39 @@ function DeckCardGrid({
   return (
     <div className="deck-card-grid-sections">
       {groups.map((g) => {
-        if (g.rows.length === 0) return null;
+        // A bucket with no rows still renders when it carries a target (the
+        // 0/N gap story) — see groupByCategory. Type-mode buckets never set
+        // `target`, so this is a no-op there.
+        if (g.rows.length === 0 && g.target === undefined) return null;
         const count = g.rows.reduce((s, r) => s + r.qty, 0);
         return (
           <section key={g.title} className="deck-grid-section">
             <header className="deck-section-header">
               <span className="deck-section-icon">
-                <ManaSymbol symbol={g.icon} />
+                <SectionIcon icon={g.icon} />
               </span>
-              <h3 className="deck-section-title">
-                {g.title} <span className="deck-section-count">({count})</span>
-              </h3>
+              {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing
+                  content only — so the gauge is a sibling of the heading,
+                  both wrapped as the single grid-column-occupying title cell. */}
+              <div className="deck-section-title-row">
+                <h3 className="deck-section-title">
+                  {g.title}{' '}
+                  <span className="deck-section-count">
+                    ({count}
+                    {g.target !== undefined ? ` / ${g.target}` : ''})
+                  </span>
+                </h3>
+                {g.target !== undefined && (
+                  <MeterBar
+                    value={count}
+                    max={Math.max(g.target, count)}
+                    size="sm"
+                    role="meter"
+                    label={`${g.title}: ${count} of ${g.target}`}
+                    className="deck-section-gauge"
+                  />
+                )}
+              </div>
               {g.icon === 'commander' && onEditPartner ? (
                 <PartnerHeaderButton hasPartner={!!hasPartner} onClick={onEditPartner} />
               ) : g.icon === 'commander' ? null : (
@@ -2686,10 +2935,13 @@ function CategorySection({
   synergyByName,
   cardInclusionMap,
   cardProvenance,
+  target,
 }: {
   title: string;
   icon: string;
   rows: Row[];
+  /** Target count for this bucket's header gauge (category view only). */
+  target?: number;
   currency: CurrencyCode;
   showPrefs: ShowPrefs;
   onRowClick: (name: string) => void;
@@ -2722,7 +2974,10 @@ function CategorySection({
   const listRef = useRef<HTMLUListElement | null>(null);
   const { entries, registerItem, onExitEnd } = useListFlip(rows, (r) => r.name, listRef);
 
-  if (rows.length === 0) return null;
+  // A bucket with no rows still renders when it carries a target (the 0/N
+  // gap story) — see groupByCategory. Type-mode buckets never set `target`,
+  // so this is a no-op there — byte-identical to the pre-E124 early return.
+  if (rows.length === 0 && target === undefined) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
 
@@ -2730,11 +2985,30 @@ function CategorySection({
     <section className="deck-section">
       <header className="deck-section-header">
         <span className="deck-section-icon">
-          <ManaSymbol symbol={icon} />
+          <SectionIcon icon={icon} />
         </span>
-        <h3 className="deck-section-title">
-          {title} <span className="deck-section-count">({count})</span>
-        </h3>
+        {/* A <div> (MeterBar's root) can't nest inside <h3> — phrasing content
+            only — so the gauge is a sibling of the heading, both wrapped
+            together as the single grid-column-occupying title cell. */}
+        <div className="deck-section-title-row">
+          <h3 className="deck-section-title">
+            {title}{' '}
+            <span className="deck-section-count">
+              ({count}
+              {target !== undefined ? ` / ${target}` : ''})
+            </span>
+          </h3>
+          {target !== undefined && (
+            <MeterBar
+              value={count}
+              max={Math.max(target, count)}
+              size="sm"
+              role="meter"
+              label={`${title}: ${count} of ${target}`}
+              className="deck-section-gauge"
+            />
+          )}
+        </div>
         {showPrefs.price && (
           <span className="deck-section-subtotal">{formatMoney(subtotal, { currency })}</span>
         )}

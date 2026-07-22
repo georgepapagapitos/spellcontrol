@@ -85,6 +85,29 @@ export function categorizeCards(
 }
 
 /**
+ * Classify a single card into its DISPLAY bucket (the E124 category-grouped
+ * deck view): land, then creature, then planeswalker → utility (mirrors the
+ * initial-build assignment in deckGenerator, which is where nearly every
+ * walker in a generated deck comes from), then tagger role, falling back to
+ * 'synergy'.
+ *
+ * ⚠️ Display-only. `routeCardByType` (the GENERATION repair/add-path router)
+ * deliberately does NOT share the planeswalker branch: its historical chain
+ * routes walkers by role→synergy, and bucket membership feeds later phases'
+ * cut/add eligibility — changing it would alter generated decks
+ * (composition-affecting ⇒ full ship gate). Keep the two chains' one
+ * documented difference in sync with this comment.
+ */
+export function classifyCardCategory(card: ScryfallCard): DeckCategory {
+  const typeLine = getFrontFaceTypeLine(card).toLowerCase();
+  if (typeLine.includes('land')) return 'lands';
+  if (typeLine.includes('creature')) return 'creatures';
+  if (typeLine.includes('planeswalker')) return 'utility';
+  const role = validateCardRole(card);
+  return role && ROLE_TO_CATEGORY[role] ? ROLE_TO_CATEGORY[role] : 'synergy';
+}
+
+/**
  * Route a single card into its target category by type first (land, then
  * creature), then tagger role, falling back to 'synergy'. Extracted because
  * this exact type-then-role chain is duplicated ad hoc — and missing the land
@@ -94,6 +117,10 @@ export function categorizeCards(
  * mis-bucketed a land like Eldrazi Temple into synergy and undercounted
  * `manabase.totalLands`). Those call sites should switch to this helper
  * instead of re-inlining the chain.
+ *
+ * NOT `classifyCardCategory`: see that function's warning — the display
+ * chain adds a planeswalker→utility branch this generation router must not
+ * adopt without the deck-gen ship gate.
  */
 export function routeCardByType(
   card: ScryfallCard,

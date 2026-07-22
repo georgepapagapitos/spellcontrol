@@ -2452,6 +2452,7 @@ export function DeckEditorPage() {
             }}
             roleCounts={deck.roleCounts}
             roleTargets={deck.roleTargets}
+            categoryTargets={deck.categoryTargets}
             buildReport={deck.buildReport}
             onAddSuggestedCard={handleAddEngineCard}
             addingSuggestedCardNames={addingEngineNames}

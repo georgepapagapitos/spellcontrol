@@ -6,6 +6,7 @@ import type {
   ScryfallCard,
   ThemeResult,
   DeckFormat,
+  DeckCategory,
   GapAnalysisCard,
   HiddenGemRow,
   BuildReport,
@@ -115,6 +116,13 @@ export interface Deck {
    * bracketEstimation — not a frozen generation snapshot.
    */
   roleTargets?: Record<string, number>;
+  /**
+   * Target counts per DeckCategory bucket ("wanted N ramp/cardDraw/…"), for
+   * the deck editor's category-view section gauges (E124). Snapshotted at
+   * generation, never recomputed — unlike roleTargets/bracketEstimation above,
+   * an edit doesn't reshuffle these; they explain the deck's ORIGINAL shape.
+   */
+  categoryTargets?: Partial<Record<DeckCategory, number>>;
   /**
    * Ranked "cards to consider" — owned/unowned upgrade candidates from EDHREC
    * not already in the deck. Recomputed live alongside the analysis.
@@ -274,6 +282,7 @@ interface DecksState {
     cardDrawSubtypeCounts?: Record<string, number>;
     bracketEstimation?: BracketEstimation;
     roleTargets?: Record<string, number>;
+    categoryTargets?: Partial<Record<DeckCategory, number>>;
     gapAnalysis?: GapAnalysisCard[];
     hiddenGems?: HiddenGemRow[];
     cardInclusionMap?: Record<string, number>;
@@ -396,6 +405,7 @@ export const useDecksStore = create<DecksState>()(
           cardDrawSubtypeCounts: input.cardDrawSubtypeCounts,
           bracketEstimation: input.bracketEstimation,
           roleTargets: input.roleTargets,
+          categoryTargets: input.categoryTargets,
           gapAnalysis: input.gapAnalysis,
           cardInclusionMap: input.cardInclusionMap,
           buildReport: input.buildReport,

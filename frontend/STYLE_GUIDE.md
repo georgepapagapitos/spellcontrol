@@ -1554,6 +1554,16 @@ visible text — same a11y story as bars. Pips are fixed-size, so they don't
 test-hand histogram) are charts, not meters, and stay bespoke. Radar/polar
 charts also stay bespoke — see **"Radar / polar charts"** below.
 
+**Category-view bucket header gauges (E124)** are `MeterBar` `size="sm"` with
+`max={Math.max(target, count)}` — the same honest-length rule as any other
+bar, just scaled per section rather than deck-wide. The generator's two
+catch-all buckets, Synergy and Utility, never carry a target (there's no
+planned slot count to gauge against) — those sections render a plain count,
+never an ungauged bar standing in for one. A `<div>` (`MeterBar`'s root)
+can't nest inside the section `<h3>` (phrasing content only), so the gauge
+sits as a sibling of the heading inside a shared flex wrapper — see
+`.deck-section-title-row` in `styles/deck-builder-card-list.css`.
+
 ## Money deltas & value sparklines (E76)
 
 A signed money change ("+$18 this week", "Value down $4") follows the

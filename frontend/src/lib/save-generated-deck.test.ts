@@ -227,4 +227,33 @@ describe('saveGeneratedDeck', () => {
     // claimed-elsewhere conflict, so it must not inflate claimedConflicts.
     expect(captured.buildReport?.claimedConflicts).toBeUndefined();
   });
+
+  it('passes the generator composition through as categoryTargets (E124)', () => {
+    const generated = generatedDeck({
+      composition: {
+        lands: 37,
+        ramp: 10,
+        cardDraw: 8,
+        singleRemoval: 6,
+        boardWipes: 3,
+        creatures: 25,
+        synergy: 10,
+        utility: 1,
+      },
+    });
+    const { createDeck, calls } = fakeCreateDeck();
+
+    saveGeneratedDeck(generated, customization(), [], [], [], createDeck);
+
+    expect(calls[0].categoryTargets).toEqual(generated.composition);
+  });
+
+  it('leaves categoryTargets undefined when the generator has no composition', () => {
+    const generated = generatedDeck(); // no `composition` override
+    const { createDeck, calls } = fakeCreateDeck();
+
+    saveGeneratedDeck(generated, customization(), [], [], [], createDeck);
+
+    expect(calls[0].categoryTargets).toBeUndefined();
+  });
 });
