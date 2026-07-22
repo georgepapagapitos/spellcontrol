@@ -2,7 +2,11 @@
    Reuses .binder-hero (page title), .empty-state (empty state),
    .friends-signin-prompt (guest gate), .friends-error(-retry) (load error),
    and .deck-bento (the "Your pods" tile grid's responsive column count) —
-   this file only adds what none of those shared families already cover. */
+   this file only adds what none of those shared families already cover.
+   Pods have no art/color by design (routes/pods.ts) — the owner's UserAvatar
+   medallion (initial-letter fallback) is their identity treatment instead of
+   cover art, and the tile surface joins the sleeve-matte index-tile family
+   (.decks-index-card / .binders-index-card — STYLE_GUIDE "Sleeve matte"). */
 
 .pods-index-page {
   display: flex;
@@ -83,15 +87,19 @@
 
 /* ── "Your pods" grid — .deck-bento (deck-builder-analysis.css) owns the
    responsive column count (1-col below a 640px container width, 2-col
-   at/above); this file only styles the tile content shape. ─────────────── */
+   at/above); this file only styles the tile content shape. Sleeve matte
+   (STYLE_GUIDE "Sleeve matte for index tiles"): --surface-raised + the
+   lightest --shadow-card lift, same recipe as .decks-index-card /
+   .binders-index-card. ──────────────────────────────────────────────────── */
 .pods-index-card {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: flex-start;
+  gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--surface);
-  border: 0.5px solid var(--border);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   text-decoration: none;
   color: var(--text-primary);
   transition: border-color var(--motion-fast);
@@ -103,6 +111,13 @@
   }
 }
 
+.pods-index-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
 .pods-index-card-name {
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -111,6 +126,7 @@
 .pods-index-card-meta {
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .pods-index-card-create {

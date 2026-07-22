@@ -7,7 +7,9 @@ import { toast } from '../store/toasts';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackedBar } from '../components/shared/MeterBar';
+import { UserAvatar } from '../components/UserAvatar';
 import { gameFormatLabel } from '../lib/game-formats';
+import { useAnimatedNumber } from '../lib/use-animated-number';
 import { listFriends, type Friend } from '../lib/friends-client';
 import { getFriendShares, type FriendShareRow } from '../lib/share-client';
 import {
@@ -53,6 +55,34 @@ function BackLink() {
       <ArrowLeft width={16} height={16} aria-hidden />
       Pods
     </Link>
+  );
+}
+
+/* Its own component (not inlined in the .map()) so the legacy
+   useAnimatedNumber calls below stay one-hook-per-instance. Only the played/
+   wins integers tween — the win-rate percentage and the StackedBar's
+   underlying values are derived/bands, which STYLE_GUIDE "Live values" says
+   never count up. */
+function PodLeaderboardRow({ standing }: { standing: PodStanding }) {
+  const played = useAnimatedNumber(standing.played);
+  const wins = useAnimatedNumber(standing.wins);
+  return (
+    <tr>
+      <td>{standing.username}</td>
+      <td>{played.display}</td>
+      <td>{wins.display}</td>
+      <td className="pod-hub-winrate-cell">
+        <StackedBar
+          className="pod-hub-winrate-bar"
+          segments={[
+            { key: 'w', value: standing.wins, color: 'var(--success)' },
+            { key: 'l', value: standing.played - standing.wins, color: 'var(--err-text)' },
+          ]}
+          max={standing.played}
+        />
+        <span>{standing.played > 0 ? `${Math.round(standing.winRate * 100)}%` : '—'}</span>
+      </td>
+    </tr>
   );
 }
 
@@ -445,6 +475,7 @@ export function PodHubPage() {
         <ul className="pod-hub-roster">
           {activeMembers.map((m) => (
             <li key={m.userId} className="pod-hub-roster-row">
+              <UserAvatar name={m.username} size={28} />
               <span className="pod-hub-roster-name">{m.username}</span>
               {m.userId === pod.ownerUserId && (
                 <span className="pod-hub-roster-owner-tag">Owner</span>
@@ -469,6 +500,7 @@ export function PodHubPage() {
             <ul className="pod-hub-roster">
               {invitedMembers.map((m) => (
                 <li key={m.userId} className="pod-hub-roster-row">
+                  <UserAvatar name={m.username} size={28} />
                   <span className="pod-hub-roster-name">{m.username}</span>
                   <span className="pod-hub-roster-pending">Invited</span>
                   {isOwner && (
@@ -562,22 +594,7 @@ export function PodHubPage() {
                     </thead>
                     <tbody>
                       {leaderboardFetch.standings.map((s) => (
-                        <tr key={s.userId}>
-                          <td>{s.username}</td>
-                          <td>{s.played}</td>
-                          <td>{s.wins}</td>
-                          <td className="pod-hub-winrate-cell">
-                            <StackedBar
-                              className="pod-hub-winrate-bar"
-                              segments={[
-                                { key: 'w', value: s.wins, color: 'var(--success)' },
-                                { key: 'l', value: s.played - s.wins, color: 'var(--err-text)' },
-                              ]}
-                              max={s.played}
-                            />
-                            <span>{s.played > 0 ? `${Math.round(s.winRate * 100)}%` : '—'}</span>
-                          </td>
-                        </tr>
+                        <PodLeaderboardRow key={s.userId} standing={s} />
                       ))}
                     </tbody>
                   </table>

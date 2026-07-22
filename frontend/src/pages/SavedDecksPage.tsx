@@ -9,6 +9,7 @@ import {
 } from '../components/DiscoverDeckTile';
 import { useAuth } from '../store/auth';
 import { listBookmarkedDecks, type DiscoverDeck } from '../lib/discover-client';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 
 /**
  * /decks/saved — the caller's own bookmarked decks (w2-likes-bookmarks). No
@@ -108,6 +109,7 @@ export function SavedDecksPage() {
           </div>
         ) : decks.length === 0 ? (
           <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">Nothing saved yet.</p>
             <p className="empty-state-hint">
               Bookmark a deck from <Link to="/decks/discover">Discover</Link> to find it here later.

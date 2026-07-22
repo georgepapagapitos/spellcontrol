@@ -4,6 +4,7 @@ import { SharedShell, NotFoundView, ErrorView } from '../components/shared/Share
 import { UserAvatar } from '../components/UserAvatar';
 import { ColorPip } from '../components/shared/ManaSymbol';
 import { ReportDialog } from '../components/shared/ReportDialog';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { formatIdentity } from '../lib/display-name';
 import { formatSocialCount } from '../lib/social-proof';
 import { formatRelativeTime } from '../lib/format-time';
@@ -310,6 +311,7 @@ function PublicProfilePageInner({ username }: { username: string }) {
           </div>
         ) : profile.decks.length === 0 ? (
           <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">No public decks yet.</p>
             <p className="empty-state-hint">
               Publish a deck from its share menu to feature it here.
