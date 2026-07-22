@@ -9,6 +9,11 @@
 
 .trending-rail {
   margin-bottom: var(--space-5);
+  /* bento-host (E158): the rail's two subsections sit in a .deck-bento and
+     were designed for its 2-col split — which never fired without a named
+     ancestor container. This host finally delivers the intended side-by-side
+     rail on ≥640px boards; below that the sections stack as before. */
+  container: bento-host / inline-size;
 }
 
 .trending-rail-grid {

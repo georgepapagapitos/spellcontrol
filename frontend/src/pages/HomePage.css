@@ -7,45 +7,18 @@
 }
 
 /* Composition, not a fresh selector: .home-bento rides every .deck-bento rule
-   (grid, container query, gap) verbatim — this override widens the bento's cap
-   from deck-analysis's 1320px default to the app's standard 1400px page width.
-
-   width: 100% is load-bearing, not belt-and-suspenders: .home-page is a flex
-   COLUMN, and .deck-bento carries margin-inline: auto — a cross-axis auto
-   margin in flex cancels the default stretch, dropping the item to
-   shrink-to-fit. Combined with .deck-bento's container-type: inline-size
-   (whose size containment makes intrinsic width ZERO by definition), the
-   bento collapsed to a ~0-width centered strip. An explicit width restores
-   stretch; Layout's .container already caps the page at --page-max, so the
-   max-width/centering are harmless no-ops here. (Deck analysis is unaffected
-   — its parent is normal block flow, where auto margins center a full-width
-   block as designed.) */
+   (grid, container queries, gap, the load-bearing width: 100%) verbatim —
+   this override only widens the bento's cap from deck-analysis's 1320px
+   default to the app's standard 1400px page width. */
 .home-bento {
   --analysis-max: var(--page-max);
-  width: 100%;
 }
 
-/* The bento's board-level column rules are NAMED container queries, and an
-   element can never match a query against its own container-type — they need
-   an ANCESTOR named container, which no mount provides (E158 tracks the
-   deck-side story). Home mounts eight flat cards directly in the bento, so
-   without a host every card rendered as a full-width band at every viewport —
-   the "empty dashboard" read (E157). The page wrapper is that host; the two
-   rules mirror .deck-bento's intended 640/1040 tiers, scoped to .home-bento
-   only so deck analysis ships unchanged. Phones (<640 container) keep the
-   single-column stack. */
+/* bento-host (E157→E158): the bento's board-level 640/1040 column rules are
+   named container queries that need an ANCESTOR container — this page was the
+   first host; the rules themselves now live globally in
+   deck-builder-analysis.css and every mount declares its own host. Phones
+   (<640 container) keep the single-column stack. */
 .home-page {
   container: bento-host / inline-size;
-}
-
-@container bento-host (min-width: 640px) {
-  .home-bento {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container bento-host (min-width: 1040px) {
-  .home-bento {
-    gap: clamp(1.1rem, 1.6cqi, 1.85rem);
-  }
 }

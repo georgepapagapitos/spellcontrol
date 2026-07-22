@@ -3502,8 +3502,13 @@ function DeckAnalysisView({
       {current === 'stats' && (
         <div className="deck-bento deck-bento--stats">
           {/* Deck identity hero — leads the stats tab with the deck's visual identity,
-              functional verdict, and build health. Renders always (no checks guard). */}
-          <div className={panelCascadeClass(0, cascade.animating) || undefined}>
+              functional verdict, and build health. Renders always (no checks guard).
+              deck-analysis-slot spans the hero across the 2-col board (E158) —
+              this cascade wrapper is the grid item, so DeckIdentityCard's own
+              grid-column rule can't reach the board from one level down. */}
+          <div
+            className={`deck-analysis-slot ${panelCascadeClass(0, cascade.animating) ?? ''}`.trim()}
+          >
             <DeckIdentityCard
               commander={commander ?? null}
               partnerCommander={partnerCommander}
