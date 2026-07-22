@@ -1,14 +1,15 @@
 /* NavMigrationTip.css — one-time "what's new" tip (w3-nav-activation).
-   Shape mirrors .auto-link-banner (modals-dialogs.css): flex row, wraps,
-   text grows, action shrinks. The one deliberate difference is the tint —
-   informational (--info), not --accent's identity-confirmation tint. */
+   The dismiss button is pinned out of flow (absolute, top-right) rather than
+   flex-wrapped alongside the text — at narrow widths a wrapped × dropped to
+   its own line below the banner (E57). The tint is informational (--info),
+   not --accent's identity-confirmation tint. */
 
 .nav-migration-tip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
+  position: relative;
+  /* Right padding reserves room for the absolutely-positioned dismiss button
+     (1.75rem) plus its inset, so the text never runs under it. */
+  padding: var(--space-3) calc(var(--space-4) + 1.75rem + var(--space-2)) var(--space-3)
+    var(--space-4);
   margin-bottom: var(--space-4);
   background: color-mix(in srgb, var(--info) 12%, var(--surface-raised));
   border: 1px solid var(--info);
@@ -18,14 +19,14 @@
 }
 
 .nav-migration-tip p {
-  flex: 1 1 280px;
   margin: 0;
   line-height: 1.45;
 }
 
 .nav-migration-tip-dismiss {
-  position: relative;
-  flex-shrink: 0;
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -1,0 +1,48 @@
+/* TradeTargetsCard.css — Home's trade-targets summary. Row shape mirrors
+   ValueMoversCard's `.home-movers-row` (no thumbnail here — a want-list
+   entry has no per-card destination on Home, unlike a price mover). */
+
+.home-trade-targets-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-trade-target-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.home-trade-target-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.home-trade-target-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.home-trade-target-list {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.home-trade-target-price {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}

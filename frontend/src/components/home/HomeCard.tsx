@@ -36,6 +36,23 @@ export function HomeCard({
   viewAllLabel,
   children,
 }: Props) {
+  // Empty (and not loading/erroring) collapses to a one-line invitation row
+  // instead of the full shell — STYLE_GUIDE "Home signal cards" ruling.
+  if (!loading && !error && empty) {
+    return (
+      <div className="home-card home-card--empty">
+        {Icon && <Icon width={14} height={14} strokeWidth={1.8} aria-hidden />}
+        <h2 className="home-card-title">{title}</h2>
+        <span className="home-card-empty">{emptyText ?? 'Nothing here yet.'}</span>
+        {viewAllHref && (
+          <Link to={viewAllHref} className="home-card-view-all">
+            {viewAllLabel ?? 'View all'}
+          </Link>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="home-card">
       <div className="home-card-header">
@@ -66,8 +83,6 @@ export function HomeCard({
               </button>
             )}
           </div>
-        ) : empty ? (
-          <p className="home-card-empty">{emptyText ?? 'Nothing here yet.'}</p>
         ) : (
           children
         )}

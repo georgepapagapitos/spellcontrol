@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Deck } from '../../store/decks';
-import type { EnrichedCard, BinderDef } from '../../types';
+import type { EnrichedCard, BinderDef, ListDef, ListEntry } from '../../types';
 import type { ArrivalCandidateCard } from '../../lib/new-arrivals';
 
 vi.mock('../../lib/value-history', async (importOriginal) => {
@@ -24,6 +24,7 @@ vi.mock('../../lib/card-thumbs', () => ({ useCardThumb: mockUseCardThumb }));
 import { ValueMoversCard } from './ValueMoversCard';
 import { NewArrivalsCard } from './NewArrivalsCard';
 import { BinderReviewCard } from './BinderReviewCard';
+import { TradeTargetsCard } from './TradeTargetsCard';
 import { getValueHistory, getLatestMovers, dayKey } from '../../lib/value-history';
 import { useDecksStore } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
@@ -440,5 +441,73 @@ describe('BinderReviewCard', () => {
     renderIn(<BinderReviewCard />);
     expect(await screen.findByText('Binders are all caught up.')).toBeTruthy();
     expect(screen.queryByRole('link')).toBeNull();
+  });
+});
+
+describe('TradeTargetsCard', () => {
+  let entryCounter = 0;
+  function entry(overrides: Partial<ListEntry> & { name: string }): ListEntry {
+    return {
+      id: `e${entryCounter++}`,
+      scryfallId: 'sf',
+      setCode: 'tst',
+      collectorNumber: '1',
+      finish: 'nonfoil',
+      quantity: 1,
+      ...overrides,
+    };
+  }
+
+  function list(name: string, entries: ListEntry[]): ListDef {
+    return { id: `list-${name}`, name, entries, order: 0, createdAt: 0, updatedAt: 0 };
+  }
+
+  function mockStore(lists: ListDef[], cards: EnrichedCard[] = []) {
+    mockUseCollectionStore.mockImplementation(
+      (sel: (s: { lists: ListDef[]; cards: EnrichedCard[] }) => unknown) => sel({ lists, cards })
+    );
+  }
+
+  it('renders nothing when there is no shortfall on any static want list', () => {
+    mockStore([list('Wants', [])]);
+    const { container } = renderIn(<TradeTargetsCard />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders rows with the badge count (distinct rows, not total shortfall) and a view-lists door', () => {
+    mockStore([
+      list('Wants', [
+        entry({ name: 'Sol Ring', quantity: 2 }),
+        entry({ name: 'Mana Vault', quantity: 1 }),
+      ]),
+    ]);
+    const { container } = renderIn(<TradeTargetsCard />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Trade targets' })).toBeTruthy();
+    expect(container.querySelector('.home-card-badge')?.textContent).toBe('2');
+    expect(screen.getByText('Sol Ring')).toBeTruthy();
+    const link = screen.getByRole('link', { name: 'View lists' });
+    expect(link.getAttribute('href')).toBe('/collection/lists');
+  });
+
+  it("renders a target price in the entry's own stamped currency, never the viewer default", () => {
+    mockStore([
+      list('Wants', [
+        entry({ name: 'Mana Vault', targetPrice: 40, currency: 'EUR' }),
+        entry({ name: 'Sol Ring', targetPrice: 5 }),
+      ]),
+    ]);
+    renderIn(<TradeTargetsCard />);
+    expect(screen.getByText('€40.00')).toBeTruthy();
+    expect(screen.getByText('$5.00')).toBeTruthy();
+  });
+
+  it('shows "+N more" once a card is wanted on more than one list', () => {
+    mockStore([
+      list('Commander wants', [entry({ name: 'Sol Ring' })]),
+      list('Cube wants', [entry({ name: 'Sol Ring' })]),
+    ]);
+    renderIn(<TradeTargetsCard />);
+    expect(screen.getByText(/Commander wants/)).toBeTruthy();
+    expect(screen.getByText(/\+1 more/)).toBeTruthy();
   });
 });

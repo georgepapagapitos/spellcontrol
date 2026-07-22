@@ -6,6 +6,7 @@ import { DiscoverCard } from '../components/home/DiscoverCard';
 import { RecentDecksCard } from '../components/home/RecentDecksCard';
 import { GameNightCard } from '../components/home/GameNightCard';
 import { ValueMoversCard } from '../components/home/ValueMoversCard';
+import { TradeTargetsCard } from '../components/home/TradeTargetsCard';
 import { NewArrivalsCard } from '../components/home/NewArrivalsCard';
 import { BinderReviewCard } from '../components/home/BinderReviewCard';
 
@@ -16,9 +17,11 @@ import { BinderReviewCard } from '../components/home/BinderReviewCard';
  * old plain `<h1>` + Quick Actions with collection art, the greeting/value,
  * a scoped deck search, and Quick Actions along its bottom edge; the bento
  * grid below holds the three social cards (activity/friends/discover) plus
- * the five signal cards (decks/game nights/value/arrivals/binder review) —
- * each card reads state the app already computes elsewhere, never a
- * re-capture.
+ * the five signal cards (decks/game nights/value/arrivals/binder review) and
+ * one insight-only card (trade targets) — each card reads state the app
+ * already computes elsewhere, never a re-capture. TradeTargetsCard renders
+ * nothing when there's nothing to show (no invitation value in an empty
+ * want-list summary), so the mounted count varies 8-9 in practice.
  */
 export function HomePage() {
   return (
@@ -31,6 +34,7 @@ export function HomePage() {
         <RecentDecksCard />
         <GameNightCard />
         <ValueMoversCard />
+        <TradeTargetsCard />
         <NewArrivalsCard />
         <BinderReviewCard />
       </div>

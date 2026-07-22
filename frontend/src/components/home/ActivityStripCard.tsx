@@ -108,6 +108,10 @@ export function ActivityStripCard() {
       loading={loading}
       empty={empty}
       emptyText={status === 'guest' ? 'Sign in to see friend activity.' : 'No new activity.'}
+      // The sign-in door is guest-irrelevant (the hero already carries
+      // sign-in) — only offered for an authed-but-empty feed.
+      viewAllHref={empty && status !== 'guest' ? '/you?friendsTab=friends' : undefined}
+      viewAllLabel="Find friends"
     >
       <ul className="activity-strip-list" aria-label="Recent activity">
         {hasRequests && (

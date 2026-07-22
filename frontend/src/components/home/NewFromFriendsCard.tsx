@@ -67,9 +67,7 @@ export function NewFromFriendsCard() {
       error={error}
       onRetry={handleRetry}
       empty={empty}
-      emptyText={
-        guest ? 'Sign in to see what friends are sharing.' : 'Nothing new from friends yet.'
-      }
+      emptyText={guest ? 'Sign in to see what friends are sharing.' : 'Nothing new yet.'}
       viewAllHref="/you?friendsTab=friends"
       viewAllLabel="Find friends"
     >
