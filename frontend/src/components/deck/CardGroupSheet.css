@@ -280,6 +280,39 @@
   background: var(--art-scrim);
 }
 
+/* The chip sits on the dark art plate, so the themed tones (deep
+   paper hues in light guilds) fail there — remap to the scrim tone
+   set (E155). Border follows the text tone, mirroring the base chip. */
+.card-group-annotation .verdict-chip.is-success {
+  color: var(--art-scrim-success);
+  border-color: var(--art-scrim-success);
+}
+
+.card-group-annotation .verdict-chip.is-info {
+  color: var(--art-scrim-info);
+  border-color: var(--art-scrim-info);
+}
+
+.card-group-annotation .verdict-chip.is-warn {
+  color: var(--art-scrim-warn);
+  border-color: var(--art-scrim-warn);
+}
+
+.card-group-annotation .verdict-chip.is-err {
+  color: var(--art-scrim-err);
+  border-color: var(--art-scrim-err);
+}
+
+.card-group-annotation .verdict-chip.is-accent {
+  color: var(--art-scrim-accent);
+  border-color: var(--art-scrim-accent);
+}
+
+.card-group-annotation .verdict-chip.is-neutral {
+  color: var(--art-scrim-muted);
+  border-color: var(--art-scrim-muted);
+}
+
 .card-group-name {
   font-size: var(--text-xs);
   line-height: 1.25;

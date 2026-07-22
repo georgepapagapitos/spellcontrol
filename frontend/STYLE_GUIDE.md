@@ -1160,6 +1160,14 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   card images (qty/set badges on grid tiles) use `--art-scrim` /
   `--art-scrim-text`, not inline `rgba`. Card art is theme-invariant, so these
   tokens are deliberately not themed; using them anywhere else is a smell.
+  **Tone text on a plate uses the scrim tone set (E155), never the themed
+  tokens:** `--art-scrim-{success,err,warn,info,muted}` are fixed pale hues —
+  the themed status tokens are paper-tuned deep in light guilds and drop to
+  ~1.4–3:1 on the always-dark plate — and `--art-scrim-accent` is the guild
+  accent mixed 45% toward white, keeping its hue while clearing ≥4.5:1 against
+  the worst-case (bright-art) plate. The deck-grid role chips route through
+  `--role-ink-scrim` set beside each role hue group so the role→hue map stays
+  in one place.
 - **Rarity as standalone text uses the ink tokens (E151), never literals or
   the chip palette.** On a themed surface (the card tooltip):
   `--rarity-{mythic,rare,uncommon}-ink` — deep inks on paper, auto-flipped to
