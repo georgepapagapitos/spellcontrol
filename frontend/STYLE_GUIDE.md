@@ -441,7 +441,11 @@ at 320px. If it can't shrink, it must wrap or collapse.
      precon move into the kebab on phones.
    - Don't "solve" crowding by going **icon-only on ambiguous glyphs** — a box
      for "Add precon" isn't legible without its label. Icon-only is only for
-     universal glyphs (search, close, settings).
+     universal glyphs (search, close, settings). When a labelled action must
+     shrink on phones, swap to a **shorter label** instead of dropping the text
+     (Home's Quick Actions are the reference: "Import cards" → "Import",
+     "Plan a game night" → "Game night" at ≤600px, long/short span pair with
+     the aria-label matching the long form).
 
 2. **Control rows** — pickers with no single primary action (Sort / Group /
    Filter / view-mode toggles; e.g. `.card-list-summary-actions`, the binder
