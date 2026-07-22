@@ -24,6 +24,7 @@ import { useCardsWithTags, bindersUseTags } from '../lib/card-tags';
 import { useAllocations } from '../lib/allocations';
 import { useDebouncedValue } from '../lib/use-debounced-value';
 import { BinderTabs } from '../components/BinderTabs';
+import { BinderDriftBanner } from '../components/BinderDriftBanner';
 import { BinderView } from '../components/BinderView';
 import { BinderListView } from '../components/BinderListView';
 import { ViewModeToggle } from '../components/ViewModeToggle';
@@ -395,12 +396,19 @@ export function BinderPage() {
           // White / Blue / Multicolor / etc. headers as the page grid view)
           // and rolls duplicate copies into qty pills.
           return (
-            <BinderListView
-              binder={active}
-              viewToggle={viewToggle}
-              qtyByCopyId={qtyByCopyId}
-              density={view === 'compact' ? 'compact' : 'detail'}
-            />
+            <>
+              {/* Same review-queue banner the pages view mounts (BinderView) —
+                  drift reads full membership, so use the search-free set. */}
+              <BinderDriftBanner
+                binder={driftBinders.find((b) => b.def.id === active.def.id) ?? active}
+              />
+              <BinderListView
+                binder={active}
+                viewToggle={viewToggle}
+                qtyByCopyId={qtyByCopyId}
+                density={view === 'compact' ? 'compact' : 'detail'}
+              />
+            </>
           );
         })()
       )}
