@@ -72,6 +72,37 @@ describe('Legend (context-aware symbol key)', () => {
     expect(screen.queryByText('Mana Rock')).toBeNull();
   });
 
+  it('collection: explains the deviation abbreviations with the real chip — NM is unmarked', () => {
+    renderLegend('collection');
+    openKey();
+    expect(screen.getByText('Condition — Near Mint unmarked')).toBeTruthy();
+    for (const [abbr, word] of [
+      ['LP', 'Lightly Played'],
+      ['MP', 'Moderately Played'],
+      ['HP', 'Heavily Played'],
+      ['DMG', 'Damaged'],
+    ]) {
+      expect(screen.getByText(abbr)).toBeTruthy();
+      expect(screen.getByText(word)).toBeTruthy();
+    }
+    // Rows never chip NM, so the Key doesn't list it either.
+    expect(screen.queryByText('NM')).toBeNull();
+    expect(document.querySelectorAll('.card-list-condition').length).toBe(4);
+  });
+
+  it('binder: has the Condition section (binder rows render the same chips)', () => {
+    renderLegend('binder');
+    openKey();
+    expect(screen.getByText('Condition — Near Mint unmarked')).toBeTruthy();
+    expect(document.querySelectorAll('.card-list-condition').length).toBe(4);
+  });
+
+  it('deck: no Condition section (deck rows are name-aggregated, no per-copy chips)', () => {
+    renderLegend('deck');
+    openKey();
+    expect(screen.queryByText('Condition')).toBeNull();
+  });
+
   it('binder: keeps the slot-border color entries on top of the shared sections', () => {
     renderLegend('binder');
     openKey();

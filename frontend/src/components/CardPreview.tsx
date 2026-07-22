@@ -32,6 +32,7 @@ import { formatMoney } from '../lib/format-money';
 import { formatPricedDate } from '../lib/price-freshness';
 import { CardImageFrame } from './CardImageFrame';
 import { foilFinishLabel } from '../lib/foil-style';
+import { LANGUAGE_OPTIONS } from './PrintingPicker';
 import { ManaCost } from './ManaCost';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useCenteredSlide } from '../lib/use-centered-slide';
@@ -803,6 +804,19 @@ export function CardPreview({
                   {current.condition.toUpperCase()}
                 </span>
               )}
+              {current.language &&
+                current.language !== 'en' &&
+                (() => {
+                  const label =
+                    LANGUAGE_OPTIONS.find((o) => o.value === current.language)?.label ??
+                    current.language.toUpperCase();
+                  return (
+                    <span className="card-preview-condition" aria-label={`Language ${label}`}>
+                      {' · '}
+                      {label}
+                    </span>
+                  );
+                })()}
               {(['altered', 'proxy', 'misprint'] as const)
                 .filter((flag) => current[flag])
                 .map((flag) => (
