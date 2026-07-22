@@ -12,12 +12,22 @@
   }
 }
 
-/* Density directive: icon-only at ≤600px (each action keeps its aria-label,
-   set in QuickActionsRow.tsx, as the accessible name once the text hides). */
+/* Labels are always visible — the icon-only ≤600px cut shipped and failed on
+   device (three bare glyphs read as meaningless). Narrow widths swap to the
+   short label; the row flex-wraps when three still don't fit one line. */
+.home-qa-label-short {
+  display: none;
+}
+
 @media (max-width: 600px) {
-  .home-quick-action span {
+  .home-quick-action .home-qa-label {
     display: none;
   }
+
+  .home-quick-action .home-qa-label-short {
+    display: inline;
+  }
+
   .home-quick-action {
     padding-inline: 0.6rem;
   }

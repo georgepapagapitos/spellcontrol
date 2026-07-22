@@ -36,6 +36,35 @@
   gap: var(--space-3);
 }
 
+/* ≤600px: the side-by-side columns squeeze the functional column to ~174px
+   at 360w — the search placeholder clips and the action chips stack in a
+   sliver. Regrid: headline and card share the top row; search and Quick
+   Actions escape the column and span the full panel width. display:contents
+   lifts the main column's children into the hero's own grid. */
+@media (max-width: 600px) {
+  .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-3);
+  }
+
+  .home-hero-main {
+    display: contents;
+  }
+
+  .home-hero-card {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .home-hero-search,
+  .home-quick-actions {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+}
+
 .home-hero-headline {
   display: flex;
   flex-direction: column;
@@ -102,8 +131,10 @@
 .home-hero-scope-btn {
   padding: 0.35rem var(--space-3);
   border: 0;
-  /* Actionable toggle = rect (T53 Phase 4 — labelled action pills retired). */
-  border-radius: var(--radius);
+  /* Concentric with the 999px track: a segment thumb follows its track's
+     curvature — a rect thumb inside a pill reads broken. The T53 "labelled
+     action pills retired" ruling covers standalone CTAs, not segment thumbs. */
+  border-radius: 999px;
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-xs);
