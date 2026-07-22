@@ -462,8 +462,8 @@
   height: 1.1rem;
   border-radius: 50%;
   background: var(--art-scrim);
-  border: 1px solid color-mix(in srgb, var(--success) 55%, transparent);
-  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--art-scrim-success) 55%, transparent);
+  color: var(--art-scrim-success);
   font-size: var(--text-xs);
   font-weight: 800;
   line-height: 1;

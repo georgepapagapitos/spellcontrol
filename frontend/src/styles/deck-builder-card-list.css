@@ -76,9 +76,11 @@
 }
 
 /* `.deck-row-role-<tone>` (shared with list view) supplies the text
-   color; the chip above supplies the dark plate so it reads on art. */
+   color; the chip above supplies the dark plate so it reads on art.
+   Scrim tone set, not the themed tokens — light guilds' paper-tuned
+   hues fail AA on the always-dark plate (E155). */
 .deck-card-grid-synergy {
-  color: var(--accent);
+  color: var(--art-scrim-accent);
   /* stylelint-disable-next-line declaration-property-value-disallowed-list */
   font-size: 0.72rem;
 }
@@ -885,6 +887,7 @@
 .deck-row-role-mana-rock,
 .deck-row-role-cost-reducer,
 .deck-row-role-ramp {
+  --role-ink-scrim: var(--art-scrim-success);
   color: #4ca352;
 }
 
@@ -892,11 +895,13 @@
 .deck-row-role-bounce,
 .deck-row-role-spot-removal,
 .deck-row-role-removal {
+  --role-ink-scrim: var(--art-scrim-err);
   color: #d8442a;
 }
 
 .deck-row-role-bounce-wipe,
 .deck-row-role-boardwipe {
+  --role-ink-scrim: var(--art-scrim-warn);
   color: #d4a838;
 }
 
@@ -905,7 +910,15 @@
 .deck-row-role-cantrip,
 .deck-row-role-card-draw,
 .deck-row-role-card-advantage {
+  --role-ink-scrim: var(--art-scrim-info);
   color: #3a85cc;
+}
+
+/* On the grid's dark art plate the list-row inks above drop below AA
+   (red is ~2.4:1 there); each hue group names its pale scrim variant
+   via --role-ink-scrim so the role→hue map stays in one place (E155). */
+.deck-card-grid-role {
+  color: var(--role-ink-scrim, var(--art-scrim-text));
 }
 
 /* Multi-role indicator — small holo-foil dot. Conic-gradient mimics

@@ -118,6 +118,16 @@
      --success/--err-text values, just given their own scrim-scoped names. */
   --art-scrim-success: #5cc488;
   --art-scrim-err: #f0a8a8;
+  /* Full tone set for chips ON the plate (E155): warn mirrors the :root
+     --warn-text; info is the :root --info lightened one step (#7aa5e8 only
+     hits 4.1:1 against the worst-case bright-art plate; this clears 4.8);
+     muted is a warm pale gray for neutral chips. Accent keeps the guild's
+     hue but is mixed toward white so the light guilds' deep dyes (some as
+     low as 1.4:1 on the plate) clear ≥4.5:1 worst-case. */
+  --art-scrim-warn: #e8c878;
+  --art-scrim-info: #8db2ee;
+  --art-scrim-muted: #cfcabf;
+  --art-scrim-accent: color-mix(in srgb, var(--accent) 45%, white);
   --overlay-sheet: rgba(0, 0, 0, 0.4);
   --pip-border: rgba(255, 255, 255, 0.15);
   /* Material texture — the paper/leather fleck color painted by the body
