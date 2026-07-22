@@ -30,6 +30,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { SortDirArrow } from '../components/SortDirArrow';
 import { ColorPip } from '../components/shared/ManaSymbol';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { DeckFiltersPopover } from '../components/DeckFiltersPopover';
@@ -533,6 +534,7 @@ export function DecksIndexPage() {
            a tagline, a plain-English hint, then ALL three entry points so the
            user knows what the page can do before they've done anything. */
           <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">No decks yet.</p>
             <p className="empty-state-hint">
               Build a deck from scratch with the guided builder, import a list you already have, or

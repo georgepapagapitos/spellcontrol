@@ -55,6 +55,15 @@ an exclamation. Use the shared `.empty-state` + `.empty-state-tagline` +
 placeholder** (a sideboard slot list, a mini-chart's no-data line) may stay a
 single concise line — the two-part pattern would read visually heavy there.
 
+**Primary empty states also carry a brand-mark aura (E114).** `<EmptyStateMark />`
+(`components/shared/EmptyStateMark.tsx`) renders `<BrandMark size={40}
+motion="idle" />` — the shipped breathing aura, already reduced-motion-gated —
+centered above the tagline, `aria-hidden`, fixed-size (no layout shift), opacity
+tuned quiet so it never upstages the copy. It's decorative punctuation for a
+page/section going empty, not a new celebration moment — don't add motion
+beyond the existing idle loop, and don't reach for it on the inline sub-panel
+placeholders above (those stay text-only, same as always).
+
 **Lift/co-play explanations (E71):** evidence phrasing is fixed vocabulary —
 `Lifted by {A}, {B}` for cluster connectivity (up to 3 card names) and
 `Pairs hard with {A}` for a single bomb pairing. Reuse these verbatim on any
@@ -1130,6 +1139,12 @@ Moxfield/Archidekt dark-slate genre, so hold new surfaces to it:
   a replaced `<img>` (no pseudo-elements) and the Discover tile stacks
   scrim/stats/hover-zoom contracts a sheen would fight; the material read
   comes from matte + paper, not decoration.
+- **Pods tiles join the same sleeve-matte family, without cover art.** Pods
+  carry no art/color data by design (a privacy ruling — see `routes/pods.ts`),
+  so `.pods-index-card` gets the `--surface-raised` + `--shadow-card` surface
+  but stands in the owner's `UserAvatar` (initial-letter fallback) as its
+  identity medallion instead of a banner. Pods are ring-2 content — this is
+  the deliberately lighter-weight tile treatment, not an oversight.
 - **Real tables speak print.** A genuine `<table>` (`.shared-list-table`,
   `.play-records-table`) wears the price-guide voice: `--font-label` caps
   header over a solid `--text-secondary` ink rule, `1px dotted var(--border)`

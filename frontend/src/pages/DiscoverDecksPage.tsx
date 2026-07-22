@@ -14,6 +14,7 @@ import { TrendingRail } from '../components/aggregates/TrendingRail';
 import { CommanderTypeahead } from '../components/CommanderTypeahead';
 import { SelectMenu, type SelectOption } from '../components/SelectMenu';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import { listDiscoverDecks, type DiscoverDeck, type DiscoverSortKey } from '../lib/discover-client';
 import {
   parseDiscoverFiltersFromSearchParams,
@@ -299,6 +300,7 @@ export function DiscoverDecksPage() {
             </div>
           ) : (
             <div className="empty-state">
+              <EmptyStateMark />
               <p className="empty-state-tagline">No public decks yet.</p>
               <p className="empty-state-hint">
                 Publish one of your own from the Decks page to be the first.

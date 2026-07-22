@@ -32,6 +32,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
 import { InfoTip } from '../components/InfoTip';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import {
   SelectToggle,
   BulkSelectBar,
@@ -337,6 +338,7 @@ export function BindersIndexPage() {
       {binders.length === 0 ? (
         cards.length === 0 ? (
           <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">No binders yet.</p>
             <p className="empty-state-hint">
               Import your collection first, then build rule-based binders to organize it. Or try the

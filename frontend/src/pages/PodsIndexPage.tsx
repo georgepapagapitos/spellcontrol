@@ -5,6 +5,9 @@ import { Plus } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toasts';
 import { Modal } from '../components/Modal';
+import { UserAvatar } from '../components/UserAvatar';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
+import { useAnimatedNumber } from '../lib/use-animated-number';
 import { listFriends, type Friend } from '../lib/friends-client';
 import {
   acceptPodInvite,
@@ -16,6 +19,18 @@ import {
 } from '../lib/pods-client';
 
 const POD_NAME_MAX = 60;
+
+/* Legacy useAnimatedNumber (no revealKey) — tweens changes while mounted,
+   never reveals-on-mount (STYLE_GUIDE "Live values"). Its own component so
+   the hook isn't called inside a .map(). */
+function PodMemberCount({ count }: { count: number }) {
+  const { display } = useAnimatedNumber(count);
+  return (
+    <>
+      {display} {display === 1 ? 'member' : 'members'}
+    </>
+  );
+}
 
 function PodsSkeleton() {
   return (
@@ -161,6 +176,7 @@ export function PodsIndexPage() {
         <PodsSkeleton />
       ) : isEmpty ? (
         <div className="empty-state" role="status">
+          <EmptyStateMark />
           <p className="empty-state-tagline">No pods yet.</p>
           <p className="empty-state-hint">
             Create one to track games and trades with your regular table.
@@ -177,11 +193,11 @@ export function PodsIndexPage() {
               <ul className="pods-invited-list">
                 {invited.map((pod) => (
                   <li key={pod.id} className="pods-invited-row">
+                    <UserAvatar name={pod.ownerUsername} size={36} />
                     <div className="pods-invited-info">
                       <span className="pods-invited-name">{pod.name}</span>
                       <span className="pods-invited-meta">
-                        {pod.memberCount} {pod.memberCount === 1 ? 'member' : 'members'} · hosted by{' '}
-                        {pod.ownerUsername}
+                        <PodMemberCount count={pod.memberCount} /> · hosted by {pod.ownerUsername}
                       </span>
                     </div>
                     <div className="pods-invited-actions">
@@ -215,9 +231,12 @@ export function PodsIndexPage() {
             <div className="deck-bento">
               {yours.map((pod) => (
                 <Link key={pod.id} to={`/pods/${pod.id}`} className="pods-index-card">
-                  <span className="pods-index-card-name">{pod.name}</span>
-                  <span className="pods-index-card-meta">
-                    {pod.memberCount} {pod.memberCount === 1 ? 'member' : 'members'}
+                  <UserAvatar name={pod.ownerUsername} size={36} />
+                  <span className="pods-index-card-body">
+                    <span className="pods-index-card-name">{pod.name}</span>
+                    <span className="pods-index-card-meta">
+                      <PodMemberCount count={pod.memberCount} />
+                    </span>
                   </span>
                 </Link>
               ))}

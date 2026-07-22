@@ -21,6 +21,7 @@ import { SortDirArrow } from '../components/SortDirArrow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchPill } from '../components/SearchPill';
 import { OverflowMenu } from '../components/OverflowMenu';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 import {
   SelectToggle,
   BulkSelectBar,
@@ -308,6 +309,7 @@ export function ListsPage() {
 
       {lists.length === 0 ? (
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">No lists yet.</p>
           <p className="empty-state-hint">
             Create a list to curate cards by hand — a wishlist or trade pile of cards to acquire, or
