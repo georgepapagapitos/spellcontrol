@@ -41,7 +41,7 @@ describe('NewFromFriendsCard', () => {
     mockGetFriendsActivity.mockResolvedValue([]);
     renderCard();
     expect(screen.getByLabelText('Loading')).toBeTruthy();
-    await waitFor(() => expect(screen.getByText('Nothing new from friends yet.')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Nothing new yet.')).toBeTruthy());
   });
 
   it('links a published_deck row to /d/:slug', async () => {
@@ -107,7 +107,7 @@ describe('NewFromFriendsCard', () => {
 
     mockGetFriendsActivity.mockResolvedValueOnce([]);
     fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
-    await waitFor(() => expect(screen.getByText('Nothing new from friends yet.')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Nothing new yet.')).toBeTruthy());
   });
 
   it("renders the friend's avatar as the row's visual anchor (initial-letter fallback, no photo on this feed)", async () => {

@@ -1569,6 +1569,32 @@ stat-tile delta convention:
   no empty state. A full plotted chart instead follows § Charts (line /
   trend); reference: `components/ValueTrend.tsx`.
 
+## Home signal cards
+
+A `/home` bento card (`components/home/HomeCard.tsx` shell) that has nothing
+to show does not get a full-height placeholder panel — it collapses:
+
+- **Empty (not loading, not errored) → one-line invitation row.** Icon +
+  title + a muted hint + the card's own "View all" door, all on one flex
+  row (`.home-card--empty`), never the full header/body chrome a populated
+  card gets. This applies uniformly — a card can't opt out of the compact
+  row just because its empty copy is longer; the row wraps the door under at
+  narrow widths rather than growing back into a panel.
+- **Insight-only cards with no invitation value render nothing at all.**
+  Loading/error/populated are the only states some cards can meaningfully
+  have — a purely informational surface with an empty result (no friends
+  yet, no want-list shortfall) has no next action to invite the user toward,
+  so it renders `null` rather than an empty `HomeCard` shell.
+  `TradeTargetsCard` is the reference: `rows.length === 0` returns `null`
+  before ever mounting `HomeCard`. This is the same "zero visible items →
+  render nothing" instinct as the § Index-page insight strips ruling, just
+  applied to a bento card instead of a toolbar strip.
+- **Trade-target prices always render in the author's stamped currency**,
+  never the viewer's display-currency setting — `formatMoney(price,
+  { currency: row.currency ?? 'USD' })`, explicit per-row, same "as-entered,
+  never converted" contract as `ListEntry.currency` and the friend trade
+  radar's target prices.
+
 ## Radar / polar charts
 
 A radar chart is permitted only when displaying **≥3 labeled dimensions of one

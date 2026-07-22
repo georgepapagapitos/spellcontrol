@@ -9,10 +9,11 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '../store/decks';
 import type { GameNight } from './game-nights-api';
-import type { EnrichedCard, MaterializedBinder } from '../types';
+import type { EnrichedCard, ListDef, MaterializedBinder } from '../types';
 import type { ImportHistoryEntry } from './local-cards';
 import { fitsColorIdentity } from './deck-validation';
 import { computeDrift } from './binder-drift';
+import { isTrackingList, ownedCountForEntry } from './lists';
 import type { ArrivalCandidateCard, ArrivalDeckSlot, NewArrivalsInput } from './new-arrivals';
 
 // ── New arrivals ─────────────────────────────────────────────────────────
@@ -214,6 +215,71 @@ export function aggregateBinderReviewCount(
     if (!drift.neverReviewed) total += drift.added.length + drift.removed.length;
   }
   return total;
+}
+
+// ── Trade targets ────────────────────────────────────────────────────────
+
+/** One want-list card the owner is short on, for Home's trade-targets card. */
+export interface TradeTargetRow {
+  name: string;
+  /** Static want lists that name it, in list order, deduped. */
+  listNames: string[];
+  /** Copies still needed: quantity wanted minus copies owned, summed across lists. */
+  shortfall: number;
+  /** Lowest target price set on any matching entry, if any entry has one. */
+  targetPrice?: number;
+  /** Currency of the winning `targetPrice`, as entered — never converted. */
+  currency?: 'USD' | 'EUR';
+}
+
+/**
+ * Static want-list entries the owner doesn't have enough copies of yet, for
+ * Home's trade-targets card. Tracking lists (catalogues of owned cards) and
+ * dynamic lists (`rule` set — `entries` is empty by construction) are
+ * skipped, same as `buildTradeRadar` (trade-radar.ts). One row per distinct
+ * card name (case-insensitive); shortfall summed across every list that
+ * wants it, and the lowest `targetPrice` set on any matching entry wins
+ * (with its currency) — same lowest-price aggregation as `buildTradeRadar`,
+ * just against the owner's own shortfall instead of a friend's stock.
+ * Sorted: entries with a target price first, then alphabetically.
+ */
+export function aggregateTradeTargets(lists: ListDef[], owned: EnrichedCard[]): TradeTargetRow[] {
+  const rows = new Map<string, TradeTargetRow>();
+  for (const list of lists) {
+    if (isTrackingList(list)) continue;
+    if (list.rule) continue; // dynamic list — entries are empty by construction
+    for (const entry of list.entries) {
+      const shortfall = Math.max(0, entry.quantity - ownedCountForEntry(entry, owned));
+      if (shortfall === 0) continue;
+      const key = entry.name.toLowerCase();
+      const existing = rows.get(key);
+      if (existing) {
+        existing.shortfall += shortfall;
+        if (!existing.listNames.includes(list.name)) existing.listNames.push(list.name);
+        if (
+          entry.targetPrice !== undefined &&
+          (existing.targetPrice === undefined || entry.targetPrice < existing.targetPrice)
+        ) {
+          existing.targetPrice = entry.targetPrice;
+          existing.currency = entry.currency;
+        }
+      } else {
+        rows.set(key, {
+          name: entry.name,
+          listNames: [list.name],
+          shortfall,
+          targetPrice: entry.targetPrice,
+          currency: entry.targetPrice !== undefined ? entry.currency : undefined,
+        });
+      }
+    }
+  }
+  return [...rows.values()].sort((a, b) => {
+    if ((a.targetPrice !== undefined) !== (b.targetPrice !== undefined)) {
+      return a.targetPrice !== undefined ? -1 : 1;
+    }
+    return a.name.localeCompare(b.name);
+  });
 }
 
 // ── Upcoming game nights ────────────────────────────────────────────────────

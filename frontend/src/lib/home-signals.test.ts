@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Deck } from '../store/decks';
 import type { GameNight } from './game-nights-api';
-import type { BinderDef, EnrichedCard } from '../types';
+import type { BinderDef, EnrichedCard, ListDef, ListEntry } from '../types';
 import { materializeBinders } from './materialize';
 import { printingFinishKey } from './collection-mutations';
 import type { ArrivalCandidateCard, NewArrivalsInput } from './new-arrivals';
@@ -10,6 +10,7 @@ import {
   hasNewArrivals,
   aggregateNewArrivalDecks,
   aggregateBinderReviewCount,
+  aggregateTradeTargets,
   upcomingGameNights,
 } from './home-signals';
 
@@ -308,6 +309,122 @@ describe('aggregateBinderReviewCount', () => {
     const { binders } = materializeBinders([cheap], [reviewed, neverReviewed], { search: '' });
 
     expect(aggregateBinderReviewCount(binders, [cheap], [])).toBe(1);
+  });
+});
+
+describe('aggregateTradeTargets', () => {
+  let entryCounter = 0;
+  function entry(overrides: Partial<ListEntry> & { name: string }): ListEntry {
+    return {
+      id: `e${entryCounter++}`,
+      scryfallId: 'sf',
+      setCode: 'tst',
+      collectorNumber: '1',
+      finish: 'nonfoil',
+      quantity: 1,
+      ...overrides,
+    };
+  }
+
+  function list(name: string, entries: ListEntry[], overrides: Partial<ListDef> = {}): ListDef {
+    return {
+      id: `list-${name}`,
+      name,
+      entries,
+      order: 0,
+      createdAt: 0,
+      updatedAt: 0,
+      ...overrides,
+    };
+  }
+
+  function owned(overrides: Partial<EnrichedCard> & { name: string }): EnrichedCard {
+    return {
+      copyId: `c-${Math.random()}`,
+      setCode: 'tst',
+      setName: 'Test Set',
+      collectorNumber: '1',
+      rarity: 'common',
+      scryfallId: 'sf-owned',
+      purchasePrice: 1,
+      sourceCategory: '',
+      sourceFormat: 'plain',
+      foil: false,
+      finish: 'nonfoil',
+      ...overrides,
+    };
+  }
+
+  it('skips tracking lists entirely', () => {
+    const lists = [list('Owned commanders', [entry({ name: 'Sol Ring' })], { kind: 'tracking' })];
+    expect(aggregateTradeTargets(lists, [])).toEqual([]);
+  });
+
+  it('skips dynamic lists (rule set) even though entries would be empty anyway', () => {
+    const lists = [list('Dynamic', [entry({ name: 'Sol Ring' })], { rule: [{ filter: {} }] })];
+    expect(aggregateTradeTargets(lists, [])).toEqual([]);
+  });
+
+  it('skips an entry the owner already has enough copies of', () => {
+    const lists = [list('Wants', [entry({ name: 'Sol Ring', quantity: 1 })])];
+    expect(aggregateTradeTargets(lists, [owned({ name: 'Sol Ring' })])).toEqual([]);
+  });
+
+  it('reports the shortfall when owned copies fall short of quantity wanted', () => {
+    const lists = [list('Wants', [entry({ name: 'Sol Ring', quantity: 3 })])];
+    const rows = aggregateTradeTargets(lists, [owned({ name: 'Sol Ring' })]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: 'Sol Ring', shortfall: 2, listNames: ['Wants'] });
+  });
+
+  it('sums shortfall across lists and dedupes list names, matching by lowercased name', () => {
+    const lists = [
+      list('Commander wants', [entry({ name: 'Sol Ring', quantity: 2 })]),
+      list('Cube wants', [entry({ name: 'sol RING', quantity: 1 })]),
+    ];
+    const rows = aggregateTradeTargets(lists, []);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].shortfall).toBe(3);
+    expect(rows[0].listNames).toEqual(['Commander wants', 'Cube wants']);
+  });
+
+  it('does not duplicate a list name when the same list has two entries for the same card', () => {
+    const lists = [
+      list('Wants', [entry({ name: 'Sol Ring', quantity: 1 }), entry({ name: 'Sol Ring' })]),
+    ];
+    const rows = aggregateTradeTargets(lists, []);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].shortfall).toBe(2);
+    expect(rows[0].listNames).toEqual(['Wants']);
+  });
+
+  it('keeps the lowest target price and its currency across matching entries', () => {
+    const lists = [
+      list('A', [entry({ name: 'Sol Ring', targetPrice: 8, currency: 'USD' })]),
+      list('B', [entry({ name: 'Sol Ring', targetPrice: 5, currency: 'EUR' })]),
+    ];
+    const rows = aggregateTradeTargets(lists, []);
+    expect(rows[0].targetPrice).toBe(5);
+    expect(rows[0].currency).toBe('EUR');
+  });
+
+  it('leaves targetPrice/currency undefined when no matching entry sets one', () => {
+    const lists = [list('Wants', [entry({ name: 'Sol Ring' })])];
+    const rows = aggregateTradeTargets(lists, []);
+    expect(rows[0].targetPrice).toBeUndefined();
+    expect(rows[0].currency).toBeUndefined();
+  });
+
+  it('sorts entries with a target price first, then alphabetically', () => {
+    const lists = [
+      list('Wants', [
+        entry({ name: 'Zendikar Resurgent' }),
+        entry({ name: 'Mana Vault', targetPrice: 40 }),
+        entry({ name: 'Ancient Tomb' }),
+      ]),
+    ];
+    const rows = aggregateTradeTargets(lists, []);
+    expect(rows.map((r) => r.name)).toEqual(['Mana Vault', 'Ancient Tomb', 'Zendikar Resurgent']);
   });
 });
 

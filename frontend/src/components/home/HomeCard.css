@@ -71,10 +71,40 @@
   }
 }
 
-/* ── Empty / error ─────────────────────────────────────────────────────── */
-.home-card-empty {
-  color: var(--text-secondary);
+/* ── Empty (one-line invitation row) ──────────────────────────────────────
+   Empty cards collapse to a single quiet row — icon + title + hint + door —
+   instead of the full header/body shell (STYLE_GUIDE "Home signal cards").
+   flex-wrap lets the door drop to its own line at 360px rather than force a
+   horizontal scroll; everything else stays on one row down to that width. */
+.home-card--empty {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  min-height: 44px;
+  /* Empty rows sink below every populated card so a phone's first
+     viewportful leads with real signals, not a stack of invitations. */
+  order: 9;
+}
+
+.home-card--empty > svg {
+  flex-shrink: 0;
+}
+
+.home-card--empty .home-card-title {
   font-size: var(--text-sm);
+}
+
+.home-card--empty .home-card-view-all {
+  margin-left: auto;
+}
+
+.home-card-empty {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
   margin: 0;
 }
 
