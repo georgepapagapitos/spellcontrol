@@ -1260,17 +1260,25 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   unspanned single child sits in column 1 at half width beside a dead column
   (this shipped: the Tune tab's CoachFeed). `.deck-stats-pair`'s `auto-fit`
   orphan guard collapses empty tracks; the bento grid itself does not.
-- **The bento's own column count needs a `bento-host` ancestor container
-  (E157).** An element can never match a container query against its own
-  `container-type` — the board-level `@container bento (min-width: 640px)`
-  rules only fire when an ancestor is a named container. `/home` provides one
-  (`.home-page { container: bento-host / inline-size }` + `.home-bento`
-  column rules in `HomePage.css`); the deck Stats/Tune mounts provide none,
-  so their board-level 2-col rule is currently dead and the multi-column
-  read there comes from `.deck-stats-pair` sub-grids — see board E158 before
-  "fixing" that (enabling it changes shipped deck-tab layout). A new surface
-  that mounts flat cards directly in a `.deck-bento` must bring its own
-  host container or every card renders full-width at every viewport.
+- **Every `.deck-bento` mount declares a `bento-host` ancestor container
+  (E157/E158).** An element can never match a container query against its own
+  `container-type`, so the board-level 640/1040 column rules
+  (`deck-builder-analysis.css`) query the **wrapper's** `bento-host` name,
+  not the bento's own `bento` name (which stays for the bento's *children* —
+  PowerHero, the identity-card pillars — whose queries measure the board).
+  Hosts: `.deck-analysis-view` (Stats/Power/Tune share it), `.home-page`,
+  `.pods-index-section`, `.trending-rail`. A new surface mounting a
+  `.deck-bento` MUST add `container: bento-host / inline-size` on its
+  wrapper, or every card renders full-width at every viewport (the E157
+  "empty dashboard" bug). Two invariants that keep the deck tabs stable
+  under the live 2-col template: every top-level board child on Stats/Power/
+  Tune spans `1 / -1` (heroes via their own rule or the revived
+  `.deck-analysis-slot` wrapper class, `--wide` panels, `.deck-stats-pair`
+  rows) — a NEW non-spanning direct child there will genuinely pair into
+  half-width cells, so it must be cell-ready or spanned; and a hero whose
+  span rule lives on the component root needs the **grid item** (any wrapper
+  div) to carry the span — `grid-column` one level below the grid is inert
+  (the DeckIdentityCard cascade-wrapper trap).
 - **Width caps:** `--page-max: 1400px` (page containers), `--analysis-max: 1320px`
   (deck-analysis boards) — both `margin-inline: auto`. These define the XL tier.
 

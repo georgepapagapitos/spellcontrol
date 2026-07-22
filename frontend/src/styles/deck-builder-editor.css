@@ -424,6 +424,13 @@
      sprawl edge-to-edge on a wide (~2000px) monitor. Adjust here to
      widen/narrow all tabs at once. */
   --analysis-max: 1320px;
+  /* bento-host (E158): activates the boards' ≥640px 2-col rule for all three
+     tabs (Stats/Power/Tune share this one wrapper). Every top-level board
+     child spans 1/-1 (heroes, --wide panels, .deck-stats-pair rows), so the
+     tabs render as before — the host just makes the template real instead of
+     permanently dead. Overlays inside panels already portal to <body> per the
+     Popover rule, so the added containment traps nothing. */
+  container: bento-host / inline-size;
 }
 
 /* Test hand action in the Deck-view toolbar (goldfishing acts on this list) —

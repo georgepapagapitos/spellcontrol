@@ -350,8 +350,20 @@
 
 /* ≥640px container → two dense columns. Heroes / list-heavy panels span the
    full row via .deck-stats-panel--wide; compact panels pair via
-   .deck-stats-pair (which is itself an orphan-guarded auto-fit sub-grid). */
-@container bento (min-width: 640px) {
+   .deck-stats-pair (which is itself an orphan-guarded auto-fit sub-grid).
+
+   These two board-level rules query `bento-host` — the WRAPPER each mount
+   declares (`container: bento-host / inline-size`) — NOT the bento's own
+   `bento` name: an element can never match a container query against its own
+   container-type, so keying these to `bento` left them dead since birth
+   (E158; /home surfaced it as every card rendering full-width, E157).
+   `container-name: bento` above stays for the bento's CHILDREN (PowerHero,
+   DeckIdentityCard pillars, NextBestMove…), whose queries measure the board.
+   Hosts today: .deck-analysis-view (Stats/Power/Tune), .home-page,
+   .pods-index-section, .trending-rail — a NEW mount must declare its own
+   host or its cards render full-width at every viewport (STYLE_GUIDE
+   § Responsive, bento-host bullet). */
+@container bento-host (min-width: 640px) {
   .deck-bento {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -359,7 +371,7 @@
 
 /* ≥1040px container → keep the 2-col rhythm but let it breathe with a more
    generous gutter (2 dense columns + spanning hero is the target, not 3-col). */
-@container bento (min-width: 1040px) {
+@container bento-host (min-width: 1040px) {
   .deck-bento {
     gap: clamp(1.1rem, 1.6cqi, 1.85rem);
   }
