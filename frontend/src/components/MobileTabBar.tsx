@@ -53,11 +53,18 @@ export function MobileTabBar() {
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
         }
+        aria-label="Collection"
       >
         <span className="mobile-tab-bar-glyph">
           <List {...ICON_PROPS} />
         </span>
-        <span className="mobile-tab-bar-label">Collection</span>
+        {/* Long/short pair (STYLE_GUIDE short-label ruling): "Collection" is
+            the one label wider than a 1/5 cell on narrow phones — it swaps to
+            "Cards" (the collection hub's own first tab) below 420px. */}
+        <span className="mobile-tab-bar-label mobile-tab-bar-label-long">Collection</span>
+        <span className="mobile-tab-bar-label mobile-tab-bar-label-short" aria-hidden="true">
+          Cards
+        </span>
       </NavLink>
       <NavLink
         to="/decks"
