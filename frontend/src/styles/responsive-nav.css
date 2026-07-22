@@ -691,3 +691,13 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* E57 intake (320px sweep): at very narrow widths the uppercase tracked
+   labels crowd — COLLECTION and DECKS nearly touch. Trim the tracking one
+   step below 340px; labels keep their full words (the #1298 short-label
+   ruling stays a fallback if a future locale still crowds). */
+@media (max-width: 340px) {
+  .mobile-tab-bar-link {
+    letter-spacing: 0.02em;
+  }
+}
