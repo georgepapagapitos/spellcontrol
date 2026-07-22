@@ -93,6 +93,7 @@ export function saveGeneratedDeck(
       varietySeed: customization.varietySeed,
     },
     roleCounts: generated.roleCounts,
+    categoryTargets: generated.composition,
     rampSubtypeCounts: generated.rampSubtypeCounts,
     removalSubtypeCounts: generated.removalSubtypeCounts,
     boardwipeSubtypeCounts: generated.boardwipeSubtypeCounts,

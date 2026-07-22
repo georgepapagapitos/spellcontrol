@@ -4273,6 +4273,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     collectionRelaxedCount: collectionRelaxedCount > 0 ? collectionRelaxedCount : undefined,
     collectionSubstitutions: survivingSubstitutions.length > 0 ? survivingSubstitutions : undefined,
     typeTargets,
+    composition: targets,
     dataSource: state.dataSource,
     bracketPoolFallbackNote: state.bracketPoolFallbackNote,
     integrityNotes: integrityNotes.length > 0 ? integrityNotes : undefined,

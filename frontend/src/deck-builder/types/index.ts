@@ -737,6 +737,10 @@ export interface GeneratedDeck {
   collectionSubstitutions?: SubstituteRow[];
   detectedCombos?: DetectedCombo[];
   typeTargets?: Record<string, number>;
+  /** Target counts per DeckCategory bucket, computed unconditionally (unlike
+   *  `roleTargets`, which only exists in balanced-roles mode) by
+   *  calculateTargetCounts — the category-view gauges' target source. */
+  composition?: DeckComposition;
   dataSource?: DeckDataSource;
   roleCounts?: Record<string, number>; // Actual role counts when balanced roles mode was active
   roleTargets?: Record<string, number>; // Target role counts when balanced roles mode was active

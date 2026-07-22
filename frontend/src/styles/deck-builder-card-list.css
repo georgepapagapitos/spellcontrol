@@ -351,6 +351,17 @@
   align-items: center;
 }
 
+/* Wraps the heading + its optional category-view gauge (E124) — a <div>
+   (MeterBar's root) can't nest inside <h3>, which is phrasing-content-only,
+   so this sibling wrapper occupies the header's middle (1fr) grid column in
+   the heading's place. */
+.deck-section-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
 .deck-section-title {
   font-family: var(--font-serif);
   font-size: var(--text-sm);
@@ -367,6 +378,13 @@
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* Category-view bucket target gauge (E124) — fixed small width so it reads
+   as an inline meter beside the heading, never shifting header height. */
+.deck-section-gauge {
+  width: 56px;
+  flex-shrink: 0;
 }
 
 .deck-section-subtotal {
