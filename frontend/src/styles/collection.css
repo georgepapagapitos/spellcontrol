@@ -1021,6 +1021,22 @@
   color: var(--text-muted);
 }
 
+/* Per-copy condition/language chips — detail-when-present, like
+   .card-list-page: they render only when the copy carries the value, nothing
+   otherwise. Condition is factual (not a status pill), so it stays as quiet
+   text rather than a colored badge; the full word rides as title/aria-label. */
+.card-list-condition {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.card-list-language {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* Primary card-type glyph in a collection list/compact row's meta line
    (E30). A single mana-font type icon (creature / instant / land / …) — the
    most space-efficient at-a-glance type signal, so it stays visible even on
@@ -1991,12 +2007,16 @@ i.ss.set-symbol--mythic {
    below 768px. */
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
-.collection-list.is-compact .card-list-cn {
+.collection-list.is-compact .card-list-cn,
+.collection-list.is-compact .card-list-condition,
+.collection-list.is-compact .card-list-language {
   display: none;
 }
 
 @media (min-width: 768px) {
-  .collection-list.is-compact .card-list-cn {
+  .collection-list.is-compact .card-list-cn,
+  .collection-list.is-compact .card-list-condition,
+  .collection-list.is-compact .card-list-language {
     display: inline-block;
   }
 }

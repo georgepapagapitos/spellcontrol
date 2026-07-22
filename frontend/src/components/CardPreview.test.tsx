@@ -102,6 +102,32 @@ describe('CardPreview printing identity (T36)', () => {
     expect(screen.queryByText('Foil')).toBeNull();
     expect(screen.queryByText('Oil slick')).toBeNull();
   });
+
+  it('shows the condition when set', () => {
+    renderPreview(mk({ condition: 'lp' }));
+    const chip = screen.getByLabelText('Condition lp');
+    expect(chip.textContent).toContain('LP');
+  });
+
+  it('omits the condition token when unset', () => {
+    renderPreview(mk({}));
+    expect(screen.queryByLabelText(/^Condition/)).toBeNull();
+  });
+
+  it('shows the full language name for a non-English printing', () => {
+    renderPreview(mk({ language: 'ja' }));
+    const chip = screen.getByLabelText('Language Japanese');
+    expect(chip.textContent).toContain('Japanese');
+  });
+
+  it('omits the language token for English or an unset language', () => {
+    const unset = renderPreview(mk({}));
+    expect(screen.queryByLabelText(/^Language/)).toBeNull();
+    unset.unmount();
+
+    renderPreview(mk({ language: 'en' }));
+    expect(screen.queryByLabelText(/^Language/)).toBeNull();
+  });
 });
 
 describe('CardPreview turn (sideways layouts)', () => {

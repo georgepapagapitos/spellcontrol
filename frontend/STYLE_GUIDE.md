@@ -1762,9 +1762,18 @@ trading one out, not by squeezing:
 
 | Density            | Fields                                                                                                                                                                                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value                                                                                                                                                             |
-| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px                                                                                                                                          |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                   |
+| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                           |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges + **rarity chip** (top-right corner, every tile); a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
+
+**Detail-when-present.** Per-copy chips (the binder page chip, condition,
+language) render **only when that specific copy carries the value** — no
+dash, no "Not set" placeholder; absence renders nothing, keeping rows quiet
+by default and dense only where there's something to say. **Norms are
+unmarked, deviations are chipped**: Near Mint and English never render a
+chip (imports stamp `nm`/`en` on nearly every copy, so an always-on chip is
+noise, not signal) — the row only speaks when a copy is LP/MP/HP/DMG or
+non-English. The Key's Condition section says so in its title.
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing

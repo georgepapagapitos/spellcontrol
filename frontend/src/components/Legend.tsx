@@ -10,6 +10,9 @@ import { FoilBadge } from './FoilBadge';
 import { DeckBadge } from './DeckBadge';
 import { makeDeckAllocationInfo } from '@/lib/allocations';
 import { BinderBadge } from './BinderBadge';
+import { ConditionChip } from './shared/CardRow';
+import { CONDITION_OPTIONS } from './PrintingPicker';
+import type { Condition } from '@/types';
 
 /**
  * Context-aware symbol key — the "Key" popover that teaches the app's glyph
@@ -218,6 +221,19 @@ export function LegendContent({ context }: { context: LegendContext }) {
             }
             word="In a binder"
           />
+        </Section>
+      )}
+      {/* Binder list rows render the same CardRow chips, so the binder Key
+          carries the section too (glyph-literacy rule: Key entry per surface). */}
+      {(context === 'collection' || context === 'binder') && (
+        <Section title="Condition — Near Mint unmarked">
+          {CONDITION_OPTIONS.filter((o) => o.value !== '' && o.value !== 'nm').map((o) => (
+            <Entry
+              key={o.value}
+              glyph={<ConditionChip condition={o.value as Condition} />}
+              word={o.label as string}
+            />
+          ))}
         </Section>
       )}
       {context === 'binder' && (
