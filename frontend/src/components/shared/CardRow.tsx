@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { Check } from 'lucide-react';
-import type { EnrichedCard } from '../../types';
+import type { Condition, EnrichedCard } from '../../types';
 import type { AllocationInfo } from '../../lib/allocations';
 import { FoilBadge } from '../FoilBadge';
 import { DeckBadge } from '../DeckBadge';
@@ -8,9 +8,32 @@ import { BinderBadge } from '../BinderBadge';
 import { RarityBadge } from './RarityBadge';
 import { ManaCost } from '../ManaCost';
 import { TypeIcon } from './ManaSymbol';
+import { CONDITION_OPTIONS, LANGUAGE_OPTIONS } from '../PrintingPicker';
 import { getCardType } from '../../lib/card-types';
 import { getColorKey, COLOR_INFO } from '../../lib/colors';
 import { formatMoney } from '../../lib/format-money';
+
+/** 'damaged' abbreviates to DMG for the row chip; the rest are already short. */
+export function conditionShort(condition: Condition): string {
+  return condition === 'damaged' ? 'DMG' : condition.toUpperCase();
+}
+
+/**
+ * Quiet per-copy condition chip — the short abbreviation with the full word
+ * as the accessible label/tooltip. Exported so the Symbol Key can render
+ * this exact chip (T36 pattern: the Key can't drift from what it explains).
+ */
+export function ConditionChip({ condition }: { condition: Condition }) {
+  // Options are plain-string labels in practice; SelectOption widens to
+  // ReactNode for menu items generally, but title/aria-label need a string.
+  const label =
+    (CONDITION_OPTIONS.find((o) => o.value === condition)?.label as string) ?? condition;
+  return (
+    <span className="card-list-condition" title={label} aria-label={label}>
+      {conditionShort(condition)}
+    </span>
+  );
+}
 
 interface CardRowProps {
   card: EnrichedCard;
@@ -122,6 +145,18 @@ export function CardRow({
           {pageNum !== undefined && pageNum > 0 && (
             <span className="card-list-page" title={`Page ${pageNum}`}>
               p.{pageNum}
+            </span>
+          )}
+          {/* Deviations only — NM is the unmarked norm (imports stamp nm on
+              nearly every copy; an always-on chip is noise, not signal), the
+              same way English never renders a language chip. */}
+          {card.condition && card.condition !== 'nm' && (
+            <ConditionChip condition={card.condition} />
+          )}
+          {card.language && card.language !== 'en' && (
+            <span className="card-list-language">
+              {LANGUAGE_OPTIONS.find((o) => o.value === card.language)?.label ??
+                card.language.toUpperCase()}
             </span>
           )}
         </div>

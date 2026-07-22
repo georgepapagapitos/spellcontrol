@@ -404,7 +404,17 @@ Rakdos stays blood-black). Rulings:
   which hangs under the page), a 1px inset top-face highlight
   (`rgb(255 255 255 / 14%)`) to lift the silhouette off dark grounds, and a
   `-1px` margin over its strip's hairline so the fill merges into the page.
-  Resting tabs are quiet text (`--chrome-text-muted` on leather,
+  **In the mobile tab bar the fill is an inset `::before`** (E159:
+  `inset: 0 3px 6px` — flush to the page edge above, a floor-and-sides gap
+  below) so it reads as a tab hanging into the bar, never a full-height slab
+  touching its neighbors; the link itself stays the full cell, keeping the
+  44px+ touch target. Cells are `overflow: hidden` — a tab label may never
+  paint outside its own cell (the pre-E159 "Collection" label overflowed a
+  61px cell at 360px and collided with an active neighbor's fill; it now
+  swaps to its short form "Cards" below 420px via the long/short span pair).
+  Resting tabs are quiet text (on leather, one notch above muted:
+  `color-mix(in srgb, var(--chrome-text) 45%, var(--chrome-text-muted))` —
+  pure `--chrome-text-muted` read as dim floating glyphs in device review;
   `--text-secondary` on the paper hub strips); hover raises
   (`--chrome-surface` / `--surface-raised`). State is never color-only: the
   fill pairs with `aria-current`/`.active` and ≥4.5:1 on-accent text.
@@ -1772,9 +1782,18 @@ trading one out, not by squeezing:
 
 | Density            | Fields                                                                                                                                                                                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value                                                                                                                                                             |
-| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px                                                                                                                                          |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                   |
+| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                           |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges + **rarity chip** (top-right corner, every tile); a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
+
+**Detail-when-present.** Per-copy chips (the binder page chip, condition,
+language) render **only when that specific copy carries the value** — no
+dash, no "Not set" placeholder; absence renders nothing, keeping rows quiet
+by default and dense only where there's something to say. **Norms are
+unmarked, deviations are chipped**: Near Mint and English never render a
+chip (imports stamp `nm`/`en` on nearly every copy, so an always-on chip is
+noise, not signal) — the row only speaks when a copy is LP/MP/HP/DMG or
+non-English. The Key's Condition section says so in its title.
 
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing
