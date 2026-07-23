@@ -3139,4 +3139,22 @@ export const CORPUS: CorpusCard[] = [
       "Whenever you cast a creature spell that doesn't share a creature type with a creature you control or a creature card in your graveyard, copy that spell. (A copy of a creature spell becomes a token.)",
     expect: { producers: [], payoffs: [] },
   },
+
+  // ── E139: mill "each player mills" subject + trigger-on-mill payoff ────────
+  {
+    name: 'Chill of Foreboding',
+    type_line: 'Sorcery',
+    keywords: ['Flashback'],
+    oracle_text:
+      'Each player mills five cards.\nFlashback {7}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    expect: { producers: ['mill'], payoffs: [] },
+  },
+  {
+    name: 'Glowing One',
+    type_line: 'Creature — Zombie Mutant',
+    keywords: ['Mill', 'Deathtouch'],
+    oracle_text:
+      'Deathtouch\nWhenever this creature deals combat damage to a player, they get four rad counters.\nWhenever a player mills a nonland card, you gain 1 life.',
+    expect: { producers: ['lifegain'], payoffs: ['mill'] },
+  },
 ];

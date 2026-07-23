@@ -340,10 +340,13 @@ export interface MillSignals {
 
 // Subject-aware opponent mill. "Target player mills" can hit yourself, but as a
 // strategy signal it reads as the deck-out plan; the symmetric/self cases below
-// stay with the graveyard axis. Excludes nothing by `you` here because the
+// stay with the graveyard axis. "Each player mills" (Sphinx's Tutelage-style
+// symmetric decking, distinct from the `grouphug` "each player draws" wheel) is
+// still an opponent-deck-out signal even though it also mills you — it belongs
+// here, not silently uncovered. Excludes nothing by `you` here because the
 // clause loop checks opponent subjects first and self-mill second.
 const OPPONENT_MILL =
-  /\b(?:target opponent|each opponent|target player|that player|an opponent|opponents|enchanted player|defending player)\b[^.]*\bmills?\b/;
+  /\b(?:target opponent|each opponent|each player|target player|that player|an opponent|opponents|enchanted player|defending player)\b[^.]*\bmills?\b/;
 // Pre-"mill"-keyword templating: "<opponent> … puts those cards into their
 // graveyard" (Mind Funeral, Mind Grind, Consuming Aberration). Paired in the loop
 // with a reveal/library check (order-independent) so it can't catch

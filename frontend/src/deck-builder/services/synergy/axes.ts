@@ -633,7 +633,13 @@ const mill: SynergyAxis = {
     return millSignals(card.oracle).opponentMill ? 'mills your opponents' : null;
   },
   payoff(card) {
-    return millSignals(card.oracle).doubler ? 'amplifies milling' : null;
+    if (millSignals(card.oracle).doubler) return 'amplifies milling';
+    // A trigger keyed on a mill actually happening (Glowing One's "whenever a
+    // player mills a nonland card") — a reward for the mill engine running, not
+    // the engine itself.
+    if (/whenever (?:a|any)? ?player mills? (?:a |one or more )?(?:nonland )?cards?/.test(card.oracle))
+      return 'rewards milling';
+    return null;
   },
 };
 
