@@ -501,6 +501,13 @@
   flex-shrink: 0;
 }
 
+/* Always-dark game-board surface — white ring per STYLE_GUIDE, not the
+   themed --accent the shared .toolbar-viewmode-btn base rule now sets. */
+.tap-orientation-toggle .toolbar-viewmode-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
 .game-menu-meta {
   display: flex;
   flex-wrap: wrap;
