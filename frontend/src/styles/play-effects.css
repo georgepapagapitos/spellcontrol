@@ -255,7 +255,10 @@
   background: var(--accent-light);
   color: var(--accent);
   border-color: var(--accent);
-  outline: none;
+  /* Always-dark panel (per-player life-keypad cover, fixed gradient bg
+     regardless of theme) — white ring, same ruling as the game board. */
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 @media (hover: hover) and (pointer: fine) {
   .life-keypad-close:hover {

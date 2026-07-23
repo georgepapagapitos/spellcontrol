@@ -243,14 +243,18 @@ function BinderOverflowPanel({
   onDelete: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  // ≤1024px this renders as a bottom action sheet with a slide-up entry, so
+  // ≤1023px this renders as a bottom action sheet with a slide-up entry, so
   // dismissal plays the symmetric slide-down exit via useSheetExit. On
   // desktop it's a plain dropdown with no entry animation — exits stay
   // instant there (symmetric with its entry), so we skip the hook's
   // animation wait entirely.
+  // Boundary must match binder-nav.css's own @media (max-width: 1023px)
+  // exactly — a mismatch here would fire the sheet's slide-down exit
+  // animation on what CSS is rendering as the plain desktop dropdown (or
+  // vice versa), a mixed-mode animation glitch at exactly one pixel width.
   const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, 'binder-sheet-slide-out');
   const dismiss = useCallback(() => {
-    if (window.matchMedia('(max-width: 1024px)').matches) beginClose();
+    if (window.matchMedia('(max-width: 1023px)').matches) beginClose();
     else onClose();
   }, [beginClose, onClose]);
 

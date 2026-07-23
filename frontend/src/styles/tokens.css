@@ -342,8 +342,10 @@
 
 /* Mirrors .mobile-tab-bar's own breakpoint + native height exactly
    (responsive-nav.css) — the two must stay in lockstep, which is the
-   point of routing both through this one token. */
-@media (max-width: 1024px) {
+   point of routing both through this one token. 1023, not 1024: the bar
+   itself moved to the 1023 shell boundary in the mixed-mode fix; at
+   exactly 1024 (desktop, no bar) this token must already read 0. */
+@media (max-width: 1023px) {
   :root {
     --mobile-tabbar-h: 3.5rem;
   }
