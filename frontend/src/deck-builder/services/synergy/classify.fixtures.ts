@@ -1395,7 +1395,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flashback'],
     oracle_text:
       'Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
-    expect: { producers: ['discard'], payoffs: ['graveyard'] },
+    // E139: Flashback only ever recasts ITSELF — self-contained resilience,
+    // not a graveyard-value engine. No longer a graveyard payoff.
+    expect: { producers: ['discard'], payoffs: [] },
   },
   {
     name: 'Faith of the Devoted',
@@ -1954,7 +1956,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flashback', 'Mill'],
     oracle_text:
       'Target player mills X cards. If this spell was cast from a graveyard, that player mills twice that many cards instead.\nFlashback {X}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
-    expect: { producers: ['mill'], payoffs: ['graveyard'] },
+    // E139: Flashback only ever recasts ITSELF — self-contained upgrade, not a
+    // graveyard-value engine. No longer a graveyard payoff.
+    expect: { producers: ['mill'], payoffs: [] },
   },
   {
     name: 'Kiki-Jiki, Mirror Breaker',
@@ -2304,7 +2308,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Skulk', 'Transform', 'Mill'],
     oracle_text:
       "Target opponent mills thirteen cards.\n{3}{U}{U}: Put this card from your graveyard onto the battlefield transformed. Activate only as a sorcery.\nSkulk (This creature can't be blocked by creatures with greater power.)\nWhen this creature deals combat damage to a player, return it to its owner's hand.",
-    expect: { producers: ['mill'], payoffs: ['graveyard'] },
+    // E139: "put THIS card from your graveyard" is self-only recursion (widened
+    // selfReturnOnly now catches "put", not just "return") — no graveyard payoff.
+    expect: { producers: ['mill'], payoffs: [] },
   },
   {
     name: 'Sylvan Scrying',
@@ -2756,7 +2762,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Atomic Transmutation', 'Unearth'],
     oracle_text:
       'Flying\nAtomic Transmutation — {1}, {T}, Sacrifice another artifact: Draw a card.\nUnearth {2}{B} ({2}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)',
-    expect: { producers: ['sacrifice'], payoffs: ['graveyard'] },
+    // E139: Unearth only ever recurs ITSELF — self-contained resilience, not a
+    // graveyard-value engine. No longer a graveyard payoff.
+    expect: { producers: ['sacrifice'], payoffs: [] },
   },
   {
     name: 'Delraich',
@@ -3086,5 +3094,31 @@ export const CORPUS: CorpusCard[] = [
     // Also a genuine sacrifice outlet ("Sacrifice this artifact:") — every
     // Treasure-shaped permanent is, incidentally, fodder.
     expect: { producers: ['artifacts', 'sacrifice'], payoffs: [] },
+  },
+
+  // ── E139: graveyard self-recursion cleanup (flashback/unearth-class) ───────
+  {
+    name: 'Think Twice',
+    type_line: 'Instant',
+    keywords: ['Flashback'],
+    oracle_text:
+      'Draw a card.\nFlashback {2}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Treasure Cruise',
+    type_line: 'Sorcery',
+    keywords: ['Delve'],
+    oracle_text:
+      'Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.',
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: "Uro, Titan of Nature's Wrath",
+    type_line: 'Legendary Creature — Elder Giant',
+    keywords: ['Escape'],
+    oracle_text:
+      "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+    expect: { producers: ['landfall', 'lifegain'], payoffs: ['graveyard'] },
   },
 ];

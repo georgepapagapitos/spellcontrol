@@ -190,18 +190,15 @@ const landfall: SynergyAxis = {
   },
 };
 
-const GY_RECUR_KEYWORDS = [
-  'flashback',
-  'escape',
-  'delve',
-  'disturb',
-  'jump-start',
-  'aftermath',
-  'unearth',
-  'embalm',
-  'eternalize',
-  'encore',
-];
+// Delve and Escape genuinely WANT a stocked graveyard — they exile OTHER cards
+// from it as a cost, so a bigger yard is directly better for them. The rest of
+// these keywords (flashback, disturb, jump-start, aftermath, unearth, embalm,
+// eternalize, encore) only ever recur/cast THEMSELVES with no dependency on
+// anything else being there — self-contained resilience, not a graveyard-value
+// engine (same principle as `selfReturnOnly` below). Crediting the whole list
+// as a payoff was reading flashback/unearth-class self-recursion as caring
+// about the graveyard (9/25 FPs).
+const GY_FUEL_KEYWORDS = ['delve', 'escape'];
 
 const graveyard: SynergyAxis = {
   key: 'graveyard',
@@ -223,11 +220,12 @@ const graveyard: SynergyAxis = {
     const o = card.oracle;
     if (/(?:put|return) target [^.]*card from a graveyard (?:onto|to) the battlefield/.test(o))
       return 'reanimates';
-    // A card that only returns ITSELF from the graveyard (Death Tyrant, Gryff's
-    // Boon, Reassembling Skeleton) is recursive resilience, not a graveyard-value
-    // engine — don't tag it unless it also recurs OTHER cards.
+    // A card that only returns/puts ITSELF from the graveyard (Death Tyrant,
+    // Gryff's Boon, Reassembling Skeleton, a transforming DFC's "put this card
+    // from your graveyard onto the battlefield") is recursive resilience, not a
+    // graveyard-value engine — don't tag it unless it also recurs OTHER cards.
     const selfReturnOnly =
-      /return this (?:card|aura|permanent|creature) from (?:your|a) graveyard/.test(o) &&
+      /(?:put|return) this (?:card|aura|permanent|creature) from (?:your|a) graveyard/.test(o) &&
       !/(?:put|return) (?:target|a|all|each|x|another)[^.]*card/.test(o);
     if (!selfReturnOnly) {
       if (/return (?:target )?[^.]*card[^.]*from (?:your|a) graveyard/.test(o))
@@ -236,7 +234,7 @@ const graveyard: SynergyAxis = {
         return 'recurs from your graveyard';
     }
     if (/creature card in a graveyard/.test(o)) return 'reanimates';
-    if (GY_RECUR_KEYWORDS.some((k) => has(card, k))) return 'graveyard recursion';
+    if (GY_FUEL_KEYWORDS.some((k) => has(card, k))) return 'wants a stocked graveyard';
     if (/cast [^.]*from your graveyard/.test(o)) return 'casts from your graveyard';
     if (/\bwhenever one or more cards leave your graveyard\b/.test(o))
       return 'pays off cards leaving your graveyard';
