@@ -399,6 +399,11 @@ export function FriendsManagement() {
                   user.friendStatus === 'none' || user.friendStatus === 'request_received';
                 const isPrimary =
                   user.friendStatus === 'none' || user.friendStatus === 'request_received';
+                // Two different actions share this button (send a request vs
+                // accept one) — the busy label names the one actually in
+                // flight rather than a bare, verb-less ellipsis.
+                const busyLabel =
+                  user.friendStatus === 'request_received' ? 'Accepting…' : 'Adding…';
                 const identity = formatIdentity(user);
                 return (
                   <li key={user.id} className="friends-search-result">
@@ -417,7 +422,7 @@ export function FriendsManagement() {
                       disabled={!actionable || busyIds.has(user.id)}
                       aria-label={`${label} ${identity.primary}`}
                     >
-                      {busyIds.has(user.id) ? '…' : label}
+                      {busyIds.has(user.id) ? busyLabel : label}
                     </button>
                   </li>
                 );
@@ -492,7 +497,7 @@ export function FriendsManagement() {
                       disabled={busyIds.has(friend.id)}
                       aria-label={`Remove ${identity.primary} from friends`}
                     >
-                      {busyIds.has(friend.id) ? '…' : 'Remove'}
+                      {busyIds.has(friend.id) ? 'Removing…' : 'Remove'}
                     </button>
                   </li>
                 );
@@ -544,7 +549,7 @@ export function FriendsManagement() {
                               disabled={busyIds.has(req.requesterId)}
                               aria-label={`Accept friend request from ${identity.primary}`}
                             >
-                              {busyIds.has(req.requesterId) ? '…' : 'Accept'}
+                              {busyIds.has(req.requesterId) ? 'Accepting…' : 'Accept'}
                             </button>
                             <button
                               type="button"
@@ -590,7 +595,7 @@ export function FriendsManagement() {
                               disabled={busyIds.has(req.addresseeId)}
                               aria-label={`Cancel friend request to ${identity.primary}`}
                             >
-                              {busyIds.has(req.addresseeId) ? '…' : 'Cancel'}
+                              {busyIds.has(req.addresseeId) ? 'Cancelling…' : 'Cancel'}
                             </button>
                           </div>
                         </li>

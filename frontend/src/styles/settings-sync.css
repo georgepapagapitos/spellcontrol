@@ -266,7 +266,9 @@
 
 .settings-card-title {
   margin: 0;
-  font-family: var(--font-mono);
+  /* Section titles are --font-serif (the .deck-combos-title family) per
+     STYLE_GUIDE Typography — --font-mono is data/numerals only. */
+  font-family: var(--font-serif);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: var(--text-sm);
@@ -655,7 +657,9 @@
    cards. Mono uppercase, secondary color, no card chrome. */
 .settings-section-header {
   margin: var(--space-4) 0 0.35rem;
-  font-family: var(--font-mono);
+  /* Section titles are --font-serif (the .deck-combos-title family) per
+     STYLE_GUIDE Typography — --font-mono is data/numerals only. */
+  font-family: var(--font-serif);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: var(--text-xs);

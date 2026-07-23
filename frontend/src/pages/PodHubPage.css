@@ -316,10 +316,12 @@
   font-size: var(--text-sm);
 }
 
+/* No truncation: `title` alone isn't reachable on touch (STYLE_GUIDE "title
+   is never the sole path to non-trivial detail"), and the table already
+   scrolls horizontally in its wrapper — same as the untruncated Date/Format/
+   Winner columns — so a long participant list just widens the scroll area
+   instead of hiding names behind a hover-only tooltip. */
 .pod-hub-players-cell {
-  max-width: 14rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
