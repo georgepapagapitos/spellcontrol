@@ -113,6 +113,19 @@ import {
 // non-protected filler slot (never one whose own role would drop under ITS
 // target) for the best quality-gated wipe candidate the pool offers, ranked
 // by the same wipeQualityPenalty machinery as everything else here.
+//
+// E160 generalizes Phase 3 from boardwipe-only to DEFICIT_BACKFILL_ROLES
+// (boardwipe, removal), motivated by the OTHER open half of the same "nothing
+// ever adds a card back" gap: pick-time slot competition can displace an
+// under-target removal/boardwipe bearer with no disclosure anywhere (E139
+// gate: lathril lost Assassin's Trophy, removal 7/8 -> 6/8, outcompeted not
+// devalued). The donor/replacement machinery is identical, just parameterized
+// by which role is being backfilled instead of hardcoded to boardwipe — see
+// findRoleDeficitDonor and the Phase 3 loop below. A residual deficit this
+// pass can't or won't close (ramp/cardDraw are out of scope this slice, or
+// the budget/pool ran out) is disclosed separately, post-hoc, by
+// buildRoleDeficitNotes (roleDeficitNotes.ts) — that disclosure runs over the
+// FINAL deck in deckGenerator.ts, not here.
 
 // Total conversions this pass may apply per deck. Precedent: MAX_AUDIT_SWAPS
 // = 4 (deckGenerator.ts's Combo Integrity Audit), MAX_COHERENCE_SWAPS = 3
@@ -140,7 +153,21 @@ const MAX_SAME_ROLE_UPGRADES = 2;
 // +30) or a meaningfully higher-inclusion payoff still clears it.
 const MIN_IMPROVEMENT_MARGIN = 15;
 
-const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
+// Exported: reused verbatim by roleDeficitNotes.ts (E160) so the post-hoc
+// displacement disclosure covers the same four roles / speaks the same
+// vocabulary as this pass, rather than a second copy drifting from it.
+export const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
+
+// E160: roles this pass will BACKFILL a DEFICIT for (Phase 3), as opposed to
+// REACTIVE_ROLES (every role Phases 1/2 trim SURPLUS from). Order matters:
+// boardwipe keeps first claim on the shared MAX_SURPLUS_CONVERSIONS budget
+// when both roles are deficient and the budget is tight — preserving the
+// E113 boardwipe-only slice's existing priority rather than introducing a
+// new tunable to pick a winner. cardDraw/ramp are deliberately NOT in this
+// list this slice (a ramp/cardDraw deficit is comparatively low-stakes vs a
+// boardwipe/removal one going unanswered) — the ordered-list shape leaves
+// the extension seam for a future slice to widen it.
+const DEFICIT_BACKFILL_ROLES: RoleKey[] = ['boardwipe', 'removal'];
 
 // E112/E113: board wipes get a TIGHTER surplus band than the generic
 // max(2,20%) — a surplus wipe torches the deck's own board rather than being a
@@ -174,7 +201,8 @@ const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardDraw'];
 // pinned regression test.
 const BOARDWIPE_SURPLUS_TOLERANCE = 1;
 
-const ROLE_LABEL: Record<RoleKey, string> = {
+// Exported: reused verbatim by roleDeficitNotes.ts (E160) — see REACTIVE_ROLES.
+export const ROLE_LABEL: Record<RoleKey, string> = {
   ramp: 'ramp',
   removal: 'removal',
   boardwipe: 'board wipe',
@@ -280,11 +308,13 @@ function buildConversionReason(params: {
   return `${contextClause}${nonboClause}. ${addedClause}`;
 }
 
-// E113 follow-up (half b): the deficit-direction counterpart to
-// buildConversionReason's "over cap" wording — Phase 3 backfills a boardwipe
+// E113 follow-up (half b); E160 generalizes from boardwipe-only to any
+// DEFICIT_BACKFILL_ROLES member: the deficit-direction counterpart to
+// buildConversionReason's "over cap" wording — Phase 3 backfills a role
 // deficit, not a surplus, so the disclosure must say so honestly rather than
 // reusing the "over cap" phrasing.
 function buildBackfillReason(params: {
+  role: RoleKey;
   haveBefore: number;
   target: number;
   cutName: string;
@@ -303,7 +333,12 @@ function buildBackfillReason(params: {
     params.liftedBy && params.liftedBy.length > 0
       ? `Added ${params.addedName}${priceClause}, lifted by ${params.liftedBy.slice(0, 3).join(', ')}.`
       : `Added ${params.addedName}${priceClause} to close the gap.`;
-  const deficitClause = `Board wipe was running ${params.haveBefore} vs a ${params.target} target — under target. Freed a slot from ${params.cutName}. ${addedClause}`;
+  const roleLabel = ROLE_LABEL[params.role];
+  const capitalizedLabel = roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1);
+  // "vs its N-card target" (E160 copy fix) reads correctly for every target
+  // magnitude — the prior "vs a N target" produced "a 8 target" for removal's
+  // larger targets; applies to wipes too (deliberate copy improvement).
+  const deficitClause = `${capitalizedLabel} was running ${params.haveBefore} vs its ${params.target}-card target — under target. Freed a slot from ${params.cutName}. ${addedClause}`;
   return deficitClause;
 }
 
@@ -397,16 +432,16 @@ export function applyRoleSurplusRebalance(
     const target = roleTargets[role] ?? 0;
     return target > 0 && (liveRoleCounts[role] ?? 0) > capOf(role);
   };
-  // E113 follow-up (half b): a boardwipe DEFICIT is not a cap condition, so it
+  // E113 follow-up (half b); E160 generalizes boardwipe-only to
+  // DEFICIT_BACKFILL_ROLES: a role DEFICIT is not a cap condition, so it
   // can't gate through isOverCap — but it still has to keep this pass from
   // no-op-returning below when nothing is over cap and the only work to do is
   // Phase 3's backfill (see that phase for why nothing upstream of this pass
   // ever closes a role deficit on its own).
-  const boardwipeDeficit = Math.max(
-    0,
-    (roleTargets.boardwipe ?? 0) - (liveRoleCounts.boardwipe ?? 0)
+  const hasBackfillDeficit = DEFICIT_BACKFILL_ROLES.some(
+    (role) => (roleTargets[role] ?? 0) > 0 && (liveRoleCounts[role] ?? 0) < (roleTargets[role] ?? 0)
   );
-  if (!REACTIVE_ROLES.some(isOverCap) && boardwipeDeficit === 0) return { conversions };
+  if (!REACTIVE_ROLES.some(isOverCap) && !hasBackfillDeficit) return { conversions };
 
   const completeComboNames = new Set<string>();
   for (const combo of ctx.detectedCombos ?? []) {
@@ -754,12 +789,16 @@ export function applyRoleSurplusRebalance(
   }
 
   // Worst (lowest-priority) currently-donatable filler for a Phase 3
-  // backfill: not protected, not itself a board wipe (never cut a wipe to
-  // make room for a wipe), and — if it carries a role — that role has slack
+  // backfill: not protected, not itself a card of the role being backfilled
+  // (never cut a wipe to make room for a wipe, never cut removal to make
+  // room for removal), and — if it carries a role — that role has slack
   // above ITS OWN target so freeing the slot can't open a NEW deficit
-  // elsewhere. liftBoosts protects a lift-connected filler card from being
-  // evicted ahead of a genuinely replaceable one, same protection Phase 1/2
-  // give outgoing reactive-role cards.
+  // elsewhere (this is also what lets a boardwipe donate to a removal
+  // backfill, or vice versa, exactly when — and only when — that role has
+  // slack above its own target; no separate special-case needed). liftBoosts
+  // protects a lift-connected filler card from being evicted ahead of a
+  // genuinely replaceable one, same protection Phase 1/2 give outgoing
+  // reactive-role cards.
   //
   // isFreeInteraction is checked HERE only, not folded into the shared
   // isProtected() — isProtectionPiece() deliberately returns false for a
@@ -770,13 +809,15 @@ export function applyRoleSurplusRebalance(
   // free-interaction card was never eligible there, so widening the shared
   // isProtected() would change Phase 1/2 eviction behavior beyond this
   // slice's scope — scoped to this loop instead.
-  const findWipeDeficitDonor = (): { card: ScryfallCard; category: DeckCategory } | null => {
+  const findRoleDeficitDonor = (
+    deficitRole: RoleKey
+  ): { card: ScryfallCard; category: DeckCategory } | null => {
     const candidates: { card: ScryfallCard; category: DeckCategory }[] = [];
     for (const cat of Object.keys(state.categories) as DeckCategory[]) {
       if (cat === 'lands') continue;
       for (const card of state.categories[cat]) {
         const role = getCardRole(card.name);
-        if (role === 'boardwipe' || isProtected(card) || isFreeInteraction(card)) continue;
+        if (role === deficitRole || isProtected(card) || isFreeInteraction(card)) continue;
         if (role) {
           const roleTarget = roleTargets[role] ?? 0;
           if ((liveRoleCounts[role] ?? 0) - 1 < roleTarget) continue;
@@ -809,47 +850,56 @@ export function applyRoleSurplusRebalance(
     return candidates[0];
   };
 
-  // Phase 3 (E113 follow-up, half b): boardwipe deficit backfill. Nothing
-  // upstream of this pass — or any other post-fill phase — ever ADDS a card
-  // to close a role deficit; ROLE_DEFICIT_TRIM_BOOST (phaseSmartTrim.ts et
-  // al.) only PROTECTS an at/under-target role from being cut further, it
-  // never proactively fills the gap. Bounded by the same MAX_SURPLUS_
-  // CONVERSIONS budget as Phases 1/2 above (shared conversionsApplied
-  // counter) so a pathological deficit can't run away. The incoming wipe is
-  // ranked through the exact same quality-aware findReplacement/
-  // wipeQualityPenalty machinery every other boardwipe pick in this pass
-  // uses (one-sided/low-collateral preferred, never raw priority) — see
-  // findReplacement's roleFilter param.
-  while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
-    const target = roleTargets.boardwipe ?? 0;
-    const haveBefore = liveRoleCounts.boardwipe ?? 0;
-    if (haveBefore >= target) break;
-    const donor = findWipeDeficitDonor();
-    if (!donor) break;
-    const donorPrice = priceOf(donor.card);
-    const replacement = findReplacement(-Infinity, donorPrice, 'boardwipe', true, 'boardwipe');
-    if (!replacement) break;
+  // Phase 3 (E113 follow-up, half b — boardwipe only; E160 generalizes to
+  // every DEFICIT_BACKFILL_ROLES member). Nothing upstream of this pass — or
+  // any other post-fill phase — ever ADDS a card to close a role deficit;
+  // ROLE_DEFICIT_TRIM_BOOST (phaseSmartTrim.ts et al.) only PROTECTS an
+  // at/under-target role from being cut further, it never proactively fills
+  // the gap. Iterates DEFICIT_BACKFILL_ROLES IN ORDER — boardwipe exhausts
+  // its own deficit (bounded by the shared conversionsApplied budget) before
+  // removal gets a turn, preserving the original E113 priority when both
+  // roles are deficient and the budget is tight (see DEFICIT_BACKFILL_ROLES'
+  // own doc). Bounded by the same MAX_SURPLUS_CONVERSIONS budget as Phases
+  // 1/2 above (shared conversionsApplied counter) so a pathological deficit
+  // can't run away. The incoming card is ranked through the exact same
+  // quality-aware findReplacement machinery every other pick in this pass
+  // uses — wipeQualityPenalty only actually applies inside findReplacement
+  // when the candidate IS a boardwipe, so a removal backfill ranks candidates
+  // on priority + lift + ownedBoost, which is the correct behavior for that
+  // role (see findReplacement's roleFilter param).
+  for (const role of DEFICIT_BACKFILL_ROLES) {
+    while (conversionsApplied < MAX_SURPLUS_CONVERSIONS) {
+      const target = roleTargets[role] ?? 0;
+      const haveBefore = liveRoleCounts[role] ?? 0;
+      if (haveBefore >= target) break;
+      const donor = findRoleDeficitDonor(role);
+      if (!donor) break;
+      const donorPrice = priceOf(donor.card);
+      const replacement = findReplacement(-Infinity, donorPrice, role, true, role);
+      if (!replacement) break;
 
-    removeCard(donor.card, donor.category, getCardRole(donor.card.name) ?? undefined);
-    addCard(replacement);
-    runningTotal += priceOf(replacement) - donorPrice;
-    conversionsApplied++;
+      removeCard(donor.card, donor.category, getCardRole(donor.card.name) ?? undefined);
+      addCard(replacement);
+      runningTotal += priceOf(replacement) - donorPrice;
+      conversionsApplied++;
 
-    const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
-    conversions.push({
-      cut: donor.card.name,
-      added: replacement.name,
-      reason: buildBackfillReason({
-        haveBefore,
-        target,
-        cutName: donor.card.name,
-        addedName: replacement.name,
-        liftedBy,
-        cutPrice: donorPrice,
-        addedPrice: priceOf(replacement),
-        currency: ctx.currency,
-      }),
-    });
+      const liftedBy = getLiftIndex(state).get(replacement.name.toLowerCase())?.liftedBy;
+      conversions.push({
+        cut: donor.card.name,
+        added: replacement.name,
+        reason: buildBackfillReason({
+          role,
+          haveBefore,
+          target,
+          cutName: donor.card.name,
+          addedName: replacement.name,
+          liftedBy,
+          cutPrice: donorPrice,
+          addedPrice: priceOf(replacement),
+          currency: ctx.currency,
+        }),
+      });
+    }
   }
 
   return { conversions };
