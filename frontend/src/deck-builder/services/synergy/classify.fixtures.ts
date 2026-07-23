@@ -3059,4 +3059,32 @@ export const CORPUS: CorpusCard[] = [
       'Whenever an opponent casts a spell during your turn and when this creature dies, create a green and white Elemental creature token with "This token\'s power and toughness are each equal to the number of creatures you control."',
     expect: { producers: ['tokens'], payoffs: ['tokens'] },
   },
+
+  // ── E139: artifacts payoff-FP cleanup + recall widening ────────────────────
+  {
+    name: 'Angelic Observer',
+    type_line: 'Creature — Angel Advisor',
+    keywords: ['Affinity', 'Flying'],
+    oracle_text:
+      'Affinity for Citizens (This spell costs {1} less to cast for each Citizen you control.)\nFlying',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Hired Hexblade',
+    type_line: 'Creature — Elf Warlock',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, if mana from a Treasure was spent to cast it, you draw a card and you lose 1 life.',
+    expect: { producers: [], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Buried Treasure',
+    type_line: 'Artifact — Treasure',
+    keywords: ['Discover'],
+    oracle_text:
+      '{T}, Sacrifice this artifact: Add one mana of any color.\n{5}, Exile this card from your graveyard: Discover 5. Activate only as a sorcery. (Exile cards from the top of your library until you exile a nonland card with mana value 5 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)',
+    // Also a genuine sacrifice outlet ("Sacrifice this artifact:") — every
+    // Treasure-shaped permanent is, incidentally, fodder.
+    expect: { producers: ['artifacts', 'sacrifice'], payoffs: [] },
+  },
 ];

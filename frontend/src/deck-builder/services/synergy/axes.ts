@@ -266,6 +266,10 @@ const artifacts: SynergyAxis = {
       )
     )
       return 'creates artifact token copies';
+    // A printed (nontoken) Treasure permanent — its oracle text never says
+    // "artifact" or "Treasure" in the rules text, only the type line does, so
+    // every text-based check above misses it (Buried Treasure, Mimic).
+    if (card.typeLine.includes('treasure')) return 'is a Treasure';
     return null;
   },
   payoff(card) {
@@ -277,14 +281,22 @@ const artifacts: SynergyAxis = {
       return 'triggers on your artifacts';
     if (/whenever you cast an artifact spell/.test(card.oracle))
       return 'pays off casting artifacts';
+    // Affinity is a generic "cost down for each X you control" template reused
+    // for Islands/Slivers/Gates/Historic/etc, not just artifacts — matching the
+    // bare keyword without checking what it's affinity FOR read every one of
+    // those unrelated variants as an artifacts payoff (7/7 FPs).
     if (
-      has(card, 'affinity') ||
+      (has(card, 'affinity') && /affinity for artifacts/.test(card.oracle)) ||
       has(card, 'improvise') ||
       has(card, 'metalcraft') ||
       /metalcraft/.test(card.oracle)
     )
       return 'artifact threshold/cost payoff';
     if (/for each artifact you control/.test(card.oracle)) return 'scales with artifacts';
+    // "If mana from a Treasure was spent to cast/activate …" (Hired Hexblade,
+    // Jaded Sell-Sword) rewards Treasure-fueled mana, not just owning artifacts.
+    if (/if mana from a treasure was spent/.test(card.oracle))
+      return 'rewards spending Treasure mana';
     return null;
   },
 };
