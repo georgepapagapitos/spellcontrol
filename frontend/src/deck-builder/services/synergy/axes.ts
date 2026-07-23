@@ -724,7 +724,19 @@ const cycling: SynergyAxis = {
   payoff(card) {
     // "Whenever you cycle" and the symmetric "whenever a player cycles" (Astral
     // Slide, Lightning Rift) both reward the cycling engine.
-    return /when(?:ever)? (?:you|a player) cycles?/.test(card.oracle) ? 'rewards cycling' : null;
+    if (/when(?:ever)? (?:you|a player) cycles?/.test(card.oracle)) return 'rewards cycling';
+    // "If/whenever you cycled ... this turn" (Spellpyre Phoenix) — a delayed
+    // reward keyed on cycling activity rather than the trigger itself.
+    if (/(?:if |whenever )you(?:'ve)? cycled[^.]*this turn/.test(card.oracle))
+      return 'rewards cycling this turn';
+    // Recurs cards WITH cycling FROM the graveyard (Spellpyre Phoenix, Abandoned
+    // Sarcophagus) vs. counts cards with cycling sitting IN the graveyard
+    // (Zenith Flare) — same phrase, distinguished by preposition.
+    if (/cycling abilit(?:y|ies)[^.]*from your graveyard/.test(card.oracle))
+      return 'recurs cycling cards from your graveyard';
+    if (/cycling abilit(?:y|ies) in your graveyard/.test(card.oracle))
+      return 'scales with cycled cards in your graveyard';
+    return null;
   },
 };
 

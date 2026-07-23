@@ -2509,7 +2509,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Zenith Flare deals X damage to any target and you gain X life, where X is the number of cards with a cycling ability in your graveyard.',
-    expect: { producers: ['lifegain'], payoffs: [] },
+    // E139: scales with cycling cards sitting in your graveyard — a cycling payoff.
+    expect: { producers: ['lifegain'], payoffs: ['cycling'] },
   },
   {
     name: 'Aetherflux Reservoir',
@@ -3201,5 +3202,29 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text: 'This spell costs {1} less to cast for each instant and sorcery card in your graveyard.',
     expect: { producers: [], payoffs: ['spellslinger'] },
+  },
+
+  // ── E139: cycling recall — you-cycled-this-turn, graveyard counts/recursion ─
+  {
+    name: 'Spellpyre Phoenix',
+    type_line: 'Creature — Phoenix',
+    keywords: ['Flying', 'Cycling'],
+    oracle_text:
+      "Flying\nWhen this creature enters, you may return target instant or sorcery card with a cycling ability from your graveyard to your hand.\nAt the beginning of each end step, if you cycled two or more cards this turn, return this card from your graveyard to your hand.",
+    // Also recurs an instant/sorcery card (spellslinger) and, since that
+    // recursion clause means the self-return clause isn't the ONLY thing this
+    // card does, still reads as a genuine graveyard payoff too.
+    expect: { producers: ['cycling', 'spellslinger'], payoffs: ['cycling', 'graveyard'] },
+  },
+  {
+    name: 'Abandoned Sarcophagus',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      'You may cast spells that have a cycling ability from your graveyard.\nIf a card that has a cycling ability would be put into your graveyard from anywhere and it wasn\'t cycled, exile it instead.',
+    // Also a graveyard producer/payoff: the replacement clause mentions "put
+    // into your graveyard", and casting spells from the graveyard is the
+    // axis's own "casts from your graveyard" payoff shape.
+    expect: { producers: ['graveyard'], payoffs: ['cycling', 'graveyard'] },
   },
 ];
