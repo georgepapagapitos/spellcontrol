@@ -34,6 +34,9 @@ import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
+import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
+import { useSealMoment } from '../components/shared/SealMoment';
+import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
 import { PullListSheet } from '../components/deck/PullListSheet';
 import { useDeckTokens } from '../components/deck/use-deck-tokens';
 import { PowerHero } from '../components/deck/PowerHero';
@@ -344,6 +347,25 @@ export function DeckEditorPage() {
         deck?.buildReport &&
         !isBuildReportSeen(deck?.id ?? '')
       )
+  );
+  // First-publish seal + post-create visibility nudge (E150) — two more
+  // one-shot router-state flags in the same `justGenerated` shape, set by
+  // whichever creation flow the deck just came from:
+  //   - justPublished: the creation-time fieldset (DeckNewPage,
+  //     ImportDeckDialog) already published it. Firing the seal HERE rather
+  //     than on the creating page is deliberate — that page navigates away
+  //     the instant publish resolves, which would unmount the portal
+  //     mid-animation (see usePublishOnCreate's doc comment).
+  //   - promptVisibility: the flow (CopyDeckButton, a multi-file import that
+  //     landed on one deck) skipped the fieldset entirely — show the lighter
+  //     DeckPublishNudge instead of celebrating.
+  // Mutually exclusive by construction (a given creation flow sets at most
+  // one), captured once at mount like showBuildReport above.
+  const [justPublished] = useState(
+    () => !!(location.state as { justPublished?: boolean } | null)?.justPublished
+  );
+  const [showPublishNudge] = useState(
+    () => !!(location.state as { promptVisibility?: boolean } | null)?.promptVisibility
   );
   // Feedback Tool: mint/copy the suggestion link + review submitted responses.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -713,6 +735,27 @@ export function DeckEditorPage() {
   // the hook's suggestion filter (an empty array would mean "colorless").
   const comboColorIdentity =
     deck?.commander || deck?.partnerCommander ? commanderColorIdentity : undefined;
+
+  // First-publish seal moment (E150), driven by the justPublished router
+  // state set above. Fires here rather than on the creating page (DeckNewPage
+  // / ImportDeckDialog navigate away the instant publish resolves, which
+  // would unmount the portal mid-animation — see usePublishOnCreate's doc
+  // comment). `shouldCelebrateFirstPublish` is the single dedup guard shared
+  // with ShareDialog's own direct-fire path (the chip + DeckPublishNudge),
+  // so a deck's first publish celebrates exactly once regardless of entry
+  // surface. Deliberately narrow deps — a one-shot flag that never resets,
+  // re-run only to catch `deck` resolving after the initial render (async
+  // store hydration); re-firing on a later commander edit would be a no-op
+  // anyway (the guard is keyed on deckId), so there's nothing to gain by
+  // tracking commanderColorIdentity here too.
+  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
+  useEffect(() => {
+    if (!justPublished || !deck) return;
+    if (shouldCelebrateFirstPublish(deck.id, true)) {
+      fireSealMoment(commanderColorIdentity);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justPublished, deck?.id]);
 
   // Commander (+partner) key for CardSearchPanel's per-row "N on SpellControl"
   // badge (social W4) — undefined for a no-commander deck, so the panel's
@@ -2235,7 +2278,15 @@ export function DeckEditorPage() {
 
   return (
     <div className="deck-editor-page">
+      {sealMoment}
       <BackLink to="/decks" label="All decks" />
+      {showPublishNudge && (
+        <DeckPublishNudge
+          deckId={deck.id}
+          deckName={deck.name}
+          colorIdentity={commanderColorIdentity}
+        />
+      )}
       <header className="deck-editor-header">
         <div className="deck-editor-hero" style={{ borderLeftColor: deck.color }}>
           {/* Commander art rides behind the title as a right-anchored backdrop
@@ -2327,7 +2378,11 @@ export function DeckEditorPage() {
               <span className="deck-hero-bracket">{`\u00A0· Bracket\u00A0${bracketValue}`}</span>
             )}
           </p>
-          <DeckVisibilityChip deckId={deck.id} deckName={deck.name} />
+          <DeckVisibilityChip
+            deckId={deck.id}
+            deckName={deck.name}
+            colorIdentity={commanderColorIdentity}
+          />
           {deck.forkedFrom && <ForkedFromBadge forkedFrom={deck.forkedFrom} />}
         </div>
         <div className="deck-editor-actions">

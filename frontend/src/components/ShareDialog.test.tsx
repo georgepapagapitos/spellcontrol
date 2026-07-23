@@ -47,12 +47,22 @@ vi.mock('../lib/publications-client', () => ({
   DisplayNameRequiredError: MockDisplayNameRequiredError,
 }));
 
+const fireSealMock = vi.fn();
+vi.mock('./shared/SealMoment', () => ({
+  useSealMoment: () => ({ fire: fireSealMock, moment: null }),
+}));
+
 import { ShareDialog } from './ShareDialog';
 
 // ShareDialog renders <Link> (the confirmed-public "Your profile" row, the
 // no-friends "Friends page" link, and the guest sign-in prompt) — all need a
 // Router context, mirroring this codebase's established MemoryRouter wrap.
-function renderDialog(props: { resourceId?: string; resourceLabel: string; onClose: () => void }) {
+function renderDialog(props: {
+  resourceId?: string;
+  resourceLabel: string;
+  colorIdentity?: string[];
+  onClose: () => void;
+}) {
   return render(
     <MemoryRouter>
       <ShareDialog kind="deck" {...props} />
@@ -81,6 +91,7 @@ beforeEach(() => {
     revokedAt: null,
   });
   getPublicationMock.mockResolvedValue(null);
+  fireSealMock.mockClear();
   useAuth.setState({
     user: { id: 'u1', username: 'alice', role: 'user' },
     status: 'authed',
@@ -210,6 +221,59 @@ describe('ShareDialog — going Public', () => {
 
     expect(screen.queryByLabelText('Display name')).toBeNull();
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
+  });
+});
+
+describe('ShareDialog — first-publish seal (E150)', () => {
+  it('fires the seal with the deck colour identity on a genuine first publish', async () => {
+    publishDeckMock.mockResolvedValue({
+      slug: 'seal-deck',
+      url: 'https://spellcontrol.com/d/seal-deck',
+      publishedAt: 1,
+      updatedAt: 1,
+      unpublishedAt: null,
+      viewCount: 0,
+      copyCount: 0,
+      isFirstPublish: true,
+    });
+
+    renderDialog({
+      resourceId: 'd-seal-first',
+      resourceLabel: 'Test Deck',
+      colorIdentity: ['G', 'U'],
+      onClose: () => {},
+    });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Make it public — anyone can view' })
+    );
+
+    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d-seal-first'));
+    await waitFor(() => expect(fireSealMock).toHaveBeenCalledWith(['G', 'U']));
+  });
+
+  it('never fires the seal on a republish (isFirstPublish: false)', async () => {
+    publishDeckMock.mockResolvedValue({
+      slug: 'seal-deck-2',
+      url: 'https://spellcontrol.com/d/seal-deck-2',
+      publishedAt: 1,
+      updatedAt: 1,
+      unpublishedAt: null,
+      viewCount: 3,
+      copyCount: 1,
+      isFirstPublish: false,
+    });
+
+    renderDialog({ resourceId: 'd-seal-republish', resourceLabel: 'Test Deck', onClose: () => {} });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Make it public — anyone can view' })
+    );
+
+    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d-seal-republish'));
+    expect(fireSealMock).not.toHaveBeenCalled();
   });
 });
 

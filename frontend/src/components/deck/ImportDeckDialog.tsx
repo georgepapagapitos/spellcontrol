@@ -16,6 +16,7 @@ import { isValidCommander, isPdhCommanderEligible } from '../../lib/commanders';
 import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
+import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
 
 const DECK_IMPORT_MIME = ['text/csv', 'text/tab-separated-values', 'text/plain'];
 import {
@@ -180,6 +181,35 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const decks = useDecksStore((s) => s.decks);
   const buildDeckFromResult = useBuildDeckFromImport();
 
+  // ── Visibility (creation-time choice, E150) ─────────────────────────────
+  // Single-deck paths only (paste/merge — see the fieldset's render guard
+  // below); a multi-file batch that lands on ONE deck instead gets the
+  // lighter DeckPublishNudge on arrival (promptVisibility, set in
+  // commitBatch) rather than this fieldset — see the PR description for why.
+  const onPublishSettled = useCallback(
+    (id: string, outcome?: PublishOutcome) => {
+      onClose();
+      navigate(
+        `/decks/${id}`,
+        outcome ? { state: { justPublished: outcome.isFirstPublish } } : undefined
+      );
+    },
+    [onClose, navigate]
+  );
+  const {
+    canPublish,
+    publicDisabledReason,
+    visibility,
+    setVisibility,
+    publishing,
+    needsDisplayName,
+    displayNameDraft,
+    setDisplayNameDraft,
+    publishAfterCreate,
+    saveDisplayNameAndPublish,
+    cancelDisplayName,
+  } = usePublishOnCreate(onPublishSettled);
+
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(initialFormat);
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const [step, setStep] = useState<Step>('input');
@@ -249,10 +279,22 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       partner: ScryfallCard | null = null
     ) => {
       const id = buildDeckFromResult(result, commander, name, selectedFormat, { partner });
+      if (visibility === 'public' && canPublish) {
+        void publishAfterCreate(id);
+        return;
+      }
       onClose();
       navigate(`/decks/${id}`);
     },
-    [buildDeckFromResult, navigate, onClose, selectedFormat]
+    [
+      buildDeckFromResult,
+      navigate,
+      onClose,
+      selectedFormat,
+      visibility,
+      canPublish,
+      publishAfterCreate,
+    ]
   );
 
   const processSingleResult = useCallback(
@@ -517,7 +559,16 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       );
     }
     onClose();
-    navigate(ids.length === 1 ? `/decks/${ids[0]}` : '/decks');
+    // A batch that lands on exactly one deck (a single staged file, or every
+    // other draft skipped/removed) gets the lighter post-create nudge on
+    // arrival — this multi-draft review screen never showed the visibility
+    // fieldset, so there's no explicit choice to honor either way. A batch
+    // that lands on several decks has no single editor to nudge on, so it
+    // stays as-is (E150 — see the PR description for the full rationale).
+    navigate(
+      ids.length === 1 ? `/decks/${ids[0]}` : '/decks',
+      ids.length === 1 ? { state: { promptVisibility: true } } : undefined
+    );
   }, [okDrafts, decks, buildDeckFromResult, navigate, onClose]);
 
   // --- File input / drag-drop --------------------------------------------
@@ -597,12 +648,61 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
   const title =
     step === 'review' ? 'Review import' : step === 'batch' ? 'Review decks' : 'Import deck';
 
+  // The deck already exists at this point (only reachable after a create
+  // succeeded but the publish itself needs a display name) — replace the
+  // whole modal rather than layering this over now-stale step content,
+  // mirroring ShareDialog's own display_name_required fallback.
+  if (needsDisplayName) {
+    return (
+      <Modal
+        onClose={onClose}
+        labelledBy="import-deck-title"
+        className="modal import-deck-modal"
+        dismissable={!publishing}
+      >
+        <div className="modal-header">
+          <h2 id="import-deck-title">Set a display name</h2>
+        </div>
+        <div className="modal-body">
+          <p className="import-deck-hint">
+            Publishing shows your display name on the deck page — set one to continue.
+          </p>
+          <div className="field">
+            <label htmlFor="import-deck-display-name">Display name</label>
+            <input
+              id="import-deck-display-name"
+              type="text"
+              className="name-input-field"
+              value={displayNameDraft}
+              maxLength={40}
+              disabled={publishing}
+              onChange={(e) => setDisplayNameDraft(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn" onClick={cancelDisplayName} disabled={publishing}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void saveDisplayNameAndPublish()}
+            disabled={publishing || !displayNameDraft.trim()}
+          >
+            {publishing ? 'Saving…' : 'Save & continue'}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       onClose={onClose}
       labelledBy="import-deck-title"
       className="modal import-deck-modal"
-      dismissable={!isLoading}
+      dismissable={!isLoading && !publishing}
     >
       <div className="modal-header">
         <h2 id="import-deck-title">{title}</h2>
@@ -771,6 +871,46 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                   autoFocus
                 />
               </>
+            )}
+            {/* Only the paths that create exactly one deck (paste, or a
+                staged batch merged into one) get the creation-time choice —
+                mirrors /decks/new's single fieldset. "Separate decks" (N
+                results) has no single editor to land the choice on; those
+                decks stay private, publishable afterward per-deck like
+                today, and a single-result landing gets the lighter
+                DeckPublishNudge instead (see commitBatch). */}
+            {(batchFiles.length === 0 || batchMode === 'merge') && (
+              <div className="import-deck-commander-section">
+                <div className="import-deck-section-title">Visibility</div>
+                <div className="share-audience" role="radiogroup" aria-label="Deck visibility">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={visibility === 'private'}
+                    className={`share-audience-option${visibility === 'private' ? ' is-active' : ''}`}
+                    onClick={() => setVisibility('private')}
+                    disabled={isLoading}
+                  >
+                    Private
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={visibility === 'public'}
+                    className={`share-audience-option${visibility === 'public' ? ' is-active' : ''}`}
+                    onClick={() => setVisibility('public')}
+                    disabled={isLoading || !canPublish}
+                  >
+                    Public
+                  </button>
+                </div>
+                <p className="import-deck-hint">
+                  {visibility === 'public'
+                    ? 'Anyone can find it at a stable link and on your profile.'
+                    : 'Only you can see this deck.'}
+                  {!canPublish && ` ${publicDisabledReason}`}
+                </p>
+              </div>
             )}
             <input
               type="file"
@@ -1144,7 +1284,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
               type="button"
               className="btn btn-primary"
               onClick={runParse}
-              disabled={isLoading}
+              disabled={isLoading || publishing}
             >
               <span>
                 Continue ({batchFiles.length} file{batchFiles.length === 1 ? '' : 's'})
@@ -1156,7 +1296,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
               type="button"
               className="btn btn-primary"
               onClick={handlePasteImport}
-              disabled={isLoading || !pasteText.trim()}
+              disabled={isLoading || !pasteText.trim() || publishing}
             >
               <Download width={14} height={14} strokeWidth={1.8} aria-hidden />
               <span>Import</span>
@@ -1197,7 +1337,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             type="button"
             className="btn btn-primary"
             onClick={handleConfirmReview}
-            disabled={!canConfirmReview}
+            disabled={!canConfirmReview || publishing}
           >
             Create deck
           </button>

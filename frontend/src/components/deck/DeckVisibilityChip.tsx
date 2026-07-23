@@ -7,6 +7,8 @@ import './DeckVisibilityChip.css';
 interface Props {
   deckId: string;
   deckName: string;
+  /** Forwarded to ShareDialog for the first-publish seal's motes (E150). */
+  colorIdentity?: string[];
 }
 
 const VISIBILITY_META: Record<DeckVisibility, { icon: typeof Globe; label: string }> = {
@@ -27,7 +29,7 @@ const VISIBILITY_META: Record<DeckVisibility, { icon: typeof Globe; label: strin
  * them to 'private', and ShareDialog itself renders the sign-in prompt when
  * opened as a guest.
  */
-export function DeckVisibilityChip({ deckId, deckName }: Props) {
+export function DeckVisibilityChip({ deckId, deckName, colorIdentity }: Props) {
   const { visibility, refetch } = useDeckVisibility(deckId);
   const [open, setOpen] = useState(false);
   const { icon: Icon, label } = VISIBILITY_META[visibility];
@@ -48,6 +50,7 @@ export function DeckVisibilityChip({ deckId, deckName }: Props) {
           kind="deck"
           resourceId={deckId}
           resourceLabel={deckName}
+          colorIdentity={colorIdentity}
           onClose={() => {
             setOpen(false);
             refetch();
