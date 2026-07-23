@@ -64,6 +64,40 @@ const vanillaCommander = card('Isamaru, Hound of Konda', '', {
   color_identity: ['W'],
 });
 
+// ── E135 type-line density fixtures ─────────────────────────────────────────
+// Real mana rock — no token-making text, so classifyCard tags it on no axis
+// at all pre-fix; only the type_line ('Artifact') makes it count.
+const solRing = card('Sol Ring', '{T}: Add {C}{C}.', { type_line: 'Artifact', cmc: 1 });
+// Equipment already classifies under the narrower `equipment` axis (axes.ts
+// checks type_line directly there) — E135 additionally credits `artifacts`.
+const bonesplitter = card('Bonesplitter', 'Equipped creature gets +2/+0.\nEquip {1}', {
+  type_line: 'Artifact — Equipment',
+  cmc: 1,
+});
+// Vehicle, same shape as Equipment — narrow `vehicles` axis pre-existing,
+// broad `artifacts` axis added by E135.
+const smugglersCopter = card(
+  "Smuggler's Copter",
+  'Flying\nWhenever Smuggler’s Copter attacks or blocks, you may draw a card. If you do, discard a card.\nCrew 1',
+  { type_line: 'Artifact — Vehicle', cmc: 2 }
+);
+// Double-matching card: an Artifact Creature whose OWN oracle text already
+// trips axes.ts's text-based `artifacts` producer regex ("artifact creature
+// token") — the type-line addition must not double-bump it.
+const hangarbackWalker = card(
+  'Hangarback Walker',
+  'Hangarback Walker enters the battlefield with X +1/+1 counters on it.\n{1}, {T}, Sacrifice a creature: Put a +1/+1 counter on Hangarback Walker.\nWhen Hangarback Walker dies, create a 1/1 colorless Thopter artifact creature token for each +1/+1 counter on Hangarback Walker.',
+  { type_line: 'Artifact Creature — Construct', cmc: 2 }
+);
+// Real metalcraft payoff — already classifies as an `artifacts` PAYOFF via
+// axes.ts's existing keyword/text check (E135 doesn't touch payoff
+// classification); only the producer/support side was broken.
+const etchedChampion = card(
+  'Etched Champion',
+  'Metalcraft — Etched Champion has protection from all colors as long as you control three or more artifacts.',
+  { type_line: 'Artifact Creature — Golem', cmc: 3, keywords: ['Metalcraft'] }
+);
+
 const cardMap = new Map(
   [visceraSeer, carrionFeeder, yawgmoth, bloodArtist, zulaport, divination].map((c) => [c.name, c])
 );
@@ -82,7 +116,51 @@ describe('tallyAxisInvestment', () => {
   });
 });
 
+describe('tallyAxisInvestment — E135 type-line density', () => {
+  it('counts a raw mana rock as an artifacts producer with no token-making text', () => {
+    const investment = tallyAxisInvestment([solRing], []);
+    expect(investment.get('artifacts')?.producers).toBe(1);
+  });
+
+  it('counts Equipment toward both the broad artifacts axis and its own narrower axis, once each', () => {
+    const investment = tallyAxisInvestment([bonesplitter], []);
+    expect(investment.get('artifacts')?.producers).toBe(1);
+    expect(investment.get('equipment')?.producers).toBe(1);
+  });
+
+  it('counts a Vehicle toward both the broad artifacts axis and its own narrower axis, once each', () => {
+    const investment = tallyAxisInvestment([smugglersCopter], []);
+    expect(investment.get('artifacts')?.producers).toBe(1);
+    expect(investment.get('vehicles')?.producers).toBe(1);
+  });
+
+  it('does not double-bump a card classifyCard already tagged on the same axis', () => {
+    const investment = tallyAxisInvestment([hangarbackWalker], []);
+    expect(investment.get('artifacts')?.producers).toBe(1); // not 2
+  });
+
+  it('a creature-only pool contributes zero artifacts investment', () => {
+    const investment = tallyAxisInvestment([visceraSeer, carrionFeeder], []);
+    expect(investment.get('artifacts')?.producers ?? 0).toBe(0);
+  });
+
+  it('weighs a raw-permanent commander double, same as every other producer', () => {
+    const investment = tallyAxisInvestment([], [solRing]);
+    expect(investment.get('artifacts')?.producers).toBe(2); // commander × 2
+  });
+});
+
 describe('computePackageBoosts', () => {
+  it('boosts a metalcraft/affinity-class payoff once raw artifact permanents are picked (E135)', () => {
+    // Three raw artifact permanents picked (a rock, an Equipment, a
+    // Vehicle), zero payoffs — pre-fix this investment map read 0 artifacts
+    // producers, so the payoff never cleared LIVE_MIN and was never boosted.
+    const investment = tallyAxisInvestment([solRing, bonesplitter, smugglersCopter], []);
+    const boostCardMap = new Map([etchedChampion].map((c) => [c.name, c]));
+    const boosts = computePackageBoosts(['Etched Champion'], boostCardMap, investment);
+    expect(boosts.get('Etched Champion')).toBeGreaterThan(0);
+  });
+
   it('boosts the starved payoff side of a live aristocrats engine, never the majority side', () => {
     // Three sac outlets picked, zero payoffs → the engine begs for Blood Artist.
     const investment = tallyAxisInvestment(
