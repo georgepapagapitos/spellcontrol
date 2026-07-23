@@ -17,6 +17,11 @@
 }
 
 .playtest-resistance-picker__row {
+  /* A <label> wrapping a native radio input, stretched invisibly over the
+     whole row (see the input rule below) — same technique as
+     `.settings-currency-option` / `EndGameDialog`'s winner picker, so arrow
+     keys move between levels and only one row is ever a Tab stop, for free. */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,13 +39,21 @@
     background var(--motion-fast) ease;
 }
 
+.playtest-resistance-picker__row input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .playtest-resistance-picker__row.is-active {
   border-color: var(--accent);
   background: var(--accent-light);
 }
 
-.playtest-resistance-picker__row:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
+.playtest-resistance-picker__row:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 

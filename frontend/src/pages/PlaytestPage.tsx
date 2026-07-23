@@ -87,22 +87,33 @@ export function PlaytestPage() {
   );
 
   if (!hydrated) {
-    return <div className="playtest-loading">Loading deck…</div>;
+    return (
+      <div className="page-loader page-loader--message" role="status" aria-live="polite">
+        <span className="spinner" aria-hidden="true" />
+        <span className="page-loader-message">Loading deck…</span>
+      </div>
+    );
   }
   if (!deck) {
     return (
-      <div className="playtest-missing">
-        <p>Deck not found.</p>
-        <button type="button" onClick={() => navigate('/decks')}>
-          Back to decks
-        </button>
+      <div className="empty-state">
+        <p className="empty-state-tagline">Deck not found</p>
+        <p className="empty-state-hint">It may have been deleted. Pick another deck to playtest.</p>
+        <div className="empty-state-actions">
+          <button type="button" className="btn btn-primary" onClick={() => navigate('/decks')}>
+            Back to decks
+          </button>
+        </div>
       </div>
     );
   }
   if (!state) {
     return (
       <>
-        <div className="playtest-loading">Shuffling…</div>
+        <div className="page-loader page-loader--message" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span className="page-loader-message">Shuffling…</span>
+        </div>
         {confirmDialog}
       </>
     );

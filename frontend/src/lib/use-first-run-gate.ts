@@ -6,8 +6,16 @@ import type { AuthStatus } from '../store/auth';
 /**
  * Paths reachable without first satisfying the first-run gate: the root
  * landing page itself (and its /welcome alias), the auth flow, OAuth landing
- * pages, and public share links. Exported for unit tests; the hook below uses
- * it internally.
+ * pages, and every public share-link surface a stranger's first-ever visit
+ * can land on directly (STYLE_GUIDE "Public shared views": these are "often
+ * a non-user's first contact" and must stay reachable, not bounce to the
+ * marketing page). `/s/:token` was the only one exempted — `/u/:username`
+ * (public profile), `/d/:slug` (public deck), and `/gn/:token` + `/gn/s/:token`
+ * (a game-night invite + its stable weekly link) are the same kind of link
+ * and were missing, so a first-time guest tapping any of them landed on `/`
+ * instead of the content they were sent, silently breaking "anyone with the
+ * link can RSVP/view, no account needed" on every one of those surfaces.
+ * Exported for unit tests; the hook below uses it internally.
  */
 export function isFirstRunExempt(pathname: string): boolean {
   return (
@@ -16,7 +24,10 @@ export function isFirstRunExempt(pathname: string): boolean {
     pathname === '/auth' ||
     pathname.startsWith('/auth/') ||
     pathname === '/oauth/callback' ||
-    pathname.startsWith('/s/')
+    pathname.startsWith('/s/') ||
+    pathname.startsWith('/u/') ||
+    pathname.startsWith('/d/') ||
+    pathname.startsWith('/gn/')
   );
 }
 

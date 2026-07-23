@@ -255,9 +255,10 @@ function NightBody({
     <main className="shared-view game-night-view">
       <header className="shared-view-header">
         <p className="shared-view-owner">Game night hosted by {night.hostUsername}</p>
-        <h1 className="shared-view-title">{night.title}</h1>
+        <h1 className={`shared-view-title${cancelled ? ' is-cancelled' : ''}`}>{night.title}</h1>
         {cancelled && (
           <p className="game-night-cancelled" role="status">
+            <span className="game-night-cancelled-badge">Cancelled</span>
             This game night was cancelled.
           </p>
         )}

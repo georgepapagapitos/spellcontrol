@@ -360,6 +360,7 @@ export function BindersIndexPage() {
           </div>
         ) : (
           <div className="empty-state">
+            <EmptyStateMark />
             <p className="empty-state-tagline">Build your first binder.</p>
             <p className="empty-state-hint">
               A binder is a set of rules that catches cards from your collection. Make one for each

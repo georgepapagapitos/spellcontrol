@@ -56,11 +56,14 @@
     display: none;
   }
 
-  /* On mobile the on-page binder strip is replaced by the bottom-nav
-     binder picker (BinderPickerSheet). Keep the desktop chip strip
-     completely out of the layout to avoid duplication. These are
-     layout-mode switches (the mobile shell is everything ≤1024px),
-     not content-density tweaks, so they belong here, not at ≤600px. */
+  /* On mobile there's no room for the desktop chip strip (it needs
+     horizontal space for a color dot + name + count per binder, plus a
+     kebab on the active one); switching binders instead goes through the
+     "All binders" BackLink back to the index and its rich cards. Keep the
+     desktop strip completely out of the layout rather than shrinking it
+     into something illegible. This is a layout-mode switch (the mobile
+     shell is everything ≤1024px), not a content-density tweak, so it
+     belongs here, not at ≤600px. */
   .binder-tab-row {
     display: none;
   }
