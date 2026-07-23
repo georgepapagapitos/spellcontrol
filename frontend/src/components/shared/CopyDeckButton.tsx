@@ -29,7 +29,11 @@ export function CopyDeckButton({ data, variant = 'bar', slug }: Props) {
     // actual copy above (recordDeckCopy already swallows its own errors).
     if (slug) void recordDeckCopy(slug);
     toast.show({ message: 'Copied to your decks', tone: 'success' });
-    void navigate(`/decks/${id}`);
+    // promptVisibility (E150): a one-tap copy skips the creation-time
+    // visibility fieldset entirely, so the editor shows a post-create
+    // DeckPublishNudge instead — mirrors `justGenerated`'s one-shot
+    // router-state pattern.
+    void navigate(`/decks/${id}`, { state: { promptVisibility: true } });
   }
 
   if (variant === 'block') {
