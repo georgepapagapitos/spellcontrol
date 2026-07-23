@@ -303,8 +303,26 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // (Damn, Vandalblast, Cyclonic Rift) — corroborated by the co-occurrence
   // of "overload" with a destroy/exile/return-target clause, regardless of
   // which comes first in the text.
+  //
+  // E136 fix (2026-07-23, full-corpus audit — boardwipe gate-blind 21%): two
+  // verified real-card gaps, both live-checked against Scryfall.
+  //  - The damage branch required literal "damage to each creature"
+  //    adjacency, missing scoped variants where the object isn't literally
+  //    "each creature" right after "to" (Flame Wave: "deals 4 damage to
+  //    target player or planeswalker and each creature that player...
+  //    controls" — a player-scoped one-sided wipe); widened to a
+  //    same-sentence lenient join.
+  //  - The -N/-N branch required plural "creatures" and a literal digit,
+  //    missing token/type-scoped mass debuffs phrased with a singular noun
+  //    (Virulent Plague, current Oracle text: "Creature tokens get -2/-2.")
+  //    or an X magnitude. Widened the noun to optional-plural and the
+  //    magnitude to digit-or-X while keeping the literal "get -" (not
+  //    "gets -") unchanged — that verb-agreement quirk is what already
+  //    excluded, and must keep excluding, a single-target spot-removal spell
+  //    like Battle at the Bridge ("Target creature gets -X/-X until end of
+  //    turn.") from this MASS-wipe branch.
   boardwipe:
-    /destroy all|destroy each|exile all|exile each (creature|permanent)|all creatures (get|take|deal)|each creature (gets|takes)|creatures[^.]*?get -\d+\/-\d+|damage to each creature|return all [^.]*?(creatures|permanents)|return each (creature|permanent)|each player sacrifices (a|all)|(\+1\/\+1|-1\/-1) counters? on each creature|for each opponent[^.]*?destroy|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target\b)/i,
+    /destroy all|destroy each|exile all|exile each (creature|permanent)|all creatures (get|take|deal)|each creature (gets|takes)|creatures?[^.]*?get -(?:\d+|[Xx])\/-(?:\d+|[Xx])|damage[^.]*?to[^.]*?each creature|return all [^.]*?(creatures|permanents)|return each (creature|permanent)|each player sacrifices (a|all)|(\+1\/\+1|-1\/-1) counters? on each creature|for each opponent[^.]*?destroy|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target\b)/i,
   // Tutors (search-library-into-ANY-destination, or a card that redirects an
   // OPPONENT's search — Opposition Agent) are folded into cardDraw by
   // getCardRole — the taxonomy call already made, not this gate's job to

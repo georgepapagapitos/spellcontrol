@@ -59,6 +59,10 @@ const DATA = {
       'Spectral Deluge',
       'Cyclonic Rift',
       'Contagion Engine',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negative)
+      'Flame Wave',
+      'Virulent Plague',
+      'Battle at the Bridge',
     ],
     'card-advantage': ['Divination', 'Experimental Augury', 'Eternal Witness'],
     tutor: [
@@ -646,6 +650,42 @@ describe('validateCardRole — E136 removal recall widening', () => {
         name: 'Brainstorm',
         oracle_text:
           'Draw three cards, then put two cards from your hand on top of your library in any order.',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('validateCardRole — E136 boardwipe recall widening', () => {
+  it('boardwipe: scoped damage lenient join — object isn\'t literally "each creature" right after "to" (Flame Wave)', () => {
+    expect(
+      validateCardRole({
+        name: 'Flame Wave',
+        oracle_text:
+          "Flame Wave deals 4 damage to target player or planeswalker and each creature that player or that planeswalker's controller controls.",
+      })
+    ).toBe('boardwipe');
+  });
+
+  it('boardwipe: -N/-N widened to singular noun + X magnitude (Virulent Plague: "Creature tokens get -2/-2.")', () => {
+    expect(
+      validateCardRole({
+        name: 'Virulent Plague',
+        oracle_text: 'Creature tokens get -2/-2.',
+      })
+    ).toBe('boardwipe');
+  });
+
+  it('boardwipe: -N/-N verb-agreement guard — a single-target spot-removal "creature GETS -X/-X" is not a mass wipe (Battle at the Bridge)', () => {
+    // Battle at the Bridge is a single-target removal spell in reality —
+    // hypothetically mistagged 'boardwipe' here (Expropriate-style) to prove
+    // the widened -N/-N branch didn't accidentally drop the "get" (not
+    // "gets") verb-agreement guard that separates a MASS debuff from a
+    // spot-removal spell that merely mentions "creature ... -X/-X".
+    expect(
+      validateCardRole({
+        name: 'Battle at the Bridge',
+        oracle_text:
+          "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nTarget creature gets -X/-X until end of turn. You gain X life.",
       })
     ).toBeNull();
   });
