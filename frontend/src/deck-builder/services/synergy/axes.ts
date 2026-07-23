@@ -327,14 +327,21 @@ const spellslinger: SynergyAxis = {
     )
       return 'reduces spell cost';
     if (/copy (?:target )?(?:instant|sorcery)/.test(card.oracle)) return 'copies spells';
+    // Recursion (Archaeomancer-class: "return target instant or sorcery card
+    // from your graveyard") re-fuels the engine, same role as a tutor elsewhere.
+    if (/return (?:target )?(?:an? )?instant or sorcery card[^.]*from your graveyard/.test(card.oracle))
+      return 'recurs instants/sorceries';
     return null;
   },
   payoff(card) {
     if (has(card, 'magecraft') || has(card, 'prowess')) return 'magecraft/prowess';
+    if (has(card, 'storm') || /\bstorm\b/.test(card.oracle)) return 'storm';
     if (/whenever you cast (?:or copy )?(?:an? )?(?:instant|sorcery)/.test(card.oracle))
       return 'triggers on instants/sorceries';
     if (/whenever you cast[^.]*instant or sorcery/.test(card.oracle))
       return 'triggers on instants/sorceries';
+    if (/for each instant and sorcery card in your graveyard/.test(card.oracle))
+      return 'scales with instants/sorceries in your graveyard';
     return null;
   },
 };

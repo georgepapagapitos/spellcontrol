@@ -3177,4 +3177,29 @@ export const CORPUS: CorpusCard[] = [
       "Flying\nCorrupted — As long as an opponent has three or more poison counters, this creature has deathtouch and lifelink.",
     expect: { producers: [], payoffs: ['poison'] },
   },
+
+  // ── E139: spellslinger recursion producer + Storm/graveyard-count payoff ───
+  {
+    name: 'Archaeomancer',
+    type_line: 'Creature — Human Wizard',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, return target instant or sorcery card from your graveyard to your hand.',
+    expect: { producers: ['spellslinger'], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Grapeshot',
+    type_line: 'Sorcery',
+    keywords: ['Storm'],
+    oracle_text:
+      'Grapeshot deals 1 damage to any target.\nStorm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)',
+    expect: { producers: [], payoffs: ['spellslinger'] },
+  },
+  {
+    name: 'Cryptic Serpent',
+    type_line: 'Creature — Serpent',
+    keywords: [],
+    oracle_text: 'This spell costs {1} less to cast for each instant and sorcery card in your graveyard.',
+    expect: { producers: [], payoffs: ['spellslinger'] },
+  },
 ];
