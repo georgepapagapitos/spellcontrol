@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { Finish } from '../types';
+import type { Condition, Finish } from '../types';
 import type { ScannedEntry } from '../components/ScannerQueueSheet';
 import { availableFinishes, finishUnitPrice } from './scanner-feedback';
 
@@ -77,6 +77,7 @@ interface ScanQueueState {
   queue: ScannedEntry[];
   upsert: (card: ScryfallCard) => void;
   patch: (id: string, patch: { card?: ScryfallCard; finish?: Finish }) => void;
+  setCondition: (id: string, condition: Condition) => void;
   remove: (id: string) => void;
   clear: () => void;
   changeQty: (id: string, delta: number) => void;
@@ -99,6 +100,11 @@ export const useScanQueueStore = create<ScanQueueState>()(
       queue: [],
       upsert: (card) => set((s) => ({ queue: upsertCard(s.queue, card) })),
       patch: (id, p) => set((s) => ({ queue: applyEntryPatch(s.queue, id, p) })),
+      // Condition isn't part of a row's identity (entryKey is printing+finish
+      // only — see ScannedEntry.condition's doc comment), so unlike `patch`
+      // this never re-keys or merges rows; it's a plain in-place update.
+      setCondition: (id, condition) =>
+        set((s) => ({ queue: s.queue.map((e) => (e.id === id ? { ...e, condition } : e)) })),
       remove: (id) => set((s) => ({ queue: s.queue.filter((e) => e.id !== id) })),
       clear: () => set({ queue: [] }),
       changeQty: (id, delta) =>
@@ -167,6 +173,12 @@ export interface UseScanQueueResult {
    * if one is present.
    */
   changeFinish: (id: string, finish: Finish) => void;
+  /**
+   * Set the owned condition (nm/lp/mp/hp/damaged) for an entry (E87). Unlike
+   * {@link changeFinish}, condition isn't part of row identity, so this never
+   * re-keys or merges rows.
+   */
+  changeCondition: (id: string, condition: Condition) => void;
 }
 
 /**
@@ -188,6 +200,7 @@ export function useScanQueue(): UseScanQueueResult {
   const queue = useScanQueueStore((s) => s.queue);
   const upsert = useScanQueueStore((s) => s.upsert);
   const patch = useScanQueueStore((s) => s.patch);
+  const setConditionAction = useScanQueueStore((s) => s.setCondition);
   const remove = useScanQueueStore((s) => s.remove);
   const clear = useScanQueueStore((s) => s.clear);
   const changeQtyAction = useScanQueueStore((s) => s.changeQty);
@@ -256,6 +269,11 @@ export function useScanQueue(): UseScanQueueResult {
 
   const changeFinish = useCallback((id: string, finish: Finish) => patch(id, { finish }), [patch]);
 
+  const changeCondition = useCallback(
+    (id: string, condition: Condition) => setConditionAction(id, condition),
+    [setConditionAction]
+  );
+
   return {
     queue,
     totalCount,
@@ -267,5 +285,6 @@ export function useScanQueue(): UseScanQueueResult {
     changeQty,
     changePrinting,
     changeFinish,
+    changeCondition,
   };
 }

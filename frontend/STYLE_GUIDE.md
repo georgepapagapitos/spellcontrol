@@ -1795,6 +1795,26 @@ chip (imports stamp `nm`/`en` on nearly every copy, so an always-on chip is
 noise, not signal) — the row only speaks when a copy is LP/MP/HP/DMG or
 non-English. The Key's Condition section says so in its title.
 
+**Editable toggles show their state, always — even at the norm.** The rule
+above governs *passive* display chips that summarize existing data; it
+doesn't apply to a control that's also the *only way to change* the value.
+The scanner queue's per-row finish and condition toggles (`ScannerQueueSheet`
+rows, `CardScanner`'s last-scan panel — E87) are editors, not display chips,
+so they render at their default state too: the finish toggle always reads
+"Normal", the condition toggle always reads "NM" — a control that goes
+invisible at the default has no way to discover the deviation it exists to
+reach. Both share one neutral pill shape (tap-to-cycle: Normal → Foil →
+Etched for finish, NM → LP → MP → HP → DMG for condition), but only finish
+gets a color flourish per state (rainbow foil, gold etched) — finish IS a
+value signal. Condition stays uncolored at every state, matching
+`.card-list-condition`'s "quiet text, not a colored badge" ruling above:
+cycling through LP/MP/HP/DMG changes the letters, never the chip's color.
+Unlike finish (gated behind `finishes.length > 1` — only printings with a
+foil/etched variant get the toggle), the condition toggle has no
+availability gate: every physical card can be in any condition regardless of
+printing, so it always renders. Both toggles carry the usual
+`@media (pointer: coarse) { min-height: 44px }` floor (§ Responsive).
+
 **Touch rule.** Hover-revealed information (titles/tooltips on glyphs, hover
 peeks) is **enhancement-only** — on coarse pointers it doesn't exist, so nothing
 may be _only_ reachable via hover. Every hover affordance needs a tap path;

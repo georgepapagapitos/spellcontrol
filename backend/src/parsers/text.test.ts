@@ -138,6 +138,69 @@ describe('parseTextList', () => {
     });
   });
 
+  describe('condition marker extraction (E87)', () => {
+    it('strips *LP* suffix and sets condition to lp', () => {
+      const { rows } = parseTextList('1 Lightning Bolt *LP*');
+      expect(rows[0].name).toBe('Lightning Bolt');
+      expect(rows[0].condition).toBe('lp');
+    });
+
+    it('strips *MP* suffix and sets condition to mp', () => {
+      const { rows } = parseTextList('1 Lightning Bolt *MP*');
+      expect(rows[0].condition).toBe('mp');
+    });
+
+    it('strips *HP* suffix and sets condition to hp', () => {
+      const { rows } = parseTextList('1 Lightning Bolt *HP*');
+      expect(rows[0].condition).toBe('hp');
+    });
+
+    it('strips *DMG* suffix and sets condition to damaged', () => {
+      const { rows } = parseTextList('1 Lightning Bolt *DMG*');
+      expect(rows[0].name).toBe('Lightning Bolt');
+      expect(rows[0].condition).toBe('damaged');
+    });
+
+    it('is case-insensitive for condition stripping', () => {
+      const { rows } = parseTextList('1 Lightning Bolt *lp*');
+      expect(rows[0].condition).toBe('lp');
+    });
+
+    it('reads a condition token before the (SET) group — the scanner queue format', () => {
+      const { rows } = parseTextList('1 Sol Ring *LP* (CMR) 472');
+      expect(rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        setCode: 'CMR',
+        collectorNumber: '472',
+        condition: 'lp',
+      });
+    });
+
+    it('reads both a finish and a condition token — finish before condition', () => {
+      // CardScanner.handleConfirm emits `qty Name *F* *LP* (SET) collector`
+      // when a row is both foil and marked lightly played.
+      const { rows } = parseTextList('1 Sol Ring *F* *LP* (CMR) 472');
+      expect(rows[0]).toMatchObject({
+        name: 'Sol Ring',
+        finish: 'foil',
+        condition: 'lp',
+      });
+    });
+
+    it('leaves condition undefined for cards without a condition marker (NM default)', () => {
+      const { rows } = parseTextList('1 Sol Ring');
+      expect(rows[0].condition).toBeUndefined();
+    });
+
+    it('never emits or reads an *NM* marker — NM is the unmarked default', () => {
+      const { rows } = parseTextList('1 Sol Ring *NM*');
+      // *NM* isn't a recognized marker, so it stays part of the parsed name
+      // rather than being silently swallowed — the scanner never writes it.
+      expect(rows[0].name).toBe('Sol Ring *NM*');
+      expect(rows[0].condition).toBeUndefined();
+    });
+  });
+
   describe('comments and empty lines', () => {
     it('skips empty lines', () => {
       const { rows } = parseTextList('\n\n1 Sol Ring\n\n');
