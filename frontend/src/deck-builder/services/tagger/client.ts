@@ -351,8 +351,32 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // top manipulation ("the top N cards of your library", "the top of your
   // library") and graveyard-to-hand recursion are the other two common
   // card-advantage shapes the raw tag covers.
+  //
+  // E136 fix (2026-07-23, full-corpus audit — cardDraw gate-blind 5.6%,
+  // monarch alone was 7/30 of the judged draw misses): three verified
+  // real-card gaps, every one live-checked against Scryfall.
+  //  - Monarch grant ("you become the monarch" — Palace Jailer) is real
+  //    card-advantage no existing branch catches. Kept strictly first-person
+  //    by excluding a "whenever" immediately before it — Jared Carthalion,
+  //    True Heir grants monarchy to an OPPONENT ("target opponent becomes
+  //    the monarch") and separately says "You can't become the monarch this
+  //    turn," neither of which is the "you become the monarch" grant, and
+  //    correctly never matches.
+  //  - Investigate ("investigate" — Duggan, Private Detective) is real
+  //    card-advantage frequently printed WITHOUT its Clue-token reminder
+  //    text in modern templating, so the existing "draws? a" branch (which
+  //    only fires when that reminder happens to be present) misses it
+  //    outright. Excluded when the subject investigating is an opponent, not
+  //    you — Declaration in Stone's "That player investigates for each
+  //    nontoken creature exiled this way" compensates the removed creature's
+  //    controller (typically an opponent), not your own card advantage, and
+  //    correctly never matches.
+  //  - Mass graveyard-to-hand recursion phrased with "put" instead of
+  //    "return" (Campfire: "Put all commanders you own from the command
+  //    zone and from your graveyard into your hand.") joins the existing
+  //    return-based branch.
   cardDraw:
-    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|return[^.]*?graveyard[^.]*?hand/i,
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|(?:return|put)[^.]*?graveyard[^.]*?hand|(?<!whenever )you become the monarch|(?<!player )(?<!opponent )investigate/i,
 };
 
 // Positive-evidence classifier for the protection/free-interaction class
