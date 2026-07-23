@@ -151,7 +151,15 @@
 }
 
 .binder-hero-meta {
-  font-family: var(--font-mono);
+  /* Prose subtitle, not data — STYLE_GUIDE's --font-mono scope is prices/
+     qty/set codes/tabular numerals only. This is the muted hero subtitle
+     used app-wide (Collection/Decks/Binders/Lists/Sets/Play/Pods/Settings/
+     Discover/Saved/Cube + real binder/list/set names), and every render
+     site is a full sentence ("Account, appearance, and data tools.",
+     "Decks you've bookmarked from Discover."), never a numeral. Matches
+     the same fix already applied to .settings-card-title/-section-header
+     (the sibling font-drift finding on this exact surface family). */
+  font-family: var(--font-serif);
   font-size: var(--text-sm);
   color: var(--text-muted);
   margin: 0;
