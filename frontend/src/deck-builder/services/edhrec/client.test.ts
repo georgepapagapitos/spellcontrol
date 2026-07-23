@@ -151,3 +151,55 @@ describe('parseEdhrecResponse — 2026-07 schema drift', () => {
     expect(data.cardlists.allNonLand.find((c) => c.name === 'Old Card')!.inclusion).toBe(50);
   });
 });
+
+describe('parseEdhrecResponse — 2026-07-23 salt/prices/type_line drift (E126)', () => {
+  // Real cardviews from a live curl of
+  // json.edhrec.com/pages/commanders/atraxa-praetors-voice.json (2026-07-23).
+  // Every cardview across the whole page (13 tags, 292 cardviews sampled)
+  // carries only these 9 keys — salt, prices, type_line, color_identity, cmc,
+  // and inclusion are all gone from cardlist cardviews (confirmed live).
+  const liveShape = {
+    container: {
+      json_dict: {
+        card: { name: "Atraxa, Praetors' Voice", num_decks: 19248 },
+        cardlists: [
+          {
+            tag: 'creatures',
+            header: 'Creatures',
+            cardviews: [
+              {
+                id: '89b39293-6f57-4294-85fc-c718bdbb4d40',
+                name: 'Cankerbloom',
+                sanitized: 'cankerbloom',
+                slug: 'cankerbloom',
+                url: '/cards/cankerbloom',
+                synergy: 0.12469872061553255,
+                num_decks: 14148,
+                potential_decks: 42853,
+                trend_zscore: -0.029686577948208698,
+              },
+            ],
+          },
+        ],
+      },
+    },
+  };
+
+  it('parses cards with no salt/prices keys at all — both fields are gone upstream', () => {
+    const data = parseEdhrecResponse(liveShape, 'atraxa-praetors-voice');
+    const card = data.cardlists.creatures.find((c) => c.name === 'Cankerbloom')!;
+    expect(card).not.toHaveProperty('salt');
+    expect(card).not.toHaveProperty('prices');
+  });
+
+  it('still derives inclusion % and primary_type from num_decks + the cardlist tag alone', () => {
+    const data = parseEdhrecResponse(liveShape, 'atraxa-praetors-voice');
+    const card = data.cardlists.creatures.find((c) => c.name === 'Cankerbloom')!;
+    // 'Creature' comes from the 'creatures' tag hint, not a type_line fallback
+    // — the cardview above carries no type_line at all, matching live data.
+    expect(card.primary_type).toBe('Creature');
+    expect(card.num_decks).toBe(14148);
+    expect(card.inclusion).toBeCloseTo((14148 / 42853) * 100, 5);
+    expect(card.synergy).toBeCloseTo(0.12469872061553255, 10);
+  });
+});
