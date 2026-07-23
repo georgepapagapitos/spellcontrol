@@ -89,6 +89,11 @@ function isValidSnapshot(v: unknown): v is PlaytestSnapshot {
   // rejected outright rather than fed to the reducer).
   if (state.life !== undefined && typeof state.life !== 'number') return false;
   if (state.opponents !== undefined && !Array.isArray(state.opponents)) return false;
+  // Designation fields are optional the same way — an older snapshot predates
+  // them and gets backfilled to `false` in `usePlaytestStore.hydrate`.
+  if (state.monarch !== undefined && typeof state.monarch !== 'boolean') return false;
+  if (state.initiative !== undefined && typeof state.initiative !== 'boolean') return false;
+  if (state.citysBlessing !== undefined && typeof state.citysBlessing !== 'boolean') return false;
   return true;
 }
 

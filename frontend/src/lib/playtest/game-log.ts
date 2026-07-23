@@ -23,7 +23,8 @@ export type LogEntryKind =
   | 'resistance'
   | 'undo'
   | 'reset'
-  | 'life';
+  | 'life'
+  | 'designation';
 
 export interface GameLogEntry {
   /** Monotonic within a session — always ascending in log order. */
@@ -48,6 +49,12 @@ const ZONE_LABEL: Record<Zone, string> = {
 function opponentLabel(count: number, i: number): string {
   return count > 1 ? `Opponent ${i + 1}` : 'Opponent';
 }
+
+const DESIGNATION_LABEL = {
+  monarch: 'the Monarch',
+  initiative: 'the Initiative',
+  citysBlessing: "the City's Blessing",
+} as const;
 
 function locate(
   state: PlaytestState,
@@ -174,6 +181,14 @@ export function buildLogEntries(
           text: `${label} commander damage: ${current.opponents[action.opponent].commanderDamage} → ${next.opponents[action.opponent].commanderDamage}`,
         },
       ];
+    }
+
+    case 'SET_DESIGNATION': {
+      if (next === current) return []; // no-op (already in that state)
+      const label = DESIGNATION_LABEL[action.designation];
+      if (!action.held) return [{ turn, kind: 'designation', text: `Lost ${label}` }];
+      const verb = action.designation === 'citysBlessing' ? 'Achieved' : 'Took';
+      return [{ turn, kind: 'designation', text: `${verb} ${label}` }];
     }
 
     default:

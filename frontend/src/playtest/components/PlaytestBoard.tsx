@@ -11,7 +11,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useNavigate } from 'react-router-dom';
-import type { PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
+import type { Designation, PlaytestCard, PlaytestState, Zone } from '@/lib/playtest';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useDecksStore } from '@/store/decks';
 import { usePlaytestStore } from '../store';
@@ -33,6 +33,7 @@ import { PlaytestStatsSheet } from './PlaytestStatsSheet';
 import { PlaytestLogSheet } from './PlaytestLogSheet';
 import { ResistanceBanner } from './ResistanceBanner';
 import { ResistancePicker } from './ResistancePicker';
+import { DesignationsPicker } from './DesignationsPicker';
 import { RESISTANCE_LEVEL_ANNOUNCE } from '../lib/resistance';
 import { PlaytestSessionSummary } from './PlaytestSessionSummary';
 import { resolveTokenArt } from '../lib/token-art';
@@ -102,6 +103,7 @@ export function PlaytestBoard({ state }: Props) {
   const [lastSeenLogSeq, setLastSeenLogSeq] = useState(0);
   const [showDice, setShowDice] = useState(false);
   const [showResistancePicker, setShowResistancePicker] = useState(false);
+  const [showDesignations, setShowDesignations] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [lifePanelOpen, setLifePanelOpen] = useState(false);
   // Banner dismissal is tracked by event id so a new opponent response (even
@@ -231,6 +233,7 @@ export function PlaytestBoard({ state }: Props) {
     showLog ||
     showDice ||
     showResistancePicker ||
+    showDesignations ||
     lifePanelOpen ||
     Boolean(confirmDialog);
 
@@ -245,6 +248,14 @@ export function PlaytestBoard({ state }: Props) {
   function handleOpenLog() {
     setLastSeenLogSeq(gameLog.at(-1)?.seq ?? 0);
     setShowLog(true);
+  }
+
+  // City's Blessing is a genuine one-time accomplishment (never lost this
+  // game) — a stronger haptic cue than the routine tap monarch/initiative get.
+  function handleSetDesignation(designation: Designation, held: boolean) {
+    if (designation === 'citysBlessing') haptics.success();
+    else haptics.tap();
+    dispatch({ type: 'SET_DESIGNATION', designation, held });
   }
 
   // Resistance's only explanation used to be a hover `title` on the toggle —
@@ -363,7 +374,11 @@ export function PlaytestBoard({ state }: Props) {
         onOpenLog={handleOpenLog}
         onOpenDice={() => setShowDice(true)}
         onOpenResistance={() => setShowResistancePicker(true)}
+        onOpenDesignations={() => setShowDesignations(true)}
         resistanceLevel={resistanceLevel}
+        monarch={state.monarch}
+        initiative={state.initiative}
+        citysBlessing={state.citysBlessing}
         hasUnreadLog={hasUnreadLog}
       />
       <LifeStrip
@@ -371,6 +386,9 @@ export function PlaytestBoard({ state }: Props) {
         opponents={state.opponents}
         commanderDamageThreshold={state.commanderDamageThreshold}
         isNarrow={isNarrow}
+        monarch={state.monarch}
+        initiative={state.initiative}
+        citysBlessing={state.citysBlessing}
         onAdjustLife={(player, delta) => {
           haptics.tap();
           dispatch({ type: 'ADJUST_LIFE', player, delta });
@@ -582,6 +600,16 @@ export function PlaytestBoard({ state }: Props) {
           level={resistanceLevel}
           onSelect={setResistanceLevel}
           onClose={() => setShowResistancePicker(false)}
+        />
+      )}
+
+      {showDesignations && (
+        <DesignationsPicker
+          monarch={state.monarch}
+          initiative={state.initiative}
+          citysBlessing={state.citysBlessing}
+          onSet={handleSetDesignation}
+          onClose={() => setShowDesignations(false)}
         />
       )}
 

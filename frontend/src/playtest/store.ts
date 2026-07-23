@@ -200,8 +200,16 @@ export const usePlaytestStore = create<PlaytestStore>((set, get) => ({
       // `commanderTax` postdates the original snapshot shape (E139) — backfill
       // so a pre-existing localStorage session from before that change doesn't
       // crash the reducer the first time a commander leaves the command zone.
-      // `migrated` already backfills the E138 life/opponents fields.
-      state: { ...migrated, commanderTax: migrated.commanderTax ?? {}, past: [] },
+      // Designations postdate it too — same treatment. `migrated` already
+      // backfills the E138 life/opponents fields.
+      state: {
+        ...migrated,
+        commanderTax: migrated.commanderTax ?? {},
+        monarch: migrated.monarch ?? false,
+        initiative: migrated.initiative ?? false,
+        citysBlessing: migrated.citysBlessing ?? false,
+        past: [],
+      },
       phase: snapshot.phase,
       mulliganCount: snapshot.mulliganCount,
       resistanceLevel: snapshot.resistanceLevel,

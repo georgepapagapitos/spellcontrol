@@ -48,6 +48,15 @@ export interface OpponentLife {
   commanderDamage: number;
 }
 
+/** Table designations. Monarch/initiative are vocabulary-matched to
+ *  game-core's `DesignationKind` (the multiplayer GameBoard); City's Blessing
+ *  has no game-core equivalent (it's a permanent per-player status, not a
+ *  table-transferable one — Ascend doesn't apply to a multiplayer table the
+ *  way Monarch/Initiative do). Solo play has no opponent entities to hold the
+ *  other side of a designation, so each collapses to a boolean: true = you
+ *  currently hold it. */
+export type Designation = 'monarch' | 'initiative' | 'citysBlessing';
+
 export interface PlaytestState {
   zones: Record<Zone, PlaytestCard[]>;
   battlefield: BattlefieldCard[];
@@ -76,6 +85,13 @@ export interface PlaytestState {
    *  "defeated" itself is recomputed live — see `isOpponentDefeated` — but
    *  the turn it *first* happened on isn't recoverable after the fact. */
   tableDefeatedTurn: number | null;
+  /** Table designations you currently hold (E-123-ish playtest badges). See
+   *  `Designation` for the model. Monarch/initiative reset with RESET (a new
+   *  game); City's Blessing does too — it's permanent only *for the game it
+   *  was achieved in*. */
+  monarch: boolean;
+  initiative: boolean;
+  citysBlessing: boolean;
   /** Snapshots of prior states (cap kept inside reducer). UNDO pops the head. */
   past: Omit<PlaytestState, 'past'>[];
 }
@@ -115,7 +131,11 @@ export type PlaytestAction =
   | { type: 'UNDO' }
   /** `player: 'self'` adjusts your life; a number adjusts `opponents[n]`'s life. */
   | { type: 'ADJUST_LIFE'; player: 'self' | number; delta: number }
-  | { type: 'ADJUST_COMMANDER_DAMAGE'; opponent: number; delta: number };
+  | { type: 'ADJUST_COMMANDER_DAMAGE'; opponent: number; delta: number }
+  /** Claim/clear a table designation. City's Blessing is one-way in the UI
+   *  (only ever dispatched with `held: true`) but the reducer itself doesn't
+   *  enforce that — see `Designation`. */
+  | { type: 'SET_DESIGNATION'; designation: Designation; held: boolean };
 
 export interface PlaytestInit {
   library: PlaytestCard[];

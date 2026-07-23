@@ -7,6 +7,11 @@ interface Props {
   opponents: OpponentLife[];
   commanderDamageThreshold: number;
   isNarrow: boolean;
+  /** Table designations you currently hold — badged on the "You" chip only;
+   *  solo play has no per-opponent holder to badge. */
+  monarch: boolean;
+  initiative: boolean;
+  citysBlessing: boolean;
   onAdjustLife(player: 'self' | number, delta: number): void;
   onAdjustCommanderDamage(opponent: number, delta: number): void;
   /** Lets the parent fold the adjust popover into its "any sheet open" gate
@@ -26,6 +31,9 @@ export function LifeStrip({
   opponents,
   commanderDamageThreshold,
   isNarrow,
+  monarch,
+  initiative,
+  citysBlessing,
   onAdjustLife,
   onAdjustCommanderDamage,
   onOpenChange,
@@ -46,15 +54,30 @@ export function LifeStrip({
 
   const opponentLabel = (i: number) => (opponents.length > 1 ? `Opponent ${i + 1}` : 'Opponent');
 
+  const heldDesignationLabels = [
+    monarch && 'Monarch',
+    initiative && 'Initiative',
+    citysBlessing && "City's Blessing",
+  ].filter((label): label is string => Boolean(label));
+
   return (
     <div className="playtest-life-strip" role="group" aria-label="Life totals">
       <button
         type="button"
         className="playtest-life-chip"
         onClick={(e) => openPanel('self', e)}
-        aria-label={`You: ${life} life`}
+        aria-label={`You: ${life} life${
+          heldDesignationLabels.length > 0 ? `, ${heldDesignationLabels.join(', ')}` : ''
+        }`}
       >
         <span className="playtest-life-chip__label">You</span>
+        {heldDesignationLabels.length > 0 && (
+          <span className="playtest-life-chip__designations" aria-hidden>
+            {monarch && <span className="playtest-designation-badge">👑</span>}
+            {initiative && <span className="playtest-designation-badge">🧭</span>}
+            {citysBlessing && <span className="playtest-designation-badge">🏙️</span>}
+          </span>
+        )}
         <span className="playtest-life-chip__life">{life}</span>
       </button>
       {opponents.map((o, i) => {

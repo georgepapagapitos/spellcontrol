@@ -49,6 +49,9 @@ export function createPlaytestState(init: PlaytestInit): PlaytestState {
     startingOpponentLife: opponentLife,
     commanderDamageThreshold: init.commanderDamageThreshold ?? 21,
     tableDefeatedTurn: null,
+    monarch: false,
+    initiative: false,
+    citysBlessing: false,
     past: [],
   };
 }
@@ -77,6 +80,9 @@ function snapshot(state: PlaytestState): Omit<PlaytestState, 'past'> {
     startingOpponentLife: state.startingOpponentLife,
     commanderDamageThreshold: state.commanderDamageThreshold,
     tableDefeatedTurn: state.tableDefeatedTurn,
+    monarch: state.monarch,
+    initiative: state.initiative,
+    citysBlessing: state.citysBlessing,
   };
 }
 
@@ -168,6 +174,11 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         startingOpponentLife: state.startingOpponentLife,
         commanderDamageThreshold: state.commanderDamageThreshold,
         tableDefeatedTurn: null,
+        // A new game: designations (including City's Blessing) don't carry
+        // over — each is scoped to the game it was earned in.
+        monarch: false,
+        initiative: false,
+        citysBlessing: false,
         past: [],
       };
     }
@@ -410,6 +421,12 @@ export function applyAction(state: PlaytestState, action: PlaytestAction): Playt
         next.opponents,
         state.commanderDamageThreshold
       );
+      return withHistory(state, next);
+    }
+    case 'SET_DESIGNATION': {
+      if (state[action.designation] === action.held) return state;
+      const next = snapshot(state);
+      next[action.designation] = action.held;
       return withHistory(state, next);
     }
   }
