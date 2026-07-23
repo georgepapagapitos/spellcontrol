@@ -442,11 +442,27 @@
 }
 
 .play-history-remove {
+  position: relative;
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-size: var(--text-md);
   cursor: pointer;
+}
+
+/* 44px touch-target floor via a centered ghost hit-area (the
+   `.set-filter-chip-x` technique) — the glyph stays small so it doesn't
+   distort this compact meta row. */
+@media (pointer: coarse) {
+  .play-history-remove::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {
