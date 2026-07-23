@@ -356,7 +356,11 @@ const spellslinger: SynergyAxis = {
     if (/copy (?:target )?(?:instant|sorcery)/.test(card.oracle)) return 'copies spells';
     // Recursion (Archaeomancer-class: "return target instant or sorcery card
     // from your graveyard") re-fuels the engine, same role as a tutor elsewhere.
-    if (/return (?:target )?(?:an? )?instant or sorcery card[^.]*from your graveyard/.test(card.oracle))
+    if (
+      /return (?:target )?(?:an? )?instant or sorcery card[^.]*from your graveyard/.test(
+        card.oracle
+      )
+    )
       return 'recurs instants/sorceries';
     return null;
   },
@@ -424,7 +428,8 @@ const superfriends: SynergyAxis = {
     // "enters with an additional loyalty counter", which the producer already
     // credits — tagging it as payoff too double-buckets the same text). None of
     // these care about walkers as an engine; they feed or shield it.
-    const PW_PRODUCER_SHAPED = /hexproof|indestructible|can'?t be the targets?|enters? with[^.]*additional loyalty/;
+    const PW_PRODUCER_SHAPED =
+      /hexproof|indestructible|can'?t be the targets?|enters? with[^.]*additional loyalty/;
     if (
       /planeswalkers? you control/.test(card.oracle) &&
       !/creatures? (?:and|or) planeswalkers? you control/.test(card.oracle) &&
@@ -690,7 +695,9 @@ const mill: SynergyAxis = {
     // A trigger keyed on a mill actually happening (Glowing One's "whenever a
     // player mills a nonland card") — a reward for the mill engine running, not
     // the engine itself.
-    if (/whenever (?:a|any)? ?player mills? (?:a |one or more )?(?:nonland )?cards?/.test(card.oracle))
+    if (
+      /whenever (?:a|any)? ?player mills? (?:a |one or more )?(?:nonland )?cards?/.test(card.oracle)
+    )
       return 'rewards milling';
     return null;
   },

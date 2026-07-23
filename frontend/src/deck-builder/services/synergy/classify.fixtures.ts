@@ -3142,7 +3142,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Legendary Creature — Elder Giant',
     keywords: ['Escape'],
     oracle_text:
-      "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+      'When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)',
     expect: { producers: ['landfall', 'lifegain'], payoffs: ['graveyard'] },
   },
 
@@ -3196,7 +3196,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Creature — Bat',
     keywords: ['Flying', 'Corrupted'],
     oracle_text:
-      "Flying\nCorrupted — As long as an opponent has three or more poison counters, this creature has deathtouch and lifelink.",
+      'Flying\nCorrupted — As long as an opponent has three or more poison counters, this creature has deathtouch and lifelink.',
     expect: { producers: [], payoffs: ['poison'] },
   },
 
@@ -3221,7 +3221,8 @@ export const CORPUS: CorpusCard[] = [
     name: 'Cryptic Serpent',
     type_line: 'Creature — Serpent',
     keywords: [],
-    oracle_text: 'This spell costs {1} less to cast for each instant and sorcery card in your graveyard.',
+    oracle_text:
+      'This spell costs {1} less to cast for each instant and sorcery card in your graveyard.',
     expect: { producers: [], payoffs: ['spellslinger'] },
   },
 
@@ -3231,7 +3232,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Creature — Phoenix',
     keywords: ['Flying', 'Cycling'],
     oracle_text:
-      "Flying\nWhen this creature enters, you may return target instant or sorcery card with a cycling ability from your graveyard to your hand.\nAt the beginning of each end step, if you cycled two or more cards this turn, return this card from your graveyard to your hand.",
+      'Flying\nWhen this creature enters, you may return target instant or sorcery card with a cycling ability from your graveyard to your hand.\nAt the beginning of each end step, if you cycled two or more cards this turn, return this card from your graveyard to your hand.',
     // Also recurs an instant/sorcery card (spellslinger) and, since that
     // recursion clause means the self-return clause isn't the ONLY thing this
     // card does, still reads as a genuine graveyard payoff too.
@@ -3242,7 +3243,7 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Artifact',
     keywords: [],
     oracle_text:
-      'You may cast spells that have a cycling ability from your graveyard.\nIf a card that has a cycling ability would be put into your graveyard from anywhere and it wasn\'t cycled, exile it instead.',
+      "You may cast spells that have a cycling ability from your graveyard.\nIf a card that has a cycling ability would be put into your graveyard from anywhere and it wasn't cycled, exile it instead.",
     // Also a graveyard producer/payoff: the replacement clause mentions "put
     // into your graveyard", and casting spells from the graveyard is the
     // axis's own "casts from your graveyard" payoff shape.
@@ -3266,7 +3267,8 @@ export const CORPUS: CorpusCard[] = [
     name: 'Armed Response',
     type_line: 'Instant',
     keywords: [],
-    oracle_text: 'Armed Response deals damage to target attacking creature equal to the number of Equipment you control.',
+    oracle_text:
+      'Armed Response deals damage to target attacking creature equal to the number of Equipment you control.',
     expect: { producers: [], payoffs: ['equipment'] },
   },
   {
@@ -3281,7 +3283,8 @@ export const CORPUS: CorpusCard[] = [
     name: 'Oxidda Finisher',
     type_line: 'Creature — Ogre Rebel',
     keywords: ['Affinity', 'Trample'],
-    oracle_text: 'Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nTrample',
+    oracle_text:
+      'Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nTrample',
     expect: { producers: [], payoffs: ['equipment'] },
   },
 
