@@ -837,3 +837,60 @@ describe('life & opponents (E138)', () => {
     });
   });
 });
+
+describe('SET_DESIGNATION', () => {
+  it('starts unheld for a fresh game', () => {
+    const s = init();
+    expect(s.monarch).toBe(false);
+    expect(s.initiative).toBe(false);
+    expect(s.citysBlessing).toBe(false);
+  });
+
+  it("claims and clears monarch independently of initiative and City's Blessing", () => {
+    let s = init();
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'monarch', held: true });
+    expect(s.monarch).toBe(true);
+    expect(s.initiative).toBe(false);
+    expect(s.citysBlessing).toBe(false);
+
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'initiative', held: true });
+    expect(s.monarch).toBe(true);
+    expect(s.initiative).toBe(true);
+
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'monarch', held: false });
+    expect(s.monarch).toBe(false);
+    // Clearing monarch doesn't touch the initiative you also hold.
+    expect(s.initiative).toBe(true);
+  });
+
+  it("achieves City's Blessing", () => {
+    let s = init();
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'citysBlessing', held: true });
+    expect(s.citysBlessing).toBe(true);
+  });
+
+  it('is a no-op (same reference, no history entry) when already in that state', () => {
+    const s = init();
+    const next = applyAction(s, { type: 'SET_DESIGNATION', designation: 'monarch', held: false });
+    expect(next).toBe(s);
+  });
+
+  it('undoes a designation change like any other action', () => {
+    let s = init();
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'monarch', held: true });
+    expect(s.monarch).toBe(true);
+    s = applyAction(s, { type: 'UNDO' });
+    expect(s.monarch).toBe(false);
+  });
+
+  it("RESET clears every designation, including an achieved City's Blessing", () => {
+    let s = init();
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'monarch', held: true });
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'initiative', held: true });
+    s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'citysBlessing', held: true });
+    s = applyAction(s, { type: 'RESET' });
+    expect(s.monarch).toBe(false);
+    expect(s.initiative).toBe(false);
+    expect(s.citysBlessing).toBe(false);
+  });
+});

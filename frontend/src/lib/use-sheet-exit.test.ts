@@ -20,7 +20,10 @@ function setReducedMotion(reduced: boolean) {
 const fall = { animationName: 'sheet-fall' } as React.AnimationEvent;
 const rise = { animationName: 'sheet-rise' } as React.AnimationEvent;
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 
 describe('useSheetExit', () => {
   it('animates out: beginClose flips isClosing, onClose fires on sheet-fall end', () => {
@@ -96,6 +99,38 @@ describe('useSheetExit', () => {
     act(() =>
       result.current.onAnimationEnd({ animationName: 'modal-panel-out' } as React.AnimationEvent)
     );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to closing on a timeout if the CSS never plays the exit animation', () => {
+    // Mirrors `.card-picker-sheet`'s desktop centered-modal, which sets
+    // `animation: none` on `.is-closing` — animationend never fires there.
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useSheetExit(onClose));
+
+    act(() => result.current.beginClose());
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(599));
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a real onAnimationEnd cancels the fallback timer — no double-close', () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    const onClose = vi.fn();
+    const { result } = renderHook(() => useSheetExit(onClose));
+
+    act(() => result.current.beginClose());
+    act(() => result.current.onAnimationEnd(fall));
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    act(() => vi.advanceTimersByTime(1000));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

@@ -91,6 +91,35 @@ function isCheap(card: ScryfallCard): boolean {
   return (card.cmc ?? 99) <= 2;
 }
 
+// ── Type-line density (E135) ────────────────────────────────────────────────
+// axes.ts's `artifacts` producer only recognizes TOKEN-making artifacts
+// (fabricate, Treasure/Clue/Food-class keywords, tc.noncreatureForYou) — a
+// plain mana rock or an Equipment/Vehicle that never makes anything is still
+// an artifact permanent a metalcraft/affinity payoff wants. Equipment and
+// Vehicle producers already key off type_line in axes.ts, so this is
+// additive (harmless) there and load-bearing for the bare `artifacts` axis.
+// Equipment/Vehicle are both Artifact subtypes, so they count toward BOTH the
+// broad `artifacts` axis and their own narrower one — deliberate overlap, not
+// a bug. Mirrors nonbo.ts's creatureTypeShares: a live, oracle-free type-line
+// read over the current picks, no fetches.
+const TYPE_LINE_PRODUCER_WORDS: [AxisKey, string][] = [
+  ['artifacts', 'artifact'],
+  ['equipment', 'equipment'],
+  ['vehicles', 'vehicle'],
+];
+
+function typeLineOf(card: ScryfallCard): string {
+  return (card.type_line ?? card.card_faces?.[0]?.type_line ?? '').toLowerCase();
+}
+
+/** Axes this card is a producer for purely by its type line, independent of oracle text. */
+export function typeLineProducerAxes(card: ScryfallCard): AxisKey[] {
+  const typeLine = typeLineOf(card);
+  return TYPE_LINE_PRODUCER_WORDS.filter(([, word]) => typeLine.includes(word)).map(
+    ([axis]) => axis
+  );
+}
+
 function cardSupportScore(
   card: ScryfallCard,
   axis: AxisKey,
@@ -99,7 +128,8 @@ function cardSupportScore(
 ): number {
   const produces =
     classified.producers.some((p) => p.axis === axis) ||
-    (axis === 'graveyard' && enablesOwnGraveyardLeave(card));
+    (axis === 'graveyard' && enablesOwnGraveyardLeave(card)) ||
+    typeLineProducerAxes(card).includes(axis);
   if (!produces) return 0;
 
   if (axis === 'graveyard' && isSelfHostileGraveyardLeave(card)) return 0.25;

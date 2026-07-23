@@ -26,6 +26,9 @@ function baseState(
     startingOpponentLife: 20,
     commanderDamageThreshold: 21,
     tableDefeatedTurn: null,
+    monarch: false,
+    initiative: false,
+    citysBlessing: false,
     ...overrides,
   };
 }
@@ -278,5 +281,56 @@ describe('E138 life fields — backward compat with pre-E138 snapshots', () => {
       expect(migrated.opponents).toEqual([{ life: 20, commanderDamage: 0 }]);
       expect(migrated.commanderDamageThreshold).toBe(21);
     });
+  });
+});
+
+describe('designation fields — backward compat with pre-designations snapshots', () => {
+  it('loads a snapshot with no monarch/initiative/citysBlessing fields at all without crashing', () => {
+    // Simulates a real localStorage blob written before designations shipped —
+    // the actual `false` backfill happens in `usePlaytestStore.hydrate`, not
+    // here; this only confirms the loader doesn't reject the shape.
+    const { monarch: _m, initiative: _i, citysBlessing: _c, ...legacyState } = baseState();
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify(baseSnapshot({ state: legacyState as Omit<PlaytestState, 'past'> }))
+    );
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.state).not.toHaveProperty('monarch');
+  });
+
+  it('rejects a snapshot whose monarch field is present but malformed', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify(baseSnapshot({ state: { ...baseState(), monarch: 'yes' as never } }))
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
+  });
+
+  it('rejects a snapshot whose initiative field is present but malformed', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify(baseSnapshot({ state: { ...baseState(), initiative: 1 as never } }))
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
+  });
+
+  it('rejects a snapshot whose citysBlessing field is present but malformed', () => {
+    localStorage.setItem(
+      'spellcontrol:playtest:deck-1',
+      JSON.stringify(baseSnapshot({ state: { ...baseState(), citysBlessing: null as never } }))
+    );
+    expect(loadPlaytestSnapshot('deck-1', '100:60')).toBeNull();
+  });
+
+  it('round-trips a snapshot with designations already held', () => {
+    const snap = baseSnapshot({
+      state: baseState({ monarch: true, initiative: false, citysBlessing: true }),
+    });
+    savePlaytestSnapshot('deck-1', snap);
+    const loaded = loadPlaytestSnapshot('deck-1', '100:60');
+    expect(loaded?.state.monarch).toBe(true);
+    expect(loaded?.state.initiative).toBe(false);
+    expect(loaded?.state.citysBlessing).toBe(true);
   });
 });

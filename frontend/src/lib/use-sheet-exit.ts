@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Symmetric slide-down dismissal for the full-screen drawer sheets
@@ -40,6 +40,15 @@ export function useSheetExit(
   // frame) can't start two exits / fire onClose twice before the state
   // re-render lands.
   const closingRef = useRef(false);
+  // Some layouts neutralize the exit keyframe entirely via CSS instead of
+  // playing a symmetric fall (e.g. `.card-picker-sheet`'s desktop centered
+  // modal sets `animation: none` on `.is-closing` — see
+  // binder-card-management.css) — there, `animationend` never fires and the
+  // sheet would stay open forever with no way to dismiss it. This fallback
+  // timer force-closes after the slowest real exit animation in the app
+  // (sheet-fall, 340ms) would have finished; onAnimationEnd clears it below
+  // so the normal animated path never double-fires onClose.
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const prefersReducedMotion = () =>
     typeof window !== 'undefined' &&
@@ -61,6 +70,10 @@ export function useSheetExit(
       // finite number so the CSS var never goes garbage.
       setExitFrom(typeof fromY === 'number' && Number.isFinite(fromY) ? fromY : 0);
       setIsClosing(true);
+      fallbackTimerRef.current = setTimeout(() => {
+        fallbackTimerRef.current = null;
+        onClose();
+      }, 600);
     },
     [onClose]
   );
@@ -70,10 +83,25 @@ export function useSheetExit(
       // Ignore the on-mount entry animation (and any descendant animation
       // that bubbles up) — only the exit animation should unmount.
       const exitNames = Array.isArray(exitAnimationName) ? exitAnimationName : [exitAnimationName];
-      if (closingRef.current && exitNames.includes(e.animationName)) onClose();
+      if (closingRef.current && exitNames.includes(e.animationName)) {
+        if (fallbackTimerRef.current) {
+          clearTimeout(fallbackTimerRef.current);
+          fallbackTimerRef.current = null;
+        }
+        onClose();
+      }
     },
     [onClose, exitAnimationName]
   );
+
+  // Unmounting mid-close for an unrelated reason (route change, parent
+  // stopped rendering this sheet) — drop the pending fallback so it can't
+  // fire `onClose` against whatever now owns that callback.
+  useEffect(() => {
+    return () => {
+      if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    };
+  }, []);
 
   // Spread onto the sheet element. While closing, pins sheet-fall's `from`
   // keyframe to the release offset so the exit continues from where the

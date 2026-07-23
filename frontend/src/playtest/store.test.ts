@@ -321,6 +321,9 @@ describe('hydrate (E137 resume)', () => {
         startingOpponentLife: 40,
         commanderDamageThreshold: 21,
         tableDefeatedTurn: null,
+        monarch: false,
+        initiative: false,
+        citysBlessing: false,
       },
       gameLog: [{ seq: 1, turn: 3, kind: 'draw', text: 'Drew 1 card' }],
     });
@@ -346,6 +349,15 @@ describe('game log (E140 + E142)', () => {
     store().init('deck-1', { library: threatLibrary(3), seed: 42 });
     store().dispatch({ type: 'NEXT_TURN' });
     expect(store().gameLog).toEqual([{ seq: 1, turn: 2, kind: 'turn', text: 'Turn 2 begins' }]);
+  });
+
+  it('records a designation change dispatched through the store', () => {
+    store().init('deck-1', { library: threatLibrary(3), seed: 42 });
+    store().dispatch({ type: 'SET_DESIGNATION', designation: 'monarch', held: true });
+    expect(store().gameLog).toEqual([
+      { seq: 1, turn: 1, kind: 'designation', text: 'Took the Monarch' },
+    ]);
+    expect(store().state?.monarch).toBe(true);
   });
 
   it('RESET appends a marker entry rather than clearing the log', () => {
@@ -464,6 +476,10 @@ describe('game log (E140 + E142)', () => {
     });
 
     expect(store().state?.commanderTax).toEqual({});
+    // Designations postdate this shape too — same backfill treatment.
+    expect(store().state?.monarch).toBe(false);
+    expect(store().state?.initiative).toBe(false);
+    expect(store().state?.citysBlessing).toBe(false);
     // The rest of the legacy state still comes through untouched.
     expect(store().state?.turn).toBe(1);
   });
@@ -500,6 +516,10 @@ describe('game log (E140 + E142)', () => {
     expect(store().state?.tableDefeatedTurn).toBeNull();
     // commanderTax (E139) also backfills on this same legacy path.
     expect(store().state?.commanderTax).toEqual({});
+    // ...and so do designations, which postdate even commanderTax.
+    expect(store().state?.monarch).toBe(false);
+    expect(store().state?.initiative).toBe(false);
+    expect(store().state?.citysBlessing).toBe(false);
     expect(store().gameLog).toEqual([]);
   });
 });
