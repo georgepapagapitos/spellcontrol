@@ -148,3 +148,9 @@
   gap: 0.4rem;
   text-decoration: none;
 }
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — Download/Copy/Buy on TCGPlayer. */
+@media (pointer: coarse) {
+  .buy-list-actions .btn {
+    min-height: 44px;
+  }
+}

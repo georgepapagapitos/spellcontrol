@@ -30,6 +30,14 @@
   gap: var(--space-2);
   flex-shrink: 0;
 }
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the dismiss button below
+   already gets its own ghost-hitbox treatment; "Share…" is a plain .btn,
+   which is NOT 44px by default. */
+@media (pointer: coarse) {
+  .deck-publish-nudge-actions .btn {
+    min-height: 44px;
+  }
+}
 
 .deck-publish-nudge-dismiss {
   position: relative;
