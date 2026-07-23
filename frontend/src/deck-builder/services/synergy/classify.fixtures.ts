@@ -3314,4 +3314,13 @@ export const CORPUS: CorpusCard[] = [
       'As this enchantment enters, choose a planeswalker type.\nPlaneswalkers you control of the chosen type have hexproof.\nAs long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters being removed from it, prevent that damage instead.',
     expect: { producers: [], payoffs: [] },
   },
+
+  // ── E139: counters payoff-FP cleanup — counter-REMOVAL (Aether Snap) ───────
+  {
+    name: 'Aether Snap',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text: 'Remove all counters from all permanents and exile all tokens.',
+    expect: { producers: [], payoffs: [] },
+  },
 ];

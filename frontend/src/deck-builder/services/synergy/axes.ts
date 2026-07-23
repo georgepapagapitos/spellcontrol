@@ -103,7 +103,11 @@ const counters: SynergyAxis = {
       return 'doubles counters';
     if (/that many plus one/.test(card.oracle)) return 'amplifies +1/+1 counters';
     if (/for each \+1\/\+1 counter/.test(card.oracle)) return 'scales with +1/+1 counters';
-    if (/move all counters|move (?:a|one or more|those) counters/.test(card.oracle))
+    // Word-boundary on "move" — Aether Snap's "reMOVE all counters" is a wipe,
+    // not a "move counters" bank/transfer effect; the unanchored substring match
+    // was reading counter-REMOVAL as a counters payoff (and granting it trim
+    // protection it shouldn't get).
+    if (/\bmove\b (?:all|a|one or more|those) counters/.test(card.oracle))
       return 'moves/banks counters';
     if (/remove (?:a|one or more|x|that many) \+1\/\+1 counter/.test(card.oracle))
       return 'spends +1/+1 counters';
