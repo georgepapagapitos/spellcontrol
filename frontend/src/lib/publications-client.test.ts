@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  DeckNotSyncedYetError,
   DisplayNameRequiredError,
   getPublication,
   listMyPublications,
@@ -92,16 +93,24 @@ describe('listMyPublications', () => {
 });
 
 describe('publishDeck', () => {
-  it('POSTs and returns the publication', async () => {
+  it('POSTs and returns the publication, flagged isFirstPublish on a 201 (genuine insert)', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(jsonResponse({ publication: PUB }, { status: 201 }));
     const out = await publishDeck('d1');
-    expect(out).toEqual(PUB);
+    expect(out).toEqual({ ...PUB, isFirstPublish: true });
     expect(fetchSpy).toHaveBeenCalledWith(
       '/api/publications/decks/d1',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     );
+  });
+
+  it('flags isFirstPublish false on a 200 (refresh-while-live or republish, existing row updated)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ publication: PUB }, { status: 200 })
+    );
+    const out = await publishDeck('d1');
+    expect(out).toEqual({ ...PUB, isFirstPublish: false });
   });
 
   it('throws DisplayNameRequiredError specifically on a display_name_required 400', async () => {
@@ -112,6 +121,22 @@ describe('publishDeck', () => {
       )
     );
     await expect(publishDeck('d1')).rejects.toBeInstanceOf(DisplayNameRequiredError);
+  });
+
+  it('throws DeckNotSyncedYetError specifically on a "Deck not found." 404 (fresh deck racing its own sync)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'Deck not found.' }, { status: 404 })
+    );
+    await expect(publishDeck('d1')).rejects.toBeInstanceOf(DeckNotSyncedYetError);
+  });
+
+  it('throws a plain Error (not DeckNotSyncedYetError) for an unrelated 404', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ error: 'This deck needs a name before it can be published.' }, { status: 404 })
+    );
+    const err = await publishDeck('d1').catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(DeckNotSyncedYetError);
+    expect(err).toBeInstanceOf(Error);
   });
 
   it('throws a plain Error (not DisplayNameRequiredError) for any other failure', async () => {

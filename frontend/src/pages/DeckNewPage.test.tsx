@@ -10,7 +10,7 @@ import 'fake-indexeddb/auto';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Publication } from '../lib/publications-client';
+import type { PublishResult } from '../lib/publications-client';
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -34,7 +34,7 @@ vi.mock('../lib/sync', () => ({
   onSyncedChange: () => () => {},
 }));
 
-const publishDeckMock = vi.fn<() => Promise<Publication>>();
+const publishDeckMock = vi.fn<() => Promise<PublishResult>>();
 vi.mock('../lib/publications-client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/publications-client')>();
   return {
@@ -73,7 +73,7 @@ function selectStandardFormat() {
   fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
 }
 
-const PUB: Publication = {
+const PUB: PublishResult = {
   slug: 'my-new-deck',
   url: 'https://spellcontrol.com/d/my-new-deck',
   publishedAt: 1,
@@ -81,6 +81,7 @@ const PUB: Publication = {
   unpublishedAt: null,
   viewCount: 0,
   copyCount: 0,
+  isFirstPublish: true,
 };
 
 describe('DeckNewPage — creation-time visibility', () => {
@@ -117,7 +118,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     expect(createButton.disabled).toBe(false);
   });
 
-  it('publishes the deck after creation when Public is selected, and navigates to the editor', async () => {
+  it('publishes the deck after creation when Public is selected, navigates to the editor, and flags the first-publish seal', async () => {
     renderPage();
     selectStandardFormat();
 
@@ -129,7 +130,26 @@ describe('DeckNewPage — creation-time visibility', () => {
       expect.objectContaining({ format: 'standard', source: 'manual' })
     );
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id'));
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
+        state: { justPublished: true },
+      })
+    );
+  });
+
+  it('threads justPublished: false through when the server reports a republish, not a first publish', async () => {
+    publishDeckMock.mockResolvedValue({ ...PUB, isFirstPublish: false });
+    renderPage();
+    selectStandardFormat();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create deck' }));
+
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
+        state: { justPublished: false },
+      })
+    );
   });
 
   it('never calls publishDeck when Private (the default) is kept', async () => {

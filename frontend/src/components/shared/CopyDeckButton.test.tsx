@@ -59,7 +59,9 @@ describe('CopyDeckButton', () => {
     expect(recordDeckCopyMock).toHaveBeenCalledTimes(1);
     expect(recordDeckCopyMock).toHaveBeenCalledWith('korvold-treasure');
     expect(copySharedDeckMock).toHaveBeenCalledWith(deck(), 'korvold-treasure');
-    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id');
+    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
+      state: { promptVisibility: true },
+    });
   });
 
   it('does not fire recordDeckCopy at all when no slug is present (copying from /s/:token)', () => {
@@ -67,7 +69,9 @@ describe('CopyDeckButton', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(recordDeckCopyMock).not.toHaveBeenCalled();
     expect(copySharedDeckMock).toHaveBeenCalledWith(deck(), undefined);
-    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id');
+    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
+      state: { promptVisibility: true },
+    });
   });
 
   it('still copies, toasts, and navigates even when recordDeckCopy rejects', async () => {
@@ -75,7 +79,9 @@ describe('CopyDeckButton', () => {
     renderButton('korvold-treasure');
     expect(() => fireEvent.click(screen.getByRole('button'))).not.toThrow();
     expect(copySharedDeckMock).toHaveBeenCalledTimes(1);
-    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id');
+    expect(navigateMock).toHaveBeenCalledWith('/decks/new-deck-id', {
+      state: { promptVisibility: true },
+    });
     // Observe the rejection after assertions so it doesn't leak into another
     // test as an unhandled rejection — the button itself never awaits it.
     await recordDeckCopyMock.mock.results[0]!.value.catch(() => {});
