@@ -19,15 +19,23 @@ export function conditionShort(condition: Condition): string {
 }
 
 /**
+ * Full condition word (e.g. "Lightly Played") — read off the same
+ * `CONDITION_OPTIONS` list the add-time picker uses, so a chip's tooltip/
+ * aria-label can never drift from the option a user actually picked.
+ */
+export function conditionLabel(condition: Condition): string {
+  // Options are plain-string labels in practice; SelectOption widens to
+  // ReactNode for menu items generally, but title/aria-label need a string.
+  return (CONDITION_OPTIONS.find((o) => o.value === condition)?.label as string) ?? condition;
+}
+
+/**
  * Quiet per-copy condition chip — the short abbreviation with the full word
  * as the accessible label/tooltip. Exported so the Symbol Key can render
  * this exact chip (T36 pattern: the Key can't drift from what it explains).
  */
 export function ConditionChip({ condition }: { condition: Condition }) {
-  // Options are plain-string labels in practice; SelectOption widens to
-  // ReactNode for menu items generally, but title/aria-label need a string.
-  const label =
-    (CONDITION_OPTIONS.find((o) => o.value === condition)?.label as string) ?? condition;
+  const label = conditionLabel(condition);
   return (
     <span className="card-list-condition" title={label} aria-label={label}>
       {conditionShort(condition)}

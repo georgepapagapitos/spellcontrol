@@ -1,4 +1,4 @@
-import type { Finish, ImportRow, ParseResult } from './types';
+import type { Condition, Finish, ImportRow, ParseResult } from './types';
 
 /**
  * Matches MTGA-style lines and plain card names, in order from most specific to least:
@@ -47,6 +47,7 @@ export function parseTextList(text: string): ParseResult {
         setCode: match[3].toUpperCase(),
         collectorNumber: match[4],
         finish: cleaned.finish,
+        condition: cleaned.condition,
         sourceFormat: 'mtga',
         section: currentSection,
       });
@@ -62,6 +63,7 @@ export function parseTextList(text: string): ParseResult {
         quantity: parseInt(match[1]) || 1,
         setCode: match[3].toUpperCase(),
         finish: cleaned.finish,
+        condition: cleaned.condition,
         sourceFormat: 'mtga',
         section: currentSection,
       });
@@ -75,6 +77,7 @@ export function parseTextList(text: string): ParseResult {
         name: cleaned.name,
         quantity: parseInt(match[1]) || 1,
         finish: cleaned.finish,
+        condition: cleaned.condition,
         sourceFormat: 'plain',
         section: currentSection,
       });
@@ -88,6 +91,7 @@ export function parseTextList(text: string): ParseResult {
         name: cleaned.name,
         quantity: 1,
         finish: cleaned.finish,
+        condition: cleaned.condition,
         sourceFormat: 'plain',
         section: currentSection,
       });
@@ -100,9 +104,36 @@ export function parseTextList(text: string): ParseResult {
   return { rows, format: usedMtga ? 'mtga' : 'plain', unparsedLines, skippedUnownedRows: 0 };
 }
 
-function cleanName(raw: string): { name: string; finish?: Finish } {
-  let finish: Finish | undefined;
+/**
+ * Strips a trailing finish marker AND/OR a trailing condition marker off a
+ * scanned/pasted name. Order matters: the scanner (CardScanner.handleConfirm)
+ * emits finish before condition — `Name *F* *LP*` — so condition (the
+ * rightmost token) is stripped first, then finish, each independently. A
+ * name with only one marker, or neither, is unaffected.
+ */
+function cleanName(raw: string): { name: string; finish?: Finish; condition?: Condition } {
   let name = raw;
+
+  // Condition marker — invented for the scanner round-trip (no external tool
+  // emits this), so a single canonical spelling per condition is enough:
+  // *LP*/*MP*/*HP*/*DMG*, matching the short codes CardRow's condition chip
+  // already renders (conditionShort). NM is never emitted — it's the default.
+  let condition: Condition | undefined;
+  if (/\s*\*DMG\*\s*$/i.test(name)) {
+    condition = 'damaged';
+    name = name.replace(/\s*\*DMG\*\s*$/i, '');
+  } else if (/\s*\*HP\*\s*$/i.test(name)) {
+    condition = 'hp';
+    name = name.replace(/\s*\*HP\*\s*$/i, '');
+  } else if (/\s*\*MP\*\s*$/i.test(name)) {
+    condition = 'mp';
+    name = name.replace(/\s*\*MP\*\s*$/i, '');
+  } else if (/\s*\*LP\*\s*$/i.test(name)) {
+    condition = 'lp';
+    name = name.replace(/\s*\*LP\*\s*$/i, '');
+  }
+
+  let finish: Finish | undefined;
   if (/\s*\*ETCHED\*\s*$/i.test(name)) {
     finish = 'etched';
     name = name.replace(/\s*\*ETCHED\*\s*$/i, '');
@@ -119,5 +150,6 @@ function cleanName(raw: string): { name: string; finish?: Finish } {
     finish = 'foil';
     name = name.replace(/\s*\[FOIL\]\s*$/i, '');
   }
-  return { name: name.trim(), finish };
+
+  return { name: name.trim(), finish, condition };
 }
