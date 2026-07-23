@@ -610,11 +610,16 @@
   color: rgba(241, 245, 249, 0.6);
 }
 
-/* Variant-meta row: set·collector + the qty stepper. The +N button bumps
-   qty for the *currently displayed* card. */
+/* Variant-meta row: finish + condition toggles, set·collector, and the qty
+   stepper. The +N button bumps qty for the *currently displayed* card.
+   flex-wrap is a narrow-phone safety net — with both toggles present
+   (foil-capable + any condition) plus set·CN and +N, four controls can
+   outgrow a 320px width; `set` is the one with give (flex:1, min-width:0),
+   but a second line is safer than forcing it to truncate unreadably. */
 .scanner-card-panel-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.6rem;
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -651,12 +656,20 @@
   transform: scale(0.98);
 }
 
-/* Finish toggle chips, shared by the scanner panel and the queue-sheet rows.
-   Only rendered when the printing has a foil/etched variant; tapping cycles
-   through the available finishes. The foil state gets a rainbow sheen, etched
-   a gold tint — so the chip telegraphs the selected finish at a glance. */
+/* Finish + condition toggle chips, shared by the scanner panel and the
+   queue-sheet rows. Finish only renders when the printing has a foil/etched
+   variant; tapping cycles through the available finishes. Condition has no
+   such gate (every physical card can be any condition) and always renders,
+   cycling NM → LP → MP → HP → DMG (E87). Both share this neutral pill shape
+   — the foil state additionally gets a rainbow sheen, etched a gold tint
+   (finish IS a value signal), but condition stays uncolored at every state,
+   matching `.card-list-condition`'s "quiet text, not a colored badge"
+   ruling (collection.css) — see STYLE_GUIDE "Editable toggles show their
+   state, always". */
 .scanner-card-panel-finish,
-.scanner-finish-toggle {
+.scanner-finish-toggle,
+.scanner-card-panel-condition,
+.scanner-condition-toggle {
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
@@ -674,8 +687,26 @@
     transform 0.1s ease;
 }
 .scanner-card-panel-finish:active,
-.scanner-finish-toggle:active {
+.scanner-finish-toggle:active,
+.scanner-card-panel-condition:active,
+.scanner-condition-toggle:active {
   transform: scale(0.96);
+}
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the compact chip padding
+   above reads well at desktop density but undershoots 44px on a touch
+   screen. min-width matters here specifically because condition's 2-letter
+   states (NM/LP/MP/HP) are short enough that text + padding alone lands
+   just under 44px wide even with the height floor applied. */
+@media (pointer: coarse) {
+  .scanner-card-panel-finish,
+  .scanner-finish-toggle,
+  .scanner-card-panel-condition,
+  .scanner-condition-toggle {
+    min-height: 44px;
+    min-width: 44px;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
 }
 .scanner-card-panel-finish.finish-foil,
 .scanner-finish-toggle.finish-foil {

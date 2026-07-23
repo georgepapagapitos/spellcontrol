@@ -1,5 +1,5 @@
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { Finish } from '../types';
+import type { Condition, Finish } from '../types';
 import { haptics } from './haptics';
 
 /**
@@ -47,6 +47,19 @@ export function nextFinish(current: Finish, available: Finish[]): Finish {
   if (available.length <= 1) return current;
   const i = available.indexOf(current);
   return available[(i + 1) % available.length];
+}
+
+/**
+ * Cycling order for the scanner's condition toggle (E87). Unlike finish,
+ * every condition is always available regardless of printing — there's no
+ * "available subset" to intersect against.
+ */
+const CONDITION_CYCLE: Condition[] = ['nm', 'lp', 'mp', 'hp', 'damaged'];
+
+/** Next condition when cycling the toggle, wrapping NM → LP → MP → HP → DMG → NM. */
+export function nextCondition(current: Condition): Condition {
+  const i = CONDITION_CYCLE.indexOf(current);
+  return CONDITION_CYCLE[(i + 1) % CONDITION_CYCLE.length];
 }
 
 /**
