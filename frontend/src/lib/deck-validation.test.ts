@@ -218,6 +218,31 @@ describe('validateDeck', () => {
     const issues = validateDeck([slot(c, 'a')], [], commander);
     expect(issues.some((i) => i.issue === 'color-identity')).toBe(false);
   });
+
+  // E122: validateDeck's signature has no `considering` parameter — it only
+  // ever sees the two arrays a caller explicitly hands it (DeckEditorPage
+  // calls it with deck.cards/deck.sideboard). This pins that contract against
+  // a realistic Deck-shaped fixture: a card sitting in `considering` is
+  // simultaneously off-color AND over the singleton copy limit (either alone
+  // would flag), yet reading the SAME deck's cards/sideboard off it and
+  // validating produces zero issues for it — proving the considering pile
+  // never reaches the legality/color-identity/copy-limit checks. If a future
+  // edit ever widens validateDeck to accept `considering` and folds it into
+  // `allCards`, this test starts failing the moment that card is included.
+  it('a card in deck.considering never reaches validateDeck (Considering-zone exclusion)', () => {
+    const cmdr = card({ name: 'Talrand', color_identity: ['U'] });
+    const inDeck = card({ name: 'Counterspell', color_identity: ['U'] });
+    const parked = card({ name: 'Lightning Bolt', color_identity: ['R'] });
+    const deck = {
+      cards: [slot(inDeck, 'a')],
+      sideboard: [] as DeckCard[],
+      considering: [slot(parked, 'b'), slot(parked, 'c')], // off-color + over-copy-limit
+    };
+
+    const issues = validateDeck(deck.cards, deck.sideboard, commander, { commander: cmdr });
+
+    expect(issues).toHaveLength(0);
+  });
 });
 
 // Modern/Pioneer/Legacy/Vintage are 60-card 4-of constructed formats that

@@ -181,6 +181,10 @@ export function DeckEditorPage() {
   const addSideboardCard = useDecksStore((s) => s.addSideboardCard);
   const removeSideboardCard = useDecksStore((s) => s.removeSideboardCard);
   const moveBetweenZones = useDecksStore((s) => s.moveBetweenZones);
+  const addConsideringCard = useDecksStore((s) => s.addConsideringCard);
+  const removeConsideringCard = useDecksStore((s) => s.removeConsideringCard);
+  const moveToConsidering = useDecksStore((s) => s.moveToConsidering);
+  const moveFromConsidering = useDecksStore((s) => s.moveFromConsidering);
   const setCommander = useDecksStore((s) => s.setCommander);
   const setPartnerCommander = useDecksStore((s) => s.setPartnerCommander);
   const duplicateDeck = useDecksStore((s) => s.duplicateDeck);
@@ -343,7 +347,7 @@ export function DeckEditorPage() {
   );
   // Feedback Tool: mint/copy the suggestion link + review submitted responses.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [addZone, setAddZone] = useState<'main' | 'side'>('main');
+  const [addZone, setAddZone] = useState<'main' | 'side' | 'considering'>('main');
   const searchPanelRef = useRef<CardSearchPanelHandle>(null);
   // The deck editor is a set of page-top distinct views (Deck · Stats · Power ·
   // Tune) switched by the hub tab bar below the header. `view`
@@ -981,7 +985,7 @@ export function DeckEditorPage() {
   // cards" on a 100-card deck. Computed BEFORE the missing-deck early return
   // so the hook order stays stable across renders.
   const heroTotals = useMemo(() => {
-    if (!deck) return { count: 0, value: 0, sideboard: 0 };
+    if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
     const sumPrice = (cards: ScryfallCard[]) =>
       cards.reduce((sum, c) => {
         const raw = getCardPrice(c, 'USD');
@@ -993,7 +997,12 @@ export function DeckEditorPage() {
     if (deck.partnerCommander) commanders.push(deck.partnerCommander);
     const mainCards = deck.cards.map((c) => c.card);
     const main = [...commanders, ...mainCards];
-    return { count: main.length, value: sumPrice(main), sideboard: deck.sideboard.length };
+    return {
+      count: main.length,
+      value: sumPrice(main),
+      sideboard: deck.sideboard.length,
+      considering: (deck.considering ?? []).length,
+    };
   }, [deck]);
 
   // Commander presence for the hero — same art_crop resolution + offline-URL
@@ -1339,7 +1348,7 @@ export function DeckEditorPage() {
   // / the Shared-copies review). This matches what import/generate already do.
   const allocateAndAdd = (
     card: ScryfallCard,
-    zone: 'main' | 'sideboard',
+    zone: 'main' | 'sideboard' | 'considering',
     notify: boolean
   ): void => {
     if (!deck) return;
@@ -1351,24 +1360,25 @@ export function DeckEditorPage() {
       useCubeStore.getState().saved
     );
     const allocatedId = plan.kind === 'bind' ? plan.copyId : null;
-    recordEdit(
-      deck.id,
-      zone === 'sideboard' ? `add ${card.name} to sideboard` : `add ${card.name}`,
-      () =>
-        zone === 'sideboard'
-          ? addSideboardCard(deck.id, card, allocatedId)
-          : addCard(deck.id, card, allocatedId)
-    );
+    const label = zone === 'main' ? `add ${card.name}` : `add ${card.name} to ${zone}`;
+    recordEdit(deck.id, label, () => {
+      if (zone === 'sideboard') addSideboardCard(deck.id, card, allocatedId);
+      else if (zone === 'considering') addConsideringCard(deck.id, card, allocatedId);
+      else addCard(deck.id, card, allocatedId);
+    });
     if (notify)
       pushToast({
-        message: zone === 'sideboard' ? `Added ${card.name} to sideboard` : `Added ${card.name}`,
+        message: zone === 'main' ? `Added ${card.name}` : `Added ${card.name} to ${zone}`,
         tone: 'success',
       });
   };
 
   // Resolve a card by name (Scryfall) then route through allocateAndAdd. Used by
   // the Optimize plan and the Coach/Engine lanes (which only have a card name).
-  const addResolvedCard = async (cardName: string, zone: 'main' | 'sideboard' = 'main') => {
+  const addResolvedCard = async (
+    cardName: string,
+    zone: 'main' | 'sideboard' | 'considering' = 'main'
+  ) => {
     if (!deck) return;
     setAddingEngineNames((prev) => new Set(prev).add(cardName));
     try {
@@ -1459,6 +1469,12 @@ export function DeckEditorPage() {
     const name = pendingAdd;
     setPendingAdd(null);
     await addResolvedCard(name, 'sideboard');
+  };
+  const addToConsideringAndClose = async () => {
+    if (!pendingAdd) return;
+    const name = pendingAdd;
+    setPendingAdd(null);
+    await addResolvedCard(name, 'considering');
   };
   const addAnywayAndClose = async () => {
     if (!pendingAdd) return;
@@ -1761,6 +1777,45 @@ export function DeckEditorPage() {
         : `move ${slotIds.length} × ${name} to mainboard`;
     recordEdit(deck.id, label, () => {
       for (const slotId of slotIds) moveBetweenZones(deck.id, slotId, 'side');
+    });
+  };
+
+  // Considering (E122) — mirrors the sideboard zone-move pair above exactly:
+  // one recordEdit per bulk move (so "move all 4" is one undo entry), no toast
+  // (the undo/redo toolbar covers it, same as the sideboard moves).
+  const handleRemoveConsideringCard = (slotId: string) => {
+    const slot = deck.considering.find((c) => c.slotId === slotId);
+    if (!slot) return;
+    recordEdit(deck.id, `remove ${slot.card.name} from considering`, () =>
+      removeConsideringCard(deck.id, slotId)
+    );
+    pushToast({
+      message: `Removed ${slot.card.name} from considering`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => undoEdit(deck.id),
+    });
+  };
+
+  const handleMoveToConsidering = (slotIds: string[]) => {
+    const name = deck.cards.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
+    const label =
+      slotIds.length === 1
+        ? `move ${name} to considering`
+        : `move ${slotIds.length} × ${name} to considering`;
+    recordEdit(deck.id, label, () => {
+      for (const slotId of slotIds) moveToConsidering(deck.id, slotId);
+    });
+  };
+
+  const handleMoveFromConsidering = (slotIds: string[]) => {
+    const name = deck.considering.find((c) => c.slotId === slotIds[0])?.card.name ?? 'card';
+    const label =
+      slotIds.length === 1
+        ? `move ${name} to mainboard`
+        : `move ${slotIds.length} × ${name} to mainboard`;
+    recordEdit(deck.id, label, () => {
+      for (const slotId of slotIds) moveFromConsidering(deck.id, slotId);
     });
   };
 
@@ -2129,6 +2184,13 @@ export function DeckEditorPage() {
     addedAt: c.addedAt,
   }));
 
+  const displayConsidering: DeckDisplayCard[] = (deck.considering ?? []).map((c) => ({
+    slotId: c.slotId,
+    card: c.card,
+    allocatedCopyId: c.allocatedCopyId,
+    addedAt: c.addedAt,
+  }));
+
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
   // Tune. Stats always shows for every format.
   const hasCommanderFormat = !!formatConfig?.hasCommander;
@@ -2258,6 +2320,7 @@ export function DeckEditorPage() {
               {'\u00A0· '}
               {formatMoney(heroTotals.value)}
               {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0maybe`}
+              {heroTotals.considering > 0 && `\u00A0· +${heroTotals.considering}\u00A0considering`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
             {bracketValue != null && (
@@ -2415,10 +2478,14 @@ export function DeckEditorPage() {
             partnerCommanderAllocatedCopyId={deck.partnerCommanderAllocatedCopyId}
             cards={displayCards}
             sideboard={displaySideboard}
+            considering={displayConsidering}
             onRemoveCard={handleRemoveCard}
             onRemoveSideboardCard={handleRemoveSideboardCard}
+            onRemoveConsideringCard={handleRemoveConsideringCard}
             onMoveToSideboard={handleMoveToSideboard}
             onMoveToMainboard={handleMoveToMainboard}
+            onMoveToConsidering={handleMoveToConsidering}
+            onMoveFromConsidering={handleMoveFromConsidering}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
@@ -2705,36 +2772,65 @@ export function DeckEditorPage() {
           {(dismiss) => (
             <>
               <div className="card-picker-handle" aria-hidden />
-              {formatConfig && formatConfig.sideboardSize > 0 && (
-                <div className="deck-editor-zone-toggle">
-                  <button
-                    type="button"
-                    className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}
-                    onClick={() => setAddZone('main')}
-                  >
+              {/* Unconditional (unlike the old sideboard-only gate): Considering
+                  applies to every format, so the toggle always offers it even
+                  when this format has no real sideboard. Native radio semantics
+                  (STYLE_GUIDE "exclusive-value picker" ruling — a hidden radio
+                  input stretched over a styled label, mirroring
+                  .settings-currency-toggle) rather than aria-pressed buttons, so
+                  exclusivity + arrow-key group nav come from the browser. */}
+              <fieldset className="deck-editor-zone-toggle" aria-label="Add cards to">
+                <label className="deck-editor-zone-toggle-option">
+                  <input
+                    type="radio"
+                    name="deck-editor-add-zone"
+                    value="main"
+                    checked={addZone === 'main'}
+                    onChange={() => setAddZone('main')}
+                  />
+                  <span className={`btn btn-sm${addZone === 'main' ? ' btn-primary' : ''}`}>
                     Mainboard
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}
-                    onClick={() => setAddZone('side')}
-                  >
-                    Sideboard
-                  </button>
-                </div>
-              )}
+                  </span>
+                </label>
+                {formatConfig && formatConfig.sideboardSize > 0 && (
+                  <label className="deck-editor-zone-toggle-option">
+                    <input
+                      type="radio"
+                      name="deck-editor-add-zone"
+                      value="side"
+                      checked={addZone === 'side'}
+                      onChange={() => setAddZone('side')}
+                    />
+                    <span className={`btn btn-sm${addZone === 'side' ? ' btn-primary' : ''}`}>
+                      Sideboard
+                    </span>
+                  </label>
+                )}
+                <label className="deck-editor-zone-toggle-option">
+                  <input
+                    type="radio"
+                    name="deck-editor-add-zone"
+                    value="considering"
+                    checked={addZone === 'considering'}
+                    onChange={() => setAddZone('considering')}
+                  />
+                  <span className={`btn btn-sm${addZone === 'considering' ? ' btn-primary' : ''}`}>
+                    Considering
+                  </span>
+                </label>
+              </fieldset>
               <CardSearchPanel
                 ref={searchPanelRef}
                 deckId={deck.id}
                 commanderColorIdentity={commanderColorIdentity}
                 existingCardCounts={existingCardCounts}
                 onAdd={({ card }) => {
-                  if (addZone === 'side') {
+                  if (addZone === 'side' || addZone === 'considering') {
                     // allocateAndAdd resolves the copy itself (free / auto-move /
                     // proxy) — the panel's own pick only ever sees free copies, so
                     // routing through it is what makes "add an owned card whose copy
                     // is in another deck" Just Work instead of silently proxying.
-                    allocateAndAdd(card, 'sideboard', false);
+                    allocateAndAdd(card, addZone === 'side' ? 'sideboard' : 'considering', false);
                     return;
                   }
                   // A full Commander deck would overfill — open the intelligent
@@ -2927,6 +3023,7 @@ export function DeckEditorPage() {
           moreOptions={replaceOptions.all}
           footer={[
             { label: 'Add to sideboard', onClick: () => void addToSideboardAndClose() },
+            { label: 'Add to considering', onClick: () => void addToConsideringAndClose() },
             { label: 'Add anyway', onClick: () => void addAnywayAndClose() },
             { label: 'Cancel', onClick: () => setPendingAdd(null), primary: true },
           ]}

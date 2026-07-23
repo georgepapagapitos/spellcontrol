@@ -207,4 +207,32 @@ describe('buildExport', () => {
       '1 Rampant Growth (ZNR) 9',
     ]);
   });
+
+  // E122: Considering exports as "Maybeboard" — the ecosystem's de-facto
+  // text-format header (Moxfield/Archidekt/MTGGoldfish), matching what
+  // parsers/text.ts's SECTION_HEADERS already recognizes on the way back in.
+  it('omits the Maybeboard section entirely when considering is empty', () => {
+    const result = buildExport({ cards: [{ card: card() }], considering: [] }, 'plain');
+    expect(result).not.toContain('Maybeboard');
+  });
+
+  it('labels the considering section "Maybeboard", after Sideboard, when both are present', () => {
+    const result = buildExport(
+      {
+        cards: [{ card: card({ name: 'Sol Ring' }) }],
+        sideboard: [{ card: card({ name: 'Negate', set: 'znr', collector_number: '50' }) }],
+        considering: [{ card: card({ name: 'Rhystic Study', set: 'thb', collector_number: '9' }) }],
+      },
+      'plain'
+    );
+    expect(result.split('\n')).toEqual([
+      '1 Sol Ring (CMR) 472',
+      '',
+      'Sideboard',
+      '1 Negate (ZNR) 50',
+      '',
+      'Maybeboard',
+      '1 Rhystic Study (THB) 9',
+    ]);
+  });
 });

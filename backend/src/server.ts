@@ -612,6 +612,11 @@ app.post(
 
       const commanderRows = parseResult.rows.filter((r) => r.section === 'commander');
       const companionRows = parseResult.rows.filter((r) => r.section === 'companion');
+      const sideboardRows = parseResult.rows.filter((r) => r.section === 'sideboard');
+      // "Maybeboard" is the ecosystem's de-facto text-format header for a
+      // park-candidates pile (Moxfield/Archidekt/MTGGoldfish) — routes to
+      // `considering` (E122) instead of being silently dropped.
+      const consideringRows = parseResult.rows.filter((r) => r.section === 'maybeboard');
       const deckRows = parseResult.rows.filter(
         (r) =>
           r.section !== 'commander' &&
@@ -624,12 +629,21 @@ app.post(
       // same name (e.g. Plains FDN #272 vs FDN #282) stay distinct in the deck.
       // Two-pass resolution (collectorNumber fallback) lives in resolveDeckRows,
       // shared with the MTGJSON product import path.
-      const sections = await resolveDeckRows(commanderRows, companionRows, deckRows, cache);
+      const sections = await resolveDeckRows(
+        commanderRows,
+        companionRows,
+        deckRows,
+        cache,
+        sideboardRows,
+        consideringRows
+      );
 
       const response: DeckImportResponse = {
         commander: sections.commander,
         companion: sections.companion,
         cards: sections.cards,
+        sideboard: sections.sideboard,
+        considering: sections.considering,
         unresolvedNames: dedupePreservingOrder(sections.unresolvedNames),
         fetchErrors: dedupePreservingOrder(sections.fetchErrorNames),
         malformedRows: parseResult.unparsedLines,

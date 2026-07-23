@@ -78,6 +78,17 @@ export interface Deck {
   partnerCommanderAllocatedCopyId: string | null;
   cards: DeckCard[];
   sideboard: DeckCard[];
+  /**
+   * "Considering" — park-candidates distinct from the format sideboard (E122):
+   * feedback suggestions you're unsure about, Improve-engine swaps you haven't
+   * committed to, non-maindeck import extras. Same row shape as `cards` (an
+   * entry can hold an allocated physical copy), but excluded from deck stats,
+   * legality, mana analysis, role counts, and deck size — every analyzer takes
+   * `cards`/`sideboard` explicitly and never reads this field. Read sites treat
+   * a missing array (`considering ?? []`) as empty for rows persisted before
+   * this field existed — mirrors `sideboard`'s own defensive-read convention.
+   */
+  considering: DeckCard[];
   /** For generated decks: snapshot enough context to regenerate. Null otherwise. */
   generationContext: {
     selectedThemes: ThemeResult[];
@@ -271,6 +282,7 @@ interface DecksState {
     partnerCommander?: ScryfallCard | null;
     cards?: DeckCard[];
     sideboard?: DeckCard[];
+    considering?: DeckCard[];
     commanderAllocatedCopyId?: string | null;
     partnerCommanderAllocatedCopyId?: string | null;
     color?: string;
@@ -350,6 +362,14 @@ interface DecksState {
   removeSideboardCard(deckId: string, slotId: string): void;
   moveBetweenZones(deckId: string, slotId: string, from: 'main' | 'side'): void;
 
+  /** Considering (E122) — same shape as sideboard's CRUD, a separate park-candidates zone. */
+  addConsideringCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
+  removeConsideringCard(deckId: string, slotId: string): void;
+  /** Move a mainboard slot into Considering (atomic single-set, mirrors moveBetweenZones). */
+  moveToConsidering(deckId: string, slotId: string): void;
+  /** Move a Considering slot back into the mainboard. */
+  moveFromConsidering(deckId: string, slotId: string): void;
+
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
 
@@ -397,6 +417,7 @@ export const useDecksStore = create<DecksState>()(
           partnerCommanderAllocatedCopyId: input.partnerCommanderAllocatedCopyId ?? null,
           cards: input.cards ?? [],
           sideboard: input.sideboard ?? [],
+          considering: input.considering ?? [],
           generationContext: input.generationContext ?? null,
           roleCounts: input.roleCounts,
           rampSubtypeCounts: input.rampSubtypeCounts,
@@ -506,6 +527,11 @@ export const useDecksStore = create<DecksState>()(
             allocatedCopyId: null,
           })),
           sideboard: original.sideboard.map((c) => ({
+            slotId: genId('slot'),
+            card: c.card,
+            allocatedCopyId: null,
+          })),
+          considering: (original.considering ?? []).map((c) => ({
             slotId: genId('slot'),
             card: c.card,
             allocatedCopyId: null,
@@ -627,6 +653,64 @@ export const useDecksStore = create<DecksState>()(
           }),
         })),
 
+      addConsideringCard: (deckId, card, allocatedCopyId = null) => {
+        const slotId = genId('slot');
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  considering: [
+                    ...(d.considering ?? []),
+                    { slotId, card, allocatedCopyId, addedAt: Date.now() },
+                  ],
+                })
+              : d
+          ),
+        }));
+        return slotId;
+      },
+
+      removeConsideringCard: (deckId, slotId) =>
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  considering: (d.considering ?? []).filter((c) => c.slotId !== slotId),
+                })
+              : d
+          ),
+        })),
+
+      moveToConsidering: (deckId, slotId) =>
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const card = d.cards.find((c) => c.slotId === slotId);
+            if (!card) return d;
+            return touch({
+              ...d,
+              cards: d.cards.filter((c) => c.slotId !== slotId),
+              considering: [...(d.considering ?? []), card],
+            });
+          }),
+        })),
+
+      moveFromConsidering: (deckId, slotId) =>
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const card = (d.considering ?? []).find((c) => c.slotId === slotId);
+            if (!card) return d;
+            return touch({
+              ...d,
+              considering: (d.considering ?? []).filter((c) => c.slotId !== slotId),
+              cards: [...d.cards, card],
+            });
+          }),
+        })),
+
       setCommander: (deckId, card, allocated = null) =>
         set((s) => ({
           decks: s.decks.map((d) =>
@@ -715,6 +799,7 @@ export const useDecksStore = create<DecksState>()(
               partnerCommanderAllocatedCopyId: string | null;
               cards: { slotId: string; allocatedCopyId: string | null }[];
               sideboard: { slotId: string; allocatedCopyId: string | null }[];
+              considering: { slotId: string; allocatedCopyId: string | null }[];
             }
           >();
           for (const deck of s.decks) {
@@ -729,6 +814,10 @@ export const useDecksStore = create<DecksState>()(
                 allocatedCopyId: c.allocatedCopyId,
               })),
               sideboard: (deck.sideboard ?? []).map((c) => ({
+                slotId: c.slotId,
+                allocatedCopyId: c.allocatedCopyId,
+              })),
+              considering: (deck.considering ?? []).map((c) => ({
                 slotId: c.slotId,
                 allocatedCopyId: c.allocatedCopyId,
               })),
@@ -789,6 +878,26 @@ export const useDecksStore = create<DecksState>()(
                 currentCopyId: c.allocatedCopyId,
                 apply: (copyId) => {
                   const target = u.sideboard.find((x) => x.slotId === slotId);
+                  if (target) target.allocatedCopyId = copyId;
+                },
+              });
+            }
+            // Considering claims a physical copy too (mirrors sideboard) so a
+            // card parked here can't be double-bound by another deck's slot —
+            // but it never participates in the cross-deck steal/donor system
+            // (see lib/allocations.ts DonorZone), which stays mainboard/sideboard
+            // only. This loop is the passive bookkeeping half only.
+            for (const c of deck.considering ?? []) {
+              const slotId = c.slotId;
+              slots.push({
+                deckId: deck.id,
+                deckName: deck.name,
+                deckColor: deck.color,
+                cardName: c.card.name,
+                scryfallId: c.card.id,
+                currentCopyId: c.allocatedCopyId,
+                apply: (copyId) => {
+                  const target = u.considering.find((x) => x.slotId === slotId);
                   if (target) target.allocatedCopyId = copyId;
                 },
               });
@@ -926,6 +1035,9 @@ export const useDecksStore = create<DecksState>()(
               ) ||
               (deck.sideboard ?? []).some(
                 (c, i) => u.sideboard[i]?.allocatedCopyId !== c.allocatedCopyId
+              ) ||
+              (deck.considering ?? []).some(
+                (c, i) => u.considering[i]?.allocatedCopyId !== c.allocatedCopyId
               );
             if (!cardsChanged) return deck;
             return touch({
@@ -939,6 +1051,10 @@ export const useDecksStore = create<DecksState>()(
               sideboard: (deck.sideboard ?? []).map((c, i) => ({
                 ...c,
                 allocatedCopyId: u.sideboard[i].allocatedCopyId,
+              })),
+              considering: (deck.considering ?? []).map((c, i) => ({
+                ...c,
+                allocatedCopyId: u.considering[i].allocatedCopyId,
               })),
             });
           });

@@ -260,6 +260,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
       const hasWarnings =
         result.unresolvedNames.length > 0 ||
         result.fetchErrors.length > 0 ||
+        (result.considering?.length ?? 0) > 0 ||
         (normalizeFormat(result.detectedFormat) !== null &&
           normalizeFormat(result.detectedFormat) !== selectedFormat);
       const { commander, needsChoice } = resolveAutoCommander(result, selectedFormat);
@@ -344,6 +345,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
     if (batchMode === 'merge' && total > 1) {
       const mergedCards: ScryfallCard[] = [];
+      const mergedSideboard: ScryfallCard[] = [];
+      const mergedConsidering: ScryfallCard[] = [];
       let mergedCommander: ScryfallCard | null = null;
       let mergedCompanion: ScryfallCard | null = null;
       const unresolved: string[] = [];
@@ -355,6 +358,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         try {
           const r = await importDeckFile(file);
           mergedCards.push(...r.cards);
+          mergedSideboard.push(...(r.sideboard ?? []));
+          mergedConsidering.push(...(r.considering ?? []));
           if (!mergedCommander && r.commander) mergedCommander = r.commander;
           if (!mergedCompanion && r.companion) mergedCompanion = r.companion;
           unresolved.push(...r.unresolvedNames);
@@ -379,6 +384,8 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
         commander: mergedCommander,
         companion: mergedCompanion,
         cards: mergedCards,
+        sideboard: mergedSideboard,
+        considering: mergedConsidering,
         unresolvedNames: Array.from(new Set(unresolved)),
         fetchErrors: Array.from(new Set(fetchFailed)),
         detectedFormat: '',
@@ -820,6 +827,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                       <span>
                         {d.result?.cardCount} card{d.result?.cardCount === 1 ? '' : 's'}
                       </span>
+                      {d.result && (d.result.considering?.length ?? 0) > 0 && (
+                        <span>{d.result.considering!.length} to Considering</span>
+                      )}
                       {d.result && d.result.unresolvedNames.length > 0 && (
                         <span className="import-deck-summary-warn">
                           {d.result.unresolvedNames.length} skipped
@@ -944,6 +954,14 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                 Parsed <strong>{pendingResult.cardCount}</strong> card
                 {pendingResult.cardCount === 1 ? '' : 's'}
               </span>
+              {/* Informational, not a warning (E130 convention: nothing broken,
+                  nothing to retry) — a plain span alongside the count, not an
+                  .import-deck-warning block. */}
+              {(pendingResult.considering?.length ?? 0) > 0 && (
+                <span>
+                  <strong>{pendingResult.considering!.length}</strong> routed to Considering
+                </span>
+              )}
               {detectedFormat && (
                 <span className="import-deck-review-tag">
                   Detected: {DECK_FORMAT_CONFIGS[detectedFormat].label}
