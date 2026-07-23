@@ -162,6 +162,8 @@
 .value-movers-name {
   font-size: var(--text-sm);
   color: var(--text-primary);
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

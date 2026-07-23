@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   decodeCustomLayout,
   encodeCustomLayout,
+  homeSlotIndex,
   isCustomLayout,
   resolveLayout,
   undoButtonParams,
@@ -152,5 +153,23 @@ describe('resolveLayout with custom ids', () => {
   it('falls back for a malformed custom id', () => {
     const r = resolveLayout(4, 'custom:v1~garbage');
     expect(isCustomLayout(r.id)).toBe(false);
+  });
+});
+
+describe('homeSlotIndex', () => {
+  it('picks the bottom-most upright seat, left column on ties', () => {
+    expect(homeSlotIndex(resolveLayout(2, '2p-stacked'))).toBe(1);
+    expect(homeSlotIndex(resolveLayout(4, '4p-pod'))).toBe(2); // bottom-left
+    expect(homeSlotIndex(resolveLayout(5, '5p-wide-bottom'))).toBe(4); // wide bottom
+  });
+
+  it('picks the bottom-left slot when no seat is upright (side-by-side layouts)', () => {
+    expect(homeSlotIndex(resolveLayout(2, '2p-side'))).toBe(0);
+    expect(homeSlotIndex(resolveLayout(4, '4p-sides'))).toBe(2);
+  });
+
+  it('works on decoded custom layouts', () => {
+    const decoded = decodeCustomLayout(encodeCustomLayout(pod4), 4);
+    expect(homeSlotIndex(decoded!)).toBe(2);
   });
 });

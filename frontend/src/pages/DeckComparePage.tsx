@@ -14,6 +14,7 @@ import { buildManaData } from '@/lib/build-mana-data';
 import { useCurrency } from '@/lib/currency';
 import { formatMoney } from '@/lib/format-money';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { EmptyStateMark } from '../components/shared/EmptyStateMark';
 
 // Totals are computed by diffDecks in the active display currency, and
 // formatMoney's default is that same currency — number and symbol agree.
@@ -276,9 +277,10 @@ export function DeckComparePage() {
           </div>
 
           {!diff || !deckA || !deckB || !manaA || !manaB ? (
-            <div className="deck-compare-empty">
-              <p className="deck-compare-empty-title">Pick two decks to compare</p>
-              <p className="deck-compare-empty-hint">
+            <div className="empty-state">
+              <EmptyStateMark />
+              <p className="empty-state-tagline">Pick two decks to compare.</p>
+              <p className="empty-state-hint">
                 Select decks above, or open any deck and tap Compare from its menu.
               </p>
             </div>

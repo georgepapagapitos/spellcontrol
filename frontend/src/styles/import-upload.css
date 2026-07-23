@@ -72,15 +72,11 @@
   }
 }
 
-.upload-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
-@media (max-width: 1024px) {
-  .upload-grid {
-    grid-template-columns: 1fr;
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — Restore / Clear all /
+   Delete selected in the import-history footer. */
+@media (pointer: coarse) {
+  .upload-action {
+    min-height: 44px;
   }
 }
 
@@ -759,6 +755,14 @@
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
+}
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the Import / Import N
+   files submit. The ≤1024px rule below already sets width: 100%; height
+   needs its own floor since `.btn-primary` is desktop-density by default. */
+@media (pointer: coarse) {
+  .import-card-footer .btn-primary {
+    min-height: 44px;
+  }
 }
 
 .import-card-hint {

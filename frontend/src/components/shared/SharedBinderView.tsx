@@ -7,6 +7,7 @@ import { formatIdentity } from '../../lib/display-name';
 import { groupCards } from '../../lib/shared-grouping';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
+import { SharedEmptyState } from './SharedEmptyState';
 import { CardPreview } from '../CardPreview';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
@@ -122,11 +123,13 @@ export function SharedBinderView({ data }: Props) {
       </div>
 
       {sections.length === 0 ? (
-        <p className="shared-empty">
-          {data.totalCards === 0
-            ? 'This binder is empty.'
-            : 'No cards match your search or filters.'}
-        </p>
+        <SharedEmptyState
+          empty={data.totalCards === 0}
+          emptyTagline="This binder is empty."
+          emptyHint="The owner hasn't added any cards to it yet."
+          filteredTagline="No cards match your search or filters."
+          onClearSearch={search ? () => setSearch('') : undefined}
+        />
       ) : (
         sections.map((section) => (
           <section key={section.key} className="shared-deck-section">

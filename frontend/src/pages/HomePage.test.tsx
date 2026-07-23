@@ -125,6 +125,20 @@ describe('HomePage', () => {
     expect(screen.getByRole('button', { name: /Import cards/i })).toBeTruthy();
   });
 
+  it('search scope is a native radio pair (exclusive-value picker, not a tab strip) and switches the search placeholder', () => {
+    renderPage();
+    const mine = screen.getByRole('radio', { name: 'My decks' }) as HTMLInputElement;
+    const discover = screen.getByRole('radio', { name: 'Discover' }) as HTMLInputElement;
+    expect(mine.checked).toBe(true);
+    expect(discover.checked).toBe(false);
+    expect(screen.getByPlaceholderText('Search your decks')).toBeTruthy();
+
+    fireEvent.click(discover);
+    expect(discover.checked).toBe(true);
+    expect(mine.checked).toBe(false);
+    expect(screen.getByPlaceholderText('Search commanders')).toBeTruthy();
+  });
+
   it('opens AddCardsSheet when "Import cards" is clicked', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /Import cards/i }));

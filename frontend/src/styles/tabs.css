@@ -92,6 +92,13 @@
   background: var(--surface-raised);
   color: var(--text-secondary);
   white-space: nowrap;
+  /* .btn is rendered as a real <button> most places, but 25+ call sites
+     style a react-router <Link> (an <a>) with it — a browser's default
+     anchor underline otherwise shows through on every one of those (e.g.
+     SharedShell's "Go to SpellControl", every /gn view's shared-copy-btn,
+     ListsPage/BindersIndexPage/PodHubPage/DeckEditorPage's own CTAs). No
+     button anywhere else in the app underlines its label. */
+  text-decoration: none;
   transition: transform var(--motion-fast);
 }
 

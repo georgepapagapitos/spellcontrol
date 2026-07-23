@@ -828,6 +828,12 @@
   gap: 0.45rem;
   margin-top: var(--space-2);
 }
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the tab's one CTA. */
+@media (pointer: coarse) {
+  .scan-tab-launch {
+    min-height: 44px;
+  }
+}
 
 .scan-tab-banner {
   width: 100%;

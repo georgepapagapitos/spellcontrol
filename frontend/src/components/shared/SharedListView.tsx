@@ -5,6 +5,7 @@ import { formatMoney } from '../../lib/format-money';
 import { formatIdentity } from '../../lib/display-name';
 import { SearchPill } from '../SearchPill';
 import { SortDirArrow } from '../SortDirArrow';
+import { SharedEmptyState } from './SharedEmptyState';
 
 interface Props {
   data: PublicList;
@@ -93,9 +94,13 @@ export function SharedListView({ data }: Props) {
       </div>
 
       {sorted.length === 0 ? (
-        <p className="shared-empty">
-          {data.entries.length === 0 ? 'This list is empty.' : 'No entries match your search.'}
-        </p>
+        <SharedEmptyState
+          empty={data.entries.length === 0}
+          emptyTagline="This list is empty."
+          emptyHint="The owner hasn't added any entries to it yet."
+          filteredTagline="No entries match your search."
+          onClearSearch={search ? () => setSearch('') : undefined}
+        />
       ) : (
         <div className="shared-table-scroll">
           <table className="shared-list-table">

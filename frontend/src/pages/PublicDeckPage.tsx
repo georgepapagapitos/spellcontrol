@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   fetchPublicDeckPage,
   PublicDeckNotFoundError,
@@ -9,8 +9,9 @@ import {
 import { SharedShell } from '../components/shared/SharedShell';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
 import { BrandMark } from '../components/shared/BrandMark';
-import { NotFoundView } from '../components/shared/SharedShell';
+import { NotFoundView, ErrorView } from '../components/shared/SharedShell';
 import { useAuth } from '../store/auth';
+import { useDocumentTitle } from '../lib/use-document-title';
 import { useOwnershipLens } from '../lib/use-ownership-lens';
 import { OwnershipLensStrip } from '../components/deck/OwnershipLensStrip';
 import type { PublicDeckCard } from '../lib/shared-types';
@@ -102,6 +103,10 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
     void recordDeckView(slug);
   }, [state, slug, authUsername]);
 
+  // Undefined until the deck loads — the hook no-ops until then, so the tab
+  // keeps whatever title it already had through the loading/error states.
+  useDocumentTitle(state.status === 'ready' ? state.payload.deck.name : undefined);
+
   // Hooks must run unconditionally (before the early returns below), so this
   // computes over an empty array until the deck has loaded — cheap, and the
   // strip is never actually rendered during the loading/notFound/error states.
@@ -133,13 +138,7 @@ function PublicDeckPageInner({ slug }: { slug: string }) {
   if (state.status === 'error') {
     return (
       <SharedShell>
-        <main className="shared-view shared-view--error">
-          <h1>Something went wrong</h1>
-          <p>{state.message}</p>
-          <Link to="/" className="btn btn-primary shared-copy-btn">
-            Go to SpellControl
-          </Link>
-        </main>
+        <ErrorView message={state.message} />
       </SharedShell>
     );
   }

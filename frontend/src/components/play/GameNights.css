@@ -15,23 +15,54 @@
   gap: var(--space-3);
 }
 
-.game-nights-skeleton {
-  height: 8rem;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(
-    90deg,
-    var(--surface-raised) 25%,
-    var(--surface) 50%,
-    var(--surface-raised) 75%
-  );
-  background-size: 200% 100%;
+/* Card-shaped loading placeholder (GameNightsSkeleton in GameNights.tsx):
+   real .game-night-card/-head/-actions chrome, shimmering bars standing in
+   for its title/pill/when/meta/tally/action lines — same "reuse the real
+   shape" convention as .deck-analysis-skeleton-bar. */
+.game-nights-skeleton-bar {
+  display: block;
+  border-radius: var(--radius);
+  background: linear-gradient(110deg, var(--border) 35%, var(--surface) 50%, var(--border) 65%);
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
+.game-nights-skeleton-bar.is-title {
+  height: 1.1rem;
+  width: 50%;
+}
+
+.game-nights-skeleton-bar.is-pill {
+  height: 1.2rem;
+  width: 4rem;
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+.game-nights-skeleton-bar.is-when {
+  height: 0.85rem;
+  width: 40%;
+}
+
+.game-nights-skeleton-bar.is-meta {
+  height: 0.75rem;
+  width: 65%;
+}
+
+.game-nights-skeleton-bar.is-tally {
+  height: 0.75rem;
+  width: 45%;
+}
+
+.game-nights-skeleton-bar.is-action {
+  height: 1.8rem;
+  width: 6rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .game-nights-skeleton {
+  .game-nights-skeleton-bar {
     animation: none;
-    background: var(--surface-raised);
   }
 }
 
@@ -53,8 +84,19 @@
   gap: var(--space-2);
 }
 
-.game-night-card.is-cancelled {
-  opacity: 0.7;
+/* Cancelled cue — title/when strike through so the "this doesn't happen"
+   read survives even for a viewer skimming past the pill; the pill itself
+   (below) stays full-strength so it's the loudest thing on the card, not
+   dimmed along with everything else. */
+.game-night-card.is-cancelled .game-night-card-title {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: var(--err-text);
+}
+
+.game-night-card.is-cancelled .game-night-card-when {
+  color: var(--text-muted);
+  text-decoration: line-through;
 }
 
 .game-night-card-head {
@@ -69,10 +111,15 @@
   font-size: var(--text-lg);
 }
 
+/* Filled badge (not just an outline chip) — the one status pill that must
+   read as "stop" at a glance, so it gets weight the neutral format/weekly/
+   invite-only pills don't. */
 .game-night-cancelled-pill {
   font-size: var(--text-xs);
+  font-weight: 600;
   color: var(--err-text);
-  border: 1px solid currentColor;
+  background: var(--err-bg);
+  border: 1px solid var(--err-border);
   border-radius: 999px;
   padding: 0 var(--space-2);
   line-height: 1.6;

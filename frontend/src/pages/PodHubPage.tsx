@@ -456,7 +456,7 @@ export function PodHubPage() {
               onClick={() => void handleAcceptInvite()}
               disabled={inviteRespondBusy}
             >
-              {inviteRespondBusy ? '…' : 'Accept'}
+              {inviteRespondBusy ? 'Accepting…' : 'Accept'}
             </button>
             <button
               type="button"

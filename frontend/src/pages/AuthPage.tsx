@@ -104,6 +104,10 @@ export default function AuthPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (mode === 'register' && password !== confirm) {
+      // Clear any stale backend error (e.g. a prior "username is already
+      // taken") — otherwise it keeps showing while this mismatch, the
+      // actual reason this submit is blocked, has no banner of its own.
+      clearError();
       setConfirmError('Passwords do not match.');
       return;
     }
@@ -134,9 +138,13 @@ export default function AuthPage() {
         });
       }
       navigate(returnTo, { replace: true });
-    } else if (mode === 'register') {
-      setConfirm('');
     }
+    // On failure the confirm field is left as-is: the early-return above
+    // already guarantees password === confirm by the time a register
+    // attempt reaches the backend, so a rejection here (username taken, a
+    // server-side rule, rate limit) is never actually the confirm field's
+    // fault — clearing it just made the user retype a value that was
+    // already correct.
   }
 
   function handleGoogle() {
@@ -319,9 +327,9 @@ export default function AuthPage() {
             </label>
           ) : null}
 
-          {error ? (
+          {error || confirmError ? (
             <div role="alert" className="auth-error">
-              {error}
+              {error || confirmError}
             </div>
           ) : null}
 

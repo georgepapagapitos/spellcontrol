@@ -50,6 +50,33 @@ const STATUS_LABELS: Array<{ status: RsvpStatus; label: string }> = [
   { status: 'declined', label: "Can't make it" },
 ];
 
+/** Loading placeholder — two `.game-night-card` shells (real chrome, so the
+ *  silhouette can't drift from the loaded card) with shimmering bars standing
+ *  in for the title/pill, when, meta, tally, and action-row lines. Mirrors the
+ *  `deck-analysis-skeleton` convention (STYLE_GUIDE "Deck analysis tabs"):
+ *  reuse the real content's shape rather than a single flat placeholder. */
+function GameNightsSkeleton() {
+  return (
+    <ul className="game-nights-list" aria-label="Loading" aria-busy="true">
+      {[0, 1].map((i) => (
+        <li key={i} className="game-night-card">
+          <div className="game-night-card-head">
+            <span className="game-nights-skeleton-bar is-title" />
+            <span className="game-nights-skeleton-bar is-pill" />
+          </div>
+          <span className="game-nights-skeleton-bar is-when" />
+          <span className="game-nights-skeleton-bar is-meta" />
+          <span className="game-nights-skeleton-bar is-tally" />
+          <div className="game-night-card-actions">
+            <span className="game-nights-skeleton-bar is-action" />
+            <span className="game-nights-skeleton-bar is-action" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Nights needing the caller's reply — surfaced as the tab's count badge. */
 export function pendingInviteCount(nights: GameNight[]): number {
   return nights.filter((n) => !n.isHost && n.myStatus === null && n.cancelledAt === null).length;
@@ -113,7 +140,7 @@ export function GameNightsTab({ isGuest, nights, loading, error, refresh }: Game
   }
 
   if (loading) {
-    return <div className="game-nights-skeleton" aria-hidden="true" />;
+    return <GameNightsSkeleton />;
   }
 
   if (error) {
@@ -378,10 +405,13 @@ function NightCard({
     <li className={`game-night-card${cancelled ? ' is-cancelled' : ''}`}>
       <div className="game-night-card-head">
         <h3 className="game-night-card-title">{night.title}</h3>
+        {/* Cancelled leads the pill group — the most urgent status reads
+            first, not buried after format/weekly/invite-only (STYLE_GUIDE
+            "at a glance" cancelled-cue ruling). */}
+        {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
         {formatLabel && <span className="game-night-format-pill">{formatLabel}</span>}
         {weekly && <span className="game-night-weekly-pill">Weekly</span>}
         {night.inviteOnly && <span className="game-night-invite-pill">Invite only</span>}
-        {cancelled && <span className="game-night-cancelled-pill">Cancelled</span>}
         {hostItems.length > 0 && (
           <OverflowMenu
             className="game-night-card-menu"

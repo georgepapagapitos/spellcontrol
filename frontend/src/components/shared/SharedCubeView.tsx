@@ -3,6 +3,7 @@ import type { PublicCube, PublicCubeCard } from '../../lib/shared-types';
 import { normalizeForSearch } from '../../lib/normalize-search';
 import { formatIdentity } from '../../lib/display-name';
 import { SearchPill } from '../SearchPill';
+import { SharedEmptyState } from './SharedEmptyState';
 
 interface Props {
   data: PublicCube;
@@ -90,9 +91,13 @@ export function SharedCubeView({ data }: Props) {
       </div>
 
       {sections.length === 0 ? (
-        <p className="shared-empty">
-          {data.cards.length === 0 ? 'This cube is empty.' : 'No cards match your search.'}
-        </p>
+        <SharedEmptyState
+          empty={data.cards.length === 0}
+          emptyTagline="This cube is empty."
+          emptyHint="The owner hasn't added any cards to it yet."
+          filteredTagline="No cards match your search."
+          onClearSearch={search ? () => setSearch('') : undefined}
+        />
       ) : (
         <div className="shared-cube-sections">
           {sections.map(({ key, cards }) => (

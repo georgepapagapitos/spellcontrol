@@ -264,16 +264,23 @@
   }
 }
 
-/* Binder hero UX-305: secondary actions collapse into ⋮ at ≤600px. */
-.binder-hero-actions-overflow {
+/* Binder hero UX-305: secondary actions collapse into ⋮ at ≤600px.
+   Selectors are scoped to the .binder-hero-actions ancestor (not bare
+   classes) so they reliably out-specify .pill-btn's unconditional
+   `display: inline-flex` further down this file: two same-specificity
+   bare-class rules resolve by source order regardless of an @media guard,
+   and .pill-btn (declared later in this file) was silently winning at
+   every viewport — the secondary pills never hid and the kebab they were
+   meant to reveal showed unconditionally instead of only ≤600px. */
+.binder-hero-actions .binder-hero-actions-overflow {
   display: none;
 }
 
 @media (max-width: 600px) {
-  .binder-hero-action-secondary {
+  .binder-hero-actions .binder-hero-action-secondary {
     display: none;
   }
-  .binder-hero-actions-overflow {
+  .binder-hero-actions .binder-hero-actions-overflow {
     display: inline-flex;
     flex: 0 0 auto;
   }

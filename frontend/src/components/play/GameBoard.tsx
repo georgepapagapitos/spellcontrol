@@ -21,6 +21,7 @@ import { makePlayer } from '../../lib/game-state';
 import type { BoardLayout, EmptyCell, SeatSlot } from '../../lib/board-layouts';
 import {
   encodeCustomLayout,
+  homeSlotIndex,
   isCustomLayout,
   layoutsForCount,
   resolveLayout,
@@ -80,7 +81,9 @@ interface Props {
  * 3-player = top pair + bottom full-width). Local (shared-device) games
  * rotate top-row panels 180° so each player reads upright when the phone is
  * passed across the table. Online games never rotate — each device is in
- * front of one player at a time.
+ * front of one player at a time — and instead re-anchor the seat→slot
+ * mapping per device so the viewer's own panel sits in the layout's home
+ * slot (see `homeSlotIndex`).
  *
  * Interaction model is touch-first: tap the left half of a panel to decrement
  * life, the right half to increment (top/bottom when tapOrientation is
@@ -105,6 +108,19 @@ export function GameBoard({
   // Resolve to a concrete layout (grid + per-seat slots). Unknown / legacy
   // layout ids fall back to the count's default.
   const board = resolveLayout(total, game.layout);
+  // Online, each device re-anchors the seat→slot mapping so the viewer's own
+  // panel lands in the layout's "home" slot (bottom-most upright seat) — your
+  // life total sits nearest you, like a seat at a real table. The shift is
+  // cyclic, so the relative turn-order arrangement matches on every screen.
+  // Spectators (no seat) see the canonical seat-order board.
+  const viewerIdx =
+    !isShared && viewerUserId != null
+      ? game.players.findIndex((p) => p.userId === viewerUserId)
+      : -1;
+  const slotShift =
+    viewerIdx >= 0 && board.seats.length === total
+      ? (homeSlotIndex(board) - viewerIdx + total) % total
+      : 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -176,7 +192,7 @@ export function GameBoard({
         }}
       >
         {game.players.map((p, i) => {
-          const slot = board.seats[i] ?? board.seats[board.seats.length - 1];
+          const slot = board.seats[(i + slotShift) % total] ?? board.seats[board.seats.length - 1];
           // Resolve legacy states: activeSeat / designations may be absent on
           // old persisted games loaded before UX-324.
           const activeSeat = game.activeSeat ?? null;

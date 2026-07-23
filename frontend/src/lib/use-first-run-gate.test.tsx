@@ -38,6 +38,18 @@ describe('isFirstRunExempt', () => {
     ['/auth/choose-username', true],
     ['/oauth/callback', true],
     ['/s/abc123', true],
+    // Regression: a first-time guest following a public link — /u, /d,
+    // /gn/*, or the welcome hero's own "Browse public decks" CTA into
+    // /decks/discover — used to get bounced straight back to `/` before the
+    // target page ever painted, because this list only ever named `/s/`.
+    // Every pathname App.tsx renders outside the auth gate (plus
+    // /decks/discover, the one always-reachable public route inside
+    // <Layout>) must stay exempt here.
+    ['/u/alice', true],
+    ['/d/some-deck-slug', true],
+    ['/gn/some-token', true],
+    ['/gn/s/some-series-token', true],
+    ['/decks/discover', true],
     ['/collection', false],
     ['/decks', false],
     ['/', true],
@@ -92,5 +104,21 @@ describe('useFirstRunGate', () => {
   it('keeps the OAuth callback reachable for a first-run guest', () => {
     const { getByTestId } = render(<Harness status="guest" initialPath="/oauth/callback" />);
     expect(getByTestId('path').textContent).toBe('/oauth/callback');
+  });
+
+  // Regression for the bug fixed alongside the isFirstRunExempt table above:
+  // these routes are exactly what a first-time guest reaches by following a
+  // shared/public link (or, for /decks/discover, the welcome hero's own
+  // "Browse public decks" CTA — which deliberately marks no visited flag) —
+  // none of them may bounce back to `/`.
+  it.each([
+    '/u/alice',
+    '/d/some-deck-slug',
+    '/gn/some-token',
+    '/gn/s/some-series-token',
+    '/decks/discover',
+  ])('keeps %s reachable for a first-run guest', (path) => {
+    const { getByTestId } = render(<Harness status="guest" initialPath={path} />);
+    expect(getByTestId('path').textContent).toBe(path);
   });
 });

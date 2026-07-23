@@ -280,7 +280,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
     }
     setMalformedRows(allMalformedRows);
     const parts: string[] = [
-      `Imported ${totals.cardsImported.toLocaleString()} cards from ${parsedFiles.length} files`,
+      `Imported ${totals.cardsImported.toLocaleString()} card${
+        totals.cardsImported === 1 ? '' : 's'
+      } from ${parsedFiles.length} file${parsedFiles.length === 1 ? '' : 's'}`,
     ];
     if (totals.unresolvedCount > 0) parts.push(`${totals.unresolvedCount} unresolved`);
     if (allFetchErrors.length > 0) {
@@ -316,7 +318,9 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
       binderName,
     });
     setMalformedRows(result.malformedRows);
-    const parts: string[] = [`Imported ${result.cards.length.toLocaleString()} cards`];
+    const parts: string[] = [
+      `Imported ${result.cards.length.toLocaleString()} card${result.cards.length === 1 ? '' : 's'}`,
+    ];
     if (result.scryfallHits > 0) {
       parts.push(`${result.scryfallHits.toLocaleString()} matched`);
     }
@@ -901,7 +905,8 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                             </span>
                           </div>
                           <div className="import-history-meta">
-                            {h.count.toLocaleString()} cards · {formatRelative(h.addedAt)}
+                            {h.count.toLocaleString()} card{h.count === 1 ? '' : 's'} ·{' '}
+                            {formatRelative(h.addedAt)}
                             {h.format ? ` · ${h.format}` : ''}
                           </div>
                         </div>

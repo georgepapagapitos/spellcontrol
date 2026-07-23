@@ -323,8 +323,10 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+ * Renders inside the always-dark `.seat-menu` cover — white ring, not accent
+ * (see the ruling in play-panel-menus.css). */
 .seat-menu-facing-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
