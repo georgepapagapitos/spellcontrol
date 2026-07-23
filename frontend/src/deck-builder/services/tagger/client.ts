@@ -267,8 +267,28 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // ("gain control of target creature") and Pacifism/Song-of-the-Dryads-style
   // auras ("loses all abilities") are real, distinct removal templating, not
   // destroy/exile at all.
+  //
+  // E136 fix (2026-07-23, full-corpus audit — removal gate-blind 26.7%): four
+  // verified real-card gaps, every one live-checked against Scryfall.
+  //  - Library-tuck: "put target creature on top/bottom of its owner's
+  //    library" (Anchor to the Aether) is real removal templating no
+  //    destroy/exile/counter/bounce branch catches.
+  //  - Fight widened past the exact "fights target creature" adjacency —
+  //    real cards insert a word between the verb and the object ("fights
+  //    ANOTHER target creature" — Blood Feud; "fights up to one target
+  //    creature" — Agatha's Champion); a same-sentence lenient join covers
+  //    both without narrowing the original strict form.
+  //  - A tap-lock ("doesn't"/"don't untap during its/their controller's
+  //    [next] untap step" — Icefall Regent, Frost Breath) is de facto tempo
+  //    removal. Anchored to third-person "its"/"their" (never "your") so a
+  //    card's OWN self-tap-down cost can't false-positive — Basalt
+  //    Monolith's "doesn't untap during YOUR untap step" is a mana rock's
+  //    downside, not removal, and correctly stays excluded.
+  //  - The sacrifice-edict subject list gains "target opponent" (Tribute to
+  //    Hunger: "Target opponent sacrifices a creature of their choice"),
+  //    opponent-forcing like the rest of the list.
   removal:
-    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights? target creature|target creature gets? [+-]?\d+\/-\d+|(target player|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities/i,
+    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights?[^.]*?target creature|target creature gets? [+-]?\d+\/-\d+|(target player|target opponent|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities|put target[^.]*?(?:top|bottom) of its owner'?s library|(?:doesn't|don't) untap during (?:its|their) controller'?s (?:next )?untap step/i,
   // Exile-based wipes (Farewell) and return-all bounce wipes (Devastation
   // Tide) alongside the destroy-based ones. "destroy each"/"exile
   // each"/"return each" (permanent, not just creature — Selective

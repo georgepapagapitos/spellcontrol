@@ -33,6 +33,14 @@ const DATA = {
       "Kenrith's Transformation",
       'Hullbreaker Horror',
       'Spatial Contortion',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negatives)
+      'Anchor to the Aether',
+      'Blood Feud',
+      'Icefall Regent',
+      'Frost Breath',
+      'Tribute to Hunger',
+      'Basalt Monolith',
+      'Brainstorm',
     ],
     boardwipe: [
       'Wrath of God',
@@ -562,6 +570,84 @@ describe('validateCardRole — round-4 strip-sweep pattern fixes', () => {
           'When this creature enters, you may return target card from your graveyard to your hand.',
       })
     ).toBe('cardDraw');
+  });
+});
+
+// E136 (2026-07-23 full-corpus audit): ROLE_EVIDENCE recall widening, one
+// describe block per role family so a gate-found regression can be traced to
+// a single commit. Every oracle_text fixture below — positive AND negative —
+// is live-verified real Scryfall text (never written from memory), per the
+// audit's hard method rule.
+describe('validateCardRole — E136 removal recall widening', () => {
+  it('removal: library-tuck ("put target creature on top/bottom of its owner\'s library" — Anchor to the Aether)', () => {
+    expect(
+      validateCardRole({
+        name: 'Anchor to the Aether',
+        oracle_text:
+          "Put target creature on top of its owner's library. Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: fight widened past exact "fights target creature" adjacency (Blood Feud: "fights ANOTHER target creature")', () => {
+    expect(
+      validateCardRole({
+        name: 'Blood Feud',
+        oracle_text:
+          'Target creature fights another target creature. (Each deals damage equal to its power to the other.)',
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: tap-lock ("doesn\'t"/"don\'t untap during its/their controller\'s [next] untap step" — Icefall Regent, Frost Breath)', () => {
+    expect(
+      validateCardRole({
+        name: 'Icefall Regent',
+        oracle_text:
+          "Flying\nWhen this creature enters, tap target creature an opponent controls. That creature doesn't untap during its controller's untap step for as long as you control this creature.\nSpells your opponents cast that target this creature cost {2} more to cast.",
+      })
+    ).toBe('removal');
+    expect(
+      validateCardRole({
+        name: 'Frost Breath',
+        oracle_text:
+          "Tap up to two target creatures. Those creatures don't untap during their controller's next untap step.",
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: sacrifice-edict subject list gains "target opponent" (Tribute to Hunger)', () => {
+    expect(
+      validateCardRole({
+        name: 'Tribute to Hunger',
+        oracle_text:
+          "Target opponent sacrifices a creature of their choice. You gain life equal to that creature's toughness.",
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: tap-lock stays anchored to third-person "its/their controller\'s" — a card\'s OWN self-downside cost is not removal (Basalt Monolith: "doesn\'t untap during YOUR untap step")', () => {
+    // Basalt Monolith is a mana rock in reality — hypothetically mistagged
+    // 'removal' here (Expropriate-style) to prove the tap-lock branch's
+    // subject anchor rejects a first-person self-cost, not just confirm the
+    // rest of the gate has nothing else to say about it.
+    expect(
+      validateCardRole({
+        name: 'Basalt Monolith',
+        oracle_text:
+          "This artifact doesn't untap during your untap step.\n{T}: Add {C}{C}{C}.\n{3}: Untap this artifact.",
+      })
+    ).toBeNull();
+  });
+
+  it('removal: library-tuck near-miss — putting YOUR OWN cards on top of your library is not a tuck (Brainstorm)', () => {
+    expect(
+      validateCardRole({
+        name: 'Brainstorm',
+        oracle_text:
+          'Draw three cards, then put two cards from your hand on top of your library in any order.',
+      })
+    ).toBeNull();
   });
 });
 
