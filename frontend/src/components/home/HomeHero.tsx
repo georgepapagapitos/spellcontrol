@@ -183,24 +183,32 @@ export function HomeHero() {
         </div>
 
         <form className="home-hero-search" role="search" onSubmit={handleSubmit}>
-          <div className="home-hero-search-scope" role="group" aria-label="Search scope">
-            <button
-              type="button"
-              className="home-hero-scope-btn"
-              aria-pressed={scope === 'mine'}
-              onClick={() => setScope('mine')}
-            >
-              My decks
-            </button>
-            <button
-              type="button"
-              className="home-hero-scope-btn"
-              aria-pressed={scope === 'discover'}
-              onClick={() => setScope('discover')}
-            >
-              Discover
-            </button>
-          </div>
+          {/* A setting (what the search below targets), not a view switch —
+              STYLE_GUIDE "An exclusive-value picker is NOT a tab strip":
+              native radio semantics give exclusivity + arrow-key group nav
+              for free, same family as .settings-currency-toggle. */}
+          <fieldset className="home-hero-search-scope" aria-label="Search scope">
+            <label className="home-hero-scope-option">
+              <input
+                type="radio"
+                name="home-search-scope"
+                value="mine"
+                checked={scope === 'mine'}
+                onChange={() => setScope('mine')}
+              />
+              <span>My decks</span>
+            </label>
+            <label className="home-hero-scope-option">
+              <input
+                type="radio"
+                name="home-search-scope"
+                value="discover"
+                checked={scope === 'discover'}
+                onChange={() => setScope('discover')}
+              />
+              <span>Discover</span>
+            </label>
+          </fieldset>
           <SearchPill
             value={query}
             onChange={setQuery}

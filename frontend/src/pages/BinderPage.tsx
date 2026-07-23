@@ -392,6 +392,23 @@ export function BinderPage() {
       ) : (
         (() => {
           if (!active) return null;
+          // Same empty state BinderView (pages mode) shows for a binder whose
+          // rules currently match nothing — list/compact used to render just
+          // the toolbar with no content and no explanation below it.
+          if (active.totalCards === 0) {
+            return (
+              <div className="empty-state">
+                No cards match this binder's rules.{' '}
+                <button
+                  className="btn"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => setEditingBinder(active.def.id)}
+                >
+                  Binder rules
+                </button>
+              </div>
+            );
+          }
           // BinderListView preserves the binder's section grouping (the same
           // White / Blue / Multicolor / etc. headers as the page grid view)
           // and rolls duplicate copies into qty pills.
