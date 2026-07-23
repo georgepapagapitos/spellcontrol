@@ -175,11 +175,16 @@ select {
   flex-shrink: 0;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   /* Top header is replaced by the bottom tab bar (web) or NavFab (native)
      on tablet/mobile. Sign-in entry on small screens lives behind the
      Settings tab, with a guest-mode dot on that tab to telegraph the
-     unfinished account state. */
+     unfinished account state.
+     Boundary is 1023, not 1024: the desktop tier starts at min-width:1024
+     (STYLE_GUIDE § Responsive) — an inclusive max-width:1024 here used to
+     overlap it for exactly one pixel width, showing this mobile shell AND
+     min-width:1024 "desktop" treatments (e.g. card-picker's centered modal)
+     at the same time. See STYLE_GUIDE's fractional-breakpoint note. */
   .site-header {
     display: none;
   }

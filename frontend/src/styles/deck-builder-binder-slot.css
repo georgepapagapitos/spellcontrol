@@ -43,7 +43,8 @@
 
 .slot-deck-badge:focus-visible {
   filter: brightness(1.1);
-  outline: none;
+  outline: 2px solid var(--deck-color, var(--accent));
+  outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .slot-deck-badge:hover {

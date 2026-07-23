@@ -147,6 +147,9 @@
   color: var(--accent);
 }
 
+/* Ring only on genuine keyboard focus — not a mouse-opened popover
+   ([aria-expanded='true'] above shares the color treatment but stays
+   ring-free). */
 .filter-popover-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -342,7 +345,12 @@
   background: var(--accent-light);
   border-color: var(--accent);
   color: var(--accent);
-  outline: none;
+}
+/* Ring only on genuine keyboard focus — not a mouse-opened popover
+   (.open above shares the color treatment but stays ring-free). */
+.sort-popover-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
