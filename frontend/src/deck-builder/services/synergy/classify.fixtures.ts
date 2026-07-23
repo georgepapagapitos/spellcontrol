@@ -2451,7 +2451,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Proliferate', 'Compleated'],
     oracle_text:
       'Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n\u22122: Target creature becomes a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color" and loses all other card types and abilities.\n\u22129: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.',
-    expect: { producers: ['superfriends', 'sacrifice'], payoffs: [] },
+    // E139: the -9's "they get a number of poison counters" grant is a poison
+    // producer (an alternate delivery engine), same shape as Fynn.
+    expect: { producers: ['poison', 'superfriends', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Wall of Reverence',
@@ -3156,5 +3158,23 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'Deathtouch\nWhenever this creature deals combat damage to a player, they get four rad counters.\nWhenever a player mills a nonland card, you gain 1 life.',
     expect: { producers: ['lifegain'], payoffs: ['mill'] },
+  },
+
+  // ── E139: poison "gets a poison counter" grant + Corrupted payoff ──────────
+  {
+    name: 'Fynn, the Fangbearer',
+    type_line: 'Legendary Creature — Human Warrior',
+    keywords: ['Deathtouch'],
+    oracle_text:
+      'Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever a creature you control with deathtouch deals combat damage to a player, that player gets two poison counters.',
+    expect: { producers: ['poison'], payoffs: [] },
+  },
+  {
+    name: 'Bonepicker Skirge',
+    type_line: 'Creature — Bat',
+    keywords: ['Flying', 'Corrupted'],
+    oracle_text:
+      "Flying\nCorrupted — As long as an opponent has three or more poison counters, this creature has deathtouch and lifelink.",
+    expect: { producers: [], payoffs: ['poison'] },
   },
 ];

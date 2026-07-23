@@ -676,6 +676,10 @@ const poison: SynergyAxis = {
   producer(card) {
     if (has(card, 'infect') || /\binfect\b/.test(card.oracle)) return 'infect (poison)';
     if (has(card, 'toxic') || /\btoxic \d/.test(card.oracle)) return 'toxic (poison)';
+    // A direct "gets N poison counter(s)" grant (Fynn, the Fangbearer; Vraska,
+    // Betrayal's Sting's -9) is an alternate poison-delivery engine, not just
+    // infect/toxic reminder text.
+    if (/\bgets?\b[^.]*poison counters?/.test(card.oracle)) return 'gives poison counters';
     return null;
   },
   payoff(card) {
@@ -687,6 +691,10 @@ const poison: SynergyAxis = {
       return 'rewards infect creatures';
     if (/for each poison counter|ten or more poison counters/.test(card.oracle))
       return 'scales with poison';
+    // Corrupted — the March of the Machine ability word for "an opponent has
+    // three or more poison counters". Its clause is templated with an em-dash
+    // and isn't parenthetical, so it survives reminder-stripping.
+    if (has(card, 'corrupted') || /\bcorrupted\b/.test(card.oracle)) return 'Corrupted';
     return null;
   },
 };
