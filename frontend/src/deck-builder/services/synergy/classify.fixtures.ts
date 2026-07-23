@@ -3121,4 +3121,22 @@ export const CORPUS: CorpusCard[] = [
       "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
     expect: { producers: ['landfall', 'lifegain'], payoffs: ['graveyard'] },
   },
+
+  // ── E139: tribal type-kind confusion + wrong-subject + inverse-payoff ──────
+  {
+    name: 'Plague Engineer',
+    type_line: 'Creature — Phyrexian Carrier',
+    keywords: ['Deathtouch'],
+    oracle_text:
+      'Deathtouch\nAs this creature enters, choose a creature type.\nCreatures of the chosen type your opponents control get -1/-1.',
+    expect: { producers: ['tribal'], payoffs: [] },
+  },
+  {
+    name: 'Volo, Guide to Monsters',
+    type_line: 'Legendary Creature — Human Wizard',
+    keywords: [],
+    oracle_text:
+      "Whenever you cast a creature spell that doesn't share a creature type with a creature you control or a creature card in your graveyard, copy that spell. (A copy of a creature spell becomes a token.)",
+    expect: { producers: [], payoffs: [] },
+  },
 ];

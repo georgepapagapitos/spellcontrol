@@ -420,8 +420,29 @@ const tribal: SynergyAxis = {
     return null;
   },
   payoff(card) {
-    if (/of the chosen type/.test(card.oracle)) return 'rewards your chosen creature type';
-    if (/shares?(?: at least one| a)? creature type/.test(card.oracle))
+    for (const clause of splitClauses(card.oracle)) {
+      // "Of the chosen type" is only a payoff when it's about CREATURES (not a
+      // land-type or card-type selector wearing similar wording) AND about YOUR
+      // board — Plague Engineer's "creatures of the chosen type your OPPONENTS
+      // control get -1/-1" is a hate piece (wrong subject), not a reward for
+      // your own typal deck. The gap is bounded (not a bare [^.]*) so an
+      // unrelated "creature" mention elsewhere in a long clause can't bridge to
+      // a DIFFERENT noun's "of the chosen type" — Deification's "as long as you
+      // control A CREATURE, if damage dealt to A PLANESWALKER ... of the chosen
+      // type" would otherwise false-match on "creature" alone.
+      if (
+        /creatures?[^.]{0,25} of the chosen type/.test(clause) &&
+        !/opponents? control/.test(clause)
+      )
+        return 'rewards your chosen creature type';
+    }
+    // "Shares a creature type" — but not the NEGATED form ("doesn't/don't share
+    // a creature type", Volo, Guide to Monsters), which rewards deck DIVERSITY
+    // and is the inverse of a typal payoff.
+    if (
+      /shares?(?: at least one| a)? creature type/.test(card.oracle) &&
+      !/doesn't share|don't share/.test(card.oracle)
+    )
       return 'rewards shared creature types';
     return null;
   },
