@@ -23,11 +23,13 @@ import {
   availableFinishes,
   finishUnitPrice,
   nextFinish,
+  nextCondition,
   playValueChime,
   priceTier,
   pulseValueHaptic,
   type CardValueTier,
 } from '../lib/scanner-feedback';
+import { conditionLabel, conditionShort } from './shared/CardRow';
 import { detectCardBox } from '../lib/scanner-detect';
 import { prewarm, scan } from '../lib/scanner/scan';
 import type { Point } from '../lib/scanner/detect';
@@ -156,6 +158,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     changeQty,
     changePrinting,
     changeFinish,
+    changeCondition,
   } = useScanQueue();
 
   const [status, setStatus] = useState<ScanStatus>('idle');
@@ -885,12 +888,16 @@ export function CardScanner({ onClose, onConfirm }: Props) {
 
   const handleConfirm = useCallback(() => {
     if (queue.length === 0) return;
-    // Emit MTGA-style lines with a finish token *before* the (SET) group —
-    // that's where the text parser's cleanName() looks for *F* / *ETCHED*,
-    // so the chosen finish round-trips to the collection as a foil/etched copy.
-    const lines = queue.map(({ card, qty, finish }) => {
-      const token = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *ETCHED*' : '';
-      return `${qty} ${card.name}${token} (${card.set.toUpperCase()}) ${
+    // Emit MTGA-style lines with a finish token, then a condition token,
+    // both *before* the (SET) group — that's where the text parser's
+    // cleanName() looks for them, so the chosen finish/condition round-trip
+    // to the collection as a foil/etched copy in the given condition (E87).
+    // NM is never emitted — it's the unmarked default (nothing to strip).
+    const lines = queue.map(({ card, qty, finish, condition }) => {
+      const finishToken = finish === 'foil' ? ' *F*' : finish === 'etched' ? ' *ETCHED*' : '';
+      const conditionValue = condition ?? 'nm';
+      const conditionToken = conditionValue !== 'nm' ? ` *${conditionShort(conditionValue)}*` : '';
+      return `${qty} ${card.name}${finishToken}${conditionToken} (${card.set.toUpperCase()}) ${
         card.collector_number ?? ''
       }`.trim();
     });
@@ -1122,6 +1129,9 @@ export function CardScanner({ onClose, onConfirm }: Props) {
             const finish = entry?.finish ?? 'nonfoil';
             const finishes = availableFinishes(lastScan.card.finishes);
             const canToggleFinish = finishes.length > 1;
+            // Condition is owned by the queue entry too, same as finish above
+            // (E87) — undefined means Near Mint, the unmarked default.
+            const condition = entry?.condition ?? 'nm';
             const unit = finishUnitPrice(lastScan.card.prices, finish);
             const usd = unit != null ? formatMoney(unit) : null;
             return (
@@ -1168,6 +1178,17 @@ export function CardScanner({ onClose, onConfirm }: Props) {
                       {FINISH_LABELS[finish]}
                     </button>
                   )}
+                  {/* No availability gate, unlike finish above — every
+                      condition is always selectable, and condition doesn't
+                      re-key the row, so this needs no setLastScan follow-up. */}
+                  <button
+                    type="button"
+                    className="scanner-card-panel-condition"
+                    onClick={() => changeCondition(lastScan.entryId, nextCondition(condition))}
+                    aria-label={`Condition: ${conditionLabel(condition)}. Tap to change.`}
+                  >
+                    {conditionShort(condition)}
+                  </button>
                   <button
                     type="button"
                     className="scanner-card-panel-set"
@@ -1218,6 +1239,7 @@ export function CardScanner({ onClose, onConfirm }: Props) {
           }}
           onChangeQty={changeQty}
           onChangeFinish={changeFinish}
+          onChangeCondition={changeCondition}
           onRemove={removeFromQueue}
           onClearAll={handleClearAll}
           onConfirm={handleConfirm}

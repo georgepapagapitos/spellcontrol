@@ -412,6 +412,69 @@ describe('useScanQueue', () => {
     });
   });
 
+  describe('changeCondition (E87)', () => {
+    it('leaves a fresh scan undefined (NM default)', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      expect(result.current.queue[0].condition).toBeUndefined();
+    });
+
+    it('sets the condition for the targeted entry', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      act(() => {
+        result.current.changeCondition(NONFOIL_1, 'lp');
+      });
+      expect(result.current.queue[0].condition).toBe('lp');
+      act(() => {
+        result.current.changeCondition(NONFOIL_1, 'damaged');
+      });
+      expect(result.current.queue[0].condition).toBe('damaged');
+    });
+
+    it('is a no-op for unknown ids', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard());
+      });
+      const before = result.current.queue;
+      act(() => {
+        result.current.changeCondition('nope', 'lp');
+      });
+      expect(result.current.queue).toEqual(before);
+    });
+
+    it('never re-keys or merges rows — condition is not part of row identity', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard({ finishes: ['nonfoil', 'foil'] }));
+      });
+      const idBefore = result.current.queue[0].id;
+      act(() => {
+        result.current.changeCondition(NONFOIL_1, 'hp');
+      });
+      expect(result.current.queue).toHaveLength(1);
+      expect(result.current.queue[0].id).toBe(idBefore);
+      expect(result.current.queue[0].condition).toBe('hp');
+    });
+
+    it('applies independently per row in a multi-row queue', () => {
+      const { result } = renderHook(() => useScanQueue());
+      act(() => {
+        result.current.addScan(makeCard({ id: 'print-a', oracle_id: 'oracle-a' }));
+        result.current.addScan(makeCard({ id: 'print-b', oracle_id: 'oracle-b' }));
+      });
+      act(() => {
+        result.current.changeCondition(entryKey('print-a', 'nonfoil'), 'mp');
+      });
+      expect(result.current.queue.map((e) => e.condition)).toEqual(['mp', undefined]);
+    });
+  });
+
   describe('totalPrice', () => {
     it('sums qty × usd across the queue', () => {
       const { result } = renderHook(() => useScanQueue());
@@ -519,6 +582,7 @@ describe('useScanQueue', () => {
         changeQty: result.current.changeQty,
         changePrinting: result.current.changePrinting,
         changeFinish: result.current.changeFinish,
+        changeCondition: result.current.changeCondition,
       };
       rerender();
       expect(result.current.addScan).toBe(first.addScan);
@@ -528,6 +592,7 @@ describe('useScanQueue', () => {
       expect(result.current.changeQty).toBe(first.changeQty);
       expect(result.current.changePrinting).toBe(first.changePrinting);
       expect(result.current.changeFinish).toBe(first.changeFinish);
+      expect(result.current.changeCondition).toBe(first.changeCondition);
     });
   });
 });
