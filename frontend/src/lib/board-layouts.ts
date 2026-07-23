@@ -269,6 +269,23 @@ export function layoutsForCount(count: number): BoardLayout[] {
 }
 
 /**
+ * Index in `seats` of the slot the viewer should occupy on their own device
+ * in an online game — their panel sits nearest them, like a seat at a real
+ * table. Prefers upright (rot 0) slots, then the bottom-most row, then the
+ * left column; for all-rotated layouts (e.g. side-by-side) the same row/col
+ * tie-break still yields the bottom-left slot.
+ */
+export function homeSlotIndex(layout: BoardLayout): number {
+  // Packed score: upright ≫ row (decode caps rows at 8) ≫ left column.
+  const score = (s: SeatSlot) => (s.rot === 0 ? 1000 : 0) + s.row * 10 + (s.col === 1 ? 1 : 0);
+  let best = layout.seats.length - 1;
+  layout.seats.forEach((s, i) => {
+    if (score(s) > score(layout.seats[best])) best = i;
+  });
+  return best;
+}
+
+/**
  * Compute the CSS translation offsets and icon rotation for the floating undo
  * button relative to the seam hub.
  *

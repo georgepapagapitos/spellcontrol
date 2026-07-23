@@ -68,6 +68,18 @@ const FILTER_LABELS: Record<FilterId, string> = {
   cuts: 'Cuts',
 };
 
+/**
+ * A row is a genuine "spicy" off-meta pick by the exact same rule
+ * `DeckCardRow` uses to paint its "Off-meta" chip (E88): no EDHREC play-rate
+ * evidence, and not a combos-lane row (a proven combo completion is never
+ * off-meta by definition). Kept in lockstep with DeckCardRow's inline
+ * `inclusionInfo`/`change.lane === 'combos'` check so the E64 discoverability
+ * count/filter below never disagrees with which rows actually show the badge.
+ */
+function isOffMetaChange(change: Change): boolean {
+  return change.lane !== 'combos' && classifyInclusion(change.inclusion).kind === 'offmeta';
+}
+
 /** tuneFocusLane → feed filter chip mapping. */
 const FOCUS_TO_FILTER: Record<string, FilterId> = {
   'fill-gaps': 'fill-gaps',
@@ -233,6 +245,14 @@ export function CoachFeed({
   const [activeFilter, setActiveFilter] = useState<FilterId>(() =>
     initialFilter ? (FOCUS_TO_FILTER[initialFilter] ?? 'all') : 'all'
   );
+
+  // E64: cross-lane "Off-meta" toggle — spicy, off-the-beaten-path picks are
+  // scattered across whichever lane produced them (lands, upgrades, gap
+  // fills, …), not one lane, so this narrows alongside `activeFilter` rather
+  // than being another entry in it. Local/unpersisted: purely a display
+  // filter (unlike `ownedOnly`, it feeds no analysis context upstream), so it
+  // doesn't need the parent-lifted state that prop gets.
+  const [offMetaOnly, setOffMetaOnly] = useState(false);
 
   const ackedFilterRef = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -485,8 +505,23 @@ export function CoachFeed({
     if (activeFilter !== 'all') {
       list = list.filter((r) => r.change.lane === activeFilter);
     }
+    if (offMetaOnly) {
+      list = list.filter((r) => isOffMetaChange(r.change));
+    }
     return list;
-  }, [addsAndSwaps, cuts, activeFilter, ownedOnly]);
+  }, [addsAndSwaps, cuts, activeFilter, ownedOnly, offMetaOnly]);
+
+  // E64: global off-meta count — independent of `activeFilter` (a lane
+  // switch shouldn't make the differentiator's own count flicker), but
+  // respecting `ownedOnly` like every other chip's "shown" number so it
+  // never promises more spicy picks than are actually visible.
+  const offMetaCount = useMemo(
+    () =>
+      addsAndSwaps.filter(
+        (r) => (!ownedOnly || r.change.ownership === 'owned') && isOffMetaChange(r.change)
+      ).length,
+    [addsAndSwaps, ownedOnly]
+  );
 
   // ── Chip counts ──────────────────────────────────────────────────────────
   //
@@ -533,6 +568,23 @@ export function CoachFeed({
   // "nothing here", which reads as a dead-end.
   const hiddenByOwned = totalCounts[activeFilter] - shownCounts[activeFilter];
   const isOwnedEmpty = ownedOnly && filteredRows.length === 0 && hiddenByOwned > 0;
+
+  // E64: same instinct as isOwnedEmpty — when the Off-meta toggle is what
+  // emptied the current lane (rows exist here, just none of them off-meta),
+  // name that specifically instead of a generic "no suggestions" dead end.
+  // Checked only once ownedOnly's own explanation doesn't already apply.
+  // Cuts never carry the toggle (filteredRows returns `cuts` before the
+  // off-meta filter ever runs), so it can't be the reason a cuts view is empty.
+  const isOffMetaEmpty = useMemo(() => {
+    if (!offMetaOnly || filteredRows.length !== 0 || isOwnedEmpty || activeFilter === 'cuts') {
+      return false;
+    }
+    return addsAndSwaps.some(
+      (r) =>
+        (!ownedOnly || r.change.ownership === 'owned') &&
+        (activeFilter === 'all' || r.change.lane === activeFilter)
+    );
+  }, [offMetaOnly, filteredRows, isOwnedEmpty, activeFilter, addsAndSwaps, ownedOnly]);
 
   // ── Update cyclable-filters ref (for `f` key cycle) ─────────────────────
   // The `f` key listener uses a ref so it doesn't need to re-register on
@@ -691,6 +743,24 @@ export function CoachFeed({
                   </button>
                 );
               })}
+              {/* E64: spicy-pick discoverability. A cross-lane toggle, not
+                  another lane — off-meta rows can land in any lane above, so
+                  this narrows whichever lane is active rather than competing
+                  with it. Renders nothing when the deck has no off-meta
+                  picks at all (insight-surface "zero visible → render
+                  nothing" rule), same as every other zero-count chip here. */}
+              {offMetaCount > 0 && (
+                <button
+                  type="button"
+                  className="coach-feed-filter-chip"
+                  aria-pressed={offMetaOnly}
+                  aria-label={`Off-meta picks — ${offMetaCount}. This deck's off-the-beaten-path suggestions, low or no EDHREC play rate.`}
+                  onClick={() => setOffMetaOnly((v) => !v)}
+                >
+                  Off-meta
+                  <span className="coach-feed-chip-count">{offMetaCount}</span>
+                </button>
+              )}
               <label className="coach-feed-owned-toggle">
                 <input
                   type="checkbox"
@@ -855,6 +925,20 @@ export function CoachFeed({
                   onClick={() => onOwnedOnlyChange(false)}
                 >
                   Show unowned too
+                </button>
+              </div>
+            ) : isOffMetaEmpty ? (
+              <div className="coach-feed-empty-filter coach-feed-empty-owned">
+                <p>
+                  No off-meta {activeFilter === 'all' ? '' : FILTER_LABELS[activeFilter] + ' '}
+                  picks right now — this lane's suggestions are all played staples.
+                </p>
+                <button
+                  type="button"
+                  className="coach-feed-show-unowned"
+                  onClick={() => setOffMetaOnly(false)}
+                >
+                  Show all suggestions
                 </button>
               </div>
             ) : (

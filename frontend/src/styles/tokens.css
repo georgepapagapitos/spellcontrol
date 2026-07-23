@@ -184,6 +184,12 @@
      Android). Anything added to that row must fit on one line — the
      SearchPill shrinks; wrapping controls belong in the controls row. */
   --collection-search-sticky-h: 3.8rem;
+  /* Height of the fixed bottom mobile tab bar (.mobile-tab-bar) — 0 above
+     1024px, where it doesn't render at all. Single source of truth so any
+     other viewport-bottom-anchored fixed element (the toast viewport) can
+     clear it instead of painting underneath/through it; see the media
+     query + .capacitor override just below tokens.css's `:root` block. */
+  --mobile-tabbar-h: 0px;
 
   /* ── Z-index scale ───────────────────────────────────────────────────── */
   --z-dropdown: 50;
@@ -331,5 +337,17 @@
 @media (max-width: 600px), (max-height: 480px) {
   :root {
     --collection-search-sticky-h: 3rem;
+  }
+}
+
+/* Mirrors .mobile-tab-bar's own breakpoint + native height exactly
+   (responsive-nav.css) — the two must stay in lockstep, which is the
+   point of routing both through this one token. */
+@media (max-width: 1024px) {
+  :root {
+    --mobile-tabbar-h: 3.5rem;
+  }
+  .capacitor {
+    --mobile-tabbar-h: calc(3.5rem + var(--safe-bottom));
   }
 }

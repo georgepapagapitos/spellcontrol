@@ -76,7 +76,7 @@ export function SavedDecksPage() {
 
         {!isAuthed ? (
           <div className="empty-state">
-            <p className="empty-state-tagline">Saved decks need an account</p>
+            <p className="empty-state-tagline">Saved decks need an account.</p>
             <p className="empty-state-hint">
               Sign in to bookmark decks from Discover and find them here later.
             </p>

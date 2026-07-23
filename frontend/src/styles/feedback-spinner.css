@@ -68,28 +68,56 @@
   color: var(--text-muted);
 }
 
-.error-boundary {
-  max-width: 500px;
-  margin: var(--space-8) auto;
-  padding: var(--space-6);
+/* Global crash fallback (ErrorBoundary) — the same full-viewport
+   self-scrolling centered-card pattern as .auth-page/.auth-card (STYLE_GUIDE
+   § Full-viewport centered pages): body has overflow:hidden and #root has no
+   height cap, so a min-height page here would risk the same "bottom
+   silently clipped, no way to scroll" bug on a short/native screen. This is
+   an uncaught-error fallback, so it deliberately doesn't share the .auth-*
+   class names (a crash has nothing to do with signing in) even though the
+   mechanics are identical — new class names, duplicated recipe, same as
+   .welcome-page's own independent copy of it. */
+.error-boundary-page {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  overflow-y: auto;
+  background: var(--bg);
+  padding: calc(var(--space-5) + var(--safe-top)) calc(var(--space-4) + var(--safe-right))
+    calc(var(--space-5) + var(--safe-bottom)) calc(var(--space-4) + var(--safe-left));
+}
+
+.error-boundary-card {
+  width: 100%;
+  max-width: 380px;
+  margin: auto;
   text-align: center;
   background: var(--surface);
-  border: 0.5px solid var(--err-border);
+  border: 1px solid var(--err-border);
   border-radius: var(--radius-lg);
+  padding: 26px var(--space-5);
+  box-shadow: var(--shadow-card);
+  animation: auth-rise var(--motion-gentle) var(--ease-out-soft) both;
 }
 
-.error-boundary h2 {
-  font-size: var(--text-lg);
-  font-weight: normal;
-  color: var(--err-text);
-  margin-bottom: var(--space-3);
+@media (prefers-reduced-motion: reduce) {
+  .error-boundary-card {
+    animation: none;
+  }
 }
 
-.error-boundary p {
-  color: var(--text-secondary);
-  font-size: var(--text-base);
-  margin-bottom: var(--space-5);
-  font-family: var(--font-mono);
+.error-boundary-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+@media (pointer: coarse) {
+  .error-boundary-actions .btn {
+    min-height: 44px;
+  }
 }
 
 .tooltip-img-fallback {

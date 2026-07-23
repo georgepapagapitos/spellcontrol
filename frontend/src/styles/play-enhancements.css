@@ -496,10 +496,13 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+ * `.game-board-undo-btn` sits directly on the always-dark board (its own
+ * near-black fill) — white ring, not accent. `.play-history-rematch` lives
+ * in the themed History tab, so it correctly keeps the accent ring. */
 .game-board-undo-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 .play-history-rematch:focus-visible {
   outline: 2px solid var(--accent);

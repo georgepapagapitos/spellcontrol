@@ -208,7 +208,7 @@ export function PodsIndexPage() {
                         disabled={busyIds.has(pod.id)}
                         aria-label={`Accept invite to ${pod.name}`}
                       >
-                        {busyIds.has(pod.id) ? '…' : 'Accept'}
+                        {busyIds.has(pod.id) ? 'Accepting…' : 'Accept'}
                       </button>
                       <button
                         type="button"

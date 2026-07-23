@@ -391,8 +391,10 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+ * Always-dark player-panel surface — white ring per STYLE_GUIDE, not --accent
+ * (a guild accent can read poorly on the near-black panel). */
 .pp-counter-chip:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
