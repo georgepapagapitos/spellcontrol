@@ -6,6 +6,7 @@ import {
   computeEffectiveNonBasicLandCount,
   isDefaultLandCount,
   DEFAULT_LAND_COUNT,
+  karstenAppliesToFormat,
 } from './targetCounts';
 import { Archetype } from '@/deck-builder/types';
 import type { Customization, EDHRECCommanderStats } from '@/deck-builder/types';
@@ -335,5 +336,19 @@ describe('computeEffectiveNonBasicLandCount', () => {
     // nonBasicLandCount (isDefaultLandCount requires ===15) — this call
     // models that guaranteed-false case for a user's explicit 25.
     expect(computeEffectiveNonBasicLandCount(25, false, 43, 37, 1)).toBe(25);
+  });
+});
+
+describe('karstenAppliesToFormat', () => {
+  it('applies to 99-card commander-like decks (Commander, PDH)', () => {
+    expect(karstenAppliesToFormat(99)).toBe(true);
+  });
+
+  it('never applies to a 60-card constructed deck — the [32,40] clamp is commander-sized', () => {
+    expect(karstenAppliesToFormat(60)).toBe(false);
+  });
+
+  it('never applies to a 40-card limited deck', () => {
+    expect(karstenAppliesToFormat(40)).toBe(false);
   });
 });

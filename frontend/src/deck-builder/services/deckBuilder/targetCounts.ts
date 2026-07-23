@@ -46,6 +46,21 @@ export function isDefaultLandCount(customization: Customization): boolean {
   return customization.landCount === DEFAULT_LAND_COUNT && customization.nonBasicLandCount === 15;
 }
 
+/**
+ * Karsten's auto-tune (computeAutoLandCount below) is calibrated for 99-card
+ * Commander decks — its [32,40] clamp is meaningless for a 60-card
+ * constructed or 40-card limited deck (~22-26 / ~17 lands). Today the tune
+ * is reachable only when EDHREC data loaded, which is commander-page-sourced,
+ * so 60/40 generation never hits it in practice — but that's an accident of
+ * data flow, not a guarantee. This predicate makes the format gate explicit
+ * at the one call site (deckGenerator.ts) so a future non-commander path
+ * that happens to carry EDHREC-shaped data can't silently deliver a 32-land
+ * 60-card deck.
+ */
+export function karstenAppliesToFormat(format: number): boolean {
+  return format === 99;
+}
+
 // Karsten's land-count formula (Frank Karsten, "How Many Lands Do You Need
 // to Consistently Hit Your Land Drops", 2022) — a curve/ramp-driven linear
 // model, replacing the old hand-tuned archetype-delta heuristic. Coefficients

@@ -74,6 +74,7 @@ import {
   computeLandCountSizingAnchor,
   computeEffectiveNonBasicLandCount,
   isDefaultLandCount,
+  karstenAppliesToFormat,
   DEFAULT_LAND_COUNT,
 } from './targetCounts';
 import { applyArchetypeTypeFloor } from './curveUtils';
@@ -1625,7 +1626,11 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // baseline, matching typeTargetLandCount's own pre-existing default.
   let landCountSizingAnchor = DEFAULT_LAND_COUNT;
 
-  if (isDefaultLandCount(customization) && state.edhrecData) {
+  // karstenAppliesToFormat: the [32,40] Karsten band is commander-sized —
+  // explicit format gate so a non-99-card path with EDHREC-shaped data can
+  // never auto-tune into a 32-land 60-card deck (dormant hazard, see the
+  // predicate's doc in targetCounts.ts).
+  if (karstenAppliesToFormat(format) && isDefaultLandCount(customization) && state.edhrecData) {
     const plannedRampCount = dynamicRoleTargets.targets.ramp;
     const manaCurve = state.edhrecData.stats?.manaCurve ?? {};
     const curveTotal = Object.values(manaCurve).reduce((s, v) => s + v, 0);
