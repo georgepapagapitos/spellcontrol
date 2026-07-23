@@ -102,14 +102,19 @@ interface RawEDHRECCard {
   num_decks?: number;
   potential_decks?: number;
   synergy?: number;
-  prices?: Record<string, { price: number }>;
   image_uris?: Array<{ normal: string; art_crop?: string }>;
   color_identity?: string[];
   // Note: cmc and primary_type are NOT available in cardlist cards
   // They must be fetched from Scryfall when converting cards
   cmc?: number;
-  salt?: number;
-  type_line?: string; // Sometimes present in EDHREC data
+  // 2026-07-23 (E126): salt, prices, and type_line were dropped from cardlist
+  // cardviews in the same schema drift as `inclusion` (see 2026-07 note
+  // above) — confirmed via a fresh live curl of a commander page: 0 of 292
+  // sampled cardviews across all 13 tags carried any of the three. Removed
+  // as permanently-dead fields rather than kept speculatively; re-add with
+  // fresh verification if EDHREC ever restores them. (Per-card salt now
+  // lives only on the dedicated /pages/top/salt.json page — see
+  // fetchSaltIndex below.)
 }
 
 interface RawCardList {
@@ -292,22 +297,13 @@ function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
   const potentialDecks = raw.potential_decks || 1;
   const inclusionPercent = potentialDecks > 0 ? (inclusionCount / potentialDecks) * 100 : 0;
 
-  // Derive primary_type from the cardlist tag if available
+  // Derive primary_type from the cardlist tag if available.
+  // (2026-07-23, E126: the old type_line fallback for an Unknown tag was
+  // removed — cardlist cardviews never carry type_line, confirmed live, so
+  // the branch never ran. Untyped tags now stay 'Unknown' and are resolved
+  // by the knownTypes backfill in parseCardlists below.)
   const tagLower = tagHint?.toLowerCase() || '';
-  let primaryType = TAG_TYPE_MAP[tagLower] ?? 'Unknown';
-
-  // Fallback: derive from type_line if EDHREC provided it
-  if (primaryType === 'Unknown' && raw.type_line) {
-    const tl = raw.type_line.split('—')[0].split('//')[0].toLowerCase();
-    if (tl.includes('creature')) primaryType = 'Creature';
-    else if (tl.includes('instant')) primaryType = 'Instant';
-    else if (tl.includes('sorcery')) primaryType = 'Sorcery';
-    else if (tl.includes('artifact')) primaryType = 'Artifact';
-    else if (tl.includes('enchantment')) primaryType = 'Enchantment';
-    else if (tl.includes('planeswalker')) primaryType = 'Planeswalker';
-    else if (tl.includes('land')) primaryType = 'Land';
-    else if (tl.includes('battle')) primaryType = 'Battle';
-  }
+  const primaryType = TAG_TYPE_MAP[tagLower] ?? 'Unknown';
 
   // Check if this card is from a high-priority synergy list
   const isThemeSynergyCard = THEME_SYNERGY_TAGS.has(tagLower);
@@ -324,16 +320,9 @@ function parseCard(raw: RawEDHRECCard, tagHint?: string): EDHRECCard {
     isThemeSynergyCard,
     isNewCard,
     isGameChanger,
-    prices: raw.prices
-      ? {
-          tcgplayer: raw.prices.tcgplayer,
-          cardkingdom: raw.prices.cardkingdom,
-        }
-      : undefined,
     image_uris: raw.image_uris,
     color_identity: raw.color_identity,
     cmc: raw.cmc, // Note: will be undefined from EDHREC, fetched from Scryfall later
-    salt: raw.salt,
   };
 }
 

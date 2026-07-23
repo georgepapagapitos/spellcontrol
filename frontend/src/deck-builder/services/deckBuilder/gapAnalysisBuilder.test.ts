@@ -116,19 +116,17 @@ describe('buildGapAnalysis', () => {
     expect(result[2].roleLabel).toBeUndefined();
   });
 
-  it('carries price, synergy, cmc, type, and image from the EDHREC card', () => {
+  it('carries synergy, cmc, type, and image from the EDHREC card', () => {
     const data = edhrec([
       card('Sol Ring', 90, {
         synergy: 0.42,
         cmc: 1,
         primary_type: 'Artifact',
-        prices: { tcgplayer: { price: 1.23 } },
         image_uris: [{ normal: 'https://img/sol-ring.jpg' }],
       }),
     ]);
     const [g] = buildGapAnalysis(data, []);
     expect(g).toMatchObject({
-      price: '1.23',
       synergy: 0.42,
       cmc: 1,
       typeLine: 'Artifact',
@@ -136,13 +134,12 @@ describe('buildGapAnalysis', () => {
     });
   });
 
-  it('falls back to cardkingdom price, then null', () => {
-    const data = edhrec([
-      card('CK Only', 90, { prices: { cardkingdom: { price: 2.5 } } }),
-      card('No Price', 80),
-    ]);
+  // E126: EDHREC cardlist cardviews never carry per-card prices (confirmed
+  // live, 2026-07-23) — price is permanently null, not just null-when-absent.
+  it('price is always null — EDHREC cardlists never carry per-card prices', () => {
+    const data = edhrec([card('Sol Ring', 90), card('No Price', 80)]);
     const result = buildGapAnalysis(data, []);
-    expect(result.find((c) => c.name === 'CK Only')?.price).toBe('2.50');
+    expect(result.find((c) => c.name === 'Sol Ring')?.price).toBeNull();
     expect(result.find((c) => c.name === 'No Price')?.price).toBeNull();
   });
 
