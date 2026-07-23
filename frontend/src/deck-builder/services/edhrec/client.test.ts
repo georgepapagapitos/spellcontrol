@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isPoolTooThin,
   parseEdhrecResponse,
+  parseSaltIndex,
   MIN_HEALTHY_POOL_DECKS,
   MIN_HEALTHY_POOL_CARDS,
 } from './client';
@@ -201,5 +202,40 @@ describe('parseEdhrecResponse — 2026-07-23 salt/prices/type_line drift (E126)'
     expect(card.num_decks).toBe(14148);
     expect(card.inclusion).toBeCloseTo((14148 / 42853) * 100, 5);
     expect(card.synergy).toBeCloseTo(0.12469872061553255, 10);
+  });
+});
+
+describe('parseSaltIndex — E126 salt-gate reactivation (2026-07-23)', () => {
+  // Real cardviews from a live curl of json.edhrec.com/pages/top/salt.json
+  // (2026-07-23): salt is a DIRECT numeric field; no `label` exists anywhere
+  // in the page's 100 cardviews. The old parser regexed `label` only, so it
+  // returned an empty Map on every live fetch — the silently-inert salt gate.
+  const liveShape = [
+    { name: 'Stasis', salt: 3.0572033898305087 },
+    { name: 'Winter Orb', salt: 2.961818181818181 },
+    { name: 'Rhystic Study', salt: 2.729052466718872 },
+  ];
+
+  it('reads the live schema: direct numeric salt fields', () => {
+    const map = parseSaltIndex(liveShape);
+    expect(map.size).toBe(3);
+    expect(map.get('Stasis')).toBeCloseTo(3.0572, 3);
+    expect(map.get('Rhystic Study')).toBeCloseTo(2.7291, 3);
+  });
+
+  it('still reads the legacy label schema as a fallback', () => {
+    const map = parseSaltIndex([{ name: 'Armageddon', label: 'Salt Score: 3.06\n16316 decks' }]);
+    expect(map.get('Armageddon')).toBeCloseTo(3.06, 2);
+  });
+
+  it('prefers the direct field, ignores non-finite salt, skips unparseable rows', () => {
+    const map = parseSaltIndex([
+      { name: 'Both', salt: 2.5, label: 'Salt Score: 9.99\n1 decks' },
+      { name: 'BadSalt', salt: Number.NaN, label: 'Salt Score: 1.25\n2 decks' },
+      { name: 'Neither' },
+    ]);
+    expect(map.get('Both')).toBe(2.5);
+    expect(map.get('BadSalt')).toBeCloseTo(1.25, 2); // falls through to label
+    expect(map.has('Neither')).toBe(false);
   });
 });
