@@ -561,7 +561,13 @@ const energy: SynergyAxis = {
       : null;
   },
   payoff(card) {
-    return /pay (?:any amount of |[a-z]+ )?\{e\}/.test(card.oracle) ? 'spends energy' : null;
+    if (/pay (?:any amount of |[a-z]+ )?\{e\}/.test(card.oracle)) return 'spends energy';
+    // "Whenever you get one or more {E}" (Territorial Gorger, Fabrication
+    // Module) rewards BANKING energy rather than spending it — a distinct
+    // payoff shape from the pay-{E} branch above.
+    if (/whenever you get (?:one or more |that many |[a-z]+ )?\{e\}/.test(card.oracle))
+      return 'rewards banking energy';
+    return null;
   },
 };
 

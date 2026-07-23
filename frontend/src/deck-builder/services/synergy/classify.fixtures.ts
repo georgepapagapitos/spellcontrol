@@ -3227,4 +3227,14 @@ export const CORPUS: CorpusCard[] = [
     // axis's own "casts from your graveyard" payoff shape.
     expect: { producers: ['graveyard'], payoffs: ['cycling', 'graveyard'] },
   },
+
+  // ── E139: energy recall — "whenever you get one or more {E}" payoff ────────
+  {
+    name: 'Territorial Gorger',
+    type_line: 'Creature — Gremlin',
+    keywords: ['Trample'],
+    oracle_text:
+      'Trample\nWhenever you get one or more {E} (energy counters), this creature gets +2/+2 until end of turn.',
+    expect: { producers: [], payoffs: ['energy'] },
+  },
 ];
