@@ -412,15 +412,22 @@ const superfriends: SynergyAxis = {
       return 'scales with your planeswalkers';
     // "planeswalkers you control" — but NOT the incidental "creature or
     // planeswalker you control" phrasing (aristocrats/clones: Cruel Celebrant,
-    // Spark Double), nor DEFENSIVE mentions where the walker is just protected
+    // Spark Double), DEFENSIVE mentions where the walker is just protected
     // alongside you ("attack you or planeswalkers you control" — Archangel of
-    // Tithes, Soul Snare, Comeuppance). Neither cares about walkers as an engine.
+    // Tithes, Soul Snare, Comeuppance), or a PRODUCER-shaped grant wearing the
+    // same phrase: pure protection (Shalai, Deification's "have hexproof" /
+    // "can't be the target") or loyalty-counter growth (Oath of Gideon's
+    // "enters with an additional loyalty counter", which the producer already
+    // credits — tagging it as payoff too double-buckets the same text). None of
+    // these care about walkers as an engine; they feed or shield it.
+    const PW_PRODUCER_SHAPED = /hexproof|indestructible|can'?t be the targets?|enters? with[^.]*additional loyalty/;
     if (
       /planeswalkers? you control/.test(card.oracle) &&
       !/creatures? (?:and|or) planeswalkers? you control/.test(card.oracle) &&
       !/(?:you or|you and|attacking you|attack you|dealt to you)[^.]*planeswalkers? you control/.test(
         card.oracle
-      )
+      ) &&
+      !PW_PRODUCER_SHAPED.test(card.oracle)
     )
       return 'cares about your planeswalkers';
     if (/loyalty abilit/.test(card.oracle)) return 'rewards loyalty activations';

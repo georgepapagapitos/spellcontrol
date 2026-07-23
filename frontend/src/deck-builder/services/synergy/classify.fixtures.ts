@@ -789,7 +789,10 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When Oath of Gideon enters, create two 1/1 white Kor Ally creature tokens.\nEach planeswalker you control enters with an additional loyalty counter on it.',
-    expect: { producers: ['tokens', 'superfriends'], payoffs: ['superfriends'] },
+    // E139: loyalty-counter growth is the SAME text the producer already
+    // credits ("adds loyalty counters") — tagging it as payoff too was
+    // double-bucketing a producer-shaped grant, not rewarding the engine.
+    expect: { producers: ['tokens', 'superfriends'], payoffs: [] },
   },
   {
     name: 'Call the Gatewatch',
@@ -3287,5 +3290,28 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'Mounts and Vehicles you control get +1/+1.\nThis creature saddles Mounts and crews Vehicles as though its power were 2 greater.',
     expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
+  },
+
+  // ── E139: superfriends payoff cleanup — protection + loyalty-growth double-bucket ─
+  {
+    name: 'Shalai, Voice of Plenty',
+    type_line: 'Legendary Creature — Angel',
+    keywords: ['Flying'],
+    oracle_text:
+      'Flying\nYou, planeswalkers you control, and other creatures you control have hexproof.\n{4}{G}{G}: Put a +1/+1 counter on each creature you control.',
+    // The point of this fixture is the ABSENCE of a superfriends payoff (pure
+    // hexproof protection, opposite word order from the existing "creature(s)
+    // and/or planeswalker(s)" guard) — it's still a genuine counters producer
+    // and, via `scalesWithCreatures`' "+1/+1 counter on each creature", a
+    // tokens payoff (go-wide scaling), both unrelated to superfriends.
+    expect: { producers: ['counters'], payoffs: ['tokens'] },
+  },
+  {
+    name: 'Deification',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'As this enchantment enters, choose a planeswalker type.\nPlaneswalkers you control of the chosen type have hexproof.\nAs long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters being removed from it, prevent that damage instead.',
+    expect: { producers: [], payoffs: [] },
   },
 ];
