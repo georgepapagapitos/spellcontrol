@@ -1527,6 +1527,25 @@ lands are excluded entirely (never shown as a percentage or "Off-meta") since
 the generator never scores them for EDHREC inclusion in the first place —
 that's "not applicable", not "no signal".
 
+## Invalidating-status cue (cancelled, expired, …)
+
+When a status means "this no longer applies" (a cancelled game night; a
+future lapsed/expired subject), the cue must survive a passing glance, not
+just a close read: **a filled tone-colored badge** — background + border +
+text all from the same status token trio (`--err-bg`/`--err-border`/
+`--err-text` for "cancelled") — never just an outline chip, which reads at
+the same weight as a neutral label, **plus a strike-through on the subject
+text it invalidates** (the card/page title, and any "when" line whose time no
+longer matters). **Don't dim the badge along with the rest of the card** — a
+blanket `opacity` on the whole surface mutes the one element that most needs
+to stay loud; mute the invalidated text directly (`--text-secondary`/
+`--text-muted` + `text-decoration: line-through`) and leave the badge at full
+strength instead. Reference: `.game-night-cancelled-pill` +
+`.game-night-card.is-cancelled .game-night-card-title` (GameNights.css), and
+the mirrored `.game-night-cancelled-badge` + `.shared-view-title.is-cancelled`
+on the public `/gn/:token` view (GameNightView.css) — same vocabulary on both
+the authed card and the public detail page.
+
 ## Bars & meters
 
 Every horizontal proportional bar goes through the shared

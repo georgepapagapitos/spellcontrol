@@ -38,6 +38,14 @@ describe('isFirstRunExempt', () => {
     ['/auth/choose-username', true],
     ['/oauth/callback', true],
     ['/s/abc123', true],
+    // Regression: /u/:username, /d/:slug, /gn/:token, and /gn/s/:token are
+    // the same "a stranger's first contact" class of link as /s/:token (all
+    // five are public share-link routes in App.tsx) — a never-visited guest
+    // tapping any of them must land on the content, not get bounced to '/'.
+    ['/u/alice', true],
+    ['/d/some-deck-slug', true],
+    ['/gn/abc123', true],
+    ['/gn/s/abc123', true],
     ['/collection', false],
     ['/decks', false],
     ['/', true],
@@ -87,6 +95,26 @@ describe('useFirstRunGate', () => {
   it('keeps shared-link routes reachable for a first-run guest', () => {
     const { getByTestId } = render(<Harness status="guest" initialPath="/s/token-xyz" />);
     expect(getByTestId('path').textContent).toBe('/s/token-xyz');
+  });
+
+  it('keeps a game-night invite link reachable for a first-run guest', () => {
+    const { getByTestId } = render(<Harness status="guest" initialPath="/gn/night-token" />);
+    expect(getByTestId('path').textContent).toBe('/gn/night-token');
+  });
+
+  it('keeps a game-night series link reachable for a first-run guest', () => {
+    const { getByTestId } = render(<Harness status="guest" initialPath="/gn/s/series-token" />);
+    expect(getByTestId('path').textContent).toBe('/gn/s/series-token');
+  });
+
+  it('keeps a public profile link reachable for a first-run guest', () => {
+    const { getByTestId } = render(<Harness status="guest" initialPath="/u/alice" />);
+    expect(getByTestId('path').textContent).toBe('/u/alice');
+  });
+
+  it('keeps a public deck link reachable for a first-run guest', () => {
+    const { getByTestId } = render(<Harness status="guest" initialPath="/d/some-deck-slug" />);
+    expect(getByTestId('path').textContent).toBe('/d/some-deck-slug');
   });
 
   it('keeps the OAuth callback reachable for a first-run guest', () => {
