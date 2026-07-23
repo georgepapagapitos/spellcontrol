@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ScryfallCard } from '@/deck-builder/types';
-import { isUnsupportedSynergyPayoff } from './synergyDependency';
+import { isUnsupportedSynergyPayoff, typeLineProducerAxes } from './synergyDependency';
 
 function card(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -135,5 +135,138 @@ describe('isUnsupportedSynergyPayoff', () => {
     expect(isUnsupportedSynergyPayoff(payoff, [])).toBe(true);
     expect(isUnsupportedSynergyPayoff(payoff, [marchesa, producer])).toBe(true);
     expect(isUnsupportedSynergyPayoff(payoff, [marchesa, producer, secondProducer])).toBe(false);
+  });
+});
+
+describe('typeLineProducerAxes (E135)', () => {
+  it('reads a plain artifact (mana rock) as an artifacts producer only', () => {
+    const solRing = card({
+      name: 'Sol Ring',
+      type_line: 'Artifact',
+      cmc: 1,
+      oracle_text: '{T}: Add {C}{C}.',
+    });
+    expect(typeLineProducerAxes(solRing)).toEqual(['artifacts']);
+  });
+
+  it('reads Equipment as both the broad artifacts axis and its own narrower one', () => {
+    const bonesplitter = card({
+      name: 'Bonesplitter',
+      type_line: 'Artifact — Equipment',
+      cmc: 1,
+      oracle_text: 'Equipped creature gets +2/+0.\nEquip {1}',
+    });
+    expect(typeLineProducerAxes(bonesplitter)).toEqual(['artifacts', 'equipment']);
+  });
+
+  it('reads a Vehicle as both the broad artifacts axis and its own narrower one', () => {
+    const copter = card({
+      name: "Smuggler's Copter",
+      type_line: 'Artifact — Vehicle',
+      cmc: 2,
+      oracle_text: 'Flying\nCrew 1',
+    });
+    expect(typeLineProducerAxes(copter)).toEqual(['artifacts', 'vehicles']);
+  });
+
+  it('reads nothing off a plain creature', () => {
+    const bear = card({ name: 'Grizzly Bears', type_line: 'Creature — Bear' });
+    expect(typeLineProducerAxes(bear)).toEqual([]);
+  });
+});
+
+describe('isUnsupportedSynergyPayoff — E135 type-line density support', () => {
+  // Real mana rocks: none of their oracle text matches axes.ts's TEXT-based
+  // `artifacts` producer predicate (no token-making language) — before the
+  // fix, a rock-heavy deck registered zero artifacts-axis support.
+  const solRing = card({
+    name: 'Sol Ring',
+    type_line: 'Artifact',
+    cmc: 1,
+    oracle_text: '{T}: Add {C}{C}.',
+  });
+  const mindStone = card({
+    name: 'Mind Stone',
+    type_line: 'Artifact',
+    cmc: 2,
+    oracle_text: '{T}: Add {C}.\n{1}, {T}, Sacrifice Mind Stone: Draw a card.',
+  });
+  const arcaneSignet = card({
+    name: 'Arcane Signet',
+    type_line: 'Artifact',
+    cmc: 2,
+    oracle_text: "{T}: Add one mana of any color in your commander's color identity.",
+  });
+  const fellwarStone = card({
+    name: 'Fellwar Stone',
+    type_line: 'Artifact',
+    cmc: 2,
+    oracle_text: '{T}: Add one mana of any color that a land an opponent controls could produce.',
+  });
+  // Equipment already classifies under the narrower `equipment` axis
+  // (axes.ts checks type_line directly) — but not `artifacts`, pre-fix.
+  const bonesplitter = card({
+    name: 'Bonesplitter',
+    type_line: 'Artifact — Equipment',
+    cmc: 1,
+    oracle_text: 'Equipped creature gets +2/+0.\nEquip {1}',
+  });
+  const lightningGreaves = card({
+    name: 'Lightning Greaves',
+    type_line: 'Legendary Artifact — Equipment',
+    cmc: 2,
+    oracle_text: 'Equipped creature has haste and shroud.\nEquip {0}',
+  });
+  const manaRocksAndEquipment = [
+    solRing,
+    mindStone,
+    arcaneSignet,
+    fellwarStone,
+    bonesplitter,
+    lightningGreaves,
+  ];
+
+  // Real metalcraft payoff — already classifies as an `artifacts` PAYOFF via
+  // axes.ts's existing keyword/text check (payoff classification is
+  // untouched by E135); only the SUPPORT side was broken.
+  const etchedChampion = card({
+    name: 'Etched Champion',
+    type_line: 'Artifact Creature — Golem',
+    cmc: 3,
+    oracle_text:
+      'Metalcraft — Etched Champion has protection from all colors as long as you control three or more artifacts.',
+    keywords: ['Metalcraft'],
+  });
+
+  it('counts raw artifact permanents (mana rocks + equipment) as artifacts support', () => {
+    // No commander in this pool — pure picked-cards density check.
+    expect(isUnsupportedSynergyPayoff(etchedChampion, manaRocksAndEquipment, 0)).toBe(false);
+  });
+
+  it('a raw Equipment/Vehicle-only pool (no plain artifacts) still supports the artifacts axis', () => {
+    const smugglersCopter = card({
+      name: "Smuggler's Copter",
+      type_line: 'Artifact — Vehicle',
+      cmc: 2,
+      oracle_text:
+        'Flying\nWhenever Smuggler’s Copter attacks or blocks, you may draw a card. If you do, discard a card.\nCrew 1',
+    });
+    expect(
+      isUnsupportedSynergyPayoff(
+        etchedChampion,
+        [bonesplitter, lightningGreaves, smugglersCopter],
+        0
+      )
+    ).toBe(false);
+  });
+
+  it('a creature-only support pool still reads unsupported (no over-counting off type line)', () => {
+    const grizzlyBears = card({ name: 'Grizzly Bears', type_line: 'Creature — Bear' });
+    const ragingGoblin = card({ name: 'Raging Goblin', type_line: 'Creature — Goblin Berserker' });
+    expect(isUnsupportedSynergyPayoff(etchedChampion, [grizzlyBears, ragingGoblin], 0)).toBe(true);
+  });
+
+  it('an empty support pool still reads unsupported', () => {
+    expect(isUnsupportedSynergyPayoff(etchedChampion, [], 0)).toBe(true);
   });
 });
