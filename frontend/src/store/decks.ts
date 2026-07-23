@@ -174,6 +174,20 @@ export interface Deck {
    */
   winConditions?: WinConditionAnalysis;
   /**
+   * Card names the user has manually marked as a win condition (E125) — a
+   * narrow, single-purpose tag, distinct from the retired general card-tag
+   * system (`DeckCard.tags`, #1134) and NOT a reopening of it: this stays the
+   * one user-facing deck tag pending a fresh product decision. Cross-links
+   * with the engine display-only — `WinConditionPanel` marks matching
+   * evidence "tagged by you" and lists anything the live analysis doesn't
+   * currently surface in its own small section; never fed back into
+   * `detectWinConditions`, so it can't move the engine's own scoring. Set
+   * only via the panel's per-card toggle (user-confirmed, never automatic).
+   * Absent = no tags. Additive, whole-row-synced like `primer` — no
+   * per-field whitelist exists for decks (see `persistKind` in lib/sync.ts).
+   */
+  winConTags?: string[];
+  /**
    * How the generated deck measured up to its build intent (fill + flag).
    * Set once at generation; generated decks only. See {@link BuildReport}.
    */
