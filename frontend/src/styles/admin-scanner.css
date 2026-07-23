@@ -692,6 +692,17 @@
 .scanner-condition-toggle:active {
   transform: scale(0.96);
 }
+/* a11y — these are real editors (E87), not display chips, and had no
+   focus-visible ring at all (STYLE_GUIDE § Accessibility: every interactive
+   element needs one). White-ish ring to hold contrast against the always-dark
+   scanner overlay, mirroring the game-board white-ring convention. */
+.scanner-card-panel-finish:focus-visible,
+.scanner-finish-toggle:focus-visible,
+.scanner-card-panel-condition:focus-visible,
+.scanner-condition-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
 /* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the compact chip padding
    above reads well at desktop density but undershoots 44px on a touch
    screen. min-width matters here specifically because condition's 2-letter
@@ -771,6 +782,15 @@
 .scanner-error-actions {
   display: flex;
   gap: 0.6rem;
+}
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — `.btn` is desktop-density
+   by default (~32-40px measured), under the 44px touch floor. This is the
+   only exit from a hard error state, so it must be reliably tappable. */
+@media (pointer: coarse) {
+  .scanner-error-actions .btn,
+  .scanner-starting .btn {
+    min-height: 44px;
+  }
 }
 
 /* Starting state — full-bleed dark cover with a spinner while the native
@@ -1368,6 +1388,11 @@
 .scanner-sheet-footer {
   display: flex;
   align-items: center;
+  /* Three buttons at flex:1 can't shrink below their nowrap text (STYLE_GUIDE
+     "Toolbars & action rows" hard constraint) — "Continue scanning" alone
+     overflows a 320-360px sheet. Wrap so the primary "Add N cards" CTA drops
+     to its own full-width row instead of clipping. */
+  flex-wrap: wrap;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1375,6 +1400,11 @@
 .scanner-sheet-footer .btn {
   flex: 1;
   justify-content: center;
+}
+@media (pointer: coarse) {
+  .scanner-sheet-footer .btn {
+    min-height: 44px;
+  }
 }
 
 /* --- Lists: per-list entries view ---------------------------------------

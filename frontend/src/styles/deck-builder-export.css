@@ -103,6 +103,12 @@
   align-items: center;
   gap: 0.4rem;
 }
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — Download/Copy/Share. */
+@media (pointer: coarse) {
+  .export-dialog-actions .btn {
+    min-height: 44px;
+  }
+}
 
 .export-dialog-preview {
   flex: 1;

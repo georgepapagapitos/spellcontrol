@@ -30,6 +30,14 @@
   align-items: center;
   gap: var(--space-2);
 }
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive) — the Retry action (E72:
+   a retryable outage bucket, so this button matters). `.btn-link` below
+   already has its own 44px rule; `.btn-primary` here does not. */
+@media (pointer: coarse) {
+  .fetch-error-actions .btn-primary {
+    min-height: 44px;
+  }
+}
 
 .btn-link {
   background: none;
