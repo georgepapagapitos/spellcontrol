@@ -303,15 +303,38 @@ const equipment: SynergyAxis = {
   key: 'equipment',
   label: 'Equipment / Voltron',
   producer(card) {
-    // The equipment cards themselves are the engine; the payoffs care about them.
+    // The equipment cards themselves are the engine; tutoring/recurring them
+    // DEPLOYS the engine (mirrors how auras/superfriends treat their own tutors
+    // as producers, not payoffs), and reducing the EQUIP activation cost is the
+    // same enabling shape as spellslinger/enchantress/auras' "X you cast cost
+    // less" producers — cheaper to run, not a reward.
     if (card.typeLine.includes('equipment') || has(card, 'equip')) return 'equipment';
+    if (/(?:search|return)[^.]*equipment cards?/.test(card.oracle))
+      return 'tutors/recurs equipment';
+    if (/equip abilit(?:y|ies)[^.]*costs? [^.]*less to activate/.test(card.oracle))
+      return 'reduces equip cost';
     return null;
   },
   payoff(card) {
     if (/whenever you cast[^.]*equipment/.test(card.oracle)) return 'pays off casting equipment';
-    if (/whenever an equipment[^.]*enters/.test(card.oracle)) return 'triggers on your equipment';
-    if (/equipment you control/.test(card.oracle)) return 'cares about your equipment';
-    if (/equipment card/.test(card.oracle)) return 'tutors/cares about equipment';
+    // Affinity for Equipment scales this spell's cost with your Equipment count
+    // — the same "threshold/cost payoff" shape the artifacts axis already grants
+    // Affinity for artifacts.
+    if (has(card, 'affinity') && /affinity for equipment/.test(card.oracle))
+      return 'equipment threshold/cost payoff';
+    if (/(?:for each|equal to the number of) equipment/.test(card.oracle))
+      return 'scales with your equipment';
+    for (const clause of splitClauses(card.oracle)) {
+      // An ETB trigger only counts as a reward when it does something FOR you —
+      // "whenever an Equipment enters, you may attach it" is a free-attach
+      // ENABLER (producer-shaped), not a reward, and was the "attach misfiled as
+      // payoff" root cause.
+      if (
+        /whenever an equipment[^.]*enters/.test(clause) &&
+        !/you may attach|attach (?:it|that equipment)/.test(clause)
+      )
+        return 'triggers on your equipment';
+    }
     return null;
   },
 };

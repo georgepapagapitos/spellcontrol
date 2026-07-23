@@ -620,7 +620,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When this creature enters, you may search your library for an Equipment card, reveal it, put it into your hand, then shuffle.\n{1}{W}, {T}: You may put an Equipment card from your hand onto the battlefield.',
-    expect: { producers: [], payoffs: ['equipment'] },
+    // E139: tutoring DEPLOYS the equipment engine (producer-shaped), it doesn't
+    // reward already having one — re-bucketed from payoff to producer.
+    expect: { producers: ['equipment'], payoffs: [] },
   },
   {
     name: "Sigarda's Aid",
@@ -628,7 +630,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'You may cast Aura and Equipment spells as though they had flash.\nWhenever an Equipment you control enters, you may attach it to target creature you control.',
-    expect: { producers: [], payoffs: ['equipment'] },
+    // E139: a free-attach ETB is a producer-shaped ENABLER, not a reward for
+    // having equipment — the "attach" exclusion drops this from payoff.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Batterskull',
@@ -3236,5 +3240,31 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'Trample\nWhenever you get one or more {E} (energy counters), this creature gets +2/+2 until end of turn.',
     expect: { producers: [], payoffs: ['energy'] },
+  },
+
+  // ── E139: equipment bucket-confusion cleanup + recall widening ─────────────
+  // (Stoneforge Mystic and Sigarda's Aid already exercise the tutor/attach
+  // re-bucketing above, in their original entries — no duplicate needed here.)
+  {
+    name: 'Armed Response',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text: 'Armed Response deals damage to target attacking creature equal to the number of Equipment you control.',
+    expect: { producers: [], payoffs: ['equipment'] },
+  },
+  {
+    name: 'Bureau Headmaster',
+    type_line: 'Creature — Human Assassin',
+    keywords: [],
+    oracle_text:
+      'Equipment spells you cast cost {1} less to cast.\nEquip abilities you activate cost {1} less to activate.',
+    expect: { producers: ['equipment'], payoffs: [] },
+  },
+  {
+    name: 'Oxidda Finisher',
+    type_line: 'Creature — Ogre Rebel',
+    keywords: ['Affinity', 'Trample'],
+    oracle_text: 'Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nTrample',
+    expect: { producers: [], payoffs: ['equipment'] },
   },
 ];
