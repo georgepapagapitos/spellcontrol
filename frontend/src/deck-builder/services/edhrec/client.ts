@@ -964,11 +964,31 @@ export function clearCommanderCache(): void {
 
 // --- Salt index ---
 // EDHREC's cardlist payloads don't carry per-card salt scores, but the
-// `top/salt.json` page exposes the top-100 saltiest cards with a `label` like
-// "Salt Score: 3.06\n16316 decks". We parse that into a name → salt map and
-// cache it for the session. Cards not in the top-100 are treated as ~0 salt.
+// `top/salt.json` page exposes the top-100 saltiest cards. Since the 2026-07
+// schema drift its cardviews carry salt as a direct numeric `salt` field
+// (live-verified 2026-07-23: {"name":"Stasis","salt":3.057...}); older
+// payloads carried it inside a `label` like "Salt Score: 3.06\n16316 decks".
+// We accept both — the label regex silently matching nothing was what left
+// the whole salt system (tolerance gate, embrace-salt boost, SaltiestPanel)
+// inert for months (E126). Cards not in the top-100 are treated as ~0 salt.
 
 let saltIndexPromise: Promise<Map<string, number>> | null = null;
+
+/** Pure parser for top/salt.json cardviews — exported for tests. */
+export function parseSaltIndex(
+  cardviews: Array<{ name: string; salt?: number; label?: string }>
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const c of cardviews) {
+    if (typeof c.salt === 'number' && Number.isFinite(c.salt)) {
+      out.set(c.name, c.salt);
+      continue;
+    }
+    const m = /Salt Score:\s*([\d.]+)/.exec(c.label ?? '');
+    if (m) out.set(c.name, parseFloat(m[1]));
+  }
+  return out;
+}
 
 export function fetchSaltIndex(): Promise<Map<string, number>> {
   if (saltIndexPromise) return saltIndexPromise;
@@ -980,12 +1000,7 @@ export function fetchSaltIndex(): Promise<Map<string, number>> {
     try {
       const raw = await edhrecFetch<RawEDHRECResponse>('/pages/top/salt.json');
       const cardviews = raw.container?.json_dict?.cardlists?.[0]?.cardviews ?? [];
-      const out = new Map<string, number>();
-      for (const c of cardviews as Array<{ name: string; label?: string }>) {
-        const m = /Salt Score:\s*([\d.]+)/.exec(c.label ?? '');
-        if (m) out.set(c.name, parseFloat(m[1]));
-      }
-      return out;
+      return parseSaltIndex(cardviews as Array<{ name: string; salt?: number; label?: string }>);
     } catch (err) {
       logger.warn('[EDHREC] Failed to fetch salt index:', err);
       saltIndexPromise = null; // allow retry next time
