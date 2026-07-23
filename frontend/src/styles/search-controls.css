@@ -84,7 +84,8 @@
 .search-pill-clear:focus-visible {
   background: var(--accent-light);
   color: var(--accent);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .search-pill-clear:hover {

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiUrl } from '../../lib/api-base';
 import { useCardThumb } from '../../lib/card-thumbs';
+import { EmptyStateMark } from '../shared/EmptyStateMark';
 
 interface RisingCommander {
   commanderKey: string;
@@ -235,6 +236,7 @@ export function TrendingRail({ enabled }: { enabled: boolean }) {
           Trending
         </h2>
         <div className="empty-state">
+          <EmptyStateMark />
           <p className="empty-state-tagline">Nothing trending yet.</p>
           <p className="empty-state-hint">Publish a deck to be the first commander on the board.</p>
         </div>
