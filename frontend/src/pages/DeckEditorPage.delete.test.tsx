@@ -133,6 +133,13 @@ vi.mock('../components/deck/DeckDisplay', () => ({
 vi.mock('../components/deck/DeckVisibilityChip', () => ({
   DeckVisibilityChip: () => null,
 }));
+// DeckPublishNudge (E150) pulls in the same ShareDialog tree as the chip
+// above, for the identical reason — none of these delete-flow tests navigate
+// here with promptVisibility router state, so it never actually renders, but
+// mock it anyway so the import itself can't reintroduce the fetch flake.
+vi.mock('../components/deck/DeckPublishNudge', () => ({
+  DeckPublishNudge: () => null,
+}));
 vi.mock('../components/deck/CardSearchPanel', () => ({
   CardSearchPanel: () => <div />,
 }));

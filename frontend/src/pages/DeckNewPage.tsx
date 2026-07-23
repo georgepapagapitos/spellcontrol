@@ -15,11 +15,7 @@ import { useGenerationTakeoverExit } from '../lib/use-generation-takeover-exit';
 import { useCollectionStore } from '../store/collection';
 import { useDecksStore } from '../store/decks';
 import { buildAllocationMap, pickCollectionCopy } from '../lib/allocations';
-import { useAuth } from '../store/auth';
-import { toast } from '../store/toasts';
-import { updateProfile } from '../lib/auth-api';
-import { isOnline, onSyncedChange } from '../lib/sync';
-import { DisplayNameRequiredError, publicationUrl, publishDeck } from '../lib/publications-client';
+import { usePublishOnCreate, type PublishOutcome } from '../lib/use-publish-on-create';
 import type { ScryfallCard, DeckFormat, EDHRECTheme } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 
@@ -85,95 +81,32 @@ export function DeckNewPage() {
   const isPdh = selectedFormat === 'paupercommander';
 
   // ── Visibility (creation-time choice) ──────────────────────────────────
-  const isGuest = useAuth((s) => s.status === 'guest');
-  const [, forceOnlineTick] = useState(0);
-  useEffect(() => onSyncedChange(() => forceOnlineTick((n) => n + 1)), []);
-  const online = isOnline();
-  const canPublish = !isGuest && online;
-  const publicDisabledReason = isGuest
-    ? 'Sign in to publish.'
-    : !online
-      ? "You're offline — reconnect to publish."
-      : null;
-
-  const [visibility, setVisibility] = useState<'private' | 'public'>('private');
-  // Never leave Public selected-but-disabled (e.g. connectivity drops after
-  // it was chosen) — snap back to Private during render (React's "adjusting
-  // state when a value changes" pattern, not an effect: this is a guarded,
-  // terminating setState call during render, so react-hooks/set-state-in-effect
-  // doesn't apply — there's no effect here to begin with).
-  if (!canPublish && visibility === 'public') {
-    setVisibility('private');
-  }
-
-  const [publishing, setPublishing] = useState(false);
-  const [needsDisplayName, setNeedsDisplayName] = useState(false);
-  const [displayNameDraft, setDisplayNameDraft] = useState('');
-  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
-
-  const announcePublished = (slug: string) => {
-    toast.show({
-      message: `Published — anyone can view it at ${publicationUrl(slug)}`,
-      tone: 'success',
-    });
-  };
-
-  /** Publish a just-created deck. On display_name_required, hold off
-   *  navigating and show the same inline set-name substep ShareDialog uses;
-   *  any other failure just toasts a warning — the deck already exists, so
-   *  a failed publish never blocks getting to the editor. */
-  const publishAfterCreate = useCallback(
-    async (id: string) => {
-      setPublishing(true);
-      try {
-        const pub = await publishDeck(id);
-        announcePublished(pub.slug);
-        navigate(`/decks/${id}`);
-      } catch (err) {
-        if (err instanceof DisplayNameRequiredError) {
-          setPendingPublishId(id);
-          setNeedsDisplayName(true);
-        } else {
-          toast.show({
-            message: err instanceof Error ? err.message : 'Failed to publish deck.',
-            tone: 'warn',
-          });
-          navigate(`/decks/${id}`);
-        }
-      } finally {
-        setPublishing(false);
-      }
+  // The fieldset/network/display-name-substep logic itself is shared with
+  // ImportDeckDialog's single-deck path (E150) — see usePublishOnCreate's
+  // own doc comment for why it hands off rather than firing the seal here:
+  // this page navigates away the instant a publish resolves.
+  const onPublishSettled = useCallback(
+    (id: string, outcome?: PublishOutcome) => {
+      navigate(
+        `/decks/${id}`,
+        outcome ? { state: { justPublished: outcome.isFirstPublish } } : undefined
+      );
     },
     [navigate]
   );
-
-  const handleSaveDisplayNameAndPublish = async () => {
-    const trimmed = displayNameDraft.trim();
-    if (!trimmed || !pendingPublishId || publishing) return;
-    setPublishing(true);
-    try {
-      const updated = await updateProfile({ displayName: trimmed });
-      useAuth.setState((s) => (s.profile ? { profile: { ...s.profile, ...updated } } : s));
-      const pub = await publishDeck(pendingPublishId); // exactly one retry
-      announcePublished(pub.slug);
-      navigate(`/decks/${pendingPublishId}`);
-    } catch (err) {
-      toast.show({
-        message: err instanceof Error ? err.message : "Couldn't publish the deck.",
-        tone: 'warn',
-      });
-      navigate(`/decks/${pendingPublishId}`);
-    } finally {
-      setPublishing(false);
-      setNeedsDisplayName(false);
-    }
-  };
-
-  const handleCancelDisplayName = () => {
-    // Deck stays created + private — never blocks creation.
-    setNeedsDisplayName(false);
-    if (pendingPublishId) navigate(`/decks/${pendingPublishId}`);
-  };
+  const {
+    canPublish,
+    publicDisabledReason,
+    visibility,
+    setVisibility,
+    publishing,
+    needsDisplayName,
+    displayNameDraft,
+    setDisplayNameDraft,
+    publishAfterCreate,
+    saveDisplayNameAndPublish,
+    cancelDisplayName,
+  } = usePublishOnCreate(onPublishSettled);
 
   // Keep the store's build-format in lockstep with the pill so generation and
   // the saved deck both know the format. Only PDH generates as its own format
@@ -351,13 +284,13 @@ export function DeckNewPage() {
           onChange={(e) => setDisplayNameDraft(e.target.value)}
         />
       </div>
-      <button type="button" className="btn" onClick={handleCancelDisplayName} disabled={publishing}>
+      <button type="button" className="btn" onClick={cancelDisplayName} disabled={publishing}>
         Cancel
       </button>
       <button
         type="button"
         className="btn btn-primary"
-        onClick={() => void handleSaveDisplayNameAndPublish()}
+        onClick={() => void saveDisplayNameAndPublish()}
         disabled={publishing || !displayNameDraft.trim()}
       >
         {publishing ? 'Saving…' : 'Save & continue'}

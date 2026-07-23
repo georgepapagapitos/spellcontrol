@@ -37,6 +37,20 @@ export class DisplayNameRequiredError extends Error {
   }
 }
 
+/** Thrown by publishDeck() when the server 404s with {error:'Deck not
+ *  found.'} for a deckId the caller just created. The local persist that
+ *  writes a new deck to the server is fire-and-forget from the store's
+ *  perspective (store/decks.ts's sync subscriber) — a publish attempt fired
+ *  immediately after `createDeck()` can race ahead of it. Never surfaced to
+ *  the user directly; `usePublishOnCreate`'s one bounded retry covers the
+ *  gap instead. */
+export class DeckNotSyncedYetError extends Error {
+  constructor() {
+    super('Deck not found.');
+    this.name = 'DeckNotSyncedYetError';
+  }
+}
+
 /**
  * One row of the caller's own publications list (`GET /api/publications/decks`)
  * — deliberately thinner than `Publication` (no `url`/`publishedAt`): the
@@ -77,8 +91,21 @@ export async function getPublication(deckId: string): Promise<Publication | null
   return body.publication;
 }
 
+/** `publishDeck()`'s result, extended with a client-derived flag the wire
+ *  payload itself doesn't carry (see below). */
+export interface PublishResult extends Publication {
+  /** True only when this call minted the `deck_publications` row for the
+   *  very first time (server 201, a genuine INSERT) — false on any refresh-
+   *  while-live or republish-after-unpublish (server 200, existing row
+   *  updated in place; see routes/publications.ts's INSERT-vs-UPDATE
+   *  branch). Derived from `res.status` since the row itself carries no such
+   *  flag — the sole input to `shouldCelebrateFirstPublish`
+   *  (first-publish-celebration.ts), the seal moment's dedup choke point. */
+  isFirstPublish: boolean;
+}
+
 /** Publish (or refresh / republish) the caller's own deck. */
-export async function publishDeck(deckId: string): Promise<Publication> {
+export async function publishDeck(deckId: string): Promise<PublishResult> {
   const res = await fetch(apiUrl(`/api/publications/decks/${encodeURIComponent(deckId)}`), {
     method: 'POST',
     credentials: 'include',
@@ -86,10 +113,11 @@ export async function publishDeck(deckId: string): Promise<Publication> {
   if (!res.ok) {
     const message = await readError(res, 'Failed to publish deck.');
     if (message === 'display_name_required') throw new DisplayNameRequiredError();
+    if (res.status === 404 && message === 'Deck not found.') throw new DeckNotSyncedYetError();
     throw new Error(message);
   }
   const body = (await res.json()) as { publication: Publication };
-  return body.publication;
+  return { ...body.publication, isFirstPublish: res.status === 201 };
 }
 
 /** Unpublish. Silently no-ops if already unpublished (mirrors revokeShare). */
