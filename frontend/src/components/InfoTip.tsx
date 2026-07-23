@@ -71,13 +71,28 @@ export function InfoTip({ label, text, wide, ariaLabel, className }: InfoTipProp
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
     };
+    // Arm the scroll/resize dismiss listeners one frame late: keyboard-
+    // focusing a trigger below the fold (Tab-navigating down a long
+    // settings-style page) makes the browser scroll it into view as part of
+    // focusing, and that scroll must not immediately close the tooltip that
+    // the same focus just opened. One rAF is enough — the browser's
+    // (non-smooth-scroll) scrollIntoView completes synchronously within the
+    // focus task, before the next frame.
+    let armed = false;
+    const raf = requestAnimationFrame(() => {
+      armed = true;
+    });
+    const onScrollOrResize = () => {
+      if (armed) close();
+    };
     // Capture-phase scroll so an inner scroll container also dismisses it.
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
     window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('keydown', onKey);
     };
   }, [pos, close]);

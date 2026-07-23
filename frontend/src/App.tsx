@@ -62,6 +62,11 @@ function OAuthCallbackLanding() {
   const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
   const intentUrl = `intent://spellcontrol.com/oauth/callback?${params.toString()}#Intent;scheme=https;package=com.spellcontrol.app;end`;
 
+  // The only state with genuinely nothing to act on: no payload, no error.
+  // Every other branch describes an in-progress or failed attempt, so
+  // "Continue on the web instead" stays a sensible fallback for all of them.
+  const nothingToFinish = !errored && !hasPayload;
+
   let title: string;
   let message: string;
   if (errored) {
@@ -81,6 +86,9 @@ function OAuthCallbackLanding() {
   return (
     <div className="auth-page">
       <div className="auth-card auth-callback-card" role="status">
+        <div className="auth-brand-hero" aria-hidden="true">
+          <BrandMark size={48} motion="idle" />
+        </div>
         <h1 className="auth-title">{title}</h1>
         <p className="auth-subtitle">{message}</p>
         {hasPayload && isAndroid ? (
@@ -88,9 +96,15 @@ function OAuthCallbackLanding() {
             Open SpellControl
           </a>
         ) : null}
-        <a className="auth-back" href="/">
-          Continue on the web instead
-        </a>
+        {/* Nothing to finish here already tells the user it's safe to close
+            the tab — a "continue" link right underneath would contradict
+            that, so it only shows when there's an actual sign-in to resume
+            or retry (errored counts — retrying is exactly the point). */}
+        {!nothingToFinish ? (
+          <a className="auth-back" href="/">
+            Continue on the web instead
+          </a>
+        ) : null}
       </div>
     </div>
   );

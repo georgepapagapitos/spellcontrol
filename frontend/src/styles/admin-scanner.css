@@ -37,6 +37,12 @@
 }
 .admin-table {
   width: 100%;
+  /* Internal admin tool: some sections (allocations, raw collection rows)
+     run wider than a phone viewport. Scroll the table itself rather than
+     letting it force horizontal scroll on the whole page (the 320px
+     no-overflow floor still applies even to an internal-only surface). */
+  display: block;
+  overflow-x: auto;
   border-collapse: collapse;
   font-size: var(--text-sm);
 }

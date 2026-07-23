@@ -135,6 +135,26 @@
   font-family: inherit;
 }
 
+/* A saved-password autofill (the username/password fields here are the #1
+   place a browser/password-manager offers it) would otherwise repaint with
+   Chrome's own light-yellow fill, clashing hard on the dimir/dark guilds —
+   same fix as .scanner-search-pill's own autofill override
+   (admin-scanner.css), tokenized here since this surface re-skins per theme
+   where that one doesn't. */
+.auth-field input:-webkit-autofill,
+.auth-field input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-raised) inset;
+  caret-color: var(--text-primary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .auth-field input:-webkit-autofill:hover {
+    -webkit-text-fill-color: var(--text-primary);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface-raised) inset;
+    caret-color: var(--text-primary);
+  }
+}
+
 .auth-input-wrap {
   position: relative;
   width: 100%;
