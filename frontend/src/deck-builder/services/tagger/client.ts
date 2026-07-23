@@ -257,7 +257,25 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // in Riches). Cost reduction can be a colored-symbol cost, not just a
   // digit (Morophon: "cost {W}{U}{B}{R}{G} less"). Land-onto-battlefield via
   // exile (not search) is its own idiom (Oblivion Sower).
-  ramp: /adds?\s+(an additional\s+|an amount of\s+)?(\{|[\w\s]{0,15}?mana\b)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? [^.]*?less( to cast)?|play an additional land|creates? [^.]*?treasures?\b|lands? cards?[^.]*?onto the battlefield/i,
+  //
+  // E136 fix (2026-07-23, full-corpus audit — ramp gate-blind 11%): three
+  // verified real-card gaps, every one live-checked against Scryfall.
+  //  - Land-recursion-to-battlefield literally says "TO the battlefield" in
+  //    real Oracle text (Splendid Reclamation: "Return all land cards from
+  //    your graveyard to the battlefield tapped."), not just "ONTO the
+  //    battlefield" — widened to accept either preposition.
+  //  - An untap-lands burst ("untap all lands you control" — Wilderness
+  //    Reclamation) is a distinct mana-burst shape with no cost-reduction/
+  //    search/treasure text of its own to trip any other branch.
+  //  - Convoke/improvise GRANTED to other spells ("Artifact spells you cast
+  //    have convoke" — Chief Engineer; "Nonartifact spells you cast have
+  //    improvise" — Inspiring Statuary) is a real cost-reduction engine.
+  //    Scoped to the granting template ("have"/"has" + convoke/improvise) so
+  //    a card that merely HAS convoke/improvise itself as its own printed
+  //    keyword (Aerial Boost's bare "Convoke" reminder, no granting clause)
+  //    doesn't trip it — that's a one-off cost payment method for THAT card,
+  //    not an ongoing ramp engine.
+  ramp: /adds?\s+(an additional\s+|an amount of\s+)?(\{|[\w\s]{0,15}?mana\b)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? [^.]*?less( to cast)?|play an additional land|creates? [^.]*?treasures?\b|lands? cards?[^.]*?(?:onto|to) the battlefield|untap[^.]*?lands? you control|\b(?:have|has) (?:convoke|improvise)\b/i,
   // Lenient destroy/exile-target gap ("exile two target permanents", "exile
   // up to one target permanent") alongside direct "destroy target creature".
   // Damage-based removal (burn/reach — Lightning Bolt, Massive Raid,
@@ -267,8 +285,28 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // ("gain control of target creature") and Pacifism/Song-of-the-Dryads-style
   // auras ("loses all abilities") are real, distinct removal templating, not
   // destroy/exile at all.
+  //
+  // E136 fix (2026-07-23, full-corpus audit — removal gate-blind 26.7%): four
+  // verified real-card gaps, every one live-checked against Scryfall.
+  //  - Library-tuck: "put target creature on top/bottom of its owner's
+  //    library" (Anchor to the Aether) is real removal templating no
+  //    destroy/exile/counter/bounce branch catches.
+  //  - Fight widened past the exact "fights target creature" adjacency —
+  //    real cards insert a word between the verb and the object ("fights
+  //    ANOTHER target creature" — Blood Feud; "fights up to one target
+  //    creature" — Agatha's Champion); a same-sentence lenient join covers
+  //    both without narrowing the original strict form.
+  //  - A tap-lock ("doesn't"/"don't untap during its/their controller's
+  //    [next] untap step" — Icefall Regent, Frost Breath) is de facto tempo
+  //    removal. Anchored to third-person "its"/"their" (never "your") so a
+  //    card's OWN self-tap-down cost can't false-positive — Basalt
+  //    Monolith's "doesn't untap during YOUR untap step" is a mana rock's
+  //    downside, not removal, and correctly stays excluded.
+  //  - The sacrifice-edict subject list gains "target opponent" (Tribute to
+  //    Hunger: "Target opponent sacrifices a creature of their choice"),
+  //    opponent-forcing like the rest of the list.
   removal:
-    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights? target creature|target creature gets? [+-]?\d+\/-\d+|(target player|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities/i,
+    /(destroy|exile)[^.]*?target|counter target spell|return target (creature|permanent|artifact|enchantment|planeswalker|spell)|fights?[^.]*?target creature|target creature gets? [+-]?\d+\/-\d+|(target player|target opponent|each opponent|defending player|each player|each other player)[^.]*?sacrifice|damage[^.]*?to (target|any target)\b|gain control of target creature|loses all( other card types and)? abilities|put target[^.]*?(?:top|bottom) of its owner'?s library|(?:doesn't|don't) untap during (?:its|their) controller'?s (?:next )?untap step/i,
   // Exile-based wipes (Farewell) and return-all bounce wipes (Devastation
   // Tide) alongside the destroy-based ones. "destroy each"/"exile
   // each"/"return each" (permanent, not just creature — Selective
@@ -283,8 +321,26 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // (Damn, Vandalblast, Cyclonic Rift) — corroborated by the co-occurrence
   // of "overload" with a destroy/exile/return-target clause, regardless of
   // which comes first in the text.
+  //
+  // E136 fix (2026-07-23, full-corpus audit — boardwipe gate-blind 21%): two
+  // verified real-card gaps, both live-checked against Scryfall.
+  //  - The damage branch required literal "damage to each creature"
+  //    adjacency, missing scoped variants where the object isn't literally
+  //    "each creature" right after "to" (Flame Wave: "deals 4 damage to
+  //    target player or planeswalker and each creature that player...
+  //    controls" — a player-scoped one-sided wipe); widened to a
+  //    same-sentence lenient join.
+  //  - The -N/-N branch required plural "creatures" and a literal digit,
+  //    missing token/type-scoped mass debuffs phrased with a singular noun
+  //    (Virulent Plague, current Oracle text: "Creature tokens get -2/-2.")
+  //    or an X magnitude. Widened the noun to optional-plural and the
+  //    magnitude to digit-or-X while keeping the literal "get -" (not
+  //    "gets -") unchanged — that verb-agreement quirk is what already
+  //    excluded, and must keep excluding, a single-target spot-removal spell
+  //    like Battle at the Bridge ("Target creature gets -X/-X until end of
+  //    turn.") from this MASS-wipe branch.
   boardwipe:
-    /destroy all|destroy each|exile all|exile each (creature|permanent)|all creatures (get|take|deal)|each creature (gets|takes)|creatures[^.]*?get -\d+\/-\d+|damage to each creature|return all [^.]*?(creatures|permanents)|return each (creature|permanent)|each player sacrifices (a|all)|(\+1\/\+1|-1\/-1) counters? on each creature|for each opponent[^.]*?destroy|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target\b)/i,
+    /destroy all|destroy each|exile all|exile each (creature|permanent)|all creatures (get|take|deal)|each creature (gets|takes)|creatures?[^.]*?get -(?:\d+|[Xx])\/-(?:\d+|[Xx])|damage[^.]*?to[^.]*?each creature|return all [^.]*?(creatures|permanents)|return each (creature|permanent)|each player sacrifices (a|all)|(\+1\/\+1|-1\/-1) counters? on each creature|for each opponent[^.]*?destroy|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target\b)/i,
   // Tutors (search-library-into-ANY-destination, or a card that redirects an
   // OPPONENT's search — Opposition Agent) are folded into cardDraw by
   // getCardRole — the taxonomy call already made, not this gate's job to
@@ -295,8 +351,32 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // top manipulation ("the top N cards of your library", "the top of your
   // library") and graveyard-to-hand recursion are the other two common
   // card-advantage shapes the raw tag covers.
+  //
+  // E136 fix (2026-07-23, full-corpus audit — cardDraw gate-blind 5.6%,
+  // monarch alone was 7/30 of the judged draw misses): three verified
+  // real-card gaps, every one live-checked against Scryfall.
+  //  - Monarch grant ("you become the monarch" — Palace Jailer) is real
+  //    card-advantage no existing branch catches. Kept strictly first-person
+  //    by excluding a "whenever" immediately before it — Jared Carthalion,
+  //    True Heir grants monarchy to an OPPONENT ("target opponent becomes
+  //    the monarch") and separately says "You can't become the monarch this
+  //    turn," neither of which is the "you become the monarch" grant, and
+  //    correctly never matches.
+  //  - Investigate ("investigate" — Duggan, Private Detective) is real
+  //    card-advantage frequently printed WITHOUT its Clue-token reminder
+  //    text in modern templating, so the existing "draws? a" branch (which
+  //    only fires when that reminder happens to be present) misses it
+  //    outright. Excluded when the subject investigating is an opponent, not
+  //    you — Declaration in Stone's "That player investigates for each
+  //    nontoken creature exiled this way" compensates the removed creature's
+  //    controller (typically an opponent), not your own card advantage, and
+  //    correctly never matches.
+  //  - Mass graveyard-to-hand recursion phrased with "put" instead of
+  //    "return" (Campfire: "Put all commanders you own from the command
+  //    zone and from your graveyard into your hand.") joins the existing
+  //    return-based branch.
   cardDraw:
-    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|return[^.]*?graveyard[^.]*?hand/i,
+    /draws? (a|two|three|four|x|that many|cards? equal to)|search your library for [^.]*?cards?\b|search(ing|es)? (your|their|its) library|each player draws|whenever [^.]*?draws? a card|top[^.]{0,15}?of (your|their|its) library|(?:return|put)[^.]*?graveyard[^.]*?hand|(?<!whenever )you become the monarch|(?<!player )(?<!opponent )investigate/i,
 };
 
 // Positive-evidence classifier for the protection/free-interaction class
@@ -824,8 +904,22 @@ export function isExtraCombatPiece(card: {
 // {2}{W}{W}") has no "don't control" qualifier at all and correctly stays
 // symmetric (its overloaded "destroy each creature" hits every player,
 // including the caster).
+//
+// E136 gate-found fix: DAMAGE-based one-sided wipes were invisible — every
+// branch above keys on destroy/exile(/overloaded-return), so Goblin
+// Chainwhirler (real text: "it deals 1 damage to each opponent and each
+// creature and planeswalker they control") read as symmetric, which both
+// mis-scored it in E112's wipe-quality eviction AND dropped the
+// wipeAsymmetryNote's "spares your own board" clause when it was a deck's
+// sole wipe (caught by the E136 ship-gate differ on krenko-budget50). Two
+// verified phrasings, both same-sentence bounded with an opponent subject:
+// the anaphoric modern template ("each opponent and each creature ... they
+// control" — Chainwhirler) and the direct qualifier ("each creature your
+// opponents control" / "you don't control"). Blasphemous Act ("deals 13
+// damage to each creature" — no opponent subject anywhere) correctly stays
+// symmetric.
 const ONE_SIDED_WIPE_EVIDENCE =
-  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)/i;
+  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)|deals? [^.]*?damage to [^.]*?each opponent[^.]*?\b(?:creatures?|planeswalkers?|permanents?)\b[^.]*?they control|deals? [^.]*?damage to [^.]*?each (?:creature|permanent)s?\b[^.]*?(?:your opponents? control|you don'?t control)/i;
 
 export function isOneSidedWipe(card: {
   name: string;
