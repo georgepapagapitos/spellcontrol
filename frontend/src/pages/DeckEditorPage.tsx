@@ -46,6 +46,7 @@ import { DeckSizePrompt, type SizePromptOption } from '../components/deck/DeckSi
 import { filterCostPlanByOwnership } from '@/deck-builder/services/deckBuilder/costAnalyzer';
 import { EnginePanel } from '../components/deck/EnginePanel';
 import { WinConditionPanel } from '../components/deck/WinConditionPanel';
+import { toggleWinConTag } from '@/deck-builder/services/winConditions/winConTags';
 import { analyzeDeckSynergy } from '../deck-builder/services/synergy/deckSynergy';
 import {
   buildSubstitutionOptions,
@@ -2736,7 +2737,14 @@ export function DeckEditorPage() {
             }
             winConditionSlot={
               formatConfig?.hasCommander && deck.winConditions ? (
-                <WinConditionPanel analysis={deck.winConditions} libraryNames={deckLibraryNames} />
+                <WinConditionPanel
+                  analysis={deck.winConditions}
+                  libraryNames={deckLibraryNames}
+                  winConTags={deck.winConTags}
+                  onToggleWinConTag={(name) =>
+                    updateDeck(deck.id, { winConTags: toggleWinConTag(deck.winConTags, name) })
+                  }
+                />
               ) : undefined
             }
           />
