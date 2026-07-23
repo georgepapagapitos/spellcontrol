@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from './Modal';
 import { ShareQrCode } from './shared/ShareQrCode';
+import { useSealMoment } from './shared/SealMoment';
 import { createShare, listShares, revokeShare, shareUrl } from '../lib/share-client';
 import {
   DisplayNameRequiredError,
@@ -11,6 +12,7 @@ import {
   unpublishDeck,
   type Publication,
 } from '../lib/publications-client';
+import { shouldCelebrateFirstPublish } from '../lib/first-publish-celebration';
 import { updateProfile } from '../lib/auth-api';
 import { listFriends, type Friend } from '../lib/friends-client';
 import { isNativePlatform } from '../lib/platform';
@@ -34,6 +36,10 @@ interface Props {
   resourceId?: string;
   /** Display title for what's being shared, e.g. "Edric Combo" or "your collection". */
   resourceLabel: string;
+  /** Deck-only: the commander(s)' color identity, for the first-publish seal
+   *  moment's motes (E150). Omit for identity-less / non-deck shares — the
+   *  seal falls back to gold, per STYLE_GUIDE's "colours are honest" ruling. */
+  colorIdentity?: string[];
   onClose: () => void;
 }
 
@@ -50,7 +56,7 @@ interface Props {
  * PLAN.md §A1). The two systems compose: a link, a friends, a direct-to-
  * Alice share, and a public listing of one resource can all coexist.
  */
-export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props) {
+export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, onClose }: Props) {
   // Share links are per-account (they stay tied to the owner and are
   // revocable), so a guest can't mint one — prompt them to sign in instead.
   const isGuest = useAuth((s) => s.status === 'guest');
@@ -95,6 +101,12 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
   const previousLadderRef = useRef<LadderValue>('link');
   const confirmBlockRef = useRef<HTMLDivElement>(null);
   const displayNameId = useId();
+  // First-publish seal (E150): this dialog never navigates away on publish
+  // (it stays open showing the live link), so — unlike the creation-time
+  // fieldsets — it's safe to fire directly here rather than handing off to a
+  // landing page. Covers both entry surfaces that reuse this dialog as-is:
+  // the deck-editor visibility chip and the post-create DeckPublishNudge.
+  const { fire: fireSealMoment, moment: sealMoment } = useSealMoment();
 
   // A direct share can't mint until a recipient is chosen — hold off until then.
   const awaitingRecipient = audience === 'direct' && !addresseeId;
@@ -240,6 +252,9 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
       setPublication(pub);
       setPendingPublicConfirm(false);
       setNeedsDisplayName(false);
+      if (shouldCelebrateFirstPublish(resourceId, pub.isFirstPublish)) {
+        fireSealMoment(colorIdentity);
+      }
     } catch (err) {
       // Defense in depth: even if the client's cached displayName looked
       // set, a display_name_required 400 re-shows the same sub-step rather
@@ -431,6 +446,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, onClose }: Props)
       dismissable={!working}
       className="choice-dialog share-dialog"
     >
+      {sealMoment}
       <h2 id="share-dialog-title" className="choice-dialog-title">
         Share {resourceLabel}
       </h2>
