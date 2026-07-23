@@ -4,6 +4,7 @@ import {
   CircleAlert,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Boxes,
   Crosshair,
   Eye,
@@ -407,6 +408,14 @@ export interface DeckDisplayProps {
   partnerCommanderAllocatedCopyId?: string | null;
   cards: DeckDisplayCard[];
   sideboard?: DeckDisplayCard[];
+  /**
+   * Considering (E122) — park-candidates distinct from the format sideboard.
+   * Rendered as its own subordinate, collapsible zone below the sideboard
+   * section (list view only, matching the sideboard's own scope). Never
+   * folded into `cards`/`sideboard` — excluded from stats/legality/mana
+   * analysis by construction (nothing here reads it for those).
+   */
+  considering?: DeckDisplayCard[];
   /** Optional grade/bracket — if provided, renders in the stats and toolbar. */
   bracketEstimation?: BracketEstimation;
   /** Actual deck cards by name — lets bracket-breakdown card previews show the
@@ -453,9 +462,14 @@ export interface DeckDisplayProps {
   /** Editing callback. When provided, each row gets a remove option in its menu. */
   onRemoveCard?: (slotId: string) => void;
   onRemoveSideboardCard?: (slotId: string) => void;
+  onRemoveConsideringCard?: (slotId: string) => void;
   /** Move one or more copies of a stacked row across zones, as one undo entry. */
   onMoveToSideboard?: (slotIds: string[]) => void;
   onMoveToMainboard?: (slotIds: string[]) => void;
+  /** Mainboard row menu action: park one or more copies in Considering (E122). */
+  onMoveToConsidering?: (slotIds: string[]) => void;
+  /** Considering row menu action: move one or more copies back to the mainboard. */
+  onMoveFromConsidering?: (slotIds: string[]) => void;
   /**
    * Editing callback for click-to-edit qty. When provided, the qty cell
    * becomes a clickable target that swaps to a numeric input on click;
@@ -1188,6 +1202,7 @@ export function DeckDisplay({
   partnerCommanderAllocatedCopyId,
   cards,
   sideboard = [],
+  considering = [],
   bracketEstimation,
   deckCardsByName,
   bracketOverride,
@@ -1210,8 +1225,11 @@ export function DeckDisplay({
   cardDrawSubtypeCounts,
   onRemoveCard,
   onRemoveSideboardCard,
+  onRemoveConsideringCard,
   onMoveToSideboard,
   onMoveToMainboard,
+  onMoveToConsidering,
+  onMoveFromConsidering,
   onSetQty,
   onEditCard,
   onMakeCommander,
@@ -1265,6 +1283,12 @@ export function DeckDisplay({
     }
   };
   const [search, setSearch] = useState('');
+  // Considering (E122): collapsed by default when empty (a quiet affordance,
+  // never a big empty shell); open by default the first time it holds cards
+  // so newly-routed import extras / parked suggestions are visible without an
+  // extra tap. Lazy-init only — the user's own toggle afterward always wins,
+  // it doesn't re-derive as cards move in/out while mounted.
+  const [consideringOpen, setConsideringOpen] = useState(() => considering.length > 0);
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
@@ -1456,6 +1480,16 @@ export function DeckDisplay({
     [sideboard, collectionByCopyId, crossDeck, currency]
   );
 
+  // Considering (E122) — same type-grouped, non-shape-story treatment as the
+  // sideboard: a small holding list, not the category-gauge surface.
+  const consideringGroups = useMemo(
+    () =>
+      considering.length === 0
+        ? []
+        : groupByType(buildRows(considering, currency, collectionByCopyId, crossDeck)),
+    [considering, collectionByCopyId, crossDeck, currency]
+  );
+
   // Legality issues for the current format.
   const legalityIssues = useMemo(() => {
     const mainDeckCards: DeckCard[] = cards.map((c) => ({
@@ -1542,11 +1576,17 @@ export function DeckDisplay({
     [sideboardGroups, search, sort, sortDir]
   );
 
-  // No card in the deck (main or sideboard) matches the current query —
-  // the cue to surface the "search Scryfall to add it" trigger.
+  const visibleConsideringGroups = useMemo(
+    () => applyFilterSort(consideringGroups, search, sort, sortDir),
+    [consideringGroups, search, sort, sortDir]
+  );
+
+  // No card in the deck (main, sideboard, or considering) matches the current
+  // query — the cue to surface the "search Scryfall to add it" trigger.
   const noDeckMatches =
     !visibleGroups.some((g) => g.rows.length > 0) &&
-    !visibleSideboardGroups.some((g) => g.rows.length > 0);
+    !visibleSideboardGroups.some((g) => g.rows.length > 0) &&
+    !visibleConsideringGroups.some((g) => g.rows.length > 0);
 
   // Flat list for stats panels (commanders included, since color identity
   // and curve are commander-relevant too).
@@ -1695,6 +1735,7 @@ export function DeckDisplay({
           partner: partnerCommander,
           cards,
           sideboard,
+          considering,
           collectionByCopyId,
           commanderAllocatedCopyId,
           partnerAllocatedCopyId: partnerCommanderAllocatedCopyId,
@@ -1707,6 +1748,7 @@ export function DeckDisplay({
       cards,
       exportFormat,
       sideboard,
+      considering,
       collectionByCopyId,
       commanderAllocatedCopyId,
       partnerCommanderAllocatedCopyId,
@@ -1742,10 +1784,10 @@ export function DeckDisplay({
     const labels: string[] = [];
     const rows: Row[] = [];
     const indexByName = new Map<string, number>();
-    // Mainboard first, then sideboard — so the carousel + hover-peek resolve
-    // sideboard cards too (same inspect path as the mainboard). A name only in
-    // the sideboard maps to its sideboard entry; a name in both keeps the
-    // mainboard one (first wins).
+    // Mainboard first, then sideboard, then considering — so the carousel +
+    // hover-peek resolve those cards too (same inspect path as the
+    // mainboard). A name only in one zone maps to that zone's entry; a name
+    // in more than one keeps the earliest zone's (first wins).
     const pushGroups = (groups: typeof visibleGroups) => {
       for (const g of groups) {
         for (const row of g.rows) {
@@ -1775,8 +1817,9 @@ export function DeckDisplay({
     };
     pushGroups(visibleGroups);
     pushGroups(visibleSideboardGroups);
+    pushGroups(visibleConsideringGroups);
     return { cards: enrichedCards, labels, rows, indexByName };
-  }, [visibleGroups, visibleSideboardGroups, rarityCorrections]);
+  }, [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // Hover-peek for the list view — ROW-anchored (parks the card beside the row,
@@ -2058,6 +2101,7 @@ export function DeckDisplay({
                         onMoveToSideboard={
                           formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
                         }
+                        onMoveToConsidering={onMoveToConsidering}
                         onMakeCommander={onMakeCommander}
                         canMakeCommander={canMakeCommander}
                         onMakePartner={onMakePartner}
@@ -2122,6 +2166,62 @@ export function DeckDisplay({
                         )}
                       </div>
                     )}
+
+                    {/* Considering (E122) — always present regardless of format
+                        (unlike the sideboard, which is format-gated): a
+                        park-candidates zone, visually subordinate to the
+                        mainboard. Collapsed to a one-line header when there's
+                        nothing to show; the disclosure body only mounts real
+                        content when opened. */}
+                    <div className="deck-considering-section">
+                      <button
+                        type="button"
+                        className="deck-considering-header"
+                        aria-expanded={consideringOpen}
+                        aria-controls="deck-considering-body"
+                        onClick={() => setConsideringOpen((v) => !v)}
+                      >
+                        <span className="deck-considering-title">
+                          Considering
+                          <span className="deck-considering-count">({considering.length})</span>
+                        </span>
+                        {consideringOpen ? (
+                          <ChevronUp width={14} height={14} strokeWidth={2} aria-hidden />
+                        ) : (
+                          <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
+                        )}
+                      </button>
+                      <div
+                        id="deck-considering-body"
+                        className="deck-considering-body"
+                        hidden={!consideringOpen}
+                      >
+                        {visibleConsideringGroups.map((g) => (
+                          <CategorySection
+                            key={`cn-${g.title}`}
+                            title={g.title}
+                            icon={g.icon}
+                            rows={g.rows}
+                            currency={currency}
+                            showPrefs={showPrefs}
+                            onRowClick={openPreview}
+                            onRemoveCard={onRemoveConsideringCard}
+                            onSetQty={undefined}
+                            roleFilter={activeRoleFilter}
+                            onMoveToMainboard={onMoveFromConsidering}
+                            synergyByName={synergyByName}
+                            cardInclusionMap={cardInclusionMap}
+                            cardProvenance={cardProvenance}
+                          />
+                        ))}
+                        {considering.length === 0 && (
+                          <p className="deck-considering-empty">
+                            Nothing parked here yet — cards you're unsure about land here from
+                            import, suggestions, or "Move to considering" on any card.
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
                 {viewMode === 'grid' && (
@@ -2924,6 +3024,7 @@ function CategorySection({
   legalityBySlot,
   onMoveToSideboard,
   onMoveToMainboard,
+  onMoveToConsidering,
   onMakeCommander,
   canMakeCommander,
   onMakePartner,
@@ -2953,6 +3054,9 @@ function CategorySection({
   legalityBySlot?: Map<string, LegalityIssue>;
   onMoveToSideboard?: (slotIds: string[]) => void;
   onMoveToMainboard?: (slotIds: string[]) => void;
+  /** Mainboard-only: park one or more copies of a row in Considering (E122),
+   *  as an extra row-menu action alongside (not instead of) onMoveToSideboard. */
+  onMoveToConsidering?: (slotIds: string[]) => void;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
@@ -3029,6 +3133,7 @@ function CategorySection({
             legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
             onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
             moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
+            onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
             onMakeCommander={entry.leaving ? undefined : onMakeCommander}
             canMakeCommander={canMakeCommander}
             onMakePartner={entry.leaving ? undefined : onMakePartner}
@@ -3063,6 +3168,7 @@ function DeckCardRow({
   legalityIssue,
   onMoveToZone,
   moveZone,
+  onMoveToConsidering,
   onMakeCommander,
   canMakeCommander,
   onMakePartner,
@@ -3093,6 +3199,9 @@ function DeckCardRow({
   onMoveToZone?: (slotIds: string[]) => void;
   /** The destination zone — names the move menu items. */
   moveZone?: 'sideboard' | 'mainboard';
+  /** Mainboard-only extra move action: park copies in Considering (E122),
+   *  alongside (never replacing) the onMoveToZone/moveZone pair above. */
+  onMoveToConsidering?: (slotIds: string[]) => void;
   onMakeCommander?: (slotId: string, card: ScryfallCard) => void;
   canMakeCommander?: (card: ScryfallCard) => boolean;
   onMakePartner?: (slotId: string, card: ScryfallCard) => void;
@@ -3466,6 +3575,36 @@ function DeckCardRow({
                       }}
                     >
                       Move all {row.qty} copies to {moveZone}
+                    </button>
+                  )}
+                </>
+              )}
+              {onMoveToConsidering && row.slotIds.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="deck-row-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      close();
+                      onMoveToConsidering([row.slotIds[0]]);
+                    }}
+                  >
+                    {row.qty > 1 ? 'Move one copy to considering' : 'Move to considering'}
+                  </button>
+                  {row.qty > 1 && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="deck-row-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        close();
+                        onMoveToConsidering(row.slotIds);
+                      }}
+                    >
+                      Move all {row.qty} copies to considering
                     </button>
                   )}
                 </>

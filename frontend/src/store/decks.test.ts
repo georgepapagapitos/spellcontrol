@@ -63,6 +63,7 @@ function baseDeck(overrides: Partial<Deck> = {}): Deck {
     partnerCommanderAllocatedCopyId: null,
     cards: [],
     sideboard: [],
+    considering: [],
     generationContext: null,
     color: '#7a8a70',
     createdAt: 0,
@@ -247,6 +248,24 @@ describe('remapAllocations', () => {
 
     const deck = useDecksStore.getState().decks[0];
     expect(deck.sideboard[0].allocatedCopyId).toBe('new-sb');
+  });
+
+  it('remaps considering allocations (E122)', () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          considering: [slot('Rhystic Study', 'old-cn-1', 'sf-rhystic')],
+        }),
+      ],
+    });
+
+    const newCollection = [
+      enriched({ copyId: 'new-cn', name: 'Rhystic Study', scryfallId: 'sf-rhystic' }),
+    ];
+    useDecksStore.getState().remapAllocations(newCollection);
+
+    const deck = useDecksStore.getState().decks[0];
+    expect(deck.considering[0].allocatedCopyId).toBe('new-cn');
   });
 
   it('upgrades a wrong-printing binding to the slot preferred printing when free', () => {

@@ -162,6 +162,14 @@ export interface BuildExportInput {
   partner?: ExportableCard | null;
   cards: ExportCardSlot[];
   sideboard?: ExportCardSlot[];
+  /**
+   * Considering (E122) — included as a labeled "Maybeboard" section when
+   * non-empty, same optional-when-present convention as `sideboard`. Header
+   * text matches the ecosystem's de-facto text-format convention
+   * (Moxfield/Archidekt/MTGGoldfish) so round-tripping back through
+   * `parsers/text.ts`'s SECTION_HEADERS recognizes it and routes it back here.
+   */
+  considering?: ExportCardSlot[];
   collectionByCopyId?: Map<string, EnrichedCard>;
   commanderAllocatedCopyId?: string | null;
   partnerAllocatedCopyId?: string | null;
@@ -173,6 +181,7 @@ export function buildExport(input: BuildExportInput, format: ExportFormat): stri
     partner = null,
     cards,
     sideboard = [],
+    considering = [],
     collectionByCopyId,
     commanderAllocatedCopyId,
     partnerAllocatedCopyId,
@@ -201,6 +210,13 @@ export function buildExport(input: BuildExportInput, format: ExportFormat): stri
     lines.push('');
     lines.push('Sideboard');
     for (const entry of groupAndSort(sideboard, collectionByCopyId)) {
+      lines.push(formatLine(entry, format));
+    }
+  }
+  if (considering.length > 0) {
+    lines.push('');
+    lines.push('Maybeboard');
+    for (const entry of groupAndSort(considering, collectionByCopyId)) {
       lines.push(formatLine(entry, format));
     }
   }

@@ -128,4 +128,53 @@ describe('sliceResolvedDeckImport', () => {
       /resolved length 2 != expected 3/
     );
   });
+
+  // E122: sideboard/maybeboard rows resolve into their own sections, distinct
+  // from `cards` — previously both were excluded from `deckRows` upstream and
+  // silently dropped end-to-end (never reached this function at all).
+  it('separates sideboard and considering (maybeboard) sections, in trailing order', () => {
+    const deckRows: ImportRow[] = [row({ name: 'Sol Ring', quantity: 1, scryfallId: 'sf-sol' })];
+    const sideboardRows: ImportRow[] = [
+      row({ name: 'Negate', quantity: 2, scryfallId: 'sf-negate' }),
+    ];
+    const consideringRows: ImportRow[] = [
+      row({ name: 'Rhystic Study', quantity: 1, scryfallId: 'sf-rhystic' }),
+    ];
+    const resolved = expandResolved([...deckRows, ...sideboardRows, ...consideringRows], (r) =>
+      card(r.scryfallId!, r.name)
+    );
+
+    const out = sliceResolvedDeckImport(
+      [],
+      [],
+      deckRows,
+      resolved,
+      undefined,
+      sideboardRows,
+      consideringRows
+    );
+
+    expect(out.cards.map((c) => c.id)).toEqual(['sf-sol']);
+    expect(out.sideboard.map((c) => c.id)).toEqual(['sf-negate', 'sf-negate']);
+    expect(out.considering.map((c) => c.id)).toEqual(['sf-rhystic']);
+  });
+
+  it('defaults sideboard/considering to empty arrays when omitted (product-import call shape)', () => {
+    const deckRows: ImportRow[] = [row({ name: 'Sol Ring', quantity: 1, scryfallId: 'sf-sol' })];
+    const resolved = expandResolved(deckRows, (r) => card(r.scryfallId!, r.name));
+    const out = sliceResolvedDeckImport([], [], deckRows, resolved);
+    expect(out.sideboard).toEqual([]);
+    expect(out.considering).toEqual([]);
+  });
+
+  it('reports unresolved names from sideboard/considering too, not just deck rows', () => {
+    const deckRows: ImportRow[] = [row({ name: 'Sol Ring', quantity: 1, scryfallId: 'sf-sol' })];
+    const consideringRows: ImportRow[] = [row({ name: 'Nonexistent Card', quantity: 1 })];
+    const resolved: Array<ScryfallCard | undefined> = [card('sf-sol', 'Sol Ring'), undefined];
+
+    const out = sliceResolvedDeckImport([], [], deckRows, resolved, undefined, [], consideringRows);
+
+    expect(out.considering).toHaveLength(0);
+    expect(out.unresolvedNames).toEqual(['Nonexistent Card']);
+  });
 });

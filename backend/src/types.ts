@@ -165,6 +165,10 @@ export interface DeckImportResponse {
   commander: ScryfallCard | null;
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
+  /** Format sideboard rows ("Sideboard" header). Absent/empty for products and inputs with none. */
+  sideboard?: ScryfallCard[];
+  /** "Maybeboard" header rows — park-candidates (E122), routed to the deck's Considering zone. */
+  considering?: ScryfallCard[];
   unresolvedNames: string[];
   /** Names skipped because Scryfall couldn't be reached (outage / rate limit) — retryable, not typos. */
   fetchErrors: string[];

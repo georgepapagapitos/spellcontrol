@@ -376,6 +376,48 @@ describe('useDecksStore — sideboard and zones', () => {
   });
 });
 
+describe('useDecksStore — considering (E122)', () => {
+  let id: string;
+  beforeEach(() => {
+    id = store().createDeck({ source: 'manual', commander: null });
+  });
+
+  it('addConsideringCard / removeConsideringCard manage the considering pile', () => {
+    const slotId = store().addConsideringCard(id, sfCard('Rhystic Study'), 'copy-3');
+    expect(store().decks[0].considering[0].allocatedCopyId).toBe('copy-3');
+    store().removeConsideringCard(id, slotId);
+    expect(store().decks[0].considering).toEqual([]);
+  });
+
+  it('moveToConsidering moves a card from main to considering', () => {
+    const slotId = store().addCard(id, sfCard('Counterspell'));
+    store().moveToConsidering(id, slotId);
+    expect(store().decks[0].cards).toHaveLength(0);
+    expect(store().decks[0].considering.map((c) => c.card.name)).toEqual(['Counterspell']);
+  });
+
+  it('moveFromConsidering moves a card from considering back to the mainboard', () => {
+    const slotId = store().addConsideringCard(id, sfCard('Duress'));
+    store().moveFromConsidering(id, slotId);
+    expect(store().decks[0].considering).toHaveLength(0);
+    expect(store().decks[0].cards.map((c) => c.card.name)).toEqual(['Duress']);
+  });
+
+  it('moveToConsidering / moveFromConsidering are no-ops for an unknown slot', () => {
+    store().addCard(id, sfCard('Counterspell'));
+    store().moveToConsidering(id, 'missing-slot');
+    store().moveFromConsidering(id, 'missing-slot');
+    expect(store().decks[0].cards).toHaveLength(1);
+    expect(store().decks[0].considering).toHaveLength(0);
+  });
+
+  it('considering is a distinct array — never leaks into cards or sideboard', () => {
+    store().addConsideringCard(id, sfCard('Rhystic Study'));
+    expect(store().decks[0].cards).toEqual([]);
+    expect(store().decks[0].sideboard).toEqual([]);
+  });
+});
+
 describe('useDecksStore — commander setters', () => {
   let id: string;
   beforeEach(() => {

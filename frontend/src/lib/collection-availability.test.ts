@@ -46,6 +46,7 @@ function deckWithClaim(cardName: string, copyId: string): Deck {
     partnerCommanderAllocatedCopyId: null,
     cards: [{ slotId: 'slot-1', card, allocatedCopyId: copyId }],
     sideboard: [],
+    considering: [],
     generationContext: null,
     color: '#111111',
     createdAt: 0,
