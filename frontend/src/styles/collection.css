@@ -1522,7 +1522,8 @@ i.ss.set-symbol--mythic {
   background: rgba(0, 0, 0, 0.92);
   border-color: var(--binder-color, var(--accent));
   transform: scale(1.15);
-  outline: none;
+  outline: 2px solid var(--binder-color, var(--accent));
+  outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .collection-grid-badges .card-list-binder-badge:hover {
@@ -1537,7 +1538,8 @@ i.ss.set-symbol--mythic {
   background: rgba(0, 0, 0, 0.92);
   border-color: var(--deck-color, var(--accent));
   transform: scale(1.15);
-  outline: none;
+  outline: 2px solid var(--deck-color, var(--accent));
+  outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .collection-grid-badges .card-list-deck-badge:hover {

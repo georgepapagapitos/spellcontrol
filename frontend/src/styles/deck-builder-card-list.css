@@ -265,7 +265,8 @@
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-light);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .deck-display-scryfall-trigger:hover {
@@ -814,7 +815,8 @@
 
 .deck-row-alloc-badge:focus-visible {
   filter: brightness(1.08);
-  outline: none;
+  outline: 2px solid var(--deck-color, var(--accent));
+  outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .deck-row-alloc-badge:hover {
@@ -863,7 +865,8 @@
 .deck-row:focus-visible {
   background: var(--accent-light);
   cursor: pointer;
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .deck-row:hover {

@@ -405,7 +405,8 @@
 .deck-editor-overflow-item:focus-visible {
   background: var(--surface-raised);
   color: var(--text-primary);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 @media (hover: hover) and (pointer: fine) {
   .binders-index-card-menu-item:hover:not(:disabled),
