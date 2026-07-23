@@ -64,6 +64,17 @@ page/section going empty, not a new celebration moment — don't add motion
 beyond the existing idle loop, and don't reach for it on the inline sub-panel
 placeholders above (those stay text-only, same as always).
 
+**A filtered-to-zero empty state's own "reset" button must not repeat a
+nearby `SearchPill`'s built-in label.** `SearchPill` already renders its own
+inline `×` labelled "Clear search" whenever its box has text — exactly the
+condition under which a page-level zero-result empty state (`SharedEmptyState`
+and any future one) also wants a way back to the full list. Label that second
+affordance something distinct ("Reset search"), never a second "Clear search"
+on the same page: two simultaneously-visible controls sharing one accessible
+name is a real a11y/cohesion smell (caught by `SharedEmptyState.test.tsx`
+failing on `getByRole('button', { name: 'Clear search' })` matching two
+elements), not just a naming nit.
+
 **Lift/co-play explanations (E71):** evidence phrasing is fixed vocabulary —
 `Lifted by {A}, {B}` for cluster connectivity (up to 3 card names) and
 `Pairs hard with {A}` for a single bomb pairing. Reuse these verbatim on any

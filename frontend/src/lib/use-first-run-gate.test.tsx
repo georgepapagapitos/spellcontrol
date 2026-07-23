@@ -38,14 +38,18 @@ describe('isFirstRunExempt', () => {
     ['/auth/choose-username', true],
     ['/oauth/callback', true],
     ['/s/abc123', true],
-    // Regression: /u/:username, /d/:slug, /gn/:token, and /gn/s/:token are
-    // the same "a stranger's first contact" class of link as /s/:token (all
-    // five are public share-link routes in App.tsx) — a never-visited guest
-    // tapping any of them must land on the content, not get bounced to '/'.
+    // Regression: a first-time guest following a public link — /u, /d,
+    // /gn/*, or the welcome hero's own "Browse public decks" CTA into
+    // /decks/discover — used to get bounced straight back to `/` before the
+    // target page ever painted, because this list only ever named `/s/`.
+    // Every pathname App.tsx renders outside the auth gate (plus
+    // /decks/discover, the one always-reachable public route inside
+    // <Layout>) must stay exempt here.
     ['/u/alice', true],
     ['/d/some-deck-slug', true],
-    ['/gn/abc123', true],
-    ['/gn/s/abc123', true],
+    ['/gn/some-token', true],
+    ['/gn/s/some-series-token', true],
+    ['/decks/discover', true],
     ['/collection', false],
     ['/decks', false],
     ['/', true],
@@ -97,28 +101,24 @@ describe('useFirstRunGate', () => {
     expect(getByTestId('path').textContent).toBe('/s/token-xyz');
   });
 
-  it('keeps a game-night invite link reachable for a first-run guest', () => {
-    const { getByTestId } = render(<Harness status="guest" initialPath="/gn/night-token" />);
-    expect(getByTestId('path').textContent).toBe('/gn/night-token');
-  });
-
-  it('keeps a game-night series link reachable for a first-run guest', () => {
-    const { getByTestId } = render(<Harness status="guest" initialPath="/gn/s/series-token" />);
-    expect(getByTestId('path').textContent).toBe('/gn/s/series-token');
-  });
-
-  it('keeps a public profile link reachable for a first-run guest', () => {
-    const { getByTestId } = render(<Harness status="guest" initialPath="/u/alice" />);
-    expect(getByTestId('path').textContent).toBe('/u/alice');
-  });
-
-  it('keeps a public deck link reachable for a first-run guest', () => {
-    const { getByTestId } = render(<Harness status="guest" initialPath="/d/some-deck-slug" />);
-    expect(getByTestId('path').textContent).toBe('/d/some-deck-slug');
-  });
-
   it('keeps the OAuth callback reachable for a first-run guest', () => {
     const { getByTestId } = render(<Harness status="guest" initialPath="/oauth/callback" />);
     expect(getByTestId('path').textContent).toBe('/oauth/callback');
+  });
+
+  // Regression for the bug fixed alongside the isFirstRunExempt table above:
+  // these routes are exactly what a first-time guest reaches by following a
+  // shared/public link (or, for /decks/discover, the welcome hero's own
+  // "Browse public decks" CTA — which deliberately marks no visited flag) —
+  // none of them may bounce back to `/`.
+  it.each([
+    '/u/alice',
+    '/d/some-deck-slug',
+    '/gn/some-token',
+    '/gn/s/some-series-token',
+    '/decks/discover',
+  ])('keeps %s reachable for a first-run guest', (path) => {
+    const { getByTestId } = render(<Harness status="guest" initialPath={path} />);
+    expect(getByTestId('path').textContent).toBe(path);
   });
 });
