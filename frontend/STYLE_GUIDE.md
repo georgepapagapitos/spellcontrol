@@ -437,6 +437,19 @@ Rakdos stays blood-black). Rulings:
   its own surface.
 - **Brand hover is brass** (`--brand-seal-gold`) on the leather — the app's
   one metallic; don't introduce a second.
+- **Any `position: fixed`, viewport-anchored bottom overlay must clear the
+  mobile tab bar, not just the safe-area inset.** The tab bar
+  (`.mobile-tab-bar`) is a normal-flow flex child, not an overlay, so page
+  *content* already accounts for its height — but a `fixed` element (the
+  toast viewport) is positioned against the raw viewport edge and paints
+  UNDER the bar's occupied strip regardless of `--z-tooltip` winning the
+  stacking order (z-index decides paint order, not layout offset). Add
+  `var(--mobile-tabbar-h)` (tokens.css — 0 above 1024px, where the bar
+  doesn't render; mirrors `.mobile-tab-bar`'s own height exactly) on top of
+  `max(--safe-bottom, --keyboard-inset)` in the offset math. This shipped
+  wrong on the toast stack: the bottom-most toast's opaque background
+  covered the tab bar's leftmost tab whenever a toast fired on a phone-width
+  authed page.
 
 ## Toolbars & action rows (responsive)
 

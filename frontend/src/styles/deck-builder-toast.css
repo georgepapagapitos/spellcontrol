@@ -5,10 +5,13 @@
 .toast-viewport {
   position: fixed;
   /* Sit above whichever is taller: the device's home-gesture inset or the
-     on-screen keyboard. Keeps toasts visible while a form field is focused
-     and clear of the home indicator on notched devices. */
+     on-screen keyboard — plus the fixed bottom tab bar's own height when
+     one renders (0 above 1024px). Without the tab-bar term a toast's
+     opaque background painted over the bar's leftmost tabs: --z-tooltip
+     wins the *stacking* order, but this fixed viewport still needs its
+     own offset to not physically overlap a bar that's in normal flow. */
   inset: auto calc(var(--space-4) + var(--safe-right))
-    calc(var(--space-4) + max(var(--safe-bottom), var(--keyboard-inset)))
+    calc(var(--space-4) + max(var(--safe-bottom), var(--keyboard-inset)) + var(--mobile-tabbar-h))
     calc(var(--space-4) + var(--safe-left));
   pointer-events: none;
   display: flex;
