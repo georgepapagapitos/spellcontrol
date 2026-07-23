@@ -2013,19 +2013,27 @@ i.ss.set-symbol--mythic {
    deliberately NOT in this hide list — together they are the printing-identity
    floor that keeps two printings of the same card name distinguishable on the
    narrowest compact rows (T36). Only the wider #CN token and badge pills drop
-   below 768px. */
+   below 768px — .card-list-page joins them (it was documented as the same
+   detail-when-present tier as condition/language above but had been left out
+   of the actual hide list): with .collection-list-meta's flex-shrink:0 and
+   .collection-list-main's nowrap, the always-on page chip left almost no
+   width for .collection-list-name on a 320–360px binder compact row, so the
+   card name — the one thing this row exists to let you scan — truncated to
+   2–3 characters. */
 .collection-list.is-compact .card-list-deck-badge,
 .collection-list.is-compact .card-list-binder-badge,
 .collection-list.is-compact .card-list-cn,
 .collection-list.is-compact .card-list-condition,
-.collection-list.is-compact .card-list-language {
+.collection-list.is-compact .card-list-language,
+.collection-list.is-compact .card-list-page {
   display: none;
 }
 
 @media (min-width: 768px) {
   .collection-list.is-compact .card-list-cn,
   .collection-list.is-compact .card-list-condition,
-  .collection-list.is-compact .card-list-language {
+  .collection-list.is-compact .card-list-language,
+  .collection-list.is-compact .card-list-page {
     display: inline-block;
   }
 }
