@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { fetchPublicShare, ShareAuthRequiredError, ShareNotFoundError } from '../lib/share-client';
 import type { PublicShareResponse } from '../lib/shared-types';
+import { useDocumentTitle } from '../lib/use-document-title';
 import { SharedCollectionView } from '../components/shared/SharedCollectionView';
 import { SharedBinderView } from '../components/shared/SharedBinderView';
 import { SharedDeckView } from '../components/shared/SharedDeckView';
@@ -14,6 +15,22 @@ import { SharedGameSummaryView } from '../components/shared/SharedGameSummaryVie
 import { BrandMark } from '../components/shared/BrandMark';
 import { CopyDeckButton } from '../components/shared/CopyDeckButton';
 import { CopyCubeButton } from '../components/shared/CopyCubeButton';
+
+/** Tab title per share kind — every kind but `collection` carries its own
+ *  owner-given name; `collection` has none, so it falls back to the same
+ *  "Collection" label the page itself renders as its `<h1>`. */
+function sharedViewTitle(payload: PublicShareResponse): string {
+  switch (payload.kind) {
+    case 'collection':
+      return 'Collection';
+    case 'feedback':
+      return `Feedback: ${payload.data.name}`;
+    case 'game-result':
+      return 'Game result';
+    default:
+      return payload.data.name;
+  }
+}
 
 /**
  * Public read-only view for /s/:token. Fetches via the unauthed public
@@ -66,6 +83,10 @@ function SharedViewInner({ token }: { token: string }) {
       cancelled = true;
     };
   }, [token]);
+
+  // Undefined until the share loads — the hook no-ops until then, so the tab
+  // keeps whatever title it already had through the loading/error states.
+  useDocumentTitle(state.status === 'ready' ? sharedViewTitle(state.payload) : undefined);
 
   if (state.status === 'loading') {
     return (

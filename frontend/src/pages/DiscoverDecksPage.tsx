@@ -25,6 +25,7 @@ import {
 import { computeBuildablePercent } from '../lib/discover-buildable';
 import { useStoredSort } from '../lib/use-stored-sort';
 import { useStoredView } from '../lib/use-stored-view';
+import { useDocumentTitle } from '../lib/use-document-title';
 import { useAuth } from '../store/auth';
 import { useCollectionStore } from '../store/collection';
 
@@ -58,6 +59,7 @@ const BASE_SORT_OPTIONS: SelectOption<DiscoverSortField>[] = [
  * — never sent to the server.
  */
 export function DiscoverDecksPage() {
+  useDocumentTitle('Discover public decks');
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
   // Memoized off that stable string key, not the `searchParams` object

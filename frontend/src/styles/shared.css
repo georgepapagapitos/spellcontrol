@@ -497,13 +497,16 @@
   vertical-align: middle;
 }
 
-/* ── Empty state ──────────────────────────────────────────────────────── */
-
-.shared-empty {
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: var(--text-base);
-  padding: var(--space-6) var(--space-4);
+/* ── Empty state (SharedEmptyState.tsx) ───────────────────────────────────
+   The two-part .empty-state/.empty-state-tagline/.empty-state-hint markup
+   and .btn are global (tooltip-legend.css / tabs.css); .btn is NOT 44px by
+   default (STYLE_GUIDE § Responsive), so this scoped selector — rather than
+   a blanket `.empty-state .btn` — gives just this component's own button
+   the touch floor without reaching into any other empty-state's buttons. */
+@media (pointer: coarse) {
+  .shared-empty-clear-btn {
+    min-height: 44px;
+  }
 }
 
 /* ── Deck section headings ────────────────────────────────────────────── */

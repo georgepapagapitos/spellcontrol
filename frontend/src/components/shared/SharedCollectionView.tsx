@@ -10,6 +10,7 @@ import {
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import { SharedCardTile } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
+import { SharedEmptyState } from './SharedEmptyState';
 import { CardPreview } from '../CardPreview';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
@@ -130,9 +131,13 @@ export function SharedCollectionView({ data }: Props) {
       </div>
 
       {sorted.length === 0 ? (
-        <p className="shared-empty">
-          {totalCards === 0 ? 'This collection is empty.' : 'No cards match your filters.'}
-        </p>
+        <SharedEmptyState
+          empty={totalCards === 0}
+          emptyTagline="This collection is empty."
+          emptyHint="The owner hasn't added any cards to it yet."
+          filteredTagline="No cards match your search or filters."
+          onClearSearch={search ? () => setSearch('') : undefined}
+        />
       ) : view === 'grid' ? (
         <ul className="shared-card-grid">
           {sorted.map((g, i) => (
