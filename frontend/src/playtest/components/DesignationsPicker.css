@@ -41,7 +41,7 @@
 }
 
 .playtest-designations-picker__row:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
