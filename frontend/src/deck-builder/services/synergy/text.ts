@@ -237,14 +237,16 @@ export function hasCreatureEtbTrigger(oracle: string): boolean {
   );
 }
 
-/** Static anthem / team-buff for creatures you control. */
+/**
+ * Static anthem scoped to TOKENS specifically ("creature tokens you control
+ * get +…"). A generic "creatures you control get +1/+1" anthem (Glorious
+ * Anthem, Craterhoof Behemoth, Beastmaster Ascension) isn't token-specific —
+ * it helps a two-creature board exactly as much as a wide one, so it's not a
+ * go-wide/tokens payoff signal (E139: was reading any creature anthem as
+ * "tokens", 47% precision).
+ */
 export function hasCreatureAnthem(oracle: string): boolean {
-  return (
-    /(?:other )?creature tokens? you control get \+/.test(oracle) ||
-    /(?:other )?creatures you control get \+/.test(oracle) ||
-    /creatures you control gain /.test(oracle) ||
-    /creatures you control have (?:base power|")/.test(oracle)
-  );
+  return /(?:other )?creature tokens? you control get \+/.test(oracle);
 }
 
 /** Scales with your board ("for each creature", "equal to the number of creatures"). */

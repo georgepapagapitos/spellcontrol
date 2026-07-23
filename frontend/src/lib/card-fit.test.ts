@@ -28,7 +28,9 @@ const tokenDeck: CutCandidate[] = [
   slot(card('Maker A', { oracle_text: 'Create a 1/1 white Soldier creature token.' })),
   slot(card('Maker B', { oracle_text: 'Create a 1/1 green Saproling creature token.' })),
   slot(card('Maker C', { oracle_text: 'Create a 1/1 red Goblin creature token.' })),
-  slot(card('Anthem Lord', { oracle_text: 'Creatures you control get +1/+1.' })),
+  // Token-scoped anthem (E139: a generic "creatures you control" anthem is no
+  // longer a tokens payoff — only "creature tokens you control" is).
+  slot(card('Anthem Lord', { oracle_text: 'Creature tokens you control get +1/+1.' })),
   slot(
     card('Watcher', { oracle_text: 'Whenever another creature you control enters, draw a card.' })
   ),

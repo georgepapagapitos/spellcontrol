@@ -142,7 +142,9 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Enchantment',
     keywords: [],
     oracle_text: 'Creatures you control have "{T}: Add one mana of any color."',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // E139: a generic "creatures you control have X" grant isn't token-specific
+    // (it helps a 2-creature board as much as a wide one) — no longer tags tokens.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Intangible Virtue',
@@ -157,7 +159,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Haste'],
     oracle_text:
       'Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Mondrak, Glory Dominus',
@@ -219,7 +222,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever a creature you control attacks, you may put a quest counter on this enchantment.\nAs long as this enchantment has seven or more quest counters on it, creatures you control get +5/+5.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Champion of Lambholt',
@@ -235,8 +239,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Changeling'],
     oracle_text:
       'Changeling (This card is every creature type.)\n{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.',
-    // Changeling makes it a tribal enabler; the {X} pump is a creature anthem.
-    expect: { producers: ['tribal'], payoffs: ['tokens'] },
+    // Changeling makes it a tribal enabler; the {X} pump is a generic (non-token)
+    // anthem — E139 no longer tags that as tokens.
+    expect: { producers: ['tribal'], payoffs: [] },
   },
   {
     name: 'Beast Within',
@@ -268,7 +273,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Lifelink', 'Vigilance', 'Fabricate'],
     oracle_text:
       'Flying, vigilance, lifelink\nFabricate 2 (When this creature enters, put two +1/+1 counters on it or create two 1/1 colorless Servo artifact creature tokens.)\nOther creatures you control get +1/+1.',
-    expect: { producers: ['tokens', 'counters', 'lifegain', 'artifacts'], payoffs: ['tokens'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens payoff.
+    expect: { producers: ['tokens', 'counters', 'lifegain', 'artifacts'], payoffs: [] },
   },
   {
     name: 'Doubling Season',
@@ -400,7 +406,8 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       '+1: Create three 1/1 white Soldier creature tokens.\n−3: Destroy all creatures with power 4 or greater.\n−7: You get an emblem with "Creatures you control get +2/+2 and have flying."',
     // A planeswalker is itself a superfriends producer (the loyalty engine).
-    expect: { producers: ['tokens', 'superfriends'], payoffs: ['tokens'] },
+    // E139: the -7 emblem's anthem is generic, not token-scoped — no tokens payoff.
+    expect: { producers: ['tokens', 'superfriends'], payoffs: [] },
   },
   {
     name: 'Trading Post',
@@ -2101,7 +2108,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Vigilance', 'Venture into the dungeon'],
     oracle_text:
       "Vigilance\nWhenever Nadaar enters or attacks, venture into the dungeon. (Enter the first room or advance to the next room.)\nOther creatures you control get +1/+1 as long as you've completed a dungeon.",
-    expect: { producers: ['venture'], payoffs: ['tokens', 'venture'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens payoff.
+    expect: { producers: ['venture'], payoffs: ['venture'] },
   },
   {
     name: 'New Perspectives',
@@ -2399,7 +2407,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Until end of turn, creatures you control get +1/+1 and gain trample and infect. (Creatures with infect deal damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)',
-    expect: { producers: ['poison'], payoffs: ['poison', 'tokens'] },
+    // E139: generic anthem/keyword-grant, not token-scoped — no tokens payoff.
+    expect: { producers: ['poison'], payoffs: ['poison'] },
   },
   {
     name: 'True Conviction',
@@ -2446,7 +2455,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: Creatures you control gain lifelink until end of turn.',
-    expect: { producers: ['lifegain'], payoffs: ['lifegain', 'tokens'] },
+    // E139: generic keyword-grant, not token-scoped — no longer tags tokens payoff.
+    expect: { producers: ['lifegain'], payoffs: ['lifegain'] },
   },
   {
     name: 'Vorinclex, Monstrous Raider',
@@ -3321,6 +3331,15 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Sorcery',
     keywords: [],
     oracle_text: 'Remove all counters from all permanents and exile all tokens.',
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── E139: tokens payoff-FP cleanup — generic anthems are not tokens payoffs ─
+  {
+    name: 'Glorious Anthem',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text: 'Creatures you control get +1/+1.',
     expect: { producers: [], payoffs: [] },
   },
 ];
