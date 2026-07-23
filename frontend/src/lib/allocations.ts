@@ -170,6 +170,12 @@ export function buildAllocationMap(
     for (const c of deck.sideboard ?? []) {
       if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
     }
+    // Considering (E122) claims too — passive bookkeeping only (no donor/steal
+    // participation), but still must count as "checked out" so a card parked
+    // here can't be double-bound to a slot in another deck.
+    for (const c of deck.considering ?? []) {
+      if (c.allocatedCopyId) claim(c.allocatedCopyId, deckClaim(deck, c.card.name));
+    }
   }
   for (const cube of physicalCubes ?? []) {
     if (!cube.isPhysical) continue;
@@ -282,7 +288,9 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
     // must not crash the app over a missing array field.
     const cards = claimSlots(deck.cards ?? []);
     const sideboard = claimSlots(deck.sideboard ?? []);
-    const deckChanged = cmd.changed || partner.changed || cards.changed || sideboard.changed;
+    const considering = claimSlots(deck.considering ?? []);
+    const deckChanged =
+      cmd.changed || partner.changed || cards.changed || sideboard.changed || considering.changed;
     if (!deckChanged) return deck;
     anyChanged = true;
     return {
@@ -291,6 +299,7 @@ export function dedupeDeckAllocations(decks: Deck[]): { decks: Deck[]; changed: 
       partnerCommanderAllocatedCopyId: partner.copyId,
       cards: cards.slots,
       sideboard: sideboard.slots,
+      considering: considering.slots,
     };
   });
 
@@ -564,6 +573,9 @@ export function findSuboptimalPrintings(
       consider(deck, c.card.name, c.card.id, c.allocatedCopyId);
     }
     for (const c of deck.sideboard ?? []) {
+      consider(deck, c.card.name, c.card.id, c.allocatedCopyId);
+    }
+    for (const c of deck.considering ?? []) {
       consider(deck, c.card.name, c.card.id, c.allocatedCopyId);
     }
   }

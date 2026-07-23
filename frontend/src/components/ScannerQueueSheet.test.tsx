@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ScannerQueueSheet, type ScannedEntry } from './ScannerQueueSheet';
 import type { ScryfallCard } from '@/deck-builder/types';
+import type { Condition } from '../types';
 
 const fetchPrintingsMock = vi.fn();
 vi.mock('../lib/api', () => ({
@@ -67,6 +68,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -84,6 +86,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -105,6 +108,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={onChangeQty}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={onRemove}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -127,6 +131,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -153,6 +158,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={onChangePrinting}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -178,6 +184,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={onClearAll}
         onConfirm={vi.fn()}
@@ -212,6 +219,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -278,6 +286,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={onConfirm}
@@ -303,6 +312,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={onChangeFinish}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -323,6 +333,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -330,6 +341,115 @@ describe('ScannerQueueSheet', () => {
       />
     );
     expect(screen.queryByLabelText(/Finish of Lightning Bolt/)).toBeNull();
+  });
+
+  describe('condition toggle (E87)', () => {
+    it('defaults to NM (unmarked) and cycles to LP on tap', () => {
+      const onChangeCondition = vi.fn();
+      render(
+        <ScannerQueueSheet
+          entries={[makeEntry()]}
+          onClose={vi.fn()}
+          onChangePrinting={vi.fn()}
+          onChangeQty={vi.fn()}
+          onChangeFinish={vi.fn()}
+          onChangeCondition={onChangeCondition}
+          onRemove={vi.fn()}
+          onClearAll={vi.fn()}
+          onConfirm={vi.fn()}
+          onAddCard={vi.fn()}
+        />
+      );
+      const toggle = screen.getByLabelText(/Condition of Lightning Bolt: Near Mint/);
+      expect(toggle.textContent).toBe('NM');
+      fireEvent.click(toggle);
+      expect(onChangeCondition).toHaveBeenCalledWith('oracle-bolt', 'lp');
+    });
+
+    it('renders every row-controls state and cycles the full order', () => {
+      // Each state gets its own render so the toggle's visible text +
+      // aria-label are checked against every step of the NM→LP→MP→HP→DMG
+      // cycle, not just the default and one hop.
+      const cycle: Array<[Condition, string, RegExp, Condition]> = [
+        ['nm', 'NM', /Near Mint/, 'lp'],
+        ['lp', 'LP', /Lightly Played/, 'mp'],
+        ['mp', 'MP', /Moderately Played/, 'hp'],
+        ['hp', 'HP', /Heavily Played/, 'damaged'],
+        ['damaged', 'DMG', /Damaged/, 'nm'],
+      ];
+      for (const [condition, shortLabel, fullLabel, next] of cycle) {
+        const onChangeCondition = vi.fn();
+        const { unmount } = render(
+          <ScannerQueueSheet
+            entries={[makeEntry({ condition })]}
+            onClose={vi.fn()}
+            onChangePrinting={vi.fn()}
+            onChangeQty={vi.fn()}
+            onChangeFinish={vi.fn()}
+            onChangeCondition={onChangeCondition}
+            onRemove={vi.fn()}
+            onClearAll={vi.fn()}
+            onConfirm={vi.fn()}
+            onAddCard={vi.fn()}
+          />
+        );
+        const toggle = screen.getByLabelText(
+          new RegExp(`Condition of Lightning Bolt: ${fullLabel.source}`)
+        );
+        expect(toggle.textContent).toBe(shortLabel);
+        fireEvent.click(toggle);
+        expect(onChangeCondition).toHaveBeenCalledWith('oracle-bolt', next);
+        unmount();
+      }
+    });
+
+    it('shows the condition toggle even when the printing has no foil variant', () => {
+      // Unlike finish, condition has no availability gate — every physical
+      // card can be in any condition regardless of printing.
+      render(
+        <ScannerQueueSheet
+          entries={[makeEntry({ card: makeCard({ finishes: ['nonfoil'] }) })]}
+          onClose={vi.fn()}
+          onChangePrinting={vi.fn()}
+          onChangeQty={vi.fn()}
+          onChangeFinish={vi.fn()}
+          onChangeCondition={vi.fn()}
+          onRemove={vi.fn()}
+          onClearAll={vi.fn()}
+          onConfirm={vi.fn()}
+          onAddCard={vi.fn()}
+        />
+      );
+      expect(screen.getByLabelText(/Condition of Lightning Bolt/)).toBeTruthy();
+    });
+
+    it('works across a multi-row queue — each row cycles its own condition independently', () => {
+      const onChangeCondition = vi.fn();
+      const counterspell = makeEntry({
+        id: 'oracle-cs',
+        card: makeCard({ id: 'card-cs', oracle_id: 'oracle-cs', name: 'Counterspell' }),
+        condition: 'mp',
+      });
+      render(
+        <ScannerQueueSheet
+          entries={[makeEntry(), counterspell]}
+          onClose={vi.fn()}
+          onChangePrinting={vi.fn()}
+          onChangeQty={vi.fn()}
+          onChangeFinish={vi.fn()}
+          onChangeCondition={onChangeCondition}
+          onRemove={vi.fn()}
+          onClearAll={vi.fn()}
+          onConfirm={vi.fn()}
+          onAddCard={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByLabelText(/Condition of Lightning Bolt: Near Mint/));
+      expect(onChangeCondition).toHaveBeenCalledWith('oracle-bolt', 'lp');
+      fireEvent.click(screen.getByLabelText(/Condition of Counterspell: Moderately Played/));
+      expect(onChangeCondition).toHaveBeenCalledWith('oracle-cs', 'hp');
+      expect(onChangeCondition).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('shows the foil price once the row finish is foil', () => {
@@ -348,6 +468,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -367,6 +488,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -393,6 +515,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}
@@ -422,6 +545,7 @@ describe('ScannerQueueSheet', () => {
         onChangePrinting={vi.fn()}
         onChangeQty={vi.fn()}
         onChangeFinish={vi.fn()}
+        onChangeCondition={vi.fn()}
         onRemove={vi.fn()}
         onClearAll={vi.fn()}
         onConfirm={vi.fn()}

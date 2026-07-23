@@ -42,6 +42,7 @@ export interface BuiltDeckInput {
   partnerCommanderAllocatedCopyId: string | null;
   cards: DeckCard[];
   sideboard: DeckCard[];
+  considering: DeckCard[];
   sourceProduct?: SourceProduct;
 }
 
@@ -79,6 +80,14 @@ export function buildDeckInputFromImport(
     sourceProduct,
   };
 
+  // E122: sideboard/maybeboard rows resolve into their own DeckImportResponse
+  // arrays now (previously excluded from `cards` upstream and silently
+  // dropped — never reached this function at all). Every real DECK_FORMAT_CONFIGS
+  // entry has a sideboard, so "extras beyond a real sideboard" only ever means
+  // maybeboard rows in practice — sideboard rows always route to `sideboard`.
+  const sideboard = allocate(result.sideboard ?? []);
+  const considering = allocate(result.considering ?? []);
+
   if (commander) {
     // Both commanders are kept out of the 99; a paired partner that was sitting
     // in the imported list moves into the command zone.
@@ -105,7 +114,8 @@ export function buildDeckInputFromImport(
       commanderAllocatedCopyId: commanderPick?.copyId ?? null,
       partnerCommanderAllocatedCopyId: partnerPick?.copyId ?? null,
       cards,
-      sideboard: [],
+      sideboard,
+      considering,
     };
   }
 
@@ -116,7 +126,8 @@ export function buildDeckInputFromImport(
     commanderAllocatedCopyId: null,
     partnerCommanderAllocatedCopyId: null,
     cards: allocate(result.cards),
-    sideboard: [],
+    sideboard,
+    considering,
   };
 }
 

@@ -17,7 +17,11 @@ function owned(name: string, copyId: string): EnrichedCard {
   } as unknown as EnrichedCard;
 }
 
-function result(cards: ScryfallCard[], commander: ScryfallCard | null = null): DeckImportResponse {
+function result(
+  cards: ScryfallCard[],
+  commander: ScryfallCard | null = null,
+  extra: Partial<DeckImportResponse> = {}
+): DeckImportResponse {
   return {
     commander,
     companion: null,
@@ -26,6 +30,7 @@ function result(cards: ScryfallCard[], commander: ScryfallCard | null = null): D
     fetchErrors: [],
     detectedFormat: 'commander',
     cardCount: cards.length,
+    ...extra,
   };
 }
 
@@ -112,5 +117,45 @@ describe('buildDeckInputFromImport', () => {
     );
     expect(a.cards[0].allocatedCopyId).toBe('copy-sol');
     expect(b.cards[0].allocatedCopyId).toBeNull(); // already claimed by A
+  });
+
+  // E122: sideboard/maybeboard rows now resolve into their own DeckImportResponse
+  // arrays (previously excluded from `cards` upstream and silently dropped end
+  // to end). They must land on the built deck's `sideboard`/`considering`, not
+  // get folded into the mainboard.
+  it('routes DeckImportResponse.sideboard/considering onto the built deck, allocating owned copies', () => {
+    const commander = sc('Zada, Hedron Grinder', 'zada');
+    const ctx = {
+      decks: [],
+      collectionCards: [owned('Negate', 'copy-negate'), owned('Rhystic Study', 'copy-rhystic')],
+    };
+    const input = buildDeckInputFromImport(
+      result([commander, sc('Sol Ring', 'sol')], commander, {
+        sideboard: [sc('Negate', 'negate')],
+        considering: [sc('Rhystic Study', 'rhystic')],
+      }),
+      commander,
+      'Goblin Storm',
+      'commander',
+      ctx
+    );
+
+    expect(input.cards.map((c) => c.card.name)).toEqual(['Sol Ring']);
+    expect(input.sideboard.map((c) => c.card.name)).toEqual(['Negate']);
+    expect(input.sideboard[0].allocatedCopyId).toBe('copy-negate');
+    expect(input.considering.map((c) => c.card.name)).toEqual(['Rhystic Study']);
+    expect(input.considering[0].allocatedCopyId).toBe('copy-rhystic');
+  });
+
+  it('defaults sideboard/considering to empty arrays when the response omits them', () => {
+    const input = buildDeckInputFromImport(
+      result([sc('Sol Ring', 'sol')]),
+      null,
+      'A',
+      'commander',
+      ctxEmpty
+    );
+    expect(input.sideboard).toEqual([]);
+    expect(input.considering).toEqual([]);
   });
 });

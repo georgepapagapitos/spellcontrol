@@ -18,6 +18,7 @@ import {
   availableFinishes,
   finishUnitPrice,
   nextFinish,
+  nextCondition,
   priceTier,
   pulseValueHaptic,
 } from './scanner-feedback';
@@ -87,6 +88,16 @@ describe('nextFinish', () => {
     expect(FINISH_LABELS.nonfoil).toBe('Normal');
     expect(FINISH_LABELS.foil).toBe('Foil');
     expect(FINISH_LABELS.etched).toBe('Etched');
+  });
+});
+
+describe('nextCondition', () => {
+  it('cycles NM → LP → MP → HP → DMG and wraps back to NM', () => {
+    expect(nextCondition('nm')).toBe('lp');
+    expect(nextCondition('lp')).toBe('mp');
+    expect(nextCondition('mp')).toBe('hp');
+    expect(nextCondition('hp')).toBe('damaged');
+    expect(nextCondition('damaged')).toBe('nm');
   });
 });
 

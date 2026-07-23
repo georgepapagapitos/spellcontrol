@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchCards } from '../lib/use-search-cards';
 import { Check, ChevronDown, Minus, Plus, Trash2, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
-import type { Finish } from '../types';
+import type { Condition, Finish } from '../types';
 import { fetchPrintings } from '../lib/api';
 import { SearchPill } from './SearchPill';
 import { formatMoney } from '../lib/format-money';
@@ -11,7 +11,9 @@ import {
   availableFinishes,
   finishUnitPrice,
   nextFinish,
+  nextCondition,
 } from '../lib/scanner-feedback';
+import { conditionLabel, conditionShort } from './shared/CardRow';
 import { logger } from '@/lib/logger';
 import { useConfirm } from '../lib/use-confirm';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -26,6 +28,16 @@ export interface ScannedEntry {
   /** Owned finish for this row. Toggled in the UI; round-trips to the
    *  collection as a foil/etched copy via the import text. */
   finish: Finish;
+  /**
+   * Owned condition for this row (E87). Undefined means Near Mint — the
+   * unmarked default, matching the collection's "norms are unmarked"
+   * convention (STYLE_GUIDE § Card row information hierarchy). Unlike
+   * `finish`, condition is NOT part of row identity (see `entryKey`): it
+   * applies uniformly to the row's whole `qty` stack, same as an add-time
+   * condition applies to a whole search-add batch (`PrintingPicker`).
+   * Toggled in the UI; round-trips to the collection via the import text.
+   */
+  condition?: Condition;
   /** Raw OCR text that produced this entry — surfaced as a `title` tooltip. */
   rawText: string;
 }
@@ -36,6 +48,8 @@ interface Props {
   onChangePrinting: (entryId: string, newCard: ScryfallCard) => void;
   /** Set the owned finish (nonfoil / foil / etched) for an entry. */
   onChangeFinish: (entryId: string, finish: Finish) => void;
+  /** Set the owned condition (nm/lp/mp/hp/damaged) for an entry (E87). */
+  onChangeCondition: (entryId: string, condition: Condition) => void;
   onChangeQty: (entryId: string, delta: number) => void;
   onRemove: (entryId: string) => void;
   onClearAll: () => void;
@@ -79,6 +93,7 @@ export function ScannerQueueSheet({
   onClose,
   onChangePrinting,
   onChangeFinish,
+  onChangeCondition,
   onChangeQty,
   onRemove,
   onClearAll,
@@ -297,6 +312,7 @@ export function ScannerQueueSheet({
               const prints = printsCache.get(printingsKey(entry.card));
               const finishes = availableFinishes(entry.card.finishes);
               const unit = finishUnitPrice(entry.card.prices, entry.finish);
+              const condition = entry.condition ?? 'nm';
               return (
                 <li key={entry.id} className="scanner-sheet-row" title={entry.rawText}>
                   <div className="scanner-sheet-row-main">
@@ -373,6 +389,21 @@ export function ScannerQueueSheet({
                             {FINISH_LABELS[entry.finish]}
                           </button>
                         )}
+                        {/* No availability gate (unlike finish above): every
+                            physical card can be any condition regardless of
+                            printing, so this always renders — see
+                            STYLE_GUIDE "Editable toggles show their state,
+                            always". */}
+                        <button
+                          type="button"
+                          className="scanner-condition-toggle"
+                          onClick={() => onChangeCondition(entry.id, nextCondition(condition))}
+                          aria-label={`Condition of ${entry.card.name}: ${conditionLabel(
+                            condition
+                          )}. Tap to change.`}
+                        >
+                          {conditionShort(condition)}
+                        </button>
                         <button
                           type="button"
                           className="scanner-icon-btn scanner-sheet-remove"

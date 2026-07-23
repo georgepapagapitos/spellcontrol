@@ -46,6 +46,17 @@
   background: color-mix(in srgb, var(--accent) 5%, var(--surface));
 }
 
+/* User-tagged section (E125) — dashed, never accent-styled: a declared
+   opinion, not a detected path, so it can't read as a second primary pick. */
+.win-con-row--tagged {
+  border-style: dashed;
+}
+
+.win-con-tagged-icon {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
 .win-con-row-head {
   display: flex;
   align-items: center;
@@ -111,12 +122,18 @@
   color: var(--text-muted);
   background: transparent;
   border: 0;
-  border-radius: inherit;
+  /* Full-chip rounding when it's the only child; a trailing tag button (below)
+     takes the right corners instead, so this keeps only the left ones. */
+  border-radius: var(--radius);
   padding: 0.1rem 0.45rem;
   cursor: pointer;
   transition:
     background var(--motion-fast) ease,
     color var(--motion-fast) ease;
+}
+
+.win-con-evidence-button:not(:only-child) {
+  border-radius: var(--radius) 0 0 var(--radius);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -141,6 +158,57 @@
   .win-con-evidence-button {
     min-height: 44px;
     padding: 0.3rem 0.6rem;
+  }
+}
+
+/* Tag-as-Wincon toggle (E125) — trailing icon button, hairline-divided from
+   the name button so the two tap targets read as distinct actions. Filled
+   glyph + accent color on aria-pressed is the "tagged by you" provenance
+   mark (same fill/color-on-pressed convention as BookmarkButton). */
+.win-con-evidence-tag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0.1rem 0.4rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-left: 0.5px solid var(--border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .win-con-evidence-tag-btn:hover {
+    color: var(--on-accent);
+    background: var(--accent);
+  }
+}
+
+.win-con-evidence-tag-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.win-con-evidence-tag-btn[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .win-con-evidence-tag-btn {
+    transition: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .win-con-evidence-tag-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.3rem var(--space-2);
   }
 }
 

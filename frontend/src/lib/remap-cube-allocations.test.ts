@@ -63,6 +63,7 @@ function deck(overrides: Partial<Deck> = {}): Deck {
     partnerCommanderAllocatedCopyId: null,
     cards: [],
     sideboard: [],
+    considering: [],
     generationContext: null,
     color: '#7a8a70',
     createdAt: 0,

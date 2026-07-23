@@ -48,6 +48,7 @@ function deck(overrides: Partial<Deck> = {}): Deck {
     partnerCommanderAllocatedCopyId: null,
     cards: [],
     sideboard: [],
+    considering: [],
     format: 'commander',
     generationContext: null,
     color: '#7a8a70',
@@ -121,6 +122,43 @@ describe('buildAllocationMap', () => {
     expect(() => buildAllocationMap([d1, d2])).not.toThrow();
     expect(buildAllocationMap([d1, d2]).size).toBe(1);
   });
+
+  // E122: a card parked in Considering can still hold a physical copy (the
+  // park-candidate might already be one you own) — it must claim the copy the
+  // same way a sideboard slot does, so nothing else can double-bind it.
+  it('claims a considering allocation, same as sideboard', () => {
+    const d = deck({
+      id: 'd1',
+      name: 'Park',
+      considering: [
+        { slotId: 'p1', card: { name: 'Rhystic Study' } as never, allocatedCopyId: 'copy-rs' },
+      ],
+    });
+    const map = buildAllocationMap([d]);
+    expect(map.size).toBe(1);
+    expect(map.get('copy-rs')?.cardName).toBe('Rhystic Study');
+    expect(map.get('copy-rs')?.deckName).toBe('Park');
+  });
+
+  it('a copy parked in considering is unavailable to another deck (no double-claim)', () => {
+    const d1 = deck({
+      id: 'd1',
+      name: 'A',
+      considering: [
+        { slotId: 'p1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' },
+      ],
+    });
+    const d2 = deck({
+      id: 'd2',
+      name: 'B',
+      cards: [{ slotId: 's1', card: { name: 'Sol Ring' } as never, allocatedCopyId: 'shared' }],
+    });
+    const collisions: { copyId: string; prior: AllocationInfo; next: AllocationInfo }[] = [];
+    const map = buildAllocationMap([d1, d2], undefined, (c) => collisions.push(c));
+    expect(map.size).toBe(1);
+    expect(collisions).toHaveLength(1);
+    expect(collisions[0]).toMatchObject({ prior: { deckName: 'A' }, next: { deckName: 'B' } });
+  });
 });
 
 describe('dedupeDeckAllocations', () => {
@@ -186,6 +224,23 @@ describe('dedupeDeckAllocations', () => {
     expect(d.partnerCommanderAllocatedCopyId).toBeNull();
     expect(d.cards[0].allocatedCopyId).toBeNull();
     expect(d.sideboard[0].allocatedCopyId).toBeNull();
+  });
+
+  // E122: considering resolves last in claim order — cards → sideboard →
+  // considering — so a contested copy already bound to an earlier zone always
+  // clears the considering slot, never the other way around.
+  it('clears a considering slot contested by an earlier zone', () => {
+    const decks = [
+      deck({
+        id: 'd1',
+        cards: [dc('s1', 'Sol Ring', 'x')],
+        considering: [dc('s2', 'Rhystic Study', 'x')],
+      }),
+    ];
+    const res = dedupeDeckAllocations(decks);
+    expect(res.changed).toBe(true);
+    expect(res.decks[0].cards[0].allocatedCopyId).toBe('x');
+    expect(res.decks[0].considering[0].allocatedCopyId).toBeNull();
   });
 
   it('leaves null allocations and unrelated copies untouched', () => {

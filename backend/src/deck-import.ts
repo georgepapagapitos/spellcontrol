@@ -8,6 +8,10 @@ export interface DeckSections {
   commander: ScryfallCard | null;
   companion: ScryfallCard | null;
   cards: ScryfallCard[];
+  /** Format sideboard rows ("Sideboard" header) — distinct from `considering`. */
+  sideboard: ScryfallCard[];
+  /** "Maybeboard" header rows — park-candidates (E122), never part of `cards`. */
+  considering: ScryfallCard[];
   /** Names Scryfall answered "not found" for — genuine misses. */
   unresolvedNames: string[];
   /** Names whose lookup never reached Scryfall (outage / rate-limit storm) — retryable. */
@@ -15,10 +19,12 @@ export interface DeckSections {
 }
 
 /**
- * Resolves a deck's already-sectioned rows (commander / companion / deck) into
- * the {@link DeckSections} response shape. Shared by the text `/api/import-deck`
- * endpoint and the MTGJSON product path, which both build the same section row
- * arrays and need identical resolution semantics.
+ * Resolves a deck's already-sectioned rows (commander / companion / deck /
+ * sideboard / considering) into the {@link DeckSections} response shape.
+ * Shared by the text `/api/import-deck` endpoint and the MTGJSON product path,
+ * which both build the same section row arrays and need identical resolution
+ * semantics. `sideboardRows`/`consideringRows` default to `[]` — the product
+ * path has neither.
  *
  * The collector-number retry (some exports use a collector number Scryfall
  * doesn't recognize for the exact printing) lives in {@link resolveCards}
@@ -28,9 +34,17 @@ export async function resolveDeckRows(
   commanderRows: ImportRow[],
   companionRows: ImportRow[],
   deckRows: ImportRow[],
-  cache: ScryfallCache
+  cache: ScryfallCache,
+  sideboardRows: ImportRow[] = [],
+  consideringRows: ImportRow[] = []
 ): Promise<DeckSections> {
-  const allRows = [...commanderRows, ...companionRows, ...deckRows];
+  const allRows = [
+    ...commanderRows,
+    ...companionRows,
+    ...deckRows,
+    ...sideboardRows,
+    ...consideringRows,
+  ];
   const expanded = expandByQuantity(allRows);
   const { resolved, fetchErrorNames } = await resolveCards(expanded, cache);
 
@@ -39,7 +53,9 @@ export async function resolveDeckRows(
     companionRows,
     deckRows,
     resolved,
-    new Set(fetchErrorNames)
+    new Set(fetchErrorNames),
+    sideboardRows,
+    consideringRows
   );
 }
 
@@ -58,8 +74,8 @@ function totalQty(rows: ImportRow[]): number {
 
 /**
  * Splits the per-row resolved-cards array (one entry per physical copy, in
- * commander → companion → deck order) into the response shape the /api/import-deck
- * endpoint returns.
+ * commander → companion → deck → sideboard → considering order) into the
+ * response shape the /api/import-deck endpoint returns.
  *
  * Why one entry per copy: the previous implementation collapsed duplicate
  * (name, setCode) rows into a single ScryfallCard, losing printing precision —
@@ -70,8 +86,9 @@ function totalQty(rows: ImportRow[]): number {
  * in the deck.
  *
  * `resolved` MUST be the output of resolving expandByQuantity(commanderRows ++
- * companionRows ++ deckRows) — the slice boundaries are computed from row
- * quantities and would mis-align if the upstream changed order or expansion.
+ * companionRows ++ deckRows ++ sideboardRows ++ consideringRows) — the slice
+ * boundaries are computed from row quantities and would mis-align if the
+ * upstream changed order or expansion.
  */
 export function sliceResolvedDeckImport(
   commanderRows: ImportRow[],
@@ -79,9 +96,16 @@ export function sliceResolvedDeckImport(
   deckRows: ImportRow[],
   resolved: Array<ScryfallCard | undefined>,
   /** Names whose lookup failed to reach Scryfall — routed to fetchErrorNames instead of unresolvedNames. */
-  fetchFailedNames: ReadonlySet<string> = new Set()
+  fetchFailedNames: ReadonlySet<string> = new Set(),
+  sideboardRows: ImportRow[] = [],
+  consideringRows: ImportRow[] = []
 ): DeckSections {
-  const expectedLength = totalQty(commanderRows) + totalQty(companionRows) + totalQty(deckRows);
+  const expectedLength =
+    totalQty(commanderRows) +
+    totalQty(companionRows) +
+    totalQty(deckRows) +
+    totalQty(sideboardRows) +
+    totalQty(consideringRows);
   if (resolved.length !== expectedLength) {
     throw new Error(
       `sliceResolvedDeckImport: resolved length ${resolved.length} != expected ${expectedLength}`
@@ -90,15 +114,23 @@ export function sliceResolvedDeckImport(
 
   const commanderEnd = totalQty(commanderRows);
   const companionEnd = commanderEnd + totalQty(companionRows);
+  const deckEnd = companionEnd + totalQty(deckRows);
+  const sideboardEnd = deckEnd + totalQty(sideboardRows);
 
   const commander = commanderRows.length > 0 ? (resolved[0] ?? null) : null;
   const companion = companionRows.length > 0 ? (resolved[commanderEnd] ?? null) : null;
 
-  const cards: ScryfallCard[] = [];
-  for (let i = companionEnd; i < resolved.length; i++) {
-    const card = resolved[i];
-    if (card) cards.push(card);
-  }
+  const collect = (start: number, end: number): ScryfallCard[] => {
+    const out: ScryfallCard[] = [];
+    for (let i = start; i < end; i++) {
+      const card = resolved[i];
+      if (card) out.push(card);
+    }
+    return out;
+  };
+  const cards = collect(companionEnd, deckEnd);
+  const sideboard = collect(deckEnd, sideboardEnd);
+  const considering = collect(sideboardEnd, resolved.length);
 
   const unresolvedNames: string[] = [];
   const fetchErrorNames: string[] = [];
@@ -119,6 +151,8 @@ export function sliceResolvedDeckImport(
   walk(commanderRows);
   walk(companionRows);
   walk(deckRows);
+  walk(sideboardRows);
+  walk(consideringRows);
 
-  return { commander, companion, cards, unresolvedNames, fetchErrorNames };
+  return { commander, companion, cards, sideboard, considering, unresolvedNames, fetchErrorNames };
 }

@@ -199,6 +199,10 @@ export interface DeckImportResponse {
   commander: import('@/deck-builder/types').ScryfallCard | null;
   companion: import('@/deck-builder/types').ScryfallCard | null;
   cards: import('@/deck-builder/types').ScryfallCard[];
+  /** Format sideboard rows ("Sideboard" header). Absent/empty when the input had none. */
+  sideboard?: import('@/deck-builder/types').ScryfallCard[];
+  /** "Maybeboard" header rows — park-candidates (E122), routed to the deck's Considering zone. */
+  considering?: import('@/deck-builder/types').ScryfallCard[];
   unresolvedNames: string[];
   /** Names skipped because the card service was unreachable — retry re-runs the import. */
   fetchErrors: string[];
