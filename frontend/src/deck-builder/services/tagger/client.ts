@@ -257,7 +257,25 @@ const ROLE_EVIDENCE: Record<RoleKey, RegExp> = {
   // in Riches). Cost reduction can be a colored-symbol cost, not just a
   // digit (Morophon: "cost {W}{U}{B}{R}{G} less"). Land-onto-battlefield via
   // exile (not search) is its own idiom (Oblivion Sower).
-  ramp: /adds?\s+(an additional\s+|an amount of\s+)?(\{|[\w\s]{0,15}?mana\b)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? [^.]*?less( to cast)?|play an additional land|creates? [^.]*?treasures?\b|lands? cards?[^.]*?onto the battlefield/i,
+  //
+  // E136 fix (2026-07-23, full-corpus audit — ramp gate-blind 11%): three
+  // verified real-card gaps, every one live-checked against Scryfall.
+  //  - Land-recursion-to-battlefield literally says "TO the battlefield" in
+  //    real Oracle text (Splendid Reclamation: "Return all land cards from
+  //    your graveyard to the battlefield tapped."), not just "ONTO the
+  //    battlefield" — widened to accept either preposition.
+  //  - An untap-lands burst ("untap all lands you control" — Wilderness
+  //    Reclamation) is a distinct mana-burst shape with no cost-reduction/
+  //    search/treasure text of its own to trip any other branch.
+  //  - Convoke/improvise GRANTED to other spells ("Artifact spells you cast
+  //    have convoke" — Chief Engineer; "Nonartifact spells you cast have
+  //    improvise" — Inspiring Statuary) is a real cost-reduction engine.
+  //    Scoped to the granting template ("have"/"has" + convoke/improvise) so
+  //    a card that merely HAS convoke/improvise itself as its own printed
+  //    keyword (Aerial Boost's bare "Convoke" reminder, no granting clause)
+  //    doesn't trip it — that's a one-off cost payment method for THAT card,
+  //    not an ongoing ramp engine.
+  ramp: /adds?\s+(an additional\s+|an amount of\s+)?(\{|[\w\s]{0,15}?mana\b)|search your library for [^.]*?(land|forest|island|swamp|mountain|plains)[^.]*?battlefield|costs? [^.]*?less( to cast)?|play an additional land|creates? [^.]*?treasures?\b|lands? cards?[^.]*?(?:onto|to) the battlefield|untap[^.]*?lands? you control|\b(?:have|has) (?:convoke|improvise)\b/i,
   // Lenient destroy/exile-target gap ("exile two target permanents", "exile
   // up to one target permanent") alongside direct "destroy target creature".
   // Damage-based removal (burn/reach — Lightning Bolt, Massive Raid,

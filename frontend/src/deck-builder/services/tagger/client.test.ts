@@ -92,6 +92,12 @@ const DATA = {
       "Lion's Eye Diamond",
       'Morophon, the Boundless',
       'Oblivion Sower',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negative)
+      'Splendid Reclamation',
+      'Wilderness Reclamation',
+      'Chief Engineer',
+      'Inspiring Statuary',
+      'Aerial Boost',
     ],
   },
 };
@@ -686,6 +692,57 @@ describe('validateCardRole — E136 boardwipe recall widening', () => {
         name: 'Battle at the Bridge',
         oracle_text:
           "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nTarget creature gets -X/-X until end of turn. You gain X life.",
+      })
+    ).toBeNull();
+  });
+});
+
+describe('validateCardRole — E136 ramp recall widening', () => {
+  it('ramp: land-recursion-to-battlefield says "TO", not just "ONTO" the battlefield (Splendid Reclamation)', () => {
+    expect(
+      validateCardRole({
+        name: 'Splendid Reclamation',
+        oracle_text: 'Return all land cards from your graveyard to the battlefield tapped.',
+      })
+    ).toBe('ramp');
+  });
+
+  it('ramp: untap-lands burst (Wilderness Reclamation: "untap all lands you control")', () => {
+    expect(
+      validateCardRole({
+        name: 'Wilderness Reclamation',
+        oracle_text: 'At the beginning of your end step, untap all lands you control.',
+      })
+    ).toBe('ramp');
+  });
+
+  it('ramp: convoke/improvise GRANTED to other spells (Chief Engineer, Inspiring Statuary)', () => {
+    expect(
+      validateCardRole({
+        name: 'Chief Engineer',
+        oracle_text:
+          "Artifact spells you cast have convoke. (Your creatures can help cast those spells. Each creature you tap while casting an artifact spell pays for {1} or one mana of that creature's color.)",
+      })
+    ).toBe('ramp');
+    expect(
+      validateCardRole({
+        name: 'Inspiring Statuary',
+        oracle_text:
+          "Nonartifact spells you cast have improvise. (Your artifacts can help cast those spells. Each artifact you tap after you're done activating mana abilities pays for {1}.)",
+      })
+    ).toBe('ramp');
+  });
+
+  it('ramp: convoke near-miss — merely HAVING convoke as your own printed keyword is not a granted cost-reduction engine (Aerial Boost)', () => {
+    // Aerial Boost is a combat trick in reality, not ramp — hypothetically
+    // mistagged 'ramp' here (Expropriate-style) to prove the granted-
+    // convoke/improvise branch requires the "have"/"has" GRANT verb and
+    // doesn't fire on a card's own bare "Convoke" reminder text.
+    expect(
+      validateCardRole({
+        name: 'Aerial Boost',
+        oracle_text:
+          "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nTarget creature gets +2/+2 and gains flying until end of turn.",
       })
     ).toBeNull();
   });
