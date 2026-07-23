@@ -1380,9 +1380,27 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   sets `outline: none` and relies only on a border-color or background shift
   does not meet WCAG 2.4.11's visible-ring requirement. The `outline` property
   is the mechanism — keep it.
-- **On the always-dark game board / playtest surface, use a white ring**
+- **On an always-dark surface, use a white ring**
   (`outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: 3px`) rather
-  than `--accent`, which can read poorly on the near-black board.
+  than `--accent`, which can read poorly on a near-black background. This is
+  the multiplayer **game board's per-seat `.player-panel`** and everything
+  rendered inside its rotated covers (`.seat-menu`, `.pp-counters-cover`,
+  `.life-keypad`) plus the seam-anchored `.game-board-menu-btn` /
+  `.game-board-undo-btn` — all of these paint a fixed dark gradient/near-black
+  fill (`--pp-base`/`--pp-edge` or a literal `rgba(14, 17, 24, …)`)
+  independent of the app theme. **It does NOT include the solo Playtest
+  board** (`/decks/:id/playtest`) — `.playtest-battlefield` and every sheet
+  layered on it (`card-picker-sheet`, the context menu, zone viewer, token
+  creator, life-adjust popover) use the normal themed tokens (`--bg`,
+  `--surface`, `--surface-raised`) and render light in azorius, dark in
+  dimir, same as any other page. A white ring there is invisible-to-poor
+  contrast in every light scheme — use the standard accent ring. (This
+  correction followed a screenshot check after a sweep had assumed both
+  boards were always-dark and shipped 18 white rings across `playtest.css`
+  + 3 co-located component stylesheets that were only ever verified in dark
+  theme.) The `.game-menu` sheet (End game / rules / roster / layout picker)
+  is also themed, not always-dark, and correctly keeps the accent ring —
+  don't "fix" it back to white.
 - **In an auth/onboarding form, every button** — submit, OAuth, dismiss/back —
   needs the ring; a ring on one button does not cover its siblings.
 - **Read-only validation indicators use `aria-live`, not `role="checkbox"`.**
@@ -2378,7 +2396,9 @@ felt, not displayed, to avoid implying false precision.
 
 ### Filter-chip row
 
-A row of 999px-radius toggle chips (aria-pressed) sits above the feed. Rules:
+A row of `var(--radius)`-rect toggle chips (aria-pressed — these ACT on the
+feed, so shape-language puts them in the rect tier, not the 999px label
+tier) sits above the feed. Rules:
 
 - Chips wrap (`flex-wrap: wrap`), never clip — a narrow phone adds a second
   line, not horizontal overflow (control-row rule from the Toolbars section).
@@ -2388,6 +2408,22 @@ A row of 999px-radius toggle chips (aria-pressed) sits above the feed. Rules:
 - The `f` key cycles chips in order (All → first non-zero chip → … → wrap),
   guarded by `isTypingTarget`. Register it under the "Coach" section of the
   `?` overlay via `useRegisterShortcuts`.
+
+**Cross-cutting toggles join the same row, styled identically, but stay out
+of the lane set (E64).** "Off-meta" (spicy/off-the-beaten-path picks,
+`lib/inclusion-label.ts`'s `classifyInclusion(...).kind === 'offmeta'`) can
+appear in *any* lane, not one of them, so it isn't a `FilterId` — it's an
+independent boolean that narrows whichever lane is active, the same
+relationship "Owned only" already has to the lane set. It reuses
+`.coach-feed-filter-chip` verbatim (same rect, same count-badge treatment)
+rather than inventing a second toggle style, but: it does **not** join the
+`f`-key cycle (that cycles lanes only), and it gets its own
+`isOffMetaEmpty`-style empty-state branch (mirroring `isOwnedEmpty`'s "name
+what actually hid it + one-tap relax" pattern) rather than falling through to
+the generic "no suggestions" message when it's the toggle, not the lane,
+that emptied the view. Renders nothing at zero count, same as any lane chip.
+A future cross-lane toggle (not a new lane) follows this precedent, not the
+lane-chip one.
 
 ### Cuts are separated
 

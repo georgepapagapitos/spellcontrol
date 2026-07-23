@@ -62,16 +62,11 @@
   font-size: var(--text-sm);
 }
 
-/* ── Empty state ──────────────────────────────────────────────────────── */
-.deck-compare-empty {
-  padding: var(--space-6) 0;
-  text-align: center;
-}
-.deck-compare-empty-title {
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  margin-bottom: var(--space-2);
-}
+/* ── Empty state ──────────────────────────────────────────────────────── *
+ * The primary "pick two decks" empty uses the shared .empty-state pattern
+ * (STYLE_GUIDE § Voice & copy). This local class only styles the small
+ * inline "Card lists are identical" sub-panel placeholder (the guide's
+ * documented exception for a concise single-line notice). */
 .deck-compare-empty-hint {
   color: var(--text-muted);
   font-size: var(--text-sm);

@@ -59,15 +59,17 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
             const active = l === level;
             const isLastUsed = level === 'off' && l === lastUsed;
             return (
-              <button
+              <label
                 key={l}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                autoFocus={isLastUsed}
                 className={`playtest-resistance-picker__row${active ? ' is-active' : ''}`}
-                onClick={() => select(l)}
               >
+                <input
+                  type="radio"
+                  name="resistance-level"
+                  checked={active}
+                  autoFocus={isLastUsed}
+                  onChange={() => select(l)}
+                />
                 <span className="playtest-resistance-picker__row-text">
                   <span className="playtest-resistance-picker__row-label">
                     {RESISTANCE_LEVEL_LABEL[l]}
@@ -88,7 +90,7 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
                     strokeWidth={2.5}
                   />
                 )}
-              </button>
+              </label>
             );
           })}
         </div>

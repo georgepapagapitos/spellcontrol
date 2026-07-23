@@ -501,6 +501,13 @@
   flex-shrink: 0;
 }
 
+/* Always-dark game-board surface — white ring per STYLE_GUIDE, not the
+   themed --accent the shared .toolbar-viewmode-btn base rule now sets. */
+.tap-orientation-toggle .toolbar-viewmode-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
 .game-menu-meta {
   display: flex;
   flex-wrap: wrap;
@@ -707,10 +714,15 @@
   }
 }
 
-/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover. */
+/* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
+ * `.game-board-menu-btn` sits directly on the always-dark board (its own
+ * near-black fill, independent of app theme) — white ring per STYLE_GUIDE.
+ * The `.game-menu-*` rules below live inside the `.game-menu` sheet, which
+ * picks up the active app theme (see its own comment), so they correctly
+ * keep the standard accent ring. */
 .game-board-menu-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 .game-menu-btn:focus-visible {
   outline: 2px solid var(--accent);
@@ -728,11 +740,14 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* `.seat-menu-*` rows live inside the per-seat `.seat-menu` cover, which (like
+ * the counters popover and life keypad) always renders the dark --pp-base /
+ * --pp-edge panel gradient regardless of app theme — white ring, not accent. */
 .seat-menu-action:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }
 .seat-menu-swatch:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
 }

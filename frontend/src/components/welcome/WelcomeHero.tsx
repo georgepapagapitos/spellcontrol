@@ -62,7 +62,7 @@ export function WelcomeHero() {
           <SearchPill
             value={query}
             onChange={setQuery}
-            placeholder="Search commanders on Discover"
+            placeholder="Search commanders"
             ariaLabel="Search public decks by commander"
             className="welcome-hero-search-pill"
             trailing={

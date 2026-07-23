@@ -368,6 +368,15 @@
   z-index: 3;
 }
 
+/* 44px touch-target floor (UX-320 pattern) — the resting 2.5rem (40px)
+   circle is 4px short on a coarse pointer. */
+@media (pointer: coarse) {
+  .player-panel-menu-btn.is-corner-br {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .player-panel-menu-btn:hover {
     background: rgba(0, 0, 0, 0.55);
@@ -589,6 +598,25 @@
 
 .player-panel-step-btn:active:not(:disabled) {
   transform: translateY(-50%) scale(0.92);
+}
+
+/* 44px touch-target floor (UX-320 pattern): the visible ± glyph is
+   deliberately compact at 3+ players (as small as ~20×30px) so it reads as
+   an accent beside the life numeral, not a competing control — but the tap
+   target still needs to meet the coarse-pointer floor. A centered ghost
+   hit-area (the `.set-filter-chip-x` technique) grows the hit box without
+   inflating the glyph. The button is already its own positioning context
+   (it's itself `position: absolute`), so no extra wrapper is needed. */
+@media (pointer: coarse) {
+  .player-panel-step-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 @media (max-height: 480px) {
