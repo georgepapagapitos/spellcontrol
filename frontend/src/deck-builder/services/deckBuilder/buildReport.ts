@@ -169,6 +169,8 @@ export function assembleBuildReport(input: {
     report.comboUpsideNotes = generated.comboUpsideNotes;
   if (generated.comboCompletionNotes && generated.comboCompletionNotes.length > 0)
     report.comboCompletionNotes = generated.comboCompletionNotes;
+  if (generated.roleDeficitNotes && generated.roleDeficitNotes.length > 0)
+    report.roleDeficitNotes = generated.roleDeficitNotes;
   if (generated.flagshipSeatings && generated.flagshipSeatings.length > 0)
     report.flagshipSeatings = generated.flagshipSeatings;
 

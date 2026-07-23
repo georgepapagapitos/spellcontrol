@@ -600,6 +600,13 @@ export interface BuildReport {
    *  a generation-start baseline. One entry per newly-completed combo.
    *  Undefined when nothing newly completed. */
   comboCompletionNotes?: string[];
+  /** Disclosure (E160) when a reactive role (ramp/removal/boardwipe/cardDraw)
+   *  shipped under its own target and the Phase-3 backfill
+   *  (phaseRoleSurplusRebalance.ts) didn't or couldn't close the gap — names
+   *  the pool's top unseated candidates the role's own picks outcompeted at
+   *  pick time, or that none were left. One entry per still-deficient role.
+   *  Undefined when every reactive role met its target. */
+  roleDeficitNotes?: string[];
   /** Generation-integrity disclosures (S1): a data source (tagger role data,
    *  combo data, the substitute-ranking index) failed to load even after a
    *  retry, so this build ran degraded on that axis without telling anyone.
@@ -778,6 +785,7 @@ export interface GeneratedDeck {
   bracketPoolFallbackNote?: string; // e.g. bracket-narrowed EDHREC page was too thin — laddered down to a broader page (E93)
   comboUpsideNotes?: ComboUpsideNote[]; // expensive combo pieces kept for still-incomplete-combo upside
   comboCompletionNotes?: string[]; // one per combo the build's own picks completed with cards already in the deck
+  roleDeficitNotes?: string[]; // e.g. removal shipped under target and the pool's next options were outcompeted at pick time (E160)
   /** Generation-integrity disclosures (S1): a data source that couldn't be
    *  loaded (even after a retry) and so degraded this build silently unless
    *  flagged here — tagger role data, combo data, or the substitute-ranking
