@@ -2359,7 +2359,9 @@ felt, not displayed, to avoid implying false precision.
 
 ### Filter-chip row
 
-A row of 999px-radius toggle chips (aria-pressed) sits above the feed. Rules:
+A row of `var(--radius)`-rect toggle chips (aria-pressed — these ACT on the
+feed, so shape-language puts them in the rect tier, not the 999px label
+tier) sits above the feed. Rules:
 
 - Chips wrap (`flex-wrap: wrap`), never clip — a narrow phone adds a second
   line, not horizontal overflow (control-row rule from the Toolbars section).
@@ -2369,6 +2371,22 @@ A row of 999px-radius toggle chips (aria-pressed) sits above the feed. Rules:
 - The `f` key cycles chips in order (All → first non-zero chip → … → wrap),
   guarded by `isTypingTarget`. Register it under the "Coach" section of the
   `?` overlay via `useRegisterShortcuts`.
+
+**Cross-cutting toggles join the same row, styled identically, but stay out
+of the lane set (E64).** "Off-meta" (spicy/off-the-beaten-path picks,
+`lib/inclusion-label.ts`'s `classifyInclusion(...).kind === 'offmeta'`) can
+appear in *any* lane, not one of them, so it isn't a `FilterId` — it's an
+independent boolean that narrows whichever lane is active, the same
+relationship "Owned only" already has to the lane set. It reuses
+`.coach-feed-filter-chip` verbatim (same rect, same count-badge treatment)
+rather than inventing a second toggle style, but: it does **not** join the
+`f`-key cycle (that cycles lanes only), and it gets its own
+`isOffMetaEmpty`-style empty-state branch (mirroring `isOwnedEmpty`'s "name
+what actually hid it + one-tap relax" pattern) rather than falling through to
+the generic "no suggestions" message when it's the toggle, not the lane,
+that emptied the view. Renders nothing at zero count, same as any lane chip.
+A future cross-lane toggle (not a new lane) follows this precedent, not the
+lane-chip one.
 
 ### Cuts are separated
 

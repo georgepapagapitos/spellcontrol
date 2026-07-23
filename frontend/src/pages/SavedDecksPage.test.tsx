@@ -83,7 +83,7 @@ describe('SavedDecksPage', () => {
     });
     renderPage();
 
-    expect(screen.getByText('Saved decks need an account')).toBeTruthy();
+    expect(screen.getByText('Saved decks need an account.')).toBeTruthy();
     const signIn = screen.getByRole('link', { name: 'Sign in' });
     expect(signIn.getAttribute('href')).toBe('/auth?returnTo=%2Fdecks%2Fsaved');
     expect(listBookmarkedDecksMock).not.toHaveBeenCalled();

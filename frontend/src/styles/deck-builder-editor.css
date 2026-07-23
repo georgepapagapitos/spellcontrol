@@ -23,17 +23,23 @@
   gap: var(--space-4);
 }
 
-/* Two-column grid so the title can wrap to multiple lines without ever
-   pushing the action cluster (or the mobile 3-dot overflow) onto its
-   own row. `align-items: start` pins actions to the top of the header
-   so they stay top-right regardless of title height. Only one of
-   `.deck-editor-actions` (desktop) or `.deck-editor-overflow` (mobile)
-   is visible at a time — both compete for the auto column, but the
-   hidden one collapses out of the grid layout. */
+/* Wrapping flex row, mirroring `.collection-hero`/`.decks-index-hero`
+   (binder-hero.css): the title and the action cluster share a row while
+   there's room, and the action cluster drops to its own row once it
+   doesn't fit — it never squeezes the title down instead. A fixed
+   2-col grid shipped here first and had exactly that failure: on a
+   320-360px phone the mobile action cluster (Add-cards pill + ⋮) claimed
+   the grid's `auto` column at its full content width, leaving the title
+   column so little room the deck name rendered as "Uria…". `align-items:
+   flex-start` pins actions to the top of the header so they stay put
+   regardless of title height (the hero can wrap to several lines). Only
+   one of `.deck-editor-actions` (desktop) or `.deck-editor-mobile-actions`
+   (mobile)/`.deck-editor-overflow` is visible at a time — the hidden one
+   is `display: none`, so it doesn't occupy a row. */
 .deck-editor-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--space-4);
 }
 
@@ -51,7 +57,10 @@
   gap: 0.15rem;
   padding-left: 10px;
   border-left: 3px solid var(--accent);
-  flex: 1 1 auto;
+  /* 240px basis matches the sibling hero text columns (binder-hero.css) —
+     the flex row wraps the action cluster below once it doesn't fit
+     beside this, rather than shrinking the title toward it. */
+  flex: 1 1 240px;
   min-width: 0;
 }
 
@@ -201,6 +210,17 @@
   gap: 0.4rem;
 }
 
+/* .btn is desktop-density (~32px) by default (STYLE_GUIDE § Responsive) —
+   this row shows at >=1025px, but that's a viewport width, not a pointer
+   type: a touch laptop/2-in-1/iPad-Pro-landscape at that width is still a
+   coarse pointer, so it needs its own explicit floor like every other
+   touch surface in the app. */
+@media (pointer: coarse) {
+  .deck-editor-action-btn {
+    min-height: 44px;
+  }
+}
+
 /* Count pill on an action button (e.g. Tokens · N). */
 .deck-editor-action-badge {
   display: inline-flex;
@@ -265,6 +285,12 @@
   border-radius: var(--radius);
 }
 
+@media (pointer: coarse) {
+  .deck-editor-add-pill {
+    min-height: 44px;
+  }
+}
+
 .deck-editor-overflow-btn {
   display: inline-flex;
   align-items: center;
@@ -276,6 +302,17 @@
   border-radius: 999px;
   color: var(--text-secondary);
   cursor: pointer;
+}
+
+/* The button is shared markup for both the desktop-actions overflow and the
+   mobile cluster (only the wrapping .deck-editor-overflow/-mobile-actions
+   toggles which one is in the DOM flow), so both need the floor — not just
+   the mobile breakpoint. */
+@media (pointer: coarse) {
+  .deck-editor-overflow-btn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 .deck-editor-overflow-btn[aria-expanded='true'] {

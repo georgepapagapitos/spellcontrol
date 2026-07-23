@@ -415,4 +415,49 @@ describe('CoachFeed', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show unowned too' }));
     expect(onOwnedOnlyChange).toHaveBeenLastCalledWith(false);
   });
+
+  // ── E64: off-meta discoverability toggle ──────────────────────────────────
+
+  const offMetaGap: GapAnalysisCard = {
+    name: 'Squirrel Nest',
+    role: 'value',
+    roleLabel: 'Value',
+    inclusion: 0,
+  } as GapAnalysisCard;
+
+  it('off-meta chip is absent when the deck has no off-meta picks (insight-strip zero rule)', () => {
+    render(<CoachFeed {...makeProps()} />);
+    expect(screen.queryByText('Off-meta')).toBeNull();
+  });
+
+  it('off-meta chip shows a count and narrows the feed to off-meta picks only', () => {
+    render(<CoachFeed {...makeProps({ gaps: [gap, offMetaGap] })} />);
+    // Both the staple gap and the off-meta gap show up before filtering.
+    expect(screen.getByText('Cultivate')).toBeTruthy();
+    expect(screen.getByText('Squirrel Nest')).toBeTruthy();
+
+    const chip = screen.getByRole('button', { name: /Off-meta picks — 1/ });
+    expect(chip.textContent).toContain('Off-meta');
+    expect(chip.textContent).toContain('1');
+
+    fireEvent.click(chip);
+    expect(screen.getByText('Squirrel Nest')).toBeTruthy();
+    expect(screen.queryByText('Cultivate')).toBeNull();
+    // Combos never count as off-meta by definition (a proven completion isn't spicy).
+    expect(screen.queryByText('Heliod, Sun-Crowned')).toBeNull();
+
+    // Toggling back off restores the full feed.
+    fireEvent.click(chip);
+    expect(screen.getByText('Cultivate')).toBeTruthy();
+  });
+
+  it('off-meta empty state names the toggle as the cause and offers a relax button', () => {
+    render(<CoachFeed {...makeProps({ gaps: [gap, offMetaGap], initialFilter: 'budget' })} />);
+    // Budget's only row (Esper Sentinel) has a real inclusion %, so toggling
+    // Off-meta on empties this lane specifically because of the toggle.
+    fireEvent.click(screen.getByRole('button', { name: /Off-meta picks/ }));
+    expect(screen.getByText(/No off-meta Budget picks right now/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Show all suggestions' }));
+    expect(screen.getByText('Esper Sentinel')).toBeTruthy();
+  });
 });
