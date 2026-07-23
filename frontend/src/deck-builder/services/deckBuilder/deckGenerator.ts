@@ -146,6 +146,7 @@ import {
 import { applyCoherenceRepair } from './deckGeneration/phaseCoherenceRepair';
 import { applyBudgetConvergence } from './deckGeneration/phaseBudgetConverge';
 import { applyRoleSurplusRebalance } from './deckGeneration/phaseRoleSurplusRebalance';
+import { buildRoleDeficitNotes } from './deckGeneration/roleDeficitNotes';
 import { applyLandSqueezeReconcile } from './deckGeneration/phaseLandSqueezeReconcile';
 import { applyFlagshipSeating } from './deckGeneration/phaseFlagshipSeating';
 import {
@@ -4148,6 +4149,19 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // never actually breached.
   const roleCapOverflowNote = buildRoleCapOverflowNote(roleCapOverflowCounts);
 
+  // Pick-time displacement disclosure (E160) — the deficit-direction
+  // counterpart to roleCapOverflowNote above. Runs AFTER every composition
+  // phase (role-surplus rebalance's Phase 3 backfill included), over the
+  // FINAL nonLandCards/roleTargets, so it only names a role backfill didn't
+  // (or couldn't) close — surplusConversions above already discloses
+  // whatever backfill DID fix. Undefined when every reactive role met target.
+  const roleDeficitNotes = buildRoleDeficitNotes(
+    nonLandCards,
+    roleTargets,
+    state.edhrecData?.cardlists.allNonLand,
+    { bannedCards, isSaltBlocked }
+  );
+
   // Price-sanity disclosure (E80, honesty fix E126) — composed from the
   // FINAL deck (nonLandCards) + the same batch-fetched EDHREC pool picking
   // drew from, NOT from priceSanityDecided (see countFinalPriceSanityPicks's
@@ -4289,6 +4303,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     mustIncludeSkippedNote,
     budgetNote,
     roleCapOverflowNote,
+    roleDeficitNotes,
     priceSanityNote,
     bracketPriceDisclosureNote,
     wipeAsymmetryNote,

@@ -9,6 +9,7 @@ import { formatCount } from '../../lib/format-count';
 import { renderMarkdownLite } from '../../lib/markdown-lite';
 import { SharedCardTile, type CardOwnership } from './SharedCardTile';
 import { SharedCardList } from './SharedCardList';
+import { SharedEmptyState } from './SharedEmptyState';
 import { CardPreview } from '../CardPreview';
 import { publicCardToEnriched } from '../../lib/shared-filter';
 import { useSharedFilters } from './use-shared-filters';
@@ -374,46 +375,64 @@ export function SharedDeckView({ data, publicMeta, ownership }: Props) {
         />
       </div>
 
-      {deckSections.map((s) => (
-        <section key={s.key} className="shared-deck-section">
-          <h2 className="shared-deck-section-heading">{s.heading}</h2>
-          {view === 'grid' ? (
-            <ul className="shared-card-grid shared-card-grid--small">
-              {s.items.map((it, j) => (
-                <li key={`${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`}>
-                  <SharedCardTile
-                    card={it.publicCard}
-                    quantity={it.quantity}
-                    onClick={() => setPreviewIndex(s.start + j)}
-                    ownership={ownership?.get(it.publicCard.name)}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <SharedCardList
-              items={s.items.map((it, j) => ({
-                key: `${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`,
-                card: it.publicCard,
-                quantity: it.quantity,
-                ownership: ownership?.get(it.publicCard.name),
-              }))}
-              onPreview={(j) => setPreviewIndex(s.start + j)}
-              showPrice={false}
-            />
-          )}
-        </section>
-      ))}
+      {deckSections.length === 0 ? (
+        <SharedEmptyState
+          empty={mainboardCount === 0 && data.sideboard.length === 0}
+          emptyTagline="This deck has no cards yet."
+          emptyHint="The owner hasn't added any cards to it."
+          filteredTagline="No cards match your search or filters."
+          onClearSearch={search ? () => setSearch('') : undefined}
+        />
+      ) : (
+        deckSections.map((s) => (
+          <section key={s.key} className="shared-deck-section">
+            <h2 className="shared-deck-section-heading">{s.heading}</h2>
+            {view === 'grid' ? (
+              <ul className="shared-card-grid shared-card-grid--small">
+                {s.items.map((it, j) => (
+                  <li key={`${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`}>
+                    <SharedCardTile
+                      card={it.publicCard}
+                      quantity={it.quantity}
+                      onClick={() => setPreviewIndex(s.start + j)}
+                      ownership={ownership?.get(it.publicCard.name)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <SharedCardList
+                items={s.items.map((it, j) => ({
+                  key: `${it.publicCard.scryfallId}-${it.publicCard.name}-${j}`,
+                  card: it.publicCard,
+                  quantity: it.quantity,
+                  ownership: ownership?.get(it.publicCard.name),
+                }))}
+                onPreview={(j) => setPreviewIndex(s.start + j)}
+                showPrice={false}
+              />
+            )}
+          </section>
+        ))
+      )}
 
-      <CopyDeckButton data={data} variant="block" slug={publicMeta?.slug} />
-      <button
-        type="button"
-        className="btn shared-copy-btn--block shared-export-btn"
-        onClick={() => setExportOpen(true)}
-      >
-        <Download width={16} height={16} strokeWidth={2} aria-hidden />
-        Export decklist
-      </button>
+      {/* Copy/Export act on the whole deck (`data`), never the filtered
+          `deckSections` view — so they stay available even when a search
+          filters every section to zero; only a genuinely cardless deck
+          hides them (nothing to copy or export). */}
+      {(mainboardCount > 0 || data.sideboard.length > 0) && (
+        <>
+          <CopyDeckButton data={data} variant="block" slug={publicMeta?.slug} />
+          <button
+            type="button"
+            className="btn shared-copy-btn--block shared-export-btn"
+            onClick={() => setExportOpen(true)}
+          >
+            <Download width={16} height={16} strokeWidth={2} aria-hidden />
+            Export decklist
+          </button>
+        </>
+      )}
 
       {exportOpen && (
         <DeckExportDialog

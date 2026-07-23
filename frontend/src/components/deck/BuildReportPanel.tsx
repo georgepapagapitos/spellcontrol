@@ -196,6 +196,7 @@ export function BuildReportPanel({
     integrityNotes,
     budgetNote,
     roleCapOverflowNote,
+    roleDeficitNotes,
     priceSanityNote,
     bracketPriceDisclosureNote,
     wipeAsymmetryNote,
@@ -295,6 +296,12 @@ export function BuildReportPanel({
       {roleCapOverflowNote && (
         <p className="build-report-line build-report-source">{roleCapOverflowNote}</p>
       )}
+
+      {roleDeficitNotes?.map((note, i) => (
+        <p key={`role-deficit-${i}`} className="build-report-line build-report-source">
+          {note}
+        </p>
+      ))}
 
       <p className="build-report-line build-report-source">
         Protection/interaction: <strong>{protectionCount ?? 0}</strong>{' '}

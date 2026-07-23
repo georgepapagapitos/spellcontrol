@@ -1309,6 +1309,213 @@ describe('applyRoleSurplusRebalance', () => {
     });
   });
 
+  // E160: Phase 3's backfill generalizes from boardwipe-only
+  // (DEFICIT_BACKFILL_ROLES = ['boardwipe', 'removal']) — pick-time slot
+  // competition can displace an under-target removal bearer with no
+  // disclosure anywhere (E139 gate: lathril lost Assassin's Trophy, removal
+  // 7/8 -> 6/8, outcompeted not devalued). Mirrors the boardwipe-backfill
+  // describe block above; the donor/replacement machinery is identical,
+  // just parameterized by role instead of hardcoded to boardwipe.
+  describe('E160: removal deficit backfill', () => {
+    it('backfills a removal deficit, seating the pool candidate and disclosing the under-target wording', () => {
+      const state = makeState();
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      ROLE_OF.set('Removal Candidate', 'removal');
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Removal Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 1, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Removal Candidate');
+      expect(result.conversions[0].cut).toBe('Filler A');
+      expect(result.conversions[0].reason).toMatch(
+        /Removal was running 0 vs its 1-card target — under target/
+      );
+      expect(state.usedNames.has('Removal Candidate')).toBe(true);
+      expect(state.usedNames.has('Filler A')).toBe(false);
+    });
+
+    // Every donor exclusion class findRoleDeficitDonor enforces, pinned
+    // together for the removal path specifically (generalizing the role
+    // param must not have quietly dropped one of these for a non-boardwipe
+    // deficit) — mirrors Phase 1/2's own isProtected/isFreeInteraction
+    // pinned tests above, plus the donor role-slack guard.
+    it('refuses every disqualified donor for a removal backfill and falls through to the one legal filler', () => {
+      const state = makeState();
+
+      const mustIncludeFiller = scryfallCard('MustInclude Filler');
+      mustIncludeFiller.isMustInclude = true;
+      const comboFiller = scryfallCard('Combo Filler');
+      const stapleFiller = scryfallCard('Staple Filler', { isStapleRock: true });
+      const protectionFiller = scryfallCard('Protection Filler');
+      const freeInteractionFiller = scryfallCard('Free Interaction Filler');
+      const legalFiller = scryfallCard('Legal Filler');
+      for (const c of [
+        mustIncludeFiller,
+        comboFiller,
+        stapleFiller,
+        protectionFiller,
+        freeInteractionFiller,
+        legalFiller,
+      ]) {
+        state.usedNames.add(c.name);
+        state.categories.utility.push(c);
+      }
+      state.comboCardNames.add('Combo Filler');
+      FREE_INTERACTION_NAMES.add('Free Interaction Filler');
+      vi.mocked(isProtectionPiece).mockImplementation((c) => c.name === 'Protection Filler');
+      // Ramp sits EXACTLY at its own target — donating one would drop ramp
+      // under target, so every ramp card is refused too.
+      addRampCards(state, 5);
+
+      ROLE_OF.set('Removal Candidate', 'removal');
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Removal Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 5, removal: 1, boardwipe: 0, cardDraw: 0 };
+      try {
+        const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+        expect(result.conversions).toHaveLength(1);
+        expect(result.conversions[0].cut).toBe('Legal Filler');
+        expect(result.conversions[0].added).toBe('Removal Candidate');
+        for (const name of [
+          'MustInclude Filler',
+          'Combo Filler',
+          'Staple Filler',
+          'Protection Filler',
+          'Free Interaction Filler',
+        ]) {
+          expect(state.usedNames.has(name)).toBe(true);
+        }
+        const remainingRamp = state.categories.synergy.filter(
+          (c) => ROLE_OF.get(c.name) === 'ramp'
+        );
+        expect(remainingRamp).toHaveLength(5);
+      } finally {
+        vi.mocked(isProtectionPiece).mockReturnValue(false);
+      }
+    });
+
+    it('lets a boardwipe donate to a removal backfill only when boardwipe has slack above its own target', () => {
+      const state = makeState();
+      addBoardWipes(state, [{ name: 'Wipe_1' }, { name: 'Wipe_2' }]); // target 1, count 2 -> 1 of slack
+      ROLE_OF.set('Removal Candidate', 'removal');
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Removal Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 1, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Removal Candidate');
+      expect(['Wipe_1', 'Wipe_2']).toContain(result.conversions[0].cut);
+      // Boardwipe still meets its own target after donating the slack copy.
+      const remainingWipes = state.categories.boardWipes.filter(
+        (c) => ROLE_OF.get(c.name) === 'boardwipe'
+      );
+      expect(remainingWipes).toHaveLength(1);
+    });
+
+    it('refuses a boardwipe donor for a removal backfill when boardwipe sits exactly at its own target', () => {
+      const state = makeState();
+      addBoardWipes(state, [{ name: 'Wipe_1' }]); // target 1, count 1 -> zero slack
+      ROLE_OF.set('Removal Candidate', 'removal');
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Removal Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 1, boardwipe: 1, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      // No legal donor anywhere in the deck (the only card would open a NEW
+      // boardwipe deficit) — the removal deficit goes unconverted.
+      expect(result.conversions).toEqual([]);
+      expect(state.usedNames.has('Wipe_1')).toBe(true);
+      expect(state.usedNames.has('Removal Candidate')).toBe(false);
+    });
+
+    it('stops backfilling a removal deficit exactly at target even with more legal donors and candidates available', () => {
+      const state = makeState();
+      const fillers = Array.from({ length: 4 }, (_, i) => scryfallCard(`Filler_${i + 1}`));
+      for (const f of fillers) {
+        state.usedNames.add(f.name);
+        state.categories.utility.push(f);
+      }
+      for (let i = 1; i <= 4; i++) ROLE_OF.set(`Removal Candidate ${i}`, 'removal');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: Array.from({ length: 4 }, (_, i) =>
+            edhrecCard(`Removal Candidate ${i + 1}`, 90 - i)
+          ),
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 2, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(2);
+      const untouchedFillers = fillers.filter((f) => state.usedNames.has(f.name));
+      expect(untouchedFillers).toHaveLength(2); // only 2 of 4 donors spent
+    });
+
+    it('never applies more than MAX_SURPLUS_CONVERSIONS swaps backfilling a large removal deficit', () => {
+      const state = makeState();
+      const fillers = Array.from({ length: 10 }, (_, i) => scryfallCard(`Filler_${i + 1}`));
+      for (const f of fillers) {
+        state.usedNames.add(f.name);
+        state.categories.utility.push(f);
+      }
+      for (let i = 1; i <= 10; i++) ROLE_OF.set(`Removal Candidate ${i}`, 'removal');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: Array.from({ length: 10 }, (_, i) =>
+            edhrecCard(`Removal Candidate ${i + 1}`, 90 - i)
+          ),
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 10, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(MAX_SURPLUS_CONVERSIONS);
+    });
+
+    it('backfills boardwipe before removal when both are deficient and the shared budget is tight (DEFICIT_BACKFILL_ROLES order)', () => {
+      const state = makeState();
+      const fillers = Array.from({ length: 8 }, (_, i) => scryfallCard(`Filler_${i + 1}`));
+      for (const f of fillers) {
+        state.usedNames.add(f.name);
+        state.categories.utility.push(f);
+      }
+      for (let i = 1; i <= 4; i++) {
+        ROLE_OF.set(`Wipe Candidate ${i}`, 'boardwipe');
+        ROLE_OF.set(`Removal Candidate ${i}`, 'removal');
+      }
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [
+            ...Array.from({ length: 4 }, (_, i) => edhrecCard(`Wipe Candidate ${i + 1}`, 90 - i)),
+            ...Array.from({ length: 4 }, (_, i) =>
+              edhrecCard(`Removal Candidate ${i + 1}`, 90 - i)
+            ),
+          ],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 4, boardwipe: 4, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      // Shared 6-swap budget can't close both 4-card deficits (8 needed) —
+      // boardwipe (first in DEFICIT_BACKFILL_ROLES) exhausts its own deficit
+      // in full before removal gets a turn with what's left.
+      expect(result.conversions).toHaveLength(MAX_SURPLUS_CONVERSIONS);
+      const addedRoles = result.conversions.map((c) => ROLE_OF.get(c.added));
+      expect(addedRoles.filter((r) => r === 'boardwipe')).toHaveLength(4);
+      expect(addedRoles.filter((r) => r === 'removal')).toHaveLength(2);
+    });
+  });
+
   // E122 follow-up (E82 attempt-6 pick/cut symmetry): survivalScoreOf and
   // findReplacement must weigh ownership the SAME way cardPicking.ts's
   // priorityWithBoosts does at pick time, or an owned card that only made
