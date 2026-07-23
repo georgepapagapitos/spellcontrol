@@ -33,6 +33,14 @@ const DATA = {
       "Kenrith's Transformation",
       'Hullbreaker Horror',
       'Spatial Contortion',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negatives)
+      'Anchor to the Aether',
+      'Blood Feud',
+      'Icefall Regent',
+      'Frost Breath',
+      'Tribute to Hunger',
+      'Basalt Monolith',
+      'Brainstorm',
     ],
     boardwipe: [
       'Wrath of God',
@@ -51,8 +59,22 @@ const DATA = {
       'Spectral Deluge',
       'Cyclonic Rift',
       'Contagion Engine',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negative)
+      'Flame Wave',
+      'Virulent Plague',
+      'Battle at the Bridge',
     ],
-    'card-advantage': ['Divination', 'Experimental Augury', 'Eternal Witness'],
+    'card-advantage': [
+      'Divination',
+      'Experimental Augury',
+      'Eternal Witness',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negatives)
+      'Palace Jailer',
+      'Duggan, Private Detective',
+      'Campfire',
+      'Jared Carthalion, True Heir',
+      'Declaration in Stone',
+    ],
     tutor: [
       'Vampiric Tutor',
       'Demonic Tutor',
@@ -80,6 +102,12 @@ const DATA = {
       "Lion's Eye Diamond",
       'Morophon, the Boundless',
       'Oblivion Sower',
+      // E136 recall-widening fixtures (real + hypothetical-mistag negative)
+      'Splendid Reclamation',
+      'Wilderness Reclamation',
+      'Chief Engineer',
+      'Inspiring Statuary',
+      'Aerial Boost',
     ],
   },
 };
@@ -562,6 +590,235 @@ describe('validateCardRole — round-4 strip-sweep pattern fixes', () => {
           'When this creature enters, you may return target card from your graveyard to your hand.',
       })
     ).toBe('cardDraw');
+  });
+});
+
+// E136 (2026-07-23 full-corpus audit): ROLE_EVIDENCE recall widening, one
+// describe block per role family so a gate-found regression can be traced to
+// a single commit. Every oracle_text fixture below — positive AND negative —
+// is live-verified real Scryfall text (never written from memory), per the
+// audit's hard method rule.
+describe('validateCardRole — E136 removal recall widening', () => {
+  it('removal: library-tuck ("put target creature on top/bottom of its owner\'s library" — Anchor to the Aether)', () => {
+    expect(
+      validateCardRole({
+        name: 'Anchor to the Aether',
+        oracle_text:
+          "Put target creature on top of its owner's library. Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: fight widened past exact "fights target creature" adjacency (Blood Feud: "fights ANOTHER target creature")', () => {
+    expect(
+      validateCardRole({
+        name: 'Blood Feud',
+        oracle_text:
+          'Target creature fights another target creature. (Each deals damage equal to its power to the other.)',
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: tap-lock ("doesn\'t"/"don\'t untap during its/their controller\'s [next] untap step" — Icefall Regent, Frost Breath)', () => {
+    expect(
+      validateCardRole({
+        name: 'Icefall Regent',
+        oracle_text:
+          "Flying\nWhen this creature enters, tap target creature an opponent controls. That creature doesn't untap during its controller's untap step for as long as you control this creature.\nSpells your opponents cast that target this creature cost {2} more to cast.",
+      })
+    ).toBe('removal');
+    expect(
+      validateCardRole({
+        name: 'Frost Breath',
+        oracle_text:
+          "Tap up to two target creatures. Those creatures don't untap during their controller's next untap step.",
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: sacrifice-edict subject list gains "target opponent" (Tribute to Hunger)', () => {
+    expect(
+      validateCardRole({
+        name: 'Tribute to Hunger',
+        oracle_text:
+          "Target opponent sacrifices a creature of their choice. You gain life equal to that creature's toughness.",
+      })
+    ).toBe('removal');
+  });
+
+  it('removal: tap-lock stays anchored to third-person "its/their controller\'s" — a card\'s OWN self-downside cost is not removal (Basalt Monolith: "doesn\'t untap during YOUR untap step")', () => {
+    // Basalt Monolith is a mana rock in reality — hypothetically mistagged
+    // 'removal' here (Expropriate-style) to prove the tap-lock branch's
+    // subject anchor rejects a first-person self-cost, not just confirm the
+    // rest of the gate has nothing else to say about it.
+    expect(
+      validateCardRole({
+        name: 'Basalt Monolith',
+        oracle_text:
+          "This artifact doesn't untap during your untap step.\n{T}: Add {C}{C}{C}.\n{3}: Untap this artifact.",
+      })
+    ).toBeNull();
+  });
+
+  it('removal: library-tuck near-miss — putting YOUR OWN cards on top of your library is not a tuck (Brainstorm)', () => {
+    expect(
+      validateCardRole({
+        name: 'Brainstorm',
+        oracle_text:
+          'Draw three cards, then put two cards from your hand on top of your library in any order.',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('validateCardRole — E136 boardwipe recall widening', () => {
+  it('boardwipe: scoped damage lenient join — object isn\'t literally "each creature" right after "to" (Flame Wave)', () => {
+    expect(
+      validateCardRole({
+        name: 'Flame Wave',
+        oracle_text:
+          "Flame Wave deals 4 damage to target player or planeswalker and each creature that player or that planeswalker's controller controls.",
+      })
+    ).toBe('boardwipe');
+  });
+
+  it('boardwipe: -N/-N widened to singular noun + X magnitude (Virulent Plague: "Creature tokens get -2/-2.")', () => {
+    expect(
+      validateCardRole({
+        name: 'Virulent Plague',
+        oracle_text: 'Creature tokens get -2/-2.',
+      })
+    ).toBe('boardwipe');
+  });
+
+  it('boardwipe: -N/-N verb-agreement guard — a single-target spot-removal "creature GETS -X/-X" is not a mass wipe (Battle at the Bridge)', () => {
+    // Battle at the Bridge is a single-target removal spell in reality —
+    // hypothetically mistagged 'boardwipe' here (Expropriate-style) to prove
+    // the widened -N/-N branch didn't accidentally drop the "get" (not
+    // "gets") verb-agreement guard that separates a MASS debuff from a
+    // spot-removal spell that merely mentions "creature ... -X/-X".
+    expect(
+      validateCardRole({
+        name: 'Battle at the Bridge',
+        oracle_text:
+          "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nTarget creature gets -X/-X until end of turn. You gain X life.",
+      })
+    ).toBeNull();
+  });
+});
+
+describe('validateCardRole — E136 ramp recall widening', () => {
+  it('ramp: land-recursion-to-battlefield says "TO", not just "ONTO" the battlefield (Splendid Reclamation)', () => {
+    expect(
+      validateCardRole({
+        name: 'Splendid Reclamation',
+        oracle_text: 'Return all land cards from your graveyard to the battlefield tapped.',
+      })
+    ).toBe('ramp');
+  });
+
+  it('ramp: untap-lands burst (Wilderness Reclamation: "untap all lands you control")', () => {
+    expect(
+      validateCardRole({
+        name: 'Wilderness Reclamation',
+        oracle_text: 'At the beginning of your end step, untap all lands you control.',
+      })
+    ).toBe('ramp');
+  });
+
+  it('ramp: convoke/improvise GRANTED to other spells (Chief Engineer, Inspiring Statuary)', () => {
+    expect(
+      validateCardRole({
+        name: 'Chief Engineer',
+        oracle_text:
+          "Artifact spells you cast have convoke. (Your creatures can help cast those spells. Each creature you tap while casting an artifact spell pays for {1} or one mana of that creature's color.)",
+      })
+    ).toBe('ramp');
+    expect(
+      validateCardRole({
+        name: 'Inspiring Statuary',
+        oracle_text:
+          "Nonartifact spells you cast have improvise. (Your artifacts can help cast those spells. Each artifact you tap after you're done activating mana abilities pays for {1}.)",
+      })
+    ).toBe('ramp');
+  });
+
+  it('ramp: convoke near-miss — merely HAVING convoke as your own printed keyword is not a granted cost-reduction engine (Aerial Boost)', () => {
+    // Aerial Boost is a combat trick in reality, not ramp — hypothetically
+    // mistagged 'ramp' here (Expropriate-style) to prove the granted-
+    // convoke/improvise branch requires the "have"/"has" GRANT verb and
+    // doesn't fire on a card's own bare "Convoke" reminder text.
+    expect(
+      validateCardRole({
+        name: 'Aerial Boost',
+        oracle_text:
+          "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nTarget creature gets +2/+2 and gains flying until end of turn.",
+      })
+    ).toBeNull();
+  });
+});
+
+describe('validateCardRole — E136 cardDraw recall widening', () => {
+  it('cardDraw: monarch grant (Palace Jailer: "you become the monarch")', () => {
+    expect(
+      validateCardRole({
+        name: 'Palace Jailer',
+        oracle_text:
+          'When this creature enters, you become the monarch.\nWhen this creature enters, exile target creature an opponent controls until an opponent becomes the monarch.',
+      })
+    ).toBe('cardDraw');
+  });
+
+  it('cardDraw: investigate, frequently printed without its Clue reminder text (Duggan, Private Detective)', () => {
+    expect(
+      validateCardRole({
+        name: 'Duggan, Private Detective',
+        oracle_text:
+          "Duggan's power and toughness are each equal to the number of cards in your hand.\nWhenever Duggan enters or attacks, investigate.\nThe Most Important Punch in History — {1}{G}, {T}: Duggan deals damage equal to twice its power to another target creature. Activate only once.",
+      })
+    ).toBe('cardDraw');
+  });
+
+  it('cardDraw: mass graveyard-to-hand phrased with "put" instead of "return" (Campfire)', () => {
+    expect(
+      validateCardRole({
+        name: 'Campfire',
+        oracle_text:
+          '{1}, {T}: You gain 2 life.\n{2}, {T}, Exile this artifact: Put all commanders you own from the command zone and from your graveyard into your hand. Then shuffle your graveyard into your library.',
+      })
+    ).toBe('cardDraw');
+  });
+
+  it('cardDraw: monarch subject guard — granting monarchy to an OPPONENT is not your card advantage (Jared Carthalion, True Heir)', () => {
+    // Jared Carthalion is a value/protection commander in reality —
+    // hypothetically mistagged 'card-advantage' here (Expropriate-style) to
+    // prove the monarch branch's "whenever"-exclusion doesn't accidentally
+    // swallow an opponent-facing grant. Its own text is a stress test of the
+    // phrase boundary: "target opponent becomes the monarch" (wrong subject)
+    // and "You can't become the monarch this turn" (negated, not a grant) —
+    // neither is the literal "you become the monarch" this branch requires.
+    expect(
+      validateCardRole({
+        name: 'Jared Carthalion, True Heir',
+        oracle_text:
+          "When Jared Carthalion enters, target opponent becomes the monarch. You can't become the monarch this turn.\nIf damage would be dealt to Jared Carthalion while you're the monarch, prevent that damage and put that many +1/+1 counters on it.",
+      })
+    ).toBeNull();
+  });
+
+  it('cardDraw: investigate subject guard — an OPPONENT investigating as removal compensation is not your card advantage (Declaration in Stone)', () => {
+    // Declaration in Stone is a removal spell in reality — hypothetically
+    // mistagged 'card-advantage' here (Expropriate-style) to prove the
+    // investigate branch's opponent-exclusion holds even though the card's
+    // own removal clause ("Exile target creature...") is irrelevant to the
+    // cardDraw role being tested.
+    expect(
+      validateCardRole({
+        name: 'Declaration in Stone',
+        oracle_text:
+          'Exile target creature and all other creatures its controller controls with the same name as that creature. That player investigates for each nontoken creature exiled this way.',
+      })
+    ).toBeNull();
   });
 });
 
@@ -1645,6 +1902,15 @@ describe('isOneSidedWipe', () => {
     [
       'Cyclonic Rift',
       'Return target nonland permanent you don\'t control to its owner\'s hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of "target" with "each.")',
+    ],
+    // E136 gate-found fix: DAMAGE-based one-sided wipes (caught by the ship
+    // gate — Chainwhirler as a deck's sole wipe read symmetric, mis-scoring
+    // E112 eviction and dropping the wipeAsymmetryNote clause). Real oracle
+    // text, anaphoric modern template ("each opponent and each creature ...
+    // they control").
+    [
+      'Goblin Chainwhirler',
+      'First strike\nWhen this creature enters, it deals 1 damage to each opponent and each creature and planeswalker they control.',
     ],
   ])('one-sided: %s', (name, oracle_text) => {
     expect(isOneSidedWipe({ name, oracle_text })).toBe(true);
