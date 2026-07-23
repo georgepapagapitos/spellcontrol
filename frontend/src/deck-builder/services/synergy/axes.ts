@@ -529,6 +529,12 @@ const vehicles: SynergyAxis = {
   label: 'Vehicles / crew',
   producer(card) {
     if (card.typeLine.includes('vehicle') || has(card, 'crew')) return 'vehicle (crew engine)';
+    // Pilots operate the crew engine even though they aren't Vehicles
+    // themselves (Aeronaut Admiral, Depala-class); crew-support body text
+    // ("crews Vehicles as though its power were N greater") is the same
+    // enabling shape on a non-Pilot, non-Vehicle card.
+    if (card.typeLine.includes('pilot')) return 'Pilot (crews vehicles)';
+    if (/crews? vehicles? as though/.test(card.oracle)) return 'crew-support';
     return null;
   },
   payoff(card) {

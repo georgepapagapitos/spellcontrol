@@ -1155,7 +1155,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Other Dwarves you control get +1/+1.\nEach Vehicle you control gets +1/+1 as long as it's a creature.\nWhenever Depala becomes tapped, you may pay {X}. If you do, reveal the top X cards of your library, put all Dwarf and Vehicle cards from among them into your hand, then put the rest on the bottom of your library in a random order.",
-    expect: { producers: [], payoffs: ['vehicles'] },
+    // E139: Depala is Pilot-typed \u2014 crews the engine, so also a producer now.
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
   },
   {
     name: 'Kotori, Pilot Prodigy',
@@ -1163,7 +1164,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Vehicles you control have crew 2.\nAt the beginning of combat on your turn, target artifact creature you control gains lifelink and vigilance until end of turn.',
-    expect: { producers: [], payoffs: ['vehicles'] },
+    // E139: Pilot-typed \u2014 crews the engine, so also a producer now.
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
   },
   {
     name: 'Greasefang, Okiba Boss',
@@ -1171,7 +1173,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
-    expect: { producers: [], payoffs: ['graveyard', 'vehicles'] },
+    // E139: Pilot-typed \u2014 crews the engine, so also a producer now.
+    expect: { producers: ['vehicles'], payoffs: ['graveyard', 'vehicles'] },
   },
   {
     name: 'Howling Mine',
@@ -2086,7 +2089,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When Mu Yanling enters, create a 3/2 colorless Vehicle artifact token with crew 1.\nVehicles you control have flying.\nWhenever one or more creatures you control with flying deal combat damage to a player, draw a card.',
-    expect: { producers: ['artifacts'], payoffs: ['vehicles'] },
+    // E139: Mu Yanling is Pilot-typed — crews the engine, so also a producer now.
+    expect: { producers: ['artifacts', 'vehicles'], payoffs: ['vehicles'] },
   },
   {
     name: 'Nadaar, Selfless Paladin',
@@ -3266,5 +3270,22 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Affinity', 'Trample'],
     oracle_text: 'Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nTrample',
     expect: { producers: [], payoffs: ['equipment'] },
+  },
+
+  // ── E139: vehicles recall — Pilot type + crew-support body text ────────────
+  {
+    name: 'Aeronaut Admiral',
+    type_line: 'Creature — Human Pilot',
+    keywords: ['Flying'],
+    oracle_text: 'Flying\nVehicles you control have flying.',
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
+  },
+  {
+    name: 'Cloudspire Captain',
+    type_line: 'Creature — Human Pilot',
+    keywords: [],
+    oracle_text:
+      'Mounts and Vehicles you control get +1/+1.\nThis creature saddles Mounts and crews Vehicles as though its power were 2 greater.',
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
   },
 ];
