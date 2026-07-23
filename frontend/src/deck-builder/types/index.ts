@@ -169,17 +169,18 @@ export interface EDHRECCard {
   isThemeSynergyCard?: boolean; // true if from highsynergycards, topcards, gamechangers
   isNewCard?: boolean; // true if from the newcards list (gets a small relevancy boost)
   isGameChanger?: boolean; // true if from the gamechangers list specifically
-  prices?: {
-    tcgplayer?: { price: number };
-    cardkingdom?: { price: number };
-  };
   image_uris?: Array<{
     normal: string;
     art_crop?: string;
   }>;
   color_identity?: string[];
   cmc?: number;
-  salt?: number;
+  // 2026-07-23 (E126): `salt` and `prices` removed — EDHREC cardlist
+  // cardviews never carry either (confirmed live), and the alt-pool
+  // Scryfall-backed fallback (phaseAlternatePool.ts synthesize()) never set
+  // them either, so both fields were permanently undefined. Per-card salt
+  // now lives only on the dedicated /pages/top/salt.json page (see
+  // fetchSaltIndex in services/edhrec/client.ts).
 }
 
 // A card-page "lift" co-play entry — how strongly a card is played alongside

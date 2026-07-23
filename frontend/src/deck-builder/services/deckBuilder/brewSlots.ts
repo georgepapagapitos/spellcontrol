@@ -60,9 +60,10 @@ export interface BrewCandidate {
   isThemeSynergy?: boolean;
 }
 
-function edhrecPrice(card: EDHRECCard): string | null {
-  if (card.prices?.tcgplayer?.price) return card.prices.tcgplayer.price.toFixed(2);
-  if (card.prices?.cardkingdom?.price) return card.prices.cardkingdom.price.toFixed(2);
+// 2026-07-23 (E126): EDHRECCard.prices is always undefined now (cardlist
+// cardviews dropped it — see services/edhrec/client.ts). Stub kept over the
+// old field for the same reason as edhrecUtils.ts's twin.
+function edhrecPrice(_card: EDHRECCard): string | null {
   return null;
 }
 

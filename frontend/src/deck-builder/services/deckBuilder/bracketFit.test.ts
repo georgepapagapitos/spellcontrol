@@ -78,7 +78,6 @@ function poolCard(over: Partial<EDHRECCard> & { name: string }): EDHRECCard {
     isGameChanger: over.isGameChanger,
     cmc: over.cmc,
     image_uris: over.image_uris,
-    prices: over.prices,
   };
 }
 

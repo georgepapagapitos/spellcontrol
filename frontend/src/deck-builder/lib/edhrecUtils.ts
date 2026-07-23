@@ -2,12 +2,12 @@ import type { EDHRECCard } from '@/deck-builder/types';
 
 /**
  * Extract the best available USD price string from an EDHRECCard.
- * Prefers TCGPlayer, falls back to Card Kingdom. Returns undefined when
- * neither source carries a price.
+ * 2026-07-23 (E126): EDHREC cardlist cardviews stopped carrying `prices` —
+ * always undefined now (confirmed live). Kept as a stub rather than deleted
+ * + rewiring every call site, since callers still expect this signature;
+ * revert to a real read if EDHREC ever restores per-card prices.
  */
-export function getEdhrecCardPrice(card: EDHRECCard): string | undefined {
-  if (card.prices?.tcgplayer?.price) return card.prices.tcgplayer.price.toFixed(2);
-  if (card.prices?.cardkingdom?.price) return card.prices.cardkingdom.price.toFixed(2);
+export function getEdhrecCardPrice(_card: EDHRECCard): string | undefined {
   return undefined;
 }
 
