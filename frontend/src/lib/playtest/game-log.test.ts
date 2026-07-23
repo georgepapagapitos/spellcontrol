@@ -250,6 +250,43 @@ describe('buildLogEntries', () => {
       expect(buildLogEntries(s, action, next)).toEqual([]);
     });
   });
+
+  describe('designation', () => {
+    it('logs taking the Monarch', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'SET_DESIGNATION', designation: 'monarch', held: true } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([
+        { turn: 1, kind: 'designation', text: 'Took the Monarch' },
+      ]);
+    });
+
+    it('logs losing the Initiative', () => {
+      let s = init(5, 1, 0);
+      s = applyAction(s, { type: 'SET_DESIGNATION', designation: 'initiative', held: true });
+      const action = { type: 'SET_DESIGNATION', designation: 'initiative', held: false } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([
+        { turn: 1, kind: 'designation', text: 'Lost the Initiative' },
+      ]);
+    });
+
+    it("logs achieving City's Blessing with its own verb, not 'Took'", () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'SET_DESIGNATION', designation: 'citysBlessing', held: true } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([
+        { turn: 1, kind: 'designation', text: "Achieved the City's Blessing" },
+      ]);
+    });
+
+    it('does not log a no-op (already in that state)', () => {
+      const s = init(5, 1, 0);
+      const action = { type: 'SET_DESIGNATION', designation: 'monarch', held: false } as const;
+      const next = applyAction(s, action);
+      expect(buildLogEntries(s, action, next)).toEqual([]);
+    });
+  });
 });
 
 describe('appendLogEntries', () => {

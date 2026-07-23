@@ -137,6 +137,26 @@ body:has(.playtest-page) .modal-backdrop {
   font-weight: 500;
 }
 
+/* Designations entry — same "armed state reads like the accented turn chip"
+   treatment as Resistance, so a held designation is visible at a glance
+   without opening the sheet. */
+.playtest-actionbar button.playtest-actionbar__designations.is-active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.playtest-actionbar__designations-badge {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: 999px;
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
 /* Log entry point — unread dot fires when a Resistance event landed since
    the log was last opened. */
 .playtest-actionbar__log {
@@ -1432,7 +1452,12 @@ body:has(.playtest-page) .modal-backdrop {
   display: flex;
   align-items: center;
   gap: 5px;
-  flex: 1 1 0;
+  /* flex-shrink: 0 — never compress below content's natural width (e.g. the
+     "You" chip once designation badges add to it). The row scrolling is the
+     documented overflow strategy above; a shrunk chip clipping its own life
+     number mid-digit is not. flex-grow: 1 still fills extra room when there
+     is any, same as before. */
+  flex: 1 0 auto;
   min-width: 4.5rem;
   background: var(--surface-raised);
   border: 0.5px solid var(--border);
@@ -1466,6 +1491,25 @@ body:has(.playtest-page) .modal-backdrop {
   font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Designation badges (E-123-ish) — pictographic (crown/compass/cityscape),
+   so they read as distinct from the numeric life/commander-damage chrome
+   without needing their own color treatment. Shown only on "You" (solo play
+   has no per-opponent designation holder to badge). */
+.playtest-life-chip__designations {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.playtest-designation-badge {
+  /* A touch larger than --text-sm: these are detailed multi-color emoji
+     (crown/compass/cityscape), not simple line icons, so they need a few
+     extra px to stay legible at a glance instead of reading as a blob. */
+  font-size: var(--text-base);
 }
 
 .playtest-life-chip__life {

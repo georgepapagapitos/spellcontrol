@@ -1,0 +1,81 @@
+/* ── Designations picker — co-located styles ──────────────────────────────
+ * Layered on the shared card-picker-root / card-picker-sheet primitive
+ * (global.css handles the bottom-sheet ↔ centered-modal swap + safe-area,
+ * and the scrim, by construction). Row anatomy mirrors ResistancePicker.css. */
+
+.playtest-designations-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+.playtest-designations-picker__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.playtest-designations-picker__row.is-active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* City's Blessing locks once achieved — a good state, not an unavailable
+   one, so it keeps full opacity (no browser-default dimming) and a normal
+   cursor rather than reading as "disabled/broken". */
+.playtest-designations-picker__row:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.playtest-designations-picker__row:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .playtest-designations-picker__row:not(:disabled):hover {
+    border-color: var(--accent);
+  }
+}
+
+.playtest-designations-picker__row-icon {
+  flex-shrink: 0;
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.playtest-designations-picker__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.playtest-designations-picker__row-label {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.playtest-designations-picker__row-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.playtest-designations-picker__row-check {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--accent);
+}

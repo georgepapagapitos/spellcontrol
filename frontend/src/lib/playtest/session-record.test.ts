@@ -31,6 +31,9 @@ function baseState(
     startingOpponentLife: 20,
     commanderDamageThreshold: 21,
     tableDefeatedTurn: null,
+    monarch: false,
+    initiative: false,
+    citysBlessing: false,
     ...overrides,
   };
 }
