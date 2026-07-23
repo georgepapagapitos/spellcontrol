@@ -1903,6 +1903,15 @@ describe('isOneSidedWipe', () => {
       'Cyclonic Rift',
       'Return target nonland permanent you don\'t control to its owner\'s hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change its text by replacing all instances of "target" with "each.")',
     ],
+    // E136 gate-found fix: DAMAGE-based one-sided wipes (caught by the ship
+    // gate — Chainwhirler as a deck's sole wipe read symmetric, mis-scoring
+    // E112 eviction and dropping the wipeAsymmetryNote clause). Real oracle
+    // text, anaphoric modern template ("each opponent and each creature ...
+    // they control").
+    [
+      'Goblin Chainwhirler',
+      'First strike\nWhen this creature enters, it deals 1 damage to each opponent and each creature and planeswalker they control.',
+    ],
   ])('one-sided: %s', (name, oracle_text) => {
     expect(isOneSidedWipe({ name, oracle_text })).toBe(true);
   });

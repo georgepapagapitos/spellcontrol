@@ -904,8 +904,22 @@ export function isExtraCombatPiece(card: {
 // {2}{W}{W}") has no "don't control" qualifier at all and correctly stays
 // symmetric (its overloaded "destroy each creature" hits every player,
 // including the caster).
+//
+// E136 gate-found fix: DAMAGE-based one-sided wipes were invisible — every
+// branch above keys on destroy/exile(/overloaded-return), so Goblin
+// Chainwhirler (real text: "it deals 1 damage to each opponent and each
+// creature and planeswalker they control") read as symmetric, which both
+// mis-scored it in E112's wipe-quality eviction AND dropped the
+// wipeAsymmetryNote's "spares your own board" clause when it was a deck's
+// sole wipe (caught by the E136 ship-gate differ on krenko-budget50). Two
+// verified phrasings, both same-sentence bounded with an opponent subject:
+// the anaphoric modern template ("each opponent and each creature ... they
+// control" — Chainwhirler) and the direct qualifier ("each creature your
+// opponents control" / "you don't control"). Blasphemous Act ("deals 13
+// damage to each creature" — no opponent subject anywhere) correctly stays
+// symmetric.
 const ONE_SIDED_WIPE_EVIDENCE =
-  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)/i;
+  /\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?you don'?t control|\b(?:destroy|exile)\b[^.]*?\ball\b[^.]*?your opponents? control|(?=[\s\S]*\boverload\b)(?=[\s\S]*\b(?:destroy|exile|return) target [^.]*?you don'?t control\b)|deals? [^.]*?damage to [^.]*?each opponent[^.]*?\b(?:creatures?|planeswalkers?|permanents?)\b[^.]*?they control|deals? [^.]*?damage to [^.]*?each (?:creature|permanent)s?\b[^.]*?(?:your opponents? control|you don'?t control)/i;
 
 export function isOneSidedWipe(card: {
   name: string;
