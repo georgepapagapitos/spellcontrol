@@ -95,12 +95,14 @@
   flex-direction: column;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   /* Mobile: the dropdown becomes a bottom action sheet. Full width,
      large touch targets, scrim behind, slide-up animation. Mirrors the
      iOS Action Sheet / Material Bottom Sheet pattern users already know
      from native apps — and it can never be clipped by a scrolling
-     parent because it's anchored to the viewport. */
+     parent because it's anchored to the viewport.
+     Boundary is 1023, matching the app shell (base-layout.css) — the
+     BinderTabs.tsx dismiss() JS check must stay in lockstep with this. */
   .binder-overflow-backdrop {
     display: block;
     position: fixed;

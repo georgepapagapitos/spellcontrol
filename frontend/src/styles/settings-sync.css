@@ -40,7 +40,9 @@
   background: var(--chrome-surface);
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
+  /* .site-nav-settings lives inside .site-header, which switches to the
+     mobile shell at the same 1023 boundary (base-layout.css). */
   .site-nav-settings-label {
     display: none;
   }

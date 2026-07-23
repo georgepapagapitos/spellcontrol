@@ -17,12 +17,15 @@
   max-width: 60ch;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   /* Stretch the page to the available viewport so the empty state and
      deck list don't float at the top of tall phones. The 8.5rem subtracts
      header (3rem) + tab bar (3.75rem) + container padding-top (1.5rem)
      plus a touch of slack — close enough that any leftover scroll is
-     imperceptible. */
+     imperceptible. Boundary is 1023 to match the shell (base-layout.css):
+     this formula assumes the mobile shell's exact chrome combination
+     (no top header, a tab bar), which only holds below the 1024 desktop
+     tier. */
   .decks-index-page {
     gap: var(--space-4);
     min-height: calc(var(--vh-safe) - 8.5rem - var(--safe-top));

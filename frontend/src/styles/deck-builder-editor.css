@@ -480,14 +480,19 @@
 }
 
 /* Desktop: show the overflow ⋮ inside .deck-editor-actions so Delete
-   (and future destructive items) are reachable there too. */
-@media (min-width: 1025px) {
+   (and future destructive items) are reachable there too.
+   1024, matching the app-wide desktop tier (STYLE_GUIDE § Responsive) —
+   was 1025 (an off-canon one-off paired with max-width:1024 below to dodge
+   the two rules overlapping at exactly 1024); normalized to the standard
+   1023/1024 split so this toolbar switches at the same pixel as the rest
+   of the shell instead of one pixel later. */
+@media (min-width: 1024px) {
   .deck-editor-overflow {
     display: inline-flex;
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   /* Hide the inline action row; the overflow trigger replaces it.
      The deck toolbar's Export button is also hidden — Export lives in
      the same overflow sheet so the page has a single, consistent

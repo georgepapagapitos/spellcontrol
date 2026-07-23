@@ -1160,10 +1160,13 @@ body:has(.playtest-page) .modal-backdrop {
 
 /* ── Narrow viewport overrides ───────────────────────────────────────── */
 
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   /* Page goes fullscreen; the .mobile-tab-bar sits at a lower z-index
      and is covered by the playtest surface while it's open. The page's
-     own header is the way out. */
+     own header is the way out. Boundary is 1023 to match the shell
+     (base-layout.css) — this fullscreen takeover assumes the mobile
+     shell's tab bar is the thing being covered, which only exists
+     below the 1024 desktop tier. */
 
   .playtest-main {
     flex-direction: column;

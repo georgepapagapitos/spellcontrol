@@ -42,8 +42,10 @@
   }
 }
 
-/* Nav shell — phone */
-@media (max-width: 1024px) {
+/* Nav shell — phone. Boundary is 1023, not 1024 — see base-layout.css's
+   .site-header rule for why (must stay in lockstep with it: both are the
+   same mobile-shell switch, just for different chrome pieces). */
+@media (max-width: 1023px) {
   body {
     padding-bottom: 0.85rem;
   }
@@ -415,8 +417,9 @@
   margin-bottom: -1px;
 }
 
-@media (max-width: 1024px) {
-  /* The mobile tab bar replaces the inline nav links on phones. */
+@media (max-width: 1023px) {
+  /* The mobile tab bar replaces the inline nav links on phones.
+     Boundary is 1023 — see base-layout.css's .site-header rule. */
   .site-nav-links {
     display: none;
   }
@@ -491,8 +494,10 @@
   display: none;
 }
 
-@media (max-width: 1024px) {
-  /* A normal flex child at the bottom of the non-scrolling shell — not
+@media (max-width: 1023px) {
+  /* Boundary is 1023 — see base-layout.css's .site-header rule; this bar's
+     appearance must switch at the exact same width the header disappears.
+     A normal flex child at the bottom of the non-scrolling shell — not
      position:fixed. Deliberately NO var(--safe-bottom): on
      Firefox/Chrome for Android that value is ~0 on load and jumps to a
      non-zero gesture-area inset after the first scroll (when the URL bar
