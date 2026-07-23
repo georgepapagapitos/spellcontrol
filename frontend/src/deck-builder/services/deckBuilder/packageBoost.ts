@@ -24,6 +24,7 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import { classifyCard, type CardSynergy } from '@/deck-builder/services/synergy/classify';
 import type { AxisKey } from '@/deck-builder/services/synergy/axes';
+import { typeLineProducerAxes } from './synergyDependency';
 
 /** Ceiling for the per-card package boost. */
 export const PACKAGE_BOOST_MAX = 30;
@@ -70,7 +71,15 @@ export function tallyAxisInvestment(
   };
   const add = (card: ScryfallCard, weight: number) => {
     const c = classified(card);
+    const classifiedProducerAxes = new Set(c.producers.map((p) => p.axis));
     for (const p of c.producers) bump(p.axis, 'producers', weight);
+    // E135: raw artifact/equipment/vehicle permanents count as producers even
+    // when oracle text alone doesn't classify them (a plain mana rock). Skip
+    // axes classifyCard already credited so a double-matching card (e.g. an
+    // artifact that also makes artifact tokens) isn't bumped twice.
+    for (const axis of typeLineProducerAxes(card)) {
+      if (!classifiedProducerAxes.has(axis)) bump(axis, 'producers', weight);
+    }
     for (const p of c.payoffs) bump(p.axis, 'payoffs', weight);
   };
   for (const c of commanders) add(c, COMMANDER_WEIGHT);
