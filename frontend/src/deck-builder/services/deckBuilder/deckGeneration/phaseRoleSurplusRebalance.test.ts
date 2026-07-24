@@ -1658,4 +1658,87 @@ describe('applyRoleSurplusRebalance', () => {
       expect(remainingWipes).toHaveLength(2);
     });
   });
+
+  // E161: DEFICIT_BACKFILL_ROLES completes the reactive set (ramp, cardDraw)
+  // — the E139 re-gate measured krenko shipping ramp 7/11 after re-ranking
+  // displaced Arcane Signet + a coherence-added Phyrexian Altar, with the
+  // backfill unable to answer (removal-only at the time). Same machinery,
+  // two more roles; ordering keeps boardwipe > removal > ramp > cardDraw.
+  describe('E161: ramp + cardDraw deficit backfill', () => {
+    it('backfills a ramp deficit, seating the pool candidate and disclosing the under-target wording', () => {
+      const state = makeState();
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      ROLE_OF.set('Ramp Candidate', 'ramp');
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Ramp Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 1, removal: 0, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Ramp Candidate');
+      expect(result.conversions[0].reason).toMatch(
+        /Ramp was running 0 vs its 1-card target — under target/
+      );
+    });
+
+    it('backfills a cardDraw deficit through the same machinery', () => {
+      const state = makeState();
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      ROLE_OF.set('Draw Candidate', 'cardDraw');
+      state.edhrecData = {
+        cardlists: { allNonLand: [edhrecCard('Draw Candidate', 80)] },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 0, removal: 0, boardwipe: 0, cardDraw: 1 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Draw Candidate');
+      expect(result.conversions[0].reason).toMatch(
+        /Card draw was running 0 vs its 1-card target — under target/
+      );
+    });
+
+    it('spends a lone donor on removal before ramp (DEFICIT_BACKFILL_ROLES order)', () => {
+      const state = makeState();
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      ROLE_OF.set('Removal Candidate', 'removal');
+      ROLE_OF.set('Ramp Candidate', 'ramp');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Removal Candidate', 80), edhrecCard('Ramp Candidate', 90)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 1, removal: 1, boardwipe: 0, cardDraw: 0 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Removal Candidate');
+    });
+
+    it('spends a lone donor on ramp before cardDraw (DEFICIT_BACKFILL_ROLES order)', () => {
+      const state = makeState();
+      const filler = scryfallCard('Filler A');
+      state.usedNames.add('Filler A');
+      state.categories.utility.push(filler);
+      ROLE_OF.set('Ramp Candidate', 'ramp');
+      ROLE_OF.set('Draw Candidate', 'cardDraw');
+      state.edhrecData = {
+        cardlists: {
+          allNonLand: [edhrecCard('Ramp Candidate', 80), edhrecCard('Draw Candidate', 90)],
+        },
+      } as unknown as GenerationState['edhrecData'];
+      const roleTargets = { ramp: 1, removal: 0, boardwipe: 0, cardDraw: 1 };
+      const result = applyRoleSurplusRebalance(state, makeCtx(state, { roleTargets }));
+
+      expect(result.conversions).toHaveLength(1);
+      expect(result.conversions[0].added).toBe('Ramp Candidate');
+    });
+  });
 });
