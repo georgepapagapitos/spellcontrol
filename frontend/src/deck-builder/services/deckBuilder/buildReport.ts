@@ -171,8 +171,33 @@ export function assembleBuildReport(input: {
     report.comboCompletionNotes = generated.comboCompletionNotes;
   if (generated.roleDeficitNotes && generated.roleDeficitNotes.length > 0)
     report.roleDeficitNotes = generated.roleDeficitNotes;
+  // A swap record's `added` card can itself be displaced by a LATER phase
+  // (pick-time reshuffle, squeeze, trim) — the record stays (its cut half
+  // really happened and stays explained), but claiming an add that isn't in
+  // the final deck is a stale disclosure (E161 gate-found: krenko's
+  // coherence-added Phyrexian Altar was displaced downstream while its
+  // "swapped in" story survived verbatim). Truth source: the final
+  // categories; annotate, never delete.
+  const finalNames = new Set<string>();
+  for (const cards of Object.values(generated.categories)) {
+    for (const c of cards) {
+      finalNames.add(c.name);
+      if (c.name.includes(' // ')) finalNames.add(c.name.split(' // ')[0]);
+    }
+  }
+  const annotateDisplacedAdds = <T extends { added: string; reason: string }>(repairs: T[]): T[] =>
+    repairs.map((r) =>
+      finalNames.has(r.added)
+        ? r
+        : { ...r, reason: `${r.reason} (${r.added} was later displaced before the final deck.)` }
+    );
+
+  // Flagship seatings are add-claiming records too (E161 gate round 2: the
+  // ramp backfill donated isshin's flagship-seated Relentless Assault for
+  // Smothering Tithe, and the seat record still asserted the card held a
+  // justified slot).
   if (generated.flagshipSeatings && generated.flagshipSeatings.length > 0)
-    report.flagshipSeatings = generated.flagshipSeatings;
+    report.flagshipSeatings = annotateDisplacedAdds(generated.flagshipSeatings);
 
   // Strategy only meaningful when actually building from the collection.
   if (builtFromCollection) {
@@ -316,27 +341,6 @@ export function assembleBuildReport(input: {
   if (generated.coherenceFindings && generated.coherenceFindings.length > 0) {
     report.coherenceFindings = generated.coherenceFindings;
   }
-
-  // A swap record's `added` card can itself be displaced by a LATER phase
-  // (pick-time reshuffle, squeeze, trim) — the record stays (its cut half
-  // really happened and stays explained), but claiming an add that isn't in
-  // the final deck is a stale disclosure (E161 gate-found: krenko's
-  // coherence-added Phyrexian Altar was displaced downstream while its
-  // "swapped in" story survived verbatim). Truth source: the final
-  // categories; annotate, never delete.
-  const finalNames = new Set<string>();
-  for (const cards of Object.values(generated.categories)) {
-    for (const c of cards) {
-      finalNames.add(c.name);
-      if (c.name.includes(' // ')) finalNames.add(c.name.split(' // ')[0]);
-    }
-  }
-  const annotateDisplacedAdds = <T extends { added: string; reason: string }>(repairs: T[]): T[] =>
-    repairs.map((r) =>
-      finalNames.has(r.added)
-        ? r
-        : { ...r, reason: `${r.reason} (${r.added} was later displaced before the final deck.)` }
-    );
 
   // Coherence repairs: swaps the bounded repair pass applied (nothing moves silently).
   if (generated.coherenceRepairs && generated.coherenceRepairs.length > 0) {

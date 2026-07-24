@@ -929,6 +929,24 @@ describe('E161: displaced-add honesty (stale swap records)', () => {
     expect(report.cardProvenance?.['Putrefy']).toMatch(/^Swapped in: Removal was running/);
   });
 
+  it('annotates a flagship seating whose card a later backfill donated away', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        flagshipSeatings: [
+          { cut: 'Weak Incumbent', added: 'Relentless Assault', reason: 'reserved a seat for it.' },
+        ],
+        cardProvenance: {},
+        categories: categories({}),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.flagshipSeatings?.[0].reason).toBe(
+      'reserved a seat for it. (Relentless Assault was later displaced before the final deck.)'
+    );
+    expect(report.cardProvenance?.['Relentless Assault']).toBeUndefined();
+  });
+
   it('matches a DFC add by front face so a shipped MDFC is never mis-annotated as displaced', () => {
     const report = assembleBuildReport({
       generated: makeGenerated({
