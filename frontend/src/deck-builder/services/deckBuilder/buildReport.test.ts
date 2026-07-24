@@ -962,3 +962,54 @@ describe('E161: displaced-add honesty (stale swap records)', () => {
     expect(report.budgetRepairs?.[0].reason).toBe('saves $4.00.');
   });
 });
+
+// E167: the post-gen fixup pass's swaps get the same treatment as every
+// other repair phase — copied through, displaced-add annotated, and its
+// adds win the cardProvenance override — mirroring the E161 block above.
+describe('E167: fixupRepairs disclosure (post-gen fixup pass)', () => {
+  const fixupRepair = {
+    cut: 'Weak Filler',
+    added: 'Arcane Signet',
+    reason:
+      'Critical role gap: Ramp was running 0 vs its 4-card target after earlier swaps — swapped Weak Filler for Arcane Signet.',
+  };
+
+  it('copies fixupRepairs through and lets a shipped add win the cardProvenance override', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        fixupRepairs: [fixupRepair],
+        cardProvenance: { 'Arcane Signet': 'EDHREC staple for this commander' },
+        categories: categories({ ramp: [{ name: 'Arcane Signet' } as ScryfallCard] }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.fixupRepairs).toEqual([fixupRepair]);
+    expect(report.cardProvenance?.['Arcane Signet']).toBe(`Swapped in: ${fixupRepair.reason}`);
+  });
+
+  it('annotates a fixupRepairs add that a later phase displaced, and gives it no provenance key', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        fixupRepairs: [fixupRepair],
+        cardProvenance: { 'Kept Card': 'EDHREC staple for this commander' },
+        categories: categories({ utility: [{ name: 'Kept Card' } as ScryfallCard] }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.fixupRepairs?.[0].reason).toBe(
+      `${fixupRepair.reason} (Arcane Signet was later displaced before the final deck.)`
+    );
+    expect(report.cardProvenance?.['Arcane Signet']).toBeUndefined();
+  });
+
+  it('is undefined when generation recorded no fixup swaps', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated(),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.fixupRepairs).toBeUndefined();
+  });
+});

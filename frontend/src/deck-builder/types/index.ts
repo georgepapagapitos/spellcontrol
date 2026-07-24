@@ -667,6 +667,10 @@ export interface BuildReport {
   /** Swaps the bounded coherence-repair pass applied before the final audit.
    *  Undefined when nothing needed (or could be) repaired. */
   coherenceRepairs?: CoherenceRepair[];
+  /** Swaps the post-generation fixup pass applied — critical role deficits
+   *  (<=50% of target) and dead CMC 1/2 curve slots. See
+   *  phasePostGenFixup.ts (E167). Undefined when nothing needed fixing. */
+  fixupRepairs?: CoherenceRepair[];
   /** Swaps the budget-convergence pass applied to bring an over-budget deck
    *  in line (or as close as protections allow) — see phaseBudgetConverge.ts
    *  (E79). Undefined when no budget was set, or nothing needed swapping. */
@@ -727,6 +731,9 @@ export interface GeneratedDeck {
   coherenceFindings?: CoherenceFinding[];
   /** Swaps the bounded coherence-repair pass applied before the final audit. */
   coherenceRepairs?: CoherenceRepair[];
+  /** Swaps the post-generation fixup pass applied (E167). See BuildReport's
+   *  field of the same name for the full rationale. */
+  fixupRepairs?: CoherenceRepair[];
   /** Swaps the budget-convergence pass applied (E79). */
   budgetRepairs?: CoherenceRepair[];
   /** Swaps the role-surplus rebalance pass applied (E87). */
