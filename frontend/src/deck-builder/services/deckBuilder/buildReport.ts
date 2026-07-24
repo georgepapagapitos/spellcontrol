@@ -347,6 +347,13 @@ export function assembleBuildReport(input: {
     report.coherenceRepairs = annotateDisplacedAdds(generated.coherenceRepairs);
   }
 
+  // Post-gen fixup repairs (E167): same "nothing moves silently" ethos —
+  // critical role-gap / dead-curve-slot swaps get the same displaced-add
+  // annotation as every other repair phase.
+  if (generated.fixupRepairs && generated.fixupRepairs.length > 0) {
+    report.fixupRepairs = annotateDisplacedAdds(generated.fixupRepairs);
+  }
+
   // Budget-convergence swaps (E79): same "nothing moves silently" ethos.
   if (generated.budgetRepairs && generated.budgetRepairs.length > 0) {
     report.budgetRepairs = annotateDisplacedAdds(generated.budgetRepairs);
@@ -376,6 +383,7 @@ export function assembleBuildReport(input: {
     const cardProvenance: Record<string, string> = { ...generated.cardProvenance };
     const repairSources = [
       report.coherenceRepairs,
+      report.fixupRepairs,
       report.budgetRepairs,
       report.surplusConversions,
       report.flagshipSeatings,

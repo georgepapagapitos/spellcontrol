@@ -3658,7 +3658,21 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
   // See deckGeneration/phasePostGenFixup.ts for the implementation (moved
   // verbatim, E68 mechanical split). Only fixes critical gaps: roles ≤50% of
   // target, dead CMC 1/2 slots.
-  postGenFixupPhase(state, { roleTargets, swapCandidates, scryfallCardMap });
+  // repairAddedNames (E167): protects the combo audit's and combo floor's OWN
+  // fresh adds from this pass's position-based weakness metric — a freshly
+  // added card is last-in-array by construction, so it reads as "weakest"
+  // and was getting cut the same generation it was added. comboAuditRepairs
+  // already holds BOTH sources here (audit pushed at line ~3610, floor
+  // pushed at ~3639) — nothing later merges into it before this point.
+  const repairAddedNames = new Set<string>();
+  for (const r of comboAuditRepairs) repairAddedNames.add(r.added);
+  const fixupResult = postGenFixupPhase(state, {
+    roleTargets,
+    swapCandidates,
+    scryfallCardMap,
+    repairAddedNames,
+  });
+  const fixupRepairs = fixupResult.fixupRepairs;
 
   // ── Coherence Repair (E78 phase 3) ──
   // Run the coherence audit while the deck can still be mutated and repair a
@@ -4278,6 +4292,7 @@ async function generateDeckInner(context: GenerationContext): Promise<GeneratedD
     manabase,
     coherenceFindings: coherenceFindings.length > 0 ? coherenceFindings : undefined,
     coherenceRepairs: coherenceRepairs.length > 0 ? coherenceRepairs : undefined,
+    fixupRepairs: fixupRepairs.length > 0 ? fixupRepairs : undefined,
     budgetRepairs: budgetRepairs.length > 0 ? budgetRepairs : undefined,
     surplusConversions: surplusConversions.length > 0 ? surplusConversions : undefined,
     flagshipSeatings: flagshipSeatings.length > 0 ? flagshipSeatings : undefined,

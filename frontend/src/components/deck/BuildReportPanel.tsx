@@ -209,6 +209,7 @@ export function BuildReportPanel({
     manabase,
     coherenceFindings,
     coherenceRepairs,
+    fixupRepairs,
     budgetRepairs,
     surplusConversions,
     flagshipSeatings,
@@ -613,6 +614,30 @@ export function BuildReportPanel({
                                     : 'Engine note'
                     }
                   />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {fixupRepairs && fixupRepairs.length > 0 && (
+        <details className="build-report-subs">
+          <summary>
+            <strong>{fixupRepairs.length}</strong> fixup swap
+            {fixupRepairs.length === 1 ? '' : 's'} auto-applied to close a critical gap
+          </summary>
+          <ul className="build-report-subs-list">
+            {fixupRepairs.map((r) => (
+              <li key={`${r.cut}-${r.added}`} className="build-report-sub">
+                <div className="build-report-sub-head">
+                  <span className="build-report-sub-map">
+                    <strong>{r.cut}</strong> &rarr; <strong>{r.added}</strong>
+                  </span>
+                </div>
+                <span className="build-report-sub-reason">{r.reason}</span>
+                <span className="build-report-lift-chips">
+                  <VerdictBadge tone="success" label="Auto-fixed" />
                 </span>
               </li>
             ))}
