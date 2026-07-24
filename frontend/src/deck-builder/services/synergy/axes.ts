@@ -103,7 +103,11 @@ const counters: SynergyAxis = {
       return 'doubles counters';
     if (/that many plus one/.test(card.oracle)) return 'amplifies +1/+1 counters';
     if (/for each \+1\/\+1 counter/.test(card.oracle)) return 'scales with +1/+1 counters';
-    if (/move all counters|move (?:a|one or more|those) counters/.test(card.oracle))
+    // Word-boundary on "move" — Aether Snap's "reMOVE all counters" is a wipe,
+    // not a "move counters" bank/transfer effect; the unanchored substring match
+    // was reading counter-REMOVAL as a counters payoff (and granting it trim
+    // protection it shouldn't get).
+    if (/\bmove\b (?:all|a|one or more|those) counters/.test(card.oracle))
       return 'moves/banks counters';
     if (/remove (?:a|one or more|x|that many) \+1\/\+1 counter/.test(card.oracle))
       return 'spends +1/+1 counters';
@@ -190,18 +194,15 @@ const landfall: SynergyAxis = {
   },
 };
 
-const GY_RECUR_KEYWORDS = [
-  'flashback',
-  'escape',
-  'delve',
-  'disturb',
-  'jump-start',
-  'aftermath',
-  'unearth',
-  'embalm',
-  'eternalize',
-  'encore',
-];
+// Delve and Escape genuinely WANT a stocked graveyard — they exile OTHER cards
+// from it as a cost, so a bigger yard is directly better for them. The rest of
+// these keywords (flashback, disturb, jump-start, aftermath, unearth, embalm,
+// eternalize, encore) only ever recur/cast THEMSELVES with no dependency on
+// anything else being there — self-contained resilience, not a graveyard-value
+// engine (same principle as `selfReturnOnly` below). Crediting the whole list
+// as a payoff was reading flashback/unearth-class self-recursion as caring
+// about the graveyard (9/25 FPs).
+const GY_FUEL_KEYWORDS = ['delve', 'escape'];
 
 const graveyard: SynergyAxis = {
   key: 'graveyard',
@@ -223,11 +224,12 @@ const graveyard: SynergyAxis = {
     const o = card.oracle;
     if (/(?:put|return) target [^.]*card from a graveyard (?:onto|to) the battlefield/.test(o))
       return 'reanimates';
-    // A card that only returns ITSELF from the graveyard (Death Tyrant, Gryff's
-    // Boon, Reassembling Skeleton) is recursive resilience, not a graveyard-value
-    // engine — don't tag it unless it also recurs OTHER cards.
+    // A card that only returns/puts ITSELF from the graveyard (Death Tyrant,
+    // Gryff's Boon, Reassembling Skeleton, a transforming DFC's "put this card
+    // from your graveyard onto the battlefield") is recursive resilience, not a
+    // graveyard-value engine — don't tag it unless it also recurs OTHER cards.
     const selfReturnOnly =
-      /return this (?:card|aura|permanent|creature) from (?:your|a) graveyard/.test(o) &&
+      /(?:put|return) this (?:card|aura|permanent|creature) from (?:your|a) graveyard/.test(o) &&
       !/(?:put|return) (?:target|a|all|each|x|another)[^.]*card/.test(o);
     if (!selfReturnOnly) {
       if (/return (?:target )?[^.]*card[^.]*from (?:your|a) graveyard/.test(o))
@@ -236,7 +238,7 @@ const graveyard: SynergyAxis = {
         return 'recurs from your graveyard';
     }
     if (/creature card in a graveyard/.test(o)) return 'reanimates';
-    if (GY_RECUR_KEYWORDS.some((k) => has(card, k))) return 'graveyard recursion';
+    if (GY_FUEL_KEYWORDS.some((k) => has(card, k))) return 'wants a stocked graveyard';
     if (/cast [^.]*from your graveyard/.test(o)) return 'casts from your graveyard';
     if (/\bwhenever one or more cards leave your graveyard\b/.test(o))
       return 'pays off cards leaving your graveyard';
@@ -266,6 +268,10 @@ const artifacts: SynergyAxis = {
       )
     )
       return 'creates artifact token copies';
+    // A printed (nontoken) Treasure permanent — its oracle text never says
+    // "artifact" or "Treasure" in the rules text, only the type line does, so
+    // every text-based check above misses it (Buried Treasure, Mimic).
+    if (card.typeLine.includes('treasure')) return 'is a Treasure';
     return null;
   },
   payoff(card) {
@@ -277,14 +283,22 @@ const artifacts: SynergyAxis = {
       return 'triggers on your artifacts';
     if (/whenever you cast an artifact spell/.test(card.oracle))
       return 'pays off casting artifacts';
+    // Affinity is a generic "cost down for each X you control" template reused
+    // for Islands/Slivers/Gates/Historic/etc, not just artifacts — matching the
+    // bare keyword without checking what it's affinity FOR read every one of
+    // those unrelated variants as an artifacts payoff (7/7 FPs).
     if (
-      has(card, 'affinity') ||
+      (has(card, 'affinity') && /affinity for artifacts/.test(card.oracle)) ||
       has(card, 'improvise') ||
       has(card, 'metalcraft') ||
       /metalcraft/.test(card.oracle)
     )
       return 'artifact threshold/cost payoff';
     if (/for each artifact you control/.test(card.oracle)) return 'scales with artifacts';
+    // "If mana from a Treasure was spent to cast/activate …" (Hired Hexblade,
+    // Jaded Sell-Sword) rewards Treasure-fueled mana, not just owning artifacts.
+    if (/if mana from a treasure was spent/.test(card.oracle))
+      return 'rewards spending Treasure mana';
     return null;
   },
 };
@@ -293,15 +307,38 @@ const equipment: SynergyAxis = {
   key: 'equipment',
   label: 'Equipment / Voltron',
   producer(card) {
-    // The equipment cards themselves are the engine; the payoffs care about them.
+    // The equipment cards themselves are the engine; tutoring/recurring them
+    // DEPLOYS the engine (mirrors how auras/superfriends treat their own tutors
+    // as producers, not payoffs), and reducing the EQUIP activation cost is the
+    // same enabling shape as spellslinger/enchantress/auras' "X you cast cost
+    // less" producers — cheaper to run, not a reward.
     if (card.typeLine.includes('equipment') || has(card, 'equip')) return 'equipment';
+    if (/(?:search|return)[^.]*equipment cards?/.test(card.oracle))
+      return 'tutors/recurs equipment';
+    if (/equip abilit(?:y|ies)[^.]*costs? [^.]*less to activate/.test(card.oracle))
+      return 'reduces equip cost';
     return null;
   },
   payoff(card) {
     if (/whenever you cast[^.]*equipment/.test(card.oracle)) return 'pays off casting equipment';
-    if (/whenever an equipment[^.]*enters/.test(card.oracle)) return 'triggers on your equipment';
-    if (/equipment you control/.test(card.oracle)) return 'cares about your equipment';
-    if (/equipment card/.test(card.oracle)) return 'tutors/cares about equipment';
+    // Affinity for Equipment scales this spell's cost with your Equipment count
+    // — the same "threshold/cost payoff" shape the artifacts axis already grants
+    // Affinity for artifacts.
+    if (has(card, 'affinity') && /affinity for equipment/.test(card.oracle))
+      return 'equipment threshold/cost payoff';
+    if (/(?:for each|equal to the number of) equipment/.test(card.oracle))
+      return 'scales with your equipment';
+    for (const clause of splitClauses(card.oracle)) {
+      // An ETB trigger only counts as a reward when it does something FOR you —
+      // "whenever an Equipment enters, you may attach it" is a free-attach
+      // ENABLER (producer-shaped), not a reward, and was the "attach misfiled as
+      // payoff" root cause.
+      if (
+        /whenever an equipment[^.]*enters/.test(clause) &&
+        !/you may attach|attach (?:it|that equipment)/.test(clause)
+      )
+        return 'triggers on your equipment';
+    }
     return null;
   },
 };
@@ -317,14 +354,25 @@ const spellslinger: SynergyAxis = {
     )
       return 'reduces spell cost';
     if (/copy (?:target )?(?:instant|sorcery)/.test(card.oracle)) return 'copies spells';
+    // Recursion (Archaeomancer-class: "return target instant or sorcery card
+    // from your graveyard") re-fuels the engine, same role as a tutor elsewhere.
+    if (
+      /return (?:target )?(?:an? )?instant or sorcery card[^.]*from your graveyard/.test(
+        card.oracle
+      )
+    )
+      return 'recurs instants/sorceries';
     return null;
   },
   payoff(card) {
     if (has(card, 'magecraft') || has(card, 'prowess')) return 'magecraft/prowess';
+    if (has(card, 'storm') || /\bstorm\b/.test(card.oracle)) return 'storm';
     if (/whenever you cast (?:or copy )?(?:an? )?(?:instant|sorcery)/.test(card.oracle))
       return 'triggers on instants/sorceries';
     if (/whenever you cast[^.]*instant or sorcery/.test(card.oracle))
       return 'triggers on instants/sorceries';
+    if (/for each instant and sorcery card in your graveyard/.test(card.oracle))
+      return 'scales with instants/sorceries in your graveyard';
     return null;
   },
 };
@@ -372,15 +420,23 @@ const superfriends: SynergyAxis = {
       return 'scales with your planeswalkers';
     // "planeswalkers you control" — but NOT the incidental "creature or
     // planeswalker you control" phrasing (aristocrats/clones: Cruel Celebrant,
-    // Spark Double), nor DEFENSIVE mentions where the walker is just protected
+    // Spark Double), DEFENSIVE mentions where the walker is just protected
     // alongside you ("attack you or planeswalkers you control" — Archangel of
-    // Tithes, Soul Snare, Comeuppance). Neither cares about walkers as an engine.
+    // Tithes, Soul Snare, Comeuppance), or a PRODUCER-shaped grant wearing the
+    // same phrase: pure protection (Shalai, Deification's "have hexproof" /
+    // "can't be the target") or loyalty-counter growth (Oath of Gideon's
+    // "enters with an additional loyalty counter", which the producer already
+    // credits — tagging it as payoff too double-buckets the same text). None of
+    // these care about walkers as an engine; they feed or shield it.
+    const PW_PRODUCER_SHAPED =
+      /hexproof|indestructible|can'?t be the targets?|enters? with[^.]*additional loyalty/;
     if (
       /planeswalkers? you control/.test(card.oracle) &&
       !/creatures? (?:and|or) planeswalkers? you control/.test(card.oracle) &&
       !/(?:you or|you and|attacking you|attack you|dealt to you)[^.]*planeswalkers? you control/.test(
         card.oracle
-      )
+      ) &&
+      !PW_PRODUCER_SHAPED.test(card.oracle)
     )
       return 'cares about your planeswalkers';
     if (/loyalty abilit/.test(card.oracle)) return 'rewards loyalty activations';
@@ -410,8 +466,29 @@ const tribal: SynergyAxis = {
     return null;
   },
   payoff(card) {
-    if (/of the chosen type/.test(card.oracle)) return 'rewards your chosen creature type';
-    if (/shares?(?: at least one| a)? creature type/.test(card.oracle))
+    for (const clause of splitClauses(card.oracle)) {
+      // "Of the chosen type" is only a payoff when it's about CREATURES (not a
+      // land-type or card-type selector wearing similar wording) AND about YOUR
+      // board — Plague Engineer's "creatures of the chosen type your OPPONENTS
+      // control get -1/-1" is a hate piece (wrong subject), not a reward for
+      // your own typal deck. The gap is bounded (not a bare [^.]*) so an
+      // unrelated "creature" mention elsewhere in a long clause can't bridge to
+      // a DIFFERENT noun's "of the chosen type" — Deification's "as long as you
+      // control A CREATURE, if damage dealt to A PLANESWALKER ... of the chosen
+      // type" would otherwise false-match on "creature" alone.
+      if (
+        /creatures?[^.]{0,25} of the chosen type/.test(clause) &&
+        !/opponents? control/.test(clause)
+      )
+        return 'rewards your chosen creature type';
+    }
+    // "Shares a creature type" — but not the NEGATED form ("doesn't/don't share
+    // a creature type", Volo, Guide to Monsters), which rewards deck DIVERSITY
+    // and is the inverse of a typal payoff.
+    if (
+      /shares?(?: at least one| a)? creature type/.test(card.oracle) &&
+      !/doesn't share|don't share/.test(card.oracle)
+    )
       return 'rewards shared creature types';
     return null;
   },
@@ -468,6 +545,12 @@ const vehicles: SynergyAxis = {
   label: 'Vehicles / crew',
   producer(card) {
     if (card.typeLine.includes('vehicle') || has(card, 'crew')) return 'vehicle (crew engine)';
+    // Pilots operate the crew engine even though they aren't Vehicles
+    // themselves (Aeronaut Admiral, Depala-class); crew-support body text
+    // ("crews Vehicles as though its power were N greater") is the same
+    // enabling shape on a non-Pilot, non-Vehicle card.
+    if (card.typeLine.includes('pilot')) return 'Pilot (crews vehicles)';
+    if (/crews? vehicles? as though/.test(card.oracle)) return 'crew-support';
     return null;
   },
   payoff(card) {
@@ -523,7 +606,13 @@ const energy: SynergyAxis = {
       : null;
   },
   payoff(card) {
-    return /pay (?:any amount of |[a-z]+ )?\{e\}/.test(card.oracle) ? 'spends energy' : null;
+    if (/pay (?:any amount of |[a-z]+ )?\{e\}/.test(card.oracle)) return 'spends energy';
+    // "Whenever you get one or more {E}" (Territorial Gorger, Fabrication
+    // Module) rewards BANKING energy rather than spending it — a distinct
+    // payoff shape from the pay-{E} branch above.
+    if (/whenever you get (?:one or more |that many |[a-z]+ )?\{e\}/.test(card.oracle))
+      return 'rewards banking energy';
+    return null;
   },
 };
 
@@ -602,7 +691,15 @@ const mill: SynergyAxis = {
     return millSignals(card.oracle).opponentMill ? 'mills your opponents' : null;
   },
   payoff(card) {
-    return millSignals(card.oracle).doubler ? 'amplifies milling' : null;
+    if (millSignals(card.oracle).doubler) return 'amplifies milling';
+    // A trigger keyed on a mill actually happening (Glowing One's "whenever a
+    // player mills a nonland card") — a reward for the mill engine running, not
+    // the engine itself.
+    if (
+      /whenever (?:a|any)? ?player mills? (?:a |one or more )?(?:nonland )?cards?/.test(card.oracle)
+    )
+      return 'rewards milling';
+    return null;
   },
 };
 
@@ -639,6 +736,10 @@ const poison: SynergyAxis = {
   producer(card) {
     if (has(card, 'infect') || /\binfect\b/.test(card.oracle)) return 'infect (poison)';
     if (has(card, 'toxic') || /\btoxic \d/.test(card.oracle)) return 'toxic (poison)';
+    // A direct "gets N poison counter(s)" grant (Fynn, the Fangbearer; Vraska,
+    // Betrayal's Sting's -9) is an alternate poison-delivery engine, not just
+    // infect/toxic reminder text.
+    if (/\bgets?\b[^.]*poison counters?/.test(card.oracle)) return 'gives poison counters';
     return null;
   },
   payoff(card) {
@@ -650,6 +751,10 @@ const poison: SynergyAxis = {
       return 'rewards infect creatures';
     if (/for each poison counter|ten or more poison counters/.test(card.oracle))
       return 'scales with poison';
+    // Corrupted — the March of the Machine ability word for "an opponent has
+    // three or more poison counters". Its clause is templated with an em-dash
+    // and isn't parenthetical, so it survives reminder-stripping.
+    if (has(card, 'corrupted') || /\bcorrupted\b/.test(card.oracle)) return 'Corrupted';
     return null;
   },
 };
@@ -672,7 +777,19 @@ const cycling: SynergyAxis = {
   payoff(card) {
     // "Whenever you cycle" and the symmetric "whenever a player cycles" (Astral
     // Slide, Lightning Rift) both reward the cycling engine.
-    return /when(?:ever)? (?:you|a player) cycles?/.test(card.oracle) ? 'rewards cycling' : null;
+    if (/when(?:ever)? (?:you|a player) cycles?/.test(card.oracle)) return 'rewards cycling';
+    // "If/whenever you cycled ... this turn" (Spellpyre Phoenix) — a delayed
+    // reward keyed on cycling activity rather than the trigger itself.
+    if (/(?:if |whenever )you(?:'ve)? cycled[^.]*this turn/.test(card.oracle))
+      return 'rewards cycling this turn';
+    // Recurs cards WITH cycling FROM the graveyard (Spellpyre Phoenix, Abandoned
+    // Sarcophagus) vs. counts cards with cycling sitting IN the graveyard
+    // (Zenith Flare) — same phrase, distinguished by preposition.
+    if (/cycling abilit(?:y|ies)[^.]*from your graveyard/.test(card.oracle))
+      return 'recurs cycling cards from your graveyard';
+    if (/cycling abilit(?:y|ies) in your graveyard/.test(card.oracle))
+      return 'scales with cycled cards in your graveyard';
+    return null;
   },
 };
 

@@ -203,10 +203,12 @@ describe('rankReplacementCuts', () => {
       })
     ),
     slot(
+      // Token-scoped anthem (E139: a generic "creatures you control" anthem is
+      // no longer a tokens payoff — only "creature tokens you control" is).
       card('Anthem Lord', {
         deckRole: 'd',
         type_line: 'Creature',
-        oracle_text: 'Creatures you control get +1/+1.',
+        oracle_text: 'Creature tokens you control get +1/+1.',
       })
     ),
     slot(

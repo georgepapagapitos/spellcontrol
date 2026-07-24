@@ -81,10 +81,12 @@ describe('suggestOffMeta', () => {
     const candidates = [
       cand("Cathars' Crusade", 90), // consensus → excluded
       cand('Intangible Virtue', 0.5), // below the off-meta floor → excluded
-      cand('Mirror Entity', 15), // in the window → kept
+      // Champion of Lambholt, not Mirror Entity — E139 stopped crediting Mirror
+      // Entity's generic (non-token-scoped) anthem as a tokens payoff.
+      cand('Champion of Lambholt', 15), // in the window → kept
     ];
     const names = suggestOffMeta(deck, candidates).map((s) => s.cardName);
-    expect(names).toEqual(['Mirror Entity']);
+    expect(names).toEqual(['Champion of Lambholt']);
   });
 
   it('reserves quota slots for genuinely off-meta (no-inclusion) fills', () => {
@@ -94,7 +96,9 @@ describe('suggestOffMeta', () => {
     const candidates = [
       cand("Cathars' Crusade", 30),
       cand('Intangible Virtue', 25),
-      cand('Mirror Entity', 20),
+      // Champion of Lambholt, not Mirror Entity — E139 stopped crediting Mirror
+      // Entity's generic (non-token-scoped) anthem as a tokens payoff.
+      cand('Champion of Lambholt', 20),
       cand('Impact Tremors', 15), // 4th validated — would fill the last slot
       cand('Purphoros, God of the Forge'), // no inclusion → genuinely off-meta
     ];

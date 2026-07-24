@@ -142,7 +142,9 @@ export const CORPUS: CorpusCard[] = [
     type_line: 'Enchantment',
     keywords: [],
     oracle_text: 'Creatures you control have "{T}: Add one mana of any color."',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // E139: a generic "creatures you control have X" grant isn't token-specific
+    // (it helps a 2-creature board as much as a wide one) — no longer tags tokens.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Intangible Virtue',
@@ -157,7 +159,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Haste'],
     oracle_text:
       'Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Mondrak, Glory Dominus',
@@ -219,7 +222,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever a creature you control attacks, you may put a quest counter on this enchantment.\nAs long as this enchantment has seven or more quest counters on it, creatures you control get +5/+5.',
-    expect: { producers: [], payoffs: ['tokens'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Champion of Lambholt',
@@ -235,8 +239,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Changeling'],
     oracle_text:
       'Changeling (This card is every creature type.)\n{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.',
-    // Changeling makes it a tribal enabler; the {X} pump is a creature anthem.
-    expect: { producers: ['tribal'], payoffs: ['tokens'] },
+    // Changeling makes it a tribal enabler; the {X} pump is a generic (non-token)
+    // anthem — E139 no longer tags that as tokens.
+    expect: { producers: ['tribal'], payoffs: [] },
   },
   {
     name: 'Beast Within',
@@ -268,7 +273,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Lifelink', 'Vigilance', 'Fabricate'],
     oracle_text:
       'Flying, vigilance, lifelink\nFabricate 2 (When this creature enters, put two +1/+1 counters on it or create two 1/1 colorless Servo artifact creature tokens.)\nOther creatures you control get +1/+1.',
-    expect: { producers: ['tokens', 'counters', 'lifegain', 'artifacts'], payoffs: ['tokens'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens payoff.
+    expect: { producers: ['tokens', 'counters', 'lifegain', 'artifacts'], payoffs: [] },
   },
   {
     name: 'Doubling Season',
@@ -400,7 +406,8 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       '+1: Create three 1/1 white Soldier creature tokens.\n−3: Destroy all creatures with power 4 or greater.\n−7: You get an emblem with "Creatures you control get +2/+2 and have flying."',
     // A planeswalker is itself a superfriends producer (the loyalty engine).
-    expect: { producers: ['tokens', 'superfriends'], payoffs: ['tokens'] },
+    // E139: the -7 emblem's anthem is generic, not token-scoped — no tokens payoff.
+    expect: { producers: ['tokens', 'superfriends'], payoffs: [] },
   },
   {
     name: 'Trading Post',
@@ -620,7 +627,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When this creature enters, you may search your library for an Equipment card, reveal it, put it into your hand, then shuffle.\n{1}{W}, {T}: You may put an Equipment card from your hand onto the battlefield.',
-    expect: { producers: [], payoffs: ['equipment'] },
+    // E139: tutoring DEPLOYS the equipment engine (producer-shaped), it doesn't
+    // reward already having one — re-bucketed from payoff to producer.
+    expect: { producers: ['equipment'], payoffs: [] },
   },
   {
     name: "Sigarda's Aid",
@@ -628,7 +637,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'You may cast Aura and Equipment spells as though they had flash.\nWhenever an Equipment you control enters, you may attach it to target creature you control.',
-    expect: { producers: [], payoffs: ['equipment'] },
+    // E139: a free-attach ETB is a producer-shaped ENABLER, not a reward for
+    // having equipment — the "attach" exclusion drops this from payoff.
+    expect: { producers: [], payoffs: [] },
   },
   {
     name: 'Batterskull',
@@ -785,7 +796,10 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When Oath of Gideon enters, create two 1/1 white Kor Ally creature tokens.\nEach planeswalker you control enters with an additional loyalty counter on it.',
-    expect: { producers: ['tokens', 'superfriends'], payoffs: ['superfriends'] },
+    // E139: loyalty-counter growth is the SAME text the producer already
+    // credits ("adds loyalty counters") — tagging it as payoff too was
+    // double-bucketing a producer-shaped grant, not rewarding the engine.
+    expect: { producers: ['tokens', 'superfriends'], payoffs: [] },
   },
   {
     name: 'Call the Gatewatch',
@@ -1151,7 +1165,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "Other Dwarves you control get +1/+1.\nEach Vehicle you control gets +1/+1 as long as it's a creature.\nWhenever Depala becomes tapped, you may pay {X}. If you do, reveal the top X cards of your library, put all Dwarf and Vehicle cards from among them into your hand, then put the rest on the bottom of your library in a random order.",
-    expect: { producers: [], payoffs: ['vehicles'] },
+    // E139: Depala is Pilot-typed \u2014 crews the engine, so also a producer now.
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
   },
   {
     name: 'Kotori, Pilot Prodigy',
@@ -1159,7 +1174,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Vehicles you control have crew 2.\nAt the beginning of combat on your turn, target artifact creature you control gains lifelink and vigilance until end of turn.',
-    expect: { producers: [], payoffs: ['vehicles'] },
+    // E139: Pilot-typed \u2014 crews the engine, so also a producer now.
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
   },
   {
     name: 'Greasefang, Okiba Boss',
@@ -1167,7 +1183,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
-    expect: { producers: [], payoffs: ['graveyard', 'vehicles'] },
+    // E139: Pilot-typed \u2014 crews the engine, so also a producer now.
+    expect: { producers: ['vehicles'], payoffs: ['graveyard', 'vehicles'] },
   },
   {
     name: 'Howling Mine',
@@ -1395,7 +1412,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flashback'],
     oracle_text:
       'Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
-    expect: { producers: ['discard'], payoffs: ['graveyard'] },
+    // E139: Flashback only ever recasts ITSELF — self-contained resilience,
+    // not a graveyard-value engine. No longer a graveyard payoff.
+    expect: { producers: ['discard'], payoffs: [] },
   },
   {
     name: 'Faith of the Devoted',
@@ -1954,7 +1973,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flashback', 'Mill'],
     oracle_text:
       'Target player mills X cards. If this spell was cast from a graveyard, that player mills twice that many cards instead.\nFlashback {X}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
-    expect: { producers: ['mill'], payoffs: ['graveyard'] },
+    // E139: Flashback only ever recasts ITSELF — self-contained upgrade, not a
+    // graveyard-value engine. No longer a graveyard payoff.
+    expect: { producers: ['mill'], payoffs: [] },
   },
   {
     name: 'Kiki-Jiki, Mirror Breaker',
@@ -2078,7 +2099,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'When Mu Yanling enters, create a 3/2 colorless Vehicle artifact token with crew 1.\nVehicles you control have flying.\nWhenever one or more creatures you control with flying deal combat damage to a player, draw a card.',
-    expect: { producers: ['artifacts'], payoffs: ['vehicles'] },
+    // E139: Mu Yanling is Pilot-typed — crews the engine, so also a producer now.
+    expect: { producers: ['artifacts', 'vehicles'], payoffs: ['vehicles'] },
   },
   {
     name: 'Nadaar, Selfless Paladin',
@@ -2086,7 +2108,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Vigilance', 'Venture into the dungeon'],
     oracle_text:
       "Vigilance\nWhenever Nadaar enters or attacks, venture into the dungeon. (Enter the first room or advance to the next room.)\nOther creatures you control get +1/+1 as long as you've completed a dungeon.",
-    expect: { producers: ['venture'], payoffs: ['tokens', 'venture'] },
+    // E139: generic anthem, not token-scoped — no longer tags tokens payoff.
+    expect: { producers: ['venture'], payoffs: ['venture'] },
   },
   {
     name: 'New Perspectives',
@@ -2304,7 +2327,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Skulk', 'Transform', 'Mill'],
     oracle_text:
       "Target opponent mills thirteen cards.\n{3}{U}{U}: Put this card from your graveyard onto the battlefield transformed. Activate only as a sorcery.\nSkulk (This creature can't be blocked by creatures with greater power.)\nWhen this creature deals combat damage to a player, return it to its owner's hand.",
-    expect: { producers: ['mill'], payoffs: ['graveyard'] },
+    // E139: "put THIS card from your graveyard" is self-only recursion (widened
+    // selfReturnOnly now catches "put", not just "return") — no graveyard payoff.
+    expect: { producers: ['mill'], payoffs: [] },
   },
   {
     name: 'Sylvan Scrying',
@@ -2382,7 +2407,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Until end of turn, creatures you control get +1/+1 and gain trample and infect. (Creatures with infect deal damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)',
-    expect: { producers: ['poison'], payoffs: ['poison', 'tokens'] },
+    // E139: generic anthem/keyword-grant, not token-scoped — no tokens payoff.
+    expect: { producers: ['poison'], payoffs: ['poison'] },
   },
   {
     name: 'True Conviction',
@@ -2429,7 +2455,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Whenever you gain life, target opponent loses that much life.\n{3}{B}{B}: Creatures you control gain lifelink until end of turn.',
-    expect: { producers: ['lifegain'], payoffs: ['lifegain', 'tokens'] },
+    // E139: generic keyword-grant, not token-scoped — no longer tags tokens payoff.
+    expect: { producers: ['lifegain'], payoffs: ['lifegain'] },
   },
   {
     name: 'Vorinclex, Monstrous Raider',
@@ -2445,7 +2472,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Proliferate', 'Compleated'],
     oracle_text:
       'Compleated ({B/P} can be paid with {B} or 2 life. If life was paid, this planeswalker enters with two fewer loyalty counters.)\n0: You draw a card and lose 1 life. Proliferate.\n\u22122: Target creature becomes a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color" and loses all other card types and abilities.\n\u22129: If target player has fewer than nine poison counters, they get a number of poison counters equal to the difference.',
-    expect: { producers: ['superfriends', 'sacrifice'], payoffs: [] },
+    // E139: the -9's "they get a number of poison counters" grant is a poison
+    // producer (an alternate delivery engine), same shape as Fynn.
+    expect: { producers: ['poison', 'superfriends', 'sacrifice'], payoffs: [] },
   },
   {
     name: 'Wall of Reverence',
@@ -2501,7 +2530,8 @@ export const CORPUS: CorpusCard[] = [
     keywords: [],
     oracle_text:
       'Zenith Flare deals X damage to any target and you gain X life, where X is the number of cards with a cycling ability in your graveyard.',
-    expect: { producers: ['lifegain'], payoffs: [] },
+    // E139: scales with cycling cards sitting in your graveyard — a cycling payoff.
+    expect: { producers: ['lifegain'], payoffs: ['cycling'] },
   },
   {
     name: 'Aetherflux Reservoir',
@@ -2756,7 +2786,9 @@ export const CORPUS: CorpusCard[] = [
     keywords: ['Flying', 'Atomic Transmutation', 'Unearth'],
     oracle_text:
       'Flying\nAtomic Transmutation — {1}, {T}, Sacrifice another artifact: Draw a card.\nUnearth {2}{B} ({2}{B}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)',
-    expect: { producers: ['sacrifice'], payoffs: ['graveyard'] },
+    // E139: Unearth only ever recurs ITSELF — self-contained resilience, not a
+    // graveyard-value engine. No longer a graveyard payoff.
+    expect: { producers: ['sacrifice'], payoffs: [] },
   },
   {
     name: 'Delraich',
@@ -3058,5 +3090,259 @@ export const CORPUS: CorpusCard[] = [
     oracle_text:
       'Whenever an opponent casts a spell during your turn and when this creature dies, create a green and white Elemental creature token with "This token\'s power and toughness are each equal to the number of creatures you control."',
     expect: { producers: ['tokens'], payoffs: ['tokens'] },
+  },
+
+  // ── E139: artifacts payoff-FP cleanup + recall widening ────────────────────
+  {
+    name: 'Angelic Observer',
+    type_line: 'Creature — Angel Advisor',
+    keywords: ['Affinity', 'Flying'],
+    oracle_text:
+      'Affinity for Citizens (This spell costs {1} less to cast for each Citizen you control.)\nFlying',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Hired Hexblade',
+    type_line: 'Creature — Elf Warlock',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, if mana from a Treasure was spent to cast it, you draw a card and you lose 1 life.',
+    expect: { producers: [], payoffs: ['artifacts'] },
+  },
+  {
+    name: 'Buried Treasure',
+    type_line: 'Artifact — Treasure',
+    keywords: ['Discover'],
+    oracle_text:
+      '{T}, Sacrifice this artifact: Add one mana of any color.\n{5}, Exile this card from your graveyard: Discover 5. Activate only as a sorcery. (Exile cards from the top of your library until you exile a nonland card with mana value 5 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)',
+    // Also a genuine sacrifice outlet ("Sacrifice this artifact:") — every
+    // Treasure-shaped permanent is, incidentally, fodder.
+    expect: { producers: ['artifacts', 'sacrifice'], payoffs: [] },
+  },
+
+  // ── E139: graveyard self-recursion cleanup (flashback/unearth-class) ───────
+  {
+    name: 'Think Twice',
+    type_line: 'Instant',
+    keywords: ['Flashback'],
+    oracle_text:
+      'Draw a card.\nFlashback {2}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    expect: { producers: [], payoffs: [] },
+  },
+  {
+    name: 'Treasure Cruise',
+    type_line: 'Sorcery',
+    keywords: ['Delve'],
+    oracle_text:
+      'Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDraw three cards.',
+    expect: { producers: [], payoffs: ['graveyard'] },
+  },
+  {
+    name: "Uro, Titan of Nature's Wrath",
+    type_line: 'Legendary Creature — Elder Giant',
+    keywords: ['Escape'],
+    oracle_text:
+      'When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)',
+    expect: { producers: ['landfall', 'lifegain'], payoffs: ['graveyard'] },
+  },
+
+  // ── E139: tribal type-kind confusion + wrong-subject + inverse-payoff ──────
+  {
+    name: 'Plague Engineer',
+    type_line: 'Creature — Phyrexian Carrier',
+    keywords: ['Deathtouch'],
+    oracle_text:
+      'Deathtouch\nAs this creature enters, choose a creature type.\nCreatures of the chosen type your opponents control get -1/-1.',
+    expect: { producers: ['tribal'], payoffs: [] },
+  },
+  {
+    name: 'Volo, Guide to Monsters',
+    type_line: 'Legendary Creature — Human Wizard',
+    keywords: [],
+    oracle_text:
+      "Whenever you cast a creature spell that doesn't share a creature type with a creature you control or a creature card in your graveyard, copy that spell. (A copy of a creature spell becomes a token.)",
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── E139: mill "each player mills" subject + trigger-on-mill payoff ────────
+  {
+    name: 'Chill of Foreboding',
+    type_line: 'Sorcery',
+    keywords: ['Flashback'],
+    oracle_text:
+      'Each player mills five cards.\nFlashback {7}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)',
+    expect: { producers: ['mill'], payoffs: [] },
+  },
+  {
+    name: 'Glowing One',
+    type_line: 'Creature — Zombie Mutant',
+    keywords: ['Mill', 'Deathtouch'],
+    oracle_text:
+      'Deathtouch\nWhenever this creature deals combat damage to a player, they get four rad counters.\nWhenever a player mills a nonland card, you gain 1 life.',
+    expect: { producers: ['lifegain'], payoffs: ['mill'] },
+  },
+
+  // ── E139: poison "gets a poison counter" grant + Corrupted payoff ──────────
+  {
+    name: 'Fynn, the Fangbearer',
+    type_line: 'Legendary Creature — Human Warrior',
+    keywords: ['Deathtouch'],
+    oracle_text:
+      'Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhenever a creature you control with deathtouch deals combat damage to a player, that player gets two poison counters.',
+    expect: { producers: ['poison'], payoffs: [] },
+  },
+  {
+    name: 'Bonepicker Skirge',
+    type_line: 'Creature — Bat',
+    keywords: ['Flying', 'Corrupted'],
+    oracle_text:
+      'Flying\nCorrupted — As long as an opponent has three or more poison counters, this creature has deathtouch and lifelink.',
+    expect: { producers: [], payoffs: ['poison'] },
+  },
+
+  // ── E139: spellslinger recursion producer + Storm/graveyard-count payoff ───
+  {
+    name: 'Archaeomancer',
+    type_line: 'Creature — Human Wizard',
+    keywords: [],
+    oracle_text:
+      'When this creature enters, return target instant or sorcery card from your graveyard to your hand.',
+    expect: { producers: ['spellslinger'], payoffs: ['graveyard'] },
+  },
+  {
+    name: 'Grapeshot',
+    type_line: 'Sorcery',
+    keywords: ['Storm'],
+    oracle_text:
+      'Grapeshot deals 1 damage to any target.\nStorm (When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.)',
+    expect: { producers: [], payoffs: ['spellslinger'] },
+  },
+  {
+    name: 'Cryptic Serpent',
+    type_line: 'Creature — Serpent',
+    keywords: [],
+    oracle_text:
+      'This spell costs {1} less to cast for each instant and sorcery card in your graveyard.',
+    expect: { producers: [], payoffs: ['spellslinger'] },
+  },
+
+  // ── E139: cycling recall — you-cycled-this-turn, graveyard counts/recursion ─
+  {
+    name: 'Spellpyre Phoenix',
+    type_line: 'Creature — Phoenix',
+    keywords: ['Flying', 'Cycling'],
+    oracle_text:
+      'Flying\nWhen this creature enters, you may return target instant or sorcery card with a cycling ability from your graveyard to your hand.\nAt the beginning of each end step, if you cycled two or more cards this turn, return this card from your graveyard to your hand.',
+    // Also recurs an instant/sorcery card (spellslinger) and, since that
+    // recursion clause means the self-return clause isn't the ONLY thing this
+    // card does, still reads as a genuine graveyard payoff too.
+    expect: { producers: ['cycling', 'spellslinger'], payoffs: ['cycling', 'graveyard'] },
+  },
+  {
+    name: 'Abandoned Sarcophagus',
+    type_line: 'Artifact',
+    keywords: [],
+    oracle_text:
+      "You may cast spells that have a cycling ability from your graveyard.\nIf a card that has a cycling ability would be put into your graveyard from anywhere and it wasn't cycled, exile it instead.",
+    // Also a graveyard producer/payoff: the replacement clause mentions "put
+    // into your graveyard", and casting spells from the graveyard is the
+    // axis's own "casts from your graveyard" payoff shape.
+    expect: { producers: ['graveyard'], payoffs: ['cycling', 'graveyard'] },
+  },
+
+  // ── E139: energy recall — "whenever you get one or more {E}" payoff ────────
+  {
+    name: 'Territorial Gorger',
+    type_line: 'Creature — Gremlin',
+    keywords: ['Trample'],
+    oracle_text:
+      'Trample\nWhenever you get one or more {E} (energy counters), this creature gets +2/+2 until end of turn.',
+    expect: { producers: [], payoffs: ['energy'] },
+  },
+
+  // ── E139: equipment bucket-confusion cleanup + recall widening ─────────────
+  // (Stoneforge Mystic and Sigarda's Aid already exercise the tutor/attach
+  // re-bucketing above, in their original entries — no duplicate needed here.)
+  {
+    name: 'Armed Response',
+    type_line: 'Instant',
+    keywords: [],
+    oracle_text:
+      'Armed Response deals damage to target attacking creature equal to the number of Equipment you control.',
+    expect: { producers: [], payoffs: ['equipment'] },
+  },
+  {
+    name: 'Bureau Headmaster',
+    type_line: 'Creature — Human Assassin',
+    keywords: [],
+    oracle_text:
+      'Equipment spells you cast cost {1} less to cast.\nEquip abilities you activate cost {1} less to activate.',
+    expect: { producers: ['equipment'], payoffs: [] },
+  },
+  {
+    name: 'Oxidda Finisher',
+    type_line: 'Creature — Ogre Rebel',
+    keywords: ['Affinity', 'Trample'],
+    oracle_text:
+      'Affinity for Equipment (This spell costs {1} less to cast for each Equipment you control.)\nTrample',
+    expect: { producers: [], payoffs: ['equipment'] },
+  },
+
+  // ── E139: vehicles recall — Pilot type + crew-support body text ────────────
+  {
+    name: 'Aeronaut Admiral',
+    type_line: 'Creature — Human Pilot',
+    keywords: ['Flying'],
+    oracle_text: 'Flying\nVehicles you control have flying.',
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
+  },
+  {
+    name: 'Cloudspire Captain',
+    type_line: 'Creature — Human Pilot',
+    keywords: [],
+    oracle_text:
+      'Mounts and Vehicles you control get +1/+1.\nThis creature saddles Mounts and crews Vehicles as though its power were 2 greater.',
+    expect: { producers: ['vehicles'], payoffs: ['vehicles'] },
+  },
+
+  // ── E139: superfriends payoff cleanup — protection + loyalty-growth double-bucket ─
+  {
+    name: 'Shalai, Voice of Plenty',
+    type_line: 'Legendary Creature — Angel',
+    keywords: ['Flying'],
+    oracle_text:
+      'Flying\nYou, planeswalkers you control, and other creatures you control have hexproof.\n{4}{G}{G}: Put a +1/+1 counter on each creature you control.',
+    // The point of this fixture is the ABSENCE of a superfriends payoff (pure
+    // hexproof protection, opposite word order from the existing "creature(s)
+    // and/or planeswalker(s)" guard) — it's still a genuine counters producer
+    // and, via `scalesWithCreatures`' "+1/+1 counter on each creature", a
+    // tokens payoff (go-wide scaling), both unrelated to superfriends.
+    expect: { producers: ['counters'], payoffs: ['tokens'] },
+  },
+  {
+    name: 'Deification',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text:
+      'As this enchantment enters, choose a planeswalker type.\nPlaneswalkers you control of the chosen type have hexproof.\nAs long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters being removed from it, prevent that damage instead.',
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── E139: counters payoff-FP cleanup — counter-REMOVAL (Aether Snap) ───────
+  {
+    name: 'Aether Snap',
+    type_line: 'Sorcery',
+    keywords: [],
+    oracle_text: 'Remove all counters from all permanents and exile all tokens.',
+    expect: { producers: [], payoffs: [] },
+  },
+
+  // ── E139: tokens payoff-FP cleanup — generic anthems are not tokens payoffs ─
+  {
+    name: 'Glorious Anthem',
+    type_line: 'Enchantment',
+    keywords: [],
+    oracle_text: 'Creatures you control get +1/+1.',
+    expect: { producers: [], payoffs: [] },
   },
 ];

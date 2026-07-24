@@ -237,14 +237,16 @@ export function hasCreatureEtbTrigger(oracle: string): boolean {
   );
 }
 
-/** Static anthem / team-buff for creatures you control. */
+/**
+ * Static anthem scoped to TOKENS specifically ("creature tokens you control
+ * get +…"). A generic "creatures you control get +1/+1" anthem (Glorious
+ * Anthem, Craterhoof Behemoth, Beastmaster Ascension) isn't token-specific —
+ * it helps a two-creature board exactly as much as a wide one, so it's not a
+ * go-wide/tokens payoff signal (E139: was reading any creature anthem as
+ * "tokens", 47% precision).
+ */
 export function hasCreatureAnthem(oracle: string): boolean {
-  return (
-    /(?:other )?creature tokens? you control get \+/.test(oracle) ||
-    /(?:other )?creatures you control get \+/.test(oracle) ||
-    /creatures you control gain /.test(oracle) ||
-    /creatures you control have (?:base power|")/.test(oracle)
-  );
+  return /(?:other )?creature tokens? you control get \+/.test(oracle);
 }
 
 /** Scales with your board ("for each creature", "equal to the number of creatures"). */
@@ -340,10 +342,13 @@ export interface MillSignals {
 
 // Subject-aware opponent mill. "Target player mills" can hit yourself, but as a
 // strategy signal it reads as the deck-out plan; the symmetric/self cases below
-// stay with the graveyard axis. Excludes nothing by `you` here because the
+// stay with the graveyard axis. "Each player mills" (Sphinx's Tutelage-style
+// symmetric decking, distinct from the `grouphug` "each player draws" wheel) is
+// still an opponent-deck-out signal even though it also mills you — it belongs
+// here, not silently uncovered. Excludes nothing by `you` here because the
 // clause loop checks opponent subjects first and self-mill second.
 const OPPONENT_MILL =
-  /\b(?:target opponent|each opponent|target player|that player|an opponent|opponents|enchanted player|defending player)\b[^.]*\bmills?\b/;
+  /\b(?:target opponent|each opponent|each player|target player|that player|an opponent|opponents|enchanted player|defending player)\b[^.]*\bmills?\b/;
 // Pre-"mill"-keyword templating: "<opponent> … puts those cards into their
 // graveyard" (Mind Funeral, Mind Grind, Consuming Aberration). Paired in the loop
 // with a reveal/library check (order-independent) so it can't catch

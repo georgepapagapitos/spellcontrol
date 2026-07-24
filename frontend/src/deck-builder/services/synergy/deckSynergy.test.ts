@@ -28,13 +28,15 @@ describe('analyzeDeckSynergy', () => {
   });
 
   it('warns when an axis is payoff-starved', () => {
-    // 5 payoffs, 0 producers on tokens.
+    // 5 payoffs, 0 producers on tokens. (Mirror Entity and Craterhoof Behemoth
+    // no longer qualify — E139 stopped crediting their generic, non-token-scoped
+    // anthems — swapped for two still-valid tokens payoffs.)
     const deck = pick(
       'Impact Tremors',
       "Cathars' Crusade",
       'Intangible Virtue',
-      'Craterhoof Behemoth',
-      'Mirror Entity'
+      'Champion of Lambholt',
+      "Trostani, Selesnya's Voice"
     );
     const res = analyzeDeckSynergy(deck);
     expect(res.warnings.some((w) => /payoff/i.test(w) && /producer/i.test(w))).toBe(true);
