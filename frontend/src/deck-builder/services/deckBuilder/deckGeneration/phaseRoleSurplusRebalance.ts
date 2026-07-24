@@ -160,14 +160,16 @@ export const REACTIVE_ROLES: RoleKey[] = ['ramp', 'removal', 'boardwipe', 'cardD
 
 // E160: roles this pass will BACKFILL a DEFICIT for (Phase 3), as opposed to
 // REACTIVE_ROLES (every role Phases 1/2 trim SURPLUS from). Order matters:
-// boardwipe keeps first claim on the shared MAX_SURPLUS_CONVERSIONS budget
-// when both roles are deficient and the budget is tight — preserving the
-// E113 boardwipe-only slice's existing priority rather than introducing a
-// new tunable to pick a winner. cardDraw/ramp are deliberately NOT in this
-// list this slice (a ramp/cardDraw deficit is comparatively low-stakes vs a
-// boardwipe/removal one going unanswered) — the ordered-list shape leaves
-// the extension seam for a future slice to widen it.
-const DEFICIT_BACKFILL_ROLES: RoleKey[] = ['boardwipe', 'removal'];
+// boardwipe keeps first claim on the shared MAX_SURPLUS_CONVERSIONS budget,
+// then removal, then ramp, then cardDraw — preserving the E113/E160
+// priorities rather than introducing a new tunable to pick winners.
+// E161 completes the set with ramp + cardDraw: the E139 re-gate measured the
+// exact harm the E160 slice had deliberately deferred — krenko shipped ramp
+// 7/11 after pick-time re-ranking displaced Arcane Signet AND a
+// coherence-added Phyrexian Altar, with nothing able to close the gap
+// (disclosure alone can't reseat a staple). Same donor rules, same shared
+// budget, same findReplacement gate stack for every role.
+const DEFICIT_BACKFILL_ROLES: RoleKey[] = ['boardwipe', 'removal', 'ramp', 'cardDraw'];
 
 // E112/E113: board wipes get a TIGHTER surplus band than the generic
 // max(2,20%) — a surplus wipe torches the deck's own board rather than being a

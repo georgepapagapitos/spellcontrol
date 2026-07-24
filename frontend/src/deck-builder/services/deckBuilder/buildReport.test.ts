@@ -285,7 +285,12 @@ describe('assembleBuildReport', () => {
       },
     ];
     const withRepairs = assembleBuildReport({
-      generated: makeGenerated({ coherenceRepairs }),
+      generated: makeGenerated({
+        coherenceRepairs,
+        // The added card ships in the final deck — pass-through stays verbatim
+        // (an absent add would get the E161 displaced annotation instead).
+        categories: categories({ ramp: [{ name: 'Sol Ring' } as ScryfallCard] }),
+      }),
       customization: makeCustomization(),
       collectionNames: new Set(),
     });
@@ -730,6 +735,9 @@ describe('assembleBuildReport', () => {
           coherenceRepairs: [
             { cut: 'Dead Payoff', added: 'Weak Filler', reason: 'Fixed a dead payoff' },
           ],
+          // Added cards ship in the final deck — the override applies (an
+          // absent add is E161-annotated instead and gets no provenance key).
+          categories: categories({ utility: [{ name: 'Weak Filler' } as ScryfallCard] }),
         }),
         customization: makeCustomization(),
         collectionNames: new Set(),
@@ -752,6 +760,13 @@ describe('assembleBuildReport', () => {
           flagshipSeatings: [
             { cut: 'Weak Incumbent', added: 'Flagship Add', reason: 'Reserved flagship seat' },
           ],
+          categories: categories({
+            utility: [
+              { name: 'Budget Add' } as ScryfallCard,
+              { name: 'Surplus Add' } as ScryfallCard,
+              { name: 'Flagship Add' } as ScryfallCard,
+            ],
+          }),
         }),
         customization: makeCustomization(),
         collectionNames: new Set(),
@@ -865,5 +880,67 @@ describe('buildArchetypeNote', () => {
       multiThemeSelected: false,
     });
     expect(note).toBe("Built as Voltron — from a read of the commander's card text.");
+  });
+});
+
+describe('E161: displaced-add honesty (stale swap records)', () => {
+  const displacedRepair = {
+    cut: 'Valakut Awakening // Valakut Stoneforge',
+    added: 'Phyrexian Altar',
+    reason: 'swapped for Phyrexian Altar, which completes 4 near-miss combos.',
+  };
+
+  it('annotates a repair whose added card is absent from the final deck, and never gives it a provenance key', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        coherenceRepairs: [displacedRepair],
+        cardProvenance: { 'Kept Card': 'EDHREC staple for this commander' },
+        categories: categories({ utility: [{ name: 'Kept Card' } as ScryfallCard] }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.coherenceRepairs?.[0].reason).toBe(
+      'swapped for Phyrexian Altar, which completes 4 near-miss combos. (Phyrexian Altar was later displaced before the final deck.)'
+    );
+    expect(report.cardProvenance?.['Phyrexian Altar']).toBeUndefined();
+    expect(report.cardProvenance?.['Kept Card']).toBe('EDHREC staple for this commander');
+  });
+
+  it('leaves a surviving add un-annotated and lets its repair reason win the provenance override', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        surplusConversions: [
+          {
+            cut: 'Filler',
+            added: 'Putrefy',
+            reason: 'Removal was running 7 vs its 8-card target — under target.',
+          },
+        ],
+        cardProvenance: { Putrefy: 'EDHREC staple for this commander' },
+        categories: categories({ singleRemoval: [{ name: 'Putrefy' } as ScryfallCard] }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.surplusConversions?.[0].reason).toBe(
+      'Removal was running 7 vs its 8-card target — under target.'
+    );
+    expect(report.cardProvenance?.['Putrefy']).toMatch(/^Swapped in: Removal was running/);
+  });
+
+  it('matches a DFC add by front face so a shipped MDFC is never mis-annotated as displaced', () => {
+    const report = assembleBuildReport({
+      generated: makeGenerated({
+        budgetRepairs: [{ cut: 'Pricey Card', added: 'Malakir Rebirth', reason: 'saves $4.00.' }],
+        cardProvenance: {},
+        categories: categories({
+          utility: [{ name: 'Malakir Rebirth // Malakir Mire' } as ScryfallCard],
+        }),
+      }),
+      customization: makeCustomization(),
+      collectionNames: new Set(),
+    });
+    expect(report.budgetRepairs?.[0].reason).toBe('saves $4.00.');
   });
 });

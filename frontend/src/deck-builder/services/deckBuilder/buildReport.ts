@@ -317,19 +317,40 @@ export function assembleBuildReport(input: {
     report.coherenceFindings = generated.coherenceFindings;
   }
 
+  // A swap record's `added` card can itself be displaced by a LATER phase
+  // (pick-time reshuffle, squeeze, trim) — the record stays (its cut half
+  // really happened and stays explained), but claiming an add that isn't in
+  // the final deck is a stale disclosure (E161 gate-found: krenko's
+  // coherence-added Phyrexian Altar was displaced downstream while its
+  // "swapped in" story survived verbatim). Truth source: the final
+  // categories; annotate, never delete.
+  const finalNames = new Set<string>();
+  for (const cards of Object.values(generated.categories)) {
+    for (const c of cards) {
+      finalNames.add(c.name);
+      if (c.name.includes(' // ')) finalNames.add(c.name.split(' // ')[0]);
+    }
+  }
+  const annotateDisplacedAdds = <T extends { added: string; reason: string }>(repairs: T[]): T[] =>
+    repairs.map((r) =>
+      finalNames.has(r.added)
+        ? r
+        : { ...r, reason: `${r.reason} (${r.added} was later displaced before the final deck.)` }
+    );
+
   // Coherence repairs: swaps the bounded repair pass applied (nothing moves silently).
   if (generated.coherenceRepairs && generated.coherenceRepairs.length > 0) {
-    report.coherenceRepairs = generated.coherenceRepairs;
+    report.coherenceRepairs = annotateDisplacedAdds(generated.coherenceRepairs);
   }
 
   // Budget-convergence swaps (E79): same "nothing moves silently" ethos.
   if (generated.budgetRepairs && generated.budgetRepairs.length > 0) {
-    report.budgetRepairs = generated.budgetRepairs;
+    report.budgetRepairs = annotateDisplacedAdds(generated.budgetRepairs);
   }
 
   // Role-surplus → payoff conversions (E87): same "nothing moves silently" ethos.
   if (generated.surplusConversions && generated.surplusConversions.length > 0) {
-    report.surplusConversions = generated.surplusConversions;
+    report.surplusConversions = annotateDisplacedAdds(generated.surplusConversions);
   }
 
   // "Hidden synergy" package picks — generation-time EDHREC lift suggestions.
@@ -357,6 +378,12 @@ export function assembleBuildReport(input: {
     ];
     for (const repairs of repairSources) {
       for (const r of repairs ?? []) {
+        // Only cards that actually SHIPPED get a provenance entry — a
+        // repair's add that a later phase displaced must not leave an
+        // orphaned "Swapped in" key (same gate-found stale-disclosure class
+        // as annotateDisplacedAdds above; the annotated repair record is
+        // where that story lives).
+        if (!finalNames.has(r.added)) continue;
         cardProvenance[r.added] = `Swapped in: ${r.reason}`;
       }
     }
