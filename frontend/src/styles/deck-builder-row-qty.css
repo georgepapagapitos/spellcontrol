@@ -66,3 +66,73 @@ input.deck-row-qty-input::-webkit-outer-spin-button {
 input.deck-row-qty-input.deck-row-qty-missing {
   color: var(--err-text);
 }
+
+/* ── +/− quantity stepper (E168 slice 3) ──────────────────────────────── */
+/* Flat siblings flanking the qty chip. Only rendered when a second copy is
+   actually legal (getMaxCopies > 1 — see DeckCardRow), so it's silent on a
+   singleton nonbasic in Commander/Brawl/PDH and only appears for basics and
+   non-singleton formats. */
+.deck-row-qty-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.deck-row-qty-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition:
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.deck-row-qty-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-row-qty-step:hover:not(:disabled) {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.deck-row-qty-step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Coarse pointers: grow the visible target (mirrors .deck-row-printings-
+   toggle's accepted sub-44px floor — these rows are ~24-30px tall with zero
+   inter-row gap, so a full 44px *vertical* reach would bleed into the
+   neighboring row's hit area) and add a horizontal-only ::after ghost for
+   the full 44px reach sideways, where it can't bleed into anything above
+   or below. */
+@media (pointer: coarse) {
+  .deck-row-qty-step {
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  .deck-row-qty-step::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 44px;
+    height: 100%;
+    transform: translateX(-50%);
+  }
+}

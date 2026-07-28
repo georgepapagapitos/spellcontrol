@@ -85,6 +85,7 @@ import { CardEditDialog, type PrintingSelection } from '../components/CardEditDi
 import {
   buildAllocationMap,
   pickCollectionCopy,
+  pickSlotsToRelease,
   classifyPrintingAvailability,
   bindableFinishesByPrinting,
   findStealableCopy,
@@ -96,6 +97,7 @@ import {
   type DonorZone,
   type StealableCopy,
 } from '../lib/allocations';
+import { getMaxCopies } from '../lib/deck-validation';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
 import { DeckFeedbackSheet } from '../components/deck/DeckFeedbackSheet';
@@ -2003,14 +2005,24 @@ export function DeckEditorPage() {
     pushToast({ message: `${card.name} is now the partner commander.`, tone: 'success' });
   };
 
-  // Click-to-edit qty handler: diffs the desired count against the live
-  // count and adds or removes slots in bulk. Bulk removes show ONE toast
-  // for the whole batch with an Undo that restores every original
+  // Qty handler for both the click-to-type-exact-number path (absolute
+  // target) and the +/− stepper (relative delta) — one function so both
+  // routes share the same allocation logic and the same maxCopies ceiling
+  // by construction (E168 slice 3). Diffs the desired count against the
+  // live count and adds or removes slots in bulk. Bulk removes show ONE
+  // toast for the whole batch with an Undo that restores every original
   // allocation — important for basics where the user might drop 8 copies
   // in a single edit.
-  const handleSetQty = (card: ScryfallCard, qty: number) => {
+  const handleSetQty = (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => {
     const current = deck.cards.filter((c) => c.card.name === card.name);
-    const delta = qty - current.length;
+    let delta = opts?.relative ? qty : qty - current.length;
+    // Never let an increment (stepper "+", "Add another copy", or typing a
+    // higher exact number) push a row past the format's per-card copy limit
+    // — the single ceiling both affordances defer to.
+    if (delta > 0) {
+      const maxCopies = getMaxCopies(card, !!formatConfig?.isSingleton);
+      delta = Math.min(delta, Math.max(maxCopies - current.length, 0));
+    }
     if (delta === 0) return;
     if (delta > 0) {
       // Quantity increments bind free owned copies; any beyond what's free are
@@ -2038,8 +2050,11 @@ export function DeckEditorPage() {
       });
       return;
     }
-    // delta < 0 → drop the most-recent N slots as one undo entry.
-    const dropping = current.slice(delta); // last |delta| items
+    // delta < 0 → drop |delta| slots as one undo entry. Unallocated copies
+    // go first so an owned copy stays bound to the row as long as possible
+    // (see pickSlotsToRelease) — only spills into allocated slots once
+    // there's no unallocated stock left to shed.
+    const dropping = pickSlotsToRelease(current, -delta);
     recordEdit(
       deck.id,
       dropping.length === 1 ? `remove ${card.name}` : `remove ${dropping.length} × ${card.name}`,

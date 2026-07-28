@@ -13,8 +13,10 @@ import {
   Layers,
   LayoutGrid,
   List as ListIconLucide,
+  Minus,
   MoreVertical,
   Pencil,
+  Plus,
   Search,
   Shapes,
   Sparkles,
@@ -51,6 +53,7 @@ import {
   validateDeckSize,
   countFlaggedCards,
   effectiveDeckColors,
+  getMaxCopies,
   COMMANDER_SLOT_ID,
   PARTNER_COMMANDER_SLOT_ID,
   type LegalityIssue,
@@ -471,12 +474,16 @@ export interface DeckDisplayProps {
   /** Considering row menu action: move one or more copies back to the mainboard. */
   onMoveFromConsidering?: (slotIds: string[]) => void;
   /**
-   * Editing callback for click-to-edit qty. When provided, the qty cell
-   * becomes a clickable target that swaps to a numeric input on click;
-   * committing the value diffs against the current count and adds/removes
-   * slots in bulk. Host owns batching (e.g. one undo toast per edit).
+   * Editing callback for the qty cell. When provided, the qty chip becomes
+   * a clickable target that swaps to a numeric input on click; committing
+   * the value diffs against the current count and adds/removes slots in
+   * bulk. Also drives the +/− stepper flanking the chip (non-singleton
+   * cards only — see `getMaxCopies`): pass `{ relative: true }` and `qty`
+   * becomes a delta (±1) instead of an absolute target, so two rapid taps
+   * can't drop an update to a stale closed-over count. Host owns batching
+   * (e.g. one undo toast per edit).
    */
-  onSetQty?: (card: ScryfallCard, qty: number) => void;
+  onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
   /** When provided, each row gets an "Edit printing" option in its menu. */
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** When provided, eligible rows get a "Make commander" option in their menu. */
@@ -2095,6 +2102,7 @@ export function DeckDisplay({
                         onRowClick={openPreview}
                         onRemoveCard={onRemoveCard}
                         onSetQty={onSetQty}
+                        isSingleton={formatConfig.isSingleton}
                         onEditCard={onEditCard}
                         roleFilter={activeRoleFilter}
                         legalityBySlot={legalityBySlot}
@@ -3019,6 +3027,7 @@ function CategorySection({
   onRowClick,
   onRemoveCard,
   onSetQty,
+  isSingleton,
   onEditCard,
   roleFilter,
   legalityBySlot,
@@ -3047,7 +3056,9 @@ function CategorySection({
   showPrefs: ShowPrefs;
   onRowClick: (name: string) => void;
   onRemoveCard?: (slotId: string) => void;
-  onSetQty?: (card: ScryfallCard, qty: number) => void;
+  onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
+  /** Format's singleton-ness — gates the qty stepper (see DeckCardRow). */
+  isSingleton?: boolean;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Active role filter — rows not filling it render dimmed. */
   roleFilter?: RoleKey | null;
@@ -3095,7 +3106,10 @@ function CategorySection({
             only — so the gauge is a sibling of the heading, both wrapped
             together as the single grid-column-occupying title cell. */}
         <div className="deck-section-title-row">
-          <h3 className="deck-section-title">
+          {/* tabIndex=-1: not in tab order, but a programmatic focus target —
+              the qty stepper's decrement-to-zero focus handoff falls back
+              here when the row it removes has no sibling row left. */}
+          <h3 className="deck-section-title" tabIndex={-1}>
             {title}{' '}
             <span className="deck-section-count">
               ({count}
@@ -3128,6 +3142,7 @@ function CategorySection({
             onClick={() => onRowClick(entry.item.name)}
             onRemoveCard={entry.leaving ? undefined : onRemoveCard}
             onSetQty={entry.leaving ? undefined : onSetQty}
+            isSingleton={isSingleton}
             onEditCard={entry.leaving ? undefined : onEditCard}
             roleFilter={roleFilter}
             legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
@@ -3163,6 +3178,7 @@ function DeckCardRow({
   onClick,
   onRemoveCard,
   onSetQty,
+  isSingleton,
   onEditCard,
   roleFilter,
   legalityIssue,
@@ -3190,7 +3206,9 @@ function DeckCardRow({
   showPrefs: ShowPrefs;
   onClick: () => void;
   onRemoveCard?: (slotId: string) => void;
-  onSetQty?: (card: ScryfallCard, qty: number) => void;
+  onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
+  /** Format's singleton-ness — gates the +/− stepper via getMaxCopies. */
+  isSingleton?: boolean;
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** Active role filter — this row dims when it doesn't fill the role. */
   roleFilter?: RoleKey | null;
@@ -3231,6 +3249,12 @@ function DeckCardRow({
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
   const canRemove = !!onRemoveCard && row.slotIds.length > 0;
   const canEditQty = !!onSetQty && row.slotIds.length > 0;
+  // Stepper only earns its place when a second copy is actually legal — on a
+  // singleton nonbasic it's pure UI noise (Commander/Brawl/PDH). Basics and
+  // any "any number" card (getMaxCopies) still get it everywhere.
+  const maxCopies = getMaxCopies(row.card, isSingleton ?? true);
+  const atCap = row.qty >= maxCopies;
+  const showStepper = canEditQty && maxCopies > 1;
   const [editingQty, setEditingQty] = useState(false);
   // Only stacks that actually span >1 printing get an expand affordance — a
   // uniform "Mountain ×22" has nothing to reveal.
@@ -3266,6 +3290,46 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
+  // ── +/− stepper ────────────────────────────────────────────────────────
+  // liRef backs the decrement-to-zero focus handoff below; itemRef is the
+  // FLIP measurement callback the host already passes — both need the node.
+  const liRef = useRef<HTMLLIElement | null>(null);
+  const setLiRef = (el: HTMLLIElement | null) => {
+    liRef.current = el;
+    itemRef?.(el);
+  };
+  // Local in-flight guard (defense in depth): the relative-delta call below
+  // is what actually prevents a dropped update on a rapid double-tap (it
+  // never reads the stale `row.qty` closure), but disabling the buttons for
+  // one frame after a tap also blocks a literal duplicate event (some
+  // touchscreens fire click twice for one tap) from applying twice.
+  const [stepBusy, setStepBusy] = useState(false);
+  // On the tap that takes qty to 0, the row unmounts after its leave
+  // animation — move focus to a sibling row's own control (or the section
+  // header if this was the last row) now, before the browser can drop focus
+  // to <body> once the node disappears.
+  const focusOffRowBeforeRemoval = () => {
+    const li = liRef.current;
+    if (!li) return;
+    const list = li.closest('.deck-section-rows');
+    const siblingRows = list ? Array.from(list.querySelectorAll<HTMLElement>('.deck-row')) : [];
+    const idx = siblingRows.indexOf(li);
+    const target = siblingRows[idx + 1] ?? siblingRows[idx - 1];
+    const control = target?.querySelector<HTMLElement>('.deck-row-qty-step, .deck-row-qty-edit');
+    (
+      control ??
+      target ??
+      li.closest('.deck-section')?.querySelector<HTMLElement>('.deck-section-title')
+    )?.focus();
+  };
+  const step = (delta: number) => {
+    if (!onSetQty || stepBusy) return;
+    if (delta < 0 && row.qty <= 1) focusOffRowBeforeRemoval();
+    setStepBusy(true);
+    onSetQty(row.card, delta, { relative: true });
+    requestAnimationFrame(() => setStepBusy(false));
+  };
+
   // Role-filter lens: non-matching rows dim in place (layout preserved) so the
   // matching cards pop and the eye can jump between them.
   const roleDimmed = !!roleFilter && !cardFilterRoles(row.card).includes(roleFilter);
@@ -3277,6 +3341,23 @@ function DeckCardRow({
     (roleDimmed ? ' is-role-dimmed' : '') +
     (multiPrinting && expanded ? ' is-expanded' : '');
 
+  // Shared between the plain and stepper-flanked layouts below so the two
+  // never drift — the number itself is the live region (aria-atomic so a
+  // screen reader reads the new count whole, not digit-by-digit).
+  const qtyChip = (
+    <button
+      type="button"
+      className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
+      aria-label={allocationAriaLabel(row, { editable: true })}
+      title={allocationTitle(row, { editable: true })}
+      onClick={startEditQty}
+    >
+      <span aria-live="polite" aria-atomic="true">
+        {row.qty}
+      </span>
+    </button>
+  );
+
   return (
     <>
       <li
@@ -3286,7 +3367,7 @@ function DeckCardRow({
         role={leaving ? undefined : 'button'}
         tabIndex={leaving ? -1 : 0}
         aria-hidden={leaving ? true : undefined}
-        ref={itemRef}
+        ref={setLiRef}
         style={leavingStyle}
         onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
         onKeyDown={
@@ -3318,16 +3399,36 @@ function DeckCardRow({
             }}
             onBlur={(e) => commitQty(e.target.value)}
           />
+        ) : canEditQty && showStepper ? (
+          <span className="deck-row-qty-group">
+            <button
+              type="button"
+              className="deck-row-qty-step deck-row-qty-step-minus"
+              aria-label={`Remove one copy of ${row.name}`}
+              disabled={stepBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                step(-1);
+              }}
+            >
+              <Minus width={11} height={11} strokeWidth={2.6} aria-hidden />
+            </button>
+            {qtyChip}
+            <button
+              type="button"
+              className="deck-row-qty-step deck-row-qty-step-plus"
+              aria-label={`Add one copy of ${row.name}`}
+              disabled={stepBusy || atCap}
+              onClick={(e) => {
+                e.stopPropagation();
+                step(1);
+              }}
+            >
+              <Plus width={11} height={11} strokeWidth={2.6} aria-hidden />
+            </button>
+          </span>
         ) : canEditQty ? (
-          <button
-            type="button"
-            className={`deck-row-qty deck-row-qty-edit${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
-            aria-label={allocationAriaLabel(row, { editable: true })}
-            title={allocationTitle(row, { editable: true })}
-            onClick={startEditQty}
-          >
-            {row.qty}
-          </button>
+          qtyChip
         ) : (
           <span
             className={`deck-row-qty${row.status !== 'allocated' ? ' deck-row-qty-missing' : ''}`}
@@ -3520,6 +3621,9 @@ function DeckCardRow({
                   type="button"
                   role="menuitem"
                   className="deck-row-menu-item"
+                  // Same ceiling as the "+" stepper (getMaxCopies) — the two
+                  // add affordances agree by construction, not by convention.
+                  disabled={atCap}
                   onClick={(e) => {
                     e.stopPropagation();
                     close();
