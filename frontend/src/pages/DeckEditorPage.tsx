@@ -731,6 +731,26 @@ export function DeckEditorPage() {
     return map;
   }, [collectionCards, binderDefs]);
 
+  // Re-key binderByCopyId by card name — zero extra materializeBinders calls,
+  // and reuses the same canonical routing computation the review queue uses,
+  // so the add-cards binder chip (E169) can never disagree with where a card
+  // actually files. Feeds CardSearchPanel's Collection tab.
+  const binderByCardName = useMemo(() => {
+    const map = new Map<string, BinderInfo[]>();
+    if (binderByCopyId.size === 0) return map;
+    for (const c of collectionCards) {
+      const binders = binderByCopyId.get(c.copyId);
+      if (!binders) continue;
+      const arr = map.get(c.name);
+      if (arr) {
+        for (const b of binders) if (!arr.some((x) => x.id === b.id)) arr.push(b);
+      } else {
+        map.set(c.name, [...binders]);
+      }
+    }
+    return map;
+  }, [binderByCopyId, collectionCards]);
+
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
     const ci = new Set<string>();
@@ -2910,6 +2930,7 @@ export function DeckEditorPage() {
                 deckId={deck.id}
                 commanderColorIdentity={commanderColorIdentity}
                 existingCardCounts={existingCardCounts}
+                binderByCardName={binderByCardName}
                 onAdd={({ card }) => {
                   if (addZone === 'side' || addZone === 'considering') {
                     // allocateAndAdd resolves the copy itself (free / auto-move /
