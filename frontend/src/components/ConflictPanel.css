@@ -1,7 +1,8 @@
 /* ConflictPanel — global overlay for a rejected deck push (STYLE_GUIDE §
-   Overlays → conflict panel). Row/list visuals reuse DeckComparePage.css's
-   `.deck-compare-diff-*` + `.deck-compare-summary` / `.deck-compare-empty-hint`
-   classes; this file only covers the panel's own chrome. */
+   Overlays → conflict panel). Row/list visuals reuse components/deck/
+   DiffCardRow.css's `.deck-diff-*` classes (E173 extraction) plus
+   DeckComparePage.css's `.deck-compare-summary` / `.deck-compare-empty-hint`;
+   this file only covers the panel's own chrome. */
 .conflict-panel {
   max-width: 560px;
   width: 100%;

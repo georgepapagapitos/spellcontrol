@@ -846,6 +846,43 @@ and `UnresolvedNameRow`:
   search fallback if suggestions miss), collapse into a resolved state once
   the fix lands. Don't open a second overlay for a fix that fits inline.
 
+## Deck diff rows (T22/E173)
+
+Any surface that shows "what changed" between two card lists — the compare
+page and the deck resync review — renders through **one shared component**,
+`components/deck/DiffCardRow.tsx` (`DiffCardRow` + `DiffGroup`), not a
+per-surface reimplementation. First shipped on `/decks/compare`
+(`DeckComparePage.tsx`); E173's paste-and-diff resync (`BulkEditDeckDialog`'s
+`mode="resync"`) reuses it verbatim for its review step rather than
+re-deriving diff markup a second time.
+
+- **Icon + word, never color-only** — each row is a glyph (`+`/`−`/`~`) and a
+  group heading word ("Added"/"Removed"/"Changed"); the tone color is
+  additive on top of that, never the only signal.
+- **Group by tone, not by row.** `DiffGroup` collapses past 8 rows with a
+  "Show N more" toggle — a diff of a 100-card deck must not dump 100 rows
+  inline.
+- A new diff surface reuses `DiffGroup`/`DiffCardRow` against whatever
+  `CardDelta[]`/`CardListDiff` it computes (`lib/deck-diff.ts`'s
+  `diffDeckCards` for a deck-vs-deck compare; `lib/deck-bulk-edit.ts`'s
+  `buildResyncCardDiff` for a deck-vs-pasted-list resync, which — unlike
+  `diffDeckCards` — counts every zone, not just commander + mainboard, since
+  a resync's paste can silently drop a sideboard/considering card). Only the
+  counting differs per surface; the rendering never does.
+
+**Paste-and-diff flows skip a source picker when the parser already
+auto-detects the layout.** E173's resync considered a Moxfield/Archidekt/
+Other picker before pasting, styled on `.settings-theme-grid`'s wrap
+pattern (`.settings-currency-toggle` doesn't reach 44px and clips at 320px,
+so it wasn't eligible either way). It was dropped: the bulk-edit parser
+(`parseBulkEditText`) already auto-detects both sites' export layout
+(section headers, Moxfield's `*F*`/`*E*` finish tags) with no format
+selection needed, and neither site's identity is otherwise actionable — the
+app can't fetch from either, so a "which site" answer has nothing to do
+with. Don't add a picker for information the UI can't use; the hint copy
+names both sites as examples of where to paste from instead ("Moxfield,
+Archidekt, anywhere").
+
 ## Public shared views (/s/:token)
 
 Public shared views wrap their content in `components/shared/SharedShell.tsx` — **not** the app

@@ -3,7 +3,13 @@ import type { ScryfallCard } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { Deck, DeckCard } from '../store/decks';
 import type { EnrichedCard } from '../types';
-import { parseBulkEditText, findPendingNames, buildBulkEditPlan } from './deck-bulk-edit';
+import {
+  parseBulkEditText,
+  findPendingNames,
+  buildBulkEditPlan,
+  buildResyncCardDiff,
+  summarizeAllocationImpact,
+} from './deck-bulk-edit';
 
 function card(overrides: Partial<ScryfallCard> = {}): ScryfallCard {
   return {
@@ -321,5 +327,99 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
     const parsed = parseBulkEditText('1 Sol Ring\ngarbage line here');
     const plan = buildBulkEditPlan(deck, parsed, new Map(), commanderConfig, emptyCtx);
     expect(plan.malformedLines).toEqual(['garbage line here']);
+  });
+});
+
+describe('summarizeAllocationImpact (E173 resync)', () => {
+  it('a byte-identical resync keeps every slot and adds nothing', () => {
+    const solRing = card({ name: 'Sol Ring' });
+    const deck = baseDeck({ cards: [slot(solRing, 'copy-1', 's1')] });
+    const parsed = parseBulkEditText('1 Sol Ring');
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), commanderConfig, emptyCtx);
+    expect(summarizeAllocationImpact(deck, plan)).toEqual({
+      kept: 1,
+      added: 0,
+      addedUnallocated: 0,
+    });
+  });
+
+  it('quantity growth: the surviving slot is kept, the grown slot counts as added', () => {
+    const forest = card({ name: 'Forest' });
+    const deck = baseDeck({ format: 'standard', cards: [slot(forest, 'copy-1', 's1')] });
+    const parsed = parseBulkEditText('2 Forest');
+    const ctx = { decks: [deck], collectionCards: [owned('Forest', 'copy-2')] };
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), DECK_FORMAT_CONFIGS.standard, ctx);
+    expect(summarizeAllocationImpact(deck, plan)).toEqual({
+      kept: 1,
+      added: 1,
+      addedUnallocated: 0,
+    });
+  });
+
+  it('a genuinely new name with no owned copy counts as added AND unallocated', () => {
+    const deck = baseDeck({ cards: [] });
+    const crypt = card({ name: 'Mana Crypt' });
+    const parsed = parseBulkEditText('1 Mana Crypt');
+    const plan = buildBulkEditPlan(
+      deck,
+      parsed,
+      new Map([['mana crypt', crypt]]),
+      commanderConfig,
+      emptyCtx
+    );
+    expect(summarizeAllocationImpact(deck, plan)).toEqual({
+      kept: 0,
+      added: 1,
+      addedUnallocated: 1,
+    });
+  });
+});
+
+describe('buildResyncCardDiff (E173)', () => {
+  it('no changes → all three buckets empty', () => {
+    const solRing = card({ name: 'Sol Ring' });
+    const deck = baseDeck({ cards: [slot(solRing, 'copy-1', 's1')] });
+    const parsed = parseBulkEditText('1 Sol Ring');
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), commanderConfig, emptyCtx);
+    const diff = buildResyncCardDiff(deck, plan);
+    expect(diff.added).toEqual([]);
+    expect(diff.removed).toEqual([]);
+    expect(diff.changed).toEqual([]);
+    expect(diff.unchangedCount).toBe(1);
+  });
+
+  it('a quantity change shows as `changed` with real fromQty/toQty, not added+removed', () => {
+    const bolt = card({ name: 'Lightning Bolt' });
+    const deck = baseDeck({
+      format: 'standard',
+      cards: [slot(bolt, 'copy-1', 's1'), slot(bolt, 'copy-2', 's2')],
+    });
+    const parsed = parseBulkEditText('1 Lightning Bolt');
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), DECK_FORMAT_CONFIGS.standard, emptyCtx);
+    const diff = buildResyncCardDiff(deck, plan);
+    expect(diff.added).toEqual([]);
+    expect(diff.removed).toEqual([]);
+    expect(diff.changed).toHaveLength(1);
+    expect(diff.changed[0]).toMatchObject({ fromQty: 2, toQty: 1 });
+  });
+
+  it('a card that only changed zone (sideboard, unchanged qty) still counts unchanged, not added/removed', () => {
+    const negate = card({ name: 'Negate' });
+    const deck = baseDeck({ format: 'standard', cards: [slot(negate, 'copy-1', 's1')] });
+    const parsed = parseBulkEditText('Sideboard\n1 Negate');
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), DECK_FORMAT_CONFIGS.standard, emptyCtx);
+    const diff = buildResyncCardDiff(deck, plan);
+    expect(diff.added).toEqual([]);
+    expect(diff.removed).toEqual([]);
+    expect(diff.unchangedCount).toBe(1);
+  });
+
+  it('a card dropped from the sideboard-only paste shows as removed (diffDeckCards itself would miss this)', () => {
+    const negate = card({ name: 'Negate' });
+    const deck = baseDeck({ format: 'standard', sideboard: [slot(negate, 'copy-1', 's1')] });
+    const parsed = parseBulkEditText('');
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), DECK_FORMAT_CONFIGS.standard, emptyCtx);
+    const diff = buildResyncCardDiff(deck, plan);
+    expect(diff.removed).toEqual([{ card: negate, isCommander: false, fromQty: 1, toQty: 0 }]);
   });
 });
