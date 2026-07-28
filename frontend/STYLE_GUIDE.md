@@ -683,6 +683,47 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and scroll-lock come for free (see § Motion).
 
+### Store-driven global overlays (E170)
+
+A non-component caller (a background sync push, or anything else that fires
+outside the render tree and can't know which page is currently mounted) that
+needs to put something in front of the user **pushes structured data into a
+small Zustand store, not a plain string**. Reference: `store/conflicts.ts`
+(the deck-conflict panel) —
+mirrors `store/toasts.ts`'s own shape (a `queue`/`toasts` array + `push`/
+`dismiss`/`clear` actions, plus an imperative `{ push }`-style helper object
+for callers that aren't components) — the store is the only channel such a
+caller has.
+
+A **root-mounted viewport component** (mounted once in `Layout.tsx`,
+alongside `ToastViewport`) subscribes to that store and renders whatever's
+queued — `ConflictPanel.tsx` is the reference. It always mounts and renders
+`null` when the queue is empty; there's no separate "is this open" flag to
+drift out of sync with the queue's contents.
+
+**Toast vs. panel — which one to push into:** a passive notice ("saved",
+"price refreshed") is still a toast. Reach for this pattern instead when the
+event needs a **decision** the toast's fire-and-forget affordances can't
+carry — more than a single dismiss/undo action, content too rich for one
+line, or (as with a sync conflict) data the user would otherwise have no way
+to recover. In that case route through the shared `<Modal>` (portaled to
+`document.body` via `createPortal`, same as `CardPreview`/`AvatarPickerSheet`
+— a global overlay must not depend on where in the tree it happens to mount
+to escape scroll/transform containment) instead of the toast stack.
+
+**Multiple queued items:** show one at a time with a small "N more waiting"
+indicator in the dialog, not one panel with N stacked sections. A per-item
+diff can already run long on its own; stacking several buries the decision
+that needs a choice under scroll. Dismissing (or resolving) the current item
+advances to the next — `ConflictPanel` keys the `Modal` on the current item's
+id so it remounts (fresh entrance animation, fresh focus) between items
+rather than mutating in place.
+
+**Focus:** `Modal` autofocuses the first focusable _control_, never a
+heading — put `autoFocus` on the primary action button (mirrors
+`ConfirmDialog.tsx`'s confirm button) rather than assuming the heading gets
+focus for free.
+
 ### Card art peek — hover + touch long-press (E129)
 
 Any `[data-peek-name]` row (deck list rows, the Coach feed's `DeckCardRow`,

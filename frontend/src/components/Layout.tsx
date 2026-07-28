@@ -6,6 +6,7 @@ import { ScanFab } from './ScanFab';
 import { Footer } from './Footer';
 import { BinderEditor } from './BinderEditor';
 import { ToastViewport } from './ToastViewport';
+import { ConflictPanel } from './ConflictPanel';
 import { KeyboardShortcutsOverlay } from './KeyboardShortcutsOverlay';
 import { RulesReferenceSheet } from './RulesReferenceSheet';
 import { ActivityLiveRegion } from './ActivityLiveRegion';
@@ -116,6 +117,7 @@ function LayoutShell() {
       <MobileTabBar />
       {isNativePlatform() && <ScanFab />}
       <ToastViewport />
+      <ConflictPanel />
       <RulesReferenceSheet />
       <ActivityLiveRegion />
       {open && <KeyboardShortcutsOverlay groups={overlayGroups} onClose={hide} />}

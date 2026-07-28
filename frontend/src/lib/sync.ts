@@ -18,7 +18,10 @@ import { applyPrices, setPrices, priceKey } from './card-prices';
 import { fetchOracleIds } from './api/combos';
 import { remapCubeAllocations } from './remap-cube-allocations';
 import { toast } from '../store/toasts';
+import { conflictQueue, type DeckConflict } from '../store/conflicts';
+import { recordDeckConflict } from './conflict-metrics';
 import type { EnrichedCard } from '../types';
+import type { Deck } from '../store/decks';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
@@ -771,20 +774,56 @@ function describeConflicts(conflicts: NonNullable<SyncPushResult['conflicts']>):
   return 'Some changes were overwritten by another device. Kept the server version.';
 }
 
+/** A conflict's serverData/local IDB row is Deck-shaped enough to diff (E170) —
+ *  has a `cards` array, the one field diffDeckCards actually reads through. */
+function isDeckShaped(data: unknown): data is Deck {
+  return !!data && typeof data === 'object' && Array.isArray((data as { cards?: unknown }).cards);
+}
+
 /**
  * Reflect a /api/sync push response onto local state: adopt any conflicts
- * the server reported (reject-stale — keep the server version, drop ours,
- * toast) for decks (per-row optimistic concurrency) and cards (E129's
+ * the server reported (reject-stale — keep the server version, drop ours)
+ * for decks (per-row optimistic concurrency) and cards (E129's
  * printing-group cardinality check), then stamp the canonical server revs
  * onto our just-written local rows so a later pull re-delivering them is an
  * idempotent no-op. Returns the highest server rev seen (used only as a
  * cross-tab broadcast hint — never as a pull cursor; see the note in push()).
  * Shared by the native queue drain (push) and the web write-through path
  * (webPush).
+ *
+ * Deck conflicts (E170): rather than just toasting "kept the server
+ * version" and discarding the local edit, the pre-overwrite local IDB row is
+ * captured here — the ONLY chance to grab it, since applyServerRows below
+ * replaces it with the server's data — and queued into the conflict-panel
+ * store so the user sees a real diff and can restore their edit on top of
+ * the server's version. Falls back to the old toast when either side isn't
+ * Deck-shaped (a delete-conflict has `serverData: null`, or malformed data
+ * on some pre-migration row) — the panel would have nothing to diff anyway.
+ * A conflict-frequency counter fires for every deck conflict regardless of
+ * which path it takes (conflict-metrics.ts) — evidence for whether the
+ * whole-deck LWW model needs revisiting.
  */
 async function applyPushResult(result: SyncPushResult): Promise<number> {
   let hint = 0;
   if (result.conflicts && result.conflicts.length > 0) {
+    const panelable: DeckConflict[] = [];
+    const toastable = result.conflicts.filter((c) => c.kind === 'card');
+    for (const c of result.conflicts) {
+      if (c.kind !== 'deck') continue;
+      recordDeckConflict(c.id);
+      const local = await estore.getById('deck', c.id);
+      if (isDeckShaped(local?.data) && isDeckShaped(c.serverData)) {
+        panelable.push({
+          id: c.id,
+          localDeck: local!.data,
+          serverDeck: c.serverData,
+          detectedAt: Date.now(),
+        });
+      } else {
+        toastable.push(c);
+      }
+    }
+
     await applyServerRows(
       result.conflicts.map((c) => ({
         kind: c.kind,
@@ -795,7 +834,9 @@ async function applyPushResult(result: SyncPushResult): Promise<number> {
         ...(c.importId !== undefined ? { importId: c.importId } : {}),
       }))
     );
-    toast.show({ message: describeConflicts(result.conflicts), tone: 'info' });
+
+    if (panelable.length > 0) conflictQueue.push(panelable);
+    if (toastable.length > 0) toast.show({ message: describeConflicts(toastable), tone: 'info' });
     for (const c of result.conflicts) {
       if (c.serverRev > hint) hint = c.serverRev;
     }
