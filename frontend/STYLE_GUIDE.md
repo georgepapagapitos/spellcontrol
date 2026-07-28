@@ -355,6 +355,27 @@ a hero CTA.
   button pairs (radios give exclusivity + arrow-key group nav for free). Same
   family as the Settings theme picker. Reference: `.settings-currency-toggle`
   in `styles/settings-sync.css` / SettingsPage's Price currency row.
+- **Subordinate container + `fitted` Tabs = a real tab strip, not a
+  value-picker**, even though it visually reads as one segmented control.
+  The test: does each segment swap in a _different set of rows_ (a view),
+  or does it just set an inert property with no panel of its own? The deck
+  editor's **"Not in the deck" zone** (E176 — `.deck-outzone`,
+  `DeckDisplay.tsx`) is the reference: an inset/tinted panel below the
+  decklist titled "Not in the deck", holding a `fitted` `Tabs` strip
+  (Sideboard | Considering, each with a `count`) that switches which zone's
+  compact row list renders in the panel body below it. Two real panels of
+  different cards → `Tabs` + `role="tablist"`/`"tab"`/`"tabpanel"`, **not**
+  the radio-fieldset above (that pattern is for a single inert setting like
+  currency, where there's no panel to switch — using it here would falsely
+  suggest there's nothing to disclose). The panel itself is what carries the
+  "subordinate / outside the 99" meaning (`background: var(--surface)` +
+  `border` + `border-radius: var(--radius-lg)`, mirroring `.deck-combos-panel`)
+  — the Tabs strip inside it is a plain content switcher, unstyled beyond the
+  primitive's own look. Renders as a **compact row list in every view mode**,
+  including grid — thumbnails would waste vertical space in a small holding
+  zone, so this is the one place in the deck editor that deliberately never
+  reads `viewMode`. A single-tab case (a format with no sideboard) drops the
+  `Tabs` strip entirely rather than rendering a 1-item tablist.
 
 ## Typography — the four faces (T53/E154)
 
