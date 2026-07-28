@@ -42,6 +42,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import * as estore from './entity-store';
 import * as queue from './mutation-queue';
 import * as cardPrices from './card-prices';
+import type { Deck } from '../store/decks';
 
 const mockPull = pullSync as unknown as ReturnType<typeof vi.fn>;
 const mockPush = pushSync as unknown as ReturnType<typeof vi.fn>;
@@ -300,6 +301,48 @@ describe('pull', () => {
     expect(rehydrations).toBe(2);
     // All five cards from all three pages landed in the in-memory store.
     expect(useCollectionStore.getState().cards).toHaveLength(5);
+  });
+
+  it('leaves deck undo history intact for a same-rev re-delivery, but drops it for a strictly higher foreign rev', async () => {
+    const { useDeckHistoryStore } = await import('../store/deck-history');
+    const { emptyHistory, pushCommand } = await import('./deck-history-core');
+
+    // Our own prior push already stamped this deck at rev 7 in IDB.
+    await estore.putMany('deck', [
+      { id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, syncedRev: 7, deletedAt: null },
+    ]);
+    // Seed an undo entry for it directly against the pure core, so this stays
+    // independent of the decks-store's own sync subscriber.
+    useDeckHistoryStore.setState({
+      history: pushCommand(emptyHistory<Deck>(), {
+        deckId: 'd-1',
+        label: 'edit',
+        before: { id: 'd-1', name: 'A' } as unknown as Deck,
+        after: { id: 'd-1', name: 'B' } as unknown as Deck,
+      }),
+    });
+    expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(true);
+
+    // A routine focus/online/visibilitychange pull re-delivers our OWN
+    // just-pushed row at the SAME rev we already stamped — idempotent no-op,
+    // must not touch undo history.
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, deletedAt: null }],
+      cursor: 7,
+      hasMore: false,
+    });
+    await startSync('user-1');
+    expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(true);
+
+    // A genuinely newer foreign revision (another device edited the deck)
+    // must invalidate the stack.
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'C' }, rev: 8, deletedAt: null }],
+      cursor: 8,
+      hasMore: false,
+    });
+    await refreshNow();
+    expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(false);
   });
 });
 
