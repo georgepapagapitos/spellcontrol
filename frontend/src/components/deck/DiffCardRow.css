@@ -1,0 +1,88 @@
+/* DiffCardRow.css — shared card-delta group (T22, extracted for E173).
+ * Used by DeckComparePage and BulkEditDeckDialog's resync diff. */
+
+.deck-diff-group {
+  margin-bottom: var(--space-4);
+}
+.deck-diff-group-title {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+.deck-diff-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.deck-diff-row {
+  display: grid;
+  grid-template-columns: 3px auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
+  border-radius: var(--radius);
+}
+.deck-diff-row:nth-child(even) {
+  background: var(--surface-raised);
+}
+.deck-diff-bar {
+  align-self: stretch;
+  border-radius: var(--radius);
+  margin-block: var(--space-1);
+}
+.deck-diff-glyph {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  width: 1ch;
+  text-align: center;
+}
+.deck-diff-name {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.deck-diff-qty {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tones — the accent bar + glyph color is additive to the text glyph/word. */
+.deck-diff-row.is-added .deck-diff-bar,
+.deck-diff-row.is-added .deck-diff-glyph {
+  background: transparent;
+  color: var(--success);
+}
+.deck-diff-row.is-added .deck-diff-bar {
+  background: var(--success);
+}
+.deck-diff-row.is-removed .deck-diff-bar {
+  background: var(--err-text);
+}
+.deck-diff-row.is-removed .deck-diff-glyph {
+  color: var(--err-text);
+}
+.deck-diff-row.is-changed .deck-diff-bar {
+  background: var(--warn-border);
+}
+.deck-diff-row.is-changed .deck-diff-glyph {
+  color: var(--warn-text);
+}
+
+.deck-diff-show-more {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2);
+  min-height: 44px;
+  transition: color var(--motion-fast);
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-diff-show-more:hover {
+    color: var(--text-primary);
+  }
+}

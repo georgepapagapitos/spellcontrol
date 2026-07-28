@@ -355,6 +355,27 @@ a hero CTA.
   button pairs (radios give exclusivity + arrow-key group nav for free). Same
   family as the Settings theme picker. Reference: `.settings-currency-toggle`
   in `styles/settings-sync.css` / SettingsPage's Price currency row.
+- **Subordinate container + `fitted` Tabs = a real tab strip, not a
+  value-picker**, even though it visually reads as one segmented control.
+  The test: does each segment swap in a _different set of rows_ (a view),
+  or does it just set an inert property with no panel of its own? The deck
+  editor's **"Not in the deck" zone** (E176 — `.deck-outzone`,
+  `DeckDisplay.tsx`) is the reference: an inset/tinted panel below the
+  decklist titled "Not in the deck", holding a `fitted` `Tabs` strip
+  (Sideboard | Considering, each with a `count`) that switches which zone's
+  compact row list renders in the panel body below it. Two real panels of
+  different cards → `Tabs` + `role="tablist"`/`"tab"`/`"tabpanel"`, **not**
+  the radio-fieldset above (that pattern is for a single inert setting like
+  currency, where there's no panel to switch — using it here would falsely
+  suggest there's nothing to disclose). The panel itself is what carries the
+  "subordinate / outside the 99" meaning (`background: var(--surface)` +
+  `border` + `border-radius: var(--radius-lg)`, mirroring `.deck-combos-panel`)
+  — the Tabs strip inside it is a plain content switcher, unstyled beyond the
+  primitive's own look. Renders as a **compact row list in every view mode**,
+  including grid — thumbnails would waste vertical space in a small holding
+  zone, so this is the one place in the deck editor that deliberately never
+  reads `viewMode`. A single-tab case (a format with no sideboard) drops the
+  `Tabs` strip entirely rather than rendering a 1-item tablist.
 
 ## Typography — the four faces (T53/E154)
 
@@ -662,6 +683,47 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
   and scroll-lock come for free (see § Motion).
 
+### Store-driven global overlays (E170)
+
+A non-component caller (a background sync push, or anything else that fires
+outside the render tree and can't know which page is currently mounted) that
+needs to put something in front of the user **pushes structured data into a
+small Zustand store, not a plain string**. Reference: `store/conflicts.ts`
+(the deck-conflict panel) —
+mirrors `store/toasts.ts`'s own shape (a `queue`/`toasts` array + `push`/
+`dismiss`/`clear` actions, plus an imperative `{ push }`-style helper object
+for callers that aren't components) — the store is the only channel such a
+caller has.
+
+A **root-mounted viewport component** (mounted once in `Layout.tsx`,
+alongside `ToastViewport`) subscribes to that store and renders whatever's
+queued — `ConflictPanel.tsx` is the reference. It always mounts and renders
+`null` when the queue is empty; there's no separate "is this open" flag to
+drift out of sync with the queue's contents.
+
+**Toast vs. panel — which one to push into:** a passive notice ("saved",
+"price refreshed") is still a toast. Reach for this pattern instead when the
+event needs a **decision** the toast's fire-and-forget affordances can't
+carry — more than a single dismiss/undo action, content too rich for one
+line, or (as with a sync conflict) data the user would otherwise have no way
+to recover. In that case route through the shared `<Modal>` (portaled to
+`document.body` via `createPortal`, same as `CardPreview`/`AvatarPickerSheet`
+— a global overlay must not depend on where in the tree it happens to mount
+to escape scroll/transform containment) instead of the toast stack.
+
+**Multiple queued items:** show one at a time with a small "N more waiting"
+indicator in the dialog, not one panel with N stacked sections. A per-item
+diff can already run long on its own; stacking several buries the decision
+that needs a choice under scroll. Dismissing (or resolving) the current item
+advances to the next — `ConflictPanel` keys the `Modal` on the current item's
+id so it remounts (fresh entrance animation, fresh focus) between items
+rather than mutating in place.
+
+**Focus:** `Modal` autofocuses the first focusable _control_, never a
+heading — put `autoFocus` on the primary action button (mirrors
+`ConfirmDialog.tsx`'s confirm button) rather than assuming the heading gets
+focus for free.
+
 ### Card art peek — hover + touch long-press (E129)
 
 Any `[data-peek-name]` row (deck list rows, the Coach feed's `DeckCardRow`,
@@ -838,6 +900,43 @@ and `UnresolvedNameRow`:
   place, prefill the query with the item's own text (doubling as the manual-
   search fallback if suggestions miss), collapse into a resolved state once
   the fix lands. Don't open a second overlay for a fix that fits inline.
+
+## Deck diff rows (T22/E173)
+
+Any surface that shows "what changed" between two card lists — the compare
+page and the deck resync review — renders through **one shared component**,
+`components/deck/DiffCardRow.tsx` (`DiffCardRow` + `DiffGroup`), not a
+per-surface reimplementation. First shipped on `/decks/compare`
+(`DeckComparePage.tsx`); E173's paste-and-diff resync (`BulkEditDeckDialog`'s
+`mode="resync"`) reuses it verbatim for its review step rather than
+re-deriving diff markup a second time.
+
+- **Icon + word, never color-only** — each row is a glyph (`+`/`−`/`~`) and a
+  group heading word ("Added"/"Removed"/"Changed"); the tone color is
+  additive on top of that, never the only signal.
+- **Group by tone, not by row.** `DiffGroup` collapses past 8 rows with a
+  "Show N more" toggle — a diff of a 100-card deck must not dump 100 rows
+  inline.
+- A new diff surface reuses `DiffGroup`/`DiffCardRow` against whatever
+  `CardDelta[]`/`CardListDiff` it computes (`lib/deck-diff.ts`'s
+  `diffDeckCards` for a deck-vs-deck compare; `lib/deck-bulk-edit.ts`'s
+  `buildResyncCardDiff` for a deck-vs-pasted-list resync, which — unlike
+  `diffDeckCards` — counts every zone, not just commander + mainboard, since
+  a resync's paste can silently drop a sideboard/considering card). Only the
+  counting differs per surface; the rendering never does.
+
+**Paste-and-diff flows skip a source picker when the parser already
+auto-detects the layout.** E173's resync considered a Moxfield/Archidekt/
+Other picker before pasting, styled on `.settings-theme-grid`'s wrap
+pattern (`.settings-currency-toggle` doesn't reach 44px and clips at 320px,
+so it wasn't eligible either way). It was dropped: the bulk-edit parser
+(`parseBulkEditText`) already auto-detects both sites' export layout
+(section headers, Moxfield's `*F*`/`*E*` finish tags) with no format
+selection needed, and neither site's identity is otherwise actionable — the
+app can't fetch from either, so a "which site" answer has nothing to do
+with. Don't add a picker for information the UI can't use; the hint copy
+names both sites as examples of where to paste from instead ("Moxfield,
+Archidekt, anywhere").
 
 ## Public shared views (/s/:token)
 

@@ -583,6 +583,7 @@ export function DeckEditorPage() {
   const [primerOpen, setPrimerOpen] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [resyncOpen, setResyncOpen] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
@@ -2515,6 +2516,7 @@ export function DeckEditorPage() {
             onExport={() => setExportOpen(true)}
             onImport={() => setAppendOpen(true)}
             onBulkEdit={() => setBulkEditOpen(true)}
+            onResync={() => setResyncOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
@@ -2545,6 +2547,7 @@ export function DeckEditorPage() {
             onExport={() => setExportOpen(true)}
             onImport={() => setAppendOpen(true)}
             onBulkEdit={() => setBulkEditOpen(true)}
+            onResync={() => setResyncOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
@@ -3050,6 +3053,9 @@ export function DeckEditorPage() {
       {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
       {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}
       {bulkEditOpen && <BulkEditDeckDialog deck={deck} onClose={() => setBulkEditOpen(false)} />}
+      {resyncOpen && (
+        <BulkEditDeckDialog deck={deck} mode="resync" onClose={() => setResyncOpen(false)} />
+      )}
       {pullListOpen && (
         <PullListSheet
           deck={deck}
@@ -3311,6 +3317,7 @@ function DeckEditorOverflowMenu({
   onExport,
   onImport,
   onBulkEdit,
+  onResync,
   onFeedback,
   onPrimer,
   onPlaytest,
@@ -3330,6 +3337,10 @@ function DeckEditorOverflowMenu({
   /** Opens the text/bulk-edit dialog (E168 slice 4) — same kebab-only,
    *  every-breakpoint placement as onImport/onExport. */
   onBulkEdit: () => void;
+  /** Opens the same dialog in resync mode (E173) — paste-and-diff against an
+   *  external list-of-record (Moxfield, Archidekt, …), kebab-only like
+   *  onBulkEdit/onImport/onExport. */
+  onResync: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
   /** Opens the primer (strategy notes) editor sheet. */
@@ -3502,6 +3513,17 @@ function DeckEditorOverflowMenu({
               }}
             >
               Bulk edit
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onResync();
+              }}
+            >
+              Resync from a list
             </button>
             <button
               type="button"
