@@ -371,6 +371,98 @@ describe('pull', () => {
   });
 });
 
+describe('pull-side deck conflict signal (E174)', () => {
+  beforeEach(async () => {
+    const { useToastsStore } = await import('../store/toasts');
+    useToastsStore.getState().clear();
+  });
+
+  /**
+   * Seed a deck row at `rev` plus one undo entry for it (mirrors the
+   * E170/#1339 pattern above). Keyed per-deck (see deck-history-core's
+   * `pushCommand`), so calling this for several deckIds in one test seeds
+   * independent stacks rather than clobbering each other.
+   */
+  async function seedHistory(deckId: string, rev: number): Promise<void> {
+    const { useDeckHistoryStore } = await import('../store/deck-history');
+    const { pushCommand } = await import('./deck-history-core');
+    await estore.putMany('deck', [
+      { id: deckId, data: { id: deckId, name: 'A' }, rev, syncedRev: rev, deletedAt: null },
+    ]);
+    const before = { id: deckId, name: 'A' } as unknown as Deck;
+    const after = { id: deckId, name: 'B' } as unknown as Deck;
+    useDeckHistoryStore.setState((s) => ({
+      history: pushCommand(s.history, { deckId, label: 'edit', before, after }),
+    }));
+  }
+
+  it('fires nothing for a same-rev pull (our own push returning)', async () => {
+    await seedHistory('d-1', 7);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, deletedAt: null }],
+      cursor: 7,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    expect(useToastsStore.getState().toasts.some((t) => /undo history/i.test(t.message))).toBe(
+      false
+    );
+  });
+
+  it('fires the signal exactly once for a strictly-higher foreign rev', async () => {
+    await seedHistory('d-1', 7);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'C' }, rev: 8, deletedAt: null }],
+      cursor: 8,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    const matches = useToastsStore.getState().toasts.filter((t) => /undo history/i.test(t.message));
+    expect(matches).toHaveLength(1);
+    expect(matches[0].message).toMatch(/A deck you were editing/);
+  });
+
+  it('batches N foreign deck revisions delivered in one pull into a single signal', async () => {
+    await seedHistory('d-1', 7);
+    await seedHistory('d-2', 3);
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        { kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'C' }, rev: 8, deletedAt: null },
+        { kind: 'deck', id: 'd-2', data: { id: 'd-2', name: 'D' }, rev: 4, deletedAt: null },
+      ],
+      cursor: 8,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    const matches = useToastsStore.getState().toasts.filter((t) => /undo history/i.test(t.message));
+    expect(matches).toHaveLength(1);
+    expect(matches[0].message).toMatch(/2 decks/);
+  });
+
+  it('does not signal for a deck with no undo history to lose (never opened this session)', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-3', data: { id: 'd-3', name: 'A' }, rev: 1, syncedRev: 1, deletedAt: null },
+    ]);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-3', data: { id: 'd-3', name: 'C' }, rev: 2, deletedAt: null }],
+      cursor: 2,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    expect(useToastsStore.getState().toasts.some((t) => /undo history/i.test(t.message))).toBe(
+      false
+    );
+  });
+});
+
 describe('push', () => {
   it('drains the queue and stamps server revs onto local rows', async () => {
     await estore.putMany('binder', [{ id: 'b-1', data: { id: 'b-1' }, rev: 0, deletedAt: null }]);

@@ -724,6 +724,31 @@ heading — put `autoFocus` on the primary action button (mirrors
 `ConfirmDialog.tsx`'s confirm button) rather than assuming the heading gets
 focus for free.
 
+**Conflict severity tiers (E174):** the sync layer has two distinct
+sync-conflict events, and they deliberately get different treatment because
+they're different severities, not the same event from two call sites:
+
+- **Push rejected as stale** (`applyPushResult`) — the user's own edit was
+  just discarded; recovering it needs a decision, so it's the `ConflictPanel`
+  modal above (or the plain toast when there's nothing diffable, e.g. the
+  deck was deleted on the other device).
+- **Foreign revision arrives via pull** (`applyServerRows`, gated to a
+  strictly-higher incoming rev — see the rev-comparison note in `sync.ts`) —
+  the user's current deck state is untouched; only that deck's ephemeral
+  undo/redo stack was reset, because replaying stale snapshots over a remote
+  edit would clobber it under LWW. Nothing is lost that a decision could
+  recover, so this is a plain informational toast, gated to fire only for a
+  deck that actually had undo/redo history to lose (`deckHistory.hasHistory`)
+  — a deck the user never opened this session has nothing to tell them about.
+
+Don't promote the pull-side case to a panel "for consistency" — that would
+alarm the user over an event that cost them nothing. Don't demote the
+push-side case to a toast either — that's the one that needs a recoverable
+decision. If a third conflict-shaped event shows up, classify it the same
+way: does the user's current state differ from what they last saw (→ needs a
+decision, panel-tier), or is it just bookkeeping about history/metadata
+(→ informational, toast-tier)?
+
 ### Card art peek — hover + touch long-press (E129)
 
 Any `[data-peek-name]` row (deck list rows, the Coach feed's `DeckCardRow`,
