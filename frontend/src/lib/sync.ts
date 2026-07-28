@@ -731,7 +731,7 @@ async function pull(): Promise<void> {
       while (true) {
         const page = await pullSync(cursor, undefined, fresh);
         if (page.rows.length > 0) {
-          await applyServerRows(page.rows);
+          await applyServerRows(page.rows, true);
           saveCursor(page.cursor);
           markSynced();
           appliedAny = true;
@@ -1090,7 +1090,32 @@ function schedulePush(): void {
 
 // ── Apply server deltas → local IDB + in-memory stores ─────────────────────
 
-async function applyServerRows(rows: SyncRow[]): Promise<void> {
+/**
+ * Pull-side conflict signal (E174): a genuinely foreign deck revision (or
+ * deletion) just reset that deck's undo/redo stack. This is DELIBERATELY a
+ * toast, not the `ConflictPanel` modal `applyPushResult` uses for a rejected
+ * push — the two are different severities, not the same event from two call
+ * sites. A push rejection just discarded the user's unsaved edit, so the
+ * panel exists to let them review a diff and recover it. A pull-side foreign
+ * edit discards nothing: the user's current deck state is untouched, only the
+ * EPHEMERAL undo history was dropped (those snapshots would replay stale and
+ * clobber the remote edit under LWW — see deck-history.ts). That's
+ * informational, not a lost-work emergency, so it gets the passive-notice
+ * treatment STYLE_GUIDE.md's "Toast vs. panel" ruling already reserves for
+ * "saved"/"price refreshed". Batched per applyServerRows call rather than
+ * per-deck, so N foreign revisions delivered in one pull produce one toast.
+ */
+function notifyForeignDeckEdit(count: number): void {
+  toast.show({
+    message:
+      count === 1
+        ? 'A deck you were editing changed on another device. Its undo history was reset.'
+        : `${count} decks you were editing changed on another device. Undo history was reset.`,
+    tone: 'info',
+  });
+}
+
+async function applyServerRows(rows: SyncRow[], notifyForeignDeckEdits = false): Promise<void> {
   // Batch by kind so we can write all upserts / all deletes in one IDB tx per kind.
   const upsertsByKind = new Map<EntityKind, estore.StoredRow[]>();
   const deletionsByKind = new Map<EntityKind, { id: string; rev: number; deletedAt: number }[]>();
@@ -1149,7 +1174,16 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
   if (changedDeckIds.size > 0) {
     try {
       const { deckHistory } = await import('../store/deck-history');
+      // Read BEFORE invalidate() clears the stacks: only decks that actually
+      // had an undo/redo entry lost something the user could feel (E174) —
+      // notifyForeignDeckEdits is false for applyPushResult's own re-apply of
+      // OUR rejected push's conflicts, since that path already surfaces its
+      // own panel/toast and would otherwise double-notify for the same deck.
+      const lostHistoryIds = notifyForeignDeckEdits
+        ? [...changedDeckIds].filter((id) => deckHistory.hasHistory(id))
+        : [];
       deckHistory.invalidate(changedDeckIds);
+      if (lostHistoryIds.length > 0) notifyForeignDeckEdit(lostHistoryIds.length);
     } catch {
       /* history is a UX nicety; never let it break sync */
     }
