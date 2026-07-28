@@ -431,6 +431,16 @@
   }
 }
 
+/* Bulk edit (E168 slice 4) is a brand-new control, not an established one —
+   .deck-toolbar-test-hand has no 44px floor to inherit, so this is explicit
+   rather than assumed. Scoped to just this item (not every sibling row) —
+   fixing the rest of the menu's touch targets is a separate concern. */
+@media (pointer: coarse) {
+  .deck-editor-overflow-item-touch {
+    min-height: 44px;
+  }
+}
+
 /* ── Page-top distinct-view tabs ──────────────────────────────────────────
    The deck editor's primary nav (Deck · Overview · Mana · Power · Improve),
    mirroring the Collection hub's section tabs. Sticks to the top of the scroll

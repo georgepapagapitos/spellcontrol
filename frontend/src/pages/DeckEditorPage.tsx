@@ -33,6 +33,7 @@ import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
 import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
+import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
@@ -579,6 +580,7 @@ export function DeckEditorPage() {
   const [pullListOpen, setPullListOpen] = useState(false);
   const [primerOpen, setPrimerOpen] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
@@ -2480,6 +2482,7 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onImport={() => setAppendOpen(true)}
+            onBulkEdit={() => setBulkEditOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
@@ -2509,6 +2512,7 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onImport={() => setAppendOpen(true)}
+            onBulkEdit={() => setBulkEditOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
@@ -2978,6 +2982,7 @@ export function DeckEditorPage() {
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
       {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
       {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}
+      {bulkEditOpen && <BulkEditDeckDialog deck={deck} onClose={() => setBulkEditOpen(false)} />}
       {pullListOpen && (
         <PullListSheet
           deck={deck}
@@ -3238,6 +3243,7 @@ function DeckEditorOverflowMenu({
   onDelete,
   onExport,
   onImport,
+  onBulkEdit,
   onFeedback,
   onPrimer,
   onPlaytest,
@@ -3252,9 +3258,11 @@ function DeckEditorOverflowMenu({
   onDelete: () => void;
   onExport: () => void;
   /** Opens the paste-into-this-deck dialog (E168 slice 2) — mirrors onExport:
-   *  kebab-only at every breakpoint, no separate toolbar button. A future
-   *  slice adds onBulkEdit alongside this. */
+   *  kebab-only at every breakpoint, no separate toolbar button. */
   onImport: () => void;
+  /** Opens the text/bulk-edit dialog (E168 slice 4) — same kebab-only,
+   *  every-breakpoint placement as onImport/onExport. */
+  onBulkEdit: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
   /** Opens the primer (strategy notes) editor sheet. */
@@ -3416,6 +3424,17 @@ function DeckEditorOverflowMenu({
               }}
             >
               Paste cards
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item deck-editor-overflow-item-touch"
+              onClick={() => {
+                setOpen(false);
+                onBulkEdit();
+              }}
+            >
+              Bulk edit
             </button>
             <button
               type="button"
