@@ -36,9 +36,11 @@ const TONE = {
   removed: { cls: 'is-removed', glyph: '−', word: 'Removed' },
   changed: { cls: 'is-changed', glyph: '~', word: 'Changed' },
 } as const;
-type Tone = keyof typeof TONE;
+export type Tone = keyof typeof TONE;
 
-function DiffCardRow({ delta, tone }: { delta: CardDelta; tone: Tone }) {
+// Exported so other diff-driven surfaces (ConflictPanel.tsx) reuse the same
+// icon+word row markup instead of re-deriving it — never color-only signal.
+export function DiffCardRow({ delta, tone }: { delta: CardDelta; tone: Tone }) {
   const t = TONE[tone];
   const qty =
     tone === 'added'

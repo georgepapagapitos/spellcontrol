@@ -1222,6 +1222,85 @@ describe('web write-through (no durable outbox)', () => {
   });
 });
 
+describe('deck conflict panel (E170)', () => {
+  // web (default) write-through, gated on a signed-in owner — see 'web
+  // write-through (no durable outbox)' above.
+  beforeEach(async () => {
+    await startSync('user-1');
+  });
+
+  it('captures the pre-overwrite local deck and queues it for the conflict panel', async () => {
+    const { useConflictsStore } = await import('../store/conflicts');
+    const { getDeckConflictCount } = await import('./conflict-metrics');
+    useConflictsStore.getState().clear();
+
+    await estore.putMany('deck', [
+      {
+        id: 'd-1',
+        data: { id: 'd-1', name: 'mine', cards: [{ slotId: 's1' }] },
+        rev: 4,
+        deletedAt: null,
+      },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        {
+          kind: 'deck',
+          id: 'd-1',
+          serverRev: 6,
+          serverData: { id: 'd-1', name: 'theirs', cards: [] },
+        },
+      ],
+      cursor: 6,
+    });
+
+    await recordUpsert('deck', 'd-1', {
+      id: 'd-1',
+      name: 'mine edited',
+      cards: [{ slotId: 's1' }],
+    });
+
+    const queue = useConflictsStore.getState().queue;
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      id: 'd-1',
+      // The row IDB held BEFORE this push — the edit that's about to be lost —
+      // not the value passed to recordUpsert (which is already in IDB by then).
+      localDeck: { id: 'd-1', name: 'mine edited' },
+      serverDeck: { id: 'd-1', name: 'theirs' },
+    });
+    expect(getDeckConflictCount()).toBe(1);
+
+    // The server version still wins locally either way (unchanged behavior) —
+    // only the toast is replaced by the panel push for a diffable conflict.
+    const row = await estore.getById('deck', 'd-1');
+    expect(row?.data).toEqual({ id: 'd-1', name: 'theirs', cards: [] });
+  });
+
+  it('falls back to the toast when the conflict has nothing diffable (deck deleted on another device)', async () => {
+    const { useConflictsStore } = await import('../store/conflicts');
+    const { useToastsStore } = await import('../store/toasts');
+    useConflictsStore.getState().clear();
+    useToastsStore.getState().clear();
+
+    await estore.putMany('deck', [
+      { id: 'd-2', data: { id: 'd-2', name: 'mine', cards: [] }, rev: 2, deletedAt: null },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [{ kind: 'deck', id: 'd-2', serverRev: 3, serverData: null }],
+      cursor: 3,
+    });
+
+    await recordUpsert('deck', 'd-2', { id: 'd-2', name: 'mine edited', cards: [] });
+
+    expect(useConflictsStore.getState().queue).toHaveLength(0);
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts.some((t) => /deck changed on another device/i.test(t.message))).toBe(true);
+  });
+});
+
 describe('withSuspendedHydration', () => {
   it('returns the wrapped value and resets the flag', async () => {
     const { withSuspendedHydration } = await import('./sync');

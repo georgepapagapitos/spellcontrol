@@ -4,7 +4,6 @@ import {
   CircleAlert,
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   Boxes,
   Crosshair,
   Eye,
@@ -169,6 +168,7 @@ import {
   type RoleKey,
 } from '../../lib/role-badges';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
+import { Tabs } from '../Tabs';
 import { ZoomControl } from '../ZoomControl';
 import {
   ZOOM_MAX,
@@ -1290,12 +1290,16 @@ export function DeckDisplay({
     }
   };
   const [search, setSearch] = useState('');
-  // Considering (E122): collapsed by default when empty (a quiet affordance,
-  // never a big empty shell); open by default the first time it holds cards
-  // so newly-routed import extras / parked suggestions are visible without an
-  // extra tap. Lazy-init only — the user's own toggle afterward always wins,
-  // it doesn't re-derive as cards move in/out while mounted.
-  const [consideringOpen, setConsideringOpen] = useState(() => considering.length > 0);
+  // "Not in the deck" zone (E176): which of the two zones the segmented
+  // switch shows. Defaults to whichever actually holds cards (Sideboard
+  // unless it's empty and Considering isn't) so newly-routed import extras
+  // / parked suggestions are visible without an extra tap — same intent as
+  // the old Considering auto-open heuristic, adapted to a tab switch.
+  // Lazy-init only — the user's own tap afterward always wins, it doesn't
+  // re-derive as cards move in/out while mounted.
+  const [outzoneTab, setOutzoneTab] = useState<'sideboard' | 'considering'>(() =>
+    sideboard.length === 0 && considering.length > 0 ? 'considering' : 'sideboard'
+  );
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
@@ -1894,6 +1898,13 @@ export function DeckDisplay({
   const activeRoleFilter =
     roleFilter && roleFilterEntries.some(([key]) => key === roleFilter) ? roleFilter : null;
 
+  // "Not in the deck" zone (E176): whether the format has a real sideboard
+  // at all (every DECK_FORMAT_CONFIGS entry does today, but the format
+  // config's own sideboardSize gate is the single source, mirrored from the
+  // former list-view-only sideboard section). false → the switch collapses
+  // to Considering alone (a 1-item tablist would be an anti-pattern).
+  const showSideboardTab = formatConfig.sideboardSize > 0;
+
   const ctxValue = useMemo(
     () => ({
       openCard: () => {},
@@ -1937,6 +1948,7 @@ export function DeckDisplay({
               onShowPrefsChange={handleShowPrefsChange}
               onExport={() => setExportOpen(true)}
               onShowTestHand={onShowTestHand}
+              outzoneCount={sideboard.length + considering.length}
             />
 
             {/* High-level stats, glanceable while editing the list — these used
@@ -2106,9 +2118,7 @@ export function DeckDisplay({
                         onEditCard={onEditCard}
                         roleFilter={activeRoleFilter}
                         legalityBySlot={legalityBySlot}
-                        onMoveToSideboard={
-                          formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
-                        }
+                        onMoveToSideboard={showSideboardTab ? onMoveToSideboard : undefined}
                         onMoveToConsidering={onMoveToConsidering}
                         onMakeCommander={onMakeCommander}
                         canMakeCommander={canMakeCommander}
@@ -2132,17 +2142,79 @@ export function DeckDisplay({
                         cardProvenance={cardProvenance}
                       />
                     ))}
+                  </div>
+                )}
+                {viewMode === 'grid' && (
+                  <DeckCardGrid
+                    groups={visibleGroups}
+                    onRowClick={openPreview}
+                    legalityBySlot={legalityBySlot}
+                    gridZoom={effectiveGridZoom}
+                    showRoles={showPrefs.roles}
+                    roleFilter={activeRoleFilter}
+                    synergyByName={synergyByName}
+                    binderByCopyId={binderByCopyId}
+                    hasPartner={!!partnerCommander}
+                    onEditPartner={onEditPartner}
+                    arrivalsByType={arrivalsByType}
+                    onOpenArrivals={setOpenArrivalsBucket}
+                  />
+                )}
 
-                    {formatConfig.sideboardSize > 0 && (
-                      <div className="deck-sideboard-section">
-                        <h3 className="deck-sideboard-header">
-                          Sideboard ({sideboard.length}
-                          {Number.isFinite(formatConfig.sideboardSize)
-                            ? `/${formatConfig.sideboardSize}`
-                            : ''}
-                          )
-                        </h3>
-                        {visibleSideboardGroups.map((g) => (
+                {/* "Not in the deck" (E176) — one subordinate zone below the
+                    decklist, in EVERY view mode (the former defect: this
+                    content only rendered inside the list-view branch, so
+                    grid-view users could neither see nor reach it). Always a
+                    compact row list (CategorySection/DeckCardRow) even in
+                    grid view — it's a small holding zone, not a shape story,
+                    so thumbnails would waste vertical space. The Sideboard
+                    tab is format-gated (unlimited/constructed sideboards);
+                    Considering (E122) is always available and always
+                    excluded from stats/legality/mana/role counts upstream
+                    (see the `cards`-only `allCards`/`legalityIssues` memos
+                    above — this zone never feeds them). */}
+                <div className="deck-outzone">
+                  <h3 className="deck-outzone-title" id="deck-outzone" tabIndex={-1}>
+                    Not in the deck
+                  </h3>
+                  {showSideboardTab ? (
+                    <Tabs
+                      ariaLabel="Not in the deck"
+                      variant="fitted"
+                      value={outzoneTab}
+                      onChange={setOutzoneTab}
+                      tabs={[
+                        {
+                          id: 'sideboard',
+                          label: 'Sideboard',
+                          count: sideboard.length,
+                          controls: 'deck-outzone-panel',
+                          ariaLabel: `Sideboard, ${sideboard.length} cards`,
+                        },
+                        {
+                          id: 'considering',
+                          label: 'Considering',
+                          count: considering.length,
+                          controls: 'deck-outzone-panel',
+                          ariaLabel: `Considering, ${considering.length} cards`,
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <div className="deck-outzone-single-label">
+                      Considering
+                      <span className="deck-outzone-single-count">({considering.length})</span>
+                    </div>
+                  )}
+                  <div
+                    id="deck-outzone-panel"
+                    className="deck-outzone-body"
+                    role={showSideboardTab ? 'tabpanel' : undefined}
+                    aria-labelledby={showSideboardTab ? `sc-tab-${outzoneTab}` : undefined}
+                  >
+                    {outzoneTab === 'sideboard' && showSideboardTab ? (
+                      visibleSideboardGroups.length > 0 ? (
+                        visibleSideboardGroups.map((g) => (
                           <CategorySection
                             key={`sb-${g.title}`}
                             title={g.title}
@@ -2168,86 +2240,38 @@ export function DeckDisplay({
                             cardInclusionMap={cardInclusionMap}
                             cardProvenance={cardProvenance}
                           />
-                        ))}
-                        {sideboard.length === 0 && (
-                          <p className="deck-sideboard-empty">No sideboard cards yet</p>
-                        )}
-                      </div>
+                        ))
+                      ) : (
+                        <p className="deck-outzone-empty">No sideboard cards yet</p>
+                      )
+                    ) : visibleConsideringGroups.length > 0 ? (
+                      visibleConsideringGroups.map((g) => (
+                        <CategorySection
+                          key={`cn-${g.title}`}
+                          title={g.title}
+                          icon={g.icon}
+                          rows={g.rows}
+                          currency={currency}
+                          showPrefs={showPrefs}
+                          onRowClick={openPreview}
+                          onRemoveCard={onRemoveConsideringCard}
+                          onSetQty={undefined}
+                          roleFilter={activeRoleFilter}
+                          onMoveToMainboard={onMoveFromConsidering}
+                          synergyByName={synergyByName}
+                          cardInclusionMap={cardInclusionMap}
+                          cardProvenance={cardProvenance}
+                        />
+                      ))
+                    ) : (
+                      <p className="deck-outzone-empty">
+                        Nothing parked here yet — cards you're unsure about land here from import,
+                        suggestions, or "Move to considering" on any card.
+                      </p>
                     )}
-
-                    {/* Considering (E122) — always present regardless of format
-                        (unlike the sideboard, which is format-gated): a
-                        park-candidates zone, visually subordinate to the
-                        mainboard. Collapsed to a one-line header when there's
-                        nothing to show; the disclosure body only mounts real
-                        content when opened. */}
-                    <div className="deck-considering-section">
-                      <button
-                        type="button"
-                        className="deck-considering-header"
-                        aria-expanded={consideringOpen}
-                        aria-controls="deck-considering-body"
-                        onClick={() => setConsideringOpen((v) => !v)}
-                      >
-                        <span className="deck-considering-title">
-                          Considering
-                          <span className="deck-considering-count">({considering.length})</span>
-                        </span>
-                        {consideringOpen ? (
-                          <ChevronUp width={14} height={14} strokeWidth={2} aria-hidden />
-                        ) : (
-                          <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
-                        )}
-                      </button>
-                      <div
-                        id="deck-considering-body"
-                        className="deck-considering-body"
-                        hidden={!consideringOpen}
-                      >
-                        {visibleConsideringGroups.map((g) => (
-                          <CategorySection
-                            key={`cn-${g.title}`}
-                            title={g.title}
-                            icon={g.icon}
-                            rows={g.rows}
-                            currency={currency}
-                            showPrefs={showPrefs}
-                            onRowClick={openPreview}
-                            onRemoveCard={onRemoveConsideringCard}
-                            onSetQty={undefined}
-                            roleFilter={activeRoleFilter}
-                            onMoveToMainboard={onMoveFromConsidering}
-                            synergyByName={synergyByName}
-                            cardInclusionMap={cardInclusionMap}
-                            cardProvenance={cardProvenance}
-                          />
-                        ))}
-                        {considering.length === 0 && (
-                          <p className="deck-considering-empty">
-                            Nothing parked here yet — cards you're unsure about land here from
-                            import, suggestions, or "Move to considering" on any card.
-                          </p>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                )}
-                {viewMode === 'grid' && (
-                  <DeckCardGrid
-                    groups={visibleGroups}
-                    onRowClick={openPreview}
-                    legalityBySlot={legalityBySlot}
-                    gridZoom={effectiveGridZoom}
-                    showRoles={showPrefs.roles}
-                    roleFilter={activeRoleFilter}
-                    synergyByName={synergyByName}
-                    binderByCopyId={binderByCopyId}
-                    hasPartner={!!partnerCommander}
-                    onEditPartner={onEditPartner}
-                    arrivalsByType={arrivalsByType}
-                    onOpenArrivals={setOpenArrivalsBucket}
-                  />
-                )}
+                </div>
+
                 {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
                   <button
                     type="button"
@@ -2520,6 +2544,9 @@ interface ToolbarProps {
   onExport: () => void;
   /** Reveal the standalone Test hand panel (goldfishing acts on this list). */
   onShowTestHand?: () => void;
+  /** Sideboard + Considering combined count — drives the "Not in the deck"
+   *  jump chip (E176). 0 still renders the chip (the zone always exists). */
+  outzoneCount: number;
 }
 
 const SORT_LABEL: Record<SortMode, string> = {
@@ -2638,6 +2665,7 @@ function DeckToolbar({
   onShowPrefsChange,
   onExport,
   onShowTestHand,
+  outzoneCount,
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
@@ -2645,7 +2673,19 @@ function DeckToolbar({
         <span className="deck-toolbar-title">{title}</span>
         {/* Grade and missing-cards count live in the Statistics → Overview
             panel now, so the toolbar stays focused on the deck title +
-            controls. */}
+            controls. Jump chip to the "Not in the deck" zone (E176) — the
+            title span above is display:none, so this is the summary
+            column's only visible content. */}
+        <a
+          href="#deck-outzone"
+          className="deck-toolbar-outzone-chip"
+          aria-label={`Not in the deck — ${outzoneCount} ${outzoneCount === 1 ? 'card' : 'cards'} — jump to sideboard and considering`}
+        >
+          Not in deck
+          <span className="deck-toolbar-outzone-count" aria-hidden>
+            {outzoneCount}
+          </span>
+        </a>
       </div>
       <div className="deck-toolbar-controls">
         <SelectMenu
