@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
 import { isApplyingAnalysis } from '../lib/applying-analysis';
@@ -407,7 +408,72 @@ interface DecksState {
   remapAllocations(newCollection: EnrichedCard[]): void;
 }
 
+// Local-mutation token (E177) — a plain module-level counter per deck id,
+// bumped synchronously by every entry into `touch()` below.
+const localMutationTokens = new Map<string, number>();
+const mutationTokenListeners = new Set<() => void>();
+
+function bumpLocalMutationToken(deckId: string): void {
+  localMutationTokens.set(deckId, (localMutationTokens.get(deckId) ?? 0) + 1);
+  for (const listener of mutationTokenListeners) listener();
+}
+
+/** Non-reactive read — for tests and any non-component consumer. */
+export function getLocalMutationToken(deckId: string): number {
+  return localMutationTokens.get(deckId) ?? 0;
+}
+
+/**
+ * Reactive read: re-renders the calling component whenever `deckId`'s local
+ * mutation token bumps. A consumer snapshots a baseline (`getLocalMutationToken`
+ * or this hook's value) and later asks "has the user mutated this deck since?"
+ * by comparing tokens. See the comment on `touch()` for what this replaces.
+ */
+export function useLocalMutationToken(deckId: string): number {
+  return useSyncExternalStore(
+    (onChange) => {
+      mutationTokenListeners.add(onChange);
+      return () => mutationTokenListeners.delete(onChange);
+    },
+    () => getLocalMutationToken(deckId)
+  );
+}
+
+/**
+ * `touch()` is the one chokepoint every LOCAL-ONLY mutator in this store
+ * routes through (add/remove/allocate/move/rename card paths, commander
+ * changes, undo/redo replay). Bumping the local-mutation token here — rather
+ * than each mutator repeating the bump — is what makes "never bumped from a
+ * server-apply/hydration path" true by construction: `rehydrateStoresFromIdb`
+ * (lib/sync.ts) sets `decks` directly via `setState`, bypassing every mutator
+ * and thus `touch()` entirely. (The one exception is `remapAllocations`,
+ * whose own write is a system pointer-repair rather than a direct user edit —
+ * it calls `touchNoToken` below instead.)
+ *
+ * This exists because two independent feature designs (E169, E173) both
+ * needed "did the user just do this locally, or did it arrive from sync?" and
+ * both got it wrong the same way:
+ *   1. Gating on `isApplyingServer()` read inside a React `useEffect`. That
+ *      flag's contract is synchronous-window only (see applying-server.ts) —
+ *      by the time an effect reads it, it has already reverted to `false`
+ *      regardless of whether the triggering update was local or remote. The
+ *      guard gave zero protection there.
+ *   2. Comparing `updatedAt > syncedAt` built from two independent
+ *      `Date.now()` calls a few frames apart in the same commit — but `touch()`
+ *      overwrites `updatedAt` with a fresh timestamp on every write, including
+ *      the very write meant to be gated on, so the comparison could misfire
+ *      the instant after that write.
+ * A monotonic counter bumped synchronously at the one real mutation
+ * chokepoint has neither failure mode. Don't reinvent either guard above —
+ * use `useLocalMutationToken`/`getLocalMutationToken` instead.
+ */
 function touch(deck: Deck): Deck {
+  bumpLocalMutationToken(deck.id);
+  return { ...deck, updatedAt: Date.now() };
+}
+
+// Same as touch(), minus the token bump — see the exception noted above.
+function touchNoToken(deck: Deck): Deck {
   return { ...deck, updatedAt: Date.now() };
 }
 
@@ -1054,7 +1120,7 @@ export const useDecksStore = create<DecksState>()(
                 (c, i) => u.considering[i]?.allocatedCopyId !== c.allocatedCopyId
               );
             if (!cardsChanged) return deck;
-            return touch({
+            return touchNoToken({
               ...deck,
               commanderAllocatedCopyId: u.commanderAllocatedCopyId,
               partnerCommanderAllocatedCopyId: u.partnerCommanderAllocatedCopyId,
