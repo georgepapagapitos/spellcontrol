@@ -66,6 +66,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Only matters when the binder-location discovery hint (WedgeHintStrip)
+     is the tabpanel's first child, above the results list — spaces the two
+     apart without the hint component owning its own margin. */
+  gap: var(--space-2);
 }
 
 .deck-add-sheet .card-search-results {

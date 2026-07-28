@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Check, Plus } from 'lucide-react';
+import { Check, Notebook, Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -35,6 +35,8 @@ import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
 import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
+import { WedgeHintStrip } from './WedgeHintStrip';
+import { dismissBinderHint, shouldShowBinderHint } from '../../lib/wedge-hints';
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
@@ -294,6 +296,13 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Binder-location discovery hint (see lib/wedge-hints.ts) — dismissed
+  // locally so it disappears immediately on click without waiting on a
+  // re-render triggered by nothing; the localStorage write in
+  // dismissBinderHint() makes the "never again" part durable.
+  const [binderHintDismissed, setBinderHintDismissed] = useState(false);
+  const hasBinderMatch = !!binderByCardName && binderByCardName.size > 0;
 
   // Chip-expression filter state — applies only in the Collection tab.
   // Scryfall already has its own query DSL, so we don't shoehorn this
@@ -588,6 +597,19 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         id="card-search-tabpanel"
         aria-labelledby={`sc-tab-${activeMode}`}
       >
+        {activeMode === 'collection' &&
+          !binderHintDismissed &&
+          shouldShowBinderHint(hasBinderMatch) && (
+            <WedgeHintStrip
+              icon={<Notebook width={16} height={16} aria-hidden />}
+              headline="Cards show where they live"
+              detail="The badge next to an owned card links straight to its binder."
+              onDismiss={() => {
+                dismissBinderHint();
+                setBinderHintDismissed(true);
+              }}
+            />
+          )}
         {activeMode === 'collection' ? (
           <CollectionResults
             deckId={deckId}

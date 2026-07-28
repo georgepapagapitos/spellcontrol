@@ -931,6 +931,65 @@ below it) but differs on the one point that matters most:
   settle only once it has advanced since baseline. `use-build-time-nudge.ts`
   is the reference implementation.
 
+## Wedge-feature discovery hints
+
+A feature that ships with real product value but no proactive signal is
+invisible in practice — a user can plausibly never find it. Rather than an
+onboarding tour, carousel, or nag, this codebase surfaces such a feature with
+a **contextual, once-only, dismissible hint at the moment it becomes
+relevant**, built from two pieces: `lib/wedge-hints.ts` (precondition +
+device-local "never again" persistence, one pair of functions per hint — see
+the module doc for why this is *not* a registry) and `WedgeHintStrip.tsx`
+(the shared one-row presentational shell). Reference instances: the
+binder-location hint in `CardSearchPanel.tsx`'s Collection tab and the deck
+re-sync hint in `DeckEditorPage.tsx`.
+
+- **Precondition gates on the feature being genuinely usable RIGHT NOW, not
+  merely "the user could set it up."** The binder hint doesn't fire because
+  the user has *a* binder — it fires because a Collection-tab row actually
+  routed to one (`binderByCardName.size > 0`), i.e. the badge it's pointing at
+  is really on screen. Firing on an empty-state precondition teaches a user
+  that hints are worthless; a hint that can't point at anything real is worse
+  than no hint.
+- **Device-local, never synced, dismissed forever.** Same
+  `localStorage`-flag-per-hint shape as `nav-migration-tip.ts` — no dirty
+  flag, no per-account state, no framework. Each hint is its own pair of
+  `shouldShowXHint`/`dismissXHint` functions; a third hint is a third pair,
+  not a registration call into something generic. If you're reaching for a
+  `HintProvider`/config array, stop — that's over-built for a handful of
+  hints.
+- **At most one visible at a time, enforced by placement, not a priority
+  queue.** The two reference hints physically can't overlap — the binder hint
+  only renders inside the add-cards sheet, the resync hint only on the base
+  deck-editor page — except for the one real overlap vector (the resync strip
+  would sit directly behind the add-cards sheet's scrim), which is closed by
+  hiding it while `showAddPanel` is true. A third hint sharing a surface with
+  an existing one needs the same explicit mutual exclusion; don't rely on
+  hoping two preconditions never line up.
+- **`WedgeHintStrip` ground rules** (mirrors the Build-time coach strip's box
+  model, since both are one-row insight surfaces, but is NOT the same
+  component — a coaching nudge and an onboarding hint are different concepts
+  that happen to share a shape): `role="status"`/`aria-live="polite"`
+  announces its appearance without moving focus (never `.focus()` a hint into
+  view — it's informational, not a modal); `useEscapeKey` dismisses it,
+  matching every other click-away surface in the deck editor (harmless if a
+  parent sheet's own Escape handler also fires from the same keypress —
+  dismissing both the hint and its host sheet on one Escape is a reasonable
+  outcome, not a bug); the dismiss control is always present, the action
+  button (if any) is optional — an informational hint whose target is already
+  on screen (the binder badge) needs no CTA, only a hint that opens something
+  elsewhere (resync) does; `min-height: 44px` on coarse pointers on both
+  buttons; `prefers-reduced-motion` kills the slide-in.
+- **Caller owns spacing.** The strip has no built-in margin — it's a flex
+  child of whatever renders it, so the host either already has a `gap` (e.g.
+  `.deck-editor-main`) or declares one scoped to its own container (e.g.
+  `.card-search-tabpanel`) rather than the shared component hard-coding
+  margin that would double up wherever gap already exists.
+- **Empty-state teach is a separate, case-by-case call**, not part of this
+  pattern — a blank deck's card area can justify its own inline teach when a
+  feature's value is obvious right there (not built for E169/E173; evaluate
+  per feature).
+
 ## Import review surface (E130)
 
 A multi-outcome operation (an import that can simultaneously succeed, route

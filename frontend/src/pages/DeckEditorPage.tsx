@@ -1,4 +1,14 @@
-import { Coins, Copy, ListChecks, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
+import {
+  Coins,
+  Copy,
+  ListChecks,
+  MoreVertical,
+  Plus,
+  Redo2,
+  RefreshCw,
+  Undo2,
+  X,
+} from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../lib/haptics';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
@@ -29,6 +39,8 @@ import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
 import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
 import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
+import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
+import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
@@ -587,6 +599,9 @@ export function DeckEditorPage() {
   const [appendOpen, setAppendOpen] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [resyncOpen, setResyncOpen] = useState(false);
+  // Deck re-sync discovery hint (see lib/wedge-hints.ts) — same
+  // dismiss-locally-then-persist shape as the binder hint in CardSearchPanel.
+  const [resyncHintDismissed, setResyncHintDismissed] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
@@ -2600,6 +2615,27 @@ export function DeckEditorPage() {
 
       <div className="deck-editor-layout">
         <main className="deck-editor-main">
+          {/* Deck re-sync discovery hint — hidden while the add-cards sheet is
+              open so it can never be on screen at the same time as the
+              binder-location hint inside that sheet (at most one wedge-
+              discovery hint visible at once, app-wide). */}
+          {!showAddPanel && !resyncHintDismissed && shouldShowResyncHint(deck.cards.length > 0) && (
+            <WedgeHintStrip
+              icon={<RefreshCw width={16} height={16} aria-hidden />}
+              headline="Keep this decklist in sync"
+              detail="Paste an updated list from Moxfield or Archidekt to diff and merge changes."
+              actionLabel="Resync"
+              onAction={() => {
+                dismissResyncHint();
+                setResyncHintDismissed(true);
+                setResyncOpen(true);
+              }}
+              onDismiss={() => {
+                dismissResyncHint();
+                setResyncHintDismissed(true);
+              }}
+            />
+          )}
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}
