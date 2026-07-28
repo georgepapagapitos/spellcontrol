@@ -32,6 +32,7 @@ import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
+import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
@@ -577,6 +578,7 @@ export function DeckEditorPage() {
   const [tokensOpen, setTokensOpen] = useState(false);
   const [pullListOpen, setPullListOpen] = useState(false);
   const [primerOpen, setPrimerOpen] = useState(false);
+  const [appendOpen, setAppendOpen] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
@@ -2477,6 +2479,7 @@ export function DeckEditorPage() {
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
+            onImport={() => setAppendOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
@@ -2505,6 +2508,7 @@ export function DeckEditorPage() {
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
+            onImport={() => setAppendOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
@@ -2973,6 +2977,7 @@ export function DeckEditorPage() {
       )}
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
       {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
+      {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}
       {pullListOpen && (
         <PullListSheet
           deck={deck}
@@ -3232,6 +3237,7 @@ function DeckEditorOverflowMenu({
   onDuplicate,
   onDelete,
   onExport,
+  onImport,
   onFeedback,
   onPrimer,
   onPlaytest,
@@ -3245,6 +3251,10 @@ function DeckEditorOverflowMenu({
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
+  /** Opens the paste-into-this-deck dialog (E168 slice 2) — mirrors onExport:
+   *  kebab-only at every breakpoint, no separate toolbar button. A future
+   *  slice adds onBulkEdit alongside this. */
+  onImport: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
   /** Opens the primer (strategy notes) editor sheet. */
@@ -3395,6 +3405,17 @@ function DeckEditorOverflowMenu({
               }}
             >
               Export
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onImport();
+              }}
+            >
+              Paste cards
             </button>
             <button
               type="button"

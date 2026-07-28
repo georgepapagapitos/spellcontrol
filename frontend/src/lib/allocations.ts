@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { useMemo } from 'react';
-import { useDecksStore, type Deck, type DeckCard } from '../store/decks';
+import { useDecksStore, newDeckCard, type Deck, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import { useCubeStore, type SavedCube } from '../store/cube';
 import type { EnrichedCard, Finish } from '../types';
@@ -369,6 +369,31 @@ export function pickCollectionCopy(
   }
   candidates.sort(compareCopyPreference);
   return candidates[0];
+}
+
+/**
+ * Turn a flat list of resolved import cards into DeckCards, claiming a free
+ * owned collection copy for each as it goes. `claimed` is mutated in place
+ * (marked with a `'__pending__'` deck so a later card in the SAME list can't
+ * double-claim the copy this one just took) — callers share one `claimed` map
+ * across every zone (cards/sideboard/considering, plus the commander slots)
+ * of a single import so nothing in that batch collides.
+ *
+ * Shared by whole-deck import (`build-deck-from-import.ts`'s
+ * `buildDeckInputFromImport`) and single-deck append (`append-deck-import.ts`)
+ * — the claim-as-you-go allocation behavior lives in exactly one place.
+ */
+export function allocateCardsForImport(
+  cardList: ScryfallCard[],
+  collection: EnrichedCard[],
+  claimed: Map<string, AllocationInfo>
+): DeckCard[] {
+  return cardList.map((card) => {
+    const pick = pickCollectionCopy(card.name, collection, claimed, card.id);
+    if (pick)
+      claimed.set(pick.copyId, makeDeckAllocationInfo('__pending__', '__pending__', '', card.name));
+    return newDeckCard(card, pick?.copyId ?? null);
+  });
 }
 
 /** Stable display order for finish lists — matches the dialog's button order. */

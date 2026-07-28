@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
-import { useDecksStore, newDeckCard, type DeckSource, type DeckCard } from '../store/decks';
+import { useDecksStore, type DeckSource, type DeckCard } from '../store/decks';
 import { useCollectionStore } from '../store/collection';
 import {
   buildAllocationMap,
   pickCollectionCopy,
   makeDeckAllocationInfo,
+  allocateCardsForImport,
   type AllocationInfo,
 } from './allocations';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
@@ -67,11 +68,7 @@ export function buildDeckInputFromImport(
   const claim = opts.claimed ?? new Map<string, AllocationInfo>(buildAllocationMap(ctx.decks));
 
   const allocate = (cardList: ScryfallCard[]): DeckCard[] =>
-    cardList.map((card) => {
-      const pick = pickCollectionCopy(card.name, ctx.collectionCards, claim, card.id);
-      if (pick) claim.set(pick.copyId, pendingClaim(card.name));
-      return newDeckCard(card, pick?.copyId ?? null);
-    });
+    allocateCardsForImport(cardList, ctx.collectionCards, claim);
 
   const base = {
     name: name.trim() || undefined,
