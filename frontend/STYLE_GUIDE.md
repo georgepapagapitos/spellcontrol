@@ -810,6 +810,61 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
   should be near-identical to what an inline surface would have shown, just
   gated behind one tap instead of always-on real estate.
 
+## Build-time coach strip (E169 Half B) — a NAVIGATING insight strip
+
+A **second** insight-strip variant, distinct from UX-334 above: the moment a
+card lands in a deck's mainboard from the add-cards sheet, the deck editor can
+surface one nudge — "this card just completed a combo", "this card just gave
+the deck a win condition", "the bracket estimate just moved" — as a one-row
+strip inside that same sheet (`components/deck/BuildTimeCoachStrip.tsx` +
+`lib/use-build-time-nudge.ts`). It follows every UX-334 ground rule (one row,
+full-width, `min-height: 44px` on coarse pointers, **zero visible signal →
+render nothing**, never a permanent fixture, never displaces the card list
+below it) but differs on the one point that matters most:
+
+- **UX-334's strip's tap opens a sheet** layered on the same page — nothing
+  underneath is disturbed, so the whole row can be a single `<button>`.
+- **This strip's tap NAVIGATES** — the detail lives in the Power tab's
+  existing Combos / Win-conditions / Bracket panels one screen over, not in a
+  new local sheet (reusing that detail view, rather than building a second one
+  that duplicates it, is the point). But the strip itself lives _inside_ the
+  add-cards overlay, and that overlay owns real, easy-to-lose state (the
+  `CardSearchPanel`'s in-progress query + scroll position) that a bare
+  `openView('power')` would blow away by unmounting it. So a navigating strip
+  may **never** be a single tap-anywhere button the way UX-334's is — it needs
+  two distinct affordances: a **"View →" action that explicitly closes the
+  add-cards sheet before navigating** (the sheet's own `dismiss()`, called by
+  the strip's click handler, not a side effect of routing) so the state loss
+  is a deliberate, telegraphed consequence of a labeled button rather than an
+  accidental one; and a separate **"×" dismiss** that clears just the nudge
+  and keeps the sheet — and the user's in-progress search — open. Any future
+  insight strip whose detail lives on another view/tab (not a local sheet)
+  should follow this two-affordance, explicit-dismiss shape instead of
+  UX-334's whole-row button.
+- **Threshold discipline, not just presence/absence.** A signal engine that
+  fires on every add teaches the user to ignore the strip — "a coach that
+  cries wolf early teaches the user to ignore it permanently." Combo
+  completion and "first win condition" are discrete facts (true the instant
+  their pieces exist, false otherwise), so they get no minimum deck size —
+  useful at card #2 as much as card #90. Bracket-estimate movement is a
+  statistical estimate that swings on nearly every add while the deck is
+  still mostly empty slots, so it stays quiet below 40% of the format's
+  mainboard target (~40 cards for a 99-card Commander deck) — meaningless at
+  ~5 cards, borderline-useful at ~40, squarely actionable at ~95. At most one
+  nudge shows at a time (combo beats win-condition beats bracket — rarest and
+  least ambiguous event wins).
+- **Guard against a store write that isn't the user's own edit.** Any insight
+  surface that reacts to live-recomputed deck fields (bracketEstimation,
+  winConditions, …) across an async gap — a debounce, a network round-trip —
+  must NOT gate on `isApplyingServer()`/`isApplyingAnalysis()` read inside a
+  `useEffect`; both flags are a synchronous-window-only signal (see the
+  comment on `touch()` in `store/decks.ts`) and have already reverted to
+  `false` by the time an effect reads them, regardless of the write's origin.
+  Use the deck's local-mutation token (`useLocalMutationToken`/
+  `getLocalMutationToken`, E177) instead: snapshot it when arming, trust a
+  settle only once it has advanced since baseline. `use-build-time-nudge.ts`
+  is the reference implementation.
+
 ## Import review surface (E130)
 
 A multi-outcome operation (an import that can simultaneously succeed, route
