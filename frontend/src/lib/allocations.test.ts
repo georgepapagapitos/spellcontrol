@@ -12,6 +12,7 @@ import {
   listContestedCards,
   makeDeckAllocationInfo,
   computeSurplusByName,
+  pickSlotsToRelease,
   type AllocationInfo,
 } from './allocations';
 import type { SavedCube, CubePickSlot } from '../store/cube';
@@ -1226,5 +1227,40 @@ describe('computeSurplusByName', () => {
     ];
     const surplus = computeSurplusByName(cards, new Map());
     expect(surplus.get('Sol Ring')).toBe(2);
+  });
+});
+
+describe('pickSlotsToRelease', () => {
+  function dc(slotId: string, allocatedCopyId: string | null): DeckCard {
+    return { slotId, card: { name: 'Sol Ring' } as ScryfallCard, allocatedCopyId };
+  }
+
+  it('drops unallocated slots before an allocated one, keeping the owned copy bound', () => {
+    // Decrementing a row with one allocated + one unallocated copy must release
+    // the unallocated slot — dropping the allocated one instead would make an
+    // owned card silently read as unowned while a free duplicate stays behind.
+    const current = [dc('s1', 'copy-1'), dc('s2', null)];
+    const dropped = pickSlotsToRelease(current, 1);
+    expect(dropped).toEqual([dc('s2', null)]);
+  });
+
+  it('only spills into allocated slots once unallocated stock runs out', () => {
+    const current = [dc('s1', 'copy-1'), dc('s2', 'copy-2'), dc('s3', null)];
+    const dropped = pickSlotsToRelease(current, 2);
+    expect(dropped.map((d) => d.slotId).sort()).toEqual(['s2', 's3']);
+  });
+
+  it('drops the most-recently-added unallocated slots first', () => {
+    const current = [dc('s1', null), dc('s2', null), dc('s3', null)];
+    const dropped = pickSlotsToRelease(current, 2);
+    expect(dropped.map((d) => d.slotId)).toEqual(['s2', 's3']);
+  });
+
+  it('is a no-op for count 0, even with unallocated slots present', () => {
+    // Regression guard: `[].slice(-0)` returns the WHOLE array (-0 isn't
+    // < 0), so a naive `unallocated.slice(-count)` would release everything
+    // instead of nothing when count is 0.
+    const current = [dc('s1', null), dc('s2', null)];
+    expect(pickSlotsToRelease(current, 0)).toEqual([]);
   });
 });
