@@ -12,8 +12,14 @@ import { getCardImageUrl } from '@/deck-builder/services/scryfall/client';
 import type { ScryfallCard, DeckFormat } from '@/deck-builder/types';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { DeckImportResponse } from '../../types';
-import { isValidCommander, isPdhCommanderEligible } from '../../lib/commanders';
-import { areValidPartners, canHavePartner } from '@/deck-builder/lib/partnerUtils';
+import {
+  normalizeFormat,
+  commanderEligibleFor,
+  commanderCandidatesFor,
+  partnerCandidatesFor,
+  PartnerImportPicker,
+  ImportParseSummary,
+} from './import-deck-shared';
 import { isNativePlatform } from '../../lib/platform';
 import { pickNativeFiles } from '../../lib/native-file-picker';
 import { usePublishOnCreate, type PublishOutcome } from '../../lib/use-publish-on-create';
@@ -54,107 +60,6 @@ interface DraftDeck {
   partner: ScryfallCard | null;
   candidates: ScryfallCard[];
   searchOpen: boolean;
-}
-
-function dedupeByName(cards: ScryfallCard[]): ScryfallCard[] {
-  const seen = new Set<string>();
-  return cards.filter((c) => {
-    if (seen.has(c.name)) return false;
-    seen.add(c.name);
-    return true;
-  });
-}
-
-/** Format-aware commander eligibility: PDH derives it (uncommon creature —
- *  see lib/commanders.ts), every other commander format uses the legendary rule. */
-function commanderEligibleFor(format: DeckFormat): (card: ScryfallCard) => boolean {
-  return format === 'paupercommander' ? isPdhCommanderEligible : isValidCommander;
-}
-
-/** Deduped commander candidates present in an imported list, for a format. */
-function commanderCandidatesFor(
-  cards: ScryfallCard[] | undefined,
-  format: DeckFormat
-): ScryfallCard[] {
-  if (!cards) return [];
-  return dedupeByName(cards.filter(commanderEligibleFor(format)));
-}
-
-/**
- * Legal partners for `commander` that are present in the imported card list.
- * Empty unless the commander has a partner mechanic (Partner, "Partner with X",
- * Friends forever, Choose a Background, Doctor's companion). Used to offer —
- * never auto-apply — a second commander on import.
- */
-function partnerCandidatesFor(
-  cards: ScryfallCard[] | undefined,
-  commander: ScryfallCard | null
-): ScryfallCard[] {
-  if (!cards || !commander || !canHavePartner(commander)) return [];
-  return dedupeByName(cards.filter((c) => areValidPartners(commander, c)));
-}
-
-/** Opt-in partner-commander picker shown in the import review/batch steps. */
-function PartnerImportPicker({
-  commander,
-  candidates,
-  partner,
-  onSelect,
-}: {
-  commander: ScryfallCard;
-  candidates: ScryfallCard[];
-  partner: ScryfallCard | null;
-  onSelect: (card: ScryfallCard | null) => void;
-}) {
-  if (candidates.length === 0) return null;
-  return (
-    <div className="import-deck-commander-section import-deck-partner-section">
-      <div className="import-deck-section-title">Partner commander (optional)</div>
-      <p className="import-deck-hint">
-        {commander.name} can have a partner — add a second commander to combine both color
-        identities.
-      </p>
-      <ul className="import-deck-commander-list">
-        {candidates.map((card) => {
-          const selected = partner?.name === card.name;
-          return (
-            <li key={card.id}>
-              <button
-                type="button"
-                className={`import-deck-commander-option${selected ? ' is-selected' : ''}`}
-                aria-pressed={selected}
-                onClick={() => onSelect(selected ? null : card)}
-              >
-                <img
-                  className="import-deck-commander-art"
-                  src={getCardImageUrl(card, 'small')}
-                  alt=""
-                  aria-hidden="true"
-                />
-                <div className="import-deck-commander-info">
-                  <span className="import-deck-commander-name">{card.name}</span>
-                  <span className="import-deck-commander-type">
-                    {card.type_line ?? card.card_faces?.[0]?.type_line}
-                  </span>
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {partner && (
-        <button type="button" className="btn-link" onClick={() => onSelect(null)}>
-          Remove partner
-        </button>
-      )}
-    </div>
-  );
-}
-
-function normalizeFormat(detected: string | undefined | null): DeckFormat | null {
-  if (!detected) return null;
-  const slug = detected.toLowerCase();
-  return FORMATS.find((f) => f === slug) ?? null;
 }
 
 const PASTE_PLACEHOLDERS: Record<DeckFormat, string> = {
@@ -241,12 +146,6 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
     () => partnerCandidatesFor(pendingResult?.cards, pendingCommander),
     [pendingResult, pendingCommander]
   );
-
-  const detectedFormat = useMemo(
-    () => normalizeFormat(pendingResult?.detectedFormat),
-    [pendingResult]
-  );
-  const formatMismatch = detectedFormat !== null && detectedFormat !== selectedFormat;
 
   /**
    * Picks the commander for a result given a target format. Returns
@@ -1089,87 +988,13 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
         {step === 'review' && pendingResult && (
           <>
-            <div className="import-deck-review-summary">
-              <span>
-                Parsed <strong>{pendingResult.cardCount}</strong> card
-                {pendingResult.cardCount === 1 ? '' : 's'}
-              </span>
-              {/* Informational, not a warning (E130 convention: nothing broken,
-                  nothing to retry) — a plain span alongside the count, not an
-                  .import-deck-warning block. */}
-              {(pendingResult.considering?.length ?? 0) > 0 && (
-                <span>
-                  <strong>{pendingResult.considering!.length}</strong> routed to Considering
-                </span>
-              )}
-              {detectedFormat && (
-                <span className="import-deck-review-tag">
-                  Detected: {DECK_FORMAT_CONFIGS[detectedFormat].label}
-                </span>
-              )}
-            </div>
-
-            {formatMismatch && detectedFormat && (
-              <div className="import-deck-warning">
-                The file looks like a <strong>{DECK_FORMAT_CONFIGS[detectedFormat].label}</strong>{' '}
-                list, but you selected <strong>{formatConfig.label}</strong>.{' '}
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => setSelectedFormat(detectedFormat)}
-                >
-                  Switch to {DECK_FORMAT_CONFIGS[detectedFormat].label}
-                </button>
-              </div>
-            )}
-
-            {pendingResult.unresolvedNames.length > 0 && (
-              <div className="import-deck-warning">
-                <div className="import-deck-warning-title">
-                  {pendingResult.unresolvedNames.length} card
-                  {pendingResult.unresolvedNames.length === 1 ? '' : 's'} couldn't be matched and
-                  will be skipped:
-                </div>
-                <ul className="import-deck-unresolved-list">
-                  {pendingResult.unresolvedNames.slice(0, 12).map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
-                  {pendingResult.unresolvedNames.length > 12 && (
-                    <li className="import-deck-unresolved-more">
-                      …and {pendingResult.unresolvedNames.length - 12} more
-                    </li>
-                  )}
-                </ul>
-              </div>
-            )}
-
-            {pendingResult.fetchErrors.length > 0 && (
-              <div className="import-deck-warning">
-                <div className="import-deck-warning-title">
-                  {pendingResult.fetchErrors.length} card
-                  {pendingResult.fetchErrors.length === 1 ? '' : 's'} couldn't be fetched — the card
-                  service was unreachable. They aren't in this deck yet:
-                </div>
-                <ul className="import-deck-unresolved-list">
-                  {pendingResult.fetchErrors.slice(0, 12).map((name) => (
-                    <li key={name}>{name}</li>
-                  ))}
-                  {pendingResult.fetchErrors.length > 12 && (
-                    <li className="import-deck-unresolved-more">
-                      …and {pendingResult.fetchErrors.length - 12} more
-                    </li>
-                  )}
-                </ul>
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={retryReview}
-                  disabled={isLoading}
-                >
-                  Retry import
-                </button>
-              </div>
-            )}
+            <ImportParseSummary
+              result={pendingResult}
+              selectedFormat={selectedFormat}
+              isLoading={isLoading}
+              onRetry={retryReview}
+              onSwitchFormat={setSelectedFormat}
+            />
 
             {formatConfig.hasCommander && (
               <div className="import-deck-commander-section">

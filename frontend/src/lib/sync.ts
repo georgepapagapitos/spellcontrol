@@ -1071,6 +1071,19 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
       upsertsByKind.set(r.kind, arr);
     }
   }
+  // Snapshot the deck revs we already had BEFORE the putMany overwrite below,
+  // so we can tell a genuine foreign edit from our own just-pushed row coming
+  // back on a routine focus/online/visibilitychange pull (our push already
+  // stamps the server rev into IDB, so that re-delivery is an idempotent
+  // no-op — see applyPushResult).
+  const deckUpserts = upsertsByKind.get('deck');
+  const priorDeckRevs = new Map<string, number>();
+  if (deckUpserts) {
+    for (const u of deckUpserts) {
+      priorDeckRevs.set(u.id, baseRevFor(await estore.getById('deck', u.id)));
+    }
+  }
+
   for (const [kind, rows] of upsertsByKind) await estore.putMany(kind, rows);
   // Write a tombstone row (data: null, deletedAt set) rather than hard-removing
   // the key, so a re-delivered tombstone on a lagging cursor stays deleted
@@ -1079,13 +1092,17 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
   // not open thousands of IDB transactions.
   for (const [kind, dels] of deletionsByKind) await estore.putTombstones(kind, dels);
 
-  // A deck row changed on the server (another device edited it) → this device's
-  // undo/redo snapshots for that deck are now stale; replaying them would clobber
-  // the remote edit (LWW). Drop those stacks. Dynamic import avoids a load-order
-  // cycle (deck-history → decks store → sync). Only runs when a delta actually
-  // delivered deck rows, so idle focus-pulls don't nuke history.
+  // A deck row genuinely changed on the server (another device edited it —
+  // incoming rev strictly higher than what we already had) → this device's
+  // undo/redo snapshots for that deck are now stale; replaying them would
+  // clobber the remote edit (LWW). Drop those stacks. Deletions always
+  // invalidate. A same-rev upsert (our own just-pushed row re-delivered) must
+  // NOT invalidate — that was dropping a mid-edit undo stack on every idle
+  // focus/online pull. Dynamic import avoids a load-order cycle (deck-history
+  // → decks store → sync). Only runs when a delta actually delivered deck
+  // rows, so idle focus-pulls with nothing new don't touch history at all.
   const changedDeckIds = new Set<string>([
-    ...(upsertsByKind.get('deck')?.map((r) => r.id) ?? []),
+    ...(deckUpserts?.filter((r) => r.rev > (priorDeckRevs.get(r.id) ?? 0)).map((r) => r.id) ?? []),
     ...(deletionsByKind.get('deck')?.map((d) => d.id) ?? []),
   ]);
   if (changedDeckIds.size > 0) {
