@@ -230,6 +230,18 @@ export type GameAction =
 
 const MAX_EVENTS = 500;
 
+/**
+ * The `settings` fields that change how the game *plays*, as opposed to how the
+ * board *looks*. Only a change to one of these pushes a log event — see the
+ * `settings` case in `applyAction`.
+ */
+const RULES_SETTINGS_KEYS = [
+  'startingLife',
+  'commanderDamageEnabled',
+  'poisonEnabled',
+  'format',
+] as const;
+
 function makeEventId(ts: number): string {
   // Crypto.randomUUID is everywhere we care (Node 18+, modern browsers).
   if (typeof globalThis.crypto !== 'undefined' && 'randomUUID' in globalThis.crypto) {
@@ -632,6 +644,13 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       const patch = action.patch;
       const startingLifeChanged =
         typeof patch.startingLife === 'number' && patch.startingLife !== prev.startingLife;
+      // Only *rules* changes earn a log row. `layout` / `tapOrientation` are
+      // pure presentation, and logging them meant every board rearrangement or
+      // tap-zone flip pushed a "Settings changed" row — burying real moments
+      // and, at MAX_EVENTS, evicting them from a long game entirely.
+      const rulesChanged = RULES_SETTINGS_KEYS.some(
+        (k) => patch[k] !== undefined && patch[k] !== prev[k]
+      );
       next = {
         ...next,
         ...patch,
@@ -640,12 +659,14 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           startingLifeChanged && prev.status === 'lobby'
             ? prev.players.map((p) => ({ ...p, life: patch.startingLife! }))
             : prev.players,
-        events: pushEvent(next, {
-          kind: 'settings',
-          actorSeat: null,
-          targetSeat: null,
-          ts,
-        }),
+        events: rulesChanged
+          ? pushEvent(next, {
+              kind: 'settings',
+              actorSeat: null,
+              targetSeat: null,
+              ts,
+            })
+          : next.events,
       };
       break;
     }
@@ -789,3 +810,6 @@ export function selectNotableEvents(events: GameEvent[]): GameEvent[] {
   const notable = events.filter((e) => NOTABLE_KINDS.has(e.kind));
   return notable.length > MAX_NOTABLE_EVENTS ? notable.slice(-MAX_NOTABLE_EVENTS) : notable;
 }
+
+// Derived per-game statistics (first blood, placements, damage, KO credit).
+export * from './summary';
