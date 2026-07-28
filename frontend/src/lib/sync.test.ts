@@ -344,6 +344,31 @@ describe('pull', () => {
     await refreshNow();
     expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(false);
   });
+
+  it('does not bump the local-mutation token (E177) for a server-applied deck row', async () => {
+    const { useDecksStore, getLocalMutationToken } = await import('../store/decks');
+
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        {
+          kind: 'deck',
+          id: 'd-server',
+          data: { id: 'd-server', name: 'From server' },
+          rev: 1,
+          deletedAt: null,
+        },
+      ],
+      cursor: 1,
+      hasMore: false,
+    });
+    // Drives the real applyServerRows → rehydrateStoresFromIdb path (the same
+    // code a cross-device edit or a routine focus pull takes) rather than a
+    // hand-mocked stand-in for it.
+    await startSync('user-1');
+
+    expect(useDecksStore.getState().decks.some((d) => d.id === 'd-server')).toBe(true);
+    expect(getLocalMutationToken('d-server')).toBe(0);
+  });
 });
 
 describe('push', () => {
