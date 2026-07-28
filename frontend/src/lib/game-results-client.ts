@@ -61,6 +61,21 @@ export interface H2HResponse {
     callerWins: number;
     friendWins: number;
     deckMatchups: DeckMatchup[];
+    /**
+     * Games in this pairing carrying a derived summary — the denominator for
+     * the rivalry fields below, and **not** `gamesPlayed`: games recorded
+     * before summaries existed contribute nothing. `ratedGames === 0` (or
+     * absent, on an older backend) means "no rivalry data", and the block
+     * must be hidden rather than rendered as a row of zeroes.
+     */
+    ratedGames?: number;
+    callerAvgPlacement?: number | null;
+    friendAvgPlacement?: number | null;
+    callerFirstBlood?: number;
+    friendFirstBlood?: number;
+    /** Times each knocked the *other* out specifically, not total KOs. */
+    callerKos?: number;
+    friendKos?: number;
   };
 }
 

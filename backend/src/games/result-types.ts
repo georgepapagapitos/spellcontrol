@@ -4,7 +4,7 @@
  * them without a cycle.
  */
 
-import type { GameEvent } from '@spellcontrol/game-core';
+import type { GameEvent, GameSummary } from '@spellcontrol/game-core';
 
 /** One seat in a finished game. `userId`/deck/commander are null for guest seats. */
 export interface GameResultParticipant {
@@ -40,4 +40,8 @@ export interface PublicGameResult {
    *  persist-result.ts for the "ran the selector, found nothing" vs
    *  "pre-migration row" distinction. */
   notableEvents: GameEvent[] | null;
+  /** Derived stats via summarizeGame() at persist time. Null only for rows
+   *  written before this column existed; the rollups in games/rollup.ts
+   *  exclude such games rather than scoring them as zeroes. */
+  summary: GameSummary | null;
 }

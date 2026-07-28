@@ -435,6 +435,14 @@ export async function ensureSchema(): Promise<void> {
     -- never coerced to [] so a summary view can tell that apart from "a
     -- genuinely quiet game" (selector ran, found nothing notable).
     ALTER TABLE game_results ADD COLUMN IF NOT EXISTS notable_events JSONB;
+    -- Derived per-game stats (summarizeGame in @spellcontrol/game-core),
+    -- computed once at persist time so the pod / head-to-head rollups never
+    -- re-walk a log this table doesn't even store. Nullable on the same
+    -- principle as notable_events above: legacy rows are "no data captured",
+    -- and the rollups EXCLUDE them rather than counting them as a game where
+    -- nobody drew first blood — which would drag every rate toward 0 and then
+    -- read as a fact.
+    ALTER TABLE game_results ADD COLUMN IF NOT EXISTS summary JSONB;
 
     -- Public deck publish state (social program W0). Dedicated table rather
     -- than a 4th shares.audience value (see PLAN.md §A1) so the public URL

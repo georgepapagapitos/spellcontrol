@@ -347,6 +347,46 @@
   min-width: 4rem;
 }
 
+/* ── Pod records (superlatives strip) ──────────────────────────────────────
+   Sits under the standings instead of adding three more columns to a table
+   that already scrolls at phone width. Wraps rather than scrolls — these are
+   three short independent facts, so reflowing them beats a second scroll
+   region inside a panel. The component renders nothing when the pod has no
+   records, so there is no empty state to style. ─────────────────────────── */
+.pod-hub-records {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.pod-hub-records li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.pod-hub-record-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.pod-hub-record-value {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pod-hub-record-value b {
+  color: var(--text-primary);
+}
+
 /* ── What the pod plays ───────────────────────────────────────────────────
    Each row is internally stacked (name, then status, then any deck rows) at
    every width — a per-member card reading top-to-bottom needs no

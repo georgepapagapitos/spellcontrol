@@ -4,6 +4,7 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { podMembershipStatus } from '../pods/relations';
 import { toPublic, type ResultRow } from './game-results';
+import { killEdges, rollupForUser } from '../games/rollup';
 import type { PublicGameResult } from '../games/result-types';
 
 /**
@@ -51,7 +52,7 @@ function toPublicForPod(r: ResultRow): PublicGameResult {
 async function fetchPodGames(memberIds: string[]): Promise<ResultRow[]> {
   const result = await getPool().query<ResultRow>(
     `SELECT session_id, code, format, starting_life, winner_seat, winner_user_id,
-            started_at, ended_at, duration_ms, participants, notable_events
+            started_at, ended_at, duration_ms, participants, notable_events, summary
        FROM game_results g
       WHERE (
         SELECT COUNT(*) FROM unnest($1::text[]) AS m(uid)
@@ -119,6 +120,11 @@ podStatsRouter.get(
     // this response only ever carries the aggregated standings below, never
     // the raw `participants` array (which still holds real usernames at this
     // point, pre-projection) alongside it.
+    //
+    // The rollups need the camelCase `summary`, so they read the projected
+    // shape; the W/L tally below stays on the raw rows it already used.
+    const projected = games.map(toPublic);
+
     const standings = roster.rows.map((m) => {
       let played = 0;
       let wins = 0;
@@ -128,18 +134,88 @@ podStatsRouter.get(
         played++;
         if (g.winner_user_id === m.user_id) wins++;
       }
+      const derived = rollupForUser(projected, m.user_id);
       return {
         userId: m.user_id,
         username: m.username,
         played,
         wins,
         winRate: played > 0 ? wins / played : 0,
+        // Derived stats cover only games carrying a summary. `ratedGames` is
+        // their denominator and is deliberately NOT `played` — pre-summary
+        // games are absent data, and folding them in as zeroes would quietly
+        // halve everyone's first-blood rate. A member with ratedGames === 0
+        // must render as "—", never 0.
+        ratedGames: derived.ratedGames,
+        avgPlacement: derived.avgPlacement,
+        firstBlood: derived.firstBloodDrawn,
+        kos: derived.kos,
       };
     });
     standings.sort(
       (a, b) => b.wins - a.wins || b.winRate - a.winRate || a.username.localeCompare(b.username)
     );
 
-    res.json({ standings });
+    const nameById = new Map(roster.rows.map((r) => [r.user_id, r.username]));
+    res.json({ standings, records: podRecords(standings, projected, nameById) });
   }
 );
+
+/** Is this pair a rivalry *between pod members*? A qualifying game only needs
+ *  2+ members present, so both ends must be checked — otherwise a stranger who
+ *  shared one table would have their account id emitted to the whole pod. */
+function bothInPod(edge: { killerId: string; victimId: string }, members: Map<string, string>) {
+  return members.has(edge.killerId) && members.has(edge.victimId);
+}
+
+/**
+ * The pod's superlatives — the "who's the table's problem" line. Every field is
+ * nullable and a null must render as absent, not as a zero: an unclaimed
+ * superlative means the pod has no summary-carrying games yet (or, for
+ * `archenemy`, never passes turns, so `summarizeGame` credits no KOs at all).
+ */
+function podRecords(
+  standings: {
+    userId: string;
+    username: string;
+    ratedGames: number;
+    firstBlood: number;
+    kos: number;
+  }[],
+  games: PublicGameResult[],
+  nameById: Map<string, string>
+) {
+  const best = <T>(rows: T[], score: (r: T) => number): T | null => {
+    const ranked = rows.filter((r) => score(r) > 0).sort((a, b) => score(b) - score(a));
+    return ranked[0] ?? null;
+  };
+
+  const bloodiest = best(standings, (s) => s.firstBlood);
+  const deadliest = best(standings, (s) => s.kos);
+  // Member-vs-member only — see bothInPod. `standings` is already
+  // roster-derived, so the two superlatives above are member-scoped already.
+  const rivalry = killEdges(games).find((e) => bothInPod(e, nameById)) ?? null;
+
+  return {
+    firstBlood: bloodiest
+      ? {
+          userId: bloodiest.userId,
+          username: bloodiest.username,
+          games: bloodiest.firstBlood,
+          rate: bloodiest.ratedGames > 0 ? bloodiest.firstBlood / bloodiest.ratedGames : 0,
+        }
+      : null,
+    mostKos: deadliest
+      ? { userId: deadliest.userId, username: deadliest.username, kos: deadliest.kos }
+      : null,
+    archenemy: rivalry
+      ? {
+          killerId: rivalry.killerId,
+          killerName: nameById.get(rivalry.killerId) ?? 'Someone',
+          victimId: rivalry.victimId,
+          victimName: nameById.get(rivalry.victimId) ?? 'someone',
+          kos: rivalry.kos,
+        }
+      : null,
+  };
+}
