@@ -1,5 +1,5 @@
 import './DeckComparePage.css';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useDecksStore, type Deck } from '../store/decks';
 import type { ScryfallCard } from '@/deck-builder/types';
@@ -9,7 +9,8 @@ import { DeckColorPanel } from '../components/deck/DeckColorPanel';
 import { BracketVerdictStrip } from '../components/deck/BracketVerdictStrip';
 import { MeterBar } from '../components/shared/MeterBar';
 import { InfoTip } from '../components/InfoTip';
-import { diffDecks, type CardDelta } from '@/lib/deck-diff';
+import { DiffGroup } from '../components/deck/DiffCardRow';
+import { diffDecks } from '@/lib/deck-diff';
 import { buildManaData } from '@/lib/build-mana-data';
 import { useCurrency } from '@/lib/currency';
 import { formatMoney } from '@/lib/format-money';
@@ -28,80 +29,6 @@ const allCardsOf = (deck: Deck): ScryfallCard[] => {
   for (const dc of deck.cards) list.push(dc.card);
   return list;
 };
-
-// Added / removed / changed each get a text glyph + word so the signal is never
-// color-only (the tone class is purely additive).
-const TONE = {
-  added: { cls: 'is-added', glyph: '+', word: 'Added' },
-  removed: { cls: 'is-removed', glyph: '−', word: 'Removed' },
-  changed: { cls: 'is-changed', glyph: '~', word: 'Changed' },
-} as const;
-export type Tone = keyof typeof TONE;
-
-// Exported so other diff-driven surfaces (ConflictPanel.tsx) reuse the same
-// icon+word row markup instead of re-deriving it — never color-only signal.
-export function DiffCardRow({ delta, tone }: { delta: CardDelta; tone: Tone }) {
-  const t = TONE[tone];
-  const qty =
-    tone === 'added'
-      ? `+${delta.toQty}`
-      : tone === 'removed'
-        ? `−${delta.fromQty}`
-        : `${delta.fromQty} → ${delta.toQty}`;
-  const ariaLabel =
-    tone === 'changed'
-      ? `${t.word}: ${delta.card.name}, ${delta.fromQty} to ${delta.toQty} copies`
-      : `${t.word}: ${delta.card.name}${delta.toQty + delta.fromQty > 1 ? `, ${Math.max(delta.toQty, delta.fromQty)} copies` : ''}`;
-  return (
-    <li className={`deck-compare-diff-row ${t.cls}`} aria-label={ariaLabel}>
-      <span className="deck-compare-diff-bar" aria-hidden="true" />
-      <span className="deck-compare-diff-glyph" aria-hidden="true">
-        {t.glyph}
-      </span>
-      <span className="deck-compare-diff-name" title={delta.card.name}>
-        {delta.card.name}
-      </span>
-      <span className="deck-compare-diff-qty" aria-hidden="true">
-        {qty}
-      </span>
-    </li>
-  );
-}
-
-const COLLAPSE_AT = 8;
-
-function DiffGroup({ tone, deltas }: { tone: Tone; deltas: CardDelta[] }) {
-  const [expanded, setExpanded] = useState(false);
-  if (deltas.length === 0) return null;
-  const t = TONE[tone];
-  const collapsible = deltas.length > COLLAPSE_AT;
-  const visible = expanded || !collapsible ? deltas : deltas.slice(0, COLLAPSE_AT);
-  const hidden = deltas.length - COLLAPSE_AT;
-  const listId = `dcp-${tone}-list`;
-  return (
-    <div className="deck-compare-diff-group">
-      <h3 className="deck-compare-diff-group-title">
-        {t.word} ({deltas.length})
-      </h3>
-      <ul className="deck-compare-diff-list" id={listId} role="list">
-        {visible.map((d) => (
-          <DiffCardRow key={d.card.oracle_id || d.card.name} delta={d} tone={tone} />
-        ))}
-      </ul>
-      {collapsible && (
-        <button
-          type="button"
-          className="deck-compare-show-more"
-          aria-expanded={expanded}
-          aria-controls={listId}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? 'Show fewer' : `Show ${hidden} more`}
-        </button>
-      )}
-    </div>
-  );
-}
 
 /** A → B with a signed, color-AND-text delta and a screen-reader sentence. */
 function DiffStatChip({

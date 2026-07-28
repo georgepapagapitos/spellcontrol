@@ -272,6 +272,18 @@ export interface Deck {
    * deck's public `/d/:slug` page), not a `/s/:token` share token.
    */
   forkedFrom?: { slug: string; ownerUsername: string; deckName: string };
+  /**
+   * Paste-and-diff resync bookkeeping (E173). Stamped only by `resyncDeck`,
+   * which only ever targets an EXISTING deck — unlike `sourceProduct`/
+   * `forkedFrom` above (set at `createDeck` time), this has no create-time
+   * input to hang off. `localMutationToken` snapshots the deck's
+   * local-mutation counter (see `useLocalMutationToken`) as of THIS sync;
+   * the resync dialog compares it against the live token to detect "edited
+   * locally since the last sync" — the same guard `touch()`'s doc comment
+   * below explains, without the `Date.now()` race a plain timestamp
+   * comparison would hit.
+   */
+  lastSyncedFrom?: { syncedAt: number; localMutationToken: number };
 }
 
 /**
@@ -372,6 +384,29 @@ interface DecksState {
    * compensating mutation rides the normal sync queue. No-op if the id is gone.
    */
   replaceDeck(deckId: string, deck: Deck): void;
+
+  /**
+   * Commit a paste-and-diff resync (E173) as one write: the same wholesale
+   * field replace `replaceDeck` does for undo/redo, plus stamping
+   * `lastSyncedFrom` with the local-mutation token AS OF this commit (read
+   * back after `touch()` bumps it in the same write, not before) — so a
+   * later genuine local edit bumps the token again and the resync dialog can
+   * tell the two apart. One `set()` regardless of how many cards changed —
+   * never loop per-card actions here (each would fire its own sync push).
+   */
+  resyncDeck(
+    deckId: string,
+    fields: Pick<
+      Deck,
+      | 'cards'
+      | 'sideboard'
+      | 'considering'
+      | 'commander'
+      | 'partnerCommander'
+      | 'commanderAllocatedCopyId'
+      | 'partnerCommanderAllocatedCopyId'
+    >
+  ): void;
 
   addSideboardCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeSideboardCard(deckId: string, slotId: string): void;
@@ -680,6 +715,21 @@ export const useDecksStore = create<DecksState>()(
       replaceDeck: (deckId, deck) =>
         set((s) => ({
           decks: s.decks.map((d) => (d.id === deckId ? touch({ ...deck, id: d.id }) : d)),
+        })),
+
+      resyncDeck: (deckId, fields) =>
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const touched = touch({ ...d, ...fields });
+            return {
+              ...touched,
+              lastSyncedFrom: {
+                syncedAt: touched.updatedAt,
+                localMutationToken: getLocalMutationToken(deckId),
+              },
+            };
+          }),
         })),
 
       addSideboardCard: (deckId, card, allocatedCopyId = null) => {

@@ -7,6 +7,7 @@ import {
 } from './allocations';
 import { validateDeck, type LegalityIssue } from './deck-validation';
 import { newDeckCard, type Deck, type DeckCard } from '../store/decks';
+import { cardKey, type CardDelta, type CardListDiff } from './deck-diff';
 import type { EnrichedCard } from '../types';
 
 /**
@@ -159,6 +160,109 @@ export interface BulkEditPlan {
   legalityIssues: LegalityIssue[];
   /** False when the plan is byte-identical to the current deck — disables Confirm. */
   hasChanges: boolean;
+}
+
+export interface AllocationImpact {
+  /** Slots carried over from the deck as-is — same allocatedCopyId as before. */
+  kept: number;
+  /** Newly created slots (a genuinely new name, or growth past the old qty). */
+  added: number;
+  /** Of `added`, how many landed with no allocatedCopyId — not bound to an owned copy. */
+  addedUnallocated: number;
+}
+
+/**
+ * What a plan does to physical-copy bindings, in one summary — the resync
+ * dialog's answer to "what happens to allocatedCopyId on surviving cards"
+ * (E173). Pure post-hoc read of `plan` against `deck`'s pre-edit slot ids;
+ * doesn't re-run any reconciliation.
+ */
+export function summarizeAllocationImpact(deck: Deck, plan: BulkEditPlan): AllocationImpact {
+  const originalSlotIds = new Set<string>();
+  for (const c of [...deck.cards, ...(deck.sideboard ?? []), ...(deck.considering ?? [])]) {
+    originalSlotIds.add(c.slotId);
+  }
+  let kept = 0;
+  let added = 0;
+  let addedUnallocated = 0;
+  for (const c of [...plan.cards, ...plan.sideboard, ...plan.considering]) {
+    if (originalSlotIds.has(c.slotId)) {
+      kept += 1;
+    } else {
+      added += 1;
+      if (!c.allocatedCopyId) addedUnallocated += 1;
+    }
+  }
+  return { kept, added, addedUnallocated };
+}
+
+/** Every card across ALL zones (commander/partner + main + side + considering),
+ *  folded into per-identity counts — the resync diff's before/after input. */
+function countAllZones(input: {
+  commander: ScryfallCard | null;
+  partnerCommander: ScryfallCard | null;
+  cards: DeckCard[];
+  sideboard: DeckCard[];
+  considering: DeckCard[];
+}): Map<string, { card: ScryfallCard; qty: number; isCommander: boolean }> {
+  const counts = new Map<string, { card: ScryfallCard; qty: number; isCommander: boolean }>();
+  const add = (card: ScryfallCard, isCommander: boolean) => {
+    const key = cardKey(card);
+    const existing = counts.get(key);
+    if (existing) existing.qty += 1;
+    else counts.set(key, { card, qty: 1, isCommander });
+  };
+  if (input.commander) add(input.commander, true);
+  if (input.partnerCommander) add(input.partnerCommander, true);
+  for (const c of [...input.cards, ...input.sideboard, ...input.considering]) add(c.card, false);
+  return counts;
+}
+
+/**
+ * Resync's full-deck card diff (E173): same added/removed/changed shape as
+ * `deck-diff.ts`'s `diffDeckCards` (DeckComparePage's "what changed"), but
+ * counted across EVERY zone — commander/partner + main + sideboard +
+ * considering combined — so a card that only changed in the sideboard, or
+ * moved zones, still shows up (`diffDeckCards` itself only looks at
+ * commander + mainboard, by design, for the deck-vs-deck compare view).
+ * Feeds the same shared `DiffGroup`/`DiffCardRow` renderer either way — only
+ * the counting differs, never the markup.
+ */
+export function buildResyncCardDiff(deck: Deck, plan: BulkEditPlan): CardListDiff {
+  const before = countAllZones(deck);
+  const after = countAllZones({
+    commander: plan.commander,
+    partnerCommander: plan.partnerCommander,
+    cards: plan.cards,
+    sideboard: plan.sideboard,
+    considering: plan.considering,
+  });
+
+  const added: CardDelta[] = [];
+  const removed: CardDelta[] = [];
+  const changed: CardDelta[] = [];
+  let unchangedCount = 0;
+
+  const keys = new Set([...before.keys(), ...after.keys()]);
+  for (const key of keys) {
+    const inA = before.get(key);
+    const inB = after.get(key);
+    const fromQty = inA?.qty ?? 0;
+    const toQty = inB?.qty ?? 0;
+    const card = (inB ?? inA)!.card;
+    const isCommander = (inB ?? inA)!.isCommander;
+    const delta: CardDelta = { card, isCommander, fromQty, toQty };
+    if (fromQty === 0) added.push(delta);
+    else if (toQty === 0) removed.push(delta);
+    else if (fromQty !== toQty) changed.push(delta);
+    else unchangedCount += 1;
+  }
+
+  const byName = (x: CardDelta, y: CardDelta) => x.card.name.localeCompare(y.card.name);
+  added.sort(byName);
+  removed.sort(byName);
+  changed.sort(byName);
+  return { added, removed, changed, unchangedCount };
 }
 
 /**
