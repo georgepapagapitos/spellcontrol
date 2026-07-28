@@ -6,7 +6,7 @@ import { useConflictsStore, type DeckConflict } from '../store/conflicts';
 import { useDecksStore } from '../store/decks';
 import { toast } from '../store/toasts';
 import { diffDeckCards, type CardDelta } from '../lib/deck-diff';
-import { DiffCardRow, type Tone } from '../pages/DeckComparePage';
+import { DiffCardRow, type Tone } from './deck/DiffCardRow';
 import './ConflictPanel.css';
 
 const SECTION_LABEL: Record<Tone, string> = {
@@ -17,16 +17,17 @@ const SECTION_LABEL: Record<Tone, string> = {
 };
 const SECTION_ORDER: Tone[] = ['removed', 'added', 'changed'];
 
-/** One diff section, reusing DeckComparePage's row markup but with copy
- *  framed for "your edit vs. the version that was kept" instead of A-vs-B. */
+/** One diff section, reusing the shared DiffCardRow row markup (see
+ *  components/deck/DiffCardRow.tsx) but with copy framed for "your edit vs.
+ *  the version that was kept" instead of A-vs-B. */
 function ConflictDiffSection({ tone, deltas }: { tone: Tone; deltas: CardDelta[] }) {
   if (deltas.length === 0) return null;
   return (
-    <div className="deck-compare-diff-group">
-      <h3 className="deck-compare-diff-group-title">
+    <div className="deck-diff-group">
+      <h3 className="deck-diff-group-title">
         {SECTION_LABEL[tone]} ({deltas.length})
       </h3>
-      <ul className="deck-compare-diff-list" role="list">
+      <ul className="deck-diff-list" role="list">
         {deltas.map((d) => (
           <DiffCardRow key={d.card.oracle_id || d.card.name} delta={d} tone={tone} />
         ))}

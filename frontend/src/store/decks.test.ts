@@ -1089,3 +1089,84 @@ describe('local mutation token (E177)', () => {
     expect(getLocalMutationToken('d-tok-1')).toBe(before);
   });
 });
+
+describe('resyncDeck (E173)', () => {
+  it('commits every field in one write and stamps lastSyncedFrom with the POST-commit token', () => {
+    useDecksStore.setState({
+      decks: [baseDeck({ id: 'd-resync-1', cards: [slot('Sol Ring', 'copy-1')] })],
+    });
+    const newCards = [slot('Mana Crypt', 'copy-2')];
+
+    useDecksStore.getState().resyncDeck('d-resync-1', {
+      cards: newCards,
+      sideboard: [],
+      considering: [],
+      commander: null,
+      partnerCommander: null,
+      commanderAllocatedCopyId: null,
+      partnerCommanderAllocatedCopyId: null,
+    });
+
+    const deck = useDecksStore.getState().decks[0];
+    expect(deck.cards).toBe(newCards);
+    expect(deck.lastSyncedFrom).toBeDefined();
+    expect(deck.lastSyncedFrom!.syncedAt).toBe(deck.updatedAt);
+    // The token stamped is the value AFTER this commit's own touch() bump —
+    // reading it right back confirms there's no stale-by-one race.
+    expect(deck.lastSyncedFrom!.localMutationToken).toBe(getLocalMutationToken('d-resync-1'));
+  });
+
+  it('bumps the local-mutation token exactly once (a resync IS one mutation)', () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-resync-2' })] });
+    const before = getLocalMutationToken('d-resync-2');
+
+    useDecksStore.getState().resyncDeck('d-resync-2', {
+      cards: [],
+      sideboard: [],
+      considering: [],
+      commander: null,
+      partnerCommander: null,
+      commanderAllocatedCopyId: null,
+      partnerCommanderAllocatedCopyId: null,
+    });
+
+    expect(getLocalMutationToken('d-resync-2')).toBe(before + 1);
+  });
+
+  it('a later local edit diverges from the stamped token (the divergence-banner contract)', () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-resync-3' })] });
+    useDecksStore.getState().resyncDeck('d-resync-3', {
+      cards: [],
+      sideboard: [],
+      considering: [],
+      commander: null,
+      partnerCommander: null,
+      commanderAllocatedCopyId: null,
+      partnerCommanderAllocatedCopyId: null,
+    });
+    const stamped = useDecksStore.getState().decks[0].lastSyncedFrom!.localMutationToken;
+    expect(getLocalMutationToken('d-resync-3')).toBe(stamped);
+
+    useDecksStore.getState().addCard('d-resync-3', sfCard('Sol Ring'));
+
+    expect(getLocalMutationToken('d-resync-3')).not.toBe(stamped);
+  });
+
+  it('fires exactly one persistDecksState push for the whole resync, not one per card', async () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-resync-4' })] });
+    persistDecksState.mockClear();
+
+    useDecksStore.getState().resyncDeck('d-resync-4', {
+      cards: [slot('Sol Ring', null), slot('Mana Crypt', null), slot('Arcane Signet', null)],
+      sideboard: [],
+      considering: [],
+      commander: null,
+      partnerCommander: null,
+      commanderAllocatedCopyId: null,
+      partnerCommanderAllocatedCopyId: null,
+    });
+    await flush();
+
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+});

@@ -3,7 +3,7 @@ import { WifiOff } from 'lucide-react';
 import { Modal } from '../Modal';
 import { ProgressBar } from '../ProgressBar';
 import { importDeckText } from '../../lib/api';
-import { useDecksStore, type Deck } from '../../store/decks';
+import { useDecksStore, useLocalMutationToken, type Deck } from '../../store/decks';
 import { useCollectionStore } from '../../store/collection';
 import { useDeckHistoryStore } from '../../store/deck-history';
 import { useCollectionByCopyId } from '../../lib/allocations';
@@ -12,9 +12,13 @@ import {
   parseBulkEditText,
   findPendingNames,
   buildBulkEditPlan,
+  buildResyncCardDiff,
+  summarizeAllocationImpact,
   type ParsedBulkEdit,
   type BulkEditPlan,
 } from '../../lib/deck-bulk-edit';
+import { DiffGroup } from './DiffCardRow';
+import { formatRelativeTime } from '../../lib/format-time';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { useOnline } from './import-deck-shared';
@@ -23,6 +27,17 @@ import './BulkEditDeckDialog.css';
 interface Props {
   deck: Deck;
   onClose: () => void;
+  /**
+   * 'edit' (default) is the original text/bulk-edit flow — the textarea
+   * opens pre-filled with the current decklist for direct editing.
+   * 'resync' (E173) is paste-and-diff: the textarea opens EMPTY, the user
+   * pastes an updated export from wherever they keep their list-of-record
+   * (Moxfield, Archidekt, anywhere — the parser already auto-detects both
+   * layouts, so there's no source picker to get wrong), and the commit
+   * stamps `lastSyncedFrom` instead of just `replaceDeck`. Both modes share
+   * the exact same parse/resolve/reconcile core below.
+   */
+  mode?: 'edit' | 'resync';
 }
 
 type Step = 'input' | 'resolving' | 'review';
@@ -32,34 +47,49 @@ type Step = 'input' | 'resolving' | 'review';
  * as "qty name" lines and commit as one replace. The reconciliation
  * (allocatedCopyId preservation) lives in lib/deck-bulk-edit.ts; this dialog
  * is just the parse → resolve-new-names → review → commit flow around it.
+ * `mode="resync"` (E173) reuses this same flow for "refresh from an external
+ * list" — see the Props doc above.
  *
  * Local-first: `findPendingNames` only asks for names not already anywhere
  * in the deck, so a pure quantity/removal/reorder edit never touches the
  * network. Only genuinely new names go through `importDeckText`.
  */
-export function BulkEditDeckDialog({ deck, onClose }: Props) {
+export function BulkEditDeckDialog({ deck, onClose, mode = 'edit' }: Props) {
   const decks = useDecksStore((s) => s.decks);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
+  const resyncDeck = useDecksStore((s) => s.resyncDeck);
   const recordEdit = useDeckHistoryStore((s) => s.record);
   const collectionCards = useCollectionStore((s) => s.cards);
   const collectionByCopyId = useCollectionByCopyId();
   const online = useOnline();
   const formatConfig = DECK_FORMAT_CONFIGS[deck.format];
+  const liveMutationToken = useLocalMutationToken(deck.id);
+
+  // Surfaced, never silently clobbered: has the user edited this deck locally
+  // since the last resync? Compares the local-mutation token (E177) snapshotted
+  // at that sync against the live one — not `updatedAt`/`syncedAt` timestamps,
+  // which race (see the `touch()` doc comment in store/decks.ts).
+  const divergedSinceSync =
+    mode === 'resync' &&
+    !!deck.lastSyncedFrom &&
+    liveMutationToken !== deck.lastSyncedFrom.localMutationToken;
 
   const [text, setText] = useState(() =>
-    buildExport(
-      {
-        commander: deck.commander,
-        partner: deck.partnerCommander,
-        cards: deck.cards,
-        sideboard: deck.sideboard,
-        considering: deck.considering,
-        collectionByCopyId,
-        commanderAllocatedCopyId: deck.commanderAllocatedCopyId,
-        partnerAllocatedCopyId: deck.partnerCommanderAllocatedCopyId,
-      },
-      'mtga'
-    )
+    mode === 'resync'
+      ? ''
+      : buildExport(
+          {
+            commander: deck.commander,
+            partner: deck.partnerCommander,
+            cards: deck.cards,
+            sideboard: deck.sideboard,
+            considering: deck.considering,
+            collectionByCopyId,
+            commanderAllocatedCopyId: deck.commanderAllocatedCopyId,
+            partnerAllocatedCopyId: deck.partnerCommanderAllocatedCopyId,
+          },
+          'mtga'
+        )
   );
   const [step, setStep] = useState<Step>('input');
   const [emptyError, setEmptyError] = useState(false);
@@ -125,25 +155,39 @@ export function BulkEditDeckDialog({ deck, onClose }: Props) {
     return plan.unresolvedNames.filter((n) => !retryable.has(n.toLowerCase()));
   }, [plan, fetchErrorNames]);
 
+  // Resync-only richer diff: every zone, added/removed/changed with real
+  // before→after quantities — renders through the same shared DiffGroup/
+  // DiffCardRow as /decks/compare rather than re-deriving diff markup.
+  const cardDiff = useMemo(() => {
+    if (mode !== 'resync' || !plan) return null;
+    return buildResyncCardDiff(deck, plan);
+  }, [mode, plan, deck]);
+
+  const allocationImpact = useMemo(() => {
+    if (mode !== 'resync' || !plan) return null;
+    return summarizeAllocationImpact(deck, plan);
+  }, [mode, plan, deck]);
+
   const handleConfirm = useCallback(() => {
     if (!plan || plan.commanderMissing || !plan.hasChanges) return;
     const changeCount =
       plan.added.reduce((s, e) => s + e.qty, 0) + plan.removed.reduce((s, e) => s + e.qty, 0);
-    const label = `bulk edit${changeCount > 0 ? ` (${changeCount} card${changeCount === 1 ? '' : 's'})` : ''}`;
+    const label = `${mode === 'resync' ? 'resync' : 'bulk edit'}${changeCount > 0 ? ` (${changeCount} card${changeCount === 1 ? '' : 's'})` : ''}`;
+    const fields = {
+      cards: plan.cards,
+      sideboard: plan.sideboard,
+      considering: plan.considering,
+      commander: plan.commander,
+      partnerCommander: plan.partnerCommander,
+      commanderAllocatedCopyId: plan.commanderAllocatedCopyId,
+      partnerCommanderAllocatedCopyId: plan.partnerCommanderAllocatedCopyId,
+    };
     recordEdit(deck.id, label, () => {
-      replaceDeck(deck.id, {
-        ...deck,
-        cards: plan.cards,
-        sideboard: plan.sideboard,
-        considering: plan.considering,
-        commander: plan.commander,
-        partnerCommander: plan.partnerCommander,
-        commanderAllocatedCopyId: plan.commanderAllocatedCopyId,
-        partnerCommanderAllocatedCopyId: plan.partnerCommanderAllocatedCopyId,
-      });
+      if (mode === 'resync') resyncDeck(deck.id, fields);
+      else replaceDeck(deck.id, { ...deck, ...fields });
     });
     onClose();
-  }, [plan, deck, recordEdit, replaceDeck, onClose]);
+  }, [plan, deck, mode, recordEdit, replaceDeck, resyncDeck, onClose]);
 
   const isLoading = step === 'resolving';
 
@@ -155,7 +199,9 @@ export function BulkEditDeckDialog({ deck, onClose }: Props) {
       dismissable={!isLoading}
     >
       <div className="modal-header">
-        <h2 id="bulk-edit-deck-title">Bulk edit {deck.name}</h2>
+        <h2 id="bulk-edit-deck-title">
+          {mode === 'resync' ? `Resync ${deck.name}` : `Bulk edit ${deck.name}`}
+        </h2>
         <button
           type="button"
           className="modal-close"
@@ -171,10 +217,33 @@ export function BulkEditDeckDialog({ deck, onClose }: Props) {
         {step === 'input' && (
           <>
             <p className="import-deck-hint">
-              Edit the whole decklist as <strong>qty name</strong> lines, one per row. Cards you
-              keep unchanged stay bound to the same physical copy — only genuine additions and
-              removals touch your collection's allocations.
+              {mode === 'resync' ? (
+                <>
+                  Paste the updated list from wherever you keep it — Moxfield, Archidekt, anywhere.
+                  We'll diff it against this deck and show exactly what changed before you save.
+                  Cards you keep unchanged stay bound to the same physical copy.
+                </>
+              ) : (
+                <>
+                  Edit the whole decklist as <strong>qty name</strong> lines, one per row. Cards you
+                  keep unchanged stay bound to the same physical copy — only genuine additions and
+                  removals touch your collection's allocations.
+                </>
+              )}
             </p>
+            {mode === 'resync' && deck.lastSyncedFrom && (
+              <p className="bulk-edit-last-synced">
+                Last synced {formatRelativeTime(deck.lastSyncedFrom.syncedAt, { verbose: true })}.
+              </p>
+            )}
+            {divergedSinceSync && (
+              <div className="import-deck-warning" role="alert">
+                <div className="import-deck-warning-title">Edited since the last sync</div>
+                You've changed this deck locally since it was last synced. If the pasted list
+                doesn't include those changes, they'll show up as removed below — check the diff
+                before saving so a stale paste doesn't overwrite them.
+              </div>
+            )}
             {fetchError && (
               <div className="error-banner">
                 <span>{fetchError}</span>
@@ -299,29 +368,51 @@ export function BulkEditDeckDialog({ deck, onClose }: Props) {
               </div>
             )}
 
-            {(plan.added.length > 0 || plan.removed.length > 0) && (
-              <div className="bulk-edit-diff">
-                {plan.added.length > 0 && (
-                  <ul className="bulk-edit-diff-list bulk-edit-diff-added">
-                    {plan.added.map((e) => (
-                      <li key={`add-${e.name}`}>
-                        <span aria-hidden>+</span> {e.qty > 1 ? `${e.qty}× ` : ''}
-                        {e.name}
-                      </li>
-                    ))}
-                  </ul>
+            {mode === 'resync' && cardDiff ? (
+              <>
+                <DiffGroup tone="added" deltas={cardDiff.added} />
+                <DiffGroup tone="removed" deltas={cardDiff.removed} />
+                <DiffGroup tone="changed" deltas={cardDiff.changed} />
+                {allocationImpact && (allocationImpact.kept > 0 || allocationImpact.added > 0) && (
+                  <p className="bulk-edit-allocation-impact" role="status">
+                    {allocationImpact.kept > 0 &&
+                      (allocationImpact.kept === 1
+                        ? '1 card keeps its allocated copy. '
+                        : `${allocationImpact.kept} cards keep their allocated copy. `)}
+                    {allocationImpact.added > 0 &&
+                      `${allocationImpact.added} newly added${
+                        allocationImpact.addedUnallocated > 0
+                          ? ` (${allocationImpact.addedUnallocated} not yet in your collection)`
+                          : ''
+                      }.`}
+                  </p>
                 )}
-                {plan.removed.length > 0 && (
-                  <ul className="bulk-edit-diff-list bulk-edit-diff-removed">
-                    {plan.removed.map((e) => (
-                      <li key={`rm-${e.name}`}>
-                        <span aria-hidden>−</span> {e.qty > 1 ? `${e.qty}× ` : ''}
-                        {e.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              </>
+            ) : (
+              (plan.added.length > 0 || plan.removed.length > 0) && (
+                <div className="bulk-edit-diff">
+                  {plan.added.length > 0 && (
+                    <ul className="bulk-edit-diff-list bulk-edit-diff-added">
+                      {plan.added.map((e) => (
+                        <li key={`add-${e.name}`}>
+                          <span aria-hidden>+</span> {e.qty > 1 ? `${e.qty}× ` : ''}
+                          {e.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {plan.removed.length > 0 && (
+                    <ul className="bulk-edit-diff-list bulk-edit-diff-removed">
+                      {plan.removed.map((e) => (
+                        <li key={`rm-${e.name}`}>
+                          <span aria-hidden>−</span> {e.qty > 1 ? `${e.qty}× ` : ''}
+                          {e.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )
             )}
 
             {!plan.hasChanges && !plan.commanderMissing && (
