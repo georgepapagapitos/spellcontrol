@@ -162,12 +162,12 @@ this register elsewhere, and don't flatten it here.
 
 **Rectangles act; pills label (plus the toolbar-control pill family).**
 
-| Use                         | Radius                             | For                                                                                                                      |
-| --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Use                         | Radius                             | For                                                                                                                       |
+| --------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | **Buttons — all of them**   | `var(--radius)` (6px) stamped rect | Every do-something button, hero CTAs included (`.pill-btn` is a historic name — T53 Phase 4 retired the 999px hero tier). |
-| **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                      |
-| **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                         |
-| **Tape labels**             | `2px` (`.site-nav-count`)          | The Dymo-tape material label tier (T53): fixed dark tape + pale caps on **navigation chrome only** (nav/hub counts).     |
+| **Cards / panels / sheets** | `var(--radius-lg)` (10px)          | Container surfaces.                                                                                                       |
+| **Pills (labels)**          | `999px`                            | **Non-actionable** chips, badges, counts, tags, color swatches/dots — things that _label_ state.                          |
+| **Tape labels**             | `2px` (`.site-nav-count`)          | The Dymo-tape material label tier (T53): fixed dark tape + pale caps on **navigation chrome only** (nav/hub counts).      |
 
 **Tape labels are a scoped second label tier, not a pill replacement.** A
 tape chip is still non-actionable (the pill rule's role logic is unchanged);
@@ -185,7 +185,7 @@ never change — visibility comes from the edge, not from theming the tape.
 **No labelled button is a pill — anywhere (T53 Phase 4).** The old hero-CTA
 pill tier is retired: hero CTAs are stamped rects like every other button
 (`.pill-btn`/`.pill-btn-primary` keep their historic class names — the
-role-not-name ruling below covers them). The only pill-shaped *buttons* left
+role-not-name ruling below covers them). The only pill-shaped _buttons_ left
 are genuinely **circular icon-only** ones (equal width/height, no text — the
 `⋮` overflow, the round `+`) and the toolbar-control family in the next
 section.
@@ -212,7 +212,7 @@ button between tiers:
 
 When reskinning any surface: keep each button in its tier. Restyling a
 secondary as a fill (or a primary as an outline) changes what the button
-*means*, not how it looks — that's an intent inversion, not a facelift.
+_means_, not how it looks — that's an intent inversion, not a facelift.
 
 Anti-patterns this rule kills:
 
@@ -286,7 +286,7 @@ muted, right-aligned, ellipsizing value summary (`.deck-customizer-group-summary
 in the deck-gen customizer is the reference) rendered only while closed, so a
 non-default setting is never invisible ("Budget · $50 deck", "Salt · Unsalted").
 Related ruling: **identity-level controls don't collapse.** A control that
-changes *what kind of result* the user gets (target bracket, Staples ↔ Brew)
+changes _what kind of result_ the user gets (target bracket, Staples ↔ Brew)
 stays always-open; collapsibles are for constraints and advanced tuning. Don't
 bury an objective-function dial in a closed group with an opaque title.
 
@@ -294,7 +294,7 @@ bury an objective-function dial in a closed group with an opaque title.
 taxonomy above.** `UserAvatar` (a person's card-art image, or a flat-colored
 initial when unset) is `border-radius: 50%`, not `--radius`/`--radius-lg`/pill.
 It's a deliberate, sanctioned exception: the pill-vs-rect rules above govern
-*actionable* and *label* elements, and an avatar is neither — it's a
+_actionable_ and _label_ elements, and an avatar is neither — it's a
 decorative person-identity glyph (`aria-hidden`, named by adjacent text), the
 same category a circular profile photo occupies industry-wide. First shipped
 in the profile editor (Settings), now also the public profile page
@@ -348,7 +348,7 @@ a hero CTA.
   both the Play sections switcher and the Auth (Sign in / Create account) toggle.
   Compliant reference call sites: DeckEditor, Friends, Cube.
 - **An exclusive-value picker is NOT a tab strip.** A segmented control that
-  picks a *setting* (USD/EUR price currency) rather than switching visible
+  picks a _setting_ (USD/EUR price currency) rather than switching visible
   views uses native radio semantics — a `fieldset` of visually-hidden
   `<input type="radio">`s stretched over styled label spans — not `Tabs.tsx`
   (`role=tablist` advertises panels that don't exist) and not `aria-pressed`
@@ -358,12 +358,12 @@ a hero CTA.
 
 ## Typography — the four faces (T53/E154)
 
-| Face             | Token            | Scope                                                                                                | Never                                                     |
-| ---------------- | ---------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| Eczar            | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)  | —                                                         |
-| Sorts Mill Goudy | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below) | body, chrome, section titles, dialog titles, numerals     |
-| Archivo Narrow   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                            |
-| IBM Plex Mono    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                         |
+| Face             | Token            | Scope                                                                                                | Never                                                 |
+| ---------------- | ---------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Eczar            | `--font-serif`   | The default: body, controls, section/lane titles (incl. the serif-caps `.deck-combos-title` family)  | —                                                     |
+| Sorts Mill Goudy | `--font-display` | **Hero tier only**: binder/deck hero names + page-identity titles at `--text-xl` and up (list below) | body, chrome, section titles, dialog titles, numerals |
+| Archivo Narrow   | `--font-label`   | Chrome/tab/tape labels, uppercase + tracked — see § App chrome                                       | prose, headings, form controls                        |
+| IBM Plex Mono    | `--font-mono`    | Data: prices, qty, set codes, tabular numerals                                                       | —                                                     |
 
 Rulings for `--font-display` (restyle Phase 6):
 
@@ -374,17 +374,17 @@ Rulings for `--font-display` (restyle Phase 6):
   `-input` — the pair must match or toggling edit mode flashes fonts),
   `.deck-builder-header h1`, `.shared-view-title`, `.auth-title`,
   `.welcome-hero-headline`, `.friends-page-heading`, `.friend-hub-heading`,
-  `.public-profile-name`, `.pod-hub-name`. Everything *functional* stays
+  `.public-profile-name`, `.pod-hub-name`. Everything _functional_ stays
   `--font-serif`: dialog/sheet/modal titles (a confirm dialog is not ceremony),
   section and lane headings, empty-state taglines, error-state titles
   ("Link not found"), stat numerals, the `--text-lg` home greeting.
 - **Single 400 cut — always pair `font-family: var(--font-display)` with
   `font-weight: 400`.** Sorts Mill Goudy ships no bold; a leftover 600/700
   makes the browser synthesize a smeared faux-bold. Hierarchy comes from size
-  + face contrast (the vintage-print convention), never weight. A rename input
-  smaller than its title (`.pod-hub-name-input`, `--text-lg`) is a form
-  control and stays `--font-serif` — only a same-size editable twin of the
-  title itself (`.deck-editor-name-input`) wears the display face.
+  - face contrast (the vintage-print convention), never weight. A rename input
+    smaller than its title (`.pod-hub-name-input`, `--text-lg`) is a form
+    control and stays `--font-serif` — only a same-size editable twin of the
+    title itself (`.deck-editor-name-input`) wears the display face.
 - **Fallback degrades to Eczar, not Georgia-bold-soup:** the stack is
   `'Sorts Mill Goudy', 'Eczar', 'Georgia', serif`, so a failed font load
   renders a lighter Eczar title and nothing else moves.
@@ -451,7 +451,7 @@ Rakdos stays blood-black). Rulings:
 - **Any `position: fixed`, viewport-anchored bottom overlay must clear the
   mobile tab bar, not just the safe-area inset.** The tab bar
   (`.mobile-tab-bar`) is a normal-flow flex child, not an overlay, so page
-  *content* already accounts for its height — but a `fixed` element (the
+  _content_ already accounts for its height — but a `fixed` element (the
   toast viewport) is positioned against the raw viewport edge and paints
   UNDER the bar's occupied strip regardless of `--z-tooltip` winning the
   stacking order (z-index decides paint order, not layout offset). Add
@@ -500,7 +500,7 @@ at 320px. If it can't shrink, it must wrap or collapse.
    - Keep each control compact: a `SelectMenu` shows its **current value** (icon
      - value), not a redundant static label.
    - **Wrap is the safety net, not the phone layout.** Once a control row
-     carries enough pickers that it *always* wraps on a phone — especially a
+     carries enough pickers that it _always_ wraps on a phone — especially a
      **sticky** row, where every wrapped line permanently eats content space —
      consolidate instead of wrapping: split the controls into **data controls**
      (used while browsing: Select / Group / Sort) and **display preferences**
@@ -509,7 +509,7 @@ at 320px. If it can't shrink, it must wrap or collapse.
      at `≤640px`** (labelled rows inside the panel; the Key opens as a
      sub-page of the same panel). Desktop keeps every control visible. The
      collection toolbar is the reference (`ViewPopoverPanel` in
-     `CardListTable.tsx`); the Decks-hero `⋮` kebab is the *action-row*
+     `CardListTable.tsx`); the Decks-hero `⋮` kebab is the _action-row_
      analogue of this rule. Contextual buttons that survive on the row (e.g.
      Expand/Collapse all) may go icon-only on phones **only** if their glyph
      is unambiguous and they keep `title` + `aria-label`.
@@ -711,7 +711,7 @@ Rulings settled while building this:
 - **Row/thumbnail controls with their own tap semantics** (qty-edit, kebab
   menu, remove, the printings-toggle) are excluded from arming the gesture at
   all — `useTouchPeek` checks `closest('button, a, input, [role="menu"],
-  [role="menuitem"]')` before starting the timer, so they're completely
+[role="menuitem"]')` before starting the timer, so they're completely
   unaffected rather than merely "usually fine".
 - **`-webkit-touch-callout: none` + `user-select: none` scoped to
   `[data-peek-name]`** (not global) suppress the native image-save/text-select
@@ -747,6 +747,61 @@ implementation (`components/deck/BetweenYourDecks.tsx`):
 - This is a re-housing pattern, not a new interaction: the sheet's contents
   should be near-identical to what an inline surface would have shown, just
   gated behind one tap instead of always-on real estate.
+
+## Build-time coach strip (E169 Half B) — a NAVIGATING insight strip
+
+A **second** insight-strip variant, distinct from UX-334 above: the moment a
+card lands in a deck's mainboard from the add-cards sheet, the deck editor can
+surface one nudge — "this card just completed a combo", "this card just gave
+the deck a win condition", "the bracket estimate just moved" — as a one-row
+strip inside that same sheet (`components/deck/BuildTimeCoachStrip.tsx` +
+`lib/use-build-time-nudge.ts`). It follows every UX-334 ground rule (one row,
+full-width, `min-height: 44px` on coarse pointers, **zero visible signal →
+render nothing**, never a permanent fixture, never displaces the card list
+below it) but differs on the one point that matters most:
+
+- **UX-334's strip's tap opens a sheet** layered on the same page — nothing
+  underneath is disturbed, so the whole row can be a single `<button>`.
+- **This strip's tap NAVIGATES** — the detail lives in the Power tab's
+  existing Combos / Win-conditions / Bracket panels one screen over, not in a
+  new local sheet (reusing that detail view, rather than building a second one
+  that duplicates it, is the point). But the strip itself lives _inside_ the
+  add-cards overlay, and that overlay owns real, easy-to-lose state (the
+  `CardSearchPanel`'s in-progress query + scroll position) that a bare
+  `openView('power')` would blow away by unmounting it. So a navigating strip
+  may **never** be a single tap-anywhere button the way UX-334's is — it needs
+  two distinct affordances: a **"View →" action that explicitly closes the
+  add-cards sheet before navigating** (the sheet's own `dismiss()`, called by
+  the strip's click handler, not a side effect of routing) so the state loss
+  is a deliberate, telegraphed consequence of a labeled button rather than an
+  accidental one; and a separate **"×" dismiss** that clears just the nudge
+  and keeps the sheet — and the user's in-progress search — open. Any future
+  insight strip whose detail lives on another view/tab (not a local sheet)
+  should follow this two-affordance, explicit-dismiss shape instead of
+  UX-334's whole-row button.
+- **Threshold discipline, not just presence/absence.** A signal engine that
+  fires on every add teaches the user to ignore the strip — "a coach that
+  cries wolf early teaches the user to ignore it permanently." Combo
+  completion and "first win condition" are discrete facts (true the instant
+  their pieces exist, false otherwise), so they get no minimum deck size —
+  useful at card #2 as much as card #90. Bracket-estimate movement is a
+  statistical estimate that swings on nearly every add while the deck is
+  still mostly empty slots, so it stays quiet below 40% of the format's
+  mainboard target (~40 cards for a 99-card Commander deck) — meaningless at
+  ~5 cards, borderline-useful at ~40, squarely actionable at ~95. At most one
+  nudge shows at a time (combo beats win-condition beats bracket — rarest and
+  least ambiguous event wins).
+- **Guard against a store write that isn't the user's own edit.** Any insight
+  surface that reacts to live-recomputed deck fields (bracketEstimation,
+  winConditions, …) across an async gap — a debounce, a network round-trip —
+  must NOT gate on `isApplyingServer()`/`isApplyingAnalysis()` read inside a
+  `useEffect`; both flags are a synchronous-window-only signal (see the
+  comment on `touch()` in `store/decks.ts`) and have already reverted to
+  `false` by the time an effect reads them, regardless of the write's origin.
+  Use the deck's local-mutation token (`useLocalMutationToken`/
+  `getLocalMutationToken`, E177) instead: snapshot it when arming, trust a
+  settle only once it has advanced since baseline. `use-build-time-nudge.ts`
+  is the reference implementation.
 
 ## Import review surface (E130)
 
@@ -1325,7 +1380,7 @@ content hits its `max-width` cap and centers with side gutters (`--analysis-max:
   (E157/E158).** An element can never match a container query against its own
   `container-type`, so the board-level 640/1040 column rules
   (`deck-builder-analysis.css`) query the **wrapper's** `bento-host` name,
-  not the bento's own `bento` name (which stays for the bento's *children* —
+  not the bento's own `bento` name (which stays for the bento's _children_ —
   PowerHero, the identity-card pillars — whose queries measure the board).
   Hosts: `.deck-analysis-view` (Stats/Power/Tune share it), `.home-page`,
   `.pods-index-section`, `.trending-rail`. A new surface mounting a
@@ -1421,10 +1476,10 @@ gated, so the test is what holds the line — mirror of `radius-tokens.test.ts`)
   contrast in every light scheme — use the standard accent ring. (This
   correction followed a screenshot check after a sweep had assumed both
   boards were always-dark and shipped 18 white rings across `playtest.css`
-  + 3 co-located component stylesheets that were only ever verified in dark
-  theme.) The `.game-menu` sheet (End game / rules / roster / layout picker)
-  is also themed, not always-dark, and correctly keeps the accent ring —
-  don't "fix" it back to white.
+  - 3 co-located component stylesheets that were only ever verified in dark
+    theme.) The `.game-menu` sheet (End game / rules / roster / layout picker)
+    is also themed, not always-dark, and correctly keeps the accent ring —
+    don't "fix" it back to white.
 - **In an auth/onboarding form, every button** — submit, OAuth, dismiss/back —
   needs the ring; a ring on one button does not cover its siblings.
 - **Read-only validation indicators use `aria-live`, not `role="checkbox"`.**
@@ -1687,7 +1742,7 @@ to show does not get a full-height placeholder panel — it collapses:
   applied to a bento card instead of a toolbar strip.
 - **Trade-target prices always render in the author's stamped currency**,
   never the viewer's display-currency setting — `formatMoney(price,
-  { currency: row.currency ?? 'USD' })`, explicit per-row, same "as-entered,
+{ currency: row.currency ?? 'USD' })`, explicit per-row, same "as-entered,
   never converted" contract as `ListEntry.currency` and the friend trade
   radar's target prices.
 
@@ -1843,8 +1898,8 @@ trading one out, not by squeezing:
 
 | Density            | Fields                                                                                                                                                                                                                                                               |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                   |
-| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                           |
+| **List** (66px)    | thumb · name · foil · deck/binder badges · type glyph · rarity chip + set code + CN · mana · qty · value · condition + language chips (deviations only — detail-when-present, like the page chip)                                                                    |
+| **Compact** (32px) | name · type glyph · rarity chip · set code · mana · qty · value — CN returns ≥768px; foil/deck/binder badges return ≥1024px; condition/language follow CN (return ≥768px)                                                                                            |
 | **Grid** (tile)    | art + qty badge + corner deck/binder badges + **rarity chip** (top-right corner, every tile); a **set-code chip** (bottom-left, next to qty) appears **only when the same card name has >1 printing** in the current rows — art is the identity until it's ambiguous |
 
 **Detail-when-present.** Per-copy chips (the binder page chip, condition,
@@ -1857,8 +1912,8 @@ noise, not signal) — the row only speaks when a copy is LP/MP/HP/DMG or
 non-English. The Key's Condition section says so in its title.
 
 **Editable toggles show their state, always — even at the norm.** The rule
-above governs *passive* display chips that summarize existing data; it
-doesn't apply to a control that's also the *only way to change* the value.
+above governs _passive_ display chips that summarize existing data; it
+doesn't apply to a control that's also the _only way to change_ the value.
 The scanner queue's per-row finish and condition toggles (`ScannerQueueSheet`
 rows, `CardScanner`'s last-scan panel — E87) are editors, not display chips,
 so they render at their default state too: the finish toggle always reads
@@ -1924,7 +1979,7 @@ add-cards row (2.45rem × 3.4rem, `CardSearchPanel`) and well below the 66px
   icon — matches the established thumb placeholder pattern app-wide (the box
   never collapses to zero size, so nothing reflows when the image resolves).
 - Row layout becomes a 3-column grid (`thumb · minmax(0,1fr) name/slot stack ·
-  remove`), not a flex line, since the thumb sets the row height and the
+remove`), not a flex line, since the thumb sets the row height and the
   name/slot pair now stacks vertically in the middle column.
 
 ### Default view posture is card-forward (E127)
@@ -1947,7 +2002,7 @@ The options inside a `ViewModeToggle` always run **most visual → most dense**:
 grid (or its surface-native equivalent — binder `pages`, cube `gallery`) →
 list → compact. Collection, search, product search, binder, and the shared
 views all follow it; the list detail view drifted (`list/compact/grid`) and
-was corrected to match. Order is independent of the *default*: a surface may
+was corrected to match. Order is independent of the _default_: a surface may
 default to `list` (lists do) while still presenting grid first.
 
 **Decision-context art reads as a card, not an icon.** A surface where the
@@ -1972,7 +2027,7 @@ each independently toggleable:
   USD-sourced), unknown (zero) rendered as `—`.
 - **Set & rarity** — the collector-app line (ManaBox/Moxfield convention):
   rarity-tinted keyrune glyph via the shared `SetSymbol` primitive + `CODE ·
-  collector number`.
+collector number`.
 
 The control is a **`Details` toolbar popover** (the `ToolbarPopover` +
 `menuitemcheckbox` pattern shared with the deck toolbar's `Show` menu — now a
@@ -2130,7 +2185,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   card) is retired — a guest now sees the same kind of art-led landing a
   returning/authed user gets on `/home`, not a plainer marketing stand-in.
 - **Hero art must actually be visible: `art_crop` + directional scrim.**
-  Applies to any full-bleed art *backdrop* hero (`WelcomeHero`, and any
+  Applies to any full-bleed art _backdrop_ hero (`WelcomeHero`, and any
   future band tall enough to justify one — a compact dashboard band is NOT;
   see the `/home` featured-card ruling below). Two hard rules, learned by
   shipping the opposite: (1) the backdrop is the **`art_crop`** image
@@ -2165,7 +2220,7 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
 - **Collection-drawn hero art shows the OWNED printing.** When the pick comes
   from the user's own rows, derive art from the row's stored `imageNormal`
   via `scryfallArtCrop` (the binder-cover idiom, #843) — never name-resolve
-  through `useCardThumb`, which returns Scryfall's *default* printing and
+  through `useCardThumb`, which returns Scryfall's _default_ printing and
   reads as "that's not my card". Name resolution is only the fallback for
   rows with no stored image (and for `WelcomeHero`'s hardcoded guest pool,
   where no copy is owned).
@@ -2212,12 +2267,12 @@ follow the full-viewport scroll pattern above. Design rulings settled here:
   immediately when any door is chosen. Instant replacement via React state is the
   symmetric exit — it reads as deliberate action, not a vanish.
 - **Entrance animation, now on the whole shell.** `welcome-rise`: opacity 0→1
-  + translateY 12px→0 over `--motion-gentle` (320ms) `--ease-out-soft`,
-  applied to `.welcome-shell` (was `.welcome-card`). No exit needed (see
-  above). The `prefers-reduced-motion: reduce` block sets `animation: none`
-  — not a 0.001ms backstop (infinite loops don't apply here, but the
-  reduced-motion gate still must be explicit per the Motion § Reduced-motion
-  rule).
+  - translateY 12px→0 over `--motion-gentle` (320ms) `--ease-out-soft`,
+    applied to `.welcome-shell` (was `.welcome-card`). No exit needed (see
+    above). The `prefers-reduced-motion: reduce` block sets `animation: none`
+    — not a 0.001ms backstop (infinite loops don't apply here, but the
+    reduced-motion gate still must be explicit per the Motion § Reduced-motion
+    rule).
 - **Dismissal on the Import CTA & Try-samples door only; Sign-in defers to
   AuthPage.** Both call `markEverVisited()` immediately (the user has made
   their activation choice). "Sign in" navigates to `/auth` without marking —
@@ -2436,7 +2491,7 @@ tier) sits above the feed. Rules:
 **Cross-cutting toggles join the same row, styled identically, but stay out
 of the lane set (E64).** "Off-meta" (spicy/off-the-beaten-path picks,
 `lib/inclusion-label.ts`'s `classifyInclusion(...).kind === 'offmeta'`) can
-appear in *any* lane, not one of them, so it isn't a `FilterId` — it's an
+appear in _any_ lane, not one of them, so it isn't a `FilterId` — it's an
 independent boolean that narrows whichever lane is active, the same
 relationship "Owned only" already has to the lane set. It reuses
 `.coach-feed-filter-chip` verbatim (same rect, same count-badge treatment)

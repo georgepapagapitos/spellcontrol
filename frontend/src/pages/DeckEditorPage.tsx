@@ -27,6 +27,8 @@ import { formatMoney } from '../lib/format-money';
 import { buildCommanderKey } from '../lib/commander-key';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
+import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
+import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
@@ -846,6 +848,16 @@ export function DeckEditorPage() {
     // The user's target bracket drives the Bracket Fit plan; folding it into the
     // hook recomputes the plan when the target changes, not only when cards do.
     bracketOverride: deck?.bracketOverride,
+  });
+
+  // Build-time coach nudge (E169 Half B) — surfaces at most one combo/
+  // win-condition/bracket signal inside the add-cards sheet the instant a
+  // mainboard add produces one. See use-build-time-nudge.ts for the guard.
+  const buildTimeNudge = useBuildTimeNudge({
+    deckId: deck?.id,
+    deck,
+    comboData: comboData.data,
+    mainboardTarget: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
   });
 
   const taggerReady = useTaggerReady();
@@ -2873,7 +2885,10 @@ export function DeckEditorPage() {
         <DeckEditorCardPickerSheet
           label="Add cards"
           className="deck-add-sheet"
-          onClose={() => setShowAddPanel(false)}
+          onClose={() => {
+            setShowAddPanel(false);
+            buildTimeNudge.dismiss();
+          }}
         >
           {(dismiss) => (
             <>
@@ -2925,6 +2940,33 @@ export function DeckEditorPage() {
                   </span>
                 </label>
               </fieldset>
+              {/* Build-time coach nudge (E169 Half B) — strictly mainboard-only:
+                  an add to sideboard/considering doesn't touch the mainboard
+                  signature the combo/bracket/win-condition engines analyze, so
+                  it can never produce a nudge, and switching zone tabs away
+                  from Mainboard hides any nudge already showing. */}
+              {addZone === 'main' && (
+                <BuildTimeCoachStrip
+                  nudge={buildTimeNudge.nudge}
+                  onView={(kind) => {
+                    // A navigating strip (STYLE_GUIDE "Build-time coach
+                    // strip"), unlike the tap-opens-sheet insight strips: the
+                    // detail lives one tab over in the Power bento, not in a
+                    // local sheet, so leaving the add flow is unavoidable —
+                    // make it a deliberate close (dismiss the sheet) rather
+                    // than an accidental one.
+                    buildTimeNudge.dismiss();
+                    dismiss();
+                    openAnalysisTab('power');
+                    window.requestAnimationFrame(() => {
+                      if (kind === 'combo') handleViewCombos();
+                      else if (kind === 'wincon') handleViewWinConditions();
+                      else handleViewBracket();
+                    });
+                  }}
+                  onDismiss={buildTimeNudge.dismiss}
+                />
+              )}
               <CardSearchPanel
                 ref={searchPanelRef}
                 deckId={deck.id}
@@ -2947,6 +2989,10 @@ export function DeckEditorPage() {
                     setPendingAdd(card.name);
                     return;
                   }
+                  // Arm the build-time nudge BEFORE the mutation lands, so its
+                  // baseline token snapshot is genuinely "before" — see
+                  // notifyMainboardAdd's own doc for why the order matters.
+                  buildTimeNudge.notifyMainboardAdd(card.name);
                   allocateAndAdd(card, 'main', false);
                 }}
                 onPreviewFit={(card) => setAuditionCard(card)}
