@@ -347,7 +347,10 @@
   border-bottom: none;
   width: 100%;
   max-height: 88dvh;
-  overflow-y: auto;
+  /* The sheet itself no longer scrolls — the header and tab strip stay pinned
+     and only .game-menu-body scrolls, so switching tabs is one tap away no
+     matter how far down the log you've read. */
+  overflow: hidden;
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
@@ -458,11 +461,43 @@
   }
 }
 
+/* Tab strip between the pinned header and the scrolling body. The shared
+   .sc-tab padding is desktop-sized; this is a touch-first board surface, so
+   the pills get the 44px floor. */
+.game-menu-tabs {
+  flex-shrink: 0;
+  margin: var(--space-3) var(--space-4) 0;
+}
+
+@media (min-width: 600px) {
+  .game-menu-tabs {
+    margin: var(--space-3) 1.25rem 0;
+  }
+}
+
+.game-menu-tabs .sc-tab {
+  min-height: 44px;
+  font-weight: 600;
+}
+
+/* The .game-menu sheet is themed (not always-dark), so it takes the standard
+   accent ring — see STYLE_GUIDE "On an always-dark surface, use a white ring". */
+.game-menu-tabs .sc-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .game-menu-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   padding: 0.85rem var(--space-4) var(--space-4);
+  /* min-height:0 lets this flex child actually shrink so its own overflow
+     scrolls, instead of pushing the sheet past its max-height. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (min-width: 600px) {
@@ -501,10 +536,12 @@
   flex-shrink: 0;
 }
 
-/* Always-dark game-board surface — white ring per STYLE_GUIDE, not the
-   themed --accent the shared .toolbar-viewmode-btn base rule now sets. */
+/* This toggle lives in the .game-menu sheet, which is themed — not the
+   always-dark board — so it takes the standard accent ring. (It carried a
+   white ring from a sweep that mis-classified the sheet as always-dark; the
+   STYLE_GUIDE ruling calls that case out by name.) */
 .tap-orientation-toggle .toolbar-viewmode-btn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

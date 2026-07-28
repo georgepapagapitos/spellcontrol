@@ -1,39 +1,144 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { GameEvent, GameState } from '../../lib/game-state';
+import type { GameEvent, GameState, GameSummary } from '../../lib/game-state';
+import { isKeyMoment, summarizeGame } from '../../lib/game-state';
 import { describeGameEvent } from '../../lib/game-event-text';
 import { paletteForSeat } from '../../lib/seat-palette';
-import { Tabs } from '../Tabs';
-
-type Tab = 'timeline' | 'chart';
 
 interface Props {
   game: GameState;
 }
 
+/**
+ * The game menu's "Game" tab: what happened, ordered by how often anyone
+ * actually asks. Derived stats first (they answer "who's winning / who hit
+ * me" at a glance), then the life chart, then the log — which defaults to key
+ * moments, because a real game's raw log is overwhelmingly ±1 taps.
+ */
 export function GameHistory({ game }: Props) {
-  const [tab, setTab] = useState<Tab>('timeline');
-  const total = game.events.length;
+  // One walk of the log feeds every stat; the log below does its own grouping
+  // pass for display. Recomputes only when the game object changes.
+  const summary = useMemo(() => summarizeGame(game), [game]);
+  return (
+    <>
+      <GameStats game={game} summary={summary} />
+      <section className="game-menu-section">
+        <h3 className="game-history-title">Life over time</h3>
+        <LifeChart game={game} />
+      </section>
+      <GameLog game={game} />
+    </>
+  );
+}
+
+// ── Derived stats ───────────────────────────────────────────────────────────
+
+const ORDINALS = ['', '1st', '2nd', '3rd', '4th', '5th', '6th'];
+
+function ordinal(n: number): string {
+  return ORDINALS[n] ?? `${n}th`;
+}
+
+/** Whole minutes once past a minute, else seconds. Table-side glanceability —
+ *  the shared formatRelativeTime is for wall-clock ages, not elapsed spans. */
+function formatDuration(ms: number): string {
+  const min = Math.floor(ms / 60_000);
+  if (min < 1) return `${Math.floor(ms / 1000)}s`;
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)}h ${min % 60}m`;
+}
+
+function GameStats({ game, summary }: { game: GameState; summary: GameSummary }) {
+  const seatName = (seat: number): string =>
+    game.players.find((p) => p.seat === seat)?.name ?? `Seat ${seat}`;
+
+  // Winner-first once every seat has a placement; seat order while the game is
+  // live, so rows don't reshuffle under the reader mid-game.
+  const rows = useMemo(() => {
+    if (summary.seats.some((s) => s.placement == null)) return summary.seats;
+    return [...summary.seats].sort((a, b) => a.placement! - b.placement!);
+  }, [summary.seats]);
+
+  const started = summary.turns > 0 || summary.seats.some((s) => s.damageTaken > 0);
 
   return (
-    <section className="game-history game-menu-section">
+    <section className="game-menu-section game-stats">
       <header className="game-history-header">
-        <h3 className="game-history-title">History</h3>
-        <span className="game-history-count">{total} events</span>
+        <h3 className="game-history-title">This game</h3>
+        {summary.durationMs > 0 && (
+          <span className="game-history-count">{formatDuration(summary.durationMs)}</span>
+        )}
       </header>
-      <Tabs
-        ariaLabel="History view"
-        variant="fitted"
-        className="game-history-tabs"
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { id: 'timeline', label: 'Timeline', controls: 'game-history-panel' },
-          { id: 'chart', label: 'Life chart', controls: 'game-history-panel' },
-        ]}
-      />
-      <div id="game-history-panel" role="tabpanel" aria-labelledby={`sc-tab-${tab}`}>
-        {tab === 'timeline' ? <Timeline game={game} /> : <LifeChart game={game} />}
-      </div>
+
+      {!started ? (
+        <p className="game-history-empty">Stats appear once life totals start moving.</p>
+      ) : (
+        <>
+          <div className="game-stats-chips">
+            {summary.turns > 0 && <span className="game-menu-chip">Turn {summary.turns}</span>}
+            {summary.firstBlood && (
+              <span className="game-menu-chip">
+                First blood: {seatName(summary.firstBlood.seat)}
+                {summary.firstBlood.bySeat != null && ` — ${seatName(summary.firstBlood.bySeat)}`}
+                {summary.firstBlood.turn != null && `, turn ${summary.firstBlood.turn}`}
+              </span>
+            )}
+          </div>
+
+          <ul className="game-stats-rows">
+            {rows.map((s) => {
+              const palette = paletteForSeat(game.id, s.seat);
+              return (
+                <li key={s.seat} className="game-stats-row">
+                  <span
+                    className="game-stats-dot"
+                    style={{ background: palette.base, boxShadow: `0 0 0 2px ${palette.edge}33` }}
+                    aria-hidden
+                  />
+                  <span className="game-stats-name">{seatName(s.seat)}</span>
+                  {s.placement != null && (
+                    <span className={`game-stats-place${s.placement === 1 ? ' is-winner' : ''}`}>
+                      {ordinal(s.placement)}
+                    </span>
+                  )}
+                  <span className="game-stats-facts">
+                    <span>
+                      <b>{s.damageTaken}</b> taken
+                    </span>
+                    <span>
+                      <b>{s.biggestHit}</b> biggest hit
+                    </span>
+                    <span>
+                      low <b>{s.lowestLife}</b>
+                    </span>
+                    {s.killedBySeat != null && (
+                      <span className="game-stats-ko">
+                        KO by <b>{seatName(s.killedBySeat)}</b>
+                        {s.eliminatedOnTurn != null && ` · turn ${s.eliminatedOnTurn}`}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {summary.commanderDamage.length > 0 && (
+            <>
+              <h4 className="game-stats-subtitle">Commander damage</h4>
+              <ul className="game-stats-cmd">
+                {summary.commanderDamage.map((e) => (
+                  <li key={`${e.fromSeat}>${e.toSeat}`}>
+                    <span>
+                      {seatName(e.fromSeat)} → {seatName(e.toSeat)}
+                    </span>
+                    <b>{e.amount}</b>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
+      )}
     </section>
   );
 }
@@ -100,14 +205,46 @@ function groupEvents(events: readonly GameEvent[]): TimelineRow[] {
   return rows;
 }
 
-function Timeline({ game }: { game: GameState }) {
-  // Group across the last 200 raw events, then take the latest 80 grouped
-  // rows for display. Grouping over a larger raw window keeps long bursts
-  // intact even when they sit just past the display cutoff.
-  const rows = useMemo(() => {
+function GameLog({ game }: { game: GameState }) {
+  const [showAll, setShowAll] = useState(false);
+  // Group across the last 200 raw events; grouping over a larger raw window
+  // keeps long bursts intact even when they sit just past the display cutoff.
+  const { all, key } = useMemo(() => {
     const grouped = groupEvents(game.events.slice(-200));
-    return grouped.slice(-80).reverse();
+    return { all: grouped, key: grouped.filter(isKeyMoment) };
   }, [game.events]);
+  const rows = showAll ? all : key;
+
+  return (
+    <section className="game-history game-menu-section">
+      <header className="game-history-header">
+        <h3 className="game-history-title">{showAll ? 'Full log' : 'Key moments'}</h3>
+        <span className="game-history-count">{rows.length}</span>
+      </header>
+      {rows.length === 0 ? (
+        <p className="game-history-empty">
+          {all.length === 0 ? 'No events yet.' : 'Nothing notable yet — just life changes so far.'}
+        </p>
+      ) : (
+        <Timeline game={game} rows={rows} />
+      )}
+      {all.length > key.length && (
+        <button
+          type="button"
+          className="game-history-toggle"
+          aria-expanded={showAll}
+          onClick={() => setShowAll((v) => !v)}
+        >
+          {showAll ? 'Show key moments only' : `Show all ${all.length} events`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+function Timeline({ game, rows: allRows }: { game: GameState; rows: TimelineRow[] }) {
+  // Newest first, capped so a long game can't render hundreds of nodes.
+  const rows = useMemo(() => allRows.slice(-80).reverse(), [allRows]);
   // Re-render every 30s so relative timestamps stay fresh while the menu is open.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -120,10 +257,6 @@ function Timeline({ game }: { game: GameState }) {
     return game.players.find((p) => p.seat === seat)?.name ?? `seat ${seat}`;
   };
   const describeRow = (row: TimelineRow) => describeGameEvent(row, seatName);
-
-  if (rows.length === 0) {
-    return <p className="game-history-empty">No events yet.</p>;
-  }
 
   return (
     <ol className="game-history-timeline">
