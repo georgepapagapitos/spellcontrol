@@ -11,7 +11,7 @@ import {
   Link,
   Navigate,
 } from 'react-router-dom';
-import { useDecksStore, effectiveBracket } from '../store/decks';
+import { useDecksStore, effectiveBracket, type DeckZone } from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
@@ -211,6 +211,9 @@ export function DeckEditorPage() {
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
+  const setCardTags = useDecksStore((s) => s.setCardTags);
+  const renameDeckTag = useDecksStore((s) => s.renameDeckTag);
+  const removeDeckTag = useDecksStore((s) => s.removeDeckTag);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
   const pushToast = useToastsStore((s) => s.push);
 
@@ -2114,6 +2117,20 @@ export function DeckEditorPage() {
     setEditingSlot({ slotId, card });
   };
 
+  // ── User tags (E171) ──────────────────────────────────────────────────
+  const handleSetCardTags = (zone: DeckZone, slotIds: string[], tags: string[]) => {
+    if (!deck) return;
+    recordEdit(deck.id, 'edit tags', () => setCardTags(deck.id, zone, slotIds, tags));
+  };
+  const handleRenameDeckTag = (from: string, to: string) => {
+    if (!deck) return;
+    recordEdit(deck.id, `rename tag "${from}"`, () => renameDeckTag(deck.id, from, to));
+  };
+  const handleRemoveDeckTag = (tag: string) => {
+    if (!deck) return;
+    recordEdit(deck.id, `remove tag "${tag}"`, () => removeDeckTag(deck.id, tag));
+  };
+
   const handleEditConfirm = (selection: PrintingSelection) => {
     if (!editingSlot || !deck) return;
     const newCard = selection.card;
@@ -2271,6 +2288,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
@@ -2278,6 +2296,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   const displayConsidering: DeckDisplayCard[] = (deck.considering ?? []).map((c) => ({
@@ -2285,6 +2304,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
@@ -2602,6 +2622,9 @@ export function DeckEditorPage() {
             onMoveFromConsidering={handleMoveFromConsidering}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
+            onSetCardTags={handleSetCardTags}
+            onRenameDeckTag={handleRenameDeckTag}
+            onRemoveDeckTag={handleRemoveDeckTag}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={
               formatConfig?.hasCommander

@@ -166,6 +166,18 @@ describe('buildBulkEditPlan — allocation preservation (the critical contract)'
     expect(plan.removed).toEqual([]);
   });
 
+  it('E171: a surviving slot keeps its user tags (and allocatedCopyId) through a bulk-edit round trip', () => {
+    const solRing = card({ name: 'Sol Ring' });
+    const taggedSlot = { ...slot(solRing, 'copy-1', 's1'), tags: ['Ramp', 'Fast Mana'] };
+    const deck = baseDeck({ cards: [taggedSlot] });
+    // A no-op re-paste of the same list — the slot is reused, not rebuilt.
+    const parsed = parseBulkEditText('Deck\n1 Sol Ring');
+    const plan = buildBulkEditPlan(deck, parsed, new Map(), commanderConfig, emptyCtx);
+    expect(plan.cards[0].tags).toEqual(['Ramp', 'Fast Mana']);
+    expect(plan.cards[0].allocatedCopyId).toBe('copy-1');
+    expect(plan.cards[0]).toBe(taggedSlot); // same object — reused, not cloned
+  });
+
   it('quantity increase: the surviving slot keeps its allocatedCopyId; the new one allocates fresh', () => {
     const forest = card({ name: 'Forest' });
     const deck = baseDeck({

@@ -102,3 +102,184 @@
 .deck-card-preview-meta-synergy li {
   overflow-wrap: anywhere;
 }
+
+/* ── User tags (E171) — the ONE place tags get edited. ─────────────────── */
+.deck-card-preview-meta-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* "edited" sticky-override affordance next to the section label — quiet,
+   the same muted opacity as the label itself, just enough to notice. */
+.deck-card-preview-meta-tags-edited {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: inherit;
+  font-style: italic;
+}
+
+.deck-card-preview-meta-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.deck-card-preview-meta-tags-none {
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+}
+
+.deck-card-preview-meta-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.1rem var(--space-2);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ghost/dashed variant for the live (never-persisted) auto-suggestion —
+   visually distinct from a real, committed tag. A button when it's
+   actionable (onSetTags present), plain span otherwise. */
+button.deck-card-preview-meta-tag-chip.is-suggested {
+  border-style: dashed;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+}
+
+button.deck-card-preview-meta-tag-chip.is-suggested:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.deck-card-preview-meta-tag-chip.is-suggested:not(:disabled):hover {
+    border-color: var(--accent);
+    color: #fff;
+  }
+}
+
+.deck-card-preview-meta-tag-chip.is-suggested:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.deck-card-preview-meta-tag-remove {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-preview-meta-tag-remove:hover {
+    opacity: 1;
+  }
+}
+
+.deck-card-preview-meta-tag-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+/* Expanded invisible hit-area on coarse pointers — the visible chip stays
+   compact, same technique as .deck-arrivals-chip. */
+@media (pointer: coarse) {
+  .deck-card-preview-meta-tag-remove {
+    position: relative;
+  }
+  .deck-card-preview-meta-tag-remove::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.deck-card-preview-meta-tag-add {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.deck-card-preview-meta-tag-add input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: var(--text-sm);
+}
+
+.deck-card-preview-meta-tag-add input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.deck-card-preview-meta-tag-add input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.deck-card-preview-meta-tag-add-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+
+.deck-card-preview-meta-tag-add-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .deck-card-preview-meta-tag-add-btn:not(:disabled):hover {
+    border-color: var(--accent);
+  }
+}
+
+.deck-card-preview-meta-tag-add-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+  .deck-card-preview-meta-tag-add-btn {
+    width: 44px;
+    height: 44px;
+  }
+}

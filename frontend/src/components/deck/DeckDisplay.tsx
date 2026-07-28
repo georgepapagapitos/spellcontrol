@@ -20,6 +20,7 @@ import {
   Shapes,
   Sparkles,
   Sprout,
+  Tag as TagIcon,
   Tags,
   Trash2,
   Wrench,
@@ -39,6 +40,8 @@ import type {
   Archetype,
 } from '@/deck-builder/types';
 import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
+import { cardTagsOf, isTagsEdited, suggestedTagForCard, collectDeckTags } from '@/lib/deck-tags';
+import { DeckTagManager } from './DeckTagManager';
 import {
   buildManaData,
   classifyType,
@@ -67,7 +70,7 @@ import {
 } from '@/lib/deck-export';
 import { toast } from '../../store/toasts';
 import { haptics } from '../../lib/haptics';
-import type { DeckCard } from '../../store/decks';
+import type { DeckCard, DeckZone } from '../../store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { ManaSymbol } from '../shared/ManaSymbol';
@@ -276,6 +279,17 @@ const CATEGORY_ICON_COMPONENTS: Partial<
 // groupByType or a category-view lucide token for groupByCategory's 6
 // non-type buckets — CATEGORY_ICON_COMPONENTS decides which.
 function SectionIcon({ icon }: { icon: string }) {
+  if (icon === 'tag') {
+    return (
+      <TagIcon
+        width={14}
+        height={14}
+        strokeWidth={1.8}
+        aria-hidden
+        className="deck-section-icon-glyph"
+      />
+    );
+  }
   const Lucide = CATEGORY_ICON_COMPONENTS[icon as DeckCategory];
   if (Lucide) {
     return (
@@ -364,20 +378,21 @@ function readStoredShowPrefs(): ShowPrefs {
   }
 }
 
-// ── Group-by (E124) ──────────────────────────────────────────────────────
+// ── Group-by (E124, +'tag' E171) ─────────────────────────────────────────
 // Mainboard grouping lens: 'type' (canonical card type — the long-standing
-// default) or 'category' (the generator's 8-bucket DeckCategory shape, with
-// target gauges). Persisted like view mode/show prefs; default stays 'type'
-// so an existing deck's mainboard renders byte-identical until the user
-// opts in.
-export type DeckGroupBy = 'type' | 'category';
+// default), 'category' (the generator's 8-bucket DeckCategory shape, with
+// target gauges), or 'tag' (user-defined tags — a card can land in more than
+// one group here, see groupByTag's doc). Persisted like view mode/show
+// prefs; default stays 'type' so an existing deck's mainboard renders
+// byte-identical until the user opts in.
+export type DeckGroupBy = 'type' | 'category' | 'tag';
 const GROUP_BY_STORAGE_KEY = 'mtg-decks-group-by';
 
 function readStoredGroupBy(): DeckGroupBy {
   if (typeof window === 'undefined') return 'type';
   try {
     const v = window.localStorage.getItem(GROUP_BY_STORAGE_KEY);
-    if (v === 'type' || v === 'category') return v;
+    if (v === 'type' || v === 'category' || v === 'tag') return v;
   } catch {
     /* ignore */
   }
@@ -393,6 +408,9 @@ export interface DeckDisplayCard {
   allocatedCopyId?: string | null;
   /** Unix ms when this slot was added. Absent on cards predating the field. */
   addedAt?: number;
+  /** User tags (E171) — see the `tags` doc on `DeckCard` for the
+   *  sticky-override contract (`undefined` = untouched, `[]` = edited/cleared). */
+  tags?: string[];
 }
 
 export interface DeckDisplayProps {
@@ -634,6 +652,15 @@ export interface DeckDisplayProps {
   existingCardCounts?: ReadonlyMap<string, number>;
   /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
   onMarkArrivalsReviewed?: () => void;
+  /**
+   * User tags (E171). All three optional — omitted (e.g. a read-only/shared
+   * view) means tags still DISPLAY (chips render from `cards`/`sideboard`/
+   * `considering`'s own `tags` field) but the editor and tag manager don't
+   * render any controls.
+   */
+  onSetCardTags?: (zone: DeckZone, slotIds: string[], tags: string[]) => void;
+  onRenameDeckTag?: (from: string, to: string) => void;
+  onRemoveDeckTag?: (tag: string) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -723,6 +750,15 @@ interface Row {
    *  Slot-based rows resolve their badge via slotIds[0]; commander rows keep
    *  slotIds empty (no remove/qty actions) but still need their issues shown. */
   legalitySlotKey?: string;
+  /** Union of every slot's user tags (E171) across this aggregated row —
+   *  normally identical across slots (edits apply to the whole row, see
+   *  `onSetCardTags`), but unioned defensively for pre-E171 data where a
+   *  same-name stack's slots could disagree. */
+  tags: string[];
+  /** True if ANY slot in this row has been tag-edited (sticky — see the
+   *  `tags` doc on `DeckCard`). Drives the "edited" affordance and hides the
+   *  live auto-suggestion once true. */
+  tagsEdited: boolean;
 }
 
 // ── Foil treatment ─────────────────────────────────────────────────────────
@@ -859,6 +895,8 @@ function buildRows(
       existing.price += priceOf(card, currency);
       if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
       if (dc.slotId) existing.slotIds.push(dc.slotId);
+      for (const t of cardTagsOf(dc)) if (!existing.tags.includes(t)) existing.tags.push(t);
+      if (isTagsEdited(dc)) existing.tagsEdited = true;
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -919,6 +957,8 @@ function buildRows(
       setCode: owned?.setCode || card.set || '',
       setName: owned?.setName || card.set_name,
       collectorNumber: owned?.collectorNumber || card.collector_number || '',
+      tags: [...cardTagsOf(dc)],
+      tagsEdited: isTagsEdited(dc),
     });
   }
   const rows = [...map.values()];
@@ -1154,6 +1194,47 @@ function groupByCategory(
   return ordered;
 }
 
+// Group a flat Row[] by user tag (E171). Unlike groupByType/groupByCategory
+// this is NOT a partition — a multi-tagged row appears in every one of its
+// tag's groups, by design (multi-tag was a deliberate ruling, see the
+// DeckCard.tags doc). That's exactly what makes the section-header counts
+// here NOT summable into a deck total: the true count lives only in the
+// stat-strip's `totalCards` (computed straight from `cards.length`, never
+// from these groups — see the honesty note this function's caller renders).
+// Rows are alphabetical by tag name; an "Untagged" bucket trails last so a
+// deck that's only partially tagged still shows the whole list.
+const UNTAGGED_GROUP_TITLE = 'Untagged';
+function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
+  const buckets = new Map<string, Row[]>();
+  const untagged: Row[] = [];
+  for (const row of rows) {
+    if (row.tags.length === 0) {
+      untagged.push(row);
+      continue;
+    }
+    for (const tag of row.tags) {
+      const bucket = buckets.get(tag) ?? [];
+      bucket.push(row);
+      buckets.set(tag, bucket);
+    }
+  }
+  const ordered: TypedGroup[] = [];
+  if (commanderRows && commanderRows.length > 0) {
+    ordered.push({
+      title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
+      icon: 'commander',
+      rows: commanderRows,
+    });
+  }
+  for (const tag of [...buckets.keys()].sort((a, b) => a.localeCompare(b))) {
+    ordered.push({ title: tag, icon: 'tag', rows: buckets.get(tag)! });
+  }
+  if (untagged.length > 0) {
+    ordered.push({ title: UNTAGGED_GROUP_TITLE, icon: 'tag', rows: untagged });
+  }
+  return ordered;
+}
+
 // New-arrivals header chip (E140) — one renderer shared by the list view's
 // CategorySection headerAction slot and the grid view's DeckCardGrid section
 // header (a sibling component, not nested, so this can't be a closure).
@@ -1274,6 +1355,9 @@ export function DeckDisplay({
   arrivalsByType,
   existingCardCounts,
   onMarkArrivalsReviewed,
+  onSetCardTags,
+  onRenameDeckTag,
+  onRemoveDeckTag,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = useCurrency();
@@ -1434,6 +1518,10 @@ export function DeckDisplay({
         collectorNumber: owned?.collectorNumber || c.collector_number || '',
         isPartner,
         legalitySlotKey: isPartner ? PARTNER_COMMANDER_SLOT_ID : COMMANDER_SLOT_ID,
+        // Commanders have no deck slot to tag (E171 is a mainboard/side/
+        // considering concept) — always untouched/untagged.
+        tags: [],
+        tagsEdited: false,
       });
     };
     if (commander) push(commander, commanderAllocatedCopyId);
@@ -1465,6 +1553,7 @@ export function DeckDisplay({
   // one-time settle as the role-filter bar's counts.
   const groups = useMemo(() => {
     const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
+    if (groupBy === 'tag') return groupByTag(rows, commanderRows);
     return groupBy === 'category'
       ? groupByCategory(rows, categoryTargets, commanderRows)
       : groupByType(rows, commanderRows);
@@ -1478,6 +1567,14 @@ export function DeckDisplay({
     categoryTargets,
     taggerReady,
   ]);
+
+  // Every distinct user tag across the WHOLE deck (all 3 zones, unfiltered
+  // by search/groupBy) — the tag manager's "see all tags" list. Deliberately
+  // independent of `visibleGroups` so it's stable while searching/grouping.
+  const deckTags = useMemo(
+    () => collectDeckTags({ cards, sideboard, considering }),
+    [cards, sideboard, considering]
+  );
 
   // Sideboard rows always stay type-grouped — the sideboard is a small,
   // rarely-consulted holding list, not the shape-story surface the category
@@ -1794,16 +1891,24 @@ export function DeckDisplay({
     const enrichedCards: EnrichedCard[] = [];
     const labels: string[] = [];
     const rows: Row[] = [];
+    const zones: DeckZone[] = [];
     const indexByName = new Map<string, number>();
     // Mainboard first, then sideboard, then considering — so the carousel +
     // hover-peek resolve those cards too (same inspect path as the
     // mainboard). A name only in one zone maps to that zone's entry; a name
     // in more than one keeps the earliest zone's (first wins).
-    const pushGroups = (groups: typeof visibleGroups) => {
+    const pushGroups = (groups: typeof visibleGroups, zone: DeckZone) => {
+      // Tag groupBy is NOT a partition (E171) — a multi-tagged row can appear
+      // in more than one of `groups`. Dedupe within this zone's pass so the
+      // carousel never repeats the same card as consecutive slides.
+      const pushedThisZone = new Set<string>();
       for (const g of groups) {
         for (const row of g.rows) {
+          if (pushedThisZone.has(row.name)) continue;
+          pushedThisZone.add(row.name);
           if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
           rows.push(row);
+          zones.push(zone);
           enrichedCards.push(
             scryfallToEnrichedCard(row.card, {
               frontImageOverride: row.imageNormal,
@@ -1826,10 +1931,10 @@ export function DeckDisplay({
         }
       }
     };
-    pushGroups(visibleGroups);
-    pushGroups(visibleSideboardGroups);
-    pushGroups(visibleConsideringGroups);
-    return { cards: enrichedCards, labels, rows, indexByName };
+    pushGroups(visibleGroups, 'cards');
+    pushGroups(visibleSideboardGroups, 'sideboard');
+    pushGroups(visibleConsideringGroups, 'considering');
+    return { cards: enrichedCards, labels, rows, zones, indexByName };
   }, [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -2091,6 +2196,39 @@ export function DeckDisplay({
                     </p>
                   }
                 />
+              </div>
+            )}
+
+            {/* Overlap-honesty note (E171): grouping by tag is NOT a partition
+                — a card with 2 tags shows up in both groups, so summing the
+                section counts below overstates the deck. The stat strip's
+                card count (computed straight from the raw lists, never from
+                these groups) is the only number that's ever a total. */}
+            {groupBy === 'tag' && (
+              <div className="deck-tag-honesty-banner">
+                <TagIcon width={14} height={14} strokeWidth={2} aria-hidden />
+                <span>
+                  Tags can overlap — a multi-tagged card appears in every group it's tagged with.
+                  The card count above is always the true deck size.
+                </span>
+                {deckTags.length > 0 && (onRenameDeckTag || onRemoveDeckTag) && (
+                  <ToolbarPopover
+                    triggerClassName="btn btn-sm deck-tag-manage-btn"
+                    triggerContent="Manage tags"
+                    triggerAriaLabel="Manage deck tags"
+                    panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed deck-tag-manager-popover"
+                    panelAriaLabel="Manage tags"
+                  >
+                    {(close) => (
+                      <DeckTagManager
+                        tags={deckTags}
+                        onRename={onRenameDeckTag}
+                        onRemove={onRemoveDeckTag}
+                        onDone={close}
+                      />
+                    )}
+                  </ToolbarPopover>
+                )}
               </div>
             )}
 
@@ -2391,6 +2529,10 @@ export function DeckDisplay({
             renderPanelMeta={(i) => {
               const r = flat.rows[i];
               if (!r) return null;
+              // Commander/partner rows have no deck slot (r.slotIds is empty) —
+              // nothing to tag, so the editor stays off; existing tags (there
+              // never are any) still display via `tags` if that ever changes.
+              const canEditTags = !!onSetCardTags && r.slotIds.length > 0;
               return (
                 <DeckCardPreviewMeta
                   card={r.card}
@@ -2404,6 +2546,15 @@ export function DeckDisplay({
                       : undefined
                   }
                   status={r.status}
+                  tags={r.tags}
+                  tagsEdited={r.tagsEdited}
+                  suggestedTag={!r.tagsEdited ? suggestedTagForCard(r.card) : null}
+                  existingDeckTags={deckTags.map((t) => t.tag)}
+                  onSetTags={
+                    canEditTags
+                      ? (tags) => onSetCardTags!(flat.zones[i], r.slotIds, tags)
+                      : undefined
+                  }
                 />
               );
             }}
@@ -2831,6 +2982,11 @@ function DeckGroupByToggle({
           label: 'Group by category',
           icon: <Tags width={14} height={14} strokeWidth={2} aria-hidden />,
         },
+        {
+          value: 'tag',
+          label: 'Group by tag',
+          icon: <TagIcon width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
       ]}
     />
   );
@@ -2997,7 +3153,8 @@ function DeckCardGrid({
                     {(row.isPartner ||
                       role ||
                       (synergy && synergy.length > 0) ||
-                      binders.length > 0) && (
+                      binders.length > 0 ||
+                      row.tags.length > 0) && (
                       <div className="deck-card-grid-badges">
                         {row.isPartner && (
                           <span
@@ -3006,6 +3163,18 @@ function DeckCardGrid({
                             aria-label="Partner commander"
                           >
                             <Handshake width={13} height={13} strokeWidth={2.4} aria-hidden />
+                          </span>
+                        )}
+                        {row.tags.length > 0 && (
+                          <span
+                            className="deck-card-grid-tags"
+                            title={`Tags: ${row.tags.join(', ')}`}
+                            aria-label={`Tags: ${row.tags.join(', ')}`}
+                          >
+                            <TagIcon width={11} height={11} strokeWidth={2.4} aria-hidden />
+                            {row.tags.length > 1 && (
+                              <span className="deck-card-grid-tags-count">{row.tags.length}</span>
+                            )}
                           </span>
                         )}
                         {binders.length > 0 && <BinderBadge binders={binders} />}
@@ -3527,6 +3696,22 @@ function DeckCardRow({
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
           {row.foil && <FoilBadge card={row} />}
+          {/* User tags (E171) — always visible when set (never hover-gated,
+              unlike the system-derived hints below): a card's own tags are
+              user-authored content, and staying visible is exactly what
+              makes overlap between tag groups legible in "Group by tag". A
+              card with no tags renders nothing here — no clutter for anyone
+              who hasn't touched the feature. Editing lives in the card
+              preview panel (the single per-card view), not here. */}
+          {row.tags.length > 0 && (
+            <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
+              {row.tags.map((t) => (
+                <span key={t} className="deck-row-tag-chip">
+                  {t}
+                </span>
+              ))}
+            </span>
+          )}
           {/* Secondary metadata (which deck holds the copy, synergy, EDHREC %).
               On hover-capable pointers it's hidden at rest so the card name reads
               fully in the dense multi-column desktop layout, and revealed on row
