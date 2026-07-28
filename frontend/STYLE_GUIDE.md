@@ -605,6 +605,47 @@ The full card name must remain reachable: expose it with `title` on the name
 element for desktop hover, and keep any existing tap-to-preview/card carousel
 affordance for touch. `title` is never the sole path to the full name.
 
+## Tag chips (E171)
+
+User-defined card tags (deck list/grid + card-preview panel) are **neutral
+secondary pills, never `--accent`**. A tagged row must never read as more
+"official" or system-driven than a Partner tag or an allocation chip —
+tags are the user's own free-text taxonomy, so they get the same quiet
+plate as `.deck-row-alloc-chip-claimed-elsewhere`: `var(--surface-raised)`
+background, `var(--text-secondary)` text, `var(--border)` 1px border, 999px
+pill. Card-preview's dark panel uses the equivalent literal white-alpha
+values (`rgba(255,255,255,.08)` bg / `.92` text / `.18` border) per that
+panel's existing light-on-dark contract — never theme tokens there.
+
+- **Display is read-only, editing is centralized.** Tag chips render
+  wherever a card shows (deck list row, grid tile badge, card-preview
+  panel) but only the **card-preview panel** — the app's one single
+  per-card view — carries add/remove controls. Don't add a second edit
+  surface on the row/tile; that duplicates the keyboard/focus work and
+  gives two places to drift.
+- **Always visible, never hover-gated.** Unlike the system-derived hints
+  next to it (synergy ✦, EDHREC %, which hide behind
+  `.deck-row-hovermeta`'s `(hover:hover) and (pointer:fine)` gate), a
+  card's own tags stay visible at rest. They're user-authored content, and
+  — critically — visibility here is what makes tag-group overlap legible:
+  a card showing 2 chips is self-evidently a member of 2 groups when
+  "Group by tag" is active. A card with no tags renders no chip at all —
+  zero clutter for anyone who's never touched the feature.
+- **Live suggestion ≠ a real tag.** The auto-suggested chip (derived from
+  `classifyCardCategory`, shown only while a card is untouched) is a
+  **dashed-border ghost pill**, visually distinct from a committed tag —
+  tapping it commits the tag for real. Never render a suggestion with the
+  same solid styling as a real tag; that reads as already-applied.
+- **Grid tiles get an icon-only badge**, not the tag text (no room) — same
+  art-scrim plate as the synergy/role badges beside it, with a small count
+  past 1 tag. Full tag names are always readable in the list row or the
+  card-preview panel.
+- **Coarse-pointer remove/add controls use the invisible expanded hit-area
+  technique** (`::after` 44×44 centered over the visual glyph under
+  `@media (pointer: coarse)`), the same one `.deck-arrivals-chip` already
+  uses — never grow the visible chip itself to 44px, that breaks the
+  compact multi-chip flow.
+
 ## Symbol key / Legend
 
 The card-symbol key is **one shared component** (`components/Legend.tsx`), driven

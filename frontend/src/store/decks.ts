@@ -60,12 +60,28 @@ export interface DeckCard {
   /** Unix ms timestamp when this slot was added. Absent on cards added before this field existed. */
   addedAt?: number;
   /**
-   * Legacy: user card tags from the retired radial-tagging feature. Nothing
-   * reads or writes this anymore, but synced decks from older builds still
-   * carry it — keep it typed so those rows round-trip untouched.
+   * User-defined tags (E171), free-text and multi-value — a card can carry
+   * several at once ("Ramp", "Combo Piece", "Wincon"). Per-deck-scoped: this
+   * lives on the slot, so the same physical card gets tagged independently
+   * in every deck it's in. Revived from the retired radial-tagging feature's
+   * identically-shaped dead field (same name/type, so old synced rows
+   * round-trip straight into the new meaning with no migration).
+   *
+   * STICKY OVERRIDE: `undefined` means "never edited" — the deck view may
+   * show a live auto-suggested tag (derived from `classifyCardCategory`,
+   * computed on the fly, never persisted here). The moment a user edits
+   * tags — including clearing them all to `[]` — this field is written and
+   * the classifier's suggestion is permanently dropped for that slot; it is
+   * never reclaimed or revised again. `[]` ("edited, no tags") and
+   * `undefined` ("untouched") are therefore deliberately distinct states —
+   * never normalize one into the other.
    */
   tags?: string[];
 }
+
+/** The three zones a `DeckCard` slot can live in — tags (and any other
+ *  per-slot user edit) are scoped to whichever zone the slot is in. */
+export type DeckZone = 'cards' | 'sideboard' | 'considering';
 
 export interface Deck {
   id: string;
@@ -362,6 +378,24 @@ interface DecksState {
   addCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeCard(deckId: string, slotId: string): void;
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
+
+  /**
+   * Set user tags (E171) on every slot in `slotIds` within `zone`, in ONE
+   * write — a multi-copy row (same-name stack) tags as a unit rather than
+   * per physical copy, and that's also what makes a bulk tag edit commit as
+   * a single sync push regardless of how many slots it touches. Writing
+   * here — even `[]` — is what makes a slot "edited": see the `tags` doc on
+   * `DeckCard` for the sticky-override contract.
+   */
+  setCardTags(deckId: string, zone: DeckZone, slotIds: string[], tags: string[]): void;
+  /** Rename a tag everywhere it appears across cards/sideboard/considering,
+   *  in one write. Merges into an existing `to` tag on a card that already
+   *  has both (no duplicate). No-op for slots that never had `from`. */
+  renameDeckTag(deckId: string, from: string, to: string): void;
+  /** Remove a tag from every slot that carries it, across all three zones,
+   *  in one write. A slot dropping its last tag still keeps `tags: []`
+   *  (still "edited" — sticky), never reverts to `undefined`. */
+  removeDeckTag(deckId: string, tag: string): void;
 
   /**
    * Atomic mainboard swap: remove the slot `outSlotId` and add `inCard` in a
@@ -691,6 +725,55 @@ export const useDecksStore = create<DecksState>()(
               : d
           ),
         })),
+
+      setCardTags: (deckId, zone, slotIds, tags) => {
+        const ids = new Set(slotIds);
+        const apply = (list: DeckCard[] | undefined) =>
+          (list ?? []).map((c) => (ids.has(c.slotId) ? { ...c, tags } : c));
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId ? touch({ ...d, [zone]: apply(d[zone]) }) : d
+          ),
+        }));
+      },
+
+      renameDeckTag: (deckId, from, to) => {
+        const renameOne = (c: DeckCard): DeckCard => {
+          if (!c.tags?.includes(from)) return c;
+          const next = c.tags.filter((t) => t !== from);
+          if (!next.includes(to)) next.push(to);
+          return { ...c, tags: next };
+        };
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: d.cards.map(renameOne),
+                  sideboard: d.sideboard.map(renameOne),
+                  considering: (d.considering ?? []).map(renameOne),
+                })
+              : d
+          ),
+        }));
+      },
+
+      removeDeckTag: (deckId, tag) => {
+        const stripOne = (c: DeckCard): DeckCard =>
+          c.tags?.includes(tag) ? { ...c, tags: c.tags.filter((t) => t !== tag) } : c;
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: d.cards.map(stripOne),
+                  sideboard: d.sideboard.map(stripOne),
+                  considering: (d.considering ?? []).map(stripOne),
+                })
+              : d
+          ),
+        }));
+      },
 
       swapCard: (deckId, outSlotId, inCard, allocatedCopyId = null) => {
         const slotId = genId('slot');
