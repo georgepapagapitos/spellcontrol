@@ -20,3 +20,33 @@
 .h2h-matchups {
   font-size: var(--text-sm);
 }
+
+/* Rivalry stats. Auto-fit rather than fixed columns so the three pairs stack
+   to one column on a narrow phone and sit in a row on anything wider, with no
+   breakpoint to keep in sync. */
+.h2h-rivalry {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.h2h-rivalry dt {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.h2h-rivalry dd {
+  margin: 0.1rem 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.h2h-rivalry dd b {
+  color: var(--text-primary);
+}

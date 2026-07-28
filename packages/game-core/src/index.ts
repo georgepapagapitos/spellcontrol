@@ -30,6 +30,10 @@
  */
 export type GameLayout = string;
 
+// Runtime dependency runs one way only: this module imports from `./summary`,
+// which imports nothing but *types* back from here (erased at compile time).
+import { summarizeGame, type GameSummary } from './summary';
+
 export type TapOrientation = 'horizontal' | 'vertical';
 
 export type GameFormat =
@@ -772,6 +776,14 @@ export interface GameRecord {
   endedAt: number;
   durationMs: number;
   mode: 'local' | 'online';
+  /**
+   * Derived stats, computed once here so history rollups never re-walk a log
+   * the record doesn't even carry. **Optional by design**: records written
+   * before this field read as `undefined` — "no data captured" — and must
+   * never be coerced to a zeroed summary, which is indistinguishable from a
+   * genuinely uneventful game. Same discipline as `game_results.notable_events`.
+   */
+  summary?: GameSummary;
 }
 
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {
@@ -795,6 +807,7 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     endedAt,
     durationMs: state.startedAt ? endedAt - state.startedAt : 0,
     mode: state.mode,
+    summary: summarizeGame(state, endedAt),
   };
 }
 
@@ -812,4 +825,6 @@ export function selectNotableEvents(events: GameEvent[]): GameEvent[] {
 }
 
 // Derived per-game statistics (first blood, placements, damage, KO credit).
+// One-directional at runtime: `summary.ts` imports only *types* from here, so
+// nothing requires back into this module.
 export * from './summary';

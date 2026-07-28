@@ -13,7 +13,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { GameResultParticipant } from '../games/result-types';
-import type { GameEvent } from '@spellcontrol/game-core';
+import type { GameEvent, GameSummary } from '@spellcontrol/game-core';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(),
@@ -611,6 +611,13 @@ export const gameResults = pgTable(
      * nothing notable).
      */
     notableEvents: jsonb('notable_events').$type<GameEvent[] | null>(),
+    /**
+     * Derived per-game stats (summarizeGame in @spellcontrol/game-core),
+     * computed once at persist time. Nullable for the same reason as
+     * notableEvents: pre-migration rows are "no data captured", and the
+     * pod / H2H rollups exclude them rather than counting them as zeroes.
+     */
+    summary: jsonb('summary').$type<GameSummary | null>(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
   },
   (t) => ({
