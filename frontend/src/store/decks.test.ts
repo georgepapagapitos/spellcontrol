@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useDecksStore, type Deck, type DeckCard } from './decks';
+import { useDecksStore, getLocalMutationToken, type Deck, type DeckCard } from './decks';
 import { buildAllocationMap } from '../lib/allocations';
 import { setApplyingServer } from '../lib/applying-server';
 import type { EnrichedCard } from '../types';
@@ -1039,5 +1039,53 @@ describe('createDeck — primer / forkedFrom', () => {
     const deck = useDecksStore.getState().decks.find((d) => d.id === id)!;
     expect('primer' in deck).toBe(false);
     expect('forkedFrom' in deck).toBe(false);
+  });
+});
+
+describe('local mutation token (E177)', () => {
+  it('bumps on a local mutation (add/remove/allocate/move/rename)', () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-tok-1' })] });
+    const before = getLocalMutationToken('d-tok-1');
+
+    useDecksStore.getState().addCard('d-tok-1', sfCard('Sol Ring'));
+    expect(getLocalMutationToken('d-tok-1')).toBe(before + 1);
+
+    useDecksStore.getState().renameDeck('d-tok-1', 'New name');
+    expect(getLocalMutationToken('d-tok-1')).toBe(before + 2);
+  });
+
+  it('does not bump for a silent (derived/analysis) updateDeck write', () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-tok-2' })] });
+    const before = getLocalMutationToken('d-tok-2');
+    useDecksStore.getState().updateDeck('d-tok-2', { averageSalt: 1.2 }, true);
+    expect(getLocalMutationToken('d-tok-2')).toBe(before);
+  });
+
+  it('does not bump for remapAllocations — a system pointer repair, not a user edit', () => {
+    useDecksStore.setState({
+      decks: [baseDeck({ id: 'd-tok-3', cards: [slot('Sol Ring', 'old-copy-1', 'sf-1')] })],
+    });
+    const before = getLocalMutationToken('d-tok-3');
+
+    useDecksStore
+      .getState()
+      .remapAllocations([enriched({ copyId: 'new-copy-1', name: 'Sol Ring', scryfallId: 'sf-1' })]);
+
+    expect(useDecksStore.getState().decks[0].cards[0].allocatedCopyId).toBe('new-copy-1');
+    expect(getLocalMutationToken('d-tok-3')).toBe(before);
+  });
+
+  it('does not bump on rehydration from IDB (a direct setState, bypassing every mutator)', () => {
+    // Mirrors exactly what lib/sync.ts's rehydrateStoresFromIdb does: it sets
+    // `decks` directly via setState, never calling into any mutator/touch().
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-tok-1' })] });
+    const before = getLocalMutationToken('d-tok-1');
+
+    useDecksStore.setState({
+      decks: [baseDeck({ id: 'd-tok-1', name: 'Rehydrated name' })],
+      hydrated: true,
+    });
+
+    expect(getLocalMutationToken('d-tok-1')).toBe(before);
   });
 });
