@@ -227,6 +227,28 @@ export function computeSurplusByName(
 }
 
 /**
+ * Picks which `count` of a stacked row's slots to release for a quantity
+ * decrement (qty stepper "−", bulk click-to-type shrink). Prefers releasing
+ * UNALLOCATED slots first — dropping an allocated slot while an unallocated
+ * duplicate of the same card remains would silently make an owned card read
+ * as unowned in the deck, even though the physical copy is still there and
+ * merely needs re-binding (which `buildAllocationMap` does automatically on
+ * the next render, since allocation is derived from what's left in `cards`).
+ * Falls back to allocated slots only once there's no unallocated stock left
+ * to shed. Order within each group is preserved (oldest-added first).
+ */
+export function pickSlotsToRelease<T extends { allocatedCopyId: string | null }>(
+  current: T[],
+  count: number
+): T[] {
+  if (count <= 0) return [];
+  const unallocated = current.filter((c) => !c.allocatedCopyId);
+  const allocated = current.filter((c) => c.allocatedCopyId);
+  if (unallocated.length >= count) return unallocated.slice(-count);
+  return [...allocated.slice(-(count - unallocated.length)), ...unallocated];
+}
+
+/**
  * Strip cross-slot double-claims so one physical copy (`copyId`) is allocated
  * to at most one deck slot. First-claim-wins in a deterministic order: deck
  * array order, then within a deck commander → partnerCommander → cards →
