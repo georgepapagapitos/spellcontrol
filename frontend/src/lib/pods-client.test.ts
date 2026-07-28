@@ -251,12 +251,39 @@ describe('fetchPodGames', () => {
 });
 
 describe('fetchPodLeaderboard', () => {
-  it('unwraps the standings array', async () => {
-    const standings = [{ userId: 'u1', username: 'george', played: 2, wins: 1, winRate: 0.5 }];
-    fetchMock.mockResolvedValue(jsonResponse({ standings }));
-    expect(await fetchPodLeaderboard('p1')).toEqual(standings);
+  it('returns the standings and records envelope', async () => {
+    const standings = [
+      {
+        userId: 'u1',
+        username: 'george',
+        played: 2,
+        wins: 1,
+        winRate: 0.5,
+        ratedGames: 2,
+        avgPlacement: 1.5,
+        firstBlood: 1,
+        kos: 3,
+      },
+    ];
+    const records = {
+      firstBlood: { userId: 'u1', username: 'george', games: 1, rate: 0.5 },
+      mostKos: { userId: 'u1', username: 'george', kos: 3 },
+      archenemy: null,
+    };
+    fetchMock.mockResolvedValue(jsonResponse({ standings, records }));
+    expect(await fetchPodLeaderboard('p1')).toEqual({ standings, records });
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toContain('/api/pods/p1/leaderboard');
+  });
+
+  it('fills in empty records when the server predates them', async () => {
+    // An older backend returns { standings } only — that must read as "no
+    // superlatives", not crash the pod hub on an undefined `records`.
+    fetchMock.mockResolvedValue(jsonResponse({ standings: [] }));
+    expect(await fetchPodLeaderboard('p1')).toEqual({
+      standings: [],
+      records: { firstBlood: null, mostKos: null, archenemy: null },
+    });
   });
 
   it('throws the server error message on failure', async () => {

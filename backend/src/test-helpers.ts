@@ -354,6 +354,7 @@ export async function createTestEnv(): Promise<TestEnv> {
       duration_ms BIGINT NOT NULL,
       participants JSONB NOT NULL,
       notable_events JSONB,
+      summary JSONB,
       created_at BIGINT NOT NULL
     );
     CREATE INDEX game_results_participants_idx ON game_results USING GIN (participants);

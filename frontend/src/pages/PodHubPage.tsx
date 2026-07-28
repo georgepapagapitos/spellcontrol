@@ -27,6 +27,7 @@ import {
   type PodGameResult,
   type PodMember,
   type PodStanding,
+  type PodRecords,
 } from '../lib/pods-client';
 
 const POD_NAME_MAX = 60;
@@ -39,7 +40,7 @@ type GamesFetch =
 type LeaderboardFetch =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; standings: PodStanding[] };
+  | { status: 'ready'; standings: PodStanding[]; records: PodRecords };
 
 /** "What the pod plays" per-member resolution — a mutual friend's fetched
  *  deck shares (never fetched at all for a non-friend, per the spec's "zero
@@ -82,7 +83,49 @@ function PodLeaderboardRow({ standing }: { standing: PodStanding }) {
         />
         <span>{standing.played > 0 ? `${Math.round(standing.winRate * 100)}%` : '—'}</span>
       </td>
+      {/* Not tweened: a mean isn't a counter, and "—" means no rated games
+          yet — never render it as a 0th-place finish. */}
+      <td>{standing.avgPlacement != null ? standing.avgPlacement.toFixed(1) : '—'}</td>
     </tr>
+  );
+}
+
+/**
+ * The pod's superlatives, as a one-line strip under the standings rather than
+ * three more columns on a table that already scrolls at phone width. Renders
+ * nothing at all when the pod has earned no records — an insight surface never
+ * displaces content to show an empty state.
+ */
+function PodRecordsStrip({ records }: { records: PodRecords }) {
+  const { firstBlood, mostKos, archenemy } = records;
+  if (!firstBlood && !mostKos && !archenemy) return null;
+  return (
+    <ul className="pod-hub-records" aria-label="Pod records">
+      {firstBlood && (
+        <li>
+          <span className="pod-hub-record-label">First blood</span>
+          <span className="pod-hub-record-value">
+            {firstBlood.username} <b>{Math.round(firstBlood.rate * 100)}%</b>
+          </span>
+        </li>
+      )}
+      {mostKos && (
+        <li>
+          <span className="pod-hub-record-label">Most KOs</span>
+          <span className="pod-hub-record-value">
+            {mostKos.username} <b>{mostKos.kos}</b>
+          </span>
+        </li>
+      )}
+      {archenemy && (
+        <li>
+          <span className="pod-hub-record-label">Archenemy</span>
+          <span className="pod-hub-record-value">
+            {archenemy.killerName} → {archenemy.victimName} <b>×{archenemy.kos}</b>
+          </span>
+        </li>
+      )}
+    </ul>
   );
 }
 
@@ -154,7 +197,9 @@ export function PodHubPage() {
   const loadLeaderboard = useCallback(() => {
     if (!id) return;
     fetchPodLeaderboard(id)
-      .then((standings) => setLeaderboardFetch({ status: 'ready', standings }))
+      .then(({ standings, records }) =>
+        setLeaderboardFetch({ status: 'ready', standings, records })
+      )
       .catch((err: unknown) => {
         setLeaderboardFetch({
           status: 'error',
@@ -582,23 +627,27 @@ export function PodHubPage() {
               ) : leaderboardFetch.standings.length === 0 ? (
                 <p className="pod-hub-stats-empty">No games yet — get a game night on the books.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="play-records-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Member</th>
-                        <th scope="col">Played</th>
-                        <th scope="col">W</th>
-                        <th scope="col">Win%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leaderboardFetch.standings.map((s) => (
-                        <PodLeaderboardRow key={s.userId} standing={s} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="play-records-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Member</th>
+                          <th scope="col">Played</th>
+                          <th scope="col">W</th>
+                          <th scope="col">Win%</th>
+                          <th scope="col">Avg place</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaderboardFetch.standings.map((s) => (
+                          <PodLeaderboardRow key={s.userId} standing={s} />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <PodRecordsStrip records={leaderboardFetch.records} />
+                </>
               )}
             </div>
           </div>

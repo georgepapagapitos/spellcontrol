@@ -29,6 +29,8 @@ export function H2HSummary({ data }: { data: H2HResponse }) {
         </span>
       </div>
 
+      <H2HRivalry summary={summary} friendName={friendName} />
+
       {summary.deckMatchups.length > 0 && (
         <table className="play-records-table h2h-matchups">
           <thead>
@@ -54,5 +56,46 @@ export function H2HSummary({ data }: { data: H2HResponse }) {
         </table>
       )}
     </div>
+  );
+}
+
+/**
+ * The rivalry line — who draws blood, who finishes higher, who actually
+ * removes whom. Renders nothing when `ratedGames` is 0 or absent: that means
+ * no game in this pairing carries a derived summary (all pre-migration, or an
+ * older backend), and showing a row of honest-looking zeroes would be a lie.
+ */
+function H2HRivalry({
+  summary,
+  friendName,
+}: {
+  summary: H2HResponse['summary'];
+  friendName: string;
+}) {
+  if (!summary.ratedGames) return null;
+  const place = (n: number | null | undefined) => (n != null ? n.toFixed(1) : '—');
+  return (
+    <dl className="h2h-rivalry" aria-label={`Rivalry stats over ${summary.ratedGames} games`}>
+      <div>
+        <dt>First blood</dt>
+        <dd>
+          You <b>{summary.callerFirstBlood ?? 0}</b> · {friendName}{' '}
+          <b>{summary.friendFirstBlood ?? 0}</b>
+        </dd>
+      </div>
+      <div>
+        <dt>Avg place</dt>
+        <dd>
+          You <b>{place(summary.callerAvgPlacement)}</b> · {friendName}{' '}
+          <b>{place(summary.friendAvgPlacement)}</b>
+        </dd>
+      </div>
+      <div>
+        <dt>Knockouts</dt>
+        <dd>
+          You <b>{summary.callerKos ?? 0}</b> · {friendName} <b>{summary.friendKos ?? 0}</b>
+        </dd>
+      </div>
+    </dl>
   );
 }
