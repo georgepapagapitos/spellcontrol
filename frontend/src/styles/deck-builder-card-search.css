@@ -538,6 +538,27 @@
   }
 }
 
+/* Binder chip (E169) — reuses BinderBadge inline in the meta line, right
+   after "owned N". Its sibling in this row, .card-search-add, already gets
+   the coarse-pointer 44px minimum (WCAG 2.5.5); this closes the same gap for
+   the badge. Growing the visible pill itself would distort the dense meta
+   line, so — mirroring .set-filter-chip-x — a centered ::after ghost expands
+   only the hit area on coarse pointers, leaving the quiet chip's size alone. */
+.card-search-meta .card-list-binder-badge {
+  position: relative;
+}
+@media (pointer: coarse) {
+  .card-search-meta .card-list-binder-badge::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .card-search-row.is-off-color .card-search-name {
   color: var(--text-secondary);
 }

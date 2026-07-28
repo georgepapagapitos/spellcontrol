@@ -32,6 +32,7 @@ import {
   substringMatchesExpression,
 } from '../../lib/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
 import type { ChipExpression, EnrichedCard } from '../../types';
@@ -105,6 +106,14 @@ interface Props {
    * Undefined for a no-commander deck; the badge never fetches or renders.
    */
   commanderKey?: string;
+  /**
+   * Binder(s) each owned card name is routed into, from the deck page's
+   * `binderByCardName` (a re-keyed `binderByCopyId` — the same canonical
+   * routing computation the binder review queue uses, so this can never
+   * disagree with where a card actually files). Collection-tab rows only;
+   * absent for a card with no owned copy or no matching binder.
+   */
+  binderByCardName?: Map<string, BinderInfo[]>;
 }
 
 type Mode = 'collection' | 'scryfall' | 'suggestions';
@@ -272,6 +281,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     enableSuggestions,
     suggestionsPending,
     commanderKey,
+    binderByCardName,
   },
   ref
 ) {
@@ -609,6 +619,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             comboProducesByName={comboProducesByName}
             topCardCounts={effectiveTopCardCounts}
             sort={sort}
+            binderByCardName={binderByCardName}
             enforceCommander={!!enableSuggestions}
             onSearchScryfall={() => setMode('scryfall')}
           />
@@ -713,6 +724,7 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
   compiledBorder: ReturnType<typeof compileExpression>;
   colorFilter: Set<string>;
   setFilter: Set<string>;
+  binderByCardName?: Map<string, BinderInfo[]>;
 }
 
 // ── Collection results ───────────────────────────────────────────────────
@@ -741,6 +753,7 @@ function CollectionResults({
   gapByName,
   comboProducesByName,
   topCardCounts,
+  binderByCardName,
   sort,
   enforceCommander,
   onSearchScryfall,
@@ -941,6 +954,7 @@ function CollectionResults({
           const inDeck = existingCardCounts.get(c.name) ?? 0;
           const active = i === activeIndex;
           const nameKey = c.name.toLowerCase();
+          const binders = binderByCardName?.get(c.name) ?? [];
           return (
             <li
               key={c.scryfallId}
@@ -967,6 +981,14 @@ function CollectionResults({
               {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
               <span className="card-search-meta">
                 owned {ownedCount}
+                {binders.length > 0 && (
+                  <BinderBadge
+                    binders={binders}
+                    onSelect={(b) =>
+                      pushToast({ message: `${c.name} is filed in ${b.name}`, tone: 'info' })
+                    }
+                  />
+                )}
                 {inDeck > 0 && (
                   <>
                     {' · '}
