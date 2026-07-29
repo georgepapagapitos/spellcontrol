@@ -336,8 +336,12 @@ describe('ShareDialog — opening the dialog mints nothing', () => {
   });
 });
 
-describe('ShareDialog — Public retires the lesser rungs', () => {
-  it('revokes this deck’s live link/friends shares on publish, leaving other resources alone', async () => {
+describe('ShareDialog — Public supersedes the lesser rungs', () => {
+  it('stops showing the superseded /s/ link and shows the public URL instead', async () => {
+    // The revocation itself is the publish endpoint's job now (it has to be —
+    // three client call sites publish, and enforcing it in this one was how
+    // the invariant broke); routes/publications.test.ts covers that. What this
+    // dialog still owes is not presenting a token the server just killed.
     listSharesMock.mockResolvedValue([
       {
         token: 'tok-link',
@@ -347,26 +351,6 @@ describe('ShareDialog — Public retires the lesser rungs', () => {
         audience: 'link',
         addresseeId: null,
         createdAt: 1,
-        revokedAt: null,
-      },
-      {
-        token: 'tok-direct',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd1',
-        audience: 'direct',
-        addresseeId: 'friend-1',
-        createdAt: 2,
-        revokedAt: null,
-      },
-      {
-        token: 'tok-other-deck',
-        userId: 'u1',
-        kind: 'deck',
-        resourceId: 'd2',
-        audience: 'link',
-        addresseeId: null,
-        createdAt: 3,
         revokedAt: null,
       },
     ]);
@@ -383,7 +367,8 @@ describe('ShareDialog — Public retires the lesser rungs', () => {
     renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
 
     // Settle on the adopted 'link' rung before switching up the ladder.
-    await screen.findByLabelText('Share URL');
+    const before = (await screen.findByLabelText('Share URL')) as HTMLInputElement;
+    expect(before.value).toBe('https://spellcontrol.com/s/tok-link');
 
     fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
     fireEvent.click(
@@ -391,12 +376,11 @@ describe('ShareDialog — Public retires the lesser rungs', () => {
     );
 
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
-    await waitFor(() => expect(revokeShareMock).toHaveBeenCalledWith('tok-link'));
-    // 'direct' is recipient-targeted, not a visibility level — it survives,
-    // matching resolveDeckVisibility's own carve-out. And another deck's
-    // share is never this dialog's business.
-    expect(revokeShareMock).not.toHaveBeenCalledWith('tok-direct');
-    expect(revokeShareMock).not.toHaveBeenCalledWith('tok-other-deck');
+    // The published view swaps in its own field (a /d/ slug, not a /s/ token);
+    // the superseded share URL must be gone from the dialog entirely.
+    const after = (await screen.findByLabelText('Published deck URL')) as HTMLInputElement;
+    expect(after.value).toBe('https://spellcontrol.com/d/test-deck');
+    expect(screen.queryByLabelText('Share URL')).toBeNull();
   });
 });
 

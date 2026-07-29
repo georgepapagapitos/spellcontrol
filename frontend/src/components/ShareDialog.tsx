@@ -276,39 +276,15 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     }
   };
 
-  /**
-   * Retire the lesser rungs once a deck goes public. The ladder reads as
-   * mutually exclusive, so it has to *be* exclusive: without this, a 'link'
-   * or 'friends' share minted earlier stays live underneath the publication —
-   * an unlisted /s/:token the owner believes they've replaced, still granting
-   * access and still sitting in Settings → Share links. Mirrors
-   * handleGoPrivate's revoke sweep, minus 'direct' (recipient-targeted, not a
-   * visibility level — same carve-out resolveDeckVisibility makes).
-   *
-   * Best-effort: a publish that succeeded must not be reported as failed
-   * because the cleanup didn't, so this never throws into doPublish.
-   */
-  const revokeLesserRungs = async (): Promise<void> => {
-    try {
-      const all = await listShares();
-      const lesser = all.filter(
-        (s) =>
-          s.kind === kind &&
-          s.resourceId === (resourceId ?? '') &&
-          (s.audience === 'link' || s.audience === 'friends')
-      );
-      await Promise.all(lesser.map((s) => revokeShare(s.token)));
-      setShare(null);
-    } catch {
-      /* publication is live either way — the stale link is cleanable from Settings */
-    }
-  };
-
   const doPublish = async (): Promise<void> => {
     if (!resourceId) return;
     try {
       const pub = await publishDeck(resourceId);
-      await revokeLesserRungs();
+      // The server retires this deck's link/friends shares as part of
+      // publishing (routes/publications.ts) — the ladder is exclusive at the
+      // one point every publish call site converges on, so there's nothing to
+      // sweep here. Just drop the now-dead token from dialog state.
+      setShare(null);
       setPublication(pub);
       setPendingPublicConfirm(false);
       setNeedsDisplayName(false);
