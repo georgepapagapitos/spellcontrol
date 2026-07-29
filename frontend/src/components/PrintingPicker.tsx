@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchPrintings } from '../lib/api';
 import { formatMoney } from '../lib/format-money';
+import { imageFromCard } from '../lib/card-thumbs';
 import { availableFinishes } from '../lib/scanner-feedback';
+import { CardThumb } from './CardThumb';
 import { SelectMenu, type SelectOption } from './SelectMenu';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Condition, Finish } from '../types';
@@ -74,6 +76,10 @@ interface Props {
  * quick-add, inline collection search, list search). Lives in its own file so
  * the sheets don't each grow a divergent copy; keeps the `inline-card-search-*`
  * class names its styles were born under (binder-card-management.css).
+ *
+ * Each printing is a card TILE showing its actual art — set code and collector
+ * number can't distinguish a retro frame from a borderless showcase, which is
+ * precisely the call this control exists to make.
  */
 export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }: Props) {
   const [printings, setPrintings] = useState<ScryfallCard[] | null>(null);
@@ -153,6 +159,7 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
           <ul className="inline-card-search-printing-list" role="listbox" aria-label="Printings">
             {printings.slice(0, pVisible).map((p) => {
               const isSel = p.id === selectedId;
+              const art = imageFromCard(p, 'normal');
               return (
                 <li key={p.id}>
                   <button
@@ -161,16 +168,33 @@ export function PrintingPicker({ cardName, fallback, showExtras = false, onAdd }
                     aria-selected={isSel}
                     className={`inline-card-search-printing${isSel ? ' is-selected' : ''}`}
                     onClick={() => setSelectedId(p.id)}
+                    // Set names truncate under the narrow tile — the full name
+                    // stays reachable on hover/long-press, and the option's
+                    // accessible name already reads it in full.
+                    title={`${p.set_name} · ${p.set.toUpperCase()} #${p.collector_number}`}
                   >
+                    {art ? (
+                      <CardThumb
+                        src={art}
+                        alt=""
+                        decorative
+                        className="collection-grid-item inline-card-search-printing-frame"
+                      />
+                    ) : (
+                      <span
+                        className="collection-grid-item inline-card-search-printing-frame is-empty"
+                        aria-hidden
+                      />
+                    )}
                     <span className="inline-card-search-printing-set">
                       {p.set.toUpperCase()} #{p.collector_number}
                     </span>
-                    <span className="inline-card-search-printing-set-name">{p.set_name}</span>
                     <span className="inline-card-search-printing-price">
                       {formatMoney(priceForFinish(p, 'nonfoil') || priceForFinish(p, 'foil'), {
                         zeroAsDash: true,
                       })}
                     </span>
+                    <span className="inline-card-search-printing-set-name">{p.set_name}</span>
                   </button>
                 </li>
               );
