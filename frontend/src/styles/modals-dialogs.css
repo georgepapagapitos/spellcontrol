@@ -121,6 +121,15 @@
   border-radius: 50%;
 }
 
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive): the 28px box is
+   desktop-density — every modal's dismiss control needs 44px on touch. */
+@media (pointer: coarse) {
+  .modal-close {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .modal-close:hover {
     background: var(--surface-raised);
@@ -132,6 +141,12 @@
   padding: 1.25rem var(--space-5);
   overflow-y: auto;
   overflow-x: hidden;
+  /* Stop scroll chaining: `body` is permanently `overflow: hidden`
+     (base-layout.css) and `.app-main` is the app's only real scroll region,
+     so an overlay list scrolled to its edge would otherwise hand the leftover
+     delta to the page behind the dialog. `.app-main`'s own `contain` only
+     stops chaining OUT of it, not delta arriving from a descendant. */
+  overscroll-behavior: contain;
   flex: 1;
 }
 
@@ -419,6 +434,10 @@
 
 .choice-dialog-actions {
   display: flex;
+  /* `.btn` is `white-space: nowrap` with no min-width override, so a
+     3-button row (new-commander, merge-import) needs ~300-340px — wider
+     than this dialog's ~240px of content width at the 320px floor. */
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
 }
@@ -436,10 +455,6 @@
 .name-input-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-}
-
-.name-input-form .choice-dialog-actions {
   gap: var(--space-2);
 }
 

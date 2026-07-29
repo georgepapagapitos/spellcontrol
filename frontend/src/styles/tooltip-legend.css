@@ -410,6 +410,16 @@ hr {
   opacity: 0.6;
 }
 
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive): 24px is the smallest
+   dismiss target in the app. Keep the visual circle by growing the hit box
+   only — the glyph stays centered by the existing inline-flex centering. */
+@media (pointer: coarse) {
+  .banner-dismiss {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .banner-dismiss:hover {
     opacity: 1;

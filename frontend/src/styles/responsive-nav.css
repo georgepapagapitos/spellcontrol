@@ -475,8 +475,13 @@
   padding: 0 var(--page-gutter, var(--space-4));
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  /* Scrollable on narrow screens so all tabs remain reachable. */
+  /* Scrollable on narrow screens so all tabs remain reachable. `overflow-y`
+     must be stated: with only one axis set to a non-`visible` value the other
+     computes to `auto` too, which made this an unintended 2-axis scroller —
+     and the active tab's `margin-bottom: -1px` gave it a 1px block-axis
+     scroll range that touch/momentum engines can rubber-band against. */
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }

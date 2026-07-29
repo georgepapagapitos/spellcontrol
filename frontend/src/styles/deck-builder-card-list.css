@@ -1135,6 +1135,15 @@
   cursor: pointer;
 }
 
+/* Coarse-pointer floor (STYLE_GUIDE § Responsive): a 0.875rem glyph with
+   0.125rem padding is ~18px — the deck row's only menu affordance. */
+@media (pointer: coarse) {
+  .deck-row-menu-trigger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .deck-row-menu-icon {
   display: block;
   width: 0.875rem;

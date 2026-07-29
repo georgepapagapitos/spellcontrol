@@ -170,7 +170,10 @@
     position: fixed;
     left: var(--space-3);
     right: var(--space-3);
-    bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    /* Clear the mobile tab bar, not just the safe area — the raw inset put
+       this bar underneath it. `--mobile-tabbar-h` already folds in
+       `--safe-bottom` (tokens.css), same basis ScanFab uses. */
+    bottom: calc(var(--mobile-tabbar-h) + var(--space-3));
     z-index: var(--z-sheet-bg);
     background: var(--surface-raised);
     border: 0.5px solid var(--border-strong);
