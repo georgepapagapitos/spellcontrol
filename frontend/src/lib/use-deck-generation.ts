@@ -62,6 +62,23 @@ interface Options {
   /** Deck this build regenerated from — on completion, lands on the compare
    * diff (source vs new) instead of the new deck's editor. */
   sourceDeckId?: string;
+  /**
+   * Creation-time hand-off, fired once the generated deck exists and its
+   * destination is known, but before this hook navigates. Exists so a page's
+   * Private/Public fieldset actually applies to a *generated* deck: publishing
+   * can only happen after `saveGeneratedDeck`, and the publish flow owns its
+   * own navigation (the display-name substep can defer it indefinitely), so
+   * it's handed the destination rather than racing this hook to it.
+   *
+   * Return `true` to mean "I've taken over navigation" — this hook then leaves
+   * routing alone. Anything falsy (including no handler at all) keeps the
+   * normal navigate below, so the non-publishing path is untouched.
+   */
+  onCreated?: (
+    deckId: string,
+    destination: string,
+    navState?: Record<string, unknown>
+  ) => boolean | Promise<boolean>;
 }
 
 /**
@@ -81,6 +98,28 @@ export function resolveGenerationDestination(
 }
 
 /**
+ * One-shot router-state flags the editor reads when a build lands:
+ *   - justGenerated → auto-open the build-report sheet. A compare landing has
+ *     no report to show, so it carries no state at all.
+ *   - promptVisibility → show DeckPublishNudge, for a surface that never
+ *     offered a creation-time visibility choice (the guided/brew builders).
+ *
+ * `offeredVisibilityChoice` is derived from the presence of an `onCreated`
+ * hand-off rather than a second opt-in flag, precisely so the two can't
+ * drift: a page either wires the Private/Public fieldset in, or it gets the
+ * post-landing nudge — never neither (the silent-private hole this closes),
+ * never both. Pure + exported so that rule is unit-testable without mounting
+ * the store-heavy build() flow, same as resolveGenerationDestination above.
+ */
+export function resolveGenerationNavState(
+  landedOnCompare: boolean,
+  offeredVisibilityChoice: boolean
+): Record<string, unknown> | undefined {
+  if (landedOnCompare) return undefined;
+  return { justGenerated: true, ...(offeredVisibilityChoice ? {} : { promptVisibility: true }) };
+}
+
+/**
  * Shared orchestration for the two commander deck-generation surfaces
  * (the single-page "New deck" form and the step-by-step "Build together"
  * wizard). Both surfaces drive the same engine with identical EDHREC
@@ -93,6 +132,7 @@ export function useDeckGeneration({
   haptic = false,
   beforeNavigate,
   sourceDeckId,
+  onCreated,
 }: Options = {}) {
   const navigate = useNavigate();
 
@@ -296,13 +336,16 @@ export function useDeckGeneration({
       const existingDeckIds = new Set(useDecksStore.getState().decks.map((d) => d.id));
       const destination = resolveGenerationDestination(id, sourceDeckId, existingDeckIds);
       const landedOnCompare = sourceDeckId != null && existingDeckIds.has(sourceDeckId);
+      // Computed once, so the hand-off below and the navigate below it can't
+      // drift apart. See resolveGenerationNavState for what each flag means.
+      const navState = resolveGenerationNavState(landedOnCompare, !!onCreated);
+      if (await onCreated?.(id, destination, navState)) return;
       if (landedOnCompare) {
         toast.show({ message: 'Comparing your previous build with the new one.', tone: 'info' });
         navigate(destination);
       } else {
-        // justGenerated → the editor auto-shows the build report once (incl.
-        // the "committed to other decks" conflict note).
-        navigate(destination, { state: { justGenerated: true } });
+        // (incl. the "committed to other decks" conflict note.)
+        navigate(destination, { state: navState });
       }
     } catch (e) {
       logger.error('[DeckBuilder] generation failed:', e);
@@ -328,6 +371,7 @@ export function useDeckGeneration({
     haptic,
     beforeNavigate,
     sourceDeckId,
+    onCreated,
   ]);
 
   return {

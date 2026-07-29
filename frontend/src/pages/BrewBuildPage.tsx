@@ -189,7 +189,11 @@ export function BrewBuildPage(): JSX.Element {
       );
       clearBrewDraft();
       brewReset();
-      navigate(`/decks/${id}`, { state: { justGenerated: true } });
+      // promptVisibility: brew has no creation-time Private/Public fieldset,
+      // so the deck would otherwise land silently private with nothing ever
+      // offering to publish it. DeckPublishNudge is the lighter surface built
+      // for exactly that — same treatment the guided wizard gets.
+      navigate(`/decks/${id}`, { state: { justGenerated: true, promptVisibility: true } });
     } finally {
       setSaving(false);
     }
