@@ -223,63 +223,65 @@ export function GameBoard({
         {(board.empty ?? []).map((cell, i) => (
           <EmptyPanel key={`empty-${i}`} cell={cell} />
         ))}
-      </div>
-
-      {/* Floating central hub at the layout's seam — the boundary
+        {/* Floating central hub at the layout's seam — the boundary
           between rotated (far-side) and upright (near-side) seats.
           --seam-top-pct / --seam-left-pct position it precisely;
           row-seam layouts pin top by row index, col-seam layouts pin
-          left by column index. */}
-      <button
-        type="button"
-        className="game-board-menu-btn"
-        style={{
-          ['--seam-top-pct' as never]:
-            'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
-          ['--seam-left-pct' as never]:
-            'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-        }}
-        aria-label="Game menu"
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerUp={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          setMenuOpen(true);
-        }}
-      >
-        <MoreHorizontal width={22} height={22} strokeWidth={2} aria-hidden />
-      </button>
-
-      {undoLabel && (
+          left by column index. Lives INSIDE .game-board-grid so the
+          percentages resolve against the seat area, not the whole
+          viewport — .game-board's safe-area padding would otherwise
+          push the seam off the real row/column boundary. */}
         <button
           type="button"
-          className="game-board-undo-btn"
+          className="game-board-menu-btn"
           style={{
             ['--seam-top-pct' as never]:
               'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
             ['--seam-left-pct' as never]:
               'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
-            // undoButtonParams drives offset direction (row-seam=left, col-seam=above)
-            // and icon rotation (0° for row, 90° for col). Two size variants let the
-            // CSS media query pick the right offset at ≥600px without recalculating.
-            ['--undo-tx' as never]: undoButtonParams(board.seam).tx,
-            ['--undo-ty' as never]: undoButtonParams(board.seam).ty,
-            ['--undo-tx-lg' as never]: undoButtonParams(board.seam, '4rem').tx,
-            ['--undo-ty-lg' as never]: undoButtonParams(board.seam, '4rem').ty,
-            ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
           }}
-          aria-label={`Undo ${undoLabel}`}
-          title={`Undo ${undoLabel}`}
+          aria-label="Game menu"
           onPointerDown={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            onUndo();
+            setMenuOpen(true);
           }}
         >
-          <Undo2 width={18} height={18} strokeWidth={2.2} aria-hidden />
+          <MoreHorizontal width={22} height={22} strokeWidth={2} aria-hidden />
         </button>
-      )}
+
+        {undoLabel && (
+          <button
+            type="button"
+            className="game-board-undo-btn"
+            style={{
+              ['--seam-top-pct' as never]:
+                'row' in board.seam ? `${(board.seam.row / board.rows) * 100}%` : '50%',
+              ['--seam-left-pct' as never]:
+                'col' in board.seam ? `${(board.seam.col / board.cols) * 100}%` : '50%',
+              // undoButtonParams drives offset direction (row-seam=left, col-seam=above)
+              // and icon rotation (0° for row, 90° for col). Two size variants let the
+              // CSS media query pick the right offset at ≥600px without recalculating.
+              ['--undo-tx' as never]: undoButtonParams(board.seam).tx,
+              ['--undo-ty' as never]: undoButtonParams(board.seam).ty,
+              ['--undo-tx-lg' as never]: undoButtonParams(board.seam, '4rem').tx,
+              ['--undo-ty-lg' as never]: undoButtonParams(board.seam, '4rem').ty,
+              ['--undo-rot' as never]: `${undoButtonParams(board.seam).iconRot}deg`,
+            }}
+            aria-label={`Undo ${undoLabel}`}
+            title={`Undo ${undoLabel}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUndo();
+            }}
+          >
+            <Undo2 width={18} height={18} strokeWidth={2.2} aria-hidden />
+          </button>
+        )}
+      </div>
 
       {game.status === 'finished' &&
         game.winnerSeat != null &&
