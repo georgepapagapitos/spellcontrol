@@ -362,9 +362,14 @@
   margin: 0;
   padding: 0;
   border: 0.5px solid var(--border-strong);
-  border-radius: var(--radius);
+  /* Segmented-control WRAPPER = container tier per the Shape rule, matching
+     .share-audience / .rule-segmented / .binder-mode-toggle. This was the lone
+     --radius holdout and it read a step tighter than every sibling control. */
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--surface);
+  /* Never outrun a narrow settings row (the guide flagged this clipping). */
+  max-width: 100%;
 }
 
 .settings-currency-option {
@@ -383,10 +388,12 @@
 .settings-currency-option span {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: var(--space-2) 0.9rem;
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-muted);
+  white-space: nowrap;
   transition:
     background var(--motion-fast) ease,
     color var(--motion-fast) ease;
@@ -404,6 +411,14 @@
 .settings-currency-option input:focus-visible + span {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+}
+
+/* The guide flagged this control as never reaching the 44px coarse-pointer
+   floor — it's a primary settings control, not a compact filter chip. */
+@media (pointer: coarse) {
+  .settings-currency-option span {
+    min-height: 44px;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

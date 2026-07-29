@@ -1,4 +1,4 @@
-import { type JSX, useMemo, useState } from 'react';
+import { type JSX, useId, useMemo, useState } from 'react';
 import { COLOR_INFO } from '../../lib/colors';
 import { useCardCarousel, tallyToEntries, type CardTally } from './useCardCarousel';
 import { CardGroupSheet } from './CardGroupSheet';
@@ -102,6 +102,8 @@ export function DeckCurvePhases({
 }): JSX.Element {
   const carousel = useCardCarousel('Mana curve');
   const [mode, setMode] = useState<CurveMode>('color');
+  // Radios group by shared `name` — scope it per mounted chart.
+  const modeGroup = useId();
   // Tapping a bucket opens the grouped overview sheet (the high-level "see them
   // all" step) before the one-at-a-time carousel.
   const [groupSheet, setGroupSheet] = useState<{ title: string; tally: CardTally[] } | null>(null);
@@ -194,33 +196,29 @@ export function DeckCurvePhases({
             {total > 0 && ` · ${avgCmcBandWord(grading.pacing)}`}
           </span>
         </div>
+        {/* Was `role="radio"` AND `aria-pressed` on the same button — two
+            conflicting state contracts, neither backed by arrow-key nav.
+            Native radios carry all of it. */}
         {hasColorData && (
-          <div
-            className="deck-curve-phases-toggle"
-            role="radiogroup"
-            aria-label="Mana curve display mode"
-          >
-            <button
-              type="button"
-              className="deck-curve-phases-toggle-btn"
-              role="radio"
-              aria-checked={effectiveMode === 'color'}
-              aria-pressed={effectiveMode === 'color'}
-              onClick={() => setMode('color')}
-            >
-              By color
-            </button>
-            <button
-              type="button"
-              className="deck-curve-phases-toggle-btn"
-              role="radio"
-              aria-checked={effectiveMode === 'count'}
-              aria-pressed={effectiveMode === 'count'}
-              onClick={() => setMode('count')}
-            >
-              Count
-            </button>
-          </div>
+          <fieldset className="deck-curve-phases-toggle" aria-label="Mana curve display mode">
+            {(
+              [
+                { value: 'color', label: 'By color' },
+                { value: 'count', label: 'Count' },
+              ] as const
+            ).map(({ value, label }) => (
+              <label key={value} className="deck-curve-phases-toggle-btn">
+                <input
+                  type="radio"
+                  name={modeGroup}
+                  value={value}
+                  checked={effectiveMode === value}
+                  onChange={() => setMode(value)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </fieldset>
         )}
       </div>
 

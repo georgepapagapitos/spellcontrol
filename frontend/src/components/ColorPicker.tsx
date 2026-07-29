@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { PRESET_COLORS } from '../lib/preset-colors';
 
@@ -11,6 +11,10 @@ interface Props {
 }
 
 export function ColorPicker({ value, onChange, ariaLabel }: Props) {
+  // Radios group by shared `name`, so each mounted picker needs its own —
+  // two pickers on one page (binder color + list color) would otherwise be
+  // one group and deselect each other.
+  const groupName = useId();
   const isCustom = !PRESET_COLORS.some((c) => c.hex === value);
   const [showCustom, setShowCustom] = useState(isCustom);
   // Sync the panel open when the value transitions to an off-preset hex (e.g.
@@ -24,22 +28,30 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
 
   return (
     <div className="color-picker-wrapper">
-      <div className="color-picker" role="radiogroup" aria-label={ariaLabel}>
+      {/* Native radios, not `role="radio"` buttons: they carry exclusivity,
+          arrow-key nav and a single group tab stop for free. As ARIA-only
+          buttons this group announced "radio group, 1 of N" and then ignored
+          the arrow keys, and every swatch was its own tab stop.
+          The custom-color control stays a <button> — it opens a panel, it
+          isn't one of the mutually exclusive values. */}
+      <fieldset className="color-picker" aria-label={ariaLabel}>
         {PRESET_COLORS.map((c) => (
-          <button
-            key={c.hex}
-            type="button"
-            role="radio"
-            aria-checked={value === c.hex}
-            className={`color-swatch${value === c.hex ? ' selected' : ''}`}
-            style={{ background: c.hex }}
-            onClick={() => {
-              onChange(c.hex);
-              setShowCustom(false);
-            }}
-            title={c.name}
-            aria-label={c.name}
-          />
+          <label key={c.hex} className="color-swatch-option" title={c.name}>
+            <input
+              type="radio"
+              name={groupName}
+              checked={value === c.hex}
+              onChange={() => {
+                onChange(c.hex);
+                setShowCustom(false);
+              }}
+              aria-label={c.name}
+            />
+            <span
+              className={`color-swatch${value === c.hex ? ' selected' : ''}`}
+              style={{ background: c.hex }}
+            />
+          </label>
         ))}
         <button
           type="button"
@@ -58,7 +70,7 @@ export function ColorPicker({ value, onChange, ariaLabel }: Props) {
             aria-hidden
           />
         </button>
-      </div>
+      </fieldset>
       {showCustom && (
         <div className="color-picker-custom-panel">
           <HexColorPicker color={value} onChange={onChange} />

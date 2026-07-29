@@ -101,6 +101,8 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   const previousLadderRef = useRef<LadderValue>('link');
   const confirmBlockRef = useRef<HTMLDivElement>(null);
   const displayNameId = useId();
+  // Radios group by shared `name` — scope it per mounted dialog.
+  const audienceGroup = useId();
   // First-publish seal (E150): this dialog never navigates away on publish
   // (it stays open showing the live link), so — unlike the creation-time
   // fieldsets — it's safe to fire directly here rather than handing off to a
@@ -451,21 +453,26 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
         Share {resourceLabel}
       </h2>
 
-      <div className="share-audience" role="radiogroup" aria-label="Who can view this">
+      {/* Native radios rather than `role="radio"` buttons: exclusivity,
+          arrow-key nav and one group tab stop come free. `disabled` moves to
+          the fieldset, which disables every control inside it. */}
+      <fieldset className="share-audience" aria-label="Who can view this" disabled={working}>
         {LADDER_OPTIONS.map((opt) => (
-          <button
+          <label
             key={opt.value}
-            type="button"
-            role="radio"
-            aria-checked={ladder === opt.value}
             className={`share-audience-option${ladder === opt.value ? ' is-active' : ''}`}
-            onClick={() => selectLadder(opt.value)}
-            disabled={working}
           >
-            {opt.value === 'private' && privateBusy ? 'Revoking…' : opt.label}
-          </button>
+            <input
+              type="radio"
+              name={audienceGroup}
+              value={opt.value}
+              checked={ladder === opt.value}
+              onChange={() => selectLadder(opt.value)}
+            />
+            <span>{opt.value === 'private' && privateBusy ? 'Revoking…' : opt.label}</span>
+          </label>
         ))}
-      </div>
+      </fieldset>
       {!pendingPublicConfirm && <p className="choice-dialog-body">{ladderHint}</p>}
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}

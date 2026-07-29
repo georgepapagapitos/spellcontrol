@@ -102,6 +102,8 @@ export function GenerationModePicker({
   const online = useOnline();
   const mode = customization.generationMode;
   const groupLabelId = useId();
+  // Radios group by shared `name` — scope it per mounted picker.
+  const modeGroup = useId();
 
   const showCards = section !== 'config';
   const showConfig = section !== 'cards' && mode !== 'edhrec';
@@ -129,7 +131,10 @@ export function GenerationModePicker({
             </p>
           )}
 
-          <div className="gen-mode-grid" role="radiogroup" aria-labelledby={groupLabelId}>
+          {/* Native radios: exclusivity, arrow-key nav and one group tab stop
+              come free. As `role="radio"` buttons this advertised a radio
+              group and then ignored the arrow keys. */}
+          <fieldset className="gen-mode-grid" aria-labelledby={groupLabelId}>
             {MODES.map((m) => {
               const Icon = m.icon;
               // PDH always builds from live Scryfall searches — the Standard
@@ -138,15 +143,20 @@ export function GenerationModePicker({
               const disabled = (m.online || isPdhStandard) && !online;
               const active = mode === m.id;
               return (
-                <button
+                <label
                   key={m.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  disabled={disabled}
-                  className={`gen-mode-card${active ? ' is-active' : ''}`}
-                  onClick={() => update({ generationMode: m.id })}
+                  className={`gen-mode-card${active ? ' is-active' : ''}${
+                    disabled ? ' is-disabled' : ''
+                  }`}
                 >
+                  <input
+                    type="radio"
+                    name={modeGroup}
+                    value={m.id}
+                    checked={active}
+                    disabled={disabled}
+                    onChange={() => update({ generationMode: m.id })}
+                  />
                   <span className="gen-mode-card-head">
                     <Icon width={18} height={18} strokeWidth={2} aria-hidden />
                     <span className="gen-mode-card-label">{m.label}</span>
@@ -157,10 +167,10 @@ export function GenerationModePicker({
                       ? 'A balanced build from Pauper Commander–legal cards, chosen by function.'
                       : m.blurb}
                   </span>
-                </button>
+                </label>
               );
             })}
-          </div>
+          </fieldset>
         </>
       )}
 

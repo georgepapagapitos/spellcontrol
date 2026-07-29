@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
@@ -77,6 +77,9 @@ export function DeckNewPage() {
 
   const [showImport, setShowImport] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(prefill?.format ?? 'commander');
+  // Radios group by shared `name` — scope each group to this page instance.
+  const visibilityGroup = useId();
+  const formatGroup = useId();
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const isPdh = selectedFormat === 'paupercommander';
 
@@ -231,27 +234,29 @@ export function DeckNewPage() {
   const visibilityFieldset = (
     <section className="deck-builder-section">
       <h2 className="deck-builder-section-title">Visibility</h2>
-      <div className="share-audience" role="radiogroup" aria-label="Deck visibility">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={visibility === 'private'}
-          className={`share-audience-option${visibility === 'private' ? ' is-active' : ''}`}
-          onClick={() => setVisibility('private')}
-        >
-          Private
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={visibility === 'public'}
-          className={`share-audience-option${visibility === 'public' ? ' is-active' : ''}`}
-          onClick={() => setVisibility('public')}
-          disabled={!canPublish}
-        >
-          Public
-        </button>
-      </div>
+      <fieldset className="share-audience" aria-label="Deck visibility">
+        {(
+          [
+            { value: 'private', label: 'Private', disabled: false },
+            { value: 'public', label: 'Public', disabled: !canPublish },
+          ] as const
+        ).map((opt) => (
+          <label
+            key={opt.value}
+            className={`share-audience-option${visibility === opt.value ? ' is-active' : ''}`}
+          >
+            <input
+              type="radio"
+              name={visibilityGroup}
+              value={opt.value}
+              checked={visibility === opt.value}
+              disabled={opt.disabled}
+              onChange={() => setVisibility(opt.value)}
+            />
+            <span>{opt.label}</span>
+          </label>
+        ))}
+      </fieldset>
       <p className="format-pill-hint">
         {visibility === 'public'
           ? 'Anyone can find it at a stable link and on your profile.'
@@ -347,24 +352,24 @@ export function DeckNewPage() {
 
       <section className="deck-builder-section">
         <h2 className="deck-builder-section-title">Format</h2>
-        <div className="format-pill-row" role="radiogroup" aria-label="Deck format">
+        <fieldset className="format-pill-row" aria-label="Deck format">
           {(Object.keys(DECK_FORMAT_CONFIGS) as DeckFormat[]).map((fmt) => {
             const cfg = DECK_FORMAT_CONFIGS[fmt];
             const active = selectedFormat === fmt;
             return (
-              <button
-                key={fmt}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                className={`format-pill${active ? ' active' : ''}`}
-                onClick={() => applyFormat(fmt)}
-              >
-                {cfg.label}
-              </button>
+              <label key={fmt} className={`format-pill${active ? ' active' : ''}`}>
+                <input
+                  type="radio"
+                  name={formatGroup}
+                  value={fmt}
+                  checked={active}
+                  onChange={() => applyFormat(fmt)}
+                />
+                <span>{cfg.label}</span>
+              </label>
             );
           })}
-        </div>
+        </fieldset>
         <p className="format-pill-hint">{formatConfig.description}</p>
       </section>
 

@@ -96,10 +96,9 @@ describe('DeckNewPage — creation-time visibility', () => {
   it('defaults to Private, with Public selectable when authed', () => {
     renderPage();
     selectStandardFormat();
-    expect(screen.getByRole('radio', { name: 'Private' }).getAttribute('aria-checked')).toBe(
-      'true'
-    );
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLButtonElement).disabled).toBe(
+    // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
+    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).disabled).toBe(
       false
     );
   });
@@ -109,7 +108,7 @@ describe('DeckNewPage — creation-time visibility', () => {
     renderPage();
     selectStandardFormat();
 
-    const publicRadio = screen.getByRole('radio', { name: 'Public' }) as HTMLButtonElement;
+    const publicRadio = screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement;
     expect(publicRadio.disabled).toBe(true);
     expect(screen.getByText(/Sign in to publish/)).toBeTruthy();
 

@@ -12,12 +12,20 @@
   gap: 0.4rem;
 }
 
+/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .seat-menu-facing-row {
   display: flex;
   gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
+/* A <label> wrapping a visually-hidden radio, so the whole button stays the
+   hit target while keyboard/AT semantics are native. */
 .seat-menu-facing-btn {
+  position: relative;
   flex: 1 1 0;
   display: inline-flex;
   align-items: center;
@@ -32,6 +40,14 @@
     border-color var(--motion-fast) ease,
     color var(--motion-fast) ease,
     background var(--motion-fast) ease;
+}
+
+.seat-menu-facing-btn input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -333,7 +349,7 @@
 /* a11y (UX-cohesion sweep): keyboard focus-visible rings — parity with :hover.
  * Renders inside the always-dark `.seat-menu` cover — white ring, not accent
  * (see the ruling in play-panel-menus.css). */
-.seat-menu-facing-btn:focus-visible {
+.seat-menu-facing-btn:has(input:focus-visible) {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }
