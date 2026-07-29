@@ -62,10 +62,15 @@ const fx: Fixture = JSON.parse(
   readFileSync(resolve(here, '__fixtures__', 'edhrec-lift.fixture.json'), 'utf8')
 );
 
-// ── load REAL tagger tags (committed snapshot) by stubbing the network fetch ──
+// ── load the PINNED tagger tags by stubbing the network fetch ────────────────
+// A committed fixture, not `public/tagger-tags.json`: that file is git-tracked
+// but is ALSO rewritten in place by scripts/refresh-tagger.mjs, which
+// predev/prebuild run once the snapshot ages past MAX_AGE_DAYS (30). Reading it
+// meant anyone who had run `npm run dev` scored this eval against different tag
+// data than CI. Regenerate with scripts/refresh-tagger-eval-fixture.mjs.
 beforeAll(async () => {
   const taggerJson = readFileSync(
-    resolve(here, '..', '..', '..', '..', 'public', 'tagger-tags.json'),
+    resolve(here, '__fixtures__', 'tagger-tags.fixture.json'),
     'utf8'
   );
   const data = JSON.parse(taggerJson);

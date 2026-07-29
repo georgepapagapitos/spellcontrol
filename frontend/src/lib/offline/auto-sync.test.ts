@@ -215,7 +215,9 @@ describe('autoSyncOfflineData', () => {
       registerOfflineSyncOnResume();
       const resumeCb = addListener.mock.calls[0][1] as () => void;
       resumeCb();
-      await vi.waitFor(() => expect(sync).toHaveBeenCalled());
+      // vi.waitFor's 1s default is too tight on a loaded machine — see the
+      // note on SETTLE in lib/sync.test.ts.
+      await vi.waitFor(() => expect(sync).toHaveBeenCalled(), { timeout: 10_000 });
     });
 
     it('removes the listener on cleanup', async () => {
@@ -223,7 +225,7 @@ describe('autoSyncOfflineData', () => {
       addListener.mockResolvedValueOnce({ remove } as never);
       const cleanup = registerOfflineSyncOnResume();
       cleanup();
-      await vi.waitFor(() => expect(remove).toHaveBeenCalled());
+      await vi.waitFor(() => expect(remove).toHaveBeenCalled(), { timeout: 10_000 });
     });
   });
 });
