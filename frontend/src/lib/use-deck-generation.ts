@@ -98,6 +98,28 @@ export function resolveGenerationDestination(
 }
 
 /**
+ * One-shot router-state flags the editor reads when a build lands:
+ *   - justGenerated → auto-open the build-report sheet. A compare landing has
+ *     no report to show, so it carries no state at all.
+ *   - promptVisibility → show DeckPublishNudge, for a surface that never
+ *     offered a creation-time visibility choice (the guided/brew builders).
+ *
+ * `offeredVisibilityChoice` is derived from the presence of an `onCreated`
+ * hand-off rather than a second opt-in flag, precisely so the two can't
+ * drift: a page either wires the Private/Public fieldset in, or it gets the
+ * post-landing nudge — never neither (the silent-private hole this closes),
+ * never both. Pure + exported so that rule is unit-testable without mounting
+ * the store-heavy build() flow, same as resolveGenerationDestination above.
+ */
+export function resolveGenerationNavState(
+  landedOnCompare: boolean,
+  offeredVisibilityChoice: boolean
+): Record<string, unknown> | undefined {
+  if (landedOnCompare) return undefined;
+  return { justGenerated: true, ...(offeredVisibilityChoice ? {} : { promptVisibility: true }) };
+}
+
+/**
  * Shared orchestration for the two commander deck-generation surfaces
  * (the single-page "New deck" form and the step-by-step "Build together"
  * wizard). Both surfaces drive the same engine with identical EDHREC
@@ -314,10 +336,9 @@ export function useDeckGeneration({
       const existingDeckIds = new Set(useDecksStore.getState().decks.map((d) => d.id));
       const destination = resolveGenerationDestination(id, sourceDeckId, existingDeckIds);
       const landedOnCompare = sourceDeckId != null && existingDeckIds.has(sourceDeckId);
-      // justGenerated → the editor auto-shows the build report once; a compare
-      // landing has no report to show. Computed here so the hand-off below and
-      // the navigate below it can't drift apart.
-      const navState = landedOnCompare ? undefined : { justGenerated: true };
+      // Computed once, so the hand-off below and the navigate below it can't
+      // drift apart. See resolveGenerationNavState for what each flag means.
+      const navState = resolveGenerationNavState(landedOnCompare, !!onCreated);
       if (await onCreated?.(id, destination, navState)) return;
       if (landedOnCompare) {
         toast.show({ message: 'Comparing your previous build with the new one.', tone: 'info' });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { resolveGenerationDestination, checkGenerationGate } from './use-deck-generation';
+import {
+  resolveGenerationDestination,
+  resolveGenerationNavState,
+  checkGenerationGate,
+} from './use-deck-generation';
 import { DECK_FORMAT_CONFIGS } from '@/deck-builder/lib/constants/archetypes';
 import type { GeneratedDeck, ScryfallCard } from '@/deck-builder/types';
 
@@ -100,5 +104,26 @@ describe('resolveGenerationDestination', () => {
 
   it('falls back to the new deck editor when the source deck was deleted mid-generation', () => {
     expect(resolveGenerationDestination('new-id', 'source-id', new Set())).toBe('/decks/new-id');
+  });
+});
+
+describe('resolveGenerationNavState', () => {
+  it('nudges toward visibility when the surface offered no Private/Public choice', () => {
+    // Guided/brew: no fieldset anywhere in the flow, so without this the deck
+    // lands silently private with nothing ever offering to publish it.
+    expect(resolveGenerationNavState(false, false)).toEqual({
+      justGenerated: true,
+      promptVisibility: true,
+    });
+  });
+
+  it('stays quiet when the surface already asked (DeckNewPage), even if Private was chosen', () => {
+    expect(resolveGenerationNavState(false, true)).toEqual({ justGenerated: true });
+  });
+
+  it('carries no state at all onto a regenerate compare landing', () => {
+    // No build report and no nudge on the diff — neither belongs there.
+    expect(resolveGenerationNavState(true, false)).toBeUndefined();
+    expect(resolveGenerationNavState(true, true)).toBeUndefined();
   });
 });

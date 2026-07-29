@@ -384,10 +384,14 @@ export function DeckEditorPage() {
   //     the instant publish resolves, which would unmount the portal
   //     mid-animation (see usePublishOnCreate's doc comment).
   //   - promptVisibility: the flow (CopyDeckButton, a multi-file import that
-  //     landed on one deck) skipped the fieldset entirely — show the lighter
-  //     DeckPublishNudge instead of celebrating.
-  // Mutually exclusive by construction (a given creation flow sets at most
-  // one), captured once at mount like showBuildReport above.
+  //     landed on one deck, the guided/brew builders) skipped the fieldset
+  //     entirely — show the lighter DeckPublishNudge instead of celebrating.
+  // justPublished and promptVisibility stay mutually exclusive by construction
+  // (a flow either offered the choice or didn't). promptVisibility DOES pair
+  // with justGenerated — a guided/brew build gets the build-report sheet and
+  // the nudge; the sheet is an overlay and the nudge an in-flow row above the
+  // header, so neither hides the other. Captured once at mount like
+  // showBuildReport above.
   const [justPublished] = useState(
     () => !!(location.state as { justPublished?: boolean } | null)?.justPublished
   );
