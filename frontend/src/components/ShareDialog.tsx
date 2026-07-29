@@ -351,10 +351,11 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     try {
       await unpublishDeck(resourceId);
       setPublication(null);
-      // Land on Private, not 'link'. Publishing revoked the lesser rungs
-      // (revokeLesserRungs), so after unpublishing the deck genuinely isn't
-      // shared by any means — auto-minting a fresh link share here would put
-      // back exactly the unasked-for /s/:token this ladder now avoids.
+      // Land on Private, not 'link'. Publishing already retired this deck's
+      // link/friends shares server-side (retireLesserRungs in
+      // routes/publications.ts), so after unpublishing the deck genuinely
+      // isn't shared by any means — auto-minting a fresh link share here would
+      // put back exactly the unasked-for /s/:token this ladder now avoids.
       setShare(null);
       setLadder('private');
     } catch (err) {
