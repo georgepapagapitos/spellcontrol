@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useSheetExit } from '@/lib/use-sheet-exit';
@@ -44,10 +45,15 @@ export function BuildReportSheet({
   oneAwayCombos,
   ownedOracleIds,
 }: Props) {
-  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(onClose, [
-    'sheet-fall',
-    'modal-panel-out',
-  ]);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  // The panel ref gives the sheet initial focus, which is what makes the
+  // `onKeyDown` below reachable at all — nothing inside this subtree was ever
+  // focused, so its Escape handler could not fire.
+  const { isClosing, beginClose, onAnimationEnd } = useSheetExit(
+    onClose,
+    ['sheet-fall', 'modal-panel-out'],
+    sheetRef
+  );
 
   // Resolve commander art via CDN hook (no api.scryfall.com/format=image).
   const resolvedThumb = useCardThumb(commanderImageUrl ? undefined : commanderName, 'normal');
@@ -73,6 +79,8 @@ export function BuildReportSheet({
       onKeyDown={handleKey}
     >
       <div
+        ref={sheetRef}
+        tabIndex={-1}
         className={`build-report-sheet${isClosing ? ' is-closing' : ''}`}
         onAnimationEnd={onAnimationEnd}
         role="dialog"
