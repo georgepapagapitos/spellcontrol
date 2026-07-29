@@ -256,6 +256,39 @@ describe('searchCards color-identity query', () => {
   });
 });
 
+// Scryfall answers /cards/search with 404 when the query matched nothing. That
+// is an empty result set, not an error — surfacing it as one printed "Scryfall
+// API error: 404 Not Found" at the user in every search box.
+describe('search 404 = no matches', () => {
+  beforeEach(() => {
+    gate.offline = false;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves to an empty result set instead of throwing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: 'Not Found' })
+    );
+
+    const resp = await searchCards('t:zzzznothingmatchesthis', []);
+
+    expect(resp.data).toEqual([]);
+    expect(resp.has_more).toBe(false);
+  });
+
+  it('still throws on a real failure (500)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'Internal Server Error' })
+    );
+
+    await expect(searchCards('t:zzzzserverdown', [])).rejects.toThrow('500');
+  });
+});
+
 describe('getOwnedPrinting', () => {
   beforeEach(() => {
     gate.offline = false;

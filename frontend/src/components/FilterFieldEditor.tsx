@@ -260,15 +260,11 @@ function ScryfallQueryRow({
       }
       setTruncated(cut);
       onChange({ query: q, oracleIds: [...ids], resolvedAt: Date.now() });
-    } catch (e) {
-      // Scryfall 404s a query that matches nothing — that's a valid empty
-      // result, not a failure.
-      const msg = e instanceof Error ? e.message : String(e);
-      if (msg.includes('404')) {
-        onChange({ query: q, oracleIds: [], resolvedAt: Date.now() });
-      } else {
-        setError('Search failed — check the query syntax and try again.');
-      }
+    } catch {
+      // A query matching nothing no longer lands here: scryfallFetch turns
+      // /cards/search's 404 into an empty result set, so the loop above
+      // resolves it to zero oracle ids. Reaching this catch is a real failure.
+      setError('Search failed — check the query syntax and try again.');
     } finally {
       setLoading(false);
     }

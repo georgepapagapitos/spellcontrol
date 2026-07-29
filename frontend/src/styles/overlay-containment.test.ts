@@ -44,6 +44,7 @@ describe('overlay scroll containment', () => {
     ['styles/binder-card-management.css', '.card-picker-list'],
     ['styles/binder-card-management.css', '.add-card-sheet-body'],
     ['styles/play-layout-editor.css', '.cle'],
+    ['components/AvatarPickerSheet.css', '.avatar-picker-body'],
   ];
 
   for (const [file, selector] of SCROLLERS) {

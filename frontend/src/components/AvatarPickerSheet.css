@@ -69,12 +69,28 @@
   }
 }
 
+/* Fixed rail above the scroll container — the search field never scrolls out
+   from under the user mid-browse. Block (not flex) on purpose: SearchPill
+   carries `flex: 1 1 12rem` for horizontal toolbars, and as a flex item in a
+   COLUMN that 12rem basis is a *height* — it ballooned the pill into a giant
+   ellipse whenever nothing below it competed for the space (same bug as
+   `.card-search-panel > .search-pill`). In block flow the shorthand is inert
+   and the pill sizes to its content. */
+.avatar-picker-search {
+  flex-shrink: 0;
+  padding: 0.85rem 1.1rem var(--space-3);
+}
+
 .avatar-picker-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: 0.85rem 1.1rem var(--space-4);
+  padding: 0 1.1rem var(--space-4);
   overflow-y: auto;
+  /* Keep the leftover swipe delta here instead of chaining it into .app-main
+     behind the sheet (STYLE_GUIDE § Overlays; pinned by
+     styles/overlay-containment.test.ts). */
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
