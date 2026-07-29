@@ -9,6 +9,33 @@
   font-size: var(--text-sm);
 }
 
+/* Inline retry inside the themes status line — matches the
+   `.card-rulings-retry` / `.friends-error-retry` family: a link-styled button,
+   not a chrome button, because it sits mid-sentence. */
+.deck-builder-themes-retry {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Coarse-pointer floor: an inline link-button still needs a real tap target. */
+@media (pointer: coarse) {
+  .deck-builder-themes-retry {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+.deck-builder-themes-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .deck-builder-theme-chips {
   display: flex;
   flex-wrap: wrap;

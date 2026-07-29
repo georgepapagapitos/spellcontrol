@@ -1,8 +1,10 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { isNative, hide } = vi.hoisted(() => ({
+const { isNative, hide, browserOpen } = vi.hoisted(() => ({
   isNative: vi.fn(() => true),
   hide: vi.fn(() => Promise.resolve()),
+  browserOpen: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('@capacitor/core', () => ({
@@ -13,8 +15,9 @@ vi.mock('@capacitor/status-bar', () => ({
   StatusBar: { setStyle: vi.fn(), setOverlaysWebView: vi.fn() },
   Style: { Dark: 'DARK', Light: 'LIGHT' },
 }));
+vi.mock('@capacitor/browser', () => ({ Browser: { open: browserOpen } }));
 
-import { hideSplashWhenReady } from './platform';
+import { hideSplashWhenReady, openExternal } from './platform';
 
 let frames: FrameRequestCallback[] = [];
 
@@ -53,5 +56,33 @@ describe('hideSplashWhenReady', () => {
     flushFrame();
 
     expect(hide).not.toHaveBeenCalled();
+  });
+});
+
+describe('openExternal', () => {
+  const openSpy = vi.fn();
+
+  beforeEach(() => {
+    browserOpen.mockClear();
+    openSpy.mockClear();
+    vi.stubGlobal('open', openSpy);
+  });
+
+  it('opens via the Capacitor Browser plugin on native, not window.open', () => {
+    isNative.mockReturnValue(true);
+
+    openExternal('https://scryfall.com');
+
+    expect(browserOpen).toHaveBeenCalledWith({ url: 'https://scryfall.com' });
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to window.open on web, not the Browser plugin', () => {
+    isNative.mockReturnValue(false);
+
+    openExternal('https://scryfall.com');
+
+    expect(openSpy).toHaveBeenCalledWith('https://scryfall.com', '_blank', 'noopener,noreferrer');
+    expect(browserOpen).not.toHaveBeenCalled();
   });
 });

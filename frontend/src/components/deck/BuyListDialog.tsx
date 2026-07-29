@@ -3,6 +3,7 @@ import { Check, Clipboard, Download, ExternalLink, X } from 'lucide-react';
 import { Modal } from '../Modal';
 import { formatMoney } from '../../lib/format-money';
 import { getCardPrice } from '@/deck-builder/services/scryfall/client';
+import { isNativePlatform, openExternal } from '@/lib/platform';
 import type { CardTally } from './useCardCarousel';
 import './BuyListDialog.css';
 
@@ -129,6 +130,11 @@ export function BuyListDialog({ tally, currency, title, onClose, onPickCard }: P
           href={tcgplayerMassEntryUrl(tally)}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(e) => {
+            if (!isNativePlatform()) return;
+            e.preventDefault();
+            openExternal(tcgplayerMassEntryUrl(tally));
+          }}
         >
           <span>Buy on TCGPlayer</span>
           <ExternalLink width={14} height={14} strokeWidth={2} aria-hidden />

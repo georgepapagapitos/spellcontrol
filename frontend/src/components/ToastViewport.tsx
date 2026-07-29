@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect } from 'react';
+import { type CSSProperties, useCallback, useEffect } from 'react';
 import { useToastsStore, type Toast } from '../store/toasts';
 import { useToastExits } from '../lib/use-toast-exits';
 
@@ -21,7 +21,7 @@ export function ToastViewport() {
             toast={t}
             leaving={leaving}
             style={style}
-            onDismiss={() => dismiss(t.id)}
+            dismiss={dismiss}
             onExitEnd={onExitEnd}
             registerItem={registerItem}
           />
@@ -35,17 +35,25 @@ function ToastItem({
   toast,
   leaving,
   style,
-  onDismiss,
+  dismiss,
   onExitEnd,
   registerItem,
 }: {
   toast: Toast;
   leaving: boolean;
   style?: CSSProperties;
-  onDismiss: () => void;
+  dismiss: (id: string) => void;
   onExitEnd: (id: string) => void;
   registerItem: (id: string, el: HTMLLIElement | null) => void;
 }) {
+  // Built here, not by the parent's `.map()`. An inline arrow was a fresh
+  // identity on every ToastViewport render, and this timer effect lists it in
+  // its deps — so pushing *any* unrelated toast tore down and restarted the
+  // countdown of every toast already on screen, and a steady trickle of toasts
+  // could keep one visible indefinitely. `dismiss` is a stable zustand action
+  // and `toast.id` never changes for a given item.
+  const onDismiss = useCallback(() => dismiss(toast.id), [dismiss, toast.id]);
+
   useEffect(() => {
     // A leaving ghost is already dismissed — re-arming its timer would
     // re-fire dismiss mid-exit.

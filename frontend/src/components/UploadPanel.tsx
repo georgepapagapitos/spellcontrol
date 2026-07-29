@@ -1,5 +1,5 @@
 import { Camera, ChevronDown, ChevronRight, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { Suspense, lazy, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { formatRelativeTime } from '../lib/format-time';
 import { haptics } from '../lib/haptics';
 import { useCollectionStore, type ImportMode } from '../store/collection';
@@ -33,10 +33,20 @@ import { InlineCardSearch } from './InlineCardSearch';
 import { InfoTip } from './InfoTip';
 import { mergeStagedFiles, stagedFilesNotice } from '../lib/staged-files';
 import { useFileDrop } from '../lib/use-file-drop';
-import { isNativePlatform } from '../lib/platform';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { pickNativeFiles } from '../lib/native-file-picker';
 
 const CSV_MIME_TYPES = ['text/csv', 'text/tab-separated-values', 'text/plain'];
+
+// Same handful of external import-tool links repeat below — one small closure
+// beats 5 copies of the same preventDefault/openExternal block.
+function extLinkClick(url: string) {
+  return (e: MouseEvent) => {
+    if (!isNativePlatform()) return;
+    e.preventDefault();
+    openExternal(url);
+  };
+}
 const JSON_MIME_TYPES = ['application/json'];
 
 // Per-format column/line examples for the import-source InfoTip (E130 —
@@ -821,19 +831,39 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
           <div className="import-card-footer">
             <span className="import-card-hint">
               {'Plain CSV or TXT · '}
-              <a href="https://manabox.app/" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://manabox.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={extLinkClick('https://manabox.app/')}
+              >
                 ManaBox
               </a>
               {' · '}
-              <a href="https://archidekt.com/" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://archidekt.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={extLinkClick('https://archidekt.com/')}
+              >
                 Archidekt
               </a>
               {' · '}
-              <a href="https://moxfield.com/" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://moxfield.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={extLinkClick('https://moxfield.com/')}
+              >
                 Moxfield
               </a>
               {' · '}
-              <a href="https://deckbox.org/" target="_blank" rel="noopener noreferrer">
+              <a
+                href="https://deckbox.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={extLinkClick('https://deckbox.org/')}
+              >
                 Deckbox
               </a>
               {' · '}
@@ -841,6 +871,7 @@ export function UploadPanel({ hideScanButton = false }: UploadPanelProps = {}) {
                 href="https://magic.wizards.com/en/mtgarena"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={extLinkClick('https://magic.wizards.com/en/mtgarena')}
               >
                 MTGA
               </a>{' '}

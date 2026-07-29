@@ -1,10 +1,22 @@
 import { logger } from '@/lib/logger';
+import { Browser } from '@capacitor/browser';
 import { Capacitor } from '@capacitor/core';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
 export function isNativePlatform(): boolean {
   return Capacitor.isNativePlatform();
+}
+
+// `<a target="_blank">` / `window.open()` are dead taps in the Android
+// WebView — no new tab, no system browser. Route external links through this
+// instead so native opens them via the in-app browser plugin.
+export function openExternal(url: string): void {
+  if (isNativePlatform()) {
+    void Browser.open({ url });
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 }
 
 // Touch-capable device (native, phone/tablet browser, or touchscreen laptop).
