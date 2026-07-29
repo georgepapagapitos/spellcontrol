@@ -5,6 +5,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { useShortcutRegistry } from '../lib/shortcut-registry';
+import { isNativePlatform, openExternal } from '../lib/platform';
 
 export function Footer() {
   const isAdmin = useAuth((s) => s.user?.role === 'admin');
@@ -13,7 +14,16 @@ export function Footer() {
     <footer className="footer">
       <p className="footer-fineprint">
         Card data from{' '}
-        <a href="https://scryfall.com" target="_blank" rel="noopener noreferrer">
+        <a
+          href="https://scryfall.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            if (!isNativePlatform()) return;
+            e.preventDefault();
+            openExternal('https://scryfall.com');
+          }}
+        >
           Scryfall
         </a>
         {isAdmin && (

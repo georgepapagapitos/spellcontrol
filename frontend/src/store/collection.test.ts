@@ -375,6 +375,22 @@ describe('refreshPrices', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('clears a previous run’s error banner on a successful refresh', async () => {
+    // Nothing else cleared `error`, so one blip's message stuck on the
+    // Collection page through every later successful refresh until the user
+    // hit Dismiss.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ prices: {} }) })
+    );
+    useCollectionStore.setState({
+      cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })],
+      error: 'Price refresh timed out.',
+    });
+    await useCollectionStore.getState().refreshPrices();
+    expect(useCollectionStore.getState().error).toBeNull();
+  });
+
   it('stamps hits, marks requested misses fresh, leaves non-requested cards alone', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -874,7 +890,21 @@ describe('autoRefreshStalePrices', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
     await expect(useCollectionStore.getState().autoRefreshStalePrices()).resolves.toBeUndefined();
-    expect(useCollectionStore.getState().error).toBe('offline');
+  });
+
+  it('leaves no error banner behind when the background run fails', async () => {
+    // Swallowing the rejection is not enough: refreshPrices writes the message
+    // into `error`, which CollectionPage renders as a banner. A refresh the user
+    // never asked for must not put a raw network exception on screen — on native
+    // this surfaced OkHttp's 'Unable to resolve host "spellcontrol.com"…' at
+    // launch whenever the radio hadn't re-associated before the boot refresh.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new Error('Unable to resolve host "spellcontrol.com"'))
+    );
+    useCollectionStore.setState({ cards: [enriched({ copyId: 'c1', scryfallId: 'sf1' })] });
+    await useCollectionStore.getState().autoRefreshStalePrices();
+    expect(useCollectionStore.getState().error).toBeNull();
   });
 
   it('skips when the browser reports offline', async () => {

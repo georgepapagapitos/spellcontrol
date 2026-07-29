@@ -762,7 +762,12 @@ export const useCollectionStore = create<CollectionState>()(
         if (ids.length === 0) return;
 
         const totalChunks = Math.ceil(ids.length / 1000);
+        // Clear any banner left by a previous failed run: a refresh that now
+        // succeeds must not leave the old error on screen. Nothing else cleared
+        // it, so a one-off network blip's message persisted through every later
+        // successful refresh until the user hit Dismiss.
         set({
+          error: null,
           isRefreshingPrices: true,
           priceRefreshProgress: track ? { done: 0, total: totalChunks } : null,
         });
@@ -1007,13 +1012,19 @@ export const useCollectionStore = create<CollectionState>()(
         // launch.
         const noPrices = s.cards.every((c) => !((c.purchasePrice ?? 0) > 0));
 
-        // Background best-effort: refreshPrices now re-throws on failure, but a
-        // stale-price auto-refresh must never surface an error toast or an
-        // unhandled rejection. The error is already logged + stored in `error`.
+        // Background best-effort: refreshPrices re-throws on failure, but a
+        // stale-price auto-refresh the user never asked for must stay silent —
+        // swallowing the rejection is not enough, because refreshPrices has
+        // already written the message into `error`, which CollectionPage renders
+        // as a banner. On native that surfaced the raw OkHttp exception string
+        // ('Unable to resolve host "spellcontrol.com"…') on launch whenever the
+        // radio hadn't finished re-associating before the boot refresh fired.
+        // Un-set what we swallow; the next stale check (or a manual refresh,
+        // which DOES surface its error) retries.
         try {
           await get().refreshPrices(undefined, { track: noPrices });
         } catch {
-          // swallowed — the next stale check (or a manual refresh) retries.
+          set({ error: null });
         }
       },
 
