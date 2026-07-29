@@ -45,4 +45,19 @@ describe('RemoveCopiesDialog safe defaults', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove 3' }));
     expect(onConfirm).toHaveBeenCalledWith(3);
   });
+
+  // Regression for the clamp-on-every-keystroke bug: clearing the field to
+  // type a new number used to snap straight back to the minimum because
+  // Number('') is 0 and Number.isFinite(0) is true. The clamp should only
+  // apply at commit (blur), not on every change.
+  it('lets the field go blank while editing, then clamps to the minimum on blur', () => {
+    render(
+      <RemoveCopiesDialog cardName="Sol Ring" total={4} onConfirm={() => {}} onCancel={() => {}} />
+    );
+    const input = screen.getByLabelText('Copies to remove') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    fireEvent.blur(input);
+    expect(input.value).toBe('1');
+  });
 });

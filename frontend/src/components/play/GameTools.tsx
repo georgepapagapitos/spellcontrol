@@ -31,6 +31,11 @@ export function GameTools({ game, dispatch }: Props) {
   const [spin, setSpin] = useState(0);
   const [dieSides, setDieSides] = useState(20);
   const [dieCount, setDieCount] = useState(1);
+  // Raw text mirrors of the two fields above so the user can clear/retype
+  // without every keystroke snapping back through the clamp — the clamp
+  // itself only runs at commit (blur/Enter).
+  const [dieCountText, setDieCountText] = useState('1');
+  const [dieSidesText, setDieSidesText] = useState('20');
 
   const announce = (message: string) => dispatch({ type: 'note', actorSeat: null, message });
   const reveal = (r: Result) => {
@@ -131,8 +136,16 @@ export function GameTools({ game, dispatch }: Props) {
             inputMode="numeric"
             min={1}
             max={20}
-            value={dieCount}
-            onChange={(e) => setDieCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+            value={dieCountText}
+            onChange={(e) => setDieCountText(e.target.value)}
+            onBlur={() => {
+              const n = Math.max(1, Math.min(20, Number(dieCountText) || 1));
+              setDieCount(n);
+              setDieCountText(String(n));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
           />
         </label>
         <span className="game-tools-custom-x" aria-hidden="true">
@@ -145,8 +158,16 @@ export function GameTools({ game, dispatch }: Props) {
             inputMode="numeric"
             min={2}
             max={1000}
-            value={dieSides}
-            onChange={(e) => setDieSides(Math.max(2, Math.min(1000, Number(e.target.value) || 6)))}
+            value={dieSidesText}
+            onChange={(e) => setDieSidesText(e.target.value)}
+            onBlur={() => {
+              const n = Math.max(2, Math.min(1000, Number(dieSidesText) || 6));
+              setDieSides(n);
+              setDieSidesText(String(n));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
           />
         </label>
         <button
