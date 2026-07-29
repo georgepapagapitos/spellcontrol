@@ -572,6 +572,15 @@ report. When you write that idiom, write the third line too.
      preferences go in the "View" popover, actions that mutate the list
      (Select, Test hand, Export) go in a sibling `⋮` `OverflowMenu`. Don't
      park an action inside "View" just because the panel had room.
+   - **This rule is CI-enforced, not just written down.**
+     `src/components/control-row-budget.test.tsx` renders the deck toolbar and
+     the collection toolbar at a phone viewport and asserts the visible
+     control count in `.deck-toolbar-controls` / `.card-list-summary-actions`
+     stays at its current, already-collapsed number. A PR that adds a new
+     inline pill instead of folding it into "View" or the kebab fails that
+     test with the actual vs. budgeted count — raise the budget only after
+     genuinely re-collapsing the row, never as a way to let one more control
+     through.
 
 3. **Card action rows** — actions in the footer of a list card (the game-night
    cards are the reference). A card earns **at most ~3 visible controls**, at
