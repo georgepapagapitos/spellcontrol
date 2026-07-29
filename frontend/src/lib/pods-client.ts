@@ -194,17 +194,16 @@ export interface PodGameParticipant {
   eliminated: boolean;
 }
 
-/** GET /api/pods/:id/games response row. `winnerUserId` is intentionally
- *  left un-redacted by the server (only per-participant fields are nulled) —
- *  the hub page must not render it directly; resolve the winner's display
- *  name via `winnerSeat` against `participants` instead. */
+/** GET /api/pods/:id/games response row. Deliberately carries no account
+ *  identity at all: the server projects this through an allowlist that omits
+ *  the game's `winnerUserId` and its join `code` outright (see
+ *  backend/src/routes/pod-stats.ts). Resolve the winner's display name via
+ *  `winnerSeat` against `participants`. */
 export interface PodGameResult {
   sessionId: string;
-  code: string;
   format: string;
   startingLife: number;
   winnerSeat: number | null;
-  winnerUserId: string | null;
   startedAt: number | null;
   endedAt: number;
   durationMs: number;

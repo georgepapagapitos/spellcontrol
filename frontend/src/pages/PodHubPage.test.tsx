@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.mock is hoisted above the file's own top-level code — a variable read
 // inside a factory must come from vi.hoisted (see FriendsManagement.test.tsx
@@ -47,7 +47,14 @@ vi.mock('../lib/pods-client', () => {
     declinePodInvite: vi.fn(() => Promise.resolve()),
     invitePodMembers: vi.fn(() => Promise.resolve({ invited: [] })),
     fetchPodGames: vi.fn(() => Promise.resolve([])),
-    fetchPodLeaderboard: vi.fn(() => Promise.resolve([])),
+    // Shape-correct default: this resolves to { standings, records }, not an
+    // array — the page destructures it and renders `standings.length`.
+    fetchPodLeaderboard: vi.fn(() =>
+      Promise.resolve({
+        standings: [],
+        records: { firstBlood: null, mostKos: null, archenemy: null },
+      })
+    ),
     PodNotFoundError,
   };
 });
@@ -119,7 +126,14 @@ function standing(
   };
 }
 
-afterEach(() => {
+// beforeEach, NOT afterEach: an afterEach block leaves the FIRST test in the
+// file running on the raw `vi.mock` factory defaults instead of these. That is
+// how this file's first test broke — `fetchPodLeaderboard`'s factory default
+// used to resolve to `[]`, so `const { standings, records } = ...` yielded
+// undefined and PodHubPage's `leaderboardFetch.standings.length` threw during
+// render. React unmounted the whole tree, and the test failed against an empty
+// <body>, which read like a mock-timing flake rather than the real crash.
+beforeEach(() => {
   authState.status = 'authed';
   authState.user = { id: 'me', username: 'viewer', role: 'user' };
   vi.mocked(getPod).mockReset();
@@ -293,11 +307,9 @@ describe('PodHubPage — shared history', () => {
     vi.mocked(fetchPodGames).mockResolvedValue([
       {
         sessionId: 's1',
-        code: 'CODE',
         format: 'commander',
         startingLife: 40,
         winnerSeat: 0,
-        winnerUserId: null,
         startedAt: 1,
         endedAt: 1700000000000,
         durationMs: 99,
@@ -343,7 +355,7 @@ describe('PodHubPage — shared history', () => {
     vi.mocked(getPod).mockResolvedValue(podDetail());
     vi.mocked(fetchPodGames).mockResolvedValue([]);
     // Leaderboard renders the identical empty copy when it's also empty (the
-    // afterEach default) — scope to the history panel specifically so the
+    // beforeEach default) — scope to the history panel specifically so the
     // query doesn't ambiguously match both.
     renderPage();
 
