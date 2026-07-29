@@ -15,7 +15,11 @@ interface Props {
  * printings, so "remove 2 of 3" is unambiguous.
  */
 export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Props) {
-  const [qty, setQty] = useState(total);
+  // Default to one copy, not all of them: this dialog exists because the row
+  // is stacked, and "remove some" is why the user is here. Defaulting to
+  // `total` made the safe path the extra work, and paired with an autofocused
+  // Remove it put "delete every copy of this printing" one Enter away.
+  const [qty, setQty] = useState(1);
   const clamp = (n: number) => Math.max(1, Math.min(total, n));
 
   return (
@@ -66,15 +70,11 @@ export function RemoveCopiesDialog({ cardName, total, onConfirm, onCancel }: Pro
         )}
       </div>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel}>
+        {/* Safe default for a destructive dialog — see ConfirmDialog. */}
+        <button type="button" className="btn" onClick={onCancel} autoFocus>
           Cancel
         </button>
-        <button
-          type="button"
-          className="btn btn-danger"
-          onClick={() => onConfirm(clamp(qty))}
-          autoFocus
-        >
+        <button type="button" className="btn btn-danger" onClick={() => onConfirm(clamp(qty))}>
           Remove {qty}
         </button>
       </div>

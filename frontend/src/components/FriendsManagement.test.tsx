@@ -309,7 +309,7 @@ describe('FriendsManagement — request and friend actions', () => {
     await waitFor(() => expect(cancelRequest).toHaveBeenCalledWith('r2'));
   });
 
-  it('removes a friend', async () => {
+  it('removes a friend once the confirm is accepted', async () => {
     vi.mocked(listFriends).mockResolvedValue([
       { id: 'f1', username: 'erin', displayName: null, friendedAt: Date.now(), cardCount: 12 },
     ]);
@@ -320,7 +320,28 @@ describe('FriendsManagement — request and friend actions', () => {
     });
     fireEvent.click(removeBtn);
 
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove friend' }));
     await waitFor(() => expect(removeFriend).toHaveBeenCalledWith('f1'));
+  });
+
+  // Removing a friend is irreversible from the UI (both sides lose
+  // friends-only shares and the H2H history stops), and the button sits inline
+  // in the list next to "View shared" — one stray tap must not commit it.
+  it('does not remove a friend until the confirm is accepted', async () => {
+    vi.mocked(listFriends).mockResolvedValue([
+      { id: 'f1', username: 'erin', displayName: null, friendedAt: Date.now(), cardCount: 12 },
+    ]);
+    await renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: /remove erin from friends/i }));
+
+    // The dialog is up and nothing has been destroyed yet.
+    expect(await screen.findByRole('button', { name: 'Remove friend' })).toBeTruthy();
+    expect(removeFriend).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove friend' })).toBeNull());
+    expect(removeFriend).not.toHaveBeenCalled();
   });
 });
 

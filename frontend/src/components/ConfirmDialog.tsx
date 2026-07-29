@@ -29,7 +29,11 @@ export function ConfirmDialog({
       </h2>
       <p className="choice-dialog-body">{body}</p>
       <div className="choice-dialog-actions">
-        <button type="button" className="btn" onClick={onCancel}>
+        {/* A destructive confirm defaults to the safe choice: Cancel takes
+            focus, so a reflexive Enter/Space on the dialog that just appeared
+            backs out instead of destroying. Benign confirms keep the confirm
+            button focused — matching the platform convention for alerts. */}
+        <button type="button" className="btn" onClick={onCancel} autoFocus={danger}>
           {cancelLabel}
         </button>
         <button
@@ -43,7 +47,7 @@ export function ConfirmDialog({
             if (danger) haptics.warning();
             onConfirm();
           }}
-          autoFocus
+          autoFocus={!danger}
         >
           {confirmLabel}
         </button>

@@ -9,6 +9,7 @@ import { useCubeStore } from '../store/cube';
 import { listShares, revokeShare, shareUrl } from '../lib/share-client';
 import { fetchPublicProfile } from '../lib/profile-client';
 import { isNativePlatform } from '../lib/platform';
+import { useConfirm } from '../lib/use-confirm';
 import { toast } from '../store/toasts';
 import type { ShareKind, ShareRow } from '../lib/shared-types';
 
@@ -60,6 +61,7 @@ export function SharedLinksSettings() {
   const [shares, setShares] = useState<ShareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
   // Token of the row whose QR modal is open; null when none is. A page can
   // list many shares, so each row gets its own small modal (opened on
   // demand) rather than an inline reveal per row, which would reflow the
@@ -156,24 +158,34 @@ export function SharedLinksSettings() {
     }
   }, []);
 
-  const handleRevoke = useCallback(async (token: string) => {
-    setRevokingToken(token);
-    try {
-      await revokeShare(token);
-      // Optimistic: drop it locally so the row disappears before the
-      // refetch completes — revoke is irreversible from the UI, so no
-      // need to await the server's view of the world.
-      setShares((prev) => (prev ? prev.filter((s) => s.token !== token) : prev));
-      toast.show({ message: 'Share link revoked.', tone: 'success' });
-    } catch (err) {
-      toast.show({
-        message: err instanceof Error ? err.message : "Couldn't revoke share.",
-        tone: 'error',
+  const handleRevoke = useCallback(
+    async (token: string, kindLabel: string) => {
+      const ok = await confirm({
+        title: `Revoke this ${kindLabel} link?`,
+        body: `Anyone holding the link — including people you sent it to — loses access immediately. This can't be undone; sharing again mints a different link.`,
+        confirmLabel: 'Revoke link',
+        danger: true,
       });
-    } finally {
-      setRevokingToken(null);
-    }
-  }, []);
+      if (!ok) return;
+      setRevokingToken(token);
+      try {
+        await revokeShare(token);
+        // Optimistic: drop it locally so the row disappears before the
+        // refetch completes — revoke is irreversible from the UI, so no
+        // need to await the server's view of the world.
+        setShares((prev) => (prev ? prev.filter((s) => s.token !== token) : prev));
+        toast.show({ message: 'Share link revoked.', tone: 'success' });
+      } catch (err) {
+        toast.show({
+          message: err instanceof Error ? err.message : "Couldn't revoke share.",
+          tone: 'error',
+        });
+      } finally {
+        setRevokingToken(null);
+      }
+    },
+    [confirm]
+  );
 
   if (!isAuthed) return null;
 
@@ -313,7 +325,7 @@ export function SharedLinksSettings() {
                   <button
                     type="button"
                     className="btn btn-danger"
-                    onClick={() => void handleRevoke(s.token)}
+                    onClick={() => void handleRevoke(s.token, KIND_LABELS[s.kind].toLowerCase())}
                     disabled={revoking}
                     aria-label={`Revoke ${KIND_LABELS[s.kind].toLowerCase()} share link`}
                   >
@@ -341,6 +353,7 @@ export function SharedLinksSettings() {
           </div>
         </Modal>
       )}
+      {confirmDialog}
     </>
   );
 }
