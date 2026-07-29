@@ -59,10 +59,12 @@ import { ZoomControl } from './ZoomControl';
 import {
   ZOOM_MAX,
   ZOOM_MAX_NARROW,
+  GRID_GAP_PX,
   clampZoom,
   readStoredZoom,
   zoomBucket,
-  zoomMinCol,
+  zoomCols,
+  zoomTier,
 } from '../lib/grid-zoom';
 import { SearchPill } from './SearchPill';
 import { SelectMenu } from './SelectMenu';
@@ -245,6 +247,7 @@ function ViewPopoverPanel({
   setView,
   zoom,
   zoomMax,
+  gridWidth,
   onZoomChange,
   captionPrefs,
   onCaptionPrefsChange,
@@ -253,6 +256,9 @@ function ViewPopoverPanel({
   setView: (v: ViewMode) => void;
   zoom: number;
   zoomMax: number;
+  /** Measured width of the grid, so the stepper can skip steps that wouldn't
+   *  change the column count at this size. */
+  gridWidth: number;
   onZoomChange: (next: number) => void;
   captionPrefs: GridCaptionPrefs;
   onCaptionPrefsChange: (next: GridCaptionPrefs) => void;
@@ -287,7 +293,7 @@ function ViewPopoverPanel({
       {view === 'grid' && (
         <div className="view-popover-row">
           <span className="view-popover-row-label">Card size</span>
-          <ZoomControl zoom={zoom} max={zoomMax} onChange={onZoomChange} />
+          <ZoomControl zoom={zoom} width={gridWidth} max={zoomMax} onChange={onZoomChange} />
         </div>
       )}
       {view === 'grid' && (
@@ -1075,22 +1081,21 @@ export function CardListTable({
     }
   }, [resetKey, scrollEl]);
 
-  // Grid: compute column count from container width for row-of-columns virtualization.
-  const [gridCols, setGridCols] = useState(4);
+  // Grid: measure the container so column count (for row-of-columns
+  // virtualization) and the zoom stepper's reachable range both derive from
+  // the same width. The gap used to be a local 8/10 literal that disagreed
+  // with the 10px this grid actually renders with — `zoomCols` owns it now.
+  const [gridWidth, setGridWidth] = useState(0);
   useEffect(() => {
     const el = gridContainerRef.current;
     if (!el || view !== 'grid') return;
-    const measure = () => {
-      const w = el.clientWidth;
-      const minCol = zoomMinCol(effectiveZoom, w <= 1024 ? 'mobile' : 'desktop');
-      const gap = w <= 1024 ? 8 : 10;
-      setGridCols(Math.max(1, Math.floor((w + gap) / (minCol + gap))));
-    };
+    const measure = () => setGridWidth(el.clientWidth);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [view, effectiveZoom]);
+  }, [view]);
+  const gridCols = gridWidth > 0 ? zoomCols(effectiveZoom, zoomTier(gridWidth), gridWidth) : 4;
 
   // Offer Scryfall add whenever there's a real query — even with zero
   // collection matches (then the trigger is the only card/row).
@@ -1100,7 +1105,10 @@ export function CardListTable({
   // place (the grid/list reflows as if the trigger were never there).
   const showScryfallTrigger = showScryfall && !scryfallOpen;
   const triggerIndex = displayRows.length;
-  const GRID_GAP = 10;
+  // Shared with the zoom column math (lib/grid-zoom.ts) and with the deck /
+  // list grids' CSS `gap` — the three must agree or the same zoom step
+  // renders a different column count on different surfaces.
+  const GRID_GAP = GRID_GAP_PX;
 
   // Heterogeneous grid row list: full-width section headers interleaved with
   // chunked card rows. The Scryfall "add" trigger rides as one trailing item.
@@ -2129,7 +2137,12 @@ export function CardListTable({
             renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
           />
           {!isNarrow && view === 'grid' && (
-            <ZoomControl zoom={effectiveZoom} max={ZOOM_MAX} onChange={setGridZoom} />
+            <ZoomControl
+              zoom={effectiveZoom}
+              width={gridWidth}
+              max={ZOOM_MAX}
+              onChange={setGridZoom}
+            />
           )}
           {!isNarrow && view === 'grid' && (
             <ToolbarPopover
@@ -2166,6 +2179,7 @@ export function CardListTable({
                   setView={setView}
                   zoom={effectiveZoom}
                   zoomMax={ZOOM_MAX_NARROW}
+                  gridWidth={gridWidth}
                   onZoomChange={setGridZoom}
                   captionPrefs={gridCaptionPrefs}
                   onCaptionPrefsChange={setGridCaptionPrefs}

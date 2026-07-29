@@ -1498,7 +1498,8 @@
      .deck-card-grid / the collection grid. */
   --card-min: var(--card-min-desktop, 150px);
   grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), 100%), 1fr));
-  gap: 0.65rem;
+  /* Shared with the collection grid's JS column math — see --card-grid-gap. */
+  gap: var(--card-grid-gap);
   padding-bottom: var(--space-4);
 }
 

@@ -42,7 +42,9 @@ import {
   readStoredZoom,
   zoomBucket,
   zoomMinCol,
+  zoomTier,
 } from '../lib/grid-zoom';
+import { useElementWidth } from '../lib/use-element-width';
 
 const GRID_SIZE_KEY = 'mtg-lists-grid-size';
 
@@ -263,9 +265,18 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
     return () => mql.removeEventListener('change', update);
   }, []);
   const effectiveZoom = clampZoom(gridZoom, isNarrow);
+  // The grid's own width, not the viewport's: the CSS tier switch is a
+  // `@media` query, so a grid narrower than the viewport picked the desktop
+  // ladder while the JS picked mobile. Once measured, the inline `--card-min`
+  // (container-derived) overrides the media query; the two `-desktop`/`-mobile`
+  // vars stay as the pre-measure first-paint fallback.
+  const [gridRef, gridWidth] = useElementWidth<HTMLDivElement>();
   const gridStyle = {
     '--card-min-desktop': `${zoomMinCol(effectiveZoom, 'desktop')}px`,
     '--card-min-mobile': `${zoomMinCol(effectiveZoom, 'mobile')}px`,
+    ...(gridWidth > 0
+      ? { '--card-min': `${zoomMinCol(effectiveZoom, zoomTier(gridWidth))}px` }
+      : {}),
   } as React.CSSProperties;
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [editing, setEditing] = useState<ListEntry | null>(null);
@@ -655,6 +666,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
           {view === 'grid' && (
             <ZoomControl
               zoom={effectiveZoom}
+              width={gridWidth}
               max={isNarrow ? ZOOM_MAX_NARROW : ZOOM_MAX}
               onChange={setGridZoom}
             />
@@ -689,6 +701,7 @@ export function ListDetailView({ list, rows: enrichedRows, loading, dynamic = fa
         </div>
       ) : view === 'grid' ? (
         <div
+          ref={gridRef}
           className={`list-entries-grid grid-${zoomBucket(effectiveZoom)}`}
           style={gridStyle}
           role="region"
