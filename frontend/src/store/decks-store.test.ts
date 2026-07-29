@@ -88,6 +88,21 @@ describe('useDecksStore — createDeck', () => {
     expect(d.generationContext?.landCount).toBe(37);
   });
 
+  // `hiddenGems` was declared on the input and never assigned — a silent drop
+  // waiting for the first caller to pass it.
+  it('carries every analysis field it accepts, including hiddenGems', () => {
+    store().createDeck({
+      source: 'generated',
+      commander: null,
+      gapAnalysis: [],
+      hiddenGems: [{ name: 'Sylvan Safekeeper' } as never],
+      cardInclusionMap: { 'Sol Ring': 90 },
+    });
+    const d = store().decks[0];
+    expect(d.hiddenGems).toEqual([{ name: 'Sylvan Safekeeper' }]);
+    expect(d.cardInclusionMap).toEqual({ 'Sol Ring': 90 });
+  });
+
   it('prepends newer decks ahead of older ones', () => {
     const first = store().createDeck({ name: 'First', source: 'manual', commander: null });
     const second = store().createDeck({ name: 'Second', source: 'manual', commander: null });
