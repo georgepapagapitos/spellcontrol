@@ -13,6 +13,8 @@ import {
   loadAuthedUser,
   loadUserById,
   MIN_PASSWORD_LENGTH,
+  consumeOAuthNonce,
+  issueOAuthNonce,
   normalizeBio,
   normalizeDisplayName,
   normalizeUsername,
@@ -236,7 +238,7 @@ authRouter.get('/google', oauthLimiter, (req: Request, res: Response) => {
   const cfg = getGoogleConfig();
   if (!cfg) return res.status(503).json({ error: 'Google sign-in is not enabled.' });
   const platform = oauthPlatform(req.query.platform);
-  const state = signOAuthState({ platform });
+  const state = signOAuthState({ platform, nonce: issueOAuthNonce(res) });
   res.redirect(buildGoogleAuthUrl(cfg, platform, state));
 });
 
@@ -269,7 +271,12 @@ authRouter.get('/google/link', oauthLimiter, async (req: Request, res: Response)
     return res.redirect('/auth');
   }
 
-  const state = signOAuthState({ platform, mode: 'link', userId });
+  const state = signOAuthState({
+    platform,
+    nonce: issueOAuthNonce(res),
+    mode: 'link',
+    userId,
+  });
   res.redirect(buildGoogleAuthUrl(cfg, platform, state));
 });
 
@@ -307,6 +314,14 @@ authRouter.get('/google/callback', oauthLimiter, async (req: Request, res: Respo
 
   try {
     if (!state) throw new Error('Invalid or expired OAuth state.');
+    // The signature only proves *this server* minted the state — anyone can
+    // get one by hitting /google themselves. The cookie half proves it came
+    // back to the browser that started the flow, which is what stops an
+    // attacker from handing a victim a pre-baked callback URL and silently
+    // signing them into the attacker's account. Single-use; fails closed.
+    if (!consumeOAuthNonce(req, res, state.nonce)) {
+      throw new Error('OAuth state did not originate in this browser.');
+    }
     if (typeof req.query.error === 'string') throw new Error(`Google returned: ${req.query.error}`);
     const code = typeof req.query.code === 'string' ? req.query.code : '';
     if (!code) throw new Error('Missing authorization code.');
