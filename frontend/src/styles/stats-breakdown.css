@@ -56,6 +56,61 @@
   gap: 0.55rem;
 }
 
+/* Cost basis (E203) — headline gain + the coverage it's scoped to, then the
+   paid/worth pair. Delta colors match ValueTrend's, per the STYLE_GUIDE rule
+   that every rendering of a money delta is colored the same way. */
+.cost-basis-headline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 0.85rem;
+}
+
+.cost-basis-gain {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.cost-basis-gain--up {
+  color: var(--success);
+}
+
+.cost-basis-gain--down {
+  color: var(--err-text);
+}
+
+.cost-basis-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.cost-basis-pair {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.cost-basis-pair-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cost-basis-pair dt {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cost-basis-pair dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
 .breakdown-row {
   display: flex;
   flex-direction: column;

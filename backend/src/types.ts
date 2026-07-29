@@ -130,6 +130,19 @@ export interface EnrichedCard {
   proxy?: boolean;
   /** True when the user flagged the physical card as a misprint. */
   misprint?: boolean;
+  /**
+   * What the user actually PAID for this copy — cost basis, NOT market value.
+   * (`purchasePrice` above is a legacy misnomer that holds the current market
+   * price.) Sourced from an import file's purchase-price column, or typed in the
+   * edit dialog. Per-copy user data with no Scryfall fallback, and never touched
+   * by a price refresh.
+   *
+   * Only ever positive: `0` and absent both mean "no recorded price". Import
+   * columns are full of placeholder zeroes, and counting those as free
+   * acquisitions would fabricate enormous gains — so zero is normalized away
+   * rather than stored.
+   */
+  acquiredPrice?: number;
 
   // From Scryfall (optional — undefined if Scryfall lookup failed)
   cmc?: number;

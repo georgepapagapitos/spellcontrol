@@ -1,6 +1,8 @@
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { EnrichedCard } from '../types';
 import type { PrintingSelection } from '../components/CardEditDialog';
+import { getCurrency } from './currency';
+import { formatMoney } from './format-money';
 
 /**
  * Copies in the same printing+finish stack as `card` — the exact set an edit's
@@ -33,10 +35,25 @@ function mixedSummary(values: (string | undefined)[]): string | undefined {
  * for display. Feeds CardEditDialog's `mixedDetails` prop — when a key is
  * present here, the dialog must not silently bulk-apply that field.
  */
-export function stackDetailMix(copies: EnrichedCard[]): { condition?: string; language?: string } {
+export function stackDetailMix(copies: EnrichedCard[]): {
+  condition?: string;
+  language?: string;
+  acquiredPrice?: string;
+} {
   return {
     condition: mixedSummary(copies.map((c) => c.condition)),
     language: mixedSummary(copies.map((c) => c.language)),
+    // Cost basis disagrees across a stack more often than any other field — the
+    // same card bought twice years apart — so it gets the same don't-homogenize
+    // treatment. Each copy formats in the currency it was recorded in (absent =
+    // USD), since a stack can legitimately mix them.
+    acquiredPrice: mixedSummary(
+      copies.map((c) =>
+        (c.acquiredPrice ?? 0) > 0
+          ? formatMoney(c.acquiredPrice, { currency: c.acquiredCurrency ?? 'USD' })
+          : undefined
+      )
+    ),
   };
 }
 
@@ -132,6 +149,15 @@ export function buildEditedCards(
     cardFields.altered = selection.details.altered;
     cardFields.proxy = selection.details.proxy;
     cardFields.misprint = selection.details.misprint;
+    // Cost basis, gated by *Touched like condition/language. The currency is
+    // stamped here rather than in the dialog: the dialog collects a number, and
+    // the applier is what decides how it's persisted. A cleared (or 0) price
+    // drops both fields — zero is never a stored basis (see EnrichedCard).
+    if (selection.details.acquiredPriceTouched ?? true) {
+      const paid = selection.details.acquiredPrice ?? 0;
+      cardFields.acquiredPrice = paid > 0 ? paid : undefined;
+      cardFields.acquiredCurrency = paid > 0 ? getCurrency() : undefined;
+    }
   }
 
   // Single-copy split (ungrouped view): re-point just this one physical copy,
@@ -199,7 +225,8 @@ export function isNoOpCardEdit(
       (d.language ?? undefined) !== editingCard.language ||
       (d.altered ?? false) !== (editingCard.altered ?? false) ||
       (d.proxy ?? false) !== (editingCard.proxy ?? false) ||
-      (d.misprint ?? false) !== (editingCard.misprint ?? false)
+      (d.misprint ?? false) !== (editingCard.misprint ?? false) ||
+      (d.acquiredPrice ?? 0) !== (editingCard.acquiredPrice ?? 0)
     ) {
       return false;
     }

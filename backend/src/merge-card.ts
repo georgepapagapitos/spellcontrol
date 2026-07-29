@@ -3,10 +3,14 @@ import type { ImportRow } from './parsers/types';
 import type { EnrichedCard, ScryfallCard } from './types';
 import { pickUsdForFinish } from './scryfall-cache';
 
-// Always prefer Scryfall's market price over whatever the import file claimed.
-// CSV "purchase price" columns vary wildly (some are list price, some are
-// what the user paid years ago, some are blank) and we've decided to ignore
-// them entirely for display. Returns 0 when Scryfall has no price for any
+// Always prefer Scryfall's market price over whatever the import file claimed
+// for the MARKET slot (`purchasePrice`). CSV "purchase price" columns vary
+// wildly (some are list price, some are what the user paid years ago, some are
+// blank), which makes them useless as a market price. They are, however,
+// exactly right as COST BASIS — there "what the user paid years ago" is the
+// answer rather than the bug — so the parsed value lands on `acquiredPrice`
+// below instead of being dropped on the floor.
+// Returns 0 when Scryfall has no price for any
 // finish — callers can treat that as "unpriced" rather than a real $0 value.
 // Finish-aware ordering lives in `pickUsdForFinish` (shared with the price
 // refresh + share-projection paths) so a foil never silently shows the
@@ -43,6 +47,12 @@ export function mergeCard(row: ImportRow, scryfall?: ScryfallCard): EnrichedCard
   if (row.altered !== undefined) base.altered = row.altered;
   if (row.proxy !== undefined) base.proxy = row.proxy;
   if (row.misprint !== undefined) base.misprint = row.misprint;
+  // Cost basis from the file's purchase-price column. Positive-only: parsers
+  // already map blank/`-` to undefined, but a literal `0` (ManaBox writes one
+  // for copies the user never priced) must NOT read as a free acquisition.
+  if (row.purchasePrice !== undefined && row.purchasePrice > 0) {
+    base.acquiredPrice = row.purchasePrice;
+  }
   if (price > 0) base.pricedAt = Date.now();
 
   if (scryfall) {

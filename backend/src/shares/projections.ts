@@ -276,6 +276,13 @@ function findInArray(arr: unknown, id: string): unknown {
   });
 }
 
+/**
+ * ⚠️ This is a field ALLOWLIST for public consumption — every key is copied
+ * explicitly, so a new `EnrichedCard` field stays private until added here.
+ * Keep it that way for `acquiredPrice` (cost basis): what someone paid for a
+ * card is private financial data, not part of a shared binder. `purchasePrice`
+ * below is the market price, which is public Scryfall reference data.
+ */
 export function projectCard(raw: unknown): PublicCard | null {
   const r = asRecord(raw);
   if (!r) return null;

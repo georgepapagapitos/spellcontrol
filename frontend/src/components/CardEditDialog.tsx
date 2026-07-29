@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { fetchPrintings, getSetMap, type SetMap } from '../lib/api';
+import { currencySymbol, useCurrency } from '../lib/currency';
 import { formatMoney } from '../lib/format-money';
 import type { ChangeOwnership } from '../lib/deck-change';
 import type { Condition, Finish } from '../types';
@@ -40,6 +41,12 @@ export interface CardDetails {
   proxy?: boolean;
   /** Physical card is a misprint. */
   misprint?: boolean;
+  /**
+   * What the user paid for this copy — cost basis, NOT market value. Absent
+   * means "not recorded", and so does 0 (`buildEditedCards` normalizes it away).
+   * The applier stamps which display currency it was entered in.
+   */
+  acquiredPrice?: number;
 }
 
 type CardFlag = 'altered' | 'proxy' | 'misprint';
@@ -59,13 +66,17 @@ export interface PrintingSelection {
    * condition/language/flag keys mean the user cleared (or never set) that
    * field — appliers should overwrite, not merge.
    *
-   * `conditionTouched`/`languageTouched` are only ever sent `false` — and only
-   * when the corresponding `mixedDetails` field was set — meaning the user
-   * left that field at its "Mixed" placeholder. Absent (or `true`) tells the
-   * applier to write the field across the whole stack, same as before mixed
-   * detection existed.
+   * `conditionTouched`/`languageTouched`/`acquiredPriceTouched` are only ever
+   * sent `false` — and only when the corresponding `mixedDetails` field was set
+   * — meaning the user left that field at its "Mixed" placeholder. Absent (or
+   * `true`) tells the applier to write the field across the whole stack, same as
+   * before mixed detection existed.
    */
-  details?: CardDetails & { conditionTouched?: boolean; languageTouched?: boolean };
+  details?: CardDetails & {
+    conditionTouched?: boolean;
+    languageTouched?: boolean;
+    acquiredPriceTouched?: boolean;
+  };
 }
 
 interface Props {
@@ -105,21 +116,38 @@ interface Props {
    */
   details?: CardDetails;
   /**
-   * Set only for a grouped stack whose condition and/or language actually
-   * disagree across copies (e.g. `{ condition: '3 NM, 1 HP' }`). A field
-   * present here renders as a "Mixed (…)" placeholder instead of pre-filling
-   * `details`'s value, and is left untouched — preserving each copy's own
-   * value — unless the user actively picks something. Omit (or leave a key
+   * Set only for a grouped stack whose condition, language and/or cost basis
+   * actually disagree across copies (e.g. `{ condition: '3 NM, 1 HP' }`). A
+   * field present here renders as a "Mixed (…)" placeholder instead of
+   * pre-filling `details`'s value, and is left untouched — preserving each
+   * copy's own value — unless the user actively edits it. Omit (or leave a key
    * out) for a uniform stack or a single-copy edit; behavior there is
    * unchanged from before mixed detection existed.
    */
-  mixedDetails?: { condition?: string; language?: string };
+  mixedDetails?: { condition?: string; language?: string; acquiredPrice?: string };
   onConfirm: (selection: PrintingSelection) => void;
   onCancel: () => void;
 }
 
 /** Sentinel select value for a mixed field the user hasn't touched yet — never a real condition/language code, so it matches no option and the trigger falls back to the "Mixed (…)" placeholder. */
 const MIXED = '__mixed__';
+
+/** Ceiling for a typed cost basis — above any real single-card price, and stops a fat-fingered paste from poisoning the roll-up. */
+const MAX_PAID = 1_000_000;
+
+/**
+ * Parse a typed cost basis into storable cents-rounded money. Blank, garbage
+ * and non-positive input all read as "not recorded" (`undefined`) — matching
+ * `EnrichedCard.acquiredPrice`, where zero is never a stored basis. Tolerates
+ * pasted currency symbols and thousands separators.
+ */
+function parsePaid(raw: string): number | undefined {
+  const cleaned = raw.replace(/[$€,\s]/g, '');
+  if (!cleaned) return undefined;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.min(Math.round(n * 100) / 100, MAX_PAID);
+}
 
 function frontImage(card: ScryfallCard): string | undefined {
   return card.image_uris?.normal ?? card.card_faces?.[0]?.image_uris?.normal;
@@ -204,8 +232,20 @@ export function CardEditDialog({
     proxy: details?.proxy ?? false,
     misprint: details?.misprint ?? false,
   });
+  // Cost basis. Text-mirrored like qty above (#1378): parsing/clamping happens
+  // at commit (blur/Enter), never per keystroke, so a half-typed "12." isn't
+  // rewritten under the cursor. A mixed stack starts blank behind a "Mixed (…)"
+  // placeholder — pre-filling one copy's price across copies bought at
+  // different times is exactly the homogenization mixedDetails prevents.
+  const acquiredMixed = !!mixedDetails?.acquiredPrice;
+  const initialPaidText =
+    acquiredMixed || !details?.acquiredPrice ? '' : String(details.acquiredPrice);
+  const [paidText, setPaidText] = useState(initialPaidText);
   const [search, setSearch] = useState('');
   const [ownedOnly, setOwnedOnly] = useState(false);
+  // Which currency a typed cost basis gets stamped in (the applier reads the
+  // same store) — surfaced on the field label so it's never ambiguous.
+  const currency = useCurrency();
 
   const loading = loadedFor !== cardName && error === null;
 
@@ -337,6 +377,14 @@ export function CardEditDialog({
   const languageChanged = languageMixed
     ? language !== MIXED
     : language !== (details?.language ?? '');
+  // Compared numerically, so re-typing "4" as "4.00" isn't a change. On a mixed
+  // stack any actual entry is the change (blank stays "leave each copy alone",
+  // so a mixed stack can't be bulk-cleared from here — clear per copy in the
+  // ungrouped view).
+  const paid = parsePaid(paidText);
+  const acquiredChanged = acquiredMixed
+    ? paidText.trim() !== ''
+    : (paid ?? 0) !== (details?.acquiredPrice ?? 0);
 
   const isDirty =
     selectedId !== currentScryfallId ||
@@ -345,6 +393,7 @@ export function CardEditDialog({
     (details !== undefined &&
       (conditionChanged ||
         languageChanged ||
+        acquiredChanged ||
         FLAG_OPTIONS.some(({ key }) => flags[key] !== (details[key] ?? false))));
 
   const handleConfirm = () => {
@@ -361,11 +410,13 @@ export function CardEditDialog({
               ...(flags.altered ? { altered: true } : {}),
               ...(flags.proxy ? { proxy: true } : {}),
               ...(flags.misprint ? { misprint: true } : {}),
+              ...(paid !== undefined ? { acquiredPrice: paid } : {}),
               // Only ever sent when the field is mixed — a uniform field omits
               // these keys entirely, so buildEditedCards' `?? true` default
               // keeps its always-write behavior byte-identical to before.
               ...(conditionMixed ? { conditionTouched: conditionChanged } : {}),
               ...(languageMixed ? { languageTouched: languageChanged } : {}),
+              ...(acquiredMixed ? { acquiredPriceTouched: acquiredChanged } : {}),
             },
           }
         : {}),
@@ -464,6 +515,34 @@ export function CardEditDialog({
                     className="card-edit-details-select"
                     placeholder={languageMixed ? `Mixed (${mixedDetails?.language})` : undefined}
                   />
+                  <div className="card-edit-paid">
+                    <label className="card-edit-paid-label" htmlFor="card-edit-paid-input">
+                      Paid ({currencySymbol(currency)})
+                    </label>
+                    <input
+                      id="card-edit-paid-input"
+                      type="text"
+                      inputMode="decimal"
+                      className="card-edit-paid-input"
+                      value={paidText}
+                      placeholder={acquiredMixed ? `Mixed (${mixedDetails?.acquiredPrice})` : '—'}
+                      onChange={(e) => setPaidText(e.target.value)}
+                      // Normalize at commit, matching the quantity field: the
+                      // stored value is what parsePaid accepted, so the field
+                      // can't sit showing "12abc" as if it saved.
+                      onBlur={() => {
+                        const n = parsePaid(paidText);
+                        setPaidText(n === undefined ? '' : String(n));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                      }}
+                      aria-describedby="card-edit-paid-hint"
+                    />
+                    <span id="card-edit-paid-hint" className="card-edit-paid-hint">
+                      What you paid per copy, in {currency}. Blank if you'd rather not track it.
+                    </span>
+                  </div>
                   <div className="card-edit-finishes" role="group" aria-label="Card flags">
                     {FLAG_OPTIONS.map(({ key, label }) => (
                       <button

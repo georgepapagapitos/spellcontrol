@@ -86,6 +86,30 @@ describe('stackDetailMix', () => {
     ];
     expect(stackDetailMix(copies).condition).toBe('1 NM, 1 Not set');
   });
+
+  it('summarizes a cost basis that disagrees across the stack, in each copy’s currency', () => {
+    const copies = [
+      enriched({ copyId: 'a', acquiredPrice: 4 }),
+      enriched({ copyId: 'b', acquiredPrice: 4 }),
+      enriched({ copyId: 'c', acquiredPrice: 12.5, acquiredCurrency: 'EUR' }),
+      enriched({ copyId: 'd' }),
+    ];
+    expect(stackDetailMix(copies).acquiredPrice).toBe('2 $4.00, 1 €12.50, 1 Not set');
+  });
+
+  it('reports a uniform cost basis as not mixed, and treats zero as unrecorded', () => {
+    expect(
+      stackDetailMix([
+        enriched({ copyId: 'a', acquiredPrice: 4 }),
+        enriched({ copyId: 'b', acquiredPrice: 4 }),
+      ]).acquiredPrice
+    ).toBeUndefined();
+    // 0 and absent are the same "not recorded" state, so a stack of both agrees.
+    expect(
+      stackDetailMix([enriched({ copyId: 'a', acquiredPrice: 0 }), enriched({ copyId: 'b' })])
+        .acquiredPrice
+    ).toBeUndefined();
+  });
 });
 
 describe('stackCopies', () => {
@@ -224,6 +248,44 @@ describe('buildEditedCards', () => {
       [a, b]
     );
     expect(next.every((c) => c.condition === 'lp')).toBe(true);
+  });
+
+  it('writes cost basis with the active currency stamped, and keeps it clear of market price', () => {
+    const a = enriched({ copyId: 'a' });
+    const next = buildEditedCards(a, selection({ details: { acquiredPrice: 3.5 } }), [a]);
+    expect(next[0].acquiredPrice).toBe(3.5);
+    expect(next[0].acquiredCurrency).toBe('USD');
+    // The market slot still comes from Scryfall, untouched by the basis edit.
+    expect(next[0].purchasePrice).toBe(2);
+  });
+
+  it('clearing the basis drops both the price and its currency', () => {
+    const a = enriched({ copyId: 'a', acquiredPrice: 3.5, acquiredCurrency: 'USD' });
+    const next = buildEditedCards(a, selection({ details: {} }), [a]);
+    expect(next[0].acquiredPrice).toBeUndefined();
+    expect(next[0].acquiredCurrency).toBeUndefined();
+  });
+
+  it('mixed stack: an untouched basis leaves every copy’s own price alone', () => {
+    const a = enriched({ copyId: 'a', acquiredPrice: 4 });
+    const b = enriched({ copyId: 'b', acquiredPrice: 40 });
+    const next = buildEditedCards(a, selection({ details: { acquiredPriceTouched: false } }), [
+      a,
+      b,
+    ]);
+    expect(next.find((c) => c.copyId === 'a')?.acquiredPrice).toBe(4);
+    expect(next.find((c) => c.copyId === 'b')?.acquiredPrice).toBe(40);
+  });
+
+  it('mixed stack: an explicit basis entry applies to every copy', () => {
+    const a = enriched({ copyId: 'a', acquiredPrice: 4 });
+    const b = enriched({ copyId: 'b', acquiredPrice: 40 });
+    const next = buildEditedCards(
+      a,
+      selection({ details: { acquiredPrice: 7, acquiredPriceTouched: true } }),
+      [a, b]
+    );
+    expect(next.every((c) => c.acquiredPrice === 7)).toBe(true);
   });
 
   it('single-copy mode re-points only the given copy, splitting a printing stack', () => {
