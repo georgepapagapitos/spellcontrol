@@ -25,6 +25,7 @@ import type { EnrichedCard } from '../types';
 import { CardRulings } from './CardRulings';
 import { CardText, CardLegalities } from './CardDetails';
 import { useCardDetail } from '../lib/use-card-detail';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { getRoleBadge, multiRoleTitle, rolesForCard } from '../lib/role-badges';
 import { getSetMap, type SetMap } from '../lib/api';
 import { SLD_CODE, dropsForNumber, useSldDrops } from '../lib/sld-drops';
@@ -888,6 +889,13 @@ export function CardPreview({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="card-preview-ext-link"
+                onClick={(e) => {
+                  if (!isNativePlatform()) return;
+                  e.preventDefault();
+                  openExternal(
+                    `https://scryfall.com/card/${current.setCode.toLowerCase()}/${current.collectorNumber}`
+                  );
+                }}
               >
                 Scryfall
                 <ExternalLink
@@ -903,6 +911,13 @@ export function CardPreview({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="card-preview-ext-link"
+                onClick={(e) => {
+                  if (!isNativePlatform()) return;
+                  e.preventDefault();
+                  openExternal(
+                    `https://www.tcgplayer.com/search/magic/product?q=${encodeURIComponent(current.name)}&view=grid`
+                  );
+                }}
               >
                 TCGPlayer
                 <ExternalLink
