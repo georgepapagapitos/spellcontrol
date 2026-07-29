@@ -355,6 +355,31 @@ a hero CTA.
   button pairs (radios give exclusivity + arrow-key group nav for free). Same
   family as the Settings theme picker. Reference: `.settings-currency-toggle`
   in `styles/settings-sync.css` / SettingsPage's Price currency row.
+  **Never hand-roll the ARIA instead** (`role="radiogroup"` + `role="radio"`
+  buttons). Sixteen components did, and every one shipped with no roving
+  tabindex and no arrow-key handling — a 7-swatch colour picker ate 7 tab
+  stops while announcing "radio group, 1 of 7" and then ignoring the arrows.
+  That is the same "partial ARIA is worse than none" failure called out for
+  tabs above. Pinned by `src/test/no-aria-only-radiogroups.test.ts` (E201).
+- **A segmented control inside a TRACK marks the selected segment with a
+  raised chip, never an accent fill.** The track is a padded, bordered
+  container (`--surface`, `var(--radius-lg)` or `999px`, `var(--space-1)`
+  padding + gap); the selected segment lifts onto `--surface-raised` with
+  `box-shadow: 0 1px 2px rgb(0 0 0 / 0.08)` and `--text-primary` text, while
+  the rest stay `--text-secondary` on transparent. **`--accent` stays reserved
+  for primary actions** — filling a passive setting with the same colour as
+  the Save button makes the two compete, which read worst on the home hero,
+  where a scope toggle sits directly beneath the primary CTA. On a track that
+  is already `--surface-raised`, invert it: the chip lifts to `--surface`
+  (`.deck-curve-phases-toggle`, `.card-group-layout-toggle`).
+  Reference: `.share-audience` in `styles/shared.css`.
+  This applies **only to controls in a track**. A standalone row of chips or
+  option cards with no container behind them (`.format-pill-row`,
+  `.bracket-pill-row`, `.option-grid`, `.gen-mode-grid`, the Discover filter
+  chips, `.deck-editor-zone-toggle`) has nothing to raise against, so those
+  keep their accent fill / accent tint — the tint specifically for larger
+  multi-line option cards, where a solid fill behind a label + sublabel is
+  heavy and hurts the sublabel's contrast.
 - **Subordinate container + `fitted` Tabs = a real tab strip, not a
   value-picker**, even though it visually reads as one segmented control.
   The test: does each segment swap in a _different set of rows_ (a view),

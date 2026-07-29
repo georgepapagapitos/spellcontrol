@@ -167,11 +167,14 @@
     color var(--motion-fast);
 }
 
-/* Checked segment wears the guild's cover dye — the same "accent fill on the
-   current one" idiom as the T53 divider tabs. */
+/* Selected = raised chip on the track, NOT an accent fill: accent stays
+   reserved for primary actions (STYLE_GUIDE § Segmented controls). This
+   control sits directly beneath the hero's primary CTA, which is exactly
+   where two competing accent fills read worst. */
 .home-hero-scope-option input:checked + span {
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
 }
 
 @media (hover: hover) and (pointer: fine) {
