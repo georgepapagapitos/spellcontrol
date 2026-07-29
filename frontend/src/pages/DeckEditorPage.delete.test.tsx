@@ -86,6 +86,14 @@ vi.mock('../store/decks', () => ({
   newDeckCard: vi.fn(),
 }));
 
+// Mutable so the header-actions tests below can flip Undo/Redo availability
+// per-test without a second vi.mock factory; reset in each describe block's
+// beforeEach so a toggled test can't leak into the delete-flow tests above.
+let mockCanUndo = false;
+let mockCanRedo = false;
+let mockUndoLabel: string | null = null;
+let mockRedoLabel: string | null = null;
+
 vi.mock('../store/deck-history', () => ({
   useDeckHistoryStore: (
     sel: (s: {
@@ -94,10 +102,10 @@ vi.mock('../store/deck-history', () => ({
       commit: () => void;
       undo: () => void;
       redo: () => void;
-      canUndo: () => false;
-      canRedo: () => false;
-      undoLabel: () => null;
-      redoLabel: () => null;
+      canUndo: () => boolean;
+      canRedo: () => boolean;
+      undoLabel: () => string | null;
+      redoLabel: () => string | null;
     }) => unknown
   ) =>
     sel({
@@ -106,10 +114,10 @@ vi.mock('../store/deck-history', () => ({
       commit: vi.fn(),
       undo: vi.fn(),
       redo: vi.fn(),
-      canUndo: () => false,
-      canRedo: () => false,
-      undoLabel: () => null,
-      redoLabel: () => null,
+      canUndo: () => mockCanUndo,
+      canRedo: () => mockCanRedo,
+      undoLabel: () => mockUndoLabel,
+      redoLabel: () => mockRedoLabel,
     }),
 }));
 
@@ -486,5 +494,81 @@ describe('DeckEditorPage — one-shot BuildReportSheet (UX-316)', () => {
     // would pop the sheet once on its next open.
     renderEditor();
     expect(screen.queryByTestId('build-report-sheet')).toBeNull();
+  });
+});
+
+describe('DeckEditorPage — header action cluster on phones (≤1023px collapse)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockCanUndo = false;
+    mockCanRedo = false;
+    mockUndoLabel = null;
+    mockRedoLabel = null;
+  });
+  afterEach(() => {
+    localStorage.clear();
+    mockCanUndo = false;
+    mockCanRedo = false;
+    mockUndoLabel = null;
+    mockRedoLabel = null;
+  });
+
+  // Both .deck-editor-actions (desktop) and .deck-editor-mobile-actions
+  // (<=1023px) render unconditionally — the breakpoint switch is pure CSS
+  // (display: none), not a JS branch — so getAllByLabelText('Deck actions')
+  // always returns [desktop trigger, mobile trigger] in DOM order.
+
+  it('shows only the Add-cards pill + ⋮ trigger in the mobile action cluster — no standing icon buttons', () => {
+    mockCanUndo = true;
+    mockCanRedo = true;
+    mockUndoLabel = 'remove Sol Ring';
+    mockRedoLabel = 'add Sol Ring';
+    renderEditor();
+
+    const mobileCluster = document.querySelector('.deck-editor-mobile-actions');
+    expect(mobileCluster).toBeTruthy();
+    // Exactly two controls: the Add-cards pill and the ⋮ trigger.
+    expect(mobileCluster!.querySelectorAll(':scope > button, :scope > div')).toHaveLength(2);
+    expect(mobileCluster!.querySelector('.deck-editor-add-pill')).toBeTruthy();
+    // No standalone Undo/Redo icon button sits inline next to it — that
+    // pair only exists in the desktop (>=1024px) action row.
+    expect(mobileCluster!.querySelector('.deck-editor-icon-btn')).toBeNull();
+  });
+
+  it('keeps the desktop-only inline Undo/Redo icon pair confined to .deck-editor-actions', () => {
+    mockCanUndo = true;
+    mockCanRedo = true;
+    renderEditor();
+
+    const desktopActions = document.querySelector('.deck-editor-actions');
+    const iconButtons = desktopActions!.querySelectorAll('.deck-editor-icon-btn');
+    expect(iconButtons).toHaveLength(2); // Undo + Redo
+  });
+
+  it('puts Undo/Redo as the first two, unlabelled-section menu items in the mobile ⋮ (E181 top-of-menu convention)', () => {
+    mockCanUndo = true;
+    mockCanRedo = true;
+    mockUndoLabel = 'remove Sol Ring';
+    mockRedoLabel = 'add Sol Ring';
+    renderEditor();
+
+    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(mobileTrigger);
+
+    const rows = screen.getAllByRole('menuitem');
+    expect(rows[0].textContent).toBe('Undo remove Sol Ring');
+    expect(rows[1].textContent).toBe('Redo add Sol Ring');
+    // They sit above the first labelled section, not inside one.
+    expect(rows[0].closest('.deck-editor-overflow-section')).toBeNull();
+    expect(rows[1].closest('.deck-editor-overflow-section')).toBeNull();
+  });
+
+  it('omits Undo/Redo rows entirely when there is nothing to undo/redo', () => {
+    renderEditor(); // mockCanUndo/mockCanRedo default false
+    const [, mobileTrigger] = screen.getAllByLabelText('Deck actions');
+    fireEvent.click(mobileTrigger);
+
+    expect(screen.queryByRole('menuitem', { name: /^Undo/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /^Redo/ })).toBeNull();
   });
 });
