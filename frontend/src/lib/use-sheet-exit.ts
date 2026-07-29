@@ -1,4 +1,14 @@
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { isNativePlatform } from './platform';
+import { focusInto, trapTab, useOverlayLayer } from './overlay-layer';
 
 /**
  * Symmetric slide-down dismissal for the full-screen drawer sheets
@@ -32,10 +42,12 @@ import { type CSSProperties, useCallback, useEffect, useRef, useState } from 're
  */
 export function useSheetExit(
   onClose: () => void,
-  exitAnimationName: string | string[] = 'sheet-fall'
+  exitAnimationName: string | string[] = 'sheet-fall',
+  panelRef?: RefObject<HTMLElement | null>
 ) {
   const [isClosing, setIsClosing] = useState(false);
   const [exitFrom, setExitFrom] = useState(0);
+  const { isTopmost } = useOverlayLayer();
   // Ref guard so a double-trigger (e.g. Escape + backdrop in the same
   // frame) can't start two exits / fire onClose twice before the state
   // re-render lands.
@@ -102,6 +114,45 @@ export function useSheetExit(
       if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
     };
   }, []);
+
+  // Android hardware back button. Without a listener Capacitor's default is to
+  // navigate the WebView's own history, which left the sheet visually stuck
+  // open while the page underneath changed. `<Modal>` has answered back since
+  // T11; sheets never did, so this was broken on ~30 surfaces. Same shared
+  // layer stack as Modal, so a confirm dialog opened on top of a sheet is the
+  // one that answers — with two stacks both would close on one press.
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    const handle = CapacitorApp.addListener('backButton', () => {
+      if (!isTopmost()) return;
+      beginClose();
+    });
+    return () => {
+      void handle.then((h) => h.remove());
+    };
+  }, [beginClose, isTopmost]);
+
+  // Focus containment, opt-in by passing the sheet's panel ref. Without it a
+  // sheet opened while focus sat on the page behind it left Tab walking
+  // through the content underneath, and any `onKeyDown` the sheet declared on
+  // its own subtree never fired at all (nothing inside it had focus) — which
+  // is why BuildReportSheet's Escape handler did nothing.
+  useEffect(() => {
+    const panel = panelRef?.current;
+    if (!panel) return;
+    const prevFocused = document.activeElement as HTMLElement | null;
+    focusInto(panel);
+    const onKey = (e: KeyboardEvent) => {
+      if (isTopmost()) trapTab(panel, e);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      // Return focus where it was, so closing a sheet doesn't drop keyboard
+      // and screen-reader users at the top of the page.
+      if (prevFocused?.isConnected) prevFocused.focus?.();
+    };
+  }, [panelRef, isTopmost]);
 
   // Spread onto the sheet element. While closing, pins sheet-fall's `from`
   // keyframe to the release offset so the exit continues from where the

@@ -56,6 +56,15 @@ export function usePullToRefresh(
 
     const onStart = (e: TouchEvent) => {
       if (statusRef.current === 'refreshing') return;
+      // Dialogs render inline inside this scroll region rather than in a
+      // portal, so a drag starting inside an open modal reaches this listener
+      // and is treated as a page pull-to-refresh — the dialog's own content
+      // stops scrolling and the page tries to refresh underneath it. An
+      // overlay owns its gestures; the page behind it does not.
+      if (e.target instanceof Element && e.target.closest('.modal-backdrop')) {
+        engaged.current = false;
+        return;
+      }
       if (e.touches.length !== 1 || scrollEl.scrollTop > 0) {
         engaged.current = false;
         return;
