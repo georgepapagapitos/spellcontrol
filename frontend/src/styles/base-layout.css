@@ -91,6 +91,34 @@ button {
   cursor: pointer;
 }
 
+/* ── Baseline pressed state ─────────────────────────────────────────────
+   Touch has no hover, so without a pressed rule a control gives NO
+   feedback between finger-down and whatever state change eventually
+   renders — the single biggest thing that makes a packaged app read as a
+   web page. ~130 files gate a hover style behind `(hover: hover)`; only
+   ~29 defined a pressed state, so this is the floor for the rest.
+
+   (Deliberately avoiding the literal colon-hover token in this comment:
+   the E68 guard in responsive-primitives.test.ts matches selector/body
+   pairs with a regex that does not strip comments, so writing it here
+   reads as an ungated hover rule.)
+
+   1px down-shift seats the button into the `0 1px 0 rgb(0 0 0 / 12%)`
+   bottom edge the stamped fill tier already wears (STYLE_GUIDE "one
+   pressed family"), so it reads as the same material, not a new effect.
+   `transition-duration: 0s` is load-bearing: 26 rules animate `transform`,
+   and inheriting a 150-200ms ease here would defeat the entire point by
+   ramping the press in. Release still eases back via the element's own
+   transition.
+
+   Specificity is deliberately the lowest possible (0,1,1) so every
+   existing bespoke `.foo:active` (0,2,0) keeps winning. */
+button:active:not(:disabled),
+[role='button']:active:not([aria-disabled='true']) {
+  transform: translateY(1px);
+  transition-duration: 0s;
+}
+
 input,
 select {
   font-family: var(--font-serif);
@@ -119,6 +147,67 @@ select {
 .capacitor .selectable {
   -webkit-touch-callout: default;
   user-select: text;
+}
+
+/* ── Route view transitions ─────────────────────────────────────────────
+   Top-level destinations used to swap with no transition at all, which is
+   the classic "web page in a shell" tell — native navigation always has
+   depth. Opted into per-link via react-router's `viewTransition` prop on
+   the two primary navs (Header, MobileTabBar); everything else — modals,
+   sheets, in-page tabs — keeps its own existing animation.
+
+   Only `.app-main` is named, so ONLY the content region animates. The
+   header and tab bar are stable chrome and cut instantly, which is exactly
+   what a native push does: the frame stays, the content moves. Killing the
+   root animation is what keeps the chrome from cross-fading with it.
+
+   No feature guard needed: react-router falls back to a plain navigation
+   where `document.startViewTransition` is unsupported, and a browser that
+   ignores `view-transition-name` simply renders the old instant swap. */
+.app-main {
+  view-transition-name: app-main;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(app-main) {
+  animation: sc-route-out 90ms var(--ease-out-soft) both;
+}
+
+::view-transition-new(app-main) {
+  animation: sc-route-in 180ms var(--ease-out-soft) both;
+}
+
+@keyframes sc-route-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sc-route-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reduced motion: no rise, no cross-fade — back to the instant swap.
+   `::view-transition-*` sits outside the normal cascade, so the
+   group/old/new triple is needed to fully suppress it.
+
+   The pressed state above is deliberately NOT reverted here: it is an
+   instant 1px offset with no animation, so it isn't motion in the sense
+   this query means — and dropping it would strip touch feedback from the
+   users least served by losing it. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 
 .container {
