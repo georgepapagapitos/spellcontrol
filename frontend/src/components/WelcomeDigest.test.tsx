@@ -89,6 +89,17 @@ describe('WelcomeDigest', () => {
     expect(isDigestDismissedThisSession()).toBe(true);
   });
 
+  it('dismisses straight from the strip without opening the sheet', () => {
+    setDigestBaseline(100, Date.now() - 86400000);
+    const { container } = mount(150);
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss summary' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(container.querySelector('.welcome-digest-strip')).toBeNull();
+    expect(getDigestBaseline()?.value).toBe(150);
+    expect(isDigestDismissedThisSession()).toBe(true);
+  });
+
   it('stays hidden for the rest of the session once dismissed', () => {
     setDigestBaseline(100, Date.now() - 86400000);
     markDigestDismissedThisSession();
