@@ -291,9 +291,7 @@ describe('ShareDialog — opening the dialog mints nothing', () => {
     renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
 
     await screen.findByText('Not shared — only you can see this.');
-    expect(screen.getByRole('radio', { name: 'Private' }).getAttribute('aria-checked')).toBe(
-      'true'
-    );
+    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
     // The whole point: merely looking at the Share dialog used to leave a
     // permanent /s/:token behind, which then piled up in Settings.
     expect(createShareMock).not.toHaveBeenCalled();
@@ -318,8 +316,8 @@ describe('ShareDialog — opening the dialog mints nothing', () => {
     const url = (await screen.findByLabelText('Share URL')) as HTMLInputElement;
     expect(url.value).toBe('https://spellcontrol.com/s/tok-existing');
     expect(
-      screen.getByRole('radio', { name: 'Anyone with link' }).getAttribute('aria-checked')
-    ).toBe('true');
+      (screen.getByRole('radio', { name: 'Anyone with link' }) as HTMLInputElement).checked
+    ).toBe(true);
     expect(createShareMock).not.toHaveBeenCalled();
   });
 
