@@ -171,6 +171,36 @@ describe('GET /api/pods/:id/games', () => {
     }
   });
 
+  it('omits the top-level winnerUserId and join code entirely', async () => {
+    const owner = await makeUser('ps-allow-owner');
+    const member = await makeUser('ps-allow-member');
+    const stranger = await makeUser('ps-allow-stranger');
+    await befriend(owner.cookie, 'ps-allow-member', member.cookie, 'ps-allow-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, member.id, member.cookie);
+
+    // The stranger never joined this pod, yet wins a game two pod members are
+    // in — so the pod gate includes it, and under the old spread-based
+    // denylist their account UUID rode through on winnerUserId, bound to a
+    // named seat by winnerSeat in the same payload.
+    await insertResult({
+      winnerUserId: stranger.id,
+      participants: [{ userId: owner.id }, { userId: member.id }, { userId: stranger.id }],
+    });
+
+    const res = await request(app).get(`/api/pods/${pod.id}/games`).set('Cookie', owner.cookie);
+    expect(res.status).toBe(200);
+    const game = res.body.games[0] as Record<string, unknown>;
+    // Key ABSENCE, not null: toPublicForPod is an allowlist, so a field it
+    // doesn't name never appears at all.
+    expect(game).not.toHaveProperty('winnerUserId');
+    expect(game).not.toHaveProperty('code');
+    expect(JSON.stringify(game)).not.toContain(stranger.id);
+    // The fields the pod hub actually renders still arrive.
+    expect(game.sessionId).toBeTruthy();
+    expect(game.winnerSeat).toBe(0);
+  });
+
   it('an invited-not-accepted caller gets 403', async () => {
     const owner = await makeUser('ps-invited-owner');
     const invitee = await makeUser('ps-invited-invitee');
