@@ -80,6 +80,10 @@ const PROFILE_WITH_NAME = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  // restoreAllMocks() does not clear call history on these vi.hoisted mocks,
+  // so counts bled between tests — a "never minted" assertion could be
+  // satisfied by an earlier test's call. Explicit, before the impls below.
+  vi.clearAllMocks();
   createShareMock.mockResolvedValue({
     token: 'tok-link',
     userId: 'u1',
@@ -91,6 +95,11 @@ beforeEach(() => {
     revokedAt: null,
   });
   getPublicationMock.mockResolvedValue(null);
+  // Seeded here, not per-test: the dialog now reads existing shares on open
+  // (to show the resource's real current rung), so an unseeded listShares
+  // leaks the previous test's rows into the next one's initial state.
+  listSharesMock.mockResolvedValue([]);
+  revokeShareMock.mockResolvedValue(undefined);
   fireSealMock.mockClear();
   useAuth.setState({
     user: { id: 'u1', username: 'alice', role: 'user' },
@@ -274,6 +283,102 @@ describe('ShareDialog — first-publish seal (E150)', () => {
 
     await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d-seal-republish'));
     expect(fireSealMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('ShareDialog — opening the dialog mints nothing', () => {
+  it('opens an unshared deck on Private without minting a link share', async () => {
+    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
+
+    await screen.findByText('Not shared — only you can see this.');
+    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
+    // The whole point: merely looking at the Share dialog used to leave a
+    // permanent /s/:token behind, which then piled up in Settings.
+    expect(createShareMock).not.toHaveBeenCalled();
+  });
+
+  it('adopts an existing link share instead of minting a second one', async () => {
+    listSharesMock.mockResolvedValue([
+      {
+        token: 'tok-existing',
+        userId: 'u1',
+        kind: 'deck',
+        resourceId: 'd1',
+        audience: 'link',
+        addresseeId: null,
+        createdAt: 1,
+        revokedAt: null,
+      },
+    ]);
+
+    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
+
+    const url = (await screen.findByLabelText('Share URL')) as HTMLInputElement;
+    expect(url.value).toBe('https://spellcontrol.com/s/tok-existing');
+    expect(
+      (screen.getByRole('radio', { name: 'Anyone with link' }) as HTMLInputElement).checked
+    ).toBe(true);
+    expect(createShareMock).not.toHaveBeenCalled();
+  });
+
+  it('mints only once the user actually picks the link rung', async () => {
+    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
+    await screen.findByText('Not shared — only you can see this.');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Anyone with link' }));
+
+    await waitFor(() => expect(createShareMock).toHaveBeenCalledTimes(1));
+    expect(createShareMock).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'deck', resourceId: 'd1', audience: 'link' })
+    );
+  });
+});
+
+describe('ShareDialog — Public supersedes the lesser rungs', () => {
+  it('stops showing the superseded /s/ link and shows the public URL instead', async () => {
+    // The revocation itself is the publish endpoint's job now (it has to be —
+    // three client call sites publish, and enforcing it in this one was how
+    // the invariant broke); routes/publications.test.ts covers that. What this
+    // dialog still owes is not presenting a token the server just killed.
+    listSharesMock.mockResolvedValue([
+      {
+        token: 'tok-link',
+        userId: 'u1',
+        kind: 'deck',
+        resourceId: 'd1',
+        audience: 'link',
+        addresseeId: null,
+        createdAt: 1,
+        revokedAt: null,
+      },
+    ]);
+    publishDeckMock.mockResolvedValue({
+      slug: 'test-deck',
+      url: 'https://spellcontrol.com/d/test-deck',
+      publishedAt: 1,
+      updatedAt: 1,
+      unpublishedAt: null,
+      viewCount: 0,
+      copyCount: 0,
+    });
+
+    renderDialog({ resourceId: 'd1', resourceLabel: 'Test Deck', onClose: () => {} });
+
+    // Settle on the adopted 'link' rung before switching up the ladder.
+    const before = (await screen.findByLabelText('Share URL')) as HTMLInputElement;
+    expect(before.value).toBe('https://spellcontrol.com/s/tok-link');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Public' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Make it public — anyone can view' })
+    );
+
+    await waitFor(() => expect(publishDeckMock).toHaveBeenCalledWith('d1'));
+    // The published view swaps in its own field (a /d/ slug, not a /s/ token);
+    // the superseded share URL must be gone from the dialog entirely.
+    const after = (await screen.findByLabelText('Published deck URL')) as HTMLInputElement;
+    expect(after.value).toBe('https://spellcontrol.com/d/test-deck');
+    expect(screen.queryByLabelText('Share URL')).toBeNull();
   });
 });
 

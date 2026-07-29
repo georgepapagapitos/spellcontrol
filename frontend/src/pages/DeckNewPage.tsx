@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ImportDeckDialog } from '../components/deck/ImportDeckDialog';
 import { BackLink } from '../components/BackLink';
@@ -53,6 +53,72 @@ export function DeckNewPage() {
     finishExit: handleTakeoverExitComplete,
   } = useGenerationTakeoverExit();
 
+  // ── Visibility (creation-time choice) ──────────────────────────────────
+  // Declared ahead of useDeckGeneration because the generate hand-off below
+  // (`onCreated`) needs `visibility`/`publishAfterCreate` — a generated deck
+  // has to obey the same fieldset as "Start blank" (before this, Public was
+  // silently dropped on the generate path).
+  //
+  // The fieldset/network/display-name-substep logic itself is shared with
+  // ImportDeckDialog's single-deck path (E150) — see usePublishOnCreate's
+  // own doc comment for why it hands off rather than firing the seal here:
+  // this page navigates away the instant a publish resolves.
+  // Where a publish-on-create should land once it settles. Null for "Start
+  // blank" — the new deck's own editor is the only destination there. Set by
+  // the generate hand-off below, which alone knows about the compare-diff
+  // landing and the justGenerated build-report flag. A ref, not state: it's
+  // written and read within a single async hand-off, and re-rendering the
+  // whole form on it would be pure noise.
+  const pendingDestination = useRef<{ path: string; state?: Record<string, unknown> } | null>(null);
+
+  const onPublishSettled = useCallback(
+    (id: string, outcome?: PublishOutcome) => {
+      const pending = pendingDestination.current;
+      pendingDestination.current = null;
+      // Both flags can be live at once (generated AND first publish) — the
+      // editor reads them independently, so merge rather than let one win.
+      const state = {
+        ...(pending?.state ?? {}),
+        ...(outcome ? { justPublished: outcome.isFirstPublish } : {}),
+      };
+      navigate(
+        pending?.path ?? `/decks/${id}`,
+        Object.keys(state).length > 0 ? { state } : undefined
+      );
+    },
+    [navigate]
+  );
+  const {
+    canPublish,
+    publicDisabledReason,
+    visibility,
+    setVisibility,
+    publishing,
+    needsDisplayName,
+    displayNameDraft,
+    setDisplayNameDraft,
+    publishAfterCreate,
+    saveDisplayNameAndPublish,
+    cancelDisplayName,
+  } = usePublishOnCreate(onPublishSettled);
+
+  /**
+   * Apply the Private/Public fieldset to a freshly *generated* deck. Returns
+   * true when it takes over navigation, so useDeckGeneration leaves routing
+   * alone — including the display_name_required case, where publishAfterCreate
+   * shows its inline substep and this page stays put until that resolves (the
+   * substep's own Cancel still lands on `pendingDestination`).
+   */
+  const publishGeneratedDeck = useCallback(
+    async (id: string, destination: string, navState?: Record<string, unknown>) => {
+      if (visibility !== 'public' || !canPublish) return false;
+      pendingDestination.current = { path: destination, state: navState };
+      await publishAfterCreate(id);
+      return true;
+    },
+    [visibility, canPublish, publishAfterCreate]
+  );
+
   const {
     commander,
     partnerCommander,
@@ -73,6 +139,7 @@ export function DeckNewPage() {
     initialThemes: prefill?.themes,
     sourceDeckId: prefill?.sourceDeckId,
     beforeNavigate: waitForTakeoverExit,
+    onCreated: publishGeneratedDeck,
   });
 
   const [showImport, setShowImport] = useState(false);
@@ -82,34 +149,6 @@ export function DeckNewPage() {
   const formatGroup = useId();
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
   const isPdh = selectedFormat === 'paupercommander';
-
-  // ── Visibility (creation-time choice) ──────────────────────────────────
-  // The fieldset/network/display-name-substep logic itself is shared with
-  // ImportDeckDialog's single-deck path (E150) — see usePublishOnCreate's
-  // own doc comment for why it hands off rather than firing the seal here:
-  // this page navigates away the instant a publish resolves.
-  const onPublishSettled = useCallback(
-    (id: string, outcome?: PublishOutcome) => {
-      navigate(
-        `/decks/${id}`,
-        outcome ? { state: { justPublished: outcome.isFirstPublish } } : undefined
-      );
-    },
-    [navigate]
-  );
-  const {
-    canPublish,
-    publicDisabledReason,
-    visibility,
-    setVisibility,
-    publishing,
-    needsDisplayName,
-    displayNameDraft,
-    setDisplayNameDraft,
-    publishAfterCreate,
-    saveDisplayNameAndPublish,
-    cancelDisplayName,
-  } = usePublishOnCreate(onPublishSettled);
 
   // Keep the store's build-format in lockstep with the pill so generation and
   // the saved deck both know the format. Only PDH generates as its own format
@@ -473,9 +512,9 @@ export function DeckNewPage() {
                   type="button"
                   className="btn btn-primary"
                   onClick={build}
-                  disabled={isBuilding || !modeReady}
+                  disabled={isBuilding || publishing || !modeReady}
                 >
-                  {isBuilding ? 'Building…' : generateLabel}
+                  {isBuilding ? 'Building…' : publishing ? 'Publishing…' : generateLabel}
                 </button>
                 <button
                   type="button"

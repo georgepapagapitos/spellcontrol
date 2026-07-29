@@ -438,3 +438,90 @@ describe('publish → unpublish → republish cycle', () => {
     expect(republish.body.publication.copyCount).toBe(7);
   });
 });
+
+describe('publishing retires the lesser visibility rungs', () => {
+  /** Mint a share directly through the API the app itself uses. */
+  async function mintShare(cookie: string, deckId: string, audience: string): Promise<string> {
+    const res = await request(app)
+      .post('/api/shares')
+      .set('Cookie', cookie)
+      .send({ kind: 'deck', resourceId: deckId, audience });
+    expect([200, 201]).toContain(res.status);
+    return res.body.share.token as string;
+  }
+
+  async function revokedAt(token: string): Promise<number | null> {
+    const r = await pool.query<{ revoked_at: string | null }>(
+      `SELECT revoked_at FROM shares WHERE token = $1`,
+      [token]
+    );
+    return r.rows[0].revoked_at === null ? null : Number(r.rows[0].revoked_at);
+  }
+
+  it('revokes this deck’s link and friends shares, sparing direct sends and other decks', async () => {
+    const cookie = await makeUser('ladder-owner');
+    await setDisplayName(cookie, 'Ladder Owner');
+    await setSnapshotViaSyncApi(request(app), cookie, {
+      decks: [makeDeck('deck-ladder'), makeDeck('deck-bystander')],
+    });
+
+    const linkToken = await mintShare(cookie, 'deck-ladder', 'link');
+    const friendsToken = await mintShare(cookie, 'deck-ladder', 'friends');
+    const bystanderToken = await mintShare(cookie, 'deck-bystander', 'link');
+
+    // Seeded directly rather than via POST /api/shares: a 'direct' share
+    // requires an accepted friendship (403 otherwise), and the friend-request
+    // dance is irrelevant to what's under test — mirrors seedRawDeck's reason
+    // for bypassing the normal path.
+    const friendCookie = await makeUser('ladder-friend');
+    const friendId = await userIdFromCookie(friendCookie);
+    const ownerId = await userIdFromCookie(cookie);
+    const directToken = 'tok-direct-ladder';
+    await pool.query(
+      `INSERT INTO shares (token, user_id, kind, resource_id, audience, addressee_id, created_at)
+       VALUES ($1, $2, 'deck', 'deck-ladder', 'direct', $3, $4)`,
+      [directToken, ownerId, friendId, Date.now()]
+    );
+
+    const pub = await request(app)
+      .post('/api/publications/decks/deck-ladder')
+      .set('Cookie', cookie);
+    expect(pub.status).toBe(201);
+
+    // The ladder is exclusive: the unlisted URLs the owner believes they've
+    // replaced must actually stop working.
+    expect(await revokedAt(linkToken)).not.toBeNull();
+    expect(await revokedAt(friendsToken)).not.toBeNull();
+    // A direct send is recipient-targeted, not a visibility level — it stands.
+    expect(await revokedAt(directToken)).toBeNull();
+    // And another deck's share is none of this deck's business.
+    expect(await revokedAt(bystanderToken)).toBeNull();
+
+    // The revoked token really is dead to an anonymous reader, not just
+    // flagged in the DB.
+    const anonRead = await request(app).get(`/api/shares/public/${linkToken}`);
+    expect(anonRead.status).toBe(404);
+  });
+
+  it('applies on republish too, not just the first publish', async () => {
+    const cookie = await makeUser('ladder-republish');
+    await setDisplayName(cookie, 'Ladder Republish');
+    await setSnapshotViaSyncApi(request(app), cookie, { decks: [makeDeck('deck-reladder')] });
+
+    const first = await request(app)
+      .post('/api/publications/decks/deck-reladder')
+      .set('Cookie', cookie);
+    expect(first.status).toBe(201);
+
+    await request(app).delete('/api/publications/decks/deck-reladder').set('Cookie', cookie);
+    // Unpublishing frees the owner to mint a link again — republishing must
+    // retire it, or the UPDATE branch quietly reintroduces the whole bug.
+    const linkToken = await mintShare(cookie, 'deck-reladder', 'link');
+
+    const again = await request(app)
+      .post('/api/publications/decks/deck-reladder')
+      .set('Cookie', cookie);
+    expect(again.status).toBe(200);
+    expect(await revokedAt(linkToken)).not.toBeNull();
+  });
+});

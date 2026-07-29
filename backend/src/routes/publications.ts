@@ -6,6 +6,7 @@ import { getPool } from '../db';
 import { extractListingFields } from '../publications/listing-fields';
 import { generateDeckSlug } from '../publications/slug';
 import { invalidateDeckPublicationCache, invalidatePublicUserCache } from '../publications/cache';
+import { invalidateShareContext } from '../shares/context';
 
 /**
  * Owner-facing publish/unpublish/status endpoints for `deck_publications` —
@@ -64,6 +65,45 @@ function toPublication(row: PublicationRow): PublicationResponse {
 function isSlugCollision(err: unknown): boolean {
   const e = err as { code?: string; constraint?: string };
   return e?.code === '23505' && e?.constraint === 'deck_publications_slug_idx';
+}
+
+/**
+ * Retire the lesser visibility rungs once a deck goes public. The client
+ * ladder (private → link → friends → public) reads as mutually exclusive, so
+ * it has to *be* exclusive: a 'link' or 'friends' share minted earlier would
+ * otherwise stay live underneath the publication — an unlisted /s/:token the
+ * owner believes they've replaced, still granting access and still listed in
+ * Settings → Share links.
+ *
+ * Lives here, in the publish endpoint, rather than in the client that happened
+ * to surface the bug. There are three publish call sites (the ShareDialog
+ * ladder, the decks-index visibility action, the creation-time fieldset), and
+ * enforcing this in only one of them is exactly how the invariant broke in the
+ * first place — so it's enforced where they all converge. Anything that
+ * publishes gets it, including whatever publishes next year.
+ *
+ * 'direct' (send-to-a-friend) shares are deliberately spared: they're
+ * recipient-targeted, not a visibility level — the same carve-out
+ * resolveDeckVisibility makes on the client.
+ */
+async function retireLesserRungs(
+  userId: string,
+  // Same `req.params.deckId` type every other query in this file binds — the
+  // deck lookup above has already 404'd anything that isn't a plain id, so no
+  // coercion is needed here to be correct.
+  deckId: string | string[]
+): Promise<void> {
+  const result = await getPool().query<{ token: string }>(
+    `UPDATE shares SET revoked_at = $3
+       WHERE user_id = $1 AND kind = 'deck' AND resource_id = $2
+         AND audience IN ('link', 'friends') AND revoked_at IS NULL
+     RETURNING token`,
+    [userId, deckId, Date.now()]
+  );
+  // Drop each cached context so the next public read sees the revocation
+  // immediately rather than waiting out the TTL — mirrors sharesRouter's own
+  // DELETE /:token handling.
+  for (const row of result.rows) invalidateShareContext(row.token);
 }
 
 publicationsRouter.post(
@@ -139,6 +179,7 @@ publicationsRouter.post(
           now,
         ]
       );
+      await retireLesserRungs(userId, deckId);
       return res.status(200).json({ publication: toPublication(updated.rows[0]) });
     }
 
@@ -171,6 +212,7 @@ publicationsRouter.post(
             now,
           ]
         );
+        await retireLesserRungs(userId, deckId);
         return res.status(201).json({ publication: toPublication(inserted.rows[0]) });
       } catch (err) {
         if (!isSlugCollision(err)) throw err;
