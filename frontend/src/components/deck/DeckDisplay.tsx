@@ -5,6 +5,7 @@ import {
   Check,
   CheckSquare,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Boxes,
   Crosshair,
@@ -20,6 +21,7 @@ import {
   Plus,
   Search,
   Shapes,
+  Share2,
   Sparkles,
   Sprout,
   Tag as TagIcon,
@@ -94,7 +96,8 @@ import { useTouchPeek } from '@/lib/use-touch-peek';
 import { COLOR_INFO } from '../../lib/colors';
 import { classifyFoil } from '../../lib/foil-style';
 import { FoilBadge } from '../FoilBadge';
-import { Legend } from '../Legend';
+import { Legend, LegendContent } from '../Legend';
+import { OverflowMenu } from '../OverflowMenu';
 import {
   buildAllocationMap,
   classifyAllocation,
@@ -2186,6 +2189,81 @@ export function DeckDisplay({
             page-top hub tab bar in DeckEditorPage switches between them. */}
         {activeView === 'deck' ? (
           <>
+            {/* High-level stats, glanceable while editing the list — these used
+                to live behind the Overview analysis tab. Each reads as a metric:
+                a bold value over a small muted label. Leads the surface (it used
+                to sit below the toolbar): these describe the deck, the toolbar
+                configures the list, and on a phone the toolbar's rows pushed the
+                strip — the most useful thing here — under the fold. */}
+            <div className="deck-stat-strip" aria-label="Deck stats">
+              {deckTally.length > 0 ? (
+                <button
+                  type="button"
+                  className="deck-stat deck-stat-btn"
+                  onClick={() =>
+                    void statCarousel.open(tallyToEntries(deckTally), deckTally[0]?.name ?? '')
+                  }
+                  aria-label={`Show all ${totalCards} cards in the deck`}
+                >
+                  <span className="deck-stat-value">{totalCards}</span>
+                  <span className="deck-stat-label">cards</span>
+                </button>
+              ) : (
+                <span className="deck-stat">
+                  <span className="deck-stat-value">{totalCards}</span>
+                  <span className="deck-stat-label">cards</span>
+                </span>
+              )}
+              <span className="deck-stat">
+                <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
+                <span className="deck-stat-label">avg mana value</span>
+              </span>
+              {valueEntries.length > 0 ? (
+                <button
+                  type="button"
+                  className="deck-stat deck-stat-btn"
+                  onClick={() => void statCarousel.open(valueEntries, valueEntries[0]?.name ?? '')}
+                  aria-label="Show the deck's cards sorted by price, most valuable first"
+                >
+                  <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
+                  <span className="deck-stat-label">value</span>
+                </button>
+              ) : (
+                <span className="deck-stat">
+                  <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
+                  <span className="deck-stat-label">value</span>
+                </span>
+              )}
+              {identity && (
+                <span className="deck-stat">
+                  <span className="deck-stat-value">{identity.archetypeLabel}</span>
+                  <span className="deck-stat-label">archetype</span>
+                </span>
+              )}
+              {missing.count > 0 &&
+                (missingTally.length > 0 ? (
+                  <button
+                    type="button"
+                    className="deck-stat deck-stat-missing deck-stat-btn"
+                    onClick={() => setBuyListOpen(true)}
+                    aria-label={`Open the buy list for the ${missing.count} missing cards`}
+                  >
+                    <span className="deck-stat-value">{missing.count}</span>
+                    <span className="deck-stat-label">
+                      missing ({formatMoney(missing.price, { currency })})
+                    </span>
+                  </button>
+                ) : (
+                  <span className="deck-stat deck-stat-missing">
+                    <span className="deck-stat-value">{missing.count}</span>
+                    <span className="deck-stat-label">
+                      missing ({formatMoney(missing.price, { currency })})
+                    </span>
+                  </span>
+                ))}
+            </div>
+            {statCarousel.preview}
+
             <DeckToolbar
               title={title}
               sort={sort}
@@ -2211,11 +2289,11 @@ export function DeckDisplay({
               onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             />
 
-            {/* Bulk-action bar (E172) — replaces nothing, sits between the
-                toolbar and the stat strip only while selecting. Actions are
-                zone-contextual: which buttons render depends on which zone
-                the current selection is in (mainboard/sideboard/considering
-                each have a different legal destination set). */}
+            {/* Bulk-action bar (E172) — replaces nothing, sits directly under
+                the toolbar only while selecting. Actions are zone-contextual:
+                which buttons render depends on which zone the current
+                selection is in (mainboard/sideboard/considering each have a
+                different legal destination set). */}
             {selectMode && (
               <div className="deck-bulk-bar" role="region" aria-label="Bulk actions">
                 <span className="deck-bulk-count">
@@ -2309,78 +2387,6 @@ export function DeckDisplay({
                 onCancel={() => setConfirmBulkRemove(false)}
               />
             )}
-
-            {/* High-level stats, glanceable while editing the list — these used
-                to live behind the Overview analysis tab. Each reads as a metric:
-                a bold value over a small muted label. */}
-            <div className="deck-stat-strip" aria-label="Deck stats">
-              {deckTally.length > 0 ? (
-                <button
-                  type="button"
-                  className="deck-stat deck-stat-btn"
-                  onClick={() =>
-                    void statCarousel.open(tallyToEntries(deckTally), deckTally[0]?.name ?? '')
-                  }
-                  aria-label={`Show all ${totalCards} cards in the deck`}
-                >
-                  <span className="deck-stat-value">{totalCards}</span>
-                  <span className="deck-stat-label">cards</span>
-                </button>
-              ) : (
-                <span className="deck-stat">
-                  <span className="deck-stat-value">{totalCards}</span>
-                  <span className="deck-stat-label">cards</span>
-                </span>
-              )}
-              <span className="deck-stat">
-                <span className="deck-stat-value">{manaData.averageCmc.toFixed(2)}</span>
-                <span className="deck-stat-label">avg mana value</span>
-              </span>
-              {valueEntries.length > 0 ? (
-                <button
-                  type="button"
-                  className="deck-stat deck-stat-btn"
-                  onClick={() => void statCarousel.open(valueEntries, valueEntries[0]?.name ?? '')}
-                  aria-label="Show the deck's cards sorted by price, most valuable first"
-                >
-                  <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
-                  <span className="deck-stat-label">value</span>
-                </button>
-              ) : (
-                <span className="deck-stat">
-                  <span className="deck-stat-value">{formatMoney(totalPrice, { currency })}</span>
-                  <span className="deck-stat-label">value</span>
-                </span>
-              )}
-              {identity && (
-                <span className="deck-stat">
-                  <span className="deck-stat-value">{identity.archetypeLabel}</span>
-                  <span className="deck-stat-label">archetype</span>
-                </span>
-              )}
-              {missing.count > 0 &&
-                (missingTally.length > 0 ? (
-                  <button
-                    type="button"
-                    className="deck-stat deck-stat-missing deck-stat-btn"
-                    onClick={() => setBuyListOpen(true)}
-                    aria-label={`Open the buy list for the ${missing.count} missing cards`}
-                  >
-                    <span className="deck-stat-value">{missing.count}</span>
-                    <span className="deck-stat-label">
-                      missing ({formatMoney(missing.price, { currency })})
-                    </span>
-                  </button>
-                ) : (
-                  <span className="deck-stat deck-stat-missing">
-                    <span className="deck-stat-value">{missing.count}</span>
-                    <span className="deck-stat-label">
-                      missing ({formatMoney(missing.price, { currency })})
-                    </span>
-                  </span>
-                ))}
-            </div>
-            {statCarousel.preview}
 
             {(flaggedCardCount > 0 || deckSizeWarning) && (
               <div className="deck-legality-banner">
@@ -3196,6 +3202,117 @@ function RoleBadge({ card, variant }: { card: ScryfallCard; variant: 'row' | 'gr
   );
 }
 
+// Shared checkbox list for the row-detail prefs — rendered by the desktop
+// "Show" popover and inside the narrow-viewport "View" popover.
+function ShowPrefsList({
+  showPrefs,
+  onShowPrefsChange,
+}: {
+  showPrefs: ShowPrefs;
+  onShowPrefsChange: (next: ShowPrefs) => void;
+}) {
+  return (
+    <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
+      {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
+        <li key={k}>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={showPrefs[k]}
+            className={`toolbar-popover-item${showPrefs[k] ? ' active' : ''}`}
+            onClick={() => onShowPrefsChange({ ...showPrefs, [k]: !showPrefs[k] })}
+          >
+            <span className="toolbar-popover-check" aria-hidden>
+              {showPrefs[k] ? '✓' : ''}
+            </span>
+            {SHOW_PREFS_LABEL[k]}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Narrow-viewport "View" popover panel — consolidates the display controls
+// (layout, grouping, card size, row details, symbol key) that would otherwise
+// wrap the deck toolbar onto three rows on a phone, pushing the card list off
+// the first screen entirely. Mirrors the collection toolbar's ViewPopoverPanel
+// (CardListTable) down to the sub-page key, per STYLE_GUIDE "Toolbars & action
+// rows". State lives here so it resets whenever the popover closes.
+function DeckViewPopoverPanel({
+  viewMode,
+  onViewModeChange,
+  groupBy,
+  onGroupByChange,
+  gridZoom,
+  onGridZoomChange,
+  gridWidth,
+  zoomMax,
+  showPrefs,
+  onShowPrefsChange,
+}: {
+  viewMode: DeckViewMode;
+  onViewModeChange: (m: DeckViewMode) => void;
+  groupBy: DeckGroupBy;
+  onGroupByChange: (g: DeckGroupBy) => void;
+  gridZoom: number;
+  onGridZoomChange: (z: number) => void;
+  gridWidth: number;
+  zoomMax: number;
+  showPrefs: ShowPrefs;
+  onShowPrefsChange: (next: ShowPrefs) => void;
+}) {
+  const [keyOpen, setKeyOpen] = useState(false);
+  if (keyOpen) {
+    return (
+      <div className="view-popover-key">
+        <button
+          type="button"
+          className="toolbar-popover-item view-popover-back"
+          onClick={() => setKeyOpen(false)}
+        >
+          <ChevronLeft width={14} height={14} strokeWidth={2} aria-hidden />
+          <span>Back</span>
+        </button>
+        <LegendContent context="deck" />
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="view-popover-row">
+        <span className="view-popover-row-label">Layout</span>
+        <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
+      </div>
+      <div className="view-popover-row">
+        <span className="view-popover-row-label">Group by</span>
+        <DeckGroupByToggle value={groupBy} onChange={onGroupByChange} />
+      </div>
+      {viewMode === 'grid' && (
+        <div className="view-popover-row">
+          <span className="view-popover-row-label">Card size</span>
+          <ZoomControl
+            zoom={gridZoom}
+            width={gridWidth}
+            max={zoomMax}
+            onChange={onGridZoomChange}
+          />
+        </div>
+      )}
+      <div className="view-popover-section">
+        <span className="view-popover-section-title">Details</span>
+        <ShowPrefsList showPrefs={showPrefs} onShowPrefsChange={onShowPrefsChange} />
+        <RoleBadgeLegend />
+      </div>
+      <div className="view-popover-section">
+        <button type="button" className="toolbar-popover-item" onClick={() => setKeyOpen(true)}>
+          <span>Symbol key…</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
 function DeckToolbar({
   title,
   sort,
@@ -3222,26 +3339,30 @@ function DeckToolbar({
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
-      <div className="deck-toolbar-summary">
-        <span className="deck-toolbar-title">{title}</span>
-        {/* Grade and missing-cards count live in the Statistics → Overview
-            panel now, so the toolbar stays focused on the deck title +
-            controls. Jump chip to the "Not in the deck" zone (E176) — the
-            title span above is display:none, so this is the summary
-            column's only visible content. */}
-        <a
-          href="#deck-outzone"
-          className="deck-toolbar-outzone-chip"
-          aria-label={`Not in the deck — ${outzoneCount} ${outzoneCount === 1 ? 'card' : 'cards'} — jump to sideboard and considering`}
-        >
-          Not in deck
-          <span className="deck-toolbar-outzone-count" aria-hidden>
-            {outzoneCount}
-          </span>
-        </a>
-      </div>
+      {/* Grade and missing-cards count live in the Statistics → Overview panel
+          now, so the toolbar stays focused on controls. The summary column's
+          only visible content is the "Not in the deck" jump chip (E176) —
+          .deck-toolbar-title is display:none — so at an empty out-zone the
+          whole column goes with it rather than leaving an empty flex child
+          holding a gap. A jump link to an empty zone is pure chrome, and on a
+          phone it cost a full row above the fold. */}
+      {outzoneCount > 0 && (
+        <div className="deck-toolbar-summary">
+          <span className="deck-toolbar-title">{title}</span>
+          <a
+            href="#deck-outzone"
+            className="deck-toolbar-outzone-chip"
+            aria-label={`Not in the deck — ${outzoneCount} ${outzoneCount === 1 ? 'card' : 'cards'} — jump to sideboard and considering`}
+          >
+            Not in deck
+            <span className="deck-toolbar-outzone-count" aria-hidden>
+              {outzoneCount}
+            </span>
+          </a>
+        </div>
+      )}
       <div className="deck-toolbar-controls">
-        {canBulkEdit && (
+        {canBulkEdit && !isNarrowGrid && (
           <button
             type="button"
             className="toolbar-pill deck-toolbar-select-toggle"
@@ -3250,6 +3371,19 @@ function DeckToolbar({
           >
             <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
             <span>{selectMode ? 'Done' : 'Select'}</span>
+          </button>
+        )}
+        {/* Narrow: Select stays visible only while active, so leaving the mode
+            never requires hunting through the kebab. */}
+        {canBulkEdit && isNarrowGrid && selectMode && (
+          <button
+            type="button"
+            className="toolbar-pill deck-toolbar-select-toggle"
+            aria-pressed
+            onClick={onToggleSelectMode}
+          >
+            <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+            <span>Done</span>
           </button>
         )}
 
@@ -3263,34 +3397,19 @@ function DeckToolbar({
           renderItemPrefix={(_opt, active) => (active ? <SortDirArrow dir={sortDir} /> : null)}
         />
 
-        <ToolbarPopover
-          label="Show"
-          icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
-        >
-          {() => (
-            <>
-              <ul className="toolbar-popover-list" role="menu" aria-label="Row details">
-                {(Object.keys(SHOW_PREFS_LABEL) as (keyof ShowPrefs)[]).map((k) => (
-                  <li key={k}>
-                    <button
-                      type="button"
-                      role="menuitemcheckbox"
-                      aria-checked={showPrefs[k]}
-                      className={`toolbar-popover-item${showPrefs[k] ? ' active' : ''}`}
-                      onClick={() => onShowPrefsChange({ ...showPrefs, [k]: !showPrefs[k] })}
-                    >
-                      <span className="toolbar-popover-check" aria-hidden>
-                        {showPrefs[k] ? '✓' : ''}
-                      </span>
-                      {SHOW_PREFS_LABEL[k]}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <RoleBadgeLegend />
-            </>
-          )}
-        </ToolbarPopover>
+        {!isNarrowGrid && (
+          <ToolbarPopover
+            label="Show"
+            icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+          >
+            {() => (
+              <>
+                <ShowPrefsList showPrefs={showPrefs} onShowPrefsChange={onShowPrefsChange} />
+                <RoleBadgeLegend />
+              </>
+            )}
+          </ToolbarPopover>
+        )}
 
         <SearchPill
           className="deck-toolbar-search"
@@ -3300,15 +3419,15 @@ function DeckToolbar({
           ariaLabel="Search this deck"
         />
 
-        <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />
+        {!isNarrowGrid && <DeckViewModeToggle value={viewMode} onChange={onViewModeChange} />}
 
-        <DeckGroupByToggle value={groupBy} onChange={onGroupByChange} />
+        {!isNarrowGrid && <DeckGroupByToggle value={groupBy} onChange={onGroupByChange} />}
 
-        {viewMode === 'grid' && (
+        {!isNarrowGrid && viewMode === 'grid' && (
           <ZoomControl
             zoom={gridZoom}
             width={gridWidth}
-            max={isNarrowGrid ? ZOOM_MAX_NARROW : ZOOM_MAX}
+            max={ZOOM_MAX}
             onChange={onGridZoomChange}
           />
         )}
@@ -3316,9 +3435,39 @@ function DeckToolbar({
         {/* The symbol key is the trailing reference control, grouped with the
             view-mode toggles — it sits after them and before the action buttons
             (Test hand / Export), per STYLE_GUIDE § Symbol key / Legend. */}
-        <Legend context="deck" align="right" variant="pill" />
+        {!isNarrowGrid && <Legend context="deck" align="right" variant="pill" />}
 
-        {onShowTestHand && (
+        {/* ≤640px: the display controls above (layout, grouping, card size,
+            row details, key) collapse into one "View" popover so the toolbar
+            stays a single row and the card list clears the fold — same
+            treatment as the collection toolbar. */}
+        {isNarrowGrid && (
+          <ToolbarPopover
+            label="View"
+            icon={<Eye width={14} height={14} strokeWidth={2} aria-hidden />}
+            haspopup="dialog"
+            panelRole="dialog"
+            panelAriaLabel="View options"
+            panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed view-popover-panel"
+          >
+            {() => (
+              <DeckViewPopoverPanel
+                viewMode={viewMode}
+                onViewModeChange={onViewModeChange}
+                groupBy={groupBy}
+                onGroupByChange={onGroupByChange}
+                gridZoom={gridZoom}
+                onGridZoomChange={onGridZoomChange}
+                gridWidth={gridWidth}
+                zoomMax={ZOOM_MAX_NARROW}
+                showPrefs={showPrefs}
+                onShowPrefsChange={onShowPrefsChange}
+              />
+            )}
+          </ToolbarPopover>
+        )}
+
+        {!isNarrowGrid && onShowTestHand && (
           <button
             type="button"
             className="btn deck-toolbar-test-hand"
@@ -3330,9 +3479,36 @@ function DeckToolbar({
           </button>
         )}
 
-        <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
-          Export
-        </button>
+        {!isNarrowGrid && (
+          <button type="button" className="btn btn-primary deck-toolbar-export" onClick={onExport}>
+            Export
+          </button>
+        )}
+
+        {/* ≤640px: the list *actions* (select, test hand, export) collapse into
+            the standard kebab rather than the View panel — they act on the
+            deck, they don't configure the display. */}
+        {isNarrowGrid && (
+          <OverflowMenu
+            ariaLabel="Deck list actions"
+            triggerClassName="toolbar-pill"
+            items={[
+              ...(canBulkEdit && !selectMode
+                ? [
+                    {
+                      label: 'Select cards',
+                      icon: CheckSquare,
+                      onClick: onToggleSelectMode,
+                    },
+                  ]
+                : []),
+              ...(onShowTestHand
+                ? [{ label: 'Test hand', icon: Hand, onClick: onShowTestHand }]
+                : []),
+              { label: 'Export', icon: Share2, onClick: onExport },
+            ]}
+          />
+        )}
       </div>
     </header>
   );

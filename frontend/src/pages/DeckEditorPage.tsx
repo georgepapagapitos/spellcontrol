@@ -2451,7 +2451,14 @@ export function DeckEditorPage() {
         />
       )}
       <header className="deck-editor-header">
-        <div className="deck-editor-hero" style={{ borderLeftColor: deck.color }}>
+        {/* `--art` gates the phone-only full-bleed treatment (min-height +
+            bottom-anchored text) — without a commander there's no art to give
+            the hero height, and an empty 8.5rem slab would be worse than the
+            plain one. */}
+        <div
+          className={`deck-editor-hero${heroArt ? ' deck-editor-hero--art' : ''}`}
+          style={{ borderLeftColor: deck.color }}
+        >
           {/* Commander art rides behind the title as a right-anchored backdrop
               (≥600px; phones keep the plain hero — art behind full-width text
               costs legibility there). Decorative only. */}
