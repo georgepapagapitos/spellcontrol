@@ -74,7 +74,11 @@ export function CardGroupSheet({
   // Symmetric slide-down exit so every dismiss path (✕, Escape, backdrop,
   // swipe) plays `sheet-fall` and continues from the finger's release offset
   // instead of vanishing — same contract as the CardPreview carousel.
-  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
+  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(
+    onClose,
+    'sheet-fall',
+    sheetRef
+  );
 
   // Swipe-down-to-dismiss. The gesture spans the whole sheet but is GATED to
   // when the grid/list body is scrolled to the top (iOS-style): short buckets

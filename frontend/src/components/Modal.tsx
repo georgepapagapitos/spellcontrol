@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
+import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
 import { isNativePlatform } from '../lib/platform';
 
 interface Props {
@@ -17,34 +18,6 @@ interface Props {
   dismissable?: boolean;
   children: ReactNode;
 }
-
-/**
- * What counts as focusable for the trap. Deliberately the pragmatic list —
- * not a full a11y-tree walk — covering everything the app's dialogs render.
- */
-const FOCUSABLE_SELECTOR = [
-  'a[href]',
-  'button:not([disabled])',
-  'input:not([disabled]):not([type="hidden"])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-  '[contenteditable="true"]',
-].join(', ');
-
-function getFocusable(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (el) => !el.closest('[hidden]')
-  );
-}
-
-/**
- * Stack of mounted modals (a confirm dialog can open on top of an editor
- * modal). Only the topmost modal answers Escape and traps Tab — without
- * this, the modal underneath would yank focus back out of the one on top
- * and a single Escape would close both.
- */
-const modalStack: symbol[] = [];
 
 /**
  * Shared modal primitive: renders the standard `modal-backdrop` + dialog
@@ -80,8 +53,9 @@ export function Modal({
   useLockBodyScroll();
 
   const panelRef = useRef<HTMLDivElement>(null);
-  const idRef = useRef<symbol | null>(null);
-  if (idRef.current === null) idRef.current = Symbol('modal');
+  // Shared with every sheet on `useSheetExit` — a confirm dialog opening on
+  // top of a sheet must be the one that answers Escape / hardware back.
+  const { isTopmost } = useOverlayLayer();
   const [isClosing, setIsClosing] = useState(false);
   // Ref guard so a double-trigger (e.g. Escape + backdrop click in the same
   // frame) can't start two exits / fire onClose twice before the state
@@ -115,22 +89,13 @@ export function Modal({
   );
 
   useEffect(() => {
-    const id = idRef.current as symbol;
-    modalStack.push(id);
-
     // Move focus into the dialog so Tab starts inside it. An autoFocus
     // child has already focused itself by the time this effect runs —
-    // the contains() check leaves it alone.
+    // focusInto's contains() check leaves it alone.
     const prevFocused = document.activeElement as HTMLElement | null;
-    const panel = panelRef.current;
-    if (panel && !panel.contains(document.activeElement)) {
-      const first = getFocusable(panel)[0];
-      (first ?? panel).focus();
-    }
+    if (panelRef.current) focusInto(panelRef.current);
 
     return () => {
-      const idx = modalStack.indexOf(id);
-      if (idx !== -1) modalStack.splice(idx, 1);
       // Restore focus to whatever was focused before the modal opened, so
       // keyboard / screen-reader users aren't dropped at the top of the page
       // when it closes. (Runs after the exit animation — unmount is what
@@ -140,41 +105,18 @@ export function Modal({
   }, []);
 
   useEffect(() => {
-    const id = idRef.current as symbol;
     const onKey = (e: KeyboardEvent) => {
-      // Only the topmost modal handles keys — see modalStack.
-      if (modalStack[modalStack.length - 1] !== id) return;
+      // Only the topmost overlay handles keys — see useOverlayLayer.
+      if (!isTopmost()) return;
       if (e.key === 'Escape') {
         if (dismissable) beginClose();
         return;
       }
-      if (e.key !== 'Tab') return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusables = getFocusable(panel);
-      if (focusables.length === 0) {
-        // Nothing tabbable — keep focus pinned on the panel itself.
-        e.preventDefault();
-        panel.focus();
-        return;
-      }
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-      const inside = active instanceof HTMLElement && panel.contains(active);
-      if (e.shiftKey) {
-        if (!inside || active === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (!inside || active === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      if (panelRef.current) trapTab(panelRef.current, e);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [beginClose, dismissable]);
+  }, [beginClose, dismissable, isTopmost]);
 
   // Android hardware back button (T11): without a listener, Capacitor's
   // default is to navigate the WebView's own history — which would leave
@@ -183,15 +125,14 @@ export function Modal({
   // above. Native-only; no-op on web (no hardware back event exists there).
   useEffect(() => {
     if (!isNativePlatform()) return;
-    const id = idRef.current as symbol;
     const handle = CapacitorApp.addListener('backButton', () => {
-      if (modalStack[modalStack.length - 1] !== id) return;
+      if (!isTopmost()) return;
       if (dismissable) beginClose();
     });
     return () => {
       void handle.then((h) => h.remove());
     };
-  }, [beginClose, dismissable]);
+  }, [beginClose, dismissable, isTopmost]);
 
   return (
     <div
