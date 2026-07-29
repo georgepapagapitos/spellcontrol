@@ -176,6 +176,16 @@ export function CardEditDialog({
   const [selectedId, setSelectedId] = useState(currentScryfallId);
   const [selectedFinish, setSelectedFinish] = useState<Finish>(currentFinish);
   const [qty, setQty] = useState(quantity ?? 1);
+  // Raw text mirror of qty — lets the field go blank/mid-edit; the clamp only
+  // runs at commit (blur/Enter), not on every keystroke. Resynced from qty
+  // during render (not an effect — avoids react-hooks/set-state-in-effect)
+  // whenever the stepper buttons change it.
+  const [qtyText, setQtyText] = useState(String(quantity ?? 1));
+  const [prevQty, setPrevQty] = useState(qty);
+  if (prevQty !== qty) {
+    setPrevQty(qty);
+    setQtyText(String(qty));
+  }
   // '' = "not set" (mirrors CONDITION_OPTIONS / LANGUAGE_OPTIONS sentinels).
   // A mixed field starts at the MIXED sentinel instead of the representative
   // copy's value — silently pre-filling one copy's condition/language across
@@ -493,10 +503,16 @@ export function CardEditDialog({
                       className="card-edit-qty-input"
                       min={0}
                       max={99}
-                      value={qty}
-                      onChange={(e) => {
-                        const n = Math.floor(Number(e.target.value));
-                        if (Number.isFinite(n)) setQty(Math.max(0, Math.min(99, n)));
+                      value={qtyText}
+                      onChange={(e) => setQtyText(e.target.value)}
+                      onBlur={() => {
+                        const n = Math.floor(Number(qtyText));
+                        const next = Number.isFinite(n) ? Math.max(0, Math.min(99, n)) : 0;
+                        setQty(next);
+                        setQtyText(String(next));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
                       }}
                       aria-label="Quantity"
                     />
