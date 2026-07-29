@@ -213,6 +213,35 @@ describe('useDecksStore — duplicateDeck', () => {
     expect(copy.cards[0].slotId).not.toBe(store().decks.find((d) => d.id === id)!.cards[0].slotId);
     expect(copy.sideboard).toHaveLength(1);
   });
+
+  it('preserves tags and addedAt across all three zones while still resetting allocations and slotIds', () => {
+    const taggedCard = (name: string, allocatedCopyId: string | null): DeckCard => ({
+      ...deckCard(name),
+      allocatedCopyId,
+      addedAt: 12345,
+      tags: ['Ramp'],
+    });
+    const id = store().createDeck({
+      name: 'Original',
+      source: 'manual',
+      commander: sfCard('Atraxa'),
+      cards: [taggedCard('Sol Ring', 'copy-a')],
+      sideboard: [taggedCard('Swamp', 'copy-b')],
+      considering: [taggedCard('Rampant Growth', 'copy-c')],
+    });
+    const copyId = store().duplicateDeck(id);
+    const original = store().decks.find((d) => d.id === id)!;
+    const copy = store().decks.find((d) => d.id === copyId)!;
+
+    for (const zone of ['cards', 'sideboard', 'considering'] as const) {
+      const originalSlot = original[zone][0];
+      const copySlot = copy[zone][0];
+      expect(copySlot.tags).toEqual(['Ramp']);
+      expect(copySlot.addedAt).toBe(12345);
+      expect(copySlot.allocatedCopyId).toBeNull();
+      expect(copySlot.slotId).not.toBe(originalSlot.slotId);
+    }
+  });
 });
 
 describe('useDecksStore — card mutations', () => {

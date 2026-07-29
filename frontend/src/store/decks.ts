@@ -203,9 +203,8 @@ export interface Deck {
   winConditions?: WinConditionAnalysis;
   /**
    * Card names the user has manually marked as a win condition (E125) — a
-   * narrow, single-purpose tag, distinct from the retired general card-tag
-   * system (`DeckCard.tags`, #1134) and NOT a reopening of it: this stays the
-   * one user-facing deck tag pending a fresh product decision. Cross-links
+   * narrow, single-purpose tag, distinct from the general per-card tag
+   * system (`DeckCard.tags`, revived live by E171, #1352). Cross-links
    * with the engine display-only — `WinConditionPanel` marks matching
    * evidence "tagged by you" and lists anything the live analysis doesn't
    * currently surface in its own small section; never fed back into
@@ -671,18 +670,18 @@ export const useDecksStore = create<DecksState>()(
           commanderAllocatedCopyId: null,
           partnerCommanderAllocatedCopyId: null,
           cards: original.cards.map((c) => ({
+            ...c,
             slotId: genId('slot'),
-            card: c.card,
             allocatedCopyId: null,
           })),
           sideboard: original.sideboard.map((c) => ({
+            ...c,
             slotId: genId('slot'),
-            card: c.card,
             allocatedCopyId: null,
           })),
           considering: (original.considering ?? []).map((c) => ({
+            ...c,
             slotId: genId('slot'),
-            card: c.card,
             allocatedCopyId: null,
           })),
           createdAt: now,
