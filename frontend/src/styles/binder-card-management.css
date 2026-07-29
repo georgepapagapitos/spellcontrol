@@ -672,9 +672,18 @@
   color: var(--err-text);
 }
 
+/* The row's added state — a filled pill, not just accent-colored text, so
+   "this landed" is legible at a glance on a dense result list (and doesn't rest
+   on color alone). */
 .add-card-sheet-added {
-  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Unified Add-cards modal (Search / Upload / Scan tabs) ───────
@@ -1340,18 +1349,35 @@
   background: var(--surface-raised);
 }
 
+/* Narrow phones: the 2rem indent costs a whole tile column. The picker's own
+   raised surface already reads as nested under its row, so trade indent for
+   art. */
+@media (max-width: 480px) {
+  .inline-card-search-printings {
+    padding-left: var(--space-3);
+  }
+}
+
+/* Printings are picked by LOOKING at them — a text-only list can't tell a
+   retro frame from a borderless showcase, which is the exact choice this
+   control exists to make. So each option is a card TILE (art + set/#/price),
+   auto-fitting however many columns the container affords. */
 .inline-card-search-printing-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--space-2);
 }
 
 .inline-card-search-printing {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: 0.15rem var(--space-1);
   width: 100%;
-  padding: 0.3rem 0.45rem;
+  padding: var(--space-1);
   border: 0;
   border-radius: var(--radius);
   background: transparent;
@@ -1359,6 +1385,11 @@
   font-size: var(--text-xs);
   text-align: left;
   cursor: pointer;
+}
+
+.inline-card-search-printing:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1372,13 +1403,36 @@
   color: var(--text-primary);
 }
 
+/* Selection also rings the ART, not just the tile tint — on a grid of images a
+   background wash alone is easy to miss (and unreadable to anyone who can't
+   separate the two surfaces by color). */
+.inline-card-search-printing.is-selected .inline-card-search-printing-frame {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Reuses the collection tile's card frame (488/680 aspect + card corner
+   radius); CardThumb layers its shimmer and cross-fading art inside. */
+.inline-card-search-printing-frame {
+  grid-column: 1 / -1;
+  width: 100%;
+  cursor: inherit;
+}
+
+.inline-card-search-printing-frame.is-empty {
+  background: var(--surface-raised);
+}
+
 .inline-card-search-printing-set {
+  grid-column: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-mono);
-  flex-shrink: 0;
 }
 
 .inline-card-search-printing-set-name {
-  flex: 1;
+  grid-column: 1 / -1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1387,7 +1441,7 @@
 }
 
 .inline-card-search-printing-price {
-  flex-shrink: 0;
+  grid-column: 2;
   font-variant-numeric: tabular-nums;
 }
 

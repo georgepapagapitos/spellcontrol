@@ -1,12 +1,15 @@
-import { Check, ChevronDown, ChevronRight, Minus } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ManaCost } from './ManaCost';
 import { SearchPill } from './SearchPill';
-import { PrintingPicker, type AddExtras } from './PrintingPicker';
+import { PrintingPicker, FINISH_LABEL, type AddExtras } from './PrintingPicker';
+import { useCardCarousel, type CarouselEntry } from './deck/useCardCarousel';
 import { useCollectionStore } from '../store/collection';
+import { useToastsStore } from '../store/toasts';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { Finish } from '../types';
 import { availableFinishes } from '../lib/scanner-feedback';
+import { imageFromCard } from '../lib/card-thumbs';
 import { haptics } from '../lib/haptics';
 import { useSearchCards } from '../lib/use-search-cards';
 
@@ -26,10 +29,16 @@ interface Props {
  * input + results list — no dialog chrome — so it composes inside any
  * container.
  *
- * Each result quick-adds one copy via "+" (Enter on the active row does the
- * same), shows an added ×N count with a "−" undo for mis-taps, and carries a
- * "Printing & finish" disclosure ({@link PrintingPicker}) for choosing an
- * exact printing, finish, quantity, condition and language before adding.
+ * Each result leads with a mini-card thumbnail that opens the full card in the
+ * preview carousel (you should never have to add a card you can't see), then
+ * quick-adds one copy via "+" (Enter on the active row does the same), shows an
+ * added ×N count with a "−" undo for mis-taps, and carries a "Printing &
+ * finish" disclosure ({@link PrintingPicker}) for choosing an exact printing,
+ * finish, quantity, condition and language before adding.
+ *
+ * Every add confirms itself twice over: the row flips to its added state, and a
+ * success toast names exactly what landed (quantity · set · finish) with an
+ * Undo that removes that add's copies — not just the last one.
  */
 export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Props) {
   const addCard = useCollectionStore((s) => s.addCard);
@@ -37,6 +46,7 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
   const pinCardToBinder = useCollectionStore((s) => s.pinCardToBinder);
   const removeCardFromBinder = useCollectionStore((s) => s.removeCardFromBinder);
   const collection = useCollectionStore((s) => s.cards);
+  const pushToast = useToastsStore((s) => s.push);
 
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -59,6 +69,24 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
 
   const ownedNames = new Set(collection.map((c) => c.name));
 
+  // Drop specific copies added this session. replaceAllCards re-runs
+  // allocation/binder remapping, same as the edit flow. One path for both undo
+  // affordances — the row's "−" (last copy) and the toast's Undo (that add's
+  // whole batch, so undoing a 4× add doesn't silently leave 3 behind).
+  const removeCopies = async (resultId: string, ids: string[]) => {
+    if (ids.length === 0) return;
+    const dropping = new Set(ids);
+    setAdded((prev) => ({
+      ...prev,
+      [resultId]: (prev[resultId] ?? []).filter((id) => !dropping.has(id)),
+    }));
+    if (binderId) for (const id of ids) removeCardFromBinder(binderId, id, false);
+    await replaceAllCards(
+      useCollectionStore.getState().cards.filter((c) => !dropping.has(c.copyId))
+    );
+    haptics.tap();
+  };
+
   const handleAdd = async (
     resultId: string,
     card: ScryfallCard,
@@ -69,19 +97,64 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
     if (binderId) for (const copyId of copyIds) pinCardToBinder(binderId, copyId);
     setAdded((prev) => ({ ...prev, [resultId]: [...(prev[resultId] ?? []), ...copyIds] }));
     haptics.tap();
+    // Name exactly what landed — a "+" that only swaps to a checkmark reads as
+    // "did that register?", especially on a phone where the row is small and
+    // the collection isn't on screen to confirm against.
+    const qty = copyIds.length;
+    const detail = [
+      `${card.set.toUpperCase()} #${card.collector_number}`,
+      finish ? FINISH_LABEL[finish] : null,
+      binderId ? 'pinned to this binder' : null,
+    ].filter(Boolean);
+    pushToast({
+      message: `Added ${qty > 1 ? `${qty} × ` : ''}${card.name} · ${detail.join(' · ')}`,
+      tone: 'success',
+      durationMs: 4000,
+      actionLabel: 'Undo',
+      onAction: () => void removeCopies(resultId, copyIds),
+    });
   };
 
-  // Remove the most recently added copy of this result. replaceAllCards
-  // re-runs allocation/binder remapping, same as the edit flow.
-  const undoAdd = async (resultId: string) => {
-    const ids = added[resultId];
-    const last = ids?.[ids.length - 1];
-    if (!last) return;
-    setAdded((prev) => ({ ...prev, [resultId]: ids.slice(0, -1) }));
-    if (binderId) removeCardFromBinder(binderId, last, false);
-    await replaceAllCards(useCollectionStore.getState().cards.filter((c) => c.copyId !== last));
-    haptics.tap();
+  // Remove the most recently added copy of this result.
+  const undoAdd = (resultId: string) => {
+    const ids = added[resultId] ?? [];
+    const last = ids[ids.length - 1];
+    if (last) void removeCopies(resultId, [last]);
   };
+
+  // Carousel entries mirror `results` 1:1 and carry the full card, so every
+  // slide is swipeable and fully rendered the instant the preview opens. The
+  // context line under the art reports this session's add count, else whether
+  // the card is already in the collection.
+  const previewEntries: CarouselEntry[] = results.map((c) => {
+    const count = added[c.id]?.length ?? 0;
+    return {
+      name: c.name,
+      label: count > 0 ? `Added ×${count}` : ownedNames.has(c.name) ? 'In your collection' : '',
+      card: c,
+    };
+  });
+
+  // The preview carries the same Add action as the row, so a card can be read
+  // in full and added without backing out to the list.
+  const carousel = useCardCarousel('Add cards', (entry) => {
+    const card = entry.card;
+    if (!card) return [];
+    const count = added[card.id]?.length ?? 0;
+    return [
+      {
+        key: 'add',
+        icon:
+          count > 0 ? (
+            <Check width={18} height={18} strokeWidth={2.4} aria-hidden />
+          ) : (
+            <Plus width={18} height={18} strokeWidth={2.4} aria-hidden />
+          ),
+        label: count > 0 ? `Added ×${count}` : 'Add',
+        onClick: () => void handleAdd(card.id, card),
+      },
+    ];
+  });
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
@@ -139,6 +212,10 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
               const active = i === activeIndex;
               const printingsOpen = openPrintingsId === c.id;
               const finishes = availableFinishes(c.finishes);
+              // Full card (not an art crop) so the printing is recognizable at
+              // thumbnail size; the search result already carries its images, so
+              // this costs no extra request.
+              const thumb = imageFromCard(c, 'normal');
               return (
                 <li
                   key={c.id}
@@ -148,11 +225,13 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
                   className="card-search-item"
                   onMouseEnter={() => setActiveIndex(i)}
                 >
-                  <div className={`card-search-row add-card-row${active ? ' active' : ''}`}>
+                  <div
+                    className={`card-search-row add-card-row has-thumb${active ? ' active' : ''}`}
+                  >
                     <button
                       type="button"
                       className="card-search-add"
-                      aria-label={`Add ${c.name}`}
+                      aria-label={addedCount > 0 ? `Add another ${c.name}` : `Add ${c.name}`}
                       onClick={() => void handleAdd(c.id, c)}
                     >
                       {addedCount > 0 ? (
@@ -160,6 +239,15 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
                       ) : (
                         '+'
                       )}
+                    </button>
+                    <button
+                      type="button"
+                      className="card-search-thumb"
+                      aria-label={`Preview ${c.name}`}
+                      title="Preview card"
+                      onClick={() => carousel.open(previewEntries, c.name)}
+                    >
+                      {thumb && <img src={thumb} alt="" loading="lazy" />}
                     </button>
                     <span className="card-search-name">{c.name}</span>
                     {c.mana_cost && <ManaCost cost={c.mana_cost} className="card-search-mana" />}
@@ -211,6 +299,7 @@ export function AddCardSearchPanel({ binderId, autoFocus = true, onEscape }: Pro
           </ul>
         )}
       </div>
+      {carousel.preview}
     </div>
   );
 }
