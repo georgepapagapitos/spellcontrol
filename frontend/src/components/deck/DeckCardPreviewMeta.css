@@ -226,19 +226,23 @@ button.deck-card-preview-meta-tag-chip.is-suggested:disabled {
   gap: 0.3rem;
 }
 
+/* Layout only. Fill, text colour, border and padding come from the shared
+   input[type='text'] rule (styles/forms-banners.css), which reads the theme
+   tokens the always-dark preview panel remaps (footer-card-preview.css).
+   The hand-rolled white-alpha that used to live here both duplicated that
+   remap and never actually applied — `.deck-card-preview-meta-tag-add input`
+   and `input[type='text']` tie at specificity (0,1,1), so the global rule won
+   on load order and this block was dead weight hiding the real bug. */
 .deck-card-preview-meta-tag-add input {
   flex: 1 1 auto;
   min-width: 0;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  font-size: var(--text-sm);
 }
 
+/* There is no global ::placeholder rule, so this one stays — but on the token
+   the panel remaps, not a hard-coded white that goes invisible the moment the
+   field's fill resolves light. */
 .deck-card-preview-meta-tag-add input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
 }
 
 .deck-card-preview-meta-tag-add input:focus {

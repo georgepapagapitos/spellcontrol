@@ -847,6 +847,15 @@
   --border: rgba(255, 255, 255, 0.15);
   --border-strong: rgba(255, 255, 255, 0.25);
   --surface-raised: rgba(255, 255, 255, 0.1);
+  /* --bg is remapped for one specific reason: the shared form-control rule in
+     styles/forms-banners.css (`select, input[type='text'], …`) is the only
+     thing inside this panel that reads it, and it uses it as the field FILL.
+     Left un-remapped it resolved to the light app background, so every input
+     in the panel painted as a bright white slab — and since --text-primary IS
+     remapped, the text typed into it came out white-on-white. A recessed
+     white-alpha fill, one step below --surface-raised so a field still reads
+     as inset against the panel's raised blocks. */
+  --bg: rgba(255, 255, 255, 0.06);
 }
 
 /* Caller-injected panel slots (renderPanelMeta / renderPanelExtra). Full width,
