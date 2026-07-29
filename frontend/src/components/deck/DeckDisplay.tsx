@@ -2,6 +2,8 @@ import {
   Bomb,
   BookOpen,
   CircleAlert,
+  Check,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
   Boxes,
@@ -29,7 +31,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useCurrency } from '@/lib/currency';
-import { useListFlip } from '@/lib/use-list-flip';
+import { useListFlip, prefersReducedMotion } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type {
   ScryfallCard,
@@ -42,6 +44,7 @@ import type {
 import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
 import { cardTagsOf, isTagsEdited, suggestedTagForCard, collectDeckTags } from '@/lib/deck-tags';
 import { DeckTagManager } from './DeckTagManager';
+import { ConfirmDialog } from '../ConfirmDialog';
 import {
   buildManaData,
   classifyType,
@@ -101,6 +104,26 @@ import {
 } from '../../lib/allocations';
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { effectiveSortIndex, reorderIndexForMove } from '@/lib/deck-reorder';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { GripVertical } from 'lucide-react';
 
 /**
  * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
@@ -323,7 +346,10 @@ function frontFaceMana(card: ScryfallCard): string | undefined {
   return card.mana_cost ?? card.card_faces?.[0]?.mana_cost;
 }
 
-type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added';
+// 'custom' (E172) is the manual drag-order mode — an explicit, visible sort
+// choice (never a silent side effect of dragging while another mode is
+// selected; see DeckCardRow's drag handle, only rendered when sort==='custom').
+type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added' | 'custom';
 
 // ── View mode + show prefs ───────────────────────────────────────────────
 // Mirrors the reference EDH builder's Sort | Show | Search | View toolbar:
@@ -411,6 +437,8 @@ export interface DeckDisplayCard {
   /** User tags (E171) — see the `tags` doc on `DeckCard` for the
    *  sticky-override contract (`undefined` = untouched, `[]` = edited/cleared). */
   tags?: string[];
+  /** Manual drag-order position (E172) — see the doc on `DeckCard`. */
+  sortIndex?: number;
 }
 
 export interface DeckDisplayProps {
@@ -499,9 +527,16 @@ export interface DeckDisplayProps {
    * cards only — see `getMaxCopies`): pass `{ relative: true }` and `qty`
    * becomes a delta (±1) instead of an absolute target, so two rapid taps
    * can't drop an update to a stale closed-over count. Host owns batching
-   * (e.g. one undo toast per edit).
+   * (e.g. one undo toast per edit). Zone-aware (E175) — `zone` says which of
+   * the deck's three card arrays the edit targets, so passing this through to
+   * a sideboard/considering section can never silently touch the mainboard.
    */
-  onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
+  onSetQty?: (
+    zone: DeckZone,
+    card: ScryfallCard,
+    qty: number,
+    opts?: { relative?: boolean }
+  ) => void;
   /** When provided, each row gets an "Edit printing" option in its menu. */
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** When provided, eligible rows get a "Make commander" option in their menu. */
@@ -663,6 +698,23 @@ export interface DeckDisplayProps {
   onSetCardTags?: (zone: DeckZone, slotIds: string[], tags: string[]) => void;
   onRenameDeckTag?: (from: string, to: string) => void;
   onRemoveDeckTag?: (tag: string) => void;
+  /**
+   * Multi-select bulk operations (E172). All optional — when omitted, the
+   * "Select" toolbar toggle doesn't render at all (mirrors how the tag props
+   * above gate the tag editor). Each fires exactly once per confirmed bulk
+   * action, whatever the selection size — the host wraps it in one store
+   * write + one undo entry.
+   */
+  onBulkRemove?: (zone: DeckZone, slotIds: string[]) => void;
+  onBulkMove?: (slotIds: string[], from: DeckZone, to: DeckZone) => void;
+  onBulkEditTag?: (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => void;
+  /**
+   * Manual drag reorder (E172), list view only. DeckDisplay computes the
+   * fractional sortIndex itself (pure — see lib/deck-reorder.ts) and hands
+   * off the already-computed value; the host just persists it. Omitted →
+   * the 'custom' sort option still shows but drag handles never render.
+   */
+  onReorder?: (zone: DeckZone, slotIds: string[], sortIndex: number) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -745,6 +797,11 @@ interface Row {
   collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
+  /** Manual drag-order position (E172) — min across the row's slots, mirroring
+   *  addedAt's aggregation. Undefined until the row (or its stack) is dragged
+   *  at least once; 'custom' sort then falls back to addedAt (see sortRows /
+   *  lib/deck-reorder.ts). */
+  sortIndex?: number;
   /** True for the partner commander's synthetic row — drives the "Partner"
    *  tag that distinguishes it from the primary commander. */
   isPartner?: boolean;
@@ -896,6 +953,12 @@ function buildRows(
       existing.qty += 1;
       existing.price += priceOf(card, currency);
       if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
+      if (dc.sortIndex !== undefined) {
+        existing.sortIndex =
+          existing.sortIndex !== undefined
+            ? Math.min(existing.sortIndex, dc.sortIndex)
+            : dc.sortIndex;
+      }
       if (dc.slotId) existing.slotIds.push(dc.slotId);
       for (const t of cardTagsOf(dc)) if (!existing.tags.includes(t)) existing.tags.push(t);
       if (isTagsEdited(dc)) existing.tagsEdited = true;
@@ -939,6 +1002,7 @@ function buildRows(
       price: priceOf(card, currency),
       colorKey: colorKeyOf(card),
       addedAt: dc.addedAt ?? 0,
+      sortIndex: dc.sortIndex,
       slotIds: dc.slotId ? [dc.slotId] : [],
       allocatedCopyIds: dc.allocatedCopyId ? [dc.allocatedCopyId] : [],
       status,
@@ -1085,6 +1149,10 @@ const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
   price: 'desc',
   color: 'asc',
   added: 'desc',
+  // 'asc' reads as "the order you left it in" — there's no meaningful
+  // "reversed custom order," so this direction is effectively decorative,
+  // but every SortMode needs an entry here (onToggleSort indexes into it).
+  custom: 'asc',
 };
 
 function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
@@ -1106,6 +1174,14 @@ function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
     }
     case 'added':
       sorted.sort((a, b) => (a.addedAt - b.addedAt) * sign || a.name.localeCompare(b.name));
+      break;
+    case 'custom':
+      // Dragged rows compare by their persisted sortIndex; never-dragged rows
+      // fall back to addedAt (same ms scale — see lib/deck-reorder.ts).
+      sorted.sort(
+        (a, b) =>
+          (effectiveSortIndex(a) - effectiveSortIndex(b)) * sign || a.name.localeCompare(b.name)
+      );
       break;
     case 'name':
     default:
@@ -1361,6 +1437,10 @@ export function DeckDisplay({
   onSetCardTags,
   onRenameDeckTag,
   onRemoveDeckTag,
+  onBulkRemove,
+  onBulkMove,
+  onBulkEditTag,
+  onReorder,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = useCurrency();
@@ -1387,6 +1467,41 @@ export function DeckDisplay({
   const [outzoneTab, setOutzoneTab] = useState<'sideboard' | 'considering'>(() =>
     sideboard.length === 0 && considering.length > 0 ? 'considering' : 'sideboard'
   );
+
+  // ── Multi-select (E172) ──────────────────────────────────────────────────
+  // A deliberate mode the user opts into via the toolbar's "Select" toggle —
+  // mirrors CardListTable's selectMode pattern (see STYLE_GUIDE.md "Selection
+  // mode & drag reorder"). Row tap/Enter/Space stays "open preview" until
+  // this is on; DeckCardRow reroutes it to toggle-select instead. Scoped to
+  // ONE zone at a time (a bulk action only ever targets one zone) — the Set
+  // holds SLOT ids directly (a row toggle adds/removes its whole stack), so
+  // executing a bulk action never needs a row lookup, just `[...keys]`.
+  const canBulkEdit = !!(onBulkRemove || onBulkMove || onBulkEditTag);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selection, setSelection] = useState<{ zone: DeckZone; keys: Set<string> } | null>(null);
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelection(null);
+  };
+  const isRowSelected = (zone: DeckZone, row: Row): boolean =>
+    !!selection &&
+    selection.zone === zone &&
+    row.slotIds.length > 0 &&
+    row.slotIds.every((id) => selection.keys.has(id));
+  const toggleRowSelected = (zone: DeckZone, row: Row) => {
+    if (row.slotIds.length === 0) return;
+    setSelection((cur) => {
+      const sameZone = cur && cur.zone === zone;
+      const keys = sameZone ? new Set(cur!.keys) : new Set<string>();
+      const selected = row.slotIds.every((id) => keys.has(id));
+      for (const id of row.slotIds) {
+        if (selected) keys.delete(id);
+        else keys.add(id);
+      }
+      return keys.size === 0 ? null : { zone, keys };
+    });
+  };
+  const [confirmBulkRemove, setConfirmBulkRemove] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
@@ -1961,6 +2076,24 @@ export function DeckDisplay({
     if (i !== undefined) setPreviewIndex(i);
   };
 
+  // Zone-aware qty (E175): bind the host's single `onSetQty(zone, card, qty,
+  // opts)` to a specific zone for a given CategorySection instance, so a
+  // sideboard/considering section's stepper can never reach mainboard.cards.
+  // Preserves the existing "omitted prop → stepper doesn't render at all"
+  // gate (CategorySection/DeckCardRow only render it when truthy).
+  const onSetQtyForZone = (zone: DeckZone) =>
+    onSetQty
+      ? (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) =>
+          onSetQty(zone, card, qty, opts)
+      : undefined;
+
+  // Same zone-binding shape for reorder (E172) — CategorySection computes the
+  // sortIndex itself and hands it here already resolved.
+  const onReorderForZone = (zone: DeckZone) =>
+    onReorder
+      ? (slotIds: string[], sortIndex: number) => onReorder(zone, slotIds, sortIndex)
+      : undefined;
+
   // New-arrivals header chip (E140) — shared renderer used by both the list
   // view's CategorySection headerAction slot (below) and the grid view's own
   // section header (DeckCardGrid, a sibling component — see renderArrivalsChip).
@@ -2057,7 +2190,109 @@ export function DeckDisplay({
               onExport={() => setExportOpen(true)}
               onShowTestHand={onShowTestHand}
               outzoneCount={sideboard.length + considering.length}
+              canBulkEdit={canBulkEdit}
+              selectMode={selectMode}
+              onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             />
+
+            {/* Bulk-action bar (E172) — replaces nothing, sits between the
+                toolbar and the stat strip only while selecting. Actions are
+                zone-contextual: which buttons render depends on which zone
+                the current selection is in (mainboard/sideboard/considering
+                each have a different legal destination set). */}
+            {selectMode && (
+              <div className="deck-bulk-bar" role="region" aria-label="Bulk actions">
+                <span className="deck-bulk-count">
+                  {selection
+                    ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
+                    : 'Select cards…'}
+                </span>
+                {selection && onBulkMove && selection.zone === 'cards' && showSideboardTab && (
+                  <button
+                    type="button"
+                    className="btn deck-bulk-btn"
+                    onClick={() => {
+                      onBulkMove([...selection.keys], 'cards', 'sideboard');
+                      setSelection(null);
+                    }}
+                  >
+                    Move to sideboard
+                  </button>
+                )}
+                {selection && onBulkMove && selection.zone === 'cards' && (
+                  <button
+                    type="button"
+                    className="btn deck-bulk-btn"
+                    onClick={() => {
+                      onBulkMove([...selection.keys], 'cards', 'considering');
+                      setSelection(null);
+                    }}
+                  >
+                    Move to considering
+                  </button>
+                )}
+                {selection && onBulkMove && selection.zone !== 'cards' && (
+                  <button
+                    type="button"
+                    className="btn deck-bulk-btn"
+                    onClick={() => {
+                      onBulkMove([...selection.keys], selection.zone, 'cards');
+                      setSelection(null);
+                    }}
+                  >
+                    Move to mainboard
+                  </button>
+                )}
+                {selection && onBulkEditTag && (
+                  <ToolbarPopover
+                    label="Tag"
+                    icon={<TagIcon width={14} height={14} strokeWidth={2} aria-hidden />}
+                  >
+                    {(close) => (
+                      <BulkTagPopoverBody
+                        existingTags={deckTags.map((t) => t.tag)}
+                        onAdd={(tag) => {
+                          onBulkEditTag(selection.zone, [...selection.keys], tag, true);
+                          close();
+                        }}
+                        onRemove={(tag) => {
+                          onBulkEditTag(selection.zone, [...selection.keys], tag, false);
+                          close();
+                        }}
+                      />
+                    )}
+                  </ToolbarPopover>
+                )}
+                {selection && onBulkRemove && (
+                  <button
+                    type="button"
+                    className="btn btn-danger deck-bulk-btn"
+                    onClick={() => setConfirmBulkRemove(true)}
+                  >
+                    <Trash2 width={14} height={14} strokeWidth={2} aria-hidden />
+                    Remove
+                  </button>
+                )}
+                <button type="button" className="btn deck-bulk-done" onClick={exitSelectMode}>
+                  Done
+                </button>
+              </div>
+            )}
+
+            {confirmBulkRemove && selection && onBulkRemove && (
+              <ConfirmDialog
+                title={`Remove ${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'}?`}
+                body="This removes the selected cards from the deck. You can undo it from the editor's undo history right after."
+                confirmLabel="Remove"
+                danger
+                onConfirm={() => {
+                  onBulkRemove(selection.zone, [...selection.keys]);
+                  setSelection(null);
+                  setConfirmBulkRemove(false);
+                }}
+                onCancel={() => setConfirmBulkRemove(false)}
+              />
+            )}
 
             {/* High-level stats, glanceable while editing the list — these used
                 to live behind the Overview analysis tab. Each reads as a metric:
@@ -2297,7 +2532,12 @@ export function DeckDisplay({
                         showPrefs={showPrefs}
                         onRowClick={openPreview}
                         onRemoveCard={onRemoveCard}
-                        onSetQty={onSetQty}
+                        onSetQty={onSetQtyForZone('cards')}
+                        selectMode={selectMode}
+                        isRowSelected={(row) => isRowSelected('cards', row)}
+                        onToggleRowSelected={(row) => toggleRowSelected('cards', row)}
+                        dragEnabled={sort === 'custom'}
+                        onReorder={onReorderForZone('cards')}
                         isSingleton={formatConfig.isSingleton}
                         onEditCard={onEditCard}
                         roleFilter={activeRoleFilter}
@@ -2408,7 +2648,12 @@ export function DeckDisplay({
                             showPrefs={showPrefs}
                             onRowClick={openPreview}
                             onRemoveCard={onRemoveSideboardCard}
-                            onSetQty={undefined}
+                            onSetQty={onSetQtyForZone('sideboard')}
+                            selectMode={selectMode}
+                            isRowSelected={(row) => isRowSelected('sideboard', row)}
+                            onToggleRowSelected={(row) => toggleRowSelected('sideboard', row)}
+                            dragEnabled={sort === 'custom'}
+                            onReorder={onReorderForZone('sideboard')}
                             onEditCard={onEditCard}
                             roleFilter={activeRoleFilter}
                             legalityBySlot={legalityBySlot}
@@ -2439,7 +2684,12 @@ export function DeckDisplay({
                           showPrefs={showPrefs}
                           onRowClick={openPreview}
                           onRemoveCard={onRemoveConsideringCard}
-                          onSetQty={undefined}
+                          onSetQty={onSetQtyForZone('considering')}
+                          selectMode={selectMode}
+                          isRowSelected={(row) => isRowSelected('considering', row)}
+                          onToggleRowSelected={(row) => toggleRowSelected('considering', row)}
+                          dragEnabled={sort === 'custom'}
+                          onReorder={onReorderForZone('considering')}
                           roleFilter={activeRoleFilter}
                           onMoveToMainboard={onMoveFromConsidering}
                           synergyByName={synergyByName}
@@ -2744,6 +2994,11 @@ interface ToolbarProps {
   /** Sideboard + Considering combined count — drives the "Not in the deck"
    *  jump chip (E176). 0 still renders the chip (the zone always exists). */
   outzoneCount: number;
+  /** E172 — whether ANY bulk-edit callback was passed; gates the "Select"
+   *  toggle rendering at all (mirrors the tag props' own gating). */
+  canBulkEdit: boolean;
+  selectMode: boolean;
+  onToggleSelectMode: () => void;
 }
 
 const SORT_LABEL: Record<SortMode, string> = {
@@ -2752,8 +3007,12 @@ const SORT_LABEL: Record<SortMode, string> = {
   color: 'Color',
   price: 'Price',
   added: 'Added',
+  custom: 'Custom order',
 };
-const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price', 'added'];
+// 'custom' sits last — it's an escape hatch a user opts into deliberately
+// (it's how drag-to-reorder becomes available at all; see DeckCardRow's
+// drag handle), not a default anyone would reach for first.
+const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price', 'added', 'custom'];
 
 const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
   price: 'Price',
@@ -2815,6 +3074,78 @@ function RoleBadgeLegend() {
   );
 }
 
+// Bulk-tag popover body (E172) — a text input to add a new tag to the whole
+// selection, plus the deck's existing tags as one-tap chips (add). There's no
+// per-selected-card "which of these already has it" reconciliation here —
+// bulkEditTag's add/remove is idempotent per slot either way, so offering
+// every deck tag as an "add" chip is always safe, just sometimes a no-op for
+// cards that already carry it.
+function BulkTagPopoverBody({
+  existingTags,
+  onAdd,
+  onRemove,
+}: {
+  existingTags: string[];
+  onAdd: (tag: string) => void;
+  onRemove: (tag: string) => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const commit = () => {
+    const tag = draft.trim();
+    if (tag) onAdd(tag);
+    setDraft('');
+  };
+  return (
+    <div className="deck-bulk-tag-popover">
+      <div className="deck-bulk-tag-input-row">
+        <input
+          type="text"
+          className="deck-bulk-tag-input"
+          placeholder="New tag…"
+          value={draft}
+          maxLength={40}
+          aria-label="New tag name"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commit();
+            }
+          }}
+        />
+        <button type="button" className="btn btn-primary deck-bulk-tag-add" onClick={commit}>
+          Add
+        </button>
+      </div>
+      {existingTags.length > 0 && (
+        <ul className="deck-bulk-tag-chip-list" aria-label="Existing tags">
+          {existingTags.map((tag) => (
+            <li key={tag}>
+              <button
+                type="button"
+                className="deck-bulk-tag-chip"
+                onClick={() => onAdd(tag)}
+                title={`Add "${tag}" to selection`}
+              >
+                {tag}
+              </button>
+              <button
+                type="button"
+                className="deck-bulk-tag-chip-remove"
+                onClick={() => onRemove(tag)}
+                aria-label={`Remove "${tag}" from selection`}
+                title={`Remove "${tag}" from selection`}
+              >
+                <X width={11} height={11} strokeWidth={2.4} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // A single deck-list / grid role badge, now tap-to-reveal: on touch (no
 // hover) the native `title` tooltip never appears, so tapping the badge
 // opens a popover with the full role key — the tapped role highlighted.
@@ -2863,6 +3194,9 @@ function DeckToolbar({
   onExport,
   onShowTestHand,
   outzoneCount,
+  canBulkEdit,
+  selectMode,
+  onToggleSelectMode,
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
@@ -2885,6 +3219,18 @@ function DeckToolbar({
         </a>
       </div>
       <div className="deck-toolbar-controls">
+        {canBulkEdit && (
+          <button
+            type="button"
+            className="toolbar-pill deck-toolbar-select-toggle"
+            aria-pressed={selectMode}
+            onClick={onToggleSelectMode}
+          >
+            <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+            <span>{selectMode ? 'Done' : 'Select'}</span>
+          </button>
+        )}
+
         <SelectMenu
           ariaLabel="Sort"
           value={sort}
@@ -3301,6 +3647,11 @@ function CategorySection({
   cardInclusionMap,
   cardProvenance,
   target,
+  selectMode,
+  isRowSelected,
+  onToggleRowSelected,
+  dragEnabled,
+  onReorder,
 }: {
   title: string;
   icon: string;
@@ -3337,12 +3688,56 @@ function CategorySection({
   cardInclusionMap?: Record<string, number>;
   /** Per-card "why is this here" reason (S2), keyed by card name. */
   cardProvenance?: Record<string, string>;
+  /** E172 multi-select — a row's checkbox replaces tap-to-preview when true. */
+  selectMode?: boolean;
+  isRowSelected?: (row: Row) => boolean;
+  onToggleRowSelected?: (row: Row) => void;
+  /** E172 manual reorder — drag handles render only when true (sort==='custom'
+   *  AND list view; see DeckDisplay). Mutually exclusive with selectMode in
+   *  the UI (both want the row's leading slot) — selectMode wins. */
+  dragEnabled?: boolean;
+  onReorder?: (slotIds: string[], sortIndex: number) => void;
 }) {
   // Hooks must run unconditionally — keep them above the empty-section early
   // return (a section emptying from N→0 cards would otherwise change the hook
   // count between renders and crash).
   const listRef = useRef<HTMLUListElement | null>(null);
   const { entries, registerItem, onExitEnd } = useListFlip(rows, (r) => r.name, listRef);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const [activeDragName, setActiveDragName] = useState<string | null>(null);
+  // Plain closures over `rows` — re-created fresh every render (like every
+  // other inline handler in this file), so they always see the current row
+  // order without needing a ref kept in sync during render.
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveDragName(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id || !onReorder) return;
+    const fromIndex = rows.findIndex((r) => r.name === active.id);
+    const toIndex = rows.findIndex((r) => r.name === over.id);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const sortIndex = reorderIndexForMove(rows, fromIndex, toIndex);
+    onReorder(rows[fromIndex].slotIds, sortIndex);
+  };
+  const dragAnnouncements: Announcements = {
+    onDragStart: ({ active }) => {
+      const idx = rows.findIndex((r) => r.name === active.id);
+      return `Picked up ${active.id}, position ${idx + 1} of ${rows.length}.`;
+    },
+    onDragOver: ({ active, over }) => {
+      if (!over) return `${active.id} is no longer over a droppable position.`;
+      const idx = rows.findIndex((r) => r.name === over.id);
+      return `${active.id} moved to position ${idx + 1} of ${rows.length}.`;
+    },
+    onDragEnd: ({ active, over }) => {
+      if (!over) return `${active.id} was not moved.`;
+      const idx = rows.findIndex((r) => r.name === over.id);
+      return `${active.id} dropped at position ${idx + 1} of ${rows.length}.`;
+    },
+    onDragCancel: ({ active }) => `Reordering ${active.id} was cancelled.`,
+  };
 
   // A bucket with no rows still renders when it carries a target (the 0/N
   // gap story) — see groupByCategory. Type-mode buckets never set `target`,
@@ -3350,6 +3745,52 @@ function CategorySection({
   if (rows.length === 0 && target === undefined) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
+
+  const listEl = (
+    <ul className="deck-section-rows" ref={listRef}>
+      {entries.map((entry) => (
+        <DeckCardRow
+          key={entry.key}
+          row={entry.item}
+          currency={currency}
+          showPrefs={showPrefs}
+          onClick={() => onRowClick(entry.item.name)}
+          onRemoveCard={entry.leaving ? undefined : onRemoveCard}
+          onSetQty={entry.leaving ? undefined : onSetQty}
+          isSingleton={isSingleton}
+          onEditCard={entry.leaving ? undefined : onEditCard}
+          roleFilter={roleFilter}
+          legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
+          onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
+          moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
+          onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
+          onMakeCommander={entry.leaving ? undefined : onMakeCommander}
+          canMakeCommander={canMakeCommander}
+          onMakePartner={entry.leaving ? undefined : onMakePartner}
+          canMakePartner={canMakePartner}
+          onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
+          onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
+          onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
+          synergyReasons={synergyByName?.get(entry.item.card.name)}
+          inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
+          provenanceReason={cardProvenance?.[entry.item.card.name]}
+          entering={entry.entering}
+          leaving={entry.leaving}
+          leavingStyle={entry.leaving ? entry.style : undefined}
+          itemRef={(el) => registerItem(entry.key, el)}
+          onLeavingAnimationEnd={() => onExitEnd(entry.key)}
+          selectMode={!entry.leaving && selectMode}
+          selected={!entry.leaving && isRowSelected?.(entry.item)}
+          onToggleSelected={
+            entry.leaving || !onToggleRowSelected
+              ? undefined
+              : () => onToggleRowSelected(entry.item)
+          }
+          dragEnabled={!entry.leaving && !selectMode && dragEnabled}
+        />
+      ))}
+    </ul>
+  );
 
   return (
     <section className="deck-section">
@@ -3387,41 +3828,27 @@ function CategorySection({
         )}
         {headerAction}
       </header>
-      <ul className="deck-section-rows" ref={listRef}>
-        {entries.map((entry) => (
-          <DeckCardRow
-            key={entry.key}
-            row={entry.item}
-            currency={currency}
-            showPrefs={showPrefs}
-            onClick={() => onRowClick(entry.item.name)}
-            onRemoveCard={entry.leaving ? undefined : onRemoveCard}
-            onSetQty={entry.leaving ? undefined : onSetQty}
-            isSingleton={isSingleton}
-            onEditCard={entry.leaving ? undefined : onEditCard}
-            roleFilter={roleFilter}
-            legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
-            onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
-            moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
-            onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
-            onMakeCommander={entry.leaving ? undefined : onMakeCommander}
-            canMakeCommander={canMakeCommander}
-            onMakePartner={entry.leaving ? undefined : onMakePartner}
-            canMakePartner={canMakePartner}
-            onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
-            onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
-            onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
-            synergyReasons={synergyByName?.get(entry.item.card.name)}
-            inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
-            provenanceReason={cardProvenance?.[entry.item.card.name]}
-            entering={entry.entering}
-            leaving={entry.leaving}
-            leavingStyle={entry.leaving ? entry.style : undefined}
-            itemRef={(el) => registerItem(entry.key, el)}
-            onLeavingAnimationEnd={() => onExitEnd(entry.key)}
-          />
-        ))}
-      </ul>
+      {dragEnabled ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          accessibility={{ announcements: dragAnnouncements }}
+          onDragStart={(e: DragStartEvent) => setActiveDragName(String(e.active.id))}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveDragName(null)}
+        >
+          <SortableContext items={rows.map((r) => r.name)} strategy={verticalListSortingStrategy}>
+            {listEl}
+          </SortableContext>
+          <DragOverlay dropAnimation={prefersReducedMotion() ? null : undefined}>
+            {activeDragName ? (
+              <span className="deck-row-drag-overlay">{activeDragName}</span>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        listEl
+      )}
     </section>
   );
 }
@@ -3455,6 +3882,10 @@ function DeckCardRow({
   leavingStyle,
   itemRef,
   onLeavingAnimationEnd,
+  selectMode,
+  selected,
+  onToggleSelected,
+  dragEnabled,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -3499,6 +3930,14 @@ function DeckCardRow({
   itemRef?: (el: HTMLLIElement | null) => void;
   /** Called on animationend to drop the ghost. */
   onLeavingAnimationEnd?: () => void;
+  /** E172 multi-select — when true, tap/Enter/Space toggles selection instead
+   *  of opening the card preview, and a checkbox renders in the leading slot. */
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelected?: () => void;
+  /** E172 manual reorder — renders the drag handle (pointer + keyboard) in
+   *  the leading slot. Never true at the same time as selectMode. */
+  dragEnabled?: boolean;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -3545,6 +3984,20 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
+  // ── Manual reorder (E172) ─────────────────────────────────────────────
+  // Always called (rules of hooks) — CategorySection always wraps its list
+  // in a DndContext/SortableContext, `dragEnabled` just gates whether the
+  // handle renders (so a section not in 'custom' sort mode has an inert,
+  // harmless sortable context, not a missing one). Deliberately does NOT
+  // apply `transform`/`transition` to the row's own style — that's
+  // `useListFlip`'s job (it already animates row position via imperative
+  // DOM writes on this exact node for add/remove/reorder), and having two
+  // systems fight over the same inline `transform` would produce visible
+  // jank. The live drag visual is the floating DragOverlay clone instead;
+  // this row just dims while it's the one being dragged.
+  const sortable = useSortable({ id: row.name });
+  const rowIsDragging = dragEnabled && sortable.isDragging;
+
   // ── +/− stepper ────────────────────────────────────────────────────────
   // liRef backs the decrement-to-zero focus handoff below; itemRef is the
   // FLIP measurement callback the host already passes — both need the node.
@@ -3552,6 +4005,7 @@ function DeckCardRow({
   const setLiRef = (el: HTMLLIElement | null) => {
     liRef.current = el;
     itemRef?.(el);
+    sortable.setNodeRef(el);
   };
   // Local in-flight guard (defense in depth): the relative-delta call below
   // is what actually prevents a dropped update on a rapid double-tap (it
@@ -3594,7 +4048,16 @@ function DeckCardRow({
     (entering ? ' is-entering' : '') +
     (leaving ? ' is-leaving' : '') +
     (roleDimmed ? ' is-role-dimmed' : '') +
-    (multiPrinting && expanded ? ' is-expanded' : '');
+    (multiPrinting && expanded ? ' is-expanded' : '') +
+    (selectMode ? ' is-selectable' : '') +
+    (selected ? ' is-selected' : '') +
+    (rowIsDragging ? ' is-dragging' : '');
+
+  // Select mode reroutes the whole-row tap/Enter/Space from "open preview"
+  // to "toggle selection" — the row's existing click/keyboard contract,
+  // just pointed at a different handler, so nothing about the carousel or
+  // the row's own buttons (which already stopPropagation) needs to change.
+  const rowActivate = selectMode && onToggleSelected ? onToggleSelected : onClick;
 
   // Shared between the plain and stepper-flanked layouts below so the two
   // never drift — the number itself is the live region (aria-atomic so a
@@ -3618,10 +4081,16 @@ function DeckCardRow({
       <li
         className={rowClass}
         data-peek-name={row.name}
-        onClick={leaving ? undefined : onClick}
+        onClick={leaving ? undefined : rowActivate}
         role={leaving ? undefined : 'button'}
         tabIndex={leaving ? -1 : 0}
         aria-hidden={leaving ? true : undefined}
+        aria-pressed={!leaving && selectMode ? !!selected : undefined}
+        aria-label={
+          !leaving && selectMode
+            ? `${row.name}${selected ? ', selected' : ', not selected'}`
+            : undefined
+        }
         ref={setLiRef}
         style={leavingStyle}
         onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
@@ -3631,11 +4100,28 @@ function DeckCardRow({
             : (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onClick();
+                  rowActivate();
                 }
               }
         }
       >
+        {selectMode && (
+          <span className="deck-row-select-check" data-checked={!!selected} aria-hidden>
+            {selected && <Check width={13} height={13} strokeWidth={3} />}
+          </span>
+        )}
+        {!selectMode && dragEnabled && (
+          <button
+            type="button"
+            className="deck-row-drag-handle"
+            aria-label={`Reorder ${row.name}. Press space to pick up, arrow keys to move, space to drop.`}
+            onClick={(e) => e.stopPropagation()}
+            {...sortable.attributes}
+            {...sortable.listeners}
+          >
+            <GripVertical width={14} height={14} strokeWidth={2} aria-hidden />
+          </button>
+        )}
         {canEditQty && editingQty ? (
           <input
             type="number"

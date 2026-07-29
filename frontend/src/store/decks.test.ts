@@ -1289,4 +1289,136 @@ describe('card tags (E171)', () => {
     expect(card.tags).toBeUndefined();
     expect(card.allocatedCopyId).toBe('copy-1');
   });
+
+  it('bulkEditTag adds a tag across heterogeneous slots without clobbering their other tags', () => {
+    useDecksStore.setState({
+      decks: [
+        baseDeck({
+          id: 'd-tags-8',
+          cards: [
+            { ...slot('Sol Ring', null), tags: ['Ramp'] },
+            { ...slot('Rhystic Study', null), tags: ['Wincon'] },
+          ],
+        }),
+      ],
+    });
+    const [a, b] = useDecksStore.getState().decks[0].cards;
+
+    useDecksStore
+      .getState()
+      .bulkEditTag('d-tags-8', 'cards', [a.slotId, b.slotId], 'Combo Piece', true);
+
+    const [after1, after2] = useDecksStore.getState().decks[0].cards;
+    expect(after1.tags).toEqual(['Ramp', 'Combo Piece']);
+    expect(after2.tags).toEqual(['Wincon', 'Combo Piece']);
+  });
+
+  it('bulkEditTag removes a tag from only the slots that have it, in one write', async () => {
+    const s1 = { ...slot('Sol Ring', null), tags: ['Ramp', 'Combo Piece'] };
+    const s2 = { ...slot('Mana Crypt', null), tags: ['Ramp'] };
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-tags-9', cards: [s1, s2] })] });
+    const before = getLocalMutationToken('d-tags-9');
+    persistDecksState.mockClear();
+
+    useDecksStore
+      .getState()
+      .bulkEditTag('d-tags-9', 'cards', [s1.slotId, s2.slotId], 'Combo Piece', false);
+    await flush();
+
+    const [after1, after2] = useDecksStore.getState().decks[0].cards;
+    expect(after1.tags).toEqual(['Ramp']);
+    expect(after2.tags).toEqual(['Ramp']);
+    expect(getLocalMutationToken('d-tags-9')).toBe(before + 1);
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('bulk zone primitives (E172)', () => {
+  it('bulkAddCards adds N slots to one zone in ONE write and returns their ids in order', async () => {
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-bulk-1' })] });
+    const before = getLocalMutationToken('d-bulk-1');
+    persistDecksState.mockClear();
+
+    const ids = useDecksStore.getState().bulkAddCards('d-bulk-1', 'cards', [
+      { card: sfCard('Sol Ring'), allocatedCopyId: 'copy-1' },
+      { card: sfCard('Mana Crypt'), allocatedCopyId: null },
+    ]);
+    await flush();
+
+    expect(ids).toHaveLength(2);
+    const cards = useDecksStore.getState().decks[0].cards;
+    expect(cards.map((c) => c.card.name)).toEqual(['Sol Ring', 'Mana Crypt']);
+    expect(cards.map((c) => c.slotId)).toEqual(ids);
+    expect(cards[0].allocatedCopyId).toBe('copy-1');
+    expect(getLocalMutationToken('d-bulk-1')).toBe(before + 1);
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+
+  it('bulkRemoveCards drops N slots from one zone in ONE write, leaving other zones untouched', async () => {
+    const s1 = slot('Sol Ring', null);
+    const s2 = slot('Mana Crypt', null);
+    const keep = slot('Arcane Signet', null);
+    const sideKeep = slot('Rhystic Study', null);
+    useDecksStore.setState({
+      decks: [baseDeck({ id: 'd-bulk-2', cards: [s1, s2, keep], sideboard: [sideKeep] })],
+    });
+    const before = getLocalMutationToken('d-bulk-2');
+    persistDecksState.mockClear();
+
+    useDecksStore.getState().bulkRemoveCards('d-bulk-2', 'cards', [s1.slotId, s2.slotId]);
+    await flush();
+
+    const deck = useDecksStore.getState().decks[0];
+    expect(deck.cards.map((c) => c.slotId)).toEqual([keep.slotId]);
+    expect(deck.sideboard).toHaveLength(1);
+    expect(getLocalMutationToken('d-bulk-2')).toBe(before + 1);
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+
+  it('bulkMoveZone moves N slots from one zone to another in ONE write, preserving allocation/tags', async () => {
+    const s1 = { ...slot('Sol Ring', 'copy-1'), tags: ['Ramp'] };
+    const s2 = slot('Mana Crypt', null);
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-bulk-3', cards: [s1, s2] })] });
+    const before = getLocalMutationToken('d-bulk-3');
+    persistDecksState.mockClear();
+
+    useDecksStore.getState().bulkMoveZone('d-bulk-3', [s1.slotId, s2.slotId], 'cards', 'sideboard');
+    await flush();
+
+    const deck = useDecksStore.getState().decks[0];
+    expect(deck.cards).toHaveLength(0);
+    expect(deck.sideboard.map((c) => c.slotId)).toEqual([s1.slotId, s2.slotId]);
+    expect(deck.sideboard[0].allocatedCopyId).toBe('copy-1');
+    expect(deck.sideboard[0].tags).toEqual(['Ramp']);
+    expect(getLocalMutationToken('d-bulk-3')).toBe(before + 1);
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
+
+  it('bulkMoveZone is a no-op moving a zone to itself', () => {
+    const s1 = slot('Sol Ring', null);
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-bulk-4', cards: [s1] })] });
+
+    useDecksStore.getState().bulkMoveZone('d-bulk-4', [s1.slotId], 'cards', 'cards');
+
+    expect(useDecksStore.getState().decks[0].cards).toEqual([s1]);
+  });
+
+  it('setCardSortIndex writes the same index to every given slot in ONE write', async () => {
+    const s1 = slot('Sol Ring', null);
+    const s2 = slot('Sol Ring', null);
+    const other = slot('Mana Crypt', null);
+    useDecksStore.setState({ decks: [baseDeck({ id: 'd-bulk-5', cards: [s1, s2, other] })] });
+    const before = getLocalMutationToken('d-bulk-5');
+    persistDecksState.mockClear();
+
+    useDecksStore.getState().setCardSortIndex('d-bulk-5', 'cards', [s1.slotId, s2.slotId], 42.5);
+    await flush();
+
+    const cards = useDecksStore.getState().decks[0].cards;
+    expect(cards[0].sortIndex).toBe(42.5);
+    expect(cards[1].sortIndex).toBe(42.5);
+    expect(cards[2].sortIndex).toBeUndefined();
+    expect(getLocalMutationToken('d-bulk-5')).toBe(before + 1);
+    expect(persistDecksState).toHaveBeenCalledTimes(1);
+  });
 });

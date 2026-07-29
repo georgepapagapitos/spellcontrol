@@ -248,6 +248,134 @@
   color: var(--accent);
 }
 
+/* ── Multi-select (E172) ──────────────────────────────────────────────
+   "Select" toolbar toggle — same .toolbar-pill base as Sort/Show, own
+   aria-pressed-driven active state (mirrors CardListTable's select toggle). */
+.deck-toolbar-select-toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+@media (pointer: coarse) {
+  .deck-toolbar-select-toggle {
+    min-height: 44px;
+  }
+}
+
+/* Bulk-action bar — replaces nothing, slots between the toolbar and the
+   stat strip only while select mode is on. */
+.deck-bulk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.deck-bulk-count {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: auto;
+}
+
+.deck-bulk-btn {
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .deck-bulk-btn,
+  .deck-bulk-done {
+    min-height: 44px;
+  }
+}
+
+.deck-bulk-tag-popover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 14rem;
+}
+
+.deck-bulk-tag-input-row {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.deck-bulk-tag-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.35rem var(--space-2);
+}
+
+.deck-bulk-tag-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.deck-bulk-tag-chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.deck-bulk-tag-chip-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  background: var(--surface-raised);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding-right: 0.2rem;
+}
+
+.deck-bulk-tag-chip {
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  padding: var(--space-1) 0.15rem var(--space-1) 0.55rem;
+  cursor: pointer;
+}
+.deck-bulk-tag-chip:focus-visible,
+.deck-bulk-tag-chip-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.deck-bulk-tag-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .deck-bulk-tag-chip-remove:hover {
+    color: var(--err-text, #d8442a);
+  }
+}
+
 /* Role-badge key — a collapsible disclosure inside the "Show" popover
    that explains the cryptic 2-letter role abbreviations. */
 .deck-role-legend {
