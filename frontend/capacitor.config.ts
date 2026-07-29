@@ -27,9 +27,15 @@ const config: CapacitorConfig = {
     },
     SplashScreen: {
       // Brand night-ink background matches the icon background and the
-      // theme-color meta in index.html. Auto-hide quickly: the React boot is
-      // fast enough that a longer splash just feels sluggish.
-      launchShowDuration: 600,
+      // theme-color meta in index.html.
+      //
+      // The splash is dismissed by `hideSplashWhenReady()` (lib/platform.ts) on
+      // the first painted frame, so this duration is NOT the normal exit path —
+      // it's the backstop for a boot that throws before that call is reached.
+      // Keep it comfortably longer than a cold start: the old 600ms fired on a
+      // fixed timer, often before React had hydrated + painted, leaving a gap
+      // between the splash and the first real frame.
+      launchShowDuration: 3000,
       launchAutoHide: true,
       backgroundColor: '#111830',
       androidScaleType: 'CENTER_CROP',

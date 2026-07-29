@@ -29,12 +29,13 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
-        <NavLink className="site-brand" to="/collection" aria-label="SpellControl">
+        <NavLink viewTransition className="site-brand" to="/collection" aria-label="SpellControl">
           <BrandMark size={28} aria-hidden className="site-brand-mark" />
           <span className="site-brand-text">SpellControl</span>
         </NavLink>
         <nav className="site-nav-links" aria-label="Primary">
           <NavLink
+            viewTransition
             to="/home"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
             aria-label={
@@ -51,6 +52,7 @@ export function Header() {
             )}
           </NavLink>
           <NavLink
+            viewTransition
             to="/collection"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
@@ -62,6 +64,7 @@ export function Header() {
             )}
           </NavLink>
           <NavLink
+            viewTransition
             to="/decks"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
@@ -73,6 +76,7 @@ export function Header() {
             )}
           </NavLink>
           <NavLink
+            viewTransition
             to="/play"
             className={({ isActive }) => (isActive ? 'site-nav-link active' : 'site-nav-link')}
           >
@@ -86,6 +90,7 @@ export function Header() {
               Nm ago") lives in the Settings Account card. Silence = synced. */}
           <HeaderSyncIndicator />
           <NavLink
+            viewTransition
             to="/search"
             className={({ isActive }) =>
               isActive ? 'site-nav-settings active' : 'site-nav-settings'
@@ -123,7 +128,7 @@ export function Header() {
               ]}
             />
           ) : (
-            <Link to="/you" className="site-nav-settings" aria-label="Sign in">
+            <Link viewTransition to="/you" className="site-nav-settings" aria-label="Sign in">
               Sign in
             </Link>
           )}

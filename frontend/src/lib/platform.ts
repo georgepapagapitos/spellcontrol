@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import { Capacitor } from '@capacitor/core';
+import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 
 export function isNativePlatform(): boolean {
@@ -20,6 +21,26 @@ export function tagPlatform(): void {
   if (isNativePlatform()) {
     document.documentElement.classList.add('capacitor', `capacitor-${Capacitor.getPlatform()}`);
   }
+}
+
+// Dismiss the native splash once the first frame has actually painted, instead
+// of on the config's fixed timer. React's boot (store hydrate + IndexedDB read)
+// routinely outruns a short fixed duration, and hiding early leaves a gap
+// between the splash and the first real paint. Two rAFs: the first fires after
+// React commits, the second after the browser has painted that commit.
+//
+// `launchAutoHide` deliberately stays ON in capacitor.config.ts as a backstop —
+// if boot throws before this runs, the OS still clears the splash rather than
+// stranding the user on it forever.
+export function hideSplashWhenReady(): void {
+  if (!isNativePlatform()) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void SplashScreen.hide({ fadeOutDuration: 200 }).catch((err) => {
+        logger.warn('[platform] splash hide failed:', err);
+      });
+    });
+  });
 }
 
 // Read --bg, resolve it to rgb() via a transient element, and return a 0..1
