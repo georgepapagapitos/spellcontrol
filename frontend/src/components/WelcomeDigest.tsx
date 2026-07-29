@@ -213,39 +213,57 @@ export function WelcomeDigest({
 
   return (
     <>
-      <button
-        type="button"
-        className="welcome-digest-strip"
-        onClick={() => setOpenedToday(dayKey(Date.now()))}
-        aria-haspopup="dialog"
-      >
-        <History className="welcome-digest-strip-icon" aria-hidden width={16} height={16} />
-        <span className="welcome-digest-strip-label">Since your last visit</span>
-        {digest.moves.length > 0 && (
-          <span className="welcome-digest-strip-count">{digest.moves.length} moved</span>
-        )}
-        <span className="welcome-digest-strip-teaser">
-          <span
-            className={`welcome-digest-strip-teaser-delta welcome-digest-strip-teaser-delta--${direction}`}
-          >
-            {delta}
-          </span>
-          {topMove && (
-            <>
-              {' · '}
-              {topMove.cardName}
-              <ArrowRight
-                className="welcome-digest-strip-teaser-arrow"
-                aria-hidden
-                width={11}
-                height={11}
-              />
-              {topMove.toBinder ?? UNCAT}
-            </>
+      {/* Row, not a single button: the ✕ is a sibling of the opener so the
+          strip can be dismissed outright without opening the sheet first
+          (buttons can't nest). Both paths run the same "caught up" bookkeeping. */}
+      <div className="welcome-digest-strip">
+        <button
+          type="button"
+          className="welcome-digest-strip-open"
+          onClick={() => setOpenedToday(dayKey(Date.now()))}
+          aria-haspopup="dialog"
+        >
+          <History className="welcome-digest-strip-icon" aria-hidden width={16} height={16} />
+          <span className="welcome-digest-strip-label">Since your last visit</span>
+          {digest.moves.length > 0 && (
+            <span className="welcome-digest-strip-count">{digest.moves.length} moved</span>
           )}
-        </span>
-        <ChevronRight className="welcome-digest-strip-chevron" aria-hidden width={16} height={16} />
-      </button>
+          <span className="welcome-digest-strip-teaser">
+            <span
+              className={`welcome-digest-strip-teaser-delta welcome-digest-strip-teaser-delta--${direction}`}
+            >
+              {delta}
+            </span>
+            {topMove && (
+              <>
+                {' · '}
+                {topMove.cardName}
+                <ArrowRight
+                  className="welcome-digest-strip-teaser-arrow"
+                  aria-hidden
+                  width={11}
+                  height={11}
+                />
+                {topMove.toBinder ?? UNCAT}
+              </>
+            )}
+          </span>
+          <ChevronRight
+            className="welcome-digest-strip-chevron"
+            aria-hidden
+            width={16}
+            height={16}
+          />
+        </button>
+        <button
+          type="button"
+          className="welcome-digest-strip-dismiss"
+          onClick={handleGotIt}
+          aria-label="Dismiss summary"
+        >
+          <X width={16} height={16} strokeWidth={2} aria-hidden />
+        </button>
+      </div>
       {openedToday !== null && (
         <WelcomeDigestSheet
           digest={digest}
