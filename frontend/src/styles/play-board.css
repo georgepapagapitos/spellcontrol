@@ -25,6 +25,11 @@
 
 .game-board-grid {
   flex: 1;
+  /* Containing block for the seam-positioned hub + undo buttons, so their
+     --seam-*-pct resolve against the seat area rather than the whole viewport
+     — .game-board's safe-area padding (asymmetric on notched devices) would
+     otherwise push the hub off the real row/column boundary it marks. */
+  position: relative;
   display: grid;
   /* Larger gap so the new panel border-radius is visible between cells
      and the slate-canvas shows through as breathing room. */
