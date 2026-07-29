@@ -341,7 +341,11 @@ export function CardPreview({
   const sldIndex = useSldDrops();
 
   // Symmetric exit: every dismiss path plays sheet-fall, then unmounts.
-  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(onClose);
+  const { isClosing, beginClose, onAnimationEnd, exitStyle } = useSheetExit(
+    onClose,
+    'sheet-fall',
+    sheetRef
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
