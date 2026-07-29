@@ -45,8 +45,11 @@ function makeTestState(players: GamePlayer[]): GameState {
 
 // ── 1. Commander-name labeling ─────────────────────────────────────────────
 //
-// CountersPopover labels commander-damage rows as `⚔ ${o.commander ?? o.name}`.
-// We verify the data transformation logic directly, since CountersPopover is not exported.
+// The commander-damage controls fall back to `o.commander ?? o.name`. These
+// cases pin that fallback rule on its own; the rendered labels are asserted
+// against the real component in GameBoard.cmddmg.test.tsx (the rows have since
+// become per-opponent tiles, so the `⚔` prefix now lives only on the counter
+// chip, not on each control).
 
 describe('UX-321 — commander-name label logic', () => {
   it('uses opponent commander name when set', () => {

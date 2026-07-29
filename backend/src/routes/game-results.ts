@@ -4,7 +4,8 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { areFriends } from '../friends/relations';
 import type { GameResultParticipant, PublicGameResult } from '../games/result-types';
-import type { GameEvent } from '@spellcontrol/game-core';
+import { rollupForUser, killEdges } from '../games/rollup';
+import type { GameEvent, GameSummary } from '@spellcontrol/game-core';
 
 export const gameResultsRouter: Router = Router();
 
@@ -30,6 +31,7 @@ export interface ResultRow {
   duration_ms: string;
   participants: GameResultParticipant[];
   notable_events: GameEvent[] | null;
+  summary: GameSummary | null;
 }
 
 export function toPublic(r: ResultRow): PublicGameResult {
@@ -45,8 +47,15 @@ export function toPublic(r: ResultRow): PublicGameResult {
     durationMs: Number(r.duration_ms),
     participants: r.participants,
     notableEvents: r.notable_events,
+    summary: r.summary,
   };
 }
+
+/** Columns every read route selects. Keeps the SELECT list and `ResultRow` in
+ *  step — adding a column in one place and not the other silently yields
+ *  `undefined` at runtime with no type error. */
+const RESULT_COLUMNS = `session_id, code, format, starting_life, winner_seat, winner_user_id,
+            started_at, ended_at, duration_ms, participants, notable_events, summary`;
 
 // ────────────────────────────────────────────────
 // GET /api/game-results/leaderboard
@@ -140,8 +149,7 @@ gameResultsRouter.get(
     }
 
     const rows = await pool.query<ResultRow>(
-      `SELECT session_id, code, format, starting_life, winner_seat, winner_user_id,
-              started_at, ended_at, duration_ms, participants, notable_events
+      `SELECT ${RESULT_COLUMNS}
        FROM game_results
        WHERE participants @> $1::jsonb AND participants @> $2::jsonb
        ORDER BY ended_at DESC
@@ -183,6 +191,16 @@ function summarize(results: PublicGameResult[], callerId: string, friendId: stri
   let friendWins = 0;
   const byPair = new Map<string, DeckMatchup>();
 
+  // Rivalry stats over the subset of games that carry a summary. `ratedGames`
+  // is the honest denominator — it is NOT `gamesPlayed`, because rows written
+  // before summaries existed contribute nothing here and must not be counted
+  // as games where neither player drew blood.
+  const caller = rollupForUser(results, callerId);
+  const friend = rollupForUser(results, friendId);
+  const edges = killEdges(results);
+  const kosBetween = (killerId: string, victimId: string) =>
+    edges.find((e) => e.killerId === killerId && e.victimId === victimId)?.kos ?? 0;
+
   for (const g of results) {
     const caller = g.participants.find((p) => p.userId === callerId);
     const friend = g.participants.find((p) => p.userId === friendId);
@@ -217,5 +235,15 @@ function summarize(results: PublicGameResult[], callerId: string, friendId: stri
     callerWins,
     friendWins,
     deckMatchups: [...byPair.values()].sort((a, b) => b.played - a.played),
+    /** Games in this set carrying a summary. 0 means "no rivalry data yet" —
+     *  the client must render the block as absent, not as a row of zeroes. */
+    ratedGames: caller.ratedGames,
+    callerAvgPlacement: caller.avgPlacement,
+    friendAvgPlacement: friend.avgPlacement,
+    callerFirstBlood: caller.firstBloodDrawn,
+    friendFirstBlood: friend.firstBloodDrawn,
+    /** Times each knocked the *other* out specifically (not total KOs). */
+    callerKos: kosBetween(callerId, friendId),
+    friendKos: kosBetween(friendId, callerId),
   };
 }

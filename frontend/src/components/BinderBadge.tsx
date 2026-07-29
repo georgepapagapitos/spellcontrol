@@ -10,13 +10,22 @@ export interface BinderInfo {
 interface Props {
   /** All binders covering this row's copies. Empty → no badge. */
   binders: BinderInfo[];
+  /**
+   * Override the single-binder tap action instead of navigating to the
+   * binder page. For contexts where navigating away would abandon an
+   * in-progress flow — e.g. the add-cards sheet, where the whole point is to
+   * keep adding cards. Falls back to the navigate behavior when omitted, so
+   * every existing call site is unchanged.
+   */
+  onSelect?: (binder: BinderInfo) => void;
 }
 
 /**
- * Small "in a binder" indicator. Single binder → links to it. Multiple →
- * unlinked badge with a tooltip listing every binder name (mirrors DeckBadge).
+ * Small "in a binder" indicator. Single binder → links to it (or calls
+ * `onSelect`, if given). Multiple → unlinked badge with a tooltip listing
+ * every binder name (mirrors DeckBadge).
  */
-export function BinderBadge({ binders }: Props) {
+export function BinderBadge({ binders, onSelect }: Props) {
   const navigate = useNavigate();
   if (binders.length === 0) return null;
 
@@ -48,7 +57,8 @@ export function BinderBadge({ binders }: Props) {
         aria-label={label}
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/collection/binders/${b.id}`);
+          if (onSelect) onSelect(b);
+          else navigate(`/collection/binders/${b.id}`);
         }}
       >
         <Notebook width={11} height={11} strokeWidth={2} aria-hidden />

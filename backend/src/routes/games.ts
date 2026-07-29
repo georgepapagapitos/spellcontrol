@@ -19,6 +19,9 @@ import {
 
 export const gamesRouter: Router = Router();
 
+// 200/min covers the 2.5s poll loop with room for several players and tabs
+// behind one NAT, while still throttling a scripted sweep of the code space.
+const readLimiter = testAwareLimiter({ windowMs: 60_000, max: 200 });
 const writeLimiter = testAwareLimiter({ windowMs: 60_000, max: 300 });
 const createLimiter = testAwareLimiter({ windowMs: 60_000, max: 20 });
 
@@ -255,15 +258,23 @@ gamesRouter.post('/', createLimiter, requireAuth, async (req: Request, res: Resp
 });
 
 /**
- * GET /api/games/:code — fetch the current state. Requires auth but not
- * participation.
+ * GET /api/games/:code — fetch the current state. Requires auth AND a seat.
+ *
+ * Join codes are 4 characters (~1M of them), so an unthrottled, unscoped read
+ * let any one account sweep the whole space and harvest every live session's
+ * full `GameState` — every seat's account id, display name, deck name and
+ * commander. A non-participant now gets the same 404 as an unknown code, so a
+ * sweep yields nothing; `POST /:code/join` remains the entry point, and the
+ * client never GETs a game it hasn't joined (see store/play.ts joinOnline,
+ * which calls join directly and only then starts the poll loop).
  *
  * The poll loop sends `?knownVersion=N`. When it matches the stored version we
  * return `{ unchanged: true }` and — crucially — never SELECT the `state`
  * JSONB column, so an idle poll costs a tiny `version`-only row read instead of
- * shipping the whole game state out of the database on every 2.5s tick.
+ * shipping the whole game state out of the database on every 2.5s tick. That
+ * fast path carries no game data, so it stays ahead of the seat check.
  */
-gamesRouter.get('/:code', requireAuth, async (req: Request, res: Response) => {
+gamesRouter.get('/:code', readLimiter, requireAuth, async (req: Request, res: Response) => {
   const code = String(req.params.code).toUpperCase();
   const db = getDb();
   const meta = await db
@@ -286,7 +297,13 @@ gamesRouter.get('/:code', requireAuth, async (req: Request, res: Response) => {
     .limit(1);
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Game not found.' });
-  res.json({ game: row.state as GameState });
+  const state = row.state as GameState;
+  // Stealth 404 — identical to an unknown code, so the response carries no
+  // signal about whether the guessed code exists.
+  if (!isParticipant(state, req.user!.id)) {
+    return res.status(404).json({ error: 'Game not found.' });
+  }
+  res.json({ game: state });
 });
 
 /** POST /api/games/:code/join — claim a seat. */

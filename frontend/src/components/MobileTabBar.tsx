@@ -32,6 +32,7 @@ export function MobileTabBar() {
   return (
     <nav className="mobile-tab-bar" aria-label="Primary mobile">
       <NavLink
+        viewTransition
         to="/home"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
@@ -49,6 +50,7 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-label">Home</span>
       </NavLink>
       <NavLink
+        viewTransition
         to="/collection"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
@@ -67,6 +69,7 @@ export function MobileTabBar() {
         </span>
       </NavLink>
       <NavLink
+        viewTransition
         to="/decks"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
@@ -78,6 +81,7 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-label">Decks</span>
       </NavLink>
       <NavLink
+        viewTransition
         to="/play"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
@@ -92,6 +96,7 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-label">Play</span>
       </NavLink>
       <NavLink
+        viewTransition
         to="/you"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-link active' : 'mobile-tab-bar-link'
@@ -112,6 +117,7 @@ export function MobileTabBar() {
         <span className="mobile-tab-bar-label">You</span>
       </NavLink>
       <NavLink
+        viewTransition
         to="/search"
         className={({ isActive }) =>
           isActive ? 'mobile-tab-bar-search active' : 'mobile-tab-bar-search'

@@ -4,7 +4,8 @@ import { getPool } from '../db';
 import { testAwareLimiter } from '../route-utils';
 import { podMembershipStatus } from '../pods/relations';
 import { toPublic, type ResultRow } from './game-results';
-import type { PublicGameResult } from '../games/result-types';
+import { killEdges, rollupForUser } from '../games/rollup';
+import type { GameResultParticipant, PublicGameResult } from '../games/result-types';
 
 /**
  * Pod stats: shared game history + per-member leaderboard, read-only over the
@@ -18,21 +19,66 @@ export const podStatsRouter: Router = Router();
 const readLimiter = testAwareLimiter({ windowMs: 60_000, max: 60 }); // mirrors game-results.ts's readLimiter
 
 /**
- * Pod-context projection over the shared toPublic()/ResultRow — nulls every
- * participant's account identity (userId + username), mirroring
- * PublicGameResultShare's treatment exactly. The pod gate below only requires
- * >=2 pod members present in a game, never "every participant is a pod
- * member", so a qualifying game can include strangers who never joined this
- * pod and have no relationship to the viewer. Nulling every seat (not just
- * non-member ones) needs no per-viewer member-set lookup that could itself be
- * gotten wrong — pod members' identities are already visible via the roster,
- * so nulling theirs too costs nothing.
+ * Pod-context projection over the shared toPublic()/ResultRow. The pod gate
+ * below only requires >=2 pod members present in a game, never "every
+ * participant is a pod member", so a qualifying game can include strangers who
+ * never joined this pod and have no relationship to the viewer. Account
+ * identity is therefore stripped from every seat (not just non-member ones):
+ * that needs no per-viewer member-set lookup that could itself be gotten
+ * wrong, and pod members' identities are already visible via the roster, so
+ * nulling theirs too costs nothing.
+ *
+ * ⚠️ This is an ALLOWLIST — every field is named explicitly, and the `Omit<>`
+ * return types make a new `PublicGameResult` / `GameResultParticipant` field a
+ * compile error here rather than a silent new disclosure. It used to spread
+ * `toPublic(r)` and null two participant keys, which let the top-level
+ * `winnerUserId` (a raw account UUID, bound to a named seat by `winnerSeat` in
+ * the same payload — including a non-member stranger's) and `code` ride
+ * through to every pod member. Do not reintroduce the spread. The sibling
+ * `projectGameResult` in shares/projections.ts is the same pattern.
  */
-function toPublicForPod(r: ResultRow): PublicGameResult {
+type PodParticipant = Omit<GameResultParticipant, 'userId' | 'username'> & {
+  userId: null;
+  username: null;
+};
+
+/** Fields omitted vs PublicGameResult, and why:
+ *  - `code` — the live join code; meaningless post-game, and an unnecessary
+ *    handle on a session that may include non-pod players.
+ *  - `winnerUserId` — the leak this allowlist exists to close; the hub resolves
+ *    the winner's display name via `winnerSeat` against `participants`.
+ *  - `notableEvents` / `summary` — never declared by the client's
+ *    `PodGameResult` nor read by the hub, and `notableEvents` carries
+ *    free-text `note` messages typed at the table. */
+type PodGameResult = Omit<
+  PublicGameResult,
+  'code' | 'winnerUserId' | 'participants' | 'notableEvents' | 'summary'
+> & { participants: PodParticipant[] };
+
+function toPublicForPod(r: ResultRow): PodGameResult {
   const pub = toPublic(r);
   return {
-    ...pub,
-    participants: pub.participants.map((p) => ({ ...p, userId: null, username: null })),
+    sessionId: pub.sessionId,
+    format: pub.format,
+    startingLife: pub.startingLife,
+    winnerSeat: pub.winnerSeat,
+    startedAt: pub.startedAt,
+    endedAt: pub.endedAt,
+    durationMs: pub.durationMs,
+    // Key-presence-with-null-value rather than key-absence: the client's
+    // PodGameParticipant declares both fields as `null`, so the shape holds.
+    participants: pub.participants.map((p) => ({
+      seat: p.seat,
+      userId: null,
+      username: null,
+      name: p.name,
+      deckId: p.deckId,
+      deckName: p.deckName,
+      commander: p.commander,
+      colorIdentity: p.colorIdentity,
+      finalLife: p.finalLife,
+      eliminated: p.eliminated,
+    })),
   };
 }
 
@@ -51,7 +97,7 @@ function toPublicForPod(r: ResultRow): PublicGameResult {
 async function fetchPodGames(memberIds: string[]): Promise<ResultRow[]> {
   const result = await getPool().query<ResultRow>(
     `SELECT session_id, code, format, starting_life, winner_seat, winner_user_id,
-            started_at, ended_at, duration_ms, participants, notable_events
+            started_at, ended_at, duration_ms, participants, notable_events, summary
        FROM game_results g
       WHERE (
         SELECT COUNT(*) FROM unnest($1::text[]) AS m(uid)
@@ -119,6 +165,11 @@ podStatsRouter.get(
     // this response only ever carries the aggregated standings below, never
     // the raw `participants` array (which still holds real usernames at this
     // point, pre-projection) alongside it.
+    //
+    // The rollups need the camelCase `summary`, so they read the projected
+    // shape; the W/L tally below stays on the raw rows it already used.
+    const projected = games.map(toPublic);
+
     const standings = roster.rows.map((m) => {
       let played = 0;
       let wins = 0;
@@ -128,18 +179,88 @@ podStatsRouter.get(
         played++;
         if (g.winner_user_id === m.user_id) wins++;
       }
+      const derived = rollupForUser(projected, m.user_id);
       return {
         userId: m.user_id,
         username: m.username,
         played,
         wins,
         winRate: played > 0 ? wins / played : 0,
+        // Derived stats cover only games carrying a summary. `ratedGames` is
+        // their denominator and is deliberately NOT `played` — pre-summary
+        // games are absent data, and folding them in as zeroes would quietly
+        // halve everyone's first-blood rate. A member with ratedGames === 0
+        // must render as "—", never 0.
+        ratedGames: derived.ratedGames,
+        avgPlacement: derived.avgPlacement,
+        firstBlood: derived.firstBloodDrawn,
+        kos: derived.kos,
       };
     });
     standings.sort(
       (a, b) => b.wins - a.wins || b.winRate - a.winRate || a.username.localeCompare(b.username)
     );
 
-    res.json({ standings });
+    const nameById = new Map(roster.rows.map((r) => [r.user_id, r.username]));
+    res.json({ standings, records: podRecords(standings, projected, nameById) });
   }
 );
+
+/** Is this pair a rivalry *between pod members*? A qualifying game only needs
+ *  2+ members present, so both ends must be checked — otherwise a stranger who
+ *  shared one table would have their account id emitted to the whole pod. */
+function bothInPod(edge: { killerId: string; victimId: string }, members: Map<string, string>) {
+  return members.has(edge.killerId) && members.has(edge.victimId);
+}
+
+/**
+ * The pod's superlatives — the "who's the table's problem" line. Every field is
+ * nullable and a null must render as absent, not as a zero: an unclaimed
+ * superlative means the pod has no summary-carrying games yet (or, for
+ * `archenemy`, never passes turns, so `summarizeGame` credits no KOs at all).
+ */
+function podRecords(
+  standings: {
+    userId: string;
+    username: string;
+    ratedGames: number;
+    firstBlood: number;
+    kos: number;
+  }[],
+  games: PublicGameResult[],
+  nameById: Map<string, string>
+) {
+  const best = <T>(rows: T[], score: (r: T) => number): T | null => {
+    const ranked = rows.filter((r) => score(r) > 0).sort((a, b) => score(b) - score(a));
+    return ranked[0] ?? null;
+  };
+
+  const bloodiest = best(standings, (s) => s.firstBlood);
+  const deadliest = best(standings, (s) => s.kos);
+  // Member-vs-member only — see bothInPod. `standings` is already
+  // roster-derived, so the two superlatives above are member-scoped already.
+  const rivalry = killEdges(games).find((e) => bothInPod(e, nameById)) ?? null;
+
+  return {
+    firstBlood: bloodiest
+      ? {
+          userId: bloodiest.userId,
+          username: bloodiest.username,
+          games: bloodiest.firstBlood,
+          rate: bloodiest.ratedGames > 0 ? bloodiest.firstBlood / bloodiest.ratedGames : 0,
+        }
+      : null,
+    mostKos: deadliest
+      ? { userId: deadliest.userId, username: deadliest.username, kos: deadliest.kos }
+      : null,
+    archenemy: rivalry
+      ? {
+          killerId: rivalry.killerId,
+          killerName: nameById.get(rivalry.killerId) ?? 'Someone',
+          victimId: rivalry.victimId,
+          victimName: nameById.get(rivalry.victimId) ?? 'someone',
+          kos: rivalry.kos,
+        }
+      : null,
+  };
+}

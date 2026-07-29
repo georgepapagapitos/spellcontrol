@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { isApplyingServer } from '../lib/applying-server';
 import { isApplyingAnalysis } from '../lib/applying-analysis';
@@ -27,6 +28,7 @@ import {
   type AllocationInfo,
 } from '../lib/allocations';
 import { createIndexedDbStorage } from '../lib/idb-storage';
+import { withTagAdded, withTagRemoved } from '../lib/deck-tags';
 
 const decksIdbStorage = createIndexedDbStorage('spellcontrol-decks');
 import { pickRandomPresetColor } from './../lib/preset-colors';
@@ -59,12 +61,36 @@ export interface DeckCard {
   /** Unix ms timestamp when this slot was added. Absent on cards added before this field existed. */
   addedAt?: number;
   /**
-   * Legacy: user card tags from the retired radial-tagging feature. Nothing
-   * reads or writes this anymore, but synced decks from older builds still
-   * carry it — keep it typed so those rows round-trip untouched.
+   * User-defined tags (E171), free-text and multi-value — a card can carry
+   * several at once ("Ramp", "Combo Piece", "Wincon"). Per-deck-scoped: this
+   * lives on the slot, so the same physical card gets tagged independently
+   * in every deck it's in. Revived from the retired radial-tagging feature's
+   * identically-shaped dead field (same name/type, so old synced rows
+   * round-trip straight into the new meaning with no migration).
+   *
+   * STICKY OVERRIDE: `undefined` means "never edited" — the deck view may
+   * show a live auto-suggested tag (derived from `classifyCardCategory`,
+   * computed on the fly, never persisted here). The moment a user edits
+   * tags — including clearing them all to `[]` — this field is written and
+   * the classifier's suggestion is permanently dropped for that slot; it is
+   * never reclaimed or revised again. `[]` ("edited, no tags") and
+   * `undefined` ("untouched") are therefore deliberately distinct states —
+   * never normalize one into the other.
    */
   tags?: string[];
+  /**
+   * Manual drag-order position (E172), only meaningful when the deck view's
+   * sort mode is 'custom'. `undefined` ("never dragged") sorts by `addedAt`
+   * instead — see `lib/deck-reorder.ts` for the fractional-index math. A
+   * drag writes this on ONE row only; every other row's ordering is derived,
+   * never rewritten.
+   */
+  sortIndex?: number;
 }
+
+/** The three zones a `DeckCard` slot can live in — tags (and any other
+ *  per-slot user edit) are scoped to whichever zone the slot is in. */
+export type DeckZone = 'cards' | 'sideboard' | 'considering';
 
 export interface Deck {
   id: string;
@@ -186,9 +212,8 @@ export interface Deck {
   winConditions?: WinConditionAnalysis;
   /**
    * Card names the user has manually marked as a win condition (E125) — a
-   * narrow, single-purpose tag, distinct from the retired general card-tag
-   * system (`DeckCard.tags`, #1134) and NOT a reopening of it: this stays the
-   * one user-facing deck tag pending a fresh product decision. Cross-links
+   * narrow, single-purpose tag, distinct from the general per-card tag
+   * system (`DeckCard.tags`, revived live by E171, #1352). Cross-links
    * with the engine display-only — `WinConditionPanel` marks matching
    * evidence "tagged by you" and lists anything the live analysis doesn't
    * currently surface in its own small section; never fed back into
@@ -271,6 +296,18 @@ export interface Deck {
    * deck's public `/d/:slug` page), not a `/s/:token` share token.
    */
   forkedFrom?: { slug: string; ownerUsername: string; deckName: string };
+  /**
+   * Paste-and-diff resync bookkeeping (E173). Stamped only by `resyncDeck`,
+   * which only ever targets an EXISTING deck — unlike `sourceProduct`/
+   * `forkedFrom` above (set at `createDeck` time), this has no create-time
+   * input to hang off. `localMutationToken` snapshots the deck's
+   * local-mutation counter (see `useLocalMutationToken`) as of THIS sync;
+   * the resync dialog compares it against the live token to detect "edited
+   * locally since the last sync" — the same guard `touch()`'s doc comment
+   * below explains, without the `Date.now()` race a plain timestamp
+   * comparison would hit.
+   */
+  lastSyncedFrom?: { syncedAt: number; localMutationToken: number };
 }
 
 /**
@@ -351,6 +388,32 @@ interface DecksState {
   setCardAllocation(deckId: string, slotId: string, allocatedCopyId: string | null): void;
 
   /**
+   * Set user tags (E171) on every slot in `slotIds` within `zone`, in ONE
+   * write — a multi-copy row (same-name stack) tags as a unit rather than
+   * per physical copy, and that's also what makes a bulk tag edit commit as
+   * a single sync push regardless of how many slots it touches. Writing
+   * here — even `[]` — is what makes a slot "edited": see the `tags` doc on
+   * `DeckCard` for the sticky-override contract.
+   */
+  setCardTags(deckId: string, zone: DeckZone, slotIds: string[], tags: string[]): void;
+  /**
+   * Add or remove ONE tag across N slots in one write (E172 bulk-select),
+   * preserving each slot's own other tags — unlike `setCardTags`, which
+   * blanket-replaces a single-name row's whole tag list, this merges per
+   * slot so a heterogeneous multi-select (different cards, different
+   * existing tags) doesn't clobber anything but the one tag being toggled.
+   */
+  bulkEditTag(deckId: string, zone: DeckZone, slotIds: string[], tag: string, add: boolean): void;
+  /** Rename a tag everywhere it appears across cards/sideboard/considering,
+   *  in one write. Merges into an existing `to` tag on a card that already
+   *  has both (no duplicate). No-op for slots that never had `from`. */
+  renameDeckTag(deckId: string, from: string, to: string): void;
+  /** Remove a tag from every slot that carries it, across all three zones,
+   *  in one write. A slot dropping its last tag still keeps `tags: []`
+   *  (still "edited" — sticky), never reverts to `undefined`. */
+  removeDeckTag(deckId: string, tag: string): void;
+
+  /**
    * Atomic mainboard swap: remove the slot `outSlotId` and add `inCard` in a
    * single state update (one `set()` → one persisted row), so the deck never
    * passes through a transient "card removed" state that a debounced push or a
@@ -372,6 +435,29 @@ interface DecksState {
    */
   replaceDeck(deckId: string, deck: Deck): void;
 
+  /**
+   * Commit a paste-and-diff resync (E173) as one write: the same wholesale
+   * field replace `replaceDeck` does for undo/redo, plus stamping
+   * `lastSyncedFrom` with the local-mutation token AS OF this commit (read
+   * back after `touch()` bumps it in the same write, not before) — so a
+   * later genuine local edit bumps the token again and the resync dialog can
+   * tell the two apart. One `set()` regardless of how many cards changed —
+   * never loop per-card actions here (each would fire its own sync push).
+   */
+  resyncDeck(
+    deckId: string,
+    fields: Pick<
+      Deck,
+      | 'cards'
+      | 'sideboard'
+      | 'considering'
+      | 'commander'
+      | 'partnerCommander'
+      | 'commanderAllocatedCopyId'
+      | 'partnerCommanderAllocatedCopyId'
+    >
+  ): void;
+
   addSideboardCard(deckId: string, card: ScryfallCard, allocatedCopyId?: string | null): string;
   removeSideboardCard(deckId: string, slotId: string): void;
   moveBetweenZones(deckId: string, slotId: string, from: 'main' | 'side'): void;
@@ -383,6 +469,29 @@ interface DecksState {
   moveToConsidering(deckId: string, slotId: string): void;
   /** Move a Considering slot back into the mainboard. */
   moveFromConsidering(deckId: string, slotId: string): void;
+
+  /**
+   * Bulk primitives for multi-select editing (E172) — each is ONE `set()`
+   * write regardless of how many slots it touches, the same "never loop
+   * per-card actions" discipline as `resyncDeck`/`setCardTags`. The
+   * single-slot actions above stay as they are (used one row at a time from
+   * a row's own menu); these exist for the toolbar's bulk-action bar.
+   */
+  /** Add N cards to one zone in one write. Each entry can bind its own
+   *  allocated copy (or none). Returns the new slotIds, in order. */
+  bulkAddCards(
+    deckId: string,
+    zone: DeckZone,
+    entries: Array<{ card: ScryfallCard; allocatedCopyId: string | null }>
+  ): string[];
+  /** Remove N slots from one zone in one write. */
+  bulkRemoveCards(deckId: string, zone: DeckZone, slotIds: string[]): void;
+  /** Move N slots from one zone to another in one write, preserving each
+   *  slot's allocation/tags/addedAt/sortIndex untouched. */
+  bulkMoveZone(deckId: string, slotIds: string[], from: DeckZone, to: DeckZone): void;
+  /** Set the manual drag-order index (E172) on N slots — a dragged row's
+   *  whole stack shares one index, written in one write. */
+  setCardSortIndex(deckId: string, zone: DeckZone, slotIds: string[], sortIndex: number): void;
 
   setCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
   setPartnerCommander(deckId: string, card: ScryfallCard | null, allocated?: string | null): void;
@@ -407,7 +516,72 @@ interface DecksState {
   remapAllocations(newCollection: EnrichedCard[]): void;
 }
 
+// Local-mutation token (E177) — a plain module-level counter per deck id,
+// bumped synchronously by every entry into `touch()` below.
+const localMutationTokens = new Map<string, number>();
+const mutationTokenListeners = new Set<() => void>();
+
+function bumpLocalMutationToken(deckId: string): void {
+  localMutationTokens.set(deckId, (localMutationTokens.get(deckId) ?? 0) + 1);
+  for (const listener of mutationTokenListeners) listener();
+}
+
+/** Non-reactive read — for tests and any non-component consumer. */
+export function getLocalMutationToken(deckId: string): number {
+  return localMutationTokens.get(deckId) ?? 0;
+}
+
+/**
+ * Reactive read: re-renders the calling component whenever `deckId`'s local
+ * mutation token bumps. A consumer snapshots a baseline (`getLocalMutationToken`
+ * or this hook's value) and later asks "has the user mutated this deck since?"
+ * by comparing tokens. See the comment on `touch()` for what this replaces.
+ */
+export function useLocalMutationToken(deckId: string): number {
+  return useSyncExternalStore(
+    (onChange) => {
+      mutationTokenListeners.add(onChange);
+      return () => mutationTokenListeners.delete(onChange);
+    },
+    () => getLocalMutationToken(deckId)
+  );
+}
+
+/**
+ * `touch()` is the one chokepoint every LOCAL-ONLY mutator in this store
+ * routes through (add/remove/allocate/move/rename card paths, commander
+ * changes, undo/redo replay). Bumping the local-mutation token here — rather
+ * than each mutator repeating the bump — is what makes "never bumped from a
+ * server-apply/hydration path" true by construction: `rehydrateStoresFromIdb`
+ * (lib/sync.ts) sets `decks` directly via `setState`, bypassing every mutator
+ * and thus `touch()` entirely. (The one exception is `remapAllocations`,
+ * whose own write is a system pointer-repair rather than a direct user edit —
+ * it calls `touchNoToken` below instead.)
+ *
+ * This exists because two independent feature designs (E169, E173) both
+ * needed "did the user just do this locally, or did it arrive from sync?" and
+ * both got it wrong the same way:
+ *   1. Gating on `isApplyingServer()` read inside a React `useEffect`. That
+ *      flag's contract is synchronous-window only (see applying-server.ts) —
+ *      by the time an effect reads it, it has already reverted to `false`
+ *      regardless of whether the triggering update was local or remote. The
+ *      guard gave zero protection there.
+ *   2. Comparing `updatedAt > syncedAt` built from two independent
+ *      `Date.now()` calls a few frames apart in the same commit — but `touch()`
+ *      overwrites `updatedAt` with a fresh timestamp on every write, including
+ *      the very write meant to be gated on, so the comparison could misfire
+ *      the instant after that write.
+ * A monotonic counter bumped synchronously at the one real mutation
+ * chokepoint has neither failure mode. Don't reinvent either guard above —
+ * use `useLocalMutationToken`/`getLocalMutationToken` instead.
+ */
 function touch(deck: Deck): Deck {
+  bumpLocalMutationToken(deck.id);
+  return { ...deck, updatedAt: Date.now() };
+}
+
+// Same as touch(), minus the token bump — see the exception noted above.
+function touchNoToken(deck: Deck): Deck {
   return { ...deck, updatedAt: Date.now() };
 }
 
@@ -442,6 +616,10 @@ export const useDecksStore = create<DecksState>()(
           roleTargets: input.roleTargets,
           categoryTargets: input.categoryTargets,
           gapAnalysis: input.gapAnalysis,
+          // Was declared on the input and then never assigned — no caller
+          // passes it today, so nothing was losing data, but the next
+          // generation path to hand it in at create time would have.
+          hiddenGems: input.hiddenGems,
           cardInclusionMap: input.cardInclusionMap,
           buildReport: input.buildReport,
           deckGrade: input.deckGrade,
@@ -536,18 +714,18 @@ export const useDecksStore = create<DecksState>()(
           commanderAllocatedCopyId: null,
           partnerCommanderAllocatedCopyId: null,
           cards: original.cards.map((c) => ({
+            ...c,
             slotId: genId('slot'),
-            card: c.card,
             allocatedCopyId: null,
           })),
           sideboard: original.sideboard.map((c) => ({
+            ...c,
             slotId: genId('slot'),
-            card: c.card,
             allocatedCopyId: null,
           })),
           considering: (original.considering ?? []).map((c) => ({
+            ...c,
             slotId: genId('slot'),
-            card: c.card,
             allocatedCopyId: null,
           })),
           createdAt: now,
@@ -591,6 +769,76 @@ export const useDecksStore = create<DecksState>()(
           ),
         })),
 
+      setCardTags: (deckId, zone, slotIds, tags) => {
+        const ids = new Set(slotIds);
+        const apply = (list: DeckCard[] | undefined) =>
+          (list ?? []).map((c) => (ids.has(c.slotId) ? { ...c, tags } : c));
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId ? touch({ ...d, [zone]: apply(d[zone]) }) : d
+          ),
+        }));
+      },
+
+      bulkEditTag: (deckId, zone, slotIds, tag, add) => {
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  [zone]: (d[zone] ?? []).map((c) =>
+                    ids.has(c.slotId)
+                      ? {
+                          ...c,
+                          tags: add ? withTagAdded(c.tags, tag) : withTagRemoved(c.tags, tag),
+                        }
+                      : c
+                  ),
+                })
+              : d
+          ),
+        }));
+      },
+
+      renameDeckTag: (deckId, from, to) => {
+        const renameOne = (c: DeckCard): DeckCard => {
+          if (!c.tags?.includes(from)) return c;
+          const next = c.tags.filter((t) => t !== from);
+          if (!next.includes(to)) next.push(to);
+          return { ...c, tags: next };
+        };
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: d.cards.map(renameOne),
+                  sideboard: d.sideboard.map(renameOne),
+                  considering: (d.considering ?? []).map(renameOne),
+                })
+              : d
+          ),
+        }));
+      },
+
+      removeDeckTag: (deckId, tag) => {
+        const stripOne = (c: DeckCard): DeckCard =>
+          c.tags?.includes(tag) ? { ...c, tags: c.tags.filter((t) => t !== tag) } : c;
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  cards: d.cards.map(stripOne),
+                  sideboard: d.sideboard.map(stripOne),
+                  considering: (d.considering ?? []).map(stripOne),
+                })
+              : d
+          ),
+        }));
+      },
+
       swapCard: (deckId, outSlotId, inCard, allocatedCopyId = null) => {
         const slotId = genId('slot');
         let applied = false;
@@ -614,6 +862,21 @@ export const useDecksStore = create<DecksState>()(
       replaceDeck: (deckId, deck) =>
         set((s) => ({
           decks: s.decks.map((d) => (d.id === deckId ? touch({ ...deck, id: d.id }) : d)),
+        })),
+
+      resyncDeck: (deckId, fields) =>
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const touched = touch({ ...d, ...fields });
+            return {
+              ...touched,
+              lastSyncedFrom: {
+                syncedAt: touched.updatedAt,
+                localMutationToken: getLocalMutationToken(deckId),
+              },
+            };
+          }),
         })),
 
       addSideboardCard: (deckId, card, allocatedCopyId = null) => {
@@ -724,6 +987,63 @@ export const useDecksStore = create<DecksState>()(
             });
           }),
         })),
+
+      bulkAddCards: (deckId, zone, entries) => {
+        const newSlots: DeckCard[] = entries.map((e) => ({
+          slotId: genId('slot'),
+          card: e.card,
+          allocatedCopyId: e.allocatedCopyId,
+          addedAt: Date.now(),
+        }));
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId ? touch({ ...d, [zone]: [...(d[zone] ?? []), ...newSlots] }) : d
+          ),
+        }));
+        return newSlots.map((n) => n.slotId);
+      },
+
+      bulkRemoveCards: (deckId, zone, slotIds) => {
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({ ...d, [zone]: (d[zone] ?? []).filter((c) => !ids.has(c.slotId)) })
+              : d
+          ),
+        }));
+      },
+
+      bulkMoveZone: (deckId, slotIds, from, to) => {
+        if (from === to) return;
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) => {
+            if (d.id !== deckId) return d;
+            const moving = (d[from] ?? []).filter((c) => ids.has(c.slotId));
+            if (moving.length === 0) return d;
+            return touch({
+              ...d,
+              [from]: (d[from] ?? []).filter((c) => !ids.has(c.slotId)),
+              [to]: [...(d[to] ?? []), ...moving],
+            });
+          }),
+        }));
+      },
+
+      setCardSortIndex: (deckId, zone, slotIds, sortIndex) => {
+        const ids = new Set(slotIds);
+        set((s) => ({
+          decks: s.decks.map((d) =>
+            d.id === deckId
+              ? touch({
+                  ...d,
+                  [zone]: (d[zone] ?? []).map((c) => (ids.has(c.slotId) ? { ...c, sortIndex } : c)),
+                })
+              : d
+          ),
+        }));
+      },
 
       setCommander: (deckId, card, allocated = null) =>
         set((s) => ({
@@ -1054,7 +1374,7 @@ export const useDecksStore = create<DecksState>()(
                 (c, i) => u.considering[i]?.allocatedCopyId !== c.allocatedCopyId
               );
             if (!cardsChanged) return deck;
-            return touch({
+            return touchNoToken({
               ...deck,
               commanderAllocatedCopyId: u.commanderAllocatedCopyId,
               partnerCommanderAllocatedCopyId: u.partnerCommanderAllocatedCopyId,

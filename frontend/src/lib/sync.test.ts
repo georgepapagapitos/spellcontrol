@@ -139,6 +139,31 @@ describe('lifecycle', () => {
     expect(getSyncState()).toBe('idle');
   });
 
+  // Both digest keys are account-agnostic (no user id in the key), so leaving
+  // them behind showed the NEXT account on a shared device a "since your last
+  // visit" delta measured against the PREVIOUS user's collection value, with
+  // that user's card name rendered in the strip teaser.
+  it('clears the value-digest baseline and binder-move log on a cross-user sign-in', async () => {
+    localStorage.setItem(
+      'spellcontrol:value-digest-seen',
+      JSON.stringify({ at: 1, day: '2026-07-28', value: 5000 })
+    );
+    localStorage.setItem(
+      'spellcontrol:binder-move-log',
+      JSON.stringify([
+        { cardName: 'Ragavan, Nimble Pilferer', fromBinder: 'A', toBinder: 'B', at: 2 },
+      ])
+    );
+
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 0, hasMore: false });
+    await startSync('user-1');
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 0, hasMore: false });
+    await startSync('user-2');
+
+    expect(localStorage.getItem('spellcontrol:value-digest-seen')).toBeNull();
+    expect(localStorage.getItem('spellcontrol:binder-move-log')).toBeNull();
+  });
+
   it('hydrateLocal loads IDB rows without starting sync', async () => {
     await estore.putMany('binder', [
       { id: 'b-pre', data: { id: 'b-pre' }, rev: 5, deletedAt: null },
@@ -343,6 +368,123 @@ describe('pull', () => {
     });
     await refreshNow();
     expect(useDeckHistoryStore.getState().canUndo('d-1')).toBe(false);
+  });
+
+  it('does not bump the local-mutation token (E177) for a server-applied deck row', async () => {
+    const { useDecksStore, getLocalMutationToken } = await import('../store/decks');
+
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        {
+          kind: 'deck',
+          id: 'd-server',
+          data: { id: 'd-server', name: 'From server' },
+          rev: 1,
+          deletedAt: null,
+        },
+      ],
+      cursor: 1,
+      hasMore: false,
+    });
+    // Drives the real applyServerRows → rehydrateStoresFromIdb path (the same
+    // code a cross-device edit or a routine focus pull takes) rather than a
+    // hand-mocked stand-in for it.
+    await startSync('user-1');
+
+    expect(useDecksStore.getState().decks.some((d) => d.id === 'd-server')).toBe(true);
+    expect(getLocalMutationToken('d-server')).toBe(0);
+  });
+});
+
+describe('pull-side deck conflict signal (E174)', () => {
+  beforeEach(async () => {
+    const { useToastsStore } = await import('../store/toasts');
+    useToastsStore.getState().clear();
+  });
+
+  /**
+   * Seed a deck row at `rev` plus one undo entry for it (mirrors the
+   * E170/#1339 pattern above). Keyed per-deck (see deck-history-core's
+   * `pushCommand`), so calling this for several deckIds in one test seeds
+   * independent stacks rather than clobbering each other.
+   */
+  async function seedHistory(deckId: string, rev: number): Promise<void> {
+    const { useDeckHistoryStore } = await import('../store/deck-history');
+    const { pushCommand } = await import('./deck-history-core');
+    await estore.putMany('deck', [
+      { id: deckId, data: { id: deckId, name: 'A' }, rev, syncedRev: rev, deletedAt: null },
+    ]);
+    const before = { id: deckId, name: 'A' } as unknown as Deck;
+    const after = { id: deckId, name: 'B' } as unknown as Deck;
+    useDeckHistoryStore.setState((s) => ({
+      history: pushCommand(s.history, { deckId, label: 'edit', before, after }),
+    }));
+  }
+
+  it('fires nothing for a same-rev pull (our own push returning)', async () => {
+    await seedHistory('d-1', 7);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'A' }, rev: 7, deletedAt: null }],
+      cursor: 7,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    expect(useToastsStore.getState().toasts.some((t) => /undo history/i.test(t.message))).toBe(
+      false
+    );
+  });
+
+  it('fires the signal exactly once for a strictly-higher foreign rev', async () => {
+    await seedHistory('d-1', 7);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'C' }, rev: 8, deletedAt: null }],
+      cursor: 8,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    const matches = useToastsStore.getState().toasts.filter((t) => /undo history/i.test(t.message));
+    expect(matches).toHaveLength(1);
+    expect(matches[0].message).toMatch(/A deck you were editing/);
+  });
+
+  it('batches N foreign deck revisions delivered in one pull into a single signal', async () => {
+    await seedHistory('d-1', 7);
+    await seedHistory('d-2', 3);
+    mockPull.mockResolvedValueOnce({
+      rows: [
+        { kind: 'deck', id: 'd-1', data: { id: 'd-1', name: 'C' }, rev: 8, deletedAt: null },
+        { kind: 'deck', id: 'd-2', data: { id: 'd-2', name: 'D' }, rev: 4, deletedAt: null },
+      ],
+      cursor: 8,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    const matches = useToastsStore.getState().toasts.filter((t) => /undo history/i.test(t.message));
+    expect(matches).toHaveLength(1);
+    expect(matches[0].message).toMatch(/2 decks/);
+  });
+
+  it('does not signal for a deck with no undo history to lose (never opened this session)', async () => {
+    await estore.putMany('deck', [
+      { id: 'd-3', data: { id: 'd-3', name: 'A' }, rev: 1, syncedRev: 1, deletedAt: null },
+    ]);
+    mockPull.mockResolvedValueOnce({
+      rows: [{ kind: 'deck', id: 'd-3', data: { id: 'd-3', name: 'C' }, rev: 2, deletedAt: null }],
+      cursor: 2,
+      hasMore: false,
+    });
+    await startSync('user-1');
+
+    const { useToastsStore } = await import('../store/toasts');
+    expect(useToastsStore.getState().toasts.some((t) => /undo history/i.test(t.message))).toBe(
+      false
+    );
   });
 });
 
@@ -1194,6 +1336,85 @@ describe('web write-through (no durable outbox)', () => {
     // it sent our pre-edit base rev as clientRev so the server could reject-stale
     const body = mockPush.mock.calls[0][0] as PushBody;
     expect(body.upserts[0].clientRev).toBe(4);
+  });
+});
+
+describe('deck conflict panel (E170)', () => {
+  // web (default) write-through, gated on a signed-in owner — see 'web
+  // write-through (no durable outbox)' above.
+  beforeEach(async () => {
+    await startSync('user-1');
+  });
+
+  it('captures the pre-overwrite local deck and queues it for the conflict panel', async () => {
+    const { useConflictsStore } = await import('../store/conflicts');
+    const { getDeckConflictCount } = await import('./conflict-metrics');
+    useConflictsStore.getState().clear();
+
+    await estore.putMany('deck', [
+      {
+        id: 'd-1',
+        data: { id: 'd-1', name: 'mine', cards: [{ slotId: 's1' }] },
+        rev: 4,
+        deletedAt: null,
+      },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [
+        {
+          kind: 'deck',
+          id: 'd-1',
+          serverRev: 6,
+          serverData: { id: 'd-1', name: 'theirs', cards: [] },
+        },
+      ],
+      cursor: 6,
+    });
+
+    await recordUpsert('deck', 'd-1', {
+      id: 'd-1',
+      name: 'mine edited',
+      cards: [{ slotId: 's1' }],
+    });
+
+    const queue = useConflictsStore.getState().queue;
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      id: 'd-1',
+      // The row IDB held BEFORE this push — the edit that's about to be lost —
+      // not the value passed to recordUpsert (which is already in IDB by then).
+      localDeck: { id: 'd-1', name: 'mine edited' },
+      serverDeck: { id: 'd-1', name: 'theirs' },
+    });
+    expect(getDeckConflictCount()).toBe(1);
+
+    // The server version still wins locally either way (unchanged behavior) —
+    // only the toast is replaced by the panel push for a diffable conflict.
+    const row = await estore.getById('deck', 'd-1');
+    expect(row?.data).toEqual({ id: 'd-1', name: 'theirs', cards: [] });
+  });
+
+  it('falls back to the toast when the conflict has nothing diffable (deck deleted on another device)', async () => {
+    const { useConflictsStore } = await import('../store/conflicts');
+    const { useToastsStore } = await import('../store/toasts');
+    useConflictsStore.getState().clear();
+    useToastsStore.getState().clear();
+
+    await estore.putMany('deck', [
+      { id: 'd-2', data: { id: 'd-2', name: 'mine', cards: [] }, rev: 2, deletedAt: null },
+    ]);
+    mockPush.mockResolvedValueOnce({
+      applied: [],
+      conflicts: [{ kind: 'deck', id: 'd-2', serverRev: 3, serverData: null }],
+      cursor: 3,
+    });
+
+    await recordUpsert('deck', 'd-2', { id: 'd-2', name: 'mine edited', cards: [] });
+
+    expect(useConflictsStore.getState().queue).toHaveLength(0);
+    const toasts = useToastsStore.getState().toasts;
+    expect(toasts.some((t) => /deck changed on another device/i.test(t.message))).toBe(true);
   });
 });
 

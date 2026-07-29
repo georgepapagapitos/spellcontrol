@@ -210,6 +210,33 @@
   flex-shrink: 0;
 }
 
+/* ── Tag overlap-honesty banner (E171) ────────────────────────────── */
+/* Only rendered in "Group by tag" — a card with 2+ tags shows up in every
+   group it's tagged with, so the section counts below don't sum to the
+   deck total. Same informational tone as the claimed-banner above. */
+.deck-tag-honesty-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.45rem var(--space-3);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--accent-light);
+  border: 0.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.deck-tag-honesty-banner > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.deck-tag-manage-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 /* ── Deck identity theme chips ────────────────────────────────────── */
 /* The themes the deck leans into, shown as chips under the Overview stats.
    Archetype + pacing live as label/value rows in the same panel; this is the
@@ -261,96 +288,87 @@
   z-index: 2;
 }
 
-/* ── Sideboard section ────────────────────────────────────────────── */
-.deck-sideboard-section {
+/* ── "Not in the deck" zone (E176) ────────────────────────────────── */
+/* One subordinate container below the decklist holding Sideboard +
+   Considering (E122) behind a segmented Tabs switch — replaces the former
+   pair of peer sections (.deck-sideboard-section / .deck-considering-section)
+   that shared a bare border-top and read as two more page sections rather
+   than one subordinate "outside the 99" zone. The inset surface + border
+   here (mirrors .deck-combos-panel) IS the "outside the 99" cue — no repeat
+   border-top divider needed inside. Renders in every view mode (grid
+   included) as a compact row list — never thumbnails, it's a small holding
+   zone. Always mounted, even at 0/0 — this is real editable content (drop
+   targets for "Move to sideboard"/"Move to considering"), not a dismissible
+   insight strip, so it stays discoverable rather than disappearing empty. */
+.deck-outzone {
   margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-strong);
-}
-
-.deck-sideboard-header {
-  font-size: var(--text-base);
-  font-weight: 600;
-  margin: 0 0 var(--space-2);
-}
-
-.deck-sideboard-empty {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-style: italic;
-  padding: var(--space-2) 0;
-}
-
-/* ── Considering section (E122) ───────────────────────────────────── */
-/* Park-candidates zone, visually subordinate to the mainboard — a clickable
-   disclosure (not a static heading like .deck-sideboard-header) so it stays a
-   quiet one-line affordance when empty and never displaces content. */
-.deck-considering-section {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-strong);
-}
-
-.deck-considering-header {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-1) 0;
-  border: none;
-  background: none;
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
+  min-width: 0;
 }
 
-.deck-considering-header > svg {
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.deck-considering-title {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-}
-
-.deck-considering-count {
-  color: var(--text-muted);
+/* Same serif/uppercase/tracked look as .deck-section-title (the mainboard's
+   own type/category headers) — a distinct class (not a shared one) so tests
+   querying mainboard section titles never pick this container title up. Also
+   the jump-target focus ring (tabIndex=-1, target of the toolbar chip's
+   #deck-outzone fragment link). */
+.deck-outzone-title {
+  font-family: var(--font-serif);
   font-size: var(--text-sm);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .deck-considering-header:hover {
-    color: var(--accent);
-  }
-  .deck-considering-header:hover > svg {
-    color: var(--accent);
-  }
-}
-
-.deck-considering-header:focus-visible {
+.deck-outzone-title:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--radius);
 }
 
-@media (pointer: coarse) {
-  .deck-considering-header {
-    min-height: 44px;
-  }
+.deck-outzone-single-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
-.deck-considering-body {
-  margin-top: var(--space-2);
+.deck-outzone-single-count {
+  margin-left: 0.3rem;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
-.deck-considering-empty {
+.deck-outzone-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The reused CategorySection (.deck-section) is its own raised card
+   everywhere else it appears (the mainboard list) — floating cards directly
+   on the page. Nested inside .deck-outzone's own tinted panel that would
+   double up into a card-in-a-card look, so flatten it here: one bordered
+   surface (the zone), not N. Rows/headers keep their own spacing untouched. */
+.deck-outzone-body .deck-section {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.deck-outzone-body .deck-section:last-child {
+  margin-bottom: 0;
+}
+
+.deck-outzone-empty {
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-style: italic;

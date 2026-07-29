@@ -1,10 +1,11 @@
-import { Fragment, type ReactNode } from 'react';
-import { Crown, Handshake } from 'lucide-react';
+import { Fragment, useId, useState, type ReactNode } from 'react';
+import { Crown, Handshake, Pencil, Plus, X } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import type { LegalityIssue } from '../../lib/deck-validation';
 import type { AllocationStatus } from '../../lib/allocations';
 import { getRoleBadge, rolesForCard, multiRoleTitle } from '../../lib/role-badges';
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
+import { withTagAdded, withTagRemoved } from '@/lib/deck-tags';
 import './DeckCardPreviewMeta.css';
 
 interface Props {
@@ -27,6 +28,22 @@ interface Props {
   legality?: LegalityIssue;
   /** Ownership status of the allocated copy. */
   status?: AllocationStatus;
+  /**
+   * User tags (E171) — this panel is the ONE place tags get edited (the
+   * deck list/grid only ever display them). `tags`/`tagsEdited` mirror the
+   * aggregated Row fields (see DeckDisplay.tsx); `onSetTags` omitted means
+   * read-only (a shared/read-only view, or a commander row with no slot to
+   * tag) — chips still show, but no add/remove controls render.
+   */
+  tags?: string[];
+  tagsEdited?: boolean;
+  /** Live, never-persisted suggestion derived from classifyCardCategory —
+   *  only meaningful (and only passed) while `tagsEdited` is false. */
+  suggestedTag?: string | null;
+  /** Every distinct tag already used elsewhere in the deck, for the add
+   *  input's autocomplete — encourages reusing "Ramp" over "ramp"/"Ramps". */
+  existingDeckTags?: string[];
+  onSetTags?: (tags: string[]) => void;
 }
 
 /** Short, human-readable note for a non-ideal ownership status. `allocated`
@@ -66,12 +83,30 @@ export function DeckCardPreviewMeta({
   inclusionPct,
   legality,
   status,
+  tags,
+  tagsEdited,
+  suggestedTag,
+  existingDeckTags,
+  onSetTags,
 }: Props) {
   const roleBadge = getRoleBadge(card);
   const roleText =
     roleBadge && rolesForCard(card).length > 1 ? multiRoleTitle(card) : roleBadge?.title;
   const ownership = ownershipNote(status);
   const reasons = synergies?.filter(Boolean) ?? [];
+  const tagList = tags ?? [];
+  const datalistId = useId();
+  const [draft, setDraft] = useState('');
+
+  const commitDraft = () => {
+    if (!draft.trim() || !onSetTags) return;
+    onSetTags(withTagAdded(tagList, draft));
+    setDraft('');
+  };
+  const removeTag = (t: string) => onSetTags?.(withTagRemoved(tagList, t));
+  const acceptSuggestion = () => {
+    if (suggestedTag) onSetTags?.(withTagAdded(tagList, suggestedTag));
+  };
 
   // At-a-glance segments, joined by separators on one wrapping line.
   const segments: ReactNode[] = [];
@@ -105,7 +140,15 @@ export function DeckCardPreviewMeta({
     );
   }
 
-  if (segments.length === 0 && !ownership && !legality && reasons.length === 0) {
+  const showTagsSection = tagList.length > 0 || !!onSetTags;
+
+  if (
+    segments.length === 0 &&
+    !ownership &&
+    !legality &&
+    reasons.length === 0 &&
+    !showTagsSection
+  ) {
     return null;
   }
 
@@ -138,6 +181,95 @@ export function DeckCardPreviewMeta({
               <li key={i}>{reason}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {showTagsSection && (
+        <div className="deck-card-preview-meta-tags">
+          <span className="deck-card-preview-meta-label">
+            Tags
+            {tagsEdited && (
+              <span
+                className="deck-card-preview-meta-tags-edited"
+                title="You've edited the tags on this card — auto-suggestions won't touch it again"
+              >
+                <Pencil width={10} height={10} strokeWidth={2.4} aria-hidden />
+                edited
+              </span>
+            )}
+          </span>
+
+          <div className="deck-card-preview-meta-tags-chips">
+            {tagList.map((t) => (
+              <span key={t} className="deck-card-preview-meta-tag-chip">
+                {t}
+                {onSetTags && (
+                  <button
+                    type="button"
+                    className="deck-card-preview-meta-tag-remove"
+                    aria-label={`Remove tag "${t}"`}
+                    onClick={() => removeTag(t)}
+                  >
+                    <X width={11} height={11} strokeWidth={2.6} aria-hidden />
+                  </button>
+                )}
+              </span>
+            ))}
+
+            {!tagsEdited && suggestedTag && !tagList.includes(suggestedTag) && (
+              <button
+                type="button"
+                className="deck-card-preview-meta-tag-chip is-suggested"
+                onClick={onSetTags ? acceptSuggestion : undefined}
+                disabled={!onSetTags}
+                title={
+                  onSetTags
+                    ? `Suggested from this card's role — tap to add`
+                    : `Suggested from this card's role`
+                }
+              >
+                {suggestedTag}
+                {onSetTags && <Plus width={11} height={11} strokeWidth={2.6} aria-hidden />}
+              </button>
+            )}
+
+            {tagList.length === 0 && !suggestedTag && !onSetTags && (
+              <span className="deck-card-preview-meta-tags-none">No tags</span>
+            )}
+          </div>
+
+          {onSetTags && (
+            <form
+              className="deck-card-preview-meta-tag-add"
+              onSubmit={(e) => {
+                e.preventDefault();
+                commitDraft();
+              }}
+            >
+              <input
+                type="text"
+                value={draft}
+                maxLength={40}
+                list={datalistId}
+                placeholder="Add a tag…"
+                aria-label={`Add a tag to ${card.name}`}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+              <datalist id={datalistId}>
+                {(existingDeckTags ?? []).map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+              <button
+                type="submit"
+                className="deck-card-preview-meta-tag-add-btn"
+                aria-label="Add tag"
+                disabled={!draft.trim()}
+              >
+                <Plus width={14} height={14} strokeWidth={2.4} aria-hidden />
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>

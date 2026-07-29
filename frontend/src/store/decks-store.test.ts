@@ -88,6 +88,21 @@ describe('useDecksStore — createDeck', () => {
     expect(d.generationContext?.landCount).toBe(37);
   });
 
+  // `hiddenGems` was declared on the input and never assigned — a silent drop
+  // waiting for the first caller to pass it.
+  it('carries every analysis field it accepts, including hiddenGems', () => {
+    store().createDeck({
+      source: 'generated',
+      commander: null,
+      gapAnalysis: [],
+      hiddenGems: [{ name: 'Sylvan Safekeeper' } as never],
+      cardInclusionMap: { 'Sol Ring': 90 },
+    });
+    const d = store().decks[0];
+    expect(d.hiddenGems).toEqual([{ name: 'Sylvan Safekeeper' }]);
+    expect(d.cardInclusionMap).toEqual({ 'Sol Ring': 90 });
+  });
+
   it('prepends newer decks ahead of older ones', () => {
     const first = store().createDeck({ name: 'First', source: 'manual', commander: null });
     const second = store().createDeck({ name: 'Second', source: 'manual', commander: null });
@@ -212,6 +227,35 @@ describe('useDecksStore — duplicateDeck', () => {
     expect(copy.cards[0].allocatedCopyId).toBeNull();
     expect(copy.cards[0].slotId).not.toBe(store().decks.find((d) => d.id === id)!.cards[0].slotId);
     expect(copy.sideboard).toHaveLength(1);
+  });
+
+  it('preserves tags and addedAt across all three zones while still resetting allocations and slotIds', () => {
+    const taggedCard = (name: string, allocatedCopyId: string | null): DeckCard => ({
+      ...deckCard(name),
+      allocatedCopyId,
+      addedAt: 12345,
+      tags: ['Ramp'],
+    });
+    const id = store().createDeck({
+      name: 'Original',
+      source: 'manual',
+      commander: sfCard('Atraxa'),
+      cards: [taggedCard('Sol Ring', 'copy-a')],
+      sideboard: [taggedCard('Swamp', 'copy-b')],
+      considering: [taggedCard('Rampant Growth', 'copy-c')],
+    });
+    const copyId = store().duplicateDeck(id);
+    const original = store().decks.find((d) => d.id === id)!;
+    const copy = store().decks.find((d) => d.id === copyId)!;
+
+    for (const zone of ['cards', 'sideboard', 'considering'] as const) {
+      const originalSlot = original[zone][0];
+      const copySlot = copy[zone][0];
+      expect(copySlot.tags).toEqual(['Ramp']);
+      expect(copySlot.addedAt).toBe(12345);
+      expect(copySlot.allocatedCopyId).toBeNull();
+      expect(copySlot.slotId).not.toBe(originalSlot.slotId);
+    }
   });
 });
 

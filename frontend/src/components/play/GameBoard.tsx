@@ -52,6 +52,7 @@ import { GameHistory } from './GameHistory';
 import { GameTools } from './GameTools';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { ShareDialog } from '../ShareDialog';
+import { Tabs } from '../Tabs';
 
 interface Props {
   game: GameState;
@@ -387,10 +388,7 @@ function PlayerPanel({
   //   explicit override → MTG color identity → seat-palette fallback.
   // The seat palette is derived deterministically from the game id so each
   // new game draws a fresh set of vivid colors, stable for that game.
-  const overrideKey = player.panelColorKey ? player.panelColorKey.toLowerCase() : null;
-  const hasIdentity = Array.isArray(player.colorIdentity) && player.colorIdentity.length > 0;
-  const identityClass = hasIdentity ? identityKey(player.colorIdentity) : null;
-  const colorKey = overrideKey ?? identityClass;
+  const colorKey = seatColorKey(player);
   const seatPalette = useMemo(() => paletteForSeat(game.id, player.seat), [game.id, player.seat]);
 
   const { display: animatedLife, popKey } = useAnimatedNumber(player.life);
@@ -484,15 +482,18 @@ function PlayerPanel({
     [disabled, dispatch, player.seat, pushDelta]
   );
 
-  // Counters live in tappable corner chips now (see below) — the old
-  // swipe-to-open-drawer gesture is gone, so tap/hold is the only panel
-  // gesture. Swipe detection still cancels a stray vertical drag from
-  // firing a life tap.
+  // Corner chips remain the tap/keyboard affordance for the counters cover;
+  // swipe-up is an additive shortcut for the common in-game move (log the
+  // commander damage that just hit you without hunting for a small chip).
+  // `rotation` makes "up" panel-local, so it means up *for that seat*.
+  // A vertical swipe also cancels the pending life tap/hold inside the hook.
+  const hasCounters = game.poisonEnabled || game.commanderDamageEnabled;
   const tapHandlers = useTapAndHold({
     onTap: (delta: number) => adjust(delta),
     onHoldTick: (delta: number, gearUp: boolean) => adjust(delta, gearUp),
     onPointerStart: (e) => recordPointer(e.clientX, e.clientY),
     onPointerMove: (e) => recordPointer(e.clientX, e.clientY),
+    onSwipeUp: hasCounters && canEdit && !player.eliminated ? () => setDrawerOpen(true) : undefined,
     rotation,
     disabled,
   });
@@ -746,6 +747,7 @@ function PlayerPanel({
             game={game}
             opponents={opponents}
             disabled={countersDisabled}
+            rotation={rotation}
             dispatch={dispatch}
             onClose={() => setDrawerOpen(false)}
           />
@@ -963,17 +965,23 @@ function useTapAndHold({
 // ── Counters popover (poison + commander damage) ───────────────────────────
 
 /**
- * Compact popover opened by tapping a corner counter chip. Replaces the old
- * full-width "Counters" button + swipe-up drawer: the chips keep poison /
- * commander damage glanceable, and this popover (dismissed by tapping
- * outside) holds the +/- controls. Lives inside the panel so it inherits
- * the seat's rotation and reads upright for that player.
+ * Full-panel counters cover, opened by tapping a corner counter chip or by
+ * swiping up on your own panel, and dismissed by swiping back down (or the
+ * ✕ / Esc). Lives inside the panel so it inherits the seat's rotation and
+ * reads upright for that player.
+ *
+ * Commander damage renders as one tile per opponent, tinted with that
+ * opponent's own panel color, so "who is hitting me" is answerable at a
+ * glance from across the table. The reducer already subtracts life 1:1 on
+ * every `cmd-dmg` tick, so the life total behind the cover moves live — there
+ * is nothing to commit on the way out.
  */
 function CountersPopover({
   player,
   game,
   opponents,
   disabled,
+  rotation,
   dispatch,
   onClose,
 }: {
@@ -981,17 +989,41 @@ function CountersPopover({
   game: GameState;
   opponents: GamePlayer[];
   disabled: boolean;
+  /** Panel rotation, so swipe-to-dismiss is panel-local for every seat. */
+  rotation: number;
   dispatch: (a: GameAction) => void;
   onClose: () => void;
 }) {
+  // Reuse the tap/hold hook purely as a swipe detector: `disabled` skips the
+  // tap + hold-repeat arming but still records the pointer start and fires
+  // the swipe callbacks. Bubbles from the tiles too, so a downward drag
+  // started anywhere on the cover dismisses it (and the tile's own hook
+  // cancels its pending tap at the same threshold, so nothing double-fires).
+  const swipeHandlers = useTapAndHold({
+    onTap: () => {},
+    onHoldTick: () => {},
+    onSwipeDown: onClose,
+    rotation,
+    disabled: true,
+  });
   return (
     <div
       className="pp-counters-cover"
       role="dialog"
       aria-label={`${player.name} counters`}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+      {...swipeHandlers(0)}
     >
       <div className="pp-counters-inner">
+        {/* Grab handle — the conventional "this dismisses by swiping" tell.
+            Decorative: the ✕ beside it is the accessible control. */}
+        <span className="pp-counters-grab" aria-hidden="true" />
         <div className="pp-counters-head">
           <span className="pp-counters-title">Counters</span>
           <button
@@ -1004,6 +1036,28 @@ function CountersPopover({
           </button>
         </div>
         <div className="pp-counters-body">
+          {game.commanderDamageEnabled && opponents.length > 0 && (
+            <div className="pp-cmd-grid">
+              {opponents.map((o) => (
+                <CmdDamageTile
+                  key={o.seat}
+                  opponent={o}
+                  gameId={game.id}
+                  value={player.commanderDamage[o.seat] ?? 0}
+                  disabled={disabled}
+                  onChange={(d) =>
+                    dispatch({
+                      type: 'cmd-dmg',
+                      seat: player.seat,
+                      fromSeat: o.seat,
+                      delta: d,
+                      actorSeat: player.seat,
+                    })
+                  }
+                />
+              ))}
+            </div>
+          )}
           {game.poisonEnabled && (
             <CounterRow
               label="☠ Poison"
@@ -1015,27 +1069,81 @@ function CountersPopover({
               }
             />
           )}
-          {game.commanderDamageEnabled &&
-            opponents.map((o) => (
-              <CounterRow
-                key={o.seat}
-                label={`⚔ ${o.commander ?? o.name}`}
-                value={player.commanderDamage[o.seat] ?? 0}
-                disabled={disabled}
-                lethal={(player.commanderDamage[o.seat] ?? 0) >= 21}
-                onChange={(d) =>
-                  dispatch({
-                    type: 'cmd-dmg',
-                    seat: player.seat,
-                    fromSeat: o.seat,
-                    delta: d,
-                    actorSeat: player.seat,
-                  })
-                }
-              />
-            ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * One opponent's commander damage: a big split tile (+ above the value, −
+ * below) tinted in that opponent's panel color. Same tap-and-hold ramp as
+ * the counter rows, so holding + races to 21.
+ */
+function CmdDamageTile({
+  opponent,
+  gameId,
+  value,
+  disabled,
+  onChange,
+}: {
+  opponent: GamePlayer;
+  gameId: string;
+  value: number;
+  disabled: boolean;
+  onChange: (delta: number) => void;
+}) {
+  const tapHandlers = useTapAndHold({
+    onTap: onChange,
+    onHoldTick: (delta) => onChange(delta),
+    disabled,
+  });
+  const colorKey = seatColorKey(opponent);
+  const palette = paletteForSeat(gameId, opponent.seat);
+  const label = opponent.commander ?? opponent.name;
+  const lethal = value >= 21;
+  return (
+    <div
+      className={`pp-cmd-tile ${colorKey ? `pp-color-${colorKey}` : ''} ${
+        lethal ? 'is-lethal' : ''
+      }`}
+      // Mirrors the panel's own fallback: the pp-color-* class supplies the
+      // vars when a color identity / override exists, otherwise the seat
+      // palette does, inline.
+      style={
+        colorKey
+          ? undefined
+          : {
+              ['--pp-base' as never]: palette.base,
+              ['--pp-edge' as never]: palette.edge,
+              ['--pp-accent' as never]: palette.accent,
+            }
+      }
+    >
+      <span className="pp-cmd-tile-name" title={label}>
+        {label}
+      </span>
+      <button
+        type="button"
+        className="pp-cmd-tile-step is-plus"
+        aria-label={`+1 commander damage from ${label}`}
+        disabled={disabled}
+        {...tapHandlers(1)}
+      >
+        <span aria-hidden="true">+</span>
+      </button>
+      <span className="pp-cmd-tile-value" aria-live="polite">
+        {value}
+      </span>
+      <button
+        type="button"
+        className="pp-cmd-tile-step is-minus"
+        aria-label={`-1 commander damage from ${label}`}
+        disabled={disabled}
+        {...tapHandlers(-1)}
+      >
+        <span aria-hidden="true">−</span>
+      </button>
     </div>
   );
 }
@@ -1365,7 +1473,9 @@ const SWATCH_LABEL: Record<'W' | 'U' | 'B' | 'R' | 'G' | 'M' | 'C', string> = {
   C: 'Colorless',
 };
 
-// ── Center game menu (end / reset / log) ───────────────────────────────────
+// ── Center game menu (actions / log + stats / board setup) ─────────────────
+
+type MenuTab = 'now' | 'game' | 'setup';
 
 function GameMenu({
   game,
@@ -1400,6 +1510,12 @@ function GameMenu({
   const setPreferredLayout = usePlayStore((s) => s.setPreferredLayout);
   const openRules = useRulesReferenceStore((s) => s.open);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [tab, setTab] = useState<MenuTab>('now');
+  // Setup is host-only and meaningless once the game is over — dropping the
+  // tab beats showing an empty one.
+  const canSetup = canControlAll && !isFinished;
+  const activeTab: MenuTab = tab === 'setup' && !canSetup ? 'now' : tab;
+
   return (
     <div className="game-menu-backdrop" onClick={onClose}>
       <div className="game-menu" role="dialog" onClick={(e) => e.stopPropagation()}>
@@ -1416,232 +1532,262 @@ function GameMenu({
           </button>
         </header>
 
-        <div className="game-menu-body">
-          <div className="game-menu-meta" aria-label="Game settings">
-            <span className="game-menu-chip">{game.startingLife} starting life</span>
-            {game.commanderDamageEnabled && (
-              <span className="game-menu-chip">Commander damage</span>
-            )}
-            {game.poisonEnabled && <span className="game-menu-chip">Poison</span>}
-            <span className="game-menu-chip is-mode">{game.mode}</span>
-          </div>
+        {/* Split by when you reach for it: `now` is the mid-game surface,
+            `game` is the log + derived stats, `setup` is set-and-forget board
+            config. Only the active tab mounts, which is also what makes
+            opening the menu instant — the log walk, the life chart replay and
+            every layout preview used to run just because the sheet opened. */}
+        <Tabs<MenuTab>
+          ariaLabel="Game menu section"
+          variant="fitted"
+          className="game-menu-tabs"
+          value={activeTab}
+          onChange={setTab}
+          tabs={[
+            { id: 'now', label: 'Now', controls: 'game-menu-panel' },
+            { id: 'game', label: 'Game', controls: 'game-menu-panel' },
+            ...(canSetup
+              ? [{ id: 'setup' as const, label: 'Setup', controls: 'game-menu-panel' }]
+              : []),
+          ]}
+        />
 
-          {/* ── Primary actions — immediately visible without scrolling ── */}
-          <section className="game-menu-section">
-            <div className="game-menu-actions">
-              {isFinished ? (
-                <>
-                  {onRematch && (
-                    <button
-                      type="button"
-                      className="game-menu-btn is-primary is-wide"
-                      onClick={() => {
-                        onRematch();
-                        onClose();
-                      }}
-                    >
-                      Rematch — same players
-                    </button>
-                  )}
-                  {game.mode === 'online' && (
-                    <button
-                      type="button"
-                      className="game-menu-btn is-wide"
-                      onClick={() => onShare()}
-                    >
-                      Share recap
-                    </button>
-                  )}
-                  {onLeave && (
-                    <button
-                      type="button"
-                      className="game-menu-btn is-wide"
-                      onClick={() => {
-                        onLeave();
-                        onClose();
-                      }}
-                    >
-                      Close
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  {onMinimize && (
-                    <button
-                      type="button"
-                      className="game-menu-btn is-primary is-wide"
-                      onClick={() => {
-                        onMinimize();
-                        onClose();
-                      }}
-                    >
-                      Minimize
-                    </button>
-                  )}
-                  {undoLabel && (
-                    <button
-                      type="button"
-                      className="game-menu-btn is-wide"
-                      onClick={() => {
-                        onUndo();
-                        onClose();
-                      }}
-                    >
-                      ↶ Undo {undoLabel}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-
-          <section className="game-menu-section">
-            <button
-              type="button"
-              className="game-menu-btn is-wide"
-              onClick={() => {
-                openRules();
-                onClose();
-              }}
-            >
-              <BookOpen width={16} height={16} strokeWidth={1.8} aria-hidden /> Rules reference
-            </button>
-          </section>
-
-          <GameTools game={game} dispatch={dispatch} />
-
-          <GameHistory game={game} />
-
-          {/* ── Settings group: tap orientation + haptics ── */}
-          <section className="game-menu-section">
-            {canControlAll && !isFinished && (
-              <ViewModeToggle
-                className="tap-orientation-toggle"
-                ariaLabel="Tap zone orientation"
-                value={game.tapOrientation ?? 'horizontal'}
-                onChange={(next) => dispatch({ type: 'settings', patch: { tapOrientation: next } })}
-                options={[
-                  {
-                    value: 'horizontal',
-                    label: 'Horizontal taps',
-                    icon: (
-                      <>
-                        <TapZoneIcon orientation="horizontal" />
-                        <span>Horizontal taps</span>
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'vertical',
-                    label: 'Vertical taps',
-                    icon: (
-                      <>
-                        <TapZoneIcon orientation="vertical" />
-                        <span>Vertical taps</span>
-                      </>
-                    ),
-                  },
-                ]}
-              />
-            )}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={hapticsEnabled}
-              className={`game-menu-setting ${hapticsEnabled ? 'is-on' : ''}`}
-              onClick={() => setHaptics(!hapticsEnabled)}
-            >
-              <span className="game-menu-setting-label">Haptic feedback</span>
-              <span className="game-menu-setting-state" aria-hidden="true">
-                {hapticsEnabled ? 'On' : 'Off'}
-              </span>
-            </button>
-          </section>
-
-          {/* ── Host-only: player roster + layout (set-and-forget) ── */}
-          {canControlAll && !isFinished && (
-            <section className="game-menu-section">
-              <PlayerRoster game={game} dispatch={dispatch} />
-            </section>
-          )}
-
-          {canControlAll && !isFinished && (
-            <section className="game-menu-section">
-              <LayoutPicker
-                total={game.players.length}
-                current={resolveLayout(game.players.length, game.layout).id}
-                shared={game.mode === 'local'}
-                onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
-                onCustomize={() => setEditorOpen(true)}
-              />
-              {game.mode === 'local' &&
-                (() => {
-                  const count = game.players.length;
-                  const currentId = resolveLayout(count, game.layout).id;
-                  const isDefault = preferredLayouts[count] === currentId;
-                  return (
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isDefault}
-                      className={`game-menu-setting ${isDefault ? 'is-on' : ''}`}
-                      onClick={() => setPreferredLayout(count, isDefault ? null : currentId)}
-                    >
-                      <span className="game-menu-setting-label">
-                        Default for {count}-player games
-                      </span>
-                      <span className="game-menu-setting-state" aria-hidden="true">
-                        {isDefault ? 'On' : 'Off'}
-                      </span>
-                    </button>
-                  );
-                })()}
-            </section>
-          )}
-
-          {/* ── Destructive actions — anchored at the bottom ── */}
-          {!isFinished && (
-            <section className="game-menu-section">
-              <div className="game-menu-actions">
-                <div className="game-menu-actions-row">
-                  <button
-                    type="button"
-                    className="game-menu-btn"
-                    onClick={() => {
-                      onEnd?.();
-                      onClose();
-                    }}
-                  >
-                    End game
-                  </button>
-                  {canControlAll && (
-                    <button
-                      type="button"
-                      className="game-menu-btn"
-                      onClick={() => {
-                        dispatch({ type: 'reset' });
-                        onClose();
-                      }}
-                    >
-                      Reset
-                    </button>
+        <div
+          className="game-menu-body"
+          id="game-menu-panel"
+          role="tabpanel"
+          aria-labelledby={`sc-tab-${activeTab}`}
+        >
+          {activeTab === 'now' && (
+            <>
+              {/* ── Primary actions — immediately visible without scrolling ── */}
+              <section className="game-menu-section">
+                <div className="game-menu-actions">
+                  {isFinished ? (
+                    <>
+                      {onRematch && (
+                        <button
+                          type="button"
+                          className="game-menu-btn is-primary is-wide"
+                          onClick={() => {
+                            onRematch();
+                            onClose();
+                          }}
+                        >
+                          Rematch — same players
+                        </button>
+                      )}
+                      {game.mode === 'online' && (
+                        <button
+                          type="button"
+                          className="game-menu-btn is-wide"
+                          onClick={() => onShare()}
+                        >
+                          Share recap
+                        </button>
+                      )}
+                      {onLeave && (
+                        <button
+                          type="button"
+                          className="game-menu-btn is-wide"
+                          onClick={() => {
+                            onLeave();
+                            onClose();
+                          }}
+                        >
+                          Close
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {onMinimize && (
+                        <button
+                          type="button"
+                          className="game-menu-btn is-primary is-wide"
+                          onClick={() => {
+                            onMinimize();
+                            onClose();
+                          }}
+                        >
+                          Minimize
+                        </button>
+                      )}
+                      {undoLabel && (
+                        <button
+                          type="button"
+                          className="game-menu-btn is-wide"
+                          onClick={() => {
+                            onUndo();
+                            onClose();
+                          }}
+                        >
+                          ↶ Undo {undoLabel}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
-                {onLeave && (
-                  <button
-                    type="button"
-                    className="game-menu-btn is-danger is-wide"
-                    onClick={() => {
-                      onLeave();
-                      onClose();
-                    }}
-                  >
-                    Discard game
-                  </button>
+              </section>
+
+              <GameTools game={game} dispatch={dispatch} />
+
+              <section className="game-menu-section">
+                <button
+                  type="button"
+                  className="game-menu-btn is-wide"
+                  onClick={() => {
+                    openRules();
+                    onClose();
+                  }}
+                >
+                  <BookOpen width={16} height={16} strokeWidth={1.8} aria-hidden /> Rules reference
+                </button>
+              </section>
+
+              {/* ── Destructive actions — anchored at the bottom ── */}
+              {!isFinished && (
+                <section className="game-menu-section">
+                  <div className="game-menu-actions">
+                    <div className="game-menu-actions-row">
+                      <button
+                        type="button"
+                        className="game-menu-btn"
+                        onClick={() => {
+                          onEnd?.();
+                          onClose();
+                        }}
+                      >
+                        End game
+                      </button>
+                      {canControlAll && (
+                        <button
+                          type="button"
+                          className="game-menu-btn"
+                          onClick={() => {
+                            dispatch({ type: 'reset' });
+                            onClose();
+                          }}
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    {onLeave && (
+                      <button
+                        type="button"
+                        className="game-menu-btn is-danger is-wide"
+                        onClick={() => {
+                          onLeave();
+                          onClose();
+                        }}
+                      >
+                        Discard game
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+
+          {activeTab === 'game' && (
+            <>
+              <div className="game-menu-meta" aria-label="Game settings">
+                <span className="game-menu-chip">{game.startingLife} starting life</span>
+                {game.commanderDamageEnabled && (
+                  <span className="game-menu-chip">Commander damage</span>
                 )}
+                {game.poisonEnabled && <span className="game-menu-chip">Poison</span>}
+                <span className="game-menu-chip is-mode">{game.mode}</span>
               </div>
-            </section>
+              <GameHistory game={game} />
+            </>
+          )}
+
+          {activeTab === 'setup' && (
+            <>
+              <section className="game-menu-section">
+                <ViewModeToggle
+                  className="tap-orientation-toggle"
+                  ariaLabel="Tap zone orientation"
+                  value={game.tapOrientation ?? 'horizontal'}
+                  onChange={(next) =>
+                    dispatch({ type: 'settings', patch: { tapOrientation: next } })
+                  }
+                  options={[
+                    {
+                      value: 'horizontal',
+                      label: 'Horizontal taps',
+                      icon: (
+                        <>
+                          <TapZoneIcon orientation="horizontal" />
+                          <span>Horizontal taps</span>
+                        </>
+                      ),
+                    },
+                    {
+                      value: 'vertical',
+                      label: 'Vertical taps',
+                      icon: (
+                        <>
+                          <TapZoneIcon orientation="vertical" />
+                          <span>Vertical taps</span>
+                        </>
+                      ),
+                    },
+                  ]}
+                />
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={hapticsEnabled}
+                  className={`game-menu-setting ${hapticsEnabled ? 'is-on' : ''}`}
+                  onClick={() => setHaptics(!hapticsEnabled)}
+                >
+                  <span className="game-menu-setting-label">Haptic feedback</span>
+                  <span className="game-menu-setting-state" aria-hidden="true">
+                    {hapticsEnabled ? 'On' : 'Off'}
+                  </span>
+                </button>
+              </section>
+
+              <section className="game-menu-section">
+                <PlayerRoster game={game} dispatch={dispatch} />
+              </section>
+
+              <section className="game-menu-section">
+                <LayoutPicker
+                  total={game.players.length}
+                  current={resolveLayout(game.players.length, game.layout).id}
+                  shared={game.mode === 'local'}
+                  onPick={(layout) => dispatch({ type: 'settings', patch: { layout } })}
+                  onCustomize={() => setEditorOpen(true)}
+                />
+                {game.mode === 'local' &&
+                  (() => {
+                    const count = game.players.length;
+                    const currentId = resolveLayout(count, game.layout).id;
+                    const isDefault = preferredLayouts[count] === currentId;
+                    return (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isDefault}
+                        className={`game-menu-setting ${isDefault ? 'is-on' : ''}`}
+                        onClick={() => setPreferredLayout(count, isDefault ? null : currentId)}
+                      >
+                        <span className="game-menu-setting-label">
+                          Default for {count}-player games
+                        </span>
+                        <span className="game-menu-setting-state" aria-hidden="true">
+                          {isDefault ? 'On' : 'Off'}
+                        </span>
+                      </button>
+                    );
+                  })()}
+              </section>
+            </>
           )}
         </div>
       </div>
@@ -2193,6 +2339,19 @@ function identityKey(ci: string[]): string {
   if (!ci || ci.length === 0) return 'c';
   if (ci.length === 1) return ci[0].toLowerCase();
   return 'm';
+}
+
+/**
+ * Two-tier panel color key: explicit override → MTG color identity. Null means
+ * neither applies and the caller should fall back to `paletteForSeat`. Shared
+ * by the seat panel and the commander-damage tiles so an opponent's tile is
+ * tinted exactly like that opponent's own panel.
+ */
+function seatColorKey(p: GamePlayer): string | null {
+  if (p.panelColorKey) return p.panelColorKey.toLowerCase();
+  return Array.isArray(p.colorIdentity) && p.colorIdentity.length > 0
+    ? identityKey(p.colorIdentity)
+    : null;
 }
 
 // ── Win celebration ────────────────────────────────────────────────────────

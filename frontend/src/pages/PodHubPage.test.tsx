@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.mock is hoisted above the file's own top-level code — a variable read
 // inside a factory must come from vi.hoisted (see FriendsManagement.test.tsx
@@ -47,7 +47,14 @@ vi.mock('../lib/pods-client', () => {
     declinePodInvite: vi.fn(() => Promise.resolve()),
     invitePodMembers: vi.fn(() => Promise.resolve({ invited: [] })),
     fetchPodGames: vi.fn(() => Promise.resolve([])),
-    fetchPodLeaderboard: vi.fn(() => Promise.resolve([])),
+    // Shape-correct default: this resolves to { standings, records }, not an
+    // array — the page destructures it and renders `standings.length`.
+    fetchPodLeaderboard: vi.fn(() =>
+      Promise.resolve({
+        standings: [],
+        records: { firstBlood: null, mostKos: null, archenemy: null },
+      })
+    ),
     PodNotFoundError,
   };
 });
@@ -67,6 +74,8 @@ import {
   renamePod,
   PodNotFoundError,
   type PodDetail,
+  type PodRecords,
+  type PodStanding,
 } from '../lib/pods-client';
 
 function renderPage() {
@@ -96,7 +105,35 @@ function podDetail(overrides: Partial<PodDetail> = {}): PodDetail {
   };
 }
 
-afterEach(() => {
+/** A pod with no summary-carrying games — the default for tests that aren't
+ *  about the records strip (which renders nothing in this state). */
+const NO_RECORDS: PodRecords = { firstBlood: null, mostKos: null, archenemy: null };
+
+/** Standings default to "no derived data", so a test opts in to the stats
+ *  columns only when it's actually asserting on them. */
+function standing(
+  over: Partial<PodStanding> & Pick<PodStanding, 'userId' | 'username'>
+): PodStanding {
+  return {
+    played: 0,
+    wins: 0,
+    winRate: 0,
+    ratedGames: 0,
+    avgPlacement: null,
+    firstBlood: 0,
+    kos: 0,
+    ...over,
+  };
+}
+
+// beforeEach, NOT afterEach: an afterEach block leaves the FIRST test in the
+// file running on the raw `vi.mock` factory defaults instead of these. That is
+// how this file's first test broke — `fetchPodLeaderboard`'s factory default
+// used to resolve to `[]`, so `const { standings, records } = ...` yielded
+// undefined and PodHubPage's `leaderboardFetch.standings.length` threw during
+// render. React unmounted the whole tree, and the test failed against an empty
+// <body>, which read like a mock-timing flake rather than the real crash.
+beforeEach(() => {
   authState.status = 'authed';
   authState.user = { id: 'me', username: 'viewer', role: 'user' };
   vi.mocked(getPod).mockReset();
@@ -107,7 +144,9 @@ afterEach(() => {
   vi.mocked(declinePodInvite).mockReset().mockResolvedValue(undefined);
   vi.mocked(invitePodMembers).mockReset().mockResolvedValue({ invited: [] });
   vi.mocked(fetchPodGames).mockReset().mockResolvedValue([]);
-  vi.mocked(fetchPodLeaderboard).mockReset().mockResolvedValue([]);
+  vi.mocked(fetchPodLeaderboard)
+    .mockReset()
+    .mockResolvedValue({ standings: [], records: NO_RECORDS });
   vi.mocked(listFriends).mockReset().mockResolvedValue([]);
   vi.mocked(getFriendShares)
     .mockReset()
@@ -268,11 +307,9 @@ describe('PodHubPage — shared history', () => {
     vi.mocked(fetchPodGames).mockResolvedValue([
       {
         sessionId: 's1',
-        code: 'CODE',
         format: 'commander',
         startingLife: 40,
         winnerSeat: 0,
-        winnerUserId: null,
         startedAt: 1,
         endedAt: 1700000000000,
         durationMs: 99,
@@ -318,7 +355,7 @@ describe('PodHubPage — shared history', () => {
     vi.mocked(getPod).mockResolvedValue(podDetail());
     vi.mocked(fetchPodGames).mockResolvedValue([]);
     // Leaderboard renders the identical empty copy when it's also empty (the
-    // afterEach default) — scope to the history panel specifically so the
+    // beforeEach default) — scope to the history panel specifically so the
     // query doesn't ambiguously match both.
     renderPage();
 
@@ -333,11 +370,14 @@ describe('PodHubPage — shared history', () => {
 describe('PodHubPage — leaderboard', () => {
   it('renders standings in the order the server returns them (wins, then win%)', async () => {
     vi.mocked(getPod).mockResolvedValue(podDetail());
-    vi.mocked(fetchPodLeaderboard).mockResolvedValue([
-      { userId: 'owner1', username: 'sam', played: 4, wins: 3, winRate: 0.75 },
-      { userId: 'me', username: 'viewer', played: 4, wins: 1, winRate: 0.25 },
-      { userId: 'carol1', username: 'carol', played: 2, wins: 0, winRate: 0 },
-    ]);
+    vi.mocked(fetchPodLeaderboard).mockResolvedValue({
+      standings: [
+        standing({ userId: 'owner1', username: 'sam', played: 4, wins: 3, winRate: 0.75 }),
+        standing({ userId: 'me', username: 'viewer', played: 4, wins: 1, winRate: 0.25 }),
+        standing({ userId: 'carol1', username: 'carol', played: 2, wins: 0, winRate: 0 }),
+      ],
+      records: NO_RECORDS,
+    });
     renderPage();
 
     // The "Leaderboard" heading renders on the very first paint (before the
@@ -351,6 +391,76 @@ describe('PodHubPage — leaderboard', () => {
     expect(within(rows[0]).getByText('sam')).toBeTruthy();
     expect(within(rows[1]).getByText('viewer')).toBeTruthy();
     expect(within(rows[2]).getByText('carol')).toBeTruthy();
+  });
+
+  it('shows an em dash, not a zero, for a member with no summary-carrying games', async () => {
+    vi.mocked(getPod).mockResolvedValue(podDetail());
+    vi.mocked(fetchPodLeaderboard).mockResolvedValue({
+      standings: [
+        standing({ userId: 'owner1', username: 'sam', played: 4, wins: 3, winRate: 0.75 }),
+      ],
+      records: NO_RECORDS,
+    });
+    renderPage();
+
+    const heading = await screen.findByText('Leaderboard');
+    const panel = heading.closest('.deck-stats-panel') as HTMLElement;
+    await within(panel).findByText('sam');
+    const row = within(panel).getAllByRole('row')[1];
+    // avgPlacement is null → "—". A "0.0" here would read as a real finish.
+    expect(within(row).getByText('—')).toBeTruthy();
+  });
+
+  it('renders no records strip at all until the pod has earned one', async () => {
+    vi.mocked(getPod).mockResolvedValue(podDetail());
+    vi.mocked(fetchPodLeaderboard).mockResolvedValue({
+      standings: [standing({ userId: 'owner1', username: 'sam', played: 4, wins: 3 })],
+      records: NO_RECORDS,
+    });
+    renderPage();
+
+    await screen.findByText('Leaderboard');
+    expect(screen.queryByLabelText('Pod records')).toBeNull();
+  });
+
+  it('renders the superlatives once the pod has them', async () => {
+    vi.mocked(getPod).mockResolvedValue(podDetail());
+    vi.mocked(fetchPodLeaderboard).mockResolvedValue({
+      standings: [
+        standing({
+          userId: 'owner1',
+          username: 'sam',
+          played: 4,
+          wins: 3,
+          winRate: 0.75,
+          ratedGames: 4,
+          avgPlacement: 1.5,
+          firstBlood: 2,
+          kos: 5,
+        }),
+      ],
+      records: {
+        firstBlood: { userId: 'owner1', username: 'sam', games: 2, rate: 0.5 },
+        mostKos: { userId: 'owner1', username: 'sam', kos: 5 },
+        archenemy: {
+          killerId: 'owner1',
+          killerName: 'sam',
+          victimId: 'me',
+          victimName: 'viewer',
+          kos: 3,
+        },
+      },
+    });
+    renderPage();
+
+    const strip = await screen.findByLabelText('Pod records');
+    expect(within(strip).getByText('50%')).toBeTruthy();
+    expect(within(strip).getByText('×3')).toBeTruthy();
+    expect(within(strip).getByText(/sam → viewer/)).toBeTruthy();
+
+    const heading = screen.getByText('Leaderboard');
+    const panel = heading.closest('.deck-stats-panel') as HTMLElement;
+    expect(within(within(panel).getAllByRole('row')[1]).getByText('1.5')).toBeTruthy();
   });
 });
 

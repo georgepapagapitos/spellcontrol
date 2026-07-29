@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Check, Plus } from 'lucide-react';
+import { Check, Notebook, Plus } from 'lucide-react';
 import type { ScryfallCard } from '@/deck-builder/types';
 import { searchCards, getCardByNameResilient } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
@@ -32,8 +32,11 @@ import {
   substringMatchesExpression,
 } from '../../lib/rules';
 import { CollectionFiltersDialog } from '../CollectionFiltersDialog';
+import { BinderBadge, type BinderInfo } from '../BinderBadge';
 import { SearchPill } from '../SearchPill';
 import { Tabs, type TabItem } from '../Tabs';
+import { WedgeHintStrip } from './WedgeHintStrip';
+import { dismissBinderHint, shouldShowBinderHint } from '../../lib/wedge-hints';
 import type { ChipExpression, EnrichedCard } from '../../types';
 import type { GapAnalysisCard, HiddenGemRow } from '@/deck-builder/types';
 import { hiddenGemReason } from '@/deck-builder/services/deckBuilder/hiddenGems';
@@ -105,6 +108,14 @@ interface Props {
    * Undefined for a no-commander deck; the badge never fetches or renders.
    */
   commanderKey?: string;
+  /**
+   * Binder(s) each owned card name is routed into, from the deck page's
+   * `binderByCardName` (a re-keyed `binderByCopyId` — the same canonical
+   * routing computation the binder review queue uses, so this can never
+   * disagree with where a card actually files). Collection-tab rows only;
+   * absent for a card with no owned copy or no matching binder.
+   */
+  binderByCardName?: Map<string, BinderInfo[]>;
 }
 
 type Mode = 'collection' | 'scryfall' | 'suggestions';
@@ -272,6 +283,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
     enableSuggestions,
     suggestionsPending,
     commanderKey,
+    binderByCardName,
   },
   ref
 ) {
@@ -284,6 +296,13 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Binder-location discovery hint (see lib/wedge-hints.ts) — dismissed
+  // locally so it disappears immediately on click without waiting on a
+  // re-render triggered by nothing; the localStorage write in
+  // dismissBinderHint() makes the "never again" part durable.
+  const [binderHintDismissed, setBinderHintDismissed] = useState(false);
+  const hasBinderMatch = !!binderByCardName && binderByCardName.size > 0;
 
   // Chip-expression filter state — applies only in the Collection tab.
   // Scryfall already has its own query DSL, so we don't shoehorn this
@@ -578,6 +597,19 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
         id="card-search-tabpanel"
         aria-labelledby={`sc-tab-${activeMode}`}
       >
+        {activeMode === 'collection' &&
+          !binderHintDismissed &&
+          shouldShowBinderHint(hasBinderMatch) && (
+            <WedgeHintStrip
+              icon={<Notebook width={16} height={16} aria-hidden />}
+              headline="Cards show where they live"
+              detail="The badge next to an owned card links straight to its binder."
+              onDismiss={() => {
+                dismissBinderHint();
+                setBinderHintDismissed(true);
+              }}
+            />
+          )}
         {activeMode === 'collection' ? (
           <CollectionResults
             deckId={deckId}
@@ -609,6 +641,7 @@ export const CardSearchPanel = forwardRef<CardSearchPanelHandle, Props>(function
             comboProducesByName={comboProducesByName}
             topCardCounts={effectiveTopCardCounts}
             sort={sort}
+            binderByCardName={binderByCardName}
             enforceCommander={!!enableSuggestions}
             onSearchScryfall={() => setMode('scryfall')}
           />
@@ -713,6 +746,7 @@ interface CollectionResultsProps extends ResultsProps, FitProps {
   compiledBorder: ReturnType<typeof compileExpression>;
   colorFilter: Set<string>;
   setFilter: Set<string>;
+  binderByCardName?: Map<string, BinderInfo[]>;
 }
 
 // ── Collection results ───────────────────────────────────────────────────
@@ -741,6 +775,7 @@ function CollectionResults({
   gapByName,
   comboProducesByName,
   topCardCounts,
+  binderByCardName,
   sort,
   enforceCommander,
   onSearchScryfall,
@@ -941,6 +976,7 @@ function CollectionResults({
           const inDeck = existingCardCounts.get(c.name) ?? 0;
           const active = i === activeIndex;
           const nameKey = c.name.toLowerCase();
+          const binders = binderByCardName?.get(c.name) ?? [];
           return (
             <li
               key={c.scryfallId}
@@ -967,6 +1003,14 @@ function CollectionResults({
               {c.manaCost && <ManaCost cost={c.manaCost} className="card-search-mana" />}
               <span className="card-search-meta">
                 owned {ownedCount}
+                {binders.length > 0 && (
+                  <BinderBadge
+                    binders={binders}
+                    onSelect={(b) =>
+                      pushToast({ message: `${c.name} is filed in ${b.name}`, tone: 'info' })
+                    }
+                  />
+                )}
                 {inDeck > 0 && (
                   <>
                     {' · '}

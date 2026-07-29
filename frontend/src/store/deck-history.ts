@@ -135,4 +135,15 @@ export const useDeckHistoryStore = create<DeckHistoryState>((set, get) => ({
 export const deckHistory = {
   invalidate: (deckIds: Iterable<string>) => useDeckHistoryStore.getState().invalidate(deckIds),
   clear: () => useDeckHistoryStore.getState().clear(),
+  /**
+   * Whether a deck currently has an undo or redo entry — i.e. whether
+   * `invalidate` would actually drop something for it. sync.ts (E174) reads
+   * this BEFORE invalidating to gate its pull-side conflict signal: a deck
+   * with nothing in its stack was never edited this session, so telling the
+   * user "your undo history was reset" for it would be pure noise.
+   */
+  hasHistory: (deckId: string) => {
+    const s = useDeckHistoryStore.getState();
+    return s.canUndo(deckId) || s.canRedo(deckId);
+  },
 };

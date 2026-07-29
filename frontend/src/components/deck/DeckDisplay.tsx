@@ -2,9 +2,10 @@ import {
   Bomb,
   BookOpen,
   CircleAlert,
+  Check,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
-  ChevronUp,
   Boxes,
   Crosshair,
   Eye,
@@ -21,6 +22,7 @@ import {
   Shapes,
   Sparkles,
   Sprout,
+  Tag as TagIcon,
   Tags,
   Trash2,
   Wrench,
@@ -29,7 +31,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useCurrency } from '@/lib/currency';
-import { useListFlip } from '@/lib/use-list-flip';
+import { useListFlip, prefersReducedMotion } from '@/lib/use-list-flip';
 import { createPortal } from 'react-dom';
 import type {
   ScryfallCard,
@@ -40,6 +42,9 @@ import type {
   Archetype,
 } from '@/deck-builder/types';
 import { classifyCardCategory } from '@/deck-builder/services/deckBuilder/categorize';
+import { cardTagsOf, isTagsEdited, suggestedTagForCard, collectDeckTags } from '@/lib/deck-tags';
+import { DeckTagManager } from './DeckTagManager';
+import { ConfirmDialog } from '../ConfirmDialog';
 import {
   buildManaData,
   classifyType,
@@ -68,7 +73,7 @@ import {
 } from '@/lib/deck-export';
 import { toast } from '../../store/toasts';
 import { haptics } from '../../lib/haptics';
-import type { DeckCard } from '../../store/decks';
+import type { DeckCard, DeckZone } from '../../store/decks';
 import { getCardPrice, getFrontFaceTypeLine } from '@/deck-builder/services/scryfall/client';
 import { ManaCost } from '../ManaCost';
 import { ManaSymbol } from '../shared/ManaSymbol';
@@ -99,6 +104,26 @@ import {
 } from '../../lib/allocations';
 import { classifyInclusion, OFFMETA_TOOLTIP } from '@/lib/inclusion-label';
 import { useTaggerReady } from '@/lib/use-tagger-ready';
+import { effectiveSortIndex, reorderIndexForMove } from '@/lib/deck-reorder';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { GripVertical } from 'lucide-react';
 
 /**
  * Resolves a card's EDHREC inclusion % against the deck's `cardInclusionMap`,
@@ -169,6 +194,7 @@ import {
   type RoleKey,
 } from '../../lib/role-badges';
 import { ViewModeToggle as SharedViewModeToggle } from '../ViewModeToggle';
+import { Tabs } from '../Tabs';
 import { ZoomControl } from '../ZoomControl';
 import {
   ZOOM_MAX,
@@ -276,6 +302,17 @@ const CATEGORY_ICON_COMPONENTS: Partial<
 // groupByType or a category-view lucide token for groupByCategory's 6
 // non-type buckets — CATEGORY_ICON_COMPONENTS decides which.
 function SectionIcon({ icon }: { icon: string }) {
+  if (icon === 'tag') {
+    return (
+      <TagIcon
+        width={14}
+        height={14}
+        strokeWidth={1.8}
+        aria-hidden
+        className="deck-section-icon-glyph"
+      />
+    );
+  }
   const Lucide = CATEGORY_ICON_COMPONENTS[icon as DeckCategory];
   if (Lucide) {
     return (
@@ -309,7 +346,10 @@ function frontFaceMana(card: ScryfallCard): string | undefined {
   return card.mana_cost ?? card.card_faces?.[0]?.mana_cost;
 }
 
-type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added';
+// 'custom' (E172) is the manual drag-order mode — an explicit, visible sort
+// choice (never a silent side effect of dragging while another mode is
+// selected; see DeckCardRow's drag handle, only rendered when sort==='custom').
+type SortMode = 'name' | 'cmc' | 'price' | 'color' | 'added' | 'custom';
 
 // ── View mode + show prefs ───────────────────────────────────────────────
 // Mirrors the reference EDH builder's Sort | Show | Search | View toolbar:
@@ -364,20 +404,21 @@ function readStoredShowPrefs(): ShowPrefs {
   }
 }
 
-// ── Group-by (E124) ──────────────────────────────────────────────────────
+// ── Group-by (E124, +'tag' E171) ─────────────────────────────────────────
 // Mainboard grouping lens: 'type' (canonical card type — the long-standing
-// default) or 'category' (the generator's 8-bucket DeckCategory shape, with
-// target gauges). Persisted like view mode/show prefs; default stays 'type'
-// so an existing deck's mainboard renders byte-identical until the user
-// opts in.
-export type DeckGroupBy = 'type' | 'category';
+// default), 'category' (the generator's 8-bucket DeckCategory shape, with
+// target gauges), or 'tag' (user-defined tags — a card can land in more than
+// one group here, see groupByTag's doc). Persisted like view mode/show
+// prefs; default stays 'type' so an existing deck's mainboard renders
+// byte-identical until the user opts in.
+export type DeckGroupBy = 'type' | 'category' | 'tag';
 const GROUP_BY_STORAGE_KEY = 'mtg-decks-group-by';
 
 function readStoredGroupBy(): DeckGroupBy {
   if (typeof window === 'undefined') return 'type';
   try {
     const v = window.localStorage.getItem(GROUP_BY_STORAGE_KEY);
-    if (v === 'type' || v === 'category') return v;
+    if (v === 'type' || v === 'category' || v === 'tag') return v;
   } catch {
     /* ignore */
   }
@@ -393,6 +434,11 @@ export interface DeckDisplayCard {
   allocatedCopyId?: string | null;
   /** Unix ms when this slot was added. Absent on cards predating the field. */
   addedAt?: number;
+  /** User tags (E171) — see the `tags` doc on `DeckCard` for the
+   *  sticky-override contract (`undefined` = untouched, `[]` = edited/cleared). */
+  tags?: string[];
+  /** Manual drag-order position (E172) — see the doc on `DeckCard`. */
+  sortIndex?: number;
 }
 
 export interface DeckDisplayProps {
@@ -481,9 +527,16 @@ export interface DeckDisplayProps {
    * cards only — see `getMaxCopies`): pass `{ relative: true }` and `qty`
    * becomes a delta (±1) instead of an absolute target, so two rapid taps
    * can't drop an update to a stale closed-over count. Host owns batching
-   * (e.g. one undo toast per edit).
+   * (e.g. one undo toast per edit). Zone-aware (E175) — `zone` says which of
+   * the deck's three card arrays the edit targets, so passing this through to
+   * a sideboard/considering section can never silently touch the mainboard.
    */
-  onSetQty?: (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => void;
+  onSetQty?: (
+    zone: DeckZone,
+    card: ScryfallCard,
+    qty: number,
+    opts?: { relative?: boolean }
+  ) => void;
   /** When provided, each row gets an "Edit printing" option in its menu. */
   onEditCard?: (slotId: string, card: ScryfallCard) => void;
   /** When provided, eligible rows get a "Make commander" option in their menu. */
@@ -589,6 +642,8 @@ export interface DeckDisplayProps {
   activeView?: DeckView;
   /** Reveal the standalone Test hand panel — surfaced in the Deck-view toolbar. */
   onShowTestHand?: () => void;
+  /** Opens the add-cards sheet — used by the empty-deck state's CTA (E182). */
+  onAddCards?: () => void;
   /**
    * UX-310: whether the async commander-deck analysis is still in-flight for
    * the first time. When 'pending', the Coach and Power tabs render skeleton
@@ -634,6 +689,32 @@ export interface DeckDisplayProps {
   existingCardCounts?: ReadonlyMap<string, number>;
   /** Stamp deck.lastArrivalReviewAt (silent) — fired once the sheet closes. */
   onMarkArrivalsReviewed?: () => void;
+  /**
+   * User tags (E171). All three optional — omitted (e.g. a read-only/shared
+   * view) means tags still DISPLAY (chips render from `cards`/`sideboard`/
+   * `considering`'s own `tags` field) but the editor and tag manager don't
+   * render any controls.
+   */
+  onSetCardTags?: (zone: DeckZone, slotIds: string[], tags: string[]) => void;
+  onRenameDeckTag?: (from: string, to: string) => void;
+  onRemoveDeckTag?: (tag: string) => void;
+  /**
+   * Multi-select bulk operations (E172). All optional — when omitted, the
+   * "Select" toolbar toggle doesn't render at all (mirrors how the tag props
+   * above gate the tag editor). Each fires exactly once per confirmed bulk
+   * action, whatever the selection size — the host wraps it in one store
+   * write + one undo entry.
+   */
+  onBulkRemove?: (zone: DeckZone, slotIds: string[]) => void;
+  onBulkMove?: (slotIds: string[], from: DeckZone, to: DeckZone) => void;
+  onBulkEditTag?: (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => void;
+  /**
+   * Manual drag reorder (E172), list view only. DeckDisplay computes the
+   * fractional sortIndex itself (pure — see lib/deck-reorder.ts) and hands
+   * off the already-computed value; the host just persists it. Omitted →
+   * the 'custom' sort option still shows but drag handles never render.
+   */
+  onReorder?: (zone: DeckZone, slotIds: string[], sortIndex: number) => void;
 }
 
 // ── Row shape ────────────────────────────────────────────────────────────
@@ -716,6 +797,11 @@ interface Row {
   collectorNumber: string;
   /** Earliest addedAt across all slots for this row. 0 for legacy cards. */
   addedAt: number;
+  /** Manual drag-order position (E172) — min across the row's slots, mirroring
+   *  addedAt's aggregation. Undefined until the row (or its stack) is dragged
+   *  at least once; 'custom' sort then falls back to addedAt (see sortRows /
+   *  lib/deck-reorder.ts). */
+  sortIndex?: number;
   /** True for the partner commander's synthetic row — drives the "Partner"
    *  tag that distinguishes it from the primary commander. */
   isPartner?: boolean;
@@ -723,6 +809,15 @@ interface Row {
    *  Slot-based rows resolve their badge via slotIds[0]; commander rows keep
    *  slotIds empty (no remove/qty actions) but still need their issues shown. */
   legalitySlotKey?: string;
+  /** Union of every slot's user tags (E171) across this aggregated row —
+   *  normally identical across slots (edits apply to the whole row, see
+   *  `onSetCardTags`), but unioned defensively for pre-E171 data where a
+   *  same-name stack's slots could disagree. */
+  tags: string[];
+  /** True if ANY slot in this row has been tag-edited (sticky — see the
+   *  `tags` doc on `DeckCard`). Drives the "edited" affordance and hides the
+   *  live auto-suggestion once true. */
+  tagsEdited: boolean;
 }
 
 // ── Foil treatment ─────────────────────────────────────────────────────────
@@ -858,7 +953,15 @@ function buildRows(
       existing.qty += 1;
       existing.price += priceOf(card, currency);
       if (dc.addedAt !== undefined) existing.addedAt = Math.min(existing.addedAt, dc.addedAt);
+      if (dc.sortIndex !== undefined) {
+        existing.sortIndex =
+          existing.sortIndex !== undefined
+            ? Math.min(existing.sortIndex, dc.sortIndex)
+            : dc.sortIndex;
+      }
       if (dc.slotId) existing.slotIds.push(dc.slotId);
+      for (const t of cardTagsOf(dc)) if (!existing.tags.includes(t)) existing.tags.push(t);
+      if (isTagsEdited(dc)) existing.tagsEdited = true;
       if (dc.allocatedCopyId) existing.allocatedCopyIds.push(dc.allocatedCopyId);
       if (status === 'allocated') existing.allocatedQty += 1;
       else if (status === 'orphan') existing.orphanQty += 1;
@@ -899,6 +1002,7 @@ function buildRows(
       price: priceOf(card, currency),
       colorKey: colorKeyOf(card),
       addedAt: dc.addedAt ?? 0,
+      sortIndex: dc.sortIndex,
       slotIds: dc.slotId ? [dc.slotId] : [],
       allocatedCopyIds: dc.allocatedCopyId ? [dc.allocatedCopyId] : [],
       status,
@@ -919,6 +1023,8 @@ function buildRows(
       setCode: owned?.setCode || card.set || '',
       setName: owned?.setName || card.set_name,
       collectorNumber: owned?.collectorNumber || card.collector_number || '',
+      tags: [...cardTagsOf(dc)],
+      tagsEdited: isTagsEdited(dc),
     });
   }
   const rows = [...map.values()];
@@ -1043,6 +1149,10 @@ const SORT_DEFAULT_DIR: Record<SortMode, 'asc' | 'desc'> = {
   price: 'desc',
   color: 'asc',
   added: 'desc',
+  // 'asc' reads as "the order you left it in" — there's no meaningful
+  // "reversed custom order," so this direction is effectively decorative,
+  // but every SortMode needs an entry here (onToggleSort indexes into it).
+  custom: 'asc',
 };
 
 function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
@@ -1064,6 +1174,14 @@ function sortRows(rows: Row[], mode: SortMode, dir: 'asc' | 'desc'): Row[] {
     }
     case 'added':
       sorted.sort((a, b) => (a.addedAt - b.addedAt) * sign || a.name.localeCompare(b.name));
+      break;
+    case 'custom':
+      // Dragged rows compare by their persisted sortIndex; never-dragged rows
+      // fall back to addedAt (same ms scale — see lib/deck-reorder.ts).
+      sorted.sort(
+        (a, b) =>
+          (effectiveSortIndex(a) - effectiveSortIndex(b)) * sign || a.name.localeCompare(b.name)
+      );
       break;
     case 'name':
     default:
@@ -1150,6 +1268,47 @@ function groupByCategory(
       const icon = cat === 'lands' ? 'land' : cat === 'creatures' ? 'creature' : cat;
       ordered.push({ title: CATEGORY_TITLES[cat], icon, rows: rowsForCat ?? [], target });
     }
+  }
+  return ordered;
+}
+
+// Group a flat Row[] by user tag (E171). Unlike groupByType/groupByCategory
+// this is NOT a partition — a multi-tagged row appears in every one of its
+// tag's groups, by design (multi-tag was a deliberate ruling, see the
+// DeckCard.tags doc). That's exactly what makes the section-header counts
+// here NOT summable into a deck total: the true count lives only in the
+// stat-strip's `totalCards` (computed straight from `cards.length`, never
+// from these groups — see the honesty note this function's caller renders).
+// Rows are alphabetical by tag name; an "Untagged" bucket trails last so a
+// deck that's only partially tagged still shows the whole list.
+const UNTAGGED_GROUP_TITLE = 'Untagged';
+function groupByTag(rows: Row[], commanderRows?: Row[]): TypedGroup[] {
+  const buckets = new Map<string, Row[]>();
+  const untagged: Row[] = [];
+  for (const row of rows) {
+    if (row.tags.length === 0) {
+      untagged.push(row);
+      continue;
+    }
+    for (const tag of row.tags) {
+      const bucket = buckets.get(tag) ?? [];
+      bucket.push(row);
+      buckets.set(tag, bucket);
+    }
+  }
+  const ordered: TypedGroup[] = [];
+  if (commanderRows && commanderRows.length > 0) {
+    ordered.push({
+      title: commanderRows.length > 1 ? 'Commanders' : 'Commander',
+      icon: 'commander',
+      rows: commanderRows,
+    });
+  }
+  for (const tag of [...buckets.keys()].sort((a, b) => a.localeCompare(b))) {
+    ordered.push({ title: tag, icon: 'tag', rows: buckets.get(tag)! });
+  }
+  if (untagged.length > 0) {
+    ordered.push({ title: UNTAGGED_GROUP_TITLE, icon: 'tag', rows: untagged });
   }
   return ordered;
 }
@@ -1263,6 +1422,7 @@ export function DeckDisplay({
   renderSimilarCards,
   activeView = 'deck',
   onShowTestHand,
+  onAddCards,
   analysisState = 'ready',
   onNavigateToTune,
   scoreRevealKey,
@@ -1274,6 +1434,13 @@ export function DeckDisplay({
   arrivalsByType,
   existingCardCounts,
   onMarkArrivalsReviewed,
+  onSetCardTags,
+  onRenameDeckTag,
+  onRemoveDeckTag,
+  onBulkRemove,
+  onBulkMove,
+  onBulkEditTag,
+  onReorder,
 }: DeckDisplayProps) {
   const formatConfig = DECK_FORMAT_CONFIGS[format];
   const currency: CurrencyCode = useCurrency();
@@ -1290,12 +1457,51 @@ export function DeckDisplay({
     }
   };
   const [search, setSearch] = useState('');
-  // Considering (E122): collapsed by default when empty (a quiet affordance,
-  // never a big empty shell); open by default the first time it holds cards
-  // so newly-routed import extras / parked suggestions are visible without an
-  // extra tap. Lazy-init only — the user's own toggle afterward always wins,
-  // it doesn't re-derive as cards move in/out while mounted.
-  const [consideringOpen, setConsideringOpen] = useState(() => considering.length > 0);
+  // "Not in the deck" zone (E176): which of the two zones the segmented
+  // switch shows. Defaults to whichever actually holds cards (Sideboard
+  // unless it's empty and Considering isn't) so newly-routed import extras
+  // / parked suggestions are visible without an extra tap — same intent as
+  // the old Considering auto-open heuristic, adapted to a tab switch.
+  // Lazy-init only — the user's own tap afterward always wins, it doesn't
+  // re-derive as cards move in/out while mounted.
+  const [outzoneTab, setOutzoneTab] = useState<'sideboard' | 'considering'>(() =>
+    sideboard.length === 0 && considering.length > 0 ? 'considering' : 'sideboard'
+  );
+
+  // ── Multi-select (E172) ──────────────────────────────────────────────────
+  // A deliberate mode the user opts into via the toolbar's "Select" toggle —
+  // mirrors CardListTable's selectMode pattern (see STYLE_GUIDE.md "Selection
+  // mode & drag reorder"). Row tap/Enter/Space stays "open preview" until
+  // this is on; DeckCardRow reroutes it to toggle-select instead. Scoped to
+  // ONE zone at a time (a bulk action only ever targets one zone) — the Set
+  // holds SLOT ids directly (a row toggle adds/removes its whole stack), so
+  // executing a bulk action never needs a row lookup, just `[...keys]`.
+  const canBulkEdit = !!(onBulkRemove || onBulkMove || onBulkEditTag);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selection, setSelection] = useState<{ zone: DeckZone; keys: Set<string> } | null>(null);
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelection(null);
+  };
+  const isRowSelected = (zone: DeckZone, row: Row): boolean =>
+    !!selection &&
+    selection.zone === zone &&
+    row.slotIds.length > 0 &&
+    row.slotIds.every((id) => selection.keys.has(id));
+  const toggleRowSelected = (zone: DeckZone, row: Row) => {
+    if (row.slotIds.length === 0) return;
+    setSelection((cur) => {
+      const sameZone = cur && cur.zone === zone;
+      const keys = sameZone ? new Set(cur!.keys) : new Set<string>();
+      const selected = row.slotIds.every((id) => keys.has(id));
+      for (const id of row.slotIds) {
+        if (selected) keys.delete(id);
+        else keys.add(id);
+      }
+      return keys.size === 0 ? null : { zone, keys };
+    });
+  };
+  const [confirmBulkRemove, setConfirmBulkRemove] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>(() => readStoredExportFormat());
   const [viewMode, setViewMode] = useState<DeckViewMode>(() => readStoredViewMode());
   const [groupBy, setGroupBy] = useState<DeckGroupBy>(() => readStoredGroupBy());
@@ -1430,6 +1636,10 @@ export function DeckDisplay({
         collectorNumber: owned?.collectorNumber || c.collector_number || '',
         isPartner,
         legalitySlotKey: isPartner ? PARTNER_COMMANDER_SLOT_ID : COMMANDER_SLOT_ID,
+        // Commanders have no deck slot to tag (E171 is a mainboard/side/
+        // considering concept) — always untouched/untagged.
+        tags: [],
+        tagsEdited: false,
       });
     };
     if (commander) push(commander, commanderAllocatedCopyId);
@@ -1461,6 +1671,7 @@ export function DeckDisplay({
   // one-time settle as the role-filter bar's counts.
   const groups = useMemo(() => {
     const rows = buildRows(cards, currency, collectionByCopyId, crossDeck);
+    if (groupBy === 'tag') return groupByTag(rows, commanderRows);
     return groupBy === 'category'
       ? groupByCategory(rows, categoryTargets, commanderRows)
       : groupByType(rows, commanderRows);
@@ -1474,6 +1685,14 @@ export function DeckDisplay({
     categoryTargets,
     taggerReady,
   ]);
+
+  // Every distinct user tag across the WHOLE deck (all 3 zones, unfiltered
+  // by search/groupBy) — the tag manager's "see all tags" list. Deliberately
+  // independent of `visibleGroups` so it's stable while searching/grouping.
+  const deckTags = useMemo(
+    () => collectDeckTags({ cards, sideboard, considering }),
+    [cards, sideboard, considering]
+  );
 
   // Sideboard rows always stay type-grouped — the sideboard is a small,
   // rarely-consulted holding list, not the shape-story surface the category
@@ -1781,25 +2000,42 @@ export function DeckDisplay({
   // ── Card preview wiring ──────────────────────────────────────────────
   // Re-resolve rarity for cards whose stored snapshot defaulted to 'common'
   // (decks generated against the pre-#329 offline oracle). See the hook doc.
+  // All three zones, not just the mainboard: `flat` below applies these
+  // corrections to cards/sideboard/considering alike, so feeding only
+  // `visibleGroups` left a card that lives ONLY in the sideboard or in
+  // Considering stuck on its stale 'common' snapshot forever. The hook dedupes
+  // by oracle id internally, so the tag-grouped view's repeated rows cost
+  // nothing here.
   const previewCards = useMemo<ScryfallCard[]>(
-    () => visibleGroups.flatMap((g) => g.rows.map((r) => r.card)),
-    [visibleGroups]
+    () =>
+      [...visibleGroups, ...visibleSideboardGroups, ...visibleConsideringGroups].flatMap((g) =>
+        g.rows.map((r) => r.card)
+      ),
+    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups]
   );
   const rarityCorrections = useRarityCorrections(previewCards);
   const flat = useMemo(() => {
     const enrichedCards: EnrichedCard[] = [];
     const labels: string[] = [];
     const rows: Row[] = [];
+    const zones: DeckZone[] = [];
     const indexByName = new Map<string, number>();
     // Mainboard first, then sideboard, then considering — so the carousel +
     // hover-peek resolve those cards too (same inspect path as the
     // mainboard). A name only in one zone maps to that zone's entry; a name
     // in more than one keeps the earliest zone's (first wins).
-    const pushGroups = (groups: typeof visibleGroups) => {
+    const pushGroups = (groups: typeof visibleGroups, zone: DeckZone) => {
+      // Tag groupBy is NOT a partition (E171) — a multi-tagged row can appear
+      // in more than one of `groups`. Dedupe within this zone's pass so the
+      // carousel never repeats the same card as consecutive slides.
+      const pushedThisZone = new Set<string>();
       for (const g of groups) {
         for (const row of g.rows) {
+          if (pushedThisZone.has(row.name)) continue;
+          pushedThisZone.add(row.name);
           if (!indexByName.has(row.name)) indexByName.set(row.name, enrichedCards.length);
           rows.push(row);
+          zones.push(zone);
           enrichedCards.push(
             scryfallToEnrichedCard(row.card, {
               frontImageOverride: row.imageNormal,
@@ -1822,10 +2058,10 @@ export function DeckDisplay({
         }
       }
     };
-    pushGroups(visibleGroups);
-    pushGroups(visibleSideboardGroups);
-    pushGroups(visibleConsideringGroups);
-    return { cards: enrichedCards, labels, rows, indexByName };
+    pushGroups(visibleGroups, 'cards');
+    pushGroups(visibleSideboardGroups, 'sideboard');
+    pushGroups(visibleConsideringGroups, 'considering');
+    return { cards: enrichedCards, labels, rows, zones, indexByName };
   }, [visibleGroups, visibleSideboardGroups, visibleConsideringGroups, rarityCorrections]);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -1848,6 +2084,24 @@ export function DeckDisplay({
     const i = flat.indexByName.get(rowName);
     if (i !== undefined) setPreviewIndex(i);
   };
+
+  // Zone-aware qty (E175): bind the host's single `onSetQty(zone, card, qty,
+  // opts)` to a specific zone for a given CategorySection instance, so a
+  // sideboard/considering section's stepper can never reach mainboard.cards.
+  // Preserves the existing "omitted prop → stepper doesn't render at all"
+  // gate (CategorySection/DeckCardRow only render it when truthy).
+  const onSetQtyForZone = (zone: DeckZone) =>
+    onSetQty
+      ? (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) =>
+          onSetQty(zone, card, qty, opts)
+      : undefined;
+
+  // Same zone-binding shape for reorder (E172) — CategorySection computes the
+  // sortIndex itself and hands it here already resolved.
+  const onReorderForZone = (zone: DeckZone) =>
+    onReorder
+      ? (slotIds: string[], sortIndex: number) => onReorder(zone, slotIds, sortIndex)
+      : undefined;
 
   // New-arrivals header chip (E140) — shared renderer used by both the list
   // view's CategorySection headerAction slot (below) and the grid view's own
@@ -1894,6 +2148,13 @@ export function DeckDisplay({
   const activeRoleFilter =
     roleFilter && roleFilterEntries.some(([key]) => key === roleFilter) ? roleFilter : null;
 
+  // "Not in the deck" zone (E176): whether the format has a real sideboard
+  // at all (every DECK_FORMAT_CONFIGS entry does today, but the format
+  // config's own sideboardSize gate is the single source, mirrored from the
+  // former list-view-only sideboard section). false → the switch collapses
+  // to Considering alone (a 1-item tablist would be an anti-pattern).
+  const showSideboardTab = formatConfig.sideboardSize > 0;
+
   const ctxValue = useMemo(
     () => ({
       openCard: () => {},
@@ -1937,7 +2198,110 @@ export function DeckDisplay({
               onShowPrefsChange={handleShowPrefsChange}
               onExport={() => setExportOpen(true)}
               onShowTestHand={onShowTestHand}
+              outzoneCount={sideboard.length + considering.length}
+              canBulkEdit={canBulkEdit}
+              selectMode={selectMode}
+              onToggleSelectMode={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             />
+
+            {/* Bulk-action bar (E172) — replaces nothing, sits between the
+                toolbar and the stat strip only while selecting. Actions are
+                zone-contextual: which buttons render depends on which zone
+                the current selection is in (mainboard/sideboard/considering
+                each have a different legal destination set). */}
+            {selectMode && (
+              <div className="deck-bulk-bar" role="region" aria-label="Bulk actions">
+                <span className="deck-bulk-count">
+                  {selection
+                    ? `${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'} selected`
+                    : 'Select cards…'}
+                </span>
+                {selection && onBulkMove && selection.zone === 'cards' && showSideboardTab && (
+                  <button
+                    type="button"
+                    className="btn deck-bulk-btn"
+                    onClick={() => {
+                      onBulkMove([...selection.keys], 'cards', 'sideboard');
+                      setSelection(null);
+                    }}
+                  >
+                    Move to sideboard
+                  </button>
+                )}
+                {selection && onBulkMove && selection.zone === 'cards' && (
+                  <button
+                    type="button"
+                    className="btn deck-bulk-btn"
+                    onClick={() => {
+                      onBulkMove([...selection.keys], 'cards', 'considering');
+                      setSelection(null);
+                    }}
+                  >
+                    Move to considering
+                  </button>
+                )}
+                {selection && onBulkMove && selection.zone !== 'cards' && (
+                  <button
+                    type="button"
+                    className="btn deck-bulk-btn"
+                    onClick={() => {
+                      onBulkMove([...selection.keys], selection.zone, 'cards');
+                      setSelection(null);
+                    }}
+                  >
+                    Move to mainboard
+                  </button>
+                )}
+                {selection && onBulkEditTag && (
+                  <ToolbarPopover
+                    label="Tag"
+                    icon={<TagIcon width={14} height={14} strokeWidth={2} aria-hidden />}
+                  >
+                    {(close) => (
+                      <BulkTagPopoverBody
+                        existingTags={deckTags.map((t) => t.tag)}
+                        onAdd={(tag) => {
+                          onBulkEditTag(selection.zone, [...selection.keys], tag, true);
+                          close();
+                        }}
+                        onRemove={(tag) => {
+                          onBulkEditTag(selection.zone, [...selection.keys], tag, false);
+                          close();
+                        }}
+                      />
+                    )}
+                  </ToolbarPopover>
+                )}
+                {selection && onBulkRemove && (
+                  <button
+                    type="button"
+                    className="btn btn-danger deck-bulk-btn"
+                    onClick={() => setConfirmBulkRemove(true)}
+                  >
+                    <Trash2 width={14} height={14} strokeWidth={2} aria-hidden />
+                    Remove
+                  </button>
+                )}
+                <button type="button" className="btn deck-bulk-done" onClick={exitSelectMode}>
+                  Done
+                </button>
+              </div>
+            )}
+
+            {confirmBulkRemove && selection && onBulkRemove && (
+              <ConfirmDialog
+                title={`Remove ${selection.keys.size} ${selection.keys.size === 1 ? 'card' : 'cards'}?`}
+                body="This removes the selected cards from the deck. You can undo it from the editor's undo history right after."
+                confirmLabel="Remove"
+                danger
+                onConfirm={() => {
+                  onBulkRemove(selection.zone, [...selection.keys]);
+                  setSelection(null);
+                  setConfirmBulkRemove(false);
+                }}
+                onCancel={() => setConfirmBulkRemove(false)}
+              />
+            )}
 
             {/* High-level stats, glanceable while editing the list — these used
                 to live behind the Overview analysis tab. Each reads as a metric:
@@ -2082,9 +2446,85 @@ export function DeckDisplay({
               </div>
             )}
 
+            {/* Overlap-honesty note (E171): grouping by tag is NOT a partition
+                — a card with 2 tags shows up in both groups, so summing the
+                section counts below overstates the deck. The stat strip's
+                card count (computed straight from the raw lists, never from
+                these groups) is the only number that's ever a total. */}
+            {groupBy === 'tag' && (
+              <div className="deck-tag-honesty-banner">
+                <TagIcon width={14} height={14} strokeWidth={2} aria-hidden />
+                <span>
+                  Tags can overlap — a multi-tagged card appears in every group it's tagged with.
+                  The card count above is always the true deck size.
+                </span>
+                {deckTags.length > 0 && (onRenameDeckTag || onRemoveDeckTag) && (
+                  <ToolbarPopover
+                    triggerClassName="btn btn-sm deck-tag-manage-btn"
+                    triggerContent="Manage tags"
+                    triggerAriaLabel="Manage deck tags"
+                    panelClassName="toolbar-popover-panel toolbar-popover-panel--fixed deck-tag-manager-popover"
+                    panelAriaLabel="Manage tags"
+                  >
+                    {(close) => (
+                      <DeckTagManager
+                        tags={deckTags}
+                        onRename={onRenameDeckTag}
+                        onRemove={onRemoveDeckTag}
+                        onDone={close}
+                      />
+                    )}
+                  </ToolbarPopover>
+                )}
+              </div>
+            )}
+
             <div className="deck-display-body">
               <div className="deck-display-main">
-                {viewMode === 'list' && (
+                {/* E182: a brand-new deck (no commander, no cards) previously
+                    rendered a fully interactive toolbar over a blank
+                    .deck-card-list — this is the manual builder's first
+                    impression, so it needs its own state rather than empty
+                    space. Reuses the insight-strip idiom (one row,
+                    --surface-raised) instead of a bespoke illustration.
+                    Commander-format decks with no commander yet get distinct
+                    copy — everything downstream (suggestions, identity)
+                    depends on the commander, so that's the actual next step. */}
+                {visibleGroups.length === 0 && (
+                  <div className="deck-empty-state">
+                    <span className="deck-empty-state-icon" aria-hidden>
+                      <Search width={18} height={18} strokeWidth={2} />
+                    </span>
+                    <div className="deck-empty-state-body">
+                      {formatConfig.hasCommander && !commander ? (
+                        <>
+                          <p className="deck-empty-state-headline">
+                            This deck needs a commander first.
+                          </p>
+                          <p className="deck-empty-state-detail">
+                            Suggestions, color identity, and legality all follow your commander —
+                            add one to get started.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="deck-empty-state-headline">This deck is empty.</p>
+                          <p className="deck-empty-state-detail">
+                            Search the card index below and add your first cards.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary deck-empty-state-action"
+                      onClick={() => onAddCards?.()}
+                    >
+                      {formatConfig.hasCommander && !commander ? 'Choose a commander' : 'Add cards'}
+                    </button>
+                  </div>
+                )}
+                {viewMode === 'list' && visibleGroups.length > 0 && (
                   <div
                     className="deck-card-list"
                     {...hoverPeek.listHandlers}
@@ -2101,14 +2541,17 @@ export function DeckDisplay({
                         showPrefs={showPrefs}
                         onRowClick={openPreview}
                         onRemoveCard={onRemoveCard}
-                        onSetQty={onSetQty}
+                        onSetQty={onSetQtyForZone('cards')}
+                        selectMode={selectMode}
+                        isRowSelected={(row) => isRowSelected('cards', row)}
+                        onToggleRowSelected={(row) => toggleRowSelected('cards', row)}
+                        dragEnabled={sort === 'custom'}
+                        onReorder={onReorderForZone('cards')}
                         isSingleton={formatConfig.isSingleton}
                         onEditCard={onEditCard}
                         roleFilter={activeRoleFilter}
                         legalityBySlot={legalityBySlot}
-                        onMoveToSideboard={
-                          formatConfig.sideboardSize > 0 ? onMoveToSideboard : undefined
-                        }
+                        onMoveToSideboard={showSideboardTab ? onMoveToSideboard : undefined}
                         onMoveToConsidering={onMoveToConsidering}
                         onMakeCommander={onMakeCommander}
                         canMakeCommander={canMakeCommander}
@@ -2132,107 +2575,9 @@ export function DeckDisplay({
                         cardProvenance={cardProvenance}
                       />
                     ))}
-
-                    {formatConfig.sideboardSize > 0 && (
-                      <div className="deck-sideboard-section">
-                        <h3 className="deck-sideboard-header">
-                          Sideboard ({sideboard.length}
-                          {Number.isFinite(formatConfig.sideboardSize)
-                            ? `/${formatConfig.sideboardSize}`
-                            : ''}
-                          )
-                        </h3>
-                        {visibleSideboardGroups.map((g) => (
-                          <CategorySection
-                            key={`sb-${g.title}`}
-                            title={g.title}
-                            icon={g.icon}
-                            rows={g.rows}
-                            currency={currency}
-                            showPrefs={showPrefs}
-                            onRowClick={openPreview}
-                            onRemoveCard={onRemoveSideboardCard}
-                            onSetQty={undefined}
-                            onEditCard={onEditCard}
-                            roleFilter={activeRoleFilter}
-                            legalityBySlot={legalityBySlot}
-                            onMoveToMainboard={onMoveToMainboard}
-                            onMakeCommander={onMakeCommander}
-                            canMakeCommander={canMakeCommander}
-                            onMakePartner={onMakePartner}
-                            canMakePartner={canMakePartner}
-                            onMoveToAnotherDeck={onMoveToAnotherDeck}
-                            onReleaseCopy={onReleaseCopy}
-                            onUseOwnCopy={onUseOwnCopy}
-                            synergyByName={synergyByName}
-                            cardInclusionMap={cardInclusionMap}
-                            cardProvenance={cardProvenance}
-                          />
-                        ))}
-                        {sideboard.length === 0 && (
-                          <p className="deck-sideboard-empty">No sideboard cards yet</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Considering (E122) — always present regardless of format
-                        (unlike the sideboard, which is format-gated): a
-                        park-candidates zone, visually subordinate to the
-                        mainboard. Collapsed to a one-line header when there's
-                        nothing to show; the disclosure body only mounts real
-                        content when opened. */}
-                    <div className="deck-considering-section">
-                      <button
-                        type="button"
-                        className="deck-considering-header"
-                        aria-expanded={consideringOpen}
-                        aria-controls="deck-considering-body"
-                        onClick={() => setConsideringOpen((v) => !v)}
-                      >
-                        <span className="deck-considering-title">
-                          Considering
-                          <span className="deck-considering-count">({considering.length})</span>
-                        </span>
-                        {consideringOpen ? (
-                          <ChevronUp width={14} height={14} strokeWidth={2} aria-hidden />
-                        ) : (
-                          <ChevronDown width={14} height={14} strokeWidth={2} aria-hidden />
-                        )}
-                      </button>
-                      <div
-                        id="deck-considering-body"
-                        className="deck-considering-body"
-                        hidden={!consideringOpen}
-                      >
-                        {visibleConsideringGroups.map((g) => (
-                          <CategorySection
-                            key={`cn-${g.title}`}
-                            title={g.title}
-                            icon={g.icon}
-                            rows={g.rows}
-                            currency={currency}
-                            showPrefs={showPrefs}
-                            onRowClick={openPreview}
-                            onRemoveCard={onRemoveConsideringCard}
-                            onSetQty={undefined}
-                            roleFilter={activeRoleFilter}
-                            onMoveToMainboard={onMoveFromConsidering}
-                            synergyByName={synergyByName}
-                            cardInclusionMap={cardInclusionMap}
-                            cardProvenance={cardProvenance}
-                          />
-                        ))}
-                        {considering.length === 0 && (
-                          <p className="deck-considering-empty">
-                            Nothing parked here yet — cards you're unsure about land here from
-                            import, suggestions, or "Move to considering" on any card.
-                          </p>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 )}
-                {viewMode === 'grid' && (
+                {viewMode === 'grid' && visibleGroups.length > 0 && (
                   <DeckCardGrid
                     groups={visibleGroups}
                     onRowClick={openPreview}
@@ -2248,6 +2593,128 @@ export function DeckDisplay({
                     onOpenArrivals={setOpenArrivalsBucket}
                   />
                 )}
+
+                {/* "Not in the deck" (E176) — one subordinate zone below the
+                    decklist, in EVERY view mode (the former defect: this
+                    content only rendered inside the list-view branch, so
+                    grid-view users could neither see nor reach it). Always a
+                    compact row list (CategorySection/DeckCardRow) even in
+                    grid view — it's a small holding zone, not a shape story,
+                    so thumbnails would waste vertical space. The Sideboard
+                    tab is format-gated (unlimited/constructed sideboards);
+                    Considering (E122) is always available and always
+                    excluded from stats/legality/mana/role counts upstream
+                    (see the `cards`-only `allCards`/`legalityIssues` memos
+                    above — this zone never feeds them). */}
+                <div className="deck-outzone">
+                  <h3 className="deck-outzone-title" id="deck-outzone" tabIndex={-1}>
+                    Not in the deck
+                  </h3>
+                  {showSideboardTab ? (
+                    <Tabs
+                      ariaLabel="Not in the deck"
+                      variant="fitted"
+                      value={outzoneTab}
+                      onChange={setOutzoneTab}
+                      tabs={[
+                        {
+                          id: 'sideboard',
+                          label: 'Sideboard',
+                          count: sideboard.length,
+                          controls: 'deck-outzone-panel',
+                          ariaLabel: `Sideboard, ${sideboard.length} cards`,
+                        },
+                        {
+                          id: 'considering',
+                          label: 'Considering',
+                          count: considering.length,
+                          controls: 'deck-outzone-panel',
+                          ariaLabel: `Considering, ${considering.length} cards`,
+                        },
+                      ]}
+                    />
+                  ) : (
+                    <div className="deck-outzone-single-label">
+                      Considering
+                      <span className="deck-outzone-single-count">({considering.length})</span>
+                    </div>
+                  )}
+                  <div
+                    id="deck-outzone-panel"
+                    className="deck-outzone-body"
+                    role={showSideboardTab ? 'tabpanel' : undefined}
+                    aria-labelledby={showSideboardTab ? `sc-tab-${outzoneTab}` : undefined}
+                  >
+                    {outzoneTab === 'sideboard' && showSideboardTab ? (
+                      visibleSideboardGroups.length > 0 ? (
+                        visibleSideboardGroups.map((g) => (
+                          <CategorySection
+                            key={`sb-${g.title}`}
+                            title={g.title}
+                            icon={g.icon}
+                            rows={g.rows}
+                            currency={currency}
+                            showPrefs={showPrefs}
+                            onRowClick={openPreview}
+                            onRemoveCard={onRemoveSideboardCard}
+                            onSetQty={onSetQtyForZone('sideboard')}
+                            selectMode={selectMode}
+                            isRowSelected={(row) => isRowSelected('sideboard', row)}
+                            onToggleRowSelected={(row) => toggleRowSelected('sideboard', row)}
+                            dragEnabled={sort === 'custom'}
+                            onReorder={onReorderForZone('sideboard')}
+                            onEditCard={onEditCard}
+                            roleFilter={activeRoleFilter}
+                            legalityBySlot={legalityBySlot}
+                            onMoveToMainboard={onMoveToMainboard}
+                            onMakeCommander={onMakeCommander}
+                            canMakeCommander={canMakeCommander}
+                            onMakePartner={onMakePartner}
+                            canMakePartner={canMakePartner}
+                            onMoveToAnotherDeck={onMoveToAnotherDeck}
+                            onReleaseCopy={onReleaseCopy}
+                            onUseOwnCopy={onUseOwnCopy}
+                            synergyByName={synergyByName}
+                            cardInclusionMap={cardInclusionMap}
+                            cardProvenance={cardProvenance}
+                          />
+                        ))
+                      ) : (
+                        <p className="deck-outzone-empty">No sideboard cards yet</p>
+                      )
+                    ) : visibleConsideringGroups.length > 0 ? (
+                      visibleConsideringGroups.map((g) => (
+                        <CategorySection
+                          key={`cn-${g.title}`}
+                          title={g.title}
+                          icon={g.icon}
+                          rows={g.rows}
+                          currency={currency}
+                          showPrefs={showPrefs}
+                          onRowClick={openPreview}
+                          onRemoveCard={onRemoveConsideringCard}
+                          onSetQty={onSetQtyForZone('considering')}
+                          selectMode={selectMode}
+                          isRowSelected={(row) => isRowSelected('considering', row)}
+                          onToggleRowSelected={(row) => toggleRowSelected('considering', row)}
+                          dragEnabled={sort === 'custom'}
+                          onReorder={onReorderForZone('considering')}
+                          roleFilter={activeRoleFilter}
+                          onMoveToMainboard={onMoveFromConsidering}
+                          synergyByName={synergyByName}
+                          cardInclusionMap={cardInclusionMap}
+                          cardProvenance={cardProvenance}
+                        />
+                      ))
+                    ) : (
+                      <p className="deck-outzone-empty">
+                        Nothing parked here yet — cards you're unsure about land here from import,
+                        suggestions, or "Move to considering" on any card.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {onAddFromSearch && search.trim().length >= 1 && noDeckMatches && (
                   <button
                     type="button"
@@ -2367,6 +2834,10 @@ export function DeckDisplay({
             renderPanelMeta={(i) => {
               const r = flat.rows[i];
               if (!r) return null;
+              // Commander/partner rows have no deck slot (r.slotIds is empty) —
+              // nothing to tag, so the editor stays off; existing tags (there
+              // never are any) still display via `tags` if that ever changes.
+              const canEditTags = !!onSetCardTags && r.slotIds.length > 0;
               return (
                 <DeckCardPreviewMeta
                   card={r.card}
@@ -2380,6 +2851,15 @@ export function DeckDisplay({
                       : undefined
                   }
                   status={r.status}
+                  tags={r.tags}
+                  tagsEdited={r.tagsEdited}
+                  suggestedTag={!r.tagsEdited ? suggestedTagForCard(r.card) : null}
+                  existingDeckTags={deckTags.map((t) => t.tag)}
+                  onSetTags={
+                    canEditTags
+                      ? (tags) => onSetCardTags!(flat.zones[i], r.slotIds, tags)
+                      : undefined
+                  }
                 />
               );
             }}
@@ -2520,6 +3000,14 @@ interface ToolbarProps {
   onExport: () => void;
   /** Reveal the standalone Test hand panel (goldfishing acts on this list). */
   onShowTestHand?: () => void;
+  /** Sideboard + Considering combined count — drives the "Not in the deck"
+   *  jump chip (E176). 0 still renders the chip (the zone always exists). */
+  outzoneCount: number;
+  /** E172 — whether ANY bulk-edit callback was passed; gates the "Select"
+   *  toggle rendering at all (mirrors the tag props' own gating). */
+  canBulkEdit: boolean;
+  selectMode: boolean;
+  onToggleSelectMode: () => void;
 }
 
 const SORT_LABEL: Record<SortMode, string> = {
@@ -2528,8 +3016,12 @@ const SORT_LABEL: Record<SortMode, string> = {
   color: 'Color',
   price: 'Price',
   added: 'Added',
+  custom: 'Custom order',
 };
-const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price', 'added'];
+// 'custom' sits last — it's an escape hatch a user opts into deliberately
+// (it's how drag-to-reorder becomes available at all; see DeckCardRow's
+// drag handle), not a default anyone would reach for first.
+const SORT_ORDER: SortMode[] = ['name', 'cmc', 'color', 'price', 'added', 'custom'];
 
 const SHOW_PREFS_LABEL: Record<keyof ShowPrefs, string> = {
   price: 'Price',
@@ -2591,6 +3083,78 @@ function RoleBadgeLegend() {
   );
 }
 
+// Bulk-tag popover body (E172) — a text input to add a new tag to the whole
+// selection, plus the deck's existing tags as one-tap chips (add). There's no
+// per-selected-card "which of these already has it" reconciliation here —
+// bulkEditTag's add/remove is idempotent per slot either way, so offering
+// every deck tag as an "add" chip is always safe, just sometimes a no-op for
+// cards that already carry it.
+function BulkTagPopoverBody({
+  existingTags,
+  onAdd,
+  onRemove,
+}: {
+  existingTags: string[];
+  onAdd: (tag: string) => void;
+  onRemove: (tag: string) => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const commit = () => {
+    const tag = draft.trim();
+    if (tag) onAdd(tag);
+    setDraft('');
+  };
+  return (
+    <div className="deck-bulk-tag-popover">
+      <div className="deck-bulk-tag-input-row">
+        <input
+          type="text"
+          className="deck-bulk-tag-input"
+          placeholder="New tag…"
+          value={draft}
+          maxLength={40}
+          aria-label="New tag name"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commit();
+            }
+          }}
+        />
+        <button type="button" className="btn btn-primary deck-bulk-tag-add" onClick={commit}>
+          Add
+        </button>
+      </div>
+      {existingTags.length > 0 && (
+        <ul className="deck-bulk-tag-chip-list" aria-label="Existing tags">
+          {existingTags.map((tag) => (
+            <li key={tag}>
+              <button
+                type="button"
+                className="deck-bulk-tag-chip"
+                onClick={() => onAdd(tag)}
+                title={`Add "${tag}" to selection`}
+              >
+                {tag}
+              </button>
+              <button
+                type="button"
+                className="deck-bulk-tag-chip-remove"
+                onClick={() => onRemove(tag)}
+                aria-label={`Remove "${tag}" from selection`}
+                title={`Remove "${tag}" from selection`}
+              >
+                <X width={11} height={11} strokeWidth={2.4} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // A single deck-list / grid role badge, now tap-to-reveal: on touch (no
 // hover) the native `title` tooltip never appears, so tapping the badge
 // opens a popover with the full role key — the tapped role highlighted.
@@ -2638,6 +3202,10 @@ function DeckToolbar({
   onShowPrefsChange,
   onExport,
   onShowTestHand,
+  outzoneCount,
+  canBulkEdit,
+  selectMode,
+  onToggleSelectMode,
 }: ToolbarProps) {
   return (
     <header className="deck-toolbar">
@@ -2645,9 +3213,33 @@ function DeckToolbar({
         <span className="deck-toolbar-title">{title}</span>
         {/* Grade and missing-cards count live in the Statistics → Overview
             panel now, so the toolbar stays focused on the deck title +
-            controls. */}
+            controls. Jump chip to the "Not in the deck" zone (E176) — the
+            title span above is display:none, so this is the summary
+            column's only visible content. */}
+        <a
+          href="#deck-outzone"
+          className="deck-toolbar-outzone-chip"
+          aria-label={`Not in the deck — ${outzoneCount} ${outzoneCount === 1 ? 'card' : 'cards'} — jump to sideboard and considering`}
+        >
+          Not in deck
+          <span className="deck-toolbar-outzone-count" aria-hidden>
+            {outzoneCount}
+          </span>
+        </a>
       </div>
       <div className="deck-toolbar-controls">
+        {canBulkEdit && (
+          <button
+            type="button"
+            className="toolbar-pill deck-toolbar-select-toggle"
+            aria-pressed={selectMode}
+            onClick={onToggleSelectMode}
+          >
+            <CheckSquare width={14} height={14} strokeWidth={2} aria-hidden />
+            <span>{selectMode ? 'Done' : 'Select'}</span>
+          </button>
+        )}
+
         <SelectMenu
           ariaLabel="Sort"
           value={sort}
@@ -2790,6 +3382,11 @@ function DeckGroupByToggle({
           value: 'category',
           label: 'Group by category',
           icon: <Tags width={14} height={14} strokeWidth={2} aria-hidden />,
+        },
+        {
+          value: 'tag',
+          label: 'Group by tag',
+          icon: <TagIcon width={14} height={14} strokeWidth={2} aria-hidden />,
         },
       ]}
     />
@@ -2957,7 +3554,8 @@ function DeckCardGrid({
                     {(row.isPartner ||
                       role ||
                       (synergy && synergy.length > 0) ||
-                      binders.length > 0) && (
+                      binders.length > 0 ||
+                      row.tags.length > 0) && (
                       <div className="deck-card-grid-badges">
                         {row.isPartner && (
                           <span
@@ -2966,6 +3564,18 @@ function DeckCardGrid({
                             aria-label="Partner commander"
                           >
                             <Handshake width={13} height={13} strokeWidth={2.4} aria-hidden />
+                          </span>
+                        )}
+                        {row.tags.length > 0 && (
+                          <span
+                            className="deck-card-grid-tags"
+                            title={`Tags: ${row.tags.join(', ')}`}
+                            aria-label={`Tags: ${row.tags.join(', ')}`}
+                          >
+                            <TagIcon width={11} height={11} strokeWidth={2.4} aria-hidden />
+                            {row.tags.length > 1 && (
+                              <span className="deck-card-grid-tags-count">{row.tags.length}</span>
+                            )}
                           </span>
                         )}
                         {binders.length > 0 && <BinderBadge binders={binders} />}
@@ -3046,6 +3656,11 @@ function CategorySection({
   cardInclusionMap,
   cardProvenance,
   target,
+  selectMode,
+  isRowSelected,
+  onToggleRowSelected,
+  dragEnabled,
+  onReorder,
 }: {
   title: string;
   icon: string;
@@ -3082,12 +3697,56 @@ function CategorySection({
   cardInclusionMap?: Record<string, number>;
   /** Per-card "why is this here" reason (S2), keyed by card name. */
   cardProvenance?: Record<string, string>;
+  /** E172 multi-select — a row's checkbox replaces tap-to-preview when true. */
+  selectMode?: boolean;
+  isRowSelected?: (row: Row) => boolean;
+  onToggleRowSelected?: (row: Row) => void;
+  /** E172 manual reorder — drag handles render only when true (sort==='custom'
+   *  AND list view; see DeckDisplay). Mutually exclusive with selectMode in
+   *  the UI (both want the row's leading slot) — selectMode wins. */
+  dragEnabled?: boolean;
+  onReorder?: (slotIds: string[], sortIndex: number) => void;
 }) {
   // Hooks must run unconditionally — keep them above the empty-section early
   // return (a section emptying from N→0 cards would otherwise change the hook
   // count between renders and crash).
   const listRef = useRef<HTMLUListElement | null>(null);
   const { entries, registerItem, onExitEnd } = useListFlip(rows, (r) => r.name, listRef);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const [activeDragName, setActiveDragName] = useState<string | null>(null);
+  // Plain closures over `rows` — re-created fresh every render (like every
+  // other inline handler in this file), so they always see the current row
+  // order without needing a ref kept in sync during render.
+  const handleDragEnd = (e: DragEndEvent) => {
+    setActiveDragName(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id || !onReorder) return;
+    const fromIndex = rows.findIndex((r) => r.name === active.id);
+    const toIndex = rows.findIndex((r) => r.name === over.id);
+    if (fromIndex === -1 || toIndex === -1) return;
+    const sortIndex = reorderIndexForMove(rows, fromIndex, toIndex);
+    onReorder(rows[fromIndex].slotIds, sortIndex);
+  };
+  const dragAnnouncements: Announcements = {
+    onDragStart: ({ active }) => {
+      const idx = rows.findIndex((r) => r.name === active.id);
+      return `Picked up ${active.id}, position ${idx + 1} of ${rows.length}.`;
+    },
+    onDragOver: ({ active, over }) => {
+      if (!over) return `${active.id} is no longer over a droppable position.`;
+      const idx = rows.findIndex((r) => r.name === over.id);
+      return `${active.id} moved to position ${idx + 1} of ${rows.length}.`;
+    },
+    onDragEnd: ({ active, over }) => {
+      if (!over) return `${active.id} was not moved.`;
+      const idx = rows.findIndex((r) => r.name === over.id);
+      return `${active.id} dropped at position ${idx + 1} of ${rows.length}.`;
+    },
+    onDragCancel: ({ active }) => `Reordering ${active.id} was cancelled.`,
+  };
 
   // A bucket with no rows still renders when it carries a target (the 0/N
   // gap story) — see groupByCategory. Type-mode buckets never set `target`,
@@ -3095,6 +3754,52 @@ function CategorySection({
   if (rows.length === 0 && target === undefined) return null;
   const subtotal = rows.reduce((sum, r) => sum + r.price, 0);
   const count = rows.reduce((sum, r) => sum + r.qty, 0);
+
+  const listEl = (
+    <ul className="deck-section-rows" ref={listRef}>
+      {entries.map((entry) => (
+        <DeckCardRow
+          key={entry.key}
+          row={entry.item}
+          currency={currency}
+          showPrefs={showPrefs}
+          onClick={() => onRowClick(entry.item.name)}
+          onRemoveCard={entry.leaving ? undefined : onRemoveCard}
+          onSetQty={entry.leaving ? undefined : onSetQty}
+          isSingleton={isSingleton}
+          onEditCard={entry.leaving ? undefined : onEditCard}
+          roleFilter={roleFilter}
+          legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
+          onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
+          moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
+          onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
+          onMakeCommander={entry.leaving ? undefined : onMakeCommander}
+          canMakeCommander={canMakeCommander}
+          onMakePartner={entry.leaving ? undefined : onMakePartner}
+          canMakePartner={canMakePartner}
+          onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
+          onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
+          onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
+          synergyReasons={synergyByName?.get(entry.item.card.name)}
+          inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
+          provenanceReason={cardProvenance?.[entry.item.card.name]}
+          entering={entry.entering}
+          leaving={entry.leaving}
+          leavingStyle={entry.leaving ? entry.style : undefined}
+          itemRef={(el) => registerItem(entry.key, el)}
+          onLeavingAnimationEnd={() => onExitEnd(entry.key)}
+          selectMode={!entry.leaving && selectMode}
+          selected={!entry.leaving && isRowSelected?.(entry.item)}
+          onToggleSelected={
+            entry.leaving || !onToggleRowSelected
+              ? undefined
+              : () => onToggleRowSelected(entry.item)
+          }
+          dragEnabled={!entry.leaving && !selectMode && dragEnabled}
+        />
+      ))}
+    </ul>
+  );
 
   return (
     <section className="deck-section">
@@ -3132,41 +3837,27 @@ function CategorySection({
         )}
         {headerAction}
       </header>
-      <ul className="deck-section-rows" ref={listRef}>
-        {entries.map((entry) => (
-          <DeckCardRow
-            key={entry.key}
-            row={entry.item}
-            currency={currency}
-            showPrefs={showPrefs}
-            onClick={() => onRowClick(entry.item.name)}
-            onRemoveCard={entry.leaving ? undefined : onRemoveCard}
-            onSetQty={entry.leaving ? undefined : onSetQty}
-            isSingleton={isSingleton}
-            onEditCard={entry.leaving ? undefined : onEditCard}
-            roleFilter={roleFilter}
-            legalityIssue={legalityBySlot?.get(entry.item.legalitySlotKey ?? entry.item.slotIds[0])}
-            onMoveToZone={entry.leaving ? undefined : (onMoveToSideboard ?? onMoveToMainboard)}
-            moveZone={onMoveToSideboard ? 'sideboard' : onMoveToMainboard ? 'mainboard' : undefined}
-            onMoveToConsidering={entry.leaving ? undefined : onMoveToConsidering}
-            onMakeCommander={entry.leaving ? undefined : onMakeCommander}
-            canMakeCommander={canMakeCommander}
-            onMakePartner={entry.leaving ? undefined : onMakePartner}
-            canMakePartner={canMakePartner}
-            onMoveToAnotherDeck={entry.leaving ? undefined : onMoveToAnotherDeck}
-            onReleaseCopy={entry.leaving ? undefined : onReleaseCopy}
-            onUseOwnCopy={entry.leaving ? undefined : onUseOwnCopy}
-            synergyReasons={synergyByName?.get(entry.item.card.name)}
-            inclusionPct={resolveInclusionPct(cardInclusionMap, entry.item)}
-            provenanceReason={cardProvenance?.[entry.item.card.name]}
-            entering={entry.entering}
-            leaving={entry.leaving}
-            leavingStyle={entry.leaving ? entry.style : undefined}
-            itemRef={(el) => registerItem(entry.key, el)}
-            onLeavingAnimationEnd={() => onExitEnd(entry.key)}
-          />
-        ))}
-      </ul>
+      {dragEnabled ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          accessibility={{ announcements: dragAnnouncements }}
+          onDragStart={(e: DragStartEvent) => setActiveDragName(String(e.active.id))}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveDragName(null)}
+        >
+          <SortableContext items={rows.map((r) => r.name)} strategy={verticalListSortingStrategy}>
+            {listEl}
+          </SortableContext>
+          <DragOverlay dropAnimation={prefersReducedMotion() ? null : undefined}>
+            {activeDragName ? (
+              <span className="deck-row-drag-overlay">{activeDragName}</span>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        listEl
+      )}
     </section>
   );
 }
@@ -3200,6 +3891,10 @@ function DeckCardRow({
   leavingStyle,
   itemRef,
   onLeavingAnimationEnd,
+  selectMode,
+  selected,
+  onToggleSelected,
+  dragEnabled,
 }: {
   row: Row;
   currency: CurrencyCode;
@@ -3244,6 +3939,14 @@ function DeckCardRow({
   itemRef?: (el: HTMLLIElement | null) => void;
   /** Called on animationend to drop the ghost. */
   onLeavingAnimationEnd?: () => void;
+  /** E172 multi-select — when true, tap/Enter/Space toggles selection instead
+   *  of opening the card preview, and a checkbox renders in the leading slot. */
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelected?: () => void;
+  /** E172 manual reorder — renders the drag handle (pointer + keyboard) in
+   *  the leading slot. Never true at the same time as selectMode. */
+  dragEnabled?: boolean;
 }) {
   const roleBadge = showPrefs.roles ? getRoleBadge(row.card) : null;
   const mana = showPrefs.mana ? frontFaceMana(row.card) : undefined;
@@ -3290,6 +3993,20 @@ function DeckCardRow({
     if (clamped !== row.qty) onSetQty!(row.card, clamped);
   };
 
+  // ── Manual reorder (E172) ─────────────────────────────────────────────
+  // Always called (rules of hooks) — CategorySection always wraps its list
+  // in a DndContext/SortableContext, `dragEnabled` just gates whether the
+  // handle renders (so a section not in 'custom' sort mode has an inert,
+  // harmless sortable context, not a missing one). Deliberately does NOT
+  // apply `transform`/`transition` to the row's own style — that's
+  // `useListFlip`'s job (it already animates row position via imperative
+  // DOM writes on this exact node for add/remove/reorder), and having two
+  // systems fight over the same inline `transform` would produce visible
+  // jank. The live drag visual is the floating DragOverlay clone instead;
+  // this row just dims while it's the one being dragged.
+  const sortable = useSortable({ id: row.name });
+  const rowIsDragging = dragEnabled && sortable.isDragging;
+
   // ── +/− stepper ────────────────────────────────────────────────────────
   // liRef backs the decrement-to-zero focus handoff below; itemRef is the
   // FLIP measurement callback the host already passes — both need the node.
@@ -3297,6 +4014,7 @@ function DeckCardRow({
   const setLiRef = (el: HTMLLIElement | null) => {
     liRef.current = el;
     itemRef?.(el);
+    sortable.setNodeRef(el);
   };
   // Local in-flight guard (defense in depth): the relative-delta call below
   // is what actually prevents a dropped update on a rapid double-tap (it
@@ -3339,7 +4057,16 @@ function DeckCardRow({
     (entering ? ' is-entering' : '') +
     (leaving ? ' is-leaving' : '') +
     (roleDimmed ? ' is-role-dimmed' : '') +
-    (multiPrinting && expanded ? ' is-expanded' : '');
+    (multiPrinting && expanded ? ' is-expanded' : '') +
+    (selectMode ? ' is-selectable' : '') +
+    (selected ? ' is-selected' : '') +
+    (rowIsDragging ? ' is-dragging' : '');
+
+  // Select mode reroutes the whole-row tap/Enter/Space from "open preview"
+  // to "toggle selection" — the row's existing click/keyboard contract,
+  // just pointed at a different handler, so nothing about the carousel or
+  // the row's own buttons (which already stopPropagation) needs to change.
+  const rowActivate = selectMode && onToggleSelected ? onToggleSelected : onClick;
 
   // Shared between the plain and stepper-flanked layouts below so the two
   // never drift — the number itself is the live region (aria-atomic so a
@@ -3363,10 +4090,16 @@ function DeckCardRow({
       <li
         className={rowClass}
         data-peek-name={row.name}
-        onClick={leaving ? undefined : onClick}
+        onClick={leaving ? undefined : rowActivate}
         role={leaving ? undefined : 'button'}
         tabIndex={leaving ? -1 : 0}
         aria-hidden={leaving ? true : undefined}
+        aria-pressed={!leaving && selectMode ? !!selected : undefined}
+        aria-label={
+          !leaving && selectMode
+            ? `${row.name}${selected ? ', selected' : ', not selected'}`
+            : undefined
+        }
         ref={setLiRef}
         style={leavingStyle}
         onAnimationEnd={leaving ? onLeavingAnimationEnd : undefined}
@@ -3376,11 +4109,28 @@ function DeckCardRow({
             : (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onClick();
+                  rowActivate();
                 }
               }
         }
       >
+        {selectMode && (
+          <span className="deck-row-select-check" data-checked={!!selected} aria-hidden>
+            {selected && <Check width={13} height={13} strokeWidth={3} />}
+          </span>
+        )}
+        {!selectMode && dragEnabled && (
+          <button
+            type="button"
+            className="deck-row-drag-handle"
+            aria-label={`Reorder ${row.name}. Press space to pick up, arrow keys to move, space to drop.`}
+            onClick={(e) => e.stopPropagation()}
+            {...sortable.attributes}
+            {...sortable.listeners}
+          >
+            <GripVertical width={14} height={14} strokeWidth={2} aria-hidden />
+          </button>
+        )}
         {canEditQty && editingQty ? (
           <input
             type="number"
@@ -3487,6 +4237,22 @@ function DeckCardRow({
           )}
           {legalityIssue && <LegalityBadge issue={legalityIssue} className="deck-row-illegal" />}
           {row.foil && <FoilBadge card={row} />}
+          {/* User tags (E171) — always visible when set (never hover-gated,
+              unlike the system-derived hints below): a card's own tags are
+              user-authored content, and staying visible is exactly what
+              makes overlap between tag groups legible in "Group by tag". A
+              card with no tags renders nothing here — no clutter for anyone
+              who hasn't touched the feature. Editing lives in the card
+              preview panel (the single per-card view), not here. */}
+          {row.tags.length > 0 && (
+            <span className="deck-row-tags" aria-label={`Tags: ${row.tags.join(', ')}`}>
+              {row.tags.map((t) => (
+                <span key={t} className="deck-row-tag-chip">
+                  {t}
+                </span>
+              ))}
+            </span>
+          )}
           {/* Secondary metadata (which deck holds the copy, synergy, EDHREC %).
               On hover-capable pointers it's hidden at rest so the card name reads
               fully in the dense multi-column desktop layout, and revealed on row

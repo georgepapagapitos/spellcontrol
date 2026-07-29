@@ -1,0 +1,67 @@
+/* ConflictPanel — global overlay for a rejected deck push (STYLE_GUIDE §
+   Overlays → conflict panel). Row/list visuals reuse components/deck/
+   DiffCardRow.css's `.deck-diff-*` classes (E173 extraction) plus
+   DeckComparePage.css's `.deck-compare-summary` / `.deck-compare-empty-hint`;
+   this file only covers the panel's own chrome. */
+.conflict-panel {
+  max-width: 560px;
+  width: 100%;
+  max-height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem var(--space-5);
+  gap: var(--space-2);
+  overflow: hidden;
+}
+
+.conflict-panel-eyebrow {
+  margin: 0;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.conflict-panel-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.conflict-panel-body {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.conflict-panel-diff {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.conflict-panel-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  padding-top: var(--space-3);
+  margin-top: var(--space-1);
+  border-top: 0.5px solid var(--border);
+}
+
+.conflict-panel-view {
+  margin-right: auto;
+  text-decoration: none;
+}
+
+@media (pointer: coarse) {
+  .conflict-panel-actions .btn {
+    min-height: 44px;
+  }
+}

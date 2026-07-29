@@ -174,9 +174,9 @@ export function AppendDeckDialog({ deck, onClose }: Props) {
         {step === 'input' && (
           <>
             <p className="import-deck-hint">
-              Paste a decklist — one card per line. Lines under a <strong>Sideboard</strong> or{' '}
-              <strong>Maybeboard</strong> header route to this deck's sideboard / considering pile
-              instead of the mainboard.
+              Paste a decklist — one card per line. Lines under a <strong>Sideboard</strong> header
+              route to this deck's sideboard; lines under a <strong>Maybeboard</strong> header route
+              to Considering. Everything else goes to the mainboard.
             </p>
             <textarea
               className="paste-textarea import-textarea"

@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { Express } from 'express';
 import type { Pool } from 'pg';
 import { createTestEnv, extractSessionCookie } from '../test-helpers';
+import type { GameSummary, SeatSummary } from '@spellcontrol/game-core';
 
 let app: Express;
 let pool: Pool;
@@ -62,9 +63,27 @@ async function addMember(
 let resultSeq = 0;
 /** Insert a canonical game_results row directly, mirroring
  *  game-results.test.ts's own insertResult helper. */
+/** A seat with no derived activity — spread over it to set just what a test
+ *  cares about. */
+function blankSeat(seat: number): SeatSummary {
+  return {
+    seat,
+    damageTaken: 0,
+    lifeGained: 0,
+    biggestHit: 0,
+    lowestLife: 40,
+    commanderDamageDealt: 0,
+    placement: null,
+    eliminatedOnTurn: null,
+    killedBySeat: null,
+  };
+}
+
 async function insertResult(opts: {
   winnerUserId: string | null;
   participants: Array<{ userId: string | null; username?: string | null }>;
+  /** Omitted → a pre-summary row, which the rollups must skip entirely. */
+  summary?: GameSummary;
 }): Promise<string> {
   const sessionId = `pod-res-${++resultSeq}`;
   const participants = opts.participants.map((p, i) => ({
@@ -82,9 +101,14 @@ async function insertResult(opts: {
   await pool.query(
     `INSERT INTO game_results
        (session_id, code, format, starting_life, winner_seat, winner_user_id,
-        started_at, ended_at, duration_ms, participants, notable_events, created_at)
-     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, 100, 99, $3, NULL, 100)`,
-    [sessionId, opts.winnerUserId, JSON.stringify(participants)]
+        started_at, ended_at, duration_ms, participants, notable_events, summary, created_at)
+     VALUES ($1, 'CODE', 'commander', 40, 0, $2, 1, 100, 99, $3, NULL, $4, 100)`,
+    [
+      sessionId,
+      opts.winnerUserId,
+      JSON.stringify(participants),
+      opts.summary ? JSON.stringify(opts.summary) : null,
+    ]
   );
   return sessionId;
 }
@@ -145,6 +169,36 @@ describe('GET /api/pods/:id/games', () => {
       expect(p).toHaveProperty('userId', null);
       expect(p).toHaveProperty('username', null);
     }
+  });
+
+  it('omits the top-level winnerUserId and join code entirely', async () => {
+    const owner = await makeUser('ps-allow-owner');
+    const member = await makeUser('ps-allow-member');
+    const stranger = await makeUser('ps-allow-stranger');
+    await befriend(owner.cookie, 'ps-allow-member', member.cookie, 'ps-allow-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, member.id, member.cookie);
+
+    // The stranger never joined this pod, yet wins a game two pod members are
+    // in — so the pod gate includes it, and under the old spread-based
+    // denylist their account UUID rode through on winnerUserId, bound to a
+    // named seat by winnerSeat in the same payload.
+    await insertResult({
+      winnerUserId: stranger.id,
+      participants: [{ userId: owner.id }, { userId: member.id }, { userId: stranger.id }],
+    });
+
+    const res = await request(app).get(`/api/pods/${pod.id}/games`).set('Cookie', owner.cookie);
+    expect(res.status).toBe(200);
+    const game = res.body.games[0] as Record<string, unknown>;
+    // Key ABSENCE, not null: toPublicForPod is an allowlist, so a field it
+    // doesn't name never appears at all.
+    expect(game).not.toHaveProperty('winnerUserId');
+    expect(game).not.toHaveProperty('code');
+    expect(JSON.stringify(game)).not.toContain(stranger.id);
+    // The fields the pod hub actually renders still arrive.
+    expect(game.sessionId).toBeTruthy();
+    expect(game.winnerSeat).toBe(0);
   });
 
   it('an invited-not-accepted caller gets 403', async () => {
@@ -266,10 +320,107 @@ describe('GET /api/pods/:id/leaderboard', () => {
       .get(`/api/pods/${pod.id}/leaderboard`)
       .set('Cookie', owner.cookie);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ standings: expect.any(Array) });
+    expect(res.body).toEqual({ standings: expect.any(Array), records: expect.any(Object) });
+    // The records block is aggregated too — never a raw seat list.
+    expect(JSON.stringify(res.body.records)).not.toContain('participants');
     for (const s of res.body.standings) {
       expect(s).not.toHaveProperty('participants');
     }
+  });
+
+  it('surfaces the pod records once games carry a summary', async () => {
+    const owner = await makeUser('ps-lb-rec-owner');
+    const bob = await makeUser('ps-lb-rec-bob');
+    await befriend(owner.cookie, 'ps-lb-rec-bob', bob.cookie, 'ps-lb-rec-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, bob.id, bob.cookie);
+    await insertResult({
+      winnerUserId: owner.id,
+      participants: [{ userId: owner.id }, { userId: bob.id }],
+      summary: {
+        turns: 8,
+        durationMs: 1000,
+        firstBlood: { seat: 1, bySeat: 0, turn: 2, ts: 1, amount: 5 },
+        winnerSeat: 0,
+        commanderDamage: [],
+        seats: [
+          { ...blankSeat(0), placement: 1 },
+          { ...blankSeat(1), placement: 2, killedBySeat: 0 },
+        ],
+      },
+    });
+
+    const res = await request(app)
+      .get(`/api/pods/${pod.id}/leaderboard`)
+      .set('Cookie', owner.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.records.firstBlood).toMatchObject({ userId: owner.id, games: 1, rate: 1 });
+    expect(res.body.records.mostKos).toMatchObject({ userId: owner.id, kos: 1 });
+    expect(res.body.records.archenemy).toMatchObject({
+      killerId: owner.id,
+      victimId: bob.id,
+      kos: 1,
+    });
+    const byId = Object.fromEntries(
+      (res.body.standings as { userId: string }[]).map((s) => [s.userId, s])
+    );
+    expect(byId[owner.id]).toMatchObject({ ratedGames: 1, avgPlacement: 1, firstBlood: 1, kos: 1 });
+  });
+
+  it('leaves every record null when no game carries a summary', async () => {
+    const owner = await makeUser('ps-lb-nosum-owner');
+    const bob = await makeUser('ps-lb-nosum-bob');
+    await befriend(owner.cookie, 'ps-lb-nosum-bob', bob.cookie, 'ps-lb-nosum-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, bob.id, bob.cookie);
+    await insertResult({
+      winnerUserId: owner.id,
+      participants: [{ userId: owner.id }, { userId: bob.id }],
+    });
+
+    const res = await request(app)
+      .get(`/api/pods/${pod.id}/leaderboard`)
+      .set('Cookie', owner.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.records).toEqual({ firstBlood: null, mostKos: null, archenemy: null });
+    // The game still counts as played — only the derived denominator is 0.
+    const owned = (res.body.standings as { userId: string }[]).find((s) => s.userId === owner.id);
+    expect(owned).toMatchObject({ played: 1, ratedGames: 0, avgPlacement: null });
+  });
+
+  it('never names a non-member as the archenemy, even when one shared the table', async () => {
+    // fetchPodGames only requires 2+ pod members, so a qualifying game can
+    // include a stranger. Their account id must never reach the pod.
+    const owner = await makeUser('ps-lb-strange-owner');
+    const bob = await makeUser('ps-lb-strange-bob');
+    const stranger = await makeUser('ps-lb-strange-outsider');
+    await befriend(owner.cookie, 'ps-lb-strange-bob', bob.cookie, 'ps-lb-strange-owner');
+    const pod = await createPod(owner.cookie);
+    await addMember(owner.cookie, pod.id, bob.id, bob.cookie);
+    await insertResult({
+      winnerUserId: stranger.id,
+      participants: [{ userId: owner.id }, { userId: bob.id }, { userId: stranger.id }],
+      // The stranger (seat 2) knocks out both members — the top *raw* edge.
+      summary: {
+        turns: 6,
+        durationMs: 1000,
+        firstBlood: null,
+        winnerSeat: 2,
+        commanderDamage: [],
+        seats: [
+          { ...blankSeat(0), killedBySeat: 2, placement: 3 },
+          { ...blankSeat(1), killedBySeat: 2, placement: 2 },
+          { ...blankSeat(2), placement: 1 },
+        ],
+      },
+    });
+
+    const res = await request(app)
+      .get(`/api/pods/${pod.id}/leaderboard`)
+      .set('Cookie', owner.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.records.archenemy).toBeNull();
+    expect(JSON.stringify(res.body)).not.toContain(stranger.id);
   });
 
   it('an invited-not-accepted caller gets 403', async () => {

@@ -194,17 +194,16 @@ export interface PodGameParticipant {
   eliminated: boolean;
 }
 
-/** GET /api/pods/:id/games response row. `winnerUserId` is intentionally
- *  left un-redacted by the server (only per-participant fields are nulled) —
- *  the hub page must not render it directly; resolve the winner's display
- *  name via `winnerSeat` against `participants` instead. */
+/** GET /api/pods/:id/games response row. Deliberately carries no account
+ *  identity at all: the server projects this through an allowlist that omits
+ *  the game's `winnerUserId` and its join `code` outright (see
+ *  backend/src/routes/pod-stats.ts). Resolve the winner's display name via
+ *  `winnerSeat` against `participants`. */
 export interface PodGameResult {
   sessionId: string;
-  code: string;
   format: string;
   startingLife: number;
   winnerSeat: number | null;
-  winnerUserId: string | null;
   startedAt: number | null;
   endedAt: number;
   durationMs: number;
@@ -230,15 +229,56 @@ export interface PodStanding {
   played: number;
   wins: number;
   winRate: number;
+  /**
+   * Games carrying a derived summary — the denominator for the three fields
+   * below, and deliberately NOT `played`: games recorded before summaries
+   * existed are absent data. **`ratedGames === 0` renders as "—", never as
+   * 0**, or a pod's whole pre-summary history reads as "nobody ever drew
+   * first blood".
+   */
+  ratedGames: number;
+  /** Mean finishing position over rated games. Null when none produced one. */
+  avgPlacement: number | null;
+  /** Games where they drew first blood. */
+  firstBlood: number;
+  /** Eliminations credited to them (turn-marker heuristic). */
+  kos: number;
 }
 
-export async function fetchPodLeaderboard(id: string): Promise<PodStanding[]> {
+/**
+ * The pod's superlatives. Every field is null until the pod has games carrying
+ * the relevant data — `archenemy` in particular stays null for a pod that
+ * never passes turns, since KO credit is turn-marker derived. Render a null as
+ * absent, not as a zero.
+ */
+export interface PodRecords {
+  firstBlood: { userId: string; username: string; games: number; rate: number } | null;
+  mostKos: { userId: string; username: string; kos: number } | null;
+  archenemy: {
+    killerId: string;
+    killerName: string;
+    victimId: string;
+    victimName: string;
+    kos: number;
+  } | null;
+}
+
+export interface PodLeaderboard {
+  standings: PodStanding[];
+  records: PodRecords;
+}
+
+const NO_RECORDS: PodRecords = { firstBlood: null, mostKos: null, archenemy: null };
+
+export async function fetchPodLeaderboard(id: string): Promise<PodLeaderboard> {
   const res = await fetch(apiUrl(`/api/pods/${encodeURIComponent(id)}/leaderboard`), {
     credentials: 'include',
   });
   if (!res.ok) {
     throw new Error(await readError(res, 'Failed to load the leaderboard.'));
   }
-  const body = (await res.json()) as { standings: PodStanding[] };
-  return body.standings;
+  const body = (await res.json()) as Partial<PodLeaderboard>;
+  // `records` is absent when talking to a backend that predates it — treat
+  // that as "no superlatives", the same as a pod that hasn't earned any.
+  return { standings: body.standings ?? [], records: body.records ?? NO_RECORDS };
 }

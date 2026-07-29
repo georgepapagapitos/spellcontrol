@@ -350,9 +350,54 @@ export interface OAuthState {
 
 export interface OAuthStateInput {
   platform: OAuthPlatform;
+  /**
+   * CSRF nonce, issued by {@link issueOAuthNonce} so a copy also lands in a
+   * cookie on the browser that started the flow. Required — a state whose
+   * nonce is not tied to a browser proves nothing (see the doc below).
+   */
+  nonce: string;
   mode?: OAuthMode;
   /** Required when mode === 'link'. */
   userId?: string;
+}
+
+const OAUTH_NONCE_COOKIE = 'spellcontrol_oauth';
+
+/**
+ * Mint the CSRF nonce, drop a copy in a short-lived httpOnly cookie on the
+ * browser that is starting the flow, and return it for embedding in the signed
+ * state. The cookie half is the entire point: `state` is server-signed, so
+ * *anyone* can obtain a valid one just by hitting `GET /api/auth/google`
+ * themselves. Without a browser-bound half, an attacker could drive the Google
+ * flow with their own account, stop at the redirect without following it, and
+ * hand the victim `/callback?code=…&state=…` — logging the victim's browser
+ * into the ATTACKER's account, after which the delta-sync driver pushes the
+ * victim's collection and decks into it. `sameSite: 'lax'` is required (not
+ * 'strict'): the callback arrives as a top-level cross-site navigation from
+ * Google, which 'lax' allows and 'strict' would block.
+ */
+export function issueOAuthNonce(res: Response): string {
+  const nonce = crypto.randomUUID();
+  res.cookie(OAUTH_NONCE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: OAUTH_STATE_TTL_SECONDS * 1000,
+    path: '/',
+  });
+  return nonce;
+}
+
+/**
+ * Single-use check that the callback's state came back to the same browser
+ * that started the flow. Always clears the cookie, match or not, so a nonce
+ * can never be replayed. A missing cookie fails closed.
+ */
+export function consumeOAuthNonce(req: Request, res: Response, nonce: string): boolean {
+  const cookies = (req as Request & { cookies?: Record<string, string> }).cookies;
+  const stored = cookies?.[OAUTH_NONCE_COOKIE];
+  res.clearCookie(OAUTH_NONCE_COOKIE, { path: '/' });
+  return typeof stored === 'string' && stored.length > 0 && stored === nonce;
 }
 
 /**
@@ -364,7 +409,7 @@ export interface OAuthStateInput {
 export function signOAuthState(input: OAuthStateInput): string {
   const payload: Record<string, unknown> = {
     platform: input.platform,
-    nonce: crypto.randomUUID(),
+    nonce: input.nonce,
     mode: input.mode ?? 'signin',
   };
   if (input.userId) payload.userId = input.userId;

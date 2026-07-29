@@ -18,7 +18,11 @@ import { applyPrices, setPrices, priceKey } from './card-prices';
 import { fetchOracleIds } from './api/combos';
 import { remapCubeAllocations } from './remap-cube-allocations';
 import { toast } from '../store/toasts';
+import { conflictQueue, type DeckConflict } from '../store/conflicts';
+import { recordDeckConflict } from './conflict-metrics';
+import { clearWelcomeDigest } from './welcome-digest';
 import type { EnrichedCard } from '../types';
+import type { Deck } from '../store/decks';
 
 /**
  * Card shape as far as the sync layer cares: an id (copyId) + optional importId,
@@ -728,7 +732,7 @@ async function pull(): Promise<void> {
       while (true) {
         const page = await pullSync(cursor, undefined, fresh);
         if (page.rows.length > 0) {
-          await applyServerRows(page.rows);
+          await applyServerRows(page.rows, true);
           saveCursor(page.cursor);
           markSynced();
           appliedAny = true;
@@ -771,20 +775,56 @@ function describeConflicts(conflicts: NonNullable<SyncPushResult['conflicts']>):
   return 'Some changes were overwritten by another device. Kept the server version.';
 }
 
+/** A conflict's serverData/local IDB row is Deck-shaped enough to diff (E170) —
+ *  has a `cards` array, the one field diffDeckCards actually reads through. */
+function isDeckShaped(data: unknown): data is Deck {
+  return !!data && typeof data === 'object' && Array.isArray((data as { cards?: unknown }).cards);
+}
+
 /**
  * Reflect a /api/sync push response onto local state: adopt any conflicts
- * the server reported (reject-stale — keep the server version, drop ours,
- * toast) for decks (per-row optimistic concurrency) and cards (E129's
+ * the server reported (reject-stale — keep the server version, drop ours)
+ * for decks (per-row optimistic concurrency) and cards (E129's
  * printing-group cardinality check), then stamp the canonical server revs
  * onto our just-written local rows so a later pull re-delivering them is an
  * idempotent no-op. Returns the highest server rev seen (used only as a
  * cross-tab broadcast hint — never as a pull cursor; see the note in push()).
  * Shared by the native queue drain (push) and the web write-through path
  * (webPush).
+ *
+ * Deck conflicts (E170): rather than just toasting "kept the server
+ * version" and discarding the local edit, the pre-overwrite local IDB row is
+ * captured here — the ONLY chance to grab it, since applyServerRows below
+ * replaces it with the server's data — and queued into the conflict-panel
+ * store so the user sees a real diff and can restore their edit on top of
+ * the server's version. Falls back to the old toast when either side isn't
+ * Deck-shaped (a delete-conflict has `serverData: null`, or malformed data
+ * on some pre-migration row) — the panel would have nothing to diff anyway.
+ * A conflict-frequency counter fires for every deck conflict regardless of
+ * which path it takes (conflict-metrics.ts) — evidence for whether the
+ * whole-deck LWW model needs revisiting.
  */
 async function applyPushResult(result: SyncPushResult): Promise<number> {
   let hint = 0;
   if (result.conflicts && result.conflicts.length > 0) {
+    const panelable: DeckConflict[] = [];
+    const toastable = result.conflicts.filter((c) => c.kind === 'card');
+    for (const c of result.conflicts) {
+      if (c.kind !== 'deck') continue;
+      recordDeckConflict(c.id);
+      const local = await estore.getById('deck', c.id);
+      if (isDeckShaped(local?.data) && isDeckShaped(c.serverData)) {
+        panelable.push({
+          id: c.id,
+          localDeck: local!.data,
+          serverDeck: c.serverData,
+          detectedAt: Date.now(),
+        });
+      } else {
+        toastable.push(c);
+      }
+    }
+
     await applyServerRows(
       result.conflicts.map((c) => ({
         kind: c.kind,
@@ -795,7 +835,9 @@ async function applyPushResult(result: SyncPushResult): Promise<number> {
         ...(c.importId !== undefined ? { importId: c.importId } : {}),
       }))
     );
-    toast.show({ message: describeConflicts(result.conflicts), tone: 'info' });
+
+    if (panelable.length > 0) conflictQueue.push(panelable);
+    if (toastable.length > 0) toast.show({ message: describeConflicts(toastable), tone: 'info' });
     for (const c of result.conflicts) {
       if (c.serverRev > hint) hint = c.serverRev;
     }
@@ -1049,7 +1091,32 @@ function schedulePush(): void {
 
 // ── Apply server deltas → local IDB + in-memory stores ─────────────────────
 
-async function applyServerRows(rows: SyncRow[]): Promise<void> {
+/**
+ * Pull-side conflict signal (E174): a genuinely foreign deck revision (or
+ * deletion) just reset that deck's undo/redo stack. This is DELIBERATELY a
+ * toast, not the `ConflictPanel` modal `applyPushResult` uses for a rejected
+ * push — the two are different severities, not the same event from two call
+ * sites. A push rejection just discarded the user's unsaved edit, so the
+ * panel exists to let them review a diff and recover it. A pull-side foreign
+ * edit discards nothing: the user's current deck state is untouched, only the
+ * EPHEMERAL undo history was dropped (those snapshots would replay stale and
+ * clobber the remote edit under LWW — see deck-history.ts). That's
+ * informational, not a lost-work emergency, so it gets the passive-notice
+ * treatment STYLE_GUIDE.md's "Toast vs. panel" ruling already reserves for
+ * "saved"/"price refreshed". Batched per applyServerRows call rather than
+ * per-deck, so N foreign revisions delivered in one pull produce one toast.
+ */
+function notifyForeignDeckEdit(count: number): void {
+  toast.show({
+    message:
+      count === 1
+        ? 'A deck you were editing changed on another device. Its undo history was reset.'
+        : `${count} decks you were editing changed on another device. Undo history was reset.`,
+    tone: 'info',
+  });
+}
+
+async function applyServerRows(rows: SyncRow[], notifyForeignDeckEdits = false): Promise<void> {
   // Batch by kind so we can write all upserts / all deletes in one IDB tx per kind.
   const upsertsByKind = new Map<EntityKind, estore.StoredRow[]>();
   const deletionsByKind = new Map<EntityKind, { id: string; rev: number; deletedAt: number }[]>();
@@ -1108,7 +1175,16 @@ async function applyServerRows(rows: SyncRow[]): Promise<void> {
   if (changedDeckIds.size > 0) {
     try {
       const { deckHistory } = await import('../store/deck-history');
+      // Read BEFORE invalidate() clears the stacks: only decks that actually
+      // had an undo/redo entry lost something the user could feel (E174) —
+      // notifyForeignDeckEdits is false for applyPushResult's own re-apply of
+      // OUR rejected push's conflicts, since that path already surfaces its
+      // own panel/toast and would otherwise double-notify for the same deck.
+      const lostHistoryIds = notifyForeignDeckEdits
+        ? [...changedDeckIds].filter((id) => deckHistory.hasHistory(id))
+        : [];
       deckHistory.invalidate(changedDeckIds);
+      if (lostHistoryIds.length > 0) notifyForeignDeckEdit(lostHistoryIds.length);
     } catch {
       /* history is a UX nicety; never let it break sync */
     }
@@ -1433,4 +1509,10 @@ async function resetInMemoryStores(): Promise<void> {
   const { useCubeStore } = await import('../store/cube');
   useCubeStore.getState().reset();
   localStorage.removeItem('spellcontrol-cube');
+  // Same reasoning as the cube store above: the value-digest baseline and the
+  // binder-move log are account-agnostic localStorage keys, so without this the
+  // next account to sign in on a shared device gets a "since your last visit"
+  // delta measured against the PREVIOUS user's collection value, with that
+  // user's card name rendered in the strip.
+  clearWelcomeDigest();
 }

@@ -358,13 +358,37 @@
   flex-direction: column;
   padding: var(--space-1);
   gap: 1px;
+  /* E181: at worst-case row count (13 rows + 3 dividers) the panel runs
+     ~450px tall — on a short mobile viewport that ran Delete off-screen.
+     Cap relative to the viewport and let the panel itself scroll, same
+     anchoring (it stays absolute/right-0 above). */
+  max-height: min(calc(100vh - 6rem), 26rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Hairline between the undo/redo rows and the rest of the deck actions. */
+/* Hairline between menu sections (undo/redo, quick actions, text tools,
+   deck actions, delete). */
 .deck-editor-overflow-divider {
   height: 1px;
   margin: var(--space-1) 0.3rem;
   background: var(--border);
+}
+
+.deck-editor-overflow-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Section label (E181) — same idiom as `.collection-filters-section-label`. */
+.deck-editor-overflow-label {
+  padding: var(--space-2) 0.6rem 0.15rem;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
 }
 
 .deck-editor-overflow-item {
@@ -428,6 +452,14 @@
 @media (hover: hover) and (pointer: fine) {
   .deck-editor-overflow-item--danger:hover {
     color: var(--err-text, #d8442a);
+  }
+}
+
+/* Every row gets the 44px coarse-pointer floor (E181) — this used to be
+   scoped to just the Bulk edit row, leaving the other ~12 rows at ~33px. */
+@media (pointer: coarse) {
+  .deck-editor-overflow-item {
+    min-height: 44px;
   }
 }
 

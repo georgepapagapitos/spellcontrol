@@ -30,6 +30,10 @@
  */
 export type GameLayout = string;
 
+// Runtime dependency runs one way only: this module imports from `./summary`,
+// which imports nothing but *types* back from here (erased at compile time).
+import { summarizeGame, type GameSummary } from './summary';
+
 export type TapOrientation = 'horizontal' | 'vertical';
 
 export type GameFormat =
@@ -229,6 +233,18 @@ export type GameAction =
     };
 
 const MAX_EVENTS = 500;
+
+/**
+ * The `settings` fields that change how the game *plays*, as opposed to how the
+ * board *looks*. Only a change to one of these pushes a log event — see the
+ * `settings` case in `applyAction`.
+ */
+const RULES_SETTINGS_KEYS = [
+  'startingLife',
+  'commanderDamageEnabled',
+  'poisonEnabled',
+  'format',
+] as const;
 
 function makeEventId(ts: number): string {
   // Crypto.randomUUID is everywhere we care (Node 18+, modern browsers).
@@ -632,6 +648,13 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
       const patch = action.patch;
       const startingLifeChanged =
         typeof patch.startingLife === 'number' && patch.startingLife !== prev.startingLife;
+      // Only *rules* changes earn a log row. `layout` / `tapOrientation` are
+      // pure presentation, and logging them meant every board rearrangement or
+      // tap-zone flip pushed a "Settings changed" row — burying real moments
+      // and, at MAX_EVENTS, evicting them from a long game entirely.
+      const rulesChanged = RULES_SETTINGS_KEYS.some(
+        (k) => patch[k] !== undefined && patch[k] !== prev[k]
+      );
       next = {
         ...next,
         ...patch,
@@ -640,12 +663,14 @@ export function applyAction(prev: GameState, action: GameAction): GameState {
           startingLifeChanged && prev.status === 'lobby'
             ? prev.players.map((p) => ({ ...p, life: patch.startingLife! }))
             : prev.players,
-        events: pushEvent(next, {
-          kind: 'settings',
-          actorSeat: null,
-          targetSeat: null,
-          ts,
-        }),
+        events: rulesChanged
+          ? pushEvent(next, {
+              kind: 'settings',
+              actorSeat: null,
+              targetSeat: null,
+              ts,
+            })
+          : next.events,
       };
       break;
     }
@@ -751,6 +776,14 @@ export interface GameRecord {
   endedAt: number;
   durationMs: number;
   mode: 'local' | 'online';
+  /**
+   * Derived stats, computed once here so history rollups never re-walk a log
+   * the record doesn't even carry. **Optional by design**: records written
+   * before this field read as `undefined` — "no data captured" — and must
+   * never be coerced to a zeroed summary, which is indistinguishable from a
+   * genuinely uneventful game. Same discipline as `game_results.notable_events`.
+   */
+  summary?: GameSummary;
 }
 
 export function gameToRecord(state: GameState, endedAt: number = Date.now()): GameRecord {
@@ -774,6 +807,7 @@ export function gameToRecord(state: GameState, endedAt: number = Date.now()): Ga
     endedAt,
     durationMs: state.startedAt ? endedAt - state.startedAt : 0,
     mode: state.mode,
+    summary: summarizeGame(state, endedAt),
   };
 }
 
@@ -789,3 +823,8 @@ export function selectNotableEvents(events: GameEvent[]): GameEvent[] {
   const notable = events.filter((e) => NOTABLE_KINDS.has(e.kind));
   return notable.length > MAX_NOTABLE_EVENTS ? notable.slice(-MAX_NOTABLE_EVENTS) : notable;
 }
+
+// Derived per-game statistics (first blood, placements, damage, KO credit).
+// One-directional at runtime: `summary.ts` imports only *types* from here, so
+// nothing requires back into this module.
+export * from './summary';

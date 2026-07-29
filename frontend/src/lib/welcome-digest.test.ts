@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   buildWelcomeDigest,
+  clearWelcomeDigest,
   getBinderMoveLog,
   getDigestBaseline,
   isDigestDismissedThisSession,
@@ -99,5 +100,28 @@ describe('buildWelcomeDigest', () => {
     expect(digest?.moves.map((m) => m.cardName)).toEqual(['After Baseline']);
     // Moves alone justify a digest even with a steady value.
     expect(digest?.deltaAmount).toBe(0);
+  });
+
+  // Neither key carries a user id, so a sign-out must drop both or the next
+  // account inherits the previous one's value baseline AND their card names.
+  describe('clearWelcomeDigest', () => {
+    it('drops the baseline, the move log, and the session dismissal', () => {
+      setDigestBaseline(5000, T0);
+      logBinderMoves([move('Ragavan, Nimble Pilferer')], T0 + DAY);
+      markDigestDismissedThisSession();
+
+      clearWelcomeDigest();
+
+      expect(getDigestBaseline()).toBeNull();
+      expect(getBinderMoveLog()).toEqual([]);
+      expect(isDigestDismissedThisSession()).toBe(false);
+      // Nothing left to build a digest from, at any current value.
+      expect(buildWelcomeDigest(200)).toBeNull();
+    });
+
+    it('is a no-op when nothing was stored', () => {
+      expect(() => clearWelcomeDigest()).not.toThrow();
+      expect(getDigestBaseline()).toBeNull();
+    });
   });
 });

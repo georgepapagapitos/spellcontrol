@@ -72,7 +72,7 @@ import { bootstrapTheme, useThemeStore } from './store/theme';
 import { loadTaggerData } from './deck-builder/services/tagger/client';
 import { loadCardSimilar } from './deck-builder/services/deckBuilder/cardSimilar';
 import { registerPwa } from './lib/register-pwa';
-import { tagPlatform, syncStatusBar } from './lib/platform';
+import { tagPlatform, syncStatusBar, hideSplashWhenReady } from './lib/platform';
 import { initKeyboardLayer } from './lib/keyboard';
 
 tagPlatform();
@@ -103,3 +103,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
+
+// Splash stays up until the first frame is actually on screen; no-op on web.
+hideSplashWhenReady();

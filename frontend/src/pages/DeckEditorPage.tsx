@@ -1,4 +1,14 @@
-import { Coins, Copy, ListChecks, MoreVertical, Plus, Redo2, Undo2, X } from 'lucide-react';
+import {
+  Coins,
+  Copy,
+  ListChecks,
+  MoreVertical,
+  Plus,
+  Redo2,
+  RefreshCw,
+  Undo2,
+  X,
+} from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { haptics } from '../lib/haptics';
 import { scryfallArtCrop } from '../lib/offline/slim-to-scryfall';
@@ -11,7 +21,7 @@ import {
   Link,
   Navigate,
 } from 'react-router-dom';
-import { useDecksStore, effectiveBracket } from '../store/decks';
+import { useDecksStore, effectiveBracket, type DeckZone } from '../store/decks';
 import { useCubeStore } from '../store/cube';
 import { useDeckHistoryStore } from '../store/deck-history';
 import { useCollectionStore } from '../store/collection';
@@ -27,12 +37,17 @@ import { formatMoney } from '../lib/format-money';
 import { buildCommanderKey } from '../lib/commander-key';
 import type { BinderInfo } from '../components/BinderBadge';
 import { CardSearchPanel, type CardSearchPanelHandle } from '../components/deck/CardSearchPanel';
+import { BuildTimeCoachStrip } from '../components/deck/BuildTimeCoachStrip';
+import { useBuildTimeNudge } from '../lib/use-build-time-nudge';
+import { WedgeHintStrip } from '../components/deck/WedgeHintStrip';
+import { dismissResyncHint, shouldShowResyncHint } from '../lib/wedge-hints';
 import { DeckCombosPanel, type DeckCombosPanelHandle } from '../components/deck/DeckCombosPanel';
 import { DeckAnalysisPanel } from '../components/deck/DeckAnalysisPanel';
 import { DeckTestHandPanel } from '../components/deck/DeckTestHandPanel';
 import { DeckTokensSheet } from '../components/deck/DeckTokensSheet';
 import { DeckPrimerSheet } from '../components/deck/DeckPrimerSheet';
 import { AppendDeckDialog } from '../components/deck/AppendDeckDialog';
+import { BulkEditDeckDialog } from '../components/deck/BulkEditDeckDialog';
 import { ForkedFromBadge } from '../components/deck/ForkedFromBadge';
 import { DeckVisibilityChip } from '../components/deck/DeckVisibilityChip';
 import { DeckPublishNudge } from '../components/deck/DeckPublishNudge';
@@ -86,7 +101,6 @@ import { CardEditDialog, type PrintingSelection } from '../components/CardEditDi
 import {
   buildAllocationMap,
   pickCollectionCopy,
-  pickSlotsToRelease,
   classifyPrintingAvailability,
   bindableFinishesByPrinting,
   findStealableCopy,
@@ -98,6 +112,7 @@ import {
   type DonorZone,
   type StealableCopy,
 } from '../lib/allocations';
+import { planQtyChange } from '../lib/deck-qty';
 import { getMaxCopies } from '../lib/deck-validation';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SharedCopiesSheet } from '../components/deck/SharedCopiesSheet';
@@ -208,7 +223,15 @@ export function DeckEditorPage() {
   const updateCardPrinting = useDecksStore((s) => s.updateCardPrinting);
   const swapCard = useDecksStore((s) => s.swapCard);
   const setCardAllocation = useDecksStore((s) => s.setCardAllocation);
+  const setCardTags = useDecksStore((s) => s.setCardTags);
+  const bulkEditTag = useDecksStore((s) => s.bulkEditTag);
+  const renameDeckTag = useDecksStore((s) => s.renameDeckTag);
+  const removeDeckTag = useDecksStore((s) => s.removeDeckTag);
   const replaceDeck = useDecksStore((s) => s.replaceDeck);
+  const bulkAddCards = useDecksStore((s) => s.bulkAddCards);
+  const bulkRemoveCards = useDecksStore((s) => s.bulkRemoveCards);
+  const bulkMoveZone = useDecksStore((s) => s.bulkMoveZone);
+  const setCardSortIndex = useDecksStore((s) => s.setCardSortIndex);
   const pushToast = useToastsStore((s) => s.push);
 
   // Undo/redo history (deck-scoped). `recordEdit` brackets a synchronous block;
@@ -579,6 +602,11 @@ export function DeckEditorPage() {
   const [pullListOpen, setPullListOpen] = useState(false);
   const [primerOpen, setPrimerOpen] = useState(false);
   const [appendOpen, setAppendOpen] = useState(false);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [resyncOpen, setResyncOpen] = useState(false);
+  // Deck re-sync discovery hint (see lib/wedge-hints.ts) — same
+  // dismiss-locally-then-persist shape as the binder hint in CardSearchPanel.
+  const [resyncHintDismissed, setResyncHintDismissed] = useState(false);
   const hasPullSlots =
     !!deck && (deck.cards.length > 0 || deck.sideboard.length > 0 || !!deck.commander);
   const [showSharedCopies, setShowSharedCopies] = useState(false);
@@ -729,6 +757,26 @@ export function DeckEditorPage() {
     return map;
   }, [collectionCards, binderDefs]);
 
+  // Re-key binderByCopyId by card name — zero extra materializeBinders calls,
+  // and reuses the same canonical routing computation the review queue uses,
+  // so the add-cards binder chip (E169) can never disagree with where a card
+  // actually files. Feeds CardSearchPanel's Collection tab.
+  const binderByCardName = useMemo(() => {
+    const map = new Map<string, BinderInfo[]>();
+    if (binderByCopyId.size === 0) return map;
+    for (const c of collectionCards) {
+      const binders = binderByCopyId.get(c.copyId);
+      if (!binders) continue;
+      const arr = map.get(c.name);
+      if (arr) {
+        for (const b of binders) if (!arr.some((x) => x.id === b.id)) arr.push(b);
+      } else {
+        map.set(c.name, [...binders]);
+      }
+    }
+    return map;
+  }, [binderByCopyId, collectionCards]);
+
   const commanderColorIdentity = useMemo(() => {
     if (!deck) return [];
     const ci = new Set<string>();
@@ -824,6 +872,16 @@ export function DeckEditorPage() {
     // The user's target bracket drives the Bracket Fit plan; folding it into the
     // hook recomputes the plan when the target changes, not only when cards do.
     bracketOverride: deck?.bracketOverride,
+  });
+
+  // Build-time coach nudge (E169 Half B) — surfaces at most one combo/
+  // win-condition/bracket signal inside the add-cards sheet the instant a
+  // mainboard add produces one. See use-build-time-nudge.ts for the guard.
+  const buildTimeNudge = useBuildTimeNudge({
+    deckId: deck?.id,
+    deck,
+    comboData: comboData.data,
+    mainboardTarget: deck ? DECK_FORMAT_CONFIGS[deck.format].mainboardSize : undefined,
   });
 
   const taggerReady = useTaggerReady();
@@ -1029,9 +1087,10 @@ export function DeckEditorPage() {
   // Hero totals — a quick at-a-glance summary above the deck composition.
   // The count/value reflect the *mainboard deck only* (commanders + main
   // cards), matching the legality banner's notion of the deck; the sideboard
-  // ("maybe" cards) is surfaced separately so the hero doesn't claim "104
-  // cards" on a 100-card deck. Computed BEFORE the missing-deck early return
-  // so the hook order stays stable across renders.
+  // is surfaced separately (as "+N sideboard", distinct from the "+N
+  // considering" maybe-pile right next to it — E183) so the hero doesn't
+  // claim "104 cards" on a 100-card deck. Computed BEFORE the missing-deck
+  // early return so the hook order stays stable across renders.
   const heroTotals = useMemo(() => {
     if (!deck) return { count: 0, value: 0, sideboard: 0, considering: 0 };
     const sumPrice = (cards: ScryfallCard[]) =>
@@ -1867,6 +1926,53 @@ export function DeckEditorPage() {
     });
   };
 
+  // ── Multi-select bulk operations (E172) ────────────────────────────────
+  // Each wraps ONE store write (bulkRemoveCards/bulkMoveZone/bulkEditTag are
+  // single-`set()` primitives regardless of how many slots they touch) in
+  // ONE recordEdit, so "remove/move/tag 12 selected rows" is one undo entry
+  // AND one sync push — the crux constraint this whole slice exists for.
+  const handleBulkRemove = (zone: DeckZone, slotIds: string[]) => {
+    if (!deck || slotIds.length === 0) return;
+    const zoneList = deck[zone] ?? [];
+    const name = zoneList.find((c) => slotIds.includes(c.slotId))?.card.name ?? 'card';
+    const label = slotIds.length === 1 ? `remove ${name}` : `remove ${slotIds.length} cards`;
+    recordEdit(deck.id, label, () => bulkRemoveCards(deck.id, zone, slotIds));
+    pushToast({
+      message: slotIds.length === 1 ? `Removed ${name}` : `Removed ${slotIds.length} cards`,
+      tone: 'success',
+      actionLabel: 'Undo',
+      onAction: () => undoEdit(deck.id),
+    });
+  };
+
+  const ZONE_LABEL: Record<DeckZone, string> = {
+    cards: 'mainboard',
+    sideboard: 'sideboard',
+    considering: 'considering',
+  };
+
+  const handleBulkMove = (slotIds: string[], from: DeckZone, to: DeckZone) => {
+    if (!deck || slotIds.length === 0) return;
+    const label = `move ${slotIds.length} ${slotIds.length === 1 ? 'card' : 'cards'} to ${ZONE_LABEL[to]}`;
+    recordEdit(deck.id, label, () => bulkMoveZone(deck.id, slotIds, from, to));
+  };
+
+  const handleBulkEditTag = (zone: DeckZone, slotIds: string[], tag: string, add: boolean) => {
+    if (!deck || slotIds.length === 0) return;
+    const label = add
+      ? `tag ${slotIds.length} cards "${tag}"`
+      : `untag "${tag}" from ${slotIds.length} cards`;
+    recordEdit(deck.id, label, () => bulkEditTag(deck.id, zone, slotIds, tag, add));
+  };
+
+  // Manual drag reorder (E172) — DeckDisplay computes the fractional
+  // sortIndex itself (pure, no store access needed); this just wraps the
+  // single-write commit in an undo entry, consistent with every other edit.
+  const handleReorder = (zone: DeckZone, slotIds: string[], sortIndex: number) => {
+    if (!deck || slotIds.length === 0) return;
+    recordEdit(deck.id, 'reorder', () => setCardSortIndex(deck.id, zone, slotIds, sortIndex));
+  };
+
   const handleMakeCommanderClick = (slotId: string, card: ScryfallCard) => {
     const mainSlot = deck.cards.find((c) => c.slotId === slotId);
     const sideSlot = mainSlot ? null : deck.sideboard.find((c) => c.slotId === slotId);
@@ -2010,35 +2116,52 @@ export function DeckEditorPage() {
   // Qty handler for both the click-to-type-exact-number path (absolute
   // target) and the +/− stepper (relative delta) — one function so both
   // routes share the same allocation logic and the same maxCopies ceiling
-  // by construction (E168 slice 3). Diffs the desired count against the
-  // live count and adds or removes slots in bulk. Bulk removes show ONE
-  // toast for the whole batch with an Undo that restores every original
-  // allocation — important for basics where the user might drop 8 copies
-  // in a single edit.
-  const handleSetQty = (card: ScryfallCard, qty: number, opts?: { relative?: boolean }) => {
-    const current = deck.cards.filter((c) => c.card.name === card.name);
-    let delta = opts?.relative ? qty : qty - current.length;
-    // Never let an increment (stepper "+", "Add another copy", or typing a
-    // higher exact number) push a row past the format's per-card copy limit
-    // — the single ceiling both affordances defer to.
-    if (delta > 0) {
-      const maxCopies = getMaxCopies(card, !!formatConfig?.isSingleton);
-      delta = Math.min(delta, Math.max(maxCopies - current.length, 0));
-    }
-    if (delta === 0) return;
-    if (delta > 0) {
+  // by construction (E168 slice 3). Zone-aware (E175): `zone` selects which
+  // of the deck's three card arrays this edit targets — previously
+  // hard-wired to `deck.cards`, which meant the mainboard stepper could
+  // never be safely reused for sideboard/considering rows without risking a
+  // silent cross-zone mutation. `planQtyChange` (lib/deck-qty.ts) is the pure
+  // diff; the add/remove itself is ONE store write via bulkAddCards/
+  // bulkRemoveCards regardless of how many copies change (never loop
+  // per-card store actions — each would fire its own sync push). Bulk
+  // removes show ONE toast for the whole batch with an Undo that restores
+  // every original allocation — important for basics where the user might
+  // drop 8 copies in a single edit.
+  const handleSetQty = (
+    zone: DeckZone,
+    card: ScryfallCard,
+    qty: number,
+    opts?: { relative?: boolean }
+  ) => {
+    const current = deck[zone].filter((c) => c.card.name === card.name);
+    // Considering is a staging area, not a real deck zone — no copy-limit
+    // ceiling on it (mirrors why it's excluded from legality elsewhere).
+    const maxCopies =
+      zone === 'considering' ? undefined : getMaxCopies(card, !!formatConfig?.isSingleton);
+    const plan = planQtyChange(current, qty, opts, maxCopies);
+    if (plan.addCount === 0 && plan.remove.length === 0) return;
+
+    const zoneSuffix =
+      zone === 'cards' ? '' : ` to ${zone === 'sideboard' ? 'sideboard' : 'considering'}`;
+
+    if (plan.addCount > 0) {
       // Quantity increments bind free owned copies; any beyond what's free are
       // added unbound (listed as "In [deck]"/"unowned"). Never pulls copies from
       // other decks — that's a conscious choice elsewhere. One in-deck undo entry.
-      const label = delta === 1 ? `add ${card.name}` : `add ${delta} × ${card.name}`;
+      const label =
+        plan.addCount === 1
+          ? `add ${card.name}${zoneSuffix}`
+          : `add ${plan.addCount} × ${card.name}${zoneSuffix}`;
       recordEdit(deck.id, label, () => {
         // Reuse the live allocations between iterations so two adds don't try to
-        // claim the same collection copy.
+        // claim the same collection copy — this is a local computation only,
+        // not a store write; the write itself happens once, below.
         const allocations = buildAllocationMap(
           useDecksStore.getState().decks,
           useCubeStore.getState().saved
         );
-        for (let i = 0; i < delta; i++) {
+        const entries: Array<{ card: ScryfallCard; allocatedCopyId: string | null }> = [];
+        for (let i = 0; i < plan.addCount; i++) {
           const claim = pickCollectionCopy(card.name, collectionCards, allocations, card.id);
           const allocatedId = claim?.copyId ?? null;
           if (allocatedId) {
@@ -2047,28 +2170,33 @@ export function DeckEditorPage() {
               makeDeckAllocationInfo(deck.id, deck.name, deck.color, card.name)
             );
           }
-          addCard(deck.id, card, allocatedId);
+          entries.push({ card, allocatedCopyId: allocatedId });
         }
+        bulkAddCards(deck.id, zone, entries);
       });
       return;
     }
-    // delta < 0 → drop |delta| slots as one undo entry. Unallocated copies
+    // A decrement drops |delta| slots as one undo entry. Unallocated copies
     // go first so an owned copy stays bound to the row as long as possible
     // (see pickSlotsToRelease) — only spills into allocated slots once
     // there's no unallocated stock left to shed.
-    const dropping = pickSlotsToRelease(current, -delta);
-    recordEdit(
-      deck.id,
-      dropping.length === 1 ? `remove ${card.name}` : `remove ${dropping.length} × ${card.name}`,
-      () => {
-        for (const slot of [...dropping].reverse()) removeCard(deck.id, slot.slotId);
-      }
-    );
+    const dropping = plan.remove;
+    const dropLabel =
+      dropping.length === 1
+        ? `remove ${card.name}${zoneSuffix}`
+        : `remove ${dropping.length} × ${card.name}${zoneSuffix}`;
+    recordEdit(deck.id, dropLabel, () => {
+      bulkRemoveCards(
+        deck.id,
+        zone,
+        dropping.map((s) => s.slotId)
+      );
+    });
     pushToast({
       message:
         dropping.length === 1
-          ? `Removed ${card.name}`
-          : `Removed ${dropping.length} × ${card.name}`,
+          ? `Removed ${card.name}${zoneSuffix}`
+          : `Removed ${dropping.length} × ${card.name}${zoneSuffix}`,
       tone: 'success',
       actionLabel: 'Undo',
       onAction: () => undoEdit(deck.id),
@@ -2077,6 +2205,20 @@ export function DeckEditorPage() {
 
   const handleEditCard = (slotId: string, card: ScryfallCard) => {
     setEditingSlot({ slotId, card });
+  };
+
+  // ── User tags (E171) ──────────────────────────────────────────────────
+  const handleSetCardTags = (zone: DeckZone, slotIds: string[], tags: string[]) => {
+    if (!deck) return;
+    recordEdit(deck.id, 'edit tags', () => setCardTags(deck.id, zone, slotIds, tags));
+  };
+  const handleRenameDeckTag = (from: string, to: string) => {
+    if (!deck) return;
+    recordEdit(deck.id, `rename tag "${from}"`, () => renameDeckTag(deck.id, from, to));
+  };
+  const handleRemoveDeckTag = (tag: string) => {
+    if (!deck) return;
+    recordEdit(deck.id, `remove tag "${tag}"`, () => removeDeckTag(deck.id, tag));
   };
 
   const handleEditConfirm = (selection: PrintingSelection) => {
@@ -2236,6 +2378,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   const displaySideboard: DeckDisplayCard[] = deck.sideboard.map((c) => ({
@@ -2243,6 +2386,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   const displayConsidering: DeckDisplayCard[] = (deck.considering ?? []).map((c) => ({
@@ -2250,6 +2394,7 @@ export function DeckEditorPage() {
     card: c.card,
     allocatedCopyId: c.allocatedCopyId,
     addedAt: c.addedAt,
+    tags: c.tags,
   }));
 
   // Page-top hub tabs: Deck (card list) · Stats (mana + overview) · Power +
@@ -2388,7 +2533,7 @@ export function DeckEditorPage() {
               {heroTotals.count === 1 ? 'card' : 'cards'}
               {'\u00A0· '}
               {formatMoney(heroTotals.value)}
-              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0maybe`}
+              {heroTotals.sideboard > 0 && `\u00A0· +${heroTotals.sideboard}\u00A0sideboard`}
               {heroTotals.considering > 0 && `\u00A0· +${heroTotals.considering}\u00A0considering`}
             </span>
             {/* Bracket — glanceable on every view (it left the feature strip). */}
@@ -2478,8 +2623,11 @@ export function DeckEditorPage() {
           <DeckEditorOverflowMenu
             onDuplicate={handleDuplicate}
             onDelete={() => setConfirmDelete(true)}
-            onExport={() => setExportOpen(true)}
+            // No onExport here — the toolbar's .deck-toolbar-export button
+            // (visible ≥1024px) is the single desktop entry point (E181).
             onImport={() => setAppendOpen(true)}
+            onBulkEdit={() => setBulkEditOpen(true)}
+            onResync={() => setResyncOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onTokens={deckTokens.length > 0 ? () => setTokensOpen(true) : undefined}
@@ -2509,6 +2657,8 @@ export function DeckEditorPage() {
             onDelete={() => setConfirmDelete(true)}
             onExport={() => setExportOpen(true)}
             onImport={() => setAppendOpen(true)}
+            onBulkEdit={() => setBulkEditOpen(true)}
+            onResync={() => setResyncOpen(true)}
             onFeedback={() => setFeedbackOpen(true)}
             onPrimer={() => setPrimerOpen(true)}
             onPlaytest={() => navigate(`/decks/${deck.id}/playtest`)}
@@ -2541,6 +2691,27 @@ export function DeckEditorPage() {
 
       <div className="deck-editor-layout">
         <main className="deck-editor-main">
+          {/* Deck re-sync discovery hint — hidden while the add-cards sheet is
+              open so it can never be on screen at the same time as the
+              binder-location hint inside that sheet (at most one wedge-
+              discovery hint visible at once, app-wide). */}
+          {!showAddPanel && !resyncHintDismissed && shouldShowResyncHint(deck.cards.length > 0) && (
+            <WedgeHintStrip
+              icon={<RefreshCw width={16} height={16} aria-hidden />}
+              headline="Keep this decklist in sync"
+              detail="Paste an updated list from Moxfield or Archidekt to diff and merge changes."
+              actionLabel="Resync"
+              onAction={() => {
+                dismissResyncHint();
+                setResyncHintDismissed(true);
+                setResyncOpen(true);
+              }}
+              onDismiss={() => {
+                dismissResyncHint();
+                setResyncHintDismissed(true);
+              }}
+            />
+          )}
           <DeckDisplay
             title={deck.name}
             deckId={deck.id}
@@ -2563,6 +2734,13 @@ export function DeckEditorPage() {
             onMoveFromConsidering={handleMoveFromConsidering}
             onSetQty={handleSetQty}
             onEditCard={handleEditCard}
+            onSetCardTags={handleSetCardTags}
+            onRenameDeckTag={handleRenameDeckTag}
+            onRemoveDeckTag={handleRemoveDeckTag}
+            onBulkRemove={handleBulkRemove}
+            onBulkMove={handleBulkMove}
+            onBulkEditTag={handleBulkEditTag}
+            onReorder={handleReorder}
             onMakeCommander={formatConfig?.hasCommander ? handleMakeCommanderClick : undefined}
             canMakeCommander={
               formatConfig?.hasCommander
@@ -2624,6 +2802,7 @@ export function DeckEditorPage() {
             onExportOpenChange={setExportOpen}
             activeView={safeView}
             onShowTestHand={() => setShowTestHand(true)}
+            onAddCards={handleToggleAddPanel}
             analysisState={analysisState}
             scoreRevealKey={scoreRevealKey}
             onNavigateToTune={
@@ -2849,7 +3028,10 @@ export function DeckEditorPage() {
         <DeckEditorCardPickerSheet
           label="Add cards"
           className="deck-add-sheet"
-          onClose={() => setShowAddPanel(false)}
+          onClose={() => {
+            setShowAddPanel(false);
+            buildTimeNudge.dismiss();
+          }}
         >
           {(dismiss) => (
             <>
@@ -2901,11 +3083,39 @@ export function DeckEditorPage() {
                   </span>
                 </label>
               </fieldset>
+              {/* Build-time coach nudge (E169 Half B) — strictly mainboard-only:
+                  an add to sideboard/considering doesn't touch the mainboard
+                  signature the combo/bracket/win-condition engines analyze, so
+                  it can never produce a nudge, and switching zone tabs away
+                  from Mainboard hides any nudge already showing. */}
+              {addZone === 'main' && (
+                <BuildTimeCoachStrip
+                  nudge={buildTimeNudge.nudge}
+                  onView={(kind) => {
+                    // A navigating strip (STYLE_GUIDE "Build-time coach
+                    // strip"), unlike the tap-opens-sheet insight strips: the
+                    // detail lives one tab over in the Power bento, not in a
+                    // local sheet, so leaving the add flow is unavoidable —
+                    // make it a deliberate close (dismiss the sheet) rather
+                    // than an accidental one.
+                    buildTimeNudge.dismiss();
+                    dismiss();
+                    openAnalysisTab('power');
+                    window.requestAnimationFrame(() => {
+                      if (kind === 'combo') handleViewCombos();
+                      else if (kind === 'wincon') handleViewWinConditions();
+                      else handleViewBracket();
+                    });
+                  }}
+                  onDismiss={buildTimeNudge.dismiss}
+                />
+              )}
               <CardSearchPanel
                 ref={searchPanelRef}
                 deckId={deck.id}
                 commanderColorIdentity={commanderColorIdentity}
                 existingCardCounts={existingCardCounts}
+                binderByCardName={binderByCardName}
                 onAdd={({ card }) => {
                   if (addZone === 'side' || addZone === 'considering') {
                     // allocateAndAdd resolves the copy itself (free / auto-move /
@@ -2922,6 +3132,10 @@ export function DeckEditorPage() {
                     setPendingAdd(card.name);
                     return;
                   }
+                  // Arm the build-time nudge BEFORE the mutation lands, so its
+                  // baseline token snapshot is genuinely "before" — see
+                  // notifyMainboardAdd's own doc for why the order matters.
+                  buildTimeNudge.notifyMainboardAdd(card.name);
                   allocateAndAdd(card, 'main', false);
                 }}
                 onPreviewFit={(card) => setAuditionCard(card)}
@@ -2978,6 +3192,10 @@ export function DeckEditorPage() {
       {tokensOpen && <DeckTokensSheet tokens={deckTokens} onClose={() => setTokensOpen(false)} />}
       {primerOpen && <DeckPrimerSheet deck={deck} onClose={() => setPrimerOpen(false)} />}
       {appendOpen && <AppendDeckDialog deck={deck} onClose={() => setAppendOpen(false)} />}
+      {bulkEditOpen && <BulkEditDeckDialog deck={deck} onClose={() => setBulkEditOpen(false)} />}
+      {resyncOpen && (
+        <BulkEditDeckDialog deck={deck} mode="resync" onClose={() => setResyncOpen(false)} />
+      )}
       {pullListOpen && (
         <PullListSheet
           deck={deck}
@@ -3238,6 +3456,8 @@ function DeckEditorOverflowMenu({
   onDelete,
   onExport,
   onImport,
+  onBulkEdit,
+  onResync,
   onFeedback,
   onPrimer,
   onPlaytest,
@@ -3250,11 +3470,20 @@ function DeckEditorOverflowMenu({
 }: {
   onDuplicate: () => void;
   onDelete: () => void;
-  onExport: () => void;
+  /** Absent on desktop (≥1024px): the deck toolbar's own Export button
+   *  (`.deck-toolbar-export`) is the single desktop entry point (E181) — the
+   *  kebab still carries it on mobile/tablet, where that button is hidden. */
+  onExport?: () => void;
   /** Opens the paste-into-this-deck dialog (E168 slice 2) — mirrors onExport:
-   *  kebab-only at every breakpoint, no separate toolbar button. A future
-   *  slice adds onBulkEdit alongside this. */
+   *  kebab-only at every breakpoint, no separate toolbar button. */
   onImport: () => void;
+  /** Opens the text/bulk-edit dialog (E168 slice 4) — same kebab-only,
+   *  every-breakpoint placement as onImport/onExport. */
+  onBulkEdit: () => void;
+  /** Opens the same dialog in resync mode (E173) — paste-and-diff against an
+   *  external list-of-record (Moxfield, Archidekt, …), kebab-only like
+   *  onBulkEdit/onImport/onExport. */
+  onResync: () => void;
   /** Opens the Feedback Tool sheet (mint link + review responses). */
   onFeedback: () => void;
   /** Opens the primer (strategy notes) editor sheet. */
@@ -3290,6 +3519,53 @@ function DeckEditorOverflowMenu({
     };
   }, [open]);
 
+  // Sectioned groups (E181): a flat 12-13 row list read as an undifferentiated
+  // wall. Undo/Redo stay unlabelled at top (existing convention) and Delete
+  // stays last (STYLE_GUIDE UX-316 — destructive actions live in this menu);
+  // everything else buckets into labelled clusters. Each row is `{ key, label,
+  // onClick }` so a whole section can be built + filtered in one line instead
+  // of ~10 near-identical <button> blocks.
+  type Row = { key: string; label: string; onClick: () => void };
+  const quickActions: Row[] = [
+    onPlaytest && { key: 'playtest', label: 'Playtest', onClick: onPlaytest },
+    onTokens && { key: 'tokens', label: 'Tokens to prep', onClick: onTokens },
+    onPullList && { key: 'pull-list', label: 'Pull list', onClick: onPullList },
+  ].filter((r): r is Row => !!r);
+  const textTools: Row[] = [
+    { key: 'paste', label: 'Paste cards', onClick: onImport },
+    { key: 'bulk-edit', label: 'Bulk edit', onClick: onBulkEdit },
+    { key: 'resync', label: 'Resync from a list', onClick: onResync },
+  ];
+  const deckActions: Row[] = [
+    { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
+    { key: 'primer', label: 'Primer', onClick: onPrimer },
+    onExport && { key: 'export', label: 'Export', onClick: onExport },
+    { key: 'feedback', label: 'Get feedback', onClick: onFeedback },
+  ].filter((r): r is Row => !!r);
+
+  const renderRow = (row: Row) => (
+    <button
+      key={row.key}
+      type="button"
+      role="menuitem"
+      className="deck-editor-overflow-item"
+      onClick={() => {
+        setOpen(false);
+        row.onClick();
+      }}
+    >
+      {row.label}
+    </button>
+  );
+
+  const renderSection = (label: string, rows: Row[]) =>
+    rows.length > 0 && (
+      <div className="deck-editor-overflow-section" key={label}>
+        <div className="deck-editor-overflow-label">{label}</div>
+        {rows.map(renderRow)}
+      </div>
+    );
+
   return (
     <div className="deck-editor-overflow" ref={wrapperRef}>
       <button
@@ -3303,144 +3579,58 @@ function DeckEditorOverflowMenu({
         <MoreVertical width={20} height={20} strokeWidth={2.2} aria-hidden />
       </button>
       {open && (
-        <>
-          <div className="deck-editor-overflow-panel" role="menu">
-            {onUndo && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onUndo();
-                }}
-              >
-                Undo{undoLabel ? ` ${undoLabel}` : ''}
-              </button>
-            )}
-            {onRedo && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onRedo();
-                }}
-              >
-                Redo{redoLabel ? ` ${redoLabel}` : ''}
-              </button>
-            )}
-            {(onUndo || onRedo) && (
+        <div className="deck-editor-overflow-panel" role="menu">
+          {onUndo && (
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onUndo();
+              }}
+            >
+              Undo{undoLabel ? ` ${undoLabel}` : ''}
+            </button>
+          )}
+          {onRedo && (
+            <button
+              type="button"
+              role="menuitem"
+              className="deck-editor-overflow-item"
+              onClick={() => {
+                setOpen(false);
+                onRedo();
+              }}
+            >
+              Redo{redoLabel ? ` ${redoLabel}` : ''}
+            </button>
+          )}
+          {(onUndo || onRedo) && (
+            <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+          )}
+          {quickActions.length > 0 && (
+            <>
+              {renderSection('Quick actions', quickActions)}
               <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
-            )}
-            {onPlaytest && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onPlaytest();
-                }}
-              >
-                Playtest
-              </button>
-            )}
-            {onTokens && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onTokens();
-                }}
-              >
-                Tokens to prep
-              </button>
-            )}
-            {onPullList && (
-              <button
-                type="button"
-                role="menuitem"
-                className="deck-editor-overflow-item"
-                onClick={() => {
-                  setOpen(false);
-                  onPullList();
-                }}
-              >
-                Pull list
-              </button>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onDuplicate();
-              }}
-            >
-              Duplicate
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onPrimer();
-              }}
-            >
-              Primer
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onExport();
-              }}
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onImport();
-              }}
-            >
-              Paste cards
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item"
-              onClick={() => {
-                setOpen(false);
-                onFeedback();
-              }}
-            >
-              Get feedback
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="deck-editor-overflow-item deck-editor-overflow-item--danger"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        </>
+            </>
+          )}
+          {renderSection('Text tools', textTools)}
+          <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+          {renderSection('Deck actions', deckActions)}
+          <div className="deck-editor-overflow-divider" role="separator" aria-hidden />
+          <button
+            type="button"
+            role="menuitem"
+            className="deck-editor-overflow-item deck-editor-overflow-item--danger"
+            onClick={() => {
+              setOpen(false);
+              onDelete();
+            }}
+          >
+            Delete
+          </button>
+        </div>
       )}
     </div>
   );

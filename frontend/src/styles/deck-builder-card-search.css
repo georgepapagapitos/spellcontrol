@@ -66,6 +66,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* Only matters when the binder-location discovery hint (WedgeHintStrip)
+     is the tabpanel's first child, above the results list — spaces the two
+     apart without the hint component owning its own margin. */
+  gap: var(--space-2);
 }
 
 .deck-add-sheet .card-search-results {
@@ -535,6 +539,27 @@
   .card-search-fit {
     /* A larger tap target on touch without changing the inline text flow. */
     padding: 0.1rem 0.2rem;
+  }
+}
+
+/* Binder chip (E169) — reuses BinderBadge inline in the meta line, right
+   after "owned N". Its sibling in this row, .card-search-add, already gets
+   the coarse-pointer 44px minimum (WCAG 2.5.5); this closes the same gap for
+   the badge. Growing the visible pill itself would distort the dense meta
+   line, so — mirroring .set-filter-chip-x — a centered ::after ghost expands
+   only the hit area on coarse pointers, leaving the quiet chip's size alone. */
+.card-search-meta .card-list-binder-badge {
+  position: relative;
+}
+@media (pointer: coarse) {
+  .card-search-meta .card-list-binder-badge::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 }
 
