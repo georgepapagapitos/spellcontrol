@@ -19,8 +19,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { nextBinderMatch } from '@spellcontrol/binder-routing';
 import { useCollectionStore } from '../store/collection';
-import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { CardPickerSheet } from './CardPickerSheet';
+import { Modal } from './Modal';
 import { Tabs } from './Tabs';
 import type { BinderDef, EnrichedCard, MaterializedBinder } from '../types';
 
@@ -41,8 +41,6 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
   const setBinderManualOrder = useCollectionStore((s) => s.setBinderManualOrder);
   const seedManualOrder = useCollectionStore((s) => s.seedManualOrder);
   const binderDefs = useCollectionStore((s) => s.binders);
-
-  useLockBodyScroll();
 
   // Flat ordered list of active cards in the binder.
   const activeCards = useMemo(() => binder.sections.flatMap((s) => s.cards), [binder.sections]);
@@ -136,14 +134,8 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
   const currentBoundSet = useMemo(() => new Set(activeCards.map((c) => c.copyId)), [activeCards]);
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Edit cards — ${binder.def.name}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <>
+      <Modal className="modal" label={`Edit cards — ${binder.def.name}`} onClose={onClose}>
         <div className="modal-header">
           <h2>Edit cards — {binder.def.name}</h2>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
@@ -220,8 +212,13 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
             Done
           </button>
         </div>
-      </div>
+      </Modal>
 
+      {/* Sibling of the Modal, not a child: CardPickerSheet is on useSheetExit,
+          so it registers its own layer above this dialog's and Escape / Android
+          back close the picker first, then the editor. Nested inside the old
+          hand-rolled backdrop it also meant every click in the picker bubbled
+          to the backdrop's onClose. */}
       {pickerOpen && (
         <CardPickerSheet
           binderId={binder.def.id}
@@ -230,7 +227,7 @@ export function BinderCardEditor({ binder, allCards, onClose }: Props) {
           onClose={() => setPickerOpen(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 

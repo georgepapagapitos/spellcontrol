@@ -12,6 +12,8 @@ import {
   X,
 } from 'lucide-react';
 import { CameraPreview } from '@capacitor-community/camera-preview';
+import { App as CapacitorApp } from '@capacitor/app';
+import { focusInto, trapTab, useOverlayLayer } from '../lib/overlay-layer';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useWakeLock } from '../lib/use-wake-lock';
 import { getCardById } from '../lib/api';
@@ -119,6 +121,9 @@ const CAPTURE_COOLDOWN_MS = 800;
 const SUSTAINED_MISS_HINTS = 3;
 
 export function CardScanner({ onClose, onConfirm }: Props) {
+  // The scanner mounts only while it's open (every caller renders it
+  // conditionally), so it registers for its whole lifetime.
+  const { isTopmost } = useOverlayLayer();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -394,13 +399,46 @@ export function CardScanner({ onClose, onConfirm }: Props) {
     };
   }, [startCamera, stopCamera]);
 
+  // Escape + Tab containment. The scanner predates both `<Modal>` and
+  // `useSheetExit`, so it had a bare Escape handler and nothing else: Tab
+  // walked straight out into the page behind it despite `aria-modal="true"`,
+  // and the Android back button navigated the WebView's history out from
+  // under a live camera. Same shared layer stack as Modal/useSheetExit, so a
+  // dialog opened on top of the scanner is the one that answers a press.
   useEffect(() => {
+    const root = rootRef.current;
+    const prevFocused = document.activeElement as HTMLElement | null;
+    if (root) focusInto(root);
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (!isTopmost()) return;
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (rootRef.current) trapTab(rootRef.current, e);
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      // Don't drop keyboard/screen-reader users at the top of the page when
+      // the scanner closes.
+      if (prevFocused?.isConnected) prevFocused.focus?.();
+    };
+  }, [onClose, isTopmost]);
+
+  // Android hardware back button — closes the scanner (releasing the camera
+  // via the unmount cleanup) instead of navigating the page underneath it.
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    const handle = CapacitorApp.addListener('backButton', () => {
+      if (!isTopmost()) return;
+      onClose();
+    });
+    return () => {
+      void handle.then((h) => h.remove());
+    };
+  }, [onClose, isTopmost]);
 
   /**
    * Keep the on-screen viewfinder sized to live inside the *visible*
