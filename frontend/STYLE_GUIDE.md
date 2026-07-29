@@ -495,7 +495,7 @@ hard constraint they share.
 at 320px. If it can't shrink, it must wrap or collapse.
 
 **Every multi-button row declares its own `gap: var(--space-2)`.** `.btn` sets
-no sibling margin by design, so *all* spacing between buttons comes from the
+no sibling margin by design, so _all_ spacing between buttons comes from the
 parent — a flex row that omits `gap` renders its buttons flush against each
 other with zero separation. The `display: flex; justify-content: flex-end;`
 footer idiom is the usual carrier: it was copy-pasted into several action rows
@@ -534,7 +534,7 @@ report. When you write that idiom, write the third line too.
      off-screen rows needs `max-height` + `overflow-y: auto` on the panel**,
      not just on the outer page. And before adding a row that already exists
      as a visible primary control elsewhere on the same surface (E181's kebab
-     carried Undo/Redo/Tokens/Pull list *and* an inline copy of all four),
+     carried Undo/Redo/Tokens/Pull list _and_ an inline copy of all four),
      ask which surface is the single source for that action — one export
      button beats a kebab AND a toolbar disagreeing about the entry point.
 
@@ -749,7 +749,24 @@ var(--overlay-sheet) }` in `binder-card-management.css`. A new sheet on this
   WebViews. Use a two-step `<Modal dismissable={!busy}>` with a red confirm
   (reference: `ConfirmDialog.tsx`). Hand-rolled `.modal-backdrop` dialogs are
   also discouraged — route through `<Modal>` so the exit animation, focus-trap,
-  and scroll-lock come for free (see § Motion).
+  and Escape/hardware-back handling come for free (see § Motion).
+- **Every scroller inside an overlay declares `overscroll-behavior: contain`.**
+  `useLockBodyScroll` is not the mechanism it looks like: `body` is _already_
+  permanently `overflow: hidden` (`base-layout.css`), so locking it changes
+  nothing. `.app-main` is the app's only real scroll region, and its own
+  `contain` only stops chaining **out** of it — not delta arriving from a
+  descendant. So an overlay list scrolled to its edge hands the leftover swipe
+  straight to the page behind the still-open sheet, which reads as "the modal
+  doesn't lock the background." Fix it at the scroller, not the body: the
+  shared carriers are `.modal-body`, `.card-picker-list`, `.add-card-sheet-body`
+  and `.cle`. A new overlay that introduces its own scrolling region declares
+  it too. `src/styles/overlay-containment.test.ts` pins the four shared ones.
+- **A scroll strip states both axes.** Per the CSS Overflow spec, setting one
+  axis to a non-`visible` value computes the _other_ to `auto` — so
+  `overflow-x: auto` alone silently creates a two-axis scroller. On
+  `.collection-hub-tabs` that combined with the active tab's
+  `margin-bottom: -1px` to leave a 1px block-axis scroll range for touch
+  momentum to rubber-band against. Write `overflow-y: hidden` explicitly.
 
 ### Game-board panel covers — gestures are panel-local, never screen-local
 
@@ -949,14 +966,14 @@ reference fix (`.deck-empty-state` in `DeckDisplay.tsx` +
   invent a bespoke illustration/empty-graphic system for one screen. Icon +
   headline + one detail sentence + a single primary CTA button, laid out like
   `WedgeHintStrip`/`BuildTimeCoachStrip` but **not dismissible** (there's
-  nothing to dismiss it *to* — the list stays empty until the user acts).
+  nothing to dismiss it _to_ — the list stays empty until the user acts).
 - **The copy names the next action, not just the absence of content.**
   "This deck is empty" alone is a dead end; pair it with what to do next
   ("Search the card index below and add your first cards") and a CTA that
   performs that action directly (`onAddCards` opens the same add-cards sheet
   the toolbar's own Add-cards button opens — one entry point, not a second
   one).
-- **Branch the copy when the *reason* for emptiness differs, not just the
+- **Branch the copy when the _reason_ for emptiness differs, not just the
   count.** A Commander-format deck with no commander yet needs different
   guidance than a deck that simply has no cards — suggestions, color
   identity, and legality all key off the commander, so "add a card" is the
@@ -1031,14 +1048,14 @@ onboarding tour, carousel, or nag, this codebase surfaces such a feature with
 a **contextual, once-only, dismissible hint at the moment it becomes
 relevant**, built from two pieces: `lib/wedge-hints.ts` (precondition +
 device-local "never again" persistence, one pair of functions per hint — see
-the module doc for why this is *not* a registry) and `WedgeHintStrip.tsx`
+the module doc for why this is _not_ a registry) and `WedgeHintStrip.tsx`
 (the shared one-row presentational shell). Reference instances: the
 binder-location hint in `CardSearchPanel.tsx`'s Collection tab and the deck
 re-sync hint in `DeckEditorPage.tsx`.
 
 - **Precondition gates on the feature being genuinely usable RIGHT NOW, not
   merely "the user could set it up."** The binder hint doesn't fire because
-  the user has *a* binder — it fires because a Collection-tab row actually
+  the user has _a_ binder — it fires because a Collection-tab row actually
   routed to one (`binderByCardName.size > 0`), i.e. the badge it's pointing at
   is really on screen. Firing on an empty-state precondition teaches a user
   that hints are worthless; a hint that can't point at anything real is worse

@@ -78,7 +78,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-4);
+  /* Overlay Pattern A (modals-dialogs.css): reserve the device safe areas so
+     the panel can't sit under the notch or the gesture bar, and let the
+     backdrop scroll when the panel outgrows a short/landscape viewport. */
+  padding: var(--overlay-pad-top) var(--space-4) var(--overlay-pad-bottom);
+  overflow-y: auto;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -92,8 +96,11 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-modal);
   width: min(420px, 100%);
-  max-height: 92vh;
+  /* 92vh ignores the safe areas and the soft keyboard — the seat-name field
+     in here opens one. Matches `.modal`'s own clamp. */
+  max-height: calc(var(--vh-safe) - 6rem - var(--keyboard-inset));
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;

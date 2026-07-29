@@ -3,6 +3,10 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3);
+  /* Own the overflow here rather than at the embedding page: the matchup
+     rows carry long opponent names and this component is embedded in more
+     than one host, only one of which happens to clip safely. */
+  overflow-x: auto;
 }
 
 .h2h-summary {
