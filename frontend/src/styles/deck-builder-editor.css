@@ -150,6 +150,17 @@
     line-clamp: 2;
     overflow: hidden;
   }
+
+  /* Below 1024px the action cluster is just the Add-cards pill + ⋮ (see
+     .deck-editor-mobile-actions), so the header's wrap gap only ever
+     separates the hero from that one short row — the desktop 1rem row-gap
+     (sized for a hero sitting *beside* a full inline button row) is more
+     space than a single 44px row needs. Scoped to true phones only, so
+     tablet (600-1023px) and the ≥1024px desktop row keep their existing
+     spacing untouched. */
+  .deck-editor-header {
+    row-gap: var(--space-2);
+  }
 }
 
 @media (min-width: 600px) {
@@ -292,20 +303,9 @@
   padding-right: 0.55rem;
 }
 
-.deck-editor-icon-btn:disabled,
-.deck-editor-icon-pill:disabled {
+.deck-editor-icon-btn:disabled {
   opacity: 0.4;
   cursor: default;
-}
-
-/* Mobile undo/redo: round icon buttons matching the ⋮ overflow shape. */
-.deck-editor-icon-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 999px;
 }
 
 /* ── Deck editor overflow ──────────────────────────────────────────────── */
@@ -372,15 +372,6 @@
     background: var(--surface-raised);
     color: var(--text-primary);
   }
-}
-
-/* The bottom-sheet backdrop + drag handle aren't used anymore — the
-   overflow opens as an anchored popover at every breakpoint, matching
-   the binder/deck index card 3-dot menus. The DOM nodes still render
-   for the time being to keep the JSX simple. */
-.deck-editor-overflow-backdrop,
-.deck-editor-overflow-handle {
-  display: none;
 }
 
 .deck-editor-overflow-panel {
