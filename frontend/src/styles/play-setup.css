@@ -676,11 +676,15 @@
 
 /* End-game winner picker — radio buttons styled as chips inside the
  * existing ConfirmDialog frame. */
+/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .play-end-winners {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: var(--space-2) 0 var(--space-4);
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .play-end-winner {

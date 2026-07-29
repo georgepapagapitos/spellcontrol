@@ -133,10 +133,9 @@ describe('ImportDeckDialog — creation-time visibility', () => {
   it('shows the Visibility fieldset on the single-deck (no staged files) path, defaulting to Private', () => {
     renderDialog();
     selectStandardFormat();
-    expect(screen.getByRole('radio', { name: 'Private' }).getAttribute('aria-checked')).toBe(
-      'true'
-    );
-    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLButtonElement).disabled).toBe(
+    // Native <input type="radio"> now — `checked`/`disabled`, not aria-*.
+    expect((screen.getByRole('radio', { name: 'Private' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).disabled).toBe(
       false
     );
   });
@@ -209,7 +208,7 @@ describe('ImportDeckDialog — creation-time visibility', () => {
     renderDialog();
     selectStandardFormat();
 
-    const publicRadio = screen.getByRole('radio', { name: 'Public' }) as HTMLButtonElement;
+    const publicRadio = screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement;
     expect(publicRadio.disabled).toBe(true);
     expect(screen.getByText(/Sign in to publish/)).toBeTruthy();
 

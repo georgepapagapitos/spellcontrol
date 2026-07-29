@@ -9,11 +9,15 @@
   color: var(--text-secondary);
 }
 
+/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .playtest-resistance-picker__list {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-4) var(--space-4);
+  margin: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .playtest-resistance-picker__row {

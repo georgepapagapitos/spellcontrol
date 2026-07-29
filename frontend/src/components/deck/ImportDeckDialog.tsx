@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { Upload, Download, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal } from '../Modal';
@@ -117,6 +117,9 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
 
   const [selectedFormat, setSelectedFormat] = useState<DeckFormat>(initialFormat);
   const formatConfig = DECK_FORMAT_CONFIGS[selectedFormat];
+  // Radios group by shared `name` — scope each group to this dialog instance.
+  const formatGroup = useId();
+  const visibilityGroup = useId();
   const [step, setStep] = useState<Step>('input');
   const [pasteText, setPasteText] = useState('');
   const [deckName, setDeckName] = useState('');
@@ -646,25 +649,28 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
               <span className="import-deck-format-label">
                 {batchFiles.length > 0 ? 'Default format' : 'Format'}
               </span>
-              <div className="format-pill-row" role="radiogroup" aria-label="Default deck format">
+              <fieldset
+                className="format-pill-row"
+                aria-label="Default deck format"
+                disabled={isLoading}
+              >
                 {FORMATS.map((fmt) => {
                   const cfg = DECK_FORMAT_CONFIGS[fmt];
                   const active = selectedFormat === fmt;
                   return (
-                    <button
-                      key={fmt}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      className={`format-pill${active ? ' active' : ''}`}
-                      onClick={() => setSelectedFormat(fmt)}
-                      disabled={isLoading}
-                    >
-                      {cfg.label}
-                    </button>
+                    <label key={fmt} className={`format-pill${active ? ' active' : ''}`}>
+                      <input
+                        type="radio"
+                        name={formatGroup}
+                        value={fmt}
+                        checked={active}
+                        onChange={() => setSelectedFormat(fmt)}
+                      />
+                      <span>{cfg.label}</span>
+                    </label>
                   );
                 })}
-              </div>
+              </fieldset>
             </div>
 
             {batchFiles.length > 0 ? (
@@ -703,10 +709,11 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                     </li>
                   ))}
                 </ul>
+                {/* Already native radios — the wrapper just needed to be a real
+                    fieldset instead of a div carrying role="radiogroup". */}
                 {batchFiles.length > 1 && (
-                  <div
+                  <fieldset
                     className="import-deck-batch-modes"
-                    role="radiogroup"
                     aria-label="How to import multiple files"
                   >
                     <label className="import-deck-batch-mode">
@@ -735,7 +742,7 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
                         single {formatConfig.label} deck.
                       </span>
                     </label>
-                  </div>
+                  </fieldset>
                 )}
                 <p className="import-deck-hint">
                   Click <strong>Upload files</strong> again or drop more to add to this list
@@ -781,28 +788,35 @@ export function ImportDeckDialog({ onClose, format: initialFormat = 'commander' 
             {(batchFiles.length === 0 || batchMode === 'merge') && (
               <div className="import-deck-commander-section">
                 <div className="import-deck-section-title">Visibility</div>
-                <div className="share-audience" role="radiogroup" aria-label="Deck visibility">
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={visibility === 'private'}
-                    className={`share-audience-option${visibility === 'private' ? ' is-active' : ''}`}
-                    onClick={() => setVisibility('private')}
-                    disabled={isLoading}
-                  >
-                    Private
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={visibility === 'public'}
-                    className={`share-audience-option${visibility === 'public' ? ' is-active' : ''}`}
-                    onClick={() => setVisibility('public')}
-                    disabled={isLoading || !canPublish}
-                  >
-                    Public
-                  </button>
-                </div>
+                <fieldset
+                  className="share-audience"
+                  aria-label="Deck visibility"
+                  disabled={isLoading}
+                >
+                  {(
+                    [
+                      { value: 'private', label: 'Private', blocked: false },
+                      { value: 'public', label: 'Public', blocked: !canPublish },
+                    ] as const
+                  ).map((opt) => (
+                    <label
+                      key={opt.value}
+                      className={`share-audience-option${
+                        visibility === opt.value ? ' is-active' : ''
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={visibilityGroup}
+                        value={opt.value}
+                        checked={visibility === opt.value}
+                        disabled={opt.blocked}
+                        onChange={() => setVisibility(opt.value)}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </fieldset>
                 <p className="import-deck-hint">
                   {visibility === 'public'
                     ? 'Anyone can find it at a stable link and on your profile.'

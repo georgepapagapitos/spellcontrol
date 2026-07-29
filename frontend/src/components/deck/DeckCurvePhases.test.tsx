@@ -114,9 +114,11 @@ describe('DeckCurvePhases', () => {
     const { container } = render(
       <DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} curveByColor={curveByColor} />
     );
-    // "By color" is the default and the toggle reflects it.
-    expect(screen.getByRole('radio', { name: 'By color' }).getAttribute('aria-pressed')).toBe(
-      'true'
+    // "By color" is the default and the toggle reflects it. Native
+    // <input type="radio"> now — `checked`, not the old aria-pressed (which
+    // this control carried alongside role="radio", a contradiction).
+    expect((screen.getByRole('radio', { name: 'By color' }) as HTMLInputElement).checked).toBe(
+      true
     );
 
     // Stacked bars + segments are rendered (not solid count fills).
@@ -133,7 +135,7 @@ describe('DeckCurvePhases', () => {
       <DeckCurvePhases manaCurve={manaCurve} averageCmc={3.1} curveByColor={curveByColor} />
     );
     fireEvent.click(screen.getByRole('radio', { name: 'Count' }));
-    expect(screen.getByRole('radio', { name: 'Count' }).getAttribute('aria-pressed')).toBe('true');
+    expect((screen.getByRole('radio', { name: 'Count' }) as HTMLInputElement).checked).toBe(true);
     // No stacked bars remain; the classic solid fills are shown instead.
     expect(container.querySelectorAll('.deck-curve-phases-bar-stack').length).toBe(0);
     expect(container.querySelectorAll('.deck-curve-phases-bar-fill').length).toBeGreaterThan(0);

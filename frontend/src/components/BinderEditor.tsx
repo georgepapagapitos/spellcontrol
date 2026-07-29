@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useId, useMemo, useRef } from 'react';
 import { fetchTypeSuggestions, fetchOracleSuggestions } from '../lib/scryfall-catalog';
 import { importFile, importText, type ImportProgressCallback } from '../lib/api';
 import { currencySymbol } from '../lib/currency';
@@ -183,6 +183,9 @@ export function BinderEditor() {
   const [showDeckAllocated, setShowDeckAllocated] = useState(true);
   const [keepPrintingsTogether, setKeepPrintingsTogether] = useState(false);
   const [sectionMode, setSectionMode] = useState<'sort' | 'group'>('sort');
+  // Radios group by shared `name` — scope each group to this editor instance.
+  const sectionModeGroup = useId();
+  const binderModeGroup = useId();
   const [pageBreakDepth, setPageBreakDepth] = useState<number>(1);
   const [groups, setGroups] = useState<BinderFilterGroup[]>([newGroup()]);
   const [routingMode, setRoutingMode] = useState<'rules' | 'manual'>('rules');
@@ -835,30 +838,25 @@ export function BinderEditor() {
             </section>
 
             {isNew && (
-              <div
-                className="binder-mode-toggle"
-                role="radiogroup"
-                aria-label="Binder creation mode"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={binderMode === 'rules'}
-                  className={`binder-mode-pill${binderMode === 'rules' ? ' active' : ''}`}
-                  onClick={() => setBinderMode('rules')}
-                >
-                  Build with rules
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={binderMode === 'import'}
-                  className={`binder-mode-pill${binderMode === 'import' ? ' active' : ''}`}
-                  onClick={() => setBinderMode('import')}
-                >
-                  Import a list
-                </button>
-              </div>
+              <fieldset className="binder-mode-toggle" aria-label="Binder creation mode">
+                {(
+                  [
+                    { v: 'rules', label: 'Build with rules' },
+                    { v: 'import', label: 'Import a list' },
+                  ] as const
+                ).map(({ v, label }) => (
+                  <label key={v} className={`binder-mode-pill${binderMode === v ? ' active' : ''}`}>
+                    <input
+                      type="radio"
+                      name={binderModeGroup}
+                      value={v}
+                      checked={binderMode === v}
+                      onChange={() => setBinderMode(v)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </fieldset>
             )}
 
             {(binderMode === 'rules' || existing) && (
@@ -994,31 +992,32 @@ export function BinderEditor() {
                     <div className="editor-row" style={{ marginTop: '0.75rem' }}>
                       <div className="field" style={{ flex: 1 }}>
                         <label>Sections</label>
-                        <div
-                          role="radiogroup"
+                        <fieldset
                           aria-label="Section mode"
                           className="binder-mode-toggle"
                           style={{ display: 'inline-flex' }}
                         >
-                          <button
-                            type="button"
-                            role="radio"
-                            aria-checked={sectionMode === 'sort'}
-                            className={`binder-mode-pill${sectionMode === 'sort' ? ' active' : ''}`}
-                            onClick={() => setSectionMode('sort')}
-                          >
-                            By sort field
-                          </button>
-                          <button
-                            type="button"
-                            role="radio"
-                            aria-checked={sectionMode === 'group'}
-                            className={`binder-mode-pill${sectionMode === 'group' ? ' active' : ''}`}
-                            onClick={() => setSectionMode('group')}
-                          >
-                            By rule group
-                          </button>
-                        </div>
+                          {(
+                            [
+                              { v: 'sort', label: 'By sort field' },
+                              { v: 'group', label: 'By rule group' },
+                            ] as const
+                          ).map(({ v, label }) => (
+                            <label
+                              key={v}
+                              className={`binder-mode-pill${sectionMode === v ? ' active' : ''}`}
+                            >
+                              <input
+                                type="radio"
+                                name={sectionModeGroup}
+                                value={v}
+                                checked={sectionMode === v}
+                                onChange={() => setSectionMode(v)}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          ))}
+                        </fieldset>
                       </div>
                     </div>
                   )}
@@ -1585,6 +1584,8 @@ function FilterGroupFields({
   revealSetsSignal?: number;
 }) {
   const patch = onPatch;
+  // Radios group by shared `name` — several rule editors can be on screen.
+  const commanderEligibleGroup = useId();
   const edhrecEnabled = filter.edhrecRankMax !== undefined;
   const setsRowRef = useRef<HTMLDivElement>(null);
 
@@ -1750,35 +1751,28 @@ function FilterGroupFields({
                 text="Matches legal commanders: legendary creatures and cards that say 'can be your commander' (e.g. planeswalker-commanders), legal in the Commander format."
               />
             </span>
-            <div className="rule-segmented" role="radiogroup" aria-label="Commander eligibility">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={filter.commanderEligible === undefined}
-                className={`rule-segmented-pill${filter.commanderEligible === undefined ? ' active' : ''}`}
-                onClick={() => patch({ commanderEligible: undefined })}
-              >
-                Any
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={filter.commanderEligible === true}
-                className={`rule-segmented-pill${filter.commanderEligible === true ? ' active' : ''}`}
-                onClick={() => patch({ commanderEligible: true })}
-              >
-                Is
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={filter.commanderEligible === false}
-                className={`rule-segmented-pill${filter.commanderEligible === false ? ' active' : ''}`}
-                onClick={() => patch({ commanderEligible: false })}
-              >
-                Is not
-              </button>
-            </div>
+            <fieldset className="rule-segmented" aria-label="Commander eligibility">
+              {(
+                [
+                  { v: undefined, label: 'Any' },
+                  { v: true, label: 'Is' },
+                  { v: false, label: 'Is not' },
+                ] as const
+              ).map(({ v, label }) => (
+                <label
+                  key={label}
+                  className={`rule-segmented-pill${filter.commanderEligible === v ? ' active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name={commanderEligibleGroup}
+                    checked={filter.commanderEligible === v}
+                    onChange={() => patch({ commanderEligible: v })}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
+            </fieldset>
           </div>
 
           {/* Sets */}

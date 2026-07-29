@@ -416,13 +416,23 @@
 }
 
 /* ── Format selector pills (new deck, import deck) ────────────────── */
+/* A <fieldset>: strip its default chrome and take it out of the special
+   fieldset rendering box, same technique as .settings-currency-toggle. */
 .format-pill-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
+/* A <label> wrapping a visually-hidden radio, so the whole pill stays the hit
+   target while keyboard/AT semantics are native. */
 .format-pill {
+  position: relative;
+  display: inline-flex;
   flex: 0 0 auto;
   padding: 0.4rem 0.95rem;
   border-radius: var(--radius);
@@ -439,18 +449,31 @@
     color var(--motion-fast) ease;
 }
 
-.format-pill:focus-visible {
+.format-pill input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.format-pill:has(input:focus-visible) {
   border-color: var(--accent);
   color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .format-pill:hover {
+  .format-pill-row:not(:disabled) .format-pill:hover {
     border-color: var(--accent);
     color: var(--accent);
     outline: none;
   }
+}
+
+.format-pill-row:disabled .format-pill {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .format-pill.active {

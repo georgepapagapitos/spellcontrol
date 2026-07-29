@@ -54,7 +54,9 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
             A simulated opponent that occasionally counters, removes, or wipes your plays.
           </p>
         </div>
-        <div className="playtest-resistance-picker__list" role="radiogroup" aria-label="Difficulty">
+        {/* Already native radios — the wrapper just needed to be a real
+            fieldset instead of a div carrying role="radiogroup". */}
+        <fieldset className="playtest-resistance-picker__list" aria-label="Difficulty">
           {RESISTANCE_LEVELS.map((l) => {
             const active = l === level;
             const isLastUsed = level === 'off' && l === lastUsed;
@@ -93,7 +95,7 @@ export function ResistancePicker({ level, onSelect, onClose }: Props) {
               </label>
             );
           })}
-        </div>
+        </fieldset>
         <div className="card-picker-footer">
           <button type="button" className="btn" onClick={() => beginClose()}>
             Close

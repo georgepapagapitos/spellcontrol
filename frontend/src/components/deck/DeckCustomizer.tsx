@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Dices, RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   BudgetOption,
   CollectionStrategy,
@@ -212,6 +212,8 @@ export function DeckCustomizer({ customization, update }: DeckCustomizerProps) {
 }
 
 function BracketGroup({ customization, update }: DeckCustomizerProps) {
+  // Radios group by shared `name` — scope it per mounted group.
+  const bracketGroup = useId();
   const options = [
     { v: 'all' as const, label: 'Any', sub: 'No filter' },
     { v: 1 as const, label: '1', sub: 'Exhibition' },
@@ -226,24 +228,25 @@ function BracketGroup({ customization, update }: DeckCustomizerProps) {
         <h3 className="deck-customizer-group-title">Target Bracket</h3>
       </div>
       <div className="deck-customizer-group-body">
-        <div className="bracket-pill-row" role="radiogroup" aria-label="Target bracket">
+        {/* Native radios: exclusivity + arrow-key nav + one group tab stop. */}
+        <fieldset className="bracket-pill-row" aria-label="Target bracket">
           {options.map((b) => {
             const active = String(customization.targetBracket) === String(b.v);
             return (
-              <button
-                key={String(b.v)}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                className={`bracket-pill${active ? ' active' : ''}`}
-                onClick={() => update({ targetBracket: b.v })}
-              >
+              <label key={String(b.v)} className={`bracket-pill${active ? ' active' : ''}`}>
+                <input
+                  type="radio"
+                  name={bracketGroup}
+                  value={String(b.v)}
+                  checked={active}
+                  onChange={() => update({ targetBracket: b.v })}
+                />
                 <span className="bracket-pill-label">{b.label}</span>
                 <span className="bracket-pill-sub">{b.sub}</span>
-              </button>
+              </label>
             );
           })}
-        </div>
+        </fieldset>
         {customization.targetBracket === 1 && (
           <p className="deck-customizer-hint">
             Exhibition is a themed-build intent, not a measurable power level — the build report
@@ -1068,27 +1071,31 @@ function OptionGrid<T extends string | number | null>({
   onChange: (v: T) => void;
   disabled?: boolean;
 }) {
+  // Radios group by shared `name` — every OptionGrid on the page needs its own,
+  // or they'd all be one group and deselect each other.
+  const group = useId();
   return (
-    <div
+    <fieldset
       className={`option-grid option-grid-${Math.min(5, options.length)}`}
-      role="radiogroup"
-      aria-disabled={disabled}
+      disabled={disabled}
     >
       {options.map((opt) => (
-        <button
+        <label
           key={String(opt.value)}
-          type="button"
-          role="radio"
-          aria-checked={value === opt.value}
           className={`option-card${value === opt.value ? ' active' : ''}`}
-          disabled={disabled}
-          onClick={() => onChange(opt.value)}
         >
+          <input
+            type="radio"
+            name={group}
+            value={String(opt.value)}
+            checked={value === opt.value}
+            onChange={() => onChange(opt.value)}
+          />
           <span className="option-card-label">{opt.label}</span>
           {opt.sublabel && <span className="option-card-sublabel">{opt.sublabel}</span>}
-        </button>
+        </label>
       ))}
-    </div>
+    </fieldset>
   );
 }
 

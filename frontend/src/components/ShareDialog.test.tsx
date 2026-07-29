@@ -293,7 +293,7 @@ describe('ShareDialog — reopening an already-published deck', () => {
 
     await screen.findByRole('button', { name: 'Unpublish' });
 
-    expect(screen.getByRole('radio', { name: 'Public' }).getAttribute('aria-checked')).toBe('true');
+    expect((screen.getByRole('radio', { name: 'Public' }) as HTMLInputElement).checked).toBe(true);
     expect(createShareMock).not.toHaveBeenCalled();
   });
 });

@@ -129,32 +129,54 @@
   flex: none;
 }
 
-/* Segmented grid/list toggle — mirrors the curve "By color / Count" control. */
+/* Segmented grid/list toggle — mirrors the curve "By color / Count" control.
+   A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .card-group-layout-toggle {
   display: inline-flex;
   border: 0.5px solid var(--border);
   border-radius: 999px;
   overflow: hidden;
   background: var(--surface-raised);
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
 }
 
+/* Visually-hidden radio stretched over its icon, so the segment stays the hit
+   target while keyboard/AT semantics are native. */
 .card-group-layout-btn {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.card-group-layout-btn input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.card-group-layout-btn span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border: none;
-  background: none;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
-.card-group-layout-btn[aria-checked='true'] {
+.card-group-layout-btn input:checked + span {
   background: var(--accent);
   /* --accent-contrast was never defined; --on-accent is the sole token for
      text on an accent fill (literal #fff fails AA on light-accent guilds). */
   color: var(--on-accent);
+}
+
+.card-group-layout-btn input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .card-group-close {

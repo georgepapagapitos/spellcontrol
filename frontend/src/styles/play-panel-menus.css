@@ -177,15 +177,23 @@
   gap: 0.35rem;
 }
 
+/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .seat-menu-swatches {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
+/* A <label> wrapping a visually-hidden radio, so the whole swatch stays the
+   hit target while keyboard/AT semantics are native. */
 .seat-menu-swatch {
   /* Solid swatch using the per-color --pp-base so the picker mirrors
      what each option produces on the actual panel. */
+  position: relative;
   background: var(--pp-base, #3a4252);
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius);
@@ -198,6 +206,14 @@
   align-items: center;
   justify-content: center;
   transition: transform 80ms ease;
+}
+
+.seat-menu-swatch input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -784,7 +800,8 @@
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }
-.seat-menu-swatch:focus-visible {
+/* The radio inside carries focus now, so the ring hangs off the label. */
+.seat-menu-swatch:has(input:focus-visible) {
   outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 3px;
 }

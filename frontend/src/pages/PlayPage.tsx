@@ -1132,7 +1132,9 @@ function EndGameDialog({
     <Modal onClose={onCancel} label="End game">
       <h2 className="choice-dialog-title">End the game?</h2>
       <p className="choice-dialog-body">Pick the winner — or end without one.</p>
-      <div className="play-end-winners" role="radiogroup" aria-label="Winner">
+      {/* Already native radios — the wrapper just needed to be a real fieldset
+          instead of a div carrying role="radiogroup". */}
+      <fieldset className="play-end-winners" aria-label="Winner">
         {game.players.map((p) => (
           <label
             key={p.seat}
@@ -1156,7 +1158,7 @@ function EndGameDialog({
           />
           <span>No winner</span>
         </label>
-      </div>
+      </fieldset>
       <div className="choice-dialog-actions">
         <button type="button" className="btn" onClick={onCancel}>
           Cancel

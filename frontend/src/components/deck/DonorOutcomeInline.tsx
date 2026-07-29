@@ -119,11 +119,9 @@ export function DonorOutcomeInline({
       <p className="donor-outcome-prompt">
         What about <strong>{donorDeck.name}</strong>?
       </p>
-      <div
-        className="donor-outcome-options"
-        role="radiogroup"
-        aria-label="What about the other deck?"
-      >
+      {/* Already native radios — the wrapper just needed to be a real fieldset
+          instead of a div carrying role="radiogroup". */}
+      <fieldset className="donor-outcome-options" aria-label="What about the other deck?">
         {options.map((opt) => (
           <label
             key={opt.value}
@@ -142,7 +140,7 @@ export function DonorOutcomeInline({
             </span>
           </label>
         ))}
-      </div>
+      </fieldset>
 
       {selected === 'replace' && (
         <div className="donor-outcome-replace">

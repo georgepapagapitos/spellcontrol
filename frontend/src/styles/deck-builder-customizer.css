@@ -556,10 +556,16 @@
 }
 
 /* ── Pill-button option grid (radios) ────────────────────────────────── */
+/* A <fieldset>: strip its default chrome and take it out of the special
+   fieldset rendering box, same technique as .settings-currency-toggle. */
 .option-grid {
   display: grid;
   gap: var(--space-2);
   width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .option-grid-2 {
@@ -582,7 +588,10 @@
   }
 }
 
+/* A <label> wrapping a visually-hidden radio, so the whole card stays the hit
+   target while keyboard/AT semantics are native. */
 .option-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -603,13 +612,21 @@
   min-height: 3rem;
 }
 
-.option-card:focus-visible {
+.option-card input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.option-card:has(input:focus-visible) {
   border-color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .option-card:hover:not(:disabled) {
+  .option-grid:not(:disabled) .option-card:hover {
     border-color: var(--accent);
     outline: none;
   }
@@ -621,7 +638,8 @@
   color: var(--accent);
 }
 
-.option-card:disabled {
+/* `disabled` now lives on the fieldset, which disables every input inside. */
+.option-grid:disabled .option-card {
   opacity: 0.5;
   cursor: not-allowed;
 }

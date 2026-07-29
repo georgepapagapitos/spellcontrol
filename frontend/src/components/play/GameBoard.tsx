@@ -9,7 +9,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { BookOpen, MoreHorizontal, Undo2 } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type {
   DesignationKind,
   GameAction,
@@ -1254,6 +1254,10 @@ function SeatMenu({
   // layout into a custom one (persisted in the opaque layout id).
   const current = resolveLayout(game.players.length, game.layout);
   const currentRot = current.seats[player.seat]?.rot ?? 0;
+  // Radios group by shared `name` — one seat menu is open at a time, but scope
+  // per instance anyway so a second never silently joins this group.
+  const panelColorGroup = useId();
+  const facingGroup = useId();
   const setFacing = (rot: 0 | 90 | 180 | 270) => {
     const seats = current.seats.map((st, i) => (i === player.seat ? { ...st, rot } : st));
     dispatch({
@@ -1303,28 +1307,34 @@ function SeatMenu({
         {canEdit && (
           <div className="seat-menu-colors">
             <span className="seat-menu-label">Panel color</span>
-            <div className="seat-menu-swatches" role="radiogroup" aria-label="Panel color">
+            {/* Native radios: exclusivity + arrow-key nav + one group tab stop.
+                "Seat default" is one of the mutually exclusive values (the null
+                key), so it belongs in the group rather than beside it. */}
+            <fieldset className="seat-menu-swatches" aria-label="Panel color">
               {(['W', 'U', 'B', 'R', 'G', 'M', 'C'] as const).map((k) => (
-                <button
+                <label
                   key={k}
-                  type="button"
-                  role="radio"
-                  aria-checked={player.panelColorKey === k}
-                  aria-label={SWATCH_LABEL[k]}
                   className={`seat-menu-swatch pp-color-${k.toLowerCase()} ${
                     player.panelColorKey === k ? 'is-selected' : ''
                   }`}
-                  onClick={() => {
-                    dispatch({
-                      type: 'update-player',
-                      seat: player.seat,
-                      patch: { panelColorKey: k },
-                    });
-                  }}
-                />
+                >
+                  <input
+                    type="radio"
+                    name={panelColorGroup}
+                    value={k}
+                    checked={player.panelColorKey === k}
+                    aria-label={SWATCH_LABEL[k]}
+                    onChange={() => {
+                      dispatch({
+                        type: 'update-player',
+                        seat: player.seat,
+                        patch: { panelColorKey: k },
+                      });
+                    }}
+                  />
+                </label>
               ))}
-              <button
-                type="button"
+              <label
                 className={`seat-menu-swatch is-auto ${
                   player.panelColorKey === null ? 'is-selected' : ''
                 }`}
@@ -1332,17 +1342,24 @@ function SeatMenu({
                   ['--pp-base' as never]: paletteForSeat(game.id, player.seat).base,
                   ['--pp-edge' as never]: paletteForSeat(game.id, player.seat).edge,
                 }}
-                aria-label="Seat default (auto from commander color identity)"
                 title="Seat default"
-                onClick={() => {
-                  dispatch({
-                    type: 'update-player',
-                    seat: player.seat,
-                    patch: { panelColorKey: null },
-                  });
-                }}
-              />
-            </div>
+              >
+                <input
+                  type="radio"
+                  name={panelColorGroup}
+                  value="auto"
+                  checked={player.panelColorKey === null}
+                  aria-label="Seat default (auto from commander color identity)"
+                  onChange={() => {
+                    dispatch({
+                      type: 'update-player',
+                      seat: player.seat,
+                      patch: { panelColorKey: null },
+                    });
+                  }}
+                />
+              </label>
+            </fieldset>
             <span className="seat-menu-color-hint">
               Seat default uses your deck&apos;s color identity, or your seat color if none.
             </span>
@@ -1351,22 +1368,25 @@ function SeatMenu({
         {canLayout && game.mode === 'local' && (
           <div className="seat-menu-facing">
             <span className="seat-menu-label">Panel facing</span>
-            <div className="seat-menu-facing-row" role="radiogroup" aria-label="Panel facing">
+            <fieldset className="seat-menu-facing-row" aria-label="Panel facing">
               {FACING_OPTIONS.map((opt) => (
-                <button
+                <label
                   key={opt.rot}
-                  type="button"
-                  role="radio"
-                  aria-checked={currentRot === opt.rot}
-                  aria-label={opt.label}
                   title={opt.label}
                   className={`seat-menu-facing-btn ${currentRot === opt.rot ? 'is-selected' : ''}`}
-                  onClick={() => setFacing(opt.rot)}
                 >
+                  <input
+                    type="radio"
+                    name={facingGroup}
+                    value={opt.rot}
+                    checked={currentRot === opt.rot}
+                    aria-label={opt.label}
+                    onChange={() => setFacing(opt.rot)}
+                  />
                   <FacingArrow rot={opt.rot} />
-                </button>
+                </label>
               ))}
-            </div>
+            </fieldset>
             <span className="seat-menu-color-hint">
               Rotate this seat so the player reads it upright from their chair.
             </span>

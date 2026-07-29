@@ -21,10 +21,15 @@
   font-weight: 600;
 }
 
+/* A <fieldset>: strip its default chrome, same as .settings-currency-toggle. */
 .donor-outcome-options {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
 }
 
 .donor-outcome-option {

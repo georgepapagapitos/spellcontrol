@@ -107,6 +107,9 @@ export function CardGroupSheet({
     return () => document.removeEventListener('keydown', onKey);
   }, [beginClose]);
 
+  // Radios group by shared `name` — scope it per mounted sheet.
+  const layoutGroup = useId();
+
   const chooseLayout = (next: GroupLayout) => {
     setLayout(next);
     try {
@@ -157,28 +160,30 @@ export function CardGroupSheet({
             </span>
           </div>
           <div className="card-group-head-actions">
-            <div className="card-group-layout-toggle" role="radiogroup" aria-label="Card layout">
-              <button
-                type="button"
-                className="card-group-layout-btn"
-                role="radio"
-                aria-checked={layout === 'grid'}
-                aria-label="Grid view"
-                onClick={() => chooseLayout('grid')}
-              >
-                <LayoutGrid size={16} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="card-group-layout-btn"
-                role="radio"
-                aria-checked={layout === 'list'}
-                aria-label="List view"
-                onClick={() => chooseLayout('list')}
-              >
-                <Rows3 size={16} aria-hidden="true" />
-              </button>
-            </div>
+            {/* Native radios: exclusivity + arrow-key nav + one group tab
+                stop, none of which the `role="radio"` buttons here provided. */}
+            <fieldset className="card-group-layout-toggle" aria-label="Card layout">
+              {(
+                [
+                  { value: 'grid', label: 'Grid view', Icon: LayoutGrid },
+                  { value: 'list', label: 'List view', Icon: Rows3 },
+                ] as const
+              ).map(({ value, label, Icon }) => (
+                <label key={value} className="card-group-layout-btn">
+                  <input
+                    type="radio"
+                    name={layoutGroup}
+                    value={value}
+                    checked={layout === value}
+                    onChange={() => chooseLayout(value)}
+                    aria-label={label}
+                  />
+                  <span>
+                    <Icon size={16} aria-hidden="true" />
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <button
               type="button"
               className="card-group-close"
