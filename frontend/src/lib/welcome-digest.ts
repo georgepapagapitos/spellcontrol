@@ -108,6 +108,25 @@ export function markDigestDismissedThisSession(): void {
 }
 
 /**
+ * Drop every trace of the previous account's digest. Both keys are
+ * account-agnostic (no user id, no deck id), so on a shared device they
+ * otherwise survive a sign-out and get read by whoever signs in next: the
+ * value delta would be computed against the PREVIOUS user's collection total,
+ * and the strip teaser renders the previous user's card name. Called from
+ * `resetInMemoryStores` (lib/sync.ts), the one place logout and cross-user
+ * sign-in both funnel through.
+ */
+export function clearWelcomeDigest(): void {
+  try {
+    localStorage.removeItem(MOVE_LOG_KEY);
+    localStorage.removeItem(BASELINE_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* storage unavailable — nothing to clear */
+  }
+}
+
+/**
  * Build the digest against the stored baseline, or null when there is nothing
  * to say — no baseline yet (first run; callers stamp one and stay silent), no
  * binder moves since it, and a value delta that rounds below a dollar.

@@ -616,6 +616,10 @@ export const useDecksStore = create<DecksState>()(
           roleTargets: input.roleTargets,
           categoryTargets: input.categoryTargets,
           gapAnalysis: input.gapAnalysis,
+          // Was declared on the input and then never assigned — no caller
+          // passes it today, so nothing was losing data, but the next
+          // generation path to hand it in at create time would have.
+          hiddenGems: input.hiddenGems,
           cardInclusionMap: input.cardInclusionMap,
           buildReport: input.buildReport,
           deckGrade: input.deckGrade,

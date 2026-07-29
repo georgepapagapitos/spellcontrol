@@ -2000,9 +2000,18 @@ export function DeckDisplay({
   // ── Card preview wiring ──────────────────────────────────────────────
   // Re-resolve rarity for cards whose stored snapshot defaulted to 'common'
   // (decks generated against the pre-#329 offline oracle). See the hook doc.
+  // All three zones, not just the mainboard: `flat` below applies these
+  // corrections to cards/sideboard/considering alike, so feeding only
+  // `visibleGroups` left a card that lives ONLY in the sideboard or in
+  // Considering stuck on its stale 'common' snapshot forever. The hook dedupes
+  // by oracle id internally, so the tag-grouped view's repeated rows cost
+  // nothing here.
   const previewCards = useMemo<ScryfallCard[]>(
-    () => visibleGroups.flatMap((g) => g.rows.map((r) => r.card)),
-    [visibleGroups]
+    () =>
+      [...visibleGroups, ...visibleSideboardGroups, ...visibleConsideringGroups].flatMap((g) =>
+        g.rows.map((r) => r.card)
+      ),
+    [visibleGroups, visibleSideboardGroups, visibleConsideringGroups]
   );
   const rarityCorrections = useRarityCorrections(previewCards);
   const flat = useMemo(() => {

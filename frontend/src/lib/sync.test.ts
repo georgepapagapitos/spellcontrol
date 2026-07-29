@@ -139,6 +139,31 @@ describe('lifecycle', () => {
     expect(getSyncState()).toBe('idle');
   });
 
+  // Both digest keys are account-agnostic (no user id in the key), so leaving
+  // them behind showed the NEXT account on a shared device a "since your last
+  // visit" delta measured against the PREVIOUS user's collection value, with
+  // that user's card name rendered in the strip teaser.
+  it('clears the value-digest baseline and binder-move log on a cross-user sign-in', async () => {
+    localStorage.setItem(
+      'spellcontrol:value-digest-seen',
+      JSON.stringify({ at: 1, day: '2026-07-28', value: 5000 })
+    );
+    localStorage.setItem(
+      'spellcontrol:binder-move-log',
+      JSON.stringify([
+        { cardName: 'Ragavan, Nimble Pilferer', fromBinder: 'A', toBinder: 'B', at: 2 },
+      ])
+    );
+
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 0, hasMore: false });
+    await startSync('user-1');
+    mockPull.mockResolvedValueOnce({ rows: [], cursor: 0, hasMore: false });
+    await startSync('user-2');
+
+    expect(localStorage.getItem('spellcontrol:value-digest-seen')).toBeNull();
+    expect(localStorage.getItem('spellcontrol:binder-move-log')).toBeNull();
+  });
+
   it('hydrateLocal loads IDB rows without starting sync', async () => {
     await estore.putMany('binder', [
       { id: 'b-pre', data: { id: 'b-pre' }, rev: 5, deletedAt: null },
