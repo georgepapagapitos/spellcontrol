@@ -9,6 +9,17 @@ import { useConfirm } from '../lib/use-confirm';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
 
+/**
+ * Deliberately diverges from the shared `Tabs` component (board E164): plain
+ * `<button className="tab">` elements, no `role="tablist"`/`role="tab"`/
+ * `aria-selected`, and no roving-tabindex arrow/Home/End keyboard nav. Each
+ * tab needs a per-tab reorder/edit/delete `BinderOverflowMenu` (rendered only
+ * for the active tab), which `Tabs`'s flat `TabItem[]` shape has no slot for.
+ * Accessibility cost, named honestly: binder tabs currently get no keyboard
+ * arrow navigation and no tab semantics for assistive tech. Fixing this needs
+ * `Tabs` to grow an optional per-tab trailing-affordance slot — not a quick
+ * swap — so this is tracked, not silently accepted.
+ */
 interface Props {
   binders: MaterializedBinder[];
 }
