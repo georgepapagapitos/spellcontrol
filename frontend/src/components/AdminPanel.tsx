@@ -281,7 +281,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               This permanently removes the account and all of <strong>{pending.username}</strong>
               ’s synced collection, binders, decks, and game history. This can’t be undone.
             </p>
-            <div className="choice-dialog-options admin-modal-actions">
+            <div className="choice-dialog-actions admin-modal-actions">
               <button
                 type="button"
                 className="pill-btn"
@@ -315,7 +315,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               This clears <strong>{pendingClear.username}</strong>’s display name, bio, and avatar.
               They can set a new profile any time — this only removes what’s there now.
             </p>
-            <div className="choice-dialog-options admin-modal-actions">
+            <div className="choice-dialog-actions admin-modal-actions">
               <button
                 type="button"
                 className="pill-btn"
@@ -418,7 +418,7 @@ export function AdminPanel({ currentUserId }: { currentUserId: string }) {
               ? 'This hides the profile page and unpublishes every deck this account has published.'
               : 'This unpublishes the deck immediately — its public link stops working for everyone, including the owner.'}
           </p>
-          <div className="choice-dialog-options admin-modal-actions">
+          <div className="choice-dialog-actions admin-modal-actions">
             <button
               type="button"
               className="pill-btn"

@@ -464,6 +464,9 @@
 .card-picker-list {
   flex: 1;
   overflow-y: auto;
+  /* See `.modal-body` (modals-dialogs.css): without this the sheet's list
+     hands its leftover scroll delta to `.app-main` behind the sheet. */
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   list-style: none;
   padding: 0;
@@ -655,6 +658,8 @@
 .add-card-sheet-body {
   flex: 1;
   overflow-y: auto;
+  /* See `.modal-body` (modals-dialogs.css). */
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding: var(--space-2) var(--space-3);
 }
