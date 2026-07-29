@@ -76,12 +76,21 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   const [showQr, setShowQr] = useState(false);
 
   // The ladder's own selection — independent of `audience` (see the mint
-  // effect below). `undefined` (deck kind only) means "haven't checked
-  // publish status yet"; distinct from `null` ("checked, not published") so
-  // the mint effect can hold off minting a link share until it knows whether
-  // to show Public instead (see Folded blocking fix — no wasted mint call
-  // reopening on an already-published deck).
-  const [ladder, setLadder] = useState<LadderValue>('link');
+  // effect below). Starts at 'private' and is corrected to the resource's
+  // REAL current rung by the init effect below; the dialog no longer opens
+  // pre-selected on 'link', because that silently minted a permanent
+  // /s/:token share for every resource whose Share dialog was ever opened —
+  // links the owner never asked for, which then piled up in Settings →
+  // Share links and outlived any later switch to Public.
+  const [ladder, setLadder] = useState<LadderValue>('private');
+  // Whether the user has actively picked a rung this session. The mint effect
+  // below is gated on it, so opening the dialog only ever *reads* state —
+  // minting is now strictly a consequence of choosing "Anyone with link" or
+  // "My friends".
+  const [rungChosen, setRungChosen] = useState(false);
+  // `undefined` (deck kind only) means "haven't checked publish status yet";
+  // distinct from `null` ("checked, not published"), which is what the
+  // Public rung's confirm-vs-review branch keys off.
   const [publication, setPublication] = useState<Publication | null | undefined>(
     kind === 'deck' ? undefined : null
   );
@@ -98,7 +107,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   // fires once, on mount; showing/hiding content inside it re-targets nothing).
   const [announcement, setAnnouncement] = useState('');
 
-  const previousLadderRef = useRef<LadderValue>('link');
+  const previousLadderRef = useRef<LadderValue>('private');
   const confirmBlockRef = useRef<HTMLDivElement>(null);
   const displayNameId = useId();
   // Radios group by shared `name` — scope it per mounted dialog.
@@ -116,19 +125,17 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
   // Mint (or reuse) the token for the selected audience (+ recipient, for
   // direct). Each audience/recipient has its own idempotent token, so a
   // 'link', a 'friends', and a direct-to-Alice share of one resource
-  // coexist. Default 'link' on open keeps the one-tap copy-link flow
-  // unchanged. State resets on switch happen in the click handlers, keeping
+  // coexist. State resets on switch happen in the click handlers, keeping
   // the effect setState-free.
   //
-  // Only fires for the classic link/friends rungs: 'private' and 'public'
-  // have nothing to mint (private means nothing lives; public mints nothing
-  // — it's a deck_publications row, not a share). This also holds off
-  // minting while a deck's publish status is still unknown, so an
-  // already-public deck never gets a wasted 'link' share minted underneath
-  // it just because the dialog happened to open.
+  // Gated on `rungChosen`: minting is a consequence of the user picking a
+  // rung, never of the dialog opening. Only fires for the classic
+  // link/friends rungs — 'private' and 'public' have nothing to mint
+  // (private means nothing lives; public is a deck_publications row, not a
+  // share).
   useEffect(() => {
+    if (!rungChosen) return;
     if (ladder !== 'link' && ladder !== 'friends') return;
-    if (kind === 'deck' && publication === undefined) return;
     if (isGuest || awaitingRecipient) return;
     let cancelled = false;
     createShare({ kind, resourceId, audience, addresseeId: addresseeId || undefined })
@@ -144,23 +151,44 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     return () => {
       cancelled = true;
     };
-  }, [kind, resourceId, isGuest, audience, addresseeId, awaitingRecipient, ladder, publication]);
+  }, [kind, resourceId, isGuest, audience, addresseeId, awaitingRecipient, ladder, rungChosen]);
 
-  // Deck-only: check whether this deck is already publicly listed, in
-  // parallel with the mint effect above. Resolves `publication` out of
-  // `undefined` either way (even on failure) so the mint effect above is
-  // never permanently blocked by a failed check.
+  // Open on the resource's REAL current visibility, reading both systems at
+  // once: `deck_publications` (deck kind only) and the existing `shares`
+  // rows. Precedence mirrors resolveDeckVisibility() in use-deck-visibility.ts
+  // exactly — a live publication outranks any share, 'friends' outranks
+  // 'link', and 'direct' shares are never a rung (they're recipient-targeted).
+  // An existing link/friends row is also adopted as `share`, so Copy works
+  // immediately without minting anything new.
   useEffect(() => {
-    if (isGuest || kind !== 'deck' || !resourceId) return;
+    if (isGuest) return;
     let cancelled = false;
-    getPublication(resourceId)
-      .then((pub) => {
+    Promise.all([
+      kind === 'deck' && resourceId ? getPublication(resourceId).catch(() => null) : null,
+      listShares().catch((): ShareRow[] => []),
+    ])
+      .then(([pub, all]) => {
         if (cancelled) return;
         setPublication(pub);
-        if (pub && !pub.unpublishedAt) setLadder('public');
+        const mine = all.filter((s) => s.kind === kind && s.resourceId === (resourceId ?? ''));
+        if (pub && !pub.unpublishedAt) {
+          setLadder('public');
+          return;
+        }
+        const friendsShare = mine.find((s) => s.audience === 'friends');
+        const linkShare = mine.find((s) => s.audience === 'link');
+        if (friendsShare) {
+          setLadder('friends');
+          setAudience('friends');
+          setShare(friendsShare);
+        } else if (linkShare) {
+          setLadder('link');
+          setAudience('link');
+          setShare(linkShare);
+        }
       })
-      .catch(() => {
-        if (!cancelled) setPublication(null);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -205,6 +233,7 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     setAddresseeId('');
     // 'direct' shows the recipient picker first (no token yet); others mint now.
     setLoading(next !== 'direct');
+    setRungChosen(true);
     setAudience(next);
   };
 
@@ -247,10 +276,39 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     }
   };
 
+  /**
+   * Retire the lesser rungs once a deck goes public. The ladder reads as
+   * mutually exclusive, so it has to *be* exclusive: without this, a 'link'
+   * or 'friends' share minted earlier stays live underneath the publication —
+   * an unlisted /s/:token the owner believes they've replaced, still granting
+   * access and still sitting in Settings → Share links. Mirrors
+   * handleGoPrivate's revoke sweep, minus 'direct' (recipient-targeted, not a
+   * visibility level — same carve-out resolveDeckVisibility makes).
+   *
+   * Best-effort: a publish that succeeded must not be reported as failed
+   * because the cleanup didn't, so this never throws into doPublish.
+   */
+  const revokeLesserRungs = async (): Promise<void> => {
+    try {
+      const all = await listShares();
+      const lesser = all.filter(
+        (s) =>
+          s.kind === kind &&
+          s.resourceId === (resourceId ?? '') &&
+          (s.audience === 'link' || s.audience === 'friends')
+      );
+      await Promise.all(lesser.map((s) => revokeShare(s.token)));
+      setShare(null);
+    } catch {
+      /* publication is live either way — the stale link is cleanable from Settings */
+    }
+  };
+
   const doPublish = async (): Promise<void> => {
     if (!resourceId) return;
     try {
       const pub = await publishDeck(resourceId);
+      await revokeLesserRungs();
       setPublication(pub);
       setPendingPublicConfirm(false);
       setNeedsDisplayName(false);
@@ -317,13 +375,12 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
     try {
       await unpublishDeck(resourceId);
       setPublication(null);
-      // Fall back to the baseline visibility rung, re-triggering the mint
-      // effect above (its `ladder` dependency just changed) so a 'link'
-      // share is ready the moment the ladder shows it.
-      setAudience('link');
+      // Land on Private, not 'link'. Publishing revoked the lesser rungs
+      // (revokeLesserRungs), so after unpublishing the deck genuinely isn't
+      // shared by any means — auto-minting a fresh link share here would put
+      // back exactly the unasked-for /s/:token this ladder now avoids.
       setShare(null);
-      setLoading(true);
-      setLadder('link');
+      setLadder('private');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to unpublish deck.');
     } finally {
@@ -353,7 +410,20 @@ export function ShareDialog({ kind, resourceId, resourceLabel, colorIdentity, on
       setLadder('public');
       return;
     }
+    if (next === ladder) return;
+    // Choosing link/friends is the ONLY thing that mints — flag it before the
+    // ladder moves so the mint effect fires. Note `selectAudience` early-
+    // returns when the audience already matches (the dialog's default
+    // `audience` is 'link' even when the ladder opened on Private), so the
+    // reset it would have done is inlined here for that case.
+    setRungChosen(true);
     setLadder(next);
+    if (next === audience) {
+      setShare(null);
+      setError(null);
+      setLoading(true);
+      return;
+    }
     selectAudience(next);
   };
 

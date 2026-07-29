@@ -4,6 +4,7 @@ import {
   Download,
   GitCompareArrows,
   Globe,
+  GlobeLock,
   LayoutGrid,
   List as ListIconLucide,
   Package,
@@ -59,7 +60,13 @@ import {
   countFlaggedCards,
 } from '../lib/deck-validation';
 import { ShareDialog } from '../components/ShareDialog';
-import { listMyPublications } from '../lib/publications-client';
+import {
+  DisplayNameRequiredError,
+  listMyPublications,
+  publishDeck,
+  unpublishDeck,
+} from '../lib/publications-client';
+import { toast } from '../store/toasts';
 import { useAuth } from '../store/auth';
 
 const COLOR_ORDER = ['W', 'U', 'B', 'R', 'G'] as const;
@@ -327,6 +334,76 @@ export function DecksIndexPage() {
   }, [authStatus]);
   const publicDeckIds = authStatus === 'authed' ? fetchedPublicIds : EMPTY_PUBLIC_IDS;
 
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+
+  /**
+   * Publish/unpublish decks from the row ⋮ menu and the multi-select bar.
+   * Before this, changing a deck's visibility meant opening Share on one deck
+   * at a time — there was no way to do it in bulk at all.
+   *
+   * Sequential, not a Promise.all fan-out: the publications endpoints are
+   * rate-limited (30/min) and a bulk selection can be larger than that, so a
+   * parallel burst would 429 itself halfway through. Decks already at the
+   * target visibility are skipped, so re-running is free.
+   */
+  const applyVisibility = async (deckIds: string[], makePublic: boolean) => {
+    const targets = deckIds.filter((id) => publicDeckIds.has(id) !== makePublic);
+    if (targets.length === 0) {
+      toast.show({
+        message: makePublic ? 'Already public.' : 'Already private.',
+        tone: 'info',
+      });
+      return;
+    }
+    setVisibilityBusy(true);
+    const done: string[] = [];
+    try {
+      for (const id of targets) {
+        if (makePublic) await publishDeck(id);
+        else await unpublishDeck(id);
+        done.push(id);
+      }
+    } catch (err) {
+      if (err instanceof DisplayNameRequiredError) {
+        // ShareDialog owns the inline "set a display name" substep — hand off
+        // to it on the deck that tripped the requirement rather than
+        // dead-ending the user in a toast that names a setting they'd have to
+        // go find. Anything already published stays published.
+        const blocked = decks.find((d) => d.id === targets[done.length]);
+        if (blocked) setShareDeck(blocked);
+        toast.show({ message: 'Set a display name to publish.', tone: 'warn' });
+      } else {
+        toast.show({
+          message: err instanceof Error ? err.message : "Couldn't change deck visibility.",
+          tone: 'error',
+        });
+      }
+    } finally {
+      setVisibilityBusy(false);
+    }
+    if (done.length === 0) return;
+    // Patch the badge set locally — the page-mount fetch won't re-run, and the
+    // Globe badge going stale is exactly the "did that even work?" doubt this
+    // whole change exists to remove.
+    setFetchedPublicIds((prev) => {
+      const next = new Set(prev);
+      for (const id of done) {
+        if (makePublic) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+    toast.show({
+      message:
+        done.length === 1
+          ? makePublic
+            ? 'Deck published.'
+            : 'Deck is now private.'
+          : `${done.length} decks ${makePublic ? 'published' : 'made private'}.`,
+      tone: 'success',
+    });
+  };
+
   const handleRegenerate = (deck: Deck) => {
     if (!deck.commander) return;
     navigate('/decks/new', {
@@ -585,10 +662,32 @@ export function DecksIndexPage() {
                 onDone={sel.exit}
                 noun="deck"
               >
+                {authStatus === 'authed' && (
+                  <>
+                    <button
+                      type="button"
+                      className="pill-btn"
+                      disabled={sel.selected.size === 0 || visibilityBusy}
+                      onClick={() => void applyVisibility(Array.from(sel.selected), true)}
+                    >
+                      <Globe width={14} height={14} strokeWidth={1.8} aria-hidden />
+                      <span>{visibilityBusy ? 'Working…' : 'Make public'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="pill-btn"
+                      disabled={sel.selected.size === 0 || visibilityBusy}
+                      onClick={() => void applyVisibility(Array.from(sel.selected), false)}
+                    >
+                      <GlobeLock width={14} height={14} strokeWidth={1.8} aria-hidden />
+                      <span>{visibilityBusy ? 'Working…' : 'Make private'}</span>
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="pill-btn bulk-bar-danger"
-                  disabled={sel.selected.size === 0}
+                  disabled={sel.selected.size === 0 || visibilityBusy}
                   onClick={() => setConfirmBulkDelete(true)}
                 >
                   <Trash2 width={14} height={14} strokeWidth={1.8} aria-hidden />
@@ -760,6 +859,23 @@ export function DecksIndexPage() {
                             ]
                           : []),
                         { label: 'Share', icon: Share2, onClick: () => setShareDeck(deck) },
+                        // Authed only: publishing is account-scoped, so a
+                        // guest has nothing this could act on.
+                        ...(authStatus === 'authed'
+                          ? [
+                              publicDeckIds.has(deck.id)
+                                ? {
+                                    label: 'Make private',
+                                    icon: GlobeLock,
+                                    onClick: () => void applyVisibility([deck.id], false),
+                                  }
+                                : {
+                                    label: 'Make public',
+                                    icon: Globe,
+                                    onClick: () => void applyVisibility([deck.id], true),
+                                  },
+                            ]
+                          : []),
                         {
                           label: 'Export deck',
                           icon: Download,

@@ -62,6 +62,23 @@ interface Options {
   /** Deck this build regenerated from — on completion, lands on the compare
    * diff (source vs new) instead of the new deck's editor. */
   sourceDeckId?: string;
+  /**
+   * Creation-time hand-off, fired once the generated deck exists and its
+   * destination is known, but before this hook navigates. Exists so a page's
+   * Private/Public fieldset actually applies to a *generated* deck: publishing
+   * can only happen after `saveGeneratedDeck`, and the publish flow owns its
+   * own navigation (the display-name substep can defer it indefinitely), so
+   * it's handed the destination rather than racing this hook to it.
+   *
+   * Return `true` to mean "I've taken over navigation" — this hook then leaves
+   * routing alone. Anything falsy (including no handler at all) keeps the
+   * normal navigate below, so the non-publishing path is untouched.
+   */
+  onCreated?: (
+    deckId: string,
+    destination: string,
+    navState?: Record<string, unknown>
+  ) => boolean | Promise<boolean>;
 }
 
 /**
@@ -93,6 +110,7 @@ export function useDeckGeneration({
   haptic = false,
   beforeNavigate,
   sourceDeckId,
+  onCreated,
 }: Options = {}) {
   const navigate = useNavigate();
 
@@ -296,13 +314,17 @@ export function useDeckGeneration({
       const existingDeckIds = new Set(useDecksStore.getState().decks.map((d) => d.id));
       const destination = resolveGenerationDestination(id, sourceDeckId, existingDeckIds);
       const landedOnCompare = sourceDeckId != null && existingDeckIds.has(sourceDeckId);
+      // justGenerated → the editor auto-shows the build report once; a compare
+      // landing has no report to show. Computed here so the hand-off below and
+      // the navigate below it can't drift apart.
+      const navState = landedOnCompare ? undefined : { justGenerated: true };
+      if (await onCreated?.(id, destination, navState)) return;
       if (landedOnCompare) {
         toast.show({ message: 'Comparing your previous build with the new one.', tone: 'info' });
         navigate(destination);
       } else {
-        // justGenerated → the editor auto-shows the build report once (incl.
-        // the "committed to other decks" conflict note).
-        navigate(destination, { state: { justGenerated: true } });
+        // (incl. the "committed to other decks" conflict note.)
+        navigate(destination, { state: navState });
       }
     } catch (e) {
       logger.error('[DeckBuilder] generation failed:', e);
@@ -328,6 +350,7 @@ export function useDeckGeneration({
     haptic,
     beforeNavigate,
     sourceDeckId,
+    onCreated,
   ]);
 
   return {
