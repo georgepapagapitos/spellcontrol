@@ -9,6 +9,7 @@ import {
   useCardTagsReady,
 } from '../lib/card-tags';
 import { describeOtag } from '../lib/otag-descriptions';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { useEscapeKey } from '../lib/use-escape-key';
 import { useLockBodyScroll } from '../lib/use-lock-body-scroll';
 import { useSheetExit } from '../lib/use-sheet-exit';
@@ -101,6 +102,13 @@ export function CardOtagsSheet({ card, onClose }: Props) {
                     href={`https://scryfall.com/search?q=${encodeURIComponent(`otag:${tag}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (!isNativePlatform()) return;
+                      e.preventDefault();
+                      openExternal(
+                        `https://scryfall.com/search?q=${encodeURIComponent(`otag:${tag}`)}`
+                      );
+                    }}
                   >
                     Search on Scryfall
                     <ExternalLink width={11} height={11} strokeWidth={2} aria-hidden />
@@ -118,7 +126,16 @@ export function CardOtagsSheet({ card, onClose }: Props) {
           {taggerUrl && (
             <>
               {' '}
-              <a href={taggerUrl} target="_blank" rel="noopener noreferrer">
+              <a
+                href={taggerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (!isNativePlatform()) return;
+                  e.preventDefault();
+                  openExternal(taggerUrl);
+                }}
+              >
                 View this card on Tagger
               </a>
             </>

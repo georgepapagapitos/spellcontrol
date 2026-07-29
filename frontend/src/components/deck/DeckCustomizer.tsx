@@ -11,6 +11,7 @@ import type {
 import { autocompleteCardName } from '@/deck-builder/services/scryfall/client';
 import { constrainsToCollection } from '@/deck-builder/services/deckBuilder/deckFilters';
 import { currencySymbol } from '@/lib/currency';
+import { isNativePlatform, openExternal } from '@/lib/platform';
 import { buildAvailableCollection } from '../../lib/collection-availability';
 import { SearchPill } from '../SearchPill';
 import { useSearchCards } from '../../lib/use-search-cards';
@@ -331,6 +332,11 @@ function SaltGroup({ customization, update }: DeckCustomizerProps) {
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: 'inherit', textDecoration: 'underline' }}
+          onClick={(e) => {
+            if (!isNativePlatform()) return;
+            e.preventDefault();
+            openExternal('https://edhrec.com/top/salt');
+          }}
         >
           EDHREC&apos;s salt scores
         </a>{' '}
@@ -865,6 +871,11 @@ function TempoGroup({ customization, update }: DeckCustomizerProps) {
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: 'inherit', textDecoration: 'underline' }}
+          onClick={(e) => {
+            if (!isNativePlatform()) return;
+            e.preventDefault();
+            openExternal('https://edhrec.com');
+          }}
         >
           EDHREC
         </a>

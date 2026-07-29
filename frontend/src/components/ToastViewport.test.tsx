@@ -214,4 +214,32 @@ describe('ToastViewport', () => {
     expect(toastElements()).toHaveLength(1);
     expect(screen.getByLabelText('2 times').textContent).toBe('×2');
   });
+
+  // The dismiss callback used to be an inline arrow built by the parent's
+  // .map(), so it had a fresh identity on every ToastViewport render — and the
+  // auto-dismiss effect lists it in its deps. Pushing ANY unrelated toast tore
+  // down and restarted the countdown of every toast already on screen, so a
+  // steady trickle of toasts could keep the first one pinned indefinitely.
+  it('an unrelated toast does not restart an existing toast’s countdown', () => {
+    vi.useFakeTimers();
+    try {
+      render(<ToastViewport />);
+      push({ message: 'first', durationMs: 1000 });
+
+      act(() => {
+        vi.advanceTimersByTime(700);
+      });
+      // A different toast arrives 700ms into the first one's life.
+      push({ message: 'second', durationMs: 1000 });
+
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      // The first toast's own 1000ms has elapsed, so it must be dismissed —
+      // regardless of the second one showing up mid-countdown.
+      expect(useToastsStore.getState().toasts.map((t) => t.message)).toEqual(['second']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

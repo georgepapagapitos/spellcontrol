@@ -15,6 +15,7 @@ import {
 import { downloadIcs, googleCalendarUrl, type CalendarEvent } from '../lib/calendar-links';
 import { gameFormatLabel } from '../lib/game-formats';
 import { mapsSearchUrl } from '../lib/place-search';
+import { isNativePlatform, openExternal } from '../lib/platform';
 import { useAuth } from '../store/auth';
 import { SharedShell } from '../components/shared/SharedShell';
 import { BrandMark } from '../components/shared/BrandMark';
@@ -291,6 +292,11 @@ function NightBody({
                 target="_blank"
                 rel="noopener noreferrer"
                 title={`Open "${night.location}" in Google Maps`}
+                onClick={(e) => {
+                  if (!isNativePlatform()) return;
+                  e.preventDefault();
+                  openExternal(mapsSearchUrl(night.location ?? ''));
+                }}
               >
                 {night.location}
               </a>
@@ -394,8 +400,7 @@ function NightBody({
               items={[
                 {
                   label: 'Google Calendar',
-                  onClick: () =>
-                    window.open(googleCalendarUrl(calendarEvent), '_blank', 'noopener'),
+                  onClick: () => openExternal(googleCalendarUrl(calendarEvent)),
                 },
                 {
                   label: 'Apple / Outlook (.ics)',

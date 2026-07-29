@@ -16,6 +16,9 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
   const [loading, setLoading] = useState(false);
   const [errored, setErrored] = useState(false);
   const [visibleCount, setVisibleCount] = useState(COLLAPSED_COUNT);
+  // Bumped by Retry to re-run the fetch effect. EDHREC is a third-party
+  // service and this is its only failure surface here.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +44,7 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
     return () => {
       cancelled = true;
     };
-  }, [commanderName]);
+  }, [commanderName, reloadKey]);
 
   if (loading) {
     return (
@@ -52,7 +55,29 @@ export function ThemePicker({ commanderName, selectedSlugs, onToggle }: ThemePic
     );
   }
 
-  if (errored || !themes || themes.length === 0) {
+  // A failed fetch used to render nothing at all, so the Themes section simply
+  // vanished — indistinguishable from "this commander has no themes", with no
+  // way to try again. An empty result still renders nothing, because that IS
+  // the honest empty state.
+  if (errored) {
+    return (
+      <section className="deck-builder-section">
+        <h2 className="deck-builder-section-title">Themes</h2>
+        <p className="deck-builder-themes-status">
+          Couldn’t load themes.{' '}
+          <button
+            type="button"
+            className="deck-builder-themes-retry"
+            onClick={() => setReloadKey((k) => k + 1)}
+          >
+            Retry
+          </button>
+        </p>
+      </section>
+    );
+  }
+
+  if (!themes || themes.length === 0) {
     return null;
   }
 
