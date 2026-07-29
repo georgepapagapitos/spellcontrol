@@ -1,10 +1,11 @@
 import { ArrowUpDown } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sortEntryLabel } from '../lib/sorting';
 import { SortEditor } from './SortEditor';
 import type { SortEntry, SortField } from '../types';
 import { computePopoverPlacement, getSafeViewport } from '@/lib/popover-placement';
+import { useMenuKeyboard } from '@/lib/use-menu-keyboard';
 
 type ValueOrders = Partial<Record<SortField, string[]>>;
 
@@ -56,30 +57,18 @@ export function SortPopover({ sorts, valueOrders, onSortsChange, onValueOrdersCh
     });
   }, [open]);
 
-  // Close on outside click or Escape while open.
-  // Keeps the SelectMenu portal-escape guard: clicks inside a .toolbar-popover-panel
-  // (a SelectMenu that portaled out) must not dismiss this popover.
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (panelRef.current?.contains(target as Node)) return;
-      if (buttonRef.current?.contains(target as Node)) return;
-      // SelectMenu renders its dropdown in a portal outside this wrapper —
-      // clicks on a sort-field option must not collapse the sort popover.
-      if (target.closest?.('.toolbar-popover-panel')) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  // Dismiss/focus/back semantics — including dismissing when the page scrolls
+  // out from under this fixed-position panel. `ignoreSelector` keeps the old
+  // SelectMenu portal-escape guard: a sort-field dropdown renders to <body>, so
+  // interacting with (or scrolling) it must not collapse the sort popover.
+  useMenuKeyboard({
+    open,
+    onClose: () => setOpen(false),
+    panelRef,
+    triggerRef: buttonRef,
+    dialog: true,
+    ignoreSelector: '.toolbar-popover-panel',
+  });
 
   const handleToggle = () => {
     if (!open && buttonRef.current) {
